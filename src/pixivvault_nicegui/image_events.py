@@ -16,8 +16,3 @@ def source_matches(actual: object, expected: str) -> bool:
     return (received.path, received.query, received.fragment) == (
         requested.path, requested.query, requested.fragment,
     )
-
-
-# error はURL文字列でなくDOM Eventなので、シリアライズ前に失敗したimgのURLを採取する。
-# 最新の画面propsを読み直すと、古い画像の失敗を次の作品へ誤適用し得る。
-ERROR_SOURCE_JS = "(event) => emit(event.target?.currentSrc || event.target?.src || '')"

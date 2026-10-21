@@ -8,6 +8,7 @@ def test_theme_palette_and_spacing():
     assert TOKENS["surface"] == "#15161c"
     assert TOKENS["raised"] == "#1e202d"
     assert TOKENS["accent"] == "#0096FA"
+    assert TOKENS["border"] == "#2a2b38"
     assert TOKENS["text"] == "#e8e8ef"
     assert TOKENS["muted"] == "#8a8a99"
     assert TOKENS["spacing"] == (4, 8, 16, 24)
@@ -23,3 +24,45 @@ def test_theme_css_has_responsive_gallery_and_demo_placeholder():
     assert "linear-gradient" not in CSS
     assert "translateY" not in CSS
     assert "border:1px solid #2a2b38" in CSS
+
+
+def test_original_grid_and_viewport_css_contract():
+    assert "--pv-max-cols, 6" in CSS
+    assert "170px" in CSS and "gap:12px" in CSS
+    assert ".pv-thumb {" in CSS and "aspect-ratio:1 / 1" in CSS
+    assert "object-fit:contain" in CSS
+    assert ".pv-gallery-scroll { flex:1 1 0; overflow-y:auto" in CSS
+    assert "max-height:calc(100dvh - 32px)" in CSS
+    assert ".pv-learning" in CSS
+    assert "font-family:\"Yu Mincho\"" in CSS
+
+
+def test_active_quasar_tab_keeps_contrasting_text_color():
+    assert ".pv-nav .q-btn.pv-tab { color:#e8e8ef !important; }" in CSS
+    assert (".pv-nav .q-btn.pv-tab.pv-tab-active "
+            "{ background:#0096FA !important; color:#e8e8ef !important; }") in CSS
+
+
+def test_viewport_is_bounded_with_one_gallery_scroll_region():
+    assert "html, body { width:100%; height:100%; overflow:hidden; }" in CSS
+    assert ".nicegui-content { height:100dvh; min-height:0; padding:0 !important; overflow:hidden; }" in CSS
+    assert ".pv-shell { height:100dvh; min-height:0;" in CSS
+    assert ".pv-content { width:100%; min-width:0; min-height:0; flex:1 1 0;" in CSS
+    assert ".pv-gallery { flex:1 1 0; min-height:0;" in CSS
+    assert ".pv-gallery-scroll { flex:1 1 0; overflow-y:auto; overflow-x:hidden; min-height:0; max-height:none;" in CSS
+    assert ".pv-toolbar {" in CSS and "flex-shrink:0;" in CSS
+    assert ".pv-learning { flex:1 1 0; min-height:0; min-width:0; width:100%; display:flex; flex-direction:column; overflow-y:auto;" in CSS
+    assert "max-height:calc(100dvh - 220px)" not in CSS
+    assert "min-height: 100vh" not in CSS
+
+
+def test_selected_size_and_judgment_colors_reuse_original_tokens():
+    assert ".pv-toolbar .q-btn.pv-size-selected" in CSS
+    assert "background:#0096FA !important; color:#e8e8ef !important;" in CSS
+    assert ".pv-toolbar .q-btn.pv-size-button" in CSS
+    assert ".pv-learning .q-btn.pv-judgment-like" in CSS
+    assert ".pv-learning .q-btn.pv-judgment-superLike" in CSS
+    assert "background:rgba(0,150,250,.25) !important;" in CSS
+    assert ".pv-learning .q-btn.pv-undo" in CSS
+    assert ".pv-learning > :not(.pv-view-art) { flex-shrink:0; }" in CSS
+    assert "min-height:160px; max-width:560px; max-height:45dvh;" in CSS

@@ -51,12 +51,23 @@ def register_pages() -> None:
     from nicegui import app, ui
 
     from pixivvault_nicegui.ui.shell import build_demo_page
+    from pixivvault_nicegui.media_routes import register_media_routes
+    from pixivvault_nicegui.services import get_services
 
+    services = get_services(app)
+    register_media_routes(app, services.images)
+    app.on_shutdown(services.close)
     ui.page("/")(build_demo_page)
 
     @app.get("/healthz", include_in_schema=False)
     def health() -> dict[str, str]:
         return {"status": "ok", "mode": "demo", "data": "synthetic"}
+
+    @app.get("/readyz", include_in_schema=False)
+    def ready() -> dict[str, bool]:
+        # HTTP listenだけでなく、UIが起動して接続したかをnative試験で区別する。
+        from nicegui import Client
+        return {"ui_connected": any(c.has_socket_connection for c in Client.instances.values())}
 
     _registered = True
 
@@ -90,7 +101,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         reload=False,
         title="PixivVault-NiceGUI / 移植デモ",
         # NiceGUIではwindow_sizeの指定だけでもnativeが有効になる。
-        window_size=(1280, 720) if config.native else None,
+        window_size=(1920, 1080) if config.native else None,
         binding_refresh_interval=None,
     )
     return 0
