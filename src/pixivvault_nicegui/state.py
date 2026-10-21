@@ -10,29 +10,24 @@ class GalleryState:
         if page_size <= 0:
             raise ValueError("page_size must be positive")
         self.artworks = tuple(artworks)
+        self._matching = self.artworks
         self._by_id = {item.work_id: item for item in self.artworks}
         if len(self._by_id) != len(self.artworks):
             raise ValueError("duplicate work_id")
         self.page_size = page_size
         self.query = ""
-        self.card_size = "small"
+        self.card_size = "large"
         self._limit = page_size
         self.selected_id: str | None = None
+        self.selected_page = 0
+        self.image_status = "empty"
         self.generation = 0
         self.closed = False
         self._pending_token: RequestToken | None = None
 
     @property
     def matching_items(self) -> tuple[Artwork, ...]:
-        needle = self.query.casefold()
-        if not needle:
-            return self.artworks
-        return tuple(
-            item for item in self.artworks
-            if needle in item.title.casefold()
-            or needle in item.author.casefold()
-            or needle in item.description.casefold()
-        )
+        return self._matching
 
     @property
     def visible_items(self) -> tuple[Artwork, ...]:
@@ -78,8 +73,15 @@ class GalleryState:
             raise TypeError("query must be str")
         if query != self.query:
             self.query = query
+            needle = query.casefold()
+            self._matching = tuple(item for item in self.artworks if not needle or any(
+                needle in value.casefold()
+                for value in (item.title, item.author, item.description, *item.tags)
+            ))
             self._limit = self.page_size
             self.selected_id = None
+            self.selected_page = 0
+            self.image_status = "empty"
             self._invalidate()
 
     def load_more(self) -> None:
@@ -96,6 +98,8 @@ class GalleryState:
         if self.closed or not any(item.work_id == work_id for item in self.matching_items):
             return False
         self.selected_id = work_id
+        self.selected_page = 0
+        self.image_status = "loading"
         self._invalidate()
         return True
 
@@ -108,18 +112,36 @@ class GalleryState:
         if target < 0 or target >= len(matches) or target == index:
             return False
         self.selected_id = matches[target].work_id
+        self.selected_page = 0
+        self.image_status = "loading"
         self._invalidate()
         return True
 
     def close_viewer(self) -> None:
         if self.selected_id is not None:
             self.selected_id = None
+            self.selected_page = 0
+            self.image_status = "empty"
             self._invalidate()
+
+    def move_page(self, delta: int) -> bool:
+        art = self.selected_artwork
+        if self.closed or art is None:
+            return False
+        target = self.selected_page + delta
+        if not 0 <= target < art.page_count or target == self.selected_page:
+            return False
+        self.selected_page = target
+        self.image_status = "loading"
+        self._invalidate()
+        return True
 
     def close(self) -> None:
         if not self.closed:
             self.closed = True
             self.selected_id = None
+            self.selected_page = 0
+            self.image_status = "empty"
             self._invalidate()
 
     def begin_request(self, work_id: str) -> RequestToken:
@@ -128,7 +150,8 @@ class GalleryState:
         if work_id != self.selected_id:
             raise ValueError("work_id is not the selected artwork")
         self._invalidate()
-        token = RequestToken(self.generation, work_id)
+        self.image_status = "loading"
+        token = RequestToken(self.generation, work_id, self.selected_page)
         self._pending_token = token
         return token
 
@@ -137,7 +160,14 @@ class GalleryState:
                 or not isinstance(token, RequestToken)
                 or token.generation != self.generation
                 or token.work_id != self.selected_id
+                or token.page_no != self.selected_page
                 or token is not self._pending_token):
             return False
         self._pending_token = None
+        return True
+
+    def finish_image(self, token: RequestToken, success: bool = True) -> bool:
+        if not self.accept_result(token):
+            return False
+        self.image_status = "ready" if success else "error"
         return True

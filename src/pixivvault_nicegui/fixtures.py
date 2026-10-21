@@ -14,6 +14,8 @@ def generate_demo_artworks(count: int = 50) -> tuple[Artwork, ...]:
             author=f"架空作家 {(index - 1) % 12 + 1:02d}",
             description=f"デモ表示用の創作イラスト {index:04d}。実在の投稿ではありません。",
             aspect_ratio=ratios[(index - 1) % len(ratios)],
+            page_count=3 if index % 3 == 0 else 1,
+            tags=("診断用", ("縦長" if ratios[(index - 1) % len(ratios)] < 1 else "横長")),
         )
         for index in range(1, count + 1)
     )

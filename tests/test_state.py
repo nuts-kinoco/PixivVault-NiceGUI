@@ -114,7 +114,7 @@ def test_independent_instances_and_invalid_inputs():
     left.set_query("0001")
     left.set_card_size("large")
     left.open_artwork("demo-0001")
-    assert (right.query, right.card_size, right.selected_id) == ("", "small", None)
+    assert (right.query, right.card_size, right.selected_id) == ("", "large", None)
     assert right.shown_count == 2
     with pytest.raises(ValueError):
         right.set_card_size("tiny")
