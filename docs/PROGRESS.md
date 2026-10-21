@@ -1,53 +1,64 @@
 # 移植進捗
 
-更新: 2026-10-22 01:41 JST。今回の作業単位: `bootstrap/phase0-shell`。
+更新: 2026-10-22 03:00 JST。今回の作業単位: `bootstrap/phase0-shell`。
 
 ## 状態
 
-段階0の基盤準備と段階1のデモ初稿を実装し、ローカルの自動試験を通過。段階0/1の製品受入は未完。
-作成済みrepoをcloneし、専用ブランチ・専用venvを準備した。
-元の非公開ソース・DB・画像・認証情報は転送していない。元アプリは変更していない。
+公開pushと新アプリの実画面操作は承認済み。初回 `500902a` と、画像配信・学習状態・読取アダプタの `160dbbe` を公開済み。
+この後続単位では、合成データによる一覧/ビューア/学習の実ブラウザ操作と、Windowsの最小配布物を検証した。
+元のPixivVaultの作業ツリー・DB・画像・Cookie・環境は変更していない。UIは依然として架空120作品のみで動く。
+
+**全面移植・外観一致・高速化の受入は未完。** ランキングと学習の代表経路は動くが、他6画面、実データ書込み、旧Fletとの同条件性能比較は未実施。
 
 ## 担当
 
-- worker-1 / medium: 純粋な画面状態、架空fixture、状態の単体試験。
-- worker-2 / medium: デモシェル、テーマ、テーマ試験、起動境界の独立読取レビュー。
-- prime: 契約、起動入口、環境、CI、統合確認、記録、Git。
+- worker: 画像/資源寿命、学習、読取互換、ブラウザ検証、Windows終了監視の限定実装と独立レビュー。1ファイルの編集を担当範囲に分ける。
+- prime: 接続・画像イベントの切分け、ブラウザ/WebViewの実操作、ビルド、統合確認、記録、Git。
+- 上限8workerの承認はあるが、この再検証では通常2件並列で分担した。利用枠の消費量は未計測。
 
 ## 検証
 
-環境: Windows / Python 3.13.11 / NiceGUI 3.18.0 / pytest 8.4.2。新repoの専用venvで実行。
+環境: Windows / Python 3.13.11 / NiceGUI 3.18.0 / pytest 8.4.2 / Playwright 1.64.0 / Edge・WebView2 155.0.4283.62。
+新repoの専用venvを使用。バージョン一覧は `requirements-lock.windows.txt`。全間接依存の固定一覧を保存したが、別PCでの再構築は未検証。
 
 | コマンド | 実測結果 |
 |---|---|
-| `python -m pytest -q --junitxml=artifacts/pytest.xml` | 27 passed、2.49秒、exit 0 |
+| `python -X utf8 -m pytest -q --junitxml=artifacts/final-pytest.xml` | 2026-10-22 02:55頃、122 passed、4.25秒、exit 0 |
 | `python -m pip check` | No broken requirements found、exit 0 |
-| `python -m compileall -q src tests` | exit 0 |
-| `python -m pixivvault_nicegui --check` | demo / synthetic / 127.0.0.1 / native false、exit 0 |
+| `python -m compileall -q src tests tools` | exit 0 |
+| `python tools/check_browser_suite.py --channel msedge --output artifacts/browser-suite-final` | 02:51–02:52 JST、一覧2サイズ・学習13項目×2・画像故障/遅着7項目・2ページ独立性を通過、予期しないconsole/page error 0 |
+| `python tools/run_browser_checks.py --channel msedge --output artifacts/browser-integrated-final` | 一覧/学習/画像競合の3scriptが全てexit 0、試験用サーバーのポート解放を確認 |
+| PyInstaller `--onedir --noconsole` の専用出力ビルド | exit 0。独自画像コンポーネントのJS同梱・元ソースとの一致を確認 |
+| 配布exe `--check --check-output <絶対JSONパス>` | demo / synthetic / native requested・available true、exit 0 |
+| `python tools/check_native_window.py --exe artifacts/restart-standalone/native-app/PixivVault-NiceGUI.exe --inspect-ui --output artifacts/restart-standalone/native-acceptance.json` | 02:55 JST、別フォルダーへコピーしたexeの表示・画像・ビューア・学習/Undo・最小化/復元・通常終了・子プロセス/ポート解放を通過、強制cleanupなし |
 | `git diff --check` | exit 0 |
 
-27件の内訳は状態/fixture/起動境界/テーマの24件と、サーバー側ページ構造2件・HTTPスモーク1件。
-HTTPスモークはブラウザを起動せず、専用子プロセスのloopbackサーバーへGETし、試験後はその子だけを停止した。
-50カード・単一dialog・既存8タブの構成、別クライアントの状態分離と削除時の解除を確認した。
-試験所要時間2.49秒はアプリの応答速度ではない。
+ブラウザの比較条件は1280×720と1920×1080。50サムネイル、50→100件で既存DOM保持、カード大中小、検索/clear、作品内のページ送り、詳細とEsc二段、一覧へ戻るscrollTop保持を確認した。
+学習は4判定、Undo、古い世代の拒否、通常ショートカット、repeat/IME/入力/ダイアログ/非activeでの抑止を確認した。
+故障注入した画像のHTTP503/404だけを期待エラーとして記録し、他のconsole/page errorは失敗にする。
+試験前後の製品ソースハッシュは一致している。生の報告・画像はignoredの `artifacts/` に保存し、gitには同梱しない。
+122件の実行時間やPlaywrightの待機時間は、アプリのp95性能値ではない。
 
-初回レビューで修正した箇所:
-- 同じ作品への連続要求A/Bで古いAが先着した際の誤採用。要求ごとに世代を更新し、発行済みtokenを一度だけ受理する。
-- multiprocessingの子読込時に起動入口が再実行される経路。`__main__`だけを入口にし、回帰試験を追加した。
-- NiceGUIの`window_size`指定がnativeを暗黙に有効化する経路。通常モードではNoneにし、窓を開かない設定を検証した。
-- タブ構成、検索200ms待機、前後端の無効表示、装飾を現行方針へ合わせた。
+native実測のWebViewクライアント領域は1907×1044、`devicePixelRatio=1.75`。これを100/125/150%の全条件合格へ読み替えない。
+本番ジョブ・トレイ・URI・別PCへのインストール・長時間運用は今回の最小配布試験に含まない。
 
-Windowsの目視・クリック・DPI・終了・性能比較は未実施。
-pywebviewは未導入。GitHub Actionsは定義のみで、リモート未pushのため未実行。
-ローカルの試験結果をGitHub CIの成功とは扱わない。
+実証して修正した箇所:
+- Undo時、キャッシュ画像の `currentSrc` が以前のfragmentを返し、画像readyが回復しない不具合。要求ごとの実DOMノードとdecode完了、HTTP資源の一致を照合し、捕捉した要求URLを通知する。サーバー側の世代照合は緩めていない。
+- Quasarの既定文字色と選択中タブ背景が共に青になる不具合。ナビゲーションの既定colorを外して既存トークンで制御し、computed styleとスクリーンショットで読める状態を確認した。
+- 並行closeによる資源の二重解放。closeを排他し、並行実行試験で一度だけ解放されることを確認した。
+- native終了監視で、プロセスの照会失敗を終了済みと誤認する経路。PID/作成時刻・列挙失敗・待機戻り値を確認し、不明を監視失敗として出す。故障注入試験と実exeの終了確認を行った。
+- 並行統合で重複したCIジョブキー。ブラウザジョブを1つに統合し、重複を検知する回帰試験を追加した。
 
-## 確認待ち
+GitHub ActionsではUbuntu/Windowsのpytestと、専用Chromiumによる実ブラウザ試験を別ジョブで実行する。
+**この記録時点では後続UIコミットのCIは未実行。** 最新コミットの結果はPR #1のChecksで確認する。古いコミットの成功で代用しない。
 
-1. 新repoが公開、元repoが非公開のため、新repo非公開化の承認を確認中。pushは保留。
-2. 実画面操作の権限は未承認。単体試験/HTTP検査とは区別する。
+## 製品受入の未完
+
+旧Fletと同じ画像・件数・画面条件での速度/メモリ比較、全画面の外観一致、実ライブラリ接続、実学習の保存、ダウンロード/停止/再開、トレイ/URI/全DPIは未完。
+読取アダプタは一時fixture DBでの互換確認まで。任意の本番DBを暗黙に開く入口は作っていない。
+後続の旧Flet隔離ベースライン案は `LEGACY_BASELINE_PREPARATION.md`。調査だけで、旧アプリを起動した性能値はない。
 
 ## 次の受入
 
-初回実装をローカルコミットとして保存する。対象はこのrepoの新規実装・試験・文書のみ。
-公開範囲の確認後にpushしてCIを確認し、実画面操作の許可後にV01〜V08を検証する。
-その後、同一実画像を使う比較fixtureと現行の測定条件を固定する。デモを作っただけで段階3の性能受入へ進まない。
+この代表経路の検証済み実装を小単位でコミットし、PRのWindows/Ubuntu/Chromium CIを確認する。
+次は同一fixtureによる旧Fletとの比較入口と、残り閲覧系の契約を確定する。比較測定と全体の視覚確認を通す前に、既定UIの置換や本番書込みへ進まない。
