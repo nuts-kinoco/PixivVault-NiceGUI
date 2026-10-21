@@ -1,0 +1,38 @@
+name: migration-bootstrap
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install isolated test dependencies
+        run: python -m pip install -e ".[test]"
+      - name: Check dependency consistency
+        run: python -m pip check
+      - name: Run actual pytest collection
+        run: python -m pytest -q --junitxml=artifacts/pytest.xml
+      - name: Check source syntax
+        run: python -m compileall -q src tests
+      - name: Report bootstrap metadata
+        run: python -m pixivvault_nicegui --check
