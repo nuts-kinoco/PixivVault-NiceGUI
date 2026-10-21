@@ -24,15 +24,123 @@ def assert_true(value, message):
         raise AssertionError(message)
 
 
-async def image_ready(page, work_id):
-    img = page.get_by_test_id("viewer-image").locator("img")
-    await expect(img).to_have_attribute("src", re.compile(rf"/media/{work_id}/0/view\.png"), timeout=15000)
+async def image_ready(page, work_id, page_no=0):
+    img = page.get_by_test_id("viewer-image").locator("img:visible")
+    await expect(img).to_have_attribute("src", re.compile(rf"/media/{work_id}/{page_no}/view\.png"), timeout=15000)
     await expect(page.get_by_test_id("viewer-image")).to_have_css("opacity", "1", timeout=15000)
     await expect(page.locator(".pv-viewer").get_by_text("画像読込中")).to_be_hidden(timeout=15000)
     info = await img.evaluate("(el) => ({src:el.currentSrc, complete:el.complete, width:el.naturalWidth})")
-    assert_true(info["complete"] and info["width"] > 0 and f"/media/{work_id}/0/view.png" in info["src"],
+    assert_true(info["complete"] and info["width"] > 0 and f"/media/{work_id}/{page_no}/view.png" in info["src"],
                 f"wrong displayed image: {info}")
     return info
+
+
+async def check_decoded_page_commit(page, result):
+    """Hold the real mounted img.decode, not just its HTTP fetch or a probe."""
+    viewer = page.get_by_test_id('gallery-viewer')
+    await image_ready(page, 'demo-0003', 0)
+    old = await page.get_by_test_id('viewer-image').locator('img:visible').element_handle()
+    await page.evaluate('''() => {
+        const original = HTMLImageElement.prototype.decode;
+        const gate = window.__pvDecodeTest = {original, entered:false, node:null};
+        HTMLImageElement.prototype.decode = function() {
+            const decoded = original.call(this);
+            const path = new URL(this.src, document.baseURI).pathname;
+            if (!this.isConnected || !this.closest('[data-testid="viewer-image"]') ||
+                path !== '/media/demo-0003/1/view.png' || gate.entered) return decoded;
+            gate.entered = true;
+            gate.node = this;
+            return decoded.then(() => new Promise((resolve, reject) => {
+                gate.release = resolve;
+                gate.fail = () => reject(new DOMException('injected mounted decode failure', 'EncodingError'));
+            }));
+        };
+    }''')
+    try:
+        await viewer.get_by_role('button', name='次のページ', exact=True).click()
+        await page.wait_for_function('() => Boolean(window.__pvDecodeTest.release)')
+        snapshot = await page.evaluate('''old => {
+            const visible = [...document.querySelectorAll('[data-testid="viewer-image"] img')]
+                .filter(img => getComputedStyle(img).visibility !== 'hidden' &&
+                    getComputedStyle(img).display !== 'none' && img.getBoundingClientRect().width > 0);
+            return {old_connected:old.isConnected, visible_count:visible.length,
+                    same_node:visible.length === 1 && visible[0] === old,
+                    paths:visible.map(img=>new URL(img.currentSrc || img.src, document.baseURI).pathname)};
+        }''', old)
+        result['mounted_decode_hold'] = snapshot
+        assert_true(snapshot['old_connected'] and snapshot['same_node'],
+                    f'previous decoded image replaced before mounted decode finished: {snapshot}')
+        result['checks'].append('page transition keeps the accepted DOM image until mounted decode finishes')
+        await page.evaluate('() => window.__pvDecodeTest.fail()')
+        await expect(viewer.get_by_text('画像を読み込めませんでした', exact=True)).to_be_visible()
+        assert_true(await old.evaluate('img => img.isConnected && img.complete && img.naturalWidth > 0'),
+                    'decode failure removed the previously accepted image')
+        await expect(page.get_by_test_id('viewer-image').locator('img:visible')).to_have_attribute(
+            'src', re.compile(r'/media/demo-0003/0/view\.png'))
+        result['checks'].append('mounted decode failure preserves the accepted page and exposes retry')
+    finally:
+        await page.evaluate('''() => {
+            const gate = window.__pvDecodeTest;
+            if (gate) { gate.release?.(); HTMLImageElement.prototype.decode = gate.original; }
+        }''')
+    await viewer.get_by_role('button', name='画像を再読込', exact=True).click()
+    await image_ready(page, 'demo-0003', 1)
+    result['checks'].append('retry commits the correctly decoded requested page')
+    await viewer.get_by_role('button', name='前のページ', exact=True).click()
+    await image_ready(page, 'demo-0003', 0)
+
+
+async def check_superseded_candidate(page, result):
+    """A accepted, B decode pending, C decode fails: A must remain the front."""
+    viewer = page.get_by_test_id('gallery-viewer')
+    old = await page.get_by_test_id('viewer-image').locator('img:visible').element_handle()
+    await page.evaluate('''() => {
+        const original = HTMLImageElement.prototype.decode;
+        const gate = window.__pvSupersededDecode = {original, entered:false, failC:true, settled:false};
+        HTMLImageElement.prototype.decode = function() {
+            const decoded = original.call(this);
+            if (!this.isConnected || !this.closest('[data-testid="viewer-image"]')) return decoded;
+            const path = new URL(this.src, document.baseURI).pathname;
+            if (path === '/media/demo-0003/1/view.png' && !gate.entered) {
+                gate.entered = true;
+                return decoded.then(() => new Promise(resolve => {gate.release = resolve;}))
+                    .finally(() => {gate.settled = true;});
+            }
+            if (path === '/media/demo-0003/2/view.png') {
+                gate.candidate = this;
+                if (gate.failC) {
+                    gate.failC = false;
+                    return decoded.then(() => {throw new DOMException('injected newer decode failure', 'EncodingError');});
+                }
+            }
+            return decoded;
+        };
+    }''')
+    try:
+        await viewer.get_by_role('button', name='次のページ', exact=True).click()
+        await page.wait_for_function('() => Boolean(window.__pvSupersededDecode.release)')
+        await viewer.get_by_role('button', name='次のページ', exact=True).click()
+        await expect(viewer.get_by_text('画像を読み込めませんでした', exact=True)).to_be_visible()
+        accepted = page.get_by_test_id('viewer-image').locator('img:visible')
+        await expect(accepted).to_have_attribute('src', re.compile(r'/media/demo-0003/0/view\.png'))
+        assert_true(await accepted.evaluate('(img, old) => img === old', old),
+                    'failed newer request restored an unverified candidate instead of the accepted image')
+        result['checks'].append('A accepted / B pending / C failed keeps exactly the accepted A node')
+        await page.evaluate('() => window.__pvSupersededDecode.release()')
+        await page.wait_for_function('() => window.__pvSupersededDecode.settled')
+        await page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
+        await expect(accepted).to_have_attribute('src', re.compile(r'/media/demo-0003/0/view\.png'))
+        result['checks'].append('superseded mounted decode completion cannot replace the accepted front')
+        await viewer.get_by_role('button', name='画像を再読込', exact=True).click()
+        await image_ready(page, 'demo-0003', 2)
+        assert_true(await accepted.evaluate('(img) => img === window.__pvSupersededDecode.candidate'),
+                    'promotion recreated the image instead of keeping the verified node')
+        result['checks'].append('successful promotion displays the exact previously decoded candidate node')
+    finally:
+        await page.evaluate('''() => {
+            const gate = window.__pvSupersededDecode;
+            if (gate) {gate.release?.(); HTMLImageElement.prototype.decode = gate.original;}
+        }''')
 
 
 async def run(page, result):
@@ -74,11 +182,17 @@ async def run(page, result):
     result["checks"].append("gallery retry recovers")
 
     # Revisit exactly the same resource; the URL fragment is allowed to change.
-    await viewer.get_by_role("button", name="次の作品").click()
+    await viewer.get_by_role("button", name="閉じる").click()
+    await expect(viewer).to_be_hidden()
+    await page.locator('.pv-card[data-work-id="demo-0004"]').click()
     await image_ready(page, "demo-0004")
-    await viewer.get_by_role("button", name="前の作品").click()
+    await viewer.get_by_role("button", name="閉じる").click()
+    await expect(viewer).to_be_hidden()
+    await page.locator('.pv-card[data-work-id="demo-0003"]').click()
     await image_ready(page, "demo-0003")
     result["checks"].append("same-work revisit over the same HTTP resource")
+    await check_decoded_page_commit(page, result)
+    await check_superseded_candidate(page, result)
 
     # Use unseen resources for fault injection: a decoded image may be retained
     # even when the HTTP cache is disabled. App URLs and caches stay unchanged.
@@ -90,7 +204,11 @@ async def run(page, result):
     state["release"] = asyncio.Event()
     await page.locator('.pv-card[data-work-id="demo-0006"]').click()
     await asyncio.wait_for(state["entered"].wait(), timeout=15)
-    await viewer.get_by_role("button", name="次の作品").click()
+    # 原版は初回画像到着までビューアを表示しない。待機中Escapeで要求を取り消す。
+    await expect(viewer).to_be_hidden()
+    await page.keyboard.press("Escape")
+    await expect(viewer).to_be_hidden()
+    await page.locator('.pv-card[data-work-id="demo-0007"]').click()
     await image_ready(page, "demo-0007")
     state["release"].set()
     await page.wait_for_timeout(500)  # event round-trip allowance, not latency benchmark
@@ -105,7 +223,8 @@ async def run(page, result):
     state["release"] = asyncio.Event()
     await page.locator('.pv-card[data-work-id="demo-0009"]').click()
     await asyncio.wait_for(state["entered"].wait(), timeout=15)
-    await viewer.get_by_role("button", name="閉じる").click()
+    await expect(viewer).to_be_hidden()
+    await page.keyboard.press("Escape")
     await expect(viewer).to_be_hidden()
     state["release"].set()
     await page.wait_for_timeout(500)

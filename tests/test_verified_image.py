@@ -15,6 +15,7 @@ def test_source_changes_bump_request_even_for_same_source():
     image.set_source('/media/demo/0/view.png#learning-11')
     assert image._props['request_id'] == initial + 2
     assert image._props['alt'] == 'Artwork'
+    assert image._props['retain_previous'] is False
     image.set_source('')
     assert image._props['src'] == ''
 
@@ -22,13 +23,28 @@ def test_source_changes_bump_request_even_for_same_source():
 def test_vue3_component_has_versioned_decode_and_unmount_cleanup():
     script = Path(__file__).resolve().parents[1] / 'src/pixivvault_nicegui/ui/verified_image.js'
     code = script.read_text(encoding='utf8')
-    assert 'probe.decode()' in code
     assert 'beforeUnmount()' in code
     assert "this.$emit('load', source)" in code
     assert "this.$emit('error', source)" in code
     assert 'requestAnimationFrame' in code
     assert 'request_id()' in code
-    assert ':key="version"' in code
+    assert ':key="frame.id"' in code
     assert 'await image.decode()' in code
-    assert 'image !== this.$refs.image' in code
+    assert 'image !== this.imageNodes.get(version)' in code
     assert 'actualResource.href !== expectedResource.href' in code
+
+
+def test_previous_image_retained_without_acknowledging_old_request():
+    image = VerifiedImage('/media/a/0/view.png#request-1', retain_previous=True)
+    assert image._props['retain_previous'] is True
+    image.set_source('/media/b/0/view.png#request-2')
+    assert image._props['src'].endswith('#request-2')
+    script = Path(__file__).resolve().parents[1] / 'src/pixivvault_nicegui/ui/verified_image.js'
+    code = script.read_text(encoding='utf8')
+    # The real browser suite injects mounted decode delay/failure and verifies
+    # both the retained front node and the identity of the promoted candidate.
+    assert 'frame.id === this.displayVersion' in code
+    assert 'this.displayVersion = version;' in code
+    assert code.index('await image.decode()') < code.index('this.displayVersion = version;')
+    assert 'if (version !== this.version || source !== this.src)' in code
+    assert "this.$emit('load', source)" in code

@@ -14,10 +14,11 @@ async def test_page_builds_fifty_cards_one_dialog_and_existing_navigation():
         with client:
             shell.build_demo_page()
         cards = [element for element in client.elements.values() if "pv-card" in element.classes]
-        dialogs = [element for element in client.elements.values() if isinstance(element, ui.dialog)]
+        dialogs = [element for element in client.elements.values() if element.props.get("role") == "dialog"]
         buttons = [element for element in client.elements.values() if isinstance(element, ui.button)]
         assert len(cards) == 50
         assert len(dialogs) == 1
+        assert dialogs[0].props["aria-hidden"] == "true"
         tabs = [element for element in buttons if "pv-tab" in element.classes]
         assert [element.text.split(" · ")[0] for element in tabs] == [
             "ダウンロード", "キュー", "失敗リスト", "重複整理",

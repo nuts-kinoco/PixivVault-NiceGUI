@@ -32,7 +32,7 @@ def test_original_grid_and_viewport_css_contract():
     assert ".pv-thumb {" in CSS and "aspect-ratio:1 / 1" in CSS
     assert "object-fit:contain" in CSS
     assert ".pv-gallery-scroll { flex:1 1 0; overflow-y:auto" in CSS
-    assert "max-height:calc(100dvh - 32px)" in CSS
+    assert ".pv-viewer { width:100%; height:100dvh;" in CSS
     assert ".pv-learning" in CSS
     assert "font-family:\"Yu Mincho\"" in CSS
 
@@ -66,3 +66,34 @@ def test_selected_size_and_judgment_colors_reuse_original_tokens():
     assert ".pv-learning .q-btn.pv-undo" in CSS
     assert ".pv-learning > :not(.pv-view-art) { flex-shrink:0; }" in CSS
     assert "min-height:160px; max-width:560px; max-height:45dvh;" in CSS
+
+
+def test_legacy_ranking_cards_are_square_with_compact_metadata():
+    assert ".pv-grid .pv-card { aspect-ratio:1 / 1;" in CSS
+    assert "height:auto; padding:6px; display:flex; flex-direction:column; gap:3px;" in CSS
+    assert ".pv-grid .pv-card-rank { flex:0 0 auto; font-size:11px; font-weight:700;" in CSS
+    assert ".pv-grid .pv-thumb { flex:1 1 0; min-height:0; height:0; aspect-ratio:auto;" in CSS
+    assert ".pv-grid .pv-card-title { font-size:11px;" in CSS
+    assert "-webkit-line-clamp:2;" in CSS
+    assert ".pv-grid .pv-card-author { font-size:10px;" in CSS
+
+
+def test_fullscreen_viewer_preserves_image_aspect_and_bottom_controls():
+    assert ".pv-viewer { width:100%; height:100dvh; max-width:100vw; max-height:100dvh;" in CSS
+    assert CSS.count(".pv-viewer {") == 1
+    assert "margin:0; padding:14px; background:#0b0b10;" in CSS
+    assert "flex-direction:column; gap:8px;" in CSS
+    assert ".pv-viewer-header { flex:0 0 auto;" in CSS
+    assert "gap:8px; font-size:13px; font-weight:700;" in CSS
+    assert ".pv-viewer-bottom { flex:0 0 48px; height:48px; min-height:48px;" in CSS
+    assert "background:#15161c; border-top:1px solid #2a2b38;" in CSS
+    assert ".pv-viewer-bottom .pv-view-title" in CSS and "font-size:13.5px;" in CSS
+    assert ".pv-viewer-bottom .pv-subtitle { font-size:12.5px; color:#8a8a99;" in CSS
+    assert ".pv-viewer-stage { position:relative; flex:1 1 0; min-height:0;" in CSS
+    assert ".pv-viewer .pv-view-art { max-width:100%; max-height:none;" in CSS
+    assert ".pv-viewer .pv-view-art img { width:100%; height:100%; max-height:none; object-fit:contain !important; }" in CSS
+    assert ".pv-viewer-details { position:absolute; bottom:0; left:0; right:0;" in CSS
+    assert "max-height:30vh; overflow-y:auto; overflow-x:hidden; padding:12px; background:rgba(21,22,28,.94);" in CSS
+    assert ".pv-viewer-stage .pv-viewer-status, .pv-viewer-stage .pv-viewer-retry { position:absolute;" in CSS
+    assert ".pv-card { background:#0b0b10;" in CSS
+    assert ".pv-thumb { display:block; width:100%; aspect-ratio:1 / 1; min-width:0; background:#15161c;" in CSS

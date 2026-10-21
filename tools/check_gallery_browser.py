@@ -78,7 +78,7 @@ def check_viewport_layout(page: Page) -> dict:
 
 
 def image_ready(page: Page, work_id: str, page_no: int) -> dict:
-    img = page.get_by_test_id('viewer-image').locator('img')
+    img = page.get_by_test_id('viewer-image').locator('img:visible')
     expect(img).to_have_attribute(
         'src', re.compile(rf'/media/{work_id}/{page_no}/view\.png(?:#request-[0-9]+)?$'),
         timeout=15_000,
@@ -203,23 +203,30 @@ def run_viewport(page: Page, url: str, size: tuple[int, int], output: Path, resu
     target = page.locator('.pv-card[data-work-id="demo-0003"]')
     target.click()
     expect(viewer(page)).to_be_visible()
-    expect(viewer(page).locator('.pv-counter')).to_contain_text('ページ 1 / 3')
+    expect(viewer(page).locator('.pv-counter')).to_have_attribute('aria-label', 'ページ 1 / 3')
     page_images = [image_ready(page, 'demo-0003', 0)]
     expect(page_button(page, '前のページ')).to_be_disabled()
     expect(page_button(page, '次のページ')).to_be_enabled()
     page_button(page, '次のページ').click()
-    expect(viewer(page).locator('.pv-counter')).to_contain_text('ページ 2 / 3')
+    expect(viewer(page).locator('.pv-counter')).to_have_attribute('aria-label', 'ページ 2 / 3')
     page_images.append(image_ready(page, 'demo-0003', 1))
     page_button(page, '次のページ').click()
-    expect(viewer(page).locator('.pv-counter')).to_contain_text('ページ 3 / 3')
+    expect(viewer(page).locator('.pv-counter')).to_have_attribute('aria-label', 'ページ 3 / 3')
     page_images.append(image_ready(page, 'demo-0003', 2))
     expect(page_button(page, '次のページ')).to_be_disabled()
     page_button(page, '前のページ').click()
-    expect(viewer(page).locator('.pv-counter')).to_contain_text('ページ 2 / 3')
+    expect(viewer(page).locator('.pv-counter')).to_have_attribute('aria-label', 'ページ 2 / 3')
     page_images.append(image_ready(page, 'demo-0003', 1))
+    bounds = viewer(page).bounding_box()
+    check(bounds is not None and bounds['width'] >= width - 1 and bounds['height'] >= height - 1,
+          f'原版の全画面ビューアより小さい: {bounds}')
+    image_bounds = page.get_by_test_id('viewer-image').bounding_box()
+    page.screenshot(path=str(output / f'viewer-{key}.png'), full_page=False)
     page_button(page, '詳細').click()
     description = viewer(page).locator('.pv-description')
     expect(description).to_be_visible()
+    check(image_bounds == page.get_by_test_id('viewer-image').bounding_box(),
+          '詳細を重ねて開いたときに画像領域が縮む')
     viewer(page).focus()
     page.keyboard.press('Escape')
     expect(viewer(page)).to_be_visible()

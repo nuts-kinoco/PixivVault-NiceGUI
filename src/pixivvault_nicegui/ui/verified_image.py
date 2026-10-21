@@ -4,12 +4,13 @@ from nicegui import ui
 
 
 class VerifiedImage(ui.element, component='verified_image.js'):
-    def __init__(self, source: str = '', *, alt: str = '') -> None:
+    def __init__(self, source: str = '', *, alt: str = '', retain_previous: bool = False) -> None:
         super().__init__()
         self._request_id = 0
         self._props['src'] = ''
         self._props['request_id'] = self._request_id
         self._props['alt'] = alt
+        self._props['retain_previous'] = retain_previous
         if source:
             self.set_source(source)
 
