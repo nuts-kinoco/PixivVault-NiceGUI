@@ -42,7 +42,7 @@ class GalleryView:
                 self.size_buttons = {}
                 for title, size in (("小", "small"), ("中", "medium"), ("大", "large")):
                     self.size_buttons[size] = ui.button(
-                        title, on_click=lambda _, s=size: self.change_size(s),
+                        title, color=None, on_click=lambda _, s=size: self.change_size(s),
                     ).props("flat dense no-caps aria-pressed=false").classes("pv-size-button")
                 self._update_size_buttons()
             self.counter = ui.label().classes("pv-counter")

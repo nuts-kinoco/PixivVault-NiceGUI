@@ -86,6 +86,9 @@ def run_checks(page: Page, url: str, successes: list[str]) -> None:
     root = learning_root(page)
     expect(root).to_be_visible()
     ready(root)
+    for label in CHOICES:
+        button = root.get_by_role('button', name=label, exact=True)
+        expect(button.locator('.q-btn__content')).to_have_css('color', 'rgb(232, 232, 239)')
     successes.append("学習タブ表示・画像decode・判定有効")
 
     for i, label in enumerate(CHOICES, start=1):

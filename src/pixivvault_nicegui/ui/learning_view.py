@@ -40,14 +40,14 @@ class LearningView:
             with ui.row().classes("items-center gap-2"):
                 self.buttons = {}
                 for label, choice, *_ in self.CHOICES:
-                    button = ui.button(label).props(
+                    button = ui.button(label, color=None).props(
                         "no-caps" if choice == "like" else "outline no-caps"
                     ).classes(f"pv-judgment pv-judgment-{choice}")
                     button.on("click", lambda event, c=choice: self._on_judgment(c, event),
                               js_handler=self._click_js())
                     self.buttons[choice] = button
             with ui.row().classes("items-center gap-2"):
-                self.undo_button = ui.button("ひとつ戻す（Undo）").props("flat no-caps").classes("pv-undo")
+                self.undo_button = ui.button("ひとつ戻す（Undo）", color=None).props("flat no-caps").classes("pv-undo")
                 self.undo_button.on("click", self._on_undo, js_handler=self._click_js())
                 self.retry_button = ui.button("画像を再読込", on_click=self.request_image).props("flat")
             ui.label("矢印キー / WASD / 1〜4 で判定。画面を選択して操作してください。").classes("pv-subtitle")

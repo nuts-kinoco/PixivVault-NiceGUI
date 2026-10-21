@@ -25,6 +25,11 @@ def payload(view, operation_id="judgment-1"):
             "generation": view.state.generation, "operation_id": operation_id}
 
 
+def test_judgment_and_undo_colors_are_controlled_by_existing_theme(view):
+    assert all(button.props.get('color') is None for button in view.buttons.values())
+    assert view.undo_button.props.get('color') is None
+
+
 def test_image_load_is_required_and_stale_events_cannot_enable_buttons(view):
     first_token, first_url = view._image_token, view._image_url
     assert not view.state.ready

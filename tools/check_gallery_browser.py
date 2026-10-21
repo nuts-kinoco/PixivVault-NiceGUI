@@ -174,6 +174,14 @@ def run_viewport(page: Page, url: str, size: tuple[int, int], output: Path, resu
         page.get_by_role('button', name=label, exact=True).click()
         expect(grid).to_have_css('--pv-max-cols', str(expected))
         expect(page.get_by_role('button', name=label, exact=True)).to_have_attribute('aria-pressed', 'true')
+        selected_style = page.get_by_role('button', name=label, exact=True).evaluate('''el => ({
+            foreground: getComputedStyle(el.querySelector('.q-btn__content')).color,
+            background: getComputedStyle(el).backgroundColor
+        })''')
+        check(selected_style['foreground'] == 'rgb(232, 232, 239)',
+              f'選択中カードサイズの文字が既存text-mainと不一致: {label} {selected_style}')
+        check(selected_style['foreground'] != selected_style['background'],
+              f'選択中カードサイズの文字が背景と同色: {label} {selected_style}')
         observed_sizes[label] = grid.evaluate('''el => ({
             maxCols: getComputedStyle(el).getPropertyValue('--pv-max-cols').trim(),
             gridColumns: getComputedStyle(el).gridTemplateColumns,

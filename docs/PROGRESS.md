@@ -1,6 +1,6 @@
 # 移植進捗
 
-更新: 2026-10-22 03:00 JST。今回の作業単位: `bootstrap/phase0-shell`。
+更新: 2026-10-22 03:15 JST。今回の作業単位: `bootstrap/phase0-shell`。
 
 ## 状態
 
@@ -33,6 +33,12 @@
 | `python tools/check_native_window.py --exe artifacts/restart-standalone/native-app/PixivVault-NiceGUI.exe --inspect-ui --output artifacts/restart-standalone/native-acceptance.json` | 02:55 JST、別フォルダーへコピーしたexeの表示・画像・ビューア・学習/Undo・最小化/復元・通常終了・子プロセス/ポート解放を通過、強制cleanupなし |
 | `git diff --check` | exit 0 |
 
+03:15 JST追補: 選択中のカードサイズにもQuasarの既定文字色が残り、青背景に青文字になる表示を実exeの画像で発見した。サイズ・学習判定・Undoの色はテーマだけで制御するように修正。
+`python -X utf8 -m pytest -q tests --ignore=tests/test_legacy_baseline.py --junitxml=artifacts/final-ui-pytest.xml` は **124 passed / 4.31秒 / exit 0**。
+除外した1ファイルは別作業中の未コミット旧Flet試験であり、このPRの124件には含まれない。
+同じ修正後に `python tools/run_browser_checks.py --channel msedge --output artifacts/final-ui-browser` を実行し、一覧・学習・画像故障/遅着の3scriptがexit 0。
+サイズ3段階の選択中文字と学習4判定の文字が、実ブラウザで既存の `text-main` 色になることを追加検証した。
+
 ブラウザの比較条件は1280×720と1920×1080。50サムネイル、50→100件で既存DOM保持、カード大中小、検索/clear、作品内のページ送り、詳細とEsc二段、一覧へ戻るscrollTop保持を確認した。
 学習は4判定、Undo、古い世代の拒否、通常ショートカット、repeat/IME/入力/ダイアログ/非activeでの抑止を確認した。
 故障注入した画像のHTTP503/404だけを期待エラーとして記録し、他のconsole/page errorは失敗にする。
@@ -50,7 +56,7 @@ native実測のWebViewクライアント領域は1907×1044、`devicePixelRatio=
 - 並行統合で重複したCIジョブキー。ブラウザジョブを1つに統合し、重複を検知する回帰試験を追加した。
 
 GitHub ActionsではUbuntu/Windowsのpytestと、専用Chromiumによる実ブラウザ試験を別ジョブで実行する。
-**この記録時点では後続UIコミットのCIは未実行。** 最新コミットの結果はPR #1のChecksで確認する。古いコミットの成功で代用しない。
+`ab00367` のWindows/UbuntuのpytestとUbuntu Chromiumの操作試験は全て成功（run `39649991323`）。その後の文字色追補の最新CI結果はPR #1のChecksで確認する。古いコミットの成功で代用しない。
 
 ## 製品受入の未完
 

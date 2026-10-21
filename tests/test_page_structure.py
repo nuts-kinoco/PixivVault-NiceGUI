@@ -69,6 +69,8 @@ async def test_more_is_last_grid_cell_and_keeps_existing_card_ids():
             original_ids = {key: card.id for key, card in view.cards.items()}
             assert view.grid.default_slot.children[-1] is view.more_cell
             assert view.more_cell.parent_slot.parent is view.grid
+            assert all(button.props.get('color') is None
+                       for button in view.size_buttons.values())
             view.more()
             assert len(view.cards) == 100
             assert all(view.cards[key].id == value for key, value in original_ids.items())
