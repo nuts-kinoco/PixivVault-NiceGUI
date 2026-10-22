@@ -11,6 +11,7 @@ from itertools import count
 from typing import Iterable
 
 from .models import Artwork
+from .library_filters import LibraryFilters
 
 
 _epochs = count(1)
@@ -43,6 +44,7 @@ class BookmarkState:
         self.selected_ids: set[str] = set()
         self.shown_count = page_size
         self.query = ""
+        self.filters = LibraryFilters()
         self.fetch_failed = False
         self.loading = False
         self.active = True
@@ -83,11 +85,20 @@ class BookmarkState:
     @property
     def matched_items(self) -> tuple[BookmarkCard, ...]:
         needle = self.query.lower()
-        if not needle:
-            return self.items
-        return tuple(card for card in self.items if needle in " ".join((
-            card.work_id, card.artwork.title, card.artwork.author,
-            *card.artwork.tags)).lower())
+        return tuple(card for card in self.items
+                     if self.filters.matches(card.artwork.tags)
+                     and (not needle or needle in " ".join((
+                         card.work_id, card.artwork.title, card.artwork.author,
+                         *card.artwork.tags)).lower()))
+
+    def set_filters(self, filters: LibraryFilters) -> bool:
+        if not isinstance(filters, LibraryFilters):
+            raise TypeError("filters must be LibraryFilters")
+        if self.closed or self.filters == filters:
+            return False
+        self.filters = filters
+        self.shown_count = self.page_size
+        return True
 
     def set_query(self, query: str) -> bool:
         if self.closed or not self.active or not isinstance(query, str) or query == self.query:

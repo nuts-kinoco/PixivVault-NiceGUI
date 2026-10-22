@@ -29,14 +29,14 @@ def build_fixture(path: Path) -> tuple[Path, Path]:
               tags TEXT,user_id TEXT,is_deleted INTEGER DEFAULT 0,last_backup TEXT);
             CREATE TABLE following_users (user_id TEXT PRIMARY KEY,name TEXT);
             INSERT INTO following_users VALUES ('12','架空保存作者');
-            INSERT INTO works VALUES ('101','架空作品',2,'[]','12',0,'2026-10-22');
+            INSERT INTO works VALUES ('101','架空作品',2,'["診断用","保存済み"]','12',0,'2026-10-22');
             ALTER TABLE works ADD COLUMN content_type TEXT DEFAULT 'illust';
             ALTER TABLE works ADD COLUMN is_bookmarked INTEGER DEFAULT 1;
             CREATE TABLE bookmark_remote_cache (work_id TEXT PRIMARY KEY,is_novel INTEGER,
                 title TEXT,user_id TEXT,user_name TEXT,tags TEXT,create_date TEXT,
                 thumb_url TEXT,rest_type TEXT,x_restrict INTEGER);
             INSERT INTO bookmark_remote_cache VALUES ('101',0,'架空作品','12','架空保存作者',
-                '[]','2026-10-22','https://i.pximg.net/synthetic/101.png','show',0);
+                '["診断用","保存済み"]','2026-10-22','https://i.pximg.net/synthetic/101.png','show',0);
         """)
     root = path / "fake-images"
     folder = root / "架空保存作者(12)"

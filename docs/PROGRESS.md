@@ -1,8 +1,12 @@
 # 移植進捗
 
-更新: 2026-10-22、レビュー後のマージ承認に基づく継続開発。現在の検証単位: `phase4/library-adapter-integration`（旧SQLite/保存画像/マイブックマーク読取統合）。
+更新: 2026-10-22、レビュー後のマージ承認に基づく継続開発。最終ゴールは移植完了、各フェーズは途中のマイルストーン。現在の検証単位: `phase4/library-tag-filters`（タグ条件・共有状態・旧イベント拒否）。
 
 ## 最新の進捗照合とフェーズレビュー
+
+旧SQLite/保存画像/マイブックマーク読取統合はPR #17へcommit `97efc035ca5096b8c135d69f86d49c93435ae5cd`としてpush。ブラウザCIの依存取得がAzure Ubuntuミラーで時間切れになったため、テストや閾値は変えず公式Ubuntuミラーへ切り替えるCI修正を独立レビューし、head `e57d83d2ab608f7902a78701f860f1150fc076ba` のCI run39776394742全3ジョブ成功後にmergeした。main `70922d9add8d0f1fee7affe69560209540c16b29` のCI run39777248515もWindows/Ubuntu/Chromium全成功。
+
+次に原版のタグ含む/除外・AND/OR、280px押し出しパネル、NOWチップ解除を実装。作者代表と詳細全ページは絞らず、条件はDL済み/ブックマーク間のみ共有してclient間を分離。独立レビュー指摘の固定ボタン遅延イベントをブラウザ世代照合で修正した。製品凍結531pytest、検証器回帰を加えた最終545pytest、実Edgeの既存4系統・旧DB・合成transport取得失敗/復旧/2client試験が成功。同一コピーexeでタグ操作と最小化復帰・正常8process終了まで合格したが、初期画面外配置を避ける明示検証条件付きであり、自動初期配置の修正はWindows残件。詳細は`LIBRARY_TAG_FILTER_REVIEW_2026-10-22.md`。この変更のPR/head/main CIは別ゲート。
 
 PR #14後のPR #15/#16統合とmain `48c718fe6f8702606496f44e5ed7a9d24cd72050` のCI成功を確認。旧DB/保存画像・マイブックマークUIを独立worktreeへ統合し、未DL作品viewer、検索/選択/戻り、4経路失敗復旧、旧cache破損隔離、novel/illust同番号分離、2clientの画像snapshot保持を実装した。製品コード凍結時516pytest、既存4経路・旧DB接続・合成APIを通す実Edge 1280/1920が成功。配布1050ファイルを別フォルダーへコピーしSHA一致を確認。同一コピーexeで旧SQLite・保存PNG・永続ブクマ検索/選択/viewer、最小化/復帰GDI、通常8プロセス終了とport解放が成功（175%開発機限定）。実Cookie原本の読取はツール安全性チェックに阻まれ未実行のため、ライブ認証/実API受入とは区別する。実装・独立レビュー・失敗試行・最終証拠は`READONLY_BOOKMARK_INTEGRATION_2026-10-22.md`。PR head/main CIは別ゲート。フェーズ4全体と更新系は未完。
 

@@ -71,7 +71,10 @@ def checked_screen_bbox(bbox, virtual):
     left, top, right, bottom = bbox
     vl, vt, vr, vb = virtual
     if left >= right or top >= bottom or left < vl or top < vt or right > vr or bottom > vb:
-        raise RuntimeError("screen client bbox invalid or outside virtual screen")
+        error = RuntimeError("screen client bbox invalid or outside virtual screen")
+        error.capture_probe = {"screen_bbox": list(bbox), "virtual_screen": list(virtual),
+                               "reason": "outside_virtual_screen"}
+        raise error
     return tuple(bbox)
 
 

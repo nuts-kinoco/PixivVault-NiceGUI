@@ -219,7 +219,7 @@ def test_owned_close_rejects_replacement_by_another_known_owned_pid(close_window
     user.PostMessageW.assert_not_called()
 
 
-@pytest.mark.parametrize("inspect_ui", [False, True, "timeout"])
+@pytest.mark.parametrize("inspect_ui", [False, True, "timeout", "placement_failure"])
 @pytest.mark.parametrize("gate_passed,minimized,exhausts_budget", [
     (False, False, False), (False, True, False), (True, True, False), (False, True, True),
 ])
@@ -228,6 +228,7 @@ def test_main_requires_gate_and_closes_normally_even_after_gate_failure(
 ):
     import json
     import tools.check_native_window as checker
+    from tools import native_window_position
 
     events = []
     target = tmp_path / "synthetic.exe"
@@ -308,9 +309,14 @@ def test_main_requires_gate_and_closes_normally_even_after_gate_failure(
     args = ["--exe", str(target), "--output", str(output)]
     if inspect_ui:
         args.append("--inspect-ui")
+    if inspect_ui == "placement_failure":
+        def fail_placement(*_args, **_kwargs):
+            raise RuntimeError("synthetic positioning failure")
+        monkeypatch.setattr(native_window_position, "place_owned_client", fail_placement)
+        args += ["--client-origin", "100", "140"]
     result = checker.main(args)
     report = json.loads(output.read_text(encoding="utf-8"))
-    passed = gate_passed and inspect_ui != "timeout"
+    passed = gate_passed and inspect_ui not in ("timeout", "placement_failure")
     assert result == (0 if passed else 1)
     assert report["status"] == ("passed" if passed else "failed")
     assert report["restored"] is gate_passed
@@ -318,7 +324,11 @@ def test_main_requires_gate_and_closes_normally_even_after_gate_failure(
     assert report["forced_cleanup"] == []
     assert report["close_reserve_seconds"] == 5.0
     assert now[0] < 190.0
-    assert events == ["spawn", "pin"] + (["inspect", "pin"] if inspect_ui else []) + ["gate", "close"]
+    assert events == (["spawn", "pin"] + (["pin"] if inspect_ui == "placement_failure" else [])
+                      + (["inspect", "pin"] if inspect_ui else []) + ["gate", "close"])
+    if inspect_ui == "placement_failure":
+        assert "initial_placement_failed" in report["errors"]
+        assert report["initial_placement"]["passed"] is False
     if inspect_ui == "timeout":
         assert report["ui_inspection"] == {"passed": False, "reason": "TimeoutError"}
         assert "ui_inspection_exception" in report["errors"]

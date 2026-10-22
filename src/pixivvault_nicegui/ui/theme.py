@@ -132,6 +132,22 @@ body { background: #0b0b10; color: #e8e8ef; font-family: system-ui, -apple-syste
 .pv-bookmark-selection .q-checkbox { flex:0 0 auto; }
 .pv-bookmark-selection .pv-library-card-title { flex:1 1 0; min-width:0; }
 .pv-bookmark-image-wrap .pv-library-author-open:focus-visible { outline:2px solid #0096FA; }
+.pv-library-body { flex:1 1 0; min-height:0; min-width:0; overflow:hidden; gap:12px; align-items:stretch; }
+.pv-library-filter-content { flex:1 1 0; min-width:0; min-height:0; overflow:hidden; gap:0; }
+.pv-library-filter-panel { flex:0 0 280px; width:280px; min-width:280px; min-height:0; overflow:auto; padding:12px; gap:6px; border:1px solid #2a2b38; border-radius:12px; background:#15161c; box-sizing:border-box; }
+.pv-library-filter-seat { flex:0 0 88px; min-height:88px; width:100%; gap:4px; padding:8px 4px; box-sizing:border-box; }
+.pv-library-filter-state { font-size:10px; line-height:18px; border:1px solid #2a2b38; border-radius:4px; padding:0 6px; color:#8a8a99; }
+.pv-library-filter-reason { font-size:10.5px; line-height:1.4; color:#8a8a99; overflow-wrap:anywhere; }
+.pv-library-tag-controls { flex:0 0 auto; gap:6px; padding-top:6px; }
+.pv-library-tag-controls .q-field { width:100%; }
+.pv-library-filter-now-host { flex:0 0 auto; gap:0; max-height:84px; overflow-y:auto; }
+.pv-library-filter-now { gap:6px; align-items:center; }
+.pv-library-tag-chips { gap:6px; }
+.pv-library-tag-chip { align-items:center; flex-wrap:nowrap; max-width:100%; min-width:0; gap:4px; border:1px solid #2a2b38; border-radius:999px; padding:2px 6px; background:#1e202d; }
+.pv-library-tag-chip > div { font-size:11px; overflow-wrap:anywhere; }
+.pv-library-tag-chip.pv-tag-excluded { background:#15161c; color:#8a8a99; }
+.pv-library-tag-chip.pv-tag-excluded > div { text-decoration:line-through; }
+.pv-library-tag-chip .q-btn { min-width:22px; min-height:22px; padding:0; }
 @media(max-width:1280px) { .pv-shell { padding:16px; gap:12px; } .pv-toolbar { padding:12px; } .pv-view-art { max-height:48dvh; } }
 @media(max-width:1280px) { .pv-viewer .pv-view-art, .pv-viewer .pv-view-art img { max-height:none; } }
 @media(max-width:600px) { .pv-shell { padding:12px; } .pv-title { font-size:24px; } .pv-toolbar { padding:12px; } }

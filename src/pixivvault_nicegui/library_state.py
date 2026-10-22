@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from itertools import count
+from .library_filters import LibraryFilters
 
 from .library_models import AuthorSummary, LibrarySnapshot, PageRef
 
@@ -20,6 +21,7 @@ class LibraryState:
         self.snapshot = snapshot
         self.page_size = page_size
         self.query = ""
+        self.filters = LibraryFilters()
         self.sort_key = "view_count"
         self.sort_directions = {"view_count": True, "last_backup": True}
         self.selected_author_id: str | None = None
@@ -91,19 +93,22 @@ class LibraryState:
     def _invalidate(self) -> None:
         self.generation = next(_generations)
 
-    @staticmethod
-    def _matches(author: AuthorSummary, needle: str) -> bool:
-        if needle in author.name.casefold():
-            return True
-        return any(needle in value.casefold() for work in author.works for value in (
-            work.work_id, work.artwork.title, work.display_author_name,
-            work.artwork.description, *work.artwork.tags,
-        ))
+    def _matches(self, author: AuthorSummary, needle: str) -> bool:
+        return any(
+            self.filters.matches(work.artwork.tags) and (
+                not needle or needle in author.name.casefold() or
+                any(needle in value.casefold() for value in (
+                    work.work_id, work.artwork.title, work.display_author_name,
+                    work.artwork.description, *work.artwork.tags,
+                ))
+            )
+            for work in author.works
+        )
 
     def _refresh_matches(self) -> None:
         needle = self.query.strip().casefold()
         matching = (author for author in self._all_authors
-                    if not needle or self._matches(author, needle))
+                    if self._matches(author, needle))
         key = ((lambda author: author.view_count) if self.sort_key == "view_count"
                else (lambda author: author.last_backup or ""))
         self._matched_authors = tuple(sorted(matching, key=key, reverse=self.descending))
@@ -119,6 +124,18 @@ class LibraryState:
         if self.closed or self.query == query:
             return False
         self.query = query
+        self._author_limit = self.page_size
+        self._leave_detail()
+        self._refresh_matches()
+        self._invalidate()
+        return True
+
+    def set_filters(self, filters: LibraryFilters) -> bool:
+        if not isinstance(filters, LibraryFilters):
+            raise TypeError("filters must be LibraryFilters")
+        if self.closed or self.filters == filters:
+            return False
+        self.filters = filters
         self._author_limit = self.page_size
         self._leave_detail()
         self._refresh_matches()
