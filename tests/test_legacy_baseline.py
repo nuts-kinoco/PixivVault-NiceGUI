@@ -2,6 +2,8 @@
 import importlib.util
 import json
 from pathlib import Path
+import sys
+from unittest.mock import Mock
 
 import pytest
 
@@ -157,3 +159,74 @@ def test_warm_three_pages_includes_thumbnails_and_every_view(tmp_path):
             (tmp_path / f'demo-{i:04d}-{j}-view.png').write_bytes(b'view')
     assert baseline.warm_fixture_images(baseline.FakeClient()) == 360
     assert len(baseline.FakeClient._image_cache) == 360
+
+
+@pytest.mark.parametrize('padding', [
+    (-1, 0, 0, 0), (0, 0, 0, -1), (float('nan'), 0, 0, 0),
+    (float('inf'), 0, 0, 0), (float('-inf'), 0, 0, 0),
+    (640, 0, 640, 0), (0, 360, 0, 360), (0, 0, 0),
+])
+def test_invalid_padding_rejected_before_artifact_access(tmp_path, monkeypatch, padding):
+    safe_output = Mock(side_effect=AssertionError('must validate before artifact access'))
+    monkeypatch.setattr(baseline, 'safe_output', safe_output)
+    with pytest.raises(ValueError, match='page-padding'):
+        baseline.launch(tmp_path / 'unused-source', tmp_path / 'unused-output', 1280, 720,
+                        page_padding=padding)
+    safe_output.assert_not_called()
+
+
+def test_prepare_only_rejects_padding_instead_of_ignoring_it(tmp_path, monkeypatch):
+    prepare = Mock()
+    monkeypatch.setattr(baseline, 'prepare', prepare)
+    with pytest.raises(SystemExit) as error:
+        baseline.main(['--source', str(tmp_path), '--prepare-only', '--page-padding', '0', '0', '0', '0'])
+    assert error.value.code == 2
+    prepare.assert_not_called()
+
+
+@pytest.mark.parametrize('padding', [None, (0, 0, 0, 0), (10.5714, 106.5, 9.4286, 4.8571)])
+def test_launcher_padding_keeps_original_controls_and_default(tmp_path, monkeypatch, capsys, padding):
+    monkeypatch.setattr(baseline, 'ROOT', tmp_path)
+    monkeypatch.chdir(tmp_path)
+    source = tmp_path / 'original'
+    source.mkdir()
+    output = tmp_path / 'artifacts' / 'baseline'
+    copied = output / 'source'
+    copied.mkdir(parents=True)
+    copied_bytes = {name: f'# synthetic test copy: {name}\n'.encode() for name in baseline.SOURCES}
+    for name, content in copied_bytes.items():
+        (copied / name).write_bytes(content)
+    fixture = b'[]'
+    (output / 'fixture.json').write_bytes(fixture)
+    (output / 'manifest.json').write_text(json.dumps({
+        'source_files': {name: baseline.sha(content) for name, content in copied_bytes.items()},
+        'fixture_sha256': baseline.sha(fixture),
+    }), encoding='utf-8')
+    ft, ranking, dispatcher = Mock(), Mock(), Mock()
+    monkeypatch.setitem(sys.modules, 'flet', ft)
+    monkeypatch.setitem(sys.modules, 'ranking_tab', ranking)
+    monkeypatch.setitem(sys.modules, 'ui_dispatch', dispatcher)
+    monkeypatch.setattr(baseline, 'isolate_imports', Mock())
+    argv = ['--source', str(source), '--output', str(output), '--launch']
+    if padding is not None:
+        argv += ['--page-padding', *(str(value) for value in padding)]
+    assert baseline.main(argv) == 0
+    ft.run.assert_called_once()
+    page = Mock()
+    original_padding = object()
+    page.padding = original_padding
+    ft.run.call_args.args[0](page)
+    if padding is None:
+        ft.Padding.assert_not_called()
+        assert page.padding is original_padding
+    else:
+        ft.Padding.assert_called_once_with(*map(float, padding))
+        assert page.padding is ft.Padding.return_value
+    built = ranking.build_ranking_tab.return_value
+    page.add.assert_called_once_with(built.tab_ranking_bg)
+    built.on_tab_open.assert_called_once()
+    assert built.tab_ranking_bg.visible is True
+    metadata = json.loads(capsys.readouterr().out)
+    assert metadata['page_padding_logical_px'] == (None if padding is None else list(padding))
+    for name, content in copied_bytes.items():
+        assert (output / 'source' / name).read_bytes() == content
