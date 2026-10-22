@@ -23,3 +23,13 @@ python tools/benchmark_native_pixels.py --calibrate --capture-mode screen --back
 測定は `--measure --calibration-approved --samples 30` を使用する。**校正直後はpage2、再測定時もprimeがpage2に戻してから起動する。** 最初のnative入力より前に、現在のROIが校正済みpage2と一致することを画素で確認し、不一致なら拒否する。PID/作成時刻、HWNDごとの所有PID、title、top/input client寸法、ROI、座標、backend、必須JSON、テンプレート/full frame SHA-256を照合。未知PIDや作成時刻の照会失敗は拒否する。page2から0へ戻って `0→1→2→1→0` を巡回。`perf_counter_ns` はinput windowのverify後、WM_MOUSEMOVE直前に取得するため、**事前verifyは計測値に含まずcapture overheadは含む**。各遷移2.5秒期限。`result.json` に全サンプル、p50/p95、capture overheadを保存する。
 
 `--metadata <json>` にclone/source/viewport/DPIや試験条件のJSONオブジェクトを記録できる。比較時は条件を揃え、双方の結果とPNGをprimeが別途精査する。今回のscreen方式はWindows11・DPI175%の専用プロセスで確認したが、別PC/全DPIの確認ではない。黒画像、画像同一、ウィンドウが別PID、タイムアウトを測定成功として扱わない。実GUI計測はprime担当。
+
+## 画像描画面積を揃えた比較
+
+旧Fletの隔離入口は、任意の`--page-padding LEFT TOP RIGHT BOTTOM`をlogical pxで指定できる。原UIのfit/描画/dispatcherを変えず、外側の余白だけで主画像の物理描画矩形を校正する。未指定時はFletの既定paddingを維持する。有限・非負の4値でCLI指定のwindow幅・高さを使い切らないことを事前検査し、`--prepare-only`との併用は拒否する。Win32でのresize後の物理寸法は別途実測する。
+
+client寸法だけでなく、contain後の実際の画像端が両側で一致することを全3ページのfull frameで確認する。DOMのimg box寸法や中央ROIだけで合格にしない。全画像の配信側warm cacheと、対象ページの実表示/decode済み状態を分けて記録する。
+
+複数roundを結合する場合は生標本からp50/p95を計算し、各roundと順序も残す。取得負荷の中央値を引いて純描画時間を作らない。最小化・一様frameなど、`OwnedWindow`初期化時の拒否は`result.json`の生成前に起こり得るため、その試行の失敗を別保存する。過去の`result.json`を新しい成功証拠として再利用しない。
+
+2026-10-22に1920×1080物理client・175% DPI・同じ868×579物理pxの画像で、Flet→NiceGUI→NiceGUI→Fletの30遷移ずつを完走した。全120標本と開始前拒否2件、メモリ、復帰の制限は`MATCHED_VIEWER_BENCHMARK_2026-10-22.md`に記録する。

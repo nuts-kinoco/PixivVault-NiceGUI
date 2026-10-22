@@ -83,3 +83,9 @@ Known side effects: 元コードの `ranking_tab.py:455` は8ワーカースレ�
 `FakeClient.download_thumbnail_as_data_uri` は全FakeClientインスタンス共有の `RLock` 保護されたURL→data URIキャッシュへ変更。キーは `(fixture_dir.resolve(), fixture URL)` で別manifestの同名作品に古い画素を使わない。キャッシュミス時のみfixture PNGのread/base64を行い、同時アクセスも同じ一回の読み込みになる。画像URLは許可された合成work_id、ページ範囲、`thumb`/`view`種別、正規のページ番号表記だけを受け入れ、外部URL・パス走査は拒否する。`warm_fixture_images` はworldの全3ページ（120作品）の全thumbと全viewページを事前読み込みし、warm校正の対象を固定する。
 
 比較方法：cold（初回PNG読込＋base64変換含む）とwarm（全fixture画像キャッシュ済み）を別々に記録する。今回の3ページwarmベンチはlaunchで全サムネイル・複数ページ画像をキャッシュ温めしてから計測する。**same serving semanticsのfixture stub**であり、旧 `shared_image_cache` 本体は取り込まず、実Pixiv APIの通信遅延・認証・CDN応答は比較対象外。`tests/test_legacy_baseline.py` **10 passed**。warm対応後のlauncherで新しい専用プロセスを起動し、manifestと全PNGの検査、warm_cache_images=320を確認した。PID・HWNDは各試行のignored artifactへ記録し、次回は現在のprocess identityから再取得する。
+
+## 主画像の描画面積の校正
+
+launcher `6f2b66e53b275f0c614211e05d5f864e55c2f412`は任意の`--page-padding LEFT TOP RIGHT BOTTOM`を追加した。値はlogical pxで、有限・非負・4値・指定寸法内をlaunch前に検査する。未指定は既定を維持し、prepare-onlyでは使用しない。対象pytestは既存10件＋追加12件の22件成功、独立レビューにblocking指摘なし。
+
+原UI7ファイルと画像fitを保ち、padding `10.5714 106.5 9.4286 4.8571`で、今回の物理client 1920×1080 / 175% DPIにおける3ページの実画像描画矩形をNiceGUIと揃えた。全6校正画面を目視し、各backendのwarm60遷移と通常終了を確認。これは原shellの省略を解消する変更ではない。数値・失敗試行・条件の限界は`MATCHED_VIEWER_BENCHMARK_2026-10-22.md`を参照。
