@@ -143,6 +143,87 @@ async def check_superseded_candidate(page, result):
         }''')
 
 
+async def check_tab_departure_during_decode(page, result):
+    viewer = page.get_by_test_id('gallery-viewer')
+    await page.locator('.pv-card[data-work-id="demo-0003"]').click()
+    await image_ready(page, 'demo-0003')
+    await page.evaluate('''() => {
+        window.__pvTabOriginalDecode = HTMLImageElement.prototype.decode;
+        HTMLImageElement.prototype.decode = function() {
+            const decoded = window.__pvTabOriginalDecode.call(this);
+            if (!this.isConnected || !this.closest('[data-testid="viewer-image"]') ||
+                !this.src.includes('/demo-0003/1/view.png')) return decoded;
+            return decoded.then(() => new Promise(resolve => {
+                window.__pvTabReleaseDecode = resolve;
+            }));
+        };
+    }''')
+    try:
+        await viewer.get_by_role('button', name='次のページ', exact=True).click()
+        await page.wait_for_function("typeof window.__pvTabReleaseDecode === 'function'")
+        await page.get_by_test_id('tab-learning').click()
+        learning = page.locator('.pv-learning[data-active="true"]')
+        await expect(learning).to_be_focused()
+        await expect(viewer).to_be_hidden()
+        await page.evaluate('window.__pvTabReleaseDecode()')
+        await page.wait_for_timeout(500)
+        await expect(viewer).to_be_hidden()
+        await expect(learning).to_be_focused()
+        await page.get_by_test_id('tab-ranking').click()
+        await expect(viewer).to_be_hidden()
+        await page.locator('.pv-card[data-work-id="demo-0012"]').click()
+        await image_ready(page, 'demo-0012')
+        await viewer.get_by_role('button', name='閉じる', exact=True).click()
+        await expect(viewer).to_be_hidden()
+        result['checks'].append('tab departure invalidates mounted decode and preserves learning focus')
+    finally:
+        await page.evaluate('''() => {
+            window.__pvTabReleaseDecode?.();
+            HTMLImageElement.prototype.decode = window.__pvTabOriginalDecode;
+            delete window.__pvTabOriginalDecode;
+            delete window.__pvTabReleaseDecode;
+        }''')
+
+
+async def check_deferred_focus_order(page, result):
+    viewer = page.get_by_test_id('gallery-viewer')
+    await page.locator('.pv-card[data-work-id="demo-0013"]').click()
+    await image_ready(page, 'demo-0013')
+    await page.evaluate('''() => {
+        window.__pvOriginalAnimationFrame = window.requestAnimationFrame;
+        window.__pvHeldFocusFrames = [];
+        window.requestAnimationFrame = callback => {
+            if (callback.toString().includes('__pvFocusGeneration')) {
+                window.__pvHeldFocusFrames.push(callback);
+                return window.__pvOriginalAnimationFrame(() => {});
+            }
+            return window.__pvOriginalAnimationFrame(callback);
+        };
+    }''')
+    try:
+        await viewer.get_by_role('button', name='閉じる', exact=True).click()
+        await expect(viewer).to_be_hidden()
+        target = page.locator('.pv-card[data-work-id="demo-0014"]')
+        await target.click()
+        await image_ready(page, 'demo-0014')
+        await viewer.get_by_role('button', name='閉じる', exact=True).click()
+        await expect(viewer).to_be_hidden()
+        await page.wait_for_function('window.__pvHeldFocusFrames.length >= 3')
+        await page.evaluate('''() => {
+            const held = window.__pvHeldFocusFrames.splice(0);
+            held.reverse().forEach(callback => callback(performance.now()));
+        }''')
+        await expect(target).to_be_focused()
+        result['checks'].append('older close focus callback cannot override a newer close')
+    finally:
+        await page.evaluate('''() => {
+            window.requestAnimationFrame = window.__pvOriginalAnimationFrame;
+            window.__pvHeldFocusFrames.splice(0).forEach(callback => callback(performance.now()));
+            delete window.__pvOriginalAnimationFrame;
+            delete window.__pvHeldFocusFrames;
+        }''')
+
+
 async def run(page, result):
     state = {"fail_gallery": True, "fail_learning": True, "delay": None,
              "delay_work": "demo-0003", "learning_id": None,
@@ -230,6 +311,25 @@ async def run(page, result):
     await page.wait_for_timeout(500)
     await expect(viewer).to_be_hidden()
     result["checks"].append("closing viewer invalidates delayed response")
+
+    state['delay_work'] = 'demo-0011'
+    state['delay'] = 'gallery'
+    state['entered'] = asyncio.Event()
+    state['release'] = asyncio.Event()
+    await page.locator('.pv-card[data-work-id="demo-0011"]').click()
+    await asyncio.wait_for(state['entered'].wait(), timeout=15)
+    await page.get_by_test_id('tab-learning').click()
+    learning = page.locator('.pv-learning[data-active="true"]')
+    await expect(learning).to_be_focused()
+    state['release'].set()
+    await page.wait_for_timeout(500)
+    await expect(viewer).to_be_hidden()
+    await expect(learning).to_be_focused()
+    await page.get_by_test_id('tab-ranking').click()
+    await expect(viewer).to_be_hidden()
+    result['checks'].append('tab departure during first load rejects the delayed response')
+    await check_tab_departure_during_decode(page, result)
+    await check_deferred_focus_order(page, result)
 
     # Fresh page avoids gallery image-cache state and starts at learning item 1.
     state["learning_id"] = "demo-0001"

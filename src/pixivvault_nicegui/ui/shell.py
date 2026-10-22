@@ -16,10 +16,11 @@ NAVIGATION = (
 class DemoShell:
     def __init__(self, services: ApplicationServices) -> None:
         self.services = services
+        self.client = ui.context.client
         self.active_tab = "ranking"
         self.learning = None
         self.buttons: dict[str, ui.button] = {}
-        ui.context.client.on_delete(self.close)
+        self.client.on_delete(self.close)
         ui.add_css(CSS)
         ui.colors(primary=TOKENS["accent"])
         ui.dark_mode(True)
@@ -54,7 +55,7 @@ class DemoShell:
     def show(self, tab: str) -> None:
         if tab not in {"ranking", "learning"} or tab == self.active_tab:
             return
-        self.gallery.close_viewer()
+        self.gallery.close_viewer(restore_focus=False)
         if tab == "learning" and self.learning is None:
             from .learning_view import LearningView
             with self.content:
@@ -65,6 +66,13 @@ class DemoShell:
             self.learning.root.set_visibility(tab == "learning")
             self.learning.set_active(tab == "learning")
         self._update_tabs()
+        if tab == "ranking" and self.client.has_socket_connection:
+            self.client.run_javascript(f"""requestAnimationFrame(() => {{
+                const node = document.getElementById('{self.buttons[tab].html_id}');
+                if (node?.isConnected && node.getAttribute('aria-current') === 'page' &&
+                    node.getClientRects().length)
+                    node.focus({{preventScroll:true}});
+            }})""")
 
     def close(self) -> None:
         self.gallery.close()

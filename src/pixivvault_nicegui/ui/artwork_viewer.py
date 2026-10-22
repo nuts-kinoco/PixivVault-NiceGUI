@@ -1,4 +1,4 @@
-"""原版の全画面画集ビューアに合わせた、一度だけ構築する表示部品。"""
+"""原版のタブ内画集ビューアに合わせた、一度だけ構築する表示部品。"""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ class ArtworkViewer:
         self.client = ui.context.client
         self._is_open = False
         with ui.column().classes("pv-viewer pv-viewer-overlay hidden").props(
-            "tabindex=-1 role=dialog aria-modal=true aria-hidden=true data-testid=gallery-viewer"
+            "tabindex=-1 role=dialog aria-label=画集ビューア aria-modal=false aria-hidden=true data-testid=gallery-viewer"
         ) as self.root:
                 with ui.row().classes("pv-viewer-header w-full items-center"):
                     ui.label("画集ビューア").classes("pv-viewer-heading")
@@ -86,23 +86,38 @@ class ArtworkViewer:
             self.client.run_javascript(f"""(() => {{
                 const node = document.getElementById('{self.root.html_id}');
                 if (!node) return;
+                const generation = (node.__pvFocusGeneration || 0) + 1;
+                node.__pvFocusGeneration = generation;
                 node.__pvPreviousFocus = document.activeElement;
-                requestAnimationFrame(() => node.focus({{preventScroll:true}}));
+                requestAnimationFrame(() => {{
+                    if (node.__pvFocusGeneration === generation && node.isConnected &&
+                        node.getClientRects().length &&
+                        !node.closest('[inert], [aria-hidden="true"]'))
+                        node.focus({{preventScroll:true}});
+                }});
             }})()""")
 
-    def close(self) -> None:
-        if not self._is_open:
-            return
+    def close(self, *, restore_focus: bool = True) -> None:
+        # A tab departure also invalidates a queued focus restoration from a prior close.
         self._is_open = False
         self.root.props("aria-hidden=true")
         self.root.classes(add="hidden")
         if self.client.has_socket_connection:
             self.client.run_javascript(f"""(() => {{
                 const node = document.getElementById('{self.root.html_id}');
-                const previous = node?.__pvPreviousFocus;
-                if (node) node.__pvPreviousFocus = null;
-                if (previous?.isConnected && typeof previous.focus === 'function')
-                    requestAnimationFrame(() => previous.focus({{preventScroll:true}}));
+                if (!node) return;
+                const generation = (node.__pvFocusGeneration || 0) + 1;
+                node.__pvFocusGeneration = generation;
+                const previous = node.__pvPreviousFocus;
+                node.__pvPreviousFocus = null;
+                if ({str(restore_focus).lower()}) requestAnimationFrame(() => {{
+                    if (node.__pvFocusGeneration === generation &&
+                        node.getAttribute('aria-hidden') === 'true' &&
+                        previous?.isConnected && previous.getClientRects().length &&
+                        !previous.closest('[inert], [aria-hidden="true"]') &&
+                        typeof previous.focus === 'function')
+                        previous.focus({{preventScroll:true}});
+                }});
             }})()""")
 
     def set_metadata(self, artwork: Artwork, page_no: int) -> None:
