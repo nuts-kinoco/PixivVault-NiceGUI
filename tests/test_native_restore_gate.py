@@ -72,6 +72,11 @@ class Window:
         if self.fault == "prepare":
             raise RuntimeError("OwnedWindow constructor failed")
 
+    def activate_for_capture(self):
+        if self.fault == "foreground_failure":
+            raise gate.GateFailure("owned_top_raise_failed")
+        return self.fault != "foreground_denied"
+
     def state(self):
         if self.restoring and self.fault == "root_identity":
             raise gate.GateFailure("root_identity_changed")
@@ -308,6 +313,37 @@ def test_gate_rejects_a_changed_top_owner_before_mutation(exercise):
     assert run.result["errors"] == ["top_identity_changed"]
     assert run.window.topmost_calls == []
     assert run.window.commands == []
+
+
+def test_foreground_denial_does_not_replace_real_pixel_validation(exercise):
+    run = exercise("foreground_denied")
+    assert run.result["owned_top_foreground"] is False
+    assert run.result["passed"]
+    assert run.result["baseline_stable_samples"] == 2
+    assert run.result["restore_stable_samples"] == 2
+
+
+def test_owned_foreground_failure_restores_original_topmost_and_fails(exercise):
+    run = exercise("foreground_failure")
+    assert not run.result["passed"]
+    assert run.result["errors"] == ["owned_top_raise_failed"]
+    assert run.result["topmost_restored"]
+    assert run.window.commands == []
+
+
+def test_foreground_request_only_targets_the_verified_top_window():
+    window = object.__new__(gate.Win32Window)
+    window.top = 101
+    events = []
+    window.verify_top = lambda: events.append(("verify", 101))
+    window.topmost = lambda: events.append(("topmost", 101)) or True
+    window.user = SimpleNamespace(
+        SetWindowPos=lambda *args: events.append(("position", args)) or True,
+        GetForegroundWindow=lambda: 101,
+    )
+    assert window.activate_for_capture()
+    assert events == [("verify", 101), ("position", (101, -1, 0, 0, 0, 0, 0x0003)),
+                      ("verify", 101), ("topmost", 101)]
 
 
 def test_late_png_save_cannot_change_failure_to_success(monkeypatch, exercise):

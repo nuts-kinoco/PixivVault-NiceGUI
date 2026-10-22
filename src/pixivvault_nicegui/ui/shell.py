@@ -32,8 +32,14 @@ class DemoShell:
             with ui.element("div").classes("pv-header"):
                 with ui.column().classes("gap-0"):
                     ui.label("PixivVault").classes("pv-title")
-                    ui.label("移植検証用 · 架空作品 / 実アカウントへの接続なし").classes("pv-subtitle")
-                ui.label("オフライン検証").classes("pv-subtitle")
+                    descriptions = {
+                        "synthetic": "移植検証用 · 架空作品 / 実アカウントへの接続なし",
+                        "library-readonly": "旧ライブラリ読取専用 · 元DB・画像の変更なし",
+                        "pixiv-readonly": "pixiv読取接続 · 認証確認はブックマーク更新時 / 書込操作なし",
+                    }
+                    ui.label(descriptions[services.data_mode]).classes("pv-subtitle")
+                ui.label("オフライン検証" if services.data_mode == "synthetic" else
+                         "ランキング・学習は合成データ").classes("pv-subtitle")
             with ui.element("nav").classes("pv-nav").props("aria-label=メインナビゲーション"):
                 for key, label in NAVIGATION:
                     available = key in {"ranking", "learning", "library"}

@@ -20,6 +20,9 @@ class RunConfig:
     native: bool = False
     check_only: bool = False
     learning_sandbox: Path | None = None
+    library_readonly_db: Path | None = None
+    library_image_root: Path | None = None
+    pixiv_cookie_file: Path | None = None
 
 
 def _port(value: str) -> int:
@@ -47,14 +50,26 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
     parser.add_argument("--check", action="store_true", help="環境情報だけを表示し、サーバーを起動しない")
     parser.add_argument("--learning-sandbox", type=_sandbox_path,
                         help="合成デモの判定を専用フォルダーへ保存（絶対パス、新規または本デモ作成済み）")
+    parser.add_argument("--library-readonly-db", type=_sandbox_path,
+                        help="明示SQLiteの読取専用ライブラリ（DB変更は行わない）")
+    parser.add_argument("--library-image-root", type=_sandbox_path,
+                        help="読取専用ライブラリの明示画像ルート")
+    parser.add_argument("--pixiv-cookie-file", type=_sandbox_path,
+                        help="明示Cookieファイルによるpixiv読取接続。原本は変更せず、更新操作まで通信しない")
     args = parser.parse_args(argv)
-    return RunConfig(args.host, args.port, args.native, args.check, args.learning_sandbox)
+    if (args.library_readonly_db is None) != (args.library_image_root is None):
+        parser.error("library-readonly-db and library-image-root must be specified together")
+    return RunConfig(args.host, args.port, args.native, args.check, args.learning_sandbox,
+                     args.library_readonly_db, args.library_image_root, args.pixiv_cookie_file)
 
 
 _registered = False
 
 
-def register_pages(learning_sandbox: Path | None = None) -> None:
+def register_pages(learning_sandbox: Path | None = None,
+                   library_readonly_db: Path | None = None,
+                   library_image_root: Path | None = None,
+                   pixiv_cookie_file: Path | None = None, live_client=None) -> None:
     """NiceGUIのHTTPルートを登録する。呼ぶだけではサーバーを起動しない。"""
     global _registered
     if _registered:
@@ -65,7 +80,19 @@ def register_pages(learning_sandbox: Path | None = None) -> None:
     from pixivvault_nicegui.media_routes import register_media_routes
     from pixivvault_nicegui.services import get_services
 
-    services = get_services(app, learning_sandbox=learning_sandbox)
+    if pixiv_cookie_file is not None:
+        if live_client is not None:
+            raise ValueError("choose one pixiv client source")
+        from pixivvault_nicegui.pixiv_read_client import LivePixivReadClient
+        live_client = LivePixivReadClient(pixiv_cookie_file)
+    try:
+        services = get_services(app, learning_sandbox=learning_sandbox,
+            library_readonly_db=library_readonly_db, library_image_root=library_image_root,
+            live_client=live_client)
+    except BaseException:
+        if live_client is not None:
+            live_client.close()
+        raise
     register_media_routes(app, services.images)
 
     async def close_services() -> None:
@@ -77,7 +104,8 @@ def register_pages(learning_sandbox: Path | None = None) -> None:
 
     @app.get("/healthz", include_in_schema=False)
     def health() -> dict[str, str]:
-        return {"status": "ok", "mode": "demo", "data": "synthetic"}
+        return {"status": "ok", "mode": "demo" if services.data_mode == "synthetic" else "readonly",
+                "data": services.data_mode}
 
     @app.get("/readyz", include_in_schema=False)
     def ready() -> dict[str, bool]:
@@ -94,12 +122,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps({
             "python": sys.version.split()[0],
             "nicegui": importlib.metadata.version("nicegui"),
-            "mode": "demo",
+            "mode": "readonly" if config.library_readonly_db is not None or config.pixiv_cookie_file is not None else "demo",
             "host": config.host,
             "port": config.port,
             "native_requested": config.native,
             "native_available": importlib.util.find_spec("webview") is not None,
-            "data": "synthetic",
+            "data": ("pixiv-readonly" if config.pixiv_cookie_file is not None else
+                     "library-readonly" if config.library_readonly_db is not None else "synthetic"),
             "learning_storage": "sandbox" if config.learning_sandbox is not None else "memory",
         }, ensure_ascii=False))
         return 0
@@ -109,10 +138,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     multiprocessing.freeze_support()
     from nicegui import ui
 
-    if config.learning_sandbox is None:
-        register_pages()
-    else:
-        register_pages(learning_sandbox=config.learning_sandbox)
+    registration = {}
+    if config.learning_sandbox is not None:
+        registration["learning_sandbox"] = config.learning_sandbox
+    if config.library_readonly_db is not None:
+        registration["library_readonly_db"] = config.library_readonly_db
+        registration["library_image_root"] = config.library_image_root
+    if config.pixiv_cookie_file is not None:
+        registration["pixiv_cookie_file"] = config.pixiv_cookie_file
+    register_pages(**registration)
     ui.run(
         host=config.host,
         port=config.port,

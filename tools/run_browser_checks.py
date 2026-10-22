@@ -46,7 +46,8 @@ def child_environment() -> dict[str, str]:
     return env
 
 
-def wait_for_health(url: str, app: subprocess.Popen, timeout: float = 35.0) -> None:
+def wait_for_health(url: str, app: subprocess.Popen, timeout: float = 35.0,
+                    *, expected_data: str = "synthetic") -> None:
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     deadline = time.monotonic() + timeout
     last_error = "HTTP endpoint not ready"
@@ -57,7 +58,8 @@ def wait_for_health(url: str, app: subprocess.Popen, timeout: float = 35.0) -> N
             with opener.open(f"{url}/healthz", timeout=1) as response:
                 payload = json.loads(response.read())
                 if response.status == 200 and payload == {
-                    "status": "ok", "mode": "demo", "data": "synthetic"
+                    "status": "ok", "mode": "demo" if expected_data == "synthetic" else "readonly",
+                    "data": expected_data
                 }:
                     return
                 last_error = f"unexpected health response: {response.status} {payload!r}"

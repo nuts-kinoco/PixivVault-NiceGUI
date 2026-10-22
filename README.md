@@ -1,6 +1,6 @@
 # PixivVault-NiceGUI
 
-Windows版PixivVaultの段階移植用リポジトリです。現在は**架空データだけの開発デモ**で、元アプリの置換版ではありません。
+Windows版PixivVaultの段階移植用リポジトリです。**既定は架空データの開発デモ**で、元アプリの置換版ではありません。明示指定による旧ライブラリの読取接続とpixivのGET専用接続を追加しています。実アカウントでの受入完了は宣言していません。
 
 見た目・操作順・データ互換を維持し、画面更新や画像表示の待ちを減らすことを目指します。速度改善と外観の一致は、実機比較が終わるまで未確認として扱います。
 
@@ -26,7 +26,7 @@ python -m venv .venv
 既定のデモは本番DB・画像フォルダ・Cookie・pixiv APIに接続せず、120件の架空作品とコードで生成した診断PNGを使います。
 検索、50件単位の追加表示、カード大中小、作品詳細、作品内のページ送り、学習4判定とUndoの検証経路があります。
 学習は既定では画面内のメモリ台帳へ記録します。直前1件だけUndoでき、再読込や再起動では引き継ぎません。実データへの保存・学習アルゴリズムの本番接続は未実装です。
-ダウンロード、キュー、失敗リスト、重複整理、ライブラリ、おすすめの6画面はまだ無効です。
+ライブラリでは作者一覧→ページ一覧→共有ビューアと、マイブックマークの検索・選択・ビューア・戻るを利用できます。ダウンロード、キュー、失敗リスト、重複整理、おすすめ、外部アカウントへの書込み操作はまだ無効です。
 
 Windowsの専用窓は `pip install -e ".[native]"` の後に `python -m pixivvault_nicegui --native` で起動できます。
 開発機のWebView2とonedir exeでは、画像表示、一覧/学習の操作、最小化・復元・通常終了とプロセス/ポート解放を検証しています。
@@ -50,6 +50,8 @@ Windowsの専用窓は `pip install -e ".[native]"` の後に `python -m pixivva
 .\.venv\Scripts\python.exe -m pip install -e ".[test,browser]"
 .\.venv\Scripts\python.exe tools/run_browser_checks.py --channel msedge
 .\.venv\Scripts\python.exe tools/check_learning_persistence_browser.py --channel msedge --output artifacts/learning-persistence-browser
+.\.venv\Scripts\python.exe tools/check_readonly_library_browser.py --channel msedge --output artifacts/readonly-browser
+.\.venv\Scripts\python.exe tools/check_live_bookmark_browser.py --channel msedge --output artifacts/bookmark-transport-browser
 ```
 
 ランナーが専用の一時ポートにデモを起動し、Edgeで一覧・学習・画像故障/遅着を操作した後、自分のプロセスを停止します。一覧は1280×720と1920×1080で確認し、学習は操作試験に加えて画面サイズ別の画像・ボタン配置を確認します。
@@ -61,6 +63,31 @@ Chromiumを使う場合は `python -m playwright install chromium` を実行し�
 
 `ReadonlyLibraryRepository` は既存schemaの読取アダプタです。明示された既存DBを `mode=ro` / `query_only` で開き、ファイルが無ければ作成せず失敗します。
 検証には一時DBだけを使っています。既定のUIに本番DBへの自動接続はありません。詳細は [読取契約](docs/LIBRARY_ADAPTER.md) を参照してください。
+
+### 明示したライブラリを読む
+
+```powershell
+.\.venv\Scripts\python.exe -m pixivvault_nicegui --native `
+  --library-readonly-db C:\PixivVault-Validation\library.sqlite `
+  --library-image-root C:\PixivVault-Validation\Images
+```
+
+上記は隔離した検証コピーを想定した例です。アダプタはDBの初期化・移行・作品/キャッシュの書換えを行いません。SQLiteのWAL可視性を維持するため`immutable=1`は使わず、SQLiteが必要とする共有メモリsidecarの生成・更新までゼロであるとは保証していません。本番のDB/画像を使った受入とは切り分けています。
+
+フォルダ・ZIPの静止画像、ID付きの保存名、一意に特定できる旧保存名、ブックマーク直下保存とハードリンクを読めます。別作品や別ページで欠損を埋めません。小説本文・うごイラ再生は未接続です。検索・選択・展開数は画面ごとに保持し、DB更新はUIとは別スレッドで読み、失敗時には最後に表示できた一覧を維持します。
+
+### GET専用のpixiv接続
+
+```powershell
+.\.venv\Scripts\python.exe -m pixivvault_nicegui --native `
+  --pixiv-cookie-file C:\Private\pixiv-session.txt
+```
+
+Cookieファイルはリポジトリ外で管理してください。値を端末出力やチャットへ貼り付ける必要はありません。起動だけではHTTP通信せず、マイブックマークの初回表示/明示更新時にホーム画面の認証済みIDと`/ajax/user/extra`で認証を確認します。有効期限を無視せず、公開/非公開×イラスト/小説の4経路がすべて成功した場合だけ画面のキャッシュを更新します。Cookie更新後はアプリを再起動してください。
+
+画像は専用プロキシ経路で表示し、ブラウザへCookieを渡しません。画像CDNへのGETにもCookieを付けません。Cookieの書換え、ログイン実行、ブックマーク追加/削除、フォロー、DLは行いません。未DLイラストのページビューアと小説の表紙プレビューを実装していますが、実Cookieによる今回の実機受入はツール側の読取ブロックにより未実施です。接続コード・合成transport・実Edgeの検査を、本物のpixivに接続できたという証拠には置き換えません。
+
+`--library-readonly-db`/`--library-image-root`と併用できます。旧DBのブックマークキャッシュが壊れていてもDL済み一覧は開け、ライブ取得に成功した場合は旧キャッシュの破損に妨げられず復旧します。ランキング・学習は引き続き合成データである旨を画面に表示します。`--check`は引数のモード表示のみで、DBやCookieファイルを開きません。
 
 ## 計画と証拠
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import inspect
 
 from nicegui import ui
 
@@ -13,11 +14,13 @@ from .grid_layout import MAX_COLUMNS
 class BookmarkView:
     def __init__(self, state: BookmarkState, *, on_refresh: Callable[[], None] | None = None,
                  on_open: Callable[[str], None] | None = None,
-                 image_url: Callable[[str], str] | None = None) -> None:
+                 image_url: Callable[[str], str] | None = None,
+                 can_open: Callable[[str], bool] | None = None) -> None:
         self.state = state
         self.on_refresh = on_refresh
         self.on_open = on_open
         self.image_url = image_url
+        self.can_open = can_open
         self.root = None
         self.grid = None
         self.cards: dict[str, ui.element] = {}
@@ -48,10 +51,17 @@ class BookmarkView:
                     self.download_button.tooltip("実ダウンロードは未接続です")
                     self.retry = ui.button("再読込", on_click=self.request_refresh).props(
                         "flat dense data-testid=bookmark-refresh")
-                self.message = ui.label().classes("pv-empty").props("data-testid=bookmark-status")
-                with ui.element("div").classes("pv-gallery-scroll").props("data-testid=bookmark-scroll"):
+                self.search_input = ui.input("ブックマーク内を検索", value=self.state.query,
+                    on_change=lambda event: self.search(event.value or "")).props(
+                    "outlined dense clearable dark debounce=200 data-testid=bookmark-search")
+                self.message = ui.label().classes("pv-empty").props("data-testid=bookmark-status role=status")
+                with ui.element("div").classes("pv-gallery-scroll").props("data-testid=bookmark-scroll") as self.scroll:
                     self.grid = ui.element("div").classes("pv-grid").style(
                         f"--pv-max-cols:{MAX_COLUMNS[self.card_size]}")
+                self.scroll.on("scroll", js_handler="""event => {
+                    if (event.target.getClientRects().length)
+                        event.target.__pvBookmarkScroll = event.target.scrollTop;
+                }""")
         self.refresh()
         return self.root
 
@@ -65,6 +75,9 @@ class BookmarkView:
                     with ui.element("div").classes("pv-library-author-open").props(
                         "role=button tabindex=0 aria-label=作品を開く data-testid=bookmark-open"
                     ) as opener:
+                        if self.can_open is not None and not self.can_open(art.work_id):
+                            opener.props("aria-disabled=true tabindex=-1")
+                            ui.tooltip("表示未対応の形式、または利用できる画像接続がありません")
                         opener.on("click", lambda _, wid=art.work_id, token=self._session:
                                   self.open(wid, token))
                         opener.on("keydown.enter", lambda _, wid=art.work_id,
@@ -124,11 +137,12 @@ class BookmarkView:
             "fetch_failed": "ブックマークの取得に失敗しました。再読込できます",
             "empty": "ブックマークはありません",
             "unloaded": "ブックマークを読み込んでいません",
+            "no_match": "条件に合うブックマークがありません",
         }
         self.message.set_text(messages.get(status, ""))
         self.message.set_visibility(status != "ready")
         self.retry.set_visibility(status != "loading")
-        self.counter.set_text(f"{len(visible)} / {len(self.state.items)} 件表示")
+        self.counter.set_text(f"{len(visible)} / {len(self.state.matched_items)} 件表示")
         self.selected_count.set_text(f"選択中: {len(self.state.selected_ids)}件")
 
     def select(self, work_id: str, checked: bool, session=None) -> None:
@@ -143,7 +157,8 @@ class BookmarkView:
     def open(self, work_id: str, session=None) -> None:
         if (self.state.closed or not self.state.active or self.on_open is None or
                 (session is not None and session is not self._session) or
-                work_id not in self.cards):
+                work_id not in self.cards or
+                (self.can_open is not None and not self.can_open(work_id))):
             return
         self.on_open(work_id)
 
@@ -154,8 +169,18 @@ class BookmarkView:
     def request_refresh(self) -> None:
         if self.state.closed or not self.state.active or self.on_refresh is None:
             return
-        self.on_refresh()
+        result = self.on_refresh()
+        if inspect.isawaitable(result):
+            from nicegui import background_tasks
+            background_tasks.create(result)
         self.refresh()
+
+    def search(self, query: str) -> None:
+        if self.state.set_query(query):
+            self.refresh()
+            if self.root is not None and self.root.client.has_socket_connection:
+                self.root.client.run_javascript(
+                    f"document.getElementById('{self.scroll.html_id}').scrollTop = 0;")
 
     def set_active(self, active: bool) -> None:
         if self.state.active != active:
@@ -173,6 +198,13 @@ class BookmarkView:
         if self.root is not None:
             self.root.props["data-active"] = str(active).lower()
             self.refresh()
+            if active and self.root.client.has_socket_connection:
+                self.root.client.run_javascript(f"""requestAnimationFrame(() => {{
+                    const root = document.getElementById('{self.root.html_id}');
+                    const node = document.getElementById('{self.scroll.html_id}');
+                    if (root?.dataset.active === 'true' && node?.getClientRects().length)
+                        node.scrollTop = node.__pvBookmarkScroll || 0;
+                }})""")
 
     def apply_card_size(self, size: str) -> None:
         if size not in MAX_COLUMNS:

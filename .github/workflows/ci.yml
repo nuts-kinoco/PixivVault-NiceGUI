@@ -53,12 +53,25 @@ jobs:
           python-version: "3.13"
       - name: Install isolated browser test dependencies
         run: python -m pip install -e ".[test,browser]"
+      - name: Use canonical Ubuntu archive for browser system dependencies
+        # The hosted Azure mirror stalled before any browser test ran.
+        # Keep all dependencies and checks; only change the package mirror.
+        run: |
+          for sources in /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do
+            if [ -f "$sources" ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$sources"
+            fi
+          done
       - name: Install Chromium for this job
         run: python -m playwright install --with-deps chromium
       - name: Check real gallery, learning, library and image failure interactions
         run: python tools/run_browser_checks.py --channel chromium --output artifacts/browser-ci
       - name: Check synthetic learning persistence, recovery and session conflicts
         run: python tools/check_learning_persistence_browser.py --channel chromium --output artifacts/browser-ci/learning-persistence
+      - name: Check read-only legacy SQLite and saved images
+        run: python tools/check_readonly_library_browser.py --channel chromium --output artifacts/browser-ci/readonly-library
+      - name: Check authenticated bookmark UI with synthetic transport only
+        run: python tools/check_live_bookmark_browser.py --channel chromium --output artifacts/browser-ci/live-bookmarks
       - name: Preserve synthetic browser evidence
         if: always()
         uses: actions/upload-artifact@v4

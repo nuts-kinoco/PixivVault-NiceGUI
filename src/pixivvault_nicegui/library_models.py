@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, replace, field
+from collections.abc import Mapping
+from types import MappingProxyType
 
 from .models import Artwork
 
@@ -23,8 +25,9 @@ class LibraryWork:
     def __post_init__(self) -> None:
         if not isinstance(self.artwork, Artwork):
             raise TypeError("artwork must be an Artwork")
-        if not isinstance(self.author_id, str) or not self.author_id:
-            raise ValueError("author_id must be a non-empty string")
+        # Legacy works may legitimately contain NULL user_id, grouped as "".
+        if not isinstance(self.author_id, str):
+            raise ValueError("author_id must be a string")
         if self.author_name is not None and not isinstance(self.author_name, str):
             raise TypeError("author_name must be a string or None")
         if self.last_backup is not None and not isinstance(self.last_backup, str):
@@ -107,6 +110,7 @@ class LibrarySnapshot:
     """作品LIMITより前の全作品を収め、作者IDで集約する読取結果。"""
 
     works: tuple[LibraryWork, ...]
+    author_capacities: Mapping[str, int | None] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         items = tuple(self.works)
@@ -115,6 +119,11 @@ class LibrarySnapshot:
         if len({item.work_id for item in items}) != len(items):
             raise ValueError("duplicate work_id")
         object.__setattr__(self, "works", items)
+        capacities = dict(self.author_capacities)
+        if any(not isinstance(key, str) or (value is not None and
+               (type(value) is not int or value < 0)) for key, value in capacities.items()):
+            raise ValueError("invalid author capacity cache")
+        object.__setattr__(self, "author_capacities", MappingProxyType(capacities))
 
     @property
     def authors(self) -> tuple[AuthorSummary, ...]:
@@ -134,6 +143,8 @@ class LibrarySnapshot:
                 representative=representative,
                 view_count=sum(work.view_count for work in works),
                 last_backup=representative.last_backup,
-                capacity_bytes=sum(sizes) if all(size is not None for size in sizes) else None,
+                capacity_bytes=(self.author_capacities[author_id]
+                                if author_id in self.author_capacities else
+                                (sum(sizes) if all(size is not None for size in sizes) else None)),
             ))
         return tuple(result)

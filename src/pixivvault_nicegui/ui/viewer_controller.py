@@ -85,7 +85,8 @@ class ViewerController:
         self._image_token = state.begin_request(art.work_id)
         self._request_serial += 1
         # fragment はHTTPへ送られず、既存cacheを保って要求世代を照合できる。
-        self._image_url = (self.services.images.url(art.work_id, state.selected_page, "view")
+        provider = getattr(self, "_image_provider", self.services.images)
+        self._image_url = (provider.url(art.work_id, state.selected_page, "view")
                            + f"#request-{self._image_token.generation}-{self._request_serial}")
         self.viewer_image.set_source(self._image_url)
         self.viewer_image.props["aria-busy"] = "true"

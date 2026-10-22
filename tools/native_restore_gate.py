@@ -9,6 +9,7 @@ import ctypes
 from ctypes import wintypes as w
 from pathlib import Path
 import time
+import traceback
 
 from PIL import ImageStat
 
@@ -68,6 +69,8 @@ class Win32Window:
         self.user.SetWindowPos.restype = w.BOOL
         self.user.ShowWindow.argtypes = [w.HWND, ctypes.c_int]
         self.user.ShowWindow.restype = w.BOOL
+        self.user.GetForegroundWindow.argtypes = []
+        self.user.GetForegroundWindow.restype = w.HWND
         self.top_identity = self.identity(top)
         if not pixels.is_descendant(self.top_identity[0], root, pixels.process_parents()):
             raise GateFailure("top_outside_owned_tree")
@@ -141,6 +144,22 @@ class Win32Window:
             state = "hidden"
         self.verify_top()
         return state
+
+    def activate_for_capture(self) -> bool:
+        """Request focus for this verified test window, never manipulate another app.
+
+        Windows may refuse foreground activation. That does not bypass the
+        subsequent screen-owner checks: any obscured point still fails closed.
+        """
+        self.verify_top()
+        # Unlike cleanup, setup may activate our own verified top-level test
+        # window. Do not resize/move it or target any external window.
+        if not self.user.SetWindowPos(self.top, -1, 0, 0, 0, 0, 0x0003):
+            raise GateFailure("owned_top_raise_failed")
+        self.verify_top()
+        if not self.topmost():
+            raise GateFailure("topmost_verification_failed")
+        return self.user.GetForegroundWindow() == self.top
 
     def show(self, command: int) -> None:
         self.verify_top()
@@ -364,6 +383,8 @@ def run_restore_gate(root: int, root_birth: int, top: int, output: Path,
         # Cleanup is armed before mutation, including partial SetWindowPos failures.
         window.set_topmost(True)
         baseline_deadline = min(deadline, time.monotonic() + limits["restore_baseline"])
+        report["owned_top_foreground"] = window.activate_for_capture()
+        _before(baseline_deadline)
         window.prepare()
         _before(baseline_deadline)
         report["window"] = window.record()
@@ -404,6 +425,20 @@ def run_restore_gate(root: int, root_birth: int, top: int, output: Path,
     except Exception as exc:
         report["errors"].append(exc.reason if isinstance(exc, GateFailure) else stage + "_error")
         report["error_type"] = type(exc).__name__
+        report["failure_location"] = [f"{Path(frame.filename).name}:{frame.lineno}"
+                                      for frame in traceback.extract_tb(exc.__traceback__)[-4:]]
+        # No arbitrary exception text, paths or private UI data in diagnostics.
+        known_capture_errors = {
+            "screen window hidden or minimized", "screen capture requires WS_EX_TOPMOST",
+            "screen client moved or resized", "root missing from process snapshot",
+            "screen client occluded or PID identity unknown", "flat screen capture rejected",
+            "window capture differs from GetClientRect; offset unknown",
+        }
+        if str(exc) in known_capture_errors:
+            report["capture_failure"] = str(exc)
+        probe = getattr(exc, "capture_probe", None)
+        if isinstance(probe, dict):
+            report["capture_probe"] = probe
     finally:
         if window is not None and original_topmost is not None:
             try:
