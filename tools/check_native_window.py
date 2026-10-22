@@ -18,13 +18,15 @@ from urllib.parse import urlparse
 
 if __package__:
     from .native_restore_gate import run_restore_gate
+    from .native_ui_guard import NativeUiGuard
 else:
     from native_restore_gate import run_restore_gate
+    from native_ui_guard import NativeUiGuard
 
 
 # Per-phase maximums, bounded by one total deadline (default 90 seconds).
 PHASE_LIMITS = {"health": 30.0, "window": 20.0, "restore_baseline": 5.0, "minimize": 5.0,
-                "restore": 5.0, "close": 30.0, "inspect_ui": 25.0}
+                "restore": 5.0, "close": 30.0, "inspect_ui": 40.0}
 
 LOG_FAILURE = re.compile(r"Traceback|Vue failed to load|Error occurred|ObjectDisposedException", re.I)
 
@@ -44,8 +46,79 @@ def matching_app_page(url: str, port: int) -> bool:
         return False
 
 
+def inspect_library_ui(page, screenshot: Path, guard: NativeUiGuard) -> dict:
+    """Exercise the synthetic author/page route in the owned WebView."""
+    from playwright.sync_api import expect
+
+    run = guard.run
+    run(page.get_by_test_id("tab-library").click)
+    library = page.get_by_test_id("library-view")
+    run(expect(library).to_have_attribute, "data-active", "true")
+    authors = library.locator(".pv-library-author-card")
+    run(expect(authors).to_have_count, 4)
+    author_shot = screenshot.with_name(screenshot.stem + "-library-authors.png")
+    run(page.screenshot, path=str(author_shot), full_page=False)
+    search = library.get_by_placeholder("作品名・作者・タグで検索")
+    run(search.fill, "0003")
+    run(expect(authors).to_have_count, 1)
+    run(expect(authors).to_have_attribute, "data-representative-id", "demo-0060")
+    run(authors.get_by_test_id("library-author-open").click)
+    counter = library.get_by_test_id("library-page-count")
+    run(expect(counter).to_have_text, "50 / 98 枚表示")
+    run(expect(library.locator(".pv-library-page-card")).to_have_count, 50)
+    card = library.locator('.pv-library-page-card[data-work-id="demo-0060"][data-page-no="2"]')
+    original_id = run(card.get_attribute, "id")
+    run(library.get_by_test_id("library-more").click)
+    run(expect(counter).to_have_text, "98 / 98 枚表示")
+    run(expect(library.locator(".pv-library-page-card")).to_have_count, 98)
+    run(expect(library.get_by_test_id("library-more")).to_be_hidden)
+    run(expect(card).to_have_attribute, "id", original_id)
+    run(card.click)
+    viewer = page.get_by_test_id("library-viewer")
+    run(expect(viewer).to_be_visible)
+    run(expect(viewer.locator(".pv-counter")).to_have_text, "3/3")
+    image = page.get_by_test_id("library-viewer-image").locator("img:visible")
+    run(expect(image).to_have_count, 1)
+    guard.decode(image)
+    displayed_path = run(image.evaluate, "img => new URL(img.currentSrc || img.src, document.baseURI).pathname")
+    if displayed_path != "/media/demo-0060/2/view.png":
+        raise AssertionError("native library viewer opened an incorrect work or page")
+    run(expect(viewer.get_by_role("button", name="次のページ", exact=True)).to_be_disabled)
+    run(expect(viewer).to_be_focused)
+    run(page.keyboard.press, "ArrowLeft", with_timeout=False)
+    run(expect(viewer.locator(".pv-counter")).to_have_text, "2/3")
+    run(expect(viewer.get_by_text("画像読込中", exact=True)).to_be_hidden)
+    guard.decode(image)
+    previous_path = run(image.evaluate, "img => new URL(img.currentSrc || img.src, document.baseURI).pathname")
+    if previous_path != "/media/demo-0060/1/view.png":
+        raise AssertionError("native library previous page was not displayed")
+    library_viewer_shot = screenshot.with_name(screenshot.stem + "-library-viewer.png")
+    run(page.screenshot, path=str(library_viewer_shot), full_page=False)
+    run(viewer.get_by_role("button", name="閉じる", exact=True).click)
+    run(expect(viewer).to_be_hidden)
+    run(expect(card).to_be_focused)
+    run(page.get_by_test_id("tab-ranking").click)
+    run(page.get_by_test_id("gallery-size-small").click)
+    run(page.get_by_test_id("tab-library").click)
+    run(expect(counter).to_have_text, "98 / 98 枚表示")
+    run(expect(search).to_have_value, "0003")
+    run(expect(library.get_by_test_id("library-size-small")).to_have_attribute, "aria-pressed", "true")
+    run(expect(card).to_have_attribute, "id", original_id)
+    detail_shot = screenshot.with_name(screenshot.stem + "-library-detail.png")
+    run(page.screenshot, path=str(detail_shot), full_page=False)
+    run(library.get_by_test_id("library-back").click)
+    run(expect(authors.get_by_test_id("library-author-open")).to_be_focused)
+    run(expect(authors).to_have_count, 1)
+    run(expect(search).to_have_value, "0003")
+    return {"author_count": 4, "filtered_author_count": 1, "detail_pages": 98,
+            "selected_page_path": displayed_path, "previous_page": 1,
+            "append_preserved_card": True, "tab_state_and_shared_size": True,
+            "author_focus_restored": True, "author_screenshot": str(author_shot),
+            "viewer_screenshot": str(library_viewer_shot), "detail_screenshot": str(detail_shot)}
+
+
 def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float,
-               *, learning_persistence: bool = False) -> dict:
+               *, check_owner, learning_persistence: bool = False) -> dict:
     """Use Playwright's WebView2 CDP attachment, never close remote browser/context."""
     from playwright.sync_api import expect, sync_playwright
 
@@ -54,12 +127,17 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
               "console_errors": [], "page_errors": [], "screenshot": None,
               "interactions": []}
     with sync_playwright() as playwright:
+        check_owner()
+        remaining_ms = int((deadline - time.monotonic()) * 1000)
+        if remaining_ms <= 0:
+            raise TimeoutError("native UI deadline expired before attachment")
         browser = playwright.chromium.connect_over_cdp(
-            f"http://127.0.0.1:{debug_port}", timeout=max(1000, int((deadline - time.monotonic()) * 1000)))
+            f"http://127.0.0.1:{debug_port}", timeout=min(5000, remaining_ms))
         # sync_playwright context exit disconnects CDP; do not call browser.close/context.close.
         pages = []
         def find_page() -> bool:
             nonlocal pages
+            check_owner()
             pages = [page for context in browser.contexts for page in context.pages
                      if matching_app_page(page.url, app_port)]
             return bool(pages)
@@ -67,22 +145,24 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
         if len(pages) != 1:
             raise RuntimeError(f"Expected one matching WebView page, found {len(pages)}")
         page = pages[0]
+        guard = NativeUiGuard(page, app_port, deadline, check_owner)
+        run = guard.run
         result['browser_version'] = browser.version
-        result['viewport'] = page.evaluate('''() => ({
+        result['viewport'] = run(page.evaluate, '''() => ({
             width: window.innerWidth, height: window.innerHeight,
             device_pixel_ratio: window.devicePixelRatio
-        })''')
+        })''', with_timeout=False)
         page.on("console", lambda msg: result["console_errors"].append(msg.text[:240])
                 if msg.type == "error" else None)
         page.on("pageerror", lambda err: result["page_errors"].append(str(err)[:240]))
         def ready() -> bool:
-            state = page.evaluate("""() => ({
+            state = run(page.evaluate, """() => ({
               handshake: window.did_handshake === true,
               cards: document.querySelectorAll('.pv-card').length,
               decoded: (() => { const img = document.querySelector('.pv-card img');
                 return !!img && img.complete && img.naturalWidth > 0; })(),
               bridge: !!(window.pywebview && window.pywebview.api)
-            })""")
+            })""", with_timeout=False)
             result.update(handshake=state["handshake"], cards=state["cards"],
                           image_decoded=state["decoded"], bridge_ready=state["bridge"])
             return all((result["handshake"], result["cards"] == 50,
@@ -92,97 +172,97 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
                 result['image_decoded'], result['bridge_ready'])):
             # 実際のWebViewでイベント往復と画像完了を確認する。
             # 単にHTTPが起動したことをnative画面の受入と混同しない。
-            page.set_default_timeout(max(1000, min(5000, int((deadline-time.monotonic())*1000))))
-            page.locator('.pv-card').first.click()
+            run(page.locator('.pv-card').first.click)
             viewer = page.get_by_test_id('gallery-viewer')
-            expect(viewer).to_be_visible()
-            expect(viewer.get_by_text('画像読込中')).to_be_hidden(timeout=5000)
-            page.get_by_test_id('viewer-image').locator('img').evaluate('(img) => img.decode()')
-            expect(page.get_by_test_id('viewer-image')).to_have_css('opacity', '1')
-            geometry = page.evaluate('''() => {
+            run(expect(viewer).to_be_visible)
+            run(expect(viewer.get_by_text('画像読込中')).to_be_hidden)
+            guard.decode(page.get_by_test_id('viewer-image').locator('img:visible'))
+            run(expect(page.get_by_test_id('viewer-image')).to_have_css, 'opacity', '1')
+            geometry = run(page.evaluate, '''() => {
                 const box = selector => {
                     const r = document.querySelector(selector).getBoundingClientRect();
                     return {x:r.x, y:r.y, width:r.width, height:r.height, bottom:r.bottom};
                 };
                 return {viewer:box('.pv-viewer'), content:box('.pv-content'), nav:box('.pv-nav')};
-            }''')
+            }''', with_timeout=False)
             if (any(abs(geometry['viewer'][key] - geometry['content'][key]) > 1
                     for key in ('x', 'y', 'width', 'height'))
                     or geometry['viewer']['y'] < geometry['nav']['bottom']):
                 raise AssertionError(f'native viewer must stay below navigation: {geometry}')
-            expect(viewer).to_have_attribute('aria-modal', 'false')
+            run(expect(viewer).to_have_attribute, 'aria-modal', 'false')
             result['viewer_boundary'] = geometry
             viewer_shot = screenshot.with_name(screenshot.stem + '-viewer.png')
-            page.screenshot(path=str(viewer_shot), full_page=False)
+            run(page.screenshot, path=str(viewer_shot), full_page=False)
             result['viewer_screenshot'] = str(viewer_shot)
-            viewer.get_by_role('button', name='閉じる', exact=True).click()
-            expect(viewer).to_be_hidden()
-            expect(page.locator('.pv-card').first).to_be_focused()
+            run(viewer.get_by_role('button', name='閉じる', exact=True).click)
+            run(expect(viewer).to_be_hidden)
+            run(expect(page.locator('.pv-card').first).to_be_focused)
             result['interactions'].append('gallery viewer open/decode/close')
-            page.locator('.pv-card').first.click()
-            expect(viewer).to_be_visible()
-            page.get_by_test_id('tab-learning').click()
-            expect(viewer).to_be_hidden()
-            expect(viewer).to_have_attribute('aria-hidden', 'true')
+            run(page.locator('.pv-card').first.click)
+            run(expect(viewer).to_be_visible)
+            run(page.get_by_test_id('tab-learning').click)
+            run(expect(viewer).to_be_hidden)
+            run(expect(viewer).to_have_attribute, 'aria-hidden', 'true')
             learning = page.locator('.pv-learning[data-active="true"]')
             like = learning.get_by_role('button', name='いいね', exact=True)
-            expect(like).to_be_enabled(timeout=5000)
-            initial_count = int(learning.locator('.pv-counter').inner_text().split('/', 1)[0].strip())
-            expect(learning).to_be_focused()
-            page.keyboard.press('ArrowRight')
-            expect(learning.locator('.pv-counter')).to_have_text(re.compile(rf'^{initial_count + 1} /'))
-            expect(like).to_be_enabled(timeout=5000)
-            learning.get_by_role('button', name='ひとつ戻す（Undo）').click()
-            expect(learning.locator('.pv-counter')).to_have_text(re.compile(rf'^{initial_count} /'))
-            expect(learning.get_by_role('button', name='ひとつ戻す（Undo）')).to_be_disabled()
-            expect(like).to_be_enabled(timeout=5000)
+            run(expect(like).to_be_enabled)
+            initial_count = int(run(learning.locator('.pv-counter').inner_text).split('/', 1)[0].strip())
+            run(expect(learning).to_be_focused)
+            run(page.keyboard.press, 'ArrowRight', with_timeout=False)
+            run(expect(learning.locator('.pv-counter')).to_have_text, re.compile(rf'^{initial_count + 1} /'))
+            run(expect(like).to_be_enabled)
+            run(learning.get_by_role('button', name='ひとつ戻す（Undo）').click)
+            run(expect(learning.locator('.pv-counter')).to_have_text, re.compile(rf'^{initial_count} /'))
+            run(expect(learning.get_by_role('button', name='ひとつ戻す（Undo）')).to_be_disabled)
+            run(expect(like).to_be_enabled)
             image = learning.locator('.pv-view-art img')
-            image.evaluate('(img) => img.decode()')
-            displayed = image.evaluate('''img => ({
+            guard.decode(image)
+            displayed = run(image.evaluate, '''img => ({
                 path: new URL(img.currentSrc || img.src, document.baseURI).pathname,
                 complete: img.complete, width: img.naturalWidth, height: img.naturalHeight
             })''')
-            expected_path = f"/media/{learning.get_attribute('data-work-id')}/0/view.png"
+            expected_path = f"/media/{run(learning.get_attribute, 'data-work-id')}/0/view.png"
             if (displayed['path'] != expected_path or not displayed['complete']
                     or displayed['width'] <= 0 or displayed['height'] <= 0):
                 raise AssertionError('native learning image does not match restored work')
             result['learning_image'] = displayed
             result['interactions'].append('learning judgment/Undo/decoded image')
-            page.get_by_test_id('tab-ranking').click()
-            expect(page.get_by_test_id('tab-ranking')).to_be_focused()
-            expect(viewer).to_be_hidden()
+            run(page.get_by_test_id('tab-ranking').click)
+            run(expect(page.get_by_test_id('tab-ranking')).to_be_focused)
+            run(expect(viewer).to_be_hidden)
             result['interactions'].append('tab-scoped viewer/leave/learning keyboard/return focus')
             if learning_persistence:
-                page.get_by_test_id('tab-learning').click()
-                expect(learning).to_have_attribute('data-storage-mode', 'sandbox')
-                saved_work = learning.get_attribute('data-work-id')
-                like.click()
-                expect(learning.locator('.pv-counter')).to_have_text(re.compile(rf'^{initial_count + 1} /'))
-                expect(like).to_be_enabled(timeout=5000)
-                expected_next = learning.get_attribute('data-work-id')
+                run(page.get_by_test_id('tab-learning').click)
+                run(expect(learning).to_have_attribute, 'data-storage-mode', 'sandbox')
+                saved_work = run(learning.get_attribute, 'data-work-id')
+                run(like.click)
+                run(expect(learning.locator('.pv-counter')).to_have_text, re.compile(rf'^{initial_count + 1} /'))
+                run(expect(like).to_be_enabled)
+                expected_next = run(learning.get_attribute, 'data-work-id')
                 learning_shot = screenshot.with_name(screenshot.stem + '-learning.png')
-                page.screenshot(path=str(learning_shot), full_page=False)
-                page.reload(wait_until='domcontentloaded')
-                page.get_by_test_id('tab-learning').click()
+                run(page.screenshot, path=str(learning_shot), full_page=False)
+                run(page.reload, wait_until='domcontentloaded')
+                run(page.get_by_test_id('tab-learning').click)
                 learning = page.locator('.pv-learning[data-active="true"]')
-                expect(learning.get_by_role('button', name='いいね', exact=True)).to_be_enabled(timeout=5000)
-                expect(learning).to_have_attribute('data-storage-mode', 'sandbox')
-                expect(learning).to_have_attribute('data-work-id', expected_next)
-                expect(learning.locator('.pv-counter')).to_have_text(re.compile(rf'^{initial_count + 1} /'))
-                expect(learning.get_by_role('button', name='ひとつ戻す（Undo）')).to_be_disabled()
+                run(expect(learning.get_by_role('button', name='いいね', exact=True)).to_be_enabled)
+                run(expect(learning).to_have_attribute, 'data-storage-mode', 'sandbox')
+                run(expect(learning).to_have_attribute, 'data-work-id', expected_next)
+                run(expect(learning.locator('.pv-counter')).to_have_text, re.compile(rf'^{initial_count + 1} /'))
+                run(expect(learning.get_by_role('button', name='ひとつ戻す（Undo）')).to_be_disabled)
                 result['learning_persistence'] = {
                     'initial_count': initial_count, 'after_reload_count': initial_count + 1,
                     'saved_work': saved_work, 'next_work': expected_next,
                     'session_undo_reset': True, 'screenshot': str(learning_shot),
                 }
                 result['interactions'].append('sandbox judgment persists across WebView reload')
-        if time.monotonic() < deadline:
-            page.screenshot(path=str(screenshot), full_page=False,
-                            timeout=max(1000, int((deadline-time.monotonic())*1000)))
+            result['library'] = inspect_library_ui(page, screenshot, guard)
+            result['interactions'].append('library author/search/all pages/viewer/tab return/shared size')
+        run(page.screenshot, path=str(screenshot), full_page=False)
         result["screenshot"] = str(screenshot)
+        guard.check()
         result["passed"] = (result["handshake"] and result["cards"] == 50
                             and result["image_decoded"] and result["bridge_ready"]
-                            and len(result['interactions']) == (4 if learning_persistence else 3)
+                            and len(result['interactions']) == (5 if learning_persistence else 4)
                             and not result["console_errors"] and not result["page_errors"])
     return result
 
@@ -545,19 +625,25 @@ def main(argv: list[str] | None = None) -> int:
             if not handles:
                 report["errors"].append("window_timeout")
             else:
+                hwnd = handles[0]
+                expected_owner = owned_window_identity(root.pid, root_identity, hwnd, identities)
+
+                def check_ui_owner() -> None:
+                    if owned_window_identity(root.pid, root_identity, hwnd, identities) != expected_owner:
+                        raise RuntimeError("native UI window owner changed")
+
                 if args.inspect_ui:
                     try:
                         screenshot = output_path.with_name("webview-ui.png")
                         report["ui_inspection"] = inspect_ui(
                             debug_port, port, screenshot, phase_deadline(operation_deadline, "inspect_ui"),
+                            check_owner=check_ui_owner,
                             learning_persistence=args.learning_sandbox is not None)
                         if not report["ui_inspection"]["passed"]:
                             report["errors"].append("ui_inspection_failed")
                     except Exception as exc:
                         report["ui_inspection"] = {"passed": False, "reason": type(exc).__name__}
                         report["errors"].append("ui_inspection_exception")
-                hwnd = handles[0]
-                expected_owner = owned_window_identity(root.pid, root_identity, hwnd, identities)
                 restore_gate = run_restore_gate(
                     root.pid, root_identity, hwnd, output_path, operation_deadline, PHASE_LIMITS,
                     expected_top_identity=expected_owner)
