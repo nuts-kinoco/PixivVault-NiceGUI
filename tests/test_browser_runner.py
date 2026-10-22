@@ -1,5 +1,6 @@
 """Browser runner lifecycle tests without starting an app or browser."""
 
+import hashlib
 import importlib.util
 import json
 import subprocess
@@ -18,9 +19,13 @@ spec.loader.exec_module(runner)
 def test_environment_removes_pytest_session_without_losing_other_values(monkeypatch):
     monkeypatch.setenv("PYTEST_CURRENT_TEST", "test_identifier")
     monkeypatch.setenv("RUNNER_TEST_KEEP", "keep")
+    monkeypatch.setenv("PYTHONPATH", "unexpected-checkout/src")
+    monkeypatch.setenv("PYTHONSAFEPATH", "")
     result = runner.child_environment()
     assert "PYTEST_CURRENT_TEST" not in result
     assert result["RUNNER_TEST_KEEP"] == "keep"
+    assert result["PYTHONPATH"] == str(runner.ROOT / "src")
+    assert result["PYTHONSAFEPATH"] == "1"
     assert result["PYTHONUNBUFFERED"] == "1"
     assert result["PYTHONUTF8"] == "1"
 
@@ -66,12 +71,14 @@ def test_termination_escalates_when_child_ignores_term():
 
 
 @pytest.mark.parametrize("codes,expected", [
-    ([0, 0, 0], 0),
-    ([1, 0, 0], 1),
-    ([0, -1, 0], 1),
-    ([0, 0, 1], 1),
+    ([0, 0, 0, 0], 0),
+    ([1, 0, 0, 0], 1),
+    ([0, -1, 0, 0], 1),
+    ([0, 0, 1, 0], 1),
+    ([0, 0, 0, 1], 1),
+    ([0, 0, 0, -1], 1),
 ])
-def test_runner_requires_both_checks_and_always_cleans_up(tmp_path, monkeypatch, codes, expected):
+def test_runner_requires_all_checks_and_always_cleans_up(tmp_path, monkeypatch, codes, expected):
     process = Mock(pid=1234, returncode=0)
     process.poll.side_effect = [None, 0]
     process.wait.return_value = 0
@@ -84,7 +91,10 @@ def test_runner_requires_both_checks_and_always_cleans_up(tmp_path, monkeypatch,
 
     def fake_run(cmd, **kwargs):
         calls.append(cmd)
-        return Mock(returncode=codes[len(calls) - 1])
+        code = codes[len(calls) - 1]
+        if code == -1:
+            raise subprocess.TimeoutExpired(cmd, kwargs["timeout"])
+        return Mock(returncode=code)
 
     monkeypatch.setattr(runner.subprocess, "run", fake_run)
     rc = runner.run(output=tmp_path)
@@ -97,6 +107,43 @@ def test_runner_requires_both_checks_and_always_cleans_up(tmp_path, monkeypatch,
     data = json.loads((tmp_path / "runner-result.json").read_text(encoding="utf-8"))
     assert data["success"] is (expected == 0)
     assert data["app"]["port_released"] is True
+
+
+def test_runner_sources_match_child_when_caller_uses_foreign_repo(tmp_path, monkeypatch):
+    trusted = tmp_path / "trusted"
+    foreign = tmp_path / "foreign"
+    local_source = trusted / "src" / "pixivvault_nicegui" / "bootstrap.py"
+    foreign_source = foreign / "src" / "pixivvault_nicegui" / "bootstrap.py"
+    local_source.parent.mkdir(parents=True)
+    foreign_source.parent.mkdir(parents=True)
+    local_source.write_bytes(b"# trusted source\n")
+    foreign_source.write_bytes(b"# foreign source\n")
+    expected_hashes = {"src/pixivvault_nicegui/bootstrap.py":
+                       hashlib.sha256(local_source.read_bytes()).hexdigest()}
+    monkeypatch.setattr(runner, "ROOT", trusted)
+    monkeypatch.chdir(foreign)
+    monkeypatch.setenv("PYTHONPATH", str(foreign / "src"))
+
+    app = Mock(pid=1234, returncode=0)
+    app.poll.side_effect = [None, 0]
+    popen = Mock(return_value=app)
+    monkeypatch.setattr(runner.subprocess, "Popen", popen)
+    monkeypatch.setattr(runner.subprocess, "run", lambda *a, **kw: Mock(returncode=0))
+    monkeypatch.setattr(runner, "free_port", lambda: 49123)
+    monkeypatch.setattr(runner, "wait_for_health", lambda url, process: None)
+    monkeypatch.setattr(runner, "port_released", lambda port: True)
+
+    assert runner.run(output=tmp_path / "results") == 0
+    kwargs = popen.call_args.kwargs
+    assert popen.call_args.args[0][:3] == [runner.sys.executable, "-m", "pixivvault_nicegui"]
+    assert kwargs["cwd"] == str(trusted)
+    assert kwargs["env"]["PYTHONPATH"] == str(trusted / "src")
+    assert kwargs["env"]["PYTHONSAFEPATH"] == "1"
+    assert kwargs["env"]["PYTHONPATH"] != str(foreign / "src")
+    data = json.loads((tmp_path / "results" / "runner-result.json").read_text(encoding="utf-8"))
+    assert data["source_before"] == data["source_after"] == expected_hashes
+    assert data["checks"] == dict.fromkeys(runner.CHECKS, 0)
+    app.terminate.assert_called_once()
 
 
 def test_failed_health_still_terminates_child(tmp_path, monkeypatch):

@@ -18,12 +18,16 @@ class ArtworkViewer:
         on_close: Callable[[], None],
         on_details: Callable[[], None],
         on_retry: Callable[[], None],
+        *,
+        test_id: str = "gallery-viewer",
+        image_test_id: str = "viewer-image",
     ) -> None:
         self.dialog = self  # GalleryView's existing dialog.open()/close() call sites.
         self.client = ui.context.client
         self._is_open = False
         with ui.column().classes("pv-viewer pv-viewer-overlay hidden").props(
-            "tabindex=-1 role=dialog aria-label=画集ビューア aria-modal=false aria-hidden=true data-testid=gallery-viewer"
+            "tabindex=-1 role=dialog aria-label=画集ビューア aria-modal=false aria-hidden=true "
+            f"data-testid={test_id}"
         ) as self.root:
                 with ui.row().classes("pv-viewer-header w-full items-center"):
                     ui.label("画集ビューア").classes("pv-viewer-heading")
@@ -40,7 +44,7 @@ class ArtworkViewer:
                         icon="chevron_left", on_click=on_previous, color=None
                     ).props("flat round aria-label=前のページ").classes("pv-viewer-page-prev")
                     self.image = VerifiedImage(alt="作品画像", retain_previous=True).props(
-                        "data-testid=viewer-image"
+                        f"data-testid={image_test_id}"
                     ).classes("pv-view-art")
                     self.image.on("click", lambda _: self._close_details_on_image_click(on_details))
                     self.next_page = ui.button(
