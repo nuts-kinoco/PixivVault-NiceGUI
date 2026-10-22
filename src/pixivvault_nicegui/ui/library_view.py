@@ -41,6 +41,7 @@ class LibraryView(ViewerController):
         # Old cards may still have queued client events after a full reload.
         # LibraryState generation starts at zero again, so also compare identity.
         self._page_session = object()
+        self._author_session = object()
         self.more_cell = None
         self.load_error = False
 
@@ -86,6 +87,8 @@ class LibraryView(ViewerController):
                     "data-testid=library-authors-scroll"
                 ) as self.authors_scroll:
                     self.author_grid = ui.element("div").classes("pv-grid")
+                    self.author_more_button = ui.button("もっと見る", on_click=self.more_authors).props(
+                        "flat no-caps data-testid=library-author-more")
                 self._remember_scroll(self.authors_scroll)
 
             with ui.column().classes("pv-library-panel pv-library-detail w-full").props(
@@ -162,6 +165,7 @@ class LibraryView(ViewerController):
         self._rendered_authors = ()
         self._clear_pages()
         self._page_session = object()
+        self._author_session = object()
         self.state = LibraryState(LibrarySnapshot(()))
         self._viewer_state = GalleryState(())
         try:
@@ -190,8 +194,9 @@ class LibraryView(ViewerController):
                         "role=button tabindex=0 data-testid=library-author-open"
                     ) as opener:
                         opener.props["aria-label"] = author.name
-                        opener.on("click", lambda _, uid=author.author_id: self.open_author(uid))
-                        opener.on("keydown.enter", lambda _, uid=author.author_id: self.open_author(uid))
+                        session = self._author_session
+                        opener.on("click", lambda _, uid=author.author_id, owner=session: self.open_author(uid, owner))
+                        opener.on("keydown.enter", lambda _, uid=author.author_id, owner=session: self.open_author(uid, owner))
                         ui.image(self.services.images.url(author.representative.work_id, 0, "thumb")).props(
                             "fit=cover loading=lazy no-transition"
                         ).classes("pv-thumb")
@@ -202,6 +207,7 @@ class LibraryView(ViewerController):
                 ui.label(author.name).classes("pv-library-card-title")
                 with ui.row().classes("pv-library-card-info"):
                     ui.label(f"{author.work_count}点")
+                    ui.label(f"閲覧 {author.view_count}回")
                     ui.label(format_capacity(author.capacity_bytes))
         self.author_cards[author.author_id] = card
         self.author_openers[author.author_id] = opener
@@ -209,19 +215,26 @@ class LibraryView(ViewerController):
     def render_authors(self) -> None:
         visible = self.state.visible_authors
         wanted = tuple(author.author_id for author in visible)
-        if wanted != self._rendered_authors:
+        if wanted[:len(self._rendered_authors)] != self._rendered_authors:
             self.author_grid.clear()
             self.author_cards.clear()
             self.author_openers.clear()
-            for author in visible:
-                self._make_author_card(author)
-            self._rendered_authors = wanted
+            self._rendered_authors = ()
+            self._author_session = object()
+        for author in visible[len(self._rendered_authors):]:
+            self._make_author_card(author)
+        self._rendered_authors = wanted
         self.author_counter.set_text(
             f"{self.state.shown_author_count} / {self.state.matched_author_count} 作者表示"
             f"（全{self.state.total_author_count}作者）")
         self.empty.set_text("保存済み作品がありません" if not self.state.total_author_count
                             else "条件に合う作者がいません")
         self.empty.set_visibility(not wanted)
+        self.author_more_button.set_visibility(self.state.has_more_authors)
+
+    def more_authors(self) -> None:
+        if self.active and not self.closed and not self.load_error and self.state.load_more_authors():
+            self.render_authors()
 
     def _clear_pages(self) -> None:
         self.page_grid.clear()
@@ -296,8 +309,10 @@ class LibraryView(ViewerController):
             self._sync_panels()
             self._restore_scroll(self.authors_scroll, reset=True)
 
-    def open_author(self, author_id: str) -> None:
+    def open_author(self, author_id: str, session: object | None = None) -> None:
         if self.closed or not self.active or self.load_error:
+            return
+        if session is not None and session is not self._author_session:
             return
         if self.state.open_author(author_id):
             self.close_viewer(restore_focus=False)

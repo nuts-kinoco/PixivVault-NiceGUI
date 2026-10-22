@@ -32,3 +32,13 @@
 ## 残る必須範囲
 
 段階4全体は未完。ブックマーク/類似overlay、詳細な検索・絞込8席、リモート作者検索・フォロー、外部viewer、ZIP/フォルダ実体、保存容量・実閲覧履歴、うごイラ・別種作品、実API/本番互換データとWindows配布上のこの新画面の受入は含まない。段階0/1の他DPI・別PC・長時間運用も従前どおり残す。
+
+## 追加独立レビューとWindows受入（PR #9後）
+
+先行PR #9（main `d709f1963ea855e9502e271f2d908a7bfa38d5b2`）と差分を照合し、後続のレビュー修正を別単位として扱う。レビューでは作者51件以上の表示打切り、詳細表示中に古い別作者クリックが届く問題を再現した。作者一覧にも明示的50件単位の追加を設け、詳細表示中の別作者選択を拒否する。さらに単純な世代固定による「詳細から戻って同じ作者を開けない」回帰を実Edgeで発見したため、作者カードの再構成・reloadごとにsession identityを更新し、詳細から戻る際の既存カードは保持する。作者カードには閲覧回数を表示する。
+
+native inspectorの`tools.native_ui_guard` import欠落も修正した。所有するloopback WebViewと残余期限を各操作で確認し、画像decode・URLも検査する。実DOMと異なっていたライブラリ検索のinput locatorをplaceholderへ変更。対象native/browser関連51試験と全体**358 pytest成功**。実Edge runnerの4系統は1920×1080/1280×720でexit0、`source_changed=false`、port解放成功。検証途中のsrc変更を検出した別試行は不合格記録として除外した。
+
+上記の実装コード`bea9cbd67c590e22402bef6d8901718f2e445944`からWindows onedir/noconsoleを再ビルドし、別フォルダーへコピーしたexeを実WebView2で受け入れた。ランキング画像、学習Undo、ライブラリ作者検索→98ページ・指定3/3表示→ページ戻り→タブ往復、カードサイズ共有、復帰後の実GDI検査が成功。WebView2 155.0.4283.62、DPI175%、1907×1044 CSS px。`status=passed`、`ui_inspection.passed=true`、`restore_gate.passed=true`、`normal_exit=true`、`port_released=true`、観測8プロセス終了、強制cleanup/予期しないconsole・page・process-log errorなし。ignored証拠は`artifacts/library-phase4-20261022/native-bea9cbd.json`と関連PNG。コード担当と別のレビューで確定重大残件なし。
+
+この追加受入は175%の開発機での限定経路に限る。別PC・100/125/150%・最大化/長時間復帰、原版の未移植ライブラリ機能の全受入は依然として必須。修正PRの最終headと統合先mainのCIはそれぞれ別途判定する。

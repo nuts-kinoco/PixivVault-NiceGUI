@@ -28,6 +28,7 @@ class LibraryState:
         self._matched_authors: tuple[AuthorSummary, ...] = ()
         self._pages: tuple[PageRef, ...] = ()
         self._page_limit = page_size
+        self._author_limit = page_size
         self.generation = next(_generations)
         self.closed = False
         self._refresh_matches()
@@ -46,7 +47,17 @@ class LibraryState:
 
     @property
     def visible_authors(self) -> tuple[AuthorSummary, ...]:
-        return self._matched_authors[:self.page_size]
+        return self._matched_authors[:self._author_limit]
+
+    @property
+    def has_more_authors(self) -> bool:
+        return self.shown_author_count < self.matched_author_count
+
+    def load_more_authors(self) -> bool:
+        if self.closed or self.selected_author_id is not None or not self.has_more_authors:
+            return False
+        self._author_limit = min(self._author_limit + self.page_size, self.matched_author_count)
+        return True
 
     @property
     def shown_author_count(self) -> int:
@@ -108,6 +119,7 @@ class LibraryState:
         if self.closed or self.query == query:
             return False
         self.query = query
+        self._author_limit = self.page_size
         self._leave_detail()
         self._refresh_matches()
         self._invalidate()
@@ -122,13 +134,14 @@ class LibraryState:
             self.sort_directions[key] = not self.sort_directions[key]
         else:
             self.sort_key = key
+        self._author_limit = self.page_size
         self._leave_detail()
         self._refresh_matches()
         self._invalidate()
         return True
 
     def open_author(self, author_id: str) -> bool:
-        if (self.closed or not any(author.author_id == author_id
+        if (self.closed or self.selected_author_id is not None or not any(author.author_id == author_id
                                    for author in self.visible_authors)):
             return False
         author = self._by_author[author_id]

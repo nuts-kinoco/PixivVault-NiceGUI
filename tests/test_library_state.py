@@ -149,3 +149,20 @@ def test_reject_duplicate_work_ids_and_invalid_parameters():
     known = LibraryWork(Artwork("known", "題", "作者"), "author-a", capacity_bytes=1024)
     assert LibrarySnapshot((known,)).authors[0].capacity_bytes == 1024
     assert LibrarySnapshot((work, known)).authors[0].capacity_bytes is None
+
+
+def test_author_list_pages_beyond_fifty_and_rejects_hidden_author_switch():
+    snapshot = LibrarySnapshot(tuple(LibraryWork(
+        Artwork(f"test-{i:03d}", f"題{i}", f"作者{i}"), f"author-{i:03d}")
+        for i in range(51)))
+    state = LibraryState(snapshot)
+    assert state.shown_author_count == 50 and state.has_more_authors
+    assert not state.open_author("author-050")
+    assert state.load_more_authors() and state.shown_author_count == 51
+    assert not state.has_more_authors
+    assert state.open_author("author-050")
+    assert not state.open_author("author-000")
+    assert state.selected_author_id == "author-050"
+    assert not state.load_more_authors()
+    assert state.close_author()
+    assert state.set_query("題50") and state.shown_author_count == 1
