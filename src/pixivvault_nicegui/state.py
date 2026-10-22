@@ -94,11 +94,14 @@ class GalleryState:
         if not self.closed:
             self.card_size = size
 
-    def open_artwork(self, work_id: str) -> bool:
+    def open_artwork(self, work_id: str, page_no: int = 0) -> bool:
         if self.closed or not any(item.work_id == work_id for item in self.matching_items):
             return False
+        artwork = self._by_id[work_id]
+        if type(page_no) is not int or not 0 <= page_no < artwork.page_count:
+            raise ValueError("page_no out of range")
         self.selected_id = work_id
-        self.selected_page = 0
+        self.selected_page = page_no
         self.image_status = "loading"
         self._invalidate()
         return True

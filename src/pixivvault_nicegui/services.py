@@ -7,11 +7,14 @@ from threading import Lock
 
 from .fixtures import generate_demo_artworks
 from .media import DemoImageCatalog
+from .library_fixtures import build_library_fixture
+from .library_models import LibrarySnapshot
 
 
 class ApplicationServices:
     def __init__(self, count: int = 120, *, learning_sandbox: Path | None = None) -> None:
         self.artworks = generate_demo_artworks(count)
+        self.library = build_library_fixture(self.artworks)
         self.images = DemoImageCatalog(self.artworks)
         self.learning_sandbox = learning_sandbox
         self.learning = None
@@ -25,6 +28,12 @@ class ApplicationServices:
         self.closing = False
         self.closed = False
         self._close_lock = Lock()
+
+    def library_snapshot(self) -> LibrarySnapshot:
+        """現段階は合成snapshotのみ。実DB・保存先のI/Oは接続していない。"""
+        if self.closing:
+            raise RuntimeError("application services are closed")
+        return self.library
 
     def close(self) -> None:
         with self._close_lock:

@@ -4,29 +4,29 @@ from __future__ import annotations
 
 from nicegui import ui
 
-from ..image_events import source_matches
 from ..models import Artwork
 from ..services import ApplicationServices
 from ..state import GalleryState
 from .grid_layout import MAX_COLUMNS
-from .artwork_viewer import ArtworkViewer
+from .card_size_control import size_buttons, update_size_buttons
+from .viewer_controller import ViewerController
 
 
-class GalleryView:
+class GalleryView(ViewerController):
     """サーバー側イベント結線も単体検証できる画面単位の所有者。"""
 
     SIZE_COLS = MAX_COLUMNS
 
-    def __init__(self, services: ApplicationServices) -> None:
+    def __init__(self, services: ApplicationServices, *, card_size: str = "large",
+                 on_size_change=None) -> None:
         self.services = services
         self.state = GalleryState(services.artworks)
+        self.state.set_card_size(card_size)
+        self._on_size_change = on_size_change
         self.cards: dict[str, ui.element] = {}
         self.images: dict[str, ui.image] = {}
         self.ranks: dict[str, ui.label] = {}
         self._rendered_ids: tuple[str, ...] = ()
-        self._image_token = None
-        self._image_url = ""
-        self.detail_open = False
         self.more_cell = None
         self.client = ui.context.client
         self.client.on_delete(self.close)
@@ -40,44 +40,15 @@ class GalleryView:
                 self.search_input.on("keydown.enter", lambda _: self.search(self.search_input.value))
                 ui.button("検索", on_click=lambda: self.search(self.search_input.value))
                 ui.label("カードサイズ").classes("pv-subtitle")
-                self.size_buttons = {}
-                for title, size in (("小", "small"), ("中", "medium"), ("大", "large")):
-                    self.size_buttons[size] = ui.button(
-                        title, color=None, on_click=lambda _, s=size: self.change_size(s),
-                    ).props("flat dense no-caps aria-pressed=false").classes("pv-size-button")
+                self.size_buttons = size_buttons(self.change_size, prefix="gallery")
                 self._update_size_buttons()
             self.counter = ui.label().classes("pv-counter")
             with ui.element("div").classes("pv-gallery-scroll").props("data-testid=gallery-scroll"):
-                self.grid = ui.element("div").classes("pv-grid").style("--pv-max-cols:6")
+                self.grid = ui.element("div").classes("pv-grid").style(
+                    f"--pv-max-cols:{self.SIZE_COLS[card_size]}")
             self.empty = ui.label("該当する作品がありません").classes("pv-empty")
 
-        # 原版同様、タブ内を覆う作品内ページ移動。作品間移動は一覧に戻って行う。
-        self.viewer = ArtworkViewer(
-            lambda: self.move_page(-1), lambda: self.move_page(1),
-            self.close_viewer, self.toggle_details, self.request_image,
-        )
-        self.dialog = self.viewer.dialog
-        self.viewer_image = self.viewer.image
-        self.description = self.viewer.description
-        self.viewer_counter = self.viewer.counter
-        self.image_status = self.viewer.image_status
-        self.retry_button = self.viewer.retry_button
-        self.previous_page = self.viewer.previous_page
-        self.next_page = self.viewer.next_page
-        self.viewer.root.on("keydown", self._on_key, js_handler="""(event) => {
-            const tag = event.target?.tagName?.toLowerCase();
-            if (event.repeat || event.isComposing || event.keyCode === 229 ||
-                event.ctrlKey || event.altKey || event.metaKey ||
-                ['input','textarea','select'].includes(tag) || event.target?.isContentEditable) return;
-            const key = event.key.toLowerCase();
-            if (!['arrowleft','arrowright','i','tab','escape'].includes(key)) return;
-            event.preventDefault(); event.stopPropagation(); emit(key);
-        }""")
-        # 初回画像待ちではoverlayをまだ見せない。カードに焦点があるEscapeも取消に使う。
-        self.root.on("keydown.escape", lambda _: self.close_viewer()
-                     if self.state.viewer_open and not self.viewer.is_open else None)
-        self.viewer_image.on("load", self._image_loaded)
-        self.viewer_image.on("error", self._image_failed)
+        self._init_viewer(services, self.state, self.root)
         self.render_gallery()
 
     def _make_card(self, art: Artwork) -> None:
@@ -126,7 +97,7 @@ class GalleryView:
         self.counter.set_text(f"{self.state.shown_count} / {self.state.total_count} 件表示")
 
     def search(self, value: str | None = None) -> None:
-        if self.state.closed:
+        if self.state.closed or not self._viewer_active:
             return
         self.state.set_query(value or "")
         if not self.state.viewer_open:
@@ -134,99 +105,27 @@ class GalleryView:
         self.render_gallery()
 
     def more(self) -> None:
+        if self.state.closed or not self._viewer_active:
+            return
         self.state.load_more()
         self.render_gallery()
 
     def change_size(self, size: str) -> None:
+        if self.state.closed or not self._viewer_active:
+            return
+        if self._on_size_change is not None:
+            self._on_size_change(size)
+        else:
+            self.apply_card_size(size)
+
+    def apply_card_size(self, size: str) -> None:
         self.state.set_card_size(size)
         if not self.state.closed:
             self.grid.style(f"--pv-max-cols:{self.SIZE_COLS[size]}")
             self._update_size_buttons()
 
     def _update_size_buttons(self) -> None:
-        for size, button in self.size_buttons.items():
-            selected = size == self.state.card_size
-            button.classes(add="pv-size-selected" if selected else "pv-size-button",
-                           remove="pv-size-button" if selected else "pv-size-selected")
-            button.props(f"aria-pressed={'true' if selected else 'false'}")
-
-    def open(self, work_id: str) -> None:
-        if self.state.open_artwork(work_id):
-            self.detail_open = False
-            self.viewer.set_details_open(False)
-            self.update_viewer()
-
-    def move_work(self, delta: int) -> None:
-        if self.state.move_viewer(delta):
-            self.update_viewer()
-
-    def move_page(self, delta: int) -> None:
-        if self.state.move_page(delta):
-            self.detail_open = False
-            self.viewer.set_details_open(False)
-            self.update_viewer()
-
-    def update_viewer(self) -> None:
-        art = self.state.selected_artwork
-        if art is None or self.state.closed:
-            return
-        self.viewer.set_metadata(art, self.state.selected_page)
-        self.request_image()
-
-    def request_image(self) -> None:
-        art = self.state.selected_artwork
-        if art is None or self.state.closed:
-            return
-        self._image_token = self.state.begin_request(art.work_id)
-        # フラグメントはHTTPへ送られずキャッシュを壊さない。loadイベントの世代照合に使う。
-        self._image_url = (self.services.images.url(art.work_id, self.state.selected_page, "view")
-                           + f"#request-{self._image_token.generation}")
-        self.viewer_image.set_source(self._image_url)
-        self.viewer_image.props["aria-busy"] = "true"
-        self.viewer.set_status("画像読込中")
-
-    def _image_loaded(self, event) -> None:
-        if source_matches(event.args, self._image_url) and self._image_token is not None:
-            if self.state.finish_image(self._image_token):
-                self.viewer_image.style("opacity:1")
-                self.viewer_image.props["aria-busy"] = "false"
-                self.viewer.set_status("")
-                self.dialog.open()
-
-    def _image_failed(self, event) -> None:
-        if source_matches(event.args, self._image_url) and self._image_token is not None:
-            if self.state.finish_image(self._image_token, success=False):
-                self.viewer.set_status("画像を読み込めませんでした", error=True)
-                self.viewer_image.props["aria-busy"] = "false"
-                self.dialog.open()
-
-    def toggle_details(self) -> None:
-        if self.state.viewer_open and not self.state.closed:
-            self.detail_open = not self.detail_open
-            self.viewer.set_details_open(self.detail_open)
-
-    def _on_key(self, event) -> None:
-        if not self.state.viewer_open or self.state.closed:
-            return
-        if event.args == "arrowleft":
-            self.move_page(-1)
-        elif event.args == "arrowright":
-            self.move_page(1)
-        elif event.args in {"i", "tab"}:
-            self.toggle_details()
-        elif event.args == "escape":
-            if self.detail_open:
-                self.toggle_details()
-            else:
-                self.close_viewer()
-
-    def close_viewer(self, *, restore_focus: bool = True) -> None:
-        self.state.close_viewer()
-        self.dialog.close(restore_focus=restore_focus)
-        self._image_token = None
-        self._image_url = ""
-        self.viewer_image.set_source("")
+        update_size_buttons(self.size_buttons, self.state.card_size)
 
     def close(self) -> None:
-        self.state.close()
-        self._image_token = None
+        self._close_viewer_controller()

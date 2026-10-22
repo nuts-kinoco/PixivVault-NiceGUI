@@ -108,6 +108,20 @@ def test_begin_request_requires_open_viewer_and_selected_work():
         state.begin_request("demo-0001")
 
 
+def test_page_card_opens_requested_page_and_invalid_page_keeps_current_request():
+    state = GalleryState(generate_demo_artworks(3))
+    assert state.open_artwork("demo-0003", 2)
+    assert state.selected_page == 2
+    current = state.begin_request("demo-0003")
+    for invalid in (-1, 3, True, 1.5):
+        with pytest.raises(ValueError, match="page_no"):
+            state.open_artwork("demo-0003", invalid)
+    assert state.selected_page == 2 and state.finish_image(current)
+    assert not state.move_page(1)
+    assert state.move_page(-1)
+    assert state.selected_page == 1
+
+
 def test_independent_instances_and_invalid_inputs():
     items = generate_demo_artworks(4)
     left, right = GalleryState(items, page_size=2), GalleryState(items, page_size=2)

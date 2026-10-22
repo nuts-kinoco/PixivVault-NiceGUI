@@ -219,7 +219,7 @@ def test_owned_close_rejects_replacement_by_another_known_owned_pid(close_window
     user.PostMessageW.assert_not_called()
 
 
-@pytest.mark.parametrize("inspect_ui", [False, True])
+@pytest.mark.parametrize("inspect_ui", [False, True, "timeout"])
 @pytest.mark.parametrize("gate_passed,minimized,exhausts_budget", [
     (False, False, False), (False, True, False), (True, True, False), (False, True, True),
 ])
@@ -270,6 +270,10 @@ def test_main_requires_gate_and_closes_normally_even_after_gate_failure(
 
     def inspect(*args, **kwargs):
         events.append("inspect")
+        kwargs["check_owner"]()
+        if inspect_ui == "timeout":
+            now[0] = 185.0  # UI may consume the operation budget, never the close reserve.
+            raise TimeoutError("synthetic UI deadline")
         return {"passed": True}
 
     def pin(pid, birth, hwnd, identities):
@@ -306,13 +310,17 @@ def test_main_requires_gate_and_closes_normally_even_after_gate_failure(
         args.append("--inspect-ui")
     result = checker.main(args)
     report = json.loads(output.read_text(encoding="utf-8"))
-    assert result == (0 if gate_passed else 1)
-    assert report["status"] == ("passed" if gate_passed else "failed")
+    passed = gate_passed and inspect_ui != "timeout"
+    assert result == (0 if passed else 1)
+    assert report["status"] == ("passed" if passed else "failed")
     assert report["restored"] is gate_passed
     assert report["wm_close_sent"] and report["normal_exit"] and report["port_released"]
     assert report["forced_cleanup"] == []
     assert report["close_reserve_seconds"] == 5.0
     assert now[0] < 190.0
-    assert events == ["spawn"] + (["inspect"] if inspect_ui else []) + ["pin", "gate", "close"]
+    assert events == ["spawn", "pin"] + (["inspect", "pin"] if inspect_ui else []) + ["gate", "close"]
+    if inspect_ui == "timeout":
+        assert report["ui_inspection"] == {"passed": False, "reason": "TimeoutError"}
+        assert "ui_inspection_exception" in report["errors"]
     if not gate_passed:
         assert "restore_gate_failed" in report["errors"]
