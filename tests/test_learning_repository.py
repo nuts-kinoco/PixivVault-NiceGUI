@@ -219,6 +219,48 @@ def test_external_legacy_writer_also_invalidates_adapter_undo(tmp_path):
         b_db.close()
 
 
+def test_undo_revision_check_and_delete_hold_one_write_transaction(tmp_path, monkeypatch):
+    """A competing connection cannot write after the guard but before DELETE."""
+    a_db, b_db = new_db(tmp_path), new_db(tmp_path)
+    try:
+        meta = {"w": {"tags": ["tag"], "author_id": "author"}}
+        a, b = LearningRepository(a_db, meta), LearningRepository(b_db, meta)
+        original = Judgment("w", "like", "a-like")
+        competing = Judgment("w", "superLike", "b-super")
+        a.record(original)
+        b_db.conn.execute("PRAGMA busy_timeout=0")
+        real_revision = a._revision
+        attempts = []
+
+        def after_revision(work_id):
+            version = real_revision(work_id)
+            # Called inside A's BEGIN IMMEDIATE; no sleeps or thread scheduling.
+            assert a_db.conn.in_transaction
+            with pytest.raises(sqlite3.OperationalError, match="database is locked"):
+                b.record(competing)
+            attempts.append(version)
+            assert b._stack == []
+            assert "b-super" not in b._used
+            return version
+
+        monkeypatch.setattr(a, "_revision", after_revision)
+        a.revert(original, "a-undo")
+        assert len(attempts) == 1
+        assert not a_db.conn.in_transaction
+        assert a_db.get_discovery_swipe_history() == []
+        assert "tag" not in a_db.get_discovery_preferences()
+
+        # Failed writer was not marked used: retry the identical operation ID.
+        b.record(competing)
+        assert [r["verdict"] for r in a_db.get_discovery_swipe_history()] == ["superLike"]
+        counts = a_db.get_discovery_preferences()["tag"]
+        assert counts["superlike_count"] == 1 and counts["like_count"] == 0
+        assert a_db.get_discovery_author_preferences()["author"]["superlike_count"] == 1
+    finally:
+        a_db.close()
+        b_db.close()
+
+
 @pytest.mark.parametrize("verdict,reason", [
     ("skip", None), ("like", None), ("superLike", None),
     ("hate", None), ("hate", "genre"), ("hate", "style"),

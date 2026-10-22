@@ -20,4 +20,6 @@ Undo時は`BEGIN IMMEDIATE`取得後に記録時世代と現在世代を照合�
 
 2026-10-22の独立レビューでは、初期化中の`executescript()`による呼出元transactionの暗黙commitも指摘し、上記の拒否とrollback可能性を回帰試験で確認した。最終版の限定試験は実装担当・別のレビュー担当がそれぞれ **20 passed**。統合担当は原版と移植先の`Database.__init__`以外 **115メソッドのAST一致**を再確認した。原SQLの再判定/Undoの意味を変更せず、拒否時には後続writerの履歴と集計が保持される。証拠はignored `artifacts/native-a5d42aa-20261022-01/legacy-ast.json` と同作業単位の試験記録に保存する。
 
+追加の競合窓試験 `test_undo_revision_check_and_delete_hold_one_write_transaction` では、AのUndoが世代を読んだ直後に別接続Bの`record(superLike)`を同期挿入する。Bの`busy_timeout=0`で`database is locked`を直ちに確認し、AのUndo commit後、Bは**同一operation ID**で成功する。最終履歴とtag/author集計にはBの判定だけが残る。sleepやスレッド競争に依存せず、世代SELECTから履歴DELETEまで`BEGIN IMMEDIATE`が保持されることの局所的証拠とする。
+
 原版本文を保持した`legacy/database.py`には元からの行末空白5箇所（空行3箇所、SQL文字列2箇所）がある。AST/SQLの一致を優先して保持し、このファイルのみ`git diff --check`の行末空白検査の既知例外とする。他の新規ファイルは通常の検査を通す。
