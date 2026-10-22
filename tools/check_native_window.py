@@ -93,14 +93,36 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
             expect(viewer.get_by_text('画像読込中')).to_be_hidden(timeout=5000)
             page.get_by_test_id('viewer-image').locator('img').evaluate('(img) => img.decode()')
             expect(page.get_by_test_id('viewer-image')).to_have_css('opacity', '1')
+            geometry = page.evaluate('''() => {
+                const box = selector => {
+                    const r = document.querySelector(selector).getBoundingClientRect();
+                    return {x:r.x, y:r.y, width:r.width, height:r.height, bottom:r.bottom};
+                };
+                return {viewer:box('.pv-viewer'), content:box('.pv-content'), nav:box('.pv-nav')};
+            }''')
+            if (any(abs(geometry['viewer'][key] - geometry['content'][key]) > 1
+                    for key in ('x', 'y', 'width', 'height'))
+                    or geometry['viewer']['y'] < geometry['nav']['bottom']):
+                raise AssertionError(f'native viewer must stay below navigation: {geometry}')
+            expect(viewer).to_have_attribute('aria-modal', 'false')
+            result['viewer_boundary'] = geometry
+            viewer_shot = screenshot.with_name(screenshot.stem + '-viewer.png')
+            page.screenshot(path=str(viewer_shot), full_page=False)
+            result['viewer_screenshot'] = str(viewer_shot)
             viewer.get_by_role('button', name='閉じる', exact=True).click()
             expect(viewer).to_be_hidden()
+            expect(page.locator('.pv-card').first).to_be_focused()
             result['interactions'].append('gallery viewer open/decode/close')
+            page.locator('.pv-card').first.click()
+            expect(viewer).to_be_visible()
             page.get_by_test_id('tab-learning').click()
+            expect(viewer).to_be_hidden()
+            expect(viewer).to_have_attribute('aria-hidden', 'true')
             learning = page.locator('.pv-learning[data-active="true"]')
             like = learning.get_by_role('button', name='いいね', exact=True)
             expect(like).to_be_enabled(timeout=5000)
-            like.click()
+            expect(learning).to_be_focused()
+            page.keyboard.press('ArrowRight')
             expect(learning.locator('.pv-counter')).to_contain_text('1 /')
             expect(like).to_be_enabled(timeout=5000)
             learning.get_by_role('button', name='ひとつ戻す（Undo）').click()
@@ -119,13 +141,16 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
             result['learning_image'] = displayed
             result['interactions'].append('learning judgment/Undo/decoded image')
             page.get_by_test_id('tab-ranking').click()
+            expect(page.get_by_test_id('tab-ranking')).to_be_focused()
+            expect(viewer).to_be_hidden()
+            result['interactions'].append('tab-scoped viewer/leave/learning keyboard/return focus')
         if time.monotonic() < deadline:
             page.screenshot(path=str(screenshot), full_page=False,
                             timeout=max(1000, int((deadline-time.monotonic())*1000)))
         result["screenshot"] = str(screenshot)
         result["passed"] = (result["handshake"] and result["cards"] == 50
                             and result["image_decoded"] and result["bridge_ready"]
-                            and len(result['interactions']) == 2
+                            and len(result['interactions']) == 3
                             and not result["console_errors"] and not result["page_errors"])
     return result
 

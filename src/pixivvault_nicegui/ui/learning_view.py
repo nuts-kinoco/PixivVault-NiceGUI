@@ -141,8 +141,13 @@ class LearningView:
         self._update_buttons()
         if self.active and self.client.has_socket_connection:
             self.client.run_javascript(
-                f"requestAnimationFrame(() => document.getElementById('{self.root.html_id}')"
-                "?.focus({preventScroll:true}))"
+                f"""requestAnimationFrame(() => {{
+                    const node = document.getElementById('{self.root.html_id}');
+                    if (node?.isConnected && node.getAttribute('data-active') === 'true' &&
+                        node.getClientRects().length &&
+                        !node.closest('[inert], [aria-hidden="true"]'))
+                        node.focus({{preventScroll:true}});
+                }})"""
             )
 
     def _update_buttons(self) -> None:

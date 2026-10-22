@@ -1,6 +1,7 @@
 """NiceGUIのサーバー側要素生成を確認する。ブラウザ入力や画素比較は行わない。"""
 
 import pytest
+from types import SimpleNamespace
 from nicegui import Client, ui
 
 from pixivvault_nicegui.state import GalleryState
@@ -85,6 +86,47 @@ async def test_more_is_last_grid_cell_and_keeps_existing_card_ids():
             view.search("")
             assert len(view.cards) == 50 and view.more_cell.visible
             assert view.grid.default_slot.children[-1] is view.more_cell
+    finally:
+        client.delete()
+        services.close()
+
+
+@pytest.mark.asyncio
+async def test_tab_departure_cancels_pending_viewer_and_preserves_gallery_state():
+    from pixivvault_nicegui.services import ApplicationServices
+
+    services = ApplicationServices(120)
+    client = Client(ui.page("/_tab_departure"))
+    try:
+        with client:
+            demo = shell.DemoShell(services)
+            view = demo.gallery
+            assert view.viewer.root.parent_slot.parent is demo.content
+            view.search("架空")
+            view.more()
+            view.change_size("small")
+            card_ids = {key: card.id for key, card in view.cards.items()}
+            view.open("demo-0003")
+            old_event = SimpleNamespace(args=view._image_url)
+            assert view.state.viewer_open and not view.viewer.is_open
+            demo.show("learning")
+            assert demo.learning.active
+            assert not view.state.viewer_open and not view.root.visible
+            assert view.viewer_image.props["src"] == ""
+            view._image_loaded(old_event)
+            view._image_failed(old_event)
+            assert not view.viewer.is_open
+            demo.show("ranking")
+            assert not demo.learning.active and view.root.visible
+            assert view.state.query == "架空" and view.state.shown_count == 100
+            assert view.state.card_size == "small"
+            assert card_ids == {key: card.id for key, card in view.cards.items()}
+            view.open("demo-0004")
+            view._image_loaded(SimpleNamespace(args=view._image_url))
+            assert view.viewer.is_open
+            demo.show("learning")
+            assert not view.viewer.is_open
+            assert view.viewer.root.props["aria-hidden"] == "true"
     finally:
         client.delete()
         services.close()
