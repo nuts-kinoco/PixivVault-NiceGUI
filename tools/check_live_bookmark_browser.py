@@ -6,10 +6,14 @@ from __future__ import annotations
 
 import argparse
 from io import BytesIO
+from html import escape
 import json
 from pathlib import Path
 import re
+import tempfile
 from urllib.parse import urlsplit
+from urllib.parse import parse_qs
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 import subprocess
 import sys
 import time
@@ -68,29 +72,176 @@ class SyntheticReadClient:
         pass
 
 
-def serve(port):
+def write_synthetic_cookie(directory):
+    """Create a disposable, synthetic Netscape cookie accepted by the real client."""
+    path = Path(directory) / "synthetic-cookies.txt"
+    expires = int(time.time()) + 86400
+    path.write_text(
+        "# Netscape HTTP Cookie File\n"
+        f".pixiv.net\tTRUE\t/\tTRUE\t{expires}\tPHPSESSID\t12_synthetic_only\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+class SyntheticPixivTransport:
+    """Offline wire-format transport for LivePixivReadClient browser acceptance."""
+
+    API_HOST = "www.pixiv.net"
+    IMAGE_HOST = "i.pximg.net"
+
+    def __init__(self, identity_format):
+        if identity_format not in {"next", "meta"}:
+            raise ValueError("identity_format must be next or meta")
+        self.identity_format = identity_format
+        self.fixture = SyntheticReadClient()
+        self.fail = False
+        self.delay = 0.0
+        self.request_count = 0
+        self.route_calls = 0
+        self.completed = 0
+        self.all_requests_get = True
+        self.allowed_https_hosts_only = True
+        self.image_requests_cookie_free = True
+        self._illustrations = [self._wire_row(row, novel=False)
+                               for row in self.fixture.get_bookmarked_works("12", "show")]
+        self._novels = [self._wire_row(row, novel=True)
+                        for row in self.fixture.get_bookmarked_novels("12", "show")]
+        # The real service includes unavailable rows rather than omitting them.
+        # Exercise their exclusion through the production parser and UI/cache,
+        # without widening the downloadable image-host allowlist.
+        masked = {"isMasked": True, "title": "合成の表示不可項目", "userId": "0",
+                  "url": "https://s.pximg.net/common/images/limit_unknown.png"}
+        self._illustrations.insert(1, {**masked, "id": "900001"})
+        self._novels.insert(0, {**masked, "id": "900002"})
+
+    @staticmethod
+    def _wire_row(row, *, novel):
+        raw = {
+            "id": row["id"], "title": row["title"], "userId": row["user_id"],
+            "userName": row["user_name"], "url": row["thumb_url"],
+            "createDate": "2026-10-01T12:00:00", "xRestrict": 0,
+            "tags": [{"tag": tag} for tag in row["tags"]],
+        }
+        if novel:
+            raw["textCount"] = 100
+        else:
+            raw["illustType"] = 0
+            raw["pageCount"] = row.get("page_count", 1)
+        return raw
+
+    def _home(self):
+        if self.identity_format == "meta":
+            data = escape(json.dumps({"userData": {"id": "12"}}), quote=True)
+            return f'<html><head><meta id="meta-global-data" content="{data}"></head></html>'.encode()
+        payload = json.dumps({"props": {"pageProps": {
+            "isLoggedIn": True, "gaUserData": {"id": "12"},
+        }}})
+        return (f'<html><head></head><body><script id="__NEXT_DATA__" '
+                f'type="application/json">{payload}</script></body></html>').encode()
+
+    @staticmethod
+    def _packet(body):
+        return json.dumps({"error": False, "message": "", "body": body},
+                          ensure_ascii=False).encode("utf-8")
+
+    def __call__(self, request, timeout, limit, deadline):
+        self.request_count += 1
+        parsed = urlsplit(request.full_url)
+        self.all_requests_get &= request.get_method() == "GET"
+        self.allowed_https_hosts_only &= (
+            parsed.scheme == "https" and parsed.hostname in {self.API_HOST, self.IMAGE_HOST}
+            and parsed.port is None and parsed.username is None and parsed.password is None
+        )
+        if request.get_method() != "GET" or not self.allowed_https_hosts_only:
+            raise AssertionError("synthetic transport accepts only allowlisted HTTPS GET requests")
+        if parsed.hostname == self.IMAGE_HOST:
+            self.image_requests_cookie_free &= not request.has_header("Cookie")
+            if request.has_header("Cookie"):
+                raise AssertionError("image request unexpectedly carried a cookie")
+            return self.fixture.get_image_bytes(request.full_url)
+        if not request.has_header("Cookie"):
+            raise AssertionError("API request did not carry the disposable synthetic cookie")
+
+        if parsed.path == "/":
+            if self.delay:
+                time.sleep(self.delay)
+            return self._home()
+        if parsed.path == "/ajax/user/extra":
+            return self._packet({"userId": "12"})
+        if parsed.path.endswith("/bookmarks"):
+            query = parse_qs(parsed.query, keep_blank_values=True)
+            offset = int(query["offset"][0])
+            rest_type = query["rest"][0]
+            is_novel = "/novels/" in parsed.path
+            if offset == 0:
+                self.route_calls += 1
+            if self.fail and is_novel and rest_type == "hide" and offset == 0:
+                raise RuntimeError("synthetic route failure")
+            rows = [] if rest_type == "hide" else (self._novels if is_novel else self._illustrations)
+            page = rows[offset:offset + 48]
+            if not page:
+                self.completed += 1
+            return self._packet({"works": page})
+        if parsed.path.startswith("/ajax/illust/") and parsed.path.endswith("/pages"):
+            work_id = parsed.path.split("/")[3]
+            return self._packet([{"urls": {"regular": url}} for url in
+                                 self.fixture.get_artwork_pages(work_id)])
+        raise AssertionError("unexpected synthetic endpoint")
+
+
+def serve(port, identity_format=None):
     from nicegui import app, ui
     from pixivvault_nicegui.bootstrap import register_pages
-    fake = SyntheticReadClient()
-    register_pages(live_client=fake)
+    fake = SyntheticReadClient() if identity_format is None else None
+    transport = None
+    live_client = None
+    cookie_temp = None
+    try:
+        if identity_format is None:
+            register_pages(live_client=fake)
+        else:
+            from pixivvault_nicegui.pixiv_read_client import LivePixivReadClient
+            cookie_temp = tempfile.TemporaryDirectory(prefix="pixiv-synthetic-cookie-")
+            cookie_path = write_synthetic_cookie(cookie_temp.name)
+            transport = SyntheticPixivTransport(identity_format)
+            live_client = LivePixivReadClient(cookie_path, transport=transport)
+            register_pages(live_client=live_client)
 
-    @app.post("/_acceptance/control")
-    def control(fail: bool = False, delay_ms: int = 0):
-        fake.fail = fail
-        fake.delay = min(1000, max(0, delay_ms)) / 1000
-        return {"synthetic": True}
+        @app.post("/_acceptance/control")
+        def control(fail: bool = False, delay_ms: int = 0):
+            if transport is None:
+                fake.fail = fail
+                fake.delay = min(1000, max(0, delay_ms)) / 1000
+            else:
+                transport.fail = fail
+                transport.delay = min(1000, max(0, delay_ms)) / 1000
+            return {"synthetic": True}
 
-    @app.get("/_acceptance/status")
-    def status():
-        return {"calls": fake.route_calls, "completed": fake.completed, "synthetic": True}
+        @app.get("/_acceptance/status")
+        def status():
+            source = transport if transport is not None else fake
+            return {
+                "calls": source.route_calls, "completed": source.completed, "synthetic": True,
+                "request_count": transport.request_count if transport is not None else 0,
+                "actual_parser_used": identity_format,
+                "all_requests_get": transport.all_requests_get if transport is not None else True,
+                "allowed_https_hosts_only": transport.allowed_https_hosts_only if transport is not None else True,
+                "image_requests_cookie_free": transport.image_requests_cookie_free if transport is not None else True,
+            }
 
-    @app.post("/_acceptance/shutdown")
-    def shutdown():
-        app.shutdown()
-        return {"stopping": True}
+        @app.post("/_acceptance/shutdown")
+        def shutdown():
+            app.shutdown()
+            return {"stopping": True}
 
-    ui.run(host="127.0.0.1", port=port, show=False, reload=False,
-           binding_refresh_interval=None)
+        ui.run(host="127.0.0.1", port=port, show=False, reload=False,
+               binding_refresh_interval=None)
+    finally:
+        if live_client is not None:
+            live_client.close()
+        if cookie_temp is not None:
+            cookie_temp.cleanup()
 
 
 def inspect(page, url, output, width, height):
@@ -165,18 +316,60 @@ def inspect(page, url, output, width, height):
             "tag_filter_survives_refresh_failure_and_recovery": True}
 
 
-def run(channel, output):
+class _NoShutdownRedirects(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def shutdown_fixture(url):
+    """Request normal shutdown only after Playwright and its sockets are closed."""
+    parsed = urlsplit(url)
+    if (parsed.scheme != "http" or not parsed.port or
+            parsed.netloc != f"127.0.0.1:{parsed.port}" or
+            parsed.path or parsed.query or parsed.fragment):
+        raise AssertionError("invalid synthetic fixture origin")
+    request = Request(url + "/_acceptance/shutdown", data=b"", method="POST")
+    with build_opener(ProxyHandler({}), _NoShutdownRedirects()).open(request, timeout=5) as response:
+        if response.status != 200 or json.loads(response.read(1024)) != {"stopping": True}:
+            raise AssertionError("synthetic shutdown acknowledgement missing")
+
+
+def assert_transport_evidence(status, identity_format):
+    """A requested real-reader fixture must not silently fall back to the old fake."""
+    if status.get("synthetic") is not True:
+        raise AssertionError("non-synthetic transport evidence")
+    for field in ("all_requests_get", "allowed_https_hosts_only", "image_requests_cookie_free"):
+        if status.get(field) is not True:
+            raise AssertionError("transport safety evidence missing")
+    if status.get("actual_parser_used") != identity_format:
+        raise AssertionError("requested identity transport was not used")
+    if identity_format is not None:
+        # Multiple refreshes are exercised, so counts grow beyond one four-route cycle.
+        for field, minimum in (("request_count", 6), ("calls", 4), ("completed", 4)):
+            value = status.get(field)
+            if type(value) is not int or value < minimum:
+                raise AssertionError("real reader transport did not complete required requests")
+
+
+def run(channel, output, identity_format=None):
     from playwright.sync_api import expect, sync_playwright
     output.mkdir(parents=True, exist_ok=True)
     before = source_hashes()
     port = free_port()
     url = f"http://127.0.0.1:{port}"
     process = None
-    report = {"success": False, "synthetic_only": True, "viewports": []}
+    report = {
+        "success": False, "synthetic_only": True, "viewports": [],
+        "identity_format": identity_format or "fake", "actual_parser_used": None,
+        "synthetic_request_count": 0,
+    }
     try:
         with (output / "app-stderr.log").open("wb") as log:
-            process = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--serve",
-                                        "--port", str(port)], env=child_environment(),
+            command = [sys.executable, str(Path(__file__).resolve()), "--serve",
+                       "--port", str(port)]
+            if identity_format is not None:
+                command.extend(["--identity-format", identity_format])
+            process = subprocess.Popen(command, env=child_environment(),
                                        cwd=Path(__file__).resolve().parents[1], stdin=subprocess.DEVNULL,
                                        stdout=subprocess.DEVNULL, stderr=log)
         wait_for_health(url, process, expected_data="pixiv-readonly")
@@ -213,21 +406,22 @@ def run(channel, output):
                 expect(image_b).to_have_attribute("src", re.compile(re.escape(old_source)))
                 report["two_clients_independent"] = True
                 report["old_image_snapshot_survives_other_client_refresh"] = True
+                transport_status = a.request.get(url + "/_acceptance/status").json()
+                report["actual_parser_used"] = transport_status["actual_parser_used"]
+                report["synthetic_request_count"] = transport_status["request_count"]
+                report["all_requests_get"] = transport_status["all_requests_get"]
+                report["allowed_https_hosts_only"] = transport_status["allowed_https_hosts_only"]
+                report["image_requests_cookie_free"] = transport_status["image_requests_cookie_free"]
+                assert_transport_evidence(transport_status, identity_format)
                 report["page_errors"] = page_errors
                 report["external_hosts"] = sorted(external_hosts)
                 assert not page_errors and not external_hosts
                 a.close(); b.close()
-                # Do not start another gallery/socket and dozens of thumbnail
-                # requests immediately before shutdown. Use a request-only
-                # context after closing the UI clients instead.
-                shutdown = p.request.new_context()
-                try:
-                    response = shutdown.post(url + "/_acceptance/shutdown", timeout=5000)
-                    assert response.ok and response.json() == {"stopping": True}
-                finally:
-                    shutdown.dispose()
             finally:
                 browser.close()
+        # Close the browser AND Playwright driver before the shutdown request;
+        # neither a new UI nor the driver's keep-alive sockets are needed here.
+        shutdown_fixture(url)
         process.wait(timeout=15)
         report["normal_exit"] = process.returncode == 0
         report["success"] = process.returncode == 0
@@ -249,8 +443,10 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int)
     parser.add_argument("--channel", choices=["msedge", "chromium"], default="msedge")
     parser.add_argument("--output", type=Path, default=Path("artifacts/live-bookmark-browser"))
+    parser.add_argument("--identity-format", choices=["next", "meta"], default=None,
+                        help="Use the real read client with a synthetic cookie and offline transport.")
     args = parser.parse_args()
     if args.serve:
-        serve(args.port)
+        serve(args.port, args.identity_format)
     else:
-        raise SystemExit(run(args.channel, args.output))
+        raise SystemExit(run(args.channel, args.output, args.identity_format))

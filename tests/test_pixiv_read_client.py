@@ -6,6 +6,7 @@ from email.message import Message
 from html import escape
 from http.cookiejar import CookieJar
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 from urllib.request import ProxyHandler
 
 import pytest
@@ -24,6 +25,74 @@ def home_page(uid="55"):
         '<html><head><meta id="meta-global-data" content="'
         + escape(json.dumps(data)) + '"></head></html>'
     ).encode()
+
+
+def next_home(*, login=True, user=None, meta="", duplicate=False):
+    if user is None:
+        user = {"id": "55"}
+    payload = json.dumps({"props": {"pageProps": {"isLoggedIn": login, "gaUserData": user}}})
+    script = '<script id="__NEXT_DATA__" type="application/json">' + payload + '</script>'
+    return ('<html><head>' + meta + '</head><body>' + script
+            + (script if duplicate else '') + '</body></html>').encode()
+
+
+def test_next_identity_passes_injected_home_extra_cookie(tmp_path):
+    mock = MockTransport()
+    mock.when("https://www.pixiv.net/", next_home())
+    mock.when("/ajax/user/extra", packet({"userId": "55"}))
+    client = make_client(tmp_path, mock)
+    assert client.verify_identity() == "55"
+    assert len(mock.calls) == 2
+    assert all(req.get_method() == "GET" for req in mock.calls)
+
+
+@pytest.mark.parametrize("page", [
+    next_home(login=False), next_home(login=1), next_home(user={"id": "0"}),
+    next_home(user={"id": True}), next_home(user={"id": "55", "userId": "56"}),
+    next_home(user={"id": "55", "userId": "55"}),
+    next_home(duplicate=True),
+    next_home(meta='<meta id="meta-global-data" content="{}"><meta id="meta-global-data" content="{}">'),
+    next_home(meta='<meta id="meta-global-data" content="{}">'),
+    next_home(meta='<meta id="meta-global-data" content="&quot;broken&quot;">'),
+    next_home(meta='<meta id="meta-global-data" content="{&quot;userData&quot;:{&quot;id&quot;:&quot;56&quot;}}">'),
+    b'<script id="__NEXT_DATA__">{invalid}</script>',
+    b'<script id="__NEXT_DATA__"/>',
+    b'<script id="__NEXT_DATA__">{"props":{"pageProps":{"isLoggedIn":true,"gaUserData":{"id":"55"}}}}',
+    b'<script id="__NEXT_DATA__">{"props":{"pageProps":{"isLoggedIn":true,"gaUserData":{"id":"55"}}}}</script><script id="__NEXT_DATA__"/>',
+    b'<script id="__NEXT_DATA__">{"pageProps":{"isLoggedIn":true,"gaUserData":{"id":"55"}}}</script>',
+])
+def test_next_identity_rejects_invalid_evidence(page):
+    with pytest.raises(mod.AuthenticationMissing):
+        mod._identity_from_home(page)
+
+
+def test_next_and_meta_agreement_and_id_variants():
+    meta = home_page().decode().split('<head>')[1].split('</head>')[0]
+    assert mod._identity_from_home(next_home(meta=meta)) == "55"
+    for key in ('id', 'userId', 'user_id'):
+        assert mod._identity_from_home(next_home(user={key: 55})) == "55"
+
+
+def test_legacy_self_closing_meta_remains_compatible():
+    meta = home_page().replace(b'"></head>', b'" /></head>')
+    assert mod._identity_from_home(meta) == "55"
+    fragment = meta.decode().split("<head>")[1].split("</head>")[0]
+    assert mod._identity_from_home(next_home(meta=fragment)) == "55"
+
+
+@pytest.mark.parametrize("page", [
+    home_page().replace(b'id="meta-global-data"', b'id="other" id="meta-global-data"'),
+    home_page().replace(b'content="', b'content="{}" content="', 1),
+    next_home().replace(b'id="__NEXT_DATA__"', b'id="other" id="__NEXT_DATA__"'),
+    b'<meta id="meta-global-data" content>',
+    next_home().replace(b'"isLoggedIn": true', b'"isLoggedIn": false, "isLoggedIn": true'),
+    next_home().replace(b'"id": "55"', b'"id": "56", "id": "55"'),
+    b'<script id="__NEXT_DATA__">' + b'[' * 2000 + b']' * 2000 + b'</script>',
+])
+def test_identity_evidence_ambiguity_or_invalid_shape_is_sanitized(page):
+    with pytest.raises(mod.AuthenticationMissing) as error:
+        mod._identity_from_home(page)
+    assert str(error.value) == "Pixiv identity not verified"
 
 
 def cookie_file(tmp_path, *, uid="55", expired=False, name="PHPSESSID",
@@ -285,6 +354,83 @@ def test_duplicate_only_next_page_not_considered_success(tmp_path):
     mock.when("/illusts/bookmarks?", packet({"works": [bookmark_row(1)]}))
     with pytest.raises(mod.InvalidPayload):
         list(make_client(tmp_path, mock).get_bookmarked_works("55"))
+
+
+@pytest.mark.parametrize("novel", [False, True])
+def test_unavailable_entries_do_not_abort_or_truncate_paging(tmp_path, novel):
+    masked = dict(bookmark_row(101), isMasked=True, userId="0",
+                  url="https://s.pximg.net/common/images/unavailable.png")
+    no_preview = dict(bookmark_row(102), userId=None, url="")
+    mock = MockTransport()
+    mock.when("/ajax/user/extra", packet({}))
+
+    def pages(request):
+        offset = int(parse_qs(urlsplit(request.full_url).query)["offset"][0])
+        return packet({"works": {0: [masked, no_preview], 48: [bookmark_row(103)], 96: []}[offset]})
+
+    marker = "/novels/bookmarks?" if novel else "/illusts/bookmarks?"
+    mock.when(marker, pages)
+    with make_client(tmp_path, mock) as client:
+        method = client.get_bookmarked_novels if novel else client.get_bookmarked_works
+        assert [row["id"] for row in method("55")] == ["103"]
+        requests = [request for request in mock.calls if marker in request.full_url]
+        assert [parse_qs(urlsplit(r.full_url).query)["offset"] for r in requests] == [["0"], ["48"], ["96"]]
+        assert all(urlsplit(r.full_url).netloc == "www.pixiv.net" for r in mock.calls)
+        with pytest.raises(mod.DestinationRejected):
+            client.get_image_bytes("https://s.pximg.net/common/images/unavailable.png")
+
+
+@pytest.mark.parametrize("flag", ["true", 1, None, [], {}])
+def test_masked_flag_requires_exact_boolean_when_present(tmp_path, flag):
+    row = dict(bookmark_row(), isMasked=flag)
+    mock = MockTransport()
+    mock.when("/ajax/user/extra", packet({}))
+    mock.when("/illusts/bookmarks?", lambda r: packet({"works": [row] if "offset=0" in r.full_url else []}))
+    with make_client(tmp_path, mock) as client:
+        with pytest.raises(mod.InvalidPayload):
+            list(client.get_bookmarked_works("55"))
+
+
+def test_repeated_masked_page_is_not_a_successful_empty_route(tmp_path):
+    row = dict(bookmark_row(), isMasked=True, userId="0", url="")
+    mock = MockTransport()
+    mock.when("/ajax/user/extra", packet({}))
+    mock.when("/illusts/bookmarks?", packet({"works": [row]}))
+    with make_client(tmp_path, mock) as client:
+        with pytest.raises(mod.InvalidPayload):
+            list(client.get_bookmarked_works("55"))
+    assert len(mock.calls) == 4  # home, extra, first masked page, duplicate page
+
+
+def test_all_masked_routes_can_complete_without_visible_records(tmp_path):
+    row = dict(bookmark_row(), isMasked=True, userId="0", url="")
+    mock = MockTransport()
+    mock.when("/ajax/user/extra", packet({}))
+    mock.when("/bookmarks?", lambda r: packet({"works": [row] if "offset=0" in r.full_url else []}))
+    with make_client(tmp_path, mock) as client:
+        result = fetch_all_bookmarks(client, "55")
+    assert result.ok and result.records == () and result.failures == ()
+    assert len(mock.calls) == 10
+
+
+@pytest.mark.parametrize("preview", [False, 0, [], {}])
+def test_non_string_preview_is_not_silently_treated_as_unavailable(tmp_path, preview):
+    mock = MockTransport()
+    mock.when("/ajax/user/extra", packet({}))
+    row = dict(bookmark_row(), url=preview)
+    mock.when("/illusts/bookmarks?", lambda r: packet({"works": [row] if "offset=0" in r.full_url else []}))
+    with make_client(tmp_path, mock) as client:
+        with pytest.raises(mod.InvalidPayload):
+            list(client.get_bookmarked_works("55"))
+
+
+def test_invalid_masked_work_identity_is_still_rejected(tmp_path):
+    mock = MockTransport()
+    mock.when("/ajax/user/extra", packet({}))
+    mock.when("/illusts/bookmarks?", packet({"works": [dict(bookmark_row(), id="../bad", isMasked=True)]}))
+    with make_client(tmp_path, mock) as client:
+        with pytest.raises(mod.InvalidPayload):
+            list(client.get_bookmarked_works("55"))
 
 
 def test_page_bound_prevents_unending_pagination(tmp_path, monkeypatch):
