@@ -24,11 +24,11 @@ operation IDの永続的な冪等性ジャーナルは今回の範囲外。単�
 
 ## 検証記録
 
-実装と独立コードレビュー、単体・Edgeの限定受入を完了。Windows配布と公開SHA/CIは後続の検証対象とし、未実行を合格に含めない。
+実装と独立コードレビュー、単体・Edge・Windows配布の限定受入を完了。実装コミット `1011127f4e86c2c3a34583b1aae2836b04655c21` を公開し、同SHAのCI3ジョブも成功。文書追補後の最終headと統合先mainのCIは別途確認する。
 
 - 保存commandの二重受理、偽の完了command、失敗後の同一ID再試行、close後完了を対象にした5件は実装前REDを確認。
 - 保存状態の分離後、既存の学習画面を含め26件が成功。直前1手Undoの仕様修正後は28件成功。
-- 起動オプション、`--check`非接続、初期化失敗時の起動拒否、既定メモリ経路は45件成功（上記Undo修正前の別実行）。
+- 起動オプション、`--check`非接続、起動時登録処理の例外を握りつぶさないこと、既定メモリ経路は45件成功（上記Undo修正前の別実行）。遅延するDB初回利用の失敗は、保存操作を停止して復旧案内を表示する契約として別に検証した。
 - 独立レビューで、task作成からexecutorへの登録までの間にshutdownされると、受付済み判定が登録されない経路を指摘。同期submitへ修正し、受付直後のclose/cancelとアプリ終了後の完了通知を試験対象にした。
 - 独立レビューで、保存状態の再読込失敗後、遅い画像load/errorが復旧案内を消す経路を指摘。両イベントの回帰2件が修正前失敗（`recovery-red-confirmed.xml`）、保存状態のguard追加後成功（`recovery-green.xml`、2 passed / 0.88秒）。
 - 保存先フォルダーの識別だけでは、DB本体を別SQLiteへ差替えた際に旧constructorが外来DBを変更する問題を独立レビューで発見。foreign SQLite/別の合成instanceの2反例が修正前失敗（`db-identity-red.xml`）。DB内v2 identityの事前照合後、service/repository 39件成功（`service-identity-green.xml`）。識別改変・DB欠落・identity作成/検査の非UI実行も追加。
@@ -38,6 +38,11 @@ operation IDの永続的な冪等性ジャーナルは今回の範囲外。単�
 - 既存の一覧・メモリ学習・画像競合3scriptも実Edgeで全てexit 0（`browser-regression/runner-result.json`）。source hash不変。新しい永続経路だけを確認して既存経路の受入へ代用していない。
 - 原`database.py`のSHA-256は既知値と一致。constructor以外115メソッドのAST一致、専用worktreeのimport先、pip check、git diff --checkを確認（`source-check.json`）。
 - 実装担当と別のレビュー担当がUI/state/services・v2 identity・ブラウザ検証/CIを再確認し、上記修正後の対象にblocking指摘なし。workerのexec/apply呼出が応答しなかったため、変更の適用と全コマンド実行はprimeへ集約し、レビューは別担当のreadと証拠照合で行った。未実行のworker独立pytestを成功に含めない。
-- Windows配布物の通常終了・再起動受入と公開SHA/CIは、このコード単位のコミット後に実施して追記する。
+- 実装コミット `1011127` だけをgit archiveで取り出し、archive内srcのimport先を確認。archive単体は **266 passed / 9.02秒**（`native-1011127/committed-pytest.xml`）。
+- 同archiveをonedir/noconsoleでビルドし、別フォルダーへコピーしたexeの `--check` は保存先を作成せず成功。独自JSのarchive元/配布物はSHA-256 `519761fcecb2e497196e0883696d77ceb77b076b077493aa07f82f4f69de8764` で一致。
+- 同exe・同じ専用DBで、初回起動は既判定0→1、正常終了後の再起動は1→2を確認。WebView reload後は直前Undoが空となり、保存済み作品を除外してそれぞれ作品0002/0003へ進む。4判定ボタン、直前Undo、tab内viewerの境界とfocusも操作。両回とも最小化/復帰/WM_CLOSE、観測8プロセスの正常終了、ポート解放に成功し、強制cleanupなし、console/page/process-log error 0（`native-1011127/{first,restart}/native-acceptance.json`）。
+- Windowsの全画面学習PNG2枚をprimeが目視し、保存件数と次の合成作品、画像比率・判定ボタンの可読性を確認。条件はWebView2 155.0.4283.62、1907×1044 CSS px、devicePixelRatio 1.75。別PC/他DPI/本番接続の受入へ換算しない。
+- 公開PR #6の実装SHA `1011127` はWindows/Ubuntu pytestとChromium実ブラウザの全3ジョブ成功（[run 39716131704](https://github.com/nuts-kinoco/PixivVault-NiceGUI/actions/runs/39716131704)）。Chromiumでも新しい永続化runnerをCIから明示実行した。
+- 独立担当がarchive XML・nativeの初回/再起動JSONと受入文書を照合し、追加blockingなし。初回DB利用の失敗とサーバー起動時登録の例外を分けて記述し、nativeの画像は合成fixtureであることを明示した。
 
 生のXML・JSON・画面画像は ignored `artifacts/learning-persistence-20261022/` に保存する。保存機能の限定受入と、全画面・全DPI・性能・本番接続を含むフェーズ全体の完了は分けて記録する。
