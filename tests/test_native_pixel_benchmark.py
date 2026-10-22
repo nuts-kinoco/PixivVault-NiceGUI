@@ -144,13 +144,15 @@ def test_screen_checks_reject_occlusion_pid_failure_and_move(monkeypatch):
         window._check_screen()
 
 
-def test_screen_capture_checks_both_sides_and_rejects_blank(monkeypatch):
+@pytest.mark.parametrize("mode", ["screen", "screen-gdi"])
+def test_screen_capture_checks_both_sides_and_rejects_blank(monkeypatch, mode):
     window = benchmark.OwnedWindow.__new__(benchmark.OwnedWindow)
-    window.capture_mode = "screen"
+    window.capture_mode = mode
     window.size, window.screen_bbox = (11, 11), (4, 5, 15, 16)
     count = []
     window._check_screen = lambda: count.append(True)
     monkeypatch.setattr(benchmark.ImageGrab, "grab", lambda **kw: Image.new("RGB", (11, 11), "white"))
+    monkeypatch.setattr(benchmark, "capture_screen_box", lambda box: Image.new("RGB", (11, 11), "white"))
     with pytest.raises(RuntimeError, match="flat"):
         window.capture()
     assert len(count) == 2
@@ -158,5 +160,32 @@ def test_screen_capture_checks_both_sides_and_rejects_blank(monkeypatch):
         assert kwargs == {"bbox": (4, 5, 15, 16), "all_screens": True}
         return Image.new("RGB", (10, 11), "red")
     monkeypatch.setattr(benchmark.ImageGrab, "grab", grab)
+    def gdi_grab(box):
+        assert box == (4, 5, 15, 16)
+        return Image.new("RGB", (10, 11), "red")
+    monkeypatch.setattr(benchmark, "capture_screen_box", gdi_grab)
     with pytest.raises(RuntimeError, match="capture differs"):
         window.capture()
+
+
+@pytest.mark.parametrize("mode", ["screen", "screen-gdi"])
+@pytest.mark.parametrize("changed_at", [1, 2])
+def test_screen_capture_rejects_ownership_change_before_or_after_copy(monkeypatch, mode, changed_at):
+    window = benchmark.OwnedWindow.__new__(benchmark.OwnedWindow)
+    window.capture_mode = mode
+    window.size, window.screen_bbox = (11, 11), (4, 5, 15, 16)
+    checks, copies = [], []
+    def check():
+        checks.append(True)
+        if len(checks) == changed_at:
+            raise RuntimeError("screen client occluded or PID identity unknown")
+    def copy(*args, **kwargs):
+        copies.append(True)
+        return Image.new("RGB", (11, 11), "white")
+    window._check_screen = check
+    monkeypatch.setattr(benchmark.ImageGrab, "grab", copy)
+    monkeypatch.setattr(benchmark, "capture_screen_box", copy)
+    with pytest.raises(RuntimeError, match="occluded"):
+        window.capture()
+    assert len(checks) == changed_at
+    assert len(copies) == changed_at - 1
