@@ -1,8 +1,12 @@
 # 移植進捗
 
-更新: 2026-10-22、レビュー後のマージ承認に基づく継続開発。最終ゴールは移植完了、各フェーズは途中のマイルストーン。現在の検証単位: `phase1/native-startup-layout`（製品の初期ウィンドウ配置・作業領域への適合）。
+更新: 2026-10-23、レビュー後のマージ承認に基づく継続開発。最終ゴールは移植完了、各フェーズは途中のマイルストーン。現在の検証単位: `phase4/pixiv-auth-compat`（実Cookie読取の認証HTML・masked一覧互換と実画面受入）。
 
 ## 最新の進捗照合とフェーズレビュー
+
+PR #20はhead `69ce42c6651605bf35fcb62c5dbfae24957529c5` のCI全成功後にmain `e8835c4e4209efe3eb76c296889c672b0e6a3898` へmerge。継続時にmain CI run39784532379も全成功を再照合した。
+
+後続の認証互換は旧metaとNext.js本人情報を厳格に検証し、表示不可masked作品が一覧全体を失敗させる問題を分離した。製品時点677pytest、検証器の偽陽性・終了要求回帰を加え681pytest、実reader+合成transportの新旧HTML各2解像度Edge、同一コピーexeの合成旧DB経路・GDI復帰・通常終了が成功。実Cookieの専用Edgeでも検索/選択/サムネイル/2ページdecode/I・Tab/戻りfocus/タブ往復を確認した（GET102、うち画像52、書込0、Cookie原本不変、実データ証跡保存なし、通常終了・port解放）。過去2試行のAssertionErrorと合成終了待ち失敗は保持し、一般的な根因解消を主張しない。詳細は `PIXIV_AUTH_COMPAT_REVIEW_2026-10-23.md`。このbranchのhead/main CIは別ゲート。段階5のjobs-pipeline/queue-stateは別のdirty worktreeで並行しており、上書き・重複統合しない。
 
 タグ条件PR #19は並行PR #18を取り込んだhead `8233586ff1982ef0726bb7a7aec787532c8f12d5` で全581pytest、CI run39779893130全3ジョブ成功後、`13ec540c2d3364c7cd0bcf4d9ad1d1c73c784bd8` へmerge。main CI run39780880773も全成功。実データ書込みやフェーズ全体の完了へ拡大しない。
 

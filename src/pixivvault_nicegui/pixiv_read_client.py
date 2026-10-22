@@ -27,6 +27,8 @@ from urllib.request import (
 COOKIE_LIMIT = 1024 * 1024
 JSON_LIMIT = 2 * 1024 * 1024
 HTML_LIMIT = 8 * 1024 * 1024
+MAX_IDENTITY_META = 1
+MAX_IDENTITY_SCRIPTS = 1
 IMAGE_LIMIT = 20 * 1024 * 1024
 MAX_HEADER_BYTES = 65536
 MAX_URL_LENGTH = 4096
@@ -267,28 +269,110 @@ class _UserDataParser(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.matches: list[str] = []
+        self.scripts: list[str] = []
+        self._capture = False
+        self._script_chunks: list[str] = []
+        self.malformed = False
+
+    def _identity_attributes(self, attrs, expected_id):
+        ids = [value for key, value in attrs if key == "id"]
+        if expected_id not in ids:
+            return None
+        keys = [key for key, _value in attrs]
+        if ids != [expected_id] or len(keys) != len(set(keys)):
+            self.malformed = True
+            return None
+        return dict(attrs)
 
     def handle_starttag(self, tag, attrs):
+        if self._capture:
+            self.malformed = True
         if tag == "meta":
-            attributes = dict(attrs)
-            if attributes.get("id") == "meta-global-data":
+            attributes = self._identity_attributes(attrs, "meta-global-data")
+            if attributes is not None:
                 self.matches.append(attributes.get("content", ""))
+        elif tag == "script" and self._identity_attributes(attrs, "__NEXT_DATA__") is not None:
+            if self._capture:
+                self.malformed = True
+            self._capture = True
+            self._script_chunks = []
+
+    def handle_startendtag(self, tag, attrs):
+        if tag == "meta":
+            # META is a void element: legacy XHTML-style '/>' is valid.
+            self.handle_starttag(tag, attrs)
+        elif tag == "script" and any(key == "id" and value == "__NEXT_DATA__"
+                                      for key, value in attrs):
+            self.malformed = True
+
+    def handle_data(self, data):
+        if self._capture:
+            self._script_chunks.append(data)
+
+    def handle_endtag(self, tag):
+        if self._capture and tag == "script":
+            self.scripts.append("".join(self._script_chunks))
+            self._capture = False
+
+
+def _identity_json(content: str):
+    """Reject conflicting/duplicate authentication keys rather than taking the last."""
+    def unique_keys(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise AuthenticationMissing()
+            result[key] = value
+        return result
+
+    def invalid_constant(_value):
+        raise AuthenticationMissing()
+
+    if type(content) is not str:
+        raise AuthenticationMissing()
+    return json.loads(content, object_pairs_hook=unique_keys, parse_constant=invalid_constant)
+
+
+def _next_identity(content: str) -> str:
+    document = _identity_json(content)
+    if type(document) is not dict or type(document.get("props")) is not dict:
+        raise AuthenticationMissing()
+    page = document["props"].get("pageProps")
+    if type(page) is not dict or page.get("isLoggedIn") is not True:
+        raise AuthenticationMissing()
+    user = page.get("gaUserData")
+    if type(user) is not dict:
+        raise AuthenticationMissing()
+    candidates = [user[k] for k in ("id", "userId", "user_id") if k in user]
+    if len(candidates) != 1:
+        raise AuthenticationMissing()
+    return _identifier(candidates[0])
 
 
 def _identity_from_home(data: bytes) -> str:
     try:
+        if type(data) is not bytes or len(data) > HTML_LIMIT:
+            raise AuthenticationMissing()
         parser = _UserDataParser()
         parser.feed(data.decode("utf-8"))
-        if len(parser.matches) != 1:
+        parser.close()
+        if (parser.malformed or parser._capture or
+                len(parser.matches) > MAX_IDENTITY_META or
+                len(parser.scripts) > MAX_IDENTITY_SCRIPTS or
+                not (parser.matches or parser.scripts)):
             raise AuthenticationMissing()
-        global_data = json.loads(parser.matches[0])
-        if not isinstance(global_data, dict):
+        identities = []
+        if parser.matches:
+            global_data = _identity_json(parser.matches[0])
+            if type(global_data) is not dict or type(global_data.get("userData")) is not dict:
+                raise AuthenticationMissing()
+            identities.append(_identifier(global_data["userData"].get("id")))
+        if parser.scripts:
+            identities.append(_next_identity(parser.scripts[0]))
+        if len(set(identities)) != 1:
             raise AuthenticationMissing()
-        user = global_data.get("userData")
-        if not isinstance(user, dict):
-            raise AuthenticationMissing()
-        return _identifier(user.get("id"))
-    except (ValueError, UnicodeError, InvalidPayload):
+        return identities[0]
+    except (ValueError, TypeError, UnicodeError, InvalidPayload, RecursionError, AssertionError):
         raise AuthenticationMissing() from None
 
 
@@ -296,7 +380,8 @@ class LivePixivReadClient:
     """Explicit-cookie Pixiv reader; all requests are strictly bounded GETs.
 
     verify_identity establishes the logged-in account from the homepage
-    meta-global-data.userData.id, then checks /ajax/user/extra for success.
+    meta-global-data.userData.id or strictly logged-in Next.js page props,
+    then checks /ajax/user/extra for success.
     Cookie/PHPSESSID and API IDs, when present, must match that server ID.
     An anonymous home or empty API response alone never proves identity.
     """
@@ -457,6 +542,8 @@ class LivePixivReadClient:
             for work in works:
                 if not isinstance(work, dict):
                     raise InvalidPayload()
+                if "isMasked" in work and type(work["isMasked"]) is not bool:
+                    raise InvalidPayload()
                 wid = _identifier(work.get("id"))
                 if wid in seen:
                     continue
@@ -465,6 +552,18 @@ class LivePixivReadClient:
                 novel_count += 1
                 if total > MAX_BOOKMARKS_PER_ROUTE:
                     raise ResponseLimitExceeded()
+                # Unavailable/private/deleted entries may now carry a static
+                # placeholder URL and author ID zero. They are not viewable
+                # works: never fetch that placeholder or invent an identity.
+                # Count their stable IDs above so an all-masked page still
+                # advances pagination, and a repeated page still fails closed.
+                if work.get("isMasked") is True:
+                    continue
+                thumb = work.get("url")
+                if thumb is None or thumb == "":
+                    continue  # Legacy library omits works without a preview.
+                if type(thumb) is not str:
+                    raise InvalidPayload()
                 tags = work.get("tags") or []
                 if isinstance(tags, dict):
                     tags = tags.get("tags") or []
@@ -484,7 +583,6 @@ class LivePixivReadClient:
                     raise InvalidPayload() from None
                 title = work.get("title") or ""
                 user_name = work.get("userName") or ""
-                thumb = work.get("url") or ""
                 created = work.get("createDate") or ""
                 if any(type(s) is not str for s in (title, user_name, thumb, created)):
                     raise InvalidPayload()
