@@ -117,8 +117,76 @@ def inspect_library_ui(page, screenshot: Path, guard: NativeUiGuard) -> dict:
             "viewer_screenshot": str(library_viewer_shot), "detail_screenshot": str(detail_shot)}
 
 
+def inspect_readonly_library_ui(page, screenshot: Path, guard: NativeUiGuard) -> dict:
+    """Exercise real WebView2 controls backed by an isolated legacy-schema SQLite."""
+    from playwright.sync_api import expect
+    run = guard.run
+    run(page.get_by_test_id("tab-library").click)
+    library = page.get_by_test_id("library-view")
+    authors = library.locator(".pv-library-author-card")
+    run(expect(authors).to_have_count, 1)
+    run(authors.get_by_test_id("library-author-open").click)
+    cards = library.locator(".pv-library-page-card")
+    run(expect(cards).to_have_count, 2)
+    run(expect(library.get_by_test_id("library-page-count")).to_have_text, "2 / 2 枚表示")
+    card = library.locator('.pv-library-page-card[data-work-id="101"][data-page-no="0"]')
+    run(card.click)
+    viewer = page.get_by_test_id("library-viewer")
+    run(expect(viewer).to_be_visible)
+    run(expect(viewer.locator(".pv-counter")).to_have_text, "1/2")
+    img = page.get_by_test_id("library-viewer-image").locator("img:visible")
+    run(expect(img).to_have_attribute, "src", re.compile(r"/media/101/0/view\.png\?catalog=[a-f0-9]+#request-"))
+    guard.decode(img)
+    run(page.keyboard.press, "ArrowRight", with_timeout=False)
+    run(expect(viewer.locator(".pv-counter")).to_have_text, "2/2")
+    run(expect(img).to_have_attribute, "src", re.compile(r"/media/101/1/view\.png\?catalog=[a-f0-9]+#request-"))
+    guard.decode(img)
+    path = run(img.evaluate, "img => new URL(img.currentSrc || img.src).pathname", with_timeout=False)
+    if path != "/media/101/1/view.png":
+        raise AssertionError("native readonly library image/page mismatch")
+    shot = screenshot.with_name(screenshot.stem + "-readonly-library.png")
+    run(page.screenshot, path=str(shot), full_page=False)
+    run(viewer.get_by_role("button", name="閉じる", exact=True).click)
+    run(expect(card).to_be_focused)
+    run(library.get_by_test_id("library-back").click)
+    run(expect(authors.get_by_test_id("library-author-open")).to_be_focused)
+    run(library.get_by_test_id("library-subview-bookmarks").click)
+    bookmarks = library.get_by_test_id("bookmark-view")
+    run(expect(bookmarks).to_be_visible)
+    run(expect(bookmarks.get_by_test_id("bookmark-count")).to_have_text, "1 / 1 件表示")
+    run(expect(bookmarks.get_by_text("DL済み", exact=True)).to_be_visible)
+    checkbox = bookmarks.get_by_role("checkbox", name="選択")
+    run(expect(checkbox).not_to_be_checked)
+    run(checkbox.click)
+    run(expect(checkbox).to_be_checked)
+    run(expect(bookmarks.get_by_test_id("bookmark-selection")).to_have_text, "選択中: 1件")
+    run(bookmarks.get_by_label("ブックマーク内を検索").fill, "架空")
+    opener = bookmarks.get_by_test_id("bookmark-open")
+    run(opener.click)
+    run(expect(viewer).to_be_visible)
+    run(expect(viewer.locator(".pv-counter")).to_have_text, "1/2")
+    run(expect(img).to_have_attribute, "src", re.compile(r"/media/101/0/view\.png\?catalog="))
+    guard.decode(img)
+    run(page.keyboard.press, "ArrowRight", with_timeout=False)
+    run(expect(viewer.locator(".pv-counter")).to_have_text, "2/2")
+    run(expect(img).to_have_attribute, "src", re.compile(r"/media/101/1/view\.png\?catalog="))
+    guard.decode(img)
+    run(viewer.get_by_role("button", name="閉じる", exact=True).click)
+    run(expect(opener).to_be_focused)
+    run(page.get_by_test_id("tab-ranking").click)
+    run(page.get_by_test_id("tab-library").click)
+    run(expect(bookmarks.get_by_label("ブックマーク内を検索")).to_have_value, "架空")
+    run(expect(bookmarks.get_by_test_id("bookmark-selection")).to_have_text, "選択中: 1件")
+    run(library.get_by_test_id("library-subview-downloaded").click)
+    run(expect(authors).to_have_count, 1)
+    return {"passed": True, "authors": 1, "pages": 2, "viewer_path": path,
+            "focus_restored": True, "bookmark_roundtrip": True,
+            "bookmark_search_selection_viewer": True, "screenshot": str(shot)}
+
+
 def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float,
-               *, check_owner, learning_persistence: bool = False) -> dict:
+               *, check_owner, learning_persistence: bool = False,
+               readonly_library: bool = False) -> dict:
     """Use Playwright's WebView2 CDP attachment, never close remote browser/context."""
     from playwright.sync_api import expect, sync_playwright
 
@@ -255,8 +323,12 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
                     'session_undo_reset': True, 'screenshot': str(learning_shot),
                 }
                 result['interactions'].append('sandbox judgment persists across WebView reload')
-            result['library'] = inspect_library_ui(page, screenshot, guard)
-            result['interactions'].append('library author/search/all pages/viewer/tab return/shared size')
+            if readonly_library:
+                result['library'] = inspect_readonly_library_ui(page, screenshot, guard)
+                result['interactions'].append('readonly SQLite library + saved images / bookmark roundtrip')
+            else:
+                result['library'] = inspect_library_ui(page, screenshot, guard)
+                result['interactions'].append('library author/search/all pages/viewer/tab return/shared size')
         run(page.screenshot, path=str(screenshot), full_page=False)
         result["screenshot"] = str(screenshot)
         guard.check()
@@ -292,12 +364,14 @@ def port_released(port: int) -> bool:
         return sock.connect_ex(("127.0.0.1", port)) != 0
 
 
-def health_ready(port: int) -> bool:
+def health_ready(port: int, expected_data: str = "synthetic") -> bool:
     try:
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         with opener.open(f"http://127.0.0.1:{port}/healthz", timeout=0.6) as response:
             body = json.load(response)
-            return response.status == 200 and body.get("status") == "ok" and body.get("mode") == "demo"
+            return response.status == 200 and body == {
+                "status": "ok", "mode": "demo" if expected_data == "synthetic" else "readonly",
+                "data": expected_data}
     except (OSError, ValueError, TimeoutError):
         return False
 
@@ -537,6 +611,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--inspect-ui", action="store_true", help="Inspect this WebView over local CDP")
     parser.add_argument("--learning-sandbox", type=Path,
                         help="Explicit synthetic learning directory; reuse it to check a native restart")
+    parser.add_argument("--library-readonly-db", type=Path,
+                        help="Explicit isolated legacy-schema SQLite fixture")
+    parser.add_argument("--library-image-root", type=Path,
+                        help="Explicit isolated synthetic image fixture root")
     args = parser.parse_args(argv)
     if os.name != "nt":
         parser.error("Windows 専用です")
@@ -544,6 +622,14 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--timeout must be positive")
     if args.learning_sandbox is not None and not args.learning_sandbox.is_absolute():
         parser.error("--learning-sandbox must be absolute")
+    if (args.library_readonly_db is None) != (args.library_image_root is None):
+        parser.error("read-only library requires both explicit DB and image root")
+    if args.library_readonly_db is not None:
+        if not (args.library_readonly_db.is_absolute() and args.library_readonly_db.is_file()
+                and args.library_image_root.is_absolute() and args.library_image_root.is_dir()):
+            parser.error("read-only library fixtures must exist at absolute paths")
+        if not args.inspect_ui:
+            parser.error("read-only library native acceptance requires --inspect-ui")
     target = (args.exe or args.python_entry).resolve()
     if not target.is_file():
         parser.error("Existing executable/entry file required")
@@ -557,6 +643,9 @@ def main(argv: list[str] | None = None) -> int:
     command += ["--host", "127.0.0.1", "--port", str(port)]
     if args.learning_sandbox is not None:
         command += ["--learning-sandbox", str(args.learning_sandbox)]
+    if args.library_readonly_db is not None:
+        command += ["--library-readonly-db", str(args.library_readonly_db),
+                    "--library-image-root", str(args.library_image_root)]
     report: dict = {"status": "failed", "port": port, "root_pid": None,
                     "owned_pids": [], "window_found": False, "health_ready": False,
                     "minimized": False, "restored": False,
@@ -605,7 +694,12 @@ def main(argv: list[str] | None = None) -> int:
             report["owned_pids"] = sorted(identities)
             return valid_owned(identities)
 
-        report["health_ready"] = wait_until(lambda: (scan() and health_ready(port)),
+        def expected_health():
+            if args.library_readonly_db is not None:
+                return health_ready(port, "library-readonly")
+            return health_ready(port)
+
+        report["health_ready"] = wait_until(lambda: (scan() and expected_health()),
                                             phase_deadline(operation_deadline, "health"))
         if not report["health_ready"]:
             report["errors"].append("health_timeout")
@@ -635,10 +729,13 @@ def main(argv: list[str] | None = None) -> int:
                 if args.inspect_ui:
                     try:
                         screenshot = output_path.with_name("webview-ui.png")
+                        inspect_kwargs = {"check_owner": check_ui_owner,
+                                          "learning_persistence": args.learning_sandbox is not None}
+                        if args.library_readonly_db is not None:
+                            inspect_kwargs["readonly_library"] = True
                         report["ui_inspection"] = inspect_ui(
                             debug_port, port, screenshot, phase_deadline(operation_deadline, "inspect_ui"),
-                            check_owner=check_ui_owner,
-                            learning_persistence=args.learning_sandbox is not None)
+                            **inspect_kwargs)
                         if not report["ui_inspection"]["passed"]:
                             report["errors"].append("ui_inspection_failed")
                     except Exception as exc:

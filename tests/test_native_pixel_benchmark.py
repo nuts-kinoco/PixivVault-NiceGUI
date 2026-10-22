@@ -125,6 +125,7 @@ def test_screen_checks_reject_occlusion_pid_failure_and_move(monkeypatch):
     window = benchmark.OwnedWindow.__new__(benchmark.OwnedWindow)
     window.user, window.kernel = User(), object()
     window.root, window.root_birth = 10, 100
+    window.top, window.input = 50, 51
     window.screen_bbox = (0, 0, 11, 11)
     window.identities = {10: 100, 11: 200}
     window.verify = lambda: None

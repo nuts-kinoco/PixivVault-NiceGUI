@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from nicegui import ui
 
 from ..bookmark_state import BookmarkState
@@ -29,6 +30,7 @@ class LibraryView(ViewerController):
                  on_size_change=None) -> None:
         self.services = services
         self.client = ui.context.client
+        self._image_provider = services.acquire_library_images()
         self.active = True
         self.closed = False
         self.subview = "downloaded"
@@ -38,6 +40,7 @@ class LibraryView(ViewerController):
             local=services.bookmark_local_snapshot(),
             cached_remote=services.bookmark_remote_snapshot(),
         )
+        self.bookmark_state.fetch_failed = services.bookmark_cache_failed
         self.bookmarks = None
         self.state = LibraryState(LibrarySnapshot(()))
         self.author_cards = {}
@@ -52,6 +55,12 @@ class LibraryView(ViewerController):
         self._more_session = object()
         self.more_cell = None
         self.load_error = False
+        self.refresh_error = False
+        self._refresh_epoch = 0
+        self._refreshing = False
+        self._bookmark_refreshing = False
+        self._bookmark_open_epoch = 0
+        self._resolved_bookmark_artwork = {}
 
         with ui.column().classes("pv-library w-full").props(
             "data-testid=library-view data-active=true"
@@ -73,6 +82,11 @@ class LibraryView(ViewerController):
                     "pv-library-search")
                 self.search_input.on("keydown.enter", lambda _: self.search(self.search_input.value))
                 ui.label("ライブラリ内").classes("pv-subtitle pv-library-scope")
+                self.db_refresh_button = None
+                if services.library_repository is not None:
+                    self.db_refresh_button = ui.button(
+                        "DB更新", color=None, on_click=self.refresh_from_disk).props(
+                        "flat dense no-caps data-testid=library-db-refresh")
                 self.sort_buttons = {}
                 for key in ("view_count", "last_backup"):
                     self.sort_buttons[key] = ui.button(
@@ -84,7 +98,9 @@ class LibraryView(ViewerController):
 
             with ui.row().classes("pv-library-error") as self.error_row:
                 ui.label("ライブラリを読み込めませんでした").props("role=alert")
-                ui.button("再読込", on_click=self.reload).props("flat data-testid=library-reload")
+                ui.button("再読込", on_click=(self.refresh_from_disk
+                    if services.library_repository is not None else self.reload)).props(
+                    "flat data-testid=library-reload")
 
             with ui.column().classes("pv-library-panel w-full") as self.authors_panel:
                 with ui.row().classes("pv-library-summary w-full"):
@@ -126,7 +142,8 @@ class LibraryView(ViewerController):
                 self.bookmark_state,
                 on_refresh=self.refresh_bookmarks,
                 on_open=self.open_bookmark,
-                image_url=lambda work_id: self.services.images.url(work_id, 0, "thumb"),
+                image_url=lambda work_id: self._image_provider.url(work_id, 0, "thumb"),
+                can_open=lambda work_id: self._image_provider.can_open(work_id),
             )
             self.bookmarks.render()
             self.bookmarks.root.set_visibility(False)
@@ -169,7 +186,7 @@ class LibraryView(ViewerController):
         downloaded = self.subview == "downloaded"
         self.authors_panel.set_visibility(downloaded and not selected and not self.load_error)
         self.pages_panel.set_visibility(downloaded and selected and not self.load_error)
-        self.error_row.set_visibility(downloaded and self.load_error)
+        self.error_row.set_visibility(downloaded and (self.load_error or self.refresh_error))
         self.search_input.set_visibility(downloaded)
         self.downloaded_button.classes(
             add="pv-library-subview-selected" if downloaded else "",
@@ -200,15 +217,24 @@ class LibraryView(ViewerController):
         if subview == self.subview:
             return
         self.close_viewer(restore_focus=False)
+        self._bookmark_open_epoch += 1
         self.subview = subview
         self._sync_panels()
+        if subview == "bookmarks" and not self.bookmark_state.has_remote_cache:
+            self.refresh_bookmarks()
 
     def refresh_bookmarks(self) -> None:
-        """Synthetic refresh only. No network, cookie, or persistent DB access."""
-        if self.closed or not self.active or self.subview != "bookmarks":
+        """Keep demo refresh immediate; real DB/network work is off the UI loop."""
+        if self.closed or not self.active or self.subview != "bookmarks" or self._bookmark_refreshing:
             return
         epoch = self.bookmark_state.begin_fetch()
         if epoch is None:
+            return
+        if self.services.library_repository is not None or self.services.live_client is not None:
+            from nicegui import background_tasks
+            self._bookmark_refreshing = True
+            self.bookmarks.refresh()
+            background_tasks.create(self._refresh_bookmarks_async(epoch))
             return
         try:
             remote = self.services.bookmark_remote_snapshot()
@@ -219,15 +245,82 @@ class LibraryView(ViewerController):
         if self.bookmarks is not None:
             self.bookmarks.refresh()
 
+    async def _refresh_bookmarks_async(self, epoch: int) -> None:
+        try:
+            remote, local = await self.services.refresh_bookmark_cache()
+        except Exception:
+            accepted = self.bookmark_state.complete_fetch(epoch, (), ok=False)
+        else:
+            accepted = self.bookmark_state.complete_fetch(epoch, remote, ok=True)
+            if accepted:
+                self.bookmark_state.replace_local(local)
+                self.close_viewer(restore_focus=False)
+                self._bookmark_open_epoch += 1
+                self._resolved_bookmark_artwork.clear()
+                previous = self._image_provider
+                self._image_provider = self.services.acquire_library_images()
+                previous.close()
+                self.reload(preserve=True)
+        finally:
+            self._bookmark_refreshing = False
+        if accepted and not self.closed and self.bookmarks is not None:
+            with self.client:
+                self.bookmarks.refresh()
+
+    def _build_viewer_state(self) -> None:
+        # Local data wins for downloaded works; remote-only entries must also
+        # exist in the viewer instead of being silently ignored on click.
+        artwork = {work.work_id: work.artwork for work in self.state.snapshot.works}
+        for card in self.bookmark_state.items:
+            artwork.setdefault(card.work_id,
+                self._image_provider.artwork_for(card.work_id) or
+                self._resolved_bookmark_artwork.get(card.work_id, card.artwork))
+        self._viewer_state.close()
+        self._viewer_state = GalleryState(artwork.values())
+
     def open_bookmark(self, work_id: str) -> None:
         if (self.closed or not self.active or self.subview != "bookmarks"
                 or work_id not in {card.work_id for card in self.bookmark_state.items}):
             return
+        if not self._image_provider.can_open(work_id):
+            return
+        if self._image_provider.needs_metadata(work_id):
+            from nicegui import background_tasks
+            self._bookmark_open_epoch += 1
+            epoch, provider = self._bookmark_open_epoch, self._image_provider
+            background_tasks.create(self._open_unknown_bookmark(work_id, epoch, provider))
+            return
+        self._bookmark_open_epoch += 1
+        self._build_viewer_state()
         super().open(work_id, 0)
 
-    def reload(self) -> None:
+    async def _open_unknown_bookmark(self, work_id, epoch, provider):
+        try:
+            artwork = await asyncio.to_thread(provider.prepare_artwork, work_id)
+        except Exception:
+            if (not self.closed and self.active and self.subview == "bookmarks"
+                    and epoch == self._bookmark_open_epoch and self._image_provider is provider):
+                self.bookmarks.message.set_text("作品情報を取得できませんでした。もう一度作品を選択してください")
+                self.bookmarks.message.set_visibility(True)
+            return
+        if (self.closed or not self.active or self.subview != "bookmarks"
+                or epoch != self._bookmark_open_epoch or self._image_provider is not provider):
+            return
+        self._resolved_bookmark_artwork[work_id] = artwork
+        with self.client:
+            self._build_viewer_state()
+            super().open(work_id, 0)
+
+    def reload(self, *, preserve: bool = False) -> None:
         if self.closed or not self.active:
             return
+        previous_state = self.state
+        saved_query = previous_state.query
+        saved_sort = previous_state.sort_key
+        saved_directions = dict(previous_state.sort_directions)
+        saved_author = previous_state.selected_author_id
+        saved_author_limit = previous_state.shown_author_count
+        saved_page_limit = previous_state.shown_page_count
         self.close_viewer(restore_focus=False)
         self.state.close()
         self._viewer_state.close()
@@ -243,6 +336,16 @@ class LibraryView(ViewerController):
         try:
             snapshot = self.services.library_snapshot()
             state = LibraryState(snapshot)
+            if preserve:
+                state.query = saved_query
+                state.sort_key = saved_sort
+                state.sort_directions.update(saved_directions)
+                state._refresh_matches()
+                while state.shown_author_count < saved_author_limit and state.has_more_authors:
+                    state.load_more_authors()
+                if saved_author is not None and state.open_author(saved_author):
+                    while state.shown_page_count < saved_page_limit and state.has_more_pages:
+                        state.load_more_pages()
             viewer_state = GalleryState(work.artwork for work in snapshot.works)
         except Exception:
             # 読取失敗を「保存済み0件」へ置き換えない。例外内容を画面へ出さない。
@@ -251,10 +354,47 @@ class LibraryView(ViewerController):
             return
         self.state = state
         self._viewer_state = viewer_state
+        previous = self._image_provider
+        self._image_provider = self.services.acquire_library_images()
+        previous.close()
+        self._build_viewer_state()
         self.load_error = False
-        self.search_input.set_value("")
+        self.refresh_error = False
+        self.search_input.set_value(state.query)
         self.render_authors()
+        if state.selected_author is not None:
+            self.render_pages()
         self._sync_panels()
+        if preserve:
+            self._restore_scroll(self.pages_scroll if state.selected_author is not None else self.authors_scroll)
+
+    async def refresh_from_disk(self) -> None:
+        if (self.closed or not self.active or self._refreshing or
+                self.services.library_repository is None):
+            return
+        self._refresh_epoch += 1
+        epoch = self._refresh_epoch
+        state = self.state
+        self._refreshing = True
+        if self.db_refresh_button is not None:
+            self.db_refresh_button.disable()
+        try:
+            await self.services.refresh_library_snapshot()
+        except Exception:
+            if not self.closed and self.active and self.state is state and epoch == self._refresh_epoch:
+                self.refresh_error = True
+                self._sync_panels()
+        else:
+            if (not self.closed and self.active and self.state is state and
+                    epoch == self._refresh_epoch):
+                # Keep searches/selections made while disk I/O was in progress.
+                # A full reload or tab leave still invalidates state/epoch ownership.
+                self.reload(preserve=True)
+        finally:
+            if epoch == self._refresh_epoch:
+                self._refreshing = False
+                if self.db_refresh_button is not None and not self.closed:
+                    self.db_refresh_button.enable()
 
     def _make_author_card(self, author: AuthorSummary) -> None:
         with self.author_grid:
@@ -269,7 +409,7 @@ class LibraryView(ViewerController):
                         session = self._author_session
                         opener.on("click", lambda _, uid=author.author_id, owner=session: self.open_author(uid, owner))
                         opener.on("keydown.enter", lambda _, uid=author.author_id, owner=session: self.open_author(uid, owner))
-                        ui.image(self.services.images.url(author.representative.work_id, 0, "thumb")).props(
+                        ui.image(self._image_provider.url(author.representative.work_id, 0, "thumb")).props(
                             "fit=cover loading=lazy no-transition"
                         ).classes("pv-thumb")
                     profile = ui.button(icon="open_in_new", color=None).props(
@@ -323,11 +463,14 @@ class LibraryView(ViewerController):
             with ui.element("div").classes("pv-card pv-library-page-card").props(
                 f"role=button tabindex=0 data-work-id={work.work_id} data-page-no={page.page_no}"
             ) as card:
+                if not self._image_provider.can_open(work.work_id):
+                    card.props("aria-disabled=true tabindex=-1")
+                    ui.tooltip("この形式の表示は未接続です")
                 callback = lambda _, wid=work.work_id, number=page.page_no, epoch=generation, session=self._page_session: self.open_page(
                     wid, number, epoch, session)
                 card.on("click", callback)
                 card.on("keydown.enter", callback)
-                ui.image(self.services.images.url(work.work_id, page.page_no, "thumb")).props(
+                ui.image(self._image_provider.url(work.work_id, page.page_no, "thumb")).props(
                     "fit=cover loading=lazy no-transition"
                 ).classes("pv-thumb")
                 ui.label(work.artwork.title).classes("pv-library-card-title")
@@ -424,6 +567,8 @@ class LibraryView(ViewerController):
             return
         if (work_id, page_no) not in self.page_cards:
             return
+        if not self._image_provider.can_open(work_id):
+            return
         super().open(work_id, page_no)
 
     def more(self, session: object | None = None) -> None:
@@ -453,6 +598,12 @@ class LibraryView(ViewerController):
         update_size_buttons(self.size_buttons, size)
 
     def set_active(self, active: bool) -> None:
+        if self.active != bool(active):
+            self._bookmark_open_epoch += 1
+            self._refresh_epoch += 1
+            self._refreshing = False
+            if self.db_refresh_button is not None:
+                self.db_refresh_button.enable()
         self.active = bool(active)
         self.root.props["data-active"] = str(self.active).lower()
         self.set_viewer_active(active)
@@ -465,9 +616,12 @@ class LibraryView(ViewerController):
         if self.closed:
             return
         self.closed = True
+        self._bookmark_open_epoch += 1
+        self._refresh_epoch += 1
         self.active = False
         self.state.close()
         self.bookmark_state.close()
         if self.bookmarks is not None:
             self.bookmarks.close()
         self._close_viewer_controller()
+        self._image_provider.close()

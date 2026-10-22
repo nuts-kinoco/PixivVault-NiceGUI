@@ -62,6 +62,7 @@ class RemoteBookmark:
     page_count: int
     illustration_type: int | None
     x_restrict: int
+    page_count_known: bool = True
 
     @property
     def work_id(self) -> str:

@@ -42,6 +42,7 @@ class BookmarkState:
         self._remote = None if cached_remote is None else self._unique(cached_remote)
         self.selected_ids: set[str] = set()
         self.shown_count = page_size
+        self.query = ""
         self.fetch_failed = False
         self.loading = False
         self.active = True
@@ -77,11 +78,27 @@ class BookmarkState:
 
     @property
     def visible_items(self) -> tuple[BookmarkCard, ...]:
-        return self.items[:self.shown_count]
+        return self.matched_items[:self.shown_count]
+
+    @property
+    def matched_items(self) -> tuple[BookmarkCard, ...]:
+        needle = self.query.lower()
+        if not needle:
+            return self.items
+        return tuple(card for card in self.items if needle in " ".join((
+            card.work_id, card.artwork.title, card.artwork.author,
+            *card.artwork.tags)).lower())
+
+    def set_query(self, query: str) -> bool:
+        if self.closed or not self.active or not isinstance(query, str) or query == self.query:
+            return False
+        self.query = query
+        self.shown_count = self.page_size
+        return True
 
     @property
     def has_more(self) -> bool:
-        return len(self.visible_items) < len(self.items)
+        return len(self.visible_items) < len(self.matched_items)
 
     @property
     def status(self) -> str:
@@ -93,12 +110,14 @@ class BookmarkState:
             return "empty"
         if not self.items and not self.has_remote_cache:
             return "unloaded"
+        if self.items and not self.matched_items:
+            return "no_match"
         return "ready"
 
     def load_more(self) -> bool:
         if self.closed or not self.active or not self.has_more:
             return False
-        self.shown_count = min(self.shown_count + self.page_size, len(self.items))
+        self.shown_count = min(self.shown_count + self.page_size, len(self.matched_items))
         return True
 
     def select(self, work_id: str) -> bool:
@@ -122,6 +141,7 @@ class BookmarkState:
         self.epoch = next(_epochs)
         self._pending = self.epoch
         self.loading = True
+        self.fetch_failed = False
         return self.epoch
 
     def complete_fetch(self, epoch: int, remote: Iterable[Artwork], *, ok: bool) -> bool:

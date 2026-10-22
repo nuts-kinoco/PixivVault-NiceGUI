@@ -59,6 +59,10 @@ jobs:
         run: python tools/run_browser_checks.py --channel chromium --output artifacts/browser-ci
       - name: Check synthetic learning persistence, recovery and session conflicts
         run: python tools/check_learning_persistence_browser.py --channel chromium --output artifacts/browser-ci/learning-persistence
+      - name: Check read-only legacy SQLite and saved images
+        run: python tools/check_readonly_library_browser.py --channel chromium --output artifacts/browser-ci/readonly-library
+      - name: Check authenticated bookmark UI with synthetic transport only
+        run: python tools/check_live_bookmark_browser.py --channel chromium --output artifacts/browser-ci/live-bookmarks
       - name: Preserve synthetic browser evidence
         if: always()
         uses: actions/upload-artifact@v4

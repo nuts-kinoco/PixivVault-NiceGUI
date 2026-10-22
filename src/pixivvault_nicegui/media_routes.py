@@ -10,12 +10,22 @@ from .media import DemoImageCatalog
 
 def register_media_routes(app, catalog: DemoImageCatalog) -> None:
     def serve(work_id: str, page_no: str, variant: str, request: Request) -> Response:
-        headers = {"X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=3600"}
+        cache_policy = (catalog.cache_control(work_id) if hasattr(catalog, "cache_control")
+                        else "private, max-age=3600")
+        headers = {"X-Content-Type-Options": "nosniff", "Cache-Control": cache_policy}
         if (not 1 <= len(page_no) <= 4 or not page_no.isascii()
                 or not page_no.isdecimal() or (len(page_no) > 1 and page_no.startswith("0"))):
             raise HTTPException(status_code=404)
         try:
-            blob = catalog.get(work_id, int(page_no), variant)
+            version = request.query_params.get("catalog")
+            if request.method == "HEAD" and hasattr(catalog, "metadata_versioned"):
+                blob = catalog.metadata_versioned(version, work_id, int(page_no), variant)
+            elif hasattr(catalog, "get_versioned"):
+                blob = catalog.get_versioned(version, work_id, int(page_no), variant)
+            elif version is not None:
+                raise ValueError("unknown image snapshot")
+            else:
+                blob = catalog.get(work_id, int(page_no), variant)
         except ValueError:
             raise HTTPException(status_code=404) from None
         except RuntimeError:

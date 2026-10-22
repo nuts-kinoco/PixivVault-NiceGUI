@@ -87,6 +87,17 @@ def test_historical_author_rename_groups_by_id_and_keeps_all_pages():
     assert {author.author_id for author in state.visible_authors} == {"author-7", "author-8"}
 
 
+def test_legacy_missing_author_id_still_opens_detail():
+    state = LibraryState(LibrarySnapshot((
+        LibraryWork(Artwork("no-author", "作者ID不明", ""), ""),
+    )))
+    assert state.open_author("")
+    assert state.selected_author is not None
+    assert state.selected_author.author_id == ""
+    assert [item.key for item in state.visible_pages] == [("no-author", 0)]
+    assert state.close_author()
+
+
 def test_sort_direction_preserved_per_column_and_null_backup_last():
     state = make_state()
     assert state.sort_key == "view_count" and state.descending
@@ -161,7 +172,7 @@ def test_reject_duplicate_work_ids_and_invalid_parameters():
     with pytest.raises(ValueError, match="page_size"):
         LibraryState(LibrarySnapshot(()), page_size=0)
     with pytest.raises(ValueError, match="author_id"):
-        LibraryWork(work.artwork, "")
+        LibraryWork(work.artwork, None)
     with pytest.raises(ValueError, match="view_count"):
         LibraryWork(work.artwork, "author-a", view_count=True)
     assert LibrarySnapshot((work,)).authors[0].work_count == 1

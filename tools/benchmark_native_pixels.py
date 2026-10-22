@@ -289,7 +289,17 @@ class OwnedWindow:
             birth = process_birth(self.kernel, pid)
             if (pid not in self.identities or birth is None or birth != self.identities[pid]
                     or not is_descendant(pid, self.root, parents)):
-                raise RuntimeError("screen client occluded or PID identity unknown")
+                error = RuntimeError("screen client occluded or PID identity unknown")
+                # Record identity/geometry only, never a foreign title or image.
+                error.capture_probe = {
+                    "point": [x, y], "hwnd": int(hwnd or 0), "pid": pid,
+                    "known_pid": pid in self.identities,
+                    "birth_matches": birth is not None and birth == self.identities.get(pid),
+                    "descendant": is_descendant(pid, self.root, parents),
+                    "screen_bbox": list(self.screen_bbox),
+                    "owned_top_hwnd": int(self.top), "owned_target_hwnd": int(self.input),
+                }
+                raise error
 
     def click(self, where: tuple[int, int], on_send=None):
         # Pace independent actions outside the timed interval. A zero interval

@@ -65,7 +65,7 @@ class LibraryState:
 
     @property
     def selected_author(self) -> AuthorSummary | None:
-        return self._by_author.get(self.selected_author_id) if self.selected_author_id else None
+        return self._by_author.get(self.selected_author_id) if self.selected_author_id is not None else None
 
     @property
     def visible_pages(self) -> tuple[PageRef, ...]:

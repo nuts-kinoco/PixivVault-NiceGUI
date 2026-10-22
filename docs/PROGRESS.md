@@ -1,8 +1,10 @@
 # 移植進捗
 
-更新: 2026-10-22、レビュー後のマージ承認に基づく継続開発。現在の検証単位: `phase4/bookmark-ui`（合成マイブックマーク）。
+更新: 2026-10-22、レビュー後のマージ承認に基づく継続開発。現在の検証単位: `phase4/library-adapter-integration`（旧SQLite/保存画像/マイブックマーク読取統合）。
 
 ## 最新の進捗照合とフェーズレビュー
+
+PR #14後のPR #15/#16統合とmain `48c718fe6f8702606496f44e5ed7a9d24cd72050` のCI成功を確認。旧DB/保存画像・マイブックマークUIを独立worktreeへ統合し、未DL作品viewer、検索/選択/戻り、4経路失敗復旧、旧cache破損隔離、novel/illust同番号分離、2clientの画像snapshot保持を実装した。製品コード凍結時516pytest、既存4経路・旧DB接続・合成APIを通す実Edge 1280/1920が成功。配布1050ファイルを別フォルダーへコピーしSHA一致を確認。同一コピーexeで旧SQLite・保存PNG・永続ブクマ検索/選択/viewer、最小化/復帰GDI、通常8プロセス終了とport解放が成功（175%開発機限定）。実Cookie原本の読取はツール安全性チェックに阻まれ未実行のため、ライブ認証/実API受入とは区別する。実装・独立レビュー・失敗試行・最終証拠は`READONLY_BOOKMARK_INTEGRATION_2026-10-22.md`。PR head/main CIは別ゲート。フェーズ4全体と更新系は未完。
 
 PR #9で初期ライブラリ作者経路がmainへ先行統合されたため、追加修正のみを別branchへ整理した。作者51件以降の明示追加、詳細中の古い別作者クリック拒否、再訪できなくなる回帰修正、作者カード閲覧数表示、欠落したnative UI guardと検索selectorを補正。独立レビューの再現→修正後は全体358pytest成功。実Edge4系統・ソース前後hash一致・port解放を確認。実装同一SHA bea9cbdのWindows onedir/noconsoleを別フォルダーから実走し、library導線、最小化復帰のGDI画素、通常8プロセス終了とport解放成功。175%開発機だけの受入で、原版未移植範囲は引き続き未完。詳しくは`LIBRARY_AUTHOR_VIEW_REVIEW_2026-10-22.md`。
 
