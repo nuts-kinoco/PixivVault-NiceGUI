@@ -1,6 +1,6 @@
 # 学習DB互換性
 
-移植元：`/projects/PixivVault/database.py`、SHA-256 `4c54e34ef2cf9a082ccd6a1579d676bdc4a767f1a9558f51abf7cce399ec7e7`。
+移植元：`/projects/PixivVault/database.py`、SHA-256 `4c54e34ef2cf9a082ccd6a1579d676cbdc4a767f1a9558f51abf7cce399ec7e7`。初期資料の63文字の転記誤りを実ファイルの64文字のhashへ訂正した。原ファイルを変更したものではない。
 
 移植先 `legacy/database.py` は元ファイル153行目以降の定数、正規化関数、`Database`クラス全メソッドを元の順序と本文で保持する。変更箇所は `Database.__init__`（元240〜263行）のみ。先頭の本番固定パス・backupディレクトリ・環境変数fallback・本番backup関数を含めず、明示`db_path`と`sandbox_root`必須に変更した。絶対パスを解決してsandbox配下に限定し、接続前に拒否する。接続後の`_create_table`、学習SQL、正規化、Undo、counter更新は元実装そのまま。元ソースをimportする必要はない。
 
