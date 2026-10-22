@@ -1,14 +1,18 @@
 # 移植進捗
 
-更新: 2026-10-22、レビュー後のマージ承認に基づく継続開発。現在の検証単位: `phase3/matched-viewer-benchmark`。
+更新: 2026-10-22、レビュー後のマージ承認に基づく継続開発。現在の検証単位: `phase3/native-restore-gate`。
 
 ## 最新の進捗照合とフェーズレビュー
 
 学習保存PR #6は、実装`1011127f4e86c2c3a34583b1aae2836b04655c21`の試験・配布受入と、文書だけを追加した最終head`f35bd54908f6504230550c4373e19a3676eb0734`のCI run39717369777全3ジョブ成功後、`bf7d00637cfbd3257c2c31b2c476cc7e17a17735`としてmainへmergeした。main CI run39717642107もWindows/Ubuntu/Chromiumの全3ジョブ成功。
 
-次の単位では、旧Flet隔離launcherへ任意のlogical Page paddingを追加し、原UI7ファイルを保ったまま主画像の実描画矩形を一致させた。コード`6f2b66e53b275f0c614211e05d5f864e55c2f412`は独立レビュー済み、対象pytest22件成功。1920×1080物理client・175% DPI・同一PNG・868×579物理pxの画像で、Flet→NiceGUI→NiceGUI→Fletの30遷移ずつ、計120遷移が成功。60標本ずつの観測p95は250.330 / 122.386 ms（取得・照合負荷込み、51.1%短縮）。private bytes合計は408.199 / 539.828 MiB（32.2%増）であり、メモリ削減は確認できない。全画面校正、raw標本再計算、独立レビュー、通常終了と元source不変を確認した。詳細は`MATCHED_VIEWER_BENCHMARK_2026-10-22.md`。
+主画像比較PR #7は、独立レビューと最終head`c9ecb85198f158c3b51a96fe3976cbaac2988581`のCI run39722305638全3ジョブ成功後、`1261d020be52b76007e3f0da8a6c4f769fad98b5`としてmainへmerge。main CI run39724415694もWindows/Ubuntu/Chromiumの全3ジョブ成功。
 
-開始前の最小化拒否/一様frame拒否2件は成功標本と別保存した。NiceGUIは外部ShowWindow復帰後に子window座標不正が残り、標準の最小化/復帰1cycleで実画素まで復旧した。原因は未確定で、復帰flagだけでなく子配置と実画素を確認するnative gateの強化が残る。今回の限定比較は原shell全体・cold・連打・配布exe・全DPIの性能受入ではない。
+続くコード`76ddc0fc2cadf36b635a4c3e02f649fe197c10a6`で、native最小化/復帰後の子geometry・DPI・全client実GDI画像を必須検査にした。初回に一時reparentを検出し、同identityが約51ms後の観測で元に戻ることを別診断で確認。所有権を維持した期限内再検査と標本破棄を追加した。対象112pytest、全体329pytestが成功。製品コードが同一の1011127配布exeへ標準checkerを適用し、学習UI操作あり/通常一覧の2回で実画素・通常8プロセス終了・ポート解放が成功した。primeと独立担当が4全画面を確認し、最終レビューに重大残件なし。新buildや製品復帰処理の変更ではなく、175% DPIでの追加受入。詳しくは`NATIVE_RESTORE_REVIEW_2026-10-22.md`。
+
+先行の主画像比較では、旧Flet隔離launcherへ任意のlogical Page paddingを追加し、原UI7ファイルを保ったまま主画像の実描画矩形を一致させた。コード`6f2b66e53b275f0c614211e05d5f864e55c2f412`は独立レビュー済み、対象pytest22件成功。1920×1080物理client・175% DPI・同一PNG・868×579物理pxの画像で、Flet→NiceGUI→NiceGUI→Fletの30遷移ずつ、計120遷移が成功。60標本ずつの観測p95は250.330 / 122.386 ms（取得・照合負荷込み、51.1%短縮）。private bytes合計は408.199 / 539.828 MiB（32.2%増）であり、メモリ削減は確認できない。全画面校正、raw標本再計算、独立レビュー、通常終了と元source不変を確認した。詳細は`MATCHED_VIEWER_BENCHMARK_2026-10-22.md`。
+
+開始前の最小化拒否/一様frame拒否2件は成功標本と別保存した。NiceGUIは外部ShowWindow復帰後に子window座標不正が残り、標準の最小化/復帰1cycleで実画素まで復旧した。この先行事象の原因は未確定。後続のnative gate強化は上記のとおり実施し、別試行の短いreparentと画面外配置の恒常化を同じ原因とは断定しない。今回の限定比較は原shell全体・cold・連打・配布exe・全DPIの性能受入ではない。
 
 PR #5のhead `d5ba18a246da27c14071793413dbb45fe8a40e62` はレビュー/CI/測定器受入後、`bf1b04bb10881ac65d515376e230680a839f36a3` としてmainへmerge済み。head CI run39708638252、main CI run39709086223のWindows/Ubuntu/Chromium全3ジョブ成功を再確認して次の作業を開始した。
 
@@ -101,5 +105,5 @@ GitHub ActionsではUbuntu/Windowsのpytestと、専用Chromiumによる実ブ�
 
 ## 次の受入
 
-次はnative復帰後の実画素検査、初回表示/cold、連続入力、原shellと配布条件まで揃えた比較を進める。今回も約91〜96msの取得負荷中央値があり、短い応答の観測分解能には限界がある。100/125/150%と別PC、残り6画面も独立した必須ゲートとして残す。
+次は他DPI・最大化/長時間復帰の実画素検査、初回表示/cold、連続入力、原shellと配布条件まで揃えた比較を進める。主画像比較には約91〜96msの取得負荷中央値があり、短い応答の観測分解能には限界がある。100/125/150%と別PC、残り6画面も独立した必須ゲートとして残す。
 マージは独立レビュー・該当headのCI・変更に必要な実画面/実機受入後に行い、先行PRのmerge後は後続のbaseと統合treeを照合する。実APIの追加承認は専用の読取計測に適用し、製品の本番DB接続や既定UI置換、フェーズの未達ゲート省略へ広げない。

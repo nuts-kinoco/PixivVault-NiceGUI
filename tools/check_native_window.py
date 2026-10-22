@@ -16,9 +16,14 @@ import time
 import urllib.request
 from urllib.parse import urlparse
 
+if __package__:
+    from .native_restore_gate import run_restore_gate
+else:
+    from native_restore_gate import run_restore_gate
+
 
 # Per-phase maximums, bounded by one total deadline (default 90 seconds).
-PHASE_LIMITS = {"health": 30.0, "window": 20.0, "minimize": 5.0,
+PHASE_LIMITS = {"health": 30.0, "window": 20.0, "restore_baseline": 5.0, "minimize": 5.0,
                 "restore": 5.0, "close": 30.0, "inspect_ui": 25.0}
 
 LOG_FAILURE = re.compile(r"Traceback|Vue failed to load|Error occurred|ObjectDisposedException", re.I)
@@ -410,6 +415,36 @@ def terminate_owned(identities: dict[int, int]) -> list[int]:
     return terminated
 
 
+def owned_window_identity(root_pid: int, root_birth: int, hwnd: int,
+                          identities: dict[int, int]) -> tuple[int, int]:
+    """Read a live owned HWND's PID/birth so callers can pin it before testing."""
+    user = ctypes.WinDLL("user32", use_last_error=True)
+    user.IsWindow.argtypes = [wintypes.HWND]
+    user.IsWindow.restype = wintypes.BOOL
+    user.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+    user.GetWindowThreadProcessId.restype = wintypes.DWORD
+    if process_identity(root_pid) != root_birth or not user.IsWindow(hwnd):
+        raise RuntimeError("owned close root/window identity changed")
+    pid = wintypes.DWORD()
+    if not user.GetWindowThreadProcessId(hwnd, ctypes.byref(pid)):
+        raise RuntimeError("owned close window owner unknown")
+    if (pid.value not in identities or process_identity(pid.value) != identities[pid.value]
+            or process_identity(root_pid) != root_birth):
+        raise RuntimeError("owned close window identity changed")
+    return int(pid.value), identities[pid.value]
+
+
+def close_owned_window(root_pid: int, root_birth: int, hwnd: int,
+                       identities: dict[int, int], expected_owner: tuple[int, int]) -> bool:
+    """Close the original HWND owner, including after a display gate failure."""
+    if owned_window_identity(root_pid, root_birth, hwnd, identities) != expected_owner:
+        raise RuntimeError("owned close window identity changed")
+    user = ctypes.WinDLL("user32", use_last_error=True)
+    user.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+    user.PostMessageW.restype = wintypes.BOOL
+    return bool(user.PostMessageW(hwnd, 0x0010, 0, 0))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Windows native demo window smoke test")
     run = parser.add_mutually_exclusive_group(required=True)
@@ -417,7 +452,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--python-entry", type=Path, help="tools/native_entry.py")
     parser.add_argument("--python", type=Path, default=Path(sys.executable))
     parser.add_argument("--timeout", type=float, default=90.0,
-                        help="total seconds; phases max health30/window20/minimize5/restore5/close30")
+                        help="total seconds; phases max health30/window20/baseline5/minimize5/restore5/close30")
     parser.add_argument("--output", type=Path, default=Path("artifacts/windows-packaging/native-check.json"))
     parser.add_argument("--inspect-ui", action="store_true", help="Inspect this WebView over local CDP")
     parser.add_argument("--learning-sandbox", type=Path,
@@ -450,6 +485,10 @@ def main(argv: list[str] | None = None) -> int:
     root = None
     identities: dict[int, int] = {}
     deadline = time.monotonic() + args.timeout
+    # Keep ordinary WM_CLOSE monitoring available when a display check times out.
+    close_reserve = min(5.0, args.timeout / 3)
+    operation_deadline = deadline - close_reserve
+    report["close_reserve_seconds"] = close_reserve
     output_path = args.output.resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     log_path = output_path.with_name(output_path.stem + ".process.log")
@@ -487,7 +526,7 @@ def main(argv: list[str] | None = None) -> int:
             return valid_owned(identities)
 
         report["health_ready"] = wait_until(lambda: (scan() and health_ready(port)),
-                                            phase_deadline(deadline, "health"))
+                                            phase_deadline(operation_deadline, "health"))
         if not report["health_ready"]:
             report["errors"].append("health_timeout")
         else:
@@ -498,7 +537,7 @@ def main(argv: list[str] | None = None) -> int:
                 handles = owned_windows(scan())
                 return bool(handles)
 
-            window_deadline = phase_deadline(deadline, "window")
+            window_deadline = phase_deadline(operation_deadline, "window")
             report["window_found"] = wait_until(locate, window_deadline)
             report["ui_connected"] = wait_until(lambda: ui_ready(port), window_deadline)
             if not report["ui_connected"]:
@@ -510,47 +549,44 @@ def main(argv: list[str] | None = None) -> int:
                     try:
                         screenshot = output_path.with_name("webview-ui.png")
                         report["ui_inspection"] = inspect_ui(
-                            debug_port, port, screenshot, phase_deadline(deadline, "inspect_ui"),
+                            debug_port, port, screenshot, phase_deadline(operation_deadline, "inspect_ui"),
                             learning_persistence=args.learning_sandbox is not None)
                         if not report["ui_inspection"]["passed"]:
                             report["errors"].append("ui_inspection_failed")
                     except Exception as exc:
                         report["ui_inspection"] = {"passed": False, "reason": type(exc).__name__}
                         report["errors"].append("ui_inspection_exception")
-                user = ctypes.WinDLL("user32", use_last_error=True)
-                user.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
-                user.ShowWindow.restype = wintypes.BOOL
-                user.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
-                user.PostMessageW.restype = wintypes.BOOL
-                user.IsIconic.argtypes = [wintypes.HWND]
-                user.IsIconic.restype = wintypes.BOOL
                 hwnd = handles[0]
-                user.ShowWindow(hwnd, 6)  # SW_MINIMIZE
-                report["minimized"] = wait_until(lambda: bool(user.IsIconic(hwnd)),
-                                                  phase_deadline(deadline, "minimize"))
-                if not report["minimized"]:
-                    report["errors"].append("minimize_timeout")
-                else:
-                    user.ShowWindow(hwnd, 9)  # SW_RESTORE
-                    report["restored"] = wait_until(lambda: not bool(user.IsIconic(hwnd)),
-                                                     phase_deadline(deadline, "restore"))
-                    if not report["restored"]:
-                        report["errors"].append("restore_timeout")
-                    else:
-                        report["wm_close_sent"] = bool(user.PostMessageW(hwnd, 0x0010, 0, 0))
-                        if not report["wm_close_sent"]:
-                            report["errors"].append("wm_close_failed")
-                        close_deadline = phase_deadline(deadline, "close")
-                        def all_exited() -> bool:
-                            scan()
-                            return not living_pids(dict(identities))
+                expected_owner = owned_window_identity(root.pid, root_identity, hwnd, identities)
+                restore_gate = run_restore_gate(
+                    root.pid, root_identity, hwnd, output_path, operation_deadline, PHASE_LIMITS,
+                    expected_top_identity=expected_owner)
+                report["restore_gate"] = restore_gate
+                report["minimized"] = restore_gate["minimized"]
+                report["restored"] = restore_gate["passed"]
+                if not restore_gate["passed"]:
+                    report["errors"].append("restore_gate_failed")
+                # Gate failure must still reach normal close and the existing cleanup.
+                try:
+                    report["wm_close_sent"] = close_owned_window(
+                        root.pid, root_identity, hwnd, identities, expected_owner)
+                except Exception as exc:
+                    report["wm_close_sent"] = False
+                    report["errors"].append("owned_close_" + type(exc).__name__)
+                if not report["wm_close_sent"]:
+                    report["errors"].append("wm_close_failed")
+                close_deadline = phase_deadline(deadline, "close")
 
-                        report["normal_exit"] = wait_until(all_exited, close_deadline)
-                        report["port_released"] = wait_until(lambda: port_released(port), close_deadline)
-                        if not report["normal_exit"]:
-                            report["errors"].append("process_exit_timeout")
-                        if not report["port_released"]:
-                            report["errors"].append("port_release_timeout")
+                def all_exited() -> bool:
+                    scan()
+                    return not living_pids(dict(identities))
+
+                report["normal_exit"] = wait_until(all_exited, close_deadline)
+                report["port_released"] = wait_until(lambda: port_released(port), close_deadline)
+                if not report["normal_exit"]:
+                    report["errors"].append("process_exit_timeout")
+                if not report["port_released"]:
+                    report["errors"].append("port_release_timeout")
         report["status"] = "passed" if (report["health_ready"] and report["window_found"]
                     and report["minimized"] and report["restored"]
                     and report["normal_exit"] and report["port_released"]

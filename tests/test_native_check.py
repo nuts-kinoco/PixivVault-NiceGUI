@@ -149,3 +149,170 @@ def test_process_snapshot_error_is_not_an_empty_success(monkeypatch, first_ok, l
         with pytest.raises(OSError, match='Process32'):
             checker.process_pairs()
     kernel.CloseHandle.assert_called_once_with(42)
+
+
+@pytest.fixture
+def close_window_api(monkeypatch):
+    from unittest.mock import Mock
+    import tools.check_native_window as checker
+
+    state = {
+        "root_birth": 1000, "owner_birth": 1100,
+        "owner_pid": 11, "window": True, "owner_api": 1,
+    }
+
+    def owner(_hwnd, result):
+        result._obj.value = state["owner_pid"]
+        return state["owner_api"]
+
+    user = SimpleNamespace(
+        IsWindow=Mock(side_effect=lambda *_: state["window"]),
+        GetWindowThreadProcessId=Mock(side_effect=owner),
+        PostMessageW=Mock(return_value=True),
+    )
+    monkeypatch.setattr(checker.ctypes, "WinDLL", lambda *a, **k: user, raising=False)
+    monkeypatch.setattr(
+        checker, "process_identity",
+        lambda pid: state["root_birth"] if pid == 10 else state["owner_birth"],
+    )
+    return checker, state, user
+
+
+def test_owned_close_posts_only_to_matching_window(close_window_api):
+    checker, state, user = close_window_api
+    assert checker.close_owned_window(10, 1000, 100, {10: 1000, 11: 1100}, (11, 1100))
+    user.PostMessageW.assert_called_once_with(100, 0x0010, 0, 0)
+
+
+@pytest.mark.parametrize("change", [
+    {"root_birth": 9000}, {"root_birth": None},
+    {"owner_birth": 9000}, {"owner_birth": None},
+    {"owner_pid": 12}, {"window": False}, {"owner_api": 0},
+])
+def test_owned_close_rejects_changed_or_unknown_identity(close_window_api, change):
+    checker, state, user = close_window_api
+    state.update(change)
+    with pytest.raises(RuntimeError, match="owned close"):
+        checker.close_owned_window(10, 1000, 100, {10: 1000, 11: 1100}, (11, 1100))
+    user.PostMessageW.assert_not_called()
+
+
+def test_owned_close_rechecks_root_before_post(close_window_api, monkeypatch):
+    checker, state, user = close_window_api
+    root_times = iter([1000, 9000])
+    monkeypatch.setattr(
+        checker, "process_identity",
+        lambda pid: next(root_times) if pid == 10 else 1100,
+    )
+    with pytest.raises(RuntimeError, match="owned close"):
+        checker.close_owned_window(10, 1000, 100, {10: 1000, 11: 1100}, (11, 1100))
+    user.PostMessageW.assert_not_called()
+
+
+def test_owned_close_rejects_replacement_by_another_known_owned_pid(close_window_api):
+    checker, state, user = close_window_api
+    identities = {10: 1000, 11: 1100, 12: 1200}
+    pinned = checker.owned_window_identity(10, 1000, 100, identities)
+    state.update(owner_pid=12, owner_birth=1200)
+    with pytest.raises(RuntimeError, match="owned close"):
+        checker.close_owned_window(10, 1000, 100, identities, pinned)
+    user.PostMessageW.assert_not_called()
+
+
+@pytest.mark.parametrize("inspect_ui", [False, True])
+@pytest.mark.parametrize("gate_passed,minimized,exhausts_budget", [
+    (False, False, False), (False, True, False), (True, True, False), (False, True, True),
+])
+def test_main_requires_gate_and_closes_normally_even_after_gate_failure(
+    monkeypatch, tmp_path, inspect_ui, gate_passed, minimized, exhausts_budget,
+):
+    import json
+    import tools.check_native_window as checker
+
+    events = []
+    target = tmp_path / "synthetic.exe"
+    target.write_bytes(b"not an executable; Popen is replaced")
+    output = tmp_path / "native.json"
+    now = [100.0]
+    monkeypatch.setattr(checker, "time", SimpleNamespace(
+        monotonic=lambda: now[0], sleep=lambda seconds: now.__setitem__(0, now[0] + seconds)))
+
+    class Process:
+        pid = 10
+        close_at = None
+        @property
+        def closed(self):
+            return self.close_at is not None and now[0] >= self.close_at
+
+        def poll(self):
+            return 0 if self.closed else None
+
+    root = Process()
+
+    def spawn(*args, **kwargs):
+        events.append("spawn")
+        return root
+
+    # Replace checker.os only, not the process-wide os.name used by pathlib.
+    monkeypatch.setattr(checker, "os", SimpleNamespace(name="nt", environ={}))
+    monkeypatch.setattr(checker, "subprocess", SimpleNamespace(
+        Popen=spawn, DEVNULL=-3, STDOUT=-2,
+    ))
+    ports = iter([32000, 32001])
+    monkeypatch.setattr(checker, "available_port", lambda: next(ports))
+    monkeypatch.setattr(checker, "process_identity", lambda pid: None if root.closed else 1000)
+    monkeypatch.setattr(checker, "process_pairs", lambda: [(10, 1)])
+    monkeypatch.setattr(checker, "owned_windows", lambda pids: [100] if pids == {10} else [])
+    monkeypatch.setattr(checker, "health_ready", lambda port: True)
+    monkeypatch.setattr(checker, "ui_ready", lambda port: True)
+    monkeypatch.setattr(checker, "living_pids", lambda identities: set() if root.closed else set(identities))
+    monkeypatch.setattr(checker, "port_released", lambda port: root.closed)
+
+    def inspect(*args, **kwargs):
+        events.append("inspect")
+        return {"passed": True}
+
+    def pin(pid, birth, hwnd, identities):
+        events.append("pin")
+        return (10, 1000)
+
+    def restore(pid, birth, hwnd, path, deadline, limits, *, expected_top_identity):
+        assert (pid, birth, hwnd) == (10, 1000, 100)
+        assert path == output.resolve()
+        assert expected_top_identity == (10, 1000)
+        events.append("gate")
+        if exhausts_budget:
+            now[0] = deadline
+        return {"passed": gate_passed, "minimized": minimized,
+                "errors": [] if gate_passed else ["synthetic_gate_failure"]}
+
+    def close(pid, birth, hwnd, identities, expected_owner):
+        assert (pid, birth, hwnd, identities) == (10, 1000, 100, {10: 1000})
+        assert expected_owner == (10, 1000)
+        events.append("close")
+        root.close_at = now[0] + 2.0
+        return True
+
+    def terminate(_identities):
+        pytest.fail("Gate failure must still attempt normal WM_CLOSE first")
+
+    monkeypatch.setattr(checker, "inspect_ui", inspect)
+    monkeypatch.setattr(checker, "run_restore_gate", restore)
+    monkeypatch.setattr(checker, "owned_window_identity", pin)
+    monkeypatch.setattr(checker, "close_owned_window", close)
+    monkeypatch.setattr(checker, "terminate_owned", terminate)
+    args = ["--exe", str(target), "--output", str(output)]
+    if inspect_ui:
+        args.append("--inspect-ui")
+    result = checker.main(args)
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert result == (0 if gate_passed else 1)
+    assert report["status"] == ("passed" if gate_passed else "failed")
+    assert report["restored"] is gate_passed
+    assert report["wm_close_sent"] and report["normal_exit"] and report["port_released"]
+    assert report["forced_cleanup"] == []
+    assert report["close_reserve_seconds"] == 5.0
+    assert now[0] < 190.0
+    assert events == ["spawn"] + (["inspect"] if inspect_ui else []) + ["pin", "gate", "close"]
+    if not gate_passed:
+        assert "restore_gate_failed" in report["errors"]
