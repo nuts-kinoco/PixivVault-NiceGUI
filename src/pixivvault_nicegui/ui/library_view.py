@@ -6,6 +6,7 @@ import asyncio
 from nicegui import ui
 
 from ..bookmark_state import BookmarkState
+from ..library_filters import LibraryFilters
 from ..library_models import AuthorSummary, LibrarySnapshot, PageRef
 from ..library_state import LibraryState
 from ..services import ApplicationServices
@@ -36,6 +37,7 @@ class LibraryView(ViewerController):
         self.subview = "downloaded"
         self.card_size = card_size
         self._on_size_change = on_size_change
+        self.filters = LibraryFilters()
         self.bookmark_state = BookmarkState(
             local=services.bookmark_local_snapshot(),
             cached_remote=services.bookmark_remote_snapshot(),
@@ -96,6 +98,9 @@ class LibraryView(ViewerController):
                 with ui.row().classes("pv-library-sizes"):
                     self.size_buttons = size_buttons(self.change_size, prefix="library")
 
+            self.filter_now_host = ui.row().classes("pv-library-filter-now-host w-full")
+            self.filter_now_host.set_visibility(False)
+
             with ui.row().classes("pv-library-error") as self.error_row:
                 ui.label("ライブラリを読み込めませんでした").props("role=alert")
                 ui.button("再読込", on_click=(self.refresh_from_disk
@@ -104,7 +109,8 @@ class LibraryView(ViewerController):
 
             with ui.column().classes("pv-library-panel w-full") as self.authors_panel:
                 with ui.row().classes("pv-library-summary w-full"):
-                    self._unavailable("絞り込み", "詳細な絞り込みは移植準備中です")
+                    self.filter_toggle = ui.button("絞り込み ›").props(
+                        "flat dense no-caps data-testid=library-filter-toggle")
                     self._unavailable("容量を再計測", "保存先の容量計測は移植準備中です")
                     ui.space()
                     self.author_counter = ui.label().classes("pv-counter").props(
@@ -144,10 +150,22 @@ class LibraryView(ViewerController):
                 on_open=self.open_bookmark,
                 image_url=lambda work_id: self._image_provider.url(work_id, 0, "thumb"),
                 can_open=lambda work_id: self._image_provider.can_open(work_id),
+                with_filter_toggle=True,
             )
             self.bookmarks.render()
             self.bookmarks.root.set_visibility(False)
             self.bookmarks.set_active(False)
+
+            from .library_filter_panel import LibraryFilterPanel
+            with ui.row().classes("pv-library-body w-full no-wrap") as self.body:
+                self.filter_panel = LibraryFilterPanel(
+                    get_filters=lambda: self.filters, on_change=self.apply_filters,
+                    can_edit=self._filters_editable, body=self.body, now_parent=self.filter_now_host)
+                self.filter_content = ui.column().classes("pv-library-filter-content")
+            for panel in (self.authors_panel, self.pages_panel, self.bookmarks.root):
+                panel.move(self.filter_content)
+            self.filter_panel.register_toggle(self.filter_toggle)
+            self.filter_panel.register_toggle(self.bookmarks.filter_toggle)
 
         self._init_viewer(services, GalleryState(()), self.root, library=True)
         self.client.on_delete(self.close)
@@ -187,6 +205,7 @@ class LibraryView(ViewerController):
         self.authors_panel.set_visibility(downloaded and not selected and not self.load_error)
         self.pages_panel.set_visibility(downloaded and selected and not self.load_error)
         self.error_row.set_visibility(downloaded and (self.load_error or self.refresh_error))
+        self.filter_panel.set_subview(self.subview)
         self.search_input.set_visibility(downloaded)
         self.downloaded_button.classes(
             add="pv-library-subview-selected" if downloaded else "",
@@ -210,6 +229,39 @@ class LibraryView(ViewerController):
             direction = "↓" if self.state.sort_directions[key] else "↑"
             button.set_text(label + direction)
             button.props(f"aria-pressed={'true' if key == self.state.sort_key else 'false'}")
+
+    def _filters_editable(self) -> bool:
+        viewer_state = getattr(self, "_viewer_state", None)
+        return (not self.closed and self.active and
+                not (viewer_state is not None and viewer_state.viewer_open))
+
+    def apply_filters(self, filters: LibraryFilters) -> bool:
+        if not isinstance(filters, LibraryFilters):
+            raise TypeError("filters must be LibraryFilters")
+        if not self._filters_editable() or filters == self.filters:
+            return False
+        self.filters = filters
+        self._bookmark_open_epoch += 1
+        self.state.set_filters(filters)
+        self.bookmark_state.set_filters(filters)
+        self.close_viewer(restore_focus=False)
+        self._clear_pages()
+        # A changed condition retires callbacks even when the resulting IDs
+        # happen to be identical. Appending pages still keeps existing nodes.
+        self._author_session = object()
+        self.author_grid.clear()
+        self.author_cards.clear()
+        self.author_openers.clear()
+        self._rendered_authors = ()
+        self.render_authors()
+        self.bookmarks.refresh(reset_controls=True)
+        self._sync_panels()
+        self._restore_scroll(self.authors_scroll, reset=True)
+        if self.client.has_socket_connection:
+            self.client.run_javascript(
+                f"const node=document.getElementById('{self.bookmarks.scroll.html_id}');"
+                "if(node){node.__pvBookmarkScroll=0;node.scrollTop=0;}")
+        return True
 
     def show_subview(self, subview: str) -> None:
         if self.closed or not self.active or subview not in {"downloaded", "bookmarks"}:
@@ -314,6 +366,7 @@ class LibraryView(ViewerController):
     def reload(self, *, preserve: bool = False) -> None:
         if self.closed or not self.active:
             return
+        self.filter_panel.invalidate()
         previous_state = self.state
         saved_query = previous_state.query
         saved_sort = previous_state.sort_key
@@ -336,6 +389,7 @@ class LibraryView(ViewerController):
         try:
             snapshot = self.services.library_snapshot()
             state = LibraryState(snapshot)
+            state.set_filters(self.filters)
             if preserve:
                 state.query = saved_query
                 state.sort_key = saved_sort
@@ -599,6 +653,7 @@ class LibraryView(ViewerController):
 
     def set_active(self, active: bool) -> None:
         if self.active != bool(active):
+            self.filter_panel.invalidate()
             self._bookmark_open_epoch += 1
             self._refresh_epoch += 1
             self._refreshing = False
@@ -616,6 +671,7 @@ class LibraryView(ViewerController):
         if self.closed:
             return
         self.closed = True
+        self.filter_panel.retire()
         self._bookmark_open_epoch += 1
         self._refresh_epoch += 1
         self.active = False

@@ -273,6 +273,93 @@ def check_synthetic_bookmarks(page: Page, root, output: Path, key: str, record: 
                            "selection_retained": True, "viewer_page_2": True}
 
 
+def check_tag_filters(page: Page, root, output: Path, key: str, record: dict) -> None:
+    """Shared tag filters, real condition chips, push-aside layout and viewer return."""
+    bookmarks = root.get_by_test_id("bookmark-view")
+    panel = root.get_by_test_id("library-filter-panel")
+    now = root.get_by_test_id("library-filter-now")
+    expect(panel).to_be_hidden()
+    expect(now).to_be_hidden()
+    content = root.locator(".pv-library-filter-content")
+    closed_rect = content.bounding_box()
+    bookmarks.get_by_test_id("bookmark-filter-toggle").click()
+    expect(panel).to_be_visible()
+    panel_rect, open_rect = panel.bounding_box(), content.bounding_box()
+    check(closed_rect is not None and panel_rect is not None and open_rect is not None,
+          "filter/content geometry missing")
+    check(abs(panel_rect["width"] - 280) <= 1 and
+          open_rect["x"] >= panel_rect["x"] + panel_rect["width"] + 10 and
+          open_rect["width"] < closed_rect["width"] - 275,
+          "filter panel must push content aside, never overlay images")
+    expect(panel.locator(".pv-library-filter-seat")).to_have_count(8)
+    for key_name in ("date", "bookmark", "per_author", "exclude", "type_format"):
+        expect(panel.get_by_test_id(f"library-filter-seat-{key_name}").locator("input,button")).to_have_count(0)
+    tag = panel.get_by_placeholder("タグを追加")
+
+    def add(value):
+        tag.fill(value)
+        tag.press("Enter")
+        expect(tag).to_have_value("")
+
+    add("　縦長　")
+    expect(bookmarks.get_by_test_id("bookmark-count")).to_have_text("44 / 44 件表示")
+    add("横長")
+    expect(bookmarks.get_by_test_id("bookmark-count")).to_have_text("0 / 0 件表示")
+    expect(bookmarks.get_by_test_id("bookmark-status")).to_have_text("条件に合うブックマークがありません")
+    panel.get_by_test_id("library-filter-mode").click()
+    expect(panel.get_by_test_id("library-filter-mode")).to_have_attribute("data-mode", "or")
+    expect(bookmarks.get_by_test_id("bookmark-count")).to_have_text("50 / 110 件表示")
+    vertical = panel.locator('.pv-library-tag-chip[data-tag="縦長"]')
+    vertical.get_by_test_id("library-filter-tag-flip").click()
+    expect(vertical).to_have_attribute("data-excluded", "true")
+    expect(bookmarks.get_by_test_id("bookmark-count")).to_have_text("50 / 66 件表示")
+    expect(bookmarks.get_by_test_id("bookmark-selection")).to_have_text("選択中: 1件")
+    page.screenshot(path=str(output / f"library-{key}-tag-filters.png"), full_page=True)
+
+    # Conditions remain visible and removable after the panel is closed.
+    bookmarks.get_by_test_id("bookmark-filter-toggle").click()
+    expect(panel).to_be_hidden()
+    expect(now).to_be_visible()
+    now.get_by_test_id("library-filter-now-clear").click()
+    expect(now).to_be_hidden()
+    expect(bookmarks.get_by_test_id("bookmark-count")).to_have_text("50 / 110 件表示")
+
+    root.get_by_test_id("library-subview-downloaded").click()
+    search_field(root).fill("")
+    root.get_by_test_id("library-filter-toggle").click()
+    add("縦長")
+    author_count(root, 4, 4)
+    add("横長")
+    author_count(root, 0, 0)  # Tags may not match two different works of the same author.
+    panel.get_by_test_id("library-filter-mode").click()
+    author_count(root, 4, 4)
+    before_generation = root.get_attribute("data-library-generation")
+    panel.locator('.pv-library-tag-chip[data-tag="横長"]').get_by_test_id("library-filter-tag-remove").click()
+    expect(root).not_to_have_attribute("data-library-generation", before_generation)
+    expect(panel.locator('.pv-library-tag-chip[data-tag="横長"]')).to_have_count(0)
+    open_author(root)
+    page_count(root, 50)
+    root.get_by_test_id("library-more").click()
+    page_count(root, DETAIL_PAGES)
+    open_page_three(page, root, record)
+    root.get_by_test_id("library-back").click()
+    author_count(root, 4, 4)
+    page.get_by_test_id("tab-ranking").click()
+    page.get_by_test_id("tab-library").click()
+    expect(panel).to_be_visible()
+    expect(now.get_by_test_id("library-filter-now-chip")).to_have_count(1)
+    root.get_by_test_id("library-subview-bookmarks").click()
+    expect(bookmarks.get_by_test_id("bookmark-count")).to_have_text("44 / 44 件表示")
+    expect(bookmarks.get_by_test_id("bookmark-selection")).to_have_text("選択中: 1件")
+    now.get_by_test_id("library-filter-now-clear").click()
+    bookmarks.get_by_test_id("bookmark-filter-toggle").click()
+    check_layout(page)
+    record["tag_filters"] = {"normalization": True, "and_zero": True, "or_count": 110,
+                             "exclude_count": 66, "panel_width": panel_rect["width"],
+                             "push_aside": True, "detail_pages_unfiltered": 98,
+                             "selection_and_tab_return": True, "now_chip_clear": True}
+
+
 def check_failure_retry(page: Page, root, result: dict, record: dict) -> None:
     """未表示の合成画像だけHTTP503を一度注入し、明示的な再読込で復旧する。"""
     failed_work = "demo-0059"
@@ -447,6 +534,7 @@ def run_viewport(page: Page, url: str, size: tuple[int, int],
                                   "reopened_page_count": 50}
     page.screenshot(path=str(output / f"library-{key}-final.png"), full_page=True)
     check_synthetic_bookmarks(page, root, output, key, record)
+    check_tag_filters(page, root, output, key, record)
 
 
 def check_client_isolation(context, url: str, result: dict) -> None:
@@ -485,6 +573,16 @@ def check_client_isolation(context, url: str, result: dict) -> None:
                        "matched_authors": 0, "size": "medium"},
             "independent": True,
         }
+        a.get_by_test_id("library-back").click()
+        expect(a.get_by_test_id("library-authors-scroll")).to_be_visible()
+        a.get_by_test_id("library-filter-toggle").click()
+        field = a.get_by_test_id("library-filter-panel").get_by_placeholder("タグを追加")
+        field.fill("縦長")
+        field.press("Enter")
+        expect(a.get_by_test_id("library-filter-now")).to_be_visible()
+        expect(b.get_by_test_id("library-filter-now")).to_be_hidden()
+        expect(b.get_by_test_id("library-filter-panel")).to_be_hidden()
+        result["two_clients"]["filters_independent"] = True
     finally:
         first.close()
         second.close()

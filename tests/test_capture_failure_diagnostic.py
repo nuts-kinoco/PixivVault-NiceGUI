@@ -26,3 +26,13 @@ def test_unknown_screen_owner_is_rejected_with_identity_only_metadata(monkeypatc
     assert diagnostic["birth_matches"] is False
     assert set(diagnostic) == {"point", "hwnd", "pid", "known_pid", "birth_matches",
                                "descendant", "screen_bbox", "owned_top_hwnd", "owned_target_hwnd"}
+
+
+def test_offscreen_bbox_remains_rejected_and_records_only_geometry():
+    with pytest.raises(RuntimeError, match="outside virtual screen") as caught:
+        pixels.checked_screen_bbox((100, 100, 3400, 2000), (0, 0, 2560, 1440))
+    assert caught.value.capture_probe == {
+        "screen_bbox": [100, 100, 3400, 2000],
+        "virtual_screen": [0, 0, 2560, 1440],
+        "reason": "outside_virtual_screen",
+    }

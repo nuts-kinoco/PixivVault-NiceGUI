@@ -179,9 +179,47 @@ def inspect_readonly_library_ui(page, screenshot: Path, guard: NativeUiGuard) ->
     run(expect(bookmarks.get_by_test_id("bookmark-selection")).to_have_text, "選択中: 1件")
     run(library.get_by_test_id("library-subview-downloaded").click)
     run(expect(authors).to_have_count, 1)
+    run(library.get_by_test_id("library-filter-toggle").click)
+    filters = library.get_by_test_id("library-filter-panel")
+    now = library.get_by_test_id("library-filter-now")
+    run(expect(filters).to_be_visible)
+    run(expect(filters.locator(".pv-library-filter-seat")).to_have_count, 8)
+    field = filters.get_by_placeholder("タグを追加")
+    run(field.fill, "　診断用　")
+    run(field.press, "Enter")
+    run(expect(now.get_by_test_id("library-filter-now-chip")).to_have_count, 1)
+    run(expect(authors).to_have_count, 1)
+    run(field.fill, "存在しない合成タグ")
+    run(field.press, "Enter")
+    run(expect(authors).to_have_count, 0)
+    run(filters.get_by_test_id("library-filter-mode").click)
+    run(expect(authors).to_have_count, 1)
+    run(filters.locator('.pv-library-tag-chip[data-tag="診断用"]').get_by_test_id(
+        "library-filter-tag-flip").click)
+    run(expect(authors).to_have_count, 0)
+    run(now.get_by_test_id("library-filter-now-clear").click)
+    run(expect(now).to_be_hidden)
+    run(expect(authors).to_have_count, 1)
+    run(field.fill, "診断用")
+    run(field.press, "Enter")
+    run(expect(now.get_by_test_id("library-filter-now-chip")).to_have_count, 1)
+    run(library.get_by_test_id("library-subview-bookmarks").click)
+    run(expect(bookmarks.get_by_test_id("bookmark-count")).to_have_text, "1 / 1 件表示")
+    run(expect(bookmarks.get_by_test_id("bookmark-selection")).to_have_text, "選択中: 1件")
+    filter_shot = screenshot.with_name(screenshot.stem + "-tag-filters.png")
+    run(page.screenshot, path=str(filter_shot), full_page=False)
+    run(bookmarks.get_by_test_id("bookmark-filter-toggle").click)
+    run(expect(filters).to_be_hidden)
+    run(expect(now).to_be_visible)
+    run(now.get_by_test_id("library-filter-now-clear").click)
+    run(expect(now).to_be_hidden)
+    run(library.get_by_test_id("library-subview-downloaded").click)
+    run(expect(authors).to_have_count, 1)
     return {"passed": True, "authors": 1, "pages": 2, "viewer_path": path,
             "focus_restored": True, "bookmark_roundtrip": True,
-            "bookmark_search_selection_viewer": True, "screenshot": str(shot)}
+            "bookmark_search_selection_viewer": True, "screenshot": str(shot),
+            "tag_filter_and_or_exclude_clear": True, "tag_filters_shared_subviews": True,
+            "tag_filter_screenshot": str(filter_shot)}
 
 
 def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float,
@@ -609,6 +647,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="total seconds; phases max health30/window20/baseline5/minimize5/restore5/close30")
     parser.add_argument("--output", type=Path, default=Path("artifacts/windows-packaging/native-check.json"))
     parser.add_argument("--inspect-ui", action="store_true", help="Inspect this WebView over local CDP")
+    parser.add_argument("--client-origin", nargs=2, type=int, metavar=("X", "Y"),
+                        help="Explicit physical client origin for our owned test window before acceptance; never resize")
     parser.add_argument("--learning-sandbox", type=Path,
                         help="Explicit synthetic learning directory; reuse it to check a native restart")
     parser.add_argument("--library-readonly-db", type=Path,
@@ -726,6 +766,19 @@ def main(argv: list[str] | None = None) -> int:
                     if owned_window_identity(root.pid, root_identity, hwnd, identities) != expected_owner:
                         raise RuntimeError("native UI window owner changed")
 
+                if args.client_origin is not None:
+                    try:
+                        if __package__:
+                            from .native_window_position import place_owned_client
+                        else:
+                            from native_window_position import place_owned_client
+                        check_ui_owner()
+                        report["initial_placement"] = place_owned_client(
+                            root.pid, root_identity, hwnd, args.client_origin, expected_owner)
+                        check_ui_owner()
+                    except Exception as exc:
+                        report["initial_placement"] = {"passed": False, "reason": type(exc).__name__}
+                        report["errors"].append("initial_placement_failed")
                 if args.inspect_ui:
                     try:
                         screenshot = output_path.with_name("webview-ui.png")
@@ -774,6 +827,9 @@ def main(argv: list[str] | None = None) -> int:
                     and report["minimized"] and report["restored"]
                     and report["normal_exit"] and report["port_released"]
                     and report.get("wm_close_sent")
+                    and not report["errors"]
+                    and (args.client_origin is None or
+                         (report.get("initial_placement") or {}).get("explicit_setup") is True)
                     and (not args.inspect_ui or (report["ui_inspection"] or {}).get("passed"))) else "failed"
     except Exception as exc:
         report["errors"].append(f"{type(exc).__name__}: {exc}")

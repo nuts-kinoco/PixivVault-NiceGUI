@@ -15,12 +15,15 @@ class BookmarkView:
     def __init__(self, state: BookmarkState, *, on_refresh: Callable[[], None] | None = None,
                  on_open: Callable[[str], None] | None = None,
                  image_url: Callable[[str], str] | None = None,
-                 can_open: Callable[[str], bool] | None = None) -> None:
+                 can_open: Callable[[str], bool] | None = None,
+                 with_filter_toggle: bool = False) -> None:
         self.state = state
         self.on_refresh = on_refresh
         self.on_open = on_open
         self.image_url = image_url
         self.can_open = can_open
+        self.with_filter_toggle = with_filter_toggle
+        self.filter_toggle = None
         self.root = None
         self.grid = None
         self.cards: dict[str, ui.element] = {}
@@ -40,6 +43,9 @@ class BookmarkView:
                 "data-testid=bookmark-view"
             ) as self.root:
                 with ui.row().classes("pv-library-summary w-full items-center"):
+                    if self.with_filter_toggle:
+                        self.filter_toggle = ui.button("絞り込み ›").props(
+                            "flat dense no-caps data-testid=bookmark-filter-toggle")
                     ui.label("マイブックマーク").classes("pv-library-heading")
                     ui.space()
                     self.counter = ui.label().classes("pv-counter").props("data-testid=bookmark-count")
@@ -99,12 +105,12 @@ class BookmarkView:
         self.cards[art.work_id] = card
         self.checkboxes[art.work_id] = choice
 
-    def refresh(self) -> None:
+    def refresh(self, *, reset_controls: bool = False) -> None:
         if self.root is None or self.state.closed:
             return
         visible = self.state.visible_items
         wanted = tuple(card.work_id for card in visible)
-        if (wanted[:len(self._rendered_ids)] != self._rendered_ids
+        if (reset_controls or wanted[:len(self._rendered_ids)] != self._rendered_ids
                 or tuple(visible[:len(self._rendered_cards)]) != self._rendered_cards):
             self.grid.clear()
             self.cards.clear()

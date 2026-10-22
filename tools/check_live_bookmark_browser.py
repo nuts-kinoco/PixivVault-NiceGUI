@@ -109,6 +109,12 @@ def inspect(page, url, output, width, height):
     expect(bookmarks.get_by_test_id("bookmark-selection")).to_have_text("選択中: 1件")
     bookmarks.get_by_test_id("bookmark-more").click()
     expect(bookmarks.get_by_test_id("bookmark-count")).to_have_text("71 / 71 件表示")
+    bookmarks.get_by_test_id("bookmark-filter-toggle").click()
+    filters = library.get_by_test_id("library-filter-panel")
+    tag_input = filters.get_by_placeholder("タグを追加")
+    tag_input.fill("目標")
+    tag_input.press("Enter")
+    expect(bookmarks.get_by_test_id("bookmark-count")).to_have_text("1 / 1 件表示")
     search = bookmarks.get_by_label("ブックマーク内を検索")
     search.fill("目標")
     expect(bookmarks.get_by_test_id("bookmark-count")).to_have_text("1 / 1 件表示")
@@ -141,6 +147,7 @@ def inspect(page, url, output, width, height):
     page.get_by_test_id("tab-library").click()
     expect(search).to_have_value("目標")
     expect(bookmarks.get_by_test_id("bookmark-selection")).to_have_text("選択中: 1件")
+    expect(library.get_by_test_id("library-filter-now-chip")).to_have_count(1)
     page.request.post(url + "/_acceptance/control?fail=true")
     bookmarks.get_by_test_id("bookmark-refresh").click()
     expect(bookmarks.get_by_test_id("bookmark-status")).to_contain_text("失敗", timeout=15000)
@@ -149,10 +156,13 @@ def inspect(page, url, output, width, height):
     bookmarks.get_by_test_id("bookmark-refresh").click()
     expect(bookmarks.get_by_test_id("bookmark-status")).to_be_hidden(timeout=15000)
     expect(bookmarks.get_by_test_id("bookmark-selection")).to_have_text("選択中: 1件")
+    expect(library.get_by_test_id("library-filter-now-chip")).to_have_count(1)
+    expect(bookmarks.get_by_test_id("bookmark-count")).to_have_text("1 / 1 件表示")
     return {"viewport": [width, height], "remote_only_viewer": True,
             "correct_page_pixels": True, "search_selection_tab_return": True,
             "failure_preserves_cache": True, "retry_restores": True,
-            "detail_keys": True, "focus_restored": True}
+            "detail_keys": True, "focus_restored": True,
+            "tag_filter_survives_refresh_failure_and_recovery": True}
 
 
 def run(channel, output):
@@ -207,17 +217,24 @@ def run(channel, output):
                 report["external_hosts"] = sorted(external_hosts)
                 assert not page_errors and not external_hosts
                 a.close(); b.close()
-                page = browser.new_page()
-                page.goto(url, wait_until="domcontentloaded")
-                page.request.post(url + "/_acceptance/shutdown")
-                page.close()
+                # Do not start another gallery/socket and dozens of thumbnail
+                # requests immediately before shutdown. Use a request-only
+                # context after closing the UI clients instead.
+                shutdown = p.request.new_context()
+                try:
+                    response = shutdown.post(url + "/_acceptance/shutdown", timeout=5000)
+                    assert response.ok and response.json() == {"stopping": True}
+                finally:
+                    shutdown.dispose()
             finally:
                 browser.close()
         process.wait(timeout=15)
+        report["normal_exit"] = process.returncode == 0
         report["success"] = process.returncode == 0
     except Exception as exc:
         report["error"] = type(exc).__name__ + ": " + str(exc)[:600]
     finally:
+        report["forced_cleanup"] = process is not None and process.poll() is None
         stop_child(process)
         report["port_released"] = port_released(port)
         report["source_changed"] = before != source_hashes()
