@@ -148,6 +148,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         layout = current_startup_layout()
         window_size = (layout.width, layout.height)
         app.native.window_args.update(x=layout.x, y=layout.y)
+        # pywebview otherwise cancels even an explicit CSV download. In this
+        # newly created Windows app only, retain its owned SaveFileDialog so
+        # the user chooses the destination (and confirms any replacement).
+        app.native.settings["ALLOW_DOWNLOADS"] = True
 
     registration = {}
     if config.learning_sandbox is not None:

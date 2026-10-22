@@ -26,7 +26,9 @@ python -m venv .venv
 既定のデモは本番DB・画像フォルダ・Cookie・pixiv APIに接続せず、120件の架空作品とコードで生成した診断PNGを使います。
 検索、50件単位の追加表示、カード大中小、作品詳細、作品内のページ送り、学習4判定とUndoの検証経路があります。
 学習は既定では画面内のメモリ台帳へ記録します。直前1件だけUndoでき、再読込や再起動では引き継ぎません。実データへの保存・学習アルゴリズムの本番接続は未実装です。
-ライブラリでは作者一覧→ページ一覧→共有ビューアと、マイブックマークの検索・選択・ビューア・戻るを利用できます。「絞り込み」からタグを追加し、すべて含む/どれか、＋/−による含む/除外、個別解除を使えます。条件は同じ画面内のDL済みとマイブックマークで共有し、別の画面には影響しません。作者一覧を絞り込んでも、代表作品と作者詳細の全ページは変わりません。日付・ブクマ数など他の絞り込み軸、ダウンロード、キュー、失敗リスト、重複整理、おすすめ、外部アカウントへの書込み操作はまだ未接続です。
+ライブラリでは作者一覧→ページ一覧→共有ビューアと、マイブックマークの検索・選択・ビューア・戻るを利用できます。「絞り込み」からタグを追加し、すべて含む/どれか、＋/−による含む/除外、個別解除を使えます。条件は同じ画面内のDL済みとマイブックマークで共有し、別の画面には影響しません。作者一覧を絞り込んでも、代表作品と作者詳細の全ページは変わりません。日付・ブクマ数など他の絞り込み軸、ダウンロード、キュー、重複整理、おすすめ、外部アカウントへの書込み操作はまだ未接続です。
+
+失敗リストは旧DBを明示指定した読取modeで、失敗理由の全文、タイトル/ID検索、カテゴリ、8件ページング、絞込全件のCSV出力を利用できます。Windows専用窓でも保存ダイアログから保存先を選択できます。再試行・個別削除・一括削除はまだ未接続で無効です。読取失敗時には前回の一覧を保持して再読込でき、DB未指定の実API modeは「未取得」と表示します。
 
 Windowsの専用窓は `pip install -e ".[native]"` の後に `python -m pixivvault_nicegui --native` で起動できます。
 初期位置・サイズはプライマリモニターの作業領域とDPIに合わせて計算します。1920×1080論理pxが収まる環境では維持し、小さな画面では作業領域内へ縮めます。開発機175% DPIでは、配置補助なしのコピーexe連続2起動で画面内の表示と最小化復帰を確認しました。任意モニター・全DPIでの実機保証はまだありません。
@@ -53,6 +55,7 @@ Windowsの専用窓は `pip install -e ".[native]"` の後に `python -m pixivva
 .\.venv\Scripts\python.exe tools/check_learning_persistence_browser.py --channel msedge --output artifacts/learning-persistence-browser
 .\.venv\Scripts\python.exe tools/check_readonly_library_browser.py --channel msedge --output artifacts/readonly-browser
 .\.venv\Scripts\python.exe tools/check_live_bookmark_browser.py --channel msedge --output artifacts/bookmark-transport-browser
+.\.venv\Scripts\python.exe tools/check_failed_records_browser.py --channel msedge --output artifacts/failed-records-browser
 ```
 
 ランナーが専用の一時ポートにデモを起動し、Edgeで一覧・学習・画像故障/遅着を操作した後、自分のプロセスを停止します。一覧は1280×720と1920×1080で確認し、学習は操作試験に加えて画面サイズ別の画像・ボタン配置を確認します。

@@ -13,7 +13,6 @@ import sys
 import tempfile
 
 from PIL import Image
-from playwright.sync_api import expect, sync_playwright
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -47,6 +46,7 @@ def build_fixture(path: Path) -> tuple[Path, Path]:
 
 
 def check(page, url: str, output: Path, width: int, height: int) -> dict:
+    from playwright.sync_api import expect
     page.goto(url, wait_until="domcontentloaded")
     page.get_by_test_id("tab-library").click()
     library = page.get_by_test_id("library-view")
@@ -95,6 +95,7 @@ def check(page, url: str, output: Path, width: int, height: int) -> dict:
 
 
 def check_refresh(page, url: str, db: Path, images: Path) -> dict:
+    from playwright.sync_api import expect
     page.goto(url, wait_until="domcontentloaded")
     page.get_by_test_id("tab-library").click()
     library = page.get_by_test_id("library-view")
@@ -126,6 +127,7 @@ def check_refresh(page, url: str, db: Path, images: Path) -> dict:
 
 
 def main() -> int:
+    from playwright.sync_api import sync_playwright
     parser = argparse.ArgumentParser()
     parser.add_argument("--channel", choices=("msedge", "chromium"), default="msedge")
     parser.add_argument("--output", type=Path, required=True)

@@ -219,7 +219,8 @@ def test_owned_close_rejects_replacement_by_another_known_owned_pid(close_window
     user.PostMessageW.assert_not_called()
 
 
-@pytest.mark.parametrize("inspect_ui", [False, True, "timeout", "placement_failure"])
+@pytest.mark.parametrize("inspect_ui", [False, True, "timeout", "placement_failure",
+                                      "failed_records", "failed_records_missing", "failed_csv_missing"])
 @pytest.mark.parametrize("gate_passed,minimized,exhausts_budget", [
     (False, False, False), (False, True, False), (True, True, False), (False, True, True),
 ])
@@ -264,7 +265,7 @@ def test_main_requires_gate_and_closes_normally_even_after_gate_failure(
     monkeypatch.setattr(checker, "process_identity", lambda pid: None if root.closed else 1000)
     monkeypatch.setattr(checker, "process_pairs", lambda: [(10, 1)])
     monkeypatch.setattr(checker, "owned_windows", lambda pids: [100] if pids == {10} else [])
-    monkeypatch.setattr(checker, "health_ready", lambda port: True)
+    monkeypatch.setattr(checker, "health_ready", lambda port, *_args: True)
     monkeypatch.setattr(checker, "ui_ready", lambda port: True)
     monkeypatch.setattr(checker, "living_pids", lambda identities: set() if root.closed else set(identities))
     monkeypatch.setattr(checker, "port_released", lambda port: root.closed)
@@ -275,7 +276,14 @@ def test_main_requires_gate_and_closes_normally_even_after_gate_failure(
         if inspect_ui == "timeout":
             now[0] = 185.0  # UI may consume the operation budget, never the close reserve.
             raise TimeoutError("synthetic UI deadline")
-        return {"passed": True}
+        if inspect_ui in ("failed_records", "failed_records_missing", "failed_csv_missing"):
+            assert kwargs["failed_records"] is True
+        return ({"passed": True, "failed_records": {
+                    "passed": True,
+                    "csv_download_executed": inspect_ui == "failed_records",
+                    "native_csv_exact_fields": inspect_ui == "failed_records",
+                    "native_csv_rows": 3}}
+                if inspect_ui in ("failed_records", "failed_csv_missing") else {"passed": True})
 
     def pin(pid, birth, hwnd, identities):
         events.append("pin")
@@ -309,6 +317,11 @@ def test_main_requires_gate_and_closes_normally_even_after_gate_failure(
     args = ["--exe", str(target), "--output", str(output)]
     if inspect_ui:
         args.append("--inspect-ui")
+    if inspect_ui in ("failed_records", "failed_records_missing", "failed_csv_missing"):
+        from tools.check_failed_records_browser import build_failure_fixture
+        db, images = build_failure_fixture(tmp_path / "fixture")
+        args += ["--inspect-failed-records", "--library-readonly-db", str(db),
+                 "--library-image-root", str(images)]
     if inspect_ui == "placement_failure":
         def fail_placement(*_args, **_kwargs):
             raise RuntimeError("synthetic positioning failure")
@@ -316,7 +329,8 @@ def test_main_requires_gate_and_closes_normally_even_after_gate_failure(
         args += ["--client-origin", "100", "140"]
     result = checker.main(args)
     report = json.loads(output.read_text(encoding="utf-8"))
-    passed = gate_passed and inspect_ui not in ("timeout", "placement_failure")
+    passed = gate_passed and inspect_ui not in (
+        "timeout", "placement_failure", "failed_records_missing", "failed_csv_missing")
     assert result == (0 if passed else 1)
     assert report["status"] == ("passed" if passed else "failed")
     assert report["restored"] is gate_passed

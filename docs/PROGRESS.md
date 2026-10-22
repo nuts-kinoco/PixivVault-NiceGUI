@@ -1,8 +1,12 @@
 # 移植進捗
 
-更新: 2026-10-23、レビュー後のマージ承認に基づく継続開発。最終ゴールは移植完了、各フェーズは途中のマイルストーン。現在の検証単位: `phase4/pixiv-auth-compat`（実Cookie読取の認証HTML・masked一覧互換と実画面受入）。
+更新: 2026-10-23、レビュー後のマージ承認に基づく継続開発。最終ゴールは移植完了、各フェーズは途中のマイルストーン。現在の検証単位: `phase5/failed-records-integration`（失敗リストの旧DB読取・検索・分類・実CSV出力）。
 
 ## 最新の進捗照合とフェーズレビュー
+
+PR #21はhead `3c7bb387792b69aafedda154e892150db02c99ea` からmain `5fee5ec91b06b6d9a56d40c75db398799dd10f31` へ統合済み。実Cookieの専用Edge受入 `real-ui-03` は2ページdecode、I/Tab、検索・選択・focus・タブ往復、原本不変、書込0、通常終了を確認。main CI run39828938139は依存取得で時間を消費してcancelledであり、greenとしない。
+
+後続の失敗リスト単位は原版7列とカテゴリ・8件ページングを維持し、非同期読取・失敗時の前回状態保持・旧イベント拒否・絞込全件CSVを接続。全740pytest、失敗リスト実Edge2寸法と既存4系統が成功。同一コピーexeで所有SaveFileDialogから絞込3行を保存し、7列全フィールドと式無害化、GDI復帰、通常10process終了とport解放を確認。CSV未保存の検証偽陽性をRED再現して必須ゲート化し、独立再レビュー済み。詳細は `FAILED_RECORDS_PORT_REVIEW_2026-10-23.md`。再試行/削除・実ジョブ接続はdisabledのままで、段階5全体は未完。
 
 PR #20はhead `69ce42c6651605bf35fcb62c5dbfae24957529c5` のCI全成功後にmain `e8835c4e4209efe3eb76c296889c672b0e6a3898` へmerge。継続時にmain CI run39784532379も全成功を再照合した。
 

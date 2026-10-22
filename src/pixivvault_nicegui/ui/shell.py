@@ -21,6 +21,7 @@ class DemoShell:
         self.active_tab = "ranking"
         self.learning = None
         self.library = None
+        self.failed_records = None
         self.card_size = "large"
         self.closed = False
         self.buttons: dict[str, ui.button] = {}
@@ -42,7 +43,7 @@ class DemoShell:
                          "ランキング・学習は合成データ").classes("pv-subtitle")
             with ui.element("nav").classes("pv-nav").props("aria-label=メインナビゲーション"):
                 for key, label in NAVIGATION:
-                    available = key in {"ranking", "learning", "library"}
+                    available = key in {"ranking", "learning", "library", "failed"}
                     button = ui.button(label, color=None, on_click=lambda _, tab=key: self.show(tab))
                     button.classes("pv-tab").props(f"flat no-caps data-testid=tab-{key}")
                     button.set_enabled(available)
@@ -64,11 +65,13 @@ class DemoShell:
                 button.props.pop("aria-current", None)
 
     def show(self, tab: str) -> None:
-        if self.closed or tab not in {"ranking", "learning", "library"} or tab == self.active_tab:
+        if self.closed or tab not in {"ranking", "learning", "library", "failed"} or tab == self.active_tab:
             return
         self.gallery.set_viewer_active(False)
         if self.library is not None:
             self.library.set_active(False)
+        if self.failed_records is not None:
+            self.failed_records.set_active(False)
         if tab == "learning" and self.learning is None:
             from .learning_view import LearningView
             with self.content:
@@ -78,6 +81,10 @@ class DemoShell:
             with self.content:
                 self.library = LibraryView(self.services, card_size=self.card_size,
                                            on_size_change=self.change_card_size)
+        if tab == "failed" and self.failed_records is None:
+            from .failed_records_view import FailedRecordsView
+            with self.content:
+                self.failed_records = FailedRecordsView(self.services)
         self.active_tab = tab
         self.gallery.root.set_visibility(tab == "ranking")
         self.gallery.set_viewer_active(tab == "ranking")
@@ -87,6 +94,9 @@ class DemoShell:
         if self.learning is not None:
             self.learning.root.set_visibility(tab == "learning")
             self.learning.set_active(tab == "learning")
+        if self.failed_records is not None:
+            self.failed_records.root.set_visibility(tab == "failed")
+            self.failed_records.set_active(tab == "failed")
         self._update_tabs()
         if tab in {"ranking", "library"} and self.client.has_socket_connection:
             self.client.run_javascript(f"""requestAnimationFrame(() => {{
@@ -115,6 +125,8 @@ class DemoShell:
             self.library.close()
         if self.learning is not None:
             self.learning.close()
+        if self.failed_records is not None:
+            self.failed_records.close()
         # サービスはアプリが所有する。画面が閉じても共有キャッシュを終了しない。
 
 
