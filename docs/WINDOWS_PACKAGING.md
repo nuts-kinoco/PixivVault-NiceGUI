@@ -15,7 +15,7 @@ PyInstallerを直接使用する。`--onedir --noconsole`、NiceGUIの静的資�
 
 1. `artifacts\windows-packaging\dist\PixivVault-NiceGUI\PixivVault-NiceGUI.exe --check --check-output "<repo絶対パス>\artifacts\windows-packaging\packaging-check.json"` を実行し、出力 JSON の `native_requested=true`、`native_available=true`、`mode=demo` と正常終了を確認する。`--check-output` は絶対パスのみ受理する。GUI subsystem で `stdout=None` のとき、`--check` 単独では JSON を保存せず、診断の終了コードのみ返す。ユーザー領域への暗黙のファイル作成はない。
 2. exe を起動しウィンドウ表示、ページ/画像表示、クリック、入力、Undo 操作を検証する。WebView2 Runtime の有無と、Windows Forms / CLR assembly のロードエラーも確認する。
-3. `tools/check_native_window.py --exe <配布exe> --inspect-ui --output <検証JSON>` で専用の一時ポートに起動し、表示・操作・最小化/復元・通常終了を検査する。プロセスIDと作成時刻が一致する自分のプロセスだけを観測する。`normal_exit=true`、`port_released=true`、`forced_cleanup=[]` と、画像/操作検査の成功を確認する。プロセス照会に失敗した場合は合格にしない。
+3. `tools/check_native_window.py --exe <配布exe> --inspect-ui --output <検証JSON>` で専用の一時ポートに起動し、表示・操作・最小化/復元・通常終了を検査する。プロセスIDと作成時刻が一致する自分のプロセスだけを観測する。復帰後は子geometry/DPIと全clientのscreen GDI画像がbaselineへ戻ることを連続2回確認し、`restore_gate.passed=true`を必須にする。この画素検査は`--inspect-ui`なしでも実行し、可視で被覆されていない専用windowと利用可能なdesktopが必要。検査中だけtopmostにして元へ復元する。出力prefixは毎回新しくし、before/after PNGを目視する。`normal_exit=true`、`port_released=true`、`forced_cleanup=[]`と、画像/操作検査の成功を確認する。照会・取得不能を合格にしない。
 4. 配布フォルダーを別の空ディレクトリへコピーして同じ確認を繰り返す。WebView2 が未導入の Windows では別途ランタイム導入が必要になりうる。
 
 ## 2026-10-22の実行結果
@@ -61,3 +61,9 @@ Python 3.13.11 / WebView2 155.0.4283.62を使う開発PCで、実ビルドと、
 - WebView2 155.0.4283.62、1907×1044 CSS px、DPI175%。この結果を他DPI/別PCの成功へ代用しない。
 
 証拠はignored `artifacts/learning-persistence-20261022/native-1011127/` の `committed-pytest.xml`、`packaging-check.json`、`{first,restart}/native-acceptance.json`。ブラウザrunnerのterminateによる停止とは異なり、ここでは配布exeのWM_CLOSEによる通常終了を確認した。
+
+## 復帰後の実表示gate追加
+
+2026-10-22 14:04 JST、検証器`76ddc0fc2cadf36b635a4c3e02f649fe197c10a6`で同じ1011127配布exeの追加受入を行った。製品src/native入口/build/依存定義の差分なしを確認しており、新buildとは区別する。UI操作ありの学習画面と、操作検査なしの一覧画面の両方で、3336×1826物理client・DPI168の前後geometryと実画素が条件内に戻り、各8プロセスが通常終了した。topmost復元・ポート解放が成功し、強制終了/process log errorなし。前後4全画面をprimeと独立担当が目視した。
+
+初回の即時reparent拒否と、同じtargetが約51ms後の観測で元へ戻った別診断を保存し、固定identityを保った期限内再検査へ修正した。対象112pytest・全体329pytestが成功。標準checkerの受入結果はignored `artifacts/native-restore-gate-20261022/{accepted-ui,accepted-plain}/`、失敗/診断/レビューと未完条件は`NATIVE_RESTORE_REVIEW_2026-10-22.md`。他DPI、別PC、最大化/長時間復帰の受入を代替しない。
