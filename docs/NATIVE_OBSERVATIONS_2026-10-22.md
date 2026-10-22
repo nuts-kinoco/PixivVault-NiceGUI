@@ -59,4 +59,5 @@ Fletの観測値は約210〜244msと414〜463msに分かれる。p50の329msは�
 
 主な証拠は `artifacts/native-ui-20261022-02/` の `session-screen.json`、`calibration-review.json`、`flet-screen/`、`native-screen/`、`memory.json`、`native-acceptance.json`。先行失敗は `artifacts/native-a5d42aa-20261022-01/{flet,native,native-paced,diag-worker2-results.json}` と実行ログ。生の画像・ログ・PID情報はgitへ追加しない。
 
-次は元shellと同じviewer境界・タブ切替/フォーカスを揃えること、表示面積と配布条件を一致させること、取得負荷を下げた計測方法の再校正、cold/warm・測定順序を分けた比較である。現在の記録はその基準となる限定観測であり、段階3の性能合格や既定アプリの置換を承認するものではない。
+この観測後、UI `43d0c64` でviewerのタブ内境界・タブ切替/フォーカスを修正し、ブラウザ2寸法とDPI175%のnativeで受入した。上表は修正前3947c95での実測であり、新UIの性能値へ転記しない。
+次は元shellを含む表示面積と配布条件の一致、取得負荷を下げた計測方法の再校正、cold/warm・測定順序を分けた比較である。現在の記録はその基準となる限定観測であり、段階3の性能合格や既定アプリの置換を承認するものではない。

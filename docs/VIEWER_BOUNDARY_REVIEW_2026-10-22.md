@@ -42,9 +42,9 @@
 
 ブラウザrunnerは所有する検証サーバーを明示停止する。`app.returncode=1` とポート解放を記録しており、これをnativeアプリの正常終了の証拠にはしない。
 
-## 次の受入
+## コミット後の受入
 
-この文書を含む修正のWindows onedir/noconsole再ビルドと実WebView受入、および公開headのCIはコミット後に確認する。
-旧 `3947c95` のexe受入を今回の製品変更へ流用しない。
+公開head `43d0c64bd7acb6f96f387f9ff3639478417c278f` のWindows/Ubuntu/Chromium CI3ジョブが成功（run `39705815440`）。同SHAのarchive132試験と、onedir/noconsole再ビルド・別フォルダーexeの実WebView受入が10:29 JSTに成功した。viewerタブ境界、通常close、学習への離脱/キー判定/Undo、ランキング復帰focus、最小化/復帰/通常終了を確認。観測8プロセス終了・ポート解放・強制cleanupなし。詳細は `WINDOWS_PACKAGING.md`。旧3947c95のexeは流用していない。
+ユーザーのレビュー後マージ指示に基づき、PR #2は `8df86671bbb0d7c4639e8dbb07687cb792f39566` としてmainへ統合した。
 原版全体の外観・性能、全DPI、別PC、残画面は引き続き未受入であり、この変更の成功をフェーズ全体の完了とはしない。
 各段階は操作・仕様・試験・実機・性能の必須ゲートが揃ってから完了と判定する。

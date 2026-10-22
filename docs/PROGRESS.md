@@ -1,18 +1,18 @@
 # 移植進捗
 
-更新: 2026-10-22、引継ぎ後の継続開発。今回の作業単位: `phase3/legacy-baseline`。
+更新: 2026-10-22、レビュー後のマージ承認に基づく継続開発。統合先: `phase3/legacy-baseline`。
 
 ## 最新の進捗照合とフェーズレビュー
 
-公開済みPR #1は `7125009`、後続Draft PR #2は `3947c95`。それぞれWindows/Ubuntu/ChromiumのCI3ジョブ成功を現物で確認した。PR #2のbaseは `bootstrap/phase0-shell` のまま維持する。PR #2のbrowser初回はChromium配布先のTLS不一致で未実行となったが、失敗jobだけの再実行で成功した。製品コードやTLS検証を変更して通したものではない。
-`3947c95` だけをarchiveしたソースからWindows onedir/noconsoleを再ビルドし、別フォルダーのexeでビューア・学習/Undo・最小化/復帰・通常終了・観測8プロセス終了・ポート解放を確認した。archive単体は131試験成功。175% DPIの実機受入であり、全DPI・別PCの受入ではない。`WINDOWS_PACKAGING.md`に正確なSHAと証拠を記録した。
-実画面で画像が自然寸法のまま拡大されない不具合と、viewer操作に既定primary色が残る不具合を発見し、viewer専用CSSとcolor指定で修正。画像部品の世代/decode処理は変更していない。修正後は実Edgeの一覧/学習/画像競合の3scriptが成功、画像競合13項目成功。1280×720/1920×1080の画像表示と操作色を目視確認し、別担当の静的レビューでも重大な退行なし。詳細は `PHASE_REVIEW_2026-10-22.md`。
+ユーザーの「コードレビュー後、問題なければマージ」に基づき、実装担当と別の3担当が基盤・ビューア・DB/計測をレビューした。基盤PR #1は `7125009` を `bdefa877617fc0dc2632e8de5801f197f0caa41f` としてmainへmergeし、そのmain CI3ジョブも成功。PR #2は原版と異なるviewer境界とfocusを修正して `43d0c64bd7acb6f96f387f9ff3639478417c278f` へ更新し、同SHAのCI3ジョブとnative受入後、`8df86671bbb0d7c4639e8dbb07687cb792f39566` としてmainへmergeした。全製品の受入完了を意味するmergeではない。
+`43d0c64` だけをarchiveし、専用srcのimport先を確認してWindows onedir/noconsoleを再ビルド。別フォルダーのexeで10:29 JSTに、viewerのタブ内境界・通常closeの元カードfocus・学習への離脱・キー判定/Undo・ランキング復帰focus・最小化/復帰・通常終了を確認した。観測8プロセス終了、ポート解放、強制cleanupと予期しないconsole/page/process-log errorなし。archiveは132試験成功。175% DPI限定であり全DPI・別PCの受入ではない。
+実Edgeの一覧/学習/画像競合3scriptが成功。画像/操作競合は16項目。1280×720/1920×1080でviewerとタブ内領域の一致、header/navの可視と操作、画像contain、詳細による画像領域の不変、検索/100件/小カード/DOM/scrollのタブ往復保持を確認し、全画面PNGを目視した。通常closeとタブ離脱を分け、古いrAFが新しいfocusを奪わないことも検証。独立再レビューに重大残件なし。詳細は `VIEWER_BOUNDARY_REVIEW_2026-10-22.md`。
 
-学習DBは別のDraft PR #3へ分離した。古いUndoが別接続の新しい判定を消す競合を、履歴更新triggerによる世代と`BEGIN IMMEDIATE`内の照合/取消で拒否する。同値・ABA・旧writer・失敗時不変・元集計互換に加え、世代読取直後の別writerがlockされる試験を確認。constructor以外115メソッドのAST一致を再確認し、UIは引き続きメモリ台帳を使う。operation IDの永続冪等性は未実装。
+学習DBはPR #3へ分離。古いUndoが別接続の新しい判定を消す競合を、履歴更新triggerによる世代と`BEGIN IMMEDIATE`内の照合/取消で拒否する。同値・ABA・旧writer・失敗時不変・元集計互換に加え、世代読取直後の別writerがlockされる試験を確認。constructor以外115メソッドのAST一致を再確認。UI修正を取り込んだ `22519a8ba388dc3ef60dc03dabf7a375395af2d5` のDB固有diffは、独立レビュー済み `7455ac3` とバイト単位で一致した。同headのCI3ジョブ（run 39706179497）と統合先main `8df8667` のCI3ジョブ（run 39706266732）成功後、10:41 JSTに `77d9761d7f7a73ce2e61fe83aeca1b740d921537` としてmainへmergeした。UIは引き続きメモリ台帳、operation IDの永続冪等性は未実装。
 
 旧Fletと新版で、共通の合成PNG・1920×1080物理client・175% DPI・warmキャッシュ・600ms入力間隔・同じscreen取得方式による30遷移がそれぞれ完走した。観測p95はFlet432.402ms、新版227.204ms。ただしcapture中央値約195〜197msと表示画像面積・元shell・配布方式の差があるため、製品の速度改善率とは扱わない。private bytesのプロセス群合計はFlet376.25MiB、新版578.11MiB。詳細と失敗試行は `NATIVE_OBSERVATIONS_2026-10-22.md`。
 
-**段階3全体は未完。** 原版viewerはrankingタブ内を覆うため、現在のviewport全体overlayとのヘッダー/ナビ・タブ切替互換が未受入。完全に条件を揃えた製品性能比較、cold、全DPI/別PC、残り6画面も未完。UIの131試験と、DB21・比較準備27を含む統合179試験を混同しない。統合試験は179 passed / 7.16秒。実機測定後は専用Flet4プロセスと新版8プロセスを通常終了した。
+**段階3全体は未完。** viewerのタブ内境界・離脱・focusは今回受入済みだが、原shell全体と画像面積/配布条件まで揃えた性能比較、cold、全DPI/別PC、残り6画面は未完。UI132試験と、DB21・比較準備27を含む統合180試験を混同しない。統合は180 passed / 7.10秒。フェーズ判定は `PHASE_GATES_2026-10-22.md` に集約し、未実施を合格へ変えない。先行の30遷移測定後の専用Flet4プロセスと新版8プロセス、今回のnative検証8プロセスはいずれも通常終了した。
 以下は公開済み基盤の過去記録であり、最新版のnative配布・全面移植の完了を示すものではない。
 
 ## 状態
@@ -79,5 +79,5 @@ GitHub ActionsではUbuntu/Windowsのpytestと、専用Chromiumによる実ブ�
 
 ## 次の受入
 
-原版同様のranking内容領域へviewerを収め、header/navを表示したままタブを離れた場合のclose・フォーカス・キー復帰を検証する。現在のshellにはclose呼出しがあるが、非表示カードへのfocus復元を避ける分岐と実操作受入が必要。
-その表示条件を揃えた後、capture負荷を下げた計測方法を再校正し、cold/warm・順序・配布条件を分けて比較する。UI/DB/比較準備のDraft依存関係を保ち、既定UIの置換や本番書込み・マージには進まない。
+次は原shell・表示画像面積・配布条件を揃え、capture負荷を下げた計測方法を再校正してcold/warm・順序を分けて比較する。約195msのcapture負荷の低減は、今回のPR #4とは別単位で進める。
+マージは独立レビュー・該当headのCI・変更に必要な実画面/実機受入後に行い、先行PRのmerge後は後続のbaseと統合treeを照合する。既定UIの置換、本番データ/APIへの接続、フェーズの未達ゲートの省略は行わない。
