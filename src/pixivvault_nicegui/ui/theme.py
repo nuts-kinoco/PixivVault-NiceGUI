@@ -62,17 +62,21 @@ body { background: #0b0b10; color: #e8e8ef; font-family: system-ui, -apple-syste
 .pv-viewer { width:100%; height:100dvh; max-width:100vw; max-height:100dvh; min-height:0; min-width:0; margin:0; padding:14px; background:#0b0b10; color:#e8e8ef; border:0; border-radius:0; box-sizing:border-box; overflow:hidden; display:flex; flex-direction:column; gap:8px; }
 .pv-viewer-overlay { position:fixed; inset:0; z-index:6000; }
 .pv-viewer-overlay.hidden { display:none !important; }
-.pv-viewer-header-action { border:1px solid #2a2b38; border-radius:8px; height:32px; min-height:32px; }
+.pv-viewer .q-btn { color:#e8e8ef !important; }
+.pv-viewer-header-action { border:1px solid #2a2b38; border-radius:8px; height:32px; min-height:32px; background:#15161c !important; font-size:12px; font-weight:400; }
+.pv-viewer-header-action .q-icon { font-size:14px; }
+.pv-viewer-header .pv-counter { color:#e8e8ef; font-size:12px; }
 .pv-viewer-stage .pv-viewer-retry { margin-top:36px; }
 .pv-viewer-header { flex:0 0 auto; min-width:0; display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:13px; font-weight:700; }
 .pv-viewer-bottom { flex:0 0 48px; height:48px; min-height:48px; min-width:0; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:0 8px 0 12px; background:#15161c; border-top:1px solid #2a2b38; box-sizing:border-box; }
 .pv-viewer-bottom .pv-view-title { font-family:system-ui, -apple-system, "Segoe UI", sans-serif; font-size:13.5px; font-weight:400; }
 .pv-viewer-bottom .pv-subtitle { font-size:12.5px; color:#8a8a99; }
+.pv-viewer-bottom .q-btn { color:#8a8a99 !important; font-size:12px; }
 .pv-viewer-bottom .pv-view-title, .pv-viewer-bottom .pv-subtitle { min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .pv-viewer-stage { position:relative; flex:1 1 0; min-height:0; min-width:0; width:100%; display:flex; align-items:center; justify-content:center; gap:12px; overflow:hidden; }
 .pv-viewer-stage > .pv-view-art { flex:1 1 0; min-width:0; min-height:0; height:100%; max-height:none; }
 .pv-viewer .pv-view-art { max-width:100%; max-height:none; min-height:0; object-fit:contain; }
-.pv-viewer .pv-view-art img { width:100%; height:100%; max-height:none; object-fit:contain !important; }
+.pv-viewer .pv-view-art img { width:100% !important; height:100% !important; max-height:none; object-fit:contain !important; }
 .pv-viewer-details { position:absolute; bottom:0; left:0; right:0; z-index:2; max-height:30vh; overflow-y:auto; overflow-x:hidden; padding:12px; background:rgba(21,22,28,.94); border-top:1px solid #2a2b38; box-sizing:border-box; }
 .pv-viewer-stage .pv-description { overflow-wrap:anywhere; }
 .pv-viewer-stage .pv-viewer-status, .pv-viewer-stage .pv-viewer-retry { position:absolute; z-index:3; left:50%; top:50%; transform:translate(-50%,-50%); }

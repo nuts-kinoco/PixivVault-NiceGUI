@@ -33,22 +33,22 @@ class ArtworkViewer:
                     self.bookmark_button = self._unavailable_action("favorite_border", "ブクマ", "ブックマーク")
                     self.follow_button = self._unavailable_action("person_add", "フォロー", "作者フォロー")
                     self.close_button = ui.button(
-                        icon="close", on_click=on_close
+                        icon="close", on_click=on_close, color=None
                     ).props("flat round aria-label=閉じる")
                 with ui.element("div").classes("pv-viewer-stage") as self.stage:
                     self.previous_page = ui.button(
-                        icon="chevron_left", on_click=on_previous
+                        icon="chevron_left", on_click=on_previous, color=None
                     ).props("flat round aria-label=前のページ").classes("pv-viewer-page-prev")
                     self.image = VerifiedImage(alt="作品画像", retain_previous=True).props(
                         "data-testid=viewer-image"
                     ).classes("pv-view-art")
                     self.image.on("click", lambda _: self._close_details_on_image_click(on_details))
                     self.next_page = ui.button(
-                        icon="chevron_right", on_click=on_next
+                        icon="chevron_right", on_click=on_next, color=None
                     ).props("flat round aria-label=次のページ").classes("pv-viewer-page-next")
                     self.image_status = ui.label().classes("pv-subtitle pv-viewer-status")
                     self.retry_button = ui.button(
-                        "画像を再読込", on_click=on_retry
+                        "画像を再読込", on_click=on_retry, color=None
                     ).props("flat").classes("pv-viewer-retry")
                     self.description = ui.label().classes("pv-description pv-viewer-details")
                 with ui.column().classes("pv-viewer-bottom w-full"):
@@ -58,7 +58,7 @@ class ArtworkViewer:
                         self.author = ui.label().classes("pv-subtitle")
                         ui.space()
                         self.details_button = ui.button(
-                            "詳細", on_click=on_details
+                            "詳細", on_click=on_details, color=None
                         ).props("flat aria-expanded=false")
         self._details_open = False
         self.set_details_open(False)
@@ -66,7 +66,7 @@ class ArtworkViewer:
 
     @staticmethod
     def _unavailable_action(icon: str, label: str, purpose: str):
-        button = ui.button(label, icon=icon).props("flat no-caps").classes("pv-viewer-header-action")
+        button = ui.button(label, icon=icon, color=None).props("flat no-caps").classes("pv-viewer-header-action")
         button.props(f"aria-label={purpose}")
         button.set_enabled(False)
         button.tooltip(f"{purpose}は移植準備中です")

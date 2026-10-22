@@ -43,3 +43,19 @@
 2. 新旧同条件の校正画像を目視し、冷/温キャッシュとキャプチャ負荷を区別した測定結果を得るまで、速度の合格判定を保留する。
 3. DB永続接続前に、上記の古いUndo競合を失敗として検知・防止する方針と試験を確定する。現在のUIからこのアダプタを利用しない。
 4. 最新の全画面ビューア版のnative再ビルド、DPI/フォーカス/終了、残り画面の互換受入を続ける。旧配布exeの成功を最新版へ流用しない。
+
+## 引継ぎ後の実機再受入と表示修正
+
+`a5d42aa6d54a81181af3661dc331df89e96bc927` のコミットだけを `git archive` で取り出し、専用srcをPYTHONPATHに固定してonedir/noconsoleを再ビルドした。別フォルダーへコピーしたexeでも、2026-10-22 08:59 JSTにビューアopen/decode/close、学習判定/Undo/復帰画像decode、最小化/復帰、WM_CLOSEによる通常終了、全観測子プロセス終了、ポート解放が成功。強制cleanup、console/page/process-log errorは0。実機条件はDPI175%、WebView2 155.0.4283.62であり全DPI・別PCの受入ではない。
+
+同じ実画面確認で、小さなfixture画像がviewer領域へ拡大されず自然寸法に留まる問題と、ボタンにQuasar既定primary色が残る問題を確認した。今回の修正はviewer専用CSSでimgのwidth/heightを100%とし、containで縦横比を維持する。全画像部品への拡大指定は学習画面の既存寸法契約を変えたため採用せず、`verified_image.js`はa5d42aaと同じ内容を保持した。ボタンのcolorをテーマ側へ集約し、文字・アイコンは旧トークンの白/灰色、操作ボタン背景はsurface色にした。
+
+実Edgeの1280×720/1920×1080で、画像枠とimgの寸法一致、contain、自然寸法より大きい表示倍率、前頁/閉じる/詳細のcomputed colorを検証した。学習の既存画像縦横比試験を維持し、一覧/学習/画像競合の3scriptが全て成功。13画像競合シナリオも成功し、予期しないconsole/page errorは0、製品src前後ハッシュ一致。独立担当が画像世代/decode/同一node昇格への影響を読取確認した。
+
+証拠はignored `artifacts/native-a5d42aa-20261022-01/` の `native-acceptance.json`、`packaging-check.json`、`ui-fit-browser-scoped/`。この表示修正後のexeは別途その正確なコミットで再ビルド・検証する。a5d42aaのexe合格を後続コミットへ流用しない。
+
+### 原版の表示領域についての訂正
+
+原`gui.py`のPageにはアプリ見出し・接続表示・タブナビと各タブが兄弟として配置される。原viewerは`ranking_tab.py`のtab内Stackで本文を覆い、タブ離脱時には`close_viewer_if_open()`が呼ばれる。現在の隔離Flet launcherはランキングtabだけを表示し、元shellを省略している。そのため隔離画面の余白をそのまま原製品のviewport互換基準にはできない。
+
+現在のNiceGUIデモはviewport全体を覆う構成を保持しているが、**原製品のヘッダー/ナビの視認と閲覧中のタブ切替まで同じという受入は未完**。これまでの「原版と同じ全画面」という説明はこの点を含めて限定する。元shellを含めた隔離比較で表示境界とタブ切替時のclose/キー復帰を確認するまで、製品全体の外観・操作一致を合格にしない。

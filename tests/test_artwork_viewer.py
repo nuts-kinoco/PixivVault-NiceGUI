@@ -41,6 +41,11 @@ def test_structure_is_built_once_with_mounted_dialog_role(viewer):
                    component.follow_button):
         assert not button.enabled
         assert button.text in {"個別DL", "ブクマ", "フォロー"}
+    for button in (component.download_button, component.bookmark_button,
+                   component.follow_button, component.close_button,
+                   component.previous_page, component.next_page,
+                   component.details_button, component.retry_button):
+        assert button._props.get("color") is None
     assert not hasattr(component, "previous_work")
     assert not hasattr(component, "next_work")
 

@@ -219,8 +219,24 @@ def run_viewport(page: Page, url: str, size: tuple[int, int], output: Path, resu
     page_images.append(image_ready(page, 'demo-0003', 1))
     bounds = viewer(page).bounding_box()
     check(bounds is not None and bounds['width'] >= width - 1 and bounds['height'] >= height - 1,
-          f'原版の全画面ビューアより小さい: {bounds}')
+          f'デモで指定したビューアのviewport領域より小さい: {bounds}')
     image_bounds = page.get_by_test_id('viewer-image').bounding_box()
+    image_layout = page.get_by_test_id('viewer-image').locator('img:visible').evaluate('''img => {
+        const box = img.getBoundingClientRect();
+        return {width: box.width, height: box.height, naturalWidth: img.naturalWidth,
+            naturalHeight: img.naturalHeight, fit: getComputedStyle(img).objectFit};
+    }''')
+    check(image_bounds is not None and abs(image_layout['width'] - image_bounds['width']) < 1
+          and abs(image_layout['height'] - image_bounds['height']) < 1
+          and image_layout['fit'] == 'contain',
+          f'画像がビューアの領域に収まる拡大表示をしていない: {image_layout}, {image_bounds}')
+    fitted_scale = min(image_layout['width'] / image_layout['naturalWidth'],
+                       image_layout['height'] / image_layout['naturalHeight'])
+    check(fitted_scale > 1, f'小さいfixture画像が自然寸法のまま拡大されない: {image_layout}')
+    expect(page_button(page, '前のページ')).to_have_css('color', 'rgb(232, 232, 239)')
+    expect(page_button(page, '閉じる')).to_have_css('color', 'rgb(232, 232, 239)')
+    expect(page_button(page, '詳細')).to_have_css('color', 'rgb(138, 138, 153)')
+    record['viewer_image_layout'] = {**image_layout, 'fitted_scale': fitted_scale}
     page.screenshot(path=str(output / f'viewer-{key}.png'), full_page=False)
     page_button(page, '詳細').click()
     description = viewer(page).locator('.pv-description')
