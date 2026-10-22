@@ -10,6 +10,7 @@ import base64
 import hashlib
 import importlib
 import json
+import math
 import argparse
 import os
 from pathlib import Path
@@ -296,7 +297,27 @@ def isolate_imports(copy: Path, fixture_dir: Path, fixture: list[dict], original
         raise RuntimeError('original repository on import path')
 
 
-def launch(source: Path, output: Path, width: int, height: int) -> None:
+def validate_page_padding(values, width: int, height: int) -> tuple[float, ...] | None:
+    """Validate logical-pixel outer padding before touching the isolated runtime."""
+    if values is None:
+        return None
+    if len(values) != 4:
+        raise ValueError('--page-padding requires LEFT TOP RIGHT BOTTOM')
+    try:
+        padding = tuple(float(value) for value in values)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError('--page-padding requires finite non-negative numbers') from exc
+    if any(not math.isfinite(value) or value < 0 for value in padding):
+        raise ValueError('--page-padding requires finite non-negative numbers')
+    left, top, right, bottom = padding
+    if not (left + right < width and top + bottom < height):
+        raise ValueError('--page-padding must leave positive child width and height')
+    return padding
+
+
+def launch(source: Path, output: Path, width: int, height: int, *,
+           page_padding: tuple[float, ...] | None = None) -> None:
+    page_padding = validate_page_padding(page_padding, width, height)
     output = safe_output(output)
     manifest = json.loads((output / 'manifest.json').read_text(encoding='utf-8'))
     copied = output / 'source'
@@ -312,7 +333,8 @@ def launch(source: Path, output: Path, width: int, height: int) -> None:
         raise RuntimeError('old fixture manifest: run --prepare-only --output ...-v2')
     os.chdir(output)
     print(json.dumps({'baseline_pid': os.getpid(), 'output': str(output),
-                      'viewport': [width, height], 'fixture_sha256': manifest['fixture_sha256']}), flush=True)
+                      'viewport': [width, height], 'page_padding_logical_px': page_padding,
+                      'fixture_sha256': manifest['fixture_sha256']}), flush=True)
     isolate_imports(copied, output / 'fixture', fixture, source)
     import flet as ft
     ranking = importlib.import_module('ranking_tab')
@@ -333,6 +355,9 @@ def launch(source: Path, output: Path, width: int, height: int) -> None:
         page.dark_theme = ft.Theme(color_scheme_seed='#0096FA')
         page.window.width = width
         page.window.height = height
+        if page_padding is not None:
+            # Geometry-only opt-in; copied ranking/viewer controls stay intact.
+            page.padding = ft.Padding(*page_padding)
         db = FakeDB()
         page.bgcolor = DT.BG_VAULT
         update_lock = threading.RLock()
@@ -362,15 +387,24 @@ def main(argv=None) -> int:
     parser.add_argument('--output', type=Path, default=OUTPUT)
     parser.add_argument('--width', type=int, choices=(1280, 1920), default=1280)
     parser.add_argument('--height', type=int, choices=(720, 1080), default=720)
+    parser.add_argument('--page-padding', type=float, nargs=4,
+                        metavar=('LEFT', 'TOP', 'RIGHT', 'BOTTOM'),
+                        help='Outer page padding in logical pixels; --launch only; omitted keeps Flet defaults')
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument('--prepare-only', action='store_true')
     mode.add_argument('--launch', action='store_true')
     args = parser.parse_args(argv)
-    source = args.source.resolve(strict=True)
     if (args.width, args.height) not in ((1280, 720), (1920, 1080)):
         parser.error('valid viewport pairs are 1280x720 or 1920x1080')
+    if args.page_padding is not None and not args.launch:
+        parser.error('--page-padding is only valid with --launch')
+    try:
+        page_padding = validate_page_padding(args.page_padding, args.width, args.height)
+    except ValueError as exc:
+        parser.error(str(exc))
+    source = args.source.resolve(strict=True)
     if args.launch:
-        launch(source, args.output, args.width, args.height)
+        launch(source, args.output, args.width, args.height, page_padding=page_padding)
     else:
         print(json.dumps(prepare(source, args.output), indent=2))
     return 0
