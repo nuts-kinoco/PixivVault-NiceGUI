@@ -21,7 +21,7 @@ html, body { width:100%; height:100%; overflow:hidden; }
 body { background: #0b0b10; color: #e8e8ef; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 .nicegui-content { height:100dvh; min-height:0; padding:0 !important; overflow:hidden; }
 .pv-shell { height:100dvh; min-height:0; width:100%; max-width:100%; padding:24px; gap:16px; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
-.pv-content { width:100%; min-width:0; min-height:0; flex:1 1 0; display:flex; flex-direction:column; overflow:hidden; }
+.pv-content { position:relative; width:100%; min-width:0; min-height:0; flex:1 1 0; display:flex; flex-direction:column; overflow:hidden; }
 .pv-gallery { flex:1 1 0; min-height:0; min-width:0; overflow:hidden; display:flex; flex-direction:column; }
 .pv-header { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; width:100%; flex-shrink:0; }
 .pv-title { font-family:"Yu Mincho", "YuMincho", serif; font-size:28px; font-weight:700; letter-spacing:.06em; }
@@ -59,8 +59,8 @@ body { background: #0b0b10; color: #e8e8ef; font-family: system-ui, -apple-syste
 .pv-card-title { font-size:14px; font-weight:600; color:#e8e8ef; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .pv-card-author { font-size:12px; color:#8a8a99; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .pv-empty { width:100%; padding:48px 16px; color:#8a8a99; text-align:center; }
-.pv-viewer { width:100%; height:100dvh; max-width:100vw; max-height:100dvh; min-height:0; min-width:0; margin:0; padding:14px; background:#0b0b10; color:#e8e8ef; border:0; border-radius:0; box-sizing:border-box; overflow:hidden; display:flex; flex-direction:column; gap:8px; }
-.pv-viewer-overlay { position:fixed; inset:0; z-index:6000; }
+.pv-viewer { width:100%; height:100%; max-width:100%; max-height:100%; min-height:0; min-width:0; margin:0; padding:14px; background:#0b0b10; color:#e8e8ef; border:0; border-radius:0; box-sizing:border-box; overflow:hidden; display:flex; flex-direction:column; gap:8px; }
+.pv-viewer-overlay { position:absolute; inset:0; z-index:10; }
 .pv-viewer-overlay.hidden { display:none !important; }
 .pv-viewer .q-btn { color:#e8e8ef !important; }
 .pv-viewer-header-action { border:1px solid #2a2b38; border-radius:8px; height:32px; min-height:32px; background:#15161c !important; font-size:12px; font-weight:400; }

@@ -51,7 +51,7 @@ class GalleryView:
                 self.grid = ui.element("div").classes("pv-grid").style("--pv-max-cols:6")
             self.empty = ui.label("該当する作品がありません").classes("pv-empty")
 
-        # 正式UIは原版と同じ全画面・作品内ページ移動。作品間移動は一覧に戻って行う。
+        # 原版同様、タブ内を覆う作品内ページ移動。作品間移動は一覧に戻って行う。
         self.viewer = ArtworkViewer(
             lambda: self.move_page(-1), lambda: self.move_page(1),
             self.close_viewer, self.toggle_details, self.request_image,
@@ -220,9 +220,9 @@ class GalleryView:
             else:
                 self.close_viewer()
 
-    def close_viewer(self) -> None:
+    def close_viewer(self, *, restore_focus: bool = True) -> None:
         self.state.close_viewer()
-        self.dialog.close()
+        self.dialog.close(restore_focus=restore_focus)
         self._image_token = None
         self._image_url = ""
         self.viewer_image.set_source("")

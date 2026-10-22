@@ -1,4 +1,4 @@
-"""全画面ビューアの表示契約。ブラウザ外観の受入はprime担当。"""
+"""タブ内ビューアの表示契約。ブラウザ外観の受入はprime担当。"""
 
 from nicegui import ui
 import pytest
@@ -27,7 +27,8 @@ def test_structure_is_built_once_with_mounted_dialog_role(viewer):
     assert isinstance(component.image, VerifiedImage)
     assert component.dialog is component
     assert component.root._props["role"] == "dialog"
-    assert component.root._props["aria-modal"] == "true"
+    assert component.root._props["aria-modal"] == "false"
+    assert component.root._props["aria-label"] == "画集ビューア"
     assert component.root._props["aria-hidden"] == "true"
     assert not component._is_open
     assert component.root.visible

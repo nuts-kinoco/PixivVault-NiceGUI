@@ -32,7 +32,7 @@ def test_original_grid_and_viewport_css_contract():
     assert ".pv-thumb {" in CSS and "aspect-ratio:1 / 1" in CSS
     assert "object-fit:contain" in CSS
     assert ".pv-gallery-scroll { flex:1 1 0; overflow-y:auto" in CSS
-    assert ".pv-viewer { width:100%; height:100dvh;" in CSS
+    assert ".pv-viewer { width:100%; height:100%;" in CSS
     assert ".pv-learning" in CSS
     assert "font-family:\"Yu Mincho\"" in CSS
 
@@ -47,7 +47,7 @@ def test_viewport_is_bounded_with_one_gallery_scroll_region():
     assert "html, body { width:100%; height:100%; overflow:hidden; }" in CSS
     assert ".nicegui-content { height:100dvh; min-height:0; padding:0 !important; overflow:hidden; }" in CSS
     assert ".pv-shell { height:100dvh; min-height:0;" in CSS
-    assert ".pv-content { width:100%; min-width:0; min-height:0; flex:1 1 0;" in CSS
+    assert ".pv-content { position:relative; width:100%; min-width:0; min-height:0; flex:1 1 0;" in CSS
     assert ".pv-gallery { flex:1 1 0; min-height:0;" in CSS
     assert ".pv-gallery-scroll { flex:1 1 0; overflow-y:auto; overflow-x:hidden; min-height:0; max-height:none;" in CSS
     assert ".pv-toolbar {" in CSS and "flex-shrink:0;" in CSS
@@ -78,8 +78,11 @@ def test_legacy_ranking_cards_are_square_with_compact_metadata():
     assert ".pv-grid .pv-card-author { font-size:10px;" in CSS
 
 
-def test_fullscreen_viewer_preserves_image_aspect_and_bottom_controls():
-    assert ".pv-viewer { width:100%; height:100dvh; max-width:100vw; max-height:100dvh;" in CSS
+def test_tab_viewer_preserves_image_aspect_and_bottom_controls():
+    # Original ranking_tab.py mounts the viewer inside the tab's Stack, below navigation.
+    assert ".pv-content { position:relative;" in CSS
+    assert ".pv-viewer-overlay { position:absolute; inset:0;" in CSS
+    assert ".pv-viewer { width:100%; height:100%; max-width:100%; max-height:100%;" in CSS
     assert CSS.count(".pv-viewer {") == 1
     assert "margin:0; padding:14px; background:#0b0b10;" in CSS
     assert "flex-direction:column; gap:8px;" in CSS
