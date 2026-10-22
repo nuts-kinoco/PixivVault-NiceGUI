@@ -216,6 +216,63 @@ def open_page_three(page: Page, root, record: dict) -> None:
     record["viewer_focus_restored"] = True
 
 
+def check_synthetic_bookmarks(page: Page, root, output: Path, key: str, record: dict) -> None:
+    """Verify click/selection/More/viewer and subview return without external API."""
+    root.get_by_test_id("library-subview-bookmarks").click()
+    bookmarks = root.get_by_test_id("bookmark-view")
+    expect(bookmarks).to_be_visible()
+    cards = bookmarks.get_by_test_id("bookmark-card")
+    expect(cards).to_have_count(50)
+    expect(bookmarks.get_by_test_id("bookmark-count")).to_have_text("50 / 110 件表示")
+    expect(bookmarks.get_by_test_id("bookmark-downloaded")).to_have_count(40)
+    thumb = cards.first.locator("img").first
+    decode_image(thumb, "マイブックマーク・サムネイル", "/media/demo-0001/0/thumb.png")
+    thumb_rect = thumb.bounding_box()
+    check(thumb_rect is not None and thumb_rect["width"] >= 80 and thumb_rect["height"] >= 80,
+          f"ブックマーク画像が実際の表示面積を持たない: {thumb_rect}")
+    first_badge = cards.first.get_by_test_id("bookmark-downloaded")
+    card_rect, badge_rect = cards.first.bounding_box(), first_badge.bounding_box()
+    check(card_rect is not None and badge_rect is not None and
+          card_rect["x"] <= badge_rect["x"] and
+          card_rect["y"] <= badge_rect["y"] and
+          badge_rect["x"] + badge_rect["width"] <= card_rect["x"] + card_rect["width"] + 1 and
+          badge_rect["y"] + badge_rect["height"] <= card_rect["y"] + card_rect["height"] + 1,
+          f"DL済みbadgeがカード外へ飛んでいる: {card_rect}, {badge_rect}")
+    first = cards.first.element_handle()
+    check(first is not None, "bookmark first card handle missing")
+    chosen = bookmarks.locator('.pv-bookmark-card[data-work-id="demo-0003"]')
+    chosen.get_by_test_id("bookmark-select").click()
+    expect(bookmarks.get_by_test_id("bookmark-selection")).to_have_text("選択中: 1件")
+    more = bookmarks.get_by_test_id("bookmark-more")
+    more.click()
+    expect(cards).to_have_count(100)
+    check(cards.first.evaluate("(el, first) => el === first", first),
+          "bookmark More replaced existing thumbnail DOM")
+    more.click()
+    expect(cards).to_have_count(110)
+    expect(more).to_be_hidden()
+    chosen.get_by_test_id("bookmark-open").click()
+    viewer = page.get_by_test_id("library-viewer")
+    expect(viewer).to_be_visible(timeout=15_000)
+    image_ready(page, "demo-0003", 0)
+    viewer.get_by_role("button", name="次のページ").click()
+    image_ready(page, "demo-0003", 1)
+    viewer.get_by_role("button", name="閉じる").click()
+    expect(viewer).to_be_hidden()
+    expect(bookmarks.get_by_test_id("bookmark-selection")).to_have_text("選択中: 1件")
+    page.screenshot(path=str(output / f"library-{key}-bookmarks.png"), full_page=True)
+    root.get_by_test_id("library-subview-downloaded").click()
+    expect(bookmarks).to_be_hidden()
+    expect(root.get_by_test_id("library-authors-scroll")).to_be_visible()
+    root.get_by_test_id("library-subview-bookmarks").click()
+    expect(bookmarks).to_be_visible()
+    expect(cards).to_have_count(110)
+    expect(bookmarks.get_by_test_id("bookmark-selection")).to_have_text("選択中: 1件")
+    check_layout(page)
+    record["bookmarks"] = {"initial": 50, "final": 110, "downloaded_badges": 40,
+                           "selection_retained": True, "viewer_page_2": True}
+
+
 def check_failure_retry(page: Page, root, result: dict, record: dict) -> None:
     """未表示の合成画像だけHTTP503を一度注入し、明示的な再読込で復旧する。"""
     failed_work = "demo-0059"
@@ -389,6 +446,7 @@ def run_viewport(page: Page, url: str, size: tuple[int, int],
                                   "author_focus_restored": True,
                                   "reopened_page_count": 50}
     page.screenshot(path=str(output / f"library-{key}-final.png"), full_page=True)
+    check_synthetic_bookmarks(page, root, output, key, record)
 
 
 def check_client_isolation(context, url: str, result: dict) -> None:
