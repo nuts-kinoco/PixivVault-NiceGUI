@@ -25,8 +25,8 @@ async def test_page_builds_fifty_cards_one_dialog_and_existing_navigation():
             "ダウンロード", "キュー", "失敗リスト", "重複整理",
             "学習", "ランキング", "ライブラリ", "おすすめ",
         ]
-        # ランキング・学習・合成ライブラリの3経路。他の5画面は未移植。
-        assert sum(bool(element.props.get("disable")) for element in tabs) == 5
+        # 閲覧3経路と失敗記録の読取画面。更新系を有効に見せない。
+        assert sum(bool(element.props.get("disable")) for element in tabs) == 4
         # ナビゲーションは既存トークンのCSSで色を制御する。
         # Quasar既定text-primaryを残すと選択中の青背景と文字が同色になる。
         assert all(element.props.get("color") is None for element in tabs)

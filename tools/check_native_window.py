@@ -19,9 +19,11 @@ from urllib.parse import urlparse
 if __package__:
     from .native_restore_gate import run_restore_gate
     from .native_ui_guard import NativeUiGuard
+    from .native_failed_csv import saved_csv_accepted
 else:
     from native_restore_gate import run_restore_gate
     from native_ui_guard import NativeUiGuard
+    from native_failed_csv import saved_csv_accepted
 
 
 # Per-phase maximums, bounded by one total deadline (default 90 seconds).
@@ -224,7 +226,7 @@ def inspect_readonly_library_ui(page, screenshot: Path, guard: NativeUiGuard) ->
 
 def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float,
                *, check_owner, learning_persistence: bool = False,
-               readonly_library: bool = False) -> dict:
+               readonly_library: bool = False, failed_records: bool = False) -> dict:
     """Use Playwright's WebView2 CDP attachment, never close remote browser/context."""
     from playwright.sync_api import expect, sync_playwright
 
@@ -367,12 +369,20 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
             else:
                 result['library'] = inspect_library_ui(page, screenshot, guard)
                 result['interactions'].append('library author/search/all pages/viewer/tab return/shared size')
+            if failed_records:
+                if __package__:
+                    from .check_failed_records_native import inspect_failed_records
+                else:
+                    from check_failed_records_native import inspect_failed_records
+                result['failed_records'] = inspect_failed_records(page, screenshot, guard)
+                result['interactions'].append('legacy failure records/search/category/page/read-only actions')
         run(page.screenshot, path=str(screenshot), full_page=False)
         result["screenshot"] = str(screenshot)
         guard.check()
         result["passed"] = (result["handshake"] and result["cards"] == 50
                             and result["image_decoded"] and result["bridge_ready"]
-                            and len(result['interactions']) == (5 if learning_persistence else 4)
+                            and len(result['interactions']) == (4 + int(learning_persistence) + int(failed_records))
+                            and (not failed_records or saved_csv_accepted(result.get('failed_records')))
                             and not result["console_errors"] and not result["page_errors"])
     return result
 
@@ -647,6 +657,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="total seconds; phases max health30/window20/baseline5/minimize5/restore5/close30")
     parser.add_argument("--output", type=Path, default=Path("artifacts/windows-packaging/native-check.json"))
     parser.add_argument("--inspect-ui", action="store_true", help="Inspect this WebView over local CDP")
+    parser.add_argument("--inspect-failed-records", action="store_true",
+                        help="Require synthetic SQLite failure list and actual native CSV save")
+    parser.add_argument("--failed-csv-dialog-seconds", type=float, default=0.0,
+                        help="Explicit extra operator budget (0-120s) for the owned CSV SaveFileDialog only")
     parser.add_argument("--client-origin", nargs=2, type=int, metavar=("X", "Y"),
                         help="Explicit physical client origin for our owned test window before acceptance; never resize")
     parser.add_argument("--learning-sandbox", type=Path,
@@ -660,6 +674,14 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("Windows 専用です")
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
+    if args.inspect_failed_records and not args.inspect_ui:
+        parser.error("--inspect-failed-records requires --inspect-ui")
+    if args.inspect_failed_records and args.library_readonly_db is None:
+        parser.error("--inspect-failed-records requires explicit generated SQLite and image fixtures")
+    if not 0 <= args.failed_csv_dialog_seconds <= 120:
+        parser.error("--failed-csv-dialog-seconds must be between 0 and 120")
+    if args.failed_csv_dialog_seconds and not args.inspect_failed_records:
+        parser.error("CSV dialog budget requires --inspect-failed-records")
     if args.learning_sandbox is not None and not args.learning_sandbox.is_absolute():
         parser.error("--learning-sandbox must be absolute")
     if (args.library_readonly_db is None) != (args.library_image_root is None):
@@ -670,6 +692,15 @@ def main(argv: list[str] | None = None) -> int:
             parser.error("read-only library fixtures must exist at absolute paths")
         if not args.inspect_ui:
             parser.error("read-only library native acceptance requires --inspect-ui")
+        if args.inspect_failed_records:
+            if __package__:
+                from .failed_records_fixture_guard import verify_fixture_manifest
+            else:
+                from failed_records_fixture_guard import verify_fixture_manifest
+            try:
+                verify_fixture_manifest(args.library_readonly_db, args.library_image_root)
+            except (OSError, ValueError):
+                parser.error("failure-record acceptance requires its unchanged generated synthetic fixture")
     target = (args.exe or args.python_entry).resolve()
     if not target.is_file():
         parser.error("Existing executable/entry file required")
@@ -700,6 +731,13 @@ def main(argv: list[str] | None = None) -> int:
     report["close_reserve_seconds"] = close_reserve
     output_path = args.output.resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    if args.inspect_failed_records:
+        if __package__:
+            from .native_failed_csv import fresh_destination
+        else:
+            from native_failed_csv import fresh_destination
+        fresh_destination(output_path.with_name("failed-records-export.csv"))
+        report["csv_dialog_budget_seconds"] = args.failed_csv_dialog_seconds
     log_path = output_path.with_name(output_path.stem + ".process.log")
     report["process_log"] = str(log_path)
     report["inspect_ui_requested"] = args.inspect_ui
@@ -786,8 +824,12 @@ def main(argv: list[str] | None = None) -> int:
                                           "learning_persistence": args.learning_sandbox is not None}
                         if args.library_readonly_db is not None:
                             inspect_kwargs["readonly_library"] = True
+                        if args.inspect_failed_records:
+                            inspect_kwargs["failed_records"] = True
+                        inspection_deadline = min(operation_deadline, time.monotonic()
+                            + PHASE_LIMITS["inspect_ui"] + args.failed_csv_dialog_seconds)
                         report["ui_inspection"] = inspect_ui(
-                            debug_port, port, screenshot, phase_deadline(operation_deadline, "inspect_ui"),
+                            debug_port, port, screenshot, inspection_deadline,
                             **inspect_kwargs)
                         if not report["ui_inspection"]["passed"]:
                             report["errors"].append("ui_inspection_failed")
@@ -827,6 +869,8 @@ def main(argv: list[str] | None = None) -> int:
                     and report["minimized"] and report["restored"]
                     and report["normal_exit"] and report["port_released"]
                     and report.get("wm_close_sent")
+                    and (not args.inspect_failed_records or
+                         saved_csv_accepted((report["ui_inspection"] or {}).get("failed_records")))
                     and not report["errors"]
                     and (args.client_origin is None or
                          (report.get("initial_placement") or {}).get("explicit_setup") is True)

@@ -113,6 +113,25 @@ class ApplicationServices:
         return self.images.acquire()
 
     @property
+    def failed_records_available(self) -> bool:
+        return self.data_mode == "synthetic" or self.library_readonly_db is not None
+
+    async def read_failed_records(self):
+        """Read the legacy failure table off-loop, without changing any job or DB."""
+        if self.closing:
+            raise RuntimeError("application services are closed")
+        if self.data_mode == "synthetic":
+            from .failed_records_fixtures import build_failed_records_fixture
+            return build_failed_records_fixture()
+        if self.library_readonly_db is None:
+            raise RuntimeError("failure record database is not configured")
+        from .failed_records_repository import read_failed_records
+        records = await asyncio.to_thread(read_failed_records, self.library_readonly_db)
+        if self.closing:
+            raise RuntimeError("application services are closed")
+        return records
+
+    @property
     def data_mode(self):
         if self.live_client is not None:
             return "pixiv-readonly"

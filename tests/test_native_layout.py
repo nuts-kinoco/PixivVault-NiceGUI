@@ -134,6 +134,7 @@ def test_native_start_applies_layout_before_registering_resources(monkeypatch):
     monkeypatch.setattr(bootstrap, "sys", SimpleNamespace(platform="win32"))
     monkeypatch.setattr(bootstrap.importlib.util, "find_spec", lambda name: object())
     monkeypatch.setattr(app.native, "window_args", {})
+    monkeypatch.setattr(app.native, "settings", {"ALLOW_DOWNLOADS": False})
     monkeypatch.setattr(native_layout, "current_startup_layout", lambda: (calls.append("layout"), layout)[1])
     monkeypatch.setattr(bootstrap, "register_pages", lambda **kwargs: calls.append("register"))
     monkeypatch.setattr(ui, "run", lambda **kwargs: calls.append(kwargs))
@@ -141,6 +142,7 @@ def test_native_start_applies_layout_before_registering_resources(monkeypatch):
     assert calls[:2] == ["layout", "register"]
     assert calls[-1]["window_size"] == (layout.width, layout.height)
     assert app.native.window_args == {"x": layout.x, "y": layout.y}
+    assert app.native.settings["ALLOW_DOWNLOADS"] is True
 
 
 def test_browser_mode_does_not_measure_or_change_native_window_settings(monkeypatch):
@@ -151,11 +153,13 @@ def test_browser_mode_does_not_measure_or_change_native_window_settings(monkeypa
     monkeypatch.setattr(bootstrap, "sys", SimpleNamespace(platform="win32"))
     monkeypatch.setattr(native_layout, "current_startup_layout", lambda: pytest.fail("browser must not touch DPI"))
     monkeypatch.setattr(app.native, "window_args", {"existing": 123})
+    monkeypatch.setattr(app.native, "settings", {"ALLOW_DOWNLOADS": False})
     monkeypatch.setattr(bootstrap, "register_pages", lambda **kwargs: None)
     monkeypatch.setattr(ui, "run", lambda **kwargs: calls.append(kwargs))
     assert bootstrap.main([]) == 0
     assert calls[0]["window_size"] is None and not calls[0]["native"]
     assert app.native.window_args == {"existing": 123}
+    assert app.native.settings == {"ALLOW_DOWNLOADS": False}
 
 
 def test_layout_failure_does_not_register_resources_or_start_ui(monkeypatch):
