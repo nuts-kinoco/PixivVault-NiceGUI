@@ -169,6 +169,43 @@ async def test_page_callback_keeps_append_valid_but_cannot_cross_reload(library)
 
 
 @pytest.mark.asyncio
+async def test_old_more_button_cannot_expand_another_detail(library):
+    view, _, _ = library
+    view.open_author("demo-author-01")
+    old_button = view.more_button
+    old_click = next(listener.handler for listener in old_button._event_listeners.values()
+                     if listener.type == "click")
+    old_click(None)
+    assert view.state.shown_page_count == 98
+    view.close_author()
+    view.open_author("demo-author-01")
+    assert view.state.shown_page_count == 50
+    old_click(None)
+    assert view.state.shown_page_count == 50
+    current_click = next(listener.handler for listener in view.more_button._event_listeners.values()
+                         if listener.type == "click")
+    current_click(None)
+    assert view.state.shown_page_count == 98
+
+
+@pytest.mark.asyncio
+async def test_more_button_event_is_valid_through_append_but_not_reload(library):
+    view, _, _ = library
+    view.open_author("demo-author-01")
+    first_button = view.more_button
+    click = next(listener.handler for listener in first_button._event_listeners.values()
+                 if listener.type == "click")
+    click(None)
+    assert view.state.shown_page_count == 98
+    assert view.more_button is first_button
+    view.reload()
+    view.open_author("demo-author-01")
+    assert view.state.shown_page_count == 50
+    click(None)
+    assert view.state.shown_page_count == 50
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("method,args", [
     ("search", ("0003",)), ("sort", ("last_backup",)),
     ("close_author", ()), ("reload", ()), ("change_size", ("small",)), ("more", ()),
