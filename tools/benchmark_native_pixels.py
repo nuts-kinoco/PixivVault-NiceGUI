@@ -14,6 +14,11 @@ import time
 
 from PIL import Image, ImageChops, ImageGrab, ImageStat
 
+if __package__:
+    from .native_screen_capture import capture_screen_box
+else:
+    from native_screen_capture import capture_screen_box
+
 THRESHOLD = 12.0  # ROI mean absolute RGB difference; fixed for both backends
 STABLE_DIFF = 1.0
 TIMEOUT = 2.5
@@ -174,7 +179,7 @@ class OwnedWindow:
     def __init__(self, root: int, top: int, input_hwnd: int, title: str,
                  previous: list[int], next_: list[int], roi: list[int], input_interval_ms: float = 600,
                  capture_mode: str = "window"):
-        if capture_mode not in ("window", "screen"):
+        if capture_mode not in ("window", "screen", "screen-gdi"):
             raise ValueError("invalid capture mode")
         self.capture_mode = capture_mode
         self.kernel, self.user = api()
@@ -191,7 +196,7 @@ class OwnedWindow:
         self.size = self.client_size(self.top)
         self.input_size = self.client_size(self.input)
         self.screen_bbox = None
-        if capture_mode == "screen":
+        if capture_mode in ("screen", "screen-gdi"):
             self._adopt_descendants()
             self.screen_bbox = self._screen_geometry()
         self.previous = point(previous, *self.input_size)
@@ -305,16 +310,17 @@ class OwnedWindow:
         self.last_input_at = time.monotonic()
 
     def capture(self) -> Image.Image:
-        if self.capture_mode == "screen":
+        if self.capture_mode in ("screen", "screen-gdi"):
             self._check_screen()
-            image = ImageGrab.grab(bbox=self.screen_bbox, all_screens=True)
+            image = (capture_screen_box(self.screen_bbox) if self.capture_mode == "screen-gdi"
+                     else ImageGrab.grab(bbox=self.screen_bbox, all_screens=True))
             self._check_screen()
         else:
             self.verify()
             image = ImageGrab.grab(window=self.top)
         if image is None or image.size != self.size:
             raise RuntimeError("window capture differs from GetClientRect; offset unknown")
-        if self.capture_mode == "screen" and max(ImageStat.Stat(image.convert("RGB")).stddev) < 2:
+        if self.capture_mode in ("screen", "screen-gdi") and max(ImageStat.Stat(image.convert("RGB")).stddev) < 2:
             raise RuntimeError("flat screen capture rejected")
         return image.convert("RGB")
 
@@ -488,7 +494,7 @@ def main(argv=None) -> int:
     parser.add_argument("--next", type=int, nargs=2, required=True)
     parser.add_argument("--roi", type=int, nargs=4, required=True)
     parser.add_argument("--backend", choices=("flet", "pywebview"), required=True)
-    parser.add_argument("--capture-mode", choices=("window", "screen"), default="window")
+    parser.add_argument("--capture-mode", choices=("window", "screen", "screen-gdi"), default="window")
     parser.add_argument("--samples", type=int, default=30)
     parser.add_argument("--input-interval-ms", type=float, default=600,
                         help="Minimum gap between input batches, excluded from latency; 0 for unpaced stress")
