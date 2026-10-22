@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from ..bookmark_state import BookmarkState
 from ..library_models import AuthorSummary, LibrarySnapshot, PageRef
 from ..library_state import LibraryState
 from ..services import ApplicationServices
@@ -30,8 +31,14 @@ class LibraryView(ViewerController):
         self.client = ui.context.client
         self.active = True
         self.closed = False
+        self.subview = "downloaded"
         self.card_size = card_size
         self._on_size_change = on_size_change
+        self.bookmark_state = BookmarkState(
+            local=services.bookmark_local_snapshot(),
+            cached_remote=services.bookmark_remote_snapshot(),
+        )
+        self.bookmarks = None
         self.state = LibraryState(LibrarySnapshot(()))
         self.author_cards = {}
         self.author_openers = {}
@@ -52,10 +59,13 @@ class LibraryView(ViewerController):
             with ui.element("div").classes("pv-library-toolbar"):
                 ui.label("ライブラリ").classes("pv-library-heading")
                 with ui.row().classes("pv-library-subviews"):
-                    ui.button("DL済み", color=None).props(
-                        "flat dense no-caps aria-current=page"
-                    ).classes("pv-library-subview-selected")
-                    self._unavailable("マイブックマーク", "マイブックマークは移植準備中です")
+                    self.downloaded_button = ui.button(
+                        "DL済み", color=None, on_click=lambda: self.show_subview("downloaded")
+                    ).props("flat dense no-caps data-testid=library-subview-downloaded"
+                            ).classes("pv-library-subview-selected")
+                    self.bookmarks_button = ui.button(
+                        "マイブックマーク", color=None, on_click=lambda: self.show_subview("bookmarks")
+                    ).props("flat dense no-caps data-testid=library-subview-bookmarks")
                 self.search_input = ui.input(
                     placeholder="作品名・作者・タグで検索",
                     on_change=lambda event: self.search(event.value),
@@ -111,6 +121,17 @@ class LibraryView(ViewerController):
                     self.page_grid = ui.element("div").classes("pv-grid")
                 self._remember_scroll(self.pages_scroll)
 
+            from .bookmark_view import BookmarkView
+            self.bookmarks = BookmarkView(
+                self.bookmark_state,
+                on_refresh=self.refresh_bookmarks,
+                on_open=self.open_bookmark,
+                image_url=lambda work_id: self.services.images.url(work_id, 0, "thumb"),
+            )
+            self.bookmarks.render()
+            self.bookmarks.root.set_visibility(False)
+            self.bookmarks.set_active(False)
+
         self._init_viewer(services, GalleryState(()), self.root, library=True)
         self.client.on_delete(self.close)
         self.apply_card_size(card_size)
@@ -145,14 +166,64 @@ class LibraryView(ViewerController):
     def _sync_panels(self) -> None:
         selected = self.state.selected_author_id is not None
         self.root.props["data-library-generation"] = str(self.state.generation)
-        self.authors_panel.set_visibility(not selected and not self.load_error)
-        self.pages_panel.set_visibility(selected and not self.load_error)
-        self.error_row.set_visibility(self.load_error)
+        downloaded = self.subview == "downloaded"
+        self.authors_panel.set_visibility(downloaded and not selected and not self.load_error)
+        self.pages_panel.set_visibility(downloaded and selected and not self.load_error)
+        self.error_row.set_visibility(downloaded and self.load_error)
+        self.search_input.set_visibility(downloaded)
+        self.downloaded_button.classes(
+            add="pv-library-subview-selected" if downloaded else "",
+            remove="" if downloaded else "pv-library-subview-selected",
+        )
+        self.bookmarks_button.classes(
+            add="pv-library-subview-selected" if not downloaded else "",
+            remove="" if not downloaded else "pv-library-subview-selected",
+        )
+        self.downloaded_button.props(
+            "aria-current=page" if downloaded else "aria-current=false")
+        self.bookmarks_button.props(
+            "aria-current=page" if not downloaded else "aria-current=false")
+        for button in self.sort_buttons.values():
+            button.set_visibility(downloaded)
+        if self.bookmarks is not None:
+            self.bookmarks.root.set_visibility(not downloaded)
+            self.bookmarks.set_active(self.active and not downloaded)
         for key, button in self.sort_buttons.items():
             label = "閲覧数" if key == "view_count" else "保存日"
             direction = "↓" if self.state.sort_directions[key] else "↑"
             button.set_text(label + direction)
             button.props(f"aria-pressed={'true' if key == self.state.sort_key else 'false'}")
+
+    def show_subview(self, subview: str) -> None:
+        if self.closed or not self.active or subview not in {"downloaded", "bookmarks"}:
+            return
+        if subview == self.subview:
+            return
+        self.close_viewer(restore_focus=False)
+        self.subview = subview
+        self._sync_panels()
+
+    def refresh_bookmarks(self) -> None:
+        """Synthetic refresh only. No network, cookie, or persistent DB access."""
+        if self.closed or not self.active or self.subview != "bookmarks":
+            return
+        epoch = self.bookmark_state.begin_fetch()
+        if epoch is None:
+            return
+        try:
+            remote = self.services.bookmark_remote_snapshot()
+        except Exception:
+            self.bookmark_state.complete_fetch(epoch, (), ok=False)
+        else:
+            self.bookmark_state.complete_fetch(epoch, remote, ok=True)
+        if self.bookmarks is not None:
+            self.bookmarks.refresh()
+
+    def open_bookmark(self, work_id: str) -> None:
+        if (self.closed or not self.active or self.subview != "bookmarks"
+                or work_id not in {card.work_id for card in self.bookmark_state.items}):
+            return
+        super().open(work_id, 0)
 
     def reload(self) -> None:
         if self.closed or not self.active:
@@ -234,7 +305,8 @@ class LibraryView(ViewerController):
         self.author_more_button.set_visibility(self.state.has_more_authors)
 
     def more_authors(self) -> None:
-        if self.active and not self.closed and not self.load_error and self.state.load_more_authors():
+        if (self.subview == "downloaded" and self.active and not self.closed
+                and not self.load_error and self.state.load_more_authors()):
             self.render_authors()
 
     def _clear_pages(self) -> None:
@@ -292,7 +364,7 @@ class LibraryView(ViewerController):
             f"{self.state.shown_page_count} / {self.state.total_page_count} 枚表示")
 
     def search(self, value: str | None) -> None:
-        if self.closed or not self.active or self.load_error:
+        if self.closed or not self.active or self.load_error or self.subview != "downloaded":
             return
         if self.state.set_query(value or ""):
             self.close_viewer(restore_focus=False)
@@ -302,7 +374,7 @@ class LibraryView(ViewerController):
             self._restore_scroll(self.authors_scroll, reset=True)
 
     def sort(self, key: str) -> None:
-        if self.closed or not self.active or self.load_error:
+        if self.closed or not self.active or self.load_error or self.subview != "downloaded":
             return
         if self.state.select_sort(key):
             self.close_viewer(restore_focus=False)
@@ -312,7 +384,7 @@ class LibraryView(ViewerController):
             self._restore_scroll(self.authors_scroll, reset=True)
 
     def open_author(self, author_id: str, session: object | None = None) -> None:
-        if self.closed or not self.active or self.load_error:
+        if self.closed or not self.active or self.load_error or self.subview != "downloaded":
             return
         if session is not None and session is not self._author_session:
             return
@@ -324,7 +396,7 @@ class LibraryView(ViewerController):
             self._restore_scroll(self.pages_scroll, reset=True)
 
     def close_author(self) -> None:
-        if self.closed or not self.active:
+        if self.closed or not self.active or self.subview != "downloaded":
             return
         author_id = self.state.selected_author_id
         if not self.state.close_author():
@@ -346,7 +418,7 @@ class LibraryView(ViewerController):
 
     def open_page(self, work_id: str, page_no: int, generation: int | None = None,
                   session: object | None = None) -> None:
-        if (self.closed or not self.active or self.load_error or
+        if (self.closed or not self.active or self.load_error or self.subview != "downloaded" or
                 (session is not None and session is not self._page_session) or
                 (generation is not None and generation != self.state.generation)):
             return
@@ -355,7 +427,7 @@ class LibraryView(ViewerController):
         super().open(work_id, page_no)
 
     def more(self, session: object | None = None) -> None:
-        if (self.active and not self.closed and not self.load_error and
+        if (self.subview == "downloaded" and self.active and not self.closed and not self.load_error and
                 (session is None or session is self._more_session) and
                 self.state.load_more_pages()):
             self.render_pages()
@@ -376,12 +448,16 @@ class LibraryView(ViewerController):
         self.card_size = size
         for grid in (self.author_grid, self.page_grid):
             grid.style(f"--pv-max-cols:{MAX_COLUMNS[size]}")
+        if self.bookmarks is not None:
+            self.bookmarks.apply_card_size(size)
         update_size_buttons(self.size_buttons, size)
 
     def set_active(self, active: bool) -> None:
         self.active = bool(active)
         self.root.props["data-active"] = str(self.active).lower()
         self.set_viewer_active(active)
+        if self.bookmarks is not None:
+            self.bookmarks.set_active(self.active and self.subview == "bookmarks")
         if active:
             self._restore_scroll(self.pages_scroll if self.state.selected_author else self.authors_scroll)
 
@@ -391,4 +467,7 @@ class LibraryView(ViewerController):
         self.closed = True
         self.active = False
         self.state.close()
+        self.bookmark_state.close()
+        if self.bookmarks is not None:
+            self.bookmarks.close()
         self._close_viewer_controller()

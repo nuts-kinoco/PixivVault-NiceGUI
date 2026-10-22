@@ -123,6 +123,15 @@ body { background: #0b0b10; color: #e8e8ef; font-family: system-ui, -apple-syste
 .pv-library-more { aspect-ratio:1; padding:6px; }
 .pv-library-more .q-icon { font-size:22px; }
 .pv-library-author-open:focus-visible, .pv-library-page-card:focus-visible { outline:2px solid #0096FA; outline-offset:-2px; }
+.pv-bookmarks-panel { display:flex; flex-direction:column; flex:1 1 0; min-height:0; overflow:hidden; }
+.pv-bookmark-image-wrap { position:relative; flex:1 1 0; min-height:0; width:100%; }
+.pv-bookmark-image-wrap .pv-library-author-open { display:block; }
+.pv-bookmark-image-wrap .pv-thumb { height:100%; }
+.pv-bookmark-badge { position:absolute; top:6px; right:6px; z-index:1; padding:2px 5px; border-radius:6px; background:#1e202d; color:#e8e8ef; font-size:10px; }
+.pv-bookmark-selection { gap:2px; min-width:0; flex:0 0 auto; }
+.pv-bookmark-selection .q-checkbox { flex:0 0 auto; }
+.pv-bookmark-selection .pv-library-card-title { flex:1 1 0; min-width:0; }
+.pv-bookmark-image-wrap .pv-library-author-open:focus-visible { outline:2px solid #0096FA; }
 @media(max-width:1280px) { .pv-shell { padding:16px; gap:12px; } .pv-toolbar { padding:12px; } .pv-view-art { max-height:48dvh; } }
 @media(max-width:1280px) { .pv-viewer .pv-view-art, .pv-viewer .pv-view-art img { max-height:none; } }
 @media(max-width:600px) { .pv-shell { padding:12px; } .pv-title { font-size:24px; } .pv-toolbar { padding:12px; } }

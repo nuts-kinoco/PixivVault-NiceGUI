@@ -35,6 +35,18 @@ class ApplicationServices:
             raise RuntimeError("application services are closed")
         return self.library
 
+    def bookmark_remote_snapshot(self):
+        """Synthetic cached bookmarks; no pixiv/network/account access."""
+        if self.closing:
+            raise RuntimeError("application services are closed")
+        return self.artworks[:110]
+
+    def bookmark_local_snapshot(self):
+        """Downloaded badge fixtures are separate from remote bookmarks."""
+        if self.closing:
+            raise RuntimeError("application services are closed")
+        return self.artworks[:40]
+
     def close(self) -> None:
         with self._close_lock:
             if not self.closed:
