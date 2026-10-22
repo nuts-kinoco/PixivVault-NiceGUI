@@ -138,6 +138,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     multiprocessing.freeze_support()
     from nicegui import ui
 
+    window_size = (1920, 1080) if config.native else None
+    if config.native and sys.platform == "win32":
+        from nicegui import app
+        from pixivvault_nicegui.native_layout import current_startup_layout
+
+        # Establish layout before creating DB/session resources. Only our new
+        # native window receives these logical coordinates; no other HWND moves.
+        layout = current_startup_layout()
+        window_size = (layout.width, layout.height)
+        app.native.window_args.update(x=layout.x, y=layout.y)
+
     registration = {}
     if config.learning_sandbox is not None:
         registration["learning_sandbox"] = config.learning_sandbox
@@ -155,7 +166,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         reload=False,
         title="PixivVault-NiceGUI / 移植デモ",
         # NiceGUIではwindow_sizeの指定だけでもnativeが有効になる。
-        window_size=(1920, 1080) if config.native else None,
+        window_size=window_size,
         binding_refresh_interval=None,
     )
     return 0
