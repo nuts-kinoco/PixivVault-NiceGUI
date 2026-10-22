@@ -9,7 +9,7 @@ from ..models import Artwork
 from ..services import ApplicationServices
 from ..state import GalleryState
 from .grid_layout import MAX_COLUMNS
-from .verified_image import VerifiedImage
+from .artwork_viewer import ArtworkViewer
 
 
 class GalleryView:
@@ -22,6 +22,7 @@ class GalleryView:
         self.state = GalleryState(services.artworks)
         self.cards: dict[str, ui.element] = {}
         self.images: dict[str, ui.image] = {}
+        self.ranks: dict[str, ui.label] = {}
         self._rendered_ids: tuple[str, ...] = ()
         self._image_token = None
         self._image_url = ""
@@ -50,26 +51,20 @@ class GalleryView:
                 self.grid = ui.element("div").classes("pv-grid").style("--pv-max-cols:6")
             self.empty = ui.label("該当する作品がありません").classes("pv-empty")
 
-        # dialogの開閉では一覧DOMを交換しない。ブラウザのスクロール位置を保つ。
-        with ui.dialog().props("no-esc-dismiss") as self.dialog:
-            with ui.column().classes("pv-viewer").props("tabindex=0 data-testid=gallery-viewer") as viewer_body:
-                self.viewer_image = VerifiedImage(alt="作品画像").props("data-testid=viewer-image").classes("pv-view-art")
-                self.viewer_title = ui.label().classes("pv-view-title")
-                self.viewer_author = ui.label().classes("pv-subtitle")
-                self.description = ui.label().classes("pv-description")
-                self.description.set_visibility(False)
-                self.viewer_counter = ui.label().classes("pv-counter")
-                self.image_status = ui.label().classes("pv-subtitle")
-                with ui.row().classes("w-full items-center justify-between"):
-                    self.previous_work = ui.button("前の作品", on_click=lambda: self.move_work(-1)).props("flat")
-                    self.previous_page = ui.button("前のページ", on_click=lambda: self.move_page(-1)).props("flat")
-                    self.next_page = ui.button("次のページ", on_click=lambda: self.move_page(1)).props("flat")
-                    self.next_work = ui.button("次の作品", on_click=lambda: self.move_work(1)).props("flat")
-                with ui.row():
-                    ui.button("詳細", on_click=self.toggle_details).props("flat")
-                    self.retry_button = ui.button("画像を再読込", on_click=self.request_image).props("flat")
-                    ui.button("閉じる", on_click=self.close_viewer).props("flat")
-        viewer_body.on("keydown", self._on_key, js_handler="""(event) => {
+        # 原版同様、タブ内を覆う作品内ページ移動。作品間移動は一覧に戻って行う。
+        self.viewer = ArtworkViewer(
+            lambda: self.move_page(-1), lambda: self.move_page(1),
+            self.close_viewer, self.toggle_details, self.request_image,
+        )
+        self.dialog = self.viewer.dialog
+        self.viewer_image = self.viewer.image
+        self.description = self.viewer.description
+        self.viewer_counter = self.viewer.counter
+        self.image_status = self.viewer.image_status
+        self.retry_button = self.viewer.retry_button
+        self.previous_page = self.viewer.previous_page
+        self.next_page = self.viewer.next_page
+        self.viewer.root.on("keydown", self._on_key, js_handler="""(event) => {
             const tag = event.target?.tagName?.toLowerCase();
             if (event.repeat || event.isComposing || event.keyCode === 229 ||
                 event.ctrlKey || event.altKey || event.metaKey ||
@@ -78,7 +73,9 @@ class GalleryView:
             if (!['arrowleft','arrowright','i','tab','escape'].includes(key)) return;
             event.preventDefault(); event.stopPropagation(); emit(key);
         }""")
-        self.dialog.on("hide", lambda _: self.state.close_viewer())
+        # 初回画像待ちではoverlayをまだ見せない。カードに焦点があるEscapeも取消に使う。
+        self.root.on("keydown.escape", lambda _: self.close_viewer()
+                     if self.state.viewer_open and not self.viewer.is_open else None)
         self.viewer_image.on("load", self._image_loaded)
         self.viewer_image.on("error", self._image_failed)
         self.render_gallery()
@@ -90,13 +87,12 @@ class GalleryView:
             ) as card:
                 card.on("click", lambda _, work_id=art.work_id: self.open(work_id))
                 card.on("keydown.enter", lambda _, work_id=art.work_id: self.open(work_id))
+                self.ranks[art.work_id] = ui.label().classes("pv-card-rank")
                 image = ui.image(self.services.images.url(art.work_id, 0, "thumb"))
                 image.props("fit=contain loading=lazy no-transition").classes("pv-thumb")
                 with ui.element("div").classes("pv-card-meta"):
                     ui.label(art.title).classes("pv-card-title")
                     ui.label(art.author).classes("pv-card-author")
-                    if art.page_count > 1:
-                        ui.label(f"{art.page_count}ページ").classes("pv-subtitle")
         self.cards[art.work_id] = card
         self.images[art.work_id] = image
 
@@ -111,9 +107,12 @@ class GalleryView:
             self.more_cell = None
             self.cards.clear()
             self.images.clear()
+            self.ranks.clear()
             self._rendered_ids = ()
         for art in visible[len(self._rendered_ids):]:
             self._make_card(art)
+        for rank, art in enumerate(visible, start=1):
+            self.ranks[art.work_id].set_text(f"#{rank}")
         self._rendered_ids = wanted
         self.empty.set_visibility(not wanted)
         # 原版ranking_tab.py:963-974の契約: 常時表示ではなくグリッド最終セル。
@@ -154,9 +153,8 @@ class GalleryView:
     def open(self, work_id: str) -> None:
         if self.state.open_artwork(work_id):
             self.detail_open = False
-            self.description.set_visibility(False)
+            self.viewer.set_details_open(False)
             self.update_viewer()
-            self.dialog.open()
 
     def move_work(self, delta: int) -> None:
         if self.state.move_viewer(delta):
@@ -164,22 +162,15 @@ class GalleryView:
 
     def move_page(self, delta: int) -> None:
         if self.state.move_page(delta):
+            self.detail_open = False
+            self.viewer.set_details_open(False)
             self.update_viewer()
 
     def update_viewer(self) -> None:
         art = self.state.selected_artwork
         if art is None or self.state.closed:
             return
-        self.viewer_title.set_text(art.title)
-        self.viewer_author.set_text(art.author)
-        self.description.set_text(art.description)
-        index = self.state.viewer_index or 0
-        self.viewer_counter.set_text(
-            f"作品 {index + 1} / {self.state.total_count} · ページ {self.state.selected_page + 1} / {art.page_count}")
-        self.previous_work.set_enabled(index > 0)
-        self.next_work.set_enabled(index + 1 < self.state.total_count)
-        self.previous_page.set_enabled(self.state.selected_page > 0)
-        self.next_page.set_enabled(self.state.selected_page + 1 < art.page_count)
+        self.viewer.set_metadata(art, self.state.selected_page)
         self.request_image()
 
     def request_image(self) -> None:
@@ -190,27 +181,29 @@ class GalleryView:
         # フラグメントはHTTPへ送られずキャッシュを壊さない。loadイベントの世代照合に使う。
         self._image_url = (self.services.images.url(art.work_id, self.state.selected_page, "view")
                            + f"#request-{self._image_token.generation}")
-        self.viewer_image.style("opacity:0")
         self.viewer_image.set_source(self._image_url)
-        self.image_status.set_text("画像読込中")
-        self.retry_button.set_visibility(False)
+        self.viewer_image.props["aria-busy"] = "true"
+        self.viewer.set_status("画像読込中")
 
     def _image_loaded(self, event) -> None:
         if source_matches(event.args, self._image_url) and self._image_token is not None:
             if self.state.finish_image(self._image_token):
                 self.viewer_image.style("opacity:1")
-                self.image_status.set_text("")
+                self.viewer_image.props["aria-busy"] = "false"
+                self.viewer.set_status("")
+                self.dialog.open()
 
     def _image_failed(self, event) -> None:
         if source_matches(event.args, self._image_url) and self._image_token is not None:
             if self.state.finish_image(self._image_token, success=False):
-                self.image_status.set_text("画像を読み込めませんでした")
-                self.retry_button.set_visibility(True)
+                self.viewer.set_status("画像を読み込めませんでした", error=True)
+                self.viewer_image.props["aria-busy"] = "false"
+                self.dialog.open()
 
     def toggle_details(self) -> None:
         if self.state.viewer_open and not self.state.closed:
             self.detail_open = not self.detail_open
-            self.description.set_visibility(self.detail_open)
+            self.viewer.set_details_open(self.detail_open)
 
     def _on_key(self, event) -> None:
         if not self.state.viewer_open or self.state.closed:
@@ -227,9 +220,12 @@ class GalleryView:
             else:
                 self.close_viewer()
 
-    def close_viewer(self) -> None:
+    def close_viewer(self, *, restore_focus: bool = True) -> None:
         self.state.close_viewer()
-        self.dialog.close()
+        self.dialog.close(restore_focus=restore_focus)
+        self._image_token = None
+        self._image_url = ""
+        self.viewer_image.set_source("")
 
     def close(self) -> None:
         self.state.close()

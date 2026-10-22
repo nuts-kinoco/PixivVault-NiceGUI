@@ -78,7 +78,7 @@ def check_viewport_layout(page: Page) -> dict:
 
 
 def image_ready(page: Page, work_id: str, page_no: int) -> dict:
-    img = page.get_by_test_id('viewer-image').locator('img')
+    img = page.get_by_test_id('viewer-image').locator('img:visible')
     expect(img).to_have_attribute(
         'src', re.compile(rf'/media/{work_id}/{page_no}/view\.png(?:#request-[0-9]+)?$'),
         timeout=15_000,
@@ -96,6 +96,29 @@ def image_ready(page: Page, work_id: str, page_no: int) -> dict:
     expect(viewer(page).get_by_text('画像読込中')).to_be_hidden(timeout=15_000)
     expect(viewer(page).get_by_text('画像を読み込めませんでした')).to_be_hidden()
     return info
+
+
+def check_viewer_boundary(page: Page) -> dict:
+    geometry = page.evaluate('''() => {
+        const box = selector => {
+            const r = document.querySelector(selector).getBoundingClientRect();
+            return {x:r.x, y:r.y, width:r.width, height:r.height, bottom:r.bottom};
+        };
+        const tab = document.querySelector('[data-testid="tab-learning"]');
+        const r = tab.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        return {content:box('.pv-content'), viewer:box('.pv-viewer'),
+            header:box('.pv-header'), nav:box('.pv-nav'), tabReachable:tab.contains(hit)};
+    }''')
+    check(all(abs(geometry['viewer'][key] - geometry['content'][key]) <= 1
+              for key in ('x', 'y', 'width', 'height')),
+          f'ビューアが原版のタブ内領域と一致しない: {geometry}')
+    check(geometry['viewer']['y'] >= geometry['nav']['bottom']
+          and geometry['viewer']['y'] >= geometry['header']['bottom']
+          and geometry['tabReachable'],
+          f'ビューアがヘッダーまたはタブ操作を覆っている: {geometry}')
+    expect(viewer(page)).to_have_attribute('aria-modal', 'false')
+    return geometry
 
 
 def decode_cards(page: Page, count: int) -> dict:
@@ -132,6 +155,56 @@ def search_and_clear(page: Page, result: dict) -> None:
     counter(page, 50, 120)
     result['clear_elapsed_ms_including_pipeline'] = round((time.perf_counter() - start) * 1000, 2)
     cards(page, 50)
+
+
+def check_tab_round_trip(page: Page) -> dict:
+    field = page.get_by_placeholder('作品名・作者・タグで検索')
+    field.fill('架空')
+    counter(page, 50, 120)
+    page.get_by_role('button', name='小', exact=True).click()
+    more = page.get_by_role('button', name='もっと見る', exact=True)
+    more.scroll_into_view_if_needed()
+    more.click()
+    counter(page, 100, 120)
+    target = page.locator('.pv-card[data-work-id="demo-0030"]')
+    target.scroll_into_view_if_needed()
+    before = scroll_top(page)
+    first = page.locator('.pv-card').first.element_handle()
+    target.click()
+    image_ready(page, 'demo-0030', 0)
+    expect(viewer(page)).to_be_focused()
+    page.get_by_test_id('tab-learning').click()
+    expect(viewer(page)).to_be_hidden()
+    expect(viewer(page)).to_have_attribute('aria-hidden', 'true')
+    learning = page.locator('.pv-learning[data-active="true"]')
+    expect(learning).to_be_focused()
+    like = learning.get_by_role('button', name='いいね', exact=True)
+    expect(like).to_be_enabled(timeout=15_000)
+    page.keyboard.press('ArrowRight')
+    expect(learning.locator('.pv-counter')).to_have_text('1 / 120 件判定済み')
+    expect(like).to_be_enabled(timeout=15_000)
+    learning.get_by_role('button', name='ひとつ戻す（Undo）', exact=True).click()
+    expect(learning.locator('.pv-counter')).to_have_text('0 / 120 件判定済み')
+    expect(like).to_be_enabled(timeout=15_000)
+    page.get_by_test_id('tab-ranking').click()
+    expect(page.get_by_test_id('tab-ranking')).to_be_focused()
+    expect(viewer(page)).to_be_hidden()
+    expect(field).to_have_value('架空')
+    counter(page, 100, 120)
+    cards(page, 100)
+    expect(page.get_by_role('button', name='小', exact=True)).to_have_attribute('aria-pressed', 'true')
+    check(page.locator('.pv-card').first.evaluate('(el, old) => el === old', first),
+          'タブ再訪で既存カードDOMが交換された')
+    after = scroll_top(page)
+    check(before > 0 and abs(after - before) <= 5, 'タブ再訪で一覧スクロール位置が変わった')
+    target.click()
+    image_ready(page, 'demo-0030', 0)
+    page_button(page, '閉じる').click()
+    expect(viewer(page)).to_be_hidden()
+    expect(target).to_be_focused()
+    return {'query': '架空', 'shown': 100, 'size': 'small', 'same_card_node': True,
+            'scroll_before': before, 'scroll_after': after,
+            'learning_keyboard_judgments': 1, 'undo': True, 'focus_restored': True}
 
 
 def run_viewport(page: Page, url: str, size: tuple[int, int], output: Path, result: dict) -> None:
@@ -203,23 +276,44 @@ def run_viewport(page: Page, url: str, size: tuple[int, int], output: Path, resu
     target = page.locator('.pv-card[data-work-id="demo-0003"]')
     target.click()
     expect(viewer(page)).to_be_visible()
-    expect(viewer(page).locator('.pv-counter')).to_contain_text('ページ 1 / 3')
+    expect(viewer(page).locator('.pv-counter')).to_have_attribute('aria-label', 'ページ 1 / 3')
     page_images = [image_ready(page, 'demo-0003', 0)]
     expect(page_button(page, '前のページ')).to_be_disabled()
     expect(page_button(page, '次のページ')).to_be_enabled()
     page_button(page, '次のページ').click()
-    expect(viewer(page).locator('.pv-counter')).to_contain_text('ページ 2 / 3')
+    expect(viewer(page).locator('.pv-counter')).to_have_attribute('aria-label', 'ページ 2 / 3')
     page_images.append(image_ready(page, 'demo-0003', 1))
     page_button(page, '次のページ').click()
-    expect(viewer(page).locator('.pv-counter')).to_contain_text('ページ 3 / 3')
+    expect(viewer(page).locator('.pv-counter')).to_have_attribute('aria-label', 'ページ 3 / 3')
     page_images.append(image_ready(page, 'demo-0003', 2))
     expect(page_button(page, '次のページ')).to_be_disabled()
     page_button(page, '前のページ').click()
-    expect(viewer(page).locator('.pv-counter')).to_contain_text('ページ 2 / 3')
+    expect(viewer(page).locator('.pv-counter')).to_have_attribute('aria-label', 'ページ 2 / 3')
     page_images.append(image_ready(page, 'demo-0003', 1))
+    record['viewer_boundary'] = check_viewer_boundary(page)
+    image_bounds = page.get_by_test_id('viewer-image').bounding_box()
+    image_layout = page.get_by_test_id('viewer-image').locator('img:visible').evaluate('''img => {
+        const box = img.getBoundingClientRect();
+        return {width: box.width, height: box.height, naturalWidth: img.naturalWidth,
+            naturalHeight: img.naturalHeight, fit: getComputedStyle(img).objectFit};
+    }''')
+    check(image_bounds is not None and abs(image_layout['width'] - image_bounds['width']) < 1
+          and abs(image_layout['height'] - image_bounds['height']) < 1
+          and image_layout['fit'] == 'contain',
+          f'画像がビューアの領域に収まる拡大表示をしていない: {image_layout}, {image_bounds}')
+    fitted_scale = min(image_layout['width'] / image_layout['naturalWidth'],
+                       image_layout['height'] / image_layout['naturalHeight'])
+    check(fitted_scale > 1, f'小さいfixture画像が自然寸法のまま拡大されない: {image_layout}')
+    expect(page_button(page, '前のページ')).to_have_css('color', 'rgb(232, 232, 239)')
+    expect(page_button(page, '閉じる')).to_have_css('color', 'rgb(232, 232, 239)')
+    expect(page_button(page, '詳細')).to_have_css('color', 'rgb(138, 138, 153)')
+    record['viewer_image_layout'] = {**image_layout, 'fitted_scale': fitted_scale}
+    page.screenshot(path=str(output / f'viewer-{key}.png'), full_page=False)
     page_button(page, '詳細').click()
     description = viewer(page).locator('.pv-description')
     expect(description).to_be_visible()
+    check(image_bounds == page.get_by_test_id('viewer-image').bounding_box(),
+          '詳細を重ねて開いたときに画像領域が縮む')
     viewer(page).focus()
     page.keyboard.press('Escape')
     expect(viewer(page)).to_be_visible()
@@ -233,6 +327,7 @@ def run_viewport(page: Page, url: str, size: tuple[int, int], output: Path, resu
     viewer(page).focus()
     page.keyboard.press('Escape')
     expect(viewer(page)).to_be_hidden()
+    expect(target).to_be_focused()
 
     lower = page.locator('.pv-card[data-work-id="demo-0030"]')
     lower.scroll_into_view_if_needed()
@@ -269,6 +364,7 @@ def run_viewport(page: Page, url: str, size: tuple[int, int], output: Path, resu
                         'scroll_work': 'demo-0030', 'scroll_top_before': scroll_before,
                         'scroll_top_after_escape': scroll_after_escape,
                         'scroll_top_after_close': scroll_after_close}
+    record['tab_round_trip'] = check_tab_round_trip(page)
     page.screenshot(path=str(output / f'gallery-{key}-final.png'), full_page=True)
 
 
