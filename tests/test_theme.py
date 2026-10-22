@@ -91,7 +91,8 @@ def test_fullscreen_viewer_preserves_image_aspect_and_bottom_controls():
     assert ".pv-viewer-bottom .pv-subtitle { font-size:12.5px; color:#8a8a99;" in CSS
     assert ".pv-viewer-stage { position:relative; flex:1 1 0; min-height:0;" in CSS
     assert ".pv-viewer .pv-view-art { max-width:100%; max-height:none;" in CSS
-    assert ".pv-viewer .pv-view-art img { width:100%; height:100%; max-height:none; object-fit:contain !important; }" in CSS
+    # Viewer rules must override the inline natural dimensions of VerifiedImage.
+    assert ".pv-viewer .pv-view-art img { width:100% !important; height:100% !important; max-height:none; object-fit:contain !important; }" in CSS
     assert ".pv-viewer-details { position:absolute; bottom:0; left:0; right:0;" in CSS
     assert "max-height:30vh; overflow-y:auto; overflow-x:hidden; padding:12px; background:rgba(21,22,28,.94);" in CSS
     assert ".pv-viewer-stage .pv-viewer-status, .pv-viewer-stage .pv-viewer-retry { position:absolute;" in CSS
