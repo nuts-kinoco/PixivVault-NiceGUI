@@ -42,6 +42,7 @@ class LibraryView(ViewerController):
         # LibraryState generation starts at zero again, so also compare identity.
         self._page_session = object()
         self._author_session = object()
+        self._more_session = object()
         self.more_cell = None
         self.load_error = False
 
@@ -237,6 +238,7 @@ class LibraryView(ViewerController):
             self.render_authors()
 
     def _clear_pages(self) -> None:
+        self._more_session = object()
         self.page_grid.clear()
         self.page_cards.clear()
         self._rendered_pages = ()
@@ -275,7 +277,7 @@ class LibraryView(ViewerController):
             with self.page_grid:
                 with ui.element("div").classes("pv-more-cell pv-library-more") as self.more_cell:
                     self.more_button = ui.button("もっと見る", icon="add_circle_outline",
-                                                 color=None, on_click=self.more).props(
+                                                 color=None, on_click=lambda _, session=self._more_session: self.more(session)).props(
                         "flat stack no-caps data-testid=library-more")
         else:
             self.more_cell.move(self.page_grid)
@@ -352,8 +354,10 @@ class LibraryView(ViewerController):
             return
         super().open(work_id, page_no)
 
-    def more(self) -> None:
-        if self.active and not self.closed and self.state.load_more_pages():
+    def more(self, session: object | None = None) -> None:
+        if (self.active and not self.closed and not self.load_error and
+                (session is None or session is self._more_session) and
+                self.state.load_more_pages()):
             self.render_pages()
 
     def change_size(self, size: str) -> None:
