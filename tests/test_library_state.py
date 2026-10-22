@@ -68,6 +68,25 @@ def test_same_name_different_author_id_and_search_each_work_and_tags():
     assert state.set_query("  ") and state.matched_author_count == 4
 
 
+def test_historical_author_rename_groups_by_id_and_keeps_all_pages():
+    works = (
+        LibraryWork(Artwork("old", "旧作", "旧名", page_count=2), "author-7", last_backup="2025-01-01"),
+        LibraryWork(Artwork("new", "新作", "新名"), "author-7", last_backup="2026-01-01"),
+        LibraryWork(Artwork("other", "別作品", "新名"), "author-8"),
+    )
+    state = LibraryState(LibrarySnapshot(works))
+    assert state.total_author_count == 2
+    assert state.snapshot.authors[0].work_count == 2
+    assert state.snapshot.authors[0].representative.work_id == "new"
+    assert state.set_query("旧名")
+    assert [author.author_id for author in state.visible_authors] == ["author-7"]
+    assert state.open_author("author-7")
+    assert [page.key for page in state.visible_pages] == [("new", 0), ("old", 0), ("old", 1)]
+    assert state.close_author()
+    assert state.set_query("新名")
+    assert {author.author_id for author in state.visible_authors} == {"author-7", "author-8"}
+
+
 def test_sort_direction_preserved_per_column_and_null_backup_last():
     state = make_state()
     assert state.sort_key == "view_count" and state.descending
