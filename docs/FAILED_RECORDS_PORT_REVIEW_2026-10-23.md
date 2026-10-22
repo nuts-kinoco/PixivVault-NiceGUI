@@ -45,4 +45,8 @@ DB/状態担当の独立レビューは原版との一致、合成SQLite/WAL・�
 
 最初のbuildログをPowerShellで全streamリダイレクトした試行は、既存PyInstaller警告をNativeCommandErrorへ昇格させ失敗した。OSレベルのsubprocessログ取得に変えて同一buildスクリプトを実行し、exit0と製品ソース不変を確認した。ライブラリの警告を消すための依存変更はしていない。
 
+PR最初のhead `03d3bc90113a37ff85e43b7da0cf77ed91d30bd5` はCIの最小test環境で、fixture生成用importから任意依存Playwrightを読み込んで収集に失敗した。ブラウザの実行関数内だけでPlaywrightをimportするよう分離し、同packageを使用不能にした独立子プロセスでもfixture生成と整合検査が通る回帰を追加した。CIへ不要なブラウザ依存を追加する回避はしていない。製品src・配布exeの入力は変更なし。
+
+修正後は `full-ci-fix.xml` の **741 passed** と `edge-fixture-import/result.json` の旧DB/画像/ブックマーク実操作が成功。別担当が任意依存を遮断する回帰を独立実走し、限定差分をAPPROVEした。
+
 本番DB/実画像/Cookieは今回使用・変更していない。実失敗作品の再試行・記録削除、永続ジョブと旧failed_queueの同期、実ダウンロード、全DPI/別PCは未受入。次は既存ジョブ実装の停止・再開・後続キュー進行を独立レビュー付きで統合する。
