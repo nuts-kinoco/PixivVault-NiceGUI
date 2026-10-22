@@ -1,8 +1,19 @@
 # 移植進捗
 
-更新: 2026-10-22、レビュー後のマージ承認に基づく継続開発。次の検証単位: `phase3/capture-gdi`。
+更新: 2026-10-22、レビュー後のマージ承認に基づく継続開発。現在の検証単位: `phase3/learning-persistence`。
 
 ## 最新の進捗照合とフェーズレビュー
+
+PR #5のhead `d5ba18a246da27c14071793413dbb45fe8a40e62` はレビュー/CI/測定器受入後、`bf1b04bb10881ac65d515376e230680a839f36a3` としてmainへmerge済み。head CI run39708638252、main CI run39709086223のWindows/Ubuntu/Chromium全3ジョブ成功を再確認して次の作業を開始した。
+
+合成デモの学習UIを、明示opt-inの専用DBへ接続した。原版の直前1手Undoへ合わせ、保存成功まで画像/判定位置を保つ。全DB I/Oは専用workerで行い、画面close後も受理済み書込みを保存する。レビューでは受付直後shutdownの保存欠落、保存状態の読取失敗後に遅い画像通知が復旧案内を消す問題、DB本体の差替えを識別前に開く問題を修正した。既定はメモリ台帳、本番データへの接続はない。
+
+全pytest266件、実Edgeの永続化10受入が成功。実DBロック中の別タブ検索、失敗再試行、再起動での既判定除外、2画面の古いUndo拒否、ページclose後の保存まで確認。元Database115メソッドのAST一致と元ソースSHAも維持。独立再レビューにblocking指摘なし。実装 `1011127f4e86c2c3a34583b1aae2836b04655c21` をPR #6へpushし、同SHA CI run39716131704の全3ジョブ成功。詳しい証拠は`LEARNING_PERSISTENCE_REVIEW_2026-10-22.md`。
+
+同SHAのarchive266件が成功し、Windows onedir/noconsoleを再ビルド。別フォルダーのexeを同じ専用DBで2回起動し、既判定0→1→正常終了→再起動1→2と、reload後の次作品/Undoリセットを確認した。両回ともWM_CLOSEによる観測8プロセス終了、ポート解放、強制cleanupなし、予期しない各種error 0。DPI175%の開発機受入であり、他DPI/別PCは未実施。
+
+ユーザーの追加要望により、主画像の初回表示・ページ切替の定量比較も継続する。先行の表示面積差がある数値から改善率を出さず、同じ物理client/DPIと実画像のpaint矩形を校正したwarmページ送りから実測する。
+さらに既存Cookieを用いるpixiv実APIの読取・実測が承認された。専用プロセスで原設定/DB/Cookieを変更せずに扱い、認証値・個人データ・実画像をGitや出力へ含めない。実API/画像取得の時間と取得後のUI切替を分けて計測する。現時点では追加承認と静的調査までであり、実API計測の成功を主張しない。
 
 ユーザーの「コードレビュー後、問題なければマージ」に基づき、実装担当と別の3担当が基盤・ビューア・DB/計測をレビューした。基盤PR #1は `7125009` を `bdefa877617fc0dc2632e8de5801f197f0caa41f` としてmainへmergeし、そのmain CI3ジョブも成功。PR #2は原版と異なるviewer境界とfocusを修正して `43d0c64bd7acb6f96f387f9ff3639478417c278f` へ更新し、同SHAのCI3ジョブとnative受入後、`8df86671bbb0d7c4639e8dbb07687cb792f39566` としてmainへmergeした。全製品の受入完了を意味するmergeではない。
 `43d0c64` だけをarchiveし、専用srcのimport先を確認してWindows onedir/noconsoleを再ビルド。別フォルダーのexeで10:29 JSTに、viewerのタブ内境界・通常closeの元カードfocus・学習への離脱・キー判定/Undo・ランキング復帰focus・最小化/復帰・通常終了を確認した。観測8プロセス終了、ポート解放、強制cleanupと予期しないconsole/page/process-log errorなし。archiveは132試験成功。175% DPI限定であり全DPI・別PCの受入ではない。

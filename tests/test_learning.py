@@ -56,7 +56,7 @@ def test_choices_advance_only_after_load_and_save(choice):
     assert state.current_artwork is None and not state.ready
 
 
-def test_undo_lifo_reloads_same_artwork_and_rejects_replays():
+def test_single_undo_reloads_same_artwork_and_rejects_replays():
     ledger = MemoryJudgmentLedger()
     state = LearningState(generate_demo_artworks(3), ledger)
     loaded(state)
@@ -68,13 +68,31 @@ def test_undo_lifo_reloads_same_artwork_and_rejects_replays():
     assert state.index == 1 and state.current_artwork.work_id == "demo-0002"
     assert state.generation > old_generation and not state.ready
     assert not state.undo(operation_id="undo-b")
-    assert state.index == 1 and "duplicate" in state.last_error
+    assert state.index == 1 and not state.can_undo
     loaded(state)
     assert judge_current(state, operation_id="c")
+    assert not state.undo(operation_id="undo-b")
+    assert state.index == 2 and state.can_undo and "duplicate" in state.last_error
     assert state.undo(operation_id="undo-c")
-    assert state.undo(operation_id="undo-a")
-    assert state.index == 0 and not state.can_undo
+    assert not state.undo(operation_id="undo-a")
+    assert state.index == 1 and not state.can_undo
     assert not state.undo(operation_id="unused")
+    assert [entry.operation_id for entry in ledger.entries] == ["a"]
+
+
+def test_memory_ledger_keeps_lifo_and_operation_id_guards():
+    from pixivvault_nicegui.learning import Judgment
+
+    ledger = MemoryJudgmentLedger()
+    first, second = Judgment("a", "like", "1"), Judgment("b", "hate", "2")
+    ledger.record(first)
+    ledger.record(second)
+    with pytest.raises(ValueError, match="latest"):
+        ledger.revert(first, "undo-first")
+    ledger.revert(second, "undo-second")
+    with pytest.raises(ValueError, match="duplicate"):
+        ledger.revert(first, "undo-second")
+    ledger.revert(first, "undo-first")
     assert not ledger.entries
 
 
@@ -146,3 +164,91 @@ def test_invalid_input_and_duplicate_artworks():
     assert state.ready and state.index == 0 and state.last_error
     assert not judge_current(state, operation_id="")
     assert state.ready and state.index == 0
+
+
+def test_original_one_step_undo_preserves_earlier_judgments():
+    # Original discovery_tab.py:146-165/1988-1994: only the last in-memory move.
+    state = LearningState(generate_demo_artworks(3))
+    loaded(state)
+    assert judge_current(state, operation_id="first")
+    loaded(state)
+    assert judge_current(state, operation_id="second")
+    assert state.undo(operation_id="undo-second")
+    assert not state.can_undo
+    assert not state.undo(operation_id="undo-first")
+    assert state.index == 1
+    assert [entry.operation_id for entry in state.ledger.entries] == ["first"]
+
+
+def test_pending_save_rejects_reentry_without_advancing_or_reloading():
+    state = LearningState(generate_demo_artworks(2))
+    loaded(state)
+    command = state.prepare_judgment(
+        "like", expected_work_id="demo-0001", expected_generation=state.generation,
+        operation_id="save-1",
+    )
+    assert command is not None and state.saving
+    assert state.index == 0 and not state.can_undo and not state.ledger.entries
+    assert state.prepare_judgment(
+        "hate", expected_work_id="demo-0001", expected_generation=state.generation,
+        operation_id="save-2",
+    ) is None
+    assert state.prepare_undo(operation_id="undo-1") is None
+    with pytest.raises(RuntimeError, match="save pending"):
+        state.begin_load()
+    assert state.complete_save(command)
+    assert state.index == 1 and state.can_undo and not state.saving
+
+
+def test_save_completion_requires_same_command_and_is_consumed_once():
+    from dataclasses import replace
+
+    state = LearningState(generate_demo_artworks(2))
+    loaded(state)
+    command = state.prepare_judgment(
+        "like", expected_work_id="demo-0001", expected_generation=state.generation,
+        operation_id="save-1",
+    )
+    assert not state.complete_save(replace(command))
+    assert state.index == 0 and state.saving
+    assert state.complete_save(command)
+    assert not state.complete_save(command)
+    assert state.index == 1
+
+
+def test_async_save_and_undo_failures_preserve_state_for_same_id_retry():
+    state = LearningState(generate_demo_artworks(2))
+    loaded(state)
+    generation = state.generation
+    options = dict(expected_work_id="demo-0001", expected_generation=generation,
+                   operation_id="retry-save")
+    command = state.prepare_judgment("like", **options)
+    assert not state.complete_save(command, OSError("disk offline"))
+    assert (state.index, state.ready, state.generation, state.saving) == (0, True, generation, False)
+    assert "disk offline" in state.last_error
+    assert state.complete_save(state.prepare_judgment("like", **options))
+    undo = state.prepare_undo(operation_id="retry-undo")
+    assert not state.can_undo and state.index == 1
+    assert not state.complete_save(undo, OSError("disk offline"))
+    assert state.can_undo and state.index == 1
+    assert state.complete_save(state.prepare_undo(operation_id="retry-undo"))
+    assert state.index == 0 and not state.ready and not state.can_undo
+
+
+@pytest.mark.parametrize("action", ["record", "undo"])
+def test_completion_after_view_close_cannot_revive_state(action):
+    state = LearningState(generate_demo_artworks(2))
+    loaded(state)
+    if action == "record":
+        command = state.prepare_judgment(
+            "like", expected_work_id="demo-0001", expected_generation=state.generation,
+            operation_id="save-1",
+        )
+    else:
+        assert judge_current(state)
+        command = state.prepare_undo(operation_id="undo-1")
+    index = state.index
+    state.close()
+    assert not state.complete_save(command)
+    assert state.closed and state.current_artwork is None and state.index == index
+    assert not state.can_undo and not state.saving

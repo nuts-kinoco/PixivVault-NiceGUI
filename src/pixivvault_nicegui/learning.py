@@ -17,6 +17,15 @@ class Judgment:
     operation_id: str
 
 
+@dataclass(frozen=True, slots=True)
+class SaveCommand:
+    """One accepted write. Its object identity guards asynchronous completion."""
+
+    judgment: Judgment
+    operation_id: str
+    undo: bool = False
+
+
 class JudgmentLedger(Protocol):
     """保存と取り消しが成功した場合に限り状態を変更する。例外は呼出側で表示する。"""
 
@@ -59,7 +68,8 @@ class LearningState:
         self.closed = False
         self.last_error: str | None = None
         self._pending: RequestToken | None = None
-        self._history: list[Judgment] = []
+        self._last_judgment: Judgment | None = None
+        self._saving: SaveCommand | None = None
 
     @property
     def current_artwork(self) -> Artwork | None:
@@ -69,7 +79,11 @@ class LearningState:
 
     @property
     def can_undo(self) -> bool:
-        return not self.closed and bool(self._history)
+        return not self.closed and not self.saving and self._last_judgment is not None
+
+    @property
+    def saving(self) -> bool:
+        return self._saving is not None
 
     def _invalidate(self) -> None:
         self.generation += 1
@@ -77,6 +91,8 @@ class LearningState:
         self._pending = None
 
     def begin_load(self) -> RequestToken:
+        if self.saving:
+            raise RuntimeError("save pending")
         item = self.current_artwork
         if item is None:
             raise RuntimeError("no current artwork")
@@ -97,48 +113,76 @@ class LearningState:
         self.last_error = None if success else "image load failed"
         return bool(success)
 
-    def judge(self, choice: str, *, expected_work_id: str,
-              expected_generation: int, operation_id: str) -> bool:
+    def prepare_judgment(self, choice: str, *, expected_work_id: str,
+                         expected_generation: int, operation_id: str) -> SaveCommand | None:
         item = self.current_artwork
-        if (item is None or not self.ready or self._pending is not None
+        if (item is None or self.saving or not self.ready or self._pending is not None
                 or expected_work_id != item.work_id
                 or expected_generation != self.generation):
-            return False
+            return None
         if (not isinstance(choice, str) or choice not in CHOICES
                 or not isinstance(operation_id, str) or not operation_id):
             self.last_error = "invalid judgment"
-            return False
+            return None
         judgment = Judgment(item.work_id, choice, operation_id)
-        try:
-            self.ledger.record(judgment)
-        except Exception as exc:
-            self.last_error = f"judgment save failed: {exc}"
+        self._saving = SaveCommand(judgment, operation_id)
+        self.last_error = None
+        return self._saving
+
+    def prepare_undo(self, *, operation_id: str) -> SaveCommand | None:
+        if not self.can_undo:
+            return None
+        if not isinstance(operation_id, str) or not operation_id:
+            self.last_error = "invalid operation_id"
+            return None
+        self._saving = SaveCommand(self._last_judgment, operation_id, undo=True)
+        self.last_error = None
+        return self._saving
+
+    def complete_save(self, command: SaveCommand, error: Exception | None = None) -> bool:
+        """Apply a committed write once; a failure leaves image/index/history intact."""
+        if self.closed or command is None or command is not self._saving:
             return False
-        self._history.append(judgment)
-        self.index += 1
+        self._saving = None
+        if error is not None:
+            prefix = "undo failed" if command.undo else "judgment save failed"
+            self.last_error = f"{prefix}: {error}"
+            return False
+        if command.undo:
+            self._last_judgment = None
+            self.index -= 1
+        else:
+            # Original discovery_tab retains only the last move, not an undo stack.
+            self._last_judgment = command.judgment
+            self.index += 1
         self._invalidate()
         self.last_error = None
         return True
 
-    def undo(self, *, operation_id: str) -> bool:
-        if not self.can_undo:
+    def _save_inline(self, command: SaveCommand | None) -> bool:
+        if command is None:
             return False
-        if not isinstance(operation_id, str) or not operation_id:
-            self.last_error = "invalid operation_id"
-            return False
-        judgment = self._history[-1]
         try:
-            self.ledger.revert(judgment, operation_id)
+            if command.undo:
+                self.ledger.revert(command.judgment, command.operation_id)
+            else:
+                self.ledger.record(command.judgment)
         except Exception as exc:
-            self.last_error = f"undo failed: {exc}"
-            return False
-        self._history.pop()
-        self.index -= 1
-        self._invalidate()
-        self.last_error = None
-        return True
+            return self.complete_save(command, exc)
+        return self.complete_save(command)
+
+    def judge(self, choice: str, *, expected_work_id: str,
+              expected_generation: int, operation_id: str) -> bool:
+        return self._save_inline(self.prepare_judgment(
+            choice, expected_work_id=expected_work_id,
+            expected_generation=expected_generation, operation_id=operation_id,
+        ))
+
+    def undo(self, *, operation_id: str) -> bool:
+        return self._save_inline(self.prepare_undo(operation_id=operation_id))
 
     def close(self) -> None:
         if not self.closed:
             self.closed = True
+            self._saving = None
             self._invalidate()

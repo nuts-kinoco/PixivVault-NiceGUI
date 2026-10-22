@@ -9,6 +9,7 @@ import json
 import multiprocessing
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Sequence
 
 
@@ -18,6 +19,7 @@ class RunConfig:
     port: int = 8089
     native: bool = False
     check_only: bool = False
+    learning_sandbox: Path | None = None
 
 
 def _port(value: str) -> int:
@@ -30,20 +32,29 @@ def _port(value: str) -> int:
     return port
 
 
+def _sandbox_path(value: str) -> Path:
+    path = Path(value)
+    if not path.is_absolute():
+        raise argparse.ArgumentTypeError("学習デモの保存先は専用フォルダーの絶対パスで指定してください")
+    return path
+
+
 def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
     parser = argparse.ArgumentParser(description="PixivVault-NiceGUI 独立デモ")
     parser.add_argument("--host", choices=["127.0.0.1", "::1"], default="127.0.0.1")
     parser.add_argument("--port", type=_port, default=8089)
     parser.add_argument("--native", action="store_true", help="専用ウィンドウで起動（実機検証待ち）")
     parser.add_argument("--check", action="store_true", help="環境情報だけを表示し、サーバーを起動しない")
+    parser.add_argument("--learning-sandbox", type=_sandbox_path,
+                        help="合成デモの判定を専用フォルダーへ保存（絶対パス、新規または本デモ作成済み）")
     args = parser.parse_args(argv)
-    return RunConfig(args.host, args.port, args.native, args.check)
+    return RunConfig(args.host, args.port, args.native, args.check, args.learning_sandbox)
 
 
 _registered = False
 
 
-def register_pages() -> None:
+def register_pages(learning_sandbox: Path | None = None) -> None:
     """NiceGUIのHTTPルートを登録する。呼ぶだけではサーバーを起動しない。"""
     global _registered
     if _registered:
@@ -54,9 +65,14 @@ def register_pages() -> None:
     from pixivvault_nicegui.media_routes import register_media_routes
     from pixivvault_nicegui.services import get_services
 
-    services = get_services(app)
+    services = get_services(app, learning_sandbox=learning_sandbox)
     register_media_routes(app, services.images)
-    app.on_shutdown(services.close)
+
+    async def close_services() -> None:
+        import asyncio
+        await asyncio.to_thread(services.close)
+
+    app.on_shutdown(close_services)
     ui.page("/")(build_demo_page)
 
     @app.get("/healthz", include_in_schema=False)
@@ -84,6 +100,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "native_requested": config.native,
             "native_available": importlib.util.find_spec("webview") is not None,
             "data": "synthetic",
+            "learning_storage": "sandbox" if config.learning_sandbox is not None else "memory",
         }, ensure_ascii=False))
         return 0
     if config.native and importlib.util.find_spec("webview") is None:
@@ -92,7 +109,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     multiprocessing.freeze_support()
     from nicegui import ui
 
-    register_pages()
+    if config.learning_sandbox is None:
+        register_pages()
+    else:
+        register_pages(learning_sandbox=config.learning_sandbox)
     ui.run(
         host=config.host,
         port=config.port,

@@ -49,3 +49,15 @@ Python 3.13.11 / WebView2 155.0.4283.62を使う開発PCで、実ビルドと、
 - primeはnative viewer全画面PNGを開き、見出し/タブ、作品0001、1/1、画像と常設情報行を確認した。
 
 証拠はignored `artifacts/viewer-boundary-20261022/native-43d0c64/` の `committed-pytest.xml`、`packaging-check.json`、`native-acceptance.json`、`webview-ui-viewer.png`。独自JSは上記519761fcのバイト列を保持する。DB/計測の後続コミットを含むビルドや、別のDPI/PCでの成功を示すものではない。
+
+## 合成学習DB接続後の再受入
+
+2026-10-22 12:19–12:20 JST、`1011127f4e86c2c3a34583b1aae2836b04655c21` のgit archiveからonedir/noconsoleを再ビルドし、別フォルダーのexeで同じ専用sandboxを使った2回の起動を検査した。archive内srcのimport先と266 passed / 9.02秒を確認。`--check --learning-sandbox <絶対パス>` は保存先を作成しない。
+
+- 初回は既判定0→1、正常終了後の再起動は1→2。WebView reloadで既判定を除外し、直前Undoをリセット。元の合成順の次作品を表示する。
+- 一覧50件・合成画像のdecode・bridge、viewerのtab内境界/離脱/focus、学習判定/Undoを両回とも確認。
+- 最小化/復帰/WM_CLOSE、各回の観測8プロセス終了、ポート解放が成功。強制cleanupなし、console/page/process-log error 0。
+- archive元/配布物の独自JSは519761fcの全SHAで一致。原database.pyの既知SHAも不変。primeは2回の学習全画面PNGを目視した。
+- WebView2 155.0.4283.62、1907×1044 CSS px、DPI175%。この結果を他DPI/別PCの成功へ代用しない。
+
+証拠はignored `artifacts/learning-persistence-20261022/native-1011127/` の `committed-pytest.xml`、`packaging-check.json`、`{first,restart}/native-acceptance.json`。ブラウザrunnerのterminateによる停止とは異なり、ここでは配布exeのWM_CLOSEによる通常終了を確認した。
