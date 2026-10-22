@@ -80,7 +80,7 @@ def check_viewport_layout(page: Page) -> dict:
 def image_ready(page: Page, work_id: str, page_no: int) -> dict:
     img = page.get_by_test_id('viewer-image').locator('img:visible')
     expect(img).to_have_attribute(
-        'src', re.compile(rf'/media/{work_id}/{page_no}/view\.png(?:#request-[0-9]+)?$'),
+        'src', re.compile(rf'/media/{work_id}/{page_no}/view\.png(?:#request-[0-9]+(?:-[0-9]+)?)?$'),
         timeout=15_000,
     )
     img.evaluate('(el) => el.decode()', timeout=15_000)

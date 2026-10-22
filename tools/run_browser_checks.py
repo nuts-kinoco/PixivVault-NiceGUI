@@ -17,7 +17,8 @@ from pathlib import Path
 
 HOST = "127.0.0.1"
 ROOT = Path(__file__).resolve().parents[1]
-CHECKS = ("check_gallery_browser.py", "check_learning_browser.py", "check_image_races_browser.py")
+CHECKS = ("check_gallery_browser.py", "check_learning_browser.py", "check_image_races_browser.py",
+          "check_library_browser.py")
 
 
 def source_hashes() -> dict[str, str]:
@@ -36,6 +37,10 @@ def free_port() -> int:
 def child_environment() -> dict[str, str]:
     env = os.environ.copy()
     env.pop("PYTEST_CURRENT_TEST", None)
+    # Exercise the same tree that source_hashes() records, even when the
+    # caller has another checkout on PYTHONPATH or invokes us from elsewhere.
+    env["PYTHONPATH"] = str(ROOT / "src")
+    env["PYTHONSAFEPATH"] = "1"
     env["PYTHONUNBUFFERED"] = "1"
     env["PYTHONUTF8"] = "1"
     return env
@@ -104,7 +109,7 @@ def run(*, channel: str = "chromium", output: Path = Path("artifacts/browser-ci"
                 [sys.executable, "-m", "pixivvault_nicegui", "--host", HOST,
                  "--port", url.rsplit(":", 1)[-1]],
                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                stderr=app_err, env=child_environment(),
+                stderr=app_err, cwd=str(ROOT), env=child_environment(),
             )
             app_pid = app.pid
             wait_for_health(url, app)

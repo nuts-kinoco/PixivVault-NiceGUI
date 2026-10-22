@@ -55,7 +55,7 @@ jobs:
         run: python -m pip install -e ".[test,browser]"
       - name: Install Chromium for this job
         run: python -m playwright install --with-deps chromium
-      - name: Check real gallery, learning and image failure interactions
+      - name: Check real gallery, learning, library and image failure interactions
         run: python tools/run_browser_checks.py --channel chromium --output artifacts/browser-ci
       - name: Check synthetic learning persistence, recovery and session conflicts
         run: python tools/check_learning_persistence_browser.py --channel chromium --output artifacts/browser-ci/learning-persistence
