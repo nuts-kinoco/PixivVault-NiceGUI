@@ -39,7 +39,8 @@ def matching_app_page(url: str, port: int) -> bool:
         return False
 
 
-def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float) -> dict:
+def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float,
+               *, learning_persistence: bool = False) -> dict:
     """Use Playwright's WebView2 CDP attachment, never close remote browser/context."""
     from playwright.sync_api import expect, sync_playwright
 
@@ -121,12 +122,14 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
             learning = page.locator('.pv-learning[data-active="true"]')
             like = learning.get_by_role('button', name='いいね', exact=True)
             expect(like).to_be_enabled(timeout=5000)
+            initial_count = int(learning.locator('.pv-counter').inner_text().split('/', 1)[0].strip())
             expect(learning).to_be_focused()
             page.keyboard.press('ArrowRight')
-            expect(learning.locator('.pv-counter')).to_contain_text('1 /')
+            expect(learning.locator('.pv-counter')).to_have_text(re.compile(rf'^{initial_count + 1} /'))
             expect(like).to_be_enabled(timeout=5000)
             learning.get_by_role('button', name='ひとつ戻す（Undo）').click()
-            expect(learning.locator('.pv-counter')).to_contain_text('0 /')
+            expect(learning.locator('.pv-counter')).to_have_text(re.compile(rf'^{initial_count} /'))
+            expect(learning.get_by_role('button', name='ひとつ戻す（Undo）')).to_be_disabled()
             expect(like).to_be_enabled(timeout=5000)
             image = learning.locator('.pv-view-art img')
             image.evaluate('(img) => img.decode()')
@@ -144,13 +147,37 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
             expect(page.get_by_test_id('tab-ranking')).to_be_focused()
             expect(viewer).to_be_hidden()
             result['interactions'].append('tab-scoped viewer/leave/learning keyboard/return focus')
+            if learning_persistence:
+                page.get_by_test_id('tab-learning').click()
+                expect(learning).to_have_attribute('data-storage-mode', 'sandbox')
+                saved_work = learning.get_attribute('data-work-id')
+                like.click()
+                expect(learning.locator('.pv-counter')).to_have_text(re.compile(rf'^{initial_count + 1} /'))
+                expect(like).to_be_enabled(timeout=5000)
+                expected_next = learning.get_attribute('data-work-id')
+                learning_shot = screenshot.with_name(screenshot.stem + '-learning.png')
+                page.screenshot(path=str(learning_shot), full_page=False)
+                page.reload(wait_until='domcontentloaded')
+                page.get_by_test_id('tab-learning').click()
+                learning = page.locator('.pv-learning[data-active="true"]')
+                expect(learning.get_by_role('button', name='いいね', exact=True)).to_be_enabled(timeout=5000)
+                expect(learning).to_have_attribute('data-storage-mode', 'sandbox')
+                expect(learning).to_have_attribute('data-work-id', expected_next)
+                expect(learning.locator('.pv-counter')).to_have_text(re.compile(rf'^{initial_count + 1} /'))
+                expect(learning.get_by_role('button', name='ひとつ戻す（Undo）')).to_be_disabled()
+                result['learning_persistence'] = {
+                    'initial_count': initial_count, 'after_reload_count': initial_count + 1,
+                    'saved_work': saved_work, 'next_work': expected_next,
+                    'session_undo_reset': True, 'screenshot': str(learning_shot),
+                }
+                result['interactions'].append('sandbox judgment persists across WebView reload')
         if time.monotonic() < deadline:
             page.screenshot(path=str(screenshot), full_page=False,
                             timeout=max(1000, int((deadline-time.monotonic())*1000)))
         result["screenshot"] = str(screenshot)
         result["passed"] = (result["handshake"] and result["cards"] == 50
                             and result["image_decoded"] and result["bridge_ready"]
-                            and len(result['interactions']) == 3
+                            and len(result['interactions']) == (4 if learning_persistence else 3)
                             and not result["console_errors"] and not result["page_errors"])
     return result
 
@@ -393,11 +420,15 @@ def main(argv: list[str] | None = None) -> int:
                         help="total seconds; phases max health30/window20/minimize5/restore5/close30")
     parser.add_argument("--output", type=Path, default=Path("artifacts/windows-packaging/native-check.json"))
     parser.add_argument("--inspect-ui", action="store_true", help="Inspect this WebView over local CDP")
+    parser.add_argument("--learning-sandbox", type=Path,
+                        help="Explicit synthetic learning directory; reuse it to check a native restart")
     args = parser.parse_args(argv)
     if os.name != "nt":
         parser.error("Windows 専用です")
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
+    if args.learning_sandbox is not None and not args.learning_sandbox.is_absolute():
+        parser.error("--learning-sandbox must be absolute")
     target = (args.exe or args.python_entry).resolve()
     if not target.is_file():
         parser.error("Existing executable/entry file required")
@@ -409,6 +440,8 @@ def main(argv: list[str] | None = None) -> int:
     command = ([str(args.exe.resolve())] if args.exe
                else [str(args.python.resolve()), str(args.python_entry.resolve())])
     command += ["--host", "127.0.0.1", "--port", str(port)]
+    if args.learning_sandbox is not None:
+        command += ["--learning-sandbox", str(args.learning_sandbox)]
     report: dict = {"status": "failed", "port": port, "root_pid": None,
                     "owned_pids": [], "window_found": False, "health_ready": False,
                     "minimized": False, "restored": False,
@@ -477,7 +510,8 @@ def main(argv: list[str] | None = None) -> int:
                     try:
                         screenshot = output_path.with_name("webview-ui.png")
                         report["ui_inspection"] = inspect_ui(
-                            debug_port, port, screenshot, phase_deadline(deadline, "inspect_ui"))
+                            debug_port, port, screenshot, phase_deadline(deadline, "inspect_ui"),
+                            learning_persistence=args.learning_sandbox is not None)
                         if not report["ui_inspection"]["passed"]:
                             report["errors"].append("ui_inspection_failed")
                     except Exception as exc:

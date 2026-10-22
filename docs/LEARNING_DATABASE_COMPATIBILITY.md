@@ -14,9 +14,13 @@ Undo時は`BEGIN IMMEDIATE`取得後に記録時世代と現在世代を照合�
 
 同じwork_idをA→Bと再判定すると、元SQLはAの集計を引いてBの履歴に**上書き**する。アダプタはBの保存成功後、stackから旧Aを無効化する。Undo B後にUndo Aを呼んでもAは復元されず、`ValueError`で拒否する。別work_idのstack順序は維持する。DB書込失敗時はstack・使用済みoperation IDを変更しない。渡されたmetadataは作成時にdeepcopyしてtags等のネストした可変値もsnapshot化する。
 
-**制約**：operation IDの重複防止はRepositoryインスタンスのsession内だけ。セッションをまたいで同一操作IDが再送された場合の永続冪等性は保証しない。再起動時の個別判定履歴はDBに残り、原実装の再判定/Undoは動作する。新しい冪等性テーブルは作成しない。今回の新UIは従来どおり`MemoryJudgmentLedger`を既定として維持する。
+**制約**：operation IDの重複防止はRepositoryインスタンスのsession内だけ。セッションをまたいで同一操作IDが再送された場合の永続冪等性は保証しない。再起動時の個別判定履歴はDBに残り、原実装の再判定/Undoは動作する。新しい冪等性テーブルは作成しない。新UIは`MemoryJudgmentLedger`を既定として維持し、明示した`--learning-sandbox`だけ合成デモの永続保存へ接続する。
 
-検証は`tests/test_learning_repository.py`の`tmp_path` DBのみ。回帰REDでは、A.record(like)→別接続B.record(superLike)→A.revertが例外を出さずBを消した。修正後は別接続、同値再判定、ABA、直接legacy writer、競合失敗時stack/集計不変、正常Undo・再判定を確認する。原版との判定種類・理由・集計・履歴内容の比較も行う。本番DB、Cookie、実Pixiv APIは一切使わない。専用アダプタは未接続であり、本番利用のDBゲート合格を意味しない。
+アダプタ互換性の検証は`tests/test_learning_repository.py`の`tmp_path` DBを使う。回帰REDでは、A.record(like)→別接続B.record(superLike)→A.revertが例外を出さずBを消した。修正後は別接続、同値再判定、ABA、直接legacy writer、競合失敗時stack/集計不変、正常Undo・再判定を確認する。原版との判定種類・理由・集計・履歴内容の比較も行う。本番DB、Cookie、実Pixiv APIは一切使わない。
+
+合成デモ用`LearningService`は1本のexecutor上でDBの作成・読取・書込・closeを行う。画面ごとのRepositoryと成功操作のreceiptはメモリ上に保持し、同session・同payloadの再送だけ成功結果を返す。アプリ再起動ではDBの既判定IDから未判定候補を再構成し、UIのUndoは原版どおり直前1手に限る。画面を再生成した後のUndoは復元しない。
+
+保存先は生成fixtureの完全一致を確認し、固定名`learning.sqlite3`・フォルダーのv2識別ファイル・DB内`learning_service_identity`のinstance ID/fixtureを照合する。既存DBのidentityは旧Database constructorより先に読取専用で検査する。生成時に主DBへ確定し以後変更しないidentityだけを`immutable=1`で読むため、外来DBのWAL/shmを作ってから拒否する経路も避ける。DB差替え、欠落、改変を空の新規DBとして採用しない。接続・レビュー・実行証拠は`LEARNING_PERSISTENCE_REVIEW_2026-10-22.md`。この限定接続は本番利用のDBゲート合格を意味しない。
 
 2026-10-22の独立レビューでは、初期化中の`executescript()`による呼出元transactionの暗黙commitも指摘し、上記の拒否とrollback可能性を回帰試験で確認した。最終版の限定試験は実装担当・別のレビュー担当がそれぞれ **20 passed**。統合担当は原版と移植先の`Database.__init__`以外 **115メソッドのAST一致**を再確認した。原SQLの再判定/Undoの意味を変更せず、拒否時には後続writerの履歴と集計が保持される。証拠はignored `artifacts/native-a5d42aa-20261022-01/legacy-ast.json` と同作業単位の試験記録に保存する。
 

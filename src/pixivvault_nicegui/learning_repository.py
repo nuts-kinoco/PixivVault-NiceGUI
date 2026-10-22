@@ -10,6 +10,10 @@ from .learning import Judgment
 from .legacy.database import Database, normalize_tag, VALID_HATE_REASONS
 
 
+class LearningConflict(ValueError):
+    """A stale session cannot undo another writer's current judgment."""
+
+
 class LearningRepository:
     """Session operation IDs guard retries; legacy history handles re-judgment."""
 
@@ -129,13 +133,13 @@ class LearningRepository:
             with self.db._transaction():
                 expected = self._versions.get(judgment.operation_id)
                 if expected is None or self._revision(judgment.work_id) != expected:
-                    raise ValueError("judgment changed by another writer (conflict)")
+                    raise LearningConflict("judgment changed by another writer (conflict)")
                 row = self.db.conn.execute(
                     "SELECT verdict, reason, tags, author_id, source, opened, bookmarked "
                     "FROM discovery_swipe_history WHERE work_id=?", (str(judgment.work_id),)
                 ).fetchone()
                 if row is None:
-                    raise ValueError("judgment no longer exists")
+                    raise LearningConflict("judgment no longer exists")
                 self.db._apply_judgment(
                     row["verdict"], row["reason"], json.loads(row["tags"] or "[]"),
                     row["author_id"], row["source"],
