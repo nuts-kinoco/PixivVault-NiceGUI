@@ -143,7 +143,7 @@ def verify_receipts(root, expected_jobs=1):
     return receipts[0]
 
 
-def serve(port, root, nonce):
+def serve(port, root, nonce, *, zip_export_root=None):
     from nicegui import app, ui
     from fastapi import Header, HTTPException
     from pixivvault_nicegui.bootstrap import register_pages
@@ -164,7 +164,8 @@ def serve(port, root, nonce):
         client = LivePixivReadClient(write_synthetic_cookie(cookie_dir),
                                      transport=injected)
         try:
-            register_pages(live_client=client, pixiv_download_root=root)
+            register_pages(live_client=client, pixiv_download_root=root,
+                           legacy_zip_export_root=zip_export_root)
 
             @app.get("/_managed_test/status")
             def status(x_acceptance: str | None = Header(default=None)):
@@ -410,13 +411,15 @@ if __name__ == "__main__":
     parser.add_argument("--serve", type=int)
     parser.add_argument("--root", type=Path)
     parser.add_argument("--nonce")
+    parser.add_argument("--zip-export-root", type=Path)
     parser.add_argument("--channel", choices=("chromium", "msedge"), default="chromium")
     parser.add_argument("--output", required=False, type=Path)
     args = parser.parse_args()
     if args.serve:
         if not args.root or not args.root.is_absolute() or not args.nonce:
             parser.error("serve requires absolute root and nonce")
-        serve(args.serve, args.root, args.nonce)
+        serve(args.serve, args.root, args.nonce,
+              zip_export_root=args.zip_export_root)
     else:
         if args.output is None:
             parser.error("--output is required")
