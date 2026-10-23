@@ -21,7 +21,8 @@ class ApplicationServices:
                  library_image_root: Path | None = None,
                  live_client=None, download_sandbox: Path | None = None,
                  pixiv_download_root: Path | None = None,
-                 failed_queue_readonly_db: Path | None = None) -> None:
+                 failed_queue_readonly_db: Path | None = None,
+                 legacy_zip_export_root: Path | None = None) -> None:
         if (library_readonly_db is None) != (library_image_root is None):
             raise ValueError("read-only library requires both explicit DB and image root")
         if download_sandbox is not None and (library_readonly_db is not None or live_client is not None):
@@ -33,6 +34,13 @@ class ApplicationServices:
                 live_client is None or download_sandbox is not None or
                 library_readonly_db is not None or learning_sandbox is not None):
             raise ValueError("managed Pixiv downloads require an isolated live-only configuration")
+        if legacy_zip_export_root is not None:
+            if pixiv_download_root is None or live_client is None:
+                raise ValueError('legacy ZIP export requires managed Pixiv mode')
+            export = Path(legacy_zip_export_root).resolve()
+            source = Path(pixiv_download_root).resolve()
+            if export == source or export in source.parents or source in export.parents:
+                raise ValueError('legacy ZIP export must not overlap managed originals')
         if failed_queue_readonly_db is not None:
             if pixiv_download_root is None or live_client is None:
                 raise ValueError('legacy retry requires isolated managed Pixiv mode')
@@ -49,6 +57,8 @@ class ApplicationServices:
             failure_signature = None
         self.download_sandbox = download_sandbox
         self.pixiv_download_root = pixiv_download_root
+        self.legacy_zip_export_root = legacy_zip_export_root
+        self.legacy_zip_exporter = None
         self.failed_queue_readonly_db = failed_queue_readonly_db
         self._failed_copy_signature = failure_signature
         self.managed_downloads = None
@@ -143,6 +153,10 @@ class ApplicationServices:
             try:
                 self.managed_downloads = ManagedPixivDownloads(
                     Path(pixiv_download_root), live_client, resolve_record=self._resolve_managed_record)
+                if legacy_zip_export_root is not None:
+                    from .legacy_zip_export import LegacyZipExporter
+                    self.legacy_zip_exporter = LegacyZipExporter(
+                        Path(legacy_zip_export_root), self.managed_downloads)
                 self.jobs = JobService(self._run_managed_job, self.managed_downloads.storage_path)
                 self._managed_requests = ManagedDownloadRequests(self.managed_downloads.root)
                 for job in self.jobs.snapshot():
@@ -174,6 +188,17 @@ class ApplicationServices:
     @property
     def library_refresh_available(self) -> bool:
         return self.library_repository is not None or self.managed_downloads is not None
+
+    @property
+    def legacy_zip_export_available(self) -> bool:
+        return not self.closing and self.legacy_zip_exporter is not None
+
+    async def export_managed_author_zip(self, author_id: str) -> str:
+        """Export only a verified local snapshot; never call a Pixiv API."""
+        if not self.legacy_zip_export_available:
+            raise RuntimeError('legacy ZIP export is not configured')
+        archive = await asyncio.to_thread(self.legacy_zip_exporter.export_author, author_id)
+        return archive.name
 
     def bookmark_download_candidates(self):
         """Only account bookmark results: a manual lookup never alters a client list."""
@@ -736,6 +761,8 @@ class ApplicationServices:
                 if self.download_writer is not None:
                     self.download_writer.close()
                 if self.managed_downloads is not None:
+                    if self.legacy_zip_exporter is not None:
+                        self.legacy_zip_exporter.close()
                     self.managed_downloads.close()
                 try:
                     if self.learning is not None:
@@ -759,7 +786,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                  library_image_root: Path | None = None,
                  live_client=None, download_sandbox: Path | None = None,
                  pixiv_download_root: Path | None = None,
-                 failed_queue_readonly_db: Path | None = None) -> ApplicationServices:
+                 failed_queue_readonly_db: Path | None = None,
+                 legacy_zip_export_root: Path | None = None) -> ApplicationServices:
     """Return resources scoped to the ASGI app; no-argument access is legacy."""
     global _services
     with _lock:
@@ -769,7 +797,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                     library_readonly_db=library_readonly_db, library_image_root=library_image_root,
                     live_client=live_client, download_sandbox=download_sandbox,
                     pixiv_download_root=pixiv_download_root,
-                    failed_queue_readonly_db=failed_queue_readonly_db)
+                    failed_queue_readonly_db=failed_queue_readonly_db,
+                    legacy_zip_export_root=legacy_zip_export_root)
             services = _services
         else:
             services = getattr(app.state, _APP_KEY, None)
@@ -778,7 +807,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                     library_readonly_db=library_readonly_db, library_image_root=library_image_root,
                     live_client=live_client, download_sandbox=download_sandbox,
                     pixiv_download_root=pixiv_download_root,
-                    failed_queue_readonly_db=failed_queue_readonly_db)
+                    failed_queue_readonly_db=failed_queue_readonly_db,
+                    legacy_zip_export_root=legacy_zip_export_root)
                 setattr(app.state, _APP_KEY, services)
         if services.closing:
             raise RuntimeError("application services are closed")
@@ -796,4 +826,6 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
             raise RuntimeError("application services already use different managed download storage")
         if failed_queue_readonly_db is not None and services.failed_queue_readonly_db != failed_queue_readonly_db:
             raise RuntimeError('application services already use a different failure source')
+        if legacy_zip_export_root is not None and services.legacy_zip_export_root != legacy_zip_export_root:
+            raise RuntimeError('application services already use a different ZIP export root')
         return services

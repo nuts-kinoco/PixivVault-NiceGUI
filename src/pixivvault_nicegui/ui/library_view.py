@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from uuid import uuid4
 from nicegui import ui
 
 from ..bookmark_state import BookmarkState
@@ -63,6 +64,8 @@ class LibraryView(ViewerController):
         self._bookmark_refreshing = False
         self._bookmark_open_epoch = 0
         self._resolved_bookmark_artwork = {}
+        self._zip_export_busy = False
+        self._zip_export_epoch = uuid4().hex
 
         with ui.column().classes("pv-library w-full").props(
             "data-testid=library-view data-active=true"
@@ -132,8 +135,14 @@ class LibraryView(ViewerController):
                     ui.button("← 作者一覧", color=None, on_click=self.close_author).props(
                         "flat dense no-caps data-testid=library-back")
                     self.detail_title = ui.label().classes("pv-library-detail-title")
+                    self.zip_export_button = ui.button('旧形式ZIPを書き出す', color=None).props(
+                        'flat dense no-caps data-testid=library-legacy-zip-export')
+                    self.zip_export_button.on('click', self._zip_export_event,
+                        js_handler=f"() => {{const d=document.getElementById('{self.root.html_id}').dataset;emit({{epoch:d.zipExportEpoch}})}}")
                     ui.button(icon="close", color=None, on_click=self.close_author).props(
                         "flat dense round aria-label=作者一覧へ戻る data-testid=library-detail-close")
+                self.zip_export_status = ui.label().classes('pv-subtitle').props(
+                    'role=status data-testid=library-legacy-zip-status')
                 self.unknown_note = ui.label().classes("pv-library-unknown").props(
                     "data-testid=library-unknown-pages")
                 self.page_counter = ui.label().classes("pv-counter").props(
@@ -200,11 +209,22 @@ class LibraryView(ViewerController):
         }})""")
 
     def _sync_panels(self) -> None:
+        self._zip_export_epoch = uuid4().hex
+        self.root.props['data-zip-export-epoch'] = self._zip_export_epoch
+        self.zip_export_status.set_text('')
         selected = self.state.selected_author_id is not None
         self.root.props["data-library-generation"] = str(self.state.generation)
         downloaded = self.subview == "downloaded"
         self.authors_panel.set_visibility(downloaded and not selected and not self.load_error)
         self.pages_panel.set_visibility(downloaded and selected and not self.load_error)
+        enabled = (bool(getattr(self.services, 'legacy_zip_export_available', False))
+                   and downloaded and selected and self.active and not self.closed
+                   and not self._zip_export_busy and not self.load_error)
+        self.zip_export_button.set_visibility(
+            bool(getattr(self.services, 'legacy_zip_export_available', False)))
+        self.zip_export_button.set_enabled(enabled)
+        self.zip_export_status.set_visibility(
+            bool(getattr(self.services, 'legacy_zip_export_available', False)))
         self.error_row.set_visibility(downloaded and (self.load_error or self.refresh_error))
         self.filter_panel.set_subview(self.subview)
         self.search_input.set_visibility(downloaded)
@@ -230,6 +250,56 @@ class LibraryView(ViewerController):
             direction = "↓" if self.state.sort_directions[key] else "↑"
             button.set_text(label + direction)
             button.props(f"aria-pressed={'true' if key == self.state.sort_key else 'false'}")
+
+    async def _zip_export_event(self, event) -> None:
+        args = getattr(event, 'args', None)
+        if isinstance(args, dict) and args.get('epoch') == self._zip_export_epoch:
+            await self.export_legacy_zip(self._zip_export_epoch)
+
+    async def export_legacy_zip(self, epoch=None) -> bool:
+        """Explicit author-local export, blocking disk work stays off UI loop."""
+        author_id = self.state.selected_author_id
+        if (self.closed or not self.active or self.load_error
+                or self.subview != 'downloaded' or not author_id
+                or self._zip_export_busy
+                or not getattr(self.services, 'legacy_zip_export_available', False)
+                or (epoch is not None and epoch != self._zip_export_epoch)):
+            return False
+        captured_epoch = self._zip_export_epoch
+        self._zip_export_busy = True
+        self.zip_export_button.set_enabled(False)
+        self.zip_export_status.set_text('保存済みの全ページを検証してZIPを書き出しています')
+        try:
+            # A disconnected viewer cannot cancel an already accepted file
+            # publication. The application owns the output until completion.
+            await self.services.export_managed_author_zip(author_id)
+        except Exception as error:
+            if (not self.closed and self.active and
+                    captured_epoch == self._zip_export_epoch):
+                # Only allow-listed fixed exception text: no path, title or
+                # Pixiv response can enter the browser's status message.
+                if (type(error).__name__ == 'LegacyZipExportError' and
+                        str(error) in ('legacy author ZIP already exported',
+                                       'legacy ZIP already exists; refusing overwrite')):
+                    message = 'この作者のZIPは出力済みです。既存ZIPへの上書きは行いません'
+                else:
+                    message = ('ZIPを書き出せませんでした。既存のZIPは変更していません。'
+                               '保存先・サイズ上限・空き容量を確認してください')
+                self.zip_export_status.set_text(message)
+            return False
+        else:
+            if (not self.closed and self.active and
+                    captured_epoch == self._zip_export_epoch):
+                self.zip_export_status.set_text(
+                    '専用のZIP出力先に旧形式の作者ZIPを作成しました。元の管理画像は保持しています')
+            return True
+        finally:
+            self._zip_export_busy = False
+            if not self.closed:
+                self.zip_export_button.set_enabled(
+                    bool(getattr(self.services, 'legacy_zip_export_available', False))
+                    and self.active and self.subview == 'downloaded'
+                    and self.state.selected_author_id is not None)
 
     def _filters_editable(self) -> bool:
         viewer_state = getattr(self, "_viewer_state", None)
@@ -663,6 +733,13 @@ class LibraryView(ViewerController):
             if self.db_refresh_button is not None:
                 self.db_refresh_button.enable()
         self.active = bool(active)
+        self._zip_export_epoch = uuid4().hex
+        self.root.props['data-zip-export-epoch'] = self._zip_export_epoch
+        self.zip_export_status.set_text('')
+        self.zip_export_button.set_enabled(
+            self.active and not self._zip_export_busy
+            and self.state.selected_author_id is not None
+            and bool(getattr(self.services, 'legacy_zip_export_available', False)))
         self.root.props["data-active"] = str(self.active).lower()
         self.set_viewer_active(active)
         if self.bookmarks is not None:

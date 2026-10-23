@@ -26,6 +26,7 @@ class RunConfig:
     download_sandbox: Path | None = None
     pixiv_download_root: Path | None = None
     failed_queue_readonly_db: Path | None = None
+    legacy_zip_export_root: Path | None = None
 
 
 def _port(value: str) -> int:
@@ -72,6 +73,8 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
                         help="通常イラスト・漫画の原寸画像を新しい専用管理フォルダーへ保存。Cookieと旧DBの場所は指定不可")
     parser.add_argument("--failed-queue-readonly-db", type=_sandbox_path,
                         help="静止した旧失敗キューDBコピーを読取専用参照し、明示操作で通常作品のみ管理キューへ投入")
+    parser.add_argument("--legacy-zip-export-root", type=_sandbox_path,
+                        help="管理保存済みの画像を旧形式作者ZIPとして新たな専用rootへ非破壊で書き出す（明示opt-in）")
     args = parser.parse_args(argv)
     if (args.library_readonly_db is None) != (args.library_image_root is None):
         parser.error("library-readonly-db and library-image-root must be specified together")
@@ -95,10 +98,22 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
                 or any(Path(str(source) + suffix).exists()
                        for suffix in ('-wal', '-shm', '-journal'))):
             parser.error('failed queue must be a separate complete immutable SQLite copy')
+    if args.legacy_zip_export_root is not None:
+        if args.pixiv_download_root is None or args.pixiv_cookie_file is None:
+            parser.error('ZIP export needs an isolated managed Pixiv root')
+        dest = args.legacy_zip_export_root.resolve()
+        managed = args.pixiv_download_root.resolve()
+        cookie_dir = args.pixiv_cookie_file.resolve().parent
+        if (dest == managed or dest in managed.parents or managed in dest.parents
+                or dest == cookie_dir or dest in cookie_dir.parents or cookie_dir in dest.parents
+                or (args.failed_queue_readonly_db is not None and
+                    (dest == args.failed_queue_readonly_db.resolve().parent or
+                     dest in args.failed_queue_readonly_db.resolve().parents))):
+            parser.error('ZIP export must be separate from managed, Cookie and old DB roots')
     return RunConfig(args.host, args.port, args.native, args.check, args.learning_sandbox,
                      args.library_readonly_db, args.library_image_root, args.pixiv_cookie_file,
                      args.download_sandbox, args.pixiv_download_root,
-                     args.failed_queue_readonly_db)
+                     args.failed_queue_readonly_db, args.legacy_zip_export_root)
 
 
 _registered = False
@@ -110,7 +125,8 @@ def register_pages(learning_sandbox: Path | None = None,
                    pixiv_cookie_file: Path | None = None, live_client=None,
                    download_sandbox: Path | None = None,
                    pixiv_download_root: Path | None = None,
-                   failed_queue_readonly_db: Path | None = None) -> None:
+                   failed_queue_readonly_db: Path | None = None,
+                   legacy_zip_export_root: Path | None = None) -> None:
     """NiceGUIのHTTPルートを登録する。呼ぶだけではサーバーを起動しない。"""
     global _registered
     if _registered:
@@ -133,7 +149,8 @@ def register_pages(learning_sandbox: Path | None = None,
             library_readonly_db=library_readonly_db, library_image_root=library_image_root,
             live_client=live_client, download_sandbox=download_sandbox,
             pixiv_download_root=pixiv_download_root,
-            failed_queue_readonly_db=failed_queue_readonly_db)
+            failed_queue_readonly_db=failed_queue_readonly_db,
+            legacy_zip_export_root=legacy_zip_export_root)
     except BaseException:
         if live_client is not None:
             live_client.close()
@@ -214,6 +231,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         registration["pixiv_download_root"] = config.pixiv_download_root
     if config.failed_queue_readonly_db is not None:
         registration['failed_queue_readonly_db'] = config.failed_queue_readonly_db
+    if config.legacy_zip_export_root is not None:
+        registration['legacy_zip_export_root'] = config.legacy_zip_export_root
     register_pages(**registration)
     ui.run(
         host=config.host,
