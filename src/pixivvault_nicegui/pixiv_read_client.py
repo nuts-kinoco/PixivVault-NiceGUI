@@ -730,6 +730,17 @@ class LivePixivReadClient:
         Returns no partial result if a detail batch is missing or malformed.
         This reader does not decide whether an artwork needs downloading.
         """
+        return self._get_author_artworks(user_id, require_complete=False)
+
+    def get_author_artworks_complete(self, user_id: str) -> tuple[dict, ...]:
+        """Require explicit complete illustration/manga buckets and detail pages.
+
+        Uses exactly the existing author profile/all and profile/illusts GETs.
+        No partial inventory is returned when a bucket or detail is invisible.
+        """
+        return self._get_author_artworks(user_id, require_complete=True)
+
+    def _get_author_artworks(self, user_id: str, *, require_complete: bool) -> tuple[dict, ...]:
         self._ensure_open()
         try:
             uid = _identifier(user_id)
@@ -745,6 +756,20 @@ class LivePixivReadClient:
         ids: set[str] = set()
         for field in ('illusts', 'manga'):
             bucket = body.get(field)
+            # Empty arrays are an explicit zero-count bucket for both reader
+            # modes. A non-empty array remains malformed and never supplies IDs.
+            if type(bucket) is list and not bucket:
+                bucket = {}
+            if require_complete:
+                # Some response variants may encode an explicitly empty
+                # category as []; only that exact empty list proves zero.
+                # Missing/null buckets and non-empty arrays remain incomplete.
+                if type(bucket) is list:
+                    if bucket:
+                        raise InvalidPayload()
+                    bucket = {}
+                elif type(bucket) is not dict:
+                    raise InvalidPayload()
             if bucket is None:
                 bucket = {}
             if type(bucket) is not dict:
@@ -774,6 +799,8 @@ class LivePixivReadClient:
             for wid in chunk:
                 entry = works[wid]
                 if type(entry) is not dict or _identifier(entry.get('id')) != wid:
+                    raise InvalidPayload()
+                if require_complete and entry.get('isMasked', False) is not False:
                     raise InvalidPayload()
                 if _identifier(entry.get('userId')) != uid:
                     raise InvalidPayload()

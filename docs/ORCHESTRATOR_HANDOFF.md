@@ -3,6 +3,8 @@
 > **生きた引き継ぎ文書。** 最終更新：2026-10-23 JST。併読：`docs/ORCHESTRATOR_START_PROMPT.md`。
 > GitHub・実worktree・CI・受入成果が正本であり、ここに記載したSHAや進捗は**その日時のスナップショット**にすぎない。開始時とPR統合時に必ず現物と照合し更新する。
 
+> **2026-10-23 22:25 JST現物照合（後任Phase8）**：PR #28は`phase7/legacy-zip-export` head `9c906b5630bc8fecc83fd2c4462adcd247fd6bbb`のWindows/Ubuntu/browser CI run **39956405545全3 SUCCESS**後、2026-10-23 12:59:14 UTCにマージ済み。main merge SHA **`2ae2b49d389c4cd0da398a8cd10f8621dc1cc669`**、post-merge CI run **39957517383全3 SUCCESS**（Windows、Ubuntu、browser）。旧「Phase7は未マージ・CIはRED」記述は**当時の履歴**。最新mainから独立の`phase8/legacy-diff-sync`、worktree `S:\Projects\PixivVault-NiceGUI-wt\legacy-diff-sync`（base SHA `2ae2b49`）で次の移植を実行中。引き継ぎ入口`docs/ORCHESTRATOR_START_PROMPT.md`に残るPhase7未マージ文言も古いスナップショット。
+
 ## 1. 委任された任務と最終ゴール
 
 - Windowsアプリ **PixivVault** の既存Flet版を、**NiceGUI + Quasar** へ、機能・操作性・保存データ互換性を含めて**完全移植**する。画像表示の軽快さ、容量制限付きキャッシュ、タブ移動後の不要な再GET/再decode抑制も要求する。
@@ -35,16 +37,29 @@
 | **PR #26** | head `033ef981096a425170f742abd53175fd524cf9e6` → main `05115e7f34bbe7e050bc0b563d383fd3117c2854` | **作者ID**直接入力・フォロー一覧/検索/選択・48件作品詳細、NEW/UPDATED、v2 accepted-intent、世代CAS、旧v1互換、停止/再起動復旧、共有ビューア。独立レビューとWin/Ubuntu/Chromium CI全GREEN |
 | **PR #27** | head `86bddb2357ca1158eb3c7c1c2fc0d6fb8ecf546b` → main `50ea5ee9ff745226cef6e7ac3fbc2a311c527d4f` | 静的な旧`failed_queue` SQLite**コピー**から通常illust/mangaのみ明示再投入。旧DB無変更、ソースSHA固定、永続ジョブ、再起動、失敗注入、実Edge。headとmerge後のWin/Ubuntu/Chromium CI全GREEN |
 
-### Phase7：**現時点で進行中。まだmainへ未統合**
+### Phase7：**PR #28統合済み（下記のCI REDは修正前の履歴）**
 
 - 所有worktree：`S:\Projects\PixivVault-NiceGUI-wt\legacy-zip-export`。
-- branch：`phase7/legacy-zip-export`。**引き継ぎ文書を作る前の製品コードHEAD**：`a667a1e3b473c63b4d377b4e1acc793b8299282e`。文書専用commit **`ebcfc12c004ca42ab78354b59d8a5540db9ca651`** はpush済み、**PR #28**（`https://github.com/nuts-kinoco/PixivVault-NiceGUI/pull/28`）を作成した。**PR #28の初回CI run `39955280876` はWindowsでRED**（後述）し、まだmainにはマージしていない。以下の修正をcommit/pushした後はhead SHAが変わるので常にGitHubを照合する。
+- branch：`phase7/legacy-zip-export`。**引き継ぎ文書を作る前の製品コードHEAD**：`a667a1e3b473c63b4d377b4e1acc793b8299282e`。文書専用commit **`ebcfc12c004ca42ab78354b59d8a5540db9ca651`** をpushし、**PR #28**（`https://github.com/nuts-kinoco/PixivVault-NiceGUI/pull/28`）を作成した。**当時の初回CI run `39955280876` はWindowsでRED**（後述）・未マージだったが、後のhead `9c906b5`で解消・全3ジョブ成功後、上記のmainへマージ済み。
 - 同確認時のGitHub main：`50ea5ee9ff745226cef6e7ac3fbc2a311c527d4f`。**当時Phase7のopen PRは見つからなかった**。開始後に変更されていないか `gh pr list --state all --head ...` を実行。
 - 実装：管理保存済みの検証済みアクティブ画像を原版互換`作者名(作者ID).zip`へ**専用新rootのみ**書き出し。ZIPの作品ID入り命名/CRC/非上書き/同作者改名重複拒否/クラッシュ一時リンク復旧/閉じる途中の中断/古いUI通知隔離。別root opt-in：`--legacy-zip-export-root`。
 - 追加実装ファイル：`src/pixivvault_nicegui/legacy_zip_export.py`、`tests/test_legacy_zip_export.py`、`tools/check_legacy_zip_export_browser.py`。対応変更は`bootstrap.py`, `services.py`, `ui/library_view.py`, `.github/workflows/ci.yml`, `tools/check_managed_downloads_browser.py`, `docs/LEGACY_ZIP_EXPORT_2026-10-23.md`。
 - **直近の受入**：全pytest **1099 passed / 1 skipped**（既存Windows symlink特権skip）、独立read-only Claudeレビュー **APPROVE / P1/P2なし**、実Edge 1280×720 + 1920×1080 初回/再起動計4経路PASS、Win PyInstaller onedir/noconsole **1050ファイルSHA一致**、コピーexeのUI/最小化/復帰/正常終了/所有ポート解放PASS。証拠はworktree内`artifacts/legacy-zip-20261023/`（基本git追跡外）。**これらは当該SHA/その当時のソースに対する記録であり、改変後は再試験する**。
 - **CIの最新RED → 修正**：PR #28 head `ebcfc12...` のWindows CIで`tests/test_native_managed_downloads.py::test_actual_synthetic_writer_jobservice_verifier_detects_mismatch`が `running` のまま**5秒のspin-poll期限**に達し、`done` を即断定したため失敗（Ubuntu成功、Chromiumは実行されず）。Windows hosted runnerのI/O遅延は可能性であり**原因として断定していない**。製品の書込/保存検証を弱めず、既存`JobService._condition`の`notify_all`に連動した**有限20秒のterminal待機**、`done/total==2`・receipt path・faultedを追加し、失敗でもwriterを解放するようにした。**この修正を新headのCIで未受入なら、Phase7全体は未完のまま**。独立read-only再レビューはAPPROVE。レビューとテストを統合しRED→GREENを記録すること。
-- **直後の作業**：PR #28を二重作成せず最新HEAD/差分を確認し、上の修正を対象パスだけcommit/push → 正確な新HEADのWindows/Ubuntu/Chromium CI全SUCCESS → 独立レビュー・Windows受入のソース一致確認 → merge → 新main SHAのpost-merge CI確認 → 次のまとまった未移植機能へ。
+- **当時の未完ゲート（解消済みの履歴）**：修正commit/push → 正確な新HEADのWindows/Ubuntu/Chromium CI全SUCCESS → 独立レビュー・Windows受入のソース一致確認 → merge → 新main SHAのpost-merge CI確認。この手順は下記の再照合結果で完了を確認した。
+- **2026-10-23再照合結果**：Windows CI REDの修正はhead `9c906b5630bc8fecc83fd2c4462adcd247fd6bbb`に含まれる。PR head CI run `39956405545` の`tests (windows-latest)`・`tests (ubuntu-latest)`・`browser`すべてSUCCESS。PR #28はMERGED、main `2ae2b49d389c4cd0da398a8cd10f8621dc1cc669`、post-merge run `39957517383`の3ジョブSUCCESS。前段のREDを黙って取り消さず履歴として保持する。
+
+### Phase8：旧作者差分・静止SQLite/物理ZIP/失敗履歴統合（進行中）
+
+- 専用worktree：`S:\Projects\PixivVault-NiceGUI-wt\legacy-diff-sync`、branch `phase8/legacy-diff-sync`。origin/main `2ae2b49d389c4cd0da398a8cd10f8621dc1cc669`から新規作成。他worktreeの未コミット差分は保護。
+- 原版読取専用コード調査：`core.py:1415-1507`のNEW→UPDATED→RESTORED→ローカル実物PRESENT/UNSURE/MISSING、`core.py:1200-1290`の認証・全件判定/3回・高比率5回、`database.py:1518-1535`の削除フラグ/欠落回数。原版部分不可視の削除誤検知経路は新製品で再現しない。
+- 新オプション`--legacy-diff-image-root`を既存静止旧DBコピーと新managed rootへ明示接続。旧作品DB/物理ZIP索引/`failed_queue`を同一immutableコピーから読み、表示プレビューで6状態を分類。確認済みRESTORED/MISSING/旧更新は専用新rootへのmanaged NEWとし、元画像/DB/ZIPを不変に保つ。既存v2 CAS、管理ジョブ、既存ZIP書出しを再利用。元DBに無いPixiv作品はNEW、v1日付欠損・曖昧な旧名はUNKNOWN。
+- 削除検知は表示と別の明示完全GET操作でのみ行い、新管理rootのsidecarに欠落streak・確認scan_idをSQLite原子的記録する。復帰はリモートで発見しただけでは旧削除フラグを消さず、新managedの完全receiptで証明する。多client・再起動・破損・GET失敗を受入対象とする。
+- **Phase8ローカル受入（2026-10-24直前のソース）**：最終Edge `tools/check_legacy_author_diff_browser.py --channel msedge --output artifacts/phase8-legacy-author-diff-edge-final19-20261023` SUCCESS。1280×720/1920×1080 ×初回/再起動4/4、初回のUPDATED/RESTORED/MISSING/UNKNOWNと3件managed保存、再起動後のSKIPPED/UNKNOWN・完了3件復元、2client状態分離、全Pixiv transport経路GET-only/allowlisted HTTPS/Cookie境界、旧DB/旧メディアルート全ファイルSHA before/after一致、再起動時原寸GET0、console/page error0、外部通信0、正常終了/port解放4/4。新sidecarはmanaged root内だけ、source/sidecar WAL/SHM/journalなし、remote absence streak3/deleted=true/scan receipt1件が再起動後不変。差分表示143.34/126.95/161.12/119.55msは合成fixtureのみ。
+- **1280×720 UI RED→GREEN**：複数差分行でキュー追加ボタンが`pv-download-body`のoverflow領域に埋まり、Edge click timeoutとなった。差分/遠隔欠落一覧に`pv-author-diff-list` max-height64px、`pv-author-remote-absent-list` max-height48pxを設けて再受入GREEN。最終ソースの全pytestとnative buildはこのCSS変更後に再実行する必要がある。
+- **直前のWindows受入（CSS変更前）**：`tools/build_windows.ps1 -Python 'S:\Projects\PixivVault-NiceGUI\.venv\Scripts\python.exe'` SUCCESS。PyInstaller onedir/noconsoleを別root`artifacts/phase8-native-final-copy/`へコピー、1050ファイルSHA完全一致。コピーexe SHA-256 `E17AA6D19F7F6D1A758C8F035DB072CFB0ACD7BA262D88B8D823C00E51A97ED4`。`artifacts/phase8-native-final-result.json`は`status=passed`：UI handshake/cards50/image decode、gallery/learning/library操作、最小化・復帰GDI stable mean diff 0.003369、通常終了、8 owned PIDs終了、port解放、forced cleanup0、console/page errors0。CSS変更後の最終ビルドを再実行すること。
+- `.github/workflows/ci.yml` browser jobへPhase8 checkerのChromium実行を追加済み。**GitHub PR/head CIはまだ未実行**（このbranchは未commit/未push）。CIの新head Windows/Ubuntu/Chromium全SUCCESS、最新checker/CIに対する独立read-onlyレビュー、マージ後main CIが残る。元Pixivアカウントの限定Cookie実GET受入は別ゲートであり、未実行。
+- 詳細設計は`docs/LEGACY_AUTHOR_DIFF_SYNC_2026-10-23.md`。受入履歴、過去のREDと原因、性能測定、artifact pathは`docs/PROGRESS.md`を参照。**ローカル受入済みとGitHub CI未受入を混同しない**。
 - **本書をGitへ定着**：`git add -- AGENTS.md docs/ORCHESTRATOR_HANDOFF.md docs/ORCHESTRATOR_START_PROMPT.md docs/PROGRESS.md`のように規約/進捗docsだけを追加し、**文書のみのcommit・push**をしてPhase7 PRへ含める。文書だけなら製品コード自体を変更しないので**ローカル製品動作の再試験は原則不要**だが、PRの**新head SHAに対するCIは再確認**する。引き継ぎ書がまだ`??`ならGitHubでは取得できない。
 
 ## 4. 互換性・保存境界（壊してはいけない契約）
@@ -61,7 +76,7 @@
 
 **別々の受入基準が必要。実装済みと混同しないこと。** 推奨順は依存関係・危険度に応じて再検討する。
 
-- Phase7 PR/mergeとmain CI（進行中）。旧ZIP形式への安全な**出力**は限定であり、原版フォルダを直接更新する互換とは別。
+- Phase7 PR #28のmerge/main CIは確認済み。旧ZIP形式への安全な**出力**は限定であり、原版フォルダを直接更新する互換とは別。
 - 原版の完全な差分判定：`NEW / UPDATED / RESTORED / MISSING / SKIPPED / UNKNOWN`。v1日付欠損・物理実体不明の安全判定、全作者ページング、管理ジョブとの一貫した状態同期。
 - 旧DBの保存命名、既存ZIP追記・改名を必要とする設定、物理画像とDBの一致・安全な新rootへの移行/検証（原本無変更）。
 - 旧failed_queueと新永続jobsの詳細同期、元の一括削除・一括再試行・履歴表示の操作差分（原本不変と矛盾する操作は隔離した新DBで表現）。
@@ -108,3 +123,12 @@ native onedirコピー/EXE SHA/最小化復帰/正常終了/port解放:
 独立レビュー担当・APPROVE/未解決P1/P2:
 次に編集するPhase/最小実装単位/受入ゲート:
 ```
+## Phase8 2026-10-24ローカル最終ゲート（GitHub統合前）
+
+- 専用worktree `S:/Projects/PixivVault-NiceGUI-wt/legacy-diff-sync` / branch `phase8/legacy-diff-sync`。Phase7 PR #28は既merge、再統合不要。
+- 停止待ち `final20` RED: Uvicorn/NiceGUI WebSocket drainの既定無制限が原因候補。合成checkerへ `timeout_graceful_shutdown=5` + process wait25秒、失敗時nonce/argv/パス非開示を実装。Edge独立2回各4/4、Chromium4/4、最終差分後Edge4/4の自然終了・port解放GREEN。ログのWinError10054は間欠事象でありUvicorn経路が唯一の原因と断定しない。
+- 128件超: 受理済みauthor owner pinのみ解放、未完了JobService対象IDを新規プレビューの自動選択から除外。140件全件NEW・pending128+残12の2バッチ受理試験GREEN。保存済みとpendingは厳密に区別。
+- 最新全pytest 1180 passed/1 skipped/1 warning (67.53s)。最終Edge `artifacts/phase8-legacy-author-diff-edge-final-after-pending-20261024/result.json` 4/4 GREEN。独立CoS read-onlyレビュー APPROVE（P1/P2ゼロ）。
+- Windows PyInstaller onedir/noconsole最終buildと別rootコピー 1050/1050 SHA一致、コピーexe `701688B5E7FA4D2C0A2F5341A3BBED02DEB4AEF62DBCA012D7A692518767186F`。実native GUI/画像decode/最小化復帰/8所有PID正常終了/port解放 `artifacts/phase8-native-copy-acceptance-20261024.json` passed。
+- この時点でPhase8は**未commit/未PR/未merge**。`docs/PROGRESS.md`の同日記録参照。次はPhase8所有パスに限ってadd/commit/push、PR作成、正確なhead SHAの3 CI全成功後のみ既承認merge、main SHA/CI確認。原版DB/画像/ZIP/Cookie原本変更禁止、shared主repo dirty変更破棄禁止、実Pixivの許可外通信禁止。
+- 未受入境界: 実Cookie本番作者全件・巨大データ性能、scheduler/うごイラ/小説/重複隔離/設定・おすすめ等は別ゲート。Phase8統合を全移植完了とはしない。

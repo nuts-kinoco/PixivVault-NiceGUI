@@ -33,6 +33,12 @@ class ManagedDownloadView:
         self.refreshing = False
         self.looking_up = False
         self.author_loading = False
+        self.author_diff_rows = ()
+        self.author_diff_revision = -1
+        self.author_diff_shown = 50
+        self.author_remote_absent = ()
+        self.author_inventory_complete = True
+        self._legacy_scan_operations: dict[str, str] = {}
         self.author_targets: tuple[AuthorTarget, ...] = ()
         self.author_revision = 0
         self.follow_render_generation = 0
@@ -93,12 +99,20 @@ class ManagedDownloadView:
                     "flat no-caps data-testid=managed-download-author-fetch")
                 self.author_fetch_button.on("click", self._author_fetch_event,
                     js_handler=f"() => {{const d=document.getElementById('{self.root.html_id}').dataset;emit({{epoch:d.epoch,authorRevision:d.authorRevision}})}}")
+                self.author_scan_button = ui.button('旧DBと照合して欠落を確認', color=None).props(
+                    'flat no-caps data-testid=managed-download-author-scan')
+                self.author_scan_button.on('click', self._author_scan_event,
+                    js_handler=f"() => {{const d=document.getElementById('{self.root.html_id}').dataset;emit({{epoch:d.epoch,authorRevision:d.authorRevision}})}}")
             self.author_selected_label = ui.label("選択作者 0 件").props(
                 "data-testid=managed-download-author-selection")
             self.author_chips = ui.column().classes('w-full gap-1').props(
                 'data-testid=managed-download-author-targets')
             self.author_status_label = ui.label().props(
                 "data-testid=managed-download-author-status role=status")
+            self.author_diff_list = ui.column().classes('w-full gap-1 pv-author-diff-list').props(
+                'data-testid=managed-download-author-differences')
+            self.author_remote_absent_list = ui.column().classes('w-full gap-1 pv-author-remote-absent-list').props(
+                'data-testid=managed-download-remote-absent')
             with ui.row().classes('w-full items-center'):
                 self.follow_refresh_button = ui.button('フォロー作者一覧を取得', color=None).props(
                     'flat no-caps data-testid=managed-download-follow-refresh')
@@ -371,6 +385,9 @@ class ManagedDownloadView:
         self.author_selected_label.set_text(f'選択作者 {len(self.author_targets)} 件')
         self.author_fetch_button.set_enabled(self.active and bool(self.author_targets)
                                              and not self.author_loading)
+        self.author_scan_button.set_enabled(
+            self.active and not self.author_loading and len(self.author_targets) == 1
+            and getattr(self.services, 'legacy_author_bridge', None) is not None)
         self.author_chips.clear()
         with self.author_chips:
             for author in self.author_targets:
@@ -381,6 +398,54 @@ class ManagedDownloadView:
                     button.on('click', lambda _e, uid=author.user_id, epoch=self.epoch,
                               revision=self.author_revision: self._remove_author(uid, epoch, revision))
                     button.set_enabled(self.active and not self.author_loading)
+
+    def _render_author_differences(self):
+        """All inspected classifications, including deferred legacy states."""
+        self.author_diff_list.clear()
+        if self.author_diff_revision != self.author_revision:
+            return
+        titles = {
+            Difference.NEW: '新規', Difference.UPDATED: '更新',
+            Difference.RESTORED: '復帰', Difference.MISSING: '実物欠損',
+            Difference.UNKNOWN: '判定保留', Difference.SKIPPED: '保存済み',
+        }
+        with self.author_diff_list:
+            for work, state in self.author_diff_rows[:self.author_diff_shown]:
+                with ui.row().classes('w-full items-center').props(
+                        'data-testid=managed-download-author-difference'):
+                    ui.label(f"{work.get('title') or '無題'} · {work['id']}").classes(
+                        'pv-subtitle min-w-0 flex-1')
+                    ui.label(titles[state] + (' · 旧失敗履歴' if work.get('legacy_failed') else '')).classes(
+                        'pv-counter').props(f'data-difference={state.value}')
+            if len(self.author_diff_rows) > self.author_diff_shown:
+                button = ui.button('差分結果をもっと見る', color=None).props(
+                    'flat no-caps data-testid=managed-download-author-difference-more')
+                button.on('click', lambda e, epoch=self.epoch, revision=self.author_revision:
+                          self._more_author_differences(epoch, revision))
+                button.set_enabled(self.active and not self.author_loading)
+
+    def _render_remote_absent(self):
+        self.author_remote_absent_list.clear()
+        if self.author_diff_revision != self.author_revision:
+            return
+        with self.author_remote_absent_list:
+            for missing in self.author_remote_absent[:200]:
+                label = ('Pixiv一覧から欠落・削除確定' if missing.status == 'confirmed'
+                         else 'Pixiv一覧から欠落・確認待ち')
+                with ui.row().classes('w-full items-center').props(
+                        'data-testid=managed-download-remote-absent-row'):
+                    ui.label(f'{missing.title} · {missing.work_id}').classes('pv-subtitle flex-1')
+                    ui.label(f'{label}（連続{missing.streak}回）').classes('pv-counter').props(
+                        f'data-absence-status={missing.status}')
+            if len(self.author_remote_absent) > 200:
+                ui.label(f'遠隔欠落の個別表示は200件まで（全{len(self.author_remote_absent)}件）').classes(
+                    'pv-subtitle')
+
+    def _more_author_differences(self, epoch, revision):
+        if not self._valid(epoch) or revision != self.author_diff_revision:
+            return
+        self.author_diff_shown += 50
+        self._render_author_differences()
 
     def _follow_search_event(self, event):
         if self._valid() and _browser_event(event, epoch=self.epoch):
@@ -471,6 +536,56 @@ class ManagedDownloadView:
                 and type(payload) is dict and payload.get('authorRevision') == str(self.author_revision)):
             await self.fetch_author_differences(event.args['epoch'])
 
+    async def _author_scan_event(self, event):
+        payload = event.args if type(event.args) is dict else {}
+        if (self._valid() and _browser_event(event, epoch=self.epoch)
+                and payload.get('authorRevision') == str(self.author_revision)):
+            await self.confirm_legacy_author_inventory(event.args['epoch'])
+
+    async def confirm_legacy_author_inventory(self, epoch=None):
+        """A separate explicit action records one proven complete remote scan."""
+        if (not self._valid(epoch) or self.author_loading or self.busy
+                or self.looking_up or self.refreshing
+                or len(self.author_targets) != 1
+                or getattr(self.services, 'legacy_author_bridge', None) is None):
+            return False
+        uid = self.author_targets[0].user_id
+        issued_epoch, issued_revision = self.epoch, self.author_revision
+        scan_id = self._legacy_scan_operations.setdefault(uid, uuid4().hex)
+        self.author_loading = True
+        self.author_scan_button.set_enabled(False)
+        try:
+            result = await self.services.confirm_legacy_author_inventory(
+                uid, owner=self._owner, scan_id=scan_id)
+            # A completed operation owns its durable scan receipt even when
+            # the client changed tabs before the reply arrived. Its next
+            # explicit click must therefore use a fresh scan ID.
+            if self._legacy_scan_operations.get(uid) == scan_id:
+                self._legacy_scan_operations.pop(uid, None)
+            if not self._valid(issued_epoch) or issued_revision != self.author_revision:
+                return False
+            self.author_status_label.set_text(
+                f'完全な作者一覧を照合しました。旧DBの遠隔欠落: 保留 {result.remote_missing_pending} 件・'
+                f'削除確定 {result.remote_missing_confirmed} 件。差分確認で最新状態を表示します')
+            return True
+        except Exception as exc:
+            # After a lost response, a retry with the old ID can legitimately
+            # find a committed scan whose remote inventory has since changed.
+            # Rotate that rejected ID so the next explicit click can re-scan.
+            if 'scan ID replay differs' in str(exc):
+                if self._legacy_scan_operations.get(uid) == scan_id:
+                    self._legacy_scan_operations.pop(uid, None)
+            if self._valid(issued_epoch) and issued_revision == self.author_revision:
+                self.author_status_label.set_text(
+                    '作者全件の確認が成立しませんでした。旧DBは変更していません。再実行できます')
+            return False
+        finally:
+            self.author_loading = False
+            if not self.closed:
+                self._render_author_targets()
+                self.author_scan_button.set_enabled(self.active and len(self.author_targets) == 1
+                    and getattr(self.services, 'legacy_author_bridge', None) is not None)
+
     async def fetch_author_differences(self, epoch=None):
         """Select new/verified-updated works; unknown v1 generations stay untouched."""
         if (not self._valid(epoch) or self.author_loading or self.busy or self.looking_up
@@ -484,12 +599,23 @@ class ManagedDownloadView:
         self.author_add_button.set_enabled(False)
         added = 0
         updated = 0
+        restored = 0
+        missing = 0
         deferred = 0
         staged = {}
         staged_meta = {}
+        classified = []
+        classified_total = 0
+        remote_absent = []
+        old_failures = set()
+        absent_pending = 0
+        absent_confirmed = 0
+        incomplete_authors = 0
         try:
             snapshot_fn = getattr(self.services, 'snapshot_author_saved_works', None)
             saved_snapshot = await snapshot_fn() if callable(snapshot_fn) else None
+            pending_fn = getattr(self.services, 'pending_managed_author_work_ids', None)
+            pending_ids = pending_fn() if callable(pending_fn) else frozenset()
             if not self._valid(issued_epoch) or issued_author_revision != self.author_revision:
                 return False
             for author in self.author_targets:
@@ -499,26 +625,47 @@ class ManagedDownloadView:
                 results = await self.services.lookup_managed_author(author.user_id, **options)
                 if not self._valid(issued_epoch) or issued_author_revision != self.author_revision:
                     return False
+                absent_pending += getattr(results, 'remote_missing_pending', 0)
+                absent_confirmed += getattr(results, 'remote_missing_confirmed', 0)
+                remote_absent.extend(getattr(results, 'remote_absent', ()))
+                incomplete_authors += int(getattr(results, 'inventory_complete', True) is False)
                 for work, classification in results:
-                    if classification not in (Difference.NEW, Difference.UPDATED):
+                    classified_total += 1
+                    if len(classified) < 2000:
+                        classified.append((work, classification))
+                    if work.get('legacy_failed'):
+                        old_failures.add(work['id'])
+                    rehydrate = (classification in (Difference.RESTORED, Difference.MISSING)
+                                 and work.get('legacy_diff_source') is True
+                                 and not work.get('expected_receipt_sha256'))
+                    if classification not in (Difference.NEW, Difference.UPDATED) and not rehydrate:
                         deferred += 1
                         continue
                     if (classification is Difference.UPDATED and
-                            not work.get('expected_receipt_sha256')):
+                            not work.get('expected_receipt_sha256') and
+                            work.get('legacy_diff_source') is not True):
                         deferred += 1
                         continue
                     wid = work['id']
                     if wid in staged:
                         continue
+                    if wid in pending_ids and wid not in self.selected:
+                        deferred += 1
+                        continue
                     # An already checked ordinary/bookmark record may need
                     # upgrading to a verified UPDATED v2 author generation.
                     # Skipping it would silently enqueue a v1 intent and
                     # reuse the outdated completed receipt instead.
-                    if wid in self.selected and classification is not Difference.UPDATED:
+                    if (wid in self.selected and classification is not Difference.UPDATED
+                            and not rehydrate):
                         continue
                     new_count = sum(key not in self.selected for key in staged)
                     if wid not in self.selected and new_count + len(self.selected) >= 128:
-                        raise RuntimeError('author selection exceeds safe per-view limit')
+                        # Preview all results, but only stage one safe bounded
+                        # queue batch at a time. A later preview can stage the
+                        # remainder after completed receipts are visible.
+                        deferred += 1
+                        continue
                     record = await self.services.lookup_managed_work_id(
                         wid, owner=self._owner, publish=False)
                     if not self._valid(issued_epoch) or issued_author_revision != self.author_revision:
@@ -532,8 +679,12 @@ class ManagedDownloadView:
                     staged_meta[wid] = (work, classification, author.origin)
                     if classification is Difference.NEW:
                         added += 1
-                    else:
+                    elif classification is Difference.UPDATED:
                         updated += 1
+                    elif classification is Difference.RESTORED:
+                        restored += 1
+                    else:
+                        missing += 1
             if not self._valid(issued_epoch) or issued_author_revision != self.author_revision:
                 return False
             authorized = self.services.remember_managed_author_batch(
@@ -543,7 +694,8 @@ class ManagedDownloadView:
                 date = work.get('update_date', '')
                 next_intent = (ManagedAuthorIntent(
                     record, origin, date, work.get('expected_receipt_sha256'),
-                    'updated' if classification is Difference.UPDATED else 'new',
+                    'updated' if classification is Difference.UPDATED and
+                                 work.get('expected_receipt_sha256') else 'new',
                     work.get('expected_relative_receipt'))
                     if type(date) is str else None)
                 # Preserve the previously accepted operation for an identical
@@ -555,12 +707,26 @@ class ManagedDownloadView:
                 self.selected[record.work_id] = record
                 if next_intent is not None:
                     self._available_author_intents[record.work_id] = next_intent
-            if added or updated:
+            if added or updated or restored or missing:
                 self._bump_selection()
+            self.author_diff_rows = tuple(classified)
+            self.author_remote_absent = tuple(remote_absent)
+            self.author_inventory_complete = incomplete_authors == 0
+            self.author_diff_revision = issued_author_revision
+            self.author_diff_shown = 50
             self._load_cached()
             self.render()
+            self._render_author_differences()
+            self._render_remote_absent()
             self.author_status_label.set_text(
-                f'新規 {added} 件・更新 {updated} 件を選択しました。判定保留・対象外 {deferred} 件。保存は「キューへ追加」で開始します')
+                f'新規 {added} 件・更新 {updated} 件・復帰 {restored} 件・実物欠損 {missing} 件を選択。'
+                f'判定保留・対象外 {deferred} 件、旧失敗履歴 {len(old_failures)} 件。'
+                + (f'旧DB登録・Pixiv一覧不在: 保留 {absent_pending}・削除確定 {absent_confirmed} 件。'
+                   if incomplete_authors == 0 else
+                   f'全件一覧の確認不可 {incomplete_authors} 作者。旧DBの欠落判定は保留。')
+                + (f' 表示 {len(classified)}/{classified_total} 件（表示上限）。'
+                   if classified_total > len(classified) else '')
+                + '保存は「キューへ追加」で開始します')
             return True
         except Exception:
             if self._valid(issued_epoch):
@@ -675,9 +841,16 @@ class ManagedDownloadView:
                 accepted.append(work_id)
                 self._operations.pop(work_id, None)
         finally:
+            accepted_author = tuple(work_id for work_id in accepted
+                                    if work_id in self._available_author_intents)
             for work_id in accepted:
                 self.selected.pop(work_id, None)
                 self._available_author_intents.pop(work_id, None)
+                self._direct_records.pop(work_id, None)
+            if accepted_author:
+                forget = getattr(self.services, 'forget_accepted_managed_author_batch', None)
+                if callable(forget):
+                    forget(self._owner, accepted_author)
             if accepted:
                 self._bump_selection()
             self.busy = False
@@ -709,8 +882,13 @@ class ManagedDownloadView:
         self.direct_button.set_enabled(self.active and not self.looking_up)
         self.author_add_button.set_enabled(self.active and not self.author_loading)
         self.author_fetch_button.set_enabled(self.active and bool(self.author_targets) and not self.author_loading)
+        self.author_scan_button.set_enabled(
+            self.active and len(self.author_targets) == 1 and not self.author_loading
+            and getattr(self.services, 'legacy_author_bridge', None) is not None)
         self.follow_refresh_button.set_enabled(self.active and not self.author_loading)
         self._render_author_targets()
+        self._render_author_differences()
+        self._render_remote_absent()
         self._render_follow_list()
         for choice in self._choices.values():
             choice.set_enabled(self.active and not self.busy)

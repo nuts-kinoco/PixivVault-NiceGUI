@@ -54,6 +54,23 @@ class Difference(str, Enum):
     UNKNOWN = "unknown"
 
 
+class AuthorPreview(tuple):
+    """Iterable `(work, status)` pairs with out-of-list legacy absence counts.
+
+    A complete remote inventory may contain zero works, while the frozen old
+    DB still has missing works; their counts must remain visible in the UI.
+    """
+
+    def __new__(cls, items, *, remote_missing_pending=0, remote_missing_confirmed=0,
+                remote_absent=(), inventory_complete=True):
+        result = super().__new__(cls, items)
+        result.remote_missing_pending = remote_missing_pending
+        result.remote_missing_confirmed = remote_missing_confirmed
+        result.remote_absent = tuple(remote_absent)
+        result.inventory_complete = inventory_complete
+        return result
+
+
 def decide_difference(*, saved: bool, remote_update_date: str | None,
                       saved_update_date: str | None, deleted: bool = False,
                       files_present: bool | None = None) -> Difference:

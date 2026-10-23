@@ -27,6 +27,7 @@ class RunConfig:
     pixiv_download_root: Path | None = None
     failed_queue_readonly_db: Path | None = None
     legacy_zip_export_root: Path | None = None
+    legacy_diff_image_root: Path | None = None
 
 
 def _port(value: str) -> int:
@@ -75,6 +76,8 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
                         help="静止した旧失敗キューDBコピーを読取専用参照し、明示操作で通常作品のみ管理キューへ投入")
     parser.add_argument("--legacy-zip-export-root", type=_sandbox_path,
                         help="管理保存済みの画像を旧形式作者ZIPとして新たな専用rootへ非破壊で書き出す（明示opt-in）")
+    parser.add_argument("--legacy-diff-image-root", type=_sandbox_path,
+                        help="静止した旧DBコピーに対応する旧画像/ZIPの読取専用root（旧DBコピーと管理保存を併用する場合のみ）")
     args = parser.parse_args(argv)
     if (args.library_readonly_db is None) != (args.library_image_root is None):
         parser.error("library-readonly-db and library-image-root must be specified together")
@@ -110,10 +113,29 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
                     (dest == args.failed_queue_readonly_db.resolve().parent or
                      dest in args.failed_queue_readonly_db.resolve().parents))):
             parser.error('ZIP export must be separate from managed, Cookie and old DB roots')
+    if args.legacy_diff_image_root is not None:
+        if args.pixiv_download_root is None or args.failed_queue_readonly_db is None:
+            parser.error('legacy diff needs a frozen failed-queue/works DB copy and a managed Pixiv root')
+        image = args.legacy_diff_image_root
+        if not image.is_dir() or image.is_symlink():
+            parser.error('legacy diff needs an existing read-only image/ZIP root')
+        source = args.failed_queue_readonly_db.resolve()
+        managed = args.pixiv_download_root.resolve()
+        cookie = args.pixiv_cookie_file.resolve().parent
+        image = image.resolve()
+        if (image == managed or image in managed.parents or managed in image.parents
+                or image == cookie or image in cookie.parents or cookie in image.parents
+                or image == source.parent or source in image.parents
+                or (args.legacy_zip_export_root is not None and
+                    (image == args.legacy_zip_export_root.resolve() or
+                     image in args.legacy_zip_export_root.resolve().parents or
+                     args.legacy_zip_export_root.resolve() in image.parents))):
+            parser.error('legacy image root must be separate from managed, Cookie, snapshot and ZIP export paths')
     return RunConfig(args.host, args.port, args.native, args.check, args.learning_sandbox,
                      args.library_readonly_db, args.library_image_root, args.pixiv_cookie_file,
                      args.download_sandbox, args.pixiv_download_root,
-                     args.failed_queue_readonly_db, args.legacy_zip_export_root)
+                     args.failed_queue_readonly_db, args.legacy_zip_export_root,
+                     args.legacy_diff_image_root)
 
 
 _registered = False
@@ -126,7 +148,8 @@ def register_pages(learning_sandbox: Path | None = None,
                    download_sandbox: Path | None = None,
                    pixiv_download_root: Path | None = None,
                    failed_queue_readonly_db: Path | None = None,
-                   legacy_zip_export_root: Path | None = None) -> None:
+                   legacy_zip_export_root: Path | None = None,
+                   legacy_diff_image_root: Path | None = None) -> None:
     """NiceGUIのHTTPルートを登録する。呼ぶだけではサーバーを起動しない。"""
     global _registered
     if _registered:
@@ -150,7 +173,8 @@ def register_pages(learning_sandbox: Path | None = None,
             live_client=live_client, download_sandbox=download_sandbox,
             pixiv_download_root=pixiv_download_root,
             failed_queue_readonly_db=failed_queue_readonly_db,
-            legacy_zip_export_root=legacy_zip_export_root)
+            legacy_zip_export_root=legacy_zip_export_root,
+            legacy_diff_image_root=legacy_diff_image_root)
     except BaseException:
         if live_client is not None:
             live_client.close()
@@ -233,6 +257,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         registration['failed_queue_readonly_db'] = config.failed_queue_readonly_db
     if config.legacy_zip_export_root is not None:
         registration['legacy_zip_export_root'] = config.legacy_zip_export_root
+    if config.legacy_diff_image_root is not None:
+        registration['legacy_diff_image_root'] = config.legacy_diff_image_root
     register_pages(**registration)
     ui.run(
         host=config.host,

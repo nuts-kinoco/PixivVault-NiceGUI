@@ -1,6 +1,40 @@
 # 移植進捗
 
-## 2026-10-23 現行Phase7・CoSCore専用オーケストレータ引き継ぎ（最新スナップショット）
+## 2026-10-23 Phase8 / CoSCore後任・GitHub現物照合と現在の作業
+
+**Phase7統合は完了**。PR #28 head `9c906b5630bc8fecc83fd2c4462adcd247fd6bbb` のCI run **39956405545**はWindows/Ubuntu/browserの3ジョブSUCCESS。2026-10-23 12:59:14 UTCマージ、main merge SHA **`2ae2b49d389c4cd0da398a8cd10f8621dc1cc669`**。post-merge CI run **39957517383**もWindows/Ubuntu/browserすべてSUCCESS。前節のPhase7未マージ/Windows REDは過去の記録（修正前CI run 39955280876）であり現在状態ではない。
+
+**Phase8 worktree**：`S:\Projects\PixivVault-NiceGUI-wt\legacy-diff-sync`（branch `phase8/legacy-diff-sync`、開始基準`2ae2b49d389c4cd0da398a8cd10f8621dc1cc669`）。`main`/他worktreeへの直接編集なし。原版`S:\Projects\PixivVault`のコードだけ読取専用照合。新管理rootのみに変更を限定し、静止旧DBコピー・旧画像/ZIPはread-only。詳細契約 `docs/LEGACY_AUTHOR_DIFF_SYNC_2026-10-23.md`。
+
+**導入中の実操作**：旧SQLiteコピーのworks/failed_queueと旧物理ZIP/フォルダを既存`ReadonlyLocalMediaCatalog`で突き合わせ、作者のNEW/UPDATED/RESTORED/MISSING/UNKNOWN/SKIPPEDを差分一覧に表示。実体確認した旧作品の復帰・欠損を**新managed保存root**へ明示キュー投入する（旧ZIP追記・旧DB書換えは行わない）。管理receiptの完全検証と既存v2 CAS、JobServiceを再利用。旧DBに載るが現在の作者一覧に無い作品は、明示「旧DBと照合して欠落を確認」を押した完全GETだけで欠落回数を新sidecar SQLiteに記録（通常3回、高比率5回）。旧削除フラグは新管理receiptの検証まで復帰扱いを維持する。最大2000差分行を表示、上限超は結果に表示件数を明記。
+
+**段階検証**：専用CLI/service/UIの関連pytest 33 passed（初回）、統合拡張後21 passed、workerのlocal media/full GET 144 passed。初回全pytest **1157 passed / 1 skipped / 1 failed**：`test_changed_remote_is_atomic_and_two_clients_cannot_double_count`でsidecar SQLite新規作成中の0-byteに別clientが遭遇（並行初期化競合）。原因を隠さずworkerに修正指示済み。同時点のUI/service/bridge関連53 passed。**全pytest・独立レビュー・Edge2解像度・nativeコピーEXE・head/main CIは現在まだPhase8未受入**。再試験後の確定結果をここへ追記する。
+
+**RED→GREENの続報（23:08 JSTまでの限定結果）**：sidecar初期化を並列化した16client合成試験GREEN。同じ専用venvと明示`PYTHONPATH`で全pytest **1172 passed / 1 skipped / 1 Starlette依存deprecated警告**（61.52秒）に回復。作業途中で4件出たsubprocess import/CLI失敗は別worktreeを指すeditableパスが優先されたためで、`PYTHONPATH=当Phase/src`を子プロセスへ継承して全件GREENを確認。追加差分により最終再試験は別に必要。
+
+**最終再試験（23:59 JST時点）**：空`[]`bucketをstrict/通常reader双方で明示0件として受け入れるテストを更新後、全pytest **1179 passed / 1 skipped / 1 Starlette deprecation warning**（60.08秒）、exit 0。対象作者の旧worksだけstrict validateし、別作者のNULL/古いスキーマ行で全体を落とさない修正は38専用結合テストGREEN。Claude focused read-only re-reviewはP1/P2なしでAPPROVE（テストを実行したという意味ではなく静的承認）。
+
+**Phase8専用Edge checkerのRED→GREEN**：原因はブラウザランナーに渡す合成DB pathが相対パスだったこと。`ApplicationServices` は旧DBコピーの絶対パスを要求するため `ValueError: legacy retry requires a separate immutable SQLite copy`。検査器で`output.resolve()`を先に行い、DB・メディアroot・managed rootを絶対パスに統一して修正。次に初期タブがDownloadではなく、保存済み作品の再起動時は選択数0になるなど、UIの実挙動に合わせて検査器を修正した。失敗出力は`artifacts/phase8-legacy-author-diff-edge-final3-20261023/`〜`final8`に保持。
+
+最終 `tools/check_legacy_author_diff_browser.py --channel msedge --output artifacts/phase8-legacy-author-diff-edge-final19-20261023` は**SUCCESS**（`result.json`）。1280×720/1920×1080 ×初回/再起動4/4。初回は実際のDOMからUPDATED/RESTORED/MISSING/UNKNOWNを確認し、管理rootへの3作品保存を受け付け、再起動後はSKIPPED/UNKNOWNとなり完了3件を復元。作者差分表示は二つのブラウザclient間で分離。GET-only・API HTTPS/allowlisted host・Cookie付きAPI GET・Cookieなし画像GETを全transport経路で検証。旧DBと旧メディアルート全ファイルSHA-256 before/after一致、再起動時原寸GET 0、console/page error0、外部通信0、通常終了4/4・ポート解放4/4。新sidecarは管理rootだけに存在し、旧DB/sidecarの`-wal/-shm/-journal`はいずれも不在。再起動前後の欠落streakは3、削除確定=true、巡回receipt1件で変化なし。差分表示ms `143.34,126.95,161.12,119.55`（この合成fixture・開発機のみ）。元DB SHA `290cb9fd48e2c66478cf710f4d525f0b517c39caba09d74ddfaa7f69f0509881`、旧画像SHA `ba676f61c0fdc78461b1738c27bfdc3b5accb5fbbc6a1451b66f5a60a7d24032`。
+
+**1280×720での受入RED→GREEN**：4状態を表示するとキュー追加ボタンが親のoverflow領域でヒットテストできず、Edgeがclick timeout（`submit_preflight`でbutton rectが画面下端、`pv-download-body.clientHeight=0`）になった。作者差分/遠隔欠落行へ`pv-author-diff-list`（max-height64px）と`pv-author-remote-absent-list`（max-height48px）の独立スクロール制限を追加し、実ブラウザでスクロール後に3件をキューへ追加、再起動後完了3件/状態を確認。最終Edge checker final19でGREEN。
+
+**readerの通常空bucket**：review P3を解消。`pixiv_read_client.py`は明示空`[]`だけ`{}`へ正規化し、strict readerの非空配列/null/missing拒否を維持。`tests/test_author_pixiv_reader.py`の従来「空配列はInvalidPayload」期待を仕様に沿って更新し、全pytest GREEN。
+
+**最終ソースWindows製品受入（Phase8、CSS修正後）**：`tools/build_windows.ps1 -Python 'S:\Projects\PixivVault-NiceGUI\.venv\Scripts\python.exe'` 成功。PyInstaller onedir/noconsoleを`artifacts/windows-packaging/dist/PixivVault-NiceGUI/`に作成、そこから新しい`artifacts/phase8-native-final-copy2/`へコピーし1050ファイルの相対path+SHA-256を完全照合（`COPY_SHA_GREEN files=1050`）。コピーEXE SHA-256 `162E5F495320CC52F1C225627C1E75BE7E43F19EAC2A6573C02AE0562B3BF537`。`tools/check_native_window.py --exe artifacts/phase8-native-final-copy2/PixivVault-NiceGUI.exe --inspect-ui --output artifacts/phase8-native-final-result2.json` は`status=passed`：UI handshake/cards50/image decode、viewer/learning/library操作、最小化/復帰GDI安定（mean diff `0.0000172`）、通常終了、所有8 PID終了、port解放、強制cleanup0、console/page error0。開発機DPI 175%の実機条件であり、他PC/全DPIを証明しない。
+
+**CI追加**：`.github/workflows/ci.yml` browser jobにPhase8専用検査器を追加し、Chromium CIでUPDATED/RESTORED/MISSING/UNKNOWN/SKIPPED・remote absence・元ソース不変性・sidecarの隔離・streak再起動維持・transport GET-onlyを実行する。これを含むheadのGitHub CIは**未実行**。CSS修正後の全pytestは`1179 passed, 1 skipped, 1 Starlette deprecation warning in 61.90s`。最新CSS/検査器の独立read-only re-reviewを待つ。
+
+**Edge・Windowsの既存機能回帰（暫定ソース）**：`tools/check_author_download_browser.py --channel msedge`を1280×720・1920×1080 ×初回/同一root再起動で4/4 PASS（`artifacts/phase8-author-regression-20261023/result.json`）。初回の合成原寸GET4枚・再起動0、ビューアdecode/キーボード/フォーカス、2client分離、console/page error0、通常終了・port解放4/4、外部ブラウザ通信0。Windows PyInstaller onedir/noconsoleビルドは1050ファイル生成、別`artifacts/phase8-native-precheck/`へコピーし全1050ファイルSHA一致。コピーexe SHA-256 `628783AB6A716B477E2AFD411D91FC04408157F89AAC5380D0505AA80579C014`、`tools/check_native_window.py --inspect-ui` は合成UI/デコード、最小化/復帰、通常終了、8所有プロセス終了とport解放PASS（`artifacts/phase8-native-precheck-result.json`）。このEXEは最新の独立レビュー修正前にビルドしたため**Phase8最終ソースのnative受入済みとは数えない**。
+
+**合成性能実測（限定条件）**：`artifacts/phase8-synthetic-metrics-v2/result.json`。1000作品・画像実体0・旧SQLiteコピー86,016 bytes・read-only完全作者プレビュー12回、中央値24.412ms・p95 29.765ms・最大34.858ms、計測プロセスRSS 26.188→peak28.344MiB、画像decode0/外部GET0。Windows合成CPU/IO/ページ数条件だけの値で、一般の巨大ZIP/実Cookie/高解像度描画の速度やメモリには外挿しない。
+
+**独立Claude CLI read-onlyレビュー**：初回はP1なし/P2 3件（他作者の古いworks NULL行で作者照合が落ちる／profile/allの空bucket[]・masked等／途中タブ切替後のscan_id失効）。対象作者だけstrict validate・明示connection close、完全GETで明示空`[]`を0件扱い、通常readerにも空`[]`受入、部分一覧はmanaged-only/旧由来UNKNOWNへfallback、scan完了・replay-digest時にIDローテーションを実装。focused read-only re-reviewは**APPROVE、P1/P2なし**。CIはまだ未実行。
+
+**未完境界**：実Cookieによる限定GET/作者差分DLは未受入。原版DB・ZIPへの書戻し、うごイラ/小説、scheduler、重複隔離・おすすめ/設定/連携、全画面/全DPIの製品置換も未受入。原版の`both`部分一覧不可視で削除検知する既知経路は新側でrejectする。性能/メモリは最終ソースで測った条件以外推測しない。
+
+## 2026-10-23 Phase7統合前の引き継ぎ記録（履歴・後任Phase8より前）
 
 **引き継ぎの入口**：`docs/ORCHESTRATOR_START_PROMPT.md`（後任へ全文渡す）と`docs/ORCHESTRATOR_HANDOFF.md`（統合履歴・残件・保全・受入SOP）。CoSCoreだけで開発し、dot（どっと）のユーザー側からの依頼にも安全な優先順位で対応する。両文書の製品head SHAは**作成前のスナップショット**であり、docs-only commit/push後には最新headとCIを再照合する。
 
@@ -164,3 +198,13 @@ GitHub ActionsではUbuntu/Windowsのpytestと、専用Chromiumによる実ブ�
 ## マイブックマークの合成UI（2026-10-22）
 
 段階4のマイブックマークは、原版との照合・純状態モデルPR #12の後、合成110件/ローカルDL済40件の切替可能なサブビューへ進んだ。作者一覧状態と独立した選択・明示50件追加・合成再読込と取得失敗時のキャッシュ維持・共有ビューアのページ移動とタブ往復を扱う。UIレビューでbadgeの配置/古い操作世代/同じIDでのbadge差分/旧Moreを修正し、初回実画面のサムネ高さ0を描画構造で修正した。375pytestと2画面サイズの実Edge4系統が成功。詳細は `BOOKMARK_UI_REVIEW_2026-10-22.md`。本番ブックマークのON/OFF・実API DTO/画像配信・ダウンロードは未接続。
+## Phase8 最終ローカル受入（2026-10-24 JST、PR/CI統合前）
+
+- 対象: `phase8/legacy-diff-sync`。旧DB/画像/ZIP/Cookieの原本には書き込まず、合成fixtureと新managed rootのみで検証。Phase7 PR #28のmerge済み実績とは区別する。
+- RED→GREEN: `final20` の shutdown POST後 `process.wait(timeout=15)` が間欠的にTimeoutExpired。Windows Proactor `WinError 10054` のログ、NiceGUI/Uvicornの接続drain既定無制限を調査。Phase8 checker専用 `timeout_graceful_shutdown=5`、親wait25秒、CI証跡のnonce/argvを含む例外文言の固定化で対処。修正後Edge二連続各4/4、Chromium4/4、加えて最終source変更後Edge4/4、すべて自然終了・ポート解放。
+- RED→GREEN: 128件を受理した後、owner別一時pinが残って次バッチに進めなかった。受理済みauthor intentに限ってpinを解放し、未完了job IDは保存済みと偽判定せず次previewの選択から除外。140件全件NEW・最初128件は未保存でpendingのまま、次12件を受理する回帰テスト追加。一般bookmark129件以上は解除対象外。JobService/managed intentのdurable保存は保持。
+- 最終変更に対する全pytest: **1180 passed, 1 skipped, 1 warning / 67.53s**。skipはsymlink権限、warningはFastAPI/Starletteテストclient互換警告。
+- Phase8最終Edge: `artifacts/phase8-legacy-author-diff-edge-final-after-pending-20261024/result.json` はsuccess=true、1280×720/1920×1080の初回+再起動4/4、normal_exit4/4、ports_released4/4。合成fixture旧DB/media SHA不変。修正後先行 `edge-shutdown-bounded-20261024-a/b` も両4/4。Chromium `chromium-shutdown-bounded-20261024-b` 4/4（初回ローカル実行はChromium未導入で失敗、Playwright Chromium導入後GREEN）。
+- Windows最終ビルド: `tools/build_windows.ps1` PyInstaller onedir/noconsole成功。dist全体を `artifacts/phase8-native-copy-20261024` へコピー、**1050/1050ファイル SHA256一致、不一致0**。コピーEXE SHA256=`701688B5E7FA4D2C0A2F5341A3BBED02DEB4AEF62DBCA012D7A692518767186F`。`artifacts/phase8-native-copy-acceptance-20261024.json`: status=passed、画像decode/検索/閲覧/UI、最小化/復帰、8所有PID自然終了、port release、forced cleanup0。
+- CoS worker-1独立read-only最終差分レビューは**APPROVE / P1=0, P2=0**。確認対象はshutdown、旧GET、nonce、owner別pin、140件pending二段バッチ、CI browser。実Cookie限定GETと実データでの本番配布受入は未実施。実データ完全互換・全移植完了とはしない。
+- 本節はローカル受入であり、Phase8 PR/head SHAのWindows/Ubuntu/Chromium CIとmerge後main CIは**未受入**。結果取得後にGitHub実績を追記する。
