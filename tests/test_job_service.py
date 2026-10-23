@@ -7,6 +7,7 @@ import sqlite3
 import subprocess
 import sys
 from threading import Event, Thread
+import time
 
 import pytest
 
@@ -232,6 +233,44 @@ def test_restart_preserves_receipts_and_recovers_interrupted_without_running(tmp
         assert not restarted.control(recovered.job_id, "resume")
     finally:
         restarted.close()
+
+
+def test_graceful_close_marks_active_worker_interrupted_not_explicit_stop(tmp_path):
+    path = tmp_path / 'jobs.sqlite3'
+    started, release = Event(), Event()
+
+    def runner(job, context):
+        started.set()
+        assert release.wait(5)
+        context.checkpoint()
+        return 'receipt-that-must-not-win'
+
+    service = JobService(runner, path)
+    job = service.enqueue('demo', 'active', operation_id='accepted')
+    assert started.wait(5)
+    closing = Thread(target=service.close)
+    closing.start()
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        current = find(service, job.job_id)
+        if current.state == 'stopping' and current.error_code == 'interrupted':
+            break
+        time.sleep(.01)
+    else:
+        release.set()
+        closing.join(6)
+        raise AssertionError('graceful close did not pin interruption origin')
+    release.set()
+    closing.join(6)
+    assert not closing.is_alive() and service.closed
+
+    reopened = JobService(lambda *_: 'not-called', path)
+    try:
+        recovered = find(reopened, job.job_id)
+        assert recovered.state == 'stopped' and recovered.error_code == 'interrupted'
+        assert not reopened.control(job.job_id, 'retry')  # Requires service verification.
+    finally:
+        reopened.close()
 
 
 def test_two_process_writers_cannot_own_same_database(tmp_path):

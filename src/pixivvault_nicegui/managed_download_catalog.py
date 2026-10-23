@@ -18,7 +18,7 @@ from .models import Artwork
 
 _ID = re.compile(r"[1-9][0-9]{0,19}\Z")
 _SHA = re.compile(r"[a-f0-9]{64}\Z")
-_PATH = re.compile(r"outputs/work-([1-9][0-9]{0,19})-[a-f0-9]{32}/receipt\.json\Z")
+_PATH = re.compile(r"(?:outputs|generations)/work-([1-9][0-9]{0,19})-[a-f0-9]{32}/receipt\.json\Z")
 _DECODE = BoundedSemaphore(2)
 _CACHE_LIMIT = 32 * 1024 * 1024
 _MAX_SOURCE = 20 * 1024 * 1024

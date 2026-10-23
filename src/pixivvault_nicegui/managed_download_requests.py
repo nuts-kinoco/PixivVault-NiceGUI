@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import dataclass
 from pathlib import Path
 import re
 from threading import Lock
@@ -15,6 +16,8 @@ from .managed_downloads import (MARKER, IDENTITY, ManagedDownloadError,
 LIMIT = 128 * 1024
 MAX_INTENTS = 10000
 ID = re.compile(r'[1-9][0-9]{0,19}\Z')
+SHA = re.compile(r'[a-f0-9]{64}\Z')
+_GEN_REL = re.compile(r'generations/work-[1-9][0-9]{0,19}-[a-f0-9]{32}/receipt\.json\Z')
 KEYS = frozenset({'remote_id', 'kind', 'visibility', 'title', 'author_id',
                   'author_name', 'tags', 'created_at', 'page_count',
                   'illustration_type', 'x_restrict', 'page_count_known'})
@@ -22,6 +25,34 @@ KEYS = frozenset({'remote_id', 'kind', 'visibility', 'title', 'author_id',
 
 class ManagedRequestError(ValueError):
     """Fixed error text independent of credentials and operation contents."""
+
+
+@dataclass(frozen=True, slots=True)
+class ManagedAuthorIntent:
+    """Immutable v2 accepted author selection, distinct from bookmark provenance.
+
+    `expected_receipt_sha256` pins the generation visible at acceptance.
+    New works have no predecessor; updated works always name one.
+    """
+
+    record: RemoteBookmark
+    origin: str
+    update_date: str
+    expected_receipt_sha256: str | None
+    mode: str
+    expected_relative_receipt: str | None = None
+
+    @property
+    def work_id(self) -> str:
+        return self.record.work_id
+
+    @property
+    def title(self) -> str:
+        return self.record.title
+
+
+V2_KEYS = frozenset({'version', 'source', 'record', 'origin', 'update_date',
+                     'expected_receipt_sha256', 'expected_relative_receipt', 'mode'})
 
 
 def _text(value, cap, nonempty=False):
@@ -56,15 +87,68 @@ def _spec(value: RemoteBookmark) -> dict:
             'x_restrict': value.x_restrict, 'page_count_known': True}
 
 
+def _intent_spec(value: RemoteBookmark | ManagedAuthorIntent) -> dict:
+    if isinstance(value, ManagedAuthorIntent):
+        record = _spec(value.record)
+        if value.origin not in ('id', 'follow') or value.mode not in ('new', 'updated'):
+            raise ManagedRequestError('managed author intent rejected')
+        # A new work with a missing remote updateDate is still downloadable,
+        # but it remains UNKNOWN on later runs. Never invent a timestamp.
+        _text(value.update_date, 128, nonempty=value.mode == 'updated')
+        digest = value.expected_receipt_sha256
+        expected_path = value.expected_relative_receipt
+        if (digest is not None and (type(digest) is not str or SHA.fullmatch(digest) is None)):
+            raise ManagedRequestError('managed author intent rejected')
+        if (value.mode == 'new' and (digest is not None or expected_path is not None)
+                or value.mode == 'updated' and (digest is None or
+                    type(expected_path) is not str or _GEN_REL.fullmatch(expected_path) is None or
+                    expected_path.split('/')[1].split('-')[1] != value.record.remote_id)):
+            raise ManagedRequestError('managed author intent rejected')
+        return {'version': 2, 'source': 'author', 'record': record,
+                'origin': value.origin, 'update_date': value.update_date,
+                'expected_receipt_sha256': digest,
+                'expected_relative_receipt': expected_path, 'mode': value.mode}
+    return _spec(value)
+
+
+def accepted_author_fingerprint(intent: ManagedAuthorIntent, job_id: str) -> str:
+    """Stable identity of one accepted job, not merely an artwork updateDate.
+
+    JobService keeps job_id across interruption/retry. Two accepted jobs may
+    observe the same remote date, so the date alone cannot authorize replay
+    after a generation CAS has changed the active pointer.
+    """
+    if (not isinstance(intent, ManagedAuthorIntent) or type(job_id) is not str
+            or re.fullmatch(r'[a-f0-9]{32}', job_id) is None):
+        raise ManagedRequestError('managed author job identity rejected')
+    payload = json.dumps(_intent_spec(intent), sort_keys=True, ensure_ascii=True,
+                         separators=(',', ':')).encode('ascii')
+    return hashlib.sha256(job_id.encode('ascii') + b'\0' + payload).hexdigest()
+
+
 def _decode(data: bytes) -> dict:
     try:
         payload = json.loads(data, object_pairs_hook=_json_unique)
-        if type(payload) is not dict or payload.keys() != KEYS:
+        if type(payload) is not dict:
             raise ValueError()
-        if type(payload['tags']) is not list:
+        if payload.keys() == KEYS:
+            if type(payload['tags']) is not list:
+                raise ValueError()
+            restored = RemoteBookmark(**{**payload, 'tags': tuple(payload['tags']), 'thumbnail': ''})
+        elif payload.keys() == V2_KEYS:
+            if type(payload['version']) is not int or payload['version'] != 2:
+                raise ValueError()
+            inner = payload['record']
+            if type(inner) is not dict or inner.keys() != KEYS or type(inner.get('tags')) is not list:
+                raise ValueError()
+            restored = ManagedAuthorIntent(
+                RemoteBookmark(**{**inner, 'tags': tuple(inner['tags']), 'thumbnail': ''}),
+                payload['origin'], payload['update_date'],
+                payload['expected_receipt_sha256'], payload['mode'],
+                payload['expected_relative_receipt'])
+        else:
             raise ValueError()
-        restored = RemoteBookmark(**{**payload, 'tags': tuple(payload['tags']), 'thumbnail': ''})
-        if _spec(restored) != payload:
+        if _intent_spec(restored) != payload:
             raise ValueError()
         return payload
     except (ValueError, TypeError, KeyError, UnicodeError, RecursionError, OverflowError):
@@ -99,7 +183,7 @@ class ManagedDownloadRequests:
 
     @staticmethod
     def equivalent(a: RemoteBookmark, b: RemoteBookmark) -> bool:
-        return _spec(a) == _spec(b)
+        return _intent_spec(a) == _intent_spec(b)
 
     def _path(self, operation_id: str) -> Path:
         _text(operation_id, 128, nonempty=True)
@@ -113,19 +197,26 @@ class ManagedDownloadRequests:
         except Exception:
             raise ManagedRequestError('saved intent rejected') from None
 
-    def load(self, operation_id: str) -> RemoteBookmark:
+    def load(self, operation_id: str) -> RemoteBookmark | ManagedAuthorIntent:
         with self._lock:
             try:
                 _safe_path(self.folder)
                 payload = self._read(self._path(operation_id))
+                if payload.keys() == V2_KEYS:
+                    inner = payload['record']
+                    return ManagedAuthorIntent(
+                        RemoteBookmark(**{**inner, 'tags': tuple(inner['tags']), 'thumbnail': ''}),
+                        payload['origin'], payload['update_date'],
+                        payload['expected_receipt_sha256'], payload['mode'],
+                        payload['expected_relative_receipt'])
                 return RemoteBookmark(**{**payload, 'tags': tuple(payload['tags']), 'thumbnail': ''})
             except ManagedRequestError:
                 raise
             except Exception:
                 raise ManagedRequestError('saved intent rejected') from None
 
-    def store(self, operation_id: str, record: RemoteBookmark) -> None:
-        spec = _spec(record)
+    def store(self, operation_id: str, record: RemoteBookmark | ManagedAuthorIntent) -> None:
+        spec = _intent_spec(record)
         data = json.dumps(spec, sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode('ascii')
         if len(data) > LIMIT:
             raise ManagedRequestError('managed intent rejected')
