@@ -14,6 +14,7 @@ from html.parser import HTMLParser
 from http.cookiejar import CookieJar, DefaultCookiePolicy, MozillaCookieJar
 from pathlib import Path
 import re
+from threading import RLock
 import time
 import warnings
 from typing import Callable
@@ -46,6 +47,7 @@ _BOOKMARK_PATH = re.compile(
     r"/ajax/user/([1-9][0-9]{0,19})/(illusts|novels)/bookmarks\Z"
 )
 _PAGES_PATH = re.compile(r"/ajax/illust/([1-9][0-9]{0,19})/pages\Z")
+_DETAIL_PATH = re.compile(r"/ajax/illust/([1-9][0-9]{0,19})\Z")
 _ORIGINAL_IMAGE_PATH = re.compile(
     r"/img-original/img/[0-9]{4}/[0-9]{2}/[0-9]{2}/"
     r"[0-9]{2}/[0-9]{2}/[0-9]{2}/([1-9][0-9]{0,19})_p(0|[1-9][0-9]*)"
@@ -213,6 +215,9 @@ def _validate_destination(url: str, kind: str) -> None:
                 raise DestinationRejected()
         elif kind == "pages":
             if not _PAGES_PATH.fullmatch(parsed.path) or parsed.query:
+                raise DestinationRejected()
+        elif kind == "artwork":
+            if not _DETAIL_PATH.fullmatch(parsed.path) or parsed.query:
                 raise DestinationRejected()
         else:
             raise DestinationRejected()
@@ -407,6 +412,10 @@ class LivePixivReadClient:
             )
         )
         self._verified_identity: str | None = None
+        # A service-owned live client can receive bookmark refresh, original
+        # download and explicit detail requests on different worker threads.
+        # Protect the entire identity transition, not just individual fields.
+        self._identity_lock = RLock()
         self._closed = False
 
     def __enter__(self):
@@ -417,6 +426,9 @@ class LivePixivReadClient:
         self.close()
 
     def close(self) -> None:
+        # Do not wait for a stalled bounded HTTP read just to initiate close.
+        # CookieJar.clear is internally synchronized with header reads, while
+        # _ensure_open rejects any operation that finishes after this point.
         self._closed = True
         self._verified_identity = None
         self._cookie_user_id = None
@@ -461,6 +473,7 @@ class LivePixivReadClient:
             raise ResponseRejected()
         if len(response) > limit:
             raise ResponseLimitExceeded()
+        self._ensure_open()
         return response
 
     def _json(self, kind: str, url: str, *, deadline: float) -> object:
@@ -478,6 +491,17 @@ class LivePixivReadClient:
         return packet["body"]
 
     def verify_identity(self) -> str:
+        with self._identity_lock:
+            return self._verify_identity_locked()
+
+    def require_identity(self) -> str:
+        """Verify once per immutable cookie source, preserving thread safety."""
+        with self._identity_lock:
+            self._ensure_open()
+            return (self._verified_identity if self._verified_identity is not None
+                    else self._verify_identity_locked())
+
+    def _verify_identity_locked(self) -> str:
         self._ensure_open()
         self._verified_identity = None
         deadline = time.monotonic() + MAX_OPERATION_SECONDS
@@ -503,6 +527,7 @@ class LivePixivReadClient:
         response_id = next(iter(response_ids), None)
         if response_id is not None and response_id != actual:
             raise AuthenticationMissing()
+        self._ensure_open()
         self._verified_identity = actual
         return actual
 
@@ -511,11 +536,12 @@ class LivePixivReadClient:
             requested = _identifier(my_user_id)
         except InvalidPayload:
             raise AuthenticationMissing() from None
-        self._ensure_open()
-        if self._verified_identity is None:
-            self.verify_identity()
-        if requested != self._verified_identity:
-            raise AuthenticationMissing()
+        with self._identity_lock:
+            self._ensure_open()
+            if self._verified_identity is None:
+                self.verify_identity()
+            if requested != self._verified_identity:
+                raise AuthenticationMissing()
         return requested
 
     def _bookmarks(self, my_user_id: str, rest_type: str, *, novel: bool):
@@ -625,6 +651,74 @@ class LivePixivReadClient:
 
     def get_bookmarked_novels(self, my_user_id: str, rest_type: str = "show"):
         yield from self._bookmarks(my_user_id, rest_type, novel=True)
+
+    def get_artwork_download_record(self, work_id: str):
+        """Resolve one explicitly requested illustration ID without bookmarking it.
+
+        The full detail endpoint is read-only. Caller must first establish a
+        verified identity; the returned DTO is usable only for an explicit
+        managed download and is not evidence that this work is bookmarked.
+        """
+        self._ensure_open()
+        try:
+            wid = _identifier(work_id)
+        except InvalidPayload:
+            raise DestinationRejected() from None
+        with self._identity_lock:
+            self._ensure_open()
+            if self._verified_identity is None:
+                raise AuthenticationMissing()
+            body = self._json("artwork", f"{API_ORIGIN}/ajax/illust/{wid}",
+                              deadline=time.monotonic() + MAX_OPERATION_SECONDS)
+            self._ensure_open()
+        if type(body) is not dict or ("isMasked" in body and body["isMasked"] is not False):
+            raise InvalidPayload()
+        try:
+            if _identifier(body.get("id")) != wid:
+                raise InvalidPayload()
+            author_id = _identifier(body.get("userId"))
+        except InvalidPayload:
+            raise InvalidPayload() from None
+        art_type = body.get("illustType")
+        count = body.get("pageCount")
+        restrict = body.get("xRestrict", 0)
+        if (type(art_type) is not int or art_type not in (0, 1) or
+                type(count) not in (int, str) or not str(count).isascii() or
+                not str(count).isdecimal() or not 1 <= int(count) <= MAX_ARTWORK_PAGES or
+                type(restrict) is not int or restrict not in (0, 1, 2)):
+            raise InvalidPayload()
+        title, author, created = (body.get("title"), body.get("userName"),
+                                  body.get("createDate", ""))
+        for value, maximum in ((title, 256), (author, 256), (created, 128)):
+            if (type(value) is not str or len(value) > maximum or
+                    any(ord(char) < 32 or ord(char) == 127 for char in value)):
+                raise InvalidPayload()
+        tag_data = body.get("tags", {})
+        tags_raw = tag_data.get("tags") if type(tag_data) is dict else None
+        if type(tags_raw) is not list or len(tags_raw) > 100:
+            raise InvalidPayload()
+        tags = []
+        for item in tags_raw:
+            tag = item.get("tag") if type(item) is dict else None
+            if (type(tag) is not str or len(tag) > 128 or
+                    any(ord(char) < 32 or ord(char) == 127 for char in tag)):
+                raise InvalidPayload()
+            tags.append(tag)
+        urls = body.get("urls", {})
+        if type(urls) is not dict:
+            raise InvalidPayload()
+        thumb = urls.get("small") or ""
+        if type(thumb) is not str:
+            raise InvalidPayload()
+        if thumb:
+            try:
+                _validate_destination(thumb, "image")
+            except DestinationRejected:
+                raise InvalidPayload() from None
+        from .bookmark_remote_adapter import RemoteBookmark
+        return RemoteBookmark(wid, "illustration", "show", title, author_id,
+                              author, tuple(tags), thumb, created, int(count),
+                              art_type, restrict)
 
     def get_artwork_pages(self, work_id: str) -> tuple[str, ...]:
         self._ensure_open()

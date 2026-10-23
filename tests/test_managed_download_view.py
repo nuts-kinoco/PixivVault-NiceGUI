@@ -35,7 +35,7 @@ class FakeServices:
             raise RuntimeError("sensitive response")
         return (), ()
 
-    def enqueue_managed_download(self, item, operation_id):
+    def enqueue_managed_download(self, item, operation_id, *, owner=None):
         if item not in self.candidates:
             raise ValueError("candidate changed")
         self.accepted.append((item, operation_id))
