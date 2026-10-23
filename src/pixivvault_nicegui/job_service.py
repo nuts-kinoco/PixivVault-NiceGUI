@@ -287,6 +287,17 @@ class JobService:
         # control lock: publish one immutable tuple only after commit succeeds.
         return self._published
 
+    def operation_ids(self, job_id: str) -> tuple[str, ...]:
+        """Read durable request identities for an existing job without doing I/O.
+
+        Used by a managed executor to recover the exact accepted input. Deleted
+        history keeps idempotency tombstones but does not authorize replay.
+        """
+        published, operations = self._published, self._operations
+        if type(job_id) is not str or not any(job.job_id == job_id for job in published):
+            return ()
+        return tuple(key for key, value in operations.items() if value[0] == job_id)
+
     def _commit(self, jobs, operations=None):
         operations = self._operations if operations is None else operations
         if self._store is not None:

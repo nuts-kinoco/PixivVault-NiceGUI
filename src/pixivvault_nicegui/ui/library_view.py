@@ -85,9 +85,10 @@ class LibraryView(ViewerController):
                 self.search_input.on("keydown.enter", lambda _: self.search(self.search_input.value))
                 ui.label("ライブラリ内").classes("pv-subtitle pv-library-scope")
                 self.db_refresh_button = None
-                if services.library_repository is not None:
+                if services.library_refresh_available:
                     self.db_refresh_button = ui.button(
-                        "DB更新", color=None, on_click=self.refresh_from_disk).props(
+                        "保存先更新" if services.managed_downloads is not None else "DB更新",
+                        color=None, on_click=self.refresh_from_disk).props(
                         "flat dense no-caps data-testid=library-db-refresh")
                 self.sort_buttons = {}
                 for key in ("view_count", "last_backup"):
@@ -104,7 +105,7 @@ class LibraryView(ViewerController):
             with ui.row().classes("pv-library-error") as self.error_row:
                 ui.label("ライブラリを読み込めませんでした").props("role=alert")
                 ui.button("再読込", on_click=(self.refresh_from_disk
-                    if services.library_repository is not None else self.reload)).props(
+                    if services.library_refresh_available else self.reload)).props(
                     "flat data-testid=library-reload")
 
             with ui.column().classes("pv-library-panel w-full") as self.authors_panel:
@@ -424,7 +425,7 @@ class LibraryView(ViewerController):
 
     async def refresh_from_disk(self) -> None:
         if (self.closed or not self.active or self._refreshing or
-                self.services.library_repository is None):
+                not self.services.library_refresh_available):
             return
         self._refresh_epoch += 1
         epoch = self._refresh_epoch
@@ -443,7 +444,9 @@ class LibraryView(ViewerController):
                     epoch == self._refresh_epoch):
                 # Keep searches/selections made while disk I/O was in progress.
                 # A full reload or tab leave still invalidates state/epoch ownership.
+                self.bookmark_state.replace_local(self.services.bookmark_local_snapshot())
                 self.reload(preserve=True)
+                self.bookmarks.refresh()
         finally:
             if epoch == self._refresh_epoch:
                 self._refreshing = False

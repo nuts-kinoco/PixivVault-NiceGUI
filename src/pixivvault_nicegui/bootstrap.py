@@ -1,4 +1,4 @@
-"""独立デモの起動入口。実データ・既存アプリ・外部APIには接続しない。"""
+"""独立入口。既定は合成デモ、外部読取と管理保存は明示opt-inのみ。"""
 
 from __future__ import annotations
 
@@ -24,6 +24,7 @@ class RunConfig:
     library_image_root: Path | None = None
     pixiv_cookie_file: Path | None = None
     download_sandbox: Path | None = None
+    pixiv_download_root: Path | None = None
 
 
 def _port(value: str) -> int:
@@ -43,6 +44,13 @@ def _sandbox_path(value: str) -> Path:
     return path
 
 
+def _validate_managed_paths(root: Path, cookie: Path) -> None:
+    """Keep managed storage disjoint from the credential/source-app directory."""
+    storage, credentials = root.resolve(), cookie.resolve().parent
+    if storage == credentials or storage in credentials.parents or credentials in storage.parents:
+        raise ValueError("managed storage must be outside the Cookie source directory")
+
+
 def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
     parser = argparse.ArgumentParser(description="PixivVault-NiceGUI 独立デモ")
     parser.add_argument("--host", choices=["127.0.0.1", "::1"], default="127.0.0.1")
@@ -59,14 +67,24 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
                         help="明示Cookieファイルによるpixiv読取接続。原本は変更せず、更新操作まで通信しない")
     parser.add_argument("--download-sandbox", type=_sandbox_path,
                         help="架空画像の保存・キュー復旧を専用フォルダーで検証（絶対パス）")
+    parser.add_argument("--pixiv-download-root", type=_sandbox_path,
+                        help="通常イラスト・漫画の原寸画像を新しい専用管理フォルダーへ保存。Cookieと旧DBの場所は指定不可")
     args = parser.parse_args(argv)
     if (args.library_readonly_db is None) != (args.library_image_root is None):
         parser.error("library-readonly-db and library-image-root must be specified together")
     if args.download_sandbox is not None and (args.library_readonly_db is not None or args.pixiv_cookie_file is not None):
         parser.error("download-sandbox is synthetic-only; do not combine with a read-only library or pixiv cookies")
+    if args.pixiv_download_root is not None:
+        if (args.pixiv_cookie_file is None or args.download_sandbox is not None or
+                args.library_readonly_db is not None or args.learning_sandbox is not None):
+            parser.error("pixiv-download-root requires Cookie and isolated storage; other storage modes cannot be combined")
+        try:
+            _validate_managed_paths(args.pixiv_download_root, args.pixiv_cookie_file)
+        except ValueError as error:
+            parser.error(str(error))
     return RunConfig(args.host, args.port, args.native, args.check, args.learning_sandbox,
                      args.library_readonly_db, args.library_image_root, args.pixiv_cookie_file,
-                     args.download_sandbox)
+                     args.download_sandbox, args.pixiv_download_root)
 
 
 _registered = False
@@ -76,7 +94,8 @@ def register_pages(learning_sandbox: Path | None = None,
                    library_readonly_db: Path | None = None,
                    library_image_root: Path | None = None,
                    pixiv_cookie_file: Path | None = None, live_client=None,
-                   download_sandbox: Path | None = None) -> None:
+                   download_sandbox: Path | None = None,
+                   pixiv_download_root: Path | None = None) -> None:
     """NiceGUIのHTTPルートを登録する。呼ぶだけではサーバーを起動しない。"""
     global _registered
     if _registered:
@@ -90,12 +109,15 @@ def register_pages(learning_sandbox: Path | None = None,
     if pixiv_cookie_file is not None:
         if live_client is not None:
             raise ValueError("choose one pixiv client source")
+        if pixiv_download_root is not None:
+            _validate_managed_paths(pixiv_download_root, pixiv_cookie_file)
         from pixivvault_nicegui.pixiv_read_client import LivePixivReadClient
         live_client = LivePixivReadClient(pixiv_cookie_file)
     try:
         services = get_services(app, learning_sandbox=learning_sandbox,
             library_readonly_db=library_readonly_db, library_image_root=library_image_root,
-            live_client=live_client, download_sandbox=download_sandbox)
+            live_client=live_client, download_sandbox=download_sandbox,
+            pixiv_download_root=pixiv_download_root)
     except BaseException:
         if live_client is not None:
             live_client.close()
@@ -137,7 +159,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             "data": ("pixiv-readonly" if config.pixiv_cookie_file is not None else
                      "library-readonly" if config.library_readonly_db is not None else "synthetic"),
             "learning_storage": "sandbox" if config.learning_sandbox is not None else "memory",
-            "download_storage": "sandbox" if config.download_sandbox is not None else "disabled",
+            "download_storage": ("managed-pixiv" if config.pixiv_download_root is not None else
+                                 "sandbox" if config.download_sandbox is not None else "disabled"),
         }, ensure_ascii=False))
         return 0
     if config.native and importlib.util.find_spec("webview") is None:
@@ -171,6 +194,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         registration["pixiv_cookie_file"] = config.pixiv_cookie_file
     if config.download_sandbox is not None:
         registration["download_sandbox"] = config.download_sandbox
+    if config.pixiv_download_root is not None:
+        registration["pixiv_download_root"] = config.pixiv_download_root
     register_pages(**registration)
     ui.run(
         host=config.host,

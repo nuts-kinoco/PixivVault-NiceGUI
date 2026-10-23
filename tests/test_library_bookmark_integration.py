@@ -1,5 +1,7 @@
 """Synthetic LibraryView subview wiring; never uses remote API or user cookies."""
 
+import asyncio
+
 from nicegui import Client, ui
 import pytest
 import pytest_asyncio
@@ -114,3 +116,32 @@ async def test_old_downloaded_detail_events_cannot_affect_bookmark_subview(libra
     view.show_subview("downloaded")
     view.open_page("demo-0060", 2, generation, page_session)
     assert view._viewer_state.viewer_open
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("transition", ["away", "roundtrip", "close"])
+async def test_async_bookmark_completion_does_not_replace_retired_client(library, monkeypatch, transition):
+    view, services, client = library
+    gate = asyncio.Event()
+    async def delayed():
+        await gate.wait()
+        return (), ()
+    monkeypatch.setattr(services, "refresh_bookmark_cache", delayed)
+    with client:
+        view.show_subview("bookmarks")
+        epoch = view.bookmark_state.begin_fetch()
+        previous = view.bookmark_state.remote_cache
+        provider = view._image_provider
+        task = asyncio.create_task(view._refresh_bookmarks_async(epoch))
+        await asyncio.sleep(0)
+        if transition == "close":
+            view.close()
+        else:
+            view.set_active(False)
+            if transition == "roundtrip":
+                view.set_active(True)
+        gate.set()
+        await task
+        assert view.bookmark_state.remote_cache is previous
+        assert view._image_provider is provider
+        assert provider.closed is (transition == "close")

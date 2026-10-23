@@ -40,7 +40,9 @@ class DemoShell:
                         "library-readonly": "旧ライブラリ読取専用 · 元DB・画像の変更なし",
                         "pixiv-readonly": "pixiv読取接続 · 認証確認はブックマーク更新時 / 書込操作なし",
                     }
-                    ui.label(descriptions[services.data_mode]).classes("pv-subtitle")
+                    description = ("pixiv GET専用 · 選択した原寸画像を専用管理先へ保存 / 元DB・Cookieは変更しません"
+                                   if services.managed_downloads is not None else descriptions[services.data_mode])
+                    ui.label(description).classes("pv-subtitle")
                 ui.label("オフライン検証" if services.data_mode == "synthetic" else
                          "ランキング・学習は合成データ").classes("pv-subtitle")
             with ui.element("nav").classes("pv-nav").props("aria-label=メインナビゲーション"):
@@ -92,8 +94,12 @@ class DemoShell:
         if (tab in {"download", "queue"} or (tab == "failed" and self.services.jobs is not None)) and tab not in self.job_views:
             from .job_views import DownloadView, QueueView
             with self.content:
-                self.job_views[tab] = (DownloadView(self.services) if tab == "download" else
-                                      QueueView(self.services, failed_only=tab == "failed"))
+                if tab == "download" and self.services.managed_downloads is not None:
+                    from .managed_download_view import ManagedDownloadView
+                    self.job_views[tab] = ManagedDownloadView(self.services)
+                else:
+                    self.job_views[tab] = (DownloadView(self.services) if tab == "download" else
+                                          QueueView(self.services, failed_only=tab == "failed"))
         self.active_tab = tab
         self.gallery.root.set_visibility(tab == "ranking")
         self.gallery.set_viewer_active(tab == "ranking")
