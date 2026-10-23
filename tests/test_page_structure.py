@@ -25,8 +25,12 @@ async def test_page_builds_fifty_cards_one_dialog_and_existing_navigation():
             "ダウンロード", "キュー", "失敗リスト", "重複整理",
             "学習", "ランキング", "ライブラリ", "おすすめ",
         ]
-        # 閲覧3経路と失敗記録の読取画面。更新系を有効に見せない。
-        assert sum(bool(element.props.get("disable")) for element in tabs) == 4
+        # Job screens explain the opt-in destination; actual mutation controls
+        # remain disabled when no dedicated synthetic sandbox was specified.
+        enabled = {element.props["data-testid"] for element in tabs if not element.props.get("disable")}
+        assert enabled == {"tab-ranking", "tab-learning", "tab-library", "tab-failed", "tab-download", "tab-queue"}
+        assert {element.props["data-testid"] for element in tabs if element.props.get("disable")} == {
+            "tab-dedup", "tab-recommend"}
         # ナビゲーションは既存トークンのCSSで色を制御する。
         # Quasar既定text-primaryを残すと選択中の青背景と文字が同色になる。
         assert all(element.props.get("color") is None for element in tabs)

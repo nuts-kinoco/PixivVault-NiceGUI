@@ -148,6 +148,28 @@ body { background: #0b0b10; color: #e8e8ef; font-family: system-ui, -apple-syste
 .pv-library-tag-chip.pv-tag-excluded { background:#15161c; color:#8a8a99; }
 .pv-library-tag-chip.pv-tag-excluded > div { text-decoration:line-through; }
 .pv-library-tag-chip .q-btn { min-width:22px; min-height:22px; padding:0; }
+.pv-jobs-view { flex:1 1 0; min-height:0; min-width:0; display:flex; flex-direction:column; gap:10px; overflow:hidden; }
+.pv-jobs-view > .pv-toolbar, .pv-jobs-view > .pv-job-chips, .pv-jobs-view > .pv-subtitle { flex:0 0 auto; }
+.pv-jobs-view .q-btn { color:#e8e8ef !important; }
+.pv-jobs-scroll { flex:1 1 0; min-height:0; width:100%; overflow-y:auto; overflow-x:hidden; }
+.pv-download-body { flex:1 1 0; min-height:0; flex-wrap:nowrap; overflow:hidden; align-items:stretch; gap:16px; }
+.pv-download-candidates { flex:2 1 0; min-width:0; gap:0; }
+.pv-download-targets { flex:1 1 0; min-width:220px; max-width:380px; min-height:0; overflow-y:auto; padding:16px; border:1px solid #2a2b38; border-radius:12px; background:#15161c; }
+.pv-download-item { padding:10px 12px; min-height:66px; flex:0 0 auto; border-bottom:1px solid #2a2b38; flex-wrap:nowrap; }
+.pv-job-row { min-height:56px; padding:8px 12px; gap:12px; border-left:3px solid #8a8a99; border-bottom:1px solid #2a2b38; flex:0 0 auto; flex-wrap:nowrap; background:#15161c; }
+.pv-job-row[data-state=running] { border-left-color:#0096FA; }
+.pv-job-row[data-state=error] { border-left-color:#ef9a9a; }
+.pv-job-row[data-state=done] { border-left-color:#81c784; }
+.pv-job-row[data-state=paused] { border-left-color:#ffb300; }
+.pv-job-description { flex:1 1 0; min-width:0; }
+.pv-job-title { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+.pv-job-description .pv-subtitle { font-size:10px; }
+.pv-job-state { min-width:66px; font-size:12px; }
+.pv-job-actions { gap:4px; flex-wrap:nowrap; }
+.pv-job-actions .q-btn { min-width:40px; font-size:11px; }
+.pv-job-chips { gap:4px; }
+.pv-job-chips .q-btn { font-size:11px; border:1px solid #2a2b38; border-radius:8px; }
+.pv-job-chips [aria-pressed=true] { background:#1e202d !important; border-color:#0096FA; }
 @media(max-width:1280px) { .pv-shell { padding:16px; gap:12px; } .pv-toolbar { padding:12px; } .pv-view-art { max-height:48dvh; } }
 @media(max-width:1280px) { .pv-viewer .pv-view-art, .pv-viewer .pv-view-art img { max-height:none; } }
 @media(max-width:600px) { .pv-shell { padding:12px; } .pv-title { font-size:24px; } .pv-toolbar { padding:12px; } }

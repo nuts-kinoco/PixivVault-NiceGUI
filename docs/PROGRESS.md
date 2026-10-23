@@ -1,8 +1,12 @@
 # 移植進捗
 
-更新: 2026-10-23、レビュー後のマージ承認に基づく継続開発。最終ゴールは移植完了、各フェーズは途中のマイルストーン。現在の検証単位: `phase5/failed-records-integration`（失敗リストの旧DB読取・検索・分類・実CSV出力）。
+更新: 2026-10-23、レビュー後のマージ承認に基づく継続開発。最終ゴールは移植完了、各フェーズは途中のマイルストーン。現在の検証単位: `phase5/jobs-integration`（合成保存・永続キュー・停止再開・一括操作と再起動）。
 
 ## 最新の進捗照合とフェーズレビュー
+
+失敗リストPR #22は最終head `3288bf0b2e72dea9e06575d10cfb7f721a714bf9` の全3CI成功後、main `1bcfdbb60b869a145bbc3c300ee837b485d80079` へ統合。main run `39873726737` もWindows/Ubuntu/Chromium全成功。旧mainの依存取得時間切れとは別の正確なSHAで確認した。
+
+後続の合成保存・永続キューは全855pytest、実Edge2寸法で個別/一括pause-resume-stop、再試行、確認削除、12件のページ越え選択、13件の履歴削除と11receipt保持を確認。独立レビューで見つかったpaused待機による詰まり、DB保存待ちによるUI停止、削除確認対象・古いイベントの混入をRED再現して修正した。同一コピーexeの初回保存と再起動で4頁の全画素/SHA、履歴保持/削除とファイル保持、GDI復帰と各8process通常終了を受入。実pixivダウンロード・旧scheduler/failed_queue同期は未接続。詳細は `DOWNLOAD_JOBS_REVIEW_2026-10-23.md`。
 
 PR #21はhead `3c7bb387792b69aafedda154e892150db02c99ea` からmain `5fee5ec91b06b6d9a56d40c75db398799dd10f31` へ統合済み。実Cookieの専用Edge受入 `real-ui-03` は2ページdecode、I/Tab、検索・選択・focus・タブ往復、原本不変、書込0、通常終了を確認。main CI run39828938139は依存取得で時間を消費してcancelledであり、greenとしない。
 

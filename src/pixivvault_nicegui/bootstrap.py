@@ -23,6 +23,7 @@ class RunConfig:
     library_readonly_db: Path | None = None
     library_image_root: Path | None = None
     pixiv_cookie_file: Path | None = None
+    download_sandbox: Path | None = None
 
 
 def _port(value: str) -> int:
@@ -56,11 +57,16 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
                         help="読取専用ライブラリの明示画像ルート")
     parser.add_argument("--pixiv-cookie-file", type=_sandbox_path,
                         help="明示Cookieファイルによるpixiv読取接続。原本は変更せず、更新操作まで通信しない")
+    parser.add_argument("--download-sandbox", type=_sandbox_path,
+                        help="架空画像の保存・キュー復旧を専用フォルダーで検証（絶対パス）")
     args = parser.parse_args(argv)
     if (args.library_readonly_db is None) != (args.library_image_root is None):
         parser.error("library-readonly-db and library-image-root must be specified together")
+    if args.download_sandbox is not None and (args.library_readonly_db is not None or args.pixiv_cookie_file is not None):
+        parser.error("download-sandbox is synthetic-only; do not combine with a read-only library or pixiv cookies")
     return RunConfig(args.host, args.port, args.native, args.check, args.learning_sandbox,
-                     args.library_readonly_db, args.library_image_root, args.pixiv_cookie_file)
+                     args.library_readonly_db, args.library_image_root, args.pixiv_cookie_file,
+                     args.download_sandbox)
 
 
 _registered = False
@@ -69,7 +75,8 @@ _registered = False
 def register_pages(learning_sandbox: Path | None = None,
                    library_readonly_db: Path | None = None,
                    library_image_root: Path | None = None,
-                   pixiv_cookie_file: Path | None = None, live_client=None) -> None:
+                   pixiv_cookie_file: Path | None = None, live_client=None,
+                   download_sandbox: Path | None = None) -> None:
     """NiceGUIのHTTPルートを登録する。呼ぶだけではサーバーを起動しない。"""
     global _registered
     if _registered:
@@ -88,7 +95,7 @@ def register_pages(learning_sandbox: Path | None = None,
     try:
         services = get_services(app, learning_sandbox=learning_sandbox,
             library_readonly_db=library_readonly_db, library_image_root=library_image_root,
-            live_client=live_client)
+            live_client=live_client, download_sandbox=download_sandbox)
     except BaseException:
         if live_client is not None:
             live_client.close()
@@ -130,6 +137,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "data": ("pixiv-readonly" if config.pixiv_cookie_file is not None else
                      "library-readonly" if config.library_readonly_db is not None else "synthetic"),
             "learning_storage": "sandbox" if config.learning_sandbox is not None else "memory",
+            "download_storage": "sandbox" if config.download_sandbox is not None else "disabled",
         }, ensure_ascii=False))
         return 0
     if config.native and importlib.util.find_spec("webview") is None:
@@ -161,6 +169,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         registration["library_image_root"] = config.library_image_root
     if config.pixiv_cookie_file is not None:
         registration["pixiv_cookie_file"] = config.pixiv_cookie_file
+    if config.download_sandbox is not None:
+        registration["download_sandbox"] = config.download_sandbox
     register_pages(**registration)
     ui.run(
         host=config.host,

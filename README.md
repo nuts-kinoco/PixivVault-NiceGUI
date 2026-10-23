@@ -26,7 +26,7 @@ python -m venv .venv
 既定のデモは本番DB・画像フォルダ・Cookie・pixiv APIに接続せず、120件の架空作品とコードで生成した診断PNGを使います。
 検索、50件単位の追加表示、カード大中小、作品詳細、作品内のページ送り、学習4判定とUndoの検証経路があります。
 学習は既定では画面内のメモリ台帳へ記録します。直前1件だけUndoでき、再読込や再起動では引き継ぎません。実データへの保存・学習アルゴリズムの本番接続は未実装です。
-ライブラリでは作者一覧→ページ一覧→共有ビューアと、マイブックマークの検索・選択・ビューア・戻るを利用できます。「絞り込み」からタグを追加し、すべて含む/どれか、＋/−による含む/除外、個別解除を使えます。条件は同じ画面内のDL済みとマイブックマークで共有し、別の画面には影響しません。作者一覧を絞り込んでも、代表作品と作者詳細の全ページは変わりません。日付・ブクマ数など他の絞り込み軸、ダウンロード、キュー、重複整理、おすすめ、外部アカウントへの書込み操作はまだ未接続です。
+ライブラリでは作者一覧→ページ一覧→共有ビューアと、マイブックマークの検索・選択・ビューア・戻るを利用できます。「絞り込み」からタグを追加し、すべて含む/どれか、＋/−による含む/除外、個別解除を使えます。条件は同じ画面内のDL済みとマイブックマークで共有し、別の画面には影響しません。作者一覧を絞り込んでも、代表作品と作者詳細の全ページは変わりません。日付・ブクマ数など他の絞り込み軸、実pixivダウンロード、重複整理、おすすめ、外部アカウントへの書込み操作はまだ未接続です。
 
 失敗リストは旧DBを明示指定した読取modeで、失敗理由の全文、タイトル/ID検索、カテゴリ、8件ページング、絞込全件のCSV出力を利用できます。Windows専用窓でも保存ダイアログから保存先を選択できます。再試行・個別削除・一括削除はまだ未接続で無効です。読取失敗時には前回の一覧を保持して再読込でき、DB未指定の実API modeは「未取得」と表示します。
 
@@ -47,6 +47,18 @@ Windowsの専用窓は `pip install -e ".[native]"` の後に `python -m pixivva
 
 保存中は同じ画像を表示したまま待ち、成功後に次へ進みます。失敗したときは「保存を再試行」でやり直せます。別の画面が更新した判定を古いUndoで消すことは拒否し、保存状態を読み直します。`--check` は指定した保存先を開かず、作成もしません。
 
+### 合成画像の保存と永続キュー
+
+```powershell
+.\.venv\Scripts\python.exe -m pixivvault_nicegui --native --download-sandbox C:\PixivVault-Demo\downloads
+```
+
+新しい専用フォルダーの絶対パスを明示すると、架空作品を検索・選択し、全ページPNGを保存できます。pixivからのダウンロードではありません。既存の任意フォルダー、実Cookie、旧ライブラリとの併用は拒否します。指定しない場合は保存操作を有効にしません。
+
+キューは8件ずつ表示し、検索・状態フィルター、ページをまたぐ選択、絞込全件選択、個別/一括の一時停止・再開・停止、確認後の履歴削除を行えます。エラーは専用保存先の失敗画面から再試行できます。受理したジョブはタブや画面を閉じてもアプリが管理し、アプリ終了時はワーカーを停止してから画像資源を閉じます。
+
+同じ保存先で再起動すると履歴を読み直しますが、未完了ジョブを勝手に再実行しません。履歴削除は保存済みPNGやreceiptを削除しません。旧 `failed_queue` の読取画面とこの合成ジョブの失敗画面は別の接続で、本番の失敗記録を更新しません。
+
 ## 実ブラウザの回帰試験
 
 ```powershell
@@ -56,6 +68,7 @@ Windowsの専用窓は `pip install -e ".[native]"` の後に `python -m pixivva
 .\.venv\Scripts\python.exe tools/check_readonly_library_browser.py --channel msedge --output artifacts/readonly-browser
 .\.venv\Scripts\python.exe tools/check_live_bookmark_browser.py --channel msedge --output artifacts/bookmark-transport-browser
 .\.venv\Scripts\python.exe tools/check_failed_records_browser.py --channel msedge --output artifacts/failed-records-browser
+.\.venv\Scripts\python.exe tools/check_download_jobs_browser.py --channel msedge --output artifacts/download-jobs-browser
 ```
 
 ランナーが専用の一時ポートにデモを起動し、Edgeで一覧・学習・画像故障/遅着を操作した後、自分のプロセスを停止します。一覧は1280×720と1920×1080で確認し、学習は操作試験に加えて画面サイズ別の画像・ボタン配置を確認します。

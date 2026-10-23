@@ -226,7 +226,8 @@ def inspect_readonly_library_ui(page, screenshot: Path, guard: NativeUiGuard) ->
 
 def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float,
                *, check_owner, learning_persistence: bool = False,
-               readonly_library: bool = False, failed_records: bool = False) -> dict:
+               readonly_library: bool = False, failed_records: bool = False,
+               download_sandbox: Path | None = None, jobs_restart: bool = False) -> dict:
     """Use Playwright's WebView2 CDP attachment, never close remote browser/context."""
     from playwright.sync_api import expect, sync_playwright
 
@@ -376,13 +377,25 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
                     from check_failed_records_native import inspect_failed_records
                 result['failed_records'] = inspect_failed_records(page, screenshot, guard)
                 result['interactions'].append('legacy failure records/search/category/page/read-only actions')
+            if download_sandbox is not None:
+                if __package__:
+                    from .check_download_jobs_native import inspect_download_jobs
+                else:
+                    from check_download_jobs_native import inspect_download_jobs
+                result['download_jobs'] = inspect_download_jobs(
+                    page, screenshot, guard, download_sandbox, restart=jobs_restart)
+                result['interactions'].append('native synthetic downloads/receipts/restart')
         run(page.screenshot, path=str(screenshot), full_page=False)
         result["screenshot"] = str(screenshot)
         guard.check()
         result["passed"] = (result["handshake"] and result["cards"] == 50
                             and result["image_decoded"] and result["bridge_ready"]
-                            and len(result['interactions']) == (4 + int(learning_persistence) + int(failed_records))
+                            and len(result['interactions']) == (4 + int(learning_persistence)
+                                                              + int(failed_records)
+                                                              + int(download_sandbox is not None))
                             and (not failed_records or saved_csv_accepted(result.get('failed_records')))
+                            and (download_sandbox is None or
+                                 result.get('download_jobs', {}).get('passed') is True)
                             and not result["console_errors"] and not result["page_errors"])
     return result
 
@@ -665,6 +678,11 @@ def main(argv: list[str] | None = None) -> int:
                         help="Explicit physical client origin for our owned test window before acceptance; never resize")
     parser.add_argument("--learning-sandbox", type=Path,
                         help="Explicit synthetic learning directory; reuse it to check a native restart")
+    parser.add_argument("--download-sandbox", type=Path,
+                        help="Explicit absolute fresh synthetic download directory; passed to the owned native app")
+    parser.add_argument("--jobs-restart", action="store_true",
+                        help="Second native run in the same marked download sandbox; verify two durable jobs, "
+                             "no auto-run, remove one history item, keep every saved page")
     parser.add_argument("--library-readonly-db", type=Path,
                         help="Explicit isolated legacy-schema SQLite fixture")
     parser.add_argument("--library-image-root", type=Path,
@@ -684,6 +702,16 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("CSV dialog budget requires --inspect-failed-records")
     if args.learning_sandbox is not None and not args.learning_sandbox.is_absolute():
         parser.error("--learning-sandbox must be absolute")
+    if args.jobs_restart and args.download_sandbox is None:
+        parser.error("--jobs-restart requires --download-sandbox")
+    if args.download_sandbox is not None:
+        if not args.inspect_ui:
+            parser.error("--download-sandbox requires --inspect-ui")
+        if not args.download_sandbox.is_absolute():
+            parser.error("--download-sandbox must be absolute")
+        if (args.library_readonly_db is not None or args.learning_sandbox is not None
+                or args.inspect_failed_records):
+            parser.error("native download acceptance must be isolated from library/learning/failure fixtures")
     if (args.library_readonly_db is None) != (args.library_image_root is None):
         parser.error("read-only library requires both explicit DB and image root")
     if args.library_readonly_db is not None:
@@ -708,12 +736,26 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("Python executable does not exist")
     if args.output.resolve() == target.resolve():
         parser.error("Output must differ from entry")
+    jobs_before = None
+    if args.download_sandbox is not None:
+        if args.output.resolve().is_relative_to(args.download_sandbox.resolve()):
+            parser.error("native check output must be outside download sandbox")
+        if __package__:
+            from .check_download_jobs_native import preflight_download_root
+        else:
+            from check_download_jobs_native import preflight_download_root
+        try:
+            jobs_before = preflight_download_root(args.download_sandbox, restart=args.jobs_restart)
+        except Exception as exc:
+            parser.error(f"download sandbox preflight rejected: {type(exc).__name__}")
     port = available_port()
     command = ([str(args.exe.resolve())] if args.exe
                else [str(args.python.resolve()), str(args.python_entry.resolve())])
     command += ["--host", "127.0.0.1", "--port", str(port)]
     if args.learning_sandbox is not None:
         command += ["--learning-sandbox", str(args.learning_sandbox)]
+    if args.download_sandbox is not None:
+        command += ["--download-sandbox", str(args.download_sandbox)]
     if args.library_readonly_db is not None:
         command += ["--library-readonly-db", str(args.library_readonly_db),
                     "--library-image-root", str(args.library_image_root)]
@@ -741,6 +783,8 @@ def main(argv: list[str] | None = None) -> int:
     log_path = output_path.with_name(output_path.stem + ".process.log")
     report["process_log"] = str(log_path)
     report["inspect_ui_requested"] = args.inspect_ui
+    report["download_jobs_requested"] = args.download_sandbox is not None
+    report["jobs_restart"] = args.jobs_restart
     report["ui_inspection"] = None
     child_env = os.environ.copy()
     debug_port = available_port() if args.inspect_ui else None
@@ -826,8 +870,12 @@ def main(argv: list[str] | None = None) -> int:
                             inspect_kwargs["readonly_library"] = True
                         if args.inspect_failed_records:
                             inspect_kwargs["failed_records"] = True
+                        if args.download_sandbox is not None:
+                            inspect_kwargs["download_sandbox"] = args.download_sandbox
+                            inspect_kwargs["jobs_restart"] = args.jobs_restart
                         inspection_deadline = min(operation_deadline, time.monotonic()
-                            + PHASE_LIMITS["inspect_ui"] + args.failed_csv_dialog_seconds)
+                            + (140.0 if args.download_sandbox is not None
+                               else PHASE_LIMITS["inspect_ui"]) + args.failed_csv_dialog_seconds)
                         report["ui_inspection"] = inspect_ui(
                             debug_port, port, screenshot, inspection_deadline,
                             **inspect_kwargs)
@@ -865,12 +913,38 @@ def main(argv: list[str] | None = None) -> int:
                     report["errors"].append("process_exit_timeout")
                 if not report["port_released"]:
                     report["errors"].append("port_release_timeout")
+                if args.download_sandbox is not None:
+                    if __package__:
+                        from .check_download_jobs_native import jobs_ui_accepted, verify_native_jobs
+                    else:
+                        from check_download_jobs_native import jobs_ui_accepted, verify_native_jobs
+                    accepted = jobs_ui_accepted(report.get("ui_inspection"), restart=args.jobs_restart)
+                    report["jobs_ui_accepted"] = accepted
+                    if not accepted:
+                        report["errors"].append("native_jobs_ui_acceptance_missing")
+                    if report["normal_exit"] and report["port_released"] and accepted:
+                        try:
+                            remaining = (frozenset({"demo-0004"}) if args.jobs_restart
+                                         else frozenset({"demo-0003", "demo-0004"}))
+                            after = verify_native_jobs(args.download_sandbox, remaining_ids=remaining)
+                            ui_receipts = report["ui_inspection"]["download_jobs"]["receipts"]
+                            if (after["receipts"] != ui_receipts
+                                    or (args.jobs_restart and
+                                        after["receipts"] != jobs_before["receipts"])):
+                                raise AssertionError("native restart altered saved page contents")
+                            report["download_jobs_post_close"] = after
+                        except Exception as exc:
+                            report["download_jobs_post_close"] = {"passed": False, "reason": type(exc).__name__}
+                            report["errors"].append("native_jobs_persistence_failed")
         report["status"] = "passed" if (report["health_ready"] and report["window_found"]
                     and report["minimized"] and report["restored"]
                     and report["normal_exit"] and report["port_released"]
                     and report.get("wm_close_sent")
                     and (not args.inspect_failed_records or
                          saved_csv_accepted((report["ui_inspection"] or {}).get("failed_records")))
+                    and (args.download_sandbox is None or
+                         (report.get("jobs_ui_accepted") is True
+                          and (report.get("download_jobs_post_close") or {}).get("passed") is True))
                     and not report["errors"]
                     and (args.client_origin is None or
                          (report.get("initial_placement") or {}).get("explicit_setup") is True)
