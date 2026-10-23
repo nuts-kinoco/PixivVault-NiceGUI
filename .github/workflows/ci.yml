@@ -82,6 +82,8 @@ jobs:
         run: python tools/check_managed_downloads_browser.py --channel chromium --output artifacts/browser-ci/managed-downloads
       - name: Check non-bookmarked ID lookup and managed original download across restart
         run: python tools/check_direct_work_browser.py --channel chromium --output artifacts/browser-ci/direct-work-download
+      - name: Check opt-in legacy failure retry into managed jobs without legacy mutation
+        run: python tools/check_failed_managed_retry_browser.py --channel chromium --output artifacts/browser-ci/failed-managed-retry
       - name: Check author-ID and followed-author differential download across restart
         run: python tools/check_author_download_browser.py --channel chromium --output artifacts/browser-ci/author-download
       - name: Preserve synthetic browser evidence

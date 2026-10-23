@@ -25,6 +25,7 @@ class RunConfig:
     pixiv_cookie_file: Path | None = None
     download_sandbox: Path | None = None
     pixiv_download_root: Path | None = None
+    failed_queue_readonly_db: Path | None = None
 
 
 def _port(value: str) -> int:
@@ -69,6 +70,8 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
                         help="架空画像の保存・キュー復旧を専用フォルダーで検証（絶対パス）")
     parser.add_argument("--pixiv-download-root", type=_sandbox_path,
                         help="通常イラスト・漫画の原寸画像を新しい専用管理フォルダーへ保存。Cookieと旧DBの場所は指定不可")
+    parser.add_argument("--failed-queue-readonly-db", type=_sandbox_path,
+                        help="静止した旧失敗キューDBコピーを読取専用参照し、明示操作で通常作品のみ管理キューへ投入")
     args = parser.parse_args(argv)
     if (args.library_readonly_db is None) != (args.library_image_root is None):
         parser.error("library-readonly-db and library-image-root must be specified together")
@@ -82,9 +85,20 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
             _validate_managed_paths(args.pixiv_download_root, args.pixiv_cookie_file)
         except ValueError as error:
             parser.error(str(error))
+    if args.failed_queue_readonly_db is not None:
+        if args.pixiv_download_root is None or args.pixiv_cookie_file is None:
+            parser.error('legacy retry needs an explicit Pixiv managed root and cookie source')
+        source = args.failed_queue_readonly_db
+        if (not source.is_file() or source.is_symlink()
+                or args.pixiv_download_root.resolve() == source.resolve().parent
+                or args.pixiv_download_root.resolve() in source.resolve().parents
+                or any(Path(str(source) + suffix).exists()
+                       for suffix in ('-wal', '-shm', '-journal'))):
+            parser.error('failed queue must be a separate complete immutable SQLite copy')
     return RunConfig(args.host, args.port, args.native, args.check, args.learning_sandbox,
                      args.library_readonly_db, args.library_image_root, args.pixiv_cookie_file,
-                     args.download_sandbox, args.pixiv_download_root)
+                     args.download_sandbox, args.pixiv_download_root,
+                     args.failed_queue_readonly_db)
 
 
 _registered = False
@@ -95,7 +109,8 @@ def register_pages(learning_sandbox: Path | None = None,
                    library_image_root: Path | None = None,
                    pixiv_cookie_file: Path | None = None, live_client=None,
                    download_sandbox: Path | None = None,
-                   pixiv_download_root: Path | None = None) -> None:
+                   pixiv_download_root: Path | None = None,
+                   failed_queue_readonly_db: Path | None = None) -> None:
     """NiceGUIのHTTPルートを登録する。呼ぶだけではサーバーを起動しない。"""
     global _registered
     if _registered:
@@ -117,7 +132,8 @@ def register_pages(learning_sandbox: Path | None = None,
         services = get_services(app, learning_sandbox=learning_sandbox,
             library_readonly_db=library_readonly_db, library_image_root=library_image_root,
             live_client=live_client, download_sandbox=download_sandbox,
-            pixiv_download_root=pixiv_download_root)
+            pixiv_download_root=pixiv_download_root,
+            failed_queue_readonly_db=failed_queue_readonly_db)
     except BaseException:
         if live_client is not None:
             live_client.close()
@@ -196,6 +212,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         registration["download_sandbox"] = config.download_sandbox
     if config.pixiv_download_root is not None:
         registration["pixiv_download_root"] = config.pixiv_download_root
+    if config.failed_queue_readonly_db is not None:
+        registration['failed_queue_readonly_db'] = config.failed_queue_readonly_db
     register_pages(**registration)
     ui.run(
         host=config.host,
