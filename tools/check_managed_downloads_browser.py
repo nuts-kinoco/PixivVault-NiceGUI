@@ -57,6 +57,23 @@ class ManagedTransport(SyntheticPixivTransport):
                 return png((120, 84), (13, 37, 211) if match.group(2) == "0" else (9, 191, 53))
             self.regular_gets[url.path] += 1
             return png((48, 32), (230, 29, 17))
+        if url.path in ("/ajax/illust/321", "/ajax/illust/322"):
+            self.request_count += 1
+            self.all_requests_get &= request.get_method() == "GET"
+            self.allowed_https_hosts_only &= (url.scheme == "https" and
+                url.hostname == self.API_HOST and url.port is None and
+                url.username is None and url.password is None)
+            if not (request.has_header("Cookie") and self.all_requests_get
+                    and self.allowed_https_hosts_only):
+                raise AssertionError("direct artwork metadata request invalid")
+            wid = url.path.rsplit("/", 1)[-1]
+            return self._packet({
+                "id": wid, "title": "架空のID指定作品", "userId": "24",
+                "userName": "架空の直接作者", "tags": {"tags": [{"tag": "合成"}]},
+                "illustType": 2 if wid == "322" else 0, "pageCount": 2,
+                "xRestrict": 0, "createDate": "2026-10-23T00:00:00+09:00",
+                "urls": {"small": f"https://i.pximg.net/synthetic/{wid}.png"},
+            })
         if url.path.startswith("/ajax/illust/") and url.path.endswith("/pages"):
             self.request_count += 1
             self.all_requests_get &= request.get_method() == "GET"
@@ -67,7 +84,7 @@ class ManagedTransport(SyntheticPixivTransport):
                     and self.allowed_https_hosts_only):
                 raise AssertionError("original pages request invalid")
             wid = url.path.split("/")[3]
-            count = 2 if wid == "202" else 1
+            count = 2 if wid in {"202", "321"} else 1
             return self._packet([{"urls": {
                 "regular": f"https://i.pximg.net/synthetic/{wid}-page{index}.png",
                 "original": ORIGINAL.format(wid=wid, page=index)}} for index in range(count)])

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from uuid import uuid4
 
 from nicegui import ui
@@ -28,16 +29,25 @@ class ManagedDownloadView:
         self.closed = False
         self.busy = False
         self.refreshing = False
+        self.looking_up = False
         self._render_pending = False
         self.epoch = 0
+        self._owner = uuid4().hex  # Server-owned, never accepted from a browser payload.
         self.selection_revision = 0
         self._render_session = object()
+        self._pending_enqueues: set[asyncio.Task] = set()
+        self._owner_released = False
         self.query = ""
         self.shown = 50
         self.selected: dict[str, RemoteBookmark] = {}
+        # Explicit-ID candidates belong to this client, not the shared
+        # bookmark listing seen by another browser tab or client.
+        self._direct_records: dict[str, RemoteBookmark] = {}
         self._operations: dict[str, str] = {}
         self.records: dict[str, RemoteBookmark] = {}
         self._choices = {}
+        self._choice_serials = {}
+        self._choice_generations = {}
         self._load_cached()
         with ui.column().classes("pv-jobs-view w-full").props(
             "data-testid=managed-download-view data-active=true data-epoch=0 data-selection-revision=0"
@@ -54,6 +64,14 @@ class ManagedDownloadView:
                 "flat no-caps data-testid=managed-download-refresh")
             self.refresh_button.on("click", self._refresh_event,
                 js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
+            with ui.row().classes("w-full items-center"):
+                self.direct_input = ui.input(placeholder="単一作品ID（数字）").props(
+                    "outlined dense dark data-testid=managed-download-direct-id").classes("pv-search")
+                self.direct_button = ui.button("IDから作品を確認", color=None).props(
+                    "flat no-caps data-testid=managed-download-direct-lookup")
+                self.direct_button.on("click", self._lookup_event,
+                    js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
+            ui.label("ブックマーク以外の作品もIDで確認できます。確認だけでは保存・登録しません。").classes("pv-subtitle")
             ui.label("ブックマーク取得はGETのみ。元DBは変更せず、保存先は設定済みの専用フォルダーです。").classes("pv-subtitle")
             self.notice = ui.label().props("data-testid=managed-download-notice role=status")
             with ui.row().classes("pv-download-body w-full"):
@@ -70,10 +88,16 @@ class ManagedDownloadView:
 
     def _load_cached(self):
         try:
-            candidates = self.services.download_candidates()
+            bookmark_candidates = getattr(self.services, "bookmark_download_candidates", None)
+            candidates = (bookmark_candidates() if callable(bookmark_candidates)
+                          else self.services.download_candidates())
         except Exception:
             return False
         self.records = {r.work_id: r for r in candidates if _supported(r)}
+        for wid, record in self._direct_records.items():
+            # An existing bookmark keeps its own visibility/metadata rather
+            # than being silently rewritten as a synthetic direct "show" DTO.
+            self.records.setdefault(wid, record)
         return True
 
     def _valid(self, epoch=None):
@@ -97,13 +121,21 @@ class ManagedDownloadView:
         self.shown = 50
         self.render()
 
-    def select(self, work_id, checked, epoch=None):
+    def _invalidate_choice(self, work_id):
+        generation = self._choice_generations.get(work_id, 0) + 1
+        self._choice_generations[work_id] = generation
+        choice = self._choices.get(work_id)
+        if choice is not None:
+            choice.props["data-row-generation"] = str(generation)
+            choice.update()
+
+    def select(self, work_id, checked, epoch=None, *, from_checkbox=False):
         if not self._valid(epoch) or self.busy:
             return
-        record = self.records.get(work_id)
-        if record is None or not _supported(record):
-            return
         if checked:
+            record = self.records.get(work_id)
+            if record is None or not _supported(record):
+                return
             if work_id in self.selected:
                 return
             self.selected[work_id] = record
@@ -112,16 +144,43 @@ class ManagedDownloadView:
                 return
             del self.selected[work_id]
             self._operations.pop(work_id, None)
+        if not from_checkbox:
+            # Target-chip removal and other server-side updates invalidate
+            # already emitted checkbox events for this same row.
+            self._invalidate_choice(work_id)
         self._bump_selection()
         self._render_targets()
+        # An old optimistic checkbox update can arrive after a newer selection
+        # event, so always converge visible inputs to the accepted server state.
+        self._sync_choices()
+
+    def _sync_choices(self):
+        for work_id, choice in self._choices.items():
+            choice.set_value(work_id in self.selected)
 
     def _select_event(self, event, work_id, session):
         if (session is self._render_session and self._valid()
                 and isinstance(event.args, dict)
-                and _browser_event(event, epoch=self.epoch,
-                                   selection_revision=self.selection_revision)
+                and _browser_event(event, epoch=self.epoch)
                 and type(event.args.get("value")) is bool):
-            self.select(work_id, event.args["value"], event.args["epoch"])
+            # The browser owns the monotonic sequence per rendered checkbox.
+            # A global selection revision would drop a second fast click on a
+            # *different* row. The session protects old renders and the
+            # sequence rejects older events from the same checkbox.
+            serial = event.args.get("eventSerial")
+            if (type(serial) is str and serial.isascii() and serial.isdecimal()
+                    and 0 < int(serial) <= 1000000000
+                    and int(serial) > self._choice_serials.get(work_id, 0)
+                    and event.args.get("rowGeneration") == str(
+                        self._choice_generations.get(work_id, 0))
+                    and work_id in self._choices):
+                self._choice_serials[work_id] = int(serial)
+                self.select(work_id, event.args["value"], event.args["epoch"],
+                            from_checkbox=True)
+            else:
+                self._sync_choices()
+        elif session is self._render_session and self._valid():
+            self._sync_choices()
 
     def _more_event(self, event, session):
         if (session is self._render_session and self._valid()
@@ -133,6 +192,8 @@ class ManagedDownloadView:
         if self.closed:
             return
         self._render_session = object()
+        self._choice_serials = {}
+        self._choice_generations = {}
         matches = [r for r in self.records.values()
                    if self.query in f"{r.remote_id} {r.title} {r.author_name}".casefold()]
         self.list.clear()
@@ -144,11 +205,18 @@ class ManagedDownloadView:
                     f"data-x-restrict={record.x_restrict} data-illustration-type={record.illustration_type}"):
                     choice = ui.checkbox(value=record.work_id in self.selected).props(
                         f"dense data-testid=managed-download-select aria-label={record.work_id}")
+                    choice.props["data-event-serial"] = "0"
+                    choice.props["data-row-generation"] = "0"
                     choice.on("update:model-value",
                         lambda e, wid=record.work_id, session=self._render_session:
                             self._select_event(e, wid, session),
                         js_handler=f"""value => {{const d=document.getElementById('{self.root.html_id}').dataset;
-                            emit({{value,epoch:d.epoch,selectionRevision:d.selectionRevision}})}}""")
+                            const c=document.getElementById('{choice.html_id}');if(!c)return;
+                            const next=String(Number(c.dataset.eventSerial||'0')+1);
+                            c.dataset.eventSerial=next;
+                            emit({{value,epoch:d.epoch,eventSerial:next,
+                                rowGeneration:c.dataset.rowGeneration,
+                                selectionRevision:d.selectionRevision}})}}""")
                     choice.set_enabled(self.active and not self.busy)
                     self._choices[record.work_id] = choice
                     with ui.column().classes("gap-0 flex-1 min-w-0"):
@@ -173,11 +241,22 @@ class ManagedDownloadView:
         self.targets.clear()
         with self.targets:
             for record in self.selected.values():
-                ui.label(record.title).classes("pv-job-title")
+                with ui.row().classes("w-full items-center"):
+                    ui.label(record.title).classes("pv-job-title")
+                    button = ui.button("解除", color=None).props("flat dense no-caps")
+                    button.on("click", lambda e, wid=record.work_id: self._remove_target_event(e, wid),
+                        js_handler=f"""() => {{const d=document.getElementById('{self.root.html_id}').dataset;
+                            emit({{epoch:d.epoch,selectionRevision:d.selectionRevision}})}}""")
+                    button.set_enabled(self.active and not self.busy)
         self.submit_button.set_enabled(bool(self.selected)
             and self.services.managed_downloads is not None
             and self.services.jobs is not None and self.active
             and not self.closed and not self.busy)
+
+    def _remove_target_event(self, event, work_id):
+        if (self._valid() and _browser_event(event, epoch=self.epoch,
+                selection_revision=self.selection_revision)):
+            self.select(work_id, False, event.args["epoch"])
 
     async def _refresh_event(self, event):
         if self._valid() and _browser_event(event, epoch=self.epoch):
@@ -207,10 +286,82 @@ class ManagedDownloadView:
             if not self.closed:
                 self.refresh_button.set_enabled(self.active)
 
+    async def _lookup_event(self, event):
+        if self._valid() and _browser_event(event, epoch=self.epoch):
+            await self.lookup_work_id(event.args["epoch"])
+
+    async def lookup_work_id(self, epoch=None):
+        """GET metadata off-loop; never let late responses replace another view."""
+        if (not self._valid(epoch) or self.looking_up or self.refreshing or self.busy
+                or self.services.managed_downloads is None):
+            return False
+        raw = self.direct_input.value
+        work_id = str(raw) if type(raw) is str else ""
+        if not re.fullmatch(r"[1-9][0-9]{0,19}", work_id):
+            self.notice.set_text("作品IDは先頭0のない数字（最大20桁）で指定してください")
+            return False
+        self.looking_up = True
+        issued_epoch, original_query = self.epoch, self.query
+        self.direct_button.set_enabled(False)
+        try:
+            record = await self.services.lookup_managed_work_id(
+                work_id, owner=self._owner, publish=False)
+            if (not self._valid(issued_epoch) or self.query != original_query
+                    or str(self.direct_input.value) != work_id):
+                return False
+            # Publish authorization only after this view accepts the async
+            # result. Invalidated lookups must not leak into another client.
+            self.services.remember_managed_work_id(self._owner, record)
+            self._direct_records[work_id] = record
+            if not self._load_cached() or work_id not in self.records:
+                raise RuntimeError("lookup record unavailable")
+            self.query = work_id
+            self.shown = 50
+            self.search_input.set_value(work_id)
+            self.render()
+            self.notice.set_text("作品を確認しました。チェックを付けてキューへ追加してください")
+            return True
+        except Exception:
+            if (self._valid(issued_epoch) and self.query == original_query
+                    and str(self.direct_input.value) == work_id):
+                self.notice.set_text("作品情報を取得できませんでした。ID・対応形式・認証を確認してください")
+            return False
+        finally:
+            self.looking_up = False
+            if not self.closed:
+                self.direct_button.set_enabled(self.active)
+
     async def _submit_event(self, event):
         if (self._valid() and _browser_event(event, epoch=self.epoch,
                                            selection_revision=self.selection_revision)):
             await self.submit(event.args["epoch"])
+
+    def _enqueue_owned(self, record, operation):
+        # The owner capability is captured by the server-side view, never
+        # supplied by the browser event or inferred from the artwork ID.
+        return self.services.enqueue_managed_download(record, operation, owner=self._owner)
+
+    def _release_owner_if_done(self):
+        if (self.closed and not self.busy and not self._pending_enqueues
+                and not self._owner_released):
+            self._owner_released = True
+            if hasattr(self.services, "release_managed_owner"):
+                self.services.release_managed_owner(self._owner)
+
+    def _accepted_finished(self, task):
+        self._pending_enqueues.discard(task)
+        if not task.cancelled():
+            task.exception()  # Observe a rejected operation after client disconnect.
+        self._release_owner_if_done()
+
+    async def _enqueue_accepted(self, record, operation):
+        # The view may be deleted while a queued executor task has not yet
+        # acquired the service lock. Keep its owner capability until that task
+        # finishes rather than turning an accepted click into a false reject.
+        task = asyncio.create_task(_accepted_call(self._enqueue_owned, record, operation))
+        self._pending_enqueues.add(task)
+        task.add_done_callback(self._accepted_finished)
+        return await asyncio.shield(task)
 
     async def submit(self, epoch=None):
         if (not self._valid(epoch) or self.busy or not self.selected
@@ -225,7 +376,7 @@ class ManagedDownloadView:
             for work_id, record in tuple(self.selected.items()):
                 operation = self._operations.setdefault(work_id, uuid4().hex)
                 try:
-                    await _accepted_call(self.services.enqueue_managed_download, record, operation)
+                    await self._enqueue_accepted(record, operation)
                 except Exception:
                     failed = True
                     break
@@ -237,6 +388,7 @@ class ManagedDownloadView:
             if accepted:
                 self._bump_selection()
             self.busy = False
+            self._release_owner_if_done()
             if not self.closed:
                 if self.active:
                     self.render()
@@ -261,11 +413,14 @@ class ManagedDownloadView:
             self.render()
         self._render_targets()
         self.refresh_button.set_enabled(self.active and not self.refreshing)
+        self.direct_button.set_enabled(self.active and not self.looking_up)
         for choice in self._choices.values():
             choice.set_enabled(self.active and not self.busy)
+        self._sync_choices()
 
     def close(self):
         if not self.closed:
             self.closed = True
             self.active = False
             self.epoch += 1
+            self._release_owner_if_done()

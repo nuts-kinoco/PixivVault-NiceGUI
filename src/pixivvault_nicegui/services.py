@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+from collections import OrderedDict
 from pathlib import Path
-from threading import Lock
+import re
+from threading import Lock, RLock
 
 from .fixtures import generate_demo_artworks
 from .media import DemoImageCatalog
@@ -36,8 +38,9 @@ class ApplicationServices:
         self._managed_requests = None
         self._managed_job_records = {}
         self._active_managed_record = None
-        self._managed_target_lock = Lock()
+        self._managed_target_lock = RLock()
         self._managed_enqueue_lock = Lock()
+        self._direct_download_candidates: dict[str, OrderedDict] = {}
         self._managed_receipts = ()
         self.jobs = None
         self.download_writer = None
@@ -153,13 +156,95 @@ class ApplicationServices:
     def library_refresh_available(self) -> bool:
         return self.library_repository is not None or self.managed_downloads is not None
 
-    def download_candidates(self):
-        """Immutable, fully fetched normal illustrations; no I/O or demo fallback."""
+    def bookmark_download_candidates(self):
+        """Only account bookmark results: a manual lookup never alters a client list."""
         if self.closing or self.managed_downloads is None:
             return ()
         return tuple(record for record in self._remote_records
-                     if record.kind == "illustration" and record.illustration_type in (0, 1)
-                     and record.page_count_known)
+            if record.kind == "illustration" and record.illustration_type in (0, 1)
+            and record.page_count_known)
+
+    @staticmethod
+    def _direct_owner(owner):
+        if type(owner) is not str or re.fullmatch(r"[a-f0-9]{32}", owner) is None:
+            raise ValueError("invalid download view owner")
+        return owner
+
+    def download_candidates(self, *, owner=None):
+        """Bookmarked records shared; manually looked-up IDs only for their view."""
+        if self.closing or self.managed_downloads is None:
+            return ()
+        with self._managed_target_lock:
+            candidates = {record.work_id: record for record in self.bookmark_download_candidates()}
+            if owner is not None:
+                for wid, record in self._direct_download_candidates.get(self._direct_owner(owner), {}).items():
+                    candidates.setdefault(wid, record)
+            return tuple(candidates.values())
+
+    def remember_managed_work_id(self, owner, record):
+        """Register the looked-up DTO only after its owning UI accepts it."""
+        from .bookmark_remote_adapter import RemoteBookmark
+        token = self._direct_owner(owner)
+        if (not isinstance(record, RemoteBookmark) or record.kind != "illustration"
+                or type(record.illustration_type) is not int or record.illustration_type not in (0, 1)
+                or record.page_count_known is not True):
+            raise ValueError("artwork cannot be saved")
+        with self._managed_target_lock:
+            if self.closing or self.managed_downloads is None:
+                raise RuntimeError("managed downloads unavailable")
+            records = self._direct_download_candidates.get(token)
+            if records is None:
+                if len(self._direct_download_candidates) >= 256:
+                    raise RuntimeError("too many managed download views")
+                records = OrderedDict()
+                self._direct_download_candidates[token] = records
+            records[record.work_id] = record
+            records.move_to_end(record.work_id)
+            while len(records) > 128:
+                records.popitem(last=False)
+
+    def release_managed_owner(self, owner):
+        token = self._direct_owner(owner)
+        with self._managed_target_lock:
+            self._direct_download_candidates.pop(token, None)
+
+    async def lookup_managed_work_id(self, work_id: str, *, owner: str, publish=True):
+        """Verify an explicit artwork ID off the UI thread, then cache a DTO.
+
+        A lookup does not enqueue a job, fetch images or change a bookmark.
+        A bounded cache only authorizes the later explicit Save button; the
+        accepted job pins its own immutable metadata in managed intent storage.
+        """
+        from .pixiv_read_client import _identifier, InvalidPayload
+        token = self._direct_owner(owner)
+        if type(work_id) is not str:
+            raise ValueError("invalid work ID")
+        try:
+            wid = _identifier(work_id)
+        except InvalidPayload:
+            raise ValueError("invalid work ID") from None
+        if self.closing or self.managed_downloads is None or self.live_client is None:
+            raise RuntimeError("managed downloads unavailable")
+
+        def fetch():
+            require = getattr(self.live_client, "require_identity", None)
+            if callable(require):
+                require()
+            else:
+                self.live_client.verify_identity()
+            return self.live_client.get_artwork_download_record(wid)
+
+        record = await asyncio.to_thread(fetch)
+        if self.closing or self.managed_downloads is None:
+            raise RuntimeError("managed downloads unavailable")
+        from .bookmark_remote_adapter import RemoteBookmark
+        if (not isinstance(record, RemoteBookmark) or record.work_id != wid
+                or record.kind != "illustration" or record.illustration_type not in (0, 1)
+                or record.page_count_known is not True):
+            raise ValueError("artwork cannot be saved")
+        if publish:
+            self.remember_managed_work_id(token, record)
+        return record
 
     def _resolve_managed_record(self, work_id):
         # The serial runner installs exactly one accepted job's frozen record.
@@ -183,7 +268,7 @@ class ApplicationServices:
             with self._managed_target_lock:
                 self._active_managed_record = None
 
-    def enqueue_managed_download(self, record, operation_id):
+    def enqueue_managed_download(self, record, operation_id, *, owner=None):
         """Accept one frozen selection off-loop, then let the app own its job.
 
         Do not hold the short candidate lock over SQLite I/O. A later refresh
@@ -197,7 +282,7 @@ class ApplicationServices:
             if self.closing or self.managed_downloads is None or self.jobs is None:
                 raise RuntimeError("managed downloads unavailable")
             with self._managed_target_lock:
-                if record not in self.download_candidates():
+                if record not in self.download_candidates(owner=owner):
                     raise ValueError("download selection changed; refresh the candidates")
                 existing = next((job for job in self.jobs.snapshot()
                                  if job.kind == "pixiv-illust" and job.target_id == record.work_id
