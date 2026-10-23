@@ -246,6 +246,44 @@ class ApplicationServices:
             self.remember_managed_work_id(token, record)
         return record
 
+    async def lookup_managed_author(self, user_id: str, *, owner: str, publish=False):
+        """Preview bounded author works without enqueuing or mutating legacy data.
+
+        Existing v1 receipts have no update_date; they remain UNKNOWN rather
+        than being silently treated as current or forcibly overwritten.
+        """
+        from .author_download import Difference, decide_difference
+        from .pixiv_read_client import _identifier
+        self._direct_owner(owner)
+        uid = _identifier(user_id)
+        if self.closing or self.managed_downloads is None or self.live_client is None:
+            raise RuntimeError('managed downloads unavailable')
+
+        def fetch():
+            require = getattr(self.live_client, 'require_identity', None)
+            if callable(require):
+                require()
+            else:
+                self.live_client.verify_identity()
+            works = self.live_client.get_author_artworks(uid)
+            saved = {receipt['work_id']: receipt for _, receipt, _
+                     in self.managed_downloads.saved_receipts()}
+            output = []
+            for work in works:
+                if work['type'] not in (0, 1):
+                    continue
+                prior = saved.get(work['id'])
+                difference = decide_difference(
+                    saved=prior is not None, remote_update_date=work['update_date'],
+                    saved_update_date=None, files_present=True if prior is not None else None)
+                output.append((work, difference))
+            return tuple(output)
+
+        items = await asyncio.to_thread(fetch)
+        if self.closing:
+            raise RuntimeError('managed downloads unavailable')
+        return items
+
     def _resolve_managed_record(self, work_id):
         # The serial runner installs exactly one accepted job's frozen record.
         # Another job or candidate refresh cannot substitute its metadata.
