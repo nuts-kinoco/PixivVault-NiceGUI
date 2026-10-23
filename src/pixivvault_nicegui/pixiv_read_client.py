@@ -37,6 +37,7 @@ MAX_OPERATION_SECONDS = 120.0
 MAX_ROUTE_PAGES = 1100
 MAX_BOOKMARKS_PER_ROUTE = 50000
 MAX_ARTWORK_PAGES = 1000
+MAX_AUTHOR_WORKS = 50000
 BOOKMARK_PAGE_SIZE = 48
 API_ORIGIN = "https://www.pixiv.net"
 CDN_HOST = "i.pximg.net"
@@ -46,6 +47,8 @@ _BOOKMARK_PATH = re.compile(
     r"/ajax/user/([1-9][0-9]{0,19})/(illusts|novels)/bookmarks\Z"
 )
 _PAGES_PATH = re.compile(r"/ajax/illust/([1-9][0-9]{0,19})/pages\Z")
+_AUTHOR_ALL_PATH = re.compile(r"/ajax/user/([1-9][0-9]{0,19})/profile/all\Z")
+_AUTHOR_DETAILS_PATH = re.compile(r"/ajax/user/([1-9][0-9]{0,19})/profile/illusts\Z")
 _ORIGINAL_IMAGE_PATH = re.compile(
     r"/img-original/img/[0-9]{4}/[0-9]{2}/[0-9]{2}/"
     r"[0-9]{2}/[0-9]{2}/[0-9]{2}/([1-9][0-9]{0,19})_p(0|[1-9][0-9]*)"
@@ -213,6 +216,23 @@ def _validate_destination(url: str, kind: str) -> None:
                 raise DestinationRejected()
         elif kind == "pages":
             if not _PAGES_PATH.fullmatch(parsed.path) or parsed.query:
+                raise DestinationRejected()
+        elif kind == "author_all":
+            if not _AUTHOR_ALL_PATH.fullmatch(parsed.path) or parsed.query:
+                raise DestinationRejected()
+        elif kind == "author_details":
+            if not _AUTHOR_DETAILS_PATH.fullmatch(parsed.path):
+                raise DestinationRejected()
+            # Internal construction: one bounded batch of unique IDs, in order.
+            from urllib.parse import parse_qsl
+            parameters = parse_qsl(parsed.query, keep_blank_values=True)
+            if (len(parameters) < 3 or len(parameters) > BOOKMARK_PAGE_SIZE + 2
+                    or parameters[:2] not in
+                    ([('work_category', 'illustManga'), ('is_first_page', '1')],
+                     [('work_category', 'illustManga'), ('is_first_page', '0')])
+                    or any(key != 'ids[]' or not _ID.fullmatch(value)
+                           for key, value in parameters[2:])
+                    or len({value for _key, value in parameters[2:]}) != len(parameters) - 2):
                 raise DestinationRejected()
         else:
             raise DestinationRejected()
@@ -625,6 +645,78 @@ class LivePixivReadClient:
 
     def get_bookmarked_novels(self, my_user_id: str, rest_type: str = "show"):
         yield from self._bookmarks(my_user_id, rest_type, novel=True)
+
+    def get_author_artworks(self, user_id: str) -> tuple[dict, ...]:
+        """Read an author's illustration/manga metadata with one bounded GET batch.
+
+        Returns no partial result if a detail batch is missing or malformed.
+        This reader does not decide whether an artwork needs downloading.
+        """
+        self._ensure_open()
+        try:
+            uid = _identifier(user_id)
+        except InvalidPayload:
+            raise DestinationRejected() from None
+        if self._verified_identity is None:
+            self.verify_identity()
+        deadline = time.monotonic() + MAX_OPERATION_SECONDS
+        body = self._json('author_all',
+                          f'{API_ORIGIN}/ajax/user/{uid}/profile/all', deadline=deadline)
+        if type(body) is not dict:
+            raise InvalidPayload()
+        ids: set[str] = set()
+        for field in ('illusts', 'manga'):
+            bucket = body.get(field)
+            if bucket is None:
+                bucket = {}
+            if type(bucket) is not dict:
+                raise InvalidPayload()
+            for raw_id in bucket:
+                ids.add(_identifier(raw_id))
+                if len(ids) > MAX_AUTHOR_WORKS:
+                    raise ResponseLimitExceeded()
+        ordered = sorted(ids, key=int, reverse=True)
+        records: list[dict] = []
+        for offset in range(0, len(ordered), BOOKMARK_PAGE_SIZE):
+            _check_time(deadline)
+            chunk = ordered[offset:offset + BOOKMARK_PAGE_SIZE]
+            query = urlencode([
+                ('work_category', 'illustManga'),
+                ('is_first_page', '1' if offset == 0 else '0'),
+                *(("ids[]", wid) for wid in chunk),
+            ])
+            details = self._json('author_details',
+                                 f'{API_ORIGIN}/ajax/user/{uid}/profile/illusts?{query}',
+                                 deadline=deadline)
+            if type(details) is not dict or type(details.get('works')) is not dict:
+                raise InvalidPayload()
+            works = details['works']
+            if set(works) != set(chunk):
+                raise InvalidPayload()
+            for wid in chunk:
+                entry = works[wid]
+                if type(entry) is not dict or _identifier(entry.get('id')) != wid:
+                    raise InvalidPayload()
+                if _identifier(entry.get('userId')) != uid:
+                    raise InvalidPayload()
+                kind = entry.get('illustType')
+                count = entry.get('pageCount')
+                if (type(kind) is not int or kind not in (0, 1, 2)
+                        or type(count) not in (int, str) or not str(count).isascii()
+                        or not str(count).isdecimal()
+                        or not 1 <= int(count) <= MAX_ARTWORK_PAGES):
+                    raise InvalidPayload()
+                title, name = entry.get('title'), entry.get('userName')
+                # Missing updateDate cannot prove an existing work is current;
+                # pass the empty marker to the conservative diff classifier.
+                updated, created = entry.get('updateDate', ''), entry.get('createDate', '')
+                if (any(type(s) is not str or len(s) > 512
+                        for s in (title, name, updated, created))):
+                    raise InvalidPayload()
+                records.append({'id': wid, 'user_id': uid, 'title': title,
+                                'user_name': name, 'type': kind, 'page_count': int(count),
+                                'update_date': updated, 'create_date': created})
+        return tuple(records)
 
     def get_artwork_pages(self, work_id: str) -> tuple[str, ...]:
         self._ensure_open()
