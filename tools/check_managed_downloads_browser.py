@@ -244,9 +244,9 @@ def inspect(page, url, headers, root, *, restart=False):
 
 
 def run(channel, output):
-    from playwright.sync_api import sync_playwright
     if output.exists():
         raise ValueError("new --output directory required")
+    from playwright.sync_api import sync_playwright
     output.mkdir(parents=True)
     before = source_hashes()
     result = {"success": False, "synthetic_only": True, "viewports": [],

@@ -34,6 +34,7 @@
 ## 現時点の受入証拠
 
 - `full-first.xml`: 940 passed / 1 skipped。native検証器の回帰試験を追加した`full-final.xml`は **945 passed / 1 skipped / 既存Starlette警告1件**。pip check・compileall・diff check成功。
+- 初回head `a0d4346` のCI run39883545759は失敗を保持。既存output拒否の前に任意依存Playwrightをimportする検証器の順序と、LinuxにないWindows属性を注入するStatProxyのdefault先評価が原因。2件のREDをローカルでも再現し、入力検証を先行・overrideを明示分岐へ修正した。依存追加・skip増加・製品コード変更はなし。`ci-compat-green.xml`は20 passed / 1 skipped、`full-ci-compat.xml`は **946 passed / 1 skipped**。同じ56製品入力・配布exeの受入は維持される。
 - `durable-retry.xml`: 38 passed。JobService/intent/services/確定境界の試験。これはnative実走の証拠ではない。
 - `edge-fourth/result.json`: 実Edgeの1920×1080、1280×720で各初回/再起動の計4経路成功。原寸120×84の2頁がregular48×32と異なることをバイト/SHA/画素で照合。検索/選択/queue done、保存先更新、作者/2頁viewer、戻りfocus/タブ、2client独立を確認。再起動直後の注入transport要求0、同じ作品の再投入でoriginal GET0。4回通常終了・port解放、console/page/外部browser通信errorなし。
 - 先行Edge失敗3試行は保存。検証器がdebounce後の別検索行を待たずに旧checkboxへ入力した問題と、再訪で保持された作者詳細を作者一覧と取り違えた問題を修正した。製品の世代拒否や状態保持を弱めていない。

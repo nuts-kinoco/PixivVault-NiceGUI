@@ -27,6 +27,8 @@ PRはレビュー・該当headのCI・変更に必要な実画面/実機確認�
 | 5 更新系展開 | 学習DBの旧Undo競合を拒否、旧集計規則を維持した合成UI保存/復旧 | 本番互換の受入、DL/停止再開/キュー/失敗/重複/設定/外部連携の結果・永続化・復旧 | 未完 |
 | 6 製品切替 | 独立デモ配布の開発機確認 | 別PC、トレイ、URI、オフライン、長時間、実データ互換、切戻し、既定アプリ変更の受入 | 未完 |
 
+管理保存単位の初回CIで見つかった検証器/テスト2件を修正した最終ローカル集計は946 passed / 1 skipped。製品56入力は前述の実Cookie・コピーexe受入時から不変。head/main CIの失敗をローカル成功で上書きせず、新しい正確なheadの全3CIで別判定する。
+
 UI43d0c64は132pytestとWindows/Ubuntu/Chromium CI3ジョブ成功。Edge2寸法・画像/操作競合16件、同SHA native175%も成功した。
 PR #4時点のDB/比較準備を含む統合は180pytestであり、UIだけの132件と分ける。詳しいコマンドと証拠は `PROGRESS.md`、`VIEWER_BOUNDARY_REVIEW_2026-10-22.md`、`WINDOWS_PACKAGING.md`。
 この表と関連6文書は実装担当とは別の担当がnative JSON・archive pytest XML・Edge結果と照合し、過大主張・フェーズ完了誤認に関する重大残件なしとレビューした。

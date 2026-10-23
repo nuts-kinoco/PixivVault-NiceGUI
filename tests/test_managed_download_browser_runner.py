@@ -84,3 +84,15 @@ def test_requires_new_output_and_synthetic_cookie_is_disposable(tmp_path):
         run("chromium", tmp_path)
     path = write_synthetic_cookie(tmp_path)
     assert path.parent == tmp_path and "synthetic_only" in path.read_text()
+
+
+def test_rejected_output_does_not_import_optional_browser_dependency(tmp_path, monkeypatch):
+    import builtins
+    original_import = builtins.__import__
+    def guarded_import(name, *args, **kwargs):
+        if name == "playwright" or name.startswith("playwright."):
+            raise AssertionError("invalid input tried to import optional browser dependency")
+        return original_import(name, *args, **kwargs)
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
+    with pytest.raises(ValueError, match="new --output"):
+        run("chromium", tmp_path)

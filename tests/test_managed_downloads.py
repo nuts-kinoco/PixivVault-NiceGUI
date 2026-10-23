@@ -174,7 +174,14 @@ def test_reparse_flag_and_hardlink_rejected_without_symlink_privileges(tmp_path,
             self._actual = actual
             self._overrides = overrides
         def __getattr__(self, name):
-            return self._overrides.get(name, getattr(self._actual, name))
+            if name in self._overrides:
+                return self._overrides[name]
+            return getattr(self._actual, name)
+
+    # Linux stat_result has no st_file_attributes: a proxy must return the
+    # injected Windows flag without evaluating an absent native attribute.
+    from types import SimpleNamespace
+    assert StatProxy(SimpleNamespace(), st_file_attributes=0x400).st_file_attributes == 0x400
 
     def flagged(path):
         info = original_lstat(path)

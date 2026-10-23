@@ -4,6 +4,8 @@
 
 ## 最新の進捗照合とフェーズレビュー
 
+PR #24の初回head `a0d43467726f65281c64588437a9eff00565719c` のCI run39883545759で、任意依存のimport順序とLinux用テスト属性の注入に失敗を確認した。製品srcは変えず2件のREDを再現して検証器/テストを修正し、独立レビューPASS、`full-ci-compat.xml`で946 passed / 1 skippedを確認。既に受入した56製品入力と同一コピーexeは不変。修正headのCIとmerge後mainのCIは別途確定する。
+
 PR #23のmain `a7b021a3001660ba38776ae3509426e0c322985a` とCI run39876795186全3成功を再確認し、新しい管理保存単位へ進んだ。通常イラスト/漫画のoriginal取得、全頁検証・専用管理保存、受理済み入力の永続化、再起動後error retry、保存済みライブラリ閲覧を接続。全945pytest成功/1symlink権限skip、実Edge2寸法×初回/再起動で原寸画素・再取得なし・2client保持を確認した。同一コピーexeで実Cookieによる1作品3頁の保存・ページ送り・戻り、同管理先再起動・保存物不変、合成復帰後のGDIと通常終了・port解放・Cookie原本不変を受入。独立レビューとClaudeの限定第二意見を利用し、確定境界・原本保護を検証した。先行FAIL試行と検証器修正を残し、head/main CIは別ゲート。詳細は`MANAGED_PIXIV_DOWNLOAD_REVIEW_2026-10-23.md`。旧DB/ZIP更新・作者巡回・うごイラ/小説・重複整理・設定等は未完。
 
 失敗リストPR #22は最終head `3288bf0b2e72dea9e06575d10cfb7f721a714bf9` の全3CI成功後、main `1bcfdbb60b869a145bbc3c300ee837b485d80079` へ統合。main run `39873726737` もWindows/Ubuntu/Chromium全成功。旧mainの依存取得時間切れとは別の正確なSHAで確認した。
