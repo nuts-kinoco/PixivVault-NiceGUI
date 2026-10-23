@@ -5,12 +5,16 @@ disabled until a reviewed mutation service can accept those intents.
 """
 from __future__ import annotations
 
+import asyncio
 from uuid import uuid4
 
 from nicegui import background_tasks, ui
 
 from ..failed_records_fixtures import build_failed_records_fixture
 from ..failed_records_state import CATEGORIES, PAGE_SIZE, FailedRecordsState, classify_reason, csv_bytes
+from ..job_service import JobServiceError
+from ..managed_download_requests import ManagedRequestError
+from .job_views import _accepted_call
 
 
 CSS = """
@@ -41,6 +45,11 @@ class FailedRecordsView:
         self._epoch = uuid4().hex
         self._search_epoch = uuid4().hex
         self._read_revision = 0
+        self._retry_busy = False
+        self._retry_owner = uuid4().hex
+        self._retry_ops = {}
+        self._pending_accepts = set()
+        self._retry_owner_released = False
         self._loaded = services.data_mode == "synthetic"
         initial = build_failed_records_fixture() if self._loaded else ()
         self.state = FailedRecordsState(initial)
@@ -54,7 +63,9 @@ class FailedRecordsView:
                     "flat dense aria-label=リスト更新 data-testid=failed-reload")
                 self.reload_button.tooltip("失敗記録を読み直す（DBは変更しません）")
             ui.label("合成データ · 保存先・実アカウントへの変更なし" if self._loaded else
-                     "読取専用 · 再試行・記録削除は未接続です").classes("pv-subtitle")
+                     ("静的DBコピーは読取専用。対応作品だけ管理キューへ明示再投入し、元の失敗記録は消しません"
+                      if getattr(services, 'legacy_failed_retry_available', False) else
+                      "読取専用 · 再試行・記録削除は未接続です")).classes("pv-subtitle")
             with ui.element("div").classes("pv-failure-toolbar"):
                 self.search_input = ui.input(placeholder="タイトル・IDで検索").props(
                     "outlined dense clearable dark maxlength=4096 data-testid=failed-search"
@@ -81,6 +92,8 @@ class FailedRecordsView:
                         clear.tooltip("記録削除は未接続です。作品やDBを変更しません")
             self.counter = ui.label().classes("pv-counter").props("data-testid=failed-count")
             self.status = ui.label().classes("pv-subtitle").props("role=status data-testid=failed-status")
+            self.retry_notice = ui.label().classes('pv-subtitle').props(
+                'role=status data-testid=failed-managed-retry-status')
             self.alert = ui.label("失敗記録を読み込めませんでした。最後に取得できた一覧を保持しています。リスト更新で再試行できます。"
                                   ).classes("pv-viewer-error").props("role=alert data-testid=failed-error")
             self.empty = ui.label().classes("pv-failure-empty").props("data-testid=failed-empty")
@@ -95,6 +108,7 @@ class FailedRecordsView:
                 self.next = ui.button(icon="chevron_right", color=None).props(
                     "flat dense aria-label=次のページ data-testid=failed-next")
         self._wire(self.reload_button, "click", self.request_refresh)
+        self._wire(self.retry_all, 'click', self.request_retry)
         self._wire(self.previous, "click", lambda: self.change_page(-1))
         self._wire(self.next, "click", lambda: self.change_page(1))
         self._wire(self.clear_search, "click", lambda: self.search(""))
@@ -173,6 +187,14 @@ class FailedRecordsView:
             button.set_enabled(self._loaded)
         self.retry_all.set_text(f"{len(matched)}件を再試行" if matched
                                 else "再試行できるものがありません")
+        opted_in = getattr(self.services, 'legacy_failed_retry_available', False)
+        can_retry = (opted_in and self._loaded and not state.loading
+                     and not state.error and not self._retry_busy and self._allowed())
+        eligible = tuple(item for item in matched if self._retry_supported(item))
+        self.retry_all.set_enabled(can_retry and bool(eligible))
+        if opted_in:
+            self.retry_all.set_text(f'対応作品 {min(len(eligible), 50)} 件を管理キューへ再投入'
+                                    if eligible else '再試行できる対応作品がありません')
         self.export_label.set_text(f"表示中の{len(matched)}件をCSV出力")
         self.export_item.set_enabled(self._loaded and not state.loading and not state.error)
         self.status.set_text("読み込み中です" if state.loading else "")
@@ -201,10 +223,129 @@ class FailedRecordsView:
                         category = self._category_labels[classify_reason(record.error_reason)]
                         ui.label(f"{category} ・ リトライ回数: {record.retry_count}").classes("pv-failure-meta")
                         retry = ui.button("再試行", icon="refresh", color=None).props("flat dense data-testid=failed-row-retry")
-                        retry.disable()
+                        if can_retry and self._retry_supported(record):
+                            self._wire(retry, 'click', lambda row=record: self.request_retry((row,)))
+                        else:
+                            retry.disable()
                         remove = ui.button(icon="close", color=None).props("flat dense aria-label=キューから削除 data-testid=failed-row-delete")
                         remove.disable()
                     ui.label(record.error_reason or "不明エラー").classes("pv-failure-reason").props("data-testid=failed-reason")
+
+    @staticmethod
+    def _retry_supported(item) -> bool:
+        from ..services import ApplicationServices
+        return ApplicationServices._supported_failed_original(item)
+
+    def request_retry(self, rows=None) -> None:
+        """Start the explicit managed retry; never delete or update old rows."""
+        if (not self._allowed() or self._retry_busy or
+                not getattr(self.services, 'legacy_failed_retry_available', False)
+                or not self._loaded or self.state.loading or self.state.error):
+            return
+        if rows is None:
+            # Original UI retries the filtered set, not just the visible page.
+            # Limit one acceptance batch to 50 managed jobs.
+            rows = tuple(item for item in self.state.matched_records
+                         if self._retry_supported(item))[:50]
+        else:
+            rows = tuple(rows)
+        if (not rows or len(rows) > 50 or
+                any(not self._retry_supported(row) or row not in self.state.records for row in rows)):
+            return
+        background_tasks.create(self._retry_records(rows))
+
+    def _release_retry_owner(self) -> None:
+        if (self.closed and not self._pending_accepts and not self._retry_busy
+                and not self._retry_owner_released):
+            self._retry_owner_released = True
+            release = getattr(self.services, 'release_managed_owner', None)
+            if callable(release):
+                release(self._retry_owner)
+
+    def _accept_finished(self, task):
+        self._pending_accepts.discard(task)
+        if not task.cancelled():
+            task.exception()
+        self._release_retry_owner()
+
+    def _retry_operation(self, key):
+        """Keep a pending request's idempotency key, rotate after terminal.
+
+        The old failure stays visible because its source is read-only. A second
+        explicit click after a completed/error/stopped job must start a *new*
+        attempt, not silently return the former terminal JobSnapshot.
+        """
+        previous = self._retry_ops.get(key)
+        if previous is not None:
+            operation, job_id = previous
+            if job_id is None:
+                return operation  # DB accept may have failed after intent store.
+            if (self.services.jobs is not None and
+                    any(job.job_id == job_id and job.state in
+                        ('queued', 'running', 'paused', 'stopping')
+                        for job in self.services.jobs.snapshot())):
+                return operation
+        operation = uuid4().hex
+        if key not in self._retry_ops and len(self._retry_ops) >= 256:
+            # Tombstones live in the durable JobService operation ledger;
+            # this short per-client cache only tracks repeat-button semantics.
+            self._retry_ops.pop(next(iter(self._retry_ops)))
+        self._retry_ops[key] = (operation, None)
+        return operation
+
+    async def _retry_records(self, rows) -> bool:
+        if not self._allowed() or self._retry_busy:
+            return False
+        self._retry_busy = True
+        start_epoch, start_revision = self._epoch, self._read_revision
+        accepted, failed = 0, False
+        last_key, last_operation = None, None
+        self.render()
+        try:
+            for row in rows:
+                candidate = await self.services.lookup_legacy_failed_original(
+                    row, owner=self._retry_owner)
+                if (not self._allowed() or self._epoch != start_epoch or
+                        self._read_revision != start_revision):
+                    return False
+                key = (row.work_id, row.user_id, row.work_type, row.failed_at,
+                       row.retry_count, row.title, row.error_reason)
+                operation = self._retry_operation(key)
+                last_key, last_operation = key, operation
+                # The accepting worker is shielded from a client's disconnect;
+                # the app, not this view, owns a committed SQLite job.
+                task = asyncio.create_task(_accepted_call(
+                    self.services.enqueue_legacy_failed_original,
+                    row, candidate, operation, owner=self._retry_owner))
+                self._pending_accepts.add(task)
+                task.add_done_callback(self._accept_finished)
+                accepted_job = await asyncio.shield(task)
+                self._retry_ops[key] = (operation, accepted_job.job_id)
+                accepted += 1
+        except (ManagedRequestError, JobServiceError) as exc:
+            failed = True
+            # A failed accept may have stored the old frozen v1 intent but not
+            # created a JobService row. On a *later* attempt Pixiv can return
+            # changed title/tags; reusing that never-accepted operation must
+            # not trap this View in a permanent collision loop. Only explicit
+            # immutable-ledger collisions rotate; retain the key for uncertain
+            # I/O failures where a commit might actually have succeeded.
+            if (str(exc) in ('operation intent collision', 'operation already used')
+                    and last_key is not None
+                    and self._retry_ops.get(last_key) == (last_operation, None)):
+                self._retry_ops.pop(last_key, None)
+        except Exception:
+            failed = True  # Never expose an ID, URL, source path or exception.
+        finally:
+            self._retry_busy = False
+            self._release_retry_owner()
+            if not self.closed:
+                self.render()
+                if self._allowed() and start_epoch == self._epoch:
+                    self.retry_notice.set_text(
+                        f'{accepted} 件を管理キューへ追加しました。元失敗DBは変更していません'
+                        + ('。残りは追加できませんでした' if failed else ''))
+        return not failed
 
     def search(self, query: str) -> None:
         if self._allowed() and self.state.set_query(query):
@@ -282,3 +423,4 @@ class FailedRecordsView:
             self._epoch = uuid4().hex
             self._search_epoch = uuid4().hex
             self.state.close()
+            self._release_retry_owner()

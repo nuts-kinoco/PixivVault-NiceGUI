@@ -20,7 +20,8 @@ class ApplicationServices:
                  library_readonly_db: Path | None = None,
                  library_image_root: Path | None = None,
                  live_client=None, download_sandbox: Path | None = None,
-                 pixiv_download_root: Path | None = None) -> None:
+                 pixiv_download_root: Path | None = None,
+                 failed_queue_readonly_db: Path | None = None) -> None:
         if (library_readonly_db is None) != (library_image_root is None):
             raise ValueError("read-only library requires both explicit DB and image root")
         if download_sandbox is not None and (library_readonly_db is not None or live_client is not None):
@@ -32,8 +33,24 @@ class ApplicationServices:
                 live_client is None or download_sandbox is not None or
                 library_readonly_db is not None or learning_sandbox is not None):
             raise ValueError("managed Pixiv downloads require an isolated live-only configuration")
+        if failed_queue_readonly_db is not None:
+            if pixiv_download_root is None or live_client is None:
+                raise ValueError('legacy retry requires isolated managed Pixiv mode')
+            candidate = Path(failed_queue_readonly_db)
+            if (not candidate.is_absolute() or not candidate.is_file() or candidate.is_symlink()
+                    or Path(pixiv_download_root).resolve() in candidate.resolve().parents
+                    or Path(pixiv_download_root).resolve() == candidate.resolve().parent
+                    or any(Path(str(candidate) + suffix).exists()
+                           for suffix in ('-wal', '-shm', '-journal'))):
+                raise ValueError('legacy retry requires a separate immutable SQLite copy')
+            from .failed_records_repository import immutable_copy_signature
+            failure_signature = immutable_copy_signature(candidate)
+        else:
+            failure_signature = None
         self.download_sandbox = download_sandbox
         self.pixiv_download_root = pixiv_download_root
+        self.failed_queue_readonly_db = failed_queue_readonly_db
+        self._failed_copy_signature = failure_signature
         self.managed_downloads = None
         self._managed_requests = None
         self._managed_job_records = {}
@@ -537,12 +554,24 @@ class ApplicationServices:
 
     @property
     def failed_records_available(self) -> bool:
-        return self.data_mode == "synthetic" or self.library_readonly_db is not None
+        return (self.data_mode == "synthetic" or self.library_readonly_db is not None
+                or self.failed_queue_readonly_db is not None)
+
+    @property
+    def legacy_failed_retry_available(self) -> bool:
+        """Explicit opt-in only; never silently mutate the original database."""
+        return (not self.closing and self.failed_queue_readonly_db is not None
+                and self.managed_downloads is not None and self.jobs is not None)
 
     async def read_failed_records(self):
         """Read the legacy failure table off-loop, without changing any job or DB."""
         if self.closing:
             raise RuntimeError("application services are closed")
+        if self.failed_queue_readonly_db is not None:
+            records = await asyncio.to_thread(self._read_immutable_failure_snapshot)
+            if self.closing:
+                raise RuntimeError('application services are closed')
+            return records
         if self.data_mode == "synthetic":
             from .failed_records_fixtures import build_failed_records_fixture
             return build_failed_records_fixture()
@@ -553,6 +582,66 @@ class ApplicationServices:
         if self.closing:
             raise RuntimeError("application services are closed")
         return records
+
+    def _check_immutable_failure_source(self) -> None:
+        from .failed_records_repository import immutable_copy_signature
+        if (self._failed_copy_signature is None or
+                immutable_copy_signature(self.failed_queue_readonly_db) != self._failed_copy_signature):
+            raise ValueError('legacy failure copy changed; stop and prepare a new snapshot')
+
+    def _read_immutable_failure_snapshot(self):
+        from .failed_records_repository import read_failed_records
+        self._check_immutable_failure_source()
+        records = read_failed_records(self.failed_queue_readonly_db, immutable=True)
+        self._check_immutable_failure_source()
+        return records
+
+    @staticmethod
+    def _supported_failed_original(failure) -> bool:
+        """Only the original Flet illust/manga rows can use managed v1 retry."""
+        from .failed_records_state import FailureRecord
+        return (isinstance(failure, FailureRecord)
+                and failure.work_type in ('illust', 'manga')
+                and type(failure.work_id) is str and re.fullmatch(r'[1-9][0-9]{0,19}', failure.work_id) is not None
+                and type(failure.user_id) is str and re.fullmatch(r'[1-9][0-9]{0,19}', failure.user_id) is not None)
+
+    def _assert_legacy_retry_row(self, failure):
+        """Re-read the immutable source on worker thread before acceptance."""
+        if not self.legacy_failed_retry_available or not self._supported_failed_original(failure):
+            raise ValueError('legacy failure is not supported by managed downloads')
+        rows = self._read_immutable_failure_snapshot()
+        if not any(item == failure for item in rows):
+            raise ValueError('legacy failure selection changed; refresh the list')
+
+    async def lookup_legacy_failed_original(self, failure, *, owner):
+        """No mutation: verify source row and remote work ID off the UI loop."""
+        self._direct_owner(owner)
+        await asyncio.to_thread(self._assert_legacy_retry_row, failure)
+        record = await self.lookup_managed_work_id(failure.work_id, owner=owner, publish=False)
+        if (not self._supported_failed_original(failure) or record.author_id != failure.user_id
+                or record.illustration_type != (1 if failure.work_type == 'manga' else 0)):
+            raise ValueError('legacy failure artwork identity changed')
+        return record
+
+    def enqueue_legacy_failed_original(self, failure, record, operation_id, *, owner):
+        """Explicitly accept into new SQLite jobs; the old failed_queue stays intact."""
+        from .bookmark_remote_adapter import RemoteBookmark
+        self._direct_owner(owner)
+        self._assert_legacy_retry_row(failure)
+        if (not isinstance(record, RemoteBookmark) or record.remote_id != failure.work_id
+                or record.author_id != failure.user_id
+                or record.illustration_type != (1 if failure.work_type == 'manga' else 0)):
+            raise ValueError('legacy failure artwork identity changed')
+        # Author-batch pins protect UI preview selections until accepted. A
+        # legacy failed-list retry, however, has no multi-item preview: its
+        # frozen DTO lives in the accepted SQLite intent immediately after
+        # enqueue. Drop this *view-exclusive* temporary owner on both success
+        # and failure; otherwise 3 filtered batches can strand >128 pins.
+        try:
+            (authorized,) = self.remember_managed_author_batch(owner, (record,))
+            return self.enqueue_managed_download(authorized, operation_id, owner=owner)
+        finally:
+            self.release_managed_owner(owner)
 
     @property
     def data_mode(self):
@@ -669,7 +758,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                  library_readonly_db: Path | None = None,
                  library_image_root: Path | None = None,
                  live_client=None, download_sandbox: Path | None = None,
-                 pixiv_download_root: Path | None = None) -> ApplicationServices:
+                 pixiv_download_root: Path | None = None,
+                 failed_queue_readonly_db: Path | None = None) -> ApplicationServices:
     """Return resources scoped to the ASGI app; no-argument access is legacy."""
     global _services
     with _lock:
@@ -678,7 +768,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                 _services = ApplicationServices(learning_sandbox=learning_sandbox,
                     library_readonly_db=library_readonly_db, library_image_root=library_image_root,
                     live_client=live_client, download_sandbox=download_sandbox,
-                    pixiv_download_root=pixiv_download_root)
+                    pixiv_download_root=pixiv_download_root,
+                    failed_queue_readonly_db=failed_queue_readonly_db)
             services = _services
         else:
             services = getattr(app.state, _APP_KEY, None)
@@ -686,7 +777,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                 services = ApplicationServices(learning_sandbox=learning_sandbox,
                     library_readonly_db=library_readonly_db, library_image_root=library_image_root,
                     live_client=live_client, download_sandbox=download_sandbox,
-                    pixiv_download_root=pixiv_download_root)
+                    pixiv_download_root=pixiv_download_root,
+                    failed_queue_readonly_db=failed_queue_readonly_db)
                 setattr(app.state, _APP_KEY, services)
         if services.closing:
             raise RuntimeError("application services are closed")
@@ -702,4 +794,6 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
             raise RuntimeError("application services already use different download storage")
         if pixiv_download_root is not None and services.pixiv_download_root != pixiv_download_root:
             raise RuntimeError("application services already use different managed download storage")
+        if failed_queue_readonly_db is not None and services.failed_queue_readonly_db != failed_queue_readonly_db:
+            raise RuntimeError('application services already use a different failure source')
         return services

@@ -8,6 +8,7 @@ must supply a permitted copy of the legacy SQLite schema.
 from __future__ import annotations
 
 from pathlib import Path
+import hashlib
 import sqlite3
 
 from .failed_records_state import CSV_COLUMNS, FailureRecord, MAX_RECORDS
@@ -20,6 +21,7 @@ _MAX_FIELD_CHARS = 65_536
 # Bounded read: even 10k rows containing individually valid long fields can
 # otherwise consume several gigabytes in a single fetchall()/SQLite sorter.
 MAX_TOTAL_UTF8_BYTES = 32 * 1024 * 1024
+MAX_IMMUTABLE_COPY_BYTES = 128 * 1024 * 1024
 _MAX_SQLITE_VALUE_BYTES = 2 * 1024 * 1024
 _TEXT_COLUMNS = CSV_COLUMNS[:-1]  # Constant names only, never user SQL.
 _OVERSIZED = ("SELECT 1 FROM failed_queue WHERE " + " OR ".join(
@@ -27,6 +29,39 @@ _OVERSIZED = ("SELECT 1 FROM failed_queue WHERE " + " OR ".join(
 _TOTAL_BYTES = ("SELECT SUM(" + " + ".join(
     f"COALESCE(length(CAST({field} AS BLOB)),0)" for field in _TEXT_COLUMNS)
     + ") FROM failed_queue")
+
+
+def immutable_copy_signature(db_path: Path) -> tuple[int, int, int, bytes]:
+    """Bounded whole-file fingerprint for an explicitly copied source DB.
+
+    A copied failed_queue can be changed without altering any currently
+    selected row. Freeze the *entire* source at opt-in time and reject later
+    changes before any new managed acceptance, not just stale target rows.
+    This proves snapshot stability, not that the caller created a correct copy
+    of an active original DB; callers must use SQLite's offline backup process.
+    """
+    path = Path(db_path)
+    if (not path.is_absolute() or not path.is_file() or path.is_symlink()
+            or any(Path(str(path) + suffix).exists()
+                   for suffix in ('-wal', '-shm', '-journal'))):
+        raise ValueError('immutable failure source is not a standalone file')
+    original = path.stat()
+    if not 0 < original.st_size <= MAX_IMMUTABLE_COPY_BYTES:
+        raise ValueError('immutable failure source size rejected')
+    digest = hashlib.sha256()
+    total = 0
+    with path.open('rb') as stream:
+        while block := stream.read(1024 * 1024):
+            total += len(block)
+            if total > MAX_IMMUTABLE_COPY_BYTES:
+                raise ValueError('immutable failure source size rejected')
+            digest.update(block)
+    current = path.stat()
+    if (path.is_symlink() or current.st_size != original.st_size
+            or current.st_mtime_ns != original.st_mtime_ns
+            or current.st_ino != original.st_ino or total != current.st_size):
+        raise ValueError('immutable failure source changed during fingerprint')
+    return current.st_size, current.st_mtime_ns, current.st_ino, digest.digest()
 
 
 def _text(value: object, default: str) -> str:
@@ -47,7 +82,7 @@ def _row_to_record(row: tuple) -> FailureRecord:
     return FailureRecord(*fields, retry)
 
 
-def read_failed_records(db_path: Path) -> tuple[FailureRecord, ...]:
+def read_failed_records(db_path: Path, *, immutable: bool = False) -> tuple[FailureRecord, ...]:
     """Read all original failures, newest first, from an explicitly named DB.
 
     A schema mismatch, corrupt row, locked database or excessive result raises
@@ -59,7 +94,17 @@ def read_failed_records(db_path: Path) -> tuple[FailureRecord, ...]:
     path = Path(db_path).absolute()
     if not path.is_file():
         raise FileNotFoundError("failed queue database is missing")
-    conn = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=1.0)
+    if type(immutable) is not bool:
+        raise ValueError('immutable snapshot flag must be boolean')
+    if immutable:
+        # The opt-in managed retry uses a static copied SQLite database.
+        # Never let WAL sidecars silently disappear from the read snapshot,
+        # and do not let SQLite create/write a shared-memory sidecar.
+        if (path.is_symlink() or any(Path(str(path) + suffix).exists()
+                                     for suffix in ('-wal', '-shm', '-journal'))):
+            raise ValueError('immutable failed queue source must be a standalone copy')
+    uri = path.as_uri() + ('?mode=ro&immutable=1' if immutable else '?mode=ro')
+    conn = sqlite3.connect(uri, uri=True, timeout=1.0)
     try:
         # SQLite's per-value/row limit rejects a truly giant field before it
         # can be decoded and materialized as an unbounded Python string.

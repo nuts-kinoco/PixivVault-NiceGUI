@@ -87,11 +87,14 @@ class DemoShell:
             with self.content:
                 self.library = LibraryView(self.services, card_size=self.card_size,
                                            on_size_change=self.change_card_size)
-        if tab == "failed" and self.services.jobs is None and self.failed_records is None:
+        use_legacy_failed = (self.services.jobs is None or
+                             getattr(self.services, 'legacy_failed_retry_available', False))
+        if tab == "failed" and use_legacy_failed and self.failed_records is None:
             from .failed_records_view import FailedRecordsView
             with self.content:
                 self.failed_records = FailedRecordsView(self.services)
-        if (tab in {"download", "queue"} or (tab == "failed" and self.services.jobs is not None)) and tab not in self.job_views:
+        if (tab in {"download", "queue"} or
+                (tab == "failed" and not use_legacy_failed)) and tab not in self.job_views:
             from .job_views import DownloadView, QueueView
             with self.content:
                 if tab == "download" and self.services.managed_downloads is not None:
