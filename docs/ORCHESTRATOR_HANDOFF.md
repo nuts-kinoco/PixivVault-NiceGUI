@@ -129,6 +129,6 @@ native onedirコピー/EXE SHA/最小化復帰/正常終了/port解放:
 - 停止待ち `final20` RED: Uvicorn/NiceGUI WebSocket drainの既定無制限が原因候補。合成checkerへ `timeout_graceful_shutdown=5` + process wait25秒、失敗時nonce/argv/パス非開示を実装。Edge独立2回各4/4、Chromium4/4、最終差分後Edge4/4の自然終了・port解放GREEN。ログのWinError10054は間欠事象でありUvicorn経路が唯一の原因と断定しない。
 - 128件超: 受理済みauthor owner pinのみ解放、未完了JobService対象IDを新規プレビューの自動選択から除外。140件全件NEW・pending128+残12の2バッチ受理試験GREEN。保存済みとpendingは厳密に区別。
 - 最新全pytest 1180 passed/1 skipped/1 warning (67.53s)。最終Edge `artifacts/phase8-legacy-author-diff-edge-final-after-pending-20261024/result.json` 4/4 GREEN。独立CoS read-onlyレビュー APPROVE（P1/P2ゼロ）。
-- Windows PyInstaller onedir/noconsole最終buildと別rootコピー 1050/1050 SHA一致、コピーexe `701688B5E7FA4D2C0A2F5341A3BBED02DEB4AEF62DBCA012D7A692518767186F`。実native GUI/画像decode/最小化復帰/8所有PID正常終了/port解放 `artifacts/phase8-native-copy-acceptance-20261024.json` passed。
+- Windows PyInstaller onedir/noconsole最終buildと別rootコピー 1050/1050 SHA一致、コピーexe `498296CA10C107B8CC039BB3558FFE605B9130ED2E0B6C9E187B32ACCAD06386`。実native GUI/画像decode/最小化復帰/8所有PID正常終了/port解放 `artifacts/phase8-native-copy-final-acceptance-20261024.json` passed。
 - この時点でPhase8は**未commit/未PR/未merge**。`docs/PROGRESS.md`の同日記録参照。次はPhase8所有パスに限ってadd/commit/push、PR作成、正確なhead SHAの3 CI全成功後のみ既承認merge、main SHA/CI確認。原版DB/画像/ZIP/Cookie原本変更禁止、shared主repo dirty変更破棄禁止、実Pixivの許可外通信禁止。
 - 未受入境界: 実Cookie本番作者全件・巨大データ性能、scheduler/うごイラ/小説/重複隔離/設定・おすすめ等は別ゲート。Phase8統合を全移植完了とはしない。
