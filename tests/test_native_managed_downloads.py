@@ -179,12 +179,27 @@ def test_actual_synthetic_writer_jobservice_verifier_detects_mismatch(tmp_path):
     jobs = JobService(writer.run, storage=writer.storage_path)
     before = {'_cookie_signature': hashlib.sha256(cookie.read_bytes()).digest()}
     job = jobs.enqueue('pixiv-illust', '123', 'fake', operation_id='synthetic-operation')
-    until = time.monotonic() + 5
-    while time.monotonic() < until and jobs.snapshot()[0].state not in ('done', 'error'):
-        time.sleep(.01)
-    assert jobs.snapshot()[0].state == 'done'
-    jobs.close()
-    writer.close()
+    # This is an integrity/recovery test, not a download latency benchmark.
+    # On a loaded Windows CI runner, per-page fsync and SQLite commits can
+    # exceed an arbitrary 5-second spin-poll deadline while the real worker
+    # remains RUNNING. Observe the durable terminal transition using the same
+    # condition notifications as JobService, while retaining a finite limit.
+    try:
+        with jobs._condition:
+            completed = jobs._condition.wait_for(
+                lambda: any(item.job_id == job.job_id and item.state in ('done', 'error')
+                            for item in jobs.snapshot()), timeout=20)
+        assert completed, 'synthetic managed worker did not reach terminal state'
+        terminal = next(item for item in jobs.snapshot() if item.job_id == job.job_id)
+        assert terminal.state == 'done'
+        assert terminal.done == terminal.total == 2
+        assert terminal.result and terminal.result.endswith('/receipt.json')
+        assert not jobs.faulted
+    finally:
+        try:
+            jobs.close()
+        finally:
+            writer.close()
     expected = verify_storage(root)
     assert expected['receipts'] == 1 and expected['pages'] == 2 and expected['jobs'] == 1
     assert cookie_unchanged(cookie, before) and cookie.read_bytes() == cookie_before

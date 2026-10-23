@@ -10,7 +10,9 @@
 
 **ローカル最終受入（製品ソース時点）**：全pytest **1099 passed/1 symlink特権skip**、Starlette依存警告1、独立Claude CLI **APPROVE（P1/P2阻害0）**、実Edgeの1280×720/1920×1080×初回/再起動4経路SUCCESS（ZIP全ページ/画像decode/命名/CRC/非上書き/GETと端末終了/port）、Windows PyInstaller onedir/noconsole実ビルド→別rootへ**1050ファイルSHA一致**、コピーexe（SHA-256 `F1F629D175F384F9A11FE7051BEE0C02D8996560BABCED999ACC8E033BB6A5F6`）のUI/最小化/復帰/通常終了/ポート解放PASS。主な証拠はgit追跡外の `artifacts/legacy-zip-20261023/`。実CookieによるPhase7の実画像出力は未実行。最大1.7GiBの作者ZIPのp95/メモリ測定値は無い。
 
-**次のゲート**：`gh pr list --state all --head phase7/legacy-zip-export` とmain/SHA/CIを再照合。docsのみを対象commit/push（製品コード不変）→Phase7 PR作成または更新→**新head SHA**のWindows/Ubuntu/Chromium全SUCCESSならレビュー・Edge/nativeの製品ソース一致を確認してmerge→新main CI検証。その後、未移植の原版差分のRESTORED/MISSING、scheduler、うごイラ/小説、旧保存名の詳細互換、重複整理、おすすめ/設定/外部連携、全面Windows製品受入へ続ける。各Phaseが最終ゴールではない。
+**PR #28と初回RED**：文書専用commit `ebcfc12c004ca42ab78354b59d8a5540db9ca651` push後、PR #28（`https://github.com/nuts-kinoco/PixivVault-NiceGUI/pull/28`）を作成。CI run `39955280876`ではUbuntu成功、Windows `tests/test_native_managed_downloads.py::test_actual_synthetic_writer_jobservice_verifier_detects_mismatch`が**5秒spin-poll時点で`running`のためRED**（1 failed/1099 passed）、Chromiumは未実行。製品書込と全ページ検証はそのままに、JobServiceの条件変数通知で実際のdurable terminal完了を有限20秒待機・done/total2・receipt path・faultedを厳格照合する修正を追加。読取専用レビュー**APPROVE**。これは**新headのCIがまだGREENになる前の修正**なので、成功と誤記しない。Windows runnerの遅延/負荷は可能性であり、根本原因を確証済みとは主張しない。
+
+**次のゲート**：上記のCI修正と記録を対象パスだけcommit/push→PR #28の新head SHAに対するWindows/Ubuntu/ChromiumすべてSUCCESSを確認。旧レビュー・Edge/nativeの製品ソース一致を確認してmerge→新main CI検証。その後、未移植の原版差分のRESTORED/MISSING、scheduler、うごイラ/小説、旧保存名の詳細互換、重複整理、おすすめ/設定/外部連携、全面Windows製品受入へ続ける。各Phaseが最終ゴールではない。
 
 ## 2026-10-23 作者単位差分ダウンロード（PR統合前・受入継続中）
 

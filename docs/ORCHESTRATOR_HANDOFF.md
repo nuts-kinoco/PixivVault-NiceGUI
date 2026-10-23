@@ -38,12 +38,13 @@
 ### Phase7：**現時点で進行中。まだmainへ未統合**
 
 - 所有worktree：`S:\Projects\PixivVault-NiceGUI-wt\legacy-zip-export`。
-- branch：`phase7/legacy-zip-export`。**引き継ぎ文書を作る前の製品コードHEAD／リモートbranch**：`a667a1e3b473c63b4d377b4e1acc793b8299282e`、当時clean、push済み。**本書と起動プロンプトは後から追加するdocsであり、docsコミット後のHEADは変わる**。後任は最新の実行結果を照合すること。
+- branch：`phase7/legacy-zip-export`。**引き継ぎ文書を作る前の製品コードHEAD**：`a667a1e3b473c63b4d377b4e1acc793b8299282e`。文書専用commit **`ebcfc12c004ca42ab78354b59d8a5540db9ca651`** はpush済み、**PR #28**（`https://github.com/nuts-kinoco/PixivVault-NiceGUI/pull/28`）を作成した。**PR #28の初回CI run `39955280876` はWindowsでRED**（後述）し、まだmainにはマージしていない。以下の修正をcommit/pushした後はhead SHAが変わるので常にGitHubを照合する。
 - 同確認時のGitHub main：`50ea5ee9ff745226cef6e7ac3fbc2a311c527d4f`。**当時Phase7のopen PRは見つからなかった**。開始後に変更されていないか `gh pr list --state all --head ...` を実行。
 - 実装：管理保存済みの検証済みアクティブ画像を原版互換`作者名(作者ID).zip`へ**専用新rootのみ**書き出し。ZIPの作品ID入り命名/CRC/非上書き/同作者改名重複拒否/クラッシュ一時リンク復旧/閉じる途中の中断/古いUI通知隔離。別root opt-in：`--legacy-zip-export-root`。
 - 追加実装ファイル：`src/pixivvault_nicegui/legacy_zip_export.py`、`tests/test_legacy_zip_export.py`、`tools/check_legacy_zip_export_browser.py`。対応変更は`bootstrap.py`, `services.py`, `ui/library_view.py`, `.github/workflows/ci.yml`, `tools/check_managed_downloads_browser.py`, `docs/LEGACY_ZIP_EXPORT_2026-10-23.md`。
 - **直近の受入**：全pytest **1099 passed / 1 skipped**（既存Windows symlink特権skip）、独立read-only Claudeレビュー **APPROVE / P1/P2なし**、実Edge 1280×720 + 1920×1080 初回/再起動計4経路PASS、Win PyInstaller onedir/noconsole **1050ファイルSHA一致**、コピーexeのUI/最小化/復帰/正常終了/所有ポート解放PASS。証拠はworktree内`artifacts/legacy-zip-20261023/`（基本git追跡外）。**これらは当該SHA/その当時のソースに対する記録であり、改変後は再試験する**。
-- **直後の作業**：Phase7 PRが未作成ならhead/baseを再照合してPR作成 → 正確なHEADのWindows/Ubuntu/Chromium CI → 独立レビュー・Windows受入が同じSHAでGREENならmerge → 新main SHAのpost-merge CI確認 → 次のまとまった未移植機能へ。二重PR/二重pushを避けるため必ず最新GitHub確認。
+- **CIの最新RED → 修正**：PR #28 head `ebcfc12...` のWindows CIで`tests/test_native_managed_downloads.py::test_actual_synthetic_writer_jobservice_verifier_detects_mismatch`が `running` のまま**5秒のspin-poll期限**に達し、`done` を即断定したため失敗（Ubuntu成功、Chromiumは実行されず）。Windows hosted runnerのI/O遅延は可能性であり**原因として断定していない**。製品の書込/保存検証を弱めず、既存`JobService._condition`の`notify_all`に連動した**有限20秒のterminal待機**、`done/total==2`・receipt path・faultedを追加し、失敗でもwriterを解放するようにした。**この修正を新headのCIで未受入なら、Phase7全体は未完のまま**。独立read-only再レビューはAPPROVE。レビューとテストを統合しRED→GREENを記録すること。
+- **直後の作業**：PR #28を二重作成せず最新HEAD/差分を確認し、上の修正を対象パスだけcommit/push → 正確な新HEADのWindows/Ubuntu/Chromium CI全SUCCESS → 独立レビュー・Windows受入のソース一致確認 → merge → 新main SHAのpost-merge CI確認 → 次のまとまった未移植機能へ。
 - **本書をGitへ定着**：`git add -- AGENTS.md docs/ORCHESTRATOR_HANDOFF.md docs/ORCHESTRATOR_START_PROMPT.md docs/PROGRESS.md`のように規約/進捗docsだけを追加し、**文書のみのcommit・push**をしてPhase7 PRへ含める。文書だけなら製品コード自体を変更しないので**ローカル製品動作の再試験は原則不要**だが、PRの**新head SHAに対するCIは再確認**する。引き継ぎ書がまだ`??`ならGitHubでは取得できない。
 
 ## 4. 互換性・保存境界（壊してはいけない契約）
