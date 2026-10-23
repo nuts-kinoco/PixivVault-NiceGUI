@@ -1,5 +1,17 @@
 # 移植進捗
 
+## 2026-10-23 現行Phase7・CoSCore専用オーケストレータ引き継ぎ（最新スナップショット）
+
+**引き継ぎの入口**：`docs/ORCHESTRATOR_START_PROMPT.md`（後任へ全文渡す）と`docs/ORCHESTRATOR_HANDOFF.md`（統合履歴・残件・保全・受入SOP）。CoSCoreだけで開発し、dot（どっと）のユーザー側からの依頼にも安全な優先順位で対応する。両文書の製品head SHAは**作成前のスナップショット**であり、docs-only commit/push後には最新headとCIを再照合する。
+
+**main**：PR #26（作者ID・NEW/UPDATED差分/世代CAS）統合後`05115e7f34bbe7e050bc0b563d383fd3117c2854`、PR #27（旧failed_queue静的コピー→管理ジョブ再投入）統合後`50ea5ee9ff745226cef6e7ac3fbc2a311c527d4f`。mainのCI run `39946846948`（head `50ea5ee9`）はWindows/Ubuntu/Chromium**全3成功**。他worktreeの未コミット変更は削除・上書きしていない。
+
+**現在の次単位**：`phase7/legacy-zip-export` 専用worktree（`S:\Projects\PixivVault-NiceGUI-wt\legacy-zip-export`）。製品実装commit `a667a1e3b473c63b4d377b4e1acc793b8299282e`はpush済み。アクティブ管理原寸画像→専用新rootの原版互換作者ZIPを明示ボタンで作成。旧画像/DB/ZIP原本無変更、同作者ZIP・既存ZIP非上書き。v1/v2世代検証、故障時一時ZIP隔離、公開直後クラッシュ復元、shutdown途中中断、更新世代競合、複数client/古いepochを検証。原版ZIPへの追記・既存ZIP改名、元画像消去、全形式対応は未移植であり「完全互換」と誤称しない。
+
+**ローカル最終受入（製品ソース時点）**：全pytest **1099 passed/1 symlink特権skip**、Starlette依存警告1、独立Claude CLI **APPROVE（P1/P2阻害0）**、実Edgeの1280×720/1920×1080×初回/再起動4経路SUCCESS（ZIP全ページ/画像decode/命名/CRC/非上書き/GETと端末終了/port）、Windows PyInstaller onedir/noconsole実ビルド→別rootへ**1050ファイルSHA一致**、コピーexe（SHA-256 `F1F629D175F384F9A11FE7051BEE0C02D8996560BABCED999ACC8E033BB6A5F6`）のUI/最小化/復帰/通常終了/ポート解放PASS。主な証拠はgit追跡外の `artifacts/legacy-zip-20261023/`。実CookieによるPhase7の実画像出力は未実行。最大1.7GiBの作者ZIPのp95/メモリ測定値は無い。
+
+**次のゲート**：`gh pr list --state all --head phase7/legacy-zip-export` とmain/SHA/CIを再照合。docsのみを対象commit/push（製品コード不変）→Phase7 PR作成または更新→**新head SHA**のWindows/Ubuntu/Chromium全SUCCESSならレビュー・Edge/nativeの製品ソース一致を確認してmerge→新main CI検証。その後、未移植の原版差分のRESTORED/MISSING、scheduler、うごイラ/小説、旧保存名の詳細互換、重複整理、おすすめ/設定/外部連携、全面Windows製品受入へ続ける。各Phaseが最終ゴールではない。
+
 ## 2026-10-23 作者単位差分ダウンロード（PR統合前・受入継続中）
 
 PR #25統合後のmain `bacb629ccfc36969b3e560b9d4596efd760c7fc8` を元に、別worktree `phase5/author-differential-downloads` で作者ID/フォロー選択からの差分取得を実装。原版の作者ID数値指定と24件フォロー・48件作者作品詳細GETを維持し、検索後の選択保持、由来、重複防止、解除、2client独立、非同期epoch/revisionを接続。作者NEWと既知更新日のUPDATEDを明示キュー投入し、v2 accepted-intent/旧v1読込/旧SQLite job互換、旧receipt全頁検証・不変世代保存・SHA+path CASのactive切替、旧画像・履歴を保存。v1更新日が無い作品は`UNKNOWN`とし自動再取得しない。
