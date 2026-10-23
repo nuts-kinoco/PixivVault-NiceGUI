@@ -39,6 +39,12 @@ def log_failures(contents: str) -> list[str]:
                               "ObjectDisposedException") if re.search(re.escape(term), contents, re.I)]
 
 
+def managed_capture_allowed(inspection: object) -> bool:
+    """Private pixels may be captured only after proven synthetic restoration."""
+    return (type(inspection) is dict and inspection.get("passed") is True
+            and inspection.get("synthetic_return") is True)
+
+
 def matching_app_page(url: str, port: int) -> bool:
     try:
         parsed = urlparse(url)
@@ -227,7 +233,9 @@ def inspect_readonly_library_ui(page, screenshot: Path, guard: NativeUiGuard) ->
 def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float,
                *, check_owner, learning_persistence: bool = False,
                readonly_library: bool = False, failed_records: bool = False,
-               download_sandbox: Path | None = None, jobs_restart: bool = False) -> dict:
+               download_sandbox: Path | None = None, jobs_restart: bool = False,
+               managed_root: Path | None = None, managed_restart: bool = False,
+               managed_before: dict | None = None) -> dict:
     """Use Playwright's WebView2 CDP attachment, never close remote browser/context."""
     from playwright.sync_api import expect, sync_playwright
 
@@ -256,6 +264,14 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
         page = pages[0]
         guard = NativeUiGuard(page, app_port, deadline, check_owner)
         run = guard.run
+        if managed_root is not None:
+            if __package__:
+                from .check_managed_download_native import inspect_managed
+            else:
+                from check_managed_download_native import inspect_managed
+            # Never capture console, page errors, DOM, screenshots or private IDs.
+            return inspect_managed(page, guard, managed_root, restart=managed_restart,
+                                   before=managed_before)
         result['browser_version'] = browser.version
         result['viewport'] = run(page.evaluate, '''() => ({
             width: window.innerWidth, height: window.innerHeight,
@@ -683,6 +699,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--jobs-restart", action="store_true",
                         help="Second native run in the same marked download sandbox; verify two durable jobs, "
                              "no auto-run, remove one history item, keep every saved page")
+    parser.add_argument("--pixiv-cookie-file", type=Path)
+    parser.add_argument("--pixiv-download-root", type=Path)
+    parser.add_argument("--managed-restart", action="store_true")
     parser.add_argument("--library-readonly-db", type=Path,
                         help="Explicit isolated legacy-schema SQLite fixture")
     parser.add_argument("--library-image-root", type=Path,
@@ -704,6 +723,16 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--learning-sandbox must be absolute")
     if args.jobs_restart and args.download_sandbox is None:
         parser.error("--jobs-restart requires --download-sandbox")
+    managed = args.pixiv_download_root is not None or args.pixiv_cookie_file is not None or args.managed_restart
+    if managed:
+        if not (args.pixiv_download_root and args.pixiv_cookie_file and args.inspect_ui and args.exe):
+            parser.error("managed native acceptance requires exe, cookie, root and inspect-ui")
+        if (args.download_sandbox is not None or args.learning_sandbox is not None
+                or args.library_readonly_db is not None or args.library_image_root is not None
+                or args.jobs_restart or args.inspect_failed_records):
+            parser.error("managed mode cannot mix other storage modes")
+        if not args.pixiv_download_root.is_absolute() or not args.pixiv_cookie_file.is_absolute():
+            parser.error("managed paths must be absolute")
     if args.download_sandbox is not None:
         if not args.inspect_ui:
             parser.error("--download-sandbox requires --inspect-ui")
@@ -737,6 +766,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.output.resolve() == target.resolve():
         parser.error("Output must differ from entry")
     jobs_before = None
+    managed_before = None
+    if managed:
+        if __package__:
+            from .check_managed_download_native import preflight
+        else:
+            from check_managed_download_native import preflight
+        try:
+            if args.output.resolve().is_relative_to(args.pixiv_download_root.resolve()):
+                parser.error("report must be outside managed root")
+            managed_before = preflight(args.pixiv_download_root, args.pixiv_cookie_file,
+                                       restart=args.managed_restart)
+        except Exception as exc:
+            parser.error("managed preflight rejected: " + type(exc).__name__)
     if args.download_sandbox is not None:
         if args.output.resolve().is_relative_to(args.download_sandbox.resolve()):
             parser.error("native check output must be outside download sandbox")
@@ -756,6 +798,9 @@ def main(argv: list[str] | None = None) -> int:
         command += ["--learning-sandbox", str(args.learning_sandbox)]
     if args.download_sandbox is not None:
         command += ["--download-sandbox", str(args.download_sandbox)]
+    if managed:
+        command += ["--pixiv-cookie-file", str(args.pixiv_cookie_file),
+                    "--pixiv-download-root", str(args.pixiv_download_root)]
     if args.library_readonly_db is not None:
         command += ["--library-readonly-db", str(args.library_readonly_db),
                     "--library-image-root", str(args.library_image_root)]
@@ -781,7 +826,8 @@ def main(argv: list[str] | None = None) -> int:
         fresh_destination(output_path.with_name("failed-records-export.csv"))
         report["csv_dialog_budget_seconds"] = args.failed_csv_dialog_seconds
     log_path = output_path.with_name(output_path.stem + ".process.log")
-    report["process_log"] = str(log_path)
+    if not managed:
+        report["process_log"] = str(log_path)
     report["inspect_ui_requested"] = args.inspect_ui
     report["download_jobs_requested"] = args.download_sandbox is not None
     report["jobs_restart"] = args.jobs_restart
@@ -793,10 +839,15 @@ def main(argv: list[str] | None = None) -> int:
         child_env["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = (
             f"--remote-debugging-port={debug_port} --remote-debugging-address=127.0.0.1")
     try:
-        with log_path.open("wb") as log:
+        if managed:
             root = subprocess.Popen(command, cwd=str(target.parent),
-                                    stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
-                                    env=child_env)
+                                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                    stderr=subprocess.DEVNULL, env=child_env)
+        else:
+            with log_path.open("wb") as log:
+                root = subprocess.Popen(command, cwd=str(target.parent),
+                                        stdin=subprocess.DEVNULL, stdout=log,
+                                        stderr=subprocess.STDOUT, env=child_env)
         report["root_pid"] = root.pid
         root_identity = process_identity(root.pid)
         if root_identity is None:
@@ -817,6 +868,8 @@ def main(argv: list[str] | None = None) -> int:
             return valid_owned(identities)
 
         def expected_health():
+            if managed:
+                return health_ready(port, "pixiv-readonly")
             if args.library_readonly_db is not None:
                 return health_ready(port, "library-readonly")
             return health_ready(port)
@@ -873,8 +926,12 @@ def main(argv: list[str] | None = None) -> int:
                         if args.download_sandbox is not None:
                             inspect_kwargs["download_sandbox"] = args.download_sandbox
                             inspect_kwargs["jobs_restart"] = args.jobs_restart
+                        if managed:
+                            inspect_kwargs["managed_root"] = args.pixiv_download_root
+                            inspect_kwargs["managed_restart"] = args.managed_restart
+                            inspect_kwargs["managed_before"] = managed_before
                         inspection_deadline = min(operation_deadline, time.monotonic()
-                            + (140.0 if args.download_sandbox is not None
+                            + (140.0 if args.download_sandbox is not None or managed
                                else PHASE_LIMITS["inspect_ui"]) + args.failed_csv_dialog_seconds)
                         report["ui_inspection"] = inspect_ui(
                             debug_port, port, screenshot, inspection_deadline,
@@ -882,13 +939,19 @@ def main(argv: list[str] | None = None) -> int:
                         if not report["ui_inspection"]["passed"]:
                             report["errors"].append("ui_inspection_failed")
                     except Exception as exc:
-                        report["ui_inspection"] = {"passed": False, "reason": type(exc).__name__}
+                        report["ui_inspection"] = ({"passed": False, "synthetic_return": False,
+                                                    "phase": "inspect_ui", "error_class": type(exc).__name__}
+                                                   if managed else {"passed": False, "reason": type(exc).__name__})
                         report["errors"].append("ui_inspection_exception")
-                restore_gate = run_restore_gate(
-                    root.pid, root_identity, hwnd, output_path, operation_deadline, PHASE_LIMITS,
-                    expected_top_identity=expected_owner)
+                capture_allowed = not managed or managed_capture_allowed(report.get("ui_inspection"))
+                if capture_allowed:
+                    restore_gate = run_restore_gate(
+                        root.pid, root_identity, hwnd, output_path, operation_deadline, PHASE_LIMITS,
+                        expected_top_identity=expected_owner)
+                else:
+                    restore_gate = {"passed": False, "capture_skipped": True}
                 report["restore_gate"] = restore_gate
-                report["minimized"] = restore_gate["minimized"]
+                report["minimized"] = restore_gate.get("minimized", False)
                 report["restored"] = restore_gate["passed"]
                 if not restore_gate["passed"]:
                     report["errors"].append("restore_gate_failed")
@@ -936,6 +999,31 @@ def main(argv: list[str] | None = None) -> int:
                         except Exception as exc:
                             report["download_jobs_post_close"] = {"passed": False, "reason": type(exc).__name__}
                             report["errors"].append("native_jobs_persistence_failed")
+                if managed and report["normal_exit"] and report["port_released"]:
+                    try:
+                        if __package__:
+                            from .check_managed_download_native import verify_storage
+                        else:
+                            from check_managed_download_native import verify_storage
+                        state = verify_storage(args.pixiv_download_root)
+                        if (args.managed_restart and state["_signature"] != managed_before["_signature"]):
+                            raise AssertionError("managed restart changed completed receipts")
+                        if (not args.managed_restart and state["receipts"] < 1):
+                            raise AssertionError("managed receipt missing")
+                        report["managed_post_close"] = {"passed": True,
+                            "receipt_count": state["receipts"], "page_count": state["pages"],
+                            "job_count": state["jobs"]}
+                        if __package__:
+                            from .check_managed_download_native import cookie_unchanged
+                        else:
+                            from check_managed_download_native import cookie_unchanged
+                        report["cookie_verified"] = cookie_unchanged(args.pixiv_cookie_file, managed_before)
+                        if not report["cookie_verified"]:
+                            raise AssertionError("cookie original changed")
+                    except Exception as exc:
+                        report["managed_post_close"] = {"passed": False,
+                                                         "error_class": type(exc).__name__}
+                        report["errors"].append("managed_persistence_failed")
         report["status"] = "passed" if (report["health_ready"] and report["window_found"]
                     and report["minimized"] and report["restored"]
                     and report["normal_exit"] and report["port_released"]
@@ -945,12 +1033,13 @@ def main(argv: list[str] | None = None) -> int:
                     and (args.download_sandbox is None or
                          (report.get("jobs_ui_accepted") is True
                           and (report.get("download_jobs_post_close") or {}).get("passed") is True))
+                    and (not managed or (report.get("managed_post_close") or {}).get("passed") is True)
                     and not report["errors"]
                     and (args.client_origin is None or
                          (report.get("initial_placement") or {}).get("explicit_setup") is True)
                     and (not args.inspect_ui or (report["ui_inspection"] or {}).get("passed"))) else "failed"
     except Exception as exc:
-        report["errors"].append(f"{type(exc).__name__}: {exc}")
+        report["errors"].append(type(exc).__name__ if managed else f"{type(exc).__name__}: {exc}")
     finally:
         if root is not None:
             try:
@@ -961,17 +1050,47 @@ def main(argv: list[str] | None = None) -> int:
                         {pid: identities[pid] for pid in survivors})
                     report["status"] = "failed"
             except Exception as exc:
-                report["errors"].append(f"cleanup: {type(exc).__name__}: {exc}")
+                report["errors"].append("cleanup_" + type(exc).__name__ if managed
+                                        else f"cleanup: {type(exc).__name__}: {exc}")
                 report["status"] = "failed"
-        try:
-            failures = log_failures(log_path.read_text(encoding="utf-8", errors="replace"))
-            report["process_log_failures"] = failures
-            if failures:
-                report["errors"].append("process_log_error")
+        if not managed:
+            try:
+                failures = log_failures(log_path.read_text(encoding="utf-8", errors="replace"))
+                report["process_log_failures"] = failures
+                if failures:
+                    report["errors"].append("process_log_error")
+                    report["status"] = "failed"
+            except OSError:
+                report["errors"].append("process_log_unreadable")
                 report["status"] = "failed"
-        except OSError:
-            report["errors"].append("process_log_unreadable")
-            report["status"] = "failed"
+        if managed:
+            ui_result = report.get("ui_inspection") or {}
+            post = report.get("managed_post_close") or {}
+            # A strict public allowlist. Process IDs, paths, browser metadata,
+            # exceptions and application strings remain in memory only.
+            report = {
+                "status": "passed" if report["status"] == "passed" else "failed",
+                "phase": ui_result.get("phase", "native") if type(ui_result.get("phase")) is str
+                         and ui_result.get("phase") in {"preflight", "refresh", "select", "queue", "library", "author", "open_viewer", "decode", "synthetic_return", "synthetic_identity", "done", "inspect_ui"} else "native",
+                "error_class": ui_result.get("error_class") if ui_result.get("error_class") in
+                    {"AssertionError", "TimeoutError", "RuntimeError", "ValueError", "Error"} else None,
+                "synthetic_return": ui_result.get("synthetic_return") is True,
+                "ui_passed": ui_result.get("passed") is True,
+                "selected": ui_result.get("selected") is True,
+                "queue_done": ui_result.get("queue_done") is True,
+                "viewer_decoded": ui_result.get("viewer_decoded") is True,
+                "multiple_pages_validated": ui_result.get("multiple_pages_validated") is True,
+                "focus_restored": ui_result.get("focus_restored") is True,
+                "restore_passed": report.get("restored") is True,
+                "capture_skipped": (report.get("restore_gate") or {}).get("capture_skipped") is True,
+                "normal_exit": report.get("normal_exit") is True,
+                "port_released": report.get("port_released") is True,
+                "cookie_unchanged": report.get("cookie_verified") is True,
+                "receipt_count": post.get("receipt_count", 0) if type(post.get("receipt_count")) is int else 0,
+                "page_count": post.get("page_count", 0) if type(post.get("page_count")) is int else 0,
+                "job_count": post.get("job_count", 0) if type(post.get("job_count")) is int else 0,
+                "error_count": len(report["errors"]),
+            }
         output_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     return 0 if report["status"] == "passed" else 1
 

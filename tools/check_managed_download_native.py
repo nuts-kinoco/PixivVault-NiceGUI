@@ -1,0 +1,385 @@
+"""Read-only managed storage checks and private native UI acceptance.
+
+Never put image metadata, identities, URLs or browser errors into reports.
+"""
+from __future__ import annotations
+
+from io import BytesIO
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import sqlite3
+import stat
+
+from PIL import Image
+from datetime import datetime
+APPLICATION_ID = 0x50564A31
+SCHEMA_VERSION = 1
+
+MARKER = ".pixivvault-managed-pixiv-downloads.json"
+IDENTITY = {"application": "pixivvault-nicegui", "purpose": "managed-pixiv-originals", "version": 1}
+FOLDER = re.compile(r"work-([1-9][0-9]{0,19})-[a-f0-9]{32}\Z")
+SHA = re.compile(r"[a-f0-9]{64}\Z")
+EXT = {"png": "png", "jpeg": "jpg", "webp": "webp"}
+
+
+def _safe(path: Path) -> None:
+    for parent in (path, *path.parents):
+        if parent.is_symlink():
+            raise ValueError("unsafe storage link")
+        try:
+            info = parent.lstat()
+        except FileNotFoundError:
+            continue
+        if getattr(info, "st_file_attributes", 0) & 0x400:
+            raise ValueError("unsafe storage reparse point")
+
+
+def _read(path: Path, limit: int) -> bytes:
+    _safe(path)
+    with path.open("rb") as source:
+        info = source.fileno()
+        metadata = os.fstat(info)
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1 or not 0 < metadata.st_size <= limit:
+            raise ValueError("invalid stored file")
+        content = source.read(limit + 1)
+    if not 0 < len(content) <= limit:
+        raise ValueError("stored file exceeds limit")
+    return content
+
+
+def _unique(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate receipt key")
+        result[key] = value
+    return result
+
+
+def _inside(path: Path, other: Path) -> bool:
+    return path == other or other in path.parents
+
+
+def preflight(root: Path, cookie_file: Path, *, restart: bool) -> dict:
+    root, cookie_file = Path(root), Path(cookie_file)
+    if not root.is_absolute() or root.parent == root or not cookie_file.is_absolute():
+        raise ValueError("absolute managed root and cookie file required")
+    _safe(root)
+    _safe(cookie_file)
+    if _inside(root, cookie_file.parent) or _inside(cookie_file.parent, root):
+        raise ValueError("managed root overlaps cookie parent")
+    if not cookie_file.is_file() or not root.parent.is_dir():
+        raise ValueError("missing prerequisite")
+    if not restart:
+        if root.exists():
+            raise ValueError("initial managed root already exists")
+        return {"fresh": True, "receipts": 0, "pages": 0, "jobs": 0,
+                "_signature": (), "_cookie_signature": hashlib.sha256(_read(cookie_file, 1024 * 1024)).digest()}
+    state = verify_storage(root)
+    state["_cookie_signature"] = hashlib.sha256(_read(cookie_file, 1024 * 1024)).digest()
+    return state
+
+
+def cookie_unchanged(cookie_file: Path, before: dict) -> bool:
+    return hashlib.sha256(_read(cookie_file, 1024 * 1024)).digest() == before["_cookie_signature"]
+
+
+def verify_storage(root: Path) -> dict:
+    root = Path(root)
+    _safe(root)
+    if not root.is_dir():
+        raise ValueError("missing managed root")
+    marker = json.loads(_read(root / MARKER, 4096), object_pairs_hook=_unique)
+    if marker != IDENTITY:
+        raise ValueError("managed marker mismatch")
+    outputs = root / "outputs"
+    if not outputs.is_dir():
+        raise ValueError("missing completed storage")
+    seen = set()
+    work_receipts = {}
+    page_count = 0
+    receipt_count = 0
+    signature = []
+    receipt_paths = set()
+    folders = []
+    for folder in outputs.iterdir():
+        if len(folders) >= 10000:
+            raise ValueError("completed storage limit exceeded")
+        folders.append(folder)
+    for folder in sorted(folders):
+        _safe(folder)
+        matched = FOLDER.fullmatch(folder.name)
+        if not folder.is_dir() or matched is None:
+            raise ValueError("invalid completed structure")
+        receipt_bytes = _read(folder / "receipt.json", 512 * 1024)
+        data = json.loads(receipt_bytes, object_pairs_hook=_unique)
+        expected = {"version", "source", "work_id", "author_id", "author_name", "title",
+                    "tags", "created_at", "saved_at", "illustration_type", "x_restrict", "page_count", "files"}
+        if (type(data) is not dict or set(data) != expected or type(data["version"]) is not int or data["version"] != 1
+                or data["source"] != "pixiv-original" or data["work_id"] != matched[1]
+                or data["work_id"] in seen or not re.fullmatch(r"[1-9][0-9]{0,19}", data["author_id"])
+                or type(data["page_count"]) is not int or not 1 <= data["page_count"] <= 1000
+                or type(data["files"]) is not list or len(data["files"]) != data["page_count"]):
+            raise ValueError("invalid completed receipt")
+        seen.add(data["work_id"])
+        if (type(data["illustration_type"]) is not int or data["illustration_type"] not in (0, 1)
+                or type(data["x_restrict"]) is not int or data["x_restrict"] not in (0, 1, 2)
+                or type(data["tags"]) is not list or len(data["tags"]) > 100
+                or any(type(tag) is not str or len(tag) > 128 for tag in data["tags"])):
+            raise ValueError("invalid receipt metadata")
+        for key, limit in (("title", 256), ("author_name", 256), ("created_at", 128), ("saved_at", 64)):
+            if type(data[key]) is not str or len(data[key]) > limit or any(ord(c) < 32 for c in data[key]):
+                raise ValueError("invalid receipt metadata")
+        if datetime.fromisoformat(data["saved_at"]).tzinfo is None:
+            raise ValueError("invalid receipt date")
+        expected_files = {"receipt.json"}
+        for number, item in enumerate(data["files"], 1):
+            if type(item) is not dict or set(item) != {"name", "bytes", "sha256", "format", "width", "height"}:
+                raise ValueError("invalid page entry")
+            ext = EXT.get(item["format"]) if type(item["format"]) is str else None
+            name = f"page-{number}.{ext}"
+            if (ext is None or item["name"] != name or type(item["bytes"]) is not int
+                    or not 0 < item["bytes"] <= 20 * 1024 * 1024
+                    or type(item["sha256"]) is not str or not SHA.fullmatch(item["sha256"])
+                    or type(item["width"]) is not int or type(item["height"]) is not int
+                    or not 0 < item["width"] * item["height"] <= 28_000_000):
+                raise ValueError("invalid page metadata")
+            raw = _read(folder / name, 20 * 1024 * 1024)
+            if len(raw) != item["bytes"] or hashlib.sha256(raw).hexdigest() != item["sha256"]:
+                raise ValueError("stored page checksum mismatch")
+            with Image.open(BytesIO(raw)) as image:
+                kind = "JPEG" if item["format"] == "jpeg" else item["format"].upper()
+                if image.format != kind or image.size != (item["width"], item["height"]):
+                    raise ValueError("stored page format mismatch")
+                image.load()
+            expected_files.add(name)
+            signature.append(hashlib.sha256(raw).digest())
+            page_count += 1
+        if {entry.name for entry in folder.iterdir()} != expected_files:
+            raise ValueError("unexpected completed files")
+        receipt_count += 1
+        receipt_paths.add(f"outputs/{folder.name}/receipt.json")
+        work_receipts[f"outputs/{folder.name}/receipt.json"] = (data["work_id"], data["page_count"])
+        signature.append(hashlib.sha256(receipt_bytes).digest())
+    db = root / "jobs.sqlite3"
+    if not db.is_file():
+        raise ValueError("managed job database missing")
+    _safe(db)
+    if db.lstat().st_nlink != 1 or db.lstat().st_size > 32 * 1024 * 1024:
+        raise ValueError("managed database file rejected")
+    uri = db.as_uri() + "?mode=ro&immutable=1"
+    connection = sqlite3.connect(uri, uri=True)
+    try:
+        if connection.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+            raise ValueError("managed job database invalid")
+        if (connection.execute("PRAGMA application_id").fetchone()[0] != APPLICATION_ID
+                or connection.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION):
+            raise ValueError("managed database identity mismatch")
+        tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        if tables != {"jobs", "operations"}:
+            raise ValueError("managed database schema mismatch")
+        jobs = 0
+        done_results = set()
+        durable_ids = set()
+        for job_id, payload in connection.execute("SELECT job_id,payload FROM jobs ORDER BY ordinal"):
+            if len(payload) > 8192:
+                raise ValueError("invalid job payload")
+            job = json.loads(payload, object_pairs_hook=_unique)
+            if (type(job) is not dict or job.get("job_id") != job_id
+                    or not re.fullmatch(r"[a-f0-9]{32}", job_id)
+                    or type(job.get("attempt")) is not int or job["attempt"] < 1
+                    or job.get("state") not in {"queued", "running", "paused", "stopping", "stopped", "done", "error"}
+                    or type(job.get("done")) is not int or type(job.get("total")) is not int
+                    or not 0 <= job["done"] <= job["total"]):
+                raise ValueError("invalid job state")
+            # This checker creates one fresh, successful job. It does not
+            # certify arbitrary existing stores with unrelated failed work.
+            if job.get("state") != "done" or job["attempt"] != 1:
+                raise ValueError("managed acceptance job is not a single completed attempt")
+            if job["state"] == "done":
+                if (type(job.get("result")) is not str or job["result"] not in receipt_paths
+                        or job.get("kind") != "pixiv-illust" or
+                        not re.fullmatch(r"[1-9][0-9]{0,19}", str(job.get("target_id", "")))
+                        or job["done"] != job["total"] or job["total"] < 1
+                        or (job["target_id"], job["total"]) != work_receipts[job["result"]]):
+                    raise ValueError("done job does not match saved receipt")
+                done_results.add(job["result"])
+            durable_ids.add(job_id)
+            signature.append(hashlib.sha256(payload.encode("utf-8")).digest())
+            jobs += 1
+        if done_results != receipt_paths:
+            raise ValueError("saved receipts and jobs disagree")
+        accepted_ids = set()
+        for operation, job_id, fingerprint in connection.execute(
+                "SELECT operation_id,job_id,fingerprint FROM operations ORDER BY operation_id"):
+            if job_id not in durable_ids or type(operation) is not str or not 0 < len(operation) <= 128:
+                raise ValueError("managed operation ledger mismatch")
+            accepted_ids.add(job_id)
+            # Verify that the accepted input survived, without reporting its
+            # private record or opaque identity in the public result.
+            path = root / "requests" / (hashlib.sha256(operation.encode("utf-8")).hexdigest() + ".json")
+            intent = _read(path, 128 * 1024)
+            spec = json.loads(intent, object_pairs_hook=_unique)
+            request_fingerprint = json.loads(fingerprint)
+            if (type(spec) is not dict or request_fingerprint !=
+                    ["pixiv-illust", spec.get("remote_id"), spec.get("title")]):
+                raise ValueError("managed accepted input mismatch")
+            signature.append(hashlib.sha256(intent).digest())
+            signature.append(hashlib.sha256(json.dumps([operation, job_id, fingerprint]).encode()).digest())
+        if accepted_ids != durable_ids or jobs != 1 or receipt_count != 1:
+            raise ValueError("managed acceptance expected one durable saved artwork")
+    finally:
+        connection.close()
+    return {"fresh": False, "receipts": receipt_count, "pages": page_count,
+            "jobs": jobs, "_signature": tuple(signature)}
+
+
+def inspect_managed(page, guard, root: Path, *, restart: bool, before: dict) -> dict:
+    """Only derived booleans and counts leave this function; private identities stay local."""
+    result = {"passed": False, "phase": "preflight", "selected": False,
+              "queue_done": False, "viewer_decoded": False, "synthetic_return": False}
+    try:
+        return _inspect_managed(page, guard, root, restart=restart, before=before, result=result)
+    except Exception as exc:
+        result["passed"] = False
+        result["synthetic_return"] = False
+        result["error_class"] = type(exc).__name__
+        return result
+
+
+def _inspect_managed(page, guard, root: Path, *, restart: bool, before: dict, result: dict) -> dict:
+    from playwright.sync_api import expect
+    run = guard.run
+    if restart:
+        run(page.get_by_test_id("tab-queue").click)
+        run(expect(page.get_by_test_id("queue-view").get_by_test_id("queue-filter-done")).to_have_text,
+            re.compile(r"完了 [1-9][0-9]*"))
+        if verify_storage(root)["_signature"] != before["_signature"]:
+            raise AssertionError("restart storage changed")
+    else:
+        result["phase"] = "refresh"
+        run(page.get_by_test_id("tab-download").click)
+        download = page.get_by_test_id("managed-download-view")
+        run(download.get_by_test_id("managed-download-refresh").click)
+        run(expect(download.locator(".pv-download-item").first).to_be_visible)
+        choices = download.locator(".pv-download-item[data-page-count][data-x-restrict='0']")
+        count = run(choices.count, with_timeout=False)
+        selected = None
+        single_page = None
+        for number in range(min(count, 50)):
+            candidate = choices.nth(number)
+            pages = run(candidate.get_attribute, "data-page-count")
+            if pages is not None and 2 <= int(pages) <= 3:
+                selected = candidate
+                break
+            if pages == "1" and single_page is None:
+                single_page = candidate
+        if selected is None:
+            selected = single_page
+        if selected is None:
+            raise AssertionError("no eligible normal bookmark")
+        result["phase"] = "select"
+        selected_id = run(selected.get_attribute, "data-work-id")
+        selected_pages = int(run(selected.get_attribute, "data-page-count"))
+        run(selected.get_by_test_id("managed-download-select").click)
+        run(expect(selected.get_by_test_id("managed-download-select")).to_be_checked)
+        run(expect(download.get_by_test_id("managed-download-selection")).to_have_text, "対象 1 件")
+        result["selected"] = True
+        run(download.get_by_test_id("managed-download-submit").click)
+        result["phase"] = "queue"
+        run(page.get_by_test_id("tab-queue").click)
+        run(expect(page.get_by_test_id("queue-view").get_by_test_id("queue-filter-done")).to_have_text,
+            re.compile(r"完了 [1-9][0-9]*"))
+        after = verify_storage(root)
+        if after["receipts"] != before["receipts"] + 1:
+            raise AssertionError("completed receipt count mismatch")
+    result["queue_done"] = True
+    result["phase"] = "library"
+    run(page.get_by_test_id("tab-library").click)
+    library = page.get_by_test_id("library-view")
+    if not restart:
+        run(library.get_by_test_id("library-db-refresh").click)
+    authors = library.locator(".pv-library-author-card")
+    run(expect(authors.first).to_be_visible)
+    if restart:
+        chosen_author = authors.first
+    else:
+        # Search is local to the UI and never leaves the process or report.
+        search = library.get_by_placeholder("作品名・作者・タグで検索")
+        generation = run(library.get_attribute, "data-library-generation")
+        run(search.fill, selected_id)
+        run(expect(library).not_to_have_attribute, "data-library-generation", generation)
+        run(expect(authors.first).to_be_visible)
+        chosen_author = authors.first
+    result["phase"] = "author"
+    run(chosen_author.get_by_test_id("library-author-open").click)
+    card = (library.locator(f'.pv-library-page-card[data-work-id="{selected_id}"][data-page-no="0"]')
+            if not restart else library.locator(".pv-library-page-card").first)
+    selected_id = run(card.get_attribute, "data-work-id")
+    result["phase"] = "open_viewer"
+    run(card.click)
+    viewer = page.get_by_test_id("library-viewer")
+    run(expect(viewer).to_be_visible)
+    result["phase"] = "decode"
+    image = page.get_by_test_id("library-viewer-image").locator("img:visible")
+    run(expect(image).to_have_attribute, "src", re.compile(
+        rf"/media/{re.escape(selected_id)}/0/view\.png\?catalog="))
+    decoded = guard.decode(image)
+    result["viewer_decoded"] = decoded["naturalWidth"] > 0
+    if not restart and selected_pages > 1:
+        run(page.keyboard.press, "ArrowRight", with_timeout=False)
+        run(expect(viewer.locator(".pv-counter")).to_have_text, f"2/{selected_pages}")
+        run(expect(image).to_have_attribute, "src", re.compile(rf"/media/{re.escape(selected_id)}/1/view\.png\?catalog="))
+        guard.decode(image)
+        run(page.keyboard.press, "ArrowLeft", with_timeout=False)
+        run(expect(viewer.locator(".pv-counter")).to_have_text, f"1/{selected_pages}")
+        run(expect(image).to_have_attribute, "src", re.compile(rf"/media/{re.escape(selected_id)}/0/view\.png\?catalog="))
+        guard.decode(image)
+        result["multiple_pages_validated"] = True
+    run(viewer.get_by_role("button", name="閉じる", exact=True).click)
+    run(expect(card).to_be_focused)
+    result["focus_restored"] = True
+    result["phase"] = "synthetic_return"
+    run(page.get_by_test_id("tab-ranking").click)
+    run(expect(page.get_by_test_id("tab-ranking")).to_be_focused)
+    run(expect(library).to_have_attribute, "data-active", "false")
+    download_panel = page.get_by_test_id("managed-download-view")
+    # A restart can view saved files without constructing this lazy tab.
+    if run(download_panel.count, with_timeout=False):
+        run(expect(download_panel).to_be_hidden)
+    run(expect(viewer).to_be_hidden)
+    cards = page.locator(".pv-card:visible")
+    run(expect(cards).to_have_count, 50)
+    # Native capture covers the viewport, not unloaded images below its scroll
+    # area. Prove every card is synthetic and every currently paintable image
+    # is a decoded loopback demo image; wait for its normal lazy-load completion.
+    condition = r"""() => {
+       const visible = e => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
+       const cards = [...document.querySelectorAll('.pv-card')].filter(visible);
+       if (cards.length !== 50 || !cards.every(e => /^demo-[0-9]{4}$/.test(e.dataset.workId || '')))
+          return false;
+       const privateViews = [...document.querySelectorAll(
+         '[data-testid="library-view"], [data-testid="managed-download-view"], [data-testid="queue-view"]')];
+       if (privateViews.some(visible)) return false;
+       const imgs = [...document.querySelectorAll('.pv-card img')].filter(img => {
+          const r = img.getBoundingClientRect();
+          return visible(img) && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
+       });
+       return imgs.length > 0 && imgs.every(img => {
+         const source = new URL(img.currentSrc || img.src, document.baseURI);
+         return source.origin === location.origin && /^\/media\/demo-[0-9]{4}\/[0-9]+\/(thumb|view)\.png$/.test(source.pathname)
+           && img.complete && img.naturalWidth > 0;
+       });
+    }"""
+    result["phase"] = "synthetic_identity"
+    run(page.wait_for_function, condition)
+    safe = run(page.evaluate, condition, with_timeout=False)
+    if safe is not True:
+        raise AssertionError("synthetic ranking restore unproven")
+    result["synthetic_return"] = True
+    result["passed"] = True
+    result["phase"] = "done"
+    return result

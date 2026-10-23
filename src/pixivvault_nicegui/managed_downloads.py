@@ -1,0 +1,367 @@
+"""Isolated, authenticated original Pixiv artwork saving with verified receipts."""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+import hashlib
+import io
+import json
+import os
+from pathlib import Path
+import re
+import stat
+from threading import Lock
+from uuid import uuid4
+
+from PIL import Image
+
+from .bookmark_remote_adapter import RemoteBookmark
+from .job_service import JobCancelled
+
+
+MARKER = ".pixivvault-managed-pixiv-downloads.json"
+IDENTITY = {"application": "pixivvault-nicegui", "purpose": "managed-pixiv-originals", "version": 1}
+MAX_PAGE_BYTES = 20 * 1024 * 1024
+MAX_PIXELS = 28_000_000
+MAX_TOTAL = 2 * 1024 * 1024 * 1024
+MAX_PAGES = 1000
+MAX_RECEIPT_BYTES = 512 * 1024
+_ID = re.compile(r"[1-9][0-9]{0,19}\Z")
+_SHA = re.compile(r"[0-9a-f]{64}\Z")
+_FILE = re.compile(r"page-([1-9][0-9]{0,3})\.(png|jpg|webp)\Z")
+
+
+class ManagedDownloadError(ValueError):
+    """Fixed public error text; never includes URLs or downloaded metadata."""
+
+
+def _safe_path(path: Path, *, file: bool = False) -> None:
+    for item in (path, *path.parents):
+        if item.is_symlink():
+            raise ManagedDownloadError("managed storage link rejected")
+        try:
+            info = item.lstat()
+        except FileNotFoundError:
+            continue
+        if getattr(info, "st_file_attributes", 0) & 0x400:
+            raise ManagedDownloadError("managed storage reparse point rejected")
+        if item == path and file:
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+                raise ManagedDownloadError("managed file rejected")
+        elif not stat.S_ISDIR(info.st_mode):
+            raise ManagedDownloadError("managed directory rejected")
+
+
+def _write(path: Path, data: bytes) -> None:
+    _safe_path(path.parent)
+    with path.open("xb") as stream:
+        stream.write(data)
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def _read_bounded(path: Path, limit: int) -> bytes:
+    _safe_path(path, file=True)
+    with path.open('rb') as stream:
+        info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > limit:
+            raise ManagedDownloadError('managed file rejected')
+        data = stream.read(limit + 1)
+        if len(data) > limit:
+            raise ManagedDownloadError('managed file rejected')
+        return data
+
+
+def _json_unique(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError('duplicate key')
+        result[key] = value
+    return result
+
+
+def _fsync_dir(path: Path) -> None:
+    if os.name != "nt":
+        descriptor = os.open(path, os.O_RDONLY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
+
+def _text(value: object, maximum: int, *, empty: bool = True) -> str:
+    if (type(value) is not str or len(value) > maximum or (not empty and not value)
+            or any(ord(c) < 32 or ord(c) == 127 for c in value)):
+        raise ManagedDownloadError("artwork metadata rejected")
+    return value
+
+
+def _record(value: object, work_id: str) -> RemoteBookmark:
+    if not isinstance(value, RemoteBookmark) or value.remote_id != work_id or value.kind != "illustration":
+        raise ManagedDownloadError("artwork record rejected")
+    if (not _ID.fullmatch(value.author_id) or type(value.illustration_type) is not int
+            or value.illustration_type not in (0, 1)
+            or type(value.page_count) is not int or not 1 <= value.page_count <= MAX_PAGES
+            or value.page_count_known is not True or type(value.x_restrict) is not int
+            or value.x_restrict not in (0, 1, 2)):
+        raise ManagedDownloadError("artwork record rejected")
+    _text(value.title, 256)
+    _text(value.author_name, 256)
+    _text(value.created_at, 128)
+    if type(value.tags) is not tuple or len(value.tags) > 100:
+        raise ManagedDownloadError("artwork metadata rejected")
+    for tag in value.tags:
+        _text(tag, 128)
+    return value
+
+
+def _image(data: bytes) -> tuple[str, str, int, int]:
+    if type(data) is not bytes or not 0 < len(data) <= MAX_PAGE_BYTES:
+        raise ManagedDownloadError("image size rejected")
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            kind = image.format
+            width, height = image.size
+            if (kind not in {"PNG", "JPEG", "WEBP"} or getattr(image, "n_frames", 1) != 1
+                    or not 0 < width * height <= MAX_PIXELS):
+                raise ManagedDownloadError("image format rejected")
+            image.verify()
+        with Image.open(io.BytesIO(data)) as image:
+            image.load()
+            if image.size != (width, height):
+                raise ManagedDownloadError("image format rejected")
+    except (OSError, ValueError, SyntaxError, OverflowError, Image.DecompressionBombError):
+        raise ManagedDownloadError("image format rejected") from None
+    return {"PNG": ("png", "png"), "JPEG": ("jpg", "jpeg"), "WEBP": ("webp", "webp")}[kind] + (width, height)
+
+
+class ManagedPixivDownloads:
+    def __init__(self, root: Path, client, *, resolve_record):
+        self.root = Path(root)
+        if not self.root.is_absolute() or self.root.parent == self.root:
+            raise ManagedDownloadError("managed root must be an absolute subdirectory")
+        _safe_path(self.root)
+        self.root = self.root.resolve()
+        self.client = client
+        if not callable(resolve_record):
+            raise ManagedDownloadError("artwork resolver required")
+        self.resolve_record = resolve_record
+        self.closed = False
+        self._writer = Lock()
+        marker = self.root / MARKER
+        if self.root.exists():
+            if tuple(self.root.iterdir()) and not marker.is_file():
+                raise ManagedDownloadError("foreign managed root rejected")
+        else:
+            self.root.mkdir()
+        _safe_path(self.root)
+        if marker.exists():
+            _safe_path(marker, file=True)
+            try:
+                if json.loads(_read_bounded(marker, 4096), object_pairs_hook=_json_unique) != IDENTITY:
+                    raise ManagedDownloadError("managed marker rejected")
+            except (OSError, UnicodeError, ValueError, RecursionError):
+                raise ManagedDownloadError("managed marker rejected") from None
+        else:
+            _write(marker, json.dumps(IDENTITY, sort_keys=True).encode("utf-8"))
+        self.outputs = self.root / "outputs"
+        self.outputs.mkdir(exist_ok=True)
+        _safe_path(self.outputs)
+        self.incomplete = self.root / 'incomplete'
+        self.incomplete.mkdir(exist_ok=True)
+        _safe_path(self.incomplete)
+
+    @property
+    def storage_path(self) -> Path:
+        return self.root / "jobs.sqlite3"
+
+    def close(self) -> None:
+        self.closed = True
+
+    def _receipt(self, relative: str, *, verify_pages: bool = True):
+        pieces = relative.split("/")
+        if (len(pieces) != 3 or pieces[0] != "outputs" or pieces[2] != "receipt.json"
+                or not re.fullmatch(r"work-[1-9][0-9]{0,19}-[0-9a-f]{32}", pieces[1])):
+            raise ManagedDownloadError("receipt location rejected")
+        folder = self.root / pieces[0] / pieces[1]
+        _safe_path(folder)
+        path = folder / "receipt.json"
+        _safe_path(path, file=True)
+        try:
+            raw = _read_bounded(path, MAX_RECEIPT_BYTES)
+            if not 0 < len(raw) <= MAX_RECEIPT_BYTES:
+                raise ValueError()
+            receipt = json.loads(raw, object_pairs_hook=_json_unique)
+            if set(receipt) != {'version', 'source', 'work_id', 'author_id', 'author_name',
+                                'title', 'tags', 'created_at', 'saved_at', 'illustration_type',
+                                'x_restrict', 'page_count', 'files'}:
+                raise ValueError()
+            entries = receipt["files"]
+            if (type(receipt) is not dict or type(receipt.get("version")) is not int
+                    or receipt.get("version") != 1
+                    or receipt.get("source") != "pixiv-original"
+                    or receipt.get("work_id") != pieces[1].split("-")[1]
+                    or type(receipt.get("page_count")) is not int
+                    or not 1 <= receipt["page_count"] <= MAX_PAGES
+                    or type(entries) is not list or len(entries) != receipt["page_count"]
+                    or type(receipt['author_id']) is not str or not _ID.fullmatch(receipt["author_id"])
+                    or type(receipt["illustration_type"]) is not int
+                    or receipt["illustration_type"] not in (0, 1)
+                    or type(receipt["x_restrict"]) is not int or receipt["x_restrict"] not in (0, 1, 2)
+                    or type(receipt["tags"]) is not list or len(receipt["tags"]) > 100):
+                raise ValueError()
+            for key, limit in (("title", 256), ("author_name", 256), ("created_at", 128), ("saved_at", 64)):
+                _text(receipt[key], limit)
+            for tag in receipt["tags"]:
+                _text(tag, 128)
+            if datetime.fromisoformat(receipt["saved_at"]).tzinfo is None:
+                raise ValueError()
+            for index, entry in enumerate(entries, 1):
+                if type(entry) is not dict or set(entry) != {"name", "bytes", "sha256", "format", "width", "height"}:
+                    raise ValueError()
+                name = entry["name"]
+                match = _FILE.fullmatch(name)
+                if (match is None or int(match[1]) != index
+                        or type(entry['format']) is not str or entry["format"] not in ("png", "jpeg", "webp")
+                        or match[2] != {"png": "png", "jpeg": "jpg", "webp": "webp"}[entry["format"]]
+                        or type(entry["bytes"]) is not int or not 0 < entry["bytes"] <= MAX_PAGE_BYTES
+                        or type(entry["width"]) is not int or type(entry["height"]) is not int
+                        or not 0 < entry["width"] * entry["height"] <= MAX_PIXELS
+                        or not isinstance(entry["sha256"], str) or not _SHA.fullmatch(entry["sha256"])):
+                    raise ValueError()
+                item = folder / name
+                if verify_pages:
+                    _safe_path(item, file=True)
+                    data = _read_bounded(item, MAX_PAGE_BYTES)
+                    if (len(data) != entry["bytes"] or hashlib.sha256(data).hexdigest() != entry["sha256"]
+                            or _image(data)[1:] != (entry["format"], entry["width"], entry["height"])):
+                        raise ValueError()
+            if sum(entry["bytes"] for entry in entries) > MAX_TOTAL:
+                raise ValueError()
+            if set(item.name for item in folder.iterdir()) != {"receipt.json", *(entry["name"] for entry in entries)}:
+                raise ValueError()
+            return receipt, hashlib.sha256(raw).hexdigest()
+        except (OSError, KeyError, TypeError, ValueError, OverflowError, RecursionError):
+            raise ManagedDownloadError("saved receipt verification failed") from None
+
+    def saved_receipts(self) -> tuple[tuple[str, dict, str], ...]:
+        if self.closed:
+            raise ManagedDownloadError('managed download is closed')
+        _safe_path(self.outputs)
+        found = []
+        seen = set()
+        folders = []
+        for folder in self.outputs.iterdir():
+            if len(folders) >= 10000:
+                raise ManagedDownloadError('saved receipt limit exceeded')
+            folders.append(folder)
+        for folder in sorted(folders):
+            if not re.fullmatch(r'work-[1-9][0-9]{0,19}-[0-9a-f]{32}', folder.name):
+                raise ManagedDownloadError('completed storage structure rejected')
+            _safe_path(folder)
+            relative = f"outputs/{folder.name}/receipt.json"
+            receipt, digest = self._receipt(relative)
+            if receipt['work_id'] in seen:
+                raise ManagedDownloadError('duplicate completed artwork rejected')
+            seen.add(receipt['work_id'])
+            found.append((relative, receipt, digest))
+        return tuple(found)
+
+    def read_saved_page(self, relative_receipt: str, page_no: int, expected_receipt_sha256: str) -> bytes:
+        if self.closed:
+            raise ManagedDownloadError('managed download is closed')
+        if (type(page_no) is not int or type(expected_receipt_sha256) is not str
+                or not _SHA.fullmatch(expected_receipt_sha256)):
+            raise ManagedDownloadError("saved page request rejected")
+        # The full receipt set is checked at publication / library refresh.
+        # For a pinned image request, re-check its manifest and requested bytes
+        # only, rather than decoding every page for every thumbnail (O(n²)).
+        receipt, digest = self._receipt(relative_receipt, verify_pages=False)
+        if digest != expected_receipt_sha256 or not 0 <= page_no < receipt["page_count"]:
+            raise ManagedDownloadError("saved page snapshot changed")
+        folder = self.root / relative_receipt.rsplit("/", 1)[0]
+        path = folder / receipt["files"][page_no]["name"]
+        _safe_path(path, file=True)
+        data = _read_bounded(path, MAX_PAGE_BYTES)
+        if (len(data) != receipt["files"][page_no]["bytes"] or
+                hashlib.sha256(data).hexdigest() != receipt["files"][page_no]["sha256"]):
+            raise ManagedDownloadError("saved page changed")
+        return data
+
+    def run(self, job, context) -> str:
+        if not self._writer.acquire(blocking=False):
+            raise ManagedDownloadError("managed writer already active")
+        try:
+            if self.closed or job.kind != "pixiv-illust" or type(job.target_id) is not str or not _ID.fullmatch(job.target_id):
+                raise ManagedDownloadError("managed job rejected")
+            context.checkpoint()
+            record = _record(self.resolve_record(job.target_id), job.target_id)
+            _safe_path(self.outputs)
+            for relative, receipt, _ in self.saved_receipts():
+                if receipt["work_id"] == record.remote_id:
+                    if (receipt['page_count'] != record.page_count or
+                            receipt['illustration_type'] != record.illustration_type or
+                            receipt['author_id'] != record.author_id):
+                        raise ManagedDownloadError('saved artwork metadata changed')
+                    context.progress(record.page_count, record.page_count)
+                    context.checkpoint()
+                    return relative
+            self.client.verify_identity()
+            context.checkpoint()
+            urls = self.client.get_artwork_original_pages(job.target_id)
+            context.checkpoint()
+            if (type(urls) not in (list, tuple) or len(urls) != record.page_count
+                    or any(type(url) is not str or len(url) > 4096 for url in urls)
+                    or len(set(urls)) != len(urls)):
+                raise ManagedDownloadError("original page list rejected")
+            folder = self.incomplete / ("partial-" + uuid4().hex)
+            folder.mkdir()
+            files = []
+            total_bytes = 0
+            context.progress(0, len(urls))
+            for index, url in enumerate(urls, 1):
+                context.checkpoint()
+                try:
+                    data = self.client.get_image_bytes(url)
+                except Exception:
+                    context.checkpoint()
+                    raise
+                context.checkpoint()
+                ext, fmt, width, height = _image(data)
+                total_bytes += len(data)
+                if total_bytes > MAX_TOTAL:
+                    raise ManagedDownloadError("managed download size exceeded")
+                name = f"page-{index}.{ext}"
+                _write(folder / name, data)
+                files.append({"name": name, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
+                              "format": fmt, "width": width, "height": height})
+                context.progress(index, len(urls))
+            receipt = {"version": 1, "source": "pixiv-original", "work_id": record.remote_id,
+                       "author_id": record.author_id, "author_name": record.author_name,
+                       "title": record.title, "tags": list(record.tags), "created_at": record.created_at,
+                       "saved_at": datetime.now(timezone.utc).isoformat(), "illustration_type": record.illustration_type,
+                       "x_restrict": record.x_restrict, "page_count": len(files), "files": files}
+            _write(folder / "receipt.json", json.dumps(receipt, ensure_ascii=False, sort_keys=True).encode("utf-8"))
+            _fsync_dir(folder)
+            context.checkpoint()
+            final = self.outputs / f"work-{record.remote_id}-{uuid4().hex}"
+            # Verify the staged bytes before they enter the completed namespace.
+            for entry in files:
+                staged = _read_bounded(folder / entry['name'], MAX_PAGE_BYTES)
+                if hashlib.sha256(staged).hexdigest() != entry['sha256']:
+                    raise ManagedDownloadError('staged image verification failed')
+            context.checkpoint()
+            folder.rename(final)
+            _fsync_dir(self.outputs)
+            relative = f"outputs/{final.name}/receipt.json"
+            self._receipt(relative)
+            return relative
+        except ManagedDownloadError:
+            raise
+        except JobCancelled:
+            raise
+        except Exception:
+            raise ManagedDownloadError("managed download failed") from None
+        finally:
+            self._writer.release()

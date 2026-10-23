@@ -17,7 +17,8 @@ class ApplicationServices:
     def __init__(self, count: int = 120, *, learning_sandbox: Path | None = None,
                  library_readonly_db: Path | None = None,
                  library_image_root: Path | None = None,
-                 live_client=None, download_sandbox: Path | None = None) -> None:
+                 live_client=None, download_sandbox: Path | None = None,
+                 pixiv_download_root: Path | None = None) -> None:
         if (library_readonly_db is None) != (library_image_root is None):
             raise ValueError("read-only library requires both explicit DB and image root")
         if download_sandbox is not None and (library_readonly_db is not None or live_client is not None):
@@ -25,7 +26,19 @@ class ApplicationServices:
         if (download_sandbox is not None and learning_sandbox is not None
                 and Path(download_sandbox).resolve() == Path(learning_sandbox).resolve()):
             raise ValueError("learning and download sandboxes must be separate")
+        if pixiv_download_root is not None and (
+                live_client is None or download_sandbox is not None or
+                library_readonly_db is not None or learning_sandbox is not None):
+            raise ValueError("managed Pixiv downloads require an isolated live-only configuration")
         self.download_sandbox = download_sandbox
+        self.pixiv_download_root = pixiv_download_root
+        self.managed_downloads = None
+        self._managed_requests = None
+        self._managed_job_records = {}
+        self._active_managed_record = None
+        self._managed_target_lock = Lock()
+        self._managed_enqueue_lock = Lock()
+        self._managed_receipts = ()
         self.jobs = None
         self.download_writer = None
         self.artworks = generate_demo_artworks(count)
@@ -101,6 +114,108 @@ class ApplicationServices:
         self.closing = False
         self.closed = False
         self._close_lock = Lock()
+        if pixiv_download_root is not None:
+            from .managed_downloads import ManagedPixivDownloads
+            from .job_service import JobService
+            from .managed_download_catalog import build_managed_library
+            from .managed_download_requests import ManagedDownloadRequests
+            try:
+                self.managed_downloads = ManagedPixivDownloads(
+                    Path(pixiv_download_root), live_client, resolve_record=self._resolve_managed_record)
+                self.jobs = JobService(self._run_managed_job, self.managed_downloads.storage_path)
+                self._managed_requests = ManagedDownloadRequests(self.managed_downloads.root)
+                for job in self.jobs.snapshot():
+                    if job.kind != "pixiv-illust":
+                        raise ValueError("foreign job in managed download history")
+                    identifiers = self.jobs.operation_ids(job.job_id)
+                    if not identifiers:
+                        raise ValueError("managed job has no durable accepted request")
+                    recovered = [self._managed_requests.load(key) for key in identifiers]
+                    first = recovered[0]
+                    if (first.work_id != job.target_id or first.title != job.title or
+                            any(not self._managed_requests.equivalent(first, item) for item in recovered)):
+                        raise ValueError("managed job request identity mismatch")
+                    self._managed_job_records[job.job_id] = first
+                snapshot, catalog, local = build_managed_library(self.managed_downloads)
+                try:
+                    self.images.publish(catalog, None)
+                except BaseException:
+                    catalog.close()
+                    raise
+                self.library = snapshot
+                self._managed_receipts = catalog.receipts
+                self._cached_local_bookmarks = local
+            except BaseException:
+                self.close()
+                raise
+
+    @property
+    def library_refresh_available(self) -> bool:
+        return self.library_repository is not None or self.managed_downloads is not None
+
+    def download_candidates(self):
+        """Immutable, fully fetched normal illustrations; no I/O or demo fallback."""
+        if self.closing or self.managed_downloads is None:
+            return ()
+        return tuple(record for record in self._remote_records
+                     if record.kind == "illustration" and record.illustration_type in (0, 1)
+                     and record.page_count_known)
+
+    def _resolve_managed_record(self, work_id):
+        # The serial runner installs exactly one accepted job's frozen record.
+        # Another job or candidate refresh cannot substitute its metadata.
+        with self._managed_target_lock:
+            pinned = self._active_managed_record
+        return pinned if pinned is not None and pinned.work_id == work_id else None
+
+    def _run_managed_job(self, job, context):
+        # enqueue starts its worker before returning. Wait until the accepting
+        # thread has the durable job ID, then bind the record to that ID only.
+        with self._managed_enqueue_lock:
+            record = self._managed_job_records.get(job.job_id)
+            if record is None:
+                raise RuntimeError("refresh and explicitly select the artwork again")
+            with self._managed_target_lock:
+                self._active_managed_record = record
+        try:
+            return self.managed_downloads.run(job, context)
+        finally:
+            with self._managed_target_lock:
+                self._active_managed_record = None
+
+    def enqueue_managed_download(self, record, operation_id):
+        """Accept one frozen selection off-loop, then let the app own its job.
+
+        Do not hold the short candidate lock over SQLite I/O. A later refresh
+        cannot replace metadata already pinned for an unfinished job.
+        """
+        from .bookmark_remote_adapter import RemoteBookmark
+        from .job_service import UNFINISHED
+        if not isinstance(record, RemoteBookmark) or not isinstance(operation_id, str):
+            raise ValueError("invalid managed selection")
+        with self._managed_enqueue_lock:
+            if self.closing or self.managed_downloads is None or self.jobs is None:
+                raise RuntimeError("managed downloads unavailable")
+            with self._managed_target_lock:
+                if record not in self.download_candidates():
+                    raise ValueError("download selection changed; refresh the candidates")
+                existing = next((job for job in self.jobs.snapshot()
+                                 if job.kind == "pixiv-illust" and job.target_id == record.work_id
+                                 and job.state in UNFINISHED), None)
+                previous = self._managed_job_records.get(existing.job_id) if existing is not None else None
+                if (existing is not None and previous is not None and
+                        not self._managed_requests.equivalent(previous, record)):
+                    raise ValueError("an earlier selection is still being processed")
+            # A durable intent alone is not an accepted job. Only the committed
+            # operations ledger above authorizes recovery of this exact input.
+            self._managed_requests.store(operation_id, record)
+            accepted = self.jobs.enqueue("pixiv-illust", record.work_id,
+                                         title=record.title, operation_id=operation_id)
+            self._managed_job_records.setdefault(accepted.job_id, record)
+            live_ids = {job.job_id for job in self.jobs.snapshot()}
+            self._managed_job_records = {key: value for key, value in self._managed_job_records.items()
+                                         if key in live_ids}
+            return accepted
 
     def library_snapshot(self) -> LibrarySnapshot:
         """Return the last successful immutable snapshot; never read SQLite on the UI loop."""
@@ -121,8 +236,14 @@ class ApplicationServices:
 
     def _publish_images(self, snapshot, records) -> None:
         from .local_media_adapter import ReadonlyLocalMediaCatalog
-        local = (ReadonlyLocalMediaCatalog(self.library_image_root, snapshot)
-                 if self.library_image_root is not None else None)
+        if self.managed_downloads is not None:
+            # The immutable publication cache was prepared off-loop. Reusing
+            # its receipt data must not rescan files in this UI-thread method.
+            from .managed_download_catalog import ManagedDownloadCatalog
+            local = ManagedDownloadCatalog(self.managed_downloads, self._managed_receipts)
+        else:
+            local = (ReadonlyLocalMediaCatalog(self.library_image_root, snapshot)
+                     if self.library_image_root is not None else None)
         remote = self._remote_images(records)
         try:
             self.images.publish(local, remote)
@@ -162,11 +283,26 @@ class ApplicationServices:
         return "library-readonly" if self.library_repository is not None else "synthetic"
 
     async def refresh_library_snapshot(self) -> LibrarySnapshot:
-        if self.library_repository is None:
+        if not self.library_refresh_available:
             return self.library_snapshot()
         async with self._library_refresh_lock:
             if self.closing:
                 raise RuntimeError("application services are closed")
+            if self.managed_downloads is not None:
+                from .managed_download_catalog import build_managed_library
+                snapshot, catalog, local = await asyncio.to_thread(build_managed_library, self.managed_downloads)
+                if self.closing:
+                    catalog.close()
+                    raise RuntimeError("application services are closed")
+                try:
+                    self.images.publish(catalog, self._remote_images(self._remote_records))
+                except BaseException:
+                    catalog.close()
+                    raise
+                self.library = snapshot
+                self._managed_receipts = catalog.receipts
+                self._cached_local_bookmarks = local
+                return snapshot
             snapshot = await asyncio.to_thread(self.library_repository.library_snapshot)
             if self.closing:
                 raise RuntimeError("application services are closed")
@@ -217,7 +353,8 @@ class ApplicationServices:
             self._publish_images(self.library, records or ())
             self._cached_remote_bookmarks = remote
             self._cached_local_bookmarks = local
-            self._remote_records = records or ()
+            with self._managed_target_lock:
+                self._remote_records = records or ()
             self.bookmark_cache_failed = False
             return remote, local
 
@@ -231,6 +368,8 @@ class ApplicationServices:
                     self.jobs.close()
                 if self.download_writer is not None:
                     self.download_writer.close()
+                if self.managed_downloads is not None:
+                    self.managed_downloads.close()
                 try:
                     if self.learning is not None:
                         self.learning.close()
@@ -251,7 +390,8 @@ _APP_KEY = "_pixivvault_application_services"
 def get_services(app=None, *, learning_sandbox: Path | None = None,
                  library_readonly_db: Path | None = None,
                  library_image_root: Path | None = None,
-                 live_client=None, download_sandbox: Path | None = None) -> ApplicationServices:
+                 live_client=None, download_sandbox: Path | None = None,
+                 pixiv_download_root: Path | None = None) -> ApplicationServices:
     """Return resources scoped to the ASGI app; no-argument access is legacy."""
     global _services
     with _lock:
@@ -259,14 +399,16 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
             if _services is None:
                 _services = ApplicationServices(learning_sandbox=learning_sandbox,
                     library_readonly_db=library_readonly_db, library_image_root=library_image_root,
-                    live_client=live_client, download_sandbox=download_sandbox)
+                    live_client=live_client, download_sandbox=download_sandbox,
+                    pixiv_download_root=pixiv_download_root)
             services = _services
         else:
             services = getattr(app.state, _APP_KEY, None)
             if services is None:
                 services = ApplicationServices(learning_sandbox=learning_sandbox,
                     library_readonly_db=library_readonly_db, library_image_root=library_image_root,
-                    live_client=live_client, download_sandbox=download_sandbox)
+                    live_client=live_client, download_sandbox=download_sandbox,
+                    pixiv_download_root=pixiv_download_root)
                 setattr(app.state, _APP_KEY, services)
         if services.closing:
             raise RuntimeError("application services are closed")
@@ -280,4 +422,6 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
             raise RuntimeError("application services already use a different pixiv session")
         if download_sandbox is not None and services.download_sandbox != download_sandbox:
             raise RuntimeError("application services already use different download storage")
+        if pixiv_download_root is not None and services.pixiv_download_root != pixiv_download_root:
+            raise RuntimeError("application services already use different managed download storage")
         return services

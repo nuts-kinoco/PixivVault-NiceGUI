@@ -59,6 +59,22 @@ Windowsの専用窓は `pip install -e ".[native]"` の後に `python -m pixivva
 
 同じ保存先で再起動すると履歴を読み直しますが、未完了ジョブを勝手に再実行しません。履歴削除は保存済みPNGやreceiptを削除しません。旧 `failed_queue` の読取画面とこの合成ジョブの失敗画面は別の接続で、本番の失敗記録を更新しません。
 
+### 通常イラスト・漫画の原寸画像を専用管理先へ保存する
+
+```powershell
+.\.venv\Scripts\python.exe -m pixivvault_nicegui --native `
+  --pixiv-cookie-file C:\Private\pixiv-session.txt `
+  --pixiv-download-root C:\PixivVault-Managed\originals
+```
+
+Cookieと保存先は絶対パスで明示します。Cookieの親フォルダーと保存先は互いに包含しない別領域とし、旧DB・画像ルート・合成保存・学習sandboxとの同時指定は拒否します。保存先には新しい専用フォルダー、またはこのモードが作成した正規の識別ファイルを持つ管理フォルダーだけを使います。元PixivVaultのImagesやDBを指定しないでください。
+
+「ダウンロード」→「ブックマーク更新」→通常イラスト/漫画を選択→「キューへ追加」で、全ページの **original** を取得し、検証した元バイトを保存します。ビューア用のregular画像やサムネイルで代用しません。外部通信はGETのみで、ブックマークの登録/解除、元DBやCookie原本の更新は行いません。小説本文・うごイラの保存は未接続です。対応する静止画はPNG/JPEG/WebP、1頁20MiB・2800万画素、1作品1000頁・合計2GiBを上限とし、超過や破損を成功扱いしません。
+
+保存完了後は「ライブラリ」→「保存先更新」で、管理先の作者一覧・全ページ・共有ビューアを開けます。検索・ページ送り・戻り・タブ再訪は既存閲覧経路を使用します。再起動時には保存済みファイルと履歴を読み、外部通信や未完了ジョブの自動再実行をしません。エラーの明示再試行では、受理した作品情報を専用操作台帳から復元します。完全なreceiptと全ページが検証できる同じ作品は再取得せず再利用し、履歴削除でも保存物は消しません。
+
+この新しい管理保存先は、旧フォルダー/ZIP/旧DBへの書込み互換を置き換えるものではありません。リモートで変更された画像の自動検知・強制再取得、作者単位の自動巡回、旧失敗記録の更新は未接続です。また、ファイル公開とSQLite確定は別の操作です。公開直後の停止やDB障害では、正常な保存物を保持したままジョブが停止/未完了になる場合があり、再投入時の実体検証で回復します。Windowsの電源断耐性を保証したものではありません。
+
 ## 実ブラウザの回帰試験
 
 ```powershell
@@ -69,6 +85,7 @@ Windowsの専用窓は `pip install -e ".[native]"` の後に `python -m pixivva
 .\.venv\Scripts\python.exe tools/check_live_bookmark_browser.py --channel msedge --output artifacts/bookmark-transport-browser
 .\.venv\Scripts\python.exe tools/check_failed_records_browser.py --channel msedge --output artifacts/failed-records-browser
 .\.venv\Scripts\python.exe tools/check_download_jobs_browser.py --channel msedge --output artifacts/download-jobs-browser
+.\.venv\Scripts\python.exe tools/check_managed_downloads_browser.py --channel msedge --output artifacts/managed-downloads-browser
 ```
 
 ランナーが専用の一時ポートにデモを起動し、Edgeで一覧・学習・画像故障/遅着を操作した後、自分のプロセスを停止します。一覧は1280×720と1920×1080で確認し、学習は操作試験に加えて画面サイズ別の画像・ボタン配置を確認します。

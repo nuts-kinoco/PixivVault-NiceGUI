@@ -46,6 +46,11 @@ _BOOKMARK_PATH = re.compile(
     r"/ajax/user/([1-9][0-9]{0,19})/(illusts|novels)/bookmarks\Z"
 )
 _PAGES_PATH = re.compile(r"/ajax/illust/([1-9][0-9]{0,19})/pages\Z")
+_ORIGINAL_IMAGE_PATH = re.compile(
+    r"/img-original/img/[0-9]{4}/[0-9]{2}/[0-9]{2}/"
+    r"[0-9]{2}/[0-9]{2}/[0-9]{2}/([1-9][0-9]{0,19})_p(0|[1-9][0-9]*)"
+    r"\.(?:jpg|jpeg|png|gif|webp)\Z"
+)
 _JSON_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     "Referer": API_ORIGIN + "/",
@@ -640,6 +645,41 @@ class LivePixivReadClient:
             url = entry["urls"].get("regular")
             _validate_destination(url, "image")
             if url in seen:
+                raise InvalidPayload()
+            seen.add(url)
+            urls.append(url)
+        return tuple(urls)
+
+    def get_artwork_original_pages(self, work_id: str) -> tuple[str, ...]:
+        """Return verified, ordered original-size pages suitable for saving.
+
+        The regular-size viewer API intentionally remains independent.
+        """
+        self._ensure_open()
+        try:
+            wid = _identifier(work_id)
+        except InvalidPayload:
+            raise DestinationRejected() from None
+        deadline = time.monotonic() + MAX_OPERATION_SECONDS
+        body = self._json("pages", f"{API_ORIGIN}/ajax/illust/{wid}/pages",
+                          deadline=deadline)
+        if type(body) is not list or not 1 <= len(body) <= MAX_ARTWORK_PAGES:
+            raise InvalidPayload()
+        urls: list[str] = []
+        seen: set[str] = set()
+        for page_no, entry in enumerate(body):
+            if type(entry) is not dict or type(entry.get("urls")) is not dict:
+                raise InvalidPayload()
+            url = entry["urls"].get("original")
+            try:
+                _validate_destination(url, "image")
+            except DestinationRejected:
+                raise InvalidPayload() from None
+            parsed = urlsplit(url)
+            match = _ORIGINAL_IMAGE_PATH.fullmatch(parsed.path)
+            if (match is None or match.group(1) != wid
+                    or match.group(2) != str(page_no) or parsed.query
+                    or url in seen):
                 raise InvalidPayload()
             seen.add(url)
             urls.append(url)
