@@ -148,13 +148,15 @@ body { background: #0b0b10; color: #e8e8ef; font-family: system-ui, -apple-syste
 .pv-library-tag-chip.pv-tag-excluded { background:#15161c; color:#8a8a99; }
 .pv-library-tag-chip.pv-tag-excluded > div { text-decoration:line-through; }
 .pv-library-tag-chip .q-btn { min-width:22px; min-height:22px; padding:0; }
-.pv-jobs-view { flex:1 1 0; min-height:0; min-width:0; display:flex; flex-direction:column; gap:10px; overflow:hidden; }
+.pv-jobs-view { flex:1 1 0; min-height:0; min-width:0; display:flex; flex-direction:column; gap:10px; overflow-y:auto; overflow-x:hidden; }
 .pv-jobs-view > .pv-toolbar, .pv-jobs-view > .pv-job-chips, .pv-jobs-view > .pv-subtitle { flex:0 0 auto; }
 .pv-jobs-view .q-btn { color:#e8e8ef !important; }
 .pv-jobs-scroll { flex:1 1 0; min-height:0; width:100%; overflow-y:auto; overflow-x:hidden; }
-.pv-download-body { flex:1 1 0; min-height:0; flex-wrap:nowrap; overflow:hidden; align-items:stretch; gap:16px; }
+.pv-download-body { flex:0 0 auto; min-height:180px; flex-wrap:nowrap; overflow:visible; align-items:stretch; gap:16px; }
 .pv-download-candidates { flex:2 1 0; min-width:0; gap:0; }
-.pv-download-targets { flex:1 1 0; min-width:220px; max-width:380px; min-height:0; overflow-y:auto; padding:16px; border:1px solid #2a2b38; border-radius:12px; background:#15161c; }
+.pv-download-targets { flex:1 1 0; min-width:220px; max-width:380px; min-height:0; max-height:260px; overflow-y:auto; padding:16px; border:1px solid #2a2b38; border-radius:12px; background:#15161c; }
+.pv-author-diff-list { flex:0 1 auto; max-height:64px; min-height:0; overflow-y:auto; }
+.pv-author-remote-absent-list { flex:0 1 auto; max-height:48px; min-height:0; overflow-y:auto; }
 .pv-download-item { padding:10px 12px; min-height:66px; flex:0 0 auto; border-bottom:1px solid #2a2b38; flex-wrap:nowrap; }
 .pv-job-row { min-height:56px; padding:8px 12px; gap:12px; border-left:3px solid #8a8a99; border-bottom:1px solid #2a2b38; flex:0 0 auto; flex-wrap:nowrap; background:#15161c; }
 .pv-job-row[data-state=running] { border-left-color:#0096FA; }

@@ -68,7 +68,7 @@ def test_author_size_cap():
         reader.get_author_artworks('123')
 
 
-@pytest.mark.parametrize('invalid', [[], 0, '', False])
+@pytest.mark.parametrize('invalid', [0, '', False])
 def test_malformed_empty_author_bucket_is_not_zero_works(invalid):
     reader, _ = fake_reader()
     reader._json = lambda kind, url, *, deadline: {
@@ -76,6 +76,12 @@ def test_malformed_empty_author_bucket_is_not_zero_works(invalid):
     }
     with pytest.raises(InvalidPayload):
         reader.get_author_artworks('123')
+
+
+def test_explicit_empty_list_bucket_is_zero_works():
+    reader, _ = fake_reader()
+    reader._json = lambda kind, url, *, deadline: {'illusts': [], 'manga': {}}
+    assert reader.get_author_artworks('123') == ()
 
 
 def test_empty_update_date_remains_unknown_not_current():

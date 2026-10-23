@@ -88,6 +88,7 @@ class ReadonlyLocalMediaCatalog:
         self._locations: dict[tuple[str, int], tuple[tuple[Path, str | None], ...]] = {}
         self._failed_authors: set[str] = set()
         self._ambiguous: set[tuple[str, int]] = set()
+        self._presence_uncertain_authors: set[str] = set()
         self._indexed = False
         self._generation = 0
         self._cache: OrderedDict[tuple[str, int, str], ImageBlob] = OrderedDict()
@@ -227,10 +228,11 @@ class ReadonlyLocalMediaCatalog:
                 return match.group(1)
         return None
 
-    def _index(self, works) -> tuple[dict, set, set]:
+    def _index(self, works) -> tuple[dict, set, set, set]:
         locations = defaultdict(list)
         failed_authors: set[str] = set()
         ambiguous: set[tuple[str, int]] = set()
+        uncertain_authors: set[str] = set()
         grouped = defaultdict(dict)
         unique_titles = {}
         examined = 0
@@ -253,15 +255,24 @@ class ReadonlyLocalMediaCatalog:
                 if location not in locations[key]:
                     locations[key].append(location)
 
-        def resolve(name: str, author_works: dict, titles: dict):
+        def resolve(name: str, author_id: str, author_works: dict, titles: dict):
             embedded_id = self._id_from_name(name)
             if embedded_id is not None:
                 work = author_works.get(embedded_id)
                 if work is None:
                     return ()
                 page = self._page_for(name, work)
+                if page is None and PurePosixPath(name).suffix.lower() in _IMAGE:
+                    # An identified but unsupported legacy page name is not
+                    # proof the work is absent: its page index is uncertain.
+                    uncertain_authors.add(author_id)
                 return () if page is None else ((work.work_id, page),)
-            return self._legacy_pages(name, author_works, titles)
+            matches = self._legacy_pages(name, author_works, titles)
+            if PurePosixPath(name).suffix.lower() in _IMAGE and len(matches) != 1:
+                # A legacy name may belong to a same-title work even when
+                # the viewer intentionally has no safe attribution for it.
+                uncertain_authors.add(author_id)
+            return matches
 
         for author_id, author_works in grouped.items():
             for store in stores_by_author.get(author_id, ()):
@@ -288,7 +299,7 @@ class ReadonlyLocalMediaCatalog:
                                     raise MediaUnavailable("archive entry exceeds limits")
                                 if not info.is_dir():
                                     append((store, info.filename), resolve(
-                                        info.filename, author_works, unique_titles[author_id]))
+                                        info.filename, author_id, author_works, unique_titles[author_id]))
                     except (BadZipFile, MediaUnavailable, OSError, ValueError, RuntimeError,
                             NotImplementedError, zlib.error):
                         failed_authors.add(author_id)
@@ -301,7 +312,7 @@ class ReadonlyLocalMediaCatalog:
                         if not path.is_file() or not _safe_file(path, self.root):
                             continue
                         name = path.relative_to(store).as_posix()
-                        append((path, None), resolve(name, author_works,
+                        append((path, None), resolve(name, author_id, author_works,
                                                      unique_titles[author_id]))
         # Legacy direct bookmark placement: ☆ブックマーク(owner)/作者(uid)_題名(workid)_N.png
         for wrapper in wrappers:
@@ -319,9 +330,10 @@ class ReadonlyLocalMediaCatalog:
                     if not author_works or match.start() == 0:
                         continue
                     suffix_name = path.stem[match.end():] + path.suffix
-                    append((path, None), resolve(suffix_name, author_works,
+                    append((path, None), resolve(suffix_name, author_id, author_works,
                                                  unique_titles[author_id]))
-        return {key: tuple(items) for key, items in locations.items()}, failed_authors, ambiguous
+        return ({key: tuple(items) for key, items in locations.items()},
+                failed_authors, ambiguous, uncertain_authors)
 
     def _ensure_index(self) -> None:
         with self._lock:
@@ -339,14 +351,78 @@ class ReadonlyLocalMediaCatalog:
                     return
                 generation = self._generation
                 works = dict(self.works)
-            locations, failures, ambiguous = self._index(works)
+            locations, failures, ambiguous, uncertain_authors = self._index(works)
             with self._lock:
                 if self._closed or self._generation != generation:
                     raise MediaUnavailable("obsolete library index")
                 self._locations = locations
                 self._failed_authors = failures
                 self._ambiguous = ambiguous
+                self._presence_uncertain_authors = uncertain_authors
                 self._indexed = True
+
+    def inspect_presence(self, work_id: str) -> bool | None:
+        """Read-only, conservative proof of all local pages for one known work.
+
+        None means neither presence nor absence is proved. The author's other
+        unambiguous media must establish that the selected storage location is
+        populated before missing pages can be reported as absent.
+        """
+        with self._lock:
+            if self._closed:
+                raise MediaUnavailable("catalog closed")
+            if type(work_id) is not str or not _ID.fullmatch(work_id):
+                raise MediaMissing("invalid work ID")
+            work = self.works.get(work_id)
+            if work is None or work.work_type in {"ugoira", "novel"}:
+                return None
+            if not work.page_count_known or not work.author_id:
+                return None
+        self._ensure_index()
+        with self._lock:
+            if self._closed:
+                raise MediaUnavailable("catalog closed")
+            work = self.works.get(work_id)
+            if (work is None or work.work_type in {"ugoira", "novel"}
+                    or not work.page_count_known or not work.author_id
+                    or work.author_id in self._failed_authors):
+                return None
+
+            def confirmed(key: tuple[str, int]) -> bool | None:
+                if key in self._ambiguous:
+                    return None
+                if not self._locations.get(key):
+                    return False
+                try:
+                    path, member = self._source(*key, "view")
+                    if not _safe_file(path, self.root) or not path.is_file():
+                        return None
+                    if member is not None:
+                        # Check only the ZIP directory; never read/decode pixels.
+                        with self._checked_open(path) as opened, ZipFile(opened) as archive:
+                            if archive.getinfo(member).is_dir():
+                                return None
+                    return True
+                except (MediaMissing, MediaAmbiguous, MediaUnavailable,
+                        OSError, ValueError, BadZipFile, KeyError, RuntimeError):
+                    return None
+
+            keys = tuple((work_id, page) for page in range(work.page_count))
+            statuses = tuple(confirmed(key) for key in keys)
+            if any(status is None for status in statuses):
+                return None
+            if all(status is True for status in statuses):
+                return True
+            # Unattributed old names could be missing pages; only a fully
+            # identified author inventory can establish definite absence.
+            if work.author_id in self._presence_uncertain_authors:
+                return None
+            for key in self._locations:
+                other = self.works.get(key[0])
+                if (other is not None and other.author_id == work.author_id
+                        and confirmed(key) is True):
+                    return False
+            return None
 
     def _source(self, work_id: str, page_no: int, variant: str):
         if self._closed:
@@ -480,6 +556,7 @@ class ReadonlyLocalMediaCatalog:
             self._locations.clear()
             self._failed_authors.clear()
             self._ambiguous.clear()
+            self._presence_uncertain_authors.clear()
             self._cache.clear()
             self._cache_bytes = 0
             self._generation += 1
@@ -493,6 +570,7 @@ class ReadonlyLocalMediaCatalog:
             self._locations.clear()
             self._failed_authors.clear()
             self._ambiguous.clear()
+            self._presence_uncertain_authors.clear()
             self._indexed = False
             self._cache.clear()
             self._cache_bytes = 0

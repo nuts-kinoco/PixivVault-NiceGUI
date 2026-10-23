@@ -22,7 +22,8 @@ class ApplicationServices:
                  live_client=None, download_sandbox: Path | None = None,
                  pixiv_download_root: Path | None = None,
                  failed_queue_readonly_db: Path | None = None,
-                 legacy_zip_export_root: Path | None = None) -> None:
+                 legacy_zip_export_root: Path | None = None,
+                 legacy_diff_image_root: Path | None = None) -> None:
         if (library_readonly_db is None) != (library_image_root is None):
             raise ValueError("read-only library requires both explicit DB and image root")
         if download_sandbox is not None and (library_readonly_db is not None or live_client is not None):
@@ -55,10 +56,25 @@ class ApplicationServices:
             failure_signature = immutable_copy_signature(candidate)
         else:
             failure_signature = None
+        if legacy_diff_image_root is not None:
+            if failed_queue_readonly_db is None or pixiv_download_root is None or live_client is None:
+                raise ValueError('legacy author diff requires a frozen old DB copy and managed Pixiv mode')
+            image = Path(legacy_diff_image_root)
+            source = Path(failed_queue_readonly_db).resolve()
+            managed = Path(pixiv_download_root).resolve()
+            if (not image.is_absolute() or not image.is_dir() or image.is_symlink()
+                    or image.resolve() == managed
+                    or image.resolve() in managed.parents
+                    or managed in image.resolve().parents
+                    or image.resolve() == source.parent
+                    or source in image.resolve().parents):
+                raise ValueError('legacy image root must be an existing separate read-only folder')
         self.download_sandbox = download_sandbox
         self.pixiv_download_root = pixiv_download_root
         self.legacy_zip_export_root = legacy_zip_export_root
         self.legacy_zip_exporter = None
+        self.legacy_diff_image_root = legacy_diff_image_root
+        self.legacy_author_bridge = None
         self.failed_queue_readonly_db = failed_queue_readonly_db
         self._failed_copy_signature = failure_signature
         self.managed_downloads = None
@@ -67,6 +83,10 @@ class ApplicationServices:
         self._active_managed_record = None
         self._managed_target_lock = RLock()
         self._managed_enqueue_lock = Lock()
+        # A completed remote crawl must be committed in the same order it was
+        # initiated. Parallel clients otherwise could commit an older Pixiv
+        # listing after a newer scan and invent a fresh deletion streak.
+        self._legacy_inventory_lock = Lock()
         self._direct_download_candidates: dict[str, OrderedDict] = {}
         self._author_owned_pins: dict[str, frozenset[str]] = {}
         self._managed_receipts = ()
@@ -153,6 +173,11 @@ class ApplicationServices:
             try:
                 self.managed_downloads = ManagedPixivDownloads(
                     Path(pixiv_download_root), live_client, resolve_record=self._resolve_managed_record)
+                if legacy_diff_image_root is not None:
+                    from .legacy_author_sync import LegacyAuthorBridge
+                    self.legacy_author_bridge = LegacyAuthorBridge(
+                        Path(failed_queue_readonly_db), Path(legacy_diff_image_root),
+                        self.managed_downloads.root, source_signature=failure_signature)
                 if legacy_zip_export_root is not None:
                     from .legacy_zip_export import LegacyZipExporter
                     self.legacy_zip_exporter = LegacyZipExporter(
@@ -306,6 +331,29 @@ class ApplicationServices:
             self._direct_download_candidates.pop(token, None)
             self._author_owned_pins.pop(token, None)
 
+    def forget_accepted_managed_author_batch(self, owner, work_ids):
+        """Unpin accepted author items so a single view can stage the next 128.
+
+        Only the already accepted IDs are released. Frozen job intents remain
+        durable in managed SQLite and no other client's authorization changes.
+        """
+        token = self._direct_owner(owner)
+        if type(work_ids) not in (tuple, list):
+            raise ValueError('invalid accepted author batch')
+        with self._managed_target_lock:
+            records = self._direct_download_candidates.get(token)
+            pins = set(self._author_owned_pins.get(token, frozenset()))
+            if records is None:
+                return
+            for work_id in work_ids:
+                if work_id in pins:
+                    records.pop(work_id, None)
+                    pins.discard(work_id)
+            if pins:
+                self._author_owned_pins[token] = frozenset(pins)
+            else:
+                self._author_owned_pins.pop(token, None)
+
     async def lookup_managed_work_id(self, work_id: str, *, owner: str, publish=True):
         """Verify an explicit artwork ID off the UI thread, then cache a DTO.
 
@@ -365,12 +413,22 @@ class ApplicationServices:
             raise RuntimeError('managed downloads unavailable')
         return result
 
+    def pending_managed_author_work_ids(self):
+        """Return accepted unfinished IDs without claiming their files are saved."""
+        if self.jobs is None or self.closing:
+            return frozenset()
+        from .job_service import UNFINISHED
+        return frozenset(job.target_id for job in self.jobs.snapshot()
+                         if job.kind == 'pixiv-illust' and job.state in UNFINISHED)
+
     async def lookup_managed_author(self, user_id: str, *, owner: str,
                                     publish=False, saved_snapshot=None):
-        """Preview bounded author works without enqueuing or mutating legacy data.
+        """Preview verified author works and an optional frozen legacy snapshot.
 
         Existing v1 receipts have no update_date; they remain UNKNOWN rather
-        than being silently treated as current or forcibly overwritten.
+        than being silently treated as current or forcibly overwritten. The
+        legacy SQLite and images are never written; deletion observations are
+        durable only in a separate managed-root ledger after a complete GET.
         """
         from .author_download import Difference, decide_difference
         from .pixiv_read_client import _identifier
@@ -385,7 +443,30 @@ class ApplicationServices:
                 require()
             else:
                 self.live_client.verify_identity()
-            works = self.live_client.get_author_artworks(uid)
+            bridge = getattr(self, 'legacy_author_bridge', None)
+            complete = True
+            if bridge is not None:
+                full_reader = getattr(self.live_client, 'get_author_artworks_complete', None)
+                if not callable(full_reader):
+                    raise RuntimeError('full author inventory proof is unavailable')
+                from .pixiv_read_client import InvalidPayload
+                try:
+                    works = full_reader(uid)
+                except InvalidPayload:
+                    # A masked work or a partially visible bucket must NEVER
+                    # advance remote deletion streaks. Retain the preexisting
+                    # managed-only preview, with legacy-only works UNKNOWN.
+                    works = self.live_client.get_author_artworks(uid)
+                    complete = False
+                if complete:
+                    # Merely opening a preview does not increment old missing
+                    # streaks. Only an explicit complete-crawl action may do so.
+                    legacy_scan = bridge.observe_author(uid, works)
+                else:
+                    legacy_scan = None
+            else:
+                works = self.live_client.get_author_artworks(uid)
+                legacy_scan = None
             saved = saved_snapshot
             if saved is None:
                 with_dates = getattr(self.managed_downloads, 'saved_receipts_with_dates', None)
@@ -403,19 +484,63 @@ class ApplicationServices:
                 if work['type'] not in (0, 1):
                     continue
                 prior = saved.get(work['id'])
+                legacy = legacy_scan.saved.get(work['id']) if legacy_scan is not None else None
                 difference = decide_difference(
-                    saved=prior is not None, remote_update_date=work['update_date'],
-                    saved_update_date=prior[1] if prior is not None else None,
-                    files_present=True if prior is not None else None)
+                    saved=prior is not None or legacy is not None,
+                    remote_update_date=work['update_date'],
+                    saved_update_date=(prior[1] if prior is not None else
+                                       legacy.update_date if legacy is not None else None),
+                    deleted=legacy.deleted if legacy is not None and prior is None else False,
+                    files_present=(True if prior is not None else
+                                   legacy.files_present if legacy is not None else None))
+                if bridge is not None and not complete and prior is None:
+                    difference = Difference.UNKNOWN
                 output.append(({**work, 'expected_receipt_sha256': prior[0] if prior else None,
-                                'expected_relative_receipt': prior[2] if prior else None},
+                                'expected_relative_receipt': prior[2] if prior else None,
+                                'legacy_failed': bool(legacy is not None and legacy.failed),
+                                'legacy_diff_source': bool(legacy is not None and prior is None)},
                                difference))
-            return tuple(output)
+            return tuple(output), legacy_scan, complete
 
-        items = await asyncio.to_thread(fetch)
+        items, scan, complete = await asyncio.to_thread(fetch)
         if self.closing:
             raise RuntimeError('managed downloads unavailable')
-        return items
+        from .author_download import AuthorPreview
+        return AuthorPreview(items,
+            remote_missing_pending=scan.remote_missing_pending if scan is not None else 0,
+            remote_missing_confirmed=scan.remote_missing_confirmed if scan is not None else 0,
+            remote_absent=getattr(scan, 'remote_absent', ()) if scan is not None else (),
+            inventory_complete=complete)
+
+    async def confirm_legacy_author_inventory(self, user_id: str, *, owner: str,
+                                              scan_id: str):
+        """Record one explicitly requested complete GET in the managed ledger."""
+        from .pixiv_read_client import _identifier
+        self._direct_owner(owner)
+        uid = _identifier(user_id)
+        if type(scan_id) is not str or re.fullmatch(r'[a-f0-9]{32}', scan_id) is None:
+            raise ValueError('invalid author inventory operation')
+        bridge = getattr(self, 'legacy_author_bridge', None)
+        if self.closing or bridge is None or self.live_client is None:
+            raise RuntimeError('legacy diff observation is not configured')
+
+        def confirm():
+            with self._legacy_inventory_lock:
+                if self.closing:
+                    raise RuntimeError('managed downloads unavailable')
+                full_reader = getattr(self.live_client, 'get_author_artworks_complete', None)
+                if not callable(full_reader):
+                    raise RuntimeError('complete author inventory proof unavailable')
+                self.live_client.verify_identity()
+                works = full_reader(uid)
+                if self.closing:
+                    raise RuntimeError('managed downloads unavailable')
+                return bridge.observe_author(uid, works, scan_id=scan_id)
+
+        result = await asyncio.to_thread(confirm)
+        if self.closing:
+            raise RuntimeError('managed downloads unavailable')
+        return result
 
     async def followed_download_authors(self, *, owner: str):
         """Return fresh public/private follow choices without changing old DB."""
@@ -516,6 +641,10 @@ class ApplicationServices:
         with self._managed_enqueue_lock:
             if self.closing or self.managed_downloads is None or self.jobs is None:
                 raise RuntimeError("managed downloads unavailable")
+            if self.legacy_author_bridge is not None:
+                # A source DB replacement between preview and acceptance must
+                # never authorize a job under a stale tombstone/ZIP verdict.
+                self.legacy_author_bridge.assert_source_unchanged()
             with self._managed_target_lock:
                 if selection not in self.download_candidates(owner=owner):
                     raise ValueError("download selection changed; refresh the candidates")
@@ -764,6 +893,8 @@ class ApplicationServices:
                     if self.legacy_zip_exporter is not None:
                         self.legacy_zip_exporter.close()
                     self.managed_downloads.close()
+                if self.legacy_author_bridge is not None:
+                    self.legacy_author_bridge.close()
                 try:
                     if self.learning is not None:
                         self.learning.close()
@@ -787,7 +918,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                  live_client=None, download_sandbox: Path | None = None,
                  pixiv_download_root: Path | None = None,
                  failed_queue_readonly_db: Path | None = None,
-                 legacy_zip_export_root: Path | None = None) -> ApplicationServices:
+                 legacy_zip_export_root: Path | None = None,
+                 legacy_diff_image_root: Path | None = None) -> ApplicationServices:
     """Return resources scoped to the ASGI app; no-argument access is legacy."""
     global _services
     with _lock:
@@ -798,7 +930,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                     live_client=live_client, download_sandbox=download_sandbox,
                     pixiv_download_root=pixiv_download_root,
                     failed_queue_readonly_db=failed_queue_readonly_db,
-                    legacy_zip_export_root=legacy_zip_export_root)
+                    legacy_zip_export_root=legacy_zip_export_root,
+                    legacy_diff_image_root=legacy_diff_image_root)
             services = _services
         else:
             services = getattr(app.state, _APP_KEY, None)
@@ -808,7 +941,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                     live_client=live_client, download_sandbox=download_sandbox,
                     pixiv_download_root=pixiv_download_root,
                     failed_queue_readonly_db=failed_queue_readonly_db,
-                    legacy_zip_export_root=legacy_zip_export_root)
+                    legacy_zip_export_root=legacy_zip_export_root,
+                    legacy_diff_image_root=legacy_diff_image_root)
                 setattr(app.state, _APP_KEY, services)
         if services.closing:
             raise RuntimeError("application services are closed")
@@ -828,4 +962,6 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
             raise RuntimeError('application services already use a different failure source')
         if legacy_zip_export_root is not None and services.legacy_zip_export_root != legacy_zip_export_root:
             raise RuntimeError('application services already use a different ZIP export root')
+        if legacy_diff_image_root is not None and services.legacy_diff_image_root != legacy_diff_image_root:
+            raise RuntimeError('application services already use a different legacy image root')
         return services
