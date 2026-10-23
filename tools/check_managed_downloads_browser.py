@@ -38,9 +38,39 @@ class ManagedTransport(SyntheticPixivTransport):
         super().__init__("next")
         self.original_gets = Counter()
         self.regular_gets = Counter()
+        self.author_revision = '2026-10-23T10:00:00+09:00'
 
     def __call__(self, request, timeout, limit, deadline):
         url = urlsplit(request.full_url)
+        if url.path == '/ajax/user/12/following':
+            self.request_count += 1
+            self.all_requests_get &= request.get_method() == 'GET'
+            self.allowed_https_hosts_only &= (url.scheme == 'https' and
+                url.hostname == self.API_HOST and url.port is None)
+            if not (self.all_requests_get and self.allowed_https_hosts_only and request.has_header('Cookie')):
+                raise AssertionError('following request invalid')
+            from urllib.parse import parse_qs
+            params = parse_qs(url.query)
+            assert params.get('limit') == ['24']
+            return self._packet({'users': [
+                {'userId': '24', 'userName': '合成フォロー作者'}]
+                if params.get('offset') == ['0'] and params.get('rest') == ['show'] else []})
+        if url.path == '/ajax/user/24/profile/all':
+            self.request_count += 1
+            assert request.get_method() == 'GET' and request.has_header('Cookie')
+            return self._packet({'illusts': {'321': None}, 'manga': {}})
+        if url.path == '/ajax/user/24/profile/illusts':
+            self.request_count += 1
+            assert request.get_method() == 'GET' and request.has_header('Cookie')
+            from urllib.parse import parse_qs
+            params = parse_qs(url.query)
+            assert params.get('ids[]') == ['321']
+            return self._packet({'works': {'321': {
+                'id': '321', 'userId': '24', 'userName': '合成フォロー作者',
+                'title': '合成作者作品', 'illustType': 0, 'pageCount': 2,
+                'updateDate': self.author_revision,
+                'createDate': '2026-10-01T00:00:00+09:00',
+            }}})
         if url.hostname == self.IMAGE_HOST:
             self.request_count += 1
             self.all_requests_get &= request.get_method() == "GET"
@@ -54,6 +84,9 @@ class ManagedTransport(SyntheticPixivTransport):
                 r"/img-original/img/2026/10/01/12/00/00/([0-9]+)_p([0-9]+)\.png", url.path)
             if match:
                 self.original_gets[match.group(1)] += 1
+                if (match.group(1) == '321' and
+                        self.author_revision == '2026-10-24T10:00:00+09:00'):
+                    return png((120, 84), (74, 28, 90) if match.group(2) == '0' else (17, 89, 141))
                 return png((120, 84), (13, 37, 211) if match.group(2) == "0" else (9, 191, 53))
             self.regular_gets[url.path] += 1
             return png((48, 32), (230, 29, 17))
@@ -72,6 +105,7 @@ class ManagedTransport(SyntheticPixivTransport):
                 "userName": "架空の直接作者", "tags": {"tags": [{"tag": "合成"}]},
                 "illustType": 2 if wid == "322" else 0, "pageCount": 2,
                 "xRestrict": 0, "createDate": "2026-10-23T00:00:00+09:00",
+                "updateDate": self.author_revision,
                 "urls": {"small": f"https://i.pximg.net/synthetic/{wid}.png"},
             })
         if url.path.startswith("/ajax/illust/") and url.path.endswith("/pages"):
@@ -146,10 +180,13 @@ def serve(port, root, nonce):
                         "routes": t.route_calls, "selection_events": selections}
 
             @app.post("/_managed_test/control")
-            def control(fail: bool = False, x_acceptance: str | None = Header(default=None)):
+            def control(fail: bool = False, author_updated: bool = False,
+                        x_acceptance: str | None = Header(default=None)):
                 if x_acceptance != nonce:
                     raise HTTPException(403)
                 injected.fail = fail
+                if author_updated:
+                    injected.author_revision = '2026-10-24T10:00:00+09:00'
                 return {"synthetic": True}
 
             @app.post("/_managed_test/shutdown")

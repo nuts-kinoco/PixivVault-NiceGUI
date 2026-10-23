@@ -1,5 +1,13 @@
 # 移植進捗
 
+## 2026-10-23 作者単位差分ダウンロード（PR統合前・受入継続中）
+
+PR #25統合後のmain `bacb629ccfc36969b3e560b9d4596efd760c7fc8` を元に、別worktree `phase5/author-differential-downloads` で作者ID/フォロー選択からの差分取得を実装。原版の作者ID数値指定と24件フォロー・48件作者作品詳細GETを維持し、検索後の選択保持、由来、重複防止、解除、2client独立、非同期epoch/revisionを接続。作者NEWと既知更新日のUPDATEDを明示キュー投入し、v2 accepted-intent/旧v1読込/旧SQLite job互換、旧receipt全頁検証・不変世代保存・SHA+path CASのactive切替、旧画像・履歴を保存。v1更新日が無い作品は`UNKNOWN`とし自動再取得しない。
+
+独立レビューで `/ajax/illust/{id}` に`updateDate`が無い実API境界を発見し、原版同様`/ajax/user/{uid}/profile/illusts`再GETへ修正。空`updateDate`もv2作者由来としてNEW保存できるが、以後は`UNKNOWN`（更新済みを捏造しない）。古い作者意図の手動再選択への混入と、共有bookmarkキャッシュの古い作品メタデータの再利用を修正。旧世代SHAだけのCAS（同一バイトの別世代）をREDで発見し相対pathも照合。全pytest **1051 passed / 1 Windows symlink権限skip**、1 Starlette依存警告（未緩和）、`artifacts/author-downloads-20261023/full-remote-contract-fixed.xml`。
+
+実Edgeの合成初回/再起動×2解像度（1280×720/1920×1080）は、新規2頁＋更新2頁の原寸GET計4・再起動時0、active v2と旧世代残置、共有viewer画像decode・キーボード/フォーカス、通常終了/port解放4/4、browser例外0で成功。最終コードSHAに対する再受入を分ける。実Cookie作者経路とWindows新UI配布版での個別受入は未完であり、ツール側の機密データアクセス安全チェックにより実Cookieコピー試行は拒否された（Cookie原本不変）。元DB・画像・設定・Cookieを変更せず、公開証跡に実ID・認証値・画像を含まない。フェーズ5全体も全面移植も未完。詳細は `AUTHOR_DIFFERENTIAL_DOWNLOAD_2026-10-23.md`。
+
 更新: 2026-10-23、レビュー後のマージ承認に基づく継続開発。最終ゴールは移植完了、各フェーズは途中のマイルストーン。現在の検証単位: `phase5/managed-pixiv-downloads`（原寸画像の管理保存・永続キュー・受理入力復元・保存済み閲覧）。
 
 ## 最新の進捗照合とフェーズレビュー

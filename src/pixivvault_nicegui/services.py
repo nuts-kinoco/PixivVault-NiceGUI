@@ -41,6 +41,7 @@ class ApplicationServices:
         self._managed_target_lock = RLock()
         self._managed_enqueue_lock = Lock()
         self._direct_download_candidates: dict[str, OrderedDict] = {}
+        self._author_owned_pins: dict[str, frozenset[str]] = {}
         self._managed_receipts = ()
         self.jobs = None
         self.download_writer = None
@@ -177,8 +178,13 @@ class ApplicationServices:
         with self._managed_target_lock:
             candidates = {record.work_id: record for record in self.bookmark_download_candidates()}
             if owner is not None:
-                for wid, record in self._direct_download_candidates.get(self._direct_owner(owner), {}).items():
-                    candidates.setdefault(wid, record)
+                token = self._direct_owner(owner)
+                author_pins = self._author_owned_pins.get(token, frozenset())
+                for wid, record in self._direct_download_candidates.get(token, {}).items():
+                    if wid in author_pins:
+                        candidates[wid] = record  # Immutable selected author candidate.
+                    else:
+                        candidates.setdefault(wid, record)
             return tuple(candidates.values())
 
     def remember_managed_work_id(self, owner, record):
@@ -198,15 +204,64 @@ class ApplicationServices:
                     raise RuntimeError("too many managed download views")
                 records = OrderedDict()
                 self._direct_download_candidates[token] = records
+            pinned = self._author_owned_pins.get(token, frozenset())
+            if record.work_id in pinned:
+                if records[record.work_id] != record:
+                    raise ValueError('author selection already pinned')
+                return
             records[record.work_id] = record
             records.move_to_end(record.work_id)
             while len(records) > 128:
-                records.popitem(last=False)
+                removable = next((wid for wid in records if wid not in pinned), None)
+                if removable is None:
+                    raise ValueError('download candidate capacity reached')
+                del records[removable]
+
+    def remember_managed_author_batch(self, owner, records):
+        """Atomically authorize a bounded preview batch for this client.
+
+        Unlike one-off manual lookup, author batches must never evict earlier
+        selections. Existing bookmark DTOs retain their original metadata.
+        """
+        from .bookmark_remote_adapter import RemoteBookmark
+        token = self._direct_owner(owner)
+        if type(records) not in (tuple, list) or len(records) > 128:
+            raise ValueError('author batch too large')
+        with self._managed_target_lock:
+            if self.closing or self.managed_downloads is None:
+                raise RuntimeError('managed downloads unavailable')
+            original = self._direct_download_candidates.get(token, OrderedDict())
+            proposed = OrderedDict(original)
+            pinned = set(self._author_owned_pins.get(token, frozenset()))
+            selected = []
+            for record in records:
+                if (not isinstance(record, RemoteBookmark) or record.kind != 'illustration'
+                        or type(record.illustration_type) is not int
+                        or record.illustration_type not in (0, 1)
+                        or record.page_count_known is not True):
+                    raise ValueError('author selection rejected')
+                # Author-derived saves must retain the freshly resolved
+                # artwork metadata. A shared bookmark snapshot may be older;
+                # preserving it would write stale title/tags into the new
+                # generation even when original bytes are current.
+                proposed[record.work_id] = record
+                pinned.add(record.work_id)
+                selected.append(record)
+            if len(proposed) > 128:
+                raise ValueError('author selections exceed client capacity')
+            if selected and token not in self._direct_download_candidates:
+                if len(self._direct_download_candidates) >= 256:
+                    raise RuntimeError('too many managed download views')
+            if proposed:
+                self._direct_download_candidates[token] = proposed
+                self._author_owned_pins[token] = frozenset(pinned)
+            return tuple(selected)
 
     def release_managed_owner(self, owner):
         token = self._direct_owner(owner)
         with self._managed_target_lock:
             self._direct_download_candidates.pop(token, None)
+            self._author_owned_pins.pop(token, None)
 
     async def lookup_managed_work_id(self, work_id: str, *, owner: str, publish=True):
         """Verify an explicit artwork ID off the UI thread, then cache a DTO.
@@ -246,7 +301,29 @@ class ApplicationServices:
             self.remember_managed_work_id(token, record)
         return record
 
-    async def lookup_managed_author(self, user_id: str, *, owner: str, publish=False):
+    async def snapshot_author_saved_works(self):
+        """Verify all active receipts once per author batch, off the UI loop."""
+        if self.closing or self.managed_downloads is None:
+            raise RuntimeError('managed downloads unavailable')
+
+        def verified():
+            with_dates = getattr(self.managed_downloads, 'saved_receipts_with_dates', None)
+            if callable(with_dates):
+                return {receipt['work_id']: (digest, date, relative)
+                        for relative, receipt, digest, date in with_dates()}
+            items = self.managed_downloads.saved_receipts()
+            current_date = getattr(self.managed_downloads, 'saved_update_date', None)
+            return {receipt['work_id']: (digest, current_date(receipt['work_id'])
+                    if callable(current_date) else None, relative)
+                    for relative, receipt, digest in items}
+
+        result = await asyncio.to_thread(verified)
+        if self.closing:
+            raise RuntimeError('managed downloads unavailable')
+        return result
+
+    async def lookup_managed_author(self, user_id: str, *, owner: str,
+                                    publish=False, saved_snapshot=None):
         """Preview bounded author works without enqueuing or mutating legacy data.
 
         Existing v1 receipts have no update_date; they remain UNKNOWN rather
@@ -266,8 +343,18 @@ class ApplicationServices:
             else:
                 self.live_client.verify_identity()
             works = self.live_client.get_author_artworks(uid)
-            saved = {receipt['work_id']: receipt for _, receipt, _
-                     in self.managed_downloads.saved_receipts()}
+            saved = saved_snapshot
+            if saved is None:
+                with_dates = getattr(self.managed_downloads, 'saved_receipts_with_dates', None)
+                if callable(with_dates):
+                    saved = {receipt['work_id']: (digest, date, relative)
+                             for relative, receipt, digest, date in with_dates()}
+                else:
+                    items = self.managed_downloads.saved_receipts()
+                    current_date = getattr(self.managed_downloads, 'saved_update_date', None)
+                    saved = {receipt['work_id']: (digest, current_date(receipt['work_id'])
+                             if callable(current_date) else None, relative)
+                             for relative, receipt, digest in items}
             output = []
             for work in works:
                 if work['type'] not in (0, 1):
@@ -275,14 +362,39 @@ class ApplicationServices:
                 prior = saved.get(work['id'])
                 difference = decide_difference(
                     saved=prior is not None, remote_update_date=work['update_date'],
-                    saved_update_date=None, files_present=True if prior is not None else None)
-                output.append((work, difference))
+                    saved_update_date=prior[1] if prior is not None else None,
+                    files_present=True if prior is not None else None)
+                output.append(({**work, 'expected_receipt_sha256': prior[0] if prior else None,
+                                'expected_relative_receipt': prior[2] if prior else None},
+                               difference))
             return tuple(output)
 
         items = await asyncio.to_thread(fetch)
         if self.closing:
             raise RuntimeError('managed downloads unavailable')
         return items
+
+    async def followed_download_authors(self, *, owner: str):
+        """Return fresh public/private follow choices without changing old DB."""
+        from .author_download import AuthorTarget
+        self._direct_owner(owner)
+        if self.closing or self.managed_downloads is None or self.live_client is None:
+            raise RuntimeError('managed downloads unavailable')
+
+        def fetch():
+            uid = self.live_client.verify_identity()
+            seen = {}
+            for visibility in ('show', 'hide'):
+                for entry in self.live_client.get_following_users(uid, visibility):
+                    if entry['user_id'] not in seen:
+                        seen[entry['user_id']] = AuthorTarget(
+                            entry['user_id'], entry['name'], 'follow')
+            return tuple(seen.values())
+
+        result = await asyncio.to_thread(fetch)
+        if self.closing:
+            raise RuntimeError('managed downloads unavailable')
+        return result
 
     def _resolve_managed_record(self, work_id):
         # The serial runner installs exactly one accepted job's frozen record.
@@ -295,12 +407,16 @@ class ApplicationServices:
         # enqueue starts its worker before returning. Wait until the accepting
         # thread has the durable job ID, then bind the record to that ID only.
         with self._managed_enqueue_lock:
-            record = self._managed_job_records.get(job.job_id)
-            if record is None:
+            accepted = self._managed_job_records.get(job.job_id)
+            if accepted is None:
                 raise RuntimeError("refresh and explicitly select the artwork again")
+            from .managed_download_requests import ManagedAuthorIntent
+            record = accepted.record if isinstance(accepted, ManagedAuthorIntent) else accepted
             with self._managed_target_lock:
                 self._active_managed_record = record
         try:
+            if isinstance(accepted, ManagedAuthorIntent):
+                return self.managed_downloads.run(job, context, intent=accepted)
             return self.managed_downloads.run(job, context)
         finally:
             with self._managed_target_lock:
@@ -313,17 +429,19 @@ class ApplicationServices:
         cannot replace metadata already pinned for an unfinished job.
         """
         from .bookmark_remote_adapter import RemoteBookmark
+        from .managed_download_requests import ManagedAuthorIntent
         from .job_service import UNFINISHED
-        if not isinstance(record, RemoteBookmark) or not isinstance(operation_id, str):
+        selection = record.record if isinstance(record, ManagedAuthorIntent) else record
+        if not isinstance(selection, RemoteBookmark) or not isinstance(operation_id, str):
             raise ValueError("invalid managed selection")
         with self._managed_enqueue_lock:
             if self.closing or self.managed_downloads is None or self.jobs is None:
                 raise RuntimeError("managed downloads unavailable")
             with self._managed_target_lock:
-                if record not in self.download_candidates(owner=owner):
+                if selection not in self.download_candidates(owner=owner):
                     raise ValueError("download selection changed; refresh the candidates")
                 existing = next((job for job in self.jobs.snapshot()
-                                 if job.kind == "pixiv-illust" and job.target_id == record.work_id
+                                 if job.kind == "pixiv-illust" and job.target_id == selection.work_id
                                  and job.state in UNFINISHED), None)
                 previous = self._managed_job_records.get(existing.job_id) if existing is not None else None
                 if (existing is not None and previous is not None and
@@ -332,8 +450,8 @@ class ApplicationServices:
             # A durable intent alone is not an accepted job. Only the committed
             # operations ledger above authorizes recovery of this exact input.
             self._managed_requests.store(operation_id, record)
-            accepted = self.jobs.enqueue("pixiv-illust", record.work_id,
-                                         title=record.title, operation_id=operation_id)
+            accepted = self.jobs.enqueue("pixiv-illust", selection.work_id,
+                                         title=selection.title, operation_id=operation_id)
             self._managed_job_records.setdefault(accepted.job_id, record)
             live_ids = {job.job_id for job in self.jobs.snapshot()}
             self._managed_job_records = {key: value for key, value in self._managed_job_records.items()

@@ -39,6 +39,8 @@ MAX_ROUTE_PAGES = 1100
 MAX_BOOKMARKS_PER_ROUTE = 50000
 MAX_ARTWORK_PAGES = 1000
 MAX_AUTHOR_WORKS = 50000
+MAX_FOLLOWED_AUTHORS = 10000
+FOLLOWING_PAGE_SIZE = 24
 BOOKMARK_PAGE_SIZE = 48
 API_ORIGIN = "https://www.pixiv.net"
 CDN_HOST = "i.pximg.net"
@@ -50,6 +52,7 @@ _BOOKMARK_PATH = re.compile(
 _PAGES_PATH = re.compile(r"/ajax/illust/([1-9][0-9]{0,19})/pages\Z")
 _AUTHOR_ALL_PATH = re.compile(r"/ajax/user/([1-9][0-9]{0,19})/profile/all\Z")
 _AUTHOR_DETAILS_PATH = re.compile(r"/ajax/user/([1-9][0-9]{0,19})/profile/illusts\Z")
+_FOLLOWING_PATH = re.compile(r"/ajax/user/([1-9][0-9]{0,19})/following\Z")
 _DETAIL_PATH = re.compile(r"/ajax/illust/([1-9][0-9]{0,19})\Z")
 _ORIGINAL_IMAGE_PATH = re.compile(
     r"/img-original/img/[0-9]{4}/[0-9]{2}/[0-9]{2}/"
@@ -221,6 +224,13 @@ def _validate_destination(url: str, kind: str) -> None:
                 raise DestinationRejected()
         elif kind == "author_all":
             if not _AUTHOR_ALL_PATH.fullmatch(parsed.path) or parsed.query:
+                raise DestinationRejected()
+        elif kind == 'following':
+            if not _FOLLOWING_PATH.fullmatch(parsed.path):
+                raise DestinationRejected()
+            if not re.fullmatch(
+                    r'offset=(0|[1-9][0-9]*)&limit=24&rest=(show|hide)&lang=ja',
+                    parsed.query):
                 raise DestinationRejected()
         elif kind == "author_details":
             if not _AUTHOR_DETAILS_PATH.fullmatch(parsed.path):
@@ -672,6 +682,48 @@ class LivePixivReadClient:
     def get_bookmarked_novels(self, my_user_id: str, rest_type: str = "show"):
         yield from self._bookmarks(my_user_id, rest_type, novel=True)
 
+    def get_following_users(self, my_user_id: str, rest_type: str = 'show') -> tuple[dict, ...]:
+        """Bounded GET-only list of the verified account's followed authors."""
+        if rest_type not in ('show', 'hide'):
+            raise DestinationRejected()
+        uid = self._assert_identity(my_user_id)
+        deadline = time.monotonic() + MAX_OPERATION_SECONDS
+        found: list[dict] = []
+        seen: set[str] = set()
+        for page in range((MAX_FOLLOWED_AUTHORS // FOLLOWING_PAGE_SIZE) + 2):
+            _check_time(deadline)
+            query = urlencode({'offset': page * FOLLOWING_PAGE_SIZE,
+                               'limit': FOLLOWING_PAGE_SIZE, 'rest': rest_type,
+                               'lang': 'ja'})
+            body = self._json('following', f'{API_ORIGIN}/ajax/user/{uid}/following?{query}',
+                              deadline=deadline)
+            if type(body) is not dict or type(body.get('users')) is not list:
+                raise InvalidPayload()
+            users = body['users']
+            if len(users) > FOLLOWING_PAGE_SIZE:
+                raise InvalidPayload()
+            if not users:
+                return tuple(found)
+            progress = 0
+            for entry in users:
+                if type(entry) is not dict:
+                    raise InvalidPayload()
+                author_id = _identifier(entry.get('userId'))
+                name = entry.get('userName')
+                if (type(name) is not str or len(name) > 256 or
+                        any(ord(char) < 32 or ord(char) == 127 for char in name)):
+                    raise InvalidPayload()
+                if author_id in seen:
+                    continue
+                progress += 1
+                seen.add(author_id)
+                found.append({'user_id': author_id, 'name': name})
+                if len(found) > MAX_FOLLOWED_AUTHORS:
+                    raise ResponseLimitExceeded()
+            if progress == 0:
+                raise InvalidPayload()  # Repeated nonempty page cannot end a crawl.
+        raise ResponseLimitExceeded()
+
     def get_author_artworks(self, user_id: str) -> tuple[dict, ...]:
         """Read an author's illustration/manga metadata with one bounded GET batch.
 
@@ -810,6 +862,55 @@ class LivePixivReadClient:
         return RemoteBookmark(wid, "illustration", "show", title, author_id,
                               author, tuple(tags), thumb, created, int(count),
                               art_type, restrict)
+
+    def get_artwork_update_revision(self, work_id: str, author_id: str) -> dict:
+        """Reconfirm author, page/type and remote generation before v2 saving.
+
+        Use the legacy author's `profile/illusts` detail endpoint, which
+        actually supplies updateDate. The unrelated `/ajax/illust/{id}` detail
+        can omit that field. Missing generations fail closed.
+        """
+        try:
+            wid = _identifier(work_id)
+            uid = _identifier(author_id)
+        except InvalidPayload:
+            raise DestinationRejected() from None
+        with self._identity_lock:
+            self._ensure_open()
+            if self._verified_identity is None:
+                raise AuthenticationMissing()
+            query = urlencode([
+                ('work_category', 'illustManga'), ('is_first_page', '1'),
+                ('ids[]', wid),
+            ])
+            body = self._json('author_details',
+                              f'{API_ORIGIN}/ajax/user/{uid}/profile/illusts?{query}',
+                              deadline=time.monotonic() + MAX_OPERATION_SECONDS)
+            self._ensure_open()
+        if (type(body) is not dict or type(body.get('works')) is not dict
+                or set(body['works']) != {wid}):
+            raise InvalidPayload()
+        entry = body['works'][wid]
+        if type(entry) is not dict or entry.get('isMasked', False) is not False:
+            raise InvalidPayload()
+        try:
+            if _identifier(entry.get('id')) != wid:
+                raise InvalidPayload()
+            if _identifier(entry.get('userId')) != uid:
+                raise InvalidPayload()
+        except InvalidPayload:
+            raise InvalidPayload() from None
+        kind = entry.get('illustType')
+        count = entry.get('pageCount')
+        update = entry.get('updateDate', '')
+        if (type(kind) is not int or kind not in (0, 1)
+                or type(count) not in (str, int) or not str(count).isascii()
+                or not str(count).isdecimal() or not 1 <= int(count) <= MAX_ARTWORK_PAGES
+                or type(update) is not str or len(update) > 128
+                or any(ord(char) < 32 or ord(char) == 127 for char in update)):
+            raise InvalidPayload()
+        return {'work_id': wid, 'author_id': uid, 'illustration_type': kind,
+                'page_count': int(count), 'update_date': update}
 
     def get_artwork_pages(self, work_id: str) -> tuple[str, ...]:
         self._ensure_open()
