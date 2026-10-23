@@ -17,9 +17,17 @@ class ApplicationServices:
     def __init__(self, count: int = 120, *, learning_sandbox: Path | None = None,
                  library_readonly_db: Path | None = None,
                  library_image_root: Path | None = None,
-                 live_client=None) -> None:
+                 live_client=None, download_sandbox: Path | None = None) -> None:
         if (library_readonly_db is None) != (library_image_root is None):
             raise ValueError("read-only library requires both explicit DB and image root")
+        if download_sandbox is not None and (library_readonly_db is not None or live_client is not None):
+            raise ValueError("synthetic downloads cannot be combined with a read-only or live library")
+        if (download_sandbox is not None and learning_sandbox is not None
+                and Path(download_sandbox).resolve() == Path(learning_sandbox).resolve()):
+            raise ValueError("learning and download sandboxes must be separate")
+        self.download_sandbox = download_sandbox
+        self.jobs = None
+        self.download_writer = None
         self.artworks = generate_demo_artworks(count)
         self.library = build_library_fixture(self.artworks)
         self.images = LibraryImageRegistry(DemoImageCatalog(self.artworks))
@@ -70,6 +78,22 @@ class ApplicationServices:
             try:
                 self.learning = LearningService(learning_sandbox, self.artworks)
             except Exception:
+                self.images.close()
+                if self.library_repository is not None:
+                    self.library_repository.close()
+                raise
+        if download_sandbox is not None:
+            from .download_sandbox import DownloadSandbox
+            from .job_service import JobService
+            try:
+                self.download_writer = DownloadSandbox(Path(download_sandbox), self.artworks,
+                                                       catalog=self.images)
+                self.jobs = JobService(self.download_writer.run, self.download_writer.storage_path)
+            except BaseException:
+                if self.download_writer is not None:
+                    self.download_writer.close()
+                if self.learning is not None:
+                    self.learning.close()
                 self.images.close()
                 if self.library_repository is not None:
                     self.library_repository.close()
@@ -201,6 +225,12 @@ class ApplicationServices:
         with self._close_lock:
             if not self.closed:
                 self.closing = True
+                # Accepted jobs outlive views; join the worker before closing
+                # the image provider it may still be using.
+                if self.jobs is not None:
+                    self.jobs.close()
+                if self.download_writer is not None:
+                    self.download_writer.close()
                 try:
                     if self.learning is not None:
                         self.learning.close()
@@ -221,7 +251,7 @@ _APP_KEY = "_pixivvault_application_services"
 def get_services(app=None, *, learning_sandbox: Path | None = None,
                  library_readonly_db: Path | None = None,
                  library_image_root: Path | None = None,
-                 live_client=None) -> ApplicationServices:
+                 live_client=None, download_sandbox: Path | None = None) -> ApplicationServices:
     """Return resources scoped to the ASGI app; no-argument access is legacy."""
     global _services
     with _lock:
@@ -229,14 +259,14 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
             if _services is None:
                 _services = ApplicationServices(learning_sandbox=learning_sandbox,
                     library_readonly_db=library_readonly_db, library_image_root=library_image_root,
-                    live_client=live_client)
+                    live_client=live_client, download_sandbox=download_sandbox)
             services = _services
         else:
             services = getattr(app.state, _APP_KEY, None)
             if services is None:
                 services = ApplicationServices(learning_sandbox=learning_sandbox,
                     library_readonly_db=library_readonly_db, library_image_root=library_image_root,
-                    live_client=live_client)
+                    live_client=live_client, download_sandbox=download_sandbox)
                 setattr(app.state, _APP_KEY, services)
         if services.closing:
             raise RuntimeError("application services are closed")
@@ -248,4 +278,6 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
             raise RuntimeError("application services already use a different image root")
         if live_client is not None and services.live_client is not live_client:
             raise RuntimeError("application services already use a different pixiv session")
+        if download_sandbox is not None and services.download_sandbox != download_sandbox:
+            raise RuntimeError("application services already use different download storage")
         return services
