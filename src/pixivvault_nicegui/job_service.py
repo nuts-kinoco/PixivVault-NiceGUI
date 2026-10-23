@@ -262,10 +262,21 @@ class JobService:
             store = _Store(Path(storage))
             try:
                 jobs, operations = store.load()
-                recovered = {key: replace(job, state="stopped", revision=job.revision + 1,
-                                          control_revision=job.control_revision + 1,
-                                          paused_from=None, error_code="interrupted")
-                             if job.state in UNFINISHED else job for key, job in jobs.items()}
+                # `stopping` without the `interrupted` error marker means an
+                # explicit user Stop. A graceful application close, however,
+                # also uses `stopping` for an active worker; that transition
+                # carries the explicit interrupted marker. Preserve the latter
+                # for verified generation reconciliation on restart.
+                recovered = {key: (
+                    replace(job, state="stopped", revision=job.revision + 1,
+                            control_revision=job.control_revision + 1,
+                            paused_from=None, error_code=job.error_code)
+                    if job.state == "stopping" else
+                    replace(job, state="stopped", revision=job.revision + 1,
+                            control_revision=job.control_revision + 1,
+                            paused_from=None, error_code="interrupted")
+                    if job.state in UNFINISHED else job)
+                    for key, job in jobs.items()}
                 store.write(recovered, operations)
                 self._jobs, self._operations = recovered, operations
                 self._published = tuple(reversed(tuple(recovered.values())))
@@ -297,6 +308,36 @@ class JobService:
         if type(job_id) is not str or not any(job.job_id == job_id for job in published):
             return ()
         return tuple(key for key, value in operations.items() if value[0] == job_id)
+
+    def reconcile_interrupted(self, job_id: str, *, receipt: str | None = None,
+                              page_count: int | None = None) -> bool:
+        """Durably resolve a recovered interrupted job after external verification.
+
+        Only a stopped job marked by restart recovery as `interrupted` may be
+        resolved. The owning service must independently validate its accepted
+        intent and active receipt before supplying a completion receipt.
+        Without one, the interrupted job becomes a retryable error rather
+        than remaining permanently stopped with no Retry control.
+        """
+        if (type(job_id) is not str or
+                (receipt is None and page_count is not None) or
+                (receipt is not None and (type(receipt) is not str or
+                    not receipt or len(receipt) > 2048 or type(page_count) is not int
+                    or not 1 <= page_count <= 1000))):
+            raise JobServiceError('invalid interrupted job reconciliation')
+        with self._condition:
+            if self._closing or self._fatal:
+                raise JobServiceError('job service is unavailable')
+            job = self._jobs.get(job_id)
+            if job is None or job.state != 'stopped' or job.error_code != 'interrupted':
+                return False
+            if receipt is None:
+                self._replace(job, state='error', done=0, total=0,
+                              result=None, error_code='interrupted')
+            else:
+                self._replace(job, state='done', done=page_count, total=page_count,
+                              result=receipt, error_code='')
+            return True
 
     def _commit(self, jobs, operations=None):
         operations = self._operations if operations is None else operations
@@ -433,7 +474,9 @@ class JobService:
                 self._active = None
                 if current is not None and current.attempt == job.attempt:
                     if self._closing or current.state in {"stopping", "stopped"}:
-                        outcome, reason = "stopped", ""
+                        outcome = "stopped"
+                        reason = ("interrupted" if self._closing and
+                                  current.error_code == "interrupted" else "")
                     try:
                         self._replace(current, state=outcome, paused_from=None, error_code=reason,
                                       result=result if outcome == "done" else None)
@@ -452,7 +495,9 @@ class JobService:
                 raise JobServiceError("job worker cannot close its owner")
             self._closing = True
             jobs = {key: replace(job, state="stopping" if self._active and self._active[0] == key else "stopped",
-                                 revision=job.revision + 1, control_revision=job.control_revision + 1, paused_from=None)
+                                 revision=job.revision + 1, control_revision=job.control_revision + 1,
+                                 paused_from=None,
+                                 error_code=(job.error_code if job.state == "stopping" else "interrupted"))
                     if job.state in UNFINISHED else job for key, job in self._jobs.items()}
             try:
                 self._commit(jobs)

@@ -140,6 +140,7 @@ class ApplicationServices:
                             any(not self._managed_requests.equivalent(first, item) for item in recovered)):
                         raise ValueError("managed job request identity mismatch")
                     self._managed_job_records[job.job_id] = first
+                self._reconcile_interrupted_author_jobs()
                 snapshot, catalog, local = build_managed_library(self.managed_downloads)
                 try:
                     self.images.publish(catalog, None)
@@ -421,6 +422,42 @@ class ApplicationServices:
         finally:
             with self._managed_target_lock:
                 self._active_managed_record = None
+
+    def _reconcile_interrupted_author_jobs(self):
+        """Recover v2 jobs after active-pointer commit but before SQLite done.
+
+        The only positive evidence is the fully verified active receipt AND a
+        job-specific accepted fingerprint. A valid but not yet published v2
+        save remains retryable. Legacy v1 job recovery is left unchanged.
+        """
+        from .managed_download_requests import (ManagedAuthorIntent,
+                                                accepted_author_fingerprint)
+        interrupted = [(job, self._managed_job_records.get(job.job_id))
+                       for job in self.jobs.snapshot()
+                       if job.state == 'stopped' and job.error_code == 'interrupted']
+        if not any(isinstance(intent, ManagedAuthorIntent) for _, intent in interrupted):
+            return
+        verified = {receipt['work_id']: (relative, receipt, digest, date)
+                    for relative, receipt, digest, date
+                    in self.managed_downloads.saved_receipts_with_dates()}
+        for job, intent in interrupted:
+            if not isinstance(intent, ManagedAuthorIntent):
+                continue
+            match = verified.get(intent.work_id)
+            active = self.managed_downloads._generations.current(intent.work_id)
+            fingerprint = accepted_author_fingerprint(intent, job.job_id)
+            if (match is not None and active is not None
+                    and active.get('accepted_fingerprint') == fingerprint
+                    and match[0] == active['relative_receipt']
+                    and match[2] == active['sha256']
+                    and match[1]['author_id'] == intent.record.author_id
+                    and match[1]['illustration_type'] == intent.record.illustration_type
+                    and match[1]['page_count'] == intent.record.page_count
+                    and active['update_date'] == intent.update_date):
+                self.jobs.reconcile_interrupted(
+                    job.job_id, receipt=match[0], page_count=match[1]['page_count'])
+            else:
+                self.jobs.reconcile_interrupted(job.job_id)
 
     def enqueue_managed_download(self, record, operation_id, *, owner=None):
         """Accept one frozen selection off-loop, then let the app own its job.

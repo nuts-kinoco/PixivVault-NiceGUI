@@ -50,6 +50,7 @@ def new_writer(tmp_path):
 
 
 def stage_generation(writer, original, name):
+    writer._generations.prepare_for_publication()
     folder = writer.generation_outputs / ('work-123-' + name * 32)
     shutil.copytree(writer.root / original.rsplit('/', 1)[0], folder)
     rel = f'generations/{folder.name}/receipt.json'
@@ -146,7 +147,9 @@ def test_traversal_and_duplicated_index_keys_rejected(tmp_path):
     writer._generations.publish('123', target, digest, '2026-10-24', sha, original)
     index = writer.root / 'active-generations.json'
     old = index.read_bytes()
-    index.write_bytes(old.replace(b'"version":1', b'"version":1,"version":1'))
+    duplicated = old.replace(b'"version":2', b'"version":2,"version":2')
+    assert duplicated != old, 'test must actually create a duplicate index key'
+    index.write_bytes(duplicated)
     with pytest.raises(ManagedDownloadError):
         writer.saved_receipts()
 
@@ -158,3 +161,52 @@ def test_missing_active_generation_does_not_fall_back_to_legacy(tmp_path):
     shutil.rmtree((writer.root / target).parent)
     with pytest.raises(ManagedDownloadError):
         writer.saved_receipts()
+
+
+def test_idempotent_pointer_replay_refuses_corrupted_image_page(tmp_path):
+    writer, previous, prior_sha = new_writer(tmp_path)
+    target, digest = stage_generation(writer, previous, 'a')
+    writer._generations.publish('123', target, digest, '2026-10-24',
+                                prior_sha, previous, 'f' * 64)
+    folder = (writer.root / target).parent
+    (folder / 'page-1.png').write_bytes(b'corrupt')
+    with pytest.raises(ManagedDownloadError, match='generation receipt rejected'):
+        writer._generations.publish('123', target, digest, '2026-10-24',
+                                    prior_sha, previous, 'f' * 64)
+
+
+def test_deleted_active_index_does_not_silently_reveal_old_receipt(tmp_path):
+    writer, original, sha = new_writer(tmp_path)
+    target, digest = stage_generation(writer, original, 'f')
+    writer._generations.publish('123', target, digest, '2026-10-24', sha, original)
+    assert writer.saved_receipts()[0][0] == target
+    (writer.root / 'active-generations.json').unlink()
+    with pytest.raises(ManagedDownloadError, match='index missing'):
+        writer.saved_receipts()
+    with pytest.raises(ManagedDownloadError, match='index missing'):
+        ManagedPixivDownloads(writer.root, Client(), resolve_record=lambda _: None)
+
+
+def test_legacy_only_root_without_index_remains_supported(tmp_path):
+    writer, original, _ = new_writer(tmp_path)
+    assert not (writer.root / 'active-generations.json').exists()
+    reopened = ManagedPixivDownloads(writer.root, Client(), resolve_record=lambda _: None)
+    assert reopened.saved_receipts()[0][0] == original
+
+
+def test_version_one_active_index_remains_readable_and_can_upgrade(tmp_path):
+    writer, previous, prior_sha = new_writer(tmp_path)
+    first, sha = stage_generation(writer, previous, '1')
+    writer._generations.publish('123', first, sha, '2026-10-24', prior_sha, previous)
+    path = writer.root / 'active-generations.json'
+    previous_index = json.loads(path.read_text())
+    previous_index['version'] = 1
+    path.write_text(json.dumps(previous_index))
+    reopened = ManagedPixivDownloads(writer.root, Client(), resolve_record=lambda _: None)
+    assert reopened.saved_receipts()[0][0] == first
+    second, next_sha = stage_generation(reopened, previous, '2')
+    reopened._generations.publish('123', second, next_sha, '2026-10-25', sha, first,
+                                 'f' * 64)
+    document = json.loads(path.read_text())
+    assert document['version'] == 2
+    assert document['entries']['123']['accepted_fingerprint'] == 'f' * 64

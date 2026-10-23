@@ -111,6 +111,21 @@ def _intent_spec(value: RemoteBookmark | ManagedAuthorIntent) -> dict:
     return _spec(value)
 
 
+def accepted_author_fingerprint(intent: ManagedAuthorIntent, job_id: str) -> str:
+    """Stable identity of one accepted job, not merely an artwork updateDate.
+
+    JobService keeps job_id across interruption/retry. Two accepted jobs may
+    observe the same remote date, so the date alone cannot authorize replay
+    after a generation CAS has changed the active pointer.
+    """
+    if (not isinstance(intent, ManagedAuthorIntent) or type(job_id) is not str
+            or re.fullmatch(r'[a-f0-9]{32}', job_id) is None):
+        raise ManagedRequestError('managed author job identity rejected')
+    payload = json.dumps(_intent_spec(intent), sort_keys=True, ensure_ascii=True,
+                         separators=(',', ':')).encode('ascii')
+    return hashlib.sha256(job_id.encode('ascii') + b'\0' + payload).hexdigest()
+
+
 def _decode(data: bytes) -> dict:
     try:
         payload = json.loads(data, object_pairs_hook=_json_unique)

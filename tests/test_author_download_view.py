@@ -135,6 +135,26 @@ async def test_follow_selection_origin_and_search_independence():
 
 
 @pytest.mark.asyncio
+async def test_two_fast_follow_author_clicks_are_not_lost_by_mark_repaint():
+    services = Services()
+    client = Client(ui.page('/_follow_double_click'))
+    try:
+        with client:
+            view = ManagedDownloadView(services)
+            assert await view.refresh_follow_authors()
+            generation = view.follow_render_generation
+            view._follow_pick('91', view.epoch, generation)
+            view._follow_pick('92', view.epoch, generation)
+            assert tuple(a.user_id for a in view.author_targets) == ('91', '92')
+            view.follow_query = 'Followed two'
+            view._render_follow_list()
+            view._follow_pick('91', view.epoch, generation)
+            assert tuple(a.user_id for a in view.author_targets) == ('91', '92')
+    finally:
+        client.delete()
+
+
+@pytest.mark.asyncio
 async def test_old_author_fetch_event_cannot_use_new_target_selection():
     services = Services()
     client = Client(ui.page('/_author_old_fetch'))
@@ -179,5 +199,71 @@ async def test_author_updated_generation_enqueues_frozen_v2_intent():
             assert intent.expected_receipt_sha256 == 'a' * 64
             assert intent.expected_relative_receipt.endswith('/receipt.json')
             assert intent.update_date == '2026-10-24'
+    finally:
+        client.delete()
+
+
+@pytest.mark.asyncio
+async def test_existing_manual_selection_is_upgraded_to_author_v2_update():
+    class Updating(Services):
+        async def lookup_managed_author(self, uid, *, owner, publish=False):
+            return (({'id': '123', 'type': 0, 'page_count': 1,
+                      'update_date': '2026-10-24',
+                      'expected_receipt_sha256': 'a' * 64,
+                      'expected_relative_receipt':
+                          'generations/work-123-' + 'b' * 32 + '/receipt.json'},
+                     Difference.UPDATED),)
+
+    services = Updating()
+    client = Client(ui.page('/_author_upgrade_selected'))
+    try:
+        with client:
+            view = ManagedDownloadView(services)
+            view.records['123'] = record()
+            view.select('123', True)
+            view._operations['123'] = 'old-v1-failed-attempt'
+            view.author_input.set_value('91')
+            view._author_add_event(type('Evt', (), {'args': {'epoch': '0'}})())
+            assert await view.fetch_author_differences()
+            assert view._operations.get('123') is None
+            assert len(view.selected) == 1
+            assert '123' in view._available_author_intents
+            assert await view.submit()
+            assert len(services.enqueued) == 1
+            intent = services.enqueued[0]
+            assert isinstance(intent, ManagedAuthorIntent)
+            assert intent.mode == 'updated' and intent.update_date == '2026-10-24'
+    finally:
+        client.delete()
+
+
+@pytest.mark.asyncio
+async def test_identical_author_repreview_retains_idempotent_operation_but_new_version_rotates():
+    class Updating(Services):
+        date = '2026-10-24'
+
+        async def lookup_managed_author(self, uid, *, owner, publish=False):
+            return (({'id': '123', 'type': 0, 'page_count': 1,
+                      'update_date': self.date,
+                      'expected_receipt_sha256': 'a' * 64,
+                      'expected_relative_receipt':
+                          'generations/work-123-' + 'b' * 32 + '/receipt.json'},
+                     Difference.UPDATED),)
+
+    services = Updating()
+    client = Client(ui.page('/_author_repreview_idempotent'))
+    try:
+        with client:
+            view = ManagedDownloadView(services)
+            view.author_input.set_value('91')
+            view._author_add_event(type('Evt', (), {'args': {'epoch': '0'}})())
+            assert await view.fetch_author_differences()
+            view._operations['123'] = 'accepted-operation-previously-failed'
+            assert await view.fetch_author_differences()
+            assert view._operations['123'] == 'accepted-operation-previously-failed'
+            services.date = '2026-10-25'
+            assert await view.fetch_author_differences()
+            assert '123' not in view._operations
+            assert view._available_author_intents['123'].update_date == '2026-10-25'
     finally:
         client.delete()

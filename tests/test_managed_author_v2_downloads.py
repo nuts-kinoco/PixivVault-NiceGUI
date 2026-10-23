@@ -13,6 +13,7 @@ from pixivvault_nicegui.managed_downloads import ManagedDownloadError, ManagedPi
 class Job:
     kind = 'pixiv-illust'
     target_id = '123'
+    job_id = 'a' * 32
 
 
 class Context:
@@ -27,6 +28,7 @@ class Client:
     update_date = '2026-10-23'
     author_id = '24'
     count = 0
+    mutate_during_get = False
 
     def verify_identity(self):
         return '999'
@@ -42,6 +44,8 @@ class Client:
 
     def get_image_bytes(self, url):
         self.count += 1
+        if self.mutate_during_get:
+            self.update_date = '2026-10-25'
         image = Image.new('RGB', (32, 20),
                           (11, 20, 30) if self.update_date == '2026-10-23' else (91, 72, 53))
         out = BytesIO()
@@ -132,4 +136,60 @@ def test_undated_author_new_preserves_provenance_but_is_unknown_later(tmp_path):
     assert relative.startswith('generations/')
     assert writer.saved_update_date('123') is None
     assert writer.run(Job(), Context(), intent=intent) == relative
+    assert client.count == 1
+
+
+def test_other_job_with_same_remote_date_cannot_reuse_predecessor_cas(tmp_path):
+    client, writer, new = make(tmp_path)
+    writer.run(Job(), Context(), intent=new)
+    predecessor, _, before_sha = writer.saved_receipts()[0]
+    client.update_date = '2026-10-24'
+    updated = ManagedAuthorIntent(record(), 'follow', client.update_date,
+                                  before_sha, 'updated', predecessor)
+    writer.run(Job(), Context(), intent=updated)
+    old_get_count = client.count
+    other_job = type('OtherJob', (), {'kind': 'pixiv-illust',
+                    'target_id': '123', 'job_id': 'b' * 32})()
+    with pytest.raises(ManagedDownloadError, match='generation changed'):
+        writer.run(other_job, Context(), intent=updated)
+    assert client.count == old_get_count
+    assert writer.saved_update_date('123') == '2026-10-24'
+
+
+def test_remote_revision_changed_during_pages_never_publishes_stale_date(tmp_path):
+    client, writer, new = make(tmp_path)
+    first = writer.run(Job(), Context(), intent=new)
+    first_digest = writer.saved_receipts()[0][2]
+    first_bytes = writer.read_saved_page(first, 0, first_digest)
+    client.update_date = '2026-10-24'
+    client.mutate_during_get = True
+    old_sealed = tuple(writer.generation_outputs.iterdir())
+    intent = ManagedAuthorIntent(record(), 'id', '2026-10-24',
+                                 first_digest, 'updated', first)
+    with pytest.raises(ManagedDownloadError, match='metadata changed during download'):
+        writer.run(Job(), Context(), intent=intent)
+    assert writer.saved_update_date('123') == '2026-10-23'
+    assert writer.saved_receipts()[0][0] == first
+    assert writer.read_saved_page(first, 0, first_digest) == first_bytes
+    assert tuple(writer.generation_outputs.iterdir()) == old_sealed, (
+        'normal metadata drift must not seal full-size orphan generations')
+    client.mutate_during_get = False
+    client.update_date = '2026-10-24'
+    updated = writer.run(Job(), Context(), intent=intent)
+    assert updated != first and writer.saved_update_date('123') == '2026-10-24'
+
+
+def test_undated_new_intent_cannot_reuse_preexisting_legacy_v1_receipt(tmp_path):
+    client, writer, _ = make(tmp_path)
+    legacy = writer.run(Job(), Context())
+    before = writer.saved_receipts()
+    assert before[0][0] == legacy and legacy.startswith('outputs/')
+    assert writer.saved_update_date('123') is None
+    client.update_date = ''
+    # Regression: the empty v1 date must not be mistaken for an idempotent
+    # replay of a completed v2 author NEW job, with a false terminal success.
+    with pytest.raises(ManagedDownloadError, match='generation changed'):
+        writer.run(Job(), Context(), intent=ManagedAuthorIntent(
+            record(), 'id', '', None, 'new'))
+    assert writer.saved_receipts() == before
     assert client.count == 1

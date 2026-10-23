@@ -348,15 +348,25 @@ class ManagedPixivDownloads:
             record = _record(self.resolve_record(job.target_id), job.target_id)
             _safe_path(self.outputs)
             from .managed_download_requests import ManagedAuthorIntent
+            from .managed_download_requests import accepted_author_fingerprint
             if intent is not None and (not isinstance(intent, ManagedAuthorIntent)
                     or intent.record != record or intent.work_id != job.target_id):
                 raise ManagedDownloadError('accepted author intent changed')
+            fingerprint = (accepted_author_fingerprint(intent, getattr(job, 'job_id', None))
+                           if intent is not None else None)
+            # Only this work's active receipt determines idempotency/CAS.
+            # Scanning+decoding every previously saved image for *each* work
+            # in an author batch was quadratic in stored image bytes. Full
+            # catalog validation still occurs at startup and library refresh.
+            active_entry = self._generations.current(record.remote_id)
             previous = None
-            for relative, receipt, digest in self.saved_receipts():
-                if receipt["work_id"] == record.remote_id:
-                    previous = (relative, receipt, digest)
-                    if intent is not None:
-                        break
+            if active_entry is not None:
+                relative = active_entry['relative_receipt']
+                receipt, digest = self._receipt(relative)
+                if digest != active_entry['sha256'] or receipt['work_id'] != record.remote_id:
+                    raise ManagedDownloadError('active receipt verification failed')
+                previous = (relative, receipt, digest)
+                if intent is None:
                     if (receipt['page_count'] != record.page_count or
                             receipt['illustration_type'] != record.illustration_type or
                             receipt['author_id'] != record.author_id):
@@ -366,11 +376,11 @@ class ManagedPixivDownloads:
                     return relative
             if intent is not None:
                 actual_digest = previous[2] if previous is not None else None
-                active_entry = self._generations.current(record.remote_id)
                 current_date = active_entry['update_date'] if active_entry else None
                 # Crash after the pointer commit but before the job's SQLite
                 # terminal commit: verify and reuse the durable new generation.
                 if (previous is not None and current_date == intent.update_date
+                        and active_entry.get('accepted_fingerprint') == fingerprint
                         and previous[1]['author_id'] == record.author_id
                         and previous[1]['page_count'] == record.page_count
                         and previous[1]['illustration_type'] == record.illustration_type):
@@ -436,6 +446,19 @@ class ManagedPixivDownloads:
                 if hashlib.sha256(staged).hexdigest() != entry['sha256']:
                     raise ManagedDownloadError('staged image verification failed')
             context.checkpoint()
+            if intent is not None:
+                # Pre-publish revision gate while bytes remain in incomplete/.
+                # A normal revision drift must not create an immutable orphan
+                # in generations/ and steadily exhaust capacity on retries.
+                current = self.client.get_artwork_update_revision(
+                    record.remote_id, record.author_id)
+                if (current['author_id'] != record.author_id
+                        or current['page_count'] != record.page_count
+                        or current['illustration_type'] != record.illustration_type
+                        or current['update_date'] != intent.update_date):
+                    raise ManagedDownloadError('author metadata changed during download')
+                context.checkpoint()
+                self._generations.prepare_for_publication()
             folder.rename(final)
             _fsync_dir(destination)
             relative = f"{'generations' if intent is not None else 'outputs'}/{final.name}/receipt.json"
@@ -444,7 +467,7 @@ class ManagedPixivDownloads:
             if intent is not None:
                 self._generations.publish(record.remote_id, relative, digest,
                     intent.update_date, intent.expected_receipt_sha256,
-                    intent.expected_relative_receipt)
+                    intent.expected_relative_receipt, fingerprint)
             return relative
         except ManagedDownloadError:
             raise

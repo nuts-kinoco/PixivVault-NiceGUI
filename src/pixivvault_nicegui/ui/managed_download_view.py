@@ -403,13 +403,16 @@ class ManagedDownloadView:
         if previous is not self.author_targets:
             self.author_revision += 1
         self._render_author_targets()
-        self._render_follow_list()
+        # Selection mark repaint must not invalidate another quick click
+        # from the same filtered author page.
+        self._render_follow_list(invalidate=False)
 
-    def _render_follow_list(self):
+    def _render_follow_list(self, *, invalidate=True):
         if self.closed:
             return
         matches = filter_authors(self.follow_authors, self.follow_query)
-        self.follow_render_generation += 1
+        if invalidate:
+            self.follow_render_generation += 1
         self.follow_list.clear()
         with self.follow_list:
             for author in matches[:self.follow_shown]:
@@ -505,9 +508,16 @@ class ManagedDownloadView:
                         deferred += 1
                         continue
                     wid = work['id']
-                    if wid in self.selected or wid in staged:
+                    if wid in staged:
                         continue
-                    if len(staged) + len(self.selected) >= 128:
+                    # An already checked ordinary/bookmark record may need
+                    # upgrading to a verified UPDATED v2 author generation.
+                    # Skipping it would silently enqueue a v1 intent and
+                    # reuse the outdated completed receipt instead.
+                    if wid in self.selected and classification is not Difference.UPDATED:
+                        continue
+                    new_count = sum(key not in self.selected for key in staged)
+                    if wid not in self.selected and new_count + len(self.selected) >= 128:
                         raise RuntimeError('author selection exceeds safe per-view limit')
                     record = await self.services.lookup_managed_work_id(
                         wid, owner=self._owner, publish=False)
@@ -529,15 +539,22 @@ class ManagedDownloadView:
             authorized = self.services.remember_managed_author_batch(
                 self._owner, tuple(staged.values()))
             for record in authorized:
-                self._direct_records[record.work_id] = record
-                self.selected[record.work_id] = record
                 work, classification, origin = staged_meta[record.work_id]
                 date = work.get('update_date', '')
-                if type(date) is str:
-                    self._available_author_intents[record.work_id] = ManagedAuthorIntent(
-                        record, origin, date, work.get('expected_receipt_sha256'),
-                        'updated' if classification is Difference.UPDATED else 'new',
-                        work.get('expected_relative_receipt'))
+                next_intent = (ManagedAuthorIntent(
+                    record, origin, date, work.get('expected_receipt_sha256'),
+                    'updated' if classification is Difference.UPDATED else 'new',
+                    work.get('expected_relative_receipt'))
+                    if type(date) is str else None)
+                # Preserve the previously accepted operation for an identical
+                # retry; rotate only if the frozen intent actually changes.
+                # The latter prevents a failed v1 intent being replayed as v2.
+                if self._available_author_intents.get(record.work_id) != next_intent:
+                    self._operations.pop(record.work_id, None)
+                self._direct_records[record.work_id] = record
+                self.selected[record.work_id] = record
+                if next_intent is not None:
+                    self._available_author_intents[record.work_id] = next_intent
             if added or updated:
                 self._bump_selection()
             self._load_cached()

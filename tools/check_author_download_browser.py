@@ -27,10 +27,11 @@ def verify_saved(root):
     from io import BytesIO
     from PIL import Image
     index = json.loads((root / 'active-generations.json').read_text(encoding='utf-8'))
-    assert type(index['version']) is int and index['version'] == 1
+    assert type(index['version']) is int and index['version'] == 2
     assert tuple(index['entries']) == ('321',)
     selected = index['entries']['321']
     assert selected['update_date'] == '2026-10-24T10:00:00+09:00'
+    assert re.fullmatch('[a-f0-9]{64}', selected['accepted_fingerprint'])
     relative = selected['relative_receipt']
     assert relative.startswith('generations/work-321-') and relative.endswith('/receipt.json')
     receipt_path = root / relative

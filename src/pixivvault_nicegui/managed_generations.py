@@ -26,6 +26,7 @@ _FOLDER = re.compile(r'work-([1-9][0-9]{0,19})-[a-f0-9]{32}\Z')
 _GEN_REL = re.compile(r'generations/work-([1-9][0-9]{0,19})-[a-f0-9]{32}/receipt\.json\Z')
 _INDEX_KEYS = frozenset({'version', 'entries'})
 _ENTRY_KEYS = frozenset({'work_id', 'relative_receipt', 'sha256', 'update_date'})
+_ENTRY_WITH_JOB = _ENTRY_KEYS | {'accepted_fingerprint'}
 _RECEIPT_KEYS = frozenset({'version', 'source', 'work_id', 'author_id',
                            'author_name', 'title', 'tags', 'created_at', 'saved_at',
                            'illustration_type', 'x_restrict', 'page_count', 'files'})
@@ -179,20 +180,31 @@ class ManagedGenerations:
         if self.index_path.is_symlink():
             raise ManagedDownloadError('generation index link rejected')
         if not self.index_path.exists():
+            # Once any immutable generation was sealed, dropping the only
+            # active pointer must NEVER silently expose old images or an
+            # empty library. An empty pointer is installed before the first
+            # generation is sealed, even if the subsequent save is cancelled.
+            _safe_path(self.generation_dir)
+            if any(self.generation_dir.iterdir()):
+                raise ManagedDownloadError('active generation index missing')
             return {}
         try:
             raw = _read_bounded(self.index_path, _MAX_INDEX_BYTES)
             packet = json.loads(raw, object_pairs_hook=_json_unique)
             if (type(packet) is not dict or packet.keys() != _INDEX_KEYS
-                    or type(packet['version']) is not int or packet['version'] != 1
+                    or type(packet['version']) is not int or packet['version'] not in (1, 2)
                     or type(packet['entries']) is not dict
                     or len(packet['entries']) > _MAX_ENTRIES):
                 raise ValueError()
             result = {}
             for wid, entry in packet['entries'].items():
                 _id(wid)
-                if type(entry) is not dict or entry.keys() != _ENTRY_KEYS:
+                if (type(entry) is not dict or
+                        (entry.keys() != _ENTRY_KEYS and
+                         (packet['version'] != 2 or entry.keys() != _ENTRY_WITH_JOB))):
                     raise ValueError()
+                if 'accepted_fingerprint' in entry:
+                    _sha(entry['accepted_fingerprint'])
                 if entry['work_id'] != wid or type(entry['work_id']) is not str:
                     raise ValueError()
                 if (type(entry['relative_receipt']) is not str
@@ -230,12 +242,38 @@ class ManagedGenerations:
         current = self.entries().get(wid)
         return dict(current) if current is not None else None
 
+    def prepare_for_publication(self) -> None:
+        """Persist a zero-entry pointer before exposing any new generation.
+
+        A crash before the rename leaves no visible generation. A crash after
+        the rename still leaves this pointer, so missing-index corruption can
+        be distinguished from a fresh v1-only managed root on restart.
+        """
+        with self._lock:
+            if self.index_path.exists():
+                self._index()  # Never trust a preexisting malformed index.
+                return
+            self._index()  # Reject an already-missing index with generations.
+            _safe_path(self.stage_dir)
+            temporary = self.stage_dir / ('prepare-' + uuid4().hex + '.tmp')
+            try:
+                _write(temporary, b'{"entries":{},"version":2}')
+                _fsync_dir(self.stage_dir)
+                _safe_path(self.index_path, file=True)
+                temporary.replace(self.index_path)
+                _fsync_dir(self.root)
+            except Exception:
+                raise ManagedDownloadError('generation index preparation failed') from None
+
     def publish(self, work_id: str, relative_receipt: str, sha256: str,
                 update_date: str, expected_previous_sha256: str | None,
-                expected_previous_relative_receipt: str | None = None) -> dict[str, str]:
+                expected_previous_relative_receipt: str | None = None,
+                accepted_fingerprint: str | None = None) -> dict[str, str]:
         wid = _id(work_id)
         digest = _sha(sha256)
         date = _date(update_date, allow_empty=True)
+        if accepted_fingerprint is not None:
+            _sha(accepted_fingerprint)
         if (type(relative_receipt) is not str
                 or not _GEN_REL.fullmatch(relative_receipt)
                 or _GEN_REL.fullmatch(relative_receipt).group(1) != wid):
@@ -253,7 +291,15 @@ class ManagedGenerations:
             before = active.get(wid)
             # Safe idempotent replay after index commit but before job DB commit.
             if (before is not None and before['relative_receipt'] == relative_receipt
-                    and before['sha256'] == digest and before['update_date'] == date):
+                    and before['sha256'] == digest and before['update_date'] == date
+                    and before.get('accepted_fingerprint') == accepted_fingerprint):
+                # An active pointer matching the same operation is not proof
+                # that page bytes remain intact. Revalidate all pages before
+                # reporting an idempotent completion after a crash/retry.
+                verified = self._receipt_entry(relative_receipt, wid,
+                                               update_date=date, verify_complete=True)
+                if verified['sha256'] != digest:
+                    raise ManagedDownloadError('active generation checksum mismatch')
                 return dict(before)
             if ((before['sha256'] if before is not None else None) != expected_previous_sha256
                     or (before['relative_receipt'] if before is not None else None)
@@ -263,11 +309,13 @@ class ManagedGenerations:
                                          update_date=date, verify_complete=True)
             if target['sha256'] != digest:
                 raise ManagedDownloadError('new generation checksum mismatch')
+            if accepted_fingerprint is not None:
+                target['accepted_fingerprint'] = accepted_fingerprint
             indexed = self._index()
             indexed[wid] = target
             if len(indexed) > _MAX_ENTRIES:
                 raise ManagedDownloadError('generation limit exceeded')
-            packet = {'version': 1, 'entries': indexed}
+            packet = {'version': 2, 'entries': indexed}
             data = json.dumps(packet, sort_keys=True, ensure_ascii=True,
                               separators=(',', ':')).encode('ascii')
             if len(data) > _MAX_INDEX_BYTES:
