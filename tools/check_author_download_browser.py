@@ -6,6 +6,7 @@ browser cannot contact any non-local address. No real account IDs are logged.
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 import json
 from pathlib import Path
 import re
@@ -16,6 +17,7 @@ import sys
 import time
 import traceback
 from urllib.parse import urlsplit
+from urllib.request import Request, ProxyHandler, build_opener
 
 if __package__ in (None, ''):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -87,7 +89,8 @@ def verify_saved(root, *, expected_update_date='2026-10-24T10:00:00+09:00',
     return receipt
 
 
-def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True):
+def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True,
+            expected_metadata_revision=None):
     from playwright.sync_api import expect
     page.goto(base, wait_until='domcontentloaded')
     if not restart:
@@ -141,6 +144,62 @@ def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True):
             '1件をキュー', timeout=20000)
         page.get_by_test_id('tab-queue').click()
         expect(queue.get_by_test_id('queue-filter-done')).to_contain_text('完了 2', timeout=30000)
+    # Phase10 M4 UI: opening a tab must neither provision a side-ledger nor
+    # read the fake remote account. Only the explicit button creates a local
+    # metadata ledger. The ON setting persists on restart but starts no GET.
+    metadata_db = root / '.pixivvault-managed-metadata.sqlite3'
+    metadata_absent_before_tab = not metadata_db.exists()
+    requests_before_metadata = page.request.get(
+        base + '/_managed_test/status', headers=headers).json()['request_count']
+    if not restart:
+        assert not metadata_db.exists()
+    page.get_by_test_id('tab-metadata').click()
+    expect(page.get_by_test_id('metadata-view')).to_be_visible()
+    if not restart:
+        assert not metadata_db.exists()
+    page.get_by_test_id('metadata-open').click()
+    expect(page.get_by_test_id('metadata-save')).to_be_enabled(timeout=15000)
+    expect(page.get_by_test_id('metadata-status')).to_contain_text('自動取得なし')
+    assert metadata_db.is_file()
+    if not restart:
+        metadata_uri = metadata_db.resolve().as_uri() + '?mode=ro'
+        with closing(sqlite3.connect(metadata_uri, uri=True, timeout=1.0)) as metadata_conn:
+            metadata_conn.execute('PRAGMA query_only=ON')
+            enabled_before_save, revision_before_save = metadata_conn.execute(
+                'SELECT enabled,revision FROM settings WHERE id=1').fetchone()
+        assert enabled_before_save == 0
+        # The current settings CAS increments revision exactly once per save;
+        # if that contract changes, this acceptance must be updated explicitly.
+        expected_metadata_revision = revision_before_save + 1
+        expect(page.get_by_test_id('metadata-enabled')).not_to_be_checked()
+        page.get_by_test_id('metadata-enabled').click()
+        expect(page.get_by_test_id('metadata-enabled')).to_be_checked()
+        page.get_by_test_id('metadata-save').click()
+        expect(page.get_by_test_id('metadata-status')).to_contain_text('保存済み設定: ON')
+    else:
+        expect(page.get_by_test_id('metadata-enabled')).to_be_checked()
+    page.get_by_test_id('metadata-work-id').fill('321')
+    page.get_by_test_id('metadata-inspect').click()
+    expect(page.get_by_test_id('metadata-entry-status')).to_contain_text('記録はありません')
+    expect(page.get_by_test_id('metadata-progress')).to_contain_text('台帳登録 0件')
+    requests_after_metadata = page.request.get(
+        base + '/_managed_test/status', headers=headers).json()['request_count']
+    assert requests_after_metadata == requests_before_metadata, (
+        'metadata tab/configuration caused an implicit Pixiv request')
+    # Verify the displayed empty-state against the actual isolated side-ledger,
+    # not just a UI label. Open it in read-only mode so acceptance cannot mutate it.
+    if expected_metadata_revision is None:
+        raise AssertionError('initial run did not establish metadata settings revision')
+    metadata_uri = metadata_db.resolve().as_uri() + '?mode=ro'
+    with closing(sqlite3.connect(metadata_uri, uri=True, timeout=1.0)) as metadata_conn:
+        metadata_conn.execute('PRAGMA query_only=ON')
+        enabled, revision = metadata_conn.execute(
+            'SELECT enabled,revision FROM settings WHERE id=1').fetchone()
+        metadata_entries = metadata_conn.execute(
+            'SELECT COUNT(*) FROM metadata').fetchone()[0]
+    assert metadata_entries == 0, 'synthetic metadata ledger must remain empty'
+    assert enabled == 1, 'explicitly saved ON setting must persist'
+    assert revision == expected_metadata_revision, 'settings CAS revision must be stable across restart'
     page.get_by_test_id('tab-library').click()
     library = page.get_by_test_id('library-view')
     if not restart:
@@ -190,7 +249,6 @@ def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True):
         page.get_by_text('自動チェックしない', exact=True).click()
         page.get_by_test_id('scheduler-save').click()
         page.get_by_test_id('scheduler-run').click()
-        from playwright.sync_api import expect
         deadline = time.monotonic() + 30
         accepted, deferred, dispatch_status = 0, 0, 'running'
         while time.monotonic() < deadline:
@@ -238,7 +296,6 @@ def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True):
     elif scheduler_acceptance:
         page.get_by_test_id('tab-scheduler').click()
         page.get_by_test_id('scheduler-open').click()
-        from playwright.sync_api import expect
         expect(page.get_by_test_id('scheduler-history')).to_contain_text('saved', timeout=10000)
     status = page.request.get(base + '/_managed_test/status', headers=headers).json()
     assert status['all_requests_get'] and status['allowed_https_hosts_only']
@@ -251,6 +308,16 @@ def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True):
     if restart:
         assert status['request_count'] == 0
     return {'restart': restart, 'pages': 2, 'viewer_decode_and_focus': True,
+            'metadata': {
+                'sidecar_absent_before_tab': metadata_absent_before_tab,
+                'sidecar_created_by_explicit_open': bool(not restart and metadata_absent_before_tab
+                                                         and metadata_db.is_file()),
+                'enabled': bool(enabled), 'settings_revision': revision,
+                'entry_count': metadata_entries,
+                'fake_pixiv_request_count_before': requests_before_metadata,
+                'fake_pixiv_request_count_after': requests_after_metadata,
+                'fake_pixiv_request_delta': requests_after_metadata - requests_before_metadata,
+            },
             'scheduler_settings_dispatch_receipt_history':
                 (scheduler_saved or restart) if scheduler_acceptance else False,
             'original_gets': status['original_gets'].get('321', 0)}
@@ -273,6 +340,7 @@ def run(channel, output):
                 for width, height in ((1280, 720), (1920, 1080)):
                     root = (output / f'author-{width}x{height}').resolve()
                     root.mkdir()
+                    expected_metadata_revision = None
                     for restart in (False, True):
                         port, nonce = free_port(), secrets.token_hex(16)
                         base, headers = f'http://127.0.0.1:{port}', {'X-Acceptance': nonce}
@@ -300,9 +368,11 @@ def run(channel, output):
                                     if m.type == 'error' else None)
                             page.on('pageerror', lambda e: results['page_errors'].append(str(e)[:250]))
                             results['viewports'].append({'viewport': [width, height],
-                                                         **inspect(page, base, headers, root, restart=restart)})
+                                                         **inspect(page, base, headers, root, restart=restart,
+                                                                   expected_metadata_revision=expected_metadata_revision)})
+                            if not restart:
+                                expected_metadata_revision = results['viewports'][-1]['metadata']['settings_revision']
                             context.close(); context = None
-                            from urllib.request import Request, ProxyHandler, build_opener
                             request = Request(base + '/_managed_test/shutdown', data=b'',
                                               headers=headers, method='POST')
                             with build_opener(ProxyHandler({})).open(request, timeout=5):

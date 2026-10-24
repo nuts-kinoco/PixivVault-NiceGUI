@@ -235,6 +235,7 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
                readonly_library: bool = False, failed_records: bool = False,
                download_sandbox: Path | None = None, jobs_restart: bool = False,
                managed_root: Path | None = None, managed_restart: bool = False,
+               phase_report: dict | None = None,
                managed_before: dict | None = None) -> dict:
     """Use Playwright's WebView2 CDP attachment, never close remote browser/context."""
     from playwright.sync_api import expect, sync_playwright
@@ -243,6 +244,12 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
               "image_decoded": False, "bridge_ready": False,
               "console_errors": [], "page_errors": [], "screenshot": None,
               "interactions": []}
+    def mark_phase(name: str) -> None:
+        # Fixed diagnostic labels only; never persist page text, paths or IDs.
+        if phase_report is not None:
+            phase_report["ui_inspection_phase"] = name
+
+    mark_phase("cdp_connect")
     with sync_playwright() as playwright:
         check_owner()
         remaining_ms = int((deadline - time.monotonic()) * 1000)
@@ -252,6 +259,7 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
             f"http://127.0.0.1:{debug_port}", timeout=min(5000, remaining_ms))
         # sync_playwright context exit disconnects CDP; do not call browser.close/context.close.
         pages = []
+        mark_phase("find_page")
         def find_page() -> bool:
             nonlocal pages
             check_owner()
@@ -264,6 +272,7 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
         page = pages[0]
         guard = NativeUiGuard(page, app_port, deadline, check_owner)
         run = guard.run
+        mark_phase("inspect_managed")
         if managed_root is not None:
             if __package__:
                 from .check_managed_download_native import inspect_managed
@@ -273,6 +282,7 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
             return inspect_managed(page, guard, managed_root, restart=managed_restart,
                                    before=managed_before)
         result['browser_version'] = browser.version
+        mark_phase("ready_handshake")
         result['viewport'] = run(page.evaluate, '''() => ({
             width: window.innerWidth, height: window.innerHeight,
             device_pixel_ratio: window.devicePixelRatio
@@ -297,6 +307,7 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
                 result['image_decoded'], result['bridge_ready'])):
             # 実際のWebViewでイベント往復と画像完了を確認する。
             # 単にHTTPが起動したことをnative画面の受入と混同しない。
+            mark_phase("gallery_open")
             run(page.locator('.pv-card').first.click)
             viewer = page.get_by_test_id('gallery-viewer')
             run(expect(viewer).to_be_visible)
@@ -356,6 +367,7 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
             run(expect(page.get_by_test_id('tab-ranking')).to_be_focused)
             run(expect(viewer).to_be_hidden)
             result['interactions'].append('tab-scoped viewer/leave/learning keyboard/return focus')
+            mark_phase("learning_persistence" if learning_persistence else "library")
             if learning_persistence:
                 run(page.get_by_test_id('tab-learning').click)
                 run(expect(learning).to_have_attribute, 'data-storage-mode', 'sandbox')
@@ -381,12 +393,15 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
                 }
                 result['interactions'].append('sandbox judgment persists across WebView reload')
             if readonly_library:
+                mark_phase("readonly_library")
                 result['library'] = inspect_readonly_library_ui(page, screenshot, guard)
                 result['interactions'].append('readonly SQLite library + saved images / bookmark roundtrip')
             else:
+                mark_phase("library")
                 result['library'] = inspect_library_ui(page, screenshot, guard)
                 result['interactions'].append('library author/search/all pages/viewer/tab return/shared size')
             if failed_records:
+                mark_phase("failed_records")
                 if __package__:
                     from .check_failed_records_native import inspect_failed_records
                 else:
@@ -394,6 +409,7 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
                 result['failed_records'] = inspect_failed_records(page, screenshot, guard)
                 result['interactions'].append('legacy failure records/search/category/page/read-only actions')
             if download_sandbox is not None:
+                mark_phase("download_jobs")
                 if __package__:
                     from .check_download_jobs_native import inspect_download_jobs
                 else:
@@ -401,6 +417,7 @@ def inspect_ui(debug_port: int, app_port: int, screenshot: Path, deadline: float
                 result['download_jobs'] = inspect_download_jobs(
                     page, screenshot, guard, download_sandbox, restart=jobs_restart)
                 result['interactions'].append('native synthetic downloads/receipts/restart')
+        mark_phase("final_screenshot")
         run(page.screenshot, path=str(screenshot), full_page=False)
         result["screenshot"] = str(screenshot)
         guard.check()
@@ -920,7 +937,8 @@ def main(argv: list[str] | None = None) -> int:
                         # namespace; never overwrite shared evidence names.
                         screenshot = output_path.with_name(output_path.stem + "-webview-ui.png")
                         inspect_kwargs = {"check_owner": check_ui_owner,
-                                          "learning_persistence": args.learning_sandbox is not None}
+                                          "learning_persistence": args.learning_sandbox is not None,
+                                          "phase_report": report}
                         if args.library_readonly_db is not None:
                             inspect_kwargs["readonly_library"] = True
                         if args.inspect_failed_records:
