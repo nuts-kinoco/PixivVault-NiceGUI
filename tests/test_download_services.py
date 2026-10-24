@@ -83,9 +83,9 @@ def test_job_shutdown_precedes_closing_shared_images(tmp_path, monkeypatch):
     service = ApplicationServices(3, download_sandbox=tmp_path / "downloads")
     order = []
     close_jobs, close_images = service.jobs.close, service.images.close
-    def record_jobs():
+    def record_jobs(*, timeout=10.0):
         order.append("jobs")
-        close_jobs()
+        close_jobs(timeout=timeout)
     def record_images():
         assert service.jobs.closed
         order.append("images")

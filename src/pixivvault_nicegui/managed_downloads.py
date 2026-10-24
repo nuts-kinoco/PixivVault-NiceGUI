@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 import re
 import stat
-from threading import Lock
+from threading import Lock, RLock
 from uuid import uuid4
 
 from PIL import Image
@@ -149,6 +149,8 @@ class ManagedPixivDownloads:
         self.resolve_record = resolve_record
         self.closed = False
         self._writer = Lock()
+        self._work_locks_guard = Lock()
+        self._work_locks: dict[str, RLock] = {}
         marker = self.root / MARKER
         if self.root.exists():
             if tuple(self.root.iterdir()) and not marker.is_file():
@@ -179,6 +181,17 @@ class ManagedPixivDownloads:
         _safe_path(self.generation_outputs)
         from .managed_generations import ManagedGenerations
         self._generations = ManagedGenerations(self.root)
+
+    def work_lock(self, work_id: str) -> RLock:
+        """Shared per-work lock for acceptance and active-generation publication."""
+        if type(work_id) is not str or not _ID.fullmatch(work_id):
+            raise ManagedDownloadError('managed work lock identity rejected')
+        with self._work_locks_guard:
+            lock = self._work_locks.get(work_id)
+            if lock is None:
+                lock = RLock()
+                self._work_locks[work_id] = lock
+            return lock
 
     @property
     def storage_path(self) -> Path:
@@ -302,6 +315,25 @@ class ManagedPixivDownloads:
             result.append((relative, receipt, digest, date))
         return tuple(result)
 
+    def verified_saved_receipt(self, work_id: str, *, verify_pages: bool = True) -> tuple[str, dict, str, str | None, str | None] | None:
+        """Verify one active receipt for scheduler reconciliation without a full rescan."""
+        if (self.closed or type(work_id) is not str or not _ID.fullmatch(work_id)
+                or type(verify_pages) is not bool):
+            raise ManagedDownloadError('managed receipt lookup rejected')
+        entry = self._generations.current(work_id)
+        if entry is None:
+            return None
+        relative = entry.get('relative_receipt')
+        receipt, digest = self._receipt(relative, verify_pages=verify_pages)
+        if receipt['work_id'] != work_id or digest != entry.get('sha256'):
+            raise ManagedDownloadError('active receipt verification failed')
+        value = entry.get('update_date')
+        date = value if type(value) is str and value else None
+        fingerprint = entry.get('accepted_fingerprint')
+        if fingerprint is not None and (type(fingerprint) is not str or not re.fullmatch(r'[a-f0-9]{64}', fingerprint)):
+            raise ManagedDownloadError('active receipt fingerprint rejected')
+        return relative, receipt, digest, date, fingerprint
+
     def saved_receipts(self) -> tuple[tuple[str, dict, str], ...]:
         """Compatibility projection; v1 catalogs keep their original shape."""
         return tuple((relative, receipt, digest)
@@ -339,6 +371,9 @@ class ManagedPixivDownloads:
         return data
 
     def run(self, job, context, *, intent=None) -> str:
+        return self._run_locked(job, context, intent=intent)
+
+    def _run_locked(self, job, context, *, intent=None) -> str:
         if not self._writer.acquire(blocking=False):
             raise ManagedDownloadError("managed writer already active")
         try:
@@ -358,40 +393,44 @@ class ManagedPixivDownloads:
             # Scanning+decoding every previously saved image for *each* work
             # in an author batch was quadratic in stored image bytes. Full
             # catalog validation still occurs at startup and library refresh.
-            active_entry = self._generations.current(record.remote_id)
-            previous = None
-            if active_entry is not None:
-                relative = active_entry['relative_receipt']
-                receipt, digest = self._receipt(relative)
-                if digest != active_entry['sha256'] or receipt['work_id'] != record.remote_id:
-                    raise ManagedDownloadError('active receipt verification failed')
-                previous = (relative, receipt, digest)
-                if intent is None:
-                    if (receipt['page_count'] != record.page_count or
-                            receipt['illustration_type'] != record.illustration_type or
-                            receipt['author_id'] != record.author_id):
-                        raise ManagedDownloadError('saved artwork metadata changed')
-                    context.progress(record.page_count, record.page_count)
-                    context.checkpoint()
-                    return relative
-            if intent is not None:
-                actual_digest = previous[2] if previous is not None else None
-                current_date = active_entry['update_date'] if active_entry else None
-                # Crash after the pointer commit but before the job's SQLite
-                # terminal commit: verify and reuse the durable new generation.
-                if (previous is not None and current_date == intent.update_date
-                        and active_entry.get('accepted_fingerprint') == fingerprint
-                        and previous[1]['author_id'] == record.author_id
-                        and previous[1]['page_count'] == record.page_count
-                        and previous[1]['illustration_type'] == record.illustration_type):
-                    context.progress(record.page_count, record.page_count)
-                    context.checkpoint()
-                    return previous[0]
-                if (actual_digest != intent.expected_receipt_sha256
-                        or (previous[0] if previous is not None else None) != intent.expected_relative_receipt
-                        or intent.mode == 'new' and previous is not None
-                        or intent.mode == 'updated' and previous is None):
-                    raise ManagedDownloadError('author download generation changed')
+            # Read and validate the expected active generation atomically with
+            # acceptance's final receipt check, but do not hold the lock over
+            # network/image I/O: queued same-ID requests must still deduplicate.
+            with self.work_lock(record.remote_id):
+                active_entry = self._generations.current(record.remote_id)
+                previous = None
+                if active_entry is not None:
+                    relative = active_entry['relative_receipt']
+                    receipt, digest = self._receipt(relative)
+                    if digest != active_entry['sha256'] or receipt['work_id'] != record.remote_id:
+                        raise ManagedDownloadError('active receipt verification failed')
+                    previous = (relative, receipt, digest)
+                    if intent is None:
+                        if (receipt['page_count'] != record.page_count or
+                                receipt['illustration_type'] != record.illustration_type or
+                                receipt['author_id'] != record.author_id):
+                            raise ManagedDownloadError('saved artwork metadata changed')
+                        context.progress(record.page_count, record.page_count)
+                        context.checkpoint()
+                        return relative
+                if intent is not None:
+                    actual_digest = previous[2] if previous is not None else None
+                    current_date = active_entry['update_date'] if active_entry else None
+                    # Crash after the pointer commit but before the job's SQLite
+                    # terminal commit: verify and reuse the durable new generation.
+                    if (previous is not None and current_date == intent.update_date
+                            and active_entry.get('accepted_fingerprint') == fingerprint
+                            and previous[1]['author_id'] == record.author_id
+                            and previous[1]['page_count'] == record.page_count
+                            and previous[1]['illustration_type'] == record.illustration_type):
+                        context.progress(record.page_count, record.page_count)
+                        context.checkpoint()
+                        return previous[0]
+                    if (actual_digest != intent.expected_receipt_sha256
+                            or (previous[0] if previous is not None else None) != intent.expected_relative_receipt
+                            or intent.mode == 'new' and previous is not None
+                            or intent.mode == 'updated' and previous is None):
+                        raise ManagedDownloadError('author download generation changed')
             self.client.verify_identity()
             context.checkpoint()
             if intent is not None:
@@ -465,9 +504,10 @@ class ManagedPixivDownloads:
             _, digest = self._receipt(relative)
             context.checkpoint()
             if intent is not None:
-                self._generations.publish(record.remote_id, relative, digest,
-                    intent.update_date, intent.expected_receipt_sha256,
-                    intent.expected_relative_receipt, fingerprint)
+                with self.work_lock(record.remote_id):
+                    self._generations.publish(record.remote_id, relative, digest,
+                        intent.update_date, intent.expected_receipt_sha256,
+                        intent.expected_relative_receipt, fingerprint)
             return relative
         except ManagedDownloadError:
             raise

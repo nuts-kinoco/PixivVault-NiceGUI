@@ -6,7 +6,7 @@ import asyncio
 from collections import OrderedDict
 from pathlib import Path
 import re
-from threading import Lock, RLock
+from threading import Event, Lock, RLock
 
 from .fixtures import generate_demo_artworks
 from .media import DemoImageCatalog
@@ -75,6 +75,12 @@ class ApplicationServices:
         self.legacy_zip_exporter = None
         self.legacy_diff_image_root = legacy_diff_image_root
         self.legacy_author_bridge = None
+        self.managed_scheduler = None
+        self.managed_schedule_runner = None
+        self._managed_scheduler_lock = Lock()
+        self._scheduler_dispatch_lock = Lock()
+        self._scheduler_cancel_event = Event()
+        self._scheduler_unfinished_count = None
         self.failed_queue_readonly_db = failed_queue_readonly_db
         self._failed_copy_signature = failure_signature
         self.managed_downloads = None
@@ -206,6 +212,11 @@ class ApplicationServices:
                 self.library = snapshot
                 self._managed_receipts = catalog.receipts
                 self._cached_local_bookmarks = local
+                from .managed_scheduler import ManagedScheduler
+                if ManagedScheduler.configured(self.managed_downloads.root):
+                    # The ledger was created only after an explicit opt-in in
+                    # a previous app process; restore the unattended timer.
+                    self.enable_managed_scheduler()
             except BaseException:
                 self.close()
                 raise
@@ -626,7 +637,15 @@ class ApplicationServices:
             else:
                 self.jobs.reconcile_interrupted(job.job_id)
 
-    def enqueue_managed_download(self, record, operation_id, *, owner=None):
+    def enqueue_managed_download(self, record, operation_id, *, owner=None, return_created=False):
+        selection = record.record if hasattr(record, 'record') else record
+        if self.managed_downloads is None or not isinstance(getattr(selection, 'work_id', None), str):
+            raise ValueError('invalid managed selection')
+        with self.managed_downloads.work_lock(selection.work_id):
+            return self._enqueue_managed_download_locked(
+                record, operation_id, owner=owner, return_created=return_created)
+
+    def _enqueue_managed_download_locked(self, record, operation_id, *, owner=None, return_created=False):
         """Accept one frozen selection off-loop, then let the app own its job.
 
         Do not hold the short candidate lock over SQLite I/O. A later refresh
@@ -664,7 +683,7 @@ class ApplicationServices:
             live_ids = {job.job_id for job in self.jobs.snapshot()}
             self._managed_job_records = {key: value for key, value in self._managed_job_records.items()
                                          if key in live_ids}
-            return accepted
+            return (accepted, existing is None) if return_created else accepted
 
     def library_snapshot(self) -> LibrarySnapshot:
         """Return the last successful immutable snapshot; never read SQLite on the UI loop."""
@@ -882,29 +901,116 @@ class ApplicationServices:
     def close(self) -> None:
         with self._close_lock:
             if not self.closed:
-                self.closing = True
-                # Accepted jobs outlive views; join the worker before closing
-                # the image provider it may still be using.
-                if self.jobs is not None:
-                    self.jobs.close()
-                if self.download_writer is not None:
-                    self.download_writer.close()
-                if self.managed_downloads is not None:
-                    if self.legacy_zip_exporter is not None:
-                        self.legacy_zip_exporter.close()
-                    self.managed_downloads.close()
-                if self.legacy_author_bridge is not None:
-                    self.legacy_author_bridge.close()
+                # The same lifecycle lock guards enable-vs-close. Once close
+                # marks `closing`, no new runner can be published.
+                with self._managed_scheduler_lock:
+                    self.closing = True
+                self._scheduler_cancel_event.set()
+                if self.managed_schedule_runner is not None:
+                    # No provider/SQLite resource may close while its GET
+                    # dispatch worker still uses it. A bounded network read
+                    # may legally outlive the runner's short stop timeout.
+                    self.managed_schedule_runner.stop(timeout=150.0)
+                # Manual dispatch and the timer share this barrier. Do not
+                # close JobService/CAS/HTTP while either still uses them.
+                with self._scheduler_dispatch_lock:
+                    self._close_resources()
+
+    def _close_resources(self):
+        # Accepted jobs outlive views; join the worker before closing the
+        # image provider it may still be using.
+        if self.jobs is not None:
+            self.jobs.close(timeout=150.0)
+        if self.download_writer is not None:
+            self.download_writer.close()
+        if self.managed_downloads is not None:
+            if self.legacy_zip_exporter is not None:
+                self.legacy_zip_exporter.close()
+            self.managed_downloads.close()
+        if self.legacy_author_bridge is not None:
+            self.legacy_author_bridge.close()
+        try:
+            if self.learning is not None:
+                self.learning.close()
+        finally:
+            self.images.close()
+            if self.library_repository is not None:
+                self.library_repository.close()
+            if self.live_client is not None:
+                self.live_client.close()
+            if self.managed_scheduler is not None:
+                self.managed_scheduler.close()
+            self.closed = True
+
+    def enable_managed_scheduler(self):
+        """Explicit opt-in, after managed-only application resources exist."""
+        with self._close_lock, self._managed_scheduler_lock:
+            if self.closing or self.managed_downloads is None or self.live_client is None:
+                raise RuntimeError('isolated managed Pixiv mode is required')
+            if self.managed_scheduler is None:
+                from .managed_scheduler import ManagedScheduler, ManagedScheduleRunner, submit_author_batch
+                ledger = ManagedScheduler(self.managed_downloads.root)
+
+                def dispatch(slot, cancellation):
+                    # Queue acceptance is not a verified saved receipt.
+                    with self._scheduler_dispatch_lock:
+                        submit_author_batch(self, ledger.favourites(), cancellation=cancellation,
+                                            ledger=ledger, slot=slot)
+
+                runner = ManagedScheduleRunner(ledger, dispatch,
+                                               reconcile=self.reconcile_managed_scheduler)
                 try:
-                    if self.learning is not None:
-                        self.learning.close()
-                finally:
-                    self.images.close()
-                    if self.library_repository is not None:
-                        self.library_repository.close()
-                    if self.live_client is not None:
-                        self.live_client.close()
-                    self.closed = True
+                    runner.start()
+                except BaseException:
+                    ledger.close()
+                    raise
+                self.managed_scheduler = ledger
+                self.managed_schedule_runner = runner
+            return self.managed_scheduler
+
+    def reconcile_managed_scheduler(self):
+        """Join JobService operation history to verified managed CAS receipts."""
+        if (self.closing or self.managed_scheduler is None or self.jobs is None
+                or self.managed_downloads is None):
+            return False
+        from .job_service import UNFINISHED
+        jobs = self.jobs.snapshot()
+        operation_to_job = {}
+        operation_to_fingerprint = {}
+        from .managed_download_requests import ManagedAuthorIntent, accepted_author_fingerprint
+        for job in jobs:
+            accepted = self._managed_job_records.get(job.job_id)
+            fingerprint = (accepted_author_fingerprint(accepted, job.job_id)
+                           if isinstance(accepted, ManagedAuthorIntent) else None)
+            for operation_id in self.jobs.operation_ids(job.job_id):
+                operation_to_job[operation_id] = job.job_id
+                if fingerprint is not None:
+                    operation_to_fingerprint[operation_id] = fingerprint
+        receipt_fingerprints = {}
+        for work_id, expected in self.managed_scheduler.reconcile_expected_fingerprints(
+                operation_to_fingerprint).items():
+            if not expected:
+                continue
+            # Matching only by work ID would repeatedly hash/decode a valid
+            # *old* generation for an unresolved newer operation every 5s.
+            # The header/index-only check is bounded; only the exact
+            # job-specific fingerprint warrants full page verification.
+            cheap = self.managed_downloads.verified_saved_receipt(work_id, verify_pages=False)
+            if cheap is None or cheap[4] not in expected:
+                continue
+            receipt = self.managed_downloads.verified_saved_receipt(work_id)
+            if receipt is not None and receipt[4] in expected:
+                receipt_fingerprints[receipt[1]['work_id']] = receipt[4]
+        self.managed_scheduler.reconcile_jobs(
+            jobs, receipt_fingerprints, operation_to_job, operation_to_fingerprint)
+        unfinished_count = sum(1 for job in jobs if job.state in UNFINISHED)
+        previous_count = self._scheduler_unfinished_count
+        self._scheduler_unfinished_count = unfinished_count
+        if (previous_count is not None and unfinished_count < previous_count
+                and self.managed_scheduler.has_deferred()
+                and self.managed_schedule_runner is not None):
+            self.managed_schedule_runner.settings_changed()
+        return unfinished_count < 50
 
 
 _services: ApplicationServices | None = None

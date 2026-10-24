@@ -39,6 +39,7 @@ class ManagedTransport(SyntheticPixivTransport):
         self.original_gets = Counter()
         self.regular_gets = Counter()
         self.author_revision = '2026-10-23T10:00:00+09:00'
+        self.scheduler_many = False
 
     def __call__(self, request, timeout, limit, deadline):
         url = urlsplit(request.full_url)
@@ -58,19 +59,26 @@ class ManagedTransport(SyntheticPixivTransport):
         if url.path == '/ajax/user/24/profile/all':
             self.request_count += 1
             assert request.get_method() == 'GET' and request.has_header('Cookie')
-            return self._packet({'illusts': {'321': None}, 'manga': {}})
+            ids = ['321'] + ([str(wid) for wid in range(400, 469)] if self.scheduler_many else [])
+            return self._packet({'illusts': {wid: None for wid in ids}, 'manga': {}})
         if url.path == '/ajax/user/24/profile/illusts':
             self.request_count += 1
             assert request.get_method() == 'GET' and request.has_header('Cookie')
             from urllib.parse import parse_qs
             params = parse_qs(url.query)
-            assert params.get('ids[]') == ['321']
-            return self._packet({'works': {'321': {
-                'id': '321', 'userId': '24', 'userName': '合成フォロー作者',
-                'title': '合成作者作品', 'illustType': 0, 'pageCount': 2,
-                'updateDate': self.author_revision,
-                'createDate': '2026-10-01T00:00:00+09:00',
-            }}})
+            requested = params.get('ids[]', [])
+            assert requested and all(wid == '321' or
+                                     (wid.isdigit() and 400 <= int(wid) <= 468)
+                                     for wid in requested)
+            works = {}
+            for wid in requested:
+                works[wid] = {
+                    'id': wid, 'userId': '24', 'userName': '合成フォロー作者',
+                    'title': '合成作者作品', 'illustType': 0, 'pageCount': 2,
+                    'updateDate': self.author_revision,
+                    'createDate': '2026-10-01T00:00:00+09:00',
+                }
+            return self._packet({'works': works})
         if url.hostname == self.IMAGE_HOST:
             self.request_count += 1
             self.all_requests_get &= request.get_method() == "GET"
@@ -90,7 +98,10 @@ class ManagedTransport(SyntheticPixivTransport):
                 return png((120, 84), (13, 37, 211) if match.group(2) == "0" else (9, 191, 53))
             self.regular_gets[url.path] += 1
             return png((48, 32), (230, 29, 17))
-        if url.path in ("/ajax/illust/321", "/ajax/illust/322"):
+        wid = url.path.rsplit("/", 1)[-1]
+        if (url.path.startswith('/ajax/illust/') and
+                (wid in {'321', '322'} or
+                 (wid.isdigit() and 400 <= int(wid) <= 468))):
             self.request_count += 1
             self.all_requests_get &= request.get_method() == "GET"
             self.allowed_https_hosts_only &= (url.scheme == "https" and
@@ -99,7 +110,6 @@ class ManagedTransport(SyntheticPixivTransport):
             if not (request.has_header("Cookie") and self.all_requests_get
                     and self.allowed_https_hosts_only):
                 raise AssertionError("direct artwork metadata request invalid")
-            wid = url.path.rsplit("/", 1)[-1]
             return self._packet({
                 "id": wid, "title": "架空のID指定作品", "userId": "24",
                 "userName": "架空の直接作者", "tags": {"tags": [{"tag": "合成"}]},
@@ -118,7 +128,8 @@ class ManagedTransport(SyntheticPixivTransport):
                     and self.allowed_https_hosts_only):
                 raise AssertionError("original pages request invalid")
             wid = url.path.split("/")[3]
-            count = 2 if wid in {"202", "321"} else 1
+            count = 2 if (wid in {"202", "321"} or
+                          (wid.isdigit() and 400 <= int(wid) <= 468)) else 1
             return self._packet([{"urls": {
                 "regular": f"https://i.pximg.net/synthetic/{wid}-page{index}.png",
                 "original": ORIGINAL.format(wid=wid, page=index)}} for index in range(count)])
@@ -182,12 +193,17 @@ def serve(port, root, nonce, *, zip_export_root=None):
 
             @app.post("/_managed_test/control")
             def control(fail: bool = False, author_updated: bool = False,
+                        scheduler_update: bool = False, scheduler_many: bool = False,
                         x_acceptance: str | None = Header(default=None)):
                 if x_acceptance != nonce:
                     raise HTTPException(403)
                 injected.fail = fail
                 if author_updated:
                     injected.author_revision = '2026-10-24T10:00:00+09:00'
+                if scheduler_update:
+                    injected.author_revision = '2026-10-25T10:00:00+09:00'
+                if scheduler_many:
+                    injected.scheduler_many = True
                 return {"synthetic": True}
 
             @app.post("/_managed_test/shutdown")
@@ -197,8 +213,12 @@ def serve(port, root, nonce, *, zip_export_root=None):
                 app.shutdown()
                 return {"stopping": True}
 
+            # Bound WebSocket draining during synthetic-browser shutdown.
+            # The earlier Phase8 checker needed the same bound on Windows
+            # Proactor, where a closed Chromium context can leave a socket
+            # awaiting teardown indefinitely (not an application GET).
             ui.run(host="127.0.0.1", port=port, show=False, reload=False,
-                   binding_refresh_interval=None)
+                   binding_refresh_interval=None, timeout_graceful_shutdown=5)
         finally:
             client.close()
 

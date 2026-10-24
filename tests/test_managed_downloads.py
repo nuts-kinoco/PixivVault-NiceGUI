@@ -6,7 +6,7 @@ import hashlib
 import io
 import json
 from pathlib import Path
-from threading import Event
+from threading import Event, Thread
 import time
 
 import pytest
@@ -85,6 +85,36 @@ def test_original_two_pages_and_reuse(tmp_path):
     assert runner.run(Job(), Context()) == relative
     assert client.count == 2
     runner.close()
+
+
+def test_work_lock_is_shared_and_serializes_same_work(tmp_path):
+    runner, _ = create(tmp_path)
+    entered = Event()
+    release = Event()
+    finished = Event()
+    first_lock = runner.work_lock('123')
+    assert first_lock is runner.work_lock('123')
+
+    def publication():
+        with first_lock:
+            entered.set()
+            assert release.wait(3)
+        finished.set()
+
+    thread = Thread(target=publication)
+    thread.start()
+    try:
+        assert entered.wait(2)
+        # Acceptance must use the identical lock and cannot pass the active
+        # publication window for this same work ID.
+        assert not runner.work_lock('123').acquire(blocking=False)
+        assert runner.work_lock('124').acquire(blocking=False)
+        runner.work_lock('124').release()
+    finally:
+        release.set()
+        thread.join(3)
+        runner.close()
+    assert finished.is_set() and not thread.is_alive()
 
 
 def test_corruption_cannot_be_read_or_reused(tmp_path):

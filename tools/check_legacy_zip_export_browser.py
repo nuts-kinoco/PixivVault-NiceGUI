@@ -67,8 +67,16 @@ def inspect(page, base, headers, managed, output, *, restart):
     from playwright.sync_api import expect
     # Existing author's browser acceptance saves NEW, then UPDATED generation;
     # it checks image decode, keyboard, focus, restart and zero extra Pixiv GET.
-    details = author_inspect(page, base, headers, managed, restart=restart)
+    # Reuse the manual two-generation author contract, not the later Phase9
+    # scheduler's 70-work batch. The latter is independently covered by the
+    # standalone author checker and would change the ZIP contents and pixels.
+    details = author_inspect(page, base, headers, managed, restart=restart,
+                             scheduler_acceptance=False)
+    # Establish the current tab explicitly; the composed helper has its own
+    # navigation sequence and must not implicitly control this export check.
+    page.get_by_test_id('tab-library').click()
     library = page.get_by_test_id('library-view')
+    expect(library).to_be_visible()
     button = library.get_by_test_id('library-legacy-zip-export')
     expect(button).to_be_visible()
     expect(button).to_be_enabled()
@@ -157,7 +165,9 @@ def run(channel, output):
                                            headers=headers, method='POST')
                             with build_opener(ProxyHandler({})).open(stop, timeout=5):
                                 pass
-                            process.wait(timeout=15)
+                            # Match the already-accepted Phase8 Windows
+                            # graceful shutdown budget, not a forced cleanup.
+                            process.wait(timeout=25)
                             result['normal_exit'].append(process.returncode == 0)
                         finally:
                             if context is not None:
