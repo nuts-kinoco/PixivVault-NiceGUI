@@ -87,7 +87,7 @@ def verify_saved(root, *, expected_update_date='2026-10-24T10:00:00+09:00',
     return receipt
 
 
-def inspect(page, base, headers, root, *, restart):
+def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True):
     from playwright.sync_api import expect
     page.goto(base, wait_until='domcontentloaded')
     if not restart:
@@ -125,7 +125,8 @@ def inspect(page, base, headers, root, *, restart):
     page.get_by_test_id('tab-queue').click()
     queue = page.get_by_test_id('queue-view')
     expect(queue.get_by_test_id('queue-filter-done')).to_contain_text(
-        '完了 50' if restart else '完了 1', timeout=30000)
+        ('完了 50' if scheduler_acceptance else '完了 2') if restart else '完了 1',
+        timeout=30000)
     if not restart:
         # Change only the synthetic GET fixture: no Pixiv write is involved.
         page.request.post(base + '/_managed_test/control?author_updated=true', headers=headers)
@@ -161,12 +162,16 @@ def inspect(page, base, headers, root, *, restart):
     viewer.get_by_role('button', name='閉じる', exact=True).click()
     expect(cards.first).to_be_focused()
     if restart:
-        assert verify_saved(root, expected_update_date='2026-10-25T10:00:00+09:00',
-                            expected_versions=3, expected_entries=70)['page_count'] == 2
+        if scheduler_acceptance:
+            assert verify_saved(root, expected_update_date='2026-10-25T10:00:00+09:00',
+                                expected_versions=3, expected_entries=70)['page_count'] == 2
+        else:
+            assert verify_saved(root, expected_update_date='2026-10-24T10:00:00+09:00',
+                                expected_versions=2, expected_entries=1)['page_count'] == 2
     else:
         assert verify_saved(root)['page_count'] == 2
     scheduler_saved = False
-    if not restart:
+    if scheduler_acceptance and not restart:
         # End-to-end synthetic Phase9: settings UI -> full author inventory ->
         # authorized managed enqueue -> JobService/CAS receipt -> history/toast.
         page.request.post(base + '/_managed_test/control?scheduler_update=true', headers=headers)
@@ -230,7 +235,7 @@ def inspect(page, base, headers, root, *, restart):
         assert item_states == [('saved', 70)], f'unexpected dispatch item states: {item_states!r}'
         assert deferred_count == 0, f'deferred work remains after all 70 saves: {deferred_count}'
         scheduler_saved = True
-    else:
+    elif scheduler_acceptance:
         page.get_by_test_id('tab-scheduler').click()
         page.get_by_test_id('scheduler-open').click()
         from playwright.sync_api import expect
@@ -238,14 +243,16 @@ def inspect(page, base, headers, root, *, restart):
     status = page.request.get(base + '/_managed_test/status', headers=headers).json()
     assert status['all_requests_get'] and status['allowed_https_hosts_only']
     assert status['image_requests_cookie_free']
-    assert status['original_gets'].get('321', 0) == (0 if restart else 6)
-    if not restart:
+    assert status['original_gets'].get('321', 0) == (
+        0 if restart else (6 if scheduler_acceptance else 4))
+    if not restart and scheduler_acceptance:
         assert all(status['original_gets'].get(str(wid), 0) == 2 for wid in range(400, 469))
         assert sum(status['original_gets'].values()) == 6 + 2 * 69
     if restart:
         assert status['request_count'] == 0
     return {'restart': restart, 'pages': 2, 'viewer_decode_and_focus': True,
-            'scheduler_settings_dispatch_receipt_history': scheduler_saved or restart,
+            'scheduler_settings_dispatch_receipt_history':
+                (scheduler_saved or restart) if scheduler_acceptance else False,
             'original_gets': status['original_gets'].get('321', 0)}
 
 

@@ -213,8 +213,12 @@ def serve(port, root, nonce, *, zip_export_root=None):
                 app.shutdown()
                 return {"stopping": True}
 
+            # Bound WebSocket draining during synthetic-browser shutdown.
+            # The earlier Phase8 checker needed the same bound on Windows
+            # Proactor, where a closed Chromium context can leave a socket
+            # awaiting teardown indefinitely (not an application GET).
             ui.run(host="127.0.0.1", port=port, show=False, reload=False,
-                   binding_refresh_interval=None)
+                   binding_refresh_interval=None, timeout_graceful_shutdown=5)
         finally:
             client.close()
 
