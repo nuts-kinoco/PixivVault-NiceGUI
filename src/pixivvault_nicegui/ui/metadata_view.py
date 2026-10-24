@@ -1,4 +1,4 @@
-"""Explicit managed-only metadata settings; no GET or background runner yet."""
+"""Explicit managed-only metadata settings and bounded one-work GET; no scheduler."""
 from __future__ import annotations
 
 import asyncio
@@ -25,10 +25,11 @@ class MetadataView:
         with ui.column().classes('w-full gap-3').props('data-testid=metadata-view') as self.root:
             ui.label('メタデータ後埋め').classes('text-h6')
             ui.label('専用管理フォルダーにのみ設定を保存します。元DBや既存画像は変更しません。')
-            ui.label('取得・自動実行はまだ接続していません。設定をONにしても通信は始まりません。')
+            ui.label('設定をONにしても自動通信はしません。明示実行時のみ保存済み1作品のPixiv詳細をGETします。')
+            ui.label('取得中に新規ダウンロード受付が来た場合、実行中のGETが終わるまで受付が待つことがあります。停止は通信完了待ちです。')
             self.open_button = ui.button('専用メタデータ台帳を開く', on_click=self.open).props(
                 'data-testid=metadata-open')
-            self.enabled = ui.checkbox('後埋め設定をONにする（取得は未接続）').props(
+            self.enabled = ui.checkbox('後埋め設定をONにする（実行は別操作）').props(
                 'data-testid=metadata-enabled')
             self.enabled.on_value_change(lambda _: self._mark_settings_dirty())
             with ui.row().classes('items-center'):
@@ -56,6 +57,14 @@ class MetadataView:
                     on_click=self.resume_blocked).props('data-testid=metadata-resume-blocked')
             self.entry_status = ui.label('指定した作品の状態: 未確認').props(
                 'data-testid=metadata-entry-status role=status')
+            with ui.row().classes('items-center'):
+                self.run_button = ui.button('指定した保存済み1作品を取得', on_click=self.run_one).props(
+                    'data-testid=metadata-run-one')
+                self.stop_button = ui.button('取得の停止を要求', on_click=self.stop_run).props(
+                    'data-testid=metadata-stop')
+            self.run_status = ui.label('取得処理: 未実行').props(
+                'data-testid=metadata-run-status role=status')
+            self.stop_button.set_enabled(False)
         self._set_controls(False)
         self._timer = ui.timer(5.0, self.refresh)
 
@@ -63,7 +72,7 @@ class MetadataView:
         for widget in (self.enabled, self.save_button, self.discard_button,
                        self.refresh_button, self.work_id, self.inspect_button,
                        self.ack_button, self.resume_interrupted_button,
-                       self.resume_blocked_button):
+                       self.resume_blocked_button, self.run_button):
             widget.set_enabled(enabled)
 
     def _mark_settings_dirty(self):
@@ -80,7 +89,7 @@ class MetadataView:
             finally:
                 self._loading_settings = False
         mode = 'ON' if settings.enabled else 'OFF'
-        self.status.set_text(f'保存済み設定: {mode} / 取得機能は未接続（通信なし）')
+        self.status.set_text(f'保存済み設定: {mode} / 自動取得なし、1作品GETは明示操作のみ')
 
     def _load_progress(self, counts):
         if counts is None:
@@ -244,6 +253,46 @@ class MetadataView:
 
     async def resume_blocked(self):
         await self._apply_recovery('blocked')
+
+    async def run_one(self):
+        if self.closed or self._busy or self.revision is None:
+            return
+        self._busy = True
+        self._set_controls(False)
+        try:
+            if self._settings_dirty or not self.enabled.value:
+                raise ValueError('metadata settings need explicit save and enable')
+            wid = self._selected_work_id()
+            self.stop_button.set_enabled(True)
+            self.run_status.set_text('明示取得の処理中（新規ダウンロードが優先されます）')
+            summary = await asyncio.to_thread(
+                self.services.run_managed_metadata_one, wid,
+                expected_revision=self.revision)
+            if self.closed:
+                return
+            # Stop reasons and counts contain no artwork titles, URLs, or credentials.
+            self.run_status.set_text(
+                f'取得結果: 完了 {summary.filled} / 対象 {summary.target} / '
+                f'保留理由 {summary.stopped or "なし"}')
+            counts = await asyncio.to_thread(self.services.managed_metadata_progress)
+            if not self.closed:
+                self._load_progress(counts)
+        except Exception:
+            if not self.closed:
+                self.run_status.set_text('取得不可。設定、保存済み作品とキューの状態を確認してください')
+        finally:
+            self._busy = False
+            if not self.closed:
+                self.stop_button.set_enabled(False)
+                self._set_controls(True)
+
+    def stop_run(self):
+        if self.closed:
+            return
+        # Does not close an in-flight socket or tamper with the durable receipt;
+        # bounded GET is allowed to drain before service shutdown.
+        self.services.stop_managed_metadata()
+        self.run_status.set_text('停止を要求しました。通信中のGETは完了待ちです')
 
     def close(self):
         self.closed = True

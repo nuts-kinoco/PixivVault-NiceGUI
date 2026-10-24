@@ -1,5 +1,7 @@
 # Phase10 — 管理root専用メタデータ後埋めの契約と進行
 
+Scope note: `docs/MIGRATION_SCOPE_AMENDMENT_2026-10-24.md` excludes iPhone/iOS app integration. The original `docs/BASELINE.md` and legacy baseline evidence remain unchanged historical records.
+
 > 2026-10-24 後任による最新状態：Phase9 PR #30 head 61a0e5c2b9d95f63c25e57ff6ea20e4175a4e6c4 は独立read-only全差分レビューAPPROVE/P1=P2=0、ローカル全pytest/Chromium/Windows nativeを経てmainへマージ済み。merge SHA 9d62fbad826e2cdc469c06806f44996cc61fb91c に対するGitHub Actions run 40055760877 の Windows/Ubuntu/Chromium **全SUCCESS**確認済み。Phase10専用worktreeは既存M1 commit 99ba92ef、M2 commit f06cba9 を保持したまま、通常mergeにより統合済みmainへ合流。現在のPhase10 HEADは 54e98e20ff88a40c0dc20075aa16c3fb94fe1001。以下の「Phase9 CI実行中」は作業当時の履歴。Phase10 M2はオフライン基盤のみで、Phase10全機能・製品全体の完成ではない。
 
 ## 現在位置
@@ -82,3 +84,13 @@
 - Sonnet独立read-only reviewで検出したP2: `resume_blocked`のSQL CASが `base_sha` を照合せず世代競合をまたいでしまう、同一processでOFFにしたin-flightが `unknown` になり同じprocess内の旧GET終了前に復帰可能、の2件。いずれも合成テストで**RED 2件**を確認。前者は `base_sha`/lease-empty predicate追加、後者はprocess/世代ごとの揮発性 `same_epoch_unknown` ガードで再開拒否（プロセス再起動後の明示CAS復帰のみ許可）し、RED→GREEN 2件。最新focusは **113 passed**（`artifacts/phase10-m4-recovery-after-review-focused-20261024.xml`）。
 - M4-Bはまだローカル追加変更であり、本章のGREENはPR exact HEAD / Edge / native受入を意味しない。全体pytestと独立再レビューの最終結果は該当run後に記録する。レビュー後もdownload優先排他、サービス実行ワーカーの停止/joinと無人処理、リアルPixiv GET許可・認証・権限の境界は未結線。これらが整うまで実取得は公開しない。
 - **M4-B修正後**: Claude Sonnet独立read-only再レビュー **APPROVE / P1=0 / P2=0**。focused **113 passed**、全pytest **1588 passed / 1 skipped / 1 warning、失敗0**（`artifacts/phase10-m4-recovery-final-full-20261024.xml`）。現行snapshotは最終P2修正後のもの。P3は同一epoch不明記録の揮発guardセットをプロセス中に保持すること、UIエラー文言の改善余地。現在のauthoritative CIは依然Phase9統合後main成功であり、Phase10 PR/head CIではない。
+
+## M4-C: 保存済み作品1件の明示GETとダウンロード優先ゲート（2026-10-24）
+
+- ユーザーは **既存の実Pixiv Cookieを使った限定検証を許可**。既存`LivePixivReadClient`の明示ファイル指定を使用し、本人認証と既存ライブラリ内1作品の詳細GETに成功。検証はread-onlyで、Cookie値・応答本文・アカウント/作品IDを会話・Git・ログへ出力しなかった。元DBは `mode=ro` + `query_only` で読取り、元Cookie、元DB、画像、ZIPは変更していない。現在確認したコピーでは後埋め要件に該当する作品は0件であり、必要ない再取得は実行していない。
+- `ApplicationServices.run_managed_metadata_one()` は既存の明示オープン済み・設定ONの管理rootのみで動く。検証済み保存receiptから作品ID・作者ID・**receipt SHA `[2]`** を取得し、`MetadataCandidate` を1件だけ生成。元FletのDBへは書き込まない。実行にはユーザーの **「指定した保存済み1作品を取得」** ボタンが必要であり、設定ON/画面オープン/再起動ではGETしない。バックグラウンド定期チェックへは未接続。revision CASにより別画面の設定変更を検出し、二重クリックは`already_running`で拒否する。
+- 全未完了JobService downloadを先に確認し、未完了ジョブがある場合は**認証GETすら行わず**`download_busy`を返す。1作品の処理中は既存の`_managed_enqueue_lock`を共有し、新規受付の割込みによる指紋/世代破綻を防ぐ。**厳密な即時プリエンプトではない**：GET開始後に来た新規ダウンロード受付は進行中のHTTP取得が自然終了するまで待つ場合がある（1要求上限 `MAX_REQUEST_SECONDS`、1操作上限 `MAX_OPERATION_SECONDS`）。次作品へ自動継続せず、取得は1作品で終了。今後のnative受入でこの受入待ち時間と停止応答を測定する。
+- `stop_managed_metadata()` は進行中GETに停止イベントを送り、GET中断を無理に実行せず **完了待ち後に終了**。アプリcloseは先にstop eventを立て、専用run lockを待ってから side-ledger・JobService・Pixivクライアントを閉じる。送信前にStopされた場合はGETに進まない。初回独立レビューで「Stopを開始処理中のclearが消すP2」を発見し、イベントresetを **当該run完了後**に変更、狙い撃ち回帰試験を追加。UIには停止要求ボタンと結果件数・固定理由コードのみ表示し、GET実データ・秘密・応答は露出させない。
+- M4-C focused初回 **99 passed**、UI追加後 **127 passed**、停止競合修正後 **96 passed**（`artifacts/phase10-m4c-service-focused-20261024.xml`、`...m4c-ui-focused...`、`...m4c-stop-fix-focused...`）。初回全pytest **1594 passed / 1 skipped / 1 warning** は停止競合修正前の記録につき、最終受入の代用にしない。後続の修正後全pytestと再レビューの結果で置き換える。
+- **停止修正後の全pytest 1595 passed / 1 skipped / 1 warning、失敗0**（`artifacts/phase10-m4c-stop-fixed-final-full-20261024.xml`）。Claude Sonnetの独立read-only再レビューは **APPROVE / P1=0 / P2=0**。残P3: 既に進行中のGETに後から来たenqueueはGET終了まで有界に待つ仕様、Stopがrun終了瞬間と重なる場合には次回明示実行が1度cancelledになる可能性、停止要求表示の細分化。手動enqueue経路はNiceGUI event-loopで直接ブロックせず、`ui/job_views.py:_accepted_call`→`asyncio.to_thread`で処理されることをコードで確認。
+- iPhone/iOS app連携は除外（`docs/MIGRATION_SCOPE_AMENDMENT_2026-10-24.md`）。元Baseline/履歴/証跡は無変更。Phase10のPR/正確なheadのCI、Windows native/Edge初回再起動の実受入と製品全体の完全移植はまだ未達。

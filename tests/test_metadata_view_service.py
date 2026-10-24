@@ -1,5 +1,8 @@
 """M4 settings-only UI/service acceptance; never opens real Pixiv or legacy DB."""
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
+from types import SimpleNamespace
 
 import pytest
 from nicegui import Client, ui
@@ -8,6 +11,8 @@ from pixivvault_nicegui.metadata_ledger import MetadataLedgerError
 from pixivvault_nicegui.metadata_ledger import MetadataProgress
 from pixivvault_nicegui.metadata_policy import MetadataCandidate
 from pixivvault_nicegui.metadata_policy import FailureEvidence, classify_failure
+from pixivvault_nicegui.metadata_transport import MetadataFetchResult
+from pixivvault_nicegui.metadata_runner import MetadataRunSummary
 from pixivvault_nicegui.services import ApplicationServices
 from pixivvault_nicegui.ui.metadata_view import MetadataView
 from pixivvault_nicegui.ui.shell import AVAILABLE_TABS, NAVIGATION
@@ -116,6 +121,52 @@ def test_metadata_pointer_is_immutable_receipt_sha_not_job_fingerprint(tmp_path,
         app.close()
 
 
+def test_one_work_refuses_stale_ui_revision_before_auth_get(tmp_path, monkeypatch):
+    app, source = managed_app(tmp_path)
+    try:
+        _set_synthetic_active_receipt(monkeypatch, app)
+        app.enable_managed_metadata()
+        app.configure_managed_metadata(enabled=True, expected_revision=1)
+        t = MetadataFakeTransport()
+        summary = app.run_managed_metadata_one('123', transport=t, expected_revision=1)
+        assert summary.stopped == 'settings_changed'
+        assert t.calls == []
+        assert app.managed_metadata_entry('123') is None
+        assert source.calls == []
+    finally:
+        app.close()
+
+
+@pytest.mark.asyncio
+async def test_view_one_work_requires_explicit_click_and_never_auto_get(tmp_path, monkeypatch):
+    app, source = managed_app(tmp_path)
+    client = Client(ui.page('/_metadata_explicit_one_work'))
+    called = []
+    try:
+        app.enable_managed_metadata()
+        app.configure_managed_metadata(enabled=True, expected_revision=1)
+
+        def fake_run(work_id, *, expected_revision=None):
+            called.append((work_id, expected_revision))
+            return MetadataRunSummary(target=1, filled=1)
+
+        monkeypatch.setattr(app, 'run_managed_metadata_one', fake_run)
+        with client:
+            view = MetadataView(app)
+        assert not called
+        await view.open()
+        await view.refresh()
+        assert not called and not source.calls
+        view.work_id.set_value('123')
+        await view.run_one()
+        assert called == [('123', 2)]
+        assert '完了 1' in view.run_status.text
+        assert not source.calls
+    finally:
+        client.delete()
+        app.close()
+
+
 def test_metadata_settings_refuse_synthetic_mode_and_closed_service(tmp_path):
     synthetic = ApplicationServices()
     try:
@@ -136,8 +187,141 @@ def test_metadata_settings_refuse_synthetic_mode_and_closed_service(tmp_path):
 
 def _set_synthetic_active_receipt(monkeypatch, app, digest='a' * 64):
     monkeypatch.setattr(app.managed_downloads, 'verified_saved_receipt',
-                        lambda wid: ('outputs/mock/receipt.json', {'work_id': wid},
+                        lambda wid: ('outputs/mock/receipt.json', {'work_id': wid, 'author_id': '91'},
                                      digest, None, 'b' * 64))
+
+
+class MetadataFakeTransport:
+    def __init__(self, *, started=None, release=None):
+        self.calls = []
+        self.started = started
+        self.release = release
+
+    def verify_identity(self):
+        self.calls.append('identity')
+        return '12'
+
+    def fetch_detail(self, work_id, expected_author_id):
+        self.calls.append('detail')
+        if self.started is not None:
+            self.started.set()
+        if self.release is not None:
+            assert self.release.wait(8), 'synthetic GET gate must be released'
+        return MetadataFetchResult(work_id, expected_author_id,
+                                   {'bookmark_count': 0, 'meta_source': 'illust_detail'}, False)
+
+
+def test_managed_one_work_requires_explicit_enabled_ledger(tmp_path, monkeypatch):
+    app, source = managed_app(tmp_path)
+    try:
+        _set_synthetic_active_receipt(monkeypatch, app)
+        t = MetadataFakeTransport()
+        with pytest.raises(RuntimeError, match='unavailable'):
+            app.run_managed_metadata_one('123', transport=t)
+        ledger = app.enable_managed_metadata()
+        summary = app.run_managed_metadata_one('123', transport=t)
+        assert summary.stopped == 'disabled'
+        assert t.calls == [] and source.calls == []
+        assert ledger.entry('123') is None
+        with pytest.raises(ValueError):
+            app.run_managed_metadata_one('not-an-id', transport=t)
+    finally:
+        app.close()
+
+
+def test_managed_one_work_fills_only_verified_saved_receipt(tmp_path, monkeypatch):
+    app, source = managed_app(tmp_path)
+    try:
+        _set_synthetic_active_receipt(monkeypatch, app)
+        ledger = app.enable_managed_metadata()
+        app.configure_managed_metadata(enabled=True, expected_revision=1)
+        t = MetadataFakeTransport()
+        summary = app.run_managed_metadata_one('123', transport=t)
+        assert summary.target == 1 and summary.filled == 1
+        assert t.calls == ['identity', 'detail']
+        assert ledger.verified_overlay('123', 'a' * 64)['bookmark_count'] == 0
+        assert app.run_managed_metadata_one('123', transport=t).skipped == 1
+        assert t.calls == ['identity', 'detail', 'identity']
+        assert source.calls == []
+    finally:
+        app.close()
+
+
+def test_managed_download_priority_returns_without_auth_or_ledger_claim(tmp_path, monkeypatch):
+    app, source = managed_app(tmp_path)
+    try:
+        _set_synthetic_active_receipt(monkeypatch, app)
+        ledger = app.enable_managed_metadata()
+        app.configure_managed_metadata(enabled=True, expected_revision=1)
+        t = MetadataFakeTransport()
+        original = app.jobs.snapshot
+        monkeypatch.setattr(app.jobs, 'snapshot', lambda: (SimpleNamespace(state='queued'),))
+        summary = app.run_managed_metadata_one('123', transport=t)
+        assert summary.stopped == 'download_busy'
+        assert t.calls == [] and ledger.entry('123') is None
+        monkeypatch.setattr(app.jobs, 'snapshot', original)
+        assert source.calls == []
+    finally:
+        app.close()
+
+
+def test_managed_metadata_get_is_exclusive_and_close_joins_get(tmp_path, monkeypatch):
+    app, source = managed_app(tmp_path)
+    release, started = Event(), Event()
+    try:
+        _set_synthetic_active_receipt(monkeypatch, app)
+        app.enable_managed_metadata()
+        app.configure_managed_metadata(enabled=True, expected_revision=1)
+        t = MetadataFakeTransport(started=started, release=release)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            running = pool.submit(app.run_managed_metadata_one, '123', transport=t)
+            assert started.wait(5)
+            assert not app._managed_enqueue_lock.acquire(blocking=False)
+            assert app.run_managed_metadata_one('123', transport=t).stopped == 'already_running'
+            assert app.stop_managed_metadata() is True
+            closing = pool.submit(app.close)
+            assert not closing.done(), 'close must wait for accepted GET to drain'
+            release.set()
+            closing.result(timeout=8)
+            assert running.result(timeout=8).filled in (0, 1)
+        assert app.closed and source.closed
+        assert t.calls == ['identity', 'detail']
+    finally:
+        release.set()
+        app.close()
+
+
+def test_stop_during_run_admission_is_not_cleared_before_auth(tmp_path, monkeypatch):
+    app, source = managed_app(tmp_path)
+    started, release = Event(), Event()
+    try:
+        _set_synthetic_active_receipt(monkeypatch, app)
+        ledger = app.enable_managed_metadata()
+        app.configure_managed_metadata(enabled=True, expected_revision=1)
+        original_settings = ledger.settings
+
+        def slow_settings():
+            started.set()
+            assert release.wait(8)
+            return original_settings()
+
+        monkeypatch.setattr(ledger, 'settings', slow_settings)
+        t = MetadataFakeTransport()
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            running = pool.submit(app.run_managed_metadata_one, '123', transport=t)
+            assert started.wait(5)
+            assert app.stop_managed_metadata()
+            release.set()
+            summary = running.result(timeout=8)
+        assert summary.stopped == 'cancelled'
+        assert t.calls == []
+        assert app.managed_metadata_entry('123') is None
+        assert source.calls == []
+        monkeypatch.setattr(ledger, 'settings', original_settings)
+        assert app.run_managed_metadata_one('123', transport=t).filled == 1
+    finally:
+        release.set()
+        app.close()
 
 
 def test_recovery_is_explicit_revisioned_and_does_not_fetch(tmp_path, monkeypatch):

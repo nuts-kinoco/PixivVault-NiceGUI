@@ -81,6 +81,8 @@ class ApplicationServices:
         # start any HTTP/backfill worker. Owned by the app, never by a tab.
         self.managed_metadata = None
         self._managed_metadata_lock = RLock()
+        self._metadata_run_lock = Lock()
+        self._metadata_cancel_event = Event()
         self._managed_scheduler_lock = Lock()
         self._scheduler_dispatch_lock = Lock()
         self._scheduler_cancel_event = Event()
@@ -910,6 +912,7 @@ class ApplicationServices:
                 with self._managed_scheduler_lock:
                     self.closing = True
                 self._scheduler_cancel_event.set()
+                self._metadata_cancel_event.set()
                 if self.managed_schedule_runner is not None:
                     # No provider/SQLite resource may close while its GET
                     # dispatch worker still uses it. A bounded network read
@@ -918,11 +921,14 @@ class ApplicationServices:
                 # Manual dispatch and the timer share this barrier. Do not
                 # close JobService/CAS/HTTP while either still uses them.
                 with self._scheduler_dispatch_lock:
-                    self._close_resources()
+                    # Metadata GET is bounded by the explicit Pixiv transport;
+                    # never close its client/ledger while a request is active.
+                    with self._metadata_run_lock:
+                        self._close_resources()
 
     def _close_resources(self):
         # Fence concurrent metadata configuration before the storage provider
-        # or shared Pixiv client is closed. No metadata GET runner is wired yet.
+        # or shared Pixiv client is closed.
         with self._managed_metadata_lock:
             if self.managed_metadata is not None:
                 self.managed_metadata.close()
@@ -1059,6 +1065,82 @@ class ApplicationServices:
                 raise RuntimeError('managed metadata ledger is not open')
             return self.managed_metadata.configure(
                 enabled=enabled, expected_revision=expected_revision)
+
+    def stop_managed_metadata(self) -> bool:
+        """Cancel the currently requested run; a bounded in-flight GET drains."""
+        if self.closing or not self._metadata_run_lock.locked():
+            return False
+        self._metadata_cancel_event.set()
+        return True
+
+    def run_managed_metadata_one(self, work_id: str, *, transport=None,
+                                 expected_revision: int | None = None):
+        """Explicit one-work bounded GET; downloads win admission.
+
+        The already-open, user-enabled managed-only side-ledger is mandatory.
+        A snapshot is derived solely from a fully verified saved receipt, not
+        from a user-supplied author ID. No background task, scan or retry is
+        scheduled here; a second caller receives already_running immediately.
+        """
+        from .metadata_runner import ManagedMetadataBackfillRunner, MetadataRunSummary
+        from .metadata_policy import MetadataCandidate
+        from .metadata_transport import LivePixivMetadataTransport
+        from .job_service import UNFINISHED
+
+        if type(work_id) is not str or re.fullmatch(r'[1-9][0-9]{0,19}\Z', work_id) is None:
+            raise ValueError('invalid metadata work identity')
+        if expected_revision is not None and (type(expected_revision) is not int or expected_revision < 1):
+            raise ValueError('invalid metadata settings revision')
+        if not self._metadata_run_lock.acquire(blocking=False):
+            return MetadataRunSummary(stopped='already_running')
+        try:
+            if self.closing or self.managed_metadata is None or self.managed_downloads is None:
+                raise RuntimeError('managed metadata mode is unavailable')
+            if not self.managed_metadata.settings().enabled:
+                return MetadataRunSummary(stopped='disabled')
+            # The ordinary enqueue path also takes this same lock; while this
+            # single bounded GET is in flight, no direct/scheduled enqueue can
+            # be accepted behind our idle probe. Existing queued/running/paused
+            # downloads always win and make us return without any auth GET.
+            with self._managed_enqueue_lock:
+                if self.closing:
+                    return MetadataRunSummary(stopped='cancelled')
+                if (expected_revision is not None and
+                        self.managed_metadata.settings().revision != expected_revision):
+                    return MetadataRunSummary(stopped='settings_changed')
+                if self.jobs is None or any(j.state in UNFINISHED for j in self.jobs.snapshot()):
+                    return MetadataRunSummary(stopped='download_busy')
+                receipt = self.managed_downloads.verified_saved_receipt(work_id)
+                if receipt is None:
+                    return MetadataRunSummary(stopped='no_saved_receipt')
+                author_id = receipt[1]['author_id']
+                prior = self.managed_metadata.entry(work_id)
+                candidate = MetadataCandidate(
+                    work_id, author_id, 'illust', False, None,
+                    prior.attempts if prior is not None else 0)
+
+                def active(wid):
+                    if self.closing:
+                        raise RuntimeError('metadata source is closing')
+                    current = self.managed_downloads.verified_saved_receipt(wid)
+                    return current[2] if current is not None else None
+
+                runner = ManagedMetadataBackfillRunner(
+                    self.managed_metadata,
+                    transport if transport is not None else LivePixivMetadataTransport(self.live_client),
+                    active_receipt_sha256=active,
+                    is_download_busy=lambda: self.closing or self.jobs is None
+                    or any(j.state in UNFINISHED for j in self.jobs.snapshot()),
+                )
+                return runner.run_once((candidate,),
+                                       stop_event=self._metadata_cancel_event,
+                                       wait_for_idle=False)
+        finally:
+            # Never erase a Stop received after run admission but before its
+            # first auth GET. Reset only once this particular run has drained.
+            if not self.closing:
+                self._metadata_cancel_event.clear()
+            self._metadata_run_lock.release()
 
     def reconcile_managed_scheduler(self):
         """Join JobService operation history to verified managed CAS receipts."""
