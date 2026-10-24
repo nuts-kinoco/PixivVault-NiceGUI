@@ -11,8 +11,9 @@ NAVIGATION = (
     ("download", "ダウンロード"), ("queue", "キュー"), ("failed", "失敗リスト"),
     ("dedup", "重複整理"), ("learning", "学習"), ("ranking", "ランキング"),
     ("library", "ライブラリ"), ("recommend", "おすすめ"),
+    ("scheduler", "定期チェック"),
 )
-AVAILABLE_TABS = {"ranking", "learning", "library", "failed", "download", "queue"}
+AVAILABLE_TABS = {"ranking", "learning", "library", "failed", "download", "queue", "scheduler"}
 
 
 class DemoShell:
@@ -23,6 +24,7 @@ class DemoShell:
         self.learning = None
         self.library = None
         self.failed_records = None
+        self.scheduler_view = None
         self.job_views = {}
         self.card_size = "large"
         self.closed = False
@@ -87,6 +89,10 @@ class DemoShell:
             with self.content:
                 self.library = LibraryView(self.services, card_size=self.card_size,
                                            on_size_change=self.change_card_size)
+        if tab == 'scheduler' and self.scheduler_view is None:
+            from .scheduler_view import SchedulerView
+            with self.content:
+                self.scheduler_view = SchedulerView(self.services)
         use_legacy_failed = (self.services.jobs is None or
                              getattr(self.services, 'legacy_failed_retry_available', False))
         if tab == "failed" and use_legacy_failed and self.failed_records is None:
@@ -115,6 +121,8 @@ class DemoShell:
         if self.failed_records is not None:
             self.failed_records.root.set_visibility(tab == "failed")
             self.failed_records.set_active(tab == "failed")
+        if self.scheduler_view is not None:
+            self.scheduler_view.root.set_visibility(tab == 'scheduler')
         for key, view in self.job_views.items():
             view.root.set_visibility(tab == key)
             view.set_active(tab == key)
@@ -148,6 +156,8 @@ class DemoShell:
             self.learning.close()
         if self.failed_records is not None:
             self.failed_records.close()
+        if self.scheduler_view is not None:
+            self.scheduler_view.close()
         for view in self.job_views.values():
             view.close()
         # サービスはアプリが所有する。画面が閉じても共有キャッシュを終了しない。

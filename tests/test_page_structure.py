@@ -23,12 +23,12 @@ async def test_page_builds_fifty_cards_one_dialog_and_existing_navigation():
         tabs = [element for element in buttons if "pv-tab" in element.classes]
         assert [element.text.split(" · ")[0] for element in tabs] == [
             "ダウンロード", "キュー", "失敗リスト", "重複整理",
-            "学習", "ランキング", "ライブラリ", "おすすめ",
+            "学習", "ランキング", "ライブラリ", "おすすめ", "定期チェック",
         ]
         # Job screens explain the opt-in destination; actual mutation controls
         # remain disabled when no dedicated synthetic sandbox was specified.
         enabled = {element.props["data-testid"] for element in tabs if not element.props.get("disable")}
-        assert enabled == {"tab-ranking", "tab-learning", "tab-library", "tab-failed", "tab-download", "tab-queue"}
+        assert enabled == {"tab-ranking", "tab-learning", "tab-library", "tab-failed", "tab-download", "tab-queue", "tab-scheduler"}
         assert {element.props["data-testid"] for element in tabs if element.props.get("disable")} == {
             "tab-dedup", "tab-recommend"}
         # ナビゲーションは既存トークンのCSSで色を制御する。

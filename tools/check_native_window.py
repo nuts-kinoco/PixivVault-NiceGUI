@@ -916,7 +916,9 @@ def main(argv: list[str] | None = None) -> int:
                         report["errors"].append("initial_placement_failed")
                 if args.inspect_ui:
                     try:
-                        screenshot = output_path.with_name("webview-ui.png")
+                        # Every native acceptance run must own its screenshot
+                        # namespace; never overwrite shared evidence names.
+                        screenshot = output_path.with_name(output_path.stem + "-webview-ui.png")
                         inspect_kwargs = {"check_owner": check_ui_owner,
                                           "learning_persistence": args.learning_sandbox is not None}
                         if args.library_readonly_db is not None:

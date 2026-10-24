@@ -1,5 +1,7 @@
 # Phase9 managed scheduler: original contract and migration boundary
 
+> **2026-10-24 後任最終ローカル受入更新:** 本ファイルの以前の「レビュー未完」「実装途中」という状態は履歴。追加P2を修正し全pytest1213成功/1skip、Edge4/4、Windowsコピー1050/1050 SHA一致、native受入passed、独立read-onlyレビューAPPROVE/P1P2=0。同一ソースの詳細と未達PR/headCI/merge/mainCIは `docs/PHASE9_FINAL_LOCAL_ACCEPTANCE_2026-10-24.md` を優先。実Cookie/Shaft/backfill/全移植の受入は別。
+
 ## 原版から確認した契約
 
 - `scheduler.py:31-46,56-89` は常駐scheduler、起動時チェックONなら初期待機約5秒、通常は60秒tick。`auto_check_interval_hours` は0/6/12/24/48（既定24）、`check_on_startup`既定OFF。設定変更はwakeのみ、停止操作は別stop_event。原版`last_check_time`はメモリのみで再起動起点がずれる。新側はdurable UTC次回時刻で安全改善する。

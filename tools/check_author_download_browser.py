@@ -10,8 +10,11 @@ import json
 from pathlib import Path
 import re
 import secrets
+import sqlite3
 import subprocess
 import sys
+import time
+import traceback
 from urllib.parse import urlsplit
 
 if __package__ in (None, ''):
@@ -21,16 +24,23 @@ from tools.run_browser_checks import (child_environment, free_port, port_release
                                       source_hashes, stop_child, wait_for_health)
 
 
-def verify_saved(root):
+def verify_saved(root, *, expected_update_date='2026-10-24T10:00:00+09:00',
+                 expected_versions=2, expected_entries=1):
     """Require the active v2 generation, not just an orphan on disk."""
     import hashlib
     from io import BytesIO
     from PIL import Image
-    index = json.loads((root / 'active-generations.json').read_text(encoding='utf-8'))
+    deadline = time.monotonic() + 30
+    index = {}
+    while time.monotonic() < deadline:
+        index = json.loads((root / 'active-generations.json').read_text(encoding='utf-8'))
+        if '321' in index.get('entries', {}) and len(index['entries']) == expected_entries:
+            break
+        time.sleep(0.1)
     assert type(index['version']) is int and index['version'] == 2
-    assert tuple(index['entries']) == ('321',)
+    assert '321' in index['entries'] and len(index['entries']) == expected_entries
     selected = index['entries']['321']
-    assert selected['update_date'] == '2026-10-24T10:00:00+09:00'
+    assert selected['update_date'] == expected_update_date
     assert re.fullmatch('[a-f0-9]{64}', selected['accepted_fingerprint'])
     relative = selected['relative_receipt']
     assert relative.startswith('generations/work-321-') and relative.endswith('/receipt.json')
@@ -41,14 +51,17 @@ def verify_saved(root):
     assert receipt['version'] == 1 and receipt['work_id'] == '321'
     assert receipt['page_count'] == 2
     versions = sorted((root / 'generations').glob('work-321-*/receipt.json'))
-    assert len(versions) == 2, 'updated generation must retain its old receipt'
+    assert len(versions) == expected_versions, 'updated generations must retain prior receipts'
     for row_no, row in enumerate(receipt['files']):
         source = (receipt_path.parent / row['name']).read_bytes()
         assert hashlib.sha256(source).hexdigest() == row['sha256']
         with Image.open(BytesIO(source)) as decoded:
             assert decoded.size == (120, 84)
-            assert decoded.getpixel((0, 0)) == (
-                (74, 28, 90) if row_no == 0 else (17, 89, 141))
+            if expected_update_date == '2026-10-25T10:00:00+09:00':
+                expected_pixel = (13, 37, 211) if row_no == 0 else (9, 191, 53)
+            else:
+                expected_pixel = (74, 28, 90) if row_no == 0 else (17, 89, 141)
+            assert decoded.getpixel((0, 0)) == expected_pixel
     for historical in versions:
         assert json.loads(historical.read_text())['work_id'] == '321'
     return receipt
@@ -92,7 +105,7 @@ def inspect(page, base, headers, root, *, restart):
     page.get_by_test_id('tab-queue').click()
     queue = page.get_by_test_id('queue-view')
     expect(queue.get_by_test_id('queue-filter-done')).to_contain_text(
-        '完了 2' if restart else '完了 1', timeout=30000)
+        '完了 50' if restart else '完了 1', timeout=30000)
     if not restart:
         # Change only the synthetic GET fixture: no Pixiv write is involved.
         page.request.post(base + '/_managed_test/control?author_updated=true', headers=headers)
@@ -127,14 +140,79 @@ def inspect(page, base, headers, root, *, restart):
             page.keyboard.press('ArrowRight')
     viewer.get_by_role('button', name='閉じる', exact=True).click()
     expect(cards.first).to_be_focused()
-    assert verify_saved(root)['page_count'] == 2
+    if restart:
+        assert verify_saved(root, expected_update_date='2026-10-25T10:00:00+09:00',
+                            expected_versions=3, expected_entries=70)['page_count'] == 2
+    else:
+        assert verify_saved(root)['page_count'] == 2
+    scheduler_saved = False
+    if not restart:
+        # End-to-end synthetic Phase9: settings UI -> full author inventory ->
+        # authorized managed enqueue -> JobService/CAS receipt -> history/toast.
+        page.request.post(base + '/_managed_test/control?scheduler_update=true', headers=headers)
+        page.request.post(base + '/_managed_test/control?scheduler_many=true', headers=headers)
+        page.get_by_test_id('tab-scheduler').click()
+        scheduler = page.get_by_test_id('scheduler-status')
+        page.get_by_test_id('scheduler-open').click()
+        # A dirty form must be explicitly discardable without retaining a
+        # stale CAS revision or accidentally saving a discarded author.
+        expect(page.get_by_test_id('scheduler-discard')).to_be_enabled()
+        page.get_by_test_id('scheduler-authors').fill('999')
+        page.get_by_test_id('scheduler-discard').click()
+        expect(page.get_by_test_id('scheduler-authors')).to_have_value('')
+        page.get_by_test_id('scheduler-authors').fill('24')
+        page.get_by_test_id('scheduler-interval').click()
+        page.get_by_text('自動チェックしない', exact=True).click()
+        page.get_by_test_id('scheduler-save').click()
+        page.get_by_test_id('scheduler-run').click()
+        from playwright.sync_api import expect
+        deadline = time.monotonic() + 30
+        accepted, deferred, dispatch_status = 0, 0, 'running'
+        while time.monotonic() < deadline:
+            with sqlite3.connect(root / '.pixivvault-managed-scheduler.sqlite3') as db:
+                row = db.execute(
+                    "SELECT accepted,deferred,status FROM dispatch_history WHERE slot LIKE 'manual-%' "
+                    'ORDER BY started_utc DESC LIMIT 1').fetchone()
+            if row is not None:
+                accepted, deferred, dispatch_status = row
+                if dispatch_status != 'running':
+                    break
+            time.sleep(0.1)
+        assert (accepted, deferred) == (50, 20), 'first batch must persist capacity-limited backlog'
+        expect(page.get_by_test_id('scheduler-history')).to_contain_text('saved', timeout=120000)
+        assert verify_saved(root, expected_update_date='2026-10-25T10:00:00+09:00',
+                            expected_versions=3, expected_entries=70)['page_count'] == 2
+        page.get_by_test_id('tab-queue').click()
+        expect(page.get_by_test_id('queue-view').get_by_test_id('queue-filter-done')).to_have_text(
+            '完了 50', timeout=120000)
+        active_index = json.loads((root / 'active-generations.json').read_text(encoding='utf-8'))
+        assert len(active_index['entries']) == 70
+        assert set(active_index['entries']) == {'321', *(str(wid) for wid in range(400, 469))}
+        # Files/index/history alone can hide a failed or unknown dispatch item.
+        # Assert the durable scheduler ledger itself is fully reconciled.
+        with sqlite3.connect(root / '.pixivvault-managed-scheduler.sqlite3') as db:
+            item_states = db.execute(
+                "SELECT state,COUNT(*) FROM dispatch_items GROUP BY state").fetchall()
+            deferred_count = db.execute('SELECT COUNT(*) FROM deferred_work').fetchone()[0]
+        assert item_states == [('saved', 70)], f'unexpected dispatch item states: {item_states!r}'
+        assert deferred_count == 0, f'deferred work remains after all 70 saves: {deferred_count}'
+        scheduler_saved = True
+    else:
+        page.get_by_test_id('tab-scheduler').click()
+        page.get_by_test_id('scheduler-open').click()
+        from playwright.sync_api import expect
+        expect(page.get_by_test_id('scheduler-history')).to_contain_text('saved', timeout=10000)
     status = page.request.get(base + '/_managed_test/status', headers=headers).json()
     assert status['all_requests_get'] and status['allowed_https_hosts_only']
     assert status['image_requests_cookie_free']
-    assert status['original_gets'].get('321', 0) == (0 if restart else 4)
+    assert status['original_gets'].get('321', 0) == (0 if restart else 6)
+    if not restart:
+        assert all(status['original_gets'].get(str(wid), 0) == 2 for wid in range(400, 469))
+        assert sum(status['original_gets'].values()) == 6 + 2 * 69
     if restart:
         assert status['request_count'] == 0
     return {'restart': restart, 'pages': 2, 'viewer_decode_and_focus': True,
+            'scheduler_settings_dispatch_receipt_history': scheduler_saved or restart,
             'original_gets': status['original_gets'].get('321', 0)}
 
 
@@ -205,7 +283,8 @@ def run(channel, output):
         assert before == source_hashes()
         results['success'] = True
     except Exception as exc:
-        results['failure'] = f'{type(exc).__name__}: {str(exc)[:400]}'
+        results['failure'] = f'{type(exc).__name__}: synthetic acceptance failed'
+        results['failure_trace'] = traceback.format_exc()[-3000:]
     results['source_hashes'] = before
     (output / 'result.json').write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding='utf-8')
     return 0 if results['success'] else 1

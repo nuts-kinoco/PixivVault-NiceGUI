@@ -210,6 +210,9 @@ GitHub ActionsではUbuntu/Windowsのpytestと、専用Chromiumによる実ブ�
 - 本節はローカル受入であり、Phase8 PR/head SHAのWindows/Ubuntu/Chromium CIとmerge後main CIは**未受入**。結果取得後にGitHub実績を追記する。
 ## Phase9 managed scheduler（2026-10-24 JST、未完成）
 
+**後任による最新ローカル受入（以前の全記録より新しい）**: 再開時点の未コミット現物をCoS Coreで照合・保持し、全差分の独立read-onlyレビューで発覚した追加P2を順に修正。最新結果は **1213 passed/1 skipped/1 warning**、Edge **4/4**・製品SHA **59/59一致**、Windows別snapshot SHA **117/117一致**・別rootコピー **1050/1050一致**、Native WebView実操作 **passed**（正常終了、所有8 PID終了、強制cleanup0、port解放、エラー0）。独立レビュー最終 **APPROVE / P1=0 / P2=0**（静的）。レビュー、具体的な追加修正、成果物SHA、証跡の相互対応・失敗履歴は `docs/PHASE9_FINAL_LOCAL_ACCEPTANCE_2026-10-24.md`。PR/head CI/merge/main CIはこの段階では別ゲート、実Cookieも未受入。旧スクリーンショット事故前bytesは未復元。Phase9の局所完了をPixivVault全体の完成とは呼ばない。
+
+
 - **最新引継ぎ準備・2026-10-24:** `docs/PHASE9_RESTART_HANDOFF_2026-10-24.md`を追加し、`docs/ORCHESTRATOR_START_PROMPT.md`冒頭、`docs/ORCHESTRATOR_HANDOFF.md`冒頭に最新状態を追記。ユーザーはこの文書/プロンプトを後任が読んで再開できる形にし、文書だけを対象ブランチへ非force commit/pushするよう明示承認。Phase9コード/テストのdirty差分はこの文書commitへ混ぜない。最新受入は下記P2 remediation 1204/1、Edge4/4、native1050 SHA一致だが、修正後の全差分独立レビューは未完。後任受領・実再開も未確認。
 
 - **2026-10-24 最新候補（未commit、レビュー/CIゲート未完）**: 全ソース自監査で発見したpartial→saved履歴集約のP2も修正済み。最終コード full pytest **1203 passed / 1 skipped / 1 warning, 67.95s** (`artifacts/phase9-final-partial-history-recovery-20261024/full.xml`)。skipは`tests/test_managed_downloads.py:251`のWindows symlink権限、warningはFastAPI/Starlette `httpx` TestClient deprecation。Native checkerのrun固有スクリーンショット名変更後の回帰は **84 passed** (`tests/test_native_check.py tests/test_packaging.py tests/test_release_tree.py`)。
