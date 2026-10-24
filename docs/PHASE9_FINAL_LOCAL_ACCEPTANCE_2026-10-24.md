@@ -41,3 +41,12 @@
 - tests/test_author_browser_race.pyに4件の完全合成・偽時計テストを追加し、件数先行・更新日遅延反映、破損JSONの復帰、永続未反映の失敗、画素異常を確認。Claude Sonnetはテストのみの独立読取検証でAPPROVE/P1=0/P2=0。Claude CLIの書込許可は非対話環境で拒否され、primeがCoS Coreからテストを作成した。
 - 再検査: 全pytest 1217 passed/1 skipped/1 warning（artifacts/phase9-checker-final-full-20261024.xml）。Chromium合成初回/再起動 × 1280×720 / 1920×1080は4/4 SUCCESS、59製品ソースSHA一致、console/page/foreign errorsゼロ、正常終了/port解放4/4（artifacts/phase9-ci-checker-strict-poll-chromium-20261024/result.json）。
 - 本追補時点では新PR headのCI、main merge、post-merge CIはまだ未確認。正確なPR head SHAに対しWindows/Ubuntu/Chromiumの各SUCCESSを確認してからのみ既存マージ承認を適用する。
+
+## 追補2: 合成ZIP受入のチェッカー間契約を修復
+
+- PR #30 の head c4f3427ced0f1c881d0631b057c2898fdc6eb8d8 に対するCI run 40053723583 はWindows/Ubuntu SUCCESS、Chromium内の作者差分・スケジューラ検査もSUCCESS。ただし最終の旧形式ZIPエクスポート検査が RED。失敗結果は artifacts/phase9-ci-40053723583-failure-evidence-20261024/legacy-zip-export/result.json に別保存し、mainにはマージしていない。
+- 最初の根因: 合成ZIP checkerが共通 author_inspect を再利用したが、Phase9拡張後のその関数は最後に70作品の管理スケジューラを実行し、queueやschedulerタブで終わる。ZIP checkerが前提とするLibrary表示および「作者24・作品321だけ・2ページ・2世代・初回original GET4回」と不一致になった。単純なタブ切替修正だけでは、生成されるZIPが140ページになり旧版の厳密なZIP内容受入に失敗することを独立レビュー・実ブラウザで確認。
+- 是正: author_inspectに既定Trueの scheduler_acceptance を追加。独立した作者ダウンロード検査では従来どおり70作品・初回GET6+138・全dispatch item saved・deferred0・3世代をassert。ZIP checkerからの再利用時だけ明示Falseとし、元の手動作者選択/更新・2世代・4 GETを保持。ZIP checker自身が明示的にLibraryへ戻り、ボタン可視・有効、ZIPファイル名/2メンバー/pixel/SHA、再起動時の非上書き、別clientの選択分離を省略せず検査。
+- WindowsローカルChromium最初の再試験では、内容検査を1ケース通過後、Windows Proactor WebSocket切断により合成サーバーが15秒の終了待機を超過しRED。既存のPhase8受入で採用済みの bounded graceful shutdown を合成サーバー check_managed_downloads_browser.py の ui.run に timeout_graceful_shutdown=5 として適用。ZIP checkerのプロセス通常終了待機を15秒から25秒とした。timeout発生・強制終了をGREENへ偽装しない。
+- 最終変更後ローカルChromium: ZIP checker artifacts/phase9-zip-separated-graceful-chromium-20261024、通常managed checker artifacts/phase9-zip-graceful-managed-chromium-20261024、作者scheduler checker artifacts/phase9-zip-graceful-author-chromium-20261024 の3系統がそれぞれ **4/4 SUCCESS**。全実行で console/page/外部通信errors0、normal exitとport release4/4。通常managedおよび作者checkerの製品ソース59件のsha manifestに照合済み。全pytest **1217 passed / 1 skipped / 1 warning**、artifacts/phase9-zip-shutdown-corrected-full-20261024.xml。Claude Sonnetのテスト限定read-onlyレビューでは新たなP1/P2指摘なくAPPROVE。製品実装コードのバイト列はPhase9最終ローカル受入候補と同じ。
+- この追補の段階ではまだ新headのCIやmain統合/post-merge CIを受入済みとしていない。正確なPR head SHAに対するWindows/Ubuntu/Chromium全SUCCESSと、統合後main head SHAに対するCIを別々に照合すること。過去スクリーンショット上書き事故の事故前bytesは未復元であり、証跡は必ず新規出力先へ分離する。
