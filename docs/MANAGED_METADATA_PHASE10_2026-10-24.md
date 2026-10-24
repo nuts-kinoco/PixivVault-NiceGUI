@@ -41,3 +41,13 @@
 - Phase10専用worktreeの全pytest **1258 passed / 1 skipped / 1 warning**。試験XMLは artifacts/phase10-pure-policy-full-20261024.xml。skipはWindows symlink作成権限、warningはFastAPI/Starlette TestClient互換性。
 - Claude Sonnet read-onlyテスト監査は **M1純ロジック限定 APPROVE（P1なし）**。指摘の「原版のID並び順」と「正常応答のbookmarkCount欠損」について原典を別途確認し、実装変更なしでテストを補強。M2以降の台帳/UI/実GETを承認したものではない。
 - 本段階は独立したローカル開発途中であり、Phase10のPR/CI、Edge/Windows製品受入、main統合は未実施。Phase9 PR #30 の同一SHA CIを阻害せずに並行した成果として保管する。
+
+## M2: isolated side ledger（実GET/画面への接続なし）
+
+- metadata_ledger.py は既にMARKERとIDENTITYを持つ管理専用rootだけにSQLite side-ledgerを作る。クラス明示構築時以外は初期化しない。元PixivVaultのDB/画像/ZIP/Cookieおよび既存世代receiptへ書き込まない。
+- 専用lock・SQLite FULL同期・1プロセスwriter・OFF既定設定とrevision CAS・作品ごとの状態とlease epoch・再起動時の明示中断確認を用意。古いin-flightを自動でsaved/再投入扱いしない。
+- 注入されたactive managed世代SHA検証関数でoffer/completeを検査。旧世代再登録は永続supersededテーブルで禁止。active SHAと一致しないoverlayは見せない。格納するメタは小さい数値スカラーだけで、URL/HTML/Cookieを受け付けない。
+- 作品固有障害だけattemptsを増やし3回で打切り。全体障害/unknownでは増やさずblockedにし、同じ世代を無人高速リトライさせない。明示resume_blockedには設定revision CASを必須にする。OFFへ変更すると全live leaseを失効させる。
+- 最初のClaude Sonnet read-only独立QAは、古いlease epochなし・旧世代offer復活・不正なfailure flagで試行回数改変の3P2を発見しBLOCK。その後すべて是正し、独立再監査は **M2限定APPROVE / P1=0 / P2=0**。残P3として注入callbackのロック再入・外部CASとの連携・SQLiteスキーマ不正への対処はM3接続前に再設計する。
+- M1/M2 focused 55 passed。初期OFF/marker拒否/CAS/ファイルlock/active世代overlayと0/失敗3回/429とunknown/再起動旧lease/偽装FailureDecision/古い世代差戻し/改ざん/2スレッドclaim/OFFフェンスなどを合成試験した。
+- M2はHTTP・Cookie・原DB読取・自動スケジューラ・UIのないオフライン基盤。Phase10のPR/CI、Edge/Windows製品受入、main統合は依然未実施。元の全移植ゴールは未達であり、Phase9 PR #30統合後main CIを先行確認する。
