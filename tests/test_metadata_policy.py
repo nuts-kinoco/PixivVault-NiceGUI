@@ -108,11 +108,11 @@ def test_original_sqlite_text_columns_have_lexical_id_order():
     # source query :1660 ORDER BY attempts,user_id,work_id.
     rows = (
         MetadataCandidate('9', '9', 'illust', False, None, 0),
-        MetadataCandidate('9', '10', 'illust', False, None, 0),
         MetadataCandidate('10', '10', 'illust', False, None, 0),
+        MetadataCandidate('11', '10', 'illust', False, None, 0),
     )
     assert tuple((r.user_id, r.work_id) for r in select_candidates(rows)) == (
-        ('10', '10'), ('10', '9'), ('9', '9'))
+        ('10', '10'), ('10', '11'), ('9', '9'))
 
 
 def test_empty_snapshot_stays_empty_and_does_not_mutate_input():
@@ -149,3 +149,9 @@ def test_mutable_candidate_list_rejected_to_avoid_mid_scan_reselection():
     candidate = MetadataCandidate('123', '91', 'illust', False, None, 0)
     with pytest.raises(ValueError):
         select_candidates([candidate])
+
+
+def test_duplicate_candidate_ids_rejected_before_any_runner_can_double_fetch():
+    row = MetadataCandidate('123', '91', 'illust', False, None, 0)
+    with pytest.raises(ValueError, match='duplicate'):
+        select_candidates((row, row))

@@ -6,6 +6,7 @@ from email.message import Message
 from html import escape
 from http.cookiejar import CookieJar
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlsplit
 from urllib.request import ProxyHandler
 
@@ -589,6 +590,60 @@ def test_urllib_transport_rejects_redirects_encodings_and_oversize(response, exp
     request = mod.Request("https://i.pximg.net/img-master/test.jpg", method="GET")
     with pytest.raises(expected):
         mod._read_response(FakeOpener(response), request, 2.0, 20, time.monotonic() + 2.0)
+
+
+@pytest.mark.parametrize('status', [401, 403, 404, 429, 500, 503])
+def test_urllib_transport_preserves_only_safe_http_status(status):
+    class RaisingOpener:
+        def open(self, _request, timeout):
+            assert timeout > 0
+            raise HTTPError('https://www.pixiv.net/ajax/illust/123', status,
+                            'sensitive server text', None, None)
+
+    request = mod.Request('https://www.pixiv.net/ajax/illust/123', method='GET')
+    with pytest.raises(mod.HTTPStatusRejected) as caught:
+        mod._read_response(RaisingOpener(), request, 2.0, 1024,
+                           time.monotonic() + 2.0)
+    assert caught.value.status_code == status
+    assert isinstance(caught.value, mod.ResponseRejected)
+    assert str(caught.value) == 'HTTP response rejected'
+    assert 'sensitive' not in str(caught.value)
+
+
+def test_metadata_detail_reader_requires_verified_identity_and_pinned_author(tmp_path):
+    mock = MockTransport()
+    mock.when('https://www.pixiv.net/', home_page())
+    mock.when('/ajax/user/extra', packet({'userId': '55'}))
+    body = {'id': '123', 'userId': '91', 'bookmarkCount': 0,
+            'likeCount': 0, 'xRestrict': 0}
+    mock.when('/ajax/illust/123', packet(body))
+    client = make_client(tmp_path, mock)
+    try:
+        with pytest.raises(mod.AuthenticationMissing):
+            client.get_artwork_metadata_raw('123', '91')
+        assert client.verify_identity() == '55'
+        assert client.get_artwork_metadata_raw('123', '91') == body
+        with pytest.raises(mod.InvalidPayload):
+            client.get_artwork_metadata_raw('123', '92')
+        assert all(call.get_method() == 'GET' for call in mock.calls)
+        assert all('/ajax/illust/123' in call.full_url for call in mock.calls[2:])
+    finally:
+        client.close()
+
+
+def test_metadata_detail_reader_rejects_duplicate_json_keys(tmp_path):
+    mock = MockTransport()
+    mock.when('https://www.pixiv.net/', home_page())
+    mock.when('/ajax/user/extra', packet({'userId': '55'}))
+    mock.when('/ajax/illust/123',
+              b'{"error":false,"message":"","body":{"id":"123","id":"124","userId":"91"}}')
+    client = make_client(tmp_path, mock)
+    try:
+        client.verify_identity()
+        with pytest.raises(mod.InvalidPayload):
+            client.get_artwork_metadata_raw('123', '91')
+    finally:
+        client.close()
 
 
 def test_urllib_configuration_ignores_proxy_environment(tmp_path, monkeypatch):

@@ -11,12 +11,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+import json
+import math
 import re
 from typing import Literal
 
 
 MAX_META_ATTEMPTS = 3
 MAX_UNKNOWN_STREAK = 5
+MAX_WORK_META_BYTES = 65536
 _ID = re.compile(r'[1-9][0-9]{0,19}\Z')
 FailureReason = Literal['http', 'authentication', 'transport', 'timeout',
                         'missing_bookmark_count', 'unknown']
@@ -57,6 +60,53 @@ class FailureDecision:
     increment_attempts: bool
     stop_run: bool
     consecutive_unknown: int
+
+
+def sanitize_work_meta(value: object) -> dict:
+    """Validate bounded JSON metadata without rendering HTML or following URLs."""
+    if type(value) is not dict or len(value) > 256:
+        raise ValueError('work metadata object required')
+
+    def clean(item, level):
+        if level > 12:
+            raise ValueError('work metadata nesting too deep')
+        if item is None or type(item) is bool:
+            return item
+        if type(item) is int:
+            if not -(2 ** 63) <= item < 2 ** 63:
+                raise ValueError('work metadata integer invalid')
+            return item
+        if type(item) is float:
+            if not math.isfinite(item):
+                raise ValueError('work metadata number invalid')
+            return item
+        if type(item) is str:
+            if (len(item) > 8192
+                    or any(0xD800 <= ord(char) <= 0xDFFF for char in item)):
+                raise ValueError('work metadata string invalid')
+            return item
+        if type(item) is list:
+            if len(item) > 512:
+                raise ValueError('work metadata list too large')
+            return [clean(part, level + 1) for part in item]
+        if type(item) is dict:
+            if len(item) > 256:
+                raise ValueError('work metadata object too large')
+            result = {}
+            for key, part in item.items():
+                if (type(key) is not str or not key or len(key) > 128
+                        or any(ord(char) < 32 or ord(char) == 127 for char in key)):
+                    raise ValueError('work metadata key invalid')
+                result[key] = clean(part, level + 1)
+            return result
+        raise ValueError('work metadata value invalid')
+
+    cleaned = clean(value, 0)
+    payload = json.dumps(cleaned, sort_keys=True, separators=(',', ':'),
+                         ensure_ascii=True, allow_nan=False).encode('ascii')
+    if len(payload) > MAX_WORK_META_BYTES:
+        raise ValueError('work metadata too large')
+    return cleaned
 
 
 def classify_failure(evidence: FailureEvidence, *, consecutive_unknown: int = 0) -> FailureDecision:
@@ -134,5 +184,7 @@ def select_candidates(rows: tuple[MetadataCandidate, ...]) -> tuple[MetadataCand
     """One immutable pass, mirroring original ORDER BY attempts/user/work."""
     if type(rows) is not tuple or any(not isinstance(row, MetadataCandidate) for row in rows):
         raise ValueError('metadata candidates must be an immutable snapshot')
+    if len({row.work_id for row in rows}) != len(rows):
+        raise ValueError('duplicate metadata candidate identity')
     return tuple(sorted((row for row in rows if row.needs_backfill),
                         key=lambda row: (row.meta_attempts, row.user_id, row.work_id)))

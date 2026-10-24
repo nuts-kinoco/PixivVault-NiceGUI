@@ -1,5 +1,7 @@
 # Phase10 — 管理root専用メタデータ後埋めの契約と進行
 
+> 2026-10-24 後任による最新状態：Phase9 PR #30 head 61a0e5c2b9d95f63c25e57ff6ea20e4175a4e6c4 は独立read-only全差分レビューAPPROVE/P1=P2=0、ローカル全pytest/Chromium/Windows nativeを経てmainへマージ済み。merge SHA 9d62fbad826e2cdc469c06806f44996cc61fb91c に対するGitHub Actions run 40055760877 の Windows/Ubuntu/Chromium **全SUCCESS**確認済み。Phase10専用worktreeは既存M1 commit 99ba92ef、M2 commit f06cba9 を保持したまま、通常mergeにより統合済みmainへ合流。現在のPhase10 HEADは 54e98e20ff88a40c0dc20075aa16c3fb94fe1001。以下の「Phase9 CI実行中」は作業当時の履歴。Phase10 M2はオフライン基盤のみで、Phase10全機能・製品全体の完成ではない。
+
 ## 現在位置
 
 - Phase9 PR #30 の新head c4f3427ced0f1c881d0631b057c2898fdc6eb8d8 がCI実行中に、独立した専用worktree phase10/managed-meta-backfill を同headから作成した。Phase9のdirtyコードや原版のファイルを編集しない。
@@ -51,3 +53,13 @@
 - 最初のClaude Sonnet read-only独立QAは、古いlease epochなし・旧世代offer復活・不正なfailure flagで試行回数改変の3P2を発見しBLOCK。その後すべて是正し、独立再監査は **M2限定APPROVE / P1=0 / P2=0**。残P3として注入callbackのロック再入・外部CASとの連携・SQLiteスキーマ不正への対処はM3接続前に再設計する。
 - M1/M2 focused 55 passed。初期OFF/marker拒否/CAS/ファイルlock/active世代overlayと0/失敗3回/429とunknown/再起動旧lease/偽装FailureDecision/古い世代差戻し/改ざん/2スレッドclaim/OFFフェンスなどを合成試験した。
 - M2はHTTP・Cookie・原DB読取・自動スケジューラ・UIのないオフライン基盤。Phase10のPR/CI、Edge/Windows製品受入、main統合は依然未実施。元の全移植ゴールは未達であり、Phase9 PR #30統合後main CIを先行確認する。
+
+## M3: 明示起動・synthetic GETアダプタ（2026-10-24 継続）
+
+- Phase9本体の統合後main CI run **40055760877** のWindows/Ubuntu/Chromium成功を再照合した。M3は独立worktree `phase10/managed-meta-backfill` / base HEAD `54e98e20ff88a40c0dc20075aa16c3fb94fe1001` 上の未コミット差分として引き継ぎ、別の同一作業を重複起動しなかった。
+- `metadata_transport.py` は合成結果の作品/作者ID一致、マスク、bookmarkCount 0・NULL、昇格列、bounded `work_meta`、失敗クラスを検証。`pixiv_read_client.py` はHTTPStatusRejectedをURL/本文を含まない型で保持し、重複JSON key/NaNを拒否。明示的既存Cookieクライアントの読み取りアダプタのみを追加し、アプリの起動経路・自動スケジューラ・実Pixiv通信へ接続していない。
+- `metadata_runner.py` は起動OFF既定、候補のimmutable snapshot、本人認証照合、1周各作品最大1 GET、save/download busy待ち、明示キャンセル、全体障害即停止、unknown 5件連続停止、lease/世代CASと再起動時の曖昧性保留を実装。初期の無停止前提テストでM3関連440件成功。base mainを取り込んだ全体試験は **1571 passed / 1 skipped / 1 warning**（`artifacts/phase10-m3-full-before-review-20261024.xml`）。
+- Claude Sonnet独立read-only M3テストレビューは最初 **BLOCK P2=3**（事前cancelでも認証通信／世代切替中429の全体停止逸失／`wait_for_idle=False`で途中busy無限待ち）と判定。M2の旧`user_version=0`台帳互換と既存`meta_attempts`継承も追加確認。計5件のREDを合成pytestで再現し、それぞれ修正、局所 **102 passed**（`artifacts/phase10-m3-p2-remediation-focused-20261024.xml`）。修正後にClaude独立read-only再レビュー **APPROVE / P1=0 / P2=0**、残P3を明記した。
+- 既存rootの元DB、画像、ZIP、Cookie、世代receiptを変更していない。実GET、ブラウザUIでのON/OFF、実downloadsとの共有実行バリア、Edge/native/コピー受入、Phase10のPR/正確なhead CI/main統合は**未達**。`is_download_busy()`の合成優先確認はあるが、claim直後〜GET間の実downloadsとの原子的排他は未結線。この境界をM4/M5の受入までに解消し、未完成を完成扱いしない。
+- その他のP3：既に`superseded`へ登録されたA→B→A差戻しの1作品でバッチが`managed_state_changed`停止する（旧結果表示/書込みはしない）。sqlite異常のrun summary統一・ライブepoch中の非通常終了、及び実ジョブ競合についても統合時に再点検する。
+- 修正後全pytestは **1575 passed / 1 skipped / 1 warning、失敗0**。証跡 `artifacts/phase10-m3-after-p2-remediation-full-20261024.xml`。skippedはWindows symlink権限、warningは既存Starlette/httpx TestClient deprecation。これはM3のローカルsource snapshotに対する結果でありPR head CIではない。

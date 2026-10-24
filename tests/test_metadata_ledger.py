@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
+import sqlite3
 
 import pytest
 
@@ -69,6 +70,43 @@ def test_off_default_and_revision_cas_persist_across_restart(tmp_path):
         assert restored.claim('123', FP1) is None
     finally:
         restored.close()
+
+
+def test_unversioned_m2_database_reopens_and_preserves_existing_data(tmp_path):
+    root = root_with_marker(tmp_path)
+    ledger = open_ledger(root)
+    ledger.offer(candidate(), FP1)
+    ledger.configure(enabled=True, expected_revision=1)
+    lease = ledger.claim('123', FP1)
+    ledger.complete_success('123', FP1, lease, {'bookmark_count': 0},
+                            verified_active_receipt_sha256=FP1)
+    ledger.close()
+    with sqlite3.connect(root / '.pixivvault-managed-metadata.sqlite3') as db:
+        db.execute('PRAGMA user_version=0')  # The committed M2 schema lacked user_version.
+    restored = open_ledger(root)
+    try:
+        assert restored.settings().enabled
+        assert restored.verified_overlay('123', FP1) == {'bookmark_count': 0}
+        assert restored.entry('123').state == 'done'
+    finally:
+        restored.close()
+    with sqlite3.connect(root / '.pixivvault-managed-metadata.sqlite3') as db:
+        assert db.execute('PRAGMA user_version').fetchone()[0] == 1
+
+
+def test_existing_snapshot_attempt_budget_is_not_reset_on_first_offer(tmp_path):
+    ledger = open_ledger(root_with_marker(tmp_path))
+    try:
+        row = MetadataCandidate('123', '91', 'illust', False, None, 2)
+        assert ledger.offer(row, FP1)
+        assert ledger.entry('123').attempts == 2
+        ledger.configure(enabled=True, expected_revision=1)
+        lease = ledger.claim('123', FP1)
+        assert ledger.complete_failure(
+            '123', FP1, lease, classify_failure(FailureEvidence('http', 404))) == 'gave_up'
+        assert ledger.entry('123').attempts == 3
+    finally:
+        ledger.close()
 
 
 def test_exact_generation_success_can_overlay_zero_without_receipt_mutation(tmp_path):
@@ -310,3 +348,119 @@ def test_duplicate_key_marker_is_rejected(tmp_path):
     )
     with pytest.raises(MetadataLedgerError, match='marker'):
         open_ledger(root)
+
+
+def test_schema_corruption_is_rejected_without_silent_repair(tmp_path):
+    root = root_with_marker(tmp_path)
+    path = root / '.pixivvault-managed-metadata.sqlite3'
+    with sqlite3.connect(path) as db:
+        db.execute('PRAGMA user_version=1')
+        db.execute('CREATE TABLE metadata(work_id TEXT PRIMARY KEY, secret TEXT)')
+    with sqlite3.connect(path) as db:
+        before = (db.execute('PRAGMA user_version').fetchone(),
+                  db.execute("SELECT name,sql FROM sqlite_master WHERE type='table' ORDER BY name").fetchall())
+    with pytest.raises(MetadataLedgerError, match='schema rejected'):
+        open_ledger(root)
+    with sqlite3.connect(path) as db:
+        after = (db.execute('PRAGMA user_version').fetchone(),
+                 db.execute("SELECT name,sql FROM sqlite_master WHERE type='table' ORDER BY name").fetchall())
+    assert after == before
+
+
+def test_active_pointer_callback_never_runs_under_ledger_lock(tmp_path):
+    root = root_with_marker(tmp_path)
+    holder = {}
+    observations = []
+
+    def active(work_id):
+        ledger = holder.get('ledger')
+        if ledger is not None:
+            observations.append(ledger._lock._is_owned())
+        return _ACTIVE.setdefault(root, {'123': FP1}).get(work_id)
+
+    ledger = ManagedMetadataLedger(root, active_receipt_sha256=active)
+    holder['ledger'] = ledger
+    try:
+        assert ledger.offer(candidate(), FP1)
+        ledger.configure(enabled=True, expected_revision=1)
+        lease = ledger.claim('123', FP1)
+        ledger.complete_success('123', FP1, lease, {'bookmark_count': 0},
+                                verified_active_receipt_sha256=FP1)
+        assert observations and not any(observations)
+    finally:
+        ledger.close()
+
+
+def test_active_pointer_failure_is_sanitized(tmp_path):
+    root = root_with_marker(tmp_path)
+    secret_path = 'C:\\private\\cookie.txt'
+
+    def broken(_work_id):
+        raise OSError('failed reading ' + secret_path)
+
+    ledger = ManagedMetadataLedger(root, active_receipt_sha256=broken)
+    try:
+        with pytest.raises(MetadataLedgerError, match='active managed receipt unavailable') as error:
+            ledger.offer(candidate(), FP1)
+        assert secret_path not in str(error.value)
+    finally:
+        ledger.close()
+
+
+def test_superseded_generations_stay_retired_after_restart(tmp_path):
+    root = root_with_marker(tmp_path)
+    ledger = open_ledger(root)
+    try:
+        assert ledger.offer(candidate(), FP1)
+        _ACTIVE[root]['123'] = FP2
+        assert ledger.offer(candidate(), FP2)
+    finally:
+        ledger.close()
+    reopened = open_ledger(root)
+    try:
+        _ACTIVE[root]['123'] = FP1
+        with pytest.raises(MetadataLedgerError, match='superseded'):
+            reopened.offer(candidate(), FP1)
+        assert reopened.entry('123').base_receipt_sha256 == FP2
+    finally:
+        reopened.close()
+
+
+def test_changed_generation_can_explicitly_retire_current_stale_lease(tmp_path):
+    root = root_with_marker(tmp_path)
+    ledger = open_ledger(root)
+    try:
+        ledger.offer(candidate(), FP1)
+        ledger.configure(enabled=True, expected_revision=1)
+        lease = ledger.claim('123', FP1)
+        _ACTIVE[root]['123'] = FP2
+        with pytest.raises(MetadataLedgerError, match='generation changed'):
+            ledger.complete_success('123', FP1, lease, {'bookmark_count': 4},
+                                    verified_active_receipt_sha256=FP1)
+        ledger.discard_stale_result('123', FP1, lease)
+        assert ledger.entry('123').state == 'unknown'
+        assert ledger.offer(candidate(), FP2)
+        assert ledger.claim('123', FP2) is not None
+    finally:
+        ledger.close()
+
+
+def test_interrupted_same_generation_requires_explicit_revisioned_resume(tmp_path):
+    root = root_with_marker(tmp_path)
+    ledger = open_ledger(root)
+    ledger.offer(candidate(), FP1)
+    ledger.configure(enabled=True, expected_revision=1)
+    ledger.claim('123', FP1)
+    ledger.close()
+    restored = open_ledger(root)
+    try:
+        restored.acknowledge_interrupted('123')
+        assert restored.entry('123').state == 'unknown'
+        assert restored.claim('123', FP1) is None
+        with pytest.raises(MetadataLedgerError, match='changed'):
+            restored.resume_interrupted('123', expected_revision=1)
+        assert restored.resume_interrupted('123', expected_revision=2) is None
+        assert restored.settings().revision == 3
+        assert restored.claim('123', FP1) is not None
+    finally:
+        restored.close()
