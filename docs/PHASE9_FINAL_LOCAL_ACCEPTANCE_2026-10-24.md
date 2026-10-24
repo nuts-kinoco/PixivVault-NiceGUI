@@ -32,3 +32,12 @@
 `docs/PHASE9_EVIDENCE_INCIDENT_2026-10-24.md` に記載した共通 `webview-ui*.png` 上書き事故について、**事故前の元画像bytesは未復元**。今回のnative実行はrun固有名を使用し、既存共通名を再上書きしていない。所有者不明の古いpytest PIDは停止していない。実Cookie、元DB/画像/ZIPの変更、Shaft/vault通信は今回行っていない。
 
 製品全体のFlet→NiceGUI移植完了を、このPhase9局所受入のGREENから推定しない。統合後は原版との差分棚卸しと残機能の独立実装・レビュー・同一候補受入を継続する。
+
+## 追補: PR #30 初回Chromium CIのREDと厳密なチェッカー待機への是正
+
+- 製品コード commit db997cfd13d3bf1354fbf7dac375dfb7fc6fdf13 をPR #30へpush。CI run 40051072467のUbuntu/Windows pytestはSUCCESSだが、Chromium作者差分DL検査がRED。mainは未統合で根本原因を調査した。
+- GitHub Actionsの保存済み失敗証跡のindexは最終的に70作品、作品321の期待更新日、3つの世代receiptが揃っている。旧checkerは作品数70だけを確認して待機終了し、作品321の新世代CAS反映前に更新日のassertへ進んでいた。証跡は別ディレクトリへ保存し上書きしていない。
+- 製品ソースは一切変更せず、tools/check_author_download_browser.pyだけで、全70作品・作品321の期待update_date・3世代receiptが揃うまで上限付きで再照合。index原子的置換時の一時的読取失敗も許容し、ledger側の全70 item saved・deferred 0を別途上限付きで厳密に確認する。SHA、画像pixel、receipt、完全GET、終了/port等の既存検査は緩めていない。
+- tests/test_author_browser_race.pyに4件の完全合成・偽時計テストを追加し、件数先行・更新日遅延反映、破損JSONの復帰、永続未反映の失敗、画素異常を確認。Claude Sonnetはテストのみの独立読取検証でAPPROVE/P1=0/P2=0。Claude CLIの書込許可は非対話環境で拒否され、primeがCoS Coreからテストを作成した。
+- 再検査: 全pytest 1217 passed/1 skipped/1 warning（artifacts/phase9-checker-final-full-20261024.xml）。Chromium合成初回/再起動 × 1280×720 / 1920×1080は4/4 SUCCESS、59製品ソースSHA一致、console/page/foreign errorsゼロ、正常終了/port解放4/4（artifacts/phase9-ci-checker-strict-poll-chromium-20261024/result.json）。
+- 本追補時点では新PR headのCI、main merge、post-merge CIはまだ未確認。正確なPR head SHAに対しWindows/Ubuntu/Chromiumの各SUCCESSを確認してからのみ既存マージ承認を適用する。

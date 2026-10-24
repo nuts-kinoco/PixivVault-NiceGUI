@@ -30,17 +30,38 @@ def verify_saved(root, *, expected_update_date='2026-10-24T10:00:00+09:00',
     import hashlib
     from io import BytesIO
     from PIL import Image
-    deadline = time.monotonic() + 30
+    # Distinct jobs can finish in a different order under Linux/Windows.
+    # 70 saved active entries do not imply the updated generation of work 321
+    # has been committed yet. Wait for the *exact* desired CAS generation,
+    # not merely the total entry count or a historical 'saved' UI message.
+    deadline = time.monotonic() + (120 if expected_entries > 1 else 30)
     index = {}
+    versions = []
+    last_read_error = None
     while time.monotonic() < deadline:
-        index = json.loads((root / 'active-generations.json').read_text(encoding='utf-8'))
-        if '321' in index.get('entries', {}) and len(index['entries']) == expected_entries:
+        try:
+            # An atomic index replacement can transiently make a file open
+            # fail on Windows; retry without accepting an incomplete snapshot.
+            index = json.loads((root / 'active-generations.json').read_text(encoding='utf-8'))
+            versions = sorted((root / 'generations').glob('work-321-*/receipt.json'))
+        except (OSError, json.JSONDecodeError) as exc:
+            last_read_error = type(exc).__name__
+            time.sleep(0.1)
+            continue
+        entries = index.get('entries', {})
+        selected = entries.get('321')
+        if (len(entries) == expected_entries and selected is not None
+                and selected.get('update_date') == expected_update_date
+                and len(versions) == expected_versions):
             break
         time.sleep(0.1)
+    assert index, f'active generation index not readable: {last_read_error}'
     assert type(index['version']) is int and index['version'] == 2
     assert '321' in index['entries'] and len(index['entries']) == expected_entries
     selected = index['entries']['321']
-    assert selected['update_date'] == expected_update_date
+    assert selected['update_date'] == expected_update_date, (
+        f"work 321 active generation not settled: expected={expected_update_date}, "
+        f"actual={selected['update_date']}, versions={len(versions)}")
     assert re.fullmatch('[a-f0-9]{64}', selected['accepted_fingerprint'])
     relative = selected['relative_receipt']
     assert relative.startswith('generations/work-321-') and relative.endswith('/receipt.json')
@@ -50,7 +71,6 @@ def verify_saved(root, *, expected_update_date='2026-10-24T10:00:00+09:00',
     receipt = json.loads(data)
     assert receipt['version'] == 1 and receipt['work_id'] == '321'
     assert receipt['page_count'] == 2
-    versions = sorted((root / 'generations').glob('work-321-*/receipt.json'))
     assert len(versions) == expected_versions, 'updated generations must retain prior receipts'
     for row_no, row in enumerate(receipt['files']):
         source = (receipt_path.parent / row['name']).read_bytes()
@@ -190,10 +210,23 @@ def inspect(page, base, headers, root, *, restart):
         assert set(active_index['entries']) == {'321', *(str(wid) for wid in range(400, 469))}
         # Files/index/history alone can hide a failed or unknown dispatch item.
         # Assert the durable scheduler ledger itself is fully reconciled.
-        with sqlite3.connect(root / '.pixivvault-managed-scheduler.sqlite3') as db:
-            item_states = db.execute(
-                "SELECT state,COUNT(*) FROM dispatch_items GROUP BY state").fetchall()
-            deferred_count = db.execute('SELECT COUNT(*) FROM deferred_work').fetchone()[0]
+        # Publishing the CAS index and reconciling the dispatch ledger are
+        # separate durable steps. Never assert immediately after the index
+        # flips; wait for the exact 70 saved / zero deferred condition.
+        ledger_deadline = time.monotonic() + 120
+        item_states, deferred_count = [], -1
+        while time.monotonic() < ledger_deadline:
+            try:
+                with sqlite3.connect(root / '.pixivvault-managed-scheduler.sqlite3') as db:
+                    item_states = db.execute(
+                        "SELECT state,COUNT(*) FROM dispatch_items GROUP BY state").fetchall()
+                    deferred_count = db.execute('SELECT COUNT(*) FROM deferred_work').fetchone()[0]
+            except sqlite3.OperationalError:
+                time.sleep(0.1)
+                continue
+            if item_states == [('saved', 70)] and deferred_count == 0:
+                break
+            time.sleep(0.1)
         assert item_states == [('saved', 70)], f'unexpected dispatch item states: {item_states!r}'
         assert deferred_count == 0, f'deferred work remains after all 70 saves: {deferred_count}'
         scheduler_saved = True
