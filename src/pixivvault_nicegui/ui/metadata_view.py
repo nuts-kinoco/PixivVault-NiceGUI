@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 
 from nicegui import ui
 
@@ -41,12 +42,28 @@ class MetadataView:
                 'data-testid=metadata-status role=status')
             self.progress_label = ui.label('台帳の作品状態: 未読込').props(
                 'data-testid=metadata-progress role=status')
+            ui.label('保留・中断作品の確認（操作は指定した1作品のみ、通信・自動再試行なし）')
+            self.work_id = ui.input(label='台帳の作品ID（数字）').props(
+                'data-testid=metadata-work-id')
+            with ui.row().classes('items-center'):
+                self.inspect_button = ui.button('作品の台帳状態を確認', on_click=self.inspect).props(
+                    'data-testid=metadata-inspect')
+                self.ack_button = ui.button('以前の中断を確認済みにする', on_click=self.acknowledge).props(
+                    'data-testid=metadata-ack-interrupted')
+                self.resume_interrupted_button = ui.button('中断不明から待機へ戻す',
+                    on_click=self.resume_interrupted).props('data-testid=metadata-resume-interrupted')
+                self.resume_blocked_button = ui.button('保留から待機へ戻す',
+                    on_click=self.resume_blocked).props('data-testid=metadata-resume-blocked')
+            self.entry_status = ui.label('指定した作品の状態: 未確認').props(
+                'data-testid=metadata-entry-status role=status')
         self._set_controls(False)
         self._timer = ui.timer(5.0, self.refresh)
 
     def _set_controls(self, enabled: bool):
         for widget in (self.enabled, self.save_button, self.discard_button,
-                       self.refresh_button):
+                       self.refresh_button, self.work_id, self.inspect_button,
+                       self.ack_button, self.resume_interrupted_button,
+                       self.resume_blocked_button):
             widget.set_enabled(enabled)
 
     def _mark_settings_dirty(self):
@@ -149,6 +166,84 @@ class MetadataView:
                 self.status.set_text('設定を再読込できませんでした')
         finally:
             self._busy = False
+
+    def _selected_work_id(self):
+        value = (self.work_id.value or '').strip()
+        if re.fullmatch(r'[1-9][0-9]{0,19}', value) is None:
+            raise ValueError('invalid metadata work id')
+        return value
+
+    async def inspect(self):
+        if self.closed or self._busy or self.revision is None:
+            return
+        self._busy = True
+        try:
+            wid = self._selected_work_id()
+            entry = await asyncio.to_thread(self.services.managed_metadata_entry, wid)
+            if not self.closed:
+                if entry is None:
+                    self.entry_status.set_text('台帳に指定作品の記録はありません')
+                else:
+                    self.entry_status.set_text(
+                        f'台帳状態: {entry.state} / 試行回数: {entry.attempts} '
+                        '（現在の保存世代と照合済みではありません）')
+        except Exception:
+            if not self.closed:
+                self.entry_status.set_text('作品IDが無効か、台帳を読み取れませんでした')
+        finally:
+            self._busy = False
+
+    async def _apply_recovery(self, action: str):
+        if self.closed or self._busy or self.revision is None:
+            return
+        self._busy = True
+        self._set_controls(False)
+        try:
+            if self._settings_dirty:
+                raise ValueError('discard unsaved settings first')
+            wid = self._selected_work_id()
+            if action == 'ack':
+                await asyncio.to_thread(
+                    self.services.acknowledge_managed_metadata_interrupted, wid)
+            elif action == 'interrupted':
+                await asyncio.to_thread(
+                    self.services.resume_managed_metadata_interrupted,
+                    wid, expected_revision=self.revision)
+            elif action == 'blocked':
+                await asyncio.to_thread(
+                    self.services.resume_managed_metadata_blocked,
+                    wid, expected_revision=self.revision)
+            else:
+                raise ValueError('unsupported metadata recovery action')
+            if self.closed:
+                return
+            settings = await asyncio.to_thread(self.services.managed_metadata_settings)
+            if self.closed:
+                return
+            self._load(settings)
+            counts = await asyncio.to_thread(self.services.managed_metadata_progress)
+            if self.closed:
+                return
+            self._load_progress(counts)
+            self.entry_status.set_text('指定作品の操作を記録しました。自動取得は開始しません。')
+        except Exception:
+            if not self.closed:
+                self.entry_status.set_text(
+                    '処理できませんでした。未保存の設定、古い改訂番号、現在の保存世代、'
+                    'または中断の状態を確認してください')
+        finally:
+            self._busy = False
+            if not self.closed:
+                self._set_controls(True)
+
+    async def acknowledge(self):
+        await self._apply_recovery('ack')
+
+    async def resume_interrupted(self):
+        await self._apply_recovery('interrupted')
+
+    async def resume_blocked(self):
+        await self._apply_recovery('blocked')
 
     def close(self):
         self.closed = True

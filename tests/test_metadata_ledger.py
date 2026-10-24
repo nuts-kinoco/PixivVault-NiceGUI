@@ -464,3 +464,54 @@ def test_interrupted_same_generation_requires_explicit_revisioned_resume(tmp_pat
         assert restored.claim('123', FP1) is not None
     finally:
         restored.close()
+
+
+def test_resume_blocked_cas_refuses_a_different_generation_in_race(tmp_path, monkeypatch):
+    root = root_with_marker(tmp_path)
+    ledger = open_ledger(root)
+    try:
+        ledger.offer(candidate(), FP1)
+        ledger.configure(enabled=True, expected_revision=1)
+        lease = ledger.claim('123', FP1)
+        ledger.complete_failure('123', FP1, lease,
+                                classify_failure(FailureEvidence('http', 429)))
+        assert ledger.entry('123').state == 'blocked'
+
+        def rotated_during_digest_check(_wid):
+            # Simulate a second client advancing the row just after the
+            # external generation check and before our SQL CAS acquires lock.
+            ledger._db.execute('UPDATE metadata SET base_sha=?,state=? WHERE work_id=?',
+                               (FP2, 'blocked', '123'))
+            return FP1
+
+        monkeypatch.setattr(ledger, '_active_digest', rotated_during_digest_check)
+        with pytest.raises(MetadataLedgerError, match='not blocked|no longer current'):
+            ledger.resume_blocked('123', expected_revision=2)
+        assert ledger.entry('123').base_receipt_sha256 == FP2
+        assert ledger.entry('123').state == 'blocked'
+    finally:
+        ledger.close()
+
+
+def test_same_epoch_disabled_unknown_cannot_be_resumed_until_restart(tmp_path):
+    root = root_with_marker(tmp_path)
+    ledger = open_ledger(root)
+    try:
+        ledger.offer(candidate(), FP1)
+        ledger.configure(enabled=True, expected_revision=1)
+        lease = ledger.claim('123', FP1)
+        ledger.configure(enabled=False, expected_revision=2)
+        assert ledger.entry('123').state == 'unknown'
+        ledger.configure(enabled=True, expected_revision=3)
+        with pytest.raises(MetadataLedgerError, match='same process|current epoch'):
+            ledger.resume_interrupted('123', expected_revision=4)
+        assert ledger.claim('123', FP1) is None
+    finally:
+        ledger.close()
+    restored = open_ledger(root)
+    try:
+        restored.resume_interrupted('123', expected_revision=4)
+        assert restored.entry('123').state == 'pending'
+        assert restored.settings().revision == 5
+    finally:
+        restored.close()

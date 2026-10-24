@@ -1022,6 +1022,36 @@ class ApplicationServices:
             return (None if self.managed_metadata is None
                     else self.managed_metadata.progress())
 
+    def managed_metadata_entry(self, work_id: str):
+        """Inspect one local side-ledger row without verifying or fetching Pixiv."""
+        with self._managed_metadata_lock:
+            if self.closing or self.managed_metadata is None:
+                raise RuntimeError('managed metadata ledger is not open')
+            return self.managed_metadata.entry(work_id)
+
+    def acknowledge_managed_metadata_interrupted(self, work_id: str):
+        """Explicitly retire only an older epoch's interrupted lease."""
+        with self._managed_metadata_lock:
+            if self.closing or self.managed_metadata is None:
+                raise RuntimeError('managed metadata ledger is not open')
+            self.managed_metadata.acknowledge_interrupted(work_id)
+
+    def resume_managed_metadata_interrupted(self, work_id: str, *, expected_revision: int):
+        """Explicit CAS reset to pending; does not schedule a request."""
+        with self._managed_metadata_lock:
+            if self.closing or self.managed_metadata is None:
+                raise RuntimeError('managed metadata ledger is not open')
+            self.managed_metadata.resume_interrupted(
+                work_id, expected_revision=expected_revision)
+
+    def resume_managed_metadata_blocked(self, work_id: str, *, expected_revision: int):
+        """Explicit CAS reset after an outage; never hot-retries itself."""
+        with self._managed_metadata_lock:
+            if self.closing or self.managed_metadata is None:
+                raise RuntimeError('managed metadata ledger is not open')
+            self.managed_metadata.resume_blocked(
+                work_id, expected_revision=expected_revision)
+
     def configure_managed_metadata(self, *, enabled: bool, expected_revision: int):
         """CAS settings change; never triggers metadata retrieval."""
         with self._managed_metadata_lock:

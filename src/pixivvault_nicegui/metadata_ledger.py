@@ -171,6 +171,10 @@ class ManagedMetadataLedger:
             raise MetadataLedgerError('managed metadata path rejected') from None
         self._lock = RLock()
         self._closed = False
+        # An UNKNOWN produced by disabling or retiring a GET in this process
+        # cannot be explicitly re-claimed while that old GET may still run.
+        # On a fresh process, all such GETs have ended and this set is empty.
+        self._same_epoch_unknown: set[tuple[str, str]] = set()
         self._owner = None
         try:
             self._owner = lock_path.open('a+b')
@@ -329,12 +333,17 @@ class ManagedMetadataLedger:
                 self._db.execute('UPDATE settings SET enabled=?,revision=? WHERE id=1',
                                  (int(enabled), prior.revision + 1))
                 if not enabled:
+                    locally_in_flight = set(self._db.execute(
+                        "SELECT work_id,base_sha FROM metadata WHERE state='in_flight' "
+                        "AND lease_epoch=?", (self._epoch,)).fetchall())
                     # Disable fences all accepted in-flight capabilities. A
                     # later enable never silently resumes the old operation.
                     self._db.execute(
                         "UPDATE metadata SET state='unknown',lease_id=NULL,lease_epoch=NULL "
                         "WHERE state='in_flight'")
                 self._db.execute('COMMIT')
+                if not enabled:
+                    self._same_epoch_unknown.update(locally_in_flight)
             except BaseException:
                 self._db.execute('ROLLBACK')
                 raise
@@ -484,8 +493,9 @@ class ManagedMetadataLedger:
                 if not settings.enabled or expected_revision != settings.revision:
                     raise MetadataLedgerError('metadata settings changed')
                 cur = self._db.execute(
-                    "UPDATE metadata SET state='pending' WHERE work_id=? AND state='blocked'",
-                    (wid,))
+                    "UPDATE metadata SET state='pending' WHERE work_id=? AND base_sha=? "
+                    "AND state='blocked' AND lease_id IS NULL AND lease_epoch IS NULL",
+                    (wid, prior.base_receipt_sha256))
                 if cur.rowcount != 1:
                     raise MetadataLedgerError('metadata operation not blocked')
                 self._db.execute('UPDATE settings SET revision=? WHERE id=1',
@@ -512,6 +522,8 @@ class ManagedMetadataLedger:
                 settings = self.settings()
                 if not settings.enabled or expected_revision != settings.revision:
                     raise MetadataLedgerError('metadata settings changed')
+                if (wid, prior.base_receipt_sha256) in self._same_epoch_unknown:
+                    raise MetadataLedgerError('cannot resume unknown operation in same process')
                 cur = self._db.execute(
                     "UPDATE metadata SET state='pending' WHERE work_id=? AND base_sha=? "
                     "AND state='unknown' AND lease_id IS NULL AND lease_epoch IS NULL",
@@ -555,6 +567,7 @@ class ManagedMetadataLedger:
                 (wid, base, lease_id, self._epoch))
             if cursor.rowcount != 1:
                 raise MetadataLedgerError('metadata operation no longer current')
+            self._same_epoch_unknown.add((wid, base))
 
     def verified_overlay(self, work_id: str, active_receipt_sha256: str) -> dict | None:
         """Only a complete record bound to the current managed generation."""

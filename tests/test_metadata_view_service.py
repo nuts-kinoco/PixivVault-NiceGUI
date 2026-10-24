@@ -2,6 +2,7 @@
 from pathlib import Path
 
 import pytest
+from nicegui import Client, ui
 
 from pixivvault_nicegui.metadata_ledger import MetadataLedgerError
 from pixivvault_nicegui.metadata_ledger import MetadataProgress
@@ -131,6 +132,97 @@ def test_metadata_settings_refuse_synthetic_mode_and_closed_service(tmp_path):
         app.managed_metadata_settings()
     with pytest.raises(RuntimeError, match='not open'):
         app.configure_managed_metadata(enabled=True, expected_revision=1)
+
+
+def _set_synthetic_active_receipt(monkeypatch, app, digest='a' * 64):
+    monkeypatch.setattr(app.managed_downloads, 'verified_saved_receipt',
+                        lambda wid: ('outputs/mock/receipt.json', {'work_id': wid},
+                                     digest, None, 'b' * 64))
+
+
+def test_recovery_is_explicit_revisioned_and_does_not_fetch(tmp_path, monkeypatch):
+    app, source = managed_app(tmp_path)
+    try:
+        _set_synthetic_active_receipt(monkeypatch, app)
+        ledger = app.enable_managed_metadata()
+        ledger.offer(MetadataCandidate('123', '91', 'illust', False, None, 0), 'a' * 64)
+        app.configure_managed_metadata(enabled=True, expected_revision=1)
+        lease = ledger.claim('123', 'a' * 64)
+        ledger.complete_failure('123', 'a' * 64, lease,
+                                classify_failure(FailureEvidence('http', 429)))
+        assert app.managed_metadata_entry('123').state == 'blocked'
+        with pytest.raises(MetadataLedgerError, match='changed'):
+            app.resume_managed_metadata_blocked('123', expected_revision=1)
+        assert app.managed_metadata_entry('123').state == 'blocked'
+        app.resume_managed_metadata_blocked('123', expected_revision=2)
+        assert app.managed_metadata_entry('123').state == 'pending'
+        assert app.managed_metadata_settings().revision == 3
+        assert source.calls == []
+        with pytest.raises(MetadataLedgerError):
+            app.resume_managed_metadata_blocked('123', expected_revision=3)
+    finally:
+        app.close()
+
+
+def test_interrupted_recovery_never_acks_current_epoch_or_auto_replays(tmp_path, monkeypatch):
+    app, source = managed_app(tmp_path)
+    _set_synthetic_active_receipt(monkeypatch, app)
+    ledger = app.enable_managed_metadata()
+    ledger.offer(MetadataCandidate('123', '91', 'illust', False, None, 0), 'a' * 64)
+    app.configure_managed_metadata(enabled=True, expected_revision=1)
+    ledger.claim('123', 'a' * 64)
+    with pytest.raises(MetadataLedgerError, match='live'):
+        app.acknowledge_managed_metadata_interrupted('123')
+    app.close()
+    assert source.calls == []
+
+    reopened, source2 = managed_app(tmp_path)
+    try:
+        _set_synthetic_active_receipt(monkeypatch, reopened)
+        side = reopened.enable_managed_metadata()
+        assert side.entry('123').state == 'in_flight'
+        assert side.claim('123', 'a' * 64) is None
+        reopened.acknowledge_managed_metadata_interrupted('123')
+        assert reopened.managed_metadata_entry('123').state == 'unknown'
+        assert side.claim('123', 'a' * 64) is None
+        with pytest.raises(MetadataLedgerError, match='changed'):
+            reopened.resume_managed_metadata_interrupted('123', expected_revision=1)
+        reopened.resume_managed_metadata_interrupted('123', expected_revision=2)
+        assert side.entry('123').state == 'pending'
+        assert reopened.managed_metadata_settings().revision == 3
+        assert source2.calls == []
+    finally:
+        reopened.close()
+
+
+@pytest.mark.asyncio
+async def test_metadata_recovery_ui_requires_explicit_button_and_shows_local_state(tmp_path, monkeypatch):
+    app, source = managed_app(tmp_path)
+    client = Client(ui.page('/_metadata_recovery_actions'))
+    try:
+        _set_synthetic_active_receipt(monkeypatch, app)
+        ledger = app.enable_managed_metadata()
+        ledger.offer(MetadataCandidate('123', '91', 'illust', False, None, 0), 'a' * 64)
+        app.configure_managed_metadata(enabled=True, expected_revision=1)
+        lease = ledger.claim('123', 'a' * 64)
+        ledger.complete_failure('123', 'a' * 64, lease,
+                                classify_failure(FailureEvidence('http', 429)))
+        with client:
+            view = MetadataView(app)
+        assert view.revision is None
+        await view.open()  # This is an explicit action; it doesn't fetch Pixiv.
+        assert view.revision == 2
+        view.work_id.set_value('123')
+        await view.inspect()
+        assert 'blocked' in view.entry_status.text
+        await view.resume_blocked()
+        assert app.managed_metadata_entry('123').state == 'pending'
+        assert view.revision == 3
+        assert '自動取得は開始しません' in view.entry_status.text
+        assert source.calls == []
+    finally:
+        client.delete()
+        app.close()
 
 
 @pytest.mark.asyncio
