@@ -70,7 +70,7 @@ These results are from the latest P2-remediation source, not from older snapshot
 - Earlier worker-4 approved only the shared per-work lock/race/lock-order scope; it did not approve the full Phase9 diff.
 - Earlier worker-3's full review was INCONCLUSIVE because the source changed during review.
 - A prior worker-5 launch failed with `chat did not report back in time (no browser opened it)`; prior worker families were inaccessible from a later conversation scope. Do not claim that these workers approved the latest P2 fixes.
-- At the time of this handoff request, `agents action=status` in the new caller returned no retained workers for that caller. A fresh CoSCore worker was invited to review the latest P2-remediation source read-only, but its status/result is not yet available. Check status in the owning run before spawning anything else; do not duplicate a live reviewer.
+- At the time of this handoff request, `agents action=status` returned no retained workers for the new caller. A fresh CoSCore worker spawn returned `state=invited`, but a subsequent `agents action=status` scoped to that run returned `AGENTS_BUSY: no agent family belongs to this conversation`. Therefore the invitation was accepted by the tool, but whether the reviewer actually started, is active, or returned a result cannot be confirmed from this caller. Do not claim it is active or complete, and do not spawn a duplicate until the owning CoSCore conversation/run can be recovered.
 
 ## Immediate next steps
 
