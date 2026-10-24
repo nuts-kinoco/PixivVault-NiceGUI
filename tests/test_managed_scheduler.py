@@ -476,6 +476,264 @@ def test_scheduler_ui_dirty_form_pins_cas_revision_and_suppresses_programmatic_e
         service.close()
 
 
+@pytest.mark.asyncio
+async def test_scheduler_ui_reports_progress_and_admission_before_slow_reconciliation(monkeypatch):
+    """The user must see acknowledgement before receipt reconciliation finishes."""
+    import asyncio
+    from threading import Event, RLock
+    from types import SimpleNamespace
+    import pixivvault_nicegui.managed_scheduler as scheduler_module
+    from pixivvault_nicegui.ui.scheduler_view import SchedulerView
+
+    progress_seen = Event()
+    allow_dispatch_to_finish = Event()
+    refresh_started = asyncio.Event()
+    allow_refresh_to_finish = asyncio.Event()
+
+    class Widget:
+        def __init__(self):
+            self.value = None
+        def set_text(self, value):
+            self.value = value
+        def set_enabled(self, value):
+            self.value = value
+
+    view = object.__new__(SchedulerView)
+    view.closed = False
+    view._busy = False
+    view._settings_dirty = False
+    view.run_button = Widget()
+    view.save_button = Widget()
+    view.action_notice = Widget()
+    view.history_label = Widget()
+    view._background_refresh_tasks = set()
+    view._refreshing = False
+    view._refresh_pending = False
+    view.services = SimpleNamespace(
+        closing=False,
+        managed_scheduler=SimpleNamespace(favourites=lambda: ('91',)),
+        _scheduler_dispatch_lock=RLock(),
+        _scheduler_cancel_event=Event(),
+    )
+
+    def fake_submit(services, author_ids, **kwargs):
+        assert view.action_notice.value == '作者一覧を確認中です。受付件数を集計しています…'
+        progress_seen.set()
+        assert allow_dispatch_to_finish.wait(3)
+        return {'accepted': 50, 'deferred': 20}
+
+    async def slow_refresh(*, ensure_after_current=False):
+        refresh_started.set()
+        await allow_refresh_to_finish.wait()
+
+    view.refresh = slow_refresh
+    monkeypatch.setattr(scheduler_module, 'submit_author_batch', fake_submit)
+    task = asyncio.create_task(view.run_once())
+    try:
+        assert await asyncio.to_thread(progress_seen.wait, 1)
+        assert view.action_notice.value == '作者一覧を確認中です。受付件数を集計しています…'
+        allow_dispatch_to_finish.set()
+        await asyncio.wait_for(refresh_started.wait(), timeout=2)
+        await asyncio.wait_for(task, timeout=2)
+        assert view.action_notice.value == (
+            '受付 50件、保留 20件。保存結果はキューで確認してください')
+        assert view.history_label.value == '今回のチェック: 受付 50件 / 保留 20件 / 保存結果を確認中'
+        assert view.run_button.value is True
+        assert view.save_button.value is True
+        allow_refresh_to_finish.set()
+    finally:
+        allow_dispatch_to_finish.set()
+        allow_refresh_to_finish.set()
+        if view._background_refresh_tasks:
+            await asyncio.gather(*tuple(view._background_refresh_tasks), return_exceptions=True)
+        if not task.done():
+            await task
+
+
+@pytest.mark.asyncio
+async def test_scheduler_background_refresh_emits_claimed_notification_in_view_context(tmp_path, monkeypatch):
+    """A fresh task must restore its NiceGUI slot before emitting notifications."""
+    import asyncio
+    from nicegui import Client, ui, context
+    from pixivvault_nicegui.ui.scheduler_view import SchedulerView
+
+    class Ledger:
+        def __init__(self):
+            self.claims = 0
+        def snapshot(self):
+            return SimpleNamespace(revision=1, interval_hours=0, startup_check=False,
+                                   last_status='saved', next_due_utc=None)
+        def favourites(self):
+            return ()
+        def claim_pending_notifications(self):
+            self.claims += 1
+            return ('123',) if self.claims == 1 else ()
+        def history(self):
+            return ({'status':'saved','accepted':1,'deferred':0,
+                     'finished_utc':'2026-10-24T20:00:00+00:00'},)
+
+    ledger = Ledger()
+    services = SimpleNamespace(managed_scheduler=ledger,
+                               reconcile_managed_scheduler=lambda: None)
+    client = Client(ui.page('/_scheduler_background_notification'))
+    original_notify = ui.notify
+    emitted = []
+
+    def assert_client_notice(message, **kwargs):
+        assert context.client is client, 'background notification lost the view client context'
+        emitted.append((message, kwargs.get('type')))
+        original_notify(message, **kwargs)
+
+    monkeypatch.setattr(ui, 'notify', assert_client_notice)
+    try:
+        with client:
+            view = SchedulerView(services)
+            view._schedule_refresh()
+            await asyncio.wait_for(asyncio.gather(*tuple(view._background_refresh_tasks)), timeout=3)
+            assert ledger.claims == 1
+            assert emitted == [('保存完了: 1件', 'positive')]
+            assert view.action_notice.text == ''  # No swallowed background toast exception.
+            assert '完了' in view.history_label.text
+            assert '定期状態: 完了' in view.status.text
+            assert '状態を取得できませんでした' not in view.status.text
+            view.close()
+    finally:
+        client.delete()
+
+
+@pytest.mark.asyncio
+async def test_scheduler_refresh_requested_during_active_refresh_is_not_dropped():
+    import asyncio
+    from threading import Event, Lock
+    from nicegui import Client, ui
+    from pixivvault_nicegui.ui.scheduler_view import SchedulerView
+
+    first_started, release_first, second_started = Event(), Event(), Event()
+    guard = Lock()
+    calls = 0
+
+    class Ledger:
+        def snapshot(self):
+            return SimpleNamespace(revision=1, interval_hours=0, startup_check=False,
+                                   last_status='never', next_due_utc=None)
+        def favourites(self):
+            return ()
+        def claim_pending_notifications(self):
+            return ()
+        def history(self):
+            return ()
+
+    def reconcile():
+        nonlocal calls
+        with guard:
+            calls += 1
+            current = calls
+        if current == 1:
+            first_started.set()
+            assert release_first.wait(3)
+        else:
+            second_started.set()
+
+    client = Client(ui.page('/_scheduler_coalesced_refresh'))
+    try:
+        with client:
+            view = SchedulerView(SimpleNamespace(managed_scheduler=Ledger(),
+                                                 reconcile_managed_scheduler=reconcile))
+            first = asyncio.create_task(view.refresh())
+            assert await asyncio.to_thread(first_started.wait, 1)
+            view._schedule_refresh()
+            await asyncio.sleep(0)
+            assert view._refresh_pending
+            release_first.set()
+            await asyncio.wait_for(first, timeout=3)
+            assert await asyncio.to_thread(second_started.wait, 2)
+            if view._background_refresh_tasks:
+                await asyncio.wait_for(asyncio.gather(*tuple(view._background_refresh_tasks)), timeout=3)
+            assert calls == 2
+            view.close()
+    finally:
+        release_first.set()
+        client.delete()
+
+
+@pytest.mark.asyncio
+async def test_scheduler_timer_ticks_do_not_queue_unbounded_refreshes():
+    import asyncio
+    from threading import Event, Lock
+    from nicegui import Client, ui
+    from pixivvault_nicegui.ui.scheduler_view import SchedulerView
+
+    started, release = Event(), Event()
+    lock = Lock()
+    calls = 0
+
+    class Ledger:
+        def snapshot(self):
+            return SimpleNamespace(revision=1, interval_hours=0, startup_check=False,
+                                   last_status='never', next_due_utc=None)
+        def favourites(self): return ()
+        def claim_pending_notifications(self): return ()
+        def history(self): return ()
+
+    def reconcile():
+        nonlocal calls
+        with lock:
+            calls += 1
+            current = calls
+        if current == 1:
+            started.set()
+            assert release.wait(3)
+
+    client = Client(ui.page('/_scheduler_timer_refresh_coalescing'))
+    try:
+        with client:
+            view = SchedulerView(SimpleNamespace(managed_scheduler=Ledger(),
+                                                 reconcile_managed_scheduler=reconcile))
+            first = asyncio.create_task(view.refresh())  # periodic timer semantics
+            assert await asyncio.to_thread(started.wait, 1)
+            await view.refresh()  # another timer tick must not queue a follow-up
+            assert not view._refresh_pending
+            release.set()
+            await asyncio.wait_for(first, timeout=3)
+            await asyncio.sleep(.05)
+            assert calls == 1
+            view.close()
+    finally:
+        release.set()
+        client.delete()
+
+
+@pytest.mark.asyncio
+async def test_scheduler_notification_failure_does_not_hide_durable_history(tmp_path, monkeypatch):
+    import asyncio
+    from nicegui import Client, ui
+    from pixivvault_nicegui.ui.scheduler_view import SchedulerView
+
+    class Ledger:
+        def snapshot(self):
+            return SimpleNamespace(revision=1, interval_hours=0, startup_check=False,
+                                   last_status='saved', next_due_utc=None)
+        def favourites(self): return ()
+        def claim_pending_notifications(self): return ('123',)
+        def history(self):
+            return ({'status':'saved','accepted':1,'deferred':0,
+                     'finished_utc':'2026-10-24T20:00:00+00:00'},)
+
+    monkeypatch.setattr(ui, 'notify', lambda *a, **k: (_ for _ in ()).throw(RuntimeError('disconnected')))
+    client = Client(ui.page('/_scheduler_notification_delivery_failure'))
+    try:
+        with client:
+            view = SchedulerView(SimpleNamespace(managed_scheduler=Ledger(),
+                                                 reconcile_managed_scheduler=lambda: None))
+            await view.refresh(ensure_after_current=True)
+            assert '最終実行: 完了' in view.history_label.text
+            assert '通知を表示できませんでした' in view.action_notice.text
+            assert '状態を取得できませんでした' not in view.status.text
+            view.close()
+    finally:
+        client.delete()
+
+
 def test_job_receipt_reconciliation_and_notification_are_idempotent(tmp_path):
     service, _ = scheduler(tmp_path)
     try:

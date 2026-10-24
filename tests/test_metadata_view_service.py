@@ -16,6 +16,7 @@ from pixivvault_nicegui.metadata_runner import MetadataRunSummary
 from pixivvault_nicegui.services import ApplicationServices
 from pixivvault_nicegui.ui.metadata_view import MetadataView
 from pixivvault_nicegui.ui.shell import AVAILABLE_TABS, NAVIGATION
+from pixivvault_nicegui.ui.scheduler_view import SchedulerView
 
 
 class OfflineSource:
@@ -45,6 +46,55 @@ def managed_app(tmp_path):
 def test_metadata_tab_contract_is_explicit_and_not_a_general_synthetic_tab():
     assert 'metadata' in AVAILABLE_TABS
     assert ('metadata', 'メタデータ補完') in NAVIGATION
+
+
+@pytest.mark.asyncio
+async def test_metadata_busy_clicks_show_feedback_instead_of_silent_drop(tmp_path):
+    app, source = managed_app(tmp_path)
+    client = Client(ui.page('/_metadata_busy_feedback'))
+    try:
+        with client:
+            view = MetadataView(app)
+        await view.open()
+        view._busy = True  # Simulate a competing periodic refresh.
+        view.work_id.set_value('123')
+        await view.save()
+        assert '処理中です' in view.status.text
+        assert '処理中です' in view.action_notice.text
+        await view.inspect()
+        assert '処理中です' in view.entry_status.text
+        await view.run_one()
+        assert '処理中です' in view.run_status.text
+        await view.open()
+        await view.discard_changes()
+        assert '処理中です' in view.action_notice.text
+        assert not source.calls
+    finally:
+        client.delete()
+        app.close()
+
+
+@pytest.mark.asyncio
+async def test_scheduler_busy_and_unsaved_check_clicks_are_not_silent():
+    dummy = SimpleNamespace(managed_scheduler=object(), closing=False)
+    client = Client(ui.page('/_scheduler_busy_feedback'))
+    try:
+        with client:
+            view = SchedulerView(dummy)
+        view.revision = 1
+        view._busy = True
+        await view.save()
+        await view.run_once()
+        view.discard_changes()
+        await view.acknowledge()
+        assert '処理中です' in view.action_notice.text
+        view._busy = False
+        view._settings_dirty = True
+        await view.run_once()
+        assert '未保存の設定' in view.action_notice.text
+    finally:
+        view.close()
+        client.delete()
 
 
 def test_metadata_settings_open_is_explicit_off_and_never_fetches(tmp_path):
@@ -436,6 +486,7 @@ async def test_metadata_view_dirty_form_keeps_revision_until_explicit_discard(tm
         view.enabled = Widget()
         view.status = Widget()
         view.progress_label = Widget()
+        view.action_notice = Widget()
         view._load(ledger.settings())
         assert view.revision == 1
         assert view.enabled.value is False

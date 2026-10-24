@@ -22,7 +22,7 @@ class MetadataView:
         self.revision = None
         self._settings_dirty = False
         self._loading_settings = False
-        with ui.column().classes('w-full gap-3').props('data-testid=metadata-view') as self.root:
+        with ui.column().classes('pv-metadata-view w-full gap-3').props('data-testid=metadata-view') as self.root:
             ui.label('メタデータ後埋め').classes('text-h6')
             ui.label('専用管理フォルダーにのみ設定を保存します。元DBや既存画像は変更しません。')
             ui.label('設定をONにしても自動通信はしません。明示実行時のみ保存済み1作品のPixiv詳細をGETします。')
@@ -64,6 +64,8 @@ class MetadataView:
                     'data-testid=metadata-stop')
             self.run_status = ui.label('取得処理: 未実行').props(
                 'data-testid=metadata-run-status role=status')
+            self.action_notice = ui.label('').props(
+                'data-testid=metadata-action-notice role=status')
             self.stop_button.set_enabled(False)
         self._set_controls(False)
         self._timer = ui.timer(5.0, self.refresh)
@@ -78,6 +80,18 @@ class MetadataView:
     def _mark_settings_dirty(self):
         if not self._loading_settings:
             self._settings_dirty = True
+
+    def _busy_feedback(self, *, target: str = 'status'):
+        """Never silently discard a click during a periodic refresh/GET."""
+        message = '処理中です。完了後にもう一度操作してください'
+        # A separate notice survives the periodic settings/progress refresh.
+        self.action_notice.set_text(message)
+        if target == 'entry':
+            self.entry_status.set_text(message)
+        elif target == 'run':
+            self.run_status.set_text(message)
+        else:
+            self.status.set_text(message)
 
     def _load(self, settings):
         if not self._settings_dirty:
@@ -100,9 +114,13 @@ class MetadataView:
             f'打切り {counts.gave_up}（現在世代との照合件数ではありません）')
 
     async def open(self):
-        if self.closed or self._busy:
+        if self.closed:
+            return
+        if self._busy:
+            self._busy_feedback()
             return
         self._busy = True
+        self.action_notice.set_text('')
         try:
             ledger = await asyncio.to_thread(self.services.enable_managed_metadata)
             if self.closed:
@@ -140,9 +158,13 @@ class MetadataView:
             self._busy = False
 
     async def save(self):
-        if self.closed or self._busy or self.revision is None:
+        if self.closed or self.revision is None:
+            return
+        if self._busy:
+            self._busy_feedback()
             return
         self._busy = True
+        self.action_notice.set_text('')
         self._set_controls(False)
         try:
             settings = await asyncio.to_thread(
@@ -161,9 +183,13 @@ class MetadataView:
                 self._set_controls(True)
 
     async def discard_changes(self):
-        if self.closed or self._busy or self.revision is None:
+        if self.closed or self.revision is None:
+            return
+        if self._busy:
+            self._busy_feedback()
             return
         self._busy = True
+        self.action_notice.set_text('')
         self._settings_dirty = False
         try:
             settings = await asyncio.to_thread(self.services.managed_metadata_settings)
@@ -183,9 +209,13 @@ class MetadataView:
         return value
 
     async def inspect(self):
-        if self.closed or self._busy or self.revision is None:
+        if self.closed or self.revision is None:
+            return
+        if self._busy:
+            self._busy_feedback(target='entry')
             return
         self._busy = True
+        self.action_notice.set_text('')
         try:
             wid = self._selected_work_id()
             entry = await asyncio.to_thread(self.services.managed_metadata_entry, wid)
@@ -203,9 +233,13 @@ class MetadataView:
             self._busy = False
 
     async def _apply_recovery(self, action: str):
-        if self.closed or self._busy or self.revision is None:
+        if self.closed or self.revision is None:
+            return
+        if self._busy:
+            self._busy_feedback(target='entry')
             return
         self._busy = True
+        self.action_notice.set_text('')
         self._set_controls(False)
         try:
             if self._settings_dirty:
@@ -255,16 +289,20 @@ class MetadataView:
         await self._apply_recovery('blocked')
 
     async def run_one(self):
-        if self.closed or self._busy or self.revision is None:
+        if self.closed or self.revision is None:
+            return
+        if self._busy:
+            self._busy_feedback(target='run')
             return
         self._busy = True
+        self.action_notice.set_text('')
         self._set_controls(False)
         try:
             if self._settings_dirty or not self.enabled.value:
                 raise ValueError('metadata settings need explicit save and enable')
             wid = self._selected_work_id()
             self.stop_button.set_enabled(True)
-            self.run_status.set_text('明示取得の処理中（新規ダウンロードが優先されます）')
+            self.run_status.set_text('明示取得の処理中（新規ダウンロード受付はGET完了まで待つことがあります）')
             summary = await asyncio.to_thread(
                 self.services.run_managed_metadata_one, wid,
                 expected_revision=self.revision)
