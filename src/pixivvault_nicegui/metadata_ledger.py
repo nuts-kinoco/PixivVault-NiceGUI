@@ -61,6 +61,22 @@ class MetadataEntry:
     attempts: int
 
 
+@dataclass(frozen=True, slots=True)
+class MetadataProgress:
+    """Side-ledger state counts, not a verified count of currently active works."""
+    pending: int = 0
+    in_flight: int = 0
+    done: int = 0
+    gave_up: int = 0
+    unknown: int = 0
+    blocked: int = 0
+
+    @property
+    def total(self) -> int:
+        return (self.pending + self.in_flight + self.done + self.gave_up
+                + self.unknown + self.blocked)
+
+
 def _fingerprint(value: str) -> str:
     if type(value) is not str or _SHA.fullmatch(value) is None:
         raise MetadataLedgerError('invalid managed generation fingerprint')
@@ -288,6 +304,17 @@ class ManagedMetadataLedger:
             self._ensure_open()
             row = self._db.execute('SELECT enabled,revision FROM settings WHERE id=1').fetchone()
             return MetadataSettings(bool(row[0]), row[1])
+
+    def progress(self) -> MetadataProgress:
+        """Aggregate only local side-ledger states; no Pixiv/receipt scans."""
+        with self._lock:
+            self._ensure_open()
+            counts = {state: count for state, count in self._db.execute(
+                'SELECT state,COUNT(*) FROM metadata GROUP BY state')}
+            keys = {'pending', 'in_flight', 'done', 'gave_up', 'unknown', 'blocked'}
+            if set(counts) - keys or any(type(n) is not int or n < 0 for n in counts.values()):
+                raise MetadataLedgerError('metadata progress unavailable')
+            return MetadataProgress(**counts)
 
     def configure(self, *, enabled: bool, expected_revision: int) -> MetadataSettings:
         if type(enabled) is not bool or type(expected_revision) is not int or expected_revision < 1:

@@ -63,3 +63,13 @@
 - 既存rootの元DB、画像、ZIP、Cookie、世代receiptを変更していない。実GET、ブラウザUIでのON/OFF、実downloadsとの共有実行バリア、Edge/native/コピー受入、Phase10のPR/正確なhead CI/main統合は**未達**。`is_download_busy()`の合成優先確認はあるが、claim直後〜GET間の実downloadsとの原子的排他は未結線。この境界をM4/M5の受入までに解消し、未完成を完成扱いしない。
 - その他のP3：既に`superseded`へ登録されたA→B→A差戻しの1作品でバッチが`managed_state_changed`停止する（旧結果表示/書込みはしない）。sqlite異常のrun summary統一・ライブepoch中の非通常終了、及び実ジョブ競合についても統合時に再点検する。
 - 修正後全pytestは **1575 passed / 1 skipped / 1 warning、失敗0**。証跡 `artifacts/phase10-m3-after-p2-remediation-full-20261024.xml`。skippedはWindows symlink権限、warningは既存Starlette/httpx TestClient deprecation。これはM3のローカルsource snapshotに対する結果でありPR head CIではない。
+
+## M4-A: 設定・台帳進捗画面（通信接続なし、2026-10-24）
+
+- M3を `7dc11bccbd9fc9991dd089a9fdaf8c33280a8d90` にローカルコミット。その次の作業を、ユーザー承認済みの同一専用worktreeで開始した。M4-AはM4全機能の一部であり、独立マイルストーン受入と製品完成は別。
+- `ApplicationServices.enable_managed_metadata()` は**明示呼出のみ**で、既存の管理専用rootを要求する。画面を表示するだけでは新DBを開かず、設定のON・保存・再起動時にも実Pixiv GETや新規自動ワーカーを始めない。開始後の設定/進捗照会はローカルside-ledgerのみ。shared serviceに配置し、close/enableは共通順序のロックで保護する。
+- 原本となる世代digestは `verified_saved_receipt()` の **receipt本体SHA256 `[2]`** であり、ジョブ受付fingerprint `[4]` とは別。この違いをテストで固定。元DB/画像/receipt/Cookieは変更せず、既に認識済み管理root内の独立SQLiteのみ変更する。
+- NiceGUIの「メタデータ補完」タブはmanaged modeのみ有効。明示「台帳を開く」操作、OFF/ONをrevision CAS保存、複数clientのdirty form固定、状態更新/破棄、close時タイマーキャンセルを提供。台帳登録数・待機・処理中の記録・完了・保留・中断不明・打切りを **side-ledger状態**から集計する（現在のactive世代との照合済み数ではない）。実行ボタンや無人通信は公開しない。
+- syntheticとmanagedのNiceGUI Clientナビ試験で、未承認モードではtab disabledかつshow no-op、managed modeでもタブ表示はsidecar未作成・GETなしを確認。M4 focusでは43 passed（初期）、ナビ＋UIの追加後12 passed、M4台帳進捗関連34 passed。全pytestの初回失敗は旧9タブを厳密期待していた `test_page_structure.py` のfixture差分であり新タブの期待値へ更新。初回独立Sonnetレビューはテスト不足を指摘、その回帰試験追加後の再レビューはsettings-onlyのP1/P2なし。ただし新しく追加したdigest・進捗コードの最終read-onlyレビューと全pytest/コミットhead受入は改めて実行する。
+- M4の残作業：明示的な停止・中断再開、認証/GET consent boundaryを満たす実サービス統合、scheduler/download優先の**原子的**排他、5連続不明を示す実ラン状態、UI browser/nativeとexact-head CI。完全移植の残り（小説・うごイラ等）も未達。M4-Aをもって自動取得対応・Phase10 CI完了と表現しない。
+- M4-A最終local全pytest **1583 passed / 1 skipped / 1 warning、失敗0**（`artifacts/phase10-m4-settings-progress-full-20261024.xml`）。Claude Sonnet最終read-only reviewも **APPROVE / P1=0 / P2=0**。現在ソースの独立監査は `verified_saved_receipt` index `[2]` 本体SHAと `[4]` ジョブfingerprint区別、ローカルのみの進捗、閉鎖・UI CASを確認。残P3はhidden tabでのローカルpoll・軽微なUIラベル/閉鎖競合時の表示。これはM4-Aローカル受入であり、製品のEdge/nativeとPR HEAD CIによるM5受入の代わりではない。

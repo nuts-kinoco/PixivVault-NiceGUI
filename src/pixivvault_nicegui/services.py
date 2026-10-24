@@ -77,6 +77,10 @@ class ApplicationServices:
         self.legacy_author_bridge = None
         self.managed_scheduler = None
         self.managed_schedule_runner = None
+        # Phase10: metadata settings are explicit, OFF by default and do not
+        # start any HTTP/backfill worker. Owned by the app, never by a tab.
+        self.managed_metadata = None
+        self._managed_metadata_lock = RLock()
         self._managed_scheduler_lock = Lock()
         self._scheduler_dispatch_lock = Lock()
         self._scheduler_cancel_event = Event()
@@ -917,6 +921,12 @@ class ApplicationServices:
                     self._close_resources()
 
     def _close_resources(self):
+        # Fence concurrent metadata configuration before the storage provider
+        # or shared Pixiv client is closed. No metadata GET runner is wired yet.
+        with self._managed_metadata_lock:
+            if self.managed_metadata is not None:
+                self.managed_metadata.close()
+                self.managed_metadata = None
         # Accepted jobs outlive views; join the worker before closing the
         # image provider it may still be using.
         if self.jobs is not None:
@@ -967,6 +977,58 @@ class ApplicationServices:
                 self.managed_scheduler = ledger
                 self.managed_schedule_runner = runner
             return self.managed_scheduler
+
+    def enable_managed_metadata(self):
+        """Explicit provisioning only; never opens Pixiv, starts a timer or GET.
+
+        A managed root is required. This intentionally does not restore an ON
+        preference as an automatic network worker after application restart.
+        """
+        with self._close_lock, self._managed_metadata_lock:
+            if self.closing:
+                raise RuntimeError('application services are closing')
+            if self.managed_downloads is None:
+                raise RuntimeError('isolated managed Pixiv mode is required')
+            if self.managed_metadata is None:
+                from .metadata_ledger import ManagedMetadataLedger
+
+                def active_receipt(work_id):
+                    if self.closing or self.managed_downloads is None:
+                        raise RuntimeError('managed receipt provider closed')
+                    receipt = self.managed_downloads.verified_saved_receipt(work_id)
+                    # receipt[2] is SHA256 of immutable receipt bytes. The
+                    # optional receipt[4] is *job acceptance* fingerprint,
+                    # which is a different concept and may be absent for v1.
+                    return receipt[2] if receipt is not None else None
+
+                self.managed_metadata = ManagedMetadataLedger(
+                    self.managed_downloads.root,
+                    active_receipt_sha256=active_receipt)
+            return self.managed_metadata
+
+    def managed_metadata_settings(self):
+        """Read an already-open side-ledger only; no auto-provisioning or GET."""
+        with self._managed_metadata_lock:
+            if self.closing:
+                raise RuntimeError('application services are closing')
+            return (None if self.managed_metadata is None
+                    else self.managed_metadata.settings())
+
+    def managed_metadata_progress(self):
+        """Local side-ledger state counts only; no Pixiv request or file scan."""
+        with self._managed_metadata_lock:
+            if self.closing:
+                raise RuntimeError('application services are closing')
+            return (None if self.managed_metadata is None
+                    else self.managed_metadata.progress())
+
+    def configure_managed_metadata(self, *, enabled: bool, expected_revision: int):
+        """CAS settings change; never triggers metadata retrieval."""
+        with self._managed_metadata_lock:
+            if self.closing or self.managed_metadata is None:
+                raise RuntimeError('managed metadata ledger is not open')
+            return self.managed_metadata.configure(
+                enabled=enabled, expected_revision=expected_revision)
 
     def reconcile_managed_scheduler(self):
         """Join JobService operation history to verified managed CAS receipts."""
