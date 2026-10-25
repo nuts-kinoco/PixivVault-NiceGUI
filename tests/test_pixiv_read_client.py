@@ -14,6 +14,7 @@ import pytest
 
 from pixivvault_nicegui import pixiv_read_client as mod
 from pixivvault_nicegui.bookmark_remote_adapter import fetch_all_bookmarks
+from pixivvault_nicegui.media_parity_policy import NovelDocument
 
 
 def packet(body, *, error=False):
@@ -642,6 +643,273 @@ def test_metadata_detail_reader_rejects_duplicate_json_keys(tmp_path):
         client.verify_identity()
         with pytest.raises(mod.InvalidPayload):
             client.get_artwork_metadata_raw('123', '91')
+    finally:
+        client.close()
+
+
+def novel_body(**changes):
+    body = {'id': '123', 'userId': '91', 'title': 'Synthetic novel',
+            'content': 'Synthetic body <&>\nsecond paragraph',
+            'seriesNavData': None, 'textEmbeddedImages': None}
+    body.update(changes)
+    return body
+
+
+def verified_novel_client(tmp_path, response):
+    mock = MockTransport()
+    mock.when('/ajax/user/extra', packet({'userId': '55'}))
+    mock.when('/ajax/novel/123', response)
+    client = make_client(tmp_path, mock)
+    assert client.verify_identity() == '55'
+    mock.calls.clear()
+    return client, mock
+
+
+@pytest.mark.parametrize('series', [None, {'seriesId': '42'}])
+def test_novel_detail_returns_pinned_document_with_one_bounded_get(tmp_path, series):
+    body = novel_body(seriesNavData=series)
+    client, mock = verified_novel_client(tmp_path, packet(body))
+    try:
+        assert mod.JSON_LIMIT == 2 * 1024 * 1024
+        assert mod.MAX_REQUEST_SECONDS == 10.0
+        assert mod.MAX_OPERATION_SECONDS == 120.0
+        document = client.get_novel_detail(123, 91)
+        assert type(document) is NovelDocument
+        assert document == NovelDocument('123', '91', body['title'], body['content'],
+                                         None if series is None else '42')
+        assert len(mock.calls) == 1
+        request = mock.calls[0]
+        assert request.full_url == 'https://www.pixiv.net/ajax/novel/123'
+        assert request.get_method() == 'GET' and request.data is None
+        assert request.get_header('Cookie') == 'PHPSESSID=55_fixtureonly'
+        assert body['title'] not in repr(document)
+        assert body['content'] not in repr(document)
+        assert 'fixtureonly' not in repr(document)
+    finally:
+        client.close()
+
+
+def test_novel_detail_requires_existing_identity_and_rejects_closed_client(tmp_path):
+    mock = MockTransport()
+    with make_client(tmp_path, mock) as client:
+        with pytest.raises(mod.AuthenticationMissing):
+            client.get_novel_detail('123', '91')
+        assert mock.calls == []
+    with pytest.raises(mod.ClientClosed):
+        client.get_novel_detail('123', '91')
+    assert mock.calls == []
+
+
+@pytest.mark.parametrize('bad_id', [None, True, 0, -1, 1.5, '', '0', '01',
+                                     '1' * 21, '１２３', '123/other', '123?x=secret'])
+@pytest.mark.parametrize('field', ['work', 'author'])
+def test_novel_detail_rejects_invalid_ids_before_sending(tmp_path, bad_id, field):
+    client, mock = verified_novel_client(tmp_path, packet(novel_body()))
+    try:
+        with pytest.raises(mod.DestinationRejected) as caught:
+            client.get_novel_detail(bad_id if field == 'work' else '123',
+                                    bad_id if field == 'author' else '91')
+        assert str(caught.value) == 'Destination rejected'
+        assert mock.calls == []
+    finally:
+        client.close()
+
+
+@pytest.mark.parametrize('body', [
+    None, [], 'sensitive body', {},
+    novel_body(id='124'), novel_body(userId='92'),
+    novel_body(id=True), novel_body(userId=None), novel_body(isMasked=True),
+    novel_body(content=None), novel_body(content=''), novel_body(title=[]),
+    novel_body(seriesNavData=[]), novel_body(textEmbeddedImages=[]),
+    novel_body(coverUrl='https://evil.invalid/secret'),
+])
+def test_novel_detail_rejects_invalid_body_without_payload_output(tmp_path, body, capsys):
+    client, mock = verified_novel_client(tmp_path, packet(body))
+    try:
+        with pytest.raises(mod.InvalidPayload) as caught:
+            client.get_novel_detail('123', '91')
+        assert str(caught.value) == 'Pixiv payload invalid'
+        assert caught.value.__suppress_context__
+        assert len(mock.calls) == 1
+        captured = capsys.readouterr()
+        assert captured.out == captured.err == ''
+    finally:
+        client.close()
+
+
+@pytest.mark.parametrize('response,expected', [
+    (b'{secret', mod.InvalidPayload), (b'\xff', mod.InvalidPayload),
+    (b'[]', mod.InvalidPayload), (b'{"error":false}', mod.InvalidPayload),
+    (b'{"error":false,"body":{"id":"123","id":"124"}}', mod.InvalidPayload),
+    (b'{"error":false,"body":NaN}', mod.InvalidPayload),
+    (b'{"error":false,"body":Infinity}', mod.InvalidPayload),
+    (packet(novel_body(), error=True), mod.ApiRejected),
+    (b'{"error":true,"message":"secret body Cookie URL"}', mod.ApiRejected),
+    ('not bytes: secret Cookie', mod.ResponseRejected),
+])
+def test_novel_detail_rejects_json_api_and_transport_shapes(tmp_path, response, expected):
+    client, _mock = verified_novel_client(tmp_path, response)
+    try:
+        with pytest.raises(expected) as caught:
+            client.get_novel_detail('123', '91')
+        assert 'secret' not in str(caught.value)
+        assert 'fixtureonly' not in str(caught.value)
+    finally:
+        client.close()
+
+
+@pytest.mark.parametrize('status', [403, 404])
+def test_novel_detail_preserves_safe_http_failure_status(tmp_path, status, capsys):
+    client, mock = verified_novel_client(tmp_path, packet(novel_body()))
+
+    class RejectedOpener:
+        def open(self, request, timeout):
+            assert request.full_url == 'https://www.pixiv.net/ajax/novel/123'
+            assert 0 < timeout <= 10.0
+            raise HTTPError(request.full_url, status, 'secret Cookie body', None, None)
+
+    def transport(request, timeout, limit, deadline):
+        mock.calls.append(request)
+        return mod._read_response(RejectedOpener(), request, timeout, limit, deadline)
+
+    client._transport = transport
+    try:
+        with pytest.raises(mod.HTTPStatusRejected) as caught:
+            client.get_novel_detail('123', '91')
+        assert caught.value.status_code == status
+        assert str(caught.value) == 'HTTP response rejected'
+        assert len(mock.calls) == 1
+        captured = capsys.readouterr()
+        assert captured.out == captured.err == ''
+    finally:
+        client.close()
+
+
+@pytest.mark.parametrize('status', [301, 302, 303, 307, 308])
+def test_novel_detail_redirects_never_follow_location(tmp_path, status):
+    client, mock = verified_novel_client(tmp_path, packet(novel_body()))
+    response = FakeResponse(status=status)
+    response.headers['Location'] = 'https://evil.invalid/secret'
+
+    def transport(request, timeout, limit, deadline):
+        mock.calls.append(request)
+        return mod._read_response(FakeOpener(response), request, timeout, limit, deadline)
+
+    client._transport = transport
+    try:
+        with pytest.raises(mod.ResponseRejected):
+            client.get_novel_detail('123', '91')
+        assert len(mock.calls) == 1
+        assert mock.calls[0].full_url == 'https://www.pixiv.net/ajax/novel/123'
+        assert not response.start
+        assert any(isinstance(h, mod._NoRedirects) for h in client._api_opener.handlers)
+    finally:
+        client.close()
+
+
+@pytest.mark.parametrize('url', [
+    'http://www.pixiv.net/ajax/novel/123',
+    'https://www.pixiv.net.evil.invalid/ajax/novel/123',
+    'https://i.pximg.net/ajax/novel/123',
+    'https://www.pixiv.net:443/ajax/novel/123',
+    'https://name@www.pixiv.net/ajax/novel/123',
+    'https://www.pixiv.net/ajax/novel/123?token=secret',
+    'https://www.pixiv.net/ajax/novel/123?',
+    'https://www.pixiv.net/ajax/novel/123#secret',
+    'https://www.pixiv.net/ajax/novel/123#',
+    'https://www.pixiv.net/ajax/novel/123/',
+    'https://www.pixiv.net/ajax/novel/123/series',
+    'https://www.pixiv.net/ajax/novel/%31%32%33',
+    'https://www.pixiv.net/ajax/novel/0123',
+    'https://www.pixiv.net/ajax/novel/123\n',
+    'https://www.pixiv.net/ajax/illust/123',
+])
+def test_novel_destination_rejects_before_transport(tmp_path, url):
+    client, mock = verified_novel_client(tmp_path, packet(novel_body()))
+    try:
+        with pytest.raises(mod.DestinationRejected):
+            client._get('novel', url, deadline=time.monotonic() + 120.0)
+        assert mock.calls == []
+    finally:
+        client.close()
+
+
+def test_novel_destination_does_not_expand_artwork_allowlist():
+    with pytest.raises(mod.DestinationRejected):
+        mod._validate_destination('https://www.pixiv.net/ajax/novel/123', 'artwork')
+
+
+def test_novel_detail_rejects_non_get_request_before_transport(tmp_path, monkeypatch):
+    client, mock = verified_novel_client(tmp_path, packet(novel_body()))
+    original_request = mod.Request
+
+    def non_get_request(url, **kwargs):
+        kwargs['method'] = 'POST'
+        return original_request(url, **kwargs)
+
+    monkeypatch.setattr(mod, 'Request', non_get_request)
+    try:
+        with pytest.raises(mod.DestinationRejected):
+            client.get_novel_detail('123', '91')
+        assert mock.calls == []
+    finally:
+        client.close()
+
+
+def test_novel_detail_timeout_is_sanitized(tmp_path, capsys):
+    def timeout(_request):
+        raise TimeoutError('secret Cookie URL body')
+
+    client, mock = verified_novel_client(tmp_path, timeout)
+    try:
+        with pytest.raises(mod.TransportFailed) as caught:
+            client.get_novel_detail('123', '91')
+        assert str(caught.value) == 'Pixiv transport failed'
+        assert caught.value.__suppress_context__
+        assert len(mock.calls) == 1
+        captured = capsys.readouterr()
+        assert captured.out == captured.err == ''
+    finally:
+        client.close()
+
+
+def test_novel_detail_keeps_request_deadline_without_sleep(tmp_path, monkeypatch):
+    client, _mock = verified_novel_client(tmp_path, packet(novel_body()))
+    clock = [1000.0]
+    monkeypatch.setattr(mod.time, 'monotonic', lambda: clock[0])
+
+    def transport(request, timeout, limit, deadline):
+        assert request.get_method() == 'GET'
+        assert timeout == mod.MAX_REQUEST_SECONDS == 10.0
+        assert deadline == 1010.0
+        assert limit == mod.JSON_LIMIT == 2 * 1024 * 1024
+        clock[0] = deadline
+        return packet(novel_body())
+
+    client._transport = transport
+    try:
+        with pytest.raises(mod.ReadDeadlineExceeded):
+            client.get_novel_detail('123', '91')
+    finally:
+        client.close()
+
+
+def test_novel_detail_uses_byte_limit_not_full_parser_character_budget(tmp_path):
+    response = packet(novel_body())
+    exact = response + b' ' * (mod.JSON_LIMIT - len(response))
+    client, mock = verified_novel_client(tmp_path, exact)
+    try:
+        assert len(exact) == 2 * 1024 * 1024
+        assert client.get_novel_detail('123', '91').work_id == '123'
+        mock.when('/ajax/novel/123', exact + b' ')
+        with pytest.raises(mod.ResponseLimitExceeded):
+            client.get_novel_detail('123', '91')
+        # A valid parser-sized character count can exceed the JSON byte budget.
+        large = packet(novel_body(content='あ' * 400_000))
+        assert len(large) > mod.JSON_LIMIT
+        mock.when('/ajax/novel/123', large)
+        with pytest.raises(mod.ResponseLimitExceeded):
+            client.get_novel_detail('123', '91')
     finally:
         client.close()
 
