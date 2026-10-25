@@ -24,6 +24,10 @@ from urllib.request import (
     HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener,
 )
 
+from .media_parity_policy import (
+    MediaPayloadRejected, NovelDocument, parse_novel_detail,
+)
+
 
 COOKIE_LIMIT = 1024 * 1024
 JSON_LIMIT = 2 * 1024 * 1024
@@ -54,6 +58,7 @@ _AUTHOR_ALL_PATH = re.compile(r"/ajax/user/([1-9][0-9]{0,19})/profile/all\Z")
 _AUTHOR_DETAILS_PATH = re.compile(r"/ajax/user/([1-9][0-9]{0,19})/profile/illusts\Z")
 _FOLLOWING_PATH = re.compile(r"/ajax/user/([1-9][0-9]{0,19})/following\Z")
 _DETAIL_PATH = re.compile(r"/ajax/illust/([1-9][0-9]{0,19})\Z")
+_NOVEL_DETAIL_PATH = re.compile(r"/ajax/novel/([1-9][0-9]{0,19})\Z")
 _ORIGINAL_IMAGE_PATH = re.compile(
     r"/img-original/img/[0-9]{4}/[0-9]{2}/[0-9]{2}/"
     r"[0-9]{2}/[0-9]{2}/[0-9]{2}/([1-9][0-9]{0,19})_p(0|[1-9][0-9]*)"
@@ -271,6 +276,10 @@ def _validate_destination(url: str, kind: str) -> None:
                 raise DestinationRejected()
         elif kind == "artwork":
             if not _DETAIL_PATH.fullmatch(parsed.path) or parsed.query:
+                raise DestinationRejected()
+        elif kind == "novel":
+            if (not _NOVEL_DETAIL_PATH.fullmatch(parsed.path)
+                    or url != API_ORIGIN + parsed.path):
                 raise DestinationRejected()
         else:
             raise DestinationRejected()
@@ -950,6 +959,31 @@ class LivePixivReadClient:
         except InvalidPayload:
             raise InvalidPayload() from None
         return body
+
+    def get_novel_detail(self, work_id: str, expected_author_id: str) -> NovelDocument:
+        """Read one explicit novel after identity verification and pin its author.
+
+        Reuse the existing JSON byte/time budgets and pure media parser. This
+        does not enumerate a series, fetch embedded images, or save content.
+        """
+        self._ensure_open()
+        try:
+            wid = _identifier(work_id)
+            author_id = _identifier(expected_author_id)
+        except InvalidPayload:
+            raise DestinationRejected() from None
+        with self._identity_lock:
+            self._ensure_open()
+            if self._verified_identity is None:
+                raise AuthenticationMissing()
+            body = self._json("novel", f"{API_ORIGIN}/ajax/novel/{wid}",
+                              deadline=time.monotonic() + MAX_OPERATION_SECONDS)
+            self._ensure_open()
+        try:
+            return parse_novel_detail(body, work_id=wid,
+                                      expected_author_id=author_id)
+        except MediaPayloadRejected:
+            raise InvalidPayload() from None
 
     def get_artwork_update_revision(self, work_id: str, author_id: str) -> dict:
         """Reconfirm author, page/type and remote generation before v2 saving.
