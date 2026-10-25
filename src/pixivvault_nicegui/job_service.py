@@ -339,6 +339,28 @@ class JobService:
                               result=receipt, error_code='')
             return True
 
+    def reconcile_completed(self, job_id: str, *, expected_result: str, valid: bool) -> bool:
+        """Owner-verified completion integrity gate, before exposing a reopened service.
+
+        The runner owner must check its own typed receipt. An invalid result
+        becomes a durable retryable error; stopped/cancelled rows are never revived.
+        The expected result is a compare-and-set guard against stale inspection.
+        """
+        _plain(job_id, maximum=32)
+        _plain(expected_result, maximum=2048)
+        if type(valid) is not bool:
+            raise JobServiceError('invalid completed job reconciliation')
+        with self._condition:
+            if self._closing or self._fatal:
+                raise JobServiceError('job service is unavailable')
+            job = self._jobs.get(job_id)
+            if job is None or job.state != 'done' or job.result != expected_result:
+                return False
+            if not valid:
+                self._replace(job, state='error', done=0, total=0,
+                              result=None, error_code='receipt_invalid')
+            return True
+
     def _commit(self, jobs, operations=None):
         operations = self._operations if operations is None else operations
         if self._store is not None:
