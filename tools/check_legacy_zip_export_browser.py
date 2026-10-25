@@ -63,7 +63,8 @@ def verify_zip(export_root, managed_root):
     return archive_path, digest(archive_path)
 
 
-def inspect(page, base, headers, managed, output, *, restart):
+def inspect(page, base, headers, managed, output, *, restart,
+            expected_metadata_revision=None):
     from playwright.sync_api import expect
     # Existing author's browser acceptance saves NEW, then UPDATED generation;
     # it checks image decode, keyboard, focus, restart and zero extra Pixiv GET.
@@ -71,7 +72,8 @@ def inspect(page, base, headers, managed, output, *, restart):
     # scheduler's 70-work batch. The latter is independently covered by the
     # standalone author checker and would change the ZIP contents and pixels.
     details = author_inspect(page, base, headers, managed, restart=restart,
-                             scheduler_acceptance=False)
+                             scheduler_acceptance=False,
+                             expected_metadata_revision=expected_metadata_revision)
     # Establish the current tab explicitly; the composed helper has its own
     # navigation sequence and must not implicitly control this export check.
     page.get_by_test_id('tab-library').click()
@@ -128,6 +130,7 @@ def run(channel, output):
                     managed = (output / f'managed-{width}x{height}').resolve()
                     exported = (output / f'export-{width}x{height}').resolve()
                     managed.mkdir()
+                    expected_metadata_revision = None
                     for restart in (False, True):
                         port = free_port()
                         nonce = secrets.token_hex(16)
@@ -158,7 +161,10 @@ def run(channel, output):
                                     if event.type == 'error' else None)
                             page.on('pageerror', lambda error: result['page_errors'].append(str(error)[:200]))
                             result['viewports'].append({'viewport': [width, height],
-                                **inspect(page, base, headers, managed, exported, restart=restart)})
+                                **inspect(page, base, headers, managed, exported, restart=restart,
+                                          expected_metadata_revision=expected_metadata_revision)})
+                            if not restart:
+                                expected_metadata_revision = result['viewports'][-1]['metadata']['settings_revision']
                             context.close()
                             context = None
                             stop = Request(base + '/_managed_test/shutdown', data=b'',

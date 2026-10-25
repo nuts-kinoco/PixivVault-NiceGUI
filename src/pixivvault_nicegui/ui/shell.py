@@ -11,9 +11,9 @@ NAVIGATION = (
     ("download", "ダウンロード"), ("queue", "キュー"), ("failed", "失敗リスト"),
     ("dedup", "重複整理"), ("learning", "学習"), ("ranking", "ランキング"),
     ("library", "ライブラリ"), ("recommend", "おすすめ"),
-    ("scheduler", "定期チェック"),
+    ("scheduler", "定期チェック"), ("metadata", "メタデータ補完"),
 )
-AVAILABLE_TABS = {"ranking", "learning", "library", "failed", "download", "queue", "scheduler"}
+AVAILABLE_TABS = {"ranking", "learning", "library", "failed", "download", "queue", "scheduler", "metadata"}
 
 
 class DemoShell:
@@ -25,6 +25,7 @@ class DemoShell:
         self.library = None
         self.failed_records = None
         self.scheduler_view = None
+        self.metadata_view = None
         self.job_views = {}
         self.card_size = "large"
         self.closed = False
@@ -49,7 +50,8 @@ class DemoShell:
                          "ランキング・学習は合成データ").classes("pv-subtitle")
             with ui.element("nav").classes("pv-nav").props("aria-label=メインナビゲーション"):
                 for key, label in NAVIGATION:
-                    available = key in AVAILABLE_TABS
+                    available = (key in AVAILABLE_TABS and
+                                 (key != 'metadata' or services.managed_downloads is not None))
                     button = ui.button(label, color=None, on_click=lambda _, tab=key: self.show(tab))
                     button.classes("pv-tab").props(f"flat no-caps data-testid=tab-{key}")
                     button.set_enabled(available)
@@ -71,7 +73,8 @@ class DemoShell:
                 button.props.pop("aria-current", None)
 
     def show(self, tab: str) -> None:
-        if self.closed or tab not in AVAILABLE_TABS or tab == self.active_tab:
+        if (self.closed or tab not in AVAILABLE_TABS or tab == self.active_tab
+                or (tab == 'metadata' and self.services.managed_downloads is None)):
             return
         self.gallery.set_viewer_active(False)
         if self.library is not None:
@@ -93,6 +96,10 @@ class DemoShell:
             from .scheduler_view import SchedulerView
             with self.content:
                 self.scheduler_view = SchedulerView(self.services)
+        if tab == 'metadata' and self.metadata_view is None:
+            from .metadata_view import MetadataView
+            with self.content:
+                self.metadata_view = MetadataView(self.services)
         use_legacy_failed = (self.services.jobs is None or
                              getattr(self.services, 'legacy_failed_retry_available', False))
         if tab == "failed" and use_legacy_failed and self.failed_records is None:
@@ -123,6 +130,8 @@ class DemoShell:
             self.failed_records.set_active(tab == "failed")
         if self.scheduler_view is not None:
             self.scheduler_view.root.set_visibility(tab == 'scheduler')
+        if self.metadata_view is not None:
+            self.metadata_view.root.set_visibility(tab == 'metadata')
         for key, view in self.job_views.items():
             view.root.set_visibility(tab == key)
             view.set_active(tab == key)
@@ -158,6 +167,8 @@ class DemoShell:
             self.failed_records.close()
         if self.scheduler_view is not None:
             self.scheduler_view.close()
+        if self.metadata_view is not None:
+            self.metadata_view.close()
         for view in self.job_views.values():
             view.close()
         # サービスはアプリが所有する。画面が閉じても共有キャッシュを終了しない。

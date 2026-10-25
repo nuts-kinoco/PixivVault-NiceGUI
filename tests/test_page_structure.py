@@ -23,19 +23,84 @@ async def test_page_builds_fifty_cards_one_dialog_and_existing_navigation():
         tabs = [element for element in buttons if "pv-tab" in element.classes]
         assert [element.text.split(" · ")[0] for element in tabs] == [
             "ダウンロード", "キュー", "失敗リスト", "重複整理",
-            "学習", "ランキング", "ライブラリ", "おすすめ", "定期チェック",
+            "学習", "ランキング", "ライブラリ", "おすすめ", "定期チェック", "メタデータ補完",
         ]
         # Job screens explain the opt-in destination; actual mutation controls
         # remain disabled when no dedicated synthetic sandbox was specified.
         enabled = {element.props["data-testid"] for element in tabs if not element.props.get("disable")}
         assert enabled == {"tab-ranking", "tab-learning", "tab-library", "tab-failed", "tab-download", "tab-queue", "tab-scheduler"}
         assert {element.props["data-testid"] for element in tabs if element.props.get("disable")} == {
-            "tab-dedup", "tab-recommend"}
+            "tab-dedup", "tab-recommend", "tab-metadata"}
         # ナビゲーションは既存トークンのCSSで色を制御する。
         # Quasar既定text-primaryを残すと選択中の青背景と文字が同色になる。
         assert all(element.props.get("color") is None for element in tabs)
     finally:
         client.delete()
+
+
+@pytest.mark.asyncio
+async def test_metadata_tab_is_unavailable_in_synthetic_mode_and_cannot_provision():
+    from pixivvault_nicegui.services import ApplicationServices
+
+    services = ApplicationServices()
+    client = Client(ui.page('/_metadata_synthetic_gate'))
+    try:
+        with client:
+            demo = shell.DemoShell(services)
+        assert demo.buttons['metadata'].props.get('disable') is True
+        assert demo.metadata_view is None
+        prior_tab = demo.active_tab
+        demo.show('metadata')
+        assert demo.active_tab == prior_tab
+        assert demo.metadata_view is None
+        assert services.managed_metadata is None
+    finally:
+        client.delete()
+        services.close()
+
+
+@pytest.mark.asyncio
+async def test_metadata_tab_managed_navigation_does_not_open_sidecar_or_fetch(tmp_path):
+    from pixivvault_nicegui.services import ApplicationServices
+
+    class OfflineSource:
+        def __init__(self):
+            self.calls = []
+
+        def __getattr__(self, name):
+            if name.startswith('get_') or name in ('verify_identity', 'require_identity'):
+                def forbidden(*args, **kwargs):
+                    self.calls.append(name)
+                    raise AssertionError('no Pixiv GET allowed by metadata tab')
+                return forbidden
+            raise AttributeError(name)
+
+        def close(self):
+            pass
+
+    source = OfflineSource()
+    root = tmp_path / 'managed'
+    services = ApplicationServices(live_client=source, pixiv_download_root=root)
+    client = Client(ui.page('/_metadata_managed_gate'))
+    try:
+        sidecar = root / '.pixivvault-managed-metadata.sqlite3'
+        assert not sidecar.exists()
+        with client:
+            demo = shell.DemoShell(services)
+            assert demo.buttons['metadata'].props.get('disable') is not True
+            assert demo.metadata_view is None
+            demo.show('metadata')
+        assert demo.active_tab == 'metadata'
+        assert demo.metadata_view is not None
+        assert demo.metadata_view.root.visible
+        assert services.managed_metadata is None
+        assert not sidecar.exists()
+        assert source.calls == []
+        demo.show('ranking')
+        assert not demo.metadata_view.root.visible
+    finally:
+        client.delete()
+        services.close()
 
 
 @pytest.mark.asyncio

@@ -93,6 +93,16 @@ class ResponseRejected(PixivReadError):
     message = "HTTP response rejected"
 
 
+class HTTPStatusRejected(ResponseRejected):
+    """HTTP status preserved for conservative failure classification only."""
+
+    def __init__(self, status_code: int):
+        if type(status_code) is not int or not 100 <= status_code <= 599:
+            raise ValueError('invalid HTTP status')
+        self.status_code = status_code
+        super().__init__()
+
+
 class ResponseLimitExceeded(PixivReadError):
     message = "Response limit exceeded"
 
@@ -134,6 +144,19 @@ def _identifier(value: object) -> str:
     if not _ID.fullmatch(result):
         raise InvalidPayload()
     return result
+
+
+def _payload_unique_keys(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise InvalidPayload()
+        result[key] = value
+    return result
+
+
+def _payload_invalid_constant(_value):
+    raise InvalidPayload()
 
 
 def _read_cookies(path: str | Path) -> tuple[CookieJar, str | None]:
@@ -288,10 +311,13 @@ def _read_response(opener, request: Request, timeout: float,
     except PixivReadError:
         raise
     except HTTPError as exc:
+        status = exc.code
         try:
             exc.close()
         except Exception:
             pass
+        if type(status) is int and 100 <= status <= 599:
+            raise HTTPStatusRejected(status) from None
         raise ResponseRejected() from None
     except (URLError, OSError, ValueError):
         raise TransportFailed() from None
@@ -509,7 +535,10 @@ class LivePixivReadClient:
     def _json(self, kind: str, url: str, *, deadline: float) -> object:
         body = self._get(kind, url, deadline=deadline)
         try:
-            packet = json.loads(body)
+            packet = json.loads(
+                body, object_pairs_hook=_payload_unique_keys,
+                parse_constant=_payload_invalid_constant,
+            )
         except (ValueError, UnicodeError):
             raise InvalidPayload() from None
         if type(packet) is not dict:
@@ -890,6 +919,38 @@ class LivePixivReadClient:
                               author, tuple(tags), thumb, created, int(count),
                               art_type, restrict)
 
+    def get_artwork_metadata_raw(self, work_id: str, expected_author_id: str) -> dict:
+        """Read a saved illustration's detail metadata; never writes any catalog.
+
+        The explicit caller supplies both IDs from an immutable managed receipt.
+        Identity must already be verified. HTTP status remains typed so a 404
+        can be distinguished from auth/rate-limit/server failures without
+        inspecting messages or response bodies.
+        """
+        self._ensure_open()
+        try:
+            wid = _identifier(work_id)
+            author_id = _identifier(expected_author_id)
+        except InvalidPayload:
+            raise DestinationRejected() from None
+        with self._identity_lock:
+            self._ensure_open()
+            if self._verified_identity is None:
+                raise AuthenticationMissing()
+            body = self._json("artwork", f"{API_ORIGIN}/ajax/illust/{wid}",
+                              deadline=time.monotonic() + MAX_OPERATION_SECONDS)
+            self._ensure_open()
+        if type(body) is not dict or body.get("isMasked") is True:
+            raise InvalidPayload()
+        try:
+            if _identifier(body.get("id")) != wid:
+                raise InvalidPayload()
+            if _identifier(body.get("userId")) != author_id:
+                raise InvalidPayload()
+        except InvalidPayload:
+            raise InvalidPayload() from None
+        return body
+
     def get_artwork_update_revision(self, work_id: str, author_id: str) -> dict:
         """Reconfirm author, page/type and remote generation before v2 saving.
 
@@ -1009,7 +1070,7 @@ class LivePixivReadClient:
 
 __all__ = [
     "LivePixivReadClient", "PixivReadError", "CookieSourceRejected",
-    "DestinationRejected", "ReadDeadlineExceeded", "ResponseRejected",
+    "DestinationRejected", "ReadDeadlineExceeded", "ResponseRejected", "HTTPStatusRejected",
     "ResponseLimitExceeded", "InvalidPayload", "ApiRejected",
     "AuthenticationMissing", "ClientClosed", "TransportFailed",
 ]

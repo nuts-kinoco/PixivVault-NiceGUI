@@ -6,6 +6,7 @@ browser cannot contact any non-local address. No real account IDs are logged.
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 import json
 from pathlib import Path
 import re
@@ -16,6 +17,7 @@ import sys
 import time
 import traceback
 from urllib.parse import urlsplit
+from urllib.request import Request, ProxyHandler, build_opener
 
 if __package__ in (None, ''):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -87,30 +89,73 @@ def verify_saved(root, *, expected_update_date='2026-10-24T10:00:00+09:00',
     return receipt
 
 
-def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True):
+def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True,
+            expected_metadata_revision=None, evidence_dir=None, viewport_label='unknown',
+            result_record=None):
     from playwright.sync_api import expect
-    page.goto(base, wait_until='domcontentloaded')
+    ux_timings_ms = {}
+    ux_status = {}
+    ux_screenshots = {}
+    ux_repeat_samples_ms = {}
+    download_scroll = None
+    download_queue_button_rect = None
+    if result_record is not None:
+        result_record['ux_timings_ms'] = ux_timings_ms
+        result_record['ux_status'] = ux_status
+        result_record['ux_screenshots'] = ux_screenshots
+        result_record['ux_repeat_samples_ms'] = ux_repeat_samples_ms
+
+    def timed(name, action, complete):
+        started = time.perf_counter()
+        try:
+            action()
+            complete()
+        except Exception as exc:
+            # Playwright expect() timeout uses AssertionError, unlike locator
+            # action timeouts. Classify both without persisting exception text.
+            timeout = 'Timeout' in type(exc).__name__ or 'Timeout' in str(exc)
+            ux_status[name] = {'status': 'timeout' if timeout else 'error',
+                               'error_type': type(exc).__name__}
+            raise
+        else:
+            ux_status[name] = {'status': 'ok'}
+        finally:
+            ux_timings_ms[name] = round((time.perf_counter() - started) * 1000, 2)
+
+    def capture(label):
+        if evidence_dir is not None:
+            path = evidence_dir / f'ux-{viewport_label}-{"restart" if restart else "initial"}-{label}.png'
+            page.screenshot(path=str(path), full_page=False)
+            ux_screenshots[label] = path.name
+
+    timed('shell_ready_after_server_health', lambda: page.goto(base, wait_until='domcontentloaded'),
+          lambda: expect(page.get_by_test_id('tab-download')).to_be_visible())
+    capture('initial_shell')
+    first_enqueue_started = None
     if not restart:
-        page.get_by_test_id('tab-download').click()
         view = page.get_by_test_id('managed-download-view')
-        expect(view).to_be_visible()
+        timed('open_download_tab', lambda: page.get_by_test_id('tab-download').click(),
+              lambda: expect(view).to_be_visible())
+        capture('download')
         author_id = view.get_by_test_id('managed-download-author-id')
         author_id.fill('bad')
-        view.get_by_test_id('managed-download-author-add').click()
-        expect(view.get_by_test_id('managed-download-author-status')).to_contain_text('正しい作者ID')
+        timed('invalid_author_feedback', lambda: view.get_by_test_id('managed-download-author-add').click(),
+              lambda: expect(view.get_by_test_id('managed-download-author-status')).to_contain_text('正しい作者ID'))
+        capture('download_invalid_author')
         author_id.fill('24')
         view.get_by_test_id('managed-download-author-add').click()
         expect(view.get_by_test_id('managed-download-author-selection')).to_have_text('選択作者 1 件')
-        view.get_by_test_id('managed-download-follow-refresh').click()
-        expect(view.get_by_test_id('managed-download-author-status')).to_contain_text('フォロー作者 1 件', timeout=20000)
+        timed('refresh_follow_list', lambda: view.get_by_test_id('managed-download-follow-refresh').click(),
+              lambda: expect(view.get_by_test_id('managed-download-author-status')).to_contain_text('フォロー作者 1 件', timeout=20000))
         view.get_by_test_id('managed-download-follow-search').fill('合成フォロー')
         follow = view.get_by_test_id('managed-download-follow-select')
         expect(follow).to_have_count(1)
         follow.click()  # Same author does not double-select or replace ID origin.
         expect(view.get_by_test_id('managed-download-author-selection')).to_have_text('選択作者 1 件')
-        view.get_by_test_id('managed-download-author-fetch').click()
-        expect(view.get_by_test_id('managed-download-author-status')).to_contain_text('新規 1 件', timeout=25000)
-        expect(view.get_by_test_id('managed-download-selection')).to_have_text('対象 1 件')
+        timed('author_diff_fetch', lambda: view.get_by_test_id('managed-download-author-fetch').click(),
+              lambda: (expect(view.get_by_test_id('managed-download-author-status')).to_contain_text('新規 1 件', timeout=25000),
+                       expect(view.get_by_test_id('managed-download-selection')).to_have_text('対象 1 件')))
+        capture('download_selected_author')
         other = page.context.new_page()
         try:
             other.goto(base, wait_until='domcontentloaded')
@@ -119,14 +164,43 @@ def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True):
             expect(another.get_by_test_id('managed-download-selection')).to_have_text('対象 0 件')
         finally:
             other.close()
-        view.get_by_test_id('managed-download-submit').click()
-        expect(view.get_by_test_id('managed-download-notice')).to_contain_text('1件をキュー', timeout=20000)
+        # Verify the bottom queue action is reachable on short viewports.
+        download_root = page.get_by_test_id('managed-download-view')
+        download_scroll = download_root.evaluate("""el => ({clientHeight: el.clientHeight,
+            scrollHeight: el.scrollHeight, clientWidth: el.clientWidth,
+            scrollWidth: el.scrollWidth, overflowY: getComputedStyle(el).overflowY})""")
+        assert download_scroll['scrollWidth'] <= download_scroll['clientWidth'] + 1
+        if download_scroll['scrollHeight'] > download_scroll['clientHeight'] + 1:
+            assert download_scroll['overflowY'] in ('auto', 'scroll'), download_scroll
+        download_root.evaluate('el => { el.scrollTop = el.scrollHeight; }')
+        download_scroll['scrollTop_after'] = download_root.evaluate('el => el.scrollTop')
+        submit_rect = view.get_by_test_id('managed-download-submit').bounding_box()
+        assert view.get_by_test_id('managed-download-submit').is_enabled()
+        assert submit_rect is not None and 0 <= submit_rect['y'] and (
+            submit_rect['y'] + submit_rect['height'] <= page.viewport_size['height']), submit_rect
+        download_queue_button_rect = {key: round(value, 2) for key, value in submit_rect.items()}
+        capture('download_bottom')
+        download_root.evaluate('el => { el.scrollTop = 0; }')
+        first_enqueue_started = time.perf_counter()
+        timed('enqueue_download', lambda: view.get_by_test_id('managed-download-submit').click(),
+              lambda: expect(view.get_by_test_id('managed-download-notice')).to_contain_text('1件をキュー', timeout=20000))
 
-    page.get_by_test_id('tab-queue').click()
     queue = page.get_by_test_id('queue-view')
-    expect(queue.get_by_test_id('queue-filter-done')).to_contain_text(
-        ('完了 50' if scheduler_acceptance else '完了 2') if restart else '完了 1',
-        timeout=30000)
+    timed('open_queue_tab', lambda: page.get_by_test_id('tab-queue').click(),
+          lambda: expect(queue).to_be_visible())
+    expected_done = ('完了 50' if scheduler_acceptance else '完了 2') if restart else '完了 1'
+    if first_enqueue_started is None:
+        timed('reopen_persisted_queue_state', lambda: None,
+              lambda: expect(queue.get_by_test_id('queue-filter-done')).to_contain_text(expected_done, timeout=30000))
+    else:
+        try:
+            timed('queue_completion_after_enqueue', lambda: None,
+                  lambda: expect(queue.get_by_test_id('queue-filter-done')).to_contain_text(expected_done, timeout=30000))
+        finally:
+            ux_timings_ms['enqueue_to_queue_completion_user_flow'] = round((time.perf_counter() - first_enqueue_started) * 1000, 2)
+            ux_status['enqueue_to_queue_completion_user_flow'] = dict(ux_status.get('queue_completion_after_enqueue',
+                                                                           {'status': 'error', 'error_type': 'unknown'}))
+    capture('queue')
     if not restart:
         # Change only the synthetic GET fixture: no Pixiv write is involved.
         page.request.post(base + '/_managed_test/control?author_updated=true', headers=headers)
@@ -141,26 +215,154 @@ def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True):
             '1件をキュー', timeout=20000)
         page.get_by_test_id('tab-queue').click()
         expect(queue.get_by_test_id('queue-filter-done')).to_contain_text('完了 2', timeout=30000)
-    page.get_by_test_id('tab-library').click()
+    # Phase10 M4 UI: opening a tab must neither provision a side-ledger nor
+    # read the fake remote account. Only the explicit button creates a local
+    # metadata ledger. The ON setting persists on restart but starts no GET.
+    metadata_db = root / '.pixivvault-managed-metadata.sqlite3'
+    metadata_absent_before_tab = not metadata_db.exists()
+    requests_before_metadata = page.request.get(
+        base + '/_managed_test/status', headers=headers).json()['request_count']
+    if not restart:
+        assert not metadata_db.exists()
+    timed('open_metadata_tab', lambda: page.get_by_test_id('tab-metadata').click(),
+          lambda: expect(page.get_by_test_id('metadata-view')).to_be_visible())
+    capture('metadata_before_open')
+    if not restart:
+        assert not metadata_db.exists()
+    timed('open_metadata_ledger', lambda: page.get_by_test_id('metadata-open').click(),
+          lambda: (expect(page.get_by_test_id('metadata-save')).to_be_enabled(timeout=15000),
+                   expect(page.get_by_test_id('metadata-status')).to_contain_text('自動取得なし')))
+    capture('metadata_open')
+    assert metadata_db.is_file()
+    if not restart:
+        metadata_uri = metadata_db.resolve().as_uri() + '?mode=ro'
+        with closing(sqlite3.connect(metadata_uri, uri=True, timeout=1.0)) as metadata_conn:
+            metadata_conn.execute('PRAGMA query_only=ON')
+            enabled_before_save, revision_before_save = metadata_conn.execute(
+                'SELECT enabled,revision FROM settings WHERE id=1').fetchone()
+        assert enabled_before_save == 0
+        # The current settings CAS increments revision exactly once per save;
+        # if that contract changes, this acceptance must be updated explicitly.
+        expected_metadata_revision = revision_before_save + 1
+        expect(page.get_by_test_id('metadata-enabled')).not_to_be_checked()
+        page.get_by_test_id('metadata-enabled').click()
+        expect(page.get_by_test_id('metadata-enabled')).to_be_checked()
+        timed('save_metadata_setting', lambda: page.get_by_test_id('metadata-save').click(),
+              lambda: expect(page.get_by_test_id('metadata-status')).to_contain_text('保存済み設定: ON'))
+    else:
+        expect(page.get_by_test_id('metadata-enabled')).to_be_checked()
+    page.get_by_test_id('metadata-work-id').fill('321')
+    timed('inspect_metadata_state', lambda: page.get_by_test_id('metadata-inspect').click(),
+          lambda: (expect(page.get_by_test_id('metadata-entry-status')).to_contain_text('記録はありません'),
+                   expect(page.get_by_test_id('metadata-progress')).to_contain_text('台帳登録 0件')))
+    capture('metadata_state')
+    metadata_view = page.get_by_test_id('metadata-view')
+    metadata_scroll = metadata_view.evaluate("""el => ({clientHeight: el.clientHeight,
+        scrollHeight: el.scrollHeight, clientWidth: el.clientWidth,
+        scrollWidth: el.scrollWidth, overflowY: getComputedStyle(el).overflowY})""")
+    assert metadata_scroll['overflowY'] in ('auto', 'scroll'), (
+        f'metadata controls need an accessible scroll container: {metadata_scroll!r}')
+    assert metadata_scroll['scrollWidth'] <= metadata_scroll['clientWidth'] + 1, (
+        f'metadata panel overflows horizontally: {metadata_scroll!r}')
+    page.evaluate("""() => { const el = document.querySelector('[data-testid="metadata-view"]');
+        el.scrollTop = el.scrollHeight; }""")
+    metadata_scroll['scrollTop'] = metadata_view.evaluate('el => el.scrollTop')
+    assert metadata_scroll['scrollTop'] + metadata_scroll['clientHeight'] >= metadata_scroll['scrollHeight'] - 1
+    run_status = page.get_by_test_id('metadata-run-status')
+    expect(run_status).to_be_visible()
+    root_rect, status_rect = metadata_view.bounding_box(), run_status.bounding_box()
+    assert root_rect is not None and status_rect is not None
+    assert status_rect['y'] >= root_rect['y'] - 1 and status_rect['y'] + status_rect['height'] <= root_rect['y'] + root_rect['height'] + 1, (
+        f'metadata bottom action/status is clipped: root={root_rect!r}, status={status_rect!r}')
+    viewport_height = page.viewport_size['height']
+    assert 0 <= status_rect['y'] and status_rect['y'] + status_rect['height'] <= viewport_height
+    for test_id in ('metadata-run-one', 'metadata-stop'):
+        action_rect = page.get_by_test_id(test_id).bounding_box()
+        assert action_rect is not None and 0 <= action_rect['y']
+        assert action_rect['y'] + action_rect['height'] <= viewport_height
+    capture('metadata_bottom')
+    requests_after_metadata = page.request.get(
+        base + '/_managed_test/status', headers=headers).json()['request_count']
+    assert requests_after_metadata == requests_before_metadata, (
+        'metadata tab/configuration caused an implicit Pixiv request')
+    # Verify the displayed empty-state against the actual isolated side-ledger,
+    # not just a UI label. Open it in read-only mode so acceptance cannot mutate it.
+    if expected_metadata_revision is None:
+        raise AssertionError('initial run did not establish metadata settings revision')
+    metadata_uri = metadata_db.resolve().as_uri() + '?mode=ro'
+    with closing(sqlite3.connect(metadata_uri, uri=True, timeout=1.0)) as metadata_conn:
+        metadata_conn.execute('PRAGMA query_only=ON')
+        enabled, revision = metadata_conn.execute(
+            'SELECT enabled,revision FROM settings WHERE id=1').fetchone()
+        metadata_entries = metadata_conn.execute(
+            'SELECT COUNT(*) FROM metadata').fetchone()[0]
+    assert metadata_entries == 0, 'synthetic metadata ledger must remain empty'
+    assert enabled == 1, 'explicitly saved ON setting must persist'
+    assert revision == expected_metadata_revision, 'settings CAS revision must be stable across restart'
+    if evidence_dir is not None:
+        # A separate warm micro-benchmark, not part of the user's first-run
+        # latency. Each phase/viewport retains its own 20 observations.
+        samples = ux_repeat_samples_ms.setdefault('warm_library_to_metadata', [])
+        for _ in range(20):
+            page.get_by_test_id('tab-library').click()
+            expect(page.get_by_test_id('library-view')).to_be_visible()
+            started = time.perf_counter()
+            try:
+                page.get_by_test_id('tab-metadata').click()
+                expect(page.get_by_test_id('metadata-view')).to_be_visible()
+            except Exception:
+                samples.append({'ms': round((time.perf_counter()-started)*1000, 2), 'status': 'error'})
+                raise
+            samples.append({'ms': round((time.perf_counter()-started)*1000, 2), 'status': 'ok'})
+    timed('return_to_library', lambda: page.get_by_test_id('tab-library').click(),
+          lambda: expect(page.get_by_test_id('library-view')).to_be_visible())
     library = page.get_by_test_id('library-view')
     if not restart:
-        library.get_by_test_id('library-db-refresh').click()
+        timed('refresh_library', lambda: library.get_by_test_id('library-db-refresh').click(),
+              lambda: expect(library.locator('.pv-library-author-card[data-author-id="24"]')).to_be_visible(timeout=20000))
     author = library.locator('.pv-library-author-card[data-author-id="24"]')
     expect(author).to_be_visible(timeout=20000)
-    author.get_by_test_id('library-author-open').click()
+    timed('open_library_author', lambda: author.get_by_test_id('library-author-open').click(),
+          lambda: expect(library.locator('.pv-library-page-card[data-work-id="321"]')).to_have_count(2))
     cards = library.locator('.pv-library-page-card[data-work-id="321"]')
     expect(cards).to_have_count(2)
-    cards.first.click()
+    viewer = page.get_by_test_id('library-viewer')
+    image = viewer.locator('img:visible')
+    timed('open_library_viewer_and_decode', lambda: cards.first.click(),
+          lambda: (expect(viewer).to_be_visible(),
+                   expect(viewer.locator('.pv-counter')).to_have_text('1/2'),
+                   expect(image).to_have_attribute('src', re.compile(r'/media/321/0/view\.png\?catalog=')),
+                   image.evaluate('img => img.decode().then(() => { if (!img.naturalWidth) throw Error("not decoded") })')))
     viewer = page.get_by_test_id('library-viewer')
     image = viewer.locator('img:visible')
     for index in range(2):
         expect(viewer.locator('.pv-counter')).to_have_text(f'{index+1}/2')
-        image.evaluate('img => img.decode()')
         expect(image).to_have_attribute('src', re.compile(rf'/media/321/{index}/view\.png\?catalog='))
+        image.evaluate('img => img.decode().then(() => { if (!img.naturalWidth) throw Error("not decoded") })')
         if index == 0:
-            page.keyboard.press('ArrowRight')
-    viewer.get_by_role('button', name='閉じる', exact=True).click()
-    expect(cards.first).to_be_focused()
+            timed('viewer_page_turn_and_decode', lambda: page.keyboard.press('ArrowRight'),
+                  lambda: (expect(viewer.locator('.pv-counter')).to_have_text('2/2'),
+                           expect(image).to_have_attribute('src', re.compile(r'/media/321/1/view\.png\?catalog=')),
+                           image.evaluate('img => img.decode().then(() => { if (!img.naturalWidth) throw Error("not decoded") })')))
+    if evidence_dir is not None:
+        samples = ux_repeat_samples_ms.setdefault('warm_viewer_page_turn', [])
+        for i in range(20):
+            target = 0 if i % 2 == 0 else 1
+            key = 'ArrowLeft' if target == 0 else 'ArrowRight'
+            started = time.perf_counter()
+            try:
+                page.keyboard.press(key)
+                expect(viewer.locator('.pv-counter')).to_have_text(f'{target+1}/2')
+                expect(image).to_have_attribute('src', re.compile(rf'/media/321/{target}/view\.png\?catalog='))
+                image.evaluate('img => img.decode().then(() => { if (!img.naturalWidth) throw Error("not decoded") })')
+            except Exception:
+                samples.append({'ms': round((time.perf_counter()-started)*1000, 2), 'status': 'error'})
+                raise
+            samples.append({'ms': round((time.perf_counter()-started)*1000, 2), 'status': 'ok'})
+    capture('library_viewer')
+    timed('close_viewer_restore_focus', lambda: viewer.get_by_role('button', name='閉じる', exact=True).click(),
+          lambda: expect(cards.first).to_be_focused())
+    capture('library')
     if restart:
         if scheduler_acceptance:
             assert verify_saved(root, expected_update_date='2026-10-25T10:00:00+09:00',
@@ -176,9 +378,14 @@ def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True):
         # authorized managed enqueue -> JobService/CAS receipt -> history/toast.
         page.request.post(base + '/_managed_test/control?scheduler_update=true', headers=headers)
         page.request.post(base + '/_managed_test/control?scheduler_many=true', headers=headers)
-        page.get_by_test_id('tab-scheduler').click()
+        timed('open_scheduler_tab', lambda: page.get_by_test_id('tab-scheduler').click(),
+              lambda: expect(page.get_by_test_id('scheduler-status')).to_be_visible())
         scheduler = page.get_by_test_id('scheduler-status')
-        page.get_by_test_id('scheduler-open').click()
+        timed('open_scheduler_settings', lambda: page.get_by_test_id('scheduler-open').click(),
+              lambda: expect(page.get_by_test_id('scheduler-discard')).to_be_enabled())
+        expect(page.get_by_test_id('scheduler-status')).to_contain_text('定期状態: 未実行')
+        expect(page.get_by_test_id('scheduler-status')).not_to_contain_text('never')
+        capture('scheduler_settings')
         # A dirty form must be explicitly discardable without retaining a
         # stale CAS revision or accidentally saving a discarded author.
         expect(page.get_by_test_id('scheduler-discard')).to_be_enabled()
@@ -188,58 +395,112 @@ def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True):
         page.get_by_test_id('scheduler-authors').fill('24')
         page.get_by_test_id('scheduler-interval').click()
         page.get_by_text('自動チェックしない', exact=True).click()
-        page.get_by_test_id('scheduler-save').click()
-        page.get_by_test_id('scheduler-run').click()
-        from playwright.sync_api import expect
-        deadline = time.monotonic() + 30
-        accepted, deferred, dispatch_status = 0, 0, 'running'
-        while time.monotonic() < deadline:
-            with sqlite3.connect(root / '.pixivvault-managed-scheduler.sqlite3') as db:
-                row = db.execute(
-                    "SELECT accepted,deferred,status FROM dispatch_history WHERE slot LIKE 'manual-%' "
-                    'ORDER BY started_utc DESC LIMIT 1').fetchone()
-            if row is not None:
-                accepted, deferred, dispatch_status = row
-                if dispatch_status != 'running':
-                    break
-            time.sleep(0.1)
-        assert (accepted, deferred) == (50, 20), 'first batch must persist capacity-limited backlog'
-        expect(page.get_by_test_id('scheduler-history')).to_contain_text('saved', timeout=120000)
-        assert verify_saved(root, expected_update_date='2026-10-25T10:00:00+09:00',
-                            expected_versions=3, expected_entries=70)['page_count'] == 2
-        page.get_by_test_id('tab-queue').click()
-        expect(page.get_by_test_id('queue-view').get_by_test_id('queue-filter-done')).to_have_text(
-            '完了 50', timeout=120000)
-        active_index = json.loads((root / 'active-generations.json').read_text(encoding='utf-8'))
-        assert len(active_index['entries']) == 70
-        assert set(active_index['entries']) == {'321', *(str(wid) for wid in range(400, 469))}
-        # Files/index/history alone can hide a failed or unknown dispatch item.
-        # Assert the durable scheduler ledger itself is fully reconciled.
-        # Publishing the CAS index and reconciling the dispatch ledger are
-        # separate durable steps. Never assert immediately after the index
-        # flips; wait for the exact 70 saved / zero deferred condition.
-        ledger_deadline = time.monotonic() + 120
-        item_states, deferred_count = [], -1
-        while time.monotonic() < ledger_deadline:
-            try:
-                with sqlite3.connect(root / '.pixivvault-managed-scheduler.sqlite3') as db:
-                    item_states = db.execute(
-                        "SELECT state,COUNT(*) FROM dispatch_items GROUP BY state").fetchall()
-                    deferred_count = db.execute('SELECT COUNT(*) FROM deferred_work').fetchone()[0]
-            except sqlite3.OperationalError:
+        scheduler_db_uri = (root / '.pixivvault-managed-scheduler.sqlite3').resolve().as_uri() + '?mode=ro'
+        with closing(sqlite3.connect(scheduler_db_uri, uri=True, timeout=1.0)) as db:
+            db.execute('PRAGMA query_only=ON')
+            revision_before = db.execute('SELECT revision FROM schedule WHERE id=1').fetchone()[0]
+
+        def wait_for_saved_settings():
+            expect(page.get_by_test_id('scheduler-run')).to_be_enabled(timeout=15000)
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline:
+                try:
+                    with closing(sqlite3.connect(scheduler_db_uri, uri=True, timeout=1.0)) as db:
+                        db.execute('PRAGMA query_only=ON')
+                        interval, revision = db.execute(
+                            'SELECT interval_hours,revision FROM schedule WHERE id=1').fetchone()
+                        authors = tuple(row[0] for row in db.execute('SELECT author_id FROM favourite_authors'))
+                    if interval == 0 and revision == revision_before + 1 and authors == ('24',):
+                        return
+                except sqlite3.OperationalError:
+                    pass
+                time.sleep(.1)
+            raise AssertionError('scheduler settings save did not commit expected CAS revision')
+
+        timed('save_scheduler_settings', lambda: page.get_by_test_id('scheduler-save').click(),
+              wait_for_saved_settings)
+
+        def wait_for_scheduler_admission():
+            deadline = time.monotonic() + 30
+            accepted, deferred, dispatch_status = 0, 0, 'running'
+            while time.monotonic() < deadline:
+                try:
+                    with closing(sqlite3.connect(scheduler_db_uri, uri=True, timeout=1.0)) as db:
+                        db.execute('PRAGMA query_only=ON')
+                        row = db.execute(
+                            "SELECT accepted,deferred,status FROM dispatch_history WHERE slot LIKE 'manual-%' "
+                            'ORDER BY started_utc DESC LIMIT 1').fetchone()
+                except sqlite3.OperationalError:
+                    time.sleep(.1)
+                    continue
+                if row is not None:
+                    accepted, deferred, dispatch_status = row
+                    if dispatch_status != 'running':
+                        break
                 time.sleep(0.1)
-                continue
-            if item_states == [('saved', 70)] and deferred_count == 0:
-                break
-            time.sleep(0.1)
-        assert item_states == [('saved', 70)], f'unexpected dispatch item states: {item_states!r}'
-        assert deferred_count == 0, f'deferred work remains after all 70 saves: {deferred_count}'
-        scheduler_saved = True
+            assert (accepted, deferred) == (50, 20), 'first batch must persist capacity-limited backlog'
+
+        def wait_for_all_saved():
+            nonlocal scheduler_saved
+            expect(page.get_by_test_id('scheduler-history')).to_contain_text('完了', timeout=120000)
+            assert verify_saved(root, expected_update_date='2026-10-25T10:00:00+09:00',
+                                expected_versions=3, expected_entries=70)['page_count'] == 2
+            timed('open_queue_after_scheduler', lambda: page.get_by_test_id('tab-queue').click(),
+                  lambda: expect(page.get_by_test_id('queue-view')).to_be_visible())
+            expect(page.get_by_test_id('queue-view').get_by_test_id('queue-filter-done')).to_contain_text(
+                '完了 50', timeout=120000)
+            active_index = json.loads((root / 'active-generations.json').read_text(encoding='utf-8'))
+            assert len(active_index['entries']) == 70
+            assert set(active_index['entries']) == {'321', *(str(wid) for wid in range(400, 469))}
+            # Files/index/history alone can hide a failed or unknown dispatch item.
+            # Assert the durable scheduler ledger itself is fully reconciled.
+            ledger_deadline = time.monotonic() + 120
+            item_states, deferred_count = [], -1
+            while time.monotonic() < ledger_deadline:
+                try:
+                    scheduler_db_uri = (root / '.pixivvault-managed-scheduler.sqlite3').resolve().as_uri() + '?mode=ro'
+                    with closing(sqlite3.connect(scheduler_db_uri, uri=True, timeout=1.0)) as db:
+                        db.execute('PRAGMA query_only=ON')
+                        item_states = db.execute(
+                            "SELECT state,COUNT(*) FROM dispatch_items GROUP BY state").fetchall()
+                        deferred_count = db.execute('SELECT COUNT(*) FROM deferred_work').fetchone()[0]
+                except sqlite3.OperationalError:
+                    time.sleep(0.1)
+                    continue
+                if item_states == [('saved', 70)] and deferred_count == 0:
+                    break
+                time.sleep(0.1)
+            assert item_states == [('saved', 70)], f'unexpected dispatch item states: {item_states!r}'
+            assert deferred_count == 0, f'deferred work remains after all 70 saves: {deferred_count}'
+            scheduler_saved = True
+
+        scheduler_clicked_at = time.perf_counter()
+        timed('scheduler_click_to_progress_feedback',
+              lambda: page.get_by_test_id('scheduler-run').click(),
+              lambda: expect(page.get_by_test_id('scheduler-action-notice')).to_contain_text(
+                  '作者一覧を確認中', timeout=5000))
+        timed('scheduler_dispatch_admission', lambda: None, wait_for_scheduler_admission)
+        timed('scheduler_visible_admission', lambda: None,
+              lambda: expect(page.get_by_test_id('scheduler-action-notice')).to_contain_text(
+                  '受付 50件', timeout=120000))
+        ux_timings_ms['scheduler_click_to_visible_admission'] = round(
+            (time.perf_counter() - scheduler_clicked_at) * 1000, 2)
+        ux_status['scheduler_click_to_visible_admission'] = {'status': 'ok'}
+        capture('scheduler_dispatch_accepted')
+        try:
+            timed('scheduler_workflow_all_saved_and_reconciled', lambda: None, wait_for_all_saved)
+        finally:
+            ux_timings_ms['scheduler_workflow_total_including_checks'] = round(
+                (time.perf_counter() - scheduler_clicked_at) * 1000, 2)
+            ux_status['scheduler_workflow_total_including_checks'] = dict(
+                ux_status.get('scheduler_workflow_all_saved_and_reconciled',
+                              {'status': 'error', 'error_type': 'unknown'}))
+        capture('scheduler_queue_complete')
     elif scheduler_acceptance:
-        page.get_by_test_id('tab-scheduler').click()
-        page.get_by_test_id('scheduler-open').click()
-        from playwright.sync_api import expect
-        expect(page.get_by_test_id('scheduler-history')).to_contain_text('saved', timeout=10000)
+        timed('reopen_scheduler_history', lambda: page.get_by_test_id('tab-scheduler').click(),
+              lambda: (page.get_by_test_id('scheduler-open').click(),
+                       expect(page.get_by_test_id('scheduler-history')).to_contain_text('完了', timeout=10000)))
+        capture('scheduler_history')
     status = page.request.get(base + '/_managed_test/status', headers=headers).json()
     assert status['all_requests_get'] and status['allowed_https_hosts_only']
     assert status['image_requests_cookie_free']
@@ -251,6 +512,22 @@ def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True):
     if restart:
         assert status['request_count'] == 0
     return {'restart': restart, 'pages': 2, 'viewer_decode_and_focus': True,
+            'ux_timings_ms': ux_timings_ms, 'ux_status': ux_status,
+            'ux_screenshots': ux_screenshots, 'ux_repeat_samples_ms': ux_repeat_samples_ms,
+            'download_scroll': download_scroll,
+            'download_queue_button_rect': download_queue_button_rect,
+            'metadata': {
+                'sidecar_absent_before_tab': metadata_absent_before_tab,
+                'sidecar_created_by_explicit_open': bool(not restart and metadata_absent_before_tab
+                                                         and metadata_db.is_file()),
+                'enabled': bool(enabled), 'settings_revision': revision,
+                'entry_count': metadata_entries,
+                'fake_pixiv_request_count_before': requests_before_metadata,
+                'fake_pixiv_request_count_after': requests_after_metadata,
+                'fake_pixiv_request_delta': requests_after_metadata - requests_before_metadata,
+                'scroll': metadata_scroll,
+                'bottom_status_visible_inside_scroll_region': True,
+            },
             'scheduler_settings_dispatch_receipt_history':
                 (scheduler_saved or restart) if scheduler_acceptance else False,
             'original_gets': status['original_gets'].get('321', 0)}
@@ -262,8 +539,11 @@ def run(channel, output):
     from playwright.sync_api import sync_playwright
     output.mkdir(parents=True)
     before = source_hashes()
+    git_head_before = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=Path(__file__).resolve().parents[1],
+                                     capture_output=True, text=True, check=True).stdout.strip()
     results = {'success': False, 'synthetic_only': True, 'viewports': [],
                'channel': channel,
+               'git_head_before': git_head_before,
                'console_errors': [], 'page_errors': [], 'foreign_requests': [],
                'normal_exit': [], 'ports_released': []}
     try:
@@ -273,6 +553,7 @@ def run(channel, output):
                 for width, height in ((1280, 720), (1920, 1080)):
                     root = (output / f'author-{width}x{height}').resolve()
                     root.mkdir()
+                    expected_metadata_revision = None
                     for restart in (False, True):
                         port, nonce = free_port(), secrets.token_hex(16)
                         base, headers = f'http://127.0.0.1:{port}', {'X-Acceptance': nonce}
@@ -299,10 +580,16 @@ def run(channel, output):
                             page.on('console', lambda m: results['console_errors'].append(m.text[:250])
                                     if m.type == 'error' else None)
                             page.on('pageerror', lambda e: results['page_errors'].append(str(e)[:250]))
-                            results['viewports'].append({'viewport': [width, height],
-                                                         **inspect(page, base, headers, root, restart=restart)})
+                            viewport_record = {'viewport': [width, height], 'restart': restart}
+                            results['viewports'].append(viewport_record)
+                            viewport_record.update(inspect(
+                                page, base, headers, root, restart=restart,
+                                expected_metadata_revision=expected_metadata_revision,
+                                evidence_dir=output, viewport_label=f'{width}x{height}',
+                                result_record=viewport_record))
+                            if not restart:
+                                expected_metadata_revision = results['viewports'][-1]['metadata']['settings_revision']
                             context.close(); context = None
-                            from urllib.request import Request, ProxyHandler, build_opener
                             request = Request(base + '/_managed_test/shutdown', data=b'',
                                               headers=headers, method='POST')
                             with build_opener(ProxyHandler({})).open(request, timeout=5):
@@ -317,6 +604,10 @@ def run(channel, output):
             finally:
                 browser.close()
         assert len(results['viewports']) == 4
+        git_head_after = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=Path(__file__).resolve().parents[1],
+                                        capture_output=True, text=True, check=True).stdout.strip()
+        results['git_head_after'] = git_head_after
+        assert git_head_before == git_head_after, 'Git HEAD changed during UX acceptance run'
         assert not results['console_errors'] and not results['page_errors']
         assert not results['foreign_requests']
         assert all(results['normal_exit']) and all(results['ports_released'])
@@ -325,6 +616,54 @@ def run(channel, output):
     except Exception as exc:
         results['failure'] = f'{type(exc).__name__}: synthetic acceptance failed'
         results['failure_trace'] = traceback.format_exc()[-3000:]
+    # Produce a partial summary even when an action fails. A single viewport
+    # pass is an observation, not a statistically meaningful p95 estimate.
+    action_samples = {}
+    for viewport in results['viewports']:
+        phase = 'restart' if viewport.get('restart') else 'initial'
+        size = 'x'.join(str(value) for value in viewport['viewport'])
+        for action, duration in viewport.get('ux_timings_ms', {}).items():
+            status = viewport.get('ux_status', {}).get(action, {}).get('status', 'unknown')
+            action_samples.setdefault(f'{size}:{phase}:{action}', []).append((duration, status))
+        for action, samples in viewport.get('ux_repeat_samples_ms', {}).items():
+            for sample in samples:
+                action_samples.setdefault(f'{size}:{phase}:{action}', []).append(
+                    (sample['ms'], sample['status']))
+
+    def percentile(values, quantile):
+        ordered = sorted(values)
+        if not ordered:
+            return None
+        position = quantile * (len(ordered) - 1)
+        lower = int(position)
+        fraction = position - lower
+        upper = min(lower + 1, len(ordered) - 1)
+        return round(ordered[lower] * (1 - fraction) + ordered[upper] * fraction, 2)
+
+    def summary(samples):
+        good = [value for value, state in samples if state == 'ok']
+        return {
+            'samples': len(samples), 'successful_samples': len(good),
+            'failed_samples': len(samples) - len(good),
+            'observed_ms': good,
+            'p50_success_ms': percentile(good, .5),
+            'p95_success_ms': percentile(good, .95) if len(good) >= 20 else None,
+            'max_observed_ms': max(value for value, _ in samples),
+            'status_counts': {state: sum(1 for _, actual in samples if actual == state)
+                              for state in sorted({actual for _, actual in samples})},
+        }
+    results['ux_timing_summary_ms'] = {
+        key: summary(samples)
+        for key, samples in sorted(action_samples.items())
+    }
+    results['ux_timing_caveat'] = (
+        'Synthetic app; one-shot actions n=1 per viewport/phase. Repeated warm actions n=20; '
+        'p95 intentionally null for n<20. '
+        'Playwright auto-wait and screenshots/capture overhead are not physical-paint timing; '
+        'shell_ready_after_server_health starts after server health and browser launch (not a cold process launch). '
+        'enqueue_to_queue_completion_user_flow includes manual tab navigation, not screenshots. '
+        'Scheduler workload metrics include ledger verification and acceptance checks; '
+        'queue/dispatch durations reflect synthetic work, not actual Pixiv network performance.')
     results['source_hashes'] = before
     (output / 'result.json').write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding='utf-8')
     return 0 if results['success'] else 1
