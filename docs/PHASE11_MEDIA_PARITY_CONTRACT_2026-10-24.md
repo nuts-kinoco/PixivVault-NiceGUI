@@ -39,3 +39,13 @@
 
 - 動画の可変delayをMP4で近似する際に何を優先するか（最小尺誤差かFPS固定か）を将来の受入仕様として判定してもらう。黙って品質を落とすのは不可。
 - 既存のGIF・MP4・フォルダー選択のほかに、自動生成の最大容量と巨大作品での挙動（メモリ制限・中止導線）をUXの受入条件へ追加する必要がある。既存イラストの同期・保存・Cookie設定を変更する承認ではない。
+
+## 2026-10-25 M2 オフライン実装の受入状況（部分達成）
+
+- Phase10 PR #31 はhead `47f8357a016c40dffd6bbfd44ed9711e8f7f0a6e`、merge commit `27e903216020c02407f040ca3c737e1b759ca9b9` でmainに統合済み。上記「Phase10未マージ」は本書作成時点の履歴として保持する。Phase11ブランチはPhase10の同じ内容を基点とし、mainへは未統合。
+- `novel_export.py` は既に検証された単一小説のTXT/EPUBをオフライン・有限サイズで生成する。本文をHTMLとして実行せずXML文字種とエスケープを検証し、決定的なEPUB ZIPを作成する。**シリーズ複数章と埋込み画像は未実装**であり、形式互換完了と主張しない。
+- `ugoira_archive.py` はZIP64や重複・局所領域重複、ZIP爆弾、危険パス、シンボリックリンク、画像ピクセル予算を事前検証する。新設 `ugoira_storage.py` は明示された専用managed rootのmarker・単独writer・予算制限を使い、stage検証→no-replace publish→completion proofでフレームを保存・再照合する。元Fletデータ/画像/Cookieは参照も変更もしない。
+- 修正済みの既存証跡 `artifacts/phase11-lock-race-fix-full-corrected-20261025.xml` は **1913 passed / 1 skipped / errors=failures=0**。独立Claude Sonnet read-onlyソースレビューは **APPROVE / P1=0 / P2=0**。最終テストの後で試験コードだけにZIP64の偽終端レコードを追加した。実Python 3.13.11の`zipfile._EndRecData64`がlocatorの実offsetを参照することを確認し、合成ZIPに別の偽 `PK\x06\x06` を埋めた回帰試験は **1 passed**（`artifacts/phase11-zip64-fake-eocd-review-20261025.xml`）。
+- この追加試験を含む**最新全pytest 1914 passed / 1 skipped / failures=errors=0**（`artifacts/phase11-m2-independent-review-full-20261025.xml`）。warningは既存Starlette/httpxの非推奨通知と、悪意ある重複ZIPメンバーを作る合成試験の意図的なPython警告。Windows symlink privilegeで1SKIP。これはM2オフラインコードの成果であり、M3ジョブ・実保存UI・GIF/MP4変換・native/Edge最終受入やPhase11のexact-head CI成功を意味しない。
+- 残P3: Windowsではディレクトリfsyncに電源断保証がない、失敗stageを自動削除しないため予算に達すると明示的な運用判断が必要、現時点では小説/うごイラ全処理をUIスレッドから隔離する統合が未実装、TXTに一部Unicode改行類がヘッダとして見える可能性がある。いずれも原版や利用者データの無断変更で解消しない。
+- `artifacts/phase11-managed-ugoira-gif-20261025/` のGIF/managed job候補は**別のcandidate-only試案**として保存済み。まだ製品コードにも本ブランチのM2検証済み範囲にも取り込まない。可変delay、停止/再開、GIFのフレーム単位変換、強制終了時の残証跡と容量の上限を独立レビュー・RED→GREENで確認してから導入する。
