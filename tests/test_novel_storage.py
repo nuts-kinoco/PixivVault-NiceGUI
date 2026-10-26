@@ -269,9 +269,9 @@ def test_separate_process_saves_serialize_under_root_lock(tmp_path):
         "print(r.relative_receipt)"
     )
     env = os.environ.copy()
-    env["TEMP"] = os.environ["TEMP"]
-    env["TMP"] = os.environ["TMP"]
-    env["PYTHONPATH"] = os.environ["PYTHONPATH"]
+    env.setdefault("TEMP", str(tmp_path))
+    env.setdefault("TMP", env["TEMP"])
+    env.setdefault("PYTHONPATH", str(Path(__file__).resolve().parents[1] / "src"))
     first = subprocess.Popen([sys.executable, "-X", "utf8", "-c", child, str(root)],
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
     second = subprocess.Popen([sys.executable, "-X", "utf8", "-c", child, str(root)],
