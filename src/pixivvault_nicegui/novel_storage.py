@@ -122,7 +122,7 @@ def _lock(fd: int):
         msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
     else:
         import fcntl
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fcntl.flock(fd, fcntl.LOCK_EX)
     if os.fstat(fd).st_size == 0:
         os.lseek(fd, 0, os.SEEK_SET)
         if os.write(fd, b"0") != 1:

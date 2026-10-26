@@ -256,6 +256,41 @@ def test_unowned_partial_root_is_not_adopted_or_deleted(tmp_path):
         NovelExportStore(root)
     assert unknown.read_bytes() == b"unknown user data"
 
+def test_posix_lock_requests_blocking_exclusive_flag_in_isolated_process(tmp_path):
+    root = tmp_path / "store"
+    NovelExportStore(root)
+    child = r"""
+import os, sys, types
+from pathlib import Path
+import pixivvault_nicegui.novel_storage as storage
+store = storage.NovelExportStore(Path(sys.argv[1]))
+fake = types.ModuleType("fcntl")
+fake.LOCK_EX, fake.LOCK_NB, fake.LOCK_UN = 2, 4, 8
+calls = []
+def flock(fd, operation):
+    calls.append(operation)
+    if operation == fake.LOCK_UN:
+        return
+    if operation != fake.LOCK_EX:
+        raise AssertionError("POSIX lock must block without LOCK_NB")
+fake.flock = flock
+sys.modules["fcntl"] = fake
+os.name = "posix"  # Isolated branch-selection fault injection; not a Linux measurement.
+with store._locked():
+    pass
+assert calls == [fake.LOCK_EX, fake.LOCK_UN], calls
+print("POSIX_LOCK_EXCLUSIVE_BLOCKING")
+"""
+    env = os.environ.copy()
+    env.setdefault("TEMP", str(tmp_path))
+    env.setdefault("TMP", env["TEMP"])
+    env.setdefault("PYTHONPATH", str(Path(__file__).resolve().parents[1] / "src"))
+    result = subprocess.run(
+        [sys.executable, "-X", "utf8", "-c", child, str(root)],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, timeout=30)
+    assert result.returncode == 0, result.stderr
+    assert "POSIX_LOCK_EXCLUSIVE_BLOCKING" in result.stdout
+
 def test_separate_process_saves_serialize_under_root_lock(tmp_path):
     root = tmp_path / "store"
     NovelExportStore(root)  # Initialize before starting competing writers.
@@ -272,19 +307,66 @@ def test_separate_process_saves_serialize_under_root_lock(tmp_path):
     env.setdefault("TEMP", str(tmp_path))
     env.setdefault("TMP", env["TEMP"])
     env.setdefault("PYTHONPATH", str(Path(__file__).resolve().parents[1] / "src"))
-    first = subprocess.Popen([sys.executable, "-X", "utf8", "-c", child, str(root)],
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
-    second = subprocess.Popen([sys.executable, "-X", "utf8", "-c", child, str(root)],
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
-    out1, err1 = first.communicate(timeout=30)
-    out2, err2 = second.communicate(timeout=30)
-    assert first.returncode == 0, err1
-    assert second.returncode == 0, err2
-    assert out1.strip() != out2.strip()
-    store = NovelExportStore(root)
-    assert store.reconcile(out1.strip()).state == "complete"
-    assert store.reconcile(out2.strip()).state == "complete"
-    assert len(list((root / "outputs").iterdir())) == 2
+    first = second = None
+    try:
+        first = subprocess.Popen([sys.executable, "-X", "utf8", "-c", child, str(root)],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+        second = subprocess.Popen([sys.executable, "-X", "utf8", "-c", child, str(root)],
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+        out1, err1 = first.communicate(timeout=30)
+        out2, err2 = second.communicate(timeout=30)
+        assert first.returncode == 0, err1
+        assert second.returncode == 0, err2
+        assert out1.strip() != out2.strip()
+        store = NovelExportStore(root)
+        assert store.reconcile(out1.strip()).state == "complete"
+        assert store.reconcile(out2.strip()).state == "complete"
+        assert len(list((root / "outputs").iterdir())) == 2
+    finally:
+        owned = [process for process in (first, second) if process is not None]
+        cleanup_errors = []
+        primary_error = sys.exc_info()[1]
+
+        # Try to signal every owned child even if one terminate call fails.
+        for index, process in enumerate(owned, start=1):
+            try:
+                if process.poll() is None:
+                    process.terminate()
+            except Exception as exc:
+                cleanup_errors.append(f"child {index} terminate failed: {type(exc).__name__}: {exc}")
+
+        # Reap every owned child independently; never let one failure skip the next.
+        for index, process in enumerate(owned, start=1):
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                try:
+                    process.kill()
+                except Exception as exc:
+                    cleanup_errors.append(f"child {index} kill failed: {type(exc).__name__}: {exc}")
+                try:
+                    process.wait(timeout=5)
+                except Exception as exc:
+                    cleanup_errors.append(f"child {index} reap after kill failed: {type(exc).__name__}: {exc}")
+            except Exception as exc:
+                cleanup_errors.append(f"child {index} wait failed: {type(exc).__name__}: {exc}")
+
+        # Explicitly fail if any owned child still exists after cleanup attempts.
+        for index, process in enumerate(owned, start=1):
+            try:
+                if process.poll() is None:
+                    cleanup_errors.append(f"child {index} remains alive after cleanup")
+            except Exception as exc:
+                cleanup_errors.append(f"child {index} final poll failed: {type(exc).__name__}: {exc}")
+
+        # Preserve a primary test exception; annotate it instead of replacing it.
+        if cleanup_errors:
+            detail = "Owned subprocess cleanup errors: " + "; ".join(cleanup_errors)
+            if primary_error is not None:
+                if hasattr(primary_error, "add_note"):
+                    primary_error.add_note(detail)
+            else:
+                raise AssertionError(detail)
 def test_unknown_receipt_schema_cannot_be_recertified_as_complete(tmp_path):
     store = NovelExportStore(tmp_path / "store")
     saved = store.save(novel(), author_name="Author", output_format="TXT")
