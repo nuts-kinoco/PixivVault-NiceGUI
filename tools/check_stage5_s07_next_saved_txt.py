@@ -19,8 +19,59 @@ sys.path.insert(0,str(ROOT))
 from tools.p3_residuals_fixtures import create_services
 
 SOURCE=ROOT/'artifacts/p3-369-s07-s08-prefs-r1/generated-data/preferences/preferences.sqlite3'
+# Independent, known generated input: FixtureReader.get_novel_payload('501','91')
+# contains 'Generated fixture text.[newpage]Second page.'. The practical TXT
+# serialization writes a UTF-8 BOM and renders the page break as \n\n---\n\n.
+EXPECTED_RAW_501='Generated fixture text.[newpage]Second page.'
+EXPECTED_TXT_501=b'\xef\xbb\xbfGenerated fixture text.\n\n---\n\nSecond page.'
 
 def sha(p):return sha256(p.read_bytes()).hexdigest()
+
+
+def verify_generated_txt_501(txt_path: Path, receipt_path: Path) -> dict:
+    """Verify actual bytes, encoding, identity and receipt, never just suffix.
+
+    Only for explicitly generated work 501 / author 91. Refuse unknown files,
+    different work identity, empty/invalid text and mismatched body or metadata.
+    """
+    if (not txt_path.is_file() or txt_path.is_symlink()
+            or txt_path.name!='Generated novel(501).txt'
+            or not receipt_path.is_file() or receipt_path.is_symlink()
+            or txt_path.parent != receipt_path.parent):
+        raise AssertionError('TXT expected generated work 501 file/receipt missing or unsafe')
+    if (not txt_path.parent.name.startswith('novel-501-')
+            or len(list(txt_path.parent.glob('*.txt')))!=1
+            or any(txt_path.parent.glob('*.epub'))):
+        raise AssertionError('TXT work 501 output layout is invalid')
+    try:
+        receipt=json.loads(receipt_path.read_text(encoding='utf-8'))
+    except (OSError,UnicodeError,ValueError) as error:
+        raise AssertionError('TXT receipt unreadable') from error
+    if (type(receipt) is not dict or receipt.get('schema')!=2
+            or receipt.get('kind')!='novel-export'
+            or receipt.get('work_id')!='501' or receipt.get('author_id')!='91'
+            or receipt.get('format')!='TXT'
+            or receipt.get('metadata')!={'title':'Generated novel',
+                'author':'Fixture author','chapters':['501'],'series_id':None}):
+        raise AssertionError('TXT receipt belongs to a different generated work')
+    payload=txt_path.read_bytes()
+    if not payload or not payload.startswith(b'\xef\xbb\xbf'):
+        raise AssertionError('TXT body is empty or missing UTF-8 BOM')
+    try:
+        body=payload.decode('utf-8-sig',errors='strict')
+    except UnicodeError as error:
+        raise AssertionError('TXT body is not valid UTF-8 with BOM') from error
+    if not body.strip() or payload!=EXPECTED_TXT_501 or body!=EXPECTED_TXT_501.decode('utf-8-sig'):
+        raise AssertionError('TXT body differs from exact generated novel 501 content')
+    entries=receipt.get('outputs')
+    if (type(entries) is not list or len(entries)!=1 or
+            entries[0]!={'name':txt_path.name,'bytes':len(payload),
+                          'sha256':sha256(payload).hexdigest()}):
+        raise AssertionError('TXT receipt output hash/length/name inconsistent with body')
+    return {'work_id':'501','author_id':'91','encoding':'utf-8-sig',
+            'decoded_characters':len(body),'body_sha256':sha256(payload).hexdigest(),
+            'byte_count':len(payload),'text_matches_fixture':True}
+
 
 def run(out):
     out=out.resolve()
@@ -62,6 +113,11 @@ def run(out):
         assert snap.values['ugoira_save_format']=='mp4'
         assert snap.revision==1
         assert reader.calls==[]
+        known=reader.get_novel_payload('501','91')
+        if (known.get('id')!='501' or known.get('userId')!='91'
+                or known.get('title')!='Generated novel'
+                or known.get('content')!=EXPECTED_RAW_501):
+            raise AssertionError('known generated novel 501 fixture changed')
         report['steps'].append('copied exclusively prior GUI-set generated preferences, revision 1 txt/mp4')
         # Full author preview would also prepare animation MP4. This process
         # intentionally validates only S07; MP4 codec admission is separately
@@ -91,7 +147,12 @@ def run(out):
             raise AssertionError('expected TXT output missing')
         if any(p.suffix.lower()=='.epub' for p in outputs):
             raise AssertionError('unwanted EPUB generated for TXT default')
-        report['steps'].append('real managed generated novel job completed, receipt TXT with .txt output and no EPUB')
+        txt=[p for p in outputs if p.suffix.lower()=='.txt']
+        if len(txt)!=1:
+            raise AssertionError('TXT file count wrong')
+        body_proof=verify_generated_txt_501(txt[0],receipt)
+        report['text_content_proof']=body_proof
+        report['steps'].append('real job done; actual TXT bytes nonempty UTF-8 BOM, exact fixture 501 text, receipt identity/hash/length matched')
         report['receipt_relative_path']=saved[0].relative_receipt
         # The store may return a Windows extended-length (\\?\) owner path,
         # while the checker root is a normal path. Names are sufficient here.
