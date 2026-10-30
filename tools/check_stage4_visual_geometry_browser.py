@@ -28,16 +28,57 @@ TABS = ("download", "queue", "library", "ranking", "learning", "failed")
 SIZES = ((1024, 768, 1.0), (1280, 720, 1.25),
          (1800, 960, 1.0), (1920, 1080, 1.75))
 
-JS_GEOMETRY = """() => {
+JS_GEOMETRY = r"""() => {
   const width = innerWidth, height = innerHeight;
   const visible = e => {
-    const r = e.getBoundingClientRect(), s = getComputedStyle(e);
-    return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0;
+    const r=e.getBoundingClientRect();
+    if(r.width<=0 || r.height<=0)return false;
+    for(let p=e;p;p=p.parentElement){
+      const s=getComputedStyle(p);
+      if(s.display==='none' || s.visibility==='hidden' || Number(s.opacity)<0.01)return false;
+    }
+    return true;
   };
   const rect = e => {const r=e.getBoundingClientRect(); return {
      x:r.x,y:r.y,w:r.width,h:r.height,right:r.right,bottom:r.bottom}; };
   const navElements = [...document.querySelectorAll('[data-testid^="tab-"]')].filter(visible);
   const nav = navElements.map(e => ({id:e.getAttribute('data-testid'),...rect(e)}));
+  const hasReadableCaption = e => {
+    const walker=document.createTreeWalker(e,NodeFilter.SHOW_TEXT);
+    const containment=(a,b)=> a.x>=b.x-1 && a.y>=b.y-1
+        && a.right<=b.right+1 && a.bottom<=b.bottom+1;
+    const viewport={x:0,y:0,right:width,bottom:height};
+    const tab=e.getBoundingClientRect();
+    while(walker.nextNode()){
+      const node=walker.currentNode;
+      if(!node.nodeValue.trim() || !node.parentElement || !visible(node.parentElement))continue;
+      const style=getComputedStyle(node.parentElement);
+      const color=style.color;
+      if(style.fontSize==='0px' || color==='transparent'
+        || /^rgba\([^)]*,\s*0(?:\.0+)?\s*\)$/.test(color))continue;
+      const range=document.createRange();range.selectNodeContents(node);
+      const rects=Array.from(range.getClientRects());
+      if(!rects.length || rects.some(b=>b.width<=1 || b.height<=1))continue;
+      if(!rects.every(b=>containment(b,tab) && containment(b,viewport)))continue;
+      let clipped=false;
+      for(let p=node.parentElement;p;p=p.parentElement){
+        const s=getComputedStyle(p);
+        if(!['hidden','clip','scroll','auto'].includes(s.overflowX)
+           && !['hidden','clip','scroll','auto'].includes(s.overflowY))continue;
+        const r=p.getBoundingClientRect();
+        if(rects.some(b=>(['hidden','clip','scroll','auto'].includes(s.overflowX)
+                         && (b.x<r.x-1 || b.right>r.right+1))
+                      || (['hidden','clip','scroll','auto'].includes(s.overflowY)
+                         && (b.y<r.y-1 || b.bottom>r.bottom+1)))){
+           clipped=true;break;
+        }
+      }
+      if(!clipped)return true;
+    }
+    return false;
+  };
+  const invisibleNavLabels=navElements.filter(e=>!hasReadableCaption(e))
+    .map(e=>e.getAttribute('data-testid'));
   const intersects = (a,b) => Math.max(0,Math.min(a.right,b.right)-Math.max(a.x,b.x))
       * Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.y,b.y));
   const navOverlap = [];
@@ -105,7 +146,7 @@ JS_GEOMETRY = """() => {
     .map(e=>e.textContent.trim().slice(0,40));
   return {width,height,dpr:devicePixelRatio,
      htmlScrollWidth:document.documentElement.scrollWidth,
-     bodyScrollWidth:document.body.scrollWidth,nav,navOverlap,blockedNav,
+     bodyScrollWidth:document.body.scrollWidth,nav,navOverlap,blockedNav,invisibleNavLabels,
      blockedControls,unreachableControls,clippedTextLabels,controlCount:controls.length,
      offscreenControlCount:unreachableControls.length,
      horizontalOverflow:document.documentElement.scrollWidth>width+2};
@@ -118,9 +159,11 @@ def require_tabs(rows: list[dict]) -> bool:
     for row in rows:
         assert not row.get("skipped"), ("required tab disabled or absent", row.get("tab"))
         geometry=row["geometry"]
-        for key in ("horizontalOverflow","navOverlap","blockedNav",
+        for key in ("horizontalOverflow","navOverlap","blockedNav","invisibleNavLabels",
                     "blockedControls","unreachableControls","clippedTextLabels"):
             assert not geometry[key], (row["tab"],key,geometry[key])
+        assert any(e.get("id")=="tab-"+row["tab"] for e in geometry["nav"]), (
+            "required tab not visually present",row["tab"])
     return True
 
 def digest(path: Path) -> str:

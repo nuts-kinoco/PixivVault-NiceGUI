@@ -94,6 +94,8 @@ jobs:
           done
       - name: Install Chromium for this job
         run: python -m playwright install --with-deps chromium
+      - name: Check Stage4 geometry fail-closed controls in real Chromium
+        run: python -m pytest -q tools/check_stage4_geometry_guard.py --junitxml=artifacts/browser-ci/stage4-geometry-guard.xml
       - name: Check real gallery, learning, library and image failure interactions
         run: python tools/run_browser_checks.py --channel chromium --output artifacts/browser-ci
       - name: Check synthetic learning persistence, recovery and session conflicts
@@ -102,6 +104,8 @@ jobs:
         run: python tools/check_stage4_visual_geometry_browser.py --channel chromium --output artifacts/browser-ci/stage4-geometry
       - name: Check explicit discovery retry after exhausted synthetic acquisition
         run: python tools/check_discovery_manual_retry_browser.py --channel chromium --output artifacts/browser-ci/discovery-manual-retry
+      - name: Check ranking K13 first-page failure and explicit same-condition retry
+        run: python tools/check_k13_first_page_retry_browser.py --channel chromium --output artifacts/browser-ci/k13-first-page-retry
       - name: Check read-only legacy SQLite and saved images
         run: python tools/check_readonly_library_browser.py --channel chromium --output artifacts/browser-ci/readonly-library
       - name: Check authenticated bookmark UI through actual reader and synthetic Next.js transport

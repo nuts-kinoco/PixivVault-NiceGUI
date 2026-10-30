@@ -251,8 +251,10 @@ def run_viewport(page: Page, url: str, size: tuple[int, int], output: Path, resu
             foreground: getComputedStyle(el.querySelector('.q-btn__content')).color,
             background: getComputedStyle(el).backgroundColor
         })''')
-        check(selected_style['foreground'] == 'rgb(232, 232, 239)',
-              f'選択中カードサイズの文字が既存text-mainと不一致: {label} {selected_style}')
+        # Current token contract uses white text on the selected blue pill.
+        # Do not confuse the unselected text-main token with selected state.
+        check(selected_style['foreground'] == 'rgb(255, 255, 255)',
+              f'選択中カードサイズの文字が選択色whiteと不一致: {label} {selected_style}')
         check(selected_style['foreground'] != selected_style['background'],
               f'選択中カードサイズの文字が背景と同色: {label} {selected_style}')
         observed_sizes[label] = grid.evaluate('''el => ({
@@ -292,6 +294,7 @@ def run_viewport(page: Page, url: str, size: tuple[int, int], output: Path, resu
     page_images.append(image_ready(page, 'demo-0003', 1))
     record['viewer_boundary'] = check_viewer_boundary(page)
     image_bounds = page.get_by_test_id('viewer-image').bounding_box()
+    viewport_bounds = viewer(page).locator('.pv-viewer-viewport').bounding_box()
     image_layout = page.get_by_test_id('viewer-image').locator('img:visible').evaluate('''img => {
         const box = img.getBoundingClientRect();
         return {width: box.width, height: box.height, naturalWidth: img.naturalWidth,
@@ -301,13 +304,28 @@ def run_viewport(page: Page, url: str, size: tuple[int, int], output: Path, resu
           and abs(image_layout['height'] - image_bounds['height']) < 1
           and image_layout['fit'] == 'contain',
           f'画像がビューアの領域に収まる拡大表示をしていない: {image_layout}, {image_bounds}')
+    check(viewport_bounds is not None and viewport_bounds['width'] > 0
+          and viewport_bounds['height'] > 0 and
+          image_bounds['width'] >= 0.8 * viewport_bounds['width'] and
+          image_bounds['height'] >= 0.8 * viewport_bounds['height'],
+          f'画像の有効表示領域がビューアviewportに対して異常に縮退: {image_bounds}, {viewport_bounds}')
     fitted_scale = min(image_layout['width'] / image_layout['naturalWidth'],
                        image_layout['height'] / image_layout['naturalHeight'])
-    check(fitted_scale > 1, f'小さいfixture画像が自然寸法のまま拡大されない: {image_layout}')
+    # Contain is limited by whichever axis is tighter. A narrow viewport may
+    # shrink an image even if its box is tall; a short one may limit height.
+    painted_w = image_layout['naturalWidth'] * fitted_scale
+    painted_h = image_layout['naturalHeight'] * fitted_scale
+    check(fitted_scale > 0 and painted_w <= image_layout['width'] + 0.5
+          and painted_h <= image_layout['height'] + 0.5
+          and (abs(painted_w - image_layout['width']) < 1
+               or abs(painted_h - image_layout['height']) < 1),
+          f'画像のcontain表示が幅・高さの収まり条件に反する: {image_layout}')
     expect(page_button(page, '前のページ')).to_have_css('color', 'rgb(232, 232, 239)')
     expect(page_button(page, '閉じる')).to_have_css('color', 'rgb(232, 232, 239)')
     expect(page_button(page, '詳細')).to_have_css('color', 'rgb(138, 138, 153)')
-    record['viewer_image_layout'] = {**image_layout, 'fitted_scale': fitted_scale}
+    record['viewer_image_layout'] = {**image_layout, 'fitted_scale': fitted_scale,
+                                      'viewport_width': viewport_bounds['width'],
+                                      'viewport_height': viewport_bounds['height']}
     page.screenshot(path=str(output / f'viewer-{key}.png'), full_page=False)
     page_button(page, '詳細').click()
     description = viewer(page).locator('.pv-description')

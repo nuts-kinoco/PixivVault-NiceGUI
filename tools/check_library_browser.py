@@ -364,9 +364,19 @@ def check_metadata_filters(page: Page, root, output: Path, key: str, record: dic
     """Real browser events for source-metadata filters; fixture unknowns stay unknown."""
     root.get_by_test_id('library-subview-downloaded').click()
     search_field(root).fill('')
-    root.get_by_test_id('library-filter-toggle').click()
+    toggle = root.get_by_test_id('library-filter-toggle')
+    expanded = toggle.get_attribute('aria-expanded')
+    check(expanded in ('true', 'false'),
+          f'filter toggle lacks truthful expanded state: {expanded!r}')
+    # The previous tag-filter case can leave the shared panel open across
+    # bookmark/downloaded subviews. Blindly toggling may close it and a fast
+    # expect(panel).to_be_visible() can observe stale DOM before the update.
+    if expanded == 'false':
+        toggle.click()
     panel=root.get_by_test_id('library-filter-panel')
+    expect(toggle).to_have_attribute('aria-expanded', 'true')
     expect(panel).to_be_visible()
+    expect(panel.get_by_test_id('library-date-from')).to_be_visible()
     panel.get_by_test_id('library-date-from').fill('2026-01-01')
     author_count(root,0,0)
     panel.get_by_test_id('library-date-preset-all').click()

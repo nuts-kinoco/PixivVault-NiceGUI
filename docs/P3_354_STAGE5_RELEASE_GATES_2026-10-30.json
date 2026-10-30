@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "stage": "P3-354-Stage5",
+  "audit_date_jst": "2026-10-30",
+  "baseline_branch": "phase11/p3-vault-cleanup-race-20261028",
+  "baseline_head": "8b016673795fe55e2319a6a7f5cc324ebf1c6556",
+  "stage4_partial_commit": "fea56eb9866358c4c123d3b480927312c4bf548c",
+  "release_ready": false,
+  "status_vocabulary": ["PASS", "FAIL", "UNVERIFIED"],
+  "gate_count": 16,
+  "gates": [
+    {
+      "id": "S5-01",
+      "name": "Formal 152 original operations / 479 references",
+      "status": "FAIL",
+      "observed": "0 formal PASS, 152 INCOMPLETE; candidate manifest absent; prior 33/43/76 is historical only",
+      "evidence": ["artifacts/p3-352-stage3-formal-r1/result.json", "artifacts/p3-355-stage5-k13-first-retry-r10/result.json"],
+      "required_next": "Reconcile original Flet conditions and all 479 reference proofs, GUI receipts and independent reviews before generating an accepted candidate manifest"
+    },
+    {
+      "id": "S5-02",
+      "name": "Feature and saved-format Flet parity",
+      "status": "FAIL",
+      "observed": "U01 initial mode followed versus bookmark; X07 physical move versus safe-copy default. They are known specification differences, not approved omissions",
+      "evidence": ["docs/P3_352_STAGE3_FLET_REAL_COOKIE_ACCEPTANCE_2026-10-30.md"],
+      "required_next": "Same-start-condition Flet versus NiceGUI operation and outcome review; ask for explicit approval only for specification-affecting default changes"
+    },
+    {
+      "id": "S5-03",
+      "name": "All implementation and acceptance-review P1/P2 resolved",
+      "status": "UNVERIFIED",
+      "observed": "Stage4 same-q-field overlay checker P2 was reproduced RED, corrected, and independently re-reviewed with no new P1/P2 in that limited scope; the mandatory full-product P1/P2 zero sign-off remains unverified. U01/X07 specifications remain unresolved separately",
+      "evidence": ["tools/check_stage4_visual_geometry_browser.py", "tests/test_stage4_geometry_guard.py"],
+      "required_next": "Receive non-implementer final review of all current source/tests/GUI/Git evidence at a fixed head and close every remaining P1/P2 with scope-complete reacceptance"
+    },
+    {
+      "id": "S5-04",
+      "name": "Current-candidate full Python pytest",
+      "status": "FAIL",
+      "observed": "Stage5 full-r2 exit 0: 4266 collected, 4260 passed, 6 skipped (Windows symlink privilege), 0 failures/errors, 608 warnings, 668.65 seconds. JUnit SHA256 73b9200dedf48e9d9dc53cfb690f27c9f62d63f213603a407e32433bb4e22ec6. Latest dirty checker changes were after this run; all-tests-PASS is not established",
+      "evidence": ["artifacts/p3-354-stage5-full-r1/result.xml", "artifacts/p3-354-stage5-full-r2/result.xml"],
+      "required_next": "Resolve or explicitly approve all six OS privilege skips, rerun current tests after latest checker/test changes, review 608 warnings, and maintain JUnit SHA evidence"
+    },
+    {
+      "id": "S5-05",
+      "name": "Required tests and six Windows symlink privilege SKIPs",
+      "status": "FAIL",
+      "observed": "Previous baseline 4251 PASS and 6 privilege SKIPs; unresolved OS-specific cases cannot count as PASS",
+      "evidence": ["artifacts/p3-351-stage2-full-r2/result.xml"],
+      "required_next": "Run privileged Windows symlink, POSIX and abandoned mutex/recovery cases in representative isolated environments and review exact exclusions"
+    },
+    {
+      "id": "S5-06",
+      "name": "Windows native GUI, GPU and deployment acceptance",
+      "status": "UNVERIFIED",
+      "observed": "Latest Stage4 r2 CUDA onedir basic health/UI/minimize/restore/graceful close is PASS; GPU operation, URI, tray, installation and all dialogs are not covered",
+      "evidence": ["artifacts/p3-353-stage4-native-window-r2/result.json"],
+      "required_next": "Test copied current-head release, real GPU inference, tray, URI, installer and recovery in the full Windows acceptance matrix"
+    },
+    {
+      "id": "S5-07",
+      "name": "All GUI screens, dialogs and error recovery at physical DPI",
+      "status": "UNVERIFIED",
+      "observed": "Current geometry r12 synthetic Chromium success: 4 viewport/DPR-emulation variants, 24 required tab checks, 80 warm navigation measurements, normal shutdown, released port, immutable source; independent limited review accepted. Physical Windows DPI and all dialogs/error screens are not covered",
+      "evidence": ["artifacts/p3-354-stage5-geometry-r12/result.json", "docs/P3_353_STAGE4_GUI_UX_PERFORMANCE_2026-10-30.md"],
+      "required_next": "Full DOM and human visual inspection at native 100/125/175 percent scaling, real windows and recovery dialogs"
+    },
+    {
+      "id": "S5-08",
+      "name": "Unassisted novice Cookie-to-export journey",
+      "status": "UNVERIFIED",
+      "observed": "Synthetic configuration, download, viewer, quarantine and ZIP were accepted in separate fixtures; no single novice full-flow evidence",
+      "evidence": ["artifacts/p3-353-stage4-workflow-r1/result.json", "artifacts/p3-352-stage3-legacy-zip-r1/result.json"],
+      "required_next": "Isolated user journey through native Cookie configuration, authenticated GET, save, inspect, organize, ZIP and trial Vault without prompts"
+    },
+    {
+      "id": "S5-09",
+      "name": "Real Cookie bounded differential download, ZIP and Vault",
+      "status": "UNVERIFIED",
+      "observed": "Only existing five authenticated real GET requests passed; no real saved differential download/ZIP/Vault acceptance",
+      "evidence": ["artifacts/p3-344-real-read/read-r3/result.json"],
+      "required_next": "Establish root/Vault ownership, outbound GET-only limits, non-disclosure and original-file protection before any additional real requests"
+    },
+    {
+      "id": "S5-10",
+      "name": "Full fault recovery, cancellation and concurrency",
+      "status": "UNVERIFIED",
+      "observed": "Synthetic HTTP-fault regression 187 PASS and D16 browser-r4 all four checker processes exit0 (including image race 18 checks); independent checker-only review approves targeted mounted-decode assertions. Browser runner ownership/cleanup/provenance/404 P2 and broader interruption/OS matrices remain incomplete",
+      "evidence": ["artifacts/p3-352-stage3-http-faults-r1/result.xml", "artifacts/p3-355-stage5-d16-browser-r14/runner-result.json", "artifacts/p3-355-stage5-d16-browser-r14/image_races/success.json"],
+      "required_next": "Run bounded real/synthetic disconnection, stale Cookie, cancellation, restart, crash, race and resource-release matrices"
+    },
+    {
+      "id": "S5-11",
+      "name": "Current same-input Flet versus NiceGUI saved results",
+      "status": "UNVERIFIED",
+      "observed": "New isolated Flet r5 1800x960 DPI96 and Stage4 packaged NiceGUI native r1 1800x960 DPI96 showed the same synthetic work 0003, 3 page states; native verified 320 fixture images by SHA, both natural exit and source fixture unchanged. However Flet screen-GDI capture versus NiceGUI CDP capture are not equivalent, and verified drawn image extents differ on all pages: Flet 1009x673 versus NiceGUI 894x596 (0.886 width and 0.886 height; ~78.5 percent area). Current-head packaged application and all saved format parity remain unverified",
+      "evidence": ["artifacts/p3-344-performance/p3-355-stage5-flet-r5-1800x960/exit.json", "artifacts/p3-344-performance/p3-355-stage5-native-r1-1800x960/exit.json", "artifacts/p3-344-performance/p3-355-stage5-native-r1-1800x960/native-dom-pages.json", "artifacts/p3-344-performance/p3-355-stage5-matched-image-area-r3.json"],
+      "required_next": "Review source/rendering geometry and compare the exact current-head native build with identical physical captured client/input conditions; preserve original UX semantics and seek approval if proposed change affects the interaction specification. Check all output names/metadata/counts and repository parity separately"
+    },
+    {
+      "id": "S5-12",
+      "name": "Current same-input Flet versus NiceGUI performance",
+      "status": "UNVERIFIED",
+      "observed": "Flet r5 physically captured 3 viewer pages with screen-GDI and normal close. NiceGUI native r1 supplied CDP captures after Win32 GDI capture rejected an occluded/unknown owner point; there is no equivalent capture backend or 30+ transition samples. Rendered extent mismatch is independently evidenced. No current-head p50/p95/max, capture overhead or private-bytes comparison has passed",
+      "evidence": ["artifacts/p3-344-performance/p3-355-stage5-flet-r5-1800x960/exit.json", "artifacts/p3-344-performance/p3-355-stage5-native-r1-1800x960/native-dom-pages.json", "artifacts/p3-344-performance/p3-355-stage5-matched-image-area-r3.json", "docs/NATIVE_BENCHMARK_METHOD.md"],
+      "required_next": "Identify exact physical GDI occlusion/owner mismatch without altering foreign windows; match both image extents before calibration, then obtain 30+ transitions, p50/p95/max, capture overhead and private bytes from exact current-head release"
+    },
+    {
+      "id": "S5-13",
+      "name": "Original DB, media, archive and Cookie pre/post byte identity",
+      "status": "UNVERIFIED",
+      "observed": "Original tree anonymous read-only inventory confirms 66578 protected files (36 DB, 66534 images, 7 archives, 1 Cookie). Guard-r2 exit 0: complete in-memory byte-content comparison before/after one bounded synthetic GUI test, zero different files, no individual secret digests emitted. Historical before-all-development baseline is unavailable and other tests are not covered",
+      "evidence": ["artifacts/p3-354-stage5-integrity/inventory-receipt-r2.json", "artifacts/p3-354-stage5-integrity/guard-result.json", "artifacts/p3-354-stage5-integrity/r2/guard-result.json"],
+      "required_next": "Repeat complete bounded non-disclosing before/after protection around every final controlled original-adjacent acceptance, and clearly document historical baseline limitation"
+    },
+    {
+      "id": "S5-14",
+      "name": "Final independent full-scope review",
+      "status": "UNVERIFIED",
+      "observed": "Existing scope-limited independent reviews do not certify all current tracked and untracked product changes or all P1/P2 zero",
+      "evidence": ["docs/P3_351_STAGE2_QA_REVIEW_2026-10-30.md", "docs/P3_353_STAGE4_GUI_UX_PERFORMANCE_2026-10-30.md"],
+      "required_next": "Obtain non-implementer review of exact immutable product/test/evidence head, track file-line-trigger-reproducer-fix-retest-verdict"
+    },
+    {
+      "id": "S5-15",
+      "name": "GitHub PR and branch-protected head CI",
+      "status": "UNVERIFIED",
+      "observed": "Current origin is a local repository, not GitHub; formal-152 CI intentionally RED; no PR head or hosted success. Independent review found a clean tests-job Playwright dependency P1, now repaired locally by moving Chromium cases to the browser job; hosted confirmation is still absent",
+      "evidence": [".github/workflows/ci.yml"],
+      "required_next": "Only after all prior gates PASS, verify remote, push approved feature branch, review, PR/CI SHA identity and branch protection"
+    },
+    {
+      "id": "S5-16",
+      "name": "Post-merge main health and delivery confirmation",
+      "status": "UNVERIFIED",
+      "observed": "Not eligible: no safe main merge has been authorized by a complete accepted gate set",
+      "evidence": [],
+      "required_next": "After approved branch-protected merge, verify main SHA, CI, startup, data integrity and release receipt"
+    }
+  ]
+}

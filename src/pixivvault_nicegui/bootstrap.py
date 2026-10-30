@@ -567,6 +567,31 @@ def register_pages(learning_sandbox: Path | None = None,
         return {"status": "ok", "mode": "demo" if services.data_mode == "synthetic" else "readonly",
                 "data": services.data_mode}
 
+    # Browser acceptance only: a fresh private nonce ties the loopback HTTP
+    # endpoint to the process spawned by its owning checker. This route is
+    # never installed in normal, read-only, or authenticated application runs.
+    import os
+    acceptance_nonce = os.environ.get("PV_SYNTHETIC_BROWSER_OWNER_NONCE")
+    if acceptance_nonce is not None:
+        if (len(acceptance_nonce) != 48 or not all(c in "0123456789abcdef" for c in acceptance_nonce)
+                or services.data_mode != "synthetic" or services.live_client is not None):
+            raise ValueError("browser acceptance owner route requires isolated synthetic mode")
+        import secrets
+        from fastapi import Header, HTTPException
+
+        @app.get("/_browser_acceptance/owner", include_in_schema=False)
+        def browser_acceptance_owner(x_acceptance: str | None = Header(default=None)):
+            if not secrets.compare_digest(x_acceptance or "", acceptance_nonce):
+                raise HTTPException(status_code=403)
+            return {"synthetic": True, "pid": os.getpid(), "parent_pid": os.getppid()}
+
+        @app.post("/_browser_acceptance/shutdown", include_in_schema=False)
+        def browser_acceptance_shutdown(x_acceptance: str | None = Header(default=None)):
+            if not secrets.compare_digest(x_acceptance or "", acceptance_nonce):
+                raise HTTPException(status_code=403)
+            app.shutdown()
+            return {"stopping": True}
+
     @app.get("/readyz", include_in_schema=False)
     def ready() -> dict[str, bool]:
         # HTTP listenだけでなく、UIが起動して接続したかをnative試験で区別する。

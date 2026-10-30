@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "purpose": "Trace limited synthetic GUI receipts to original-operation bindings without claiming formal acceptance",
+  "formal_152_ledger": "docs/P3_FORMAL_152_OPERATIONS_LEDGER_2026-10-29_v8.json",
+  "formal_152_ledger_sha256": "487065a9a52228266d540e36d3e3b83ea34a38bdde4d1fdb54e275d725e55bb4",
+  "formal_pass_added": 0,
+  "release_ready": false,
+  "items": [
+    {
+      "original_id": "D16",
+      "reference_id": "v8-D16-01",
+      "original_source": "SW D-14 line 68",
+      "original_expected_verbatim_v8": "失敗したことが画面に出て、再試行の導線がログではなく画面上にある",
+      "original_expectation_summary": "画像取得失敗が画面に表示され、明示再試行が画面で可能",
+      "tested_scope": "Synthetic Chromium learning-card HTTP404 injection and explicit image retry",
+      "start_condition": "Owned loopback synthetic demo; learning first item has one injected HTTP404; no live account or original data",
+      "actual_mouse_keyboard_steps": [
+        "Open the learning tab via Playwright click",
+        "Observe the synthetic first candidate failure and four disabled judgment buttons",
+        "Click 画像を再読込 on screen",
+        "Observe decoded image naturalWidth greater than zero and all four judgment buttons enabled"
+      ],
+      "observed_limited": "Latest D16 r14 grouped suite passed four synthetic browser checks, including 19 image-race checks and one explicit learning 404 disabled-judgment/retry/recovered-decode flow; owned observed process tree remaining zero and natural root shutdown. Formal original full scope is still incomplete",
+      "accepted_synthetic_receipt": "artifacts/p3-355-stage5-d16-browser-r14/runner-result.json",
+      "accepted_synthetic_receipt_sha256": "adcf66a19628f145384488f90518b5266ec9d4cdd510c2e42634ffa2f91f5725",
+      "checker_at_run_sha256": "39e98643c2e40b8cab655f28958f5fd2e19e2550bb8cbaaf9e8c20d7a6eb052a",
+      "image_races_receipt": "artifacts/p3-355-stage5-d16-browser-r14/image_races/success.json",
+      "image_races_receipt_sha256": "7e4b532e7188588cdaed7e0ac564053cc186d72b5d8e0f1ba16c8940379aa2ef",
+      "additional_limited_receipt": "artifacts/p3-355-stage5-d16-browser-r10/image_races/success.json",
+      "additional_limited_receipt_sha256": "5b8beb3677bd999c2ce29e17373694e195791f49942328a37de6e4e9342bdd0d",
+      "assessment": "PARTIAL_SYNTHETIC_GUI",
+      "formal_pass_added": false,
+      "still_missing": [
+        "Complete original Flet start state and all requirement references",
+        "Native Windows/physical DPI and any applicable real-data variant",
+        "Exact formal full-scope source/proof/reviewer binding"
+      ]
+    },
+    {
+      "original_id": "K13",
+      "reference_id": "v8-K13-01",
+      "original_source": "SW K-1 line 94",
+      "original_expected_verbatim_v8": "すべて反応する。押しても何も起きない部品が無い",
+      "original_expectation_summary": "現在条件でのランキング更新を含む列挙操作部品すべてが反応する",
+      "tested_scope": "First-page weekly fetch fails once with synthetic HTTP500, then user-equivalent same-condition retry",
+      "start_condition": "Owned loopback synthetic ranking fixture, three daily cards, initial weekly page1 fails once; no live account",
+      "actual_mouse_keyboard_steps": [
+        "Click initial ranking fetch to display three daily cards",
+        "Change ranking mode to weekly and observe first-page failure",
+        "Observe retained old cards, disabled append control and re-enabled fetch button",
+        "Click the same fetch button again without changing weekly/page1 arguments",
+        "Observe successful fresh cards and exactly two identical weekly/page1 reader calls"
+      ],
+      "observed_limited": "All three K13 synthetic checks succeeded on latest r10, including fail-closed cleanup/timeout acceptance guard; authenticated listener in owned observed tree (3 nodes, zero remaining), normal exit, port released, source and harness SHA unchanged, denied external sockets zero. Formal all-controls K-1 acceptance remains incomplete",
+      "accepted_synthetic_receipt": "artifacts/p3-355-stage5-k13-first-retry-r10/result.json",
+      "accepted_synthetic_receipt_sha256": "3ae82aa07265fee18c8619a3238408c2f3bf83758c862e0381c7def7bef41d33",
+      "checker_at_run_sha256": "ccf314a5baf91594ac081b518b01b9f5e52f748ed9e577a729dd81044a2acf3f",
+      "historical_scoped_receipt": "artifacts/p3-355-stage5-k13-first-retry-r7/result.json",
+      "historical_scoped_receipt_sha256": "0b48e39544d5daa79230e9682fd4fb2a65dbf34e447ca8e2297bb95927f20717",
+      "assessment": "PARTIAL_SYNTHETIC_GUI",
+      "formal_pass_added": false,
+      "still_missing": [
+        "One-by-one response of all K-1 controls, not only the first-page retry",
+        "Complete Flet original baseline and same-start-condition comparison",
+        "Native/real conditions where applicable, formal full-scope source/proof/reviewer binding"
+      ]
+    }
+  ]
+}
