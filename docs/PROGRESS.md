@@ -238,3 +238,282 @@ GitHub ActionsではUbuntu/Windowsのpytestと、専用Chromiumによる実ブ�
 - 基礎スケジュール台帳・timerのみ新設。既定24h/起動時OFF、0/6/12/24/48h、設定revision CAS、UTC due、managed root内SQLite、process owner lock、停止と設定wake分離、二重tick/再起動後の不確定dispatch保留、明示ack。既存`JobService`自体には他種ジョブを混入させていない。
 - 基礎回帰 `tests/test_managed_scheduler.py`: 14 passed（0.25s）。追加前の全pytestは **1191 passed / 1 skipped / 1 warning（74.94s）**。上記最新追加後の全件、実Edge、Windows final build、独立P1/P2レビュー、GitHub Phase9 PR/head/main CIは未受入。合成テストのGREENをPhase9製品全体のGREENへ外挿しない。
 - **重大な未完**：本番managed favorite選択・完全GET安全判定→永続JobService enqueue、UIスケジュール設定/通知/履歴、クラッシュ後の動作復元、容量・競合、多client/SQLite障害、ネットワーク異常、Windows UI。原版メタ後埋めとShaft借用vaultは現NiceGUI未実装、別機能ゲート。全移植完了・Phase9 PR可能と主張しない。
+
+## 2026-10-26 Phase11 M3 単一小説 fixture → 永続 JobService 接続 (実装準備済み / CoS未検証)
+
+- 専用独立clone `S:/Projects/PixivVault-NiceGUI-m3-novel-integration-20261026`、branch `phase11/m3-novel-integration-20261026`、HEAD `2cf4a7a7286dd728e8df8125094498a3622babba`。共通base `31aad331846fc3d4c3aceac4f7a90fb61f05b111`。PR34のみを依存採用し、元branch/main/他候補は変更なし。commit/pushなし。
+- 製品コード: `managed_novel_jobs.py` と `ApplicationServices` のfixture入口で enqueue→既存JobService operation/attempt/control→fixture本文照合→NovelExportStore→保存前receipt proof journal→path+SHA世代CAS→再起動照合を接続。`JobContext.publish` が停止/古いattemptとのpublicationをfenceする。イラスト/うごイラnamespaceは変更しない。
+- 回帰コード `tests/test_managed_novel_jobs.py` を作成。アプリサービス経由3形式、pause/Stop/delete/retry、operation再投入、CAS、通常close/実プロセス強制終了後復旧、fsync不確定、整合性・owner・ロック競合を対象とする。**この担当はテスト/lint/compile/アプリ/GUI/GPU/実通信未実行**。PASS・製品完成の主張なし。
+- 実行手順・期待結果・未検証/対象外は `docs/PHASE11_M3_NOVEL_INTEGRATION_2026-10-26.md`。SHA manifest/patch/書込み終了は専用 `artifacts/m3-novel-integration-20261026/`。CoS検証と独立レビュー待ち。M4画面/reader/ライブ取得/全移植受入は未達。
+
+
+## 2026-10-26 P1 小説実用接続（専用候補・未検証）
+取得/作者・bookmark選択→preview→queue→v2 bundle receipt→保存済みライブラリ→restartのコード接続を準備。v1読取互換を維持。実行承認待ちのため全pytest/構文検査/GUI/native/live GET/CIは未実行、独立監査待ち。詳細: docs/P1_NOVEL_PRACTICAL_2026-10-26.md。原M3/M4は別候補で保全。P2未移行。
+
+
+## P1 小説実用接続 fixture自己検証 (2026-10-26T09:18:26.474887+00:00)
+
+単一/明示章順シリーズの取得・TXT/EPUB/BOTH・画像表紙・bundle receipt v2・queue制御・永続libraryを接続。再起動時の表示順を固定。全pytest 2146 PASS/2 SKIP/0 FAIL、Headless Edge初回/再起動4/4成功。詳細はP1_NOVEL_PRACTICAL_2026-10-26.md。独立監査・配布native・live GET・exact-head CIは未完了、P2未着手。旧M3/M4不変。最終識別/差分/SHAはartifacts/p1-validation-20261026-r1/final/manifest.json。
+
+
+## 2026-10-26 P2 うごイラ実用接続・独立候補
+
+PR35 `50f8ae658a112f4db260ee979af97ee71e5cce93` 基線の `phase11/p2-ugoira-practical-20261026`。metadata→形式指定→durable queue→safe ZIP→フォルダー/GIF/CPU mp4v→receipt/CAS→保存/失敗表示→保存形式どおりのライブラリ再生→再起動を接続。P1/M3/M4は凍結維持、P1との統合なし。
+
+最終自己検証: focused63 PASS、全pytest2018 PASS/1 SKIP/0 FAIL、Edge初回/再起動×2サイズ4/4。symlink権限SKIP、独立監査/native/live GET/exact-head CI/総合UX未実施。原GIF量子化・MP4平均FPS/圧縮の制約を保持し、元画像/delayはフォルダーで保全。詳細・失敗修正履歴・再現は `P2_UGOIRA_PRACTICAL_2026-10-26.md`。最終candidate SHA/diff/write-endは専用artifact final。正式受入とP3移行はdot判断。
+
+
+## 2026-10-26 P3 専用共存候補・残差実装（P3未完）
+
+- path `S:/Projects/PixivVault-NiceGUI-p3-coexistence-20261026`、branch `phase11/p3-coexistence-20261026`、HEAD `2cf4a7a7286dd728e8df8125094498a3622babba`。固定P1/P2から専用候補内へ共存。共有services/job/shellは単一writer、P1/P2/M3/M4は読取り保全。commit/push/main統合なし。
+- 小説/うごイラを分離台帳のまま共通queue・保存・libraryへ接続。原公共ranking/タグ検索、library詳細filter、学習review/取消/復元、保存済み類似検索・推薦cache閲覧/設定sidecar、viewer個別managed保存、重複検出/計画を実装。原仕様対応・制限は `P3_COEXISTENCE_RESIDUALS_2026-10-26.md`。
+- 全pytest **2313 PASS / 2 SKIP / 0 FAIL**、共存Edge **4/4**、学習review Edge **4/4**、library Edge成功。全て隔離fixture/headless loopback自己検証。symlink権限SKIPを権限変更で回避せず、独立監査とは扱わない。
+- 具体的阻害: 原画像隔離/ZIP部分削除と不変receipt/CAS契約の衝突。検出・計画まで実装、移動/削除は未実装・未実行。新世代/tombstone、除外台帳原子性、scheduler抑止、旧ZIP互換の採用判断が必要。
+- 他の実装残件: 作者/scheduler全media dispatch、実discovery取得/review保存/trend、推薦更新/boost、個人/premium ranking、原設定・Shaft/vault・tray/URI等。独立監査/live/native/exact-head CI/総合UX/全原操作分母は別の未達。P3閉鎖・P4進行を宣言せずdotへ判断を返す。
+- 最終dirty/P3所有/SHA/全差分/入力保全/書込み終了は `artifacts/p3-20261026/final/manifest.json`、`candidate.patch`、`frozen-preservation.json`、`write-end.json`。再現コマンドは同残差文書と最終log参照。
+
+
+## 2026-10-26 P3 非依存残差候補
+
+`phase11/p3-residuals-20261026`、HEAD `2cf4a7a7286dd728e8df8125094498a3622babba`。固定前P3から別候補へ分離し、作者/scheduler全媒体、発掘/trend/推薦更新、原設定/cache、外部連携を接続。詳細と保存契約判断は `P3_NONDEPENDENT_RESIDUALS_2026-10-26.md`、最終hash/自己検証/write-endは `artifacts/p3-residuals-20261026/final/`。重複変更は保留。自動ZIP/ブックマーク配置のreceipt衝突、製品依存とnative/URI、独立監査/live/CI/UXを残す。結合画面再起動は自動承認レビュー拒否により未実行、別経路で代行しない。P4未移行。
+
+P3 residual最終自己回帰: full-r2 **2502 PASS / 3 SKIP / 0 FAIL、exit0**。source snapshot照合を最終manifestへ保存。固定前P3 84/P1 28/P2 16/M3 7/M4 18ファイル不変。GUI探索3の起動は拒否で既知未実行、独立監査/native/live/CI/UXは未完。書込み終了と正確な候補SHAはfinal/write-end.jsonを正とする。
+
+
+## 2026-10-26 P3 closure successor
+
+専用候補 phase11/p3-closure-20261026: retry/初回取得/原URIと拡張の永続受付/作者new_only のコードを接続。最終候補の試験・構文・GUIは未実行、CoSへ引継ぎ。旧2502PASSを継承しない。原操作対応・拒否原文・未達・CoS手順は P3_CLOSURE_HANDOFF_2026-10-26.md。独立監査とP4移行は未完了。
+
+## 2026-10-27 P3 managed intent native I/O 修正候補（CoS検証前）
+
+`phase11/p3-intent-io-20261027`、HEAD `2cf4a7a7286dd728e8df8125094498a3622babba`。固定export-fixture-args候補178を保全して別候補へ分離。managed intentのnamespace準備/一時書込み/公開/読取り/再起動をnative I/O表記へ統一し、論理path・所有検証・v1/v2契約と未知データ/失敗stage保全を維持。公開メッセージを変えず4項目の型付きI/O失敗属性を付与。既存注入の実発火検査と深いpathでの受付/中断/再起動/衝突回帰コードを作成。実行試験・構文・GUIは未実行、旧5PASS/2FAILは継承しない。原票の2件目原因同一性と修正結果はCoS待ち。手順・未達は `P3_INTENT_IO_HANDOFF_2026-10-27.md`、集合SHA/差分/書込み終了は専用artifact finalを正とする。P3全完・独立監査済み・P4移行を宣言しない。
+
+## 2026-10-27 P3 export GUI限定修正（CoS実行前）
+
+p3-export-ui-fix-20261027へ旧intent-io182を固定コピー。1280のcatalog shrink/重なりを小説限定CSSで修正、1920の実表示「エラー」とchecker期待「失敗」の不一致を検査側で訂正。通常選択ID確認とRetry後DOM確認を追加。試験/構文/GUI未実行。原票・差分・CoS4ケース手順はP3_EXPORT_UI_FIX_HANDOFF_2026-10-27.md、最終SHA/書込み終了は専用final。P3全完・P4移行は未宣言。
+
+## 2026-10-27 P3 export checker navigation（CoS実行前）
+
+p3-export-navigation-20261027でcheckerだけを既存8件page/failed-only Retryへ合わせた。製品ソース不変、通常ページ移動とtab-failed/同一job IDのRetryを使用。reader/restartの静的接続照合、manifest読取りnative表記、ページ移動回帰を追加。試験/GUI/構文は未実行。P3_EXPORT_NAVIGATION_HANDOFF_2026-10-27.md参照。旧184保全、P3閉鎖/P4移行未宣言。
+
+## 2026-10-27 P3 legacy ZIP初期化I/O（チャット試験前）
+
+p3-zip-init-io-20261027へ固定navigation186から分離。原票96AC03A6…のarchives marker open失敗に対応し、legacy ZIP exporterの初期化/公開/再起動回復をnative I/Oへ統一。論理公開path・所有/重複root拒否・排他的os.link・未知データ保全を維持。深いpathと実発火付き中断/回復の7回帰コード作成。試験/import/構文/製品/GUIは未実行、原票2件と関連回帰をチャット担当へ。詳細P3_ZIP_INIT_IO_HANDOFF_2026-10-27.md。P3全完/P4未宣言。
+
+## 2026-10-27 P3 作者heavy/light配置候補（未検証）
+
+固定zip-init-io189を保全しp3-author-layout-20261027へ分離。専用projectionの実作者folder有無を新規intentへ固定し、lightではbookmarkのみ、heavyでは既存作者folderとbookmarkの静止画/小説/うごイラ配置を接続。旧intent互換・CAS不変・direct相対参照を維持し9回帰コードを作成。実行試験/import/GUIは未実施。ZIP更新/改名・ZIP作者skip・元master所属引継ぎ/作者非bookmark出力・物理隔離は依存判断/未接続としてP3_AUTHOR_LAYOUT_HANDOFF_2026-10-27.mdへ分離。P3全完/P4未宣言。
+
+## 2026-10-27 P3 旧マスター所属・作者全媒体出力（未試験）
+
+固定191からp3-author-output-20261027へ分離。明示旧マスターrootの直下folder所属を読取りで新intentへ引継ぎ、既存作者admission/job固有proofを検証して静止画/小説/うごイラの作者projectionを既存export jobsへ接続。作者出力settle後にbookmark所属を固定。旧データ/CAS/ZIPを変更せず同一job Retry/再起動の5回帰コードを追加。試験/import/GUI未実施、既存PASS継承なし。P3_AUTHOR_OUTPUT_HANDOFF_2026-10-27.md参照。ZIP更新/改名/物理隔離の保存契約判断、独立監査/原全受入/P4は未達。
+
+## 2026-10-27 P3 独立レビュー3指摘の修正候補（未検証）
+
+p3-export-admission-fix-20261027で最大folder選択+警告/行単位scan隔離、論理同一要求の初回確定intent再利用、旧unpinned intentのupgrade再受付互換を実装。新規7回帰と旧2期待を原版規則へ修正。静的読取りのみ、試験/import/GUI未実行。P3_EXPORT_ADMISSION_FIX_HANDOFF_2026-10-27.md参照。固定193/191/189保全、ZIP等の契約/P3閉鎖/P4未達。
+
+## 2026-10-27 P3 ZIP作者skip追加回帰（未試験）
+
+195のscan_authors項目隔離がZIP所属拒否を捕捉済みと照合し、製品二重変更なし。別p3-zip-author-skip-20261027へZIP作者23の後に正常作者24が完了・再scan非重複・旧ZIP不変となる回帰を追加。試験はCoS後継へ。P3_ZIP_AUTHOR_SKIP_HANDOFF_2026-10-27.md参照。
+
+## 2026-10-27 P3 永続受付・作者依存の根本修正（未検証）
+
+固定196からp3-durable-export-20261027へ分離。既存operations台帳でjob50件窓外の初回受付を保持し、旧intent互換/読取不明時保留を実装。作者依存を全体不明/作者別未確定で分け、同作者全媒体のsettleまでbookmark新規pinを保留。旧ZIP先確認、原版tie列挙順、理由/項目のqueue/failed表示と変化時警告を接続。新11回帰作成、試験/import/GUI未実行。P3_DURABLE_EXPORT_HANDOFF_2026-10-27.md参照。旧PASS非継承、P3閉鎖/P4未達。
+
+## 2026-10-27 P3 ugoira診断自己汚染・MP4試験I/O（未検証）
+
+固定198からp3-ugoira-diagnostics-20261027へ分離。新診断は入力外の所有/既存quota対象領域へstaging公開し、旧入力内診断はjob台帳binding/schema等の厳密互換検証で保全。sealed frames再利用/Retry/restartを阻害しない13回帰を作成。原票3件の実読/hash一致、MP4試験の277文字logical readをnative helperへ修正（製品codec無変更）。198の耐久受付/作者依存を全保持。試験/import/GUI未実行。P3_UGOIRA_DIAGNOSTICS_HANDOFF_2026-10-27.md参照、P3/P4未閉鎖。
+
+
+## 2026-10-27 P3 history-recovery（実装・回帰コード、未実行）
+
+固定200（022c54c9717d44d50dc003de1cff1213be9cfbc84604b0cbb975b5d7fe47747e）から別候補 S:/Projects/PixivVault-NiceGUI-p3-history-recovery-20261027 / phase11/p3-history-recovery-20261027 / HEAD2cf4a7a7286dd728e8df8125094498a3622babba。完了履歴と編集可能projectionを分け、毎scan全payload再hashを撤去。owned JobService v1→v2のtransactional terminal履歴と表示窓外error/stoppedの明示復帰、失敗リスト通常ボタン、旧intent読取不能の独立継続、通常fileの原版isdir互換、tuple/list proofsのJSON正規比較を実装。補助診断の不整合/ledger/linkを媒体_budgetから分離しwriter/input側の安全拒否を保持。既存combined容量上限と診断保全を同時に維持するため、満杯rootの蓄積問題は未解消で、予約枠/保持方針の判断を分離。上限変更/削除なし。新30予定ケースと元回帰をCoSへ渡す。pytest/import/構文/GUI/nativeは未実行、旧PASS非継承。詳細 P3_HISTORY_RECOVERY_HANDOFF_2026-10-27.md、最終manifest/差分/固定候補照合/write-endは専用artifact final。P3閉鎖/P4へは未移行。
+
+
+## 2026-10-27 P3 retained-fixture（テストfixtureだけ修正、未実行）
+
+固定203 / SHA0dc9248c0a982309df34c0192bfab1ab2bb8117a0902cd7a367455961ef31644を保全し、S:/Projects/PixivVault-NiceGUI-p3-retained-fixture-20261027 / phase11/p3-retained-fixture-20261027 / HEAD2cf4a7a7286dd728e8df8125094498a3622babbaへ分離。CoSの203PASS/1FAIL/1SKIPの唯一のFAILは、実QueueView._matchingが要求するartworksがテストSimpleNamespaceにないAttributeError（Retry未到達）。artworks=()をfixtureへ明示し、表示assertを追加。実JobService/SaveExports/実handler/同job attempt2の検査は保持。製品src/toolsは203と全hash同一、変更はテスト1・文書2。試験/import/GUI/buildは未実行でCoSへ。P3_RETAINED_FIXTURE_HANDOFF_2026-10-27.mdと専用finalのmanifest/製品対応hash/最小diff/固定旧候補保全/write-endを参照。診断容量・独立レビュー・実画面受入は別担当の継続事項のまま。
+
+
+## 2026-10-27 P3 acceptance-compat（製品/回帰コード、未実行）
+
+固定204（SHA5486a95c1a088d3b37523ce97f1fd3a24e7d3d592cb6f441a6dc564257a29ddb）から S:/Projects/PixivVault-NiceGUI-p3-acceptance-compat-20261027 / phase11/p3-acceptance-compat-20261027 / HEAD2cf4a7a7286dd728e8df8125094498a3622babba。native managed/demoのv1固定を独立schema/history helperで厳密v1/v2対応。再起動直後の退避候補復元、static50窓外の完了receipt/受付復元、作者依存の同期batch再利用と直接対象限定、既往完了作者の別作品継続・新世代同一作品の衝突前明示保留、正規v1退避診断互換、job単位診断故障/理由表示、不正作者/reparse後続継続を実装。25予定新回帰と既存強化を作成。試験/import/構文/GUI/buildは未実行。既存JobService v2は6専用所有DBに及びコード自体は204から不変、元データへ未実行。同一作品投影の更新方式、完全欠損旧identity、診断総容量は未解消で新方式/数値/削除は未採用。詳細P3_ACCEPTANCE_COMPAT_HANDOFF_2026-10-27.md、finalに旧候補保全/manifest/最小diff/write-end。203のCoS全結果/Edge成功とClaude不通過は基線証拠で新候補PASSへ継承しない。P3全閉鎖/P4判断は未達。
+
+
+## 2026-10-27 P3 compat-fixtures（211のテスト3失敗補正、未実行）
+
+固定211/SHA2be602b70795ced707780deb72ebe898a8f7d72909fd194a10c00882f2125289からS:/Projects/PixivVault-NiceGUI-p3-compat-fixtures-20261027 / phase11/p3-compat-fixtures-20261027 / HEAD2cf4a7a7286dd728e8df8125094498a3622babbaへ分離。CoS原票SHA照合と合成DB読取りで、作者2条件のoutputs predecessor/更新日不一致、static runnerの5項目receipt→3変数展開を確認。テスト1ファイルに正規author new generation fixtureとprovider revision取得、5項目展開を実装。元の更新/編集保護/50件窓/再起動assertと実callbackを保持、初期/更新の実bytes/provenance assertを追加。製品src/tools169ファイルは211と同一。試験/import/構文/build/GUIは未実行、原3件→同ファイル8件をCoSへ。元focused214PASS1SKIP3FAIL/全2846PASS4SKIP3FAIL/GUI各4/4は基線証拠のみ。P3_COMPAT_FIXTURES_HANDOFF_2026-10-27.mdと専用finalに原因/最小差分/hash/製品対応/旧候補保全/write-end。既存未採用方式・容量方針は不変更。
+
+
+## 2026-10-27 P3 binding-closure（実装・新回帰、未実行）
+
+固定212/SHA06c4fbf344c41ecac86e8da8f7ea1803054f110cf791d7ce337622d86467a6abから S:/Projects/PixivVault-NiceGUI-p3-binding-closure-20261027 / phase11/p3-binding-closure-20261027 / HEAD2cf4a7a7286dd728e8df8125094498a3622babba。demo nativeの良いbinding1行で偽alias/孤立行を隠せる穴とv1未検査を全行helperで修正し、managed nativeの既存拒否を保持。作者reconcileの不正spec/結合/IO/journal commitを行隔離、未知を推定せず正常出力継続、固定理由を表示。旧export fallbackの不正targetをI/O前拒否、v1完了metadataは既存3/5fieldとautoZIP構造を検証しmutable bytes再hashなし。新52予定回帰を作成し、試験/import/構文/build/GUIは未実行。managed_ugoira・JobService・212の8回帰と既存診断/深いpathは不変更。v1退避snapshot欠損のnative証明限界と既存未採用契約は未達のまま。P3_BINDING_CLOSURE_HANDOFF_2026-10-27.md、専用finalに全hash/最小diff/旧7候補不変/正確な独立再レビューsource範囲/write-end。自己点検は独立監査ではない。
+
+
+## 2026-10-27 P3 completion-snapshot（テスト前提3か所のみ補正、未実行）
+
+固定216/SHA43cd535c737ea6cb3928119b626d5f7162903dfc60e8457ea5aa7020f1ae2eeaを保全し、S:/Projects/PixivVault-NiceGUI-p3-completion-snapshot-20261027 / phase11/p3-completion-snapshot-20261027 / HEAD2cf4a7a7286dd728e8df8125094498a3622babbaへ分離。CoS原票3件のSHA一致を確認。影響227PASS/9FAIL/1SKIPの9FAILは不変の受付snapshot.result=Noneを使ったTypeErrorで、manifestの元受入assert未到達。テスト3行でwait_stateの完了snapshotを受取り、v1不正証拠4・編集削除保護3・autoZIP2の後続assertを全保持。製品src/toolsは固定216と同一、他テスト・待機・期待値は無変更。試験/import/構文/build/GUIは未実行、同ファイル15予定ケース（未collect）のCoS再確認へ。P3_COMPLETION_SNAPSHOT_HANDOFF_2026-10-27.mdと専用finalに最小diff/hash/製品同一性/旧候補不変/write-end。旧GUI等のPASSを新試験結果へ自動継承せず、既存未採用契約とP3全体未達を維持。
+
+
+## 2026-10-27 P3 L13 card size (implementation, untested)
+
+Shared grid_card_size_mode persistence and three-view controls added in p3-card-size-20261027. Original caps 6/8/12, default large. CoS fixture and GUI verification pending. See P3_CARD_SIZE_HANDOFF_2026-10-27.md. P3 remains open.
+
+
+## 2026-10-27 P3 L13 card-style fixture（未実行）
+
+固定219のCoS 29 PASS / 1 FAILを受け、str(style) のCSS文字列期待をNiceGUI Style辞書のプロパティ検査へ修正。実recommend gridの作品存在とmedium 8→small 12、元の選択・ページ保持を検査。製品・toolsは219と同一。pytest/import/build/GUI未実行。P3_CARD_STYLE_FIXTURE_HANDOFF_2026-10-27.md参照。L13/P3受入は未完。
+
+
+## 2026-10-27 P3 S21 theme toggle（実装・未検証）
+
+固定220から別候補へ分離。原版の起動時darkとヘッダー明暗切替に合わせ、client別テーマ・画面色・入力欄の追従を実装。テーマを永続設定には追加せずL13カードサイズを保持。回帰コードを作成、pytest/import/構文検査/build/GUI未実行。CoSの全画面・再訪/再起動・L13影響確認と独立レビュー待ち。P3_THEME_TOGGLE_HANDOFF_2026-10-27.md参照。
+
+
+## 2026-10-27 P3 S21 theme fields（実装・未検証）
+
+固定223のライト入力白文字を受け複数行propsに残ったdark指定11個を除去、Quasarテーマ継承へ統一。実媒体View・全UI props回帰と媒体rootの表示待ちを行うCoS向けDOM checkerを作成。原票のugoiraラベル下にnovel欄があり原因の媒体別判定には注意。実行/import/構文/build/GUI未実施。P3_THEME_FIELDS_HANDOFF_2026-10-27.md参照。S21/P3未受入。
+
+
+## 2026-10-27 P3 うごイラ形式ラベル（未検証）
+
+固定228より別候補を作成し、CoS報告の「保存形式」省略を対象にselectの折り返し可能な最小幅を追加。既存形式・テーマ継承を保持し、実ViewとDOMで3選択肢とラベル幅を確認するコードを追加。pytest/import/構文/build/GUI未実行。P3_UGOIRA_LABEL_HANDOFF_2026-10-27.md参照、S21/P3未受入。
+
+
+## 2026-10-27 P3 S21 field locator（未検証）
+
+固定229のCoS原票と専用成功copyを照合し、納品checkerのq-field親探索2箇所と媒体ボタンのdownload内scopeを修正。元assertを維持しDOM親/自身/子孫/不存在の回帰コードを追加。製品srcは229と同一。pytest/import/構文/build/GUI未実行。P3_FIELD_LOCATOR_HANDOFF_2026-10-27.md参照。S21/P3未受入。
+
+
+## 2026-10-27 P3 X04 dedup thumbnail size（未検証）
+
+固定231を分離し、原版小88/中144/大200px・既定中を重複画面へ追加。選択revisionを変えず要素を更新し、画像なしの代替表示も同寸法。実Viewの選択・5枚制限・1枚残し・再描画を回帰コードへ追加。pytest/import/構文/build/GUI未実行。P3_DEDUP_SIZE_HANDOFF_2026-10-27.mdをCoSへ。X04/P3未受入。
+
+
+## 2026-10-27 P3 L12 managed capacity（未検証）
+
+固定233を分離し、active managed receiptと画像の実byte安全読取、先頭50作者の非同期測定とsession内反映、検索/画面/世代変更時の結果破棄を実装。旧フォルダー/ZIP・永続cache対象外。pytest/import/構文/build/GUI未実行。P3_MANAGED_CAPACITY_HANDOFF_2026-10-27.md参照。L12全体/P3未受入。
+
+
+## 2026-10-27 P3 L12 managed capacity fixture（未検証）
+
+固定237から別候補へ分離。CoS 47PASS/1FAIL/1SKIPの対象testへ保存後の正規refresh_library_snapshotを追加。作者91の実byteと画面反映assertを維持し、製品src/toolsは固定237と同一。pytest/import/構文/build/GUI未実行。P3_CAPACITY_FIXTURE_HANDOFF_2026-10-27.md参照。旧folder/ZIP・永続cache・独立reviewは未完、L12台帳加点なし。
+
+
+## 2026-10-27 L12 managed表示分離・status失効修正（未検証）
+
+固定238から別候補。managed実測を専用session cache/別ラベルにし、元snapshot author_capacitiesと通常容量ソートの上書きを撤去。reload/画面失効時のstatusを即消去し遅延成功/失敗の旧status復活を拒否。実測API不変更、回帰を追加。pytest/import/構文/build/GUI未実行。P3_CAPACITY_DISPLAY_HANDOFF_2026-10-27.md参照。33/152据置、独立レビューとCoS確認待ち。
+
+
+## 2026-10-28 L12旧容量 中間候補（未完・未実行）
+
+固定240から分離。注入SQLiteの成功値/0/世代CAS部品と旧作者候補の原版選択規則・合成回帰コードを作成。旧root探索・実測・service/UI・再起動/世代失効への接続は未実装。pytest/import/構文/build/GUI未実行。P3_CAPACITY_LEGACY_PARTIAL_2026-10-28.md参照。台帳変更なし。
+
+
+## 2026-10-28 L12旧容量 明示注入接続（未検証）
+
+固定245から分離。明示rootの旧folder/ZIP実測、rootを結び付けた注入SQLite cache、service/LibraryViewの計測・復元・capacity sort接続、leaseによる状態失効後publish拒否と合成回帰を作成。通常起動の設定経路・実データ適用は未実装。pytest/import/構文/build/GUI未実行。P3_CAPACITY_CONNECTED_HANDOFF_2026-10-28.mdに検証範囲とlock待ち/走査中変更の限界。L12/P3未受入、台帳据置。
+
+
+## 2026-10-28 L12通常旧構成接続（未完・未検証）
+
+固定248を分離。旧read-only library rootと専用preferences rootを既存構成から消費し、所有marker付き容量SQLiteを開いて既存旧容量serviceへ接続。合成通常構成/再起動/未知cache拒否の回帰コードを追加。旧とmanagedの同時構成排他・旧ZIPを含む重複排除契約・SQLite待ち時の非block取消は未解決。pytest/import/構文/build/GUI未実行。P3_CAPACITY_COMBINED_PARTIAL_2026-10-28.md参照。L12/P3未受入。
+
+
+## 2026-10-28 L12取消競合（未完・未検証）
+
+固定250を分離。合算撤回を反映、SQLite書込み中cancelのUI待機を合成cacheで検出する未実行回帰を追加。非blocking取消と失効後commit防止の同期実装・実SQLite回帰は未完。製品変更なし。P3_CAPACITY_CANCEL_PARTIAL_2026-10-28.md参照。L12/P3未受入。
+
+
+## 2026-10-28 L12取消とcache commit決定（未検証）
+
+固定252分離。SQLiteバッチtransactionの決定直前にleaseを短時間sealし取消と直列化、決定前取消はrollback、決定後はSEALEDから物理成功/失敗/不明を区別。UIはworker終端までbusy、失効画面への結果反映なし。原版に強い物理取消条文は検索範囲で未発見だが決定後の取消要求後にはcommitし得る点を明示。実SQLiteの競合・失敗・再起動・UI・close回帰を作成。pytest/import/構文/build/GUI未実行。P3_CAPACITY_LEASE_HANDOFF_2026-10-28.md参照。独立レビュー・CoS・L12/P3未受入。
+
+
+### 2026-10-28 PV-B 作品詳細・作者一覧 接続候補
+
+- 固定259を保全し、`phase11/p3-viewer-author-20261028`で詳細遅延取得/タグ・数値/Pixiv入口/作者50件追加・再訪を実装。
+- L12/D15の製品・fixtureは不変更。回帰コード・合成ランチャーを作成。試験/import/build/GUIは実行していない。
+- `docs/P3_VIEWER_AUTHOR_HANDOFF_2026-10-28.md`と専用artifactsのmanifest/diff/WRITE_ENDを参照。
+- 原寸・ズームの採用根拠、表示ページ単独保存のreceipt接続等は未達。PV-B/P3全受入・独立レビュー完了とせず、152操作台帳の算定は不変更。
+
+
+### 2026-10-28 L12 初回容量cache復元の再登録
+
+- 固定265/259を保全し、`phase11/p3-capacity-reactivation-20261028`でLibraryViewの失効後cache復元を再登録。旧応答ガードと計測終了待ち、0/Noneの区別は維持。
+- 新規15ケース相当の回帰を作成、既存接続試験を正規再active順へ適合。試験/import/build/GUIは未実行。
+- `docs/P3_CAPACITY_REACTIVATION_HANDOFF_2026-10-28.md`と専用manifest/diff/WRITE_END参照。機能受入・独立レビュー完了とはしていない。
+
+
+### 2026-10-28 PV-B 表示ページの原画像保存・receipt接続候補
+
+- 固定267を保全。個別DLを全作品queueから、表示ページ1枚の原画像/検証receiptへ接続。完全保存receipt/JobServiceは変更しない。
+- 遅着UI拒否・重複/再起動再利用・失敗再試行の回帰コードとCoS合成GUI入口を作成。試験/import/build/GUI未実行。
+- 原互換配置/last_backup・うごイラ個別GIF等は残件。`P3_VIEWER_PAGE_SAVE_HANDOFF_2026-10-28.md`参照。原152操作算定・P3受入は不変更。
+
+
+### 2026-10-28 PV-B 個別保存の原配置・履歴・表示GIF 接続候補
+
+- 固定271を保全して別候補 `phase11/p3-viewer-save-parity-20261028` へ実装。既存projectionへ原ON/OFF配置、部分保存の作者別履歴、表示中GIFの同一bytes保存を接続。原本と出力/履歴の失敗を分離し、再取得なしのRetryを用意。
+- CoS共有のnative path DB再起動URIを修正、独立指摘の51作者超cache復元を全snapshotへ拡大。厳密DB検証と明示再計測先頭50件は維持。
+- 原互換の全作品work-folder命名/旧履歴統合、既存更新・ZIP/改名/隔離契約は別残差。コード作成のみで原受入/P3完了・独立監査とはしない。
+- 試験/import/構文/build/GUI/製品起動/外部通信は未実行。`P3_VIEWER_SAVE_PARITY_HANDOFF_2026-10-28.md` と専用manifest/diff/WRITE_END、CoS一括手順を参照。原152台帳算定は不変更。
+
+
+## 2026-10-28 P3 候補283 CPU10失敗の修正（未実行納品）
+
+固定283の原票208 PASS / 10 FAILを照合し、別候補 `S:/Projects/PixivVault-NiceGUI-p3-viewer-parity-fix-20261028` へ修正。製品3ファイルで、SQLiteの読取URIに拡張Windows filenameを保持し、DesktopIntegrationの所有path比較とnative I/O表記を分離。DB identity/schema/operations/receipt/所有拒否を緩和しない。試験7失敗は正規全作品受付、v1/v2重複keyの実注入、shell fixtureのbackup_view初期化へ対応し元assertを保持。新長パス・特殊名・read-only・reparse拒否回帰も作成。
+
+実装者はpytest/import/構文検査/build/GUI/製品起動/実APIを未実行。元285文字超の再起動実結果はCoS待ち。283の208 PASSを変更後へ自動継承せず、機能受入・P3完成・独立監査とはしない。全UI/L12/D15/新履歴とGIFの製品コード・GUI checkerは283同一、固定283/271/267/265/259は保全。詳細・CoS一括手順は `docs/P3_VIEWER_PARITY_FIX_HANDOFF_2026-10-28.md`、最終hash/差分/終了は `artifacts/p3-viewer-parity-fix-20261028/`。
+
+
+## 2026-10-28 P3 未計測作者の自動容量計測（コード納品・未試験）
+
+固定285（CoS CPU246 PASS、通常GUI4/4、309文字root GUI2/2）から別候補 `S:/Projects/PixivVault-NiceGUI-p3-capacity-auto-20261028` を作成。原再設計仕様§2-5/§3と固定Fletのshown作者→_ensure_capacityを照合し、既存cache復元の後に、表示中の未計測作者だけを順次計測・成功ごと専用cache保存へ接続。51人目以降も追加表示で処理し、cached 0/旧read-only cacheを保持、同visit失敗を反復せず、再訪で再試行。失効後の旧結果拒否とlease/CAS、managed別表示、通常容量sortを保持。製品変更はLibraryViewのみ。
+
+新合成回帰と通常構成のCoS launcher、既存3fixtureのライフサイクル補正を納品。実装者は試験/import/構文検査/build/GUI/製品起動/実APIを未実行。旧候補・原データ不変更、独立監査と原152台帳L12行は別未達。詳細は `docs/P3_CAPACITY_AUTOMATIC_HANDOFF_2026-10-28.md`、全hash/差分/終了記録は `artifacts/p3-capacity-auto-20261028/`。
+
+
+## 2026-10-28 P3 review completion candidate (implementation only)
+
+Candidate derived from fixed 292. Ugoira retained receipts, extension retained retry, ZIP accepted proof, staged static publication, ranking stale requests/personal context, vault queue/session checks and thumbnail hardlink checks changed with synthetic regression code. No test, GUI or product execution by implementer. Review items 5 and 9 remain partially unresolved: existing partial final files cannot safely be classified as owned without proof, and synchronous request handoff retains a guard/send scheduling gap. See P3_REVIEW_COMPLETION_HANDOFF_2026-10-28.md for exact scope and CoS entry. No P3 acceptance is claimed.
+
+
+## 2026-10-28 P3 export/vault recovery candidate (implementation only)
+
+Fixed 293 was preserved. Added owned stage plus journal recovery for auto-ZIP interruption and selected ONLINE request generation fencing, with synthetic regression code. Tests and product execution not run. Historical unknown partial final files remain fail-closed; the strict synchronous send-start/lock race remains unresolved and needs a transport-level design. See P3_EXPORT_VAULT_RECOVERY_HANDOFF_2026-10-28.md. No P3 acceptance claimed.
+
+
+## 2026-10-28 P3 warning compatibility candidate (implementation only)
+
+Candidate from fixed 294 restores the original maximum-selection warning wording in both logs without exposing raw IDs, folder names or exception paths. Original failing assertions remain, and the log privacy regression now covers both logger paths. Tests and product execution not run; CoS and independent review remain. P2-5/P2-9 and P3 acceptance remain open. See P3_WARNING_COMPAT_HANDOFF_2026-10-28.md.
+
+
+## 2026-10-28 P3 vault socket fence candidate (implementation only)
+
+From fixed 295, default vault HTTPS now registers duplicate sockets before connect/TLS and invalidates them on lock; scoped requests reject unfenced adapters, preserve epoch across re-unlock, and report failed shutdown. Synthetic and Windows loopback regression code is included but not run. Windows dup/shutdown propagation and full TLS/lock boundaries require CoS and independent review. See P3_VAULT_SOCKET_FENCE_HANDOFF_2026-10-28.md. P2-9 and P3 acceptance are not claimed.
+
+
+## 2026-10-28 P3 held-warning compatibility candidate (implementation only)
+
+Candidate from fixed 298 restores 保存後処理を保留 in the safe opaque-identifier log without changing suppression or queue status. Original failed assert remains and a privacy/dedup regression was added. Test execution and independent review remain. See P3_HELD_WARNING_HANDOFF_2026-10-28.md. P2-9 and full P3 acceptance not claimed.
+
+
+## 2026-10-28 P3 personal view loop fixture candidate (implementation only)
+
+From fixed 299, two existing PersonalRankingView tests register the real pytest loop in NiceGUI core and drain actual background tasks before cleanup. Original assertions and product code are unchanged. CoS impact verification is required; TCP/TLS fence and broader P3 acceptance remain unverified. See P3_PERSONAL_LOOP_FIXTURE_HANDOFF_2026-10-28.md.
+
+
+## 2026-10-28 P2-9 TCP/TLS revocation candidate
+
+Fixed307 preserved. New candidate p3-vault-tls-revoke adds pending owner close, connected duplicate activation before TLS, bounded structural OS diagnostics, fixture registration bookkeeping and failure lifecycle evidence. Code/regression creation only; no pytest/import/build/server/GUI executed. CoS batch and exact evidence limits: docs/P3_VAULT_TLS_REVOKE_HANDOFF_2026-10-28.md. Actual Windows acceptance and independent review pending; operation ledger unchanged.
+
+
+## 2026-10-28 P3 capacity fixture repair
+
+Fixed308 retained. Long-path read-only SQLite URI now retains live WAL, synthetic thumbnail names follow original flat form, cancellation checker closes browser before server stop. Code and test construction only; no test/import/build/GUI/server execution. CoS handoff: docs/P3_CAPACITY_FIXTURE_REPAIR_HANDOFF_2026-10-28.md.
+
+
+## 2026-10-28 P2-9 D1 cleanup race
+
+Separate candidate serializes request-owned alias close and fence deregistration against invalidate; adds synthetic connected-dup-failure / concurrent-lock regression. Code and test construction only; CoS execution and independent review pending. See docs/P3_VAULT_CLEANUP_RACE_HANDOFF_2026-10-28.md.

@@ -54,13 +54,28 @@ def test_windowed_check_without_output_does_not_write(monkeypatch, tmp_path):
     assert list(tmp_path.iterdir()) == []
 
 
-def test_check_output_rejects_relative_path(monkeypatch):
+def test_check_output_rejects_relative_path(monkeypatch, tmp_path):
     import pytest
 
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(native_entry.multiprocessing, "freeze_support", lambda: None)
     monkeypatch.setattr(sys, "argv", ["app.exe", "--check", "--check-output", "relative.json"])
+    # The internal parser still rejects relative output paths with its exact
+    # reason. The public --noconsole entry instead translates SystemExit into
+    # the fixed privacy-safe refusal (never an unhandled traceback).
+    with pytest.raises(SystemExit, match="絶対パス"):
+        native_entry._regular_entry(["--check", "--check-output", "relative.json"])
+    # Source diagnostics preserve their precise exception. Only frozen
+    # packages translate it to the user-visible fixed error message.
     with pytest.raises(SystemExit, match="絶対パス"):
         native_entry.main()
+    refusals = []
+    monkeypatch.setattr(native_entry, "_report_startup_rejected",
+                        lambda: refusals.append("safe refusal") or 2)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    assert native_entry.main() == 2
+    assert refusals == ["safe refusal"]
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_script_is_scoped_to_dedicated_output_and_bundles_metadata():

@@ -111,6 +111,7 @@ class LibrarySnapshot:
 
     works: tuple[LibraryWork, ...]
     author_capacities: Mapping[str, int | None] = field(default_factory=dict)
+    author_names: Mapping[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         items = tuple(self.works)
@@ -124,6 +125,10 @@ class LibrarySnapshot:
                (type(value) is not int or value < 0)) for key, value in capacities.items()):
             raise ValueError("invalid author capacity cache")
         object.__setattr__(self, "author_capacities", MappingProxyType(capacities))
+        names=dict(self.author_names)
+        if any(type(key) is not str or type(value) is not str for key,value in names.items()):
+            raise ValueError("invalid author directory")
+        object.__setattr__(self,"author_names",MappingProxyType(names))
 
     @property
     def authors(self) -> tuple[AuthorSummary, ...]:

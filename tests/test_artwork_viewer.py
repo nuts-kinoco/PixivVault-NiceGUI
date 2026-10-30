@@ -1,17 +1,21 @@
 """タブ内ビューアの表示契約。ブラウザ外観の受入はprime担当。"""
 
-from nicegui import ui
+from nicegui import Client, ui
 import pytest
+from types import SimpleNamespace
 
 from pixivvault_nicegui.fixtures import generate_demo_artworks
+from pixivvault_nicegui.models import Artwork
 from pixivvault_nicegui.ui.artwork_viewer import ArtworkViewer
+from pixivvault_nicegui.ui.gallery import GalleryView
 from pixivvault_nicegui.ui.verified_image import VerifiedImage
 
 
 @pytest.fixture
 def viewer():
     calls = []
-    with ui.column():
+    client=Client(ui.page('/_artwork_viewer_contract'))
+    with client, ui.column():
         component = ArtworkViewer(
             lambda: calls.append("previous"),
             lambda: calls.append("next"),
@@ -19,7 +23,8 @@ def viewer():
             lambda: calls.append("details"),
             lambda: calls.append("retry"),
         )
-    return component, calls
+    try:yield component, calls
+    finally:client.delete()
 
 
 def test_structure_is_built_once_with_mounted_dialog_role(viewer):
@@ -35,9 +40,28 @@ def test_structure_is_built_once_with_mounted_dialog_role(viewer):
     assert "hidden" in component.root._classes
     assert component.root._props["data-testid"] == "gallery-viewer"
     assert component.image._props["data-testid"] == "viewer-image"
-    assert component.description.parent_slot.parent is component.stage
-    assert component.image.parent_slot.parent is component.stage
+    assert component.description.parent_slot.parent is component.details_panel
+    assert component.details_panel.parent_slot.parent is component.stage
+    assert component.tags.parent_slot.parent is component.details_panel
+    assert component.numbers.parent_slot.parent is component.details_panel
+    assert component.image.parent_slot.parent is component.zoom_plane
+    assert component.zoom_plane.parent_slot.parent is component.viewport
+    assert component.viewport.parent_slot.parent is component.stage
     assert component.image._props["request_id"] == 0
+    assert component.viewport._props["data-testid"] == "viewer-zoom-viewport"
+    assert component.viewport._props["role"] == "region"
+    assert component.root._props["data-zoom-generation"] == "0"
+    assert component.root._props["data-zoom-ready"] == "false"
+    assert component.zoom_value.text == "100%"
+    assert component.zoom_value._props["aria-live"] == "polite"
+    assert component.zoom_tools._props["role"] == "group"
+    assert component.zoom_tools._props["aria-describedby"] == component.zoom_help.html_id
+    for action, button in (("viewer-zoom-in", component.zoom_in),
+                           ("viewer-zoom-out", component.zoom_out),
+                           ("viewer-zoom-reset", component.zoom_reset)):
+        assert button._props["data-testid"] == action
+        assert button._props["aria-label"]
+        assert not button.enabled
     for button in (component.download_button, component.bookmark_button,
                    component.follow_button):
         assert not button.enabled
@@ -111,3 +135,70 @@ def test_details_status_and_callback_connections(viewer):
         assert len(handlers) == 1
         handlers[0](None)
     assert calls == ["previous", "next", "close", "details", "retry"]
+
+
+def test_zoom_client_is_scoped_bounded_and_resets_on_request_or_close(viewer):
+    component, _ = viewer
+    script = component._zoom_script()
+    assert component.root.html_id in script
+    assert all(fragment in script for fragment in (
+        "viewer-zoom-viewport", "viewer-zoom-in", "viewer-zoom-out",
+        "viewer-zoom-reset", "data-pv-displayed", "naturalWidth",
+        "maxScale = 4", "addEventListener('wheel'", "addEventListener('pointerdown'",
+        "setPointerCapture", "stopImmediatePropagation", "MutationObserver",
+        "data-zoom-generation", "ResizeObserver", "addEventListener('keydown'",
+        "event.key === '0'"))
+    assert 'fetch(' not in script and 'emit(' not in script
+    component.set_zoom_ready(True)
+    assert all(b.enabled for b in (component.zoom_in, component.zoom_out, component.zoom_reset))
+    component.reset_zoom()
+    assert component.root._props["data-zoom-generation"] == "1"
+    assert component.root._props["data-zoom-ready"] == "false"
+    assert all(not b.enabled for b in (component.zoom_in, component.zoom_out, component.zoom_reset))
+    component.open()
+    component.set_zoom_ready(True)
+    component.close()
+    assert component.root._props["data-zoom-generation"] == "2"
+    assert component.root._props["data-zoom-ready"] == "false"
+
+
+def test_page_work_and_stale_decode_cannot_retain_or_reenable_zoom():
+    class Images:
+        @staticmethod
+        def url(work_id, page=0, variant="view"):
+            return f"/synthetic/{work_id}/{page}/{variant}.png"
+
+    service = SimpleNamespace(
+        artworks=(Artwork("101", "First", "Author", author_id="91", page_count=2),
+                  Artwork("102", "Second", "Author", author_id="91", page_count=1)),
+        images=Images(), live_client=None, managed_downloads=None,
+    )
+    client = Client(ui.page("/_zoom_navigation"))
+    try:
+        with client:
+            gallery = GalleryView(service)
+        gallery.open("101")
+        first = gallery._image_url
+        assert gallery.viewer.root._props["data-zoom-generation"] == "1"
+        assert not gallery.viewer.zoom_in.enabled
+        gallery._image_loaded(SimpleNamespace(args=first))
+        assert gallery.viewer.zoom_in.enabled
+        assert gallery.viewer.is_open
+        gallery.move_page(1)
+        second = gallery._image_url
+        assert first != second and gallery.viewer.root._props["data-zoom-generation"] == "2"
+        assert not gallery.viewer.zoom_in.enabled
+        gallery._image_loaded(SimpleNamespace(args=first))
+        assert not gallery.viewer.zoom_in.enabled
+        gallery._image_loaded(SimpleNamespace(args=second))
+        assert gallery.viewer.zoom_in.enabled
+        gallery.open("102")
+        assert gallery.viewer.root._props["data-zoom-generation"] == "3"
+        assert not gallery.viewer.zoom_in.enabled
+        gallery._image_failed(SimpleNamespace(args=gallery._image_url))
+        assert not gallery.viewer.zoom_in.enabled
+        gallery.close_viewer()
+        assert gallery.viewer.root._props["data-zoom-ready"] == "false"
+        assert gallery.viewer.root._props["data-zoom-generation"] == "4"
+    finally:
+        client.delete()

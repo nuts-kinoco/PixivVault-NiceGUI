@@ -440,3 +440,26 @@ def test_bad_cached_records_fail_closed_without_http_or_writes(tmp_path, field, 
         with pytest.raises(ValueError):
             repo.bookmark_snapshots()
     assert path.read_bytes() == before
+
+
+def test_extended_windows_path_readonly_observes_wal_and_rejects_writes(tmp_path):
+    import os
+    from pixivvault_nicegui.fs_paths import native_io_path
+    if os.name != 'nt':
+        pytest.skip('Windows extended-path regression')
+    parent=native_io_path(tmp_path/('a'*90)/('b'*90)/('c'*90))
+    parent.mkdir(parents=True)
+    path=parent/'legacy wal # &.db'
+    writer=sqlite3.connect(str(path))
+    try:
+        assert len(str(path))>260
+        assert writer.execute('PRAGMA journal_mode=WAL').fetchone()[0].lower()=='wal'
+        writer.executescript("CREATE TABLE works(work_id TEXT,title TEXT,page_count INTEGER,tags TEXT,user_id TEXT,is_deleted INTEGER); CREATE TABLE following_users(user_id TEXT,name TEXT);")
+        writer.execute("INSERT INTO works VALUES ('1','visible from WAL',1,'[]','',0)")
+        writer.commit()
+        with ReadonlyLibraryRepository(path) as repo:
+            assert repo.count_artworks()==1
+            assert repo.list_artworks()[0].title=='visible from WAL'
+            with pytest.raises(sqlite3.OperationalError):repo._conn.execute('DELETE FROM works')
+        assert writer.execute('SELECT count(*) FROM works').fetchone()[0]==1
+    finally:writer.close()

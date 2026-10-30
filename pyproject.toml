@@ -8,12 +8,22 @@ version = "0.1.0a0"
 description = "PixivVaultの段階移植用NiceGUIデモ"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
-dependencies = ["nicegui==3.18.0", "Pillow==13.0.0"]
+dependencies = ["nicegui==3.18.0", "Pillow==13.0.0", "cryptography==50.0.0"]
 
 [project.optional-dependencies]
-test = ["pytest==8.4.2", "pytest-asyncio==1.2.0"]
+test = ["pytest==8.4.2", "pytest-asyncio==1.2.0", "numpy==2.3.5"]
 browser = ["playwright==1.64.0"]
-native = ["pywebview==6.2.1"]
+video = ["numpy==2.3.5", "opencv-python==5.0.0.93"]
+# Select exactly one ORT package in a dedicated environment, never both.
+inference-cpu = ["numpy==2.3.5", "onnxruntime==1.28.0"]
+inference-gpu = ["numpy==2.3.5", "onnxruntime-gpu[cuda,cudnn]==1.28.0"]
+native = [
+    "pywebview==6.2.1",
+    "pystray==0.19.5; sys_platform == 'win32'",
+    "win11toast==0.36.3; sys_platform == 'win32'",
+    "numpy==2.3.5",
+    "opencv-python==5.0.0.93",
+]
 build = ["pyinstaller==6.22.3"]
 
 [project.scripts]

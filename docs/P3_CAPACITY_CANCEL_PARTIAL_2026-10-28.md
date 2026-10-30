@@ -1,0 +1,9 @@
+# L12 取消の未完候補
+
+固定250 `a53b1edbf2266efd5a3c7414d37f8579294f94295e4eb1a5af8fb8c80fc47a6e` を分離。原L12は旧作者保存先のZIPかfolder一方を計測し、managedとの合算は今回不要という訂正を反映。250の旧構成接続・managed別表示を維持。
+
+248/250のMeasurementLease.publishはlockを保持したまま各SQLite commit_successを呼び、LibraryView._invalidate_capacityからのcancelも同じlockを取得する。書込みが長時間停止していればUIイベント側のcancelが待つ。`tests/test_capacity_cancel_nonblocking.py` は合成cacheを停止させてcancel待機を検出する回帰で、未実行。タイムアウトはテストの停止検知であり製品性能基準ではない。
+
+未解決: 非blockingな取消が先行した場合に、SQLite transactionのcommitが成立せず、既存cache値も保全されることを確実にする同期方式。単にcancelをEventに変えてcommit直前に確認すると確認直後・commit直前の競合が残る。書込み進行中を完了扱いすることや、旧値を0にすることはしていない。今回の作業で安全に両条件を満たす実装まで確定できなかった。実SQLiteでcommit前/commit競合・再起動・UI遷移・複数authorの部分失敗を検証する回帰も必要。
+
+本候補は製品コード変更なし・非blocking部分だけの未実行回帰追加であり、実装出口ではない。固定250/248/245/240保全、実データ走査/設定変更なし。CoS/独立監査への完了引継ぎは未準備。pytest/import/構文/build/GUI未実行。L12/P3受入・33/152台帳は据置。

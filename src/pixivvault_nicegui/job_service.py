@@ -16,12 +16,13 @@ import sqlite3
 import stat
 from threading import Condition, RLock, Thread, current_thread
 from uuid import uuid4
+from .fs_paths import native_io_path, sqlite_readonly_uri
 
 
 STATES = frozenset({"queued", "running", "paused", "stopping", "done", "error", "stopped"})
 UNFINISHED = frozenset({"queued", "running", "paused", "stopping"})
 APPLICATION_ID = 0x50564A31
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 MAX_OPERATION_IDS = 10000
 
 
@@ -62,6 +63,8 @@ def _plain(value, *, maximum=256, empty=False) -> str:
 
 
 def _regular_unlinked(path: Path) -> None:
+    # Inspect the same spelling used for IO, including every long-path ancestor.
+    path = native_io_path(path)
     for item in (path, *path.parents):
         if item.is_symlink():
             raise JobStorageError("job storage links are not allowed")
@@ -81,13 +84,17 @@ class _Store:
         self.connection = None
         self.lock_file = None
         self._last_operations = None
+        self._last_jobs = {};self.history = {}
         if not self.path.is_absolute():
             raise JobStorageError("job storage requires an absolute path")
+        # Keep the caller's logical identity; only filesystem/VFS access uses
+        # Windows extended spelling. Do not shorten or relocate the store.
+        self._io_path = native_io_path(self.path)
         _regular_unlinked(self.path)
-        if self.path.exists():
+        if self._io_path.exists():
             self._verify()
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        lock = self.path.with_name(self.path.name + ".lock")
+        self._io_path.parent.mkdir(parents=True, exist_ok=True)
+        lock = self._io_path.with_name(self._io_path.name + ".lock")
         _regular_unlinked(lock)
         try:
             self.lock_file = lock.open("a+b")
@@ -108,13 +115,13 @@ class _Store:
             raise JobStorageError("job storage is already owned or unavailable") from None
         try:
             _regular_unlinked(self.path)
-            existed = self.path.exists()
+            existed = self._io_path.exists()
             if existed:
                 self._verify()
             else:
-                descriptor = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
+                descriptor = os.open(self._io_path, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
                 os.close(descriptor)
-            self.connection = sqlite3.connect(self.path, check_same_thread=False, timeout=0.1)
+            self.connection = sqlite3.connect(self._io_path, check_same_thread=False, timeout=0.1)
             if not existed:
                 self.connection.executescript(f"""
                     BEGIN IMMEDIATE;
@@ -122,10 +129,16 @@ class _Store:
                     PRAGMA user_version={SCHEMA_VERSION};
                     CREATE TABLE jobs (job_id TEXT PRIMARY KEY, ordinal INTEGER NOT NULL, payload TEXT NOT NULL);
                     CREATE TABLE operations (operation_id TEXT PRIMARY KEY, job_id TEXT NOT NULL, fingerprint TEXT NOT NULL);
+                    CREATE TABLE job_history (job_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
                     COMMIT;
                 """)
             self.connection.execute("PRAGMA synchronous=FULL")
-            identity = self.path.stat()
+            if self.connection.execute("PRAGMA user_version").fetchone()[0]==1:
+                with self.connection:
+                    self.connection.execute("BEGIN IMMEDIATE")
+                    self.connection.execute("CREATE TABLE job_history (job_id TEXT PRIMARY KEY, payload TEXT NOT NULL)")
+                    self.connection.execute("PRAGMA user_version=2")
+            identity = self._io_path.stat()
             self.identity = identity.st_dev, identity.st_ino
         except BaseException:
             self.close()
@@ -134,12 +147,13 @@ class _Store:
     def _verify(self):
         connection = None
         try:
-            connection = sqlite3.connect(self.path.as_uri() + "?mode=ro&immutable=1", uri=True)
+            connection = sqlite3.connect(sqlite_readonly_uri(self.path), uri=True)
             if (connection.execute("PRAGMA application_id").fetchone()[0] != APPLICATION_ID
-                    or connection.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION):
+                    or connection.execute("PRAGMA user_version").fetchone()[0] not in (1,SCHEMA_VERSION)):
                 raise JobStorageError("unmanaged job database rejected")
             tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-            if tables != {"jobs", "operations"}:
+            version=connection.execute("PRAGMA user_version").fetchone()[0]
+            if tables != ({"jobs", "operations"} if version==1 else {"jobs","operations","job_history"}):
                 raise JobStorageError("unmanaged job database rejected")
         except sqlite3.Error:
             raise JobStorageError("unmanaged job database rejected") from None
@@ -166,9 +180,29 @@ class _Store:
                 _plain(job.title, empty=True)
                 jobs[job_id] = job
             operations = {op: (jid, fingerprint) for op, jid, fingerprint in self.connection.execute(
-                "SELECT operation_id,job_id,fingerprint FROM operations")}
+                "SELECT operation_id,job_id,fingerprint FROM operations ORDER BY rowid")}
             if len(operations) > MAX_OPERATION_IDS:
                 raise ValueError()
+            history={}
+            bindings=set(operations.values())
+            bound={jid for jid,_ in bindings}
+            for jid,payload in self.connection.execute('SELECT job_id,payload FROM job_history'):
+                if len(payload)>8192:raise ValueError()
+                item=JobSnapshot(**json.loads(payload))
+                if (item.job_id!=jid or jid not in bound or item.state not in ('done','error','stopped')
+                    or type(item.attempt) is not int or item.attempt<1
+                    or type(item.revision) is not int or item.revision<1
+                    or type(item.control_revision) is not int or item.control_revision<1
+                    or type(item.done) is not int or type(item.total) is not int or not 0<=item.done<=item.total):raise ValueError()
+                if re.fullmatch(r'[a-f0-9]{32}',jid) is None:raise ValueError()
+                _plain(item.kind,maximum=32);_plain(item.target_id,maximum=128);_plain(item.title,empty=True)
+                _plain(item.error_code,maximum=128,empty=True)
+                if item.result is not None:_plain(item.result,maximum=2048,empty=True)
+                if item.paused_from is not None:raise ValueError()
+                fingerprint=json.dumps((item.kind,item.target_id,item.title),ensure_ascii=True)
+                if (jid,fingerprint) not in bindings:raise ValueError()
+                history[jid]=item
+            self.history=history;self._last_jobs=dict(jobs)
             self._last_operations = operations
             return jobs, operations
         except (ValueError, TypeError, sqlite3.Error):
@@ -177,10 +211,22 @@ class _Store:
     def write(self, jobs, operations):
         try:
             _regular_unlinked(self.path)
-            current = self.path.stat()
+            current = self._io_path.stat()
             if (current.st_dev, current.st_ino) != self.identity:
                 raise JobStorageError("job storage identity changed")
+            history=dict(self.history)
+            bound={jid for jid,_ in operations.values()}
+            for jid,old in self._last_jobs.items():
+                if jid in bound and jid not in jobs:
+                    history[jid]=(replace(old,state='stopped',error_code='deleted',paused_from=None,
+                        revision=old.revision+1,control_revision=old.control_revision+1)
+                        if old.state in UNFINISHED else old)
+            for jid,item in jobs.items():
+                if jid in bound and item.state not in UNFINISHED:history[jid]=item
+            updates=[(jid,json.dumps(asdict(item),ensure_ascii=True)) for jid,item in history.items()
+                     if self.history.get(jid)!=item]
             with self.connection:
+                self.connection.executemany('INSERT INTO job_history VALUES (?,?) ON CONFLICT(job_id) DO UPDATE SET payload=excluded.payload',updates)
                 self.connection.execute("DELETE FROM jobs")
                 self.connection.executemany("INSERT INTO jobs VALUES (?,?,?)", [
                     (job.job_id, index, json.dumps(asdict(job), ensure_ascii=True))
@@ -193,6 +239,7 @@ class _Store:
                     self.connection.executemany("INSERT INTO operations VALUES (?,?,?)", [
                         (op, value[0], value[1]) for op, value in operations.items() if op not in previous])
             self._last_operations = operations
+            self.history=history;self._last_jobs=dict(jobs)
         except (OSError, sqlite3.Error):
             raise JobStorageError("job state could not be saved") from None
 
@@ -222,6 +269,22 @@ class JobContext:
                 if job.state != "paused":
                     return
                 service._condition.wait()
+
+    def publish(self, callback):
+        """Fence an external durable CAS against pause/stop/close/stale attempts.
+
+        The callback must be bounded local I/O and must not wait for a worker.
+        Snapshot readers remain nonblocking while the control lock is held.
+        """
+        if not callable(callback):
+            raise ValueError("invalid publication callback")
+        with self._service._condition:
+            self.checkpoint()
+            job = self._service._jobs.get(self._job_id)
+            if (job is None or job.attempt != self._attempt or job.state != "running"
+                    or self._service._closing or self._service._fatal):
+                raise JobCancelled("job no longer active")
+            return callback()
 
     def progress(self, done: int, total: int) -> None:
         if type(done) is not int or type(total) is not int or not 0 <= done <= total:
@@ -298,6 +361,46 @@ class JobService:
         # control lock: publish one immutable tuple only after commit succeeds.
         return self._published
 
+    @property
+    def operation_count(self):
+        return len(self._operations)
+
+    def accepted_operations(self):
+        """Durable acceptance order, including retired/deleted history.
+
+        This is acceptance evidence only, never evidence of completion and
+        never permission to replay an operation whose job has been retired.
+        """
+        result=[]
+        for operation,(jid,raw) in self._operations.items():
+            kind,target,title=json.loads(raw)
+            result.append((operation,jid,kind,target,title))
+        return tuple(result)
+
+    def retained_job(self,job_id):
+        """Exact terminal metadata, independent of the bounded display window."""
+        with self._condition:
+            return self._jobs.get(job_id) or (self._store.history.get(job_id) if self._store else None)
+
+    def restore_retained(self,job_id):
+        """Explicit owner/UI action; restore history without executing it."""
+        with self._condition:
+            if self._closing or self._fatal:raise JobServiceError('job service is unavailable')
+            if job_id in self._jobs:return self._jobs[job_id]
+            if self._active and self._active[0]==job_id:raise JobServiceError('job is still active')
+            old=self._store.history.get(job_id) if self._store else None
+            if old is None:return None  # legacy retirement before history existed
+            if old.state not in ('error','stopped'):return old
+            jobs=dict(self._jobs)
+            while len(jobs)>=self._max_jobs:
+                key=next((k for k,j in jobs.items() if j.state not in UNFINISHED),None)
+                if key is None:raise JobServiceError('job queue is full')
+                del jobs[key]
+            recovered=replace(old,state='error',paused_from=None,revision=old.revision+1,
+                control_revision=old.control_revision+1,error_code=old.error_code or 'restored_stopped')
+            jobs[job_id]=recovered;self._commit(jobs)
+            return recovered
+
     def operation_ids(self, job_id: str) -> tuple[str, ...]:
         """Read durable request identities for an existing job without doing I/O.
 
@@ -337,6 +440,28 @@ class JobService:
             else:
                 self._replace(job, state='done', done=page_count, total=page_count,
                               result=receipt, error_code='')
+            return True
+
+    def reconcile_completed(self, job_id: str, *, expected_result: str, valid: bool) -> bool:
+        """Owner-verified completion integrity gate, before exposing a reopened service.
+
+        The runner owner must check its own typed receipt. An invalid result
+        becomes a durable retryable error; stopped/cancelled rows are never revived.
+        The expected result is a compare-and-set guard against stale inspection.
+        """
+        _plain(job_id, maximum=32)
+        _plain(expected_result, maximum=2048)
+        if type(valid) is not bool:
+            raise JobServiceError('invalid completed job reconciliation')
+        with self._condition:
+            if self._closing or self._fatal:
+                raise JobServiceError('job service is unavailable')
+            job = self._jobs.get(job_id)
+            if job is None or job.state != 'done' or job.result != expected_result:
+                return False
+            if not valid:
+                self._replace(job, state='error', done=0, total=0,
+                              result=None, error_code='receipt_invalid')
             return True
 
     def _commit(self, jobs, operations=None):

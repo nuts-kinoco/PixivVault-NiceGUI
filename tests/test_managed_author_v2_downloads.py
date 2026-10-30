@@ -112,9 +112,13 @@ def test_metadata_changed_before_save_blocks_get(tmp_path):
 def test_crash_after_pointer_commit_retries_without_second_download(tmp_path, monkeypatch):
     client, writer, new = make(tmp_path)
     original = writer._generations.publish
+    published = []
 
-    def committed_then_lost(*args):
-        original(*args)
+    def committed_then_lost(*args, **kwargs):
+        # Pass through the exclusion/CAS token as well as positional identity.
+        # Record only an actual completed publication, so a signature error
+        # before commit cannot masquerade as the injected post-commit crash.
+        published.append(original(*args, **kwargs))
         raise OSError('simulated loss after active pointer commit')
 
     with monkeypatch.context() as patcher:
@@ -122,8 +126,11 @@ def test_crash_after_pointer_commit_retries_without_second_download(tmp_path, mo
         with pytest.raises(ManagedDownloadError):
             writer.run(Job(), Context(), intent=new)
     assert client.count == 1
+    assert len(published) == 1, 'the failure injection must occur after a real pointer commit'
     active = writer.saved_receipts()[0]
     assert active[0].startswith('generations/')
+    assert (active[0], active[2]) == (
+        published[0]['relative_receipt'], published[0]['sha256'])
     assert writer.run(Job(), Context(), intent=new) == active[0]
     assert client.count == 1
 

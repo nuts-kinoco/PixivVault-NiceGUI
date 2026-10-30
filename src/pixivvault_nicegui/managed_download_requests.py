@@ -9,6 +9,7 @@ import re
 from threading import Lock
 from uuid import uuid4
 
+from .fs_paths import native_io_path, logical_path
 from .bookmark_remote_adapter import RemoteBookmark
 from .managed_downloads import (MARKER, IDENTITY, ManagedDownloadError,
                                 _safe_path, _read_bounded, _write, _json_unique, _fsync_dir)
@@ -25,6 +26,15 @@ KEYS = frozenset({'remote_id', 'kind', 'visibility', 'title', 'author_id',
 
 class ManagedRequestError(ValueError):
     """Fixed error text independent of credentials and operation contents."""
+
+
+def _failure(message: str, error: Exception, operation: str) -> ManagedRequestError:
+    failure = ManagedRequestError(message)
+    # The diagnostic contains neither filename nor exception message/object.
+    failure.io_failure = {'operation': operation, 'error_type': type(error).__name__,
+                          'errno': getattr(error, 'errno', None),
+                          'winerror': getattr(error, 'winerror', None)}
+    return failure
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,29 +167,33 @@ def _decode(data: bytes) -> dict:
 
 class ManagedDownloadRequests:
     def __init__(self, root: Path):
-        self.root = Path(root)
+        # Public paths and operation identities stay logical; only filesystem
+        # boundaries receive the native spelling (including ownership checks).
+        self.root = logical_path(root)
+        operation = 'validate_root'
         try:
             if not self.root.is_absolute() or self.root.parent == self.root:
                 raise ValueError()
-            _safe_path(self.root)
-            if not self.root.is_dir():
+            root_io = native_io_path(self.root)
+            _safe_path(root_io)
+            if not root_io.is_dir():
                 raise ValueError()
-            self.root = self.root.resolve()
-            marker = self.root / MARKER
-            raw = _read_bounded(marker, 4096)
+            self.root = logical_path(root_io.resolve())
+            operation = 'read_marker'
+            raw = _read_bounded(native_io_path(self.root / MARKER), 4096)
             if json.loads(raw, object_pairs_hook=_json_unique) != IDENTITY:
                 raise ValueError()
             self.folder = self.root / 'requests'
-            _safe_path(self.folder)
-            self.folder.mkdir(exist_ok=True)
-            _safe_path(self.folder)
             self.incomplete = self.root / 'request-incomplete'
-            _safe_path(self.incomplete)
-            self.incomplete.mkdir(exist_ok=True)
-            _safe_path(self.incomplete)
+            for operation, folder in (('prepare_requests', self.folder),
+                                      ('prepare_incomplete', self.incomplete)):
+                folder_io = native_io_path(folder)
+                _safe_path(folder_io)
+                folder_io.mkdir(exist_ok=True)
+                _safe_path(folder_io)
             self._lock = Lock()
-        except Exception:
-            raise ManagedRequestError('managed intent root rejected') from None
+        except Exception as error:
+            raise _failure('managed intent root rejected', error, operation) from None
 
     @staticmethod
     def equivalent(a: RemoteBookmark, b: RemoteBookmark) -> bool:
@@ -191,16 +205,16 @@ class ManagedDownloadRequests:
 
     def _read(self, path: Path) -> dict:
         try:
-            return _decode(_read_bounded(path, LIMIT))
+            return _decode(_read_bounded(native_io_path(path), LIMIT))
         except ManagedRequestError:
             raise
-        except Exception:
-            raise ManagedRequestError('saved intent rejected') from None
+        except Exception as error:
+            raise _failure('saved intent rejected', error, 'read_intent') from None
 
     def load(self, operation_id: str) -> RemoteBookmark | ManagedAuthorIntent:
         with self._lock:
             try:
-                _safe_path(self.folder)
+                _safe_path(native_io_path(self.folder))
                 payload = self._read(self._path(operation_id))
                 if payload.keys() == V2_KEYS:
                     inner = payload['record']
@@ -212,8 +226,8 @@ class ManagedDownloadRequests:
                 return RemoteBookmark(**{**payload, 'tags': tuple(payload['tags']), 'thumbnail': ''})
             except ManagedRequestError:
                 raise
-            except Exception:
-                raise ManagedRequestError('saved intent rejected') from None
+            except Exception as error:
+                raise _failure('saved intent rejected', error, 'read_intent') from None
 
     def store(self, operation_id: str, record: RemoteBookmark | ManagedAuthorIntent) -> None:
         spec = _intent_spec(record)
@@ -221,28 +235,38 @@ class ManagedDownloadRequests:
         if len(data) > LIMIT:
             raise ManagedRequestError('managed intent rejected')
         with self._lock:
+            operation = 'scan_intents'
             try:
-                _safe_path(self.folder)
-                target = self._path(operation_id)
+                folder_io = native_io_path(self.folder)
+                _safe_path(folder_io)
+                target = native_io_path(self._path(operation_id))
                 if target.exists() or target.is_symlink():
                     if self._read(target) != spec:
                         raise ManagedRequestError('operation intent collision')
                     return
                 count = 0
-                for item in self.folder.iterdir():
+                for item in folder_io.iterdir():
                     count += 1
                     if count >= MAX_INTENTS or not re.fullmatch(r'[0-9a-f]{64}\.json', item.name):
                         raise ManagedRequestError('managed intent directory rejected')
                     self._read(item)
-                _safe_path(self.incomplete)
-                temporary = self.incomplete / ('staging-' + uuid4().hex)
+                incomplete_io = native_io_path(self.incomplete)
+                _safe_path(incomplete_io)
+                temporary = incomplete_io / ('staging-' + uuid4().hex)
+                operation = 'stage_write'
                 _write(temporary, data)
-                _fsync_dir(self.incomplete)
+                operation = 'stage_fsync'
+                _fsync_dir(incomplete_io)
+                operation = 'publish'
                 if target.exists() or target.is_symlink():
                     raise ManagedRequestError('operation intent collision')
                 temporary.rename(target)
-                _fsync_dir(self.folder)
+                operation = 'requests_fsync'
+                _fsync_dir(folder_io)
+                # Successful publication consumes only this operation's temp.
+                # Interrupted temps remain inert, never promoted or deleted on
+                # restart: there is no durable ownership proof for other files.
             except ManagedRequestError:
                 raise
-            except Exception:
-                raise ManagedRequestError('managed intent save failed') from None
+            except Exception as error:
+                raise _failure('managed intent save failed', error, operation) from None

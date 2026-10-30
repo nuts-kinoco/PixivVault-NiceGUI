@@ -37,6 +37,7 @@ class LearningSessionSnapshot:
 class _Session:
     repository: LearningRepository
     receipts: dict[str, tuple] = field(default_factory=dict)
+    review_undo: dict[str, tuple] = field(default_factory=dict)
 
 
 class LearningService:
@@ -50,7 +51,7 @@ class LearningService:
         if self.artworks != generate_demo_artworks(len(self.artworks)):
             raise ValueError("learning persistence accepts only the generated synthetic fixture")
         fingerprint = hashlib.sha256(json.dumps(
-            [asdict(item) for item in self.artworks], ensure_ascii=False,
+            [{key: getattr(item,key) for key in ('work_id','title','author','description','aspect_ratio','page_count','tags')} for item in self.artworks], ensure_ascii=False,
             sort_keys=True, separators=(",", ":"),
         ).encode("utf-8")).hexdigest()
         self._marker = {
@@ -96,14 +97,15 @@ class LearningService:
         root.mkdir(parents=True, exist_ok=True)
         if not root.is_dir() or root.is_symlink() or root.is_junction():
             raise ValueError("learning sandbox must be a dedicated directory")
-        allowed = {MARKER_NAME, DATABASE_NAME, DATABASE_NAME + "-wal",
+        marker_name = getattr(self, "marker_name", MARKER_NAME)
+        allowed = {marker_name, DATABASE_NAME, DATABASE_NAME + "-wal",
                    DATABASE_NAME + "-shm", DATABASE_NAME + "-journal"}
         entries = list(root.iterdir())
         for entry in entries:
             if (entry.name not in allowed or entry.is_symlink() or entry.is_junction()
                     or not entry.is_file() or entry.stat().st_nlink != 1):
                 raise ValueError("learning sandbox contains unmanaged or linked files")
-        marker = root / MARKER_NAME
+        marker = root / marker_name
         created_marker = False
         if not marker.exists():
             if entries:
@@ -243,6 +245,42 @@ class LearningService:
         if self._replayed(session, operation_id, signature):
             return
         session.repository.revert(judgment, operation_id)
+        session.receipts[operation_id] = signature
+
+    async def review_snapshot(self, session_id: str):
+        return await self._wait(self._submit(self._review_snapshot, session_id))
+
+    def _review_snapshot(self, session_id):
+        result = self._session(session_id).repository.review_snapshot()
+        titles = {art.work_id: art.title for art in self.artworks}
+        if any(row['work_id'] not in titles for row in result['rows']):
+            raise ValueError('review contains non-fixture work')
+        for row in result['rows']:
+            row['title'] = row.get('title') or titles[row['work_id']]
+        return result
+
+    def submit_review_undo(self, session_id, work_id, expected_revision, operation_id):
+        return self._submit(self._review_undo, session_id, work_id, expected_revision, operation_id)
+
+    def _review_undo(self, session_id, work_id, expected_revision, operation_id):
+        session = self._session(session_id)
+        if work_id not in self._metadata: raise ValueError('unknown fixture work')
+        signature = ('review-undo', work_id, expected_revision)
+        if self._replayed(session, operation_id, signature): return
+        saved = session.repository.review_undo(work_id, expected_revision)
+        session.review_undo[operation_id] = saved
+        session.receipts[operation_id] = signature
+
+    def submit_review_restore(self, session_id, undo_operation_id, operation_id):
+        return self._submit(self._review_restore, session_id, undo_operation_id, operation_id)
+
+    def _review_restore(self, session_id, undo_operation_id, operation_id):
+        session = self._session(session_id)
+        signature = ('review-restore', undo_operation_id)
+        if self._replayed(session, operation_id, signature): return
+        saved, revision = session.review_undo[undo_operation_id]
+        session.repository.review_restore(saved, revision)
+        session.review_undo.pop(undo_operation_id)
         session.receipts[operation_id] = signature
 
     def release_session(self, session_id: str) -> None:

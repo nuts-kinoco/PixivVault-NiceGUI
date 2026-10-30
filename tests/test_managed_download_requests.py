@@ -7,6 +7,8 @@ import json
 
 import pytest
 
+from pixivvault_nicegui.fs_paths import logical_path
+
 from pixivvault_nicegui.bookmark_remote_adapter import RemoteBookmark
 from pixivvault_nicegui.managed_downloads import ManagedPixivDownloads, MARKER
 from pixivvault_nicegui.managed_download_requests import ManagedDownloadRequests, ManagedRequestError
@@ -96,15 +98,32 @@ def test_directory_capacity_and_nonlink_checks(tmp_path, monkeypatch):
         def __getattr__(self, key):
             return self.changes.get(key, getattr(self.source, key))
 
+    hits = []
+
     def spoof(path):
         info = original_lstat(path)
-        if path == target:
+        if logical_path(path) == target:
+            hits.append(path)
             return FakeStat(info, st_nlink=2)
         return info
 
     monkeypatch.setattr(module.Path, 'lstat', spoof)
     with pytest.raises(ManagedRequestError):
         store.load('op')
+    assert hits, 'hardlink guard injection was not reached'
+    hits.clear()
+
+    def reparse(path):
+        info = original_lstat(path)
+        if logical_path(path) == target:
+            hits.append(path)
+            return FakeStat(info, st_file_attributes=0x400)
+        return info
+
+    monkeypatch.setattr(module.Path, 'lstat', reparse)
+    with pytest.raises(ManagedRequestError):
+        store.load('op')
+    assert hits, 'reparse guard injection was not reached'
 
 
 @pytest.mark.parametrize('failure', ['fsync', 'rename'])
@@ -114,13 +133,20 @@ def test_staging_failure_restart_allows_next_intent(tmp_path, monkeypatch, failu
     original_fsync = module._fsync_dir
     original_rename = module.Path.rename
 
+    calls = []
+    fired = []
+
     def broken_fsync(path):
-        if path == store.incomplete:
+        calls.append(path)
+        if logical_path(path) == store.incomplete:
+            fired.append(path)
             raise OSError('synthetic filesystem failure')
         return original_fsync(path)
 
     def broken_rename(path, target):
-        if path.parent == store.incomplete:
+        calls.append(path)
+        if logical_path(path.parent) == store.incomplete:
+            fired.append(path)
             raise OSError('synthetic filesystem failure')
         return original_rename(path, target)
 
@@ -131,6 +157,7 @@ def test_staging_failure_restart_allows_next_intent(tmp_path, monkeypatch, failu
             patcher.setattr(module.Path, 'rename', broken_rename)
         with pytest.raises(ManagedRequestError, match='save failed'):
             store.store('interrupted', record())
+    assert calls and len(fired) == 1, 'intended filesystem fault did not fire'
     assert not tuple((root / 'requests').iterdir())
     remnants = tuple((root / 'request-incomplete').iterdir())
     assert len(remnants) == 1 and remnants[0].name.startswith('staging-')
@@ -141,7 +168,3 @@ def test_staging_failure_restart_allows_next_intent(tmp_path, monkeypatch, failu
     with pytest.raises(ManagedRequestError):
         restarted.load('interrupted')
     assert remnants[0].exists()
-    monkeypatch.setattr(module.Path, 'lstat', lambda path: FakeStat(original_lstat(path),
-                           st_file_attributes=0x400) if path == target else original_lstat(path))
-    with pytest.raises(ManagedRequestError):
-        store.load('op')

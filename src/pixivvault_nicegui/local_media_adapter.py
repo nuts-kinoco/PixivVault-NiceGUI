@@ -15,7 +15,7 @@ from pathlib import Path, PurePosixPath
 import re
 import stat
 import zlib
-from threading import BoundedSemaphore, Lock, RLock
+from threading import BoundedSemaphore, Lock, RLock, local
 from zipfile import ZipFile, BadZipFile
 
 from PIL import Image, UnidentifiedImageError
@@ -94,6 +94,41 @@ class ReadonlyLocalMediaCatalog:
         self._cache: OrderedDict[tuple[str, int, str], ImageBlob] = OrderedDict()
         self._cache_bytes = 0
         self._cache_limit = 32 * 1024 * 1024
+        self._shared_cache=None
+        self._shared_owner=None
+        self._analysis_state = local()
+
+    @contextmanager
+    def analysis_checkpoint(self, checkpoint):
+        """Optional cancellation for off-UI inference index construction only."""
+        previous = getattr(self._analysis_state, 'checkpoint', None)
+        def composed():
+            if previous is not None:
+                previous()
+            checkpoint()
+        self._analysis_state.checkpoint = composed
+        try:
+            composed()
+            yield
+        finally:
+            self._analysis_state.checkpoint = previous
+
+    def _analysis_checkpoint(self):
+        checkpoint = getattr(self._analysis_state, 'checkpoint', None)
+        if checkpoint is not None:
+            checkpoint()
+
+    def configure_cache(self, shared_cache):
+        """Bind one application-owned aggregate cache before publication."""
+        with self._lock:
+            if self._closed: raise RuntimeError("image catalog closed")
+            if self._shared_owner is shared_cache: return
+            if self._shared_cache is not None: self._shared_cache.close()
+            self._cache.clear()
+            if hasattr(self,"_bytes"):self._bytes=0
+            if hasattr(self,"_cache_bytes"):self._cache_bytes=0
+            self._shared_owner=shared_cache
+            self._shared_cache=shared_cache.namespace()
 
     @contextmanager
     def _checked_open(self, path: Path):
@@ -136,6 +171,7 @@ class ReadonlyLocalMediaCatalog:
 
         def inspect(candidate: Path, *, nested: bool = False) -> None:
             nonlocal count
+            self._analysis_checkpoint()
             count += 1
             if count > _MAX_STORES:
                 raise MediaUnavailable("too many storage entries")
@@ -242,6 +278,7 @@ class ReadonlyLocalMediaCatalog:
                 grouped[work.author_id][work.work_id] = work
         for author_id, author_works in grouped.items():
             by_title = defaultdict(list)
+            self._analysis_checkpoint()
             for work in author_works.values():
                 by_title[_saved_title(work.artwork.title)].append(work)
             unique_titles[author_id] = {title: items[0] for title, items in by_title.items()
@@ -276,6 +313,7 @@ class ReadonlyLocalMediaCatalog:
 
         for author_id, author_works in grouped.items():
             for store in stores_by_author.get(author_id, ()):
+                self._analysis_checkpoint()
                 if store.suffix.lower() == ".zip":
                     try:
                         with self._checked_open(store) as source, ZipFile(source) as archive:
@@ -284,6 +322,7 @@ class ReadonlyLocalMediaCatalog:
                                 raise MediaUnavailable("archive too large")
                             names = set()
                             for info in infos:
+                                self._analysis_checkpoint()
                                 examined += 1
                                 if examined > _MAX_FILES:
                                     raise MediaUnavailable("too many media entries")
@@ -306,6 +345,7 @@ class ReadonlyLocalMediaCatalog:
                         continue
                 else:
                     for path in store.rglob("*"):
+                        self._analysis_checkpoint()
                         examined += 1
                         if examined > _MAX_FILES:
                             raise MediaUnavailable("too many media entries")
@@ -317,6 +357,7 @@ class ReadonlyLocalMediaCatalog:
         # Legacy direct bookmark placement: ☆ブックマーク(owner)/作者(uid)_題名(workid)_N.png
         for wrapper in wrappers:
             for path in wrapper.iterdir():
+                self._analysis_checkpoint()
                 examined += 1
                 if examined > _MAX_FILES:
                     raise MediaUnavailable("too many media entries")
@@ -336,6 +377,7 @@ class ReadonlyLocalMediaCatalog:
                 failed_authors, ambiguous, uncertain_authors)
 
     def _ensure_index(self) -> None:
+        self._analysis_checkpoint()
         with self._lock:
             if self._closed:
                 raise MediaUnavailable("catalog closed")
@@ -343,7 +385,9 @@ class ReadonlyLocalMediaCatalog:
                 return
         # Exclusive construction, but never hold the UI-facing catalog lock
         # while scanning the filesystem or ZIP central directories.
-        with self._index_lock:
+        while not self._index_lock.acquire(timeout=0.1):
+            self._analysis_checkpoint()
+        try:
             with self._lock:
                 if self._closed:
                     raise MediaUnavailable("catalog closed")
@@ -352,6 +396,7 @@ class ReadonlyLocalMediaCatalog:
                 generation = self._generation
                 works = dict(self.works)
             locations, failures, ambiguous, uncertain_authors = self._index(works)
+            self._analysis_checkpoint()
             with self._lock:
                 if self._closed or self._generation != generation:
                     raise MediaUnavailable("obsolete library index")
@@ -360,6 +405,8 @@ class ReadonlyLocalMediaCatalog:
                 self._ambiguous = ambiguous
                 self._presence_uncertain_authors = uncertain_authors
                 self._indexed = True
+        finally:
+            self._index_lock.release()
 
     def inspect_presence(self, work_id: str) -> bool | None:
         """Read-only, conservative proof of all local pages for one known work.
@@ -430,7 +477,7 @@ class ReadonlyLocalMediaCatalog:
         work = self.works.get(work_id)
         if (work is None or not _ID.fullmatch(work_id) or
             type(page_no) is not int or not 0 <= page_no < work.page_count or
-            variant not in {"thumb", "view"}):
+            variant not in {"thumb", "view", "original"}):
             raise MediaMissing("image not found")
         if work.work_type in {"ugoira", "novel"}:
             raise MediaMissing("unsupported media type")
@@ -455,15 +502,71 @@ class ReadonlyLocalMediaCatalog:
                 raise MediaAmbiguous("multiple images for same work/page")
         return choices[0]
 
+    def analysis_source_identity(self, work_id, page_no=0):
+        """Fresh identity for an inference input; never uses the display cache.
+
+        A ZIP/member is identified by the checked archive handle and its central
+        directory entry. A changed file, archive or mapping invalidates a saved
+        inference proof, including after a source is removed or quarantined.
+        The caller stores a digest, never the private locator itself.
+        """
+        self.url(work_id, page_no, 'original')
+        self._ensure_index()
+        with self._lock:
+            path, member = self._source(work_id, page_no, 'original')
+            generation = self._generation
+        with self._checked_open(path) as source:
+            info = os.fstat(source.fileno())
+            entry = None
+            if member is not None:
+                with ZipFile(source) as archive:
+                    item = archive.getinfo(member)
+                    if (not _safe_entry(item.filename) or item.is_dir()
+                            or item.file_size > _MAX_FILE
+                            or (item.file_size and item.compress_size == 0)
+                            or (item.compress_size and item.file_size / item.compress_size > _MAX_RATIO)
+                            or stat.S_IFMT(item.external_attr >> 16) == stat.S_IFLNK):
+                        raise MediaUnavailable('unsafe analysis archive member')
+                    entry = (member, item.CRC, item.file_size, item.compress_size, item.header_offset)
+            elif info.st_size > _MAX_FILE:
+                raise MediaUnavailable('analysis image exceeds limits')
+        with self._lock:
+            if self._closed or generation != self._generation:
+                raise MediaUnavailable('analysis source changed')
+        return (str(self.root), str(path.relative_to(self.root)), info.st_dev,
+                info.st_ino, info.st_size, info.st_mtime_ns, entry)
+
+    def external_target(self, work_id, page_no=0):
+        """Resolve only indexed saved content; ZIP stays an archive, never extracted."""
+        self.url(work_id,page_no,'view')
+        self._ensure_index()
+        with self._lock:
+            path,member=self._source(work_id,page_no,'view')
+            generation=self._generation
+        with self._checked_open(path) as source:
+            if member is not None:
+                with ZipFile(source) as archive:
+                    info=archive.getinfo(member)
+                    if not _safe_entry(info.filename) or info.is_dir():raise MediaUnavailable('saved archive changed')
+        with self._lock:
+            if self._closed or generation!=self._generation:raise MediaUnavailable('saved snapshot changed')
+        return path
+
     def url(self, work_id: str, page_no: int = 0, variant: str = "view") -> str:
         with self._lock:
             if self._closed:
                 raise MediaUnavailable("catalog closed")
             work = self.works.get(work_id)
             if (work is None or not _ID.fullmatch(work_id) or type(page_no) is not int
-                    or not 0 <= page_no < work.page_count or variant not in {"thumb", "view"}):
+                    or not 0 <= page_no < work.page_count or variant not in {"thumb", "view", "original"}):
                 raise MediaMissing("image not found")
             return f"/media/{work_id}/{page_no}/{variant}.png"
+
+    def supports_original(self, work_id: str) -> bool:
+        with self._lock:
+            work=self.works.get(work_id)
+            return (not self._closed and work is not None and
+                    work.work_type not in {'novel','ugoira'})
 
     def get(self, work_id: str, page_no: int = 0, variant: str = "view") -> ImageBlob:
         # Reject invalid requests before any expensive filesystem scan.
@@ -473,7 +576,7 @@ class ReadonlyLocalMediaCatalog:
             work = self.works.get(work_id)
             if (work is None or not isinstance(work_id, str) or not _ID.fullmatch(work_id)
                     or type(page_no) is not int or not 0 <= page_no < work.page_count
-                    or variant not in {"thumb", "view"}
+                    or variant not in {"thumb", "view", "original"}
                     or work.work_type in {"ugoira", "novel"}):
                 raise MediaMissing("image not found")
         self._ensure_index()
@@ -481,11 +584,15 @@ class ReadonlyLocalMediaCatalog:
             key = (work_id, page_no, variant)
             if self._closed:
                 raise MediaUnavailable("catalog closed")
-            if key in self._cache:
+            if self._shared_cache is not None:
+                cached=self._shared_cache.get(key)
+                if cached is not None:return cached
+            elif key in self._cache:
                 self._cache.move_to_end(key)
                 return self._cache[key]
             path, member = self._source(work_id, page_no, variant)
             generation = self._generation
+            request_cache=self._shared_cache
         # I/O and decoding are deliberately outside the catalog lock: concurrent
         # requests for different pages must not serialize behind a large image.
         try:
@@ -514,16 +621,28 @@ class ReadonlyLocalMediaCatalog:
                                 data = stream.read(_MAX_FILE + 1)
                 if len(data) > _MAX_FILE:
                     raise MediaUnavailable("image exceeds limits")
-                with Image.open(BytesIO(data)) as img:
-                    if img.width * img.height > _MAX_PIXELS:
-                        raise MediaUnavailable("image dimension limit")
-                    img.draft("RGB", (192, 192) if variant == "thumb" else (640, 640))
-                    img.thumbnail((192, 192) if variant == "thumb" else (640, 640))
-                    output = BytesIO()
-                    img.convert("RGBA" if "A" in img.getbands() or "transparency" in img.info
-                                else "RGB").save(output, format="PNG")
-                png = output.getvalue()
-                blob = ImageBlob(png, "image/png", '"' + hashlib.sha256(png).hexdigest() + '"')
+                disk_key=("local-thumbnail-v1:"+work_id+":"+str(page_no)+":"+hashlib.sha256(data).hexdigest()) if variant=="thumb" else None
+                cached=request_cache.get(key,disk_key=disk_key) if request_cache is not None and disk_key is not None else None
+                if cached is not None:
+                    blob=cached
+                    png=cached.data
+                elif variant == 'original':
+                    # Exact legacy folder/ZIP bytes. Reuse the same verified
+                    # path and ZIP-member checks as the ordinary thumbnail.
+                    from .image_original import verified_original_blob
+                    blob=verified_original_blob(data)
+                    png=blob.data
+                else:
+                    with Image.open(BytesIO(data)) as img:
+                        if img.width * img.height > _MAX_PIXELS:
+                            raise MediaUnavailable("image dimension limit")
+                        img.draft("RGB", (192, 192) if variant == "thumb" else (640, 640))
+                        img.thumbnail((192, 192) if variant == "thumb" else (640, 640))
+                        output = BytesIO()
+                        img.convert("RGBA" if "A" in img.getbands() or "transparency" in img.info
+                                    else "RGB").save(output, format="PNG")
+                    png = output.getvalue()
+                    blob = ImageBlob(png, "image/png", '"' + hashlib.sha256(png).hexdigest() + '"')
         except (OSError, BadZipFile, UnidentifiedImageError, Image.DecompressionBombError,
                 ValueError, KeyError, NotImplementedError, zlib.error) as exc:
             raise MediaUnavailable("media read failed") from exc
@@ -532,9 +651,15 @@ class ReadonlyLocalMediaCatalog:
                 raise MediaUnavailable("obsolete image request")
             # Two requests may have decoded the same key while the lock was
             # released. Reuse the winner and account for its bytes only once.
-            if key in self._cache:
+            if self._shared_cache is not None:
+                cached=self._shared_cache.get(key)
+                if cached is not None:return cached
+            elif key in self._cache:
                 self._cache.move_to_end(key)
                 return self._cache[key]
+            if self._shared_cache is not None:
+                self._shared_cache.put(key,blob,disk_key=disk_key)
+                return blob
             if len(png) <= self._cache_limit:
                 while self._cache and self._cache_bytes + len(png) > self._cache_limit:
                     _, oldest = self._cache.popitem(last=False)
@@ -548,17 +673,19 @@ class ReadonlyLocalMediaCatalog:
         with self._lock:
             if self._closed:
                 raise MediaUnavailable("catalog closed")
-            return self._cache.get((work_id, page_no, variant))
+            return self._shared_cache.get((work_id,page_no,variant)) if self._shared_cache is not None else self._cache.get((work_id, page_no, variant))
 
     def close(self) -> None:
         with self._lock:
             self._closed = True
+            if self._shared_cache is not None:self._shared_cache.close()
             self._locations.clear()
             self._failed_authors.clear()
             self._ambiguous.clear()
             self._presence_uncertain_authors.clear()
             self._cache.clear()
             self._cache_bytes = 0
+            if self._shared_cache is not None:self._shared_cache.clear()
             self._generation += 1
 
     def replace_snapshot(self, snapshot: LibrarySnapshot) -> None:
@@ -574,6 +701,9 @@ class ReadonlyLocalMediaCatalog:
             self._indexed = False
             self._cache.clear()
             self._cache_bytes = 0
+            if self._shared_cache is not None:
+                self._shared_cache.close()
+                self._shared_cache=self._shared_owner.namespace()
             self._generation += 1
 
 
@@ -586,6 +716,17 @@ class CombinedImageCatalog:
 
     def _catalog(self, work_id: str):
         return self.library if work_id in self.library.works else self.demo
+
+    def supports_original(self, work_id: str) -> bool:
+        provider=self._catalog(work_id)
+        supports=getattr(provider,'supports_original',None)
+        return bool(callable(supports) and supports(work_id))
+
+    def external_target(self,work_id,page_no=0):
+        provider=self._catalog(work_id)
+        method=getattr(provider,'external_target',None)
+        if method is None:raise MediaMissing('saved target unavailable')
+        return method(work_id,page_no)
 
     def url(self, work_id: str, page_no: int = 0, variant: str = "view") -> str:
         return self._catalog(work_id).url(work_id, page_no, variant)

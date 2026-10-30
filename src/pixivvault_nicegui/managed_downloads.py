@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import io
@@ -11,11 +13,13 @@ from pathlib import Path
 import re
 import stat
 from threading import Lock, RLock
+from types import MappingProxyType
 from uuid import uuid4
 
 from PIL import Image
 
 from .bookmark_remote_adapter import RemoteBookmark
+from .fs_paths import logical_path, native_io_path
 from .job_service import JobCancelled
 
 
@@ -35,7 +39,37 @@ class ManagedDownloadError(ValueError):
     """Fixed public error text; never includes URLs or downloaded metadata."""
 
 
+class ManagedPageSelectionChanged(ManagedDownloadError):
+    """The pinned selection no longer belongs to the current visible state."""
+
+
+class ManagedPageQuarantined(ManagedPageSelectionChanged):
+    """A verified current exclusion intentionally hides this original page."""
+
+
+@dataclass(frozen=True)
+class ManagedReceiptSnapshot:
+    receipts: tuple
+    source_pages: object
+    work_tokens: object
+    revision: str
+
+
+@dataclass(frozen=True)
+class ManagedPageIdentity:
+    work_id: str
+    source_page_no: int
+    source_page_count: int
+    author_id: str
+    relative_receipt: str
+    receipt_sha256: str
+    work_state_token: str
+
+
 def _safe_path(path: Path, *, file: bool = False) -> None:
+    # Validate the same spelling used by filesystem I/O. Long native paths
+    # still traverse every parent through lstat and retain the reparse fence.
+    path = native_io_path(path)
     for item in (path, *path.parents):
         if item.is_symlink():
             raise ManagedDownloadError("managed storage link rejected")
@@ -53,6 +87,7 @@ def _safe_path(path: Path, *, file: bool = False) -> None:
 
 
 def _write(path: Path, data: bytes) -> None:
+    path = native_io_path(path)
     _safe_path(path.parent)
     with path.open("xb") as stream:
         stream.write(data)
@@ -61,6 +96,7 @@ def _write(path: Path, data: bytes) -> None:
 
 
 def _read_bounded(path: Path, limit: int) -> bytes:
+    path = native_io_path(path)
     _safe_path(path, file=True)
     with path.open('rb') as stream:
         info = os.fstat(stream.fileno())
@@ -142,21 +178,22 @@ class ManagedPixivDownloads:
         if not self.root.is_absolute() or self.root.parent == self.root:
             raise ManagedDownloadError("managed root must be an absolute subdirectory")
         _safe_path(self.root)
-        self.root = self.root.resolve()
+        self.root = logical_path(native_io_path(self.root).resolve())
         self.client = client
         if not callable(resolve_record):
             raise ManagedDownloadError("artwork resolver required")
         self.resolve_record = resolve_record
         self.closed = False
         self._writer = Lock()
+        self._page_writer = Lock()
         self._work_locks_guard = Lock()
         self._work_locks: dict[str, RLock] = {}
-        marker = self.root / MARKER
-        if self.root.exists():
-            if tuple(self.root.iterdir()) and not marker.is_file():
+        marker = native_io_path(self.root / MARKER)
+        if native_io_path(self.root).exists():
+            if tuple(native_io_path(self.root).iterdir()) and not marker.is_file():
                 raise ManagedDownloadError("foreign managed root rejected")
         else:
-            self.root.mkdir()
+            native_io_path(self.root).mkdir()
         _safe_path(self.root)
         if marker.exists():
             _safe_path(marker, file=True)
@@ -168,19 +205,21 @@ class ManagedPixivDownloads:
         else:
             _write(marker, json.dumps(IDENTITY, sort_keys=True).encode("utf-8"))
         self.outputs = self.root / "outputs"
-        self.outputs.mkdir(exist_ok=True)
+        native_io_path(self.outputs).mkdir(exist_ok=True)
         _safe_path(self.outputs)
         self.incomplete = self.root / 'incomplete'
-        self.incomplete.mkdir(exist_ok=True)
+        native_io_path(self.incomplete).mkdir(exist_ok=True)
         _safe_path(self.incomplete)
         # v1 outputs remain immutable forever. v2 generations have their own
         # namespace, so an interrupted publication can never masquerade as a
         # second active receipt or break old reader start-up.
         self.generation_outputs = self.root / 'generations'
-        self.generation_outputs.mkdir(exist_ok=True)
+        native_io_path(self.generation_outputs).mkdir(exist_ok=True)
         _safe_path(self.generation_outputs)
         from .managed_generations import ManagedGenerations
         self._generations = ManagedGenerations(self.root)
+        from .managed_quarantine import ManagedQuarantine
+        self.quarantine = ManagedQuarantine(self)
 
     def work_lock(self, work_id: str) -> RLock:
         """Shared per-work lock for acceptance and active-generation publication."""
@@ -206,7 +245,7 @@ class ManagedPixivDownloads:
                 or pieces[2] != "receipt.json"
                 or not re.fullmatch(r"work-[1-9][0-9]{0,19}-[0-9a-f]{32}", pieces[1])):
             raise ManagedDownloadError("receipt location rejected")
-        folder = self.root / pieces[0] / pieces[1]
+        folder = native_io_path(self.root / pieces[0] / pieces[1])
         _safe_path(folder)
         path = folder / "receipt.json"
         _safe_path(path, file=True)
@@ -239,6 +278,10 @@ class ManagedPixivDownloads:
                 _text(tag, 128)
             if datetime.fromisoformat(receipt["saved_at"]).tzinfo is None:
                 raise ValueError()
+            # Only a v4 move's exact receipt/page proof may replace a missing
+            # physical source. Other missing pages still fail the receipt.
+            relocated = None
+            expected_names = {"receipt.json"}
             for index, entry in enumerate(entries, 1):
                 if type(entry) is not dict or set(entry) != {"name", "bytes", "sha256", "format", "width", "height"}:
                     raise ValueError()
@@ -253,15 +296,32 @@ class ManagedPixivDownloads:
                         or not isinstance(entry["sha256"], str) or not _SHA.fullmatch(entry["sha256"])):
                     raise ValueError()
                 item = folder / name
+                expected_names.add(name)
+                _safe_path(item, file=True)
+                exists = native_io_path(item).exists()
+                if not exists:
+                    if relocated is None:
+                        relocated = self._generations.relocation_proofs()
+                    proof = relocated.get((relative, index - 1))
+                    if proof is None or any(proof['item'][key] != entry[key]
+                                            for key in ('sha256', 'bytes', 'format', 'width', 'height')):
+                        raise ValueError()
                 if verify_pages:
-                    _safe_path(item, file=True)
-                    data = _read_bounded(item, MAX_PAGE_BYTES)
+                    data = (_read_bounded(item, MAX_PAGE_BYTES) if exists else
+                            _read_bounded(proof['path'], MAX_PAGE_BYTES))
                     if (len(data) != entry["bytes"] or hashlib.sha256(data).hexdigest() != entry["sha256"]
                             or _image(data)[1:] != (entry["format"], entry["width"], entry["height"])):
                         raise ValueError()
             if sum(entry["bytes"] for entry in entries) > MAX_TOTAL:
                 raise ValueError()
-            if set(item.name for item in folder.iterdir()) != {"receipt.json", *(entry["name"] for entry in entries)}:
+            actual_names = {item.name for item in folder.iterdir()}
+            if actual_names - expected_names or (expected_names - actual_names and relocated is None):
+                raise ValueError()
+            if not (expected_names - actual_names).issubset({
+                    entries[number]["name"] for path, number in (relocated or {})
+                    if path == relative}):
+                # This also catches an unexpected vanished page even when
+                # another page has a valid relocation proof.
                 raise ValueError()
             return receipt, hashlib.sha256(raw).hexdigest()
         except (OSError, KeyError, TypeError, ValueError, OverflowError, RecursionError):
@@ -274,7 +334,7 @@ class ManagedPixivDownloads:
         found = []
         seen = set()
         folders = []
-        for folder in self.outputs.iterdir():
+        for folder in native_io_path(self.outputs).iterdir():
             if len(folders) >= 10000:
                 raise ManagedDownloadError('saved receipt limit exceeded')
             folders.append(folder)
@@ -290,7 +350,7 @@ class ManagedPixivDownloads:
             found.append((relative, receipt, digest))
         return tuple(found)
 
-    def saved_receipts_with_dates(self) -> tuple[tuple[str, dict, str, str | None], ...]:
+    def saved_receipts_with_dates(self, *, verify_pages=True) -> tuple[tuple[str, dict, str, str | None], ...]:
         """Fully verified active receipts with dates from the same index read.
 
         The generation index can select a legacy v1 output or a newer
@@ -307,7 +367,7 @@ class ManagedPixivDownloads:
             if type(entry) is not dict or wid != entry.get('work_id'):
                 raise ManagedDownloadError('active receipt index rejected')
             relative = entry.get('relative_receipt')
-            receipt, digest = self._receipt(relative)
+            receipt, digest = self._receipt(relative, verify_pages=verify_pages)
             if receipt['work_id'] != wid or digest != entry.get('sha256'):
                 raise ManagedDownloadError('active receipt verification failed')
             value = entry.get('update_date')
@@ -334,10 +394,101 @@ class ManagedPixivDownloads:
             raise ManagedDownloadError('active receipt fingerprint rejected')
         return relative, receipt, digest, date, fingerprint
 
-    def saved_receipts(self) -> tuple[tuple[str, dict, str], ...]:
+    def saved_receipts(self, *, verify_pages=True) -> tuple[tuple[str, dict, str], ...]:
         """Compatibility projection; v1 catalogs keep their original shape."""
         return tuple((relative, receipt, digest)
-                     for relative, receipt, digest, _ in self.saved_receipts_with_dates())
+                     for relative, receipt, digest, _ in self.saved_receipts_with_dates(verify_pages=verify_pages))
+
+    def catalog_snapshot(self, *, verify_pages=True) -> ManagedReceiptSnapshot:
+        """Pin verified receipts and exclusions, tolerating a bounded commit race.
+
+        Only a changed index revision repeats this local observation. Receipt,
+        image, manifest or index corruption still raises immediately. No GET or
+        mutation is retried, and sustained changes remain a failed snapshot.
+        """
+        for _ in range(3):
+            if self.closed:
+                raise ManagedDownloadError('managed catalog snapshot changed')
+            before = self._generations.state_snapshot()
+            rows = self.saved_receipts(verify_pages=verify_pages)
+            after = self._generations.state_snapshot()
+            if self.closed:
+                raise ManagedDownloadError('managed catalog snapshot changed')
+            if before['revision'] != after['revision']:
+                continue
+            pages = {
+                receipt['work_id']: tuple(
+                    number for number in range(receipt['page_count'])
+                    if str(number) not in before['exclusions'].get(receipt['work_id'], {}))
+                for _, receipt, _ in rows
+            }
+            tokens = {wid: self._generations._work_token(before, wid) for wid in pages}
+            return ManagedReceiptSnapshot(
+                deepcopy(rows), MappingProxyType(pages), MappingProxyType(tokens),
+                before['revision'])
+        raise ManagedDownloadError('managed catalog snapshot changed')
+
+    def visible_source_pages(self, work_id: str) -> tuple[int, ...]:
+        if self.closed or type(work_id) is not str or not _ID.fullmatch(work_id):
+            raise ManagedDownloadError('managed page identity rejected')
+        state = self._generations.state_snapshot()
+        current = state['entries'].get(work_id)
+        if current is None:
+            return ()
+        receipt, digest = self._receipt(current['relative_receipt'], verify_pages=False)
+        if digest != current['sha256']:
+            raise ManagedDownloadError('managed page snapshot changed')
+        excluded = state['exclusions'].get(work_id, {})
+        return tuple(page for page in range(receipt['page_count'])
+                     if str(page) not in excluded)
+
+    def assert_page_available(self, work_id: str, page_no: int, *,
+                              expected_work_state_token: str | None = None) -> str:
+        if (self.closed or type(work_id) is not str or not _ID.fullmatch(work_id)
+                or type(page_no) is not int or not 0 <= page_no < MAX_PAGES):
+            raise ManagedDownloadError('managed page identity rejected')
+        state = self._generations.state_snapshot()
+        if str(page_no) in state['exclusions'].get(work_id, {}):
+            raise ManagedPageQuarantined('managed page is quarantined')
+        token = self._generations._work_token(state, work_id)
+        if expected_work_state_token is not None and token != expected_work_state_token:
+            raise ManagedPageSelectionChanged('managed page snapshot changed')
+        return token
+
+    def assert_page_visible(self, work_id: str, page_no: int) -> None:
+        if self.closed:
+            raise ManagedDownloadError('managed download is closed')
+        self._generations.assert_page_visible(work_id, page_no)
+
+    def save_pinned_page(self, identity: ManagedPageIdentity):
+        """Save the exact original page represented by a pinned local viewer."""
+        from .managed_viewer_page import SavedViewerPage, selection
+        if not isinstance(identity, ManagedPageIdentity):
+            raise ManagedDownloadError('pinned page identity rejected')
+        selection(identity.work_id, identity.source_page_no,
+                  identity.source_page_count, identity.author_id)
+        with self._page_writer, self.work_lock(identity.work_id):
+            self.assert_page_available(
+                identity.work_id, identity.source_page_no,
+                expected_work_state_token=identity.work_state_token)
+            receipt, digest = self._receipt(identity.relative_receipt, verify_pages=False)
+            if (digest != identity.receipt_sha256
+                    or receipt['work_id'] != identity.work_id
+                    or receipt['author_id'] != identity.author_id
+                    or receipt['page_count'] != identity.source_page_count):
+                raise ManagedDownloadError('pinned page proof changed')
+            data = self.read_saved_page(identity.relative_receipt,
+                                        identity.source_page_no, digest)
+            entry = receipt['files'][identity.source_page_no]
+            if _image(data)[1:] != (entry['format'], entry['width'], entry['height']):
+                raise ManagedDownloadError('pinned page image changed')
+            self.assert_page_available(
+                identity.work_id, identity.source_page_no,
+                expected_work_state_token=identity.work_state_token)
+            return SavedViewerPage(
+                identity.work_id, identity.source_page_no, identity.source_page_count,
+                identity.relative_receipt, digest,
+                identity.relative_receipt.rsplit('/', 1)[0] + '/' + entry['name'], True)
 
     def saved_update_date(self, work_id: str) -> str | None:
         """Legacy v1 receipts cannot provide a trustworthy remote timestamp."""
@@ -349,7 +500,44 @@ class ManagedPixivDownloads:
         value = entry.get('update_date')
         return value if type(value) is str and value else None
 
+    def measure_active_receipt_bytes(self, relative_receipt: str, expected_receipt_sha256: str) -> tuple[str, int]:
+        """Measure verified active receipt and image bytes, without accepting a path from UI."""
+        if (self.closed or type(relative_receipt) is not str or type(expected_receipt_sha256) is not str
+                or not _SHA.fullmatch(expected_receipt_sha256)):
+            raise ManagedDownloadError('capacity request rejected')
+        receipt, digest = self._receipt(relative_receipt, verify_pages=False)
+        if digest != expected_receipt_sha256:
+            raise ManagedDownloadError('capacity receipt changed')
+        work_id = receipt['work_id']
+        before = self._generations.current(work_id)
+        if before is None or before.get('relative_receipt') != relative_receipt or before.get('sha256') != digest:
+            raise ManagedDownloadError('capacity active generation changed')
+        raw = _read_bounded(self.root / relative_receipt, MAX_RECEIPT_BYTES)
+        if hashlib.sha256(raw).hexdigest() != digest:
+            raise ManagedDownloadError('capacity receipt changed')
+        total = len(raw)
+        for number, entry in enumerate(receipt['files']):
+            # Physical capacity still includes immutable recovery originals.
+            data = self._read_saved_page_proof(relative_receipt, number, digest)
+            if _image(data)[1:] != (entry['format'], entry['width'], entry['height']):
+                raise ManagedDownloadError('capacity image rejected')
+            total += len(data)
+        if self.closed or self._generations.current(work_id) != before:
+            raise ManagedDownloadError('capacity active generation changed')
+        return receipt['author_id'], total
+
     def read_saved_page(self, relative_receipt: str, page_no: int, expected_receipt_sha256: str) -> bytes:
+        receipt, digest = self._receipt(relative_receipt, verify_pages=False)
+        if digest != expected_receipt_sha256:
+            raise ManagedDownloadError('saved page snapshot changed')
+        self.assert_page_visible(receipt['work_id'], page_no)
+        data = self._read_saved_page_proof(relative_receipt, page_no, expected_receipt_sha256)
+        self.assert_page_visible(receipt['work_id'], page_no)
+        return data
+
+    def _read_saved_page_proof(self, relative_receipt: str, page_no: int,
+                               expected_receipt_sha256: str) -> bytes:
+        """Internal immutable-byte verification, including recovery originals."""
         if self.closed:
             raise ManagedDownloadError('managed download is closed')
         if (type(page_no) is not int or type(expected_receipt_sha256) is not str
@@ -364,11 +552,28 @@ class ManagedPixivDownloads:
         folder = self.root / relative_receipt.rsplit("/", 1)[0]
         path = folder / receipt["files"][page_no]["name"]
         _safe_path(path, file=True)
-        data = _read_bounded(path, MAX_PAGE_BYTES)
+        if native_io_path(path).exists():
+            data = _read_bounded(path, MAX_PAGE_BYTES)
+        else:
+            proof = self._generations.relocation_proofs().get((relative_receipt, page_no))
+            entry = receipt["files"][page_no]
+            if proof is None or any(proof['item'][field] != entry[field]
+                                    for field in ('sha256', 'bytes', 'format', 'width', 'height')):
+                raise ManagedDownloadError('saved page changed')
+            data = _read_bounded(proof['path'], MAX_PAGE_BYTES)
         if (len(data) != receipt["files"][page_no]["bytes"] or
                 hashlib.sha256(data).hexdigest() != receipt["files"][page_no]["sha256"]):
             raise ManagedDownloadError("saved page changed")
         return data
+
+    def save_viewer_page(self, work_id, page_no, page_count, author_id, load_record):
+        from .managed_viewer_page import save_page
+        try:
+            return save_page(self, work_id, page_no, page_count, author_id, load_record)
+        except ManagedDownloadError:
+            raise
+        except Exception:
+            raise ManagedDownloadError('viewer page save failed') from None
 
     def run(self, job, context, *, intent=None) -> str:
         return self._run_locked(job, context, intent=intent)
@@ -397,7 +602,11 @@ class ManagedPixivDownloads:
             # acceptance's final receipt check, but do not hold the lock over
             # network/image I/O: queued same-ID requests must still deduplicate.
             with self.work_lock(record.remote_id):
-                active_entry = self._generations.current(record.remote_id)
+                start_state = self._generations.state_snapshot()
+                active_entry = start_state['entries'].get(record.remote_id)
+                work_state_token = self._generations._work_token(start_state, record.remote_id)
+                excluded_pages = frozenset(int(page) for page in
+                                           start_state['exclusions'].get(record.remote_id, {}))
                 previous = None
                 if active_entry is not None:
                     relative = active_entry['relative_receipt']
@@ -447,18 +656,23 @@ class ManagedPixivDownloads:
                     or any(type(url) is not str or len(url) > 4096 for url in urls)
                     or len(set(urls)) != len(urls)):
                 raise ManagedDownloadError("original page list rejected")
-            folder = self.incomplete / ("partial-" + uuid4().hex)
+            folder = native_io_path(self.incomplete) / ("partial-" + uuid4().hex)
             folder.mkdir()
             files = []
             total_bytes = 0
             context.progress(0, len(urls))
             for index, url in enumerate(urls, 1):
                 context.checkpoint()
-                try:
-                    data = self.client.get_image_bytes(url)
-                except Exception:
-                    context.checkpoint()
-                    raise
+                if index - 1 in excluded_pages:
+                    if previous is None or index > previous[1]['page_count']:
+                        raise ManagedDownloadError('quarantine recovery proof unavailable')
+                    data = self._read_saved_page_proof(previous[0], index - 1, previous[2])
+                else:
+                    try:
+                        data = self.client.get_image_bytes(url)
+                    except Exception:
+                        context.checkpoint()
+                        raise
                 context.checkpoint()
                 ext, fmt, width, height = _image(data)
                 total_bytes += len(data)
@@ -477,7 +691,7 @@ class ManagedPixivDownloads:
             _write(folder / "receipt.json", json.dumps(receipt, ensure_ascii=False, sort_keys=True).encode("utf-8"))
             _fsync_dir(folder)
             context.checkpoint()
-            destination = self.generation_outputs if intent is not None else self.outputs
+            destination = native_io_path(self.generation_outputs if intent is not None else self.outputs)
             final = destination / f"work-{record.remote_id}-{uuid4().hex}"
             # Verify the staged bytes before they enter the completed namespace.
             for entry in files:
@@ -497,17 +711,21 @@ class ManagedPixivDownloads:
                         or current['update_date'] != intent.update_date):
                     raise ManagedDownloadError('author metadata changed during download')
                 context.checkpoint()
-                self._generations.prepare_for_publication()
-            folder.rename(final)
-            _fsync_dir(destination)
-            relative = f"{'generations' if intent is not None else 'outputs'}/{final.name}/receipt.json"
-            _, digest = self._receipt(relative)
-            context.checkpoint()
-            if intent is not None:
-                with self.work_lock(record.remote_id):
+            with self.work_lock(record.remote_id):
+                if self._generations.work_state_token(record.remote_id) != work_state_token:
+                    raise ManagedDownloadError('generation compare-and-swap rejected')
+                if intent is not None:
+                    self._generations.prepare_for_publication()
+                folder.rename(final)
+                _fsync_dir(destination)
+                relative = f"{'generations' if intent is not None else 'outputs'}/{final.name}/receipt.json"
+                _, digest = self._receipt(relative)
+                context.checkpoint()
+                if intent is not None:
                     self._generations.publish(record.remote_id, relative, digest,
                         intent.update_date, intent.expected_receipt_sha256,
-                        intent.expected_relative_receipt, fingerprint)
+                        intent.expected_relative_receipt, fingerprint,
+                        expected_work_state_token=work_state_token)
             return relative
         except ManagedDownloadError:
             raise

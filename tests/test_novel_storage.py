@@ -6,6 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 import pytest
+from pixivvault_nicegui.fs_paths import logical_path
 from pixivvault_nicegui.media_parity_policy import NovelDocument, parse_novel_detail
 import pixivvault_nicegui.novel_storage as storage
 from pixivvault_nicegui.novel_storage import ROOT_MARKER, NovelExportStore, NovelStorageError, NovelStorageIOError, NovelStorageIntegrityError
@@ -159,16 +160,20 @@ def test_partial_root_initialization_recovers_only_owned_missing_namespace(tmp_p
     root = tmp_path / "root"
     original = Path.mkdir
     failed = False
+    calls = []; fires = []
     def fail_one(self, *args, **kwargs):
         nonlocal failed
-        if self == root / fail_name and not failed:
+        calls.append((repr(self),repr(logical_path(self))))
+        if logical_path(self) == root / fail_name and not failed:
             failed = True
+            fires.append(1)
             raise OSError("synthetic init interruption")
         return original(self, *args, **kwargs)
     monkeypatch.setattr(Path, "mkdir", fail_one)
     with pytest.raises(storage.NovelStorageIOError):
         NovelExportStore(root)
     assert failed
+    assert calls and len(fires)==1, (calls,fires)
     assert (root / ROOT_MARKER).read_bytes()
     monkeypatch.setattr(Path, "mkdir", original)
     recovered = NovelExportStore(root)
@@ -180,15 +185,20 @@ def test_marker_replace_interruption_recovers_valid_owned_temp_marker(tmp_path, 
     root = tmp_path / "root"
     original = storage.os.replace
     failed = False
+    calls = []; fires = []
     def fail_marker(source, destination):
         nonlocal failed
-        if Path(destination) == root / ROOT_MARKER and not failed:
+        calls.append((repr(source),repr(destination),repr(logical_path(destination))))
+        if logical_path(destination) == root / ROOT_MARKER and not failed:
             failed = True
+            fires.append(1)
             raise OSError("synthetic marker publish interruption")
         return original(source, destination)
     monkeypatch.setattr(storage.os, "replace", fail_marker)
     with pytest.raises(storage.NovelStorageIOError):
         NovelExportStore(root)
+    assert failed, "fault injection was not reached"
+    assert calls and len(fires)==1, (calls,fires)
     assert (root / ".init-marker.tmp").read_bytes() == storage._MARKER
     assert not (root / ROOT_MARKER).exists()
     monkeypatch.setattr(storage.os, "replace", original)
@@ -201,15 +211,20 @@ def test_marker_write_interruption_before_temp_creation_recovers_empty_root(tmp_
     root = tmp_path / "root"
     original = storage._write_new
     failed = False
+    calls = []; fires = []
     def fail_before_temp(path, data):
         nonlocal failed
-        if Path(path) == root / ".init-marker.tmp" and not failed:
+        calls.append((repr(path),repr(logical_path(path))))
+        if logical_path(path) == root / ".init-marker.tmp" and not failed:
             failed = True
+            fires.append(1)
             raise OSError("synthetic marker write interruption")
         return original(path, data)
     monkeypatch.setattr(storage, "_write_new", fail_before_temp)
     with pytest.raises(storage.NovelStorageIOError):
         NovelExportStore(root)
+    assert failed, "fault injection was not reached"
+    assert calls and len(fires)==1, (calls,fires)
     assert list(root.iterdir()) == []
     monkeypatch.setattr(storage, "_write_new", original)
     NovelExportStore(root)
@@ -219,16 +234,21 @@ def test_partial_owned_marker_prefix_is_completed_but_unknown_root_data_is_prese
     root = tmp_path / "root"
     original = storage._write_new
     failed = False
+    calls = []; fires = []
     def fail_after_prefix(path, data):
         nonlocal failed
-        if Path(path) == root / ".init-marker.tmp" and not failed:
+        calls.append((repr(path),repr(logical_path(path))))
+        if logical_path(path) == root / ".init-marker.tmp" and not failed:
             failed = True
+            fires.append(1)
             path.write_bytes(data[:17])
             raise OSError("synthetic partial marker write")
         return original(path, data)
     monkeypatch.setattr(storage, "_write_new", fail_after_prefix)
     with pytest.raises(storage.NovelStorageIOError):
         NovelExportStore(root)
+    assert failed, "fault injection was not reached"
+    assert calls and len(fires)==1, (calls,fires)
     assert (root / ".init-marker.tmp").read_bytes() == storage._MARKER[:17]
     monkeypatch.setattr(storage, "_write_new", original)
     NovelExportStore(root)
@@ -275,7 +295,10 @@ def flock(fd, operation):
         raise AssertionError("POSIX lock must block without LOCK_NB")
 fake.flock = flock
 sys.modules["fcntl"] = fake
-os.name = "posix"  # Isolated branch-selection fault injection; not a Linux measurement.
+# Select only this module's lock branch. Changing the process-wide os.name
+# also changes pathlib and fs_paths on Windows, before the lock can be reached.
+# This remains isolated branch-selection fault injection, not a Linux measurement.
+storage.os = types.SimpleNamespace(**{**vars(os), "name": "posix"})
 with store._locked():
     pass
 assert calls == [fake.LOCK_EX, fake.LOCK_UN], calls

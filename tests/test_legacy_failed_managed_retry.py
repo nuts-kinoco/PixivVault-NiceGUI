@@ -21,6 +21,7 @@ from pixivvault_nicegui.bootstrap import parse_args
 from pixivvault_nicegui.failed_records_repository import read_failed_records
 from pixivvault_nicegui.services import ApplicationServices
 from pixivvault_nicegui.ui.failed_records_view import FailedRecordsView
+from pixivvault_nicegui.ui.job_views import QueueView
 from pixivvault_nicegui.ui.shell import DemoShell
 
 
@@ -59,7 +60,14 @@ class OfflinePixiv:
 
 
 def make_snapshot(tmp_path):
-    original, copied = tmp_path / 'legacy-original.sqlite3', tmp_path / 'static-failures.sqlite3'
+    # The writable managed root must NEVER be nested beneath the protected
+    # old DB's parent. Use distinct sibling roots for both frozen source copies
+    # and keep each test's original/Cookie hash assertions unchanged.
+    source_root=tmp_path/'original-source'
+    frozen_root=tmp_path/'frozen-old-copy'
+    source_root.mkdir();frozen_root.mkdir()
+    original, copied = (source_root / 'legacy-original.sqlite3',
+                        frozen_root / 'static-failures.sqlite3')
     with sqlite3.connect(original) as conn:
         conn.execute('CREATE TABLE failed_queue (work_id TEXT, user_id TEXT, title TEXT, '
                      'work_type TEXT, error_reason TEXT, failed_at TEXT, retry_count INTEGER)')
@@ -83,6 +91,61 @@ def finished(service, job_id):
             lambda: any(job.job_id == job_id and job.state in ('done', 'error', 'stopped')
                         for job in service.jobs.snapshot()), timeout=8)
     return next(job for job in service.jobs.snapshot() if job.job_id == job_id)
+
+
+@pytest.mark.asyncio
+async def test_q03_managed_queue_author_name_filter_survives_restart(tmp_path):
+    """Author search must use frozen accepted metadata, never demo author IDs."""
+    original, frozen = make_snapshot(tmp_path)
+    original_sha, frozen_sha = digest(original), digest(frozen)
+    root = tmp_path / 'managed-q03'
+    service = ApplicationServices(live_client=OfflinePixiv(), pixiv_download_root=root,
+                                  failed_queue_readonly_db=frozen)
+    client = Client(ui.page('/_q03_managed_author_search'))
+    try:
+        with client:
+            failure_view = FailedRecordsView(service)
+            await failure_view._refresh(failure_view.state.begin_refresh())
+            selected = next(row for row in failure_view.state.records if row.work_id == '301')
+            assert await failure_view._retry_records((selected,))
+            assert finished(service, service.jobs.snapshot()[0].job_id).state == 'done'
+            queue = QueueView(service)
+            queue.search('合成作者')
+            assert [job.target_id for job in queue._matching()] == ['301']
+            queue.search('301')
+            assert [job.target_id for job in queue._matching()] == ['301']
+            queue.search('別の作者')
+            assert queue._matching() == []
+            queue.close()
+        assert (digest(original), digest(frozen)) == (original_sha, frozen_sha)
+    finally:
+        client.delete()
+        service.close()
+    reopened = ApplicationServices(live_client=OfflinePixiv(), pixiv_download_root=root,
+                                   failed_queue_readonly_db=frozen)
+    second_client = Client(ui.page('/_q03_managed_author_search_restart'))
+    try:
+        with second_client:
+            queue = QueueView(reopened)
+            queue.search('合成作者')
+            assert [job.target_id for job in queue._matching()] == ['301']
+            queue.close()
+        assert (digest(original), digest(frozen)) == (original_sha, frozen_sha)
+    finally:
+        second_client.delete()
+        reopened.close()
+
+
+def test_managed_storage_nested_in_frozen_copy_parent_is_rejected_before_writes(tmp_path):
+    """Separate fixture roots are mandatory; overlap is still a hard refusal."""
+    original, copied = make_snapshot(tmp_path)
+    protected = (digest(original), digest(copied))
+    unsafe = copied.parent / 'managed-under-protected-copy'
+    with pytest.raises(ValueError, match='media storage roots must be disjoint'):
+        ApplicationServices(live_client=OfflinePixiv(), pixiv_download_root=unsafe,
+                            failed_queue_readonly_db=copied)
+    assert not unsafe.exists()
+    assert (digest(original), digest(copied)) == protected
 
 
 @pytest.mark.asyncio
@@ -216,7 +279,7 @@ def test_failed_copy_optin_cli_and_invalid_storage_gates(tmp_path):
         parse_args(['--failed-queue-readonly-db', str(copied)])
     with pytest.raises(ValueError):
         ApplicationServices(failed_queue_readonly_db=copied)
-    (tmp_path / 'static-failures.sqlite3-wal').write_bytes(b'incomplete-wal')
+    Path(str(copied) + '-wal').write_bytes(b'incomplete-wal')
     with pytest.raises(SystemExit):
         parse_args(flags)
     with pytest.raises(ValueError):

@@ -9,6 +9,7 @@ Cookie and the NiceGUI managed store remain untouched.
 from __future__ import annotations
 
 import hashlib
+from contextlib import ExitStack
 import json
 import os
 from pathlib import Path
@@ -18,6 +19,7 @@ from threading import Lock
 from uuid import uuid4
 from zipfile import ZipFile, ZIP_DEFLATED, LargeZipFile
 
+from .fs_paths import native_io_path, logical_path
 from .managed_downloads import (ManagedPixivDownloads, ManagedDownloadError,
                                 _safe_path, _read_bounded, _write, _fsync_dir,
                                 _json_unique)
@@ -70,16 +72,16 @@ def legacy_filename(title: str, work_id: str, page_no: int, page_count: int,
 def _export_path(root: Path) -> Path:
     if not isinstance(root, Path) or not root.is_absolute() or root == root.parent:
         raise LegacyZipExportError('dedicated absolute legacy export root required')
-    _safe_path(root)
-    return root.resolve()
+    _safe_path(native_io_path(root))
+    return logical_path(native_io_path(root).resolve())
 
 
 class LegacyZipExporter:
-    def __init__(self, root: Path, managed: ManagedPixivDownloads):
+    def __init__(self, root: Path, managed: ManagedPixivDownloads, *, preserve_incomplete=False):
         if not isinstance(managed, ManagedPixivDownloads) or managed.closed:
             raise LegacyZipExportError('managed originals unavailable')
-        path = _export_path(Path(root))
-        store = managed.root.resolve()
+        path = _export_path(logical_path(root))
+        store = logical_path(native_io_path(managed.root).resolve())
         if path == store or path in store.parents or store in path.parents:
             raise LegacyZipExportError('ZIP export root overlaps managed originals')
         self.root = path
@@ -87,8 +89,9 @@ class LegacyZipExporter:
         self._writer = Lock()
         self.closed = False
         self._closing = False
-        marker = self.root / EXPORT_MARKER
-        if self.root.exists():
+        root_io = native_io_path(self.root)
+        marker = root_io / EXPORT_MARKER
+        if root_io.exists():
             # A preexisting empty directory is NOT proof of ownership. Require
             # an explicit fresh destination on first use, or our exact marker.
             if not marker.is_file():
@@ -101,27 +104,28 @@ class LegacyZipExporter:
             except Exception:
                 raise LegacyZipExportError('ZIP export marker rejected') from None
         else:
-            _safe_path(self.root.parent)
-            self.root.mkdir()
-            _safe_path(self.root)
+            _safe_path(root_io.parent)
+            root_io.mkdir()
+            _safe_path(native_io_path(self.root))
             _write(marker, json.dumps(EXPORT_IDENTITY, sort_keys=True).encode('ascii'))
         self.incomplete = self.root / '.incomplete'
-        _safe_path(self.incomplete)
-        self.incomplete.mkdir(exist_ok=True)
-        _safe_path(self.incomplete)
+        incomplete_io = native_io_path(self.incomplete)
+        _safe_path(incomplete_io)
+        incomplete_io.mkdir(exist_ok=True)
+        _safe_path(incomplete_io)
         # Recover a crash just before/after publishing an exclusive hardlink.
         # The incomplete name is app-owned; never touch an unknown file or a
         # symlink/reparse point. In the post-link crash case st_nlink == 2;
         # unlinking *only* this temporary name leaves the published ZIP intact
         # and restores its normal single-link file identity.
-        for leftover in self.incomplete.iterdir():
+        for leftover in incomplete_io.iterdir():
             info = leftover.lstat()
             if (not _STAGED_ZIP.fullmatch(leftover.name)
                     or not stat.S_ISREG(info.st_mode) or leftover.is_symlink()
                     or getattr(info, 'st_file_attributes', 0) & 0x400
                     or info.st_nlink not in (1, 2)):
                 raise LegacyZipExportError('unknown or unsafe incomplete ZIP file')
-            leftover.unlink()
+            if not preserve_incomplete:leftover.unlink()
 
     def close(self) -> None:
         # Application shutdown must not close managed image readers halfway
@@ -130,7 +134,8 @@ class LegacyZipExporter:
         with self._writer:
             self.closed = True
 
-    def export_author(self, author_id: str) -> Path:
+    def export_author(self, author_id: str, *, expected_proofs=None, before_publish=None,
+                      expected_source_pages=None) -> Path:
         """Export all active still-image works of one author as a new ZIP.
 
         Does not overwrite, append to, rename, delete or hardlink any original
@@ -141,19 +146,34 @@ class LegacyZipExporter:
         if not self._writer.acquire(blocking=False):
             raise LegacyZipExportError('ZIP writer already active')
         staging = None
+        retain_stage = False
         try:
             if self.closed or self._closing or self.managed.closed:
                 raise LegacyZipExportError('managed originals unavailable')
-            receipts = [(relative, receipt, digest)
-                        for relative, receipt, digest in self.managed.saved_receipts()
-                        if receipt['author_id'] == author_id]
+            snapshot = self.managed.catalog_snapshot()
+            author_rows = [(relative, receipt, digest)
+                           for relative, receipt, digest in snapshot.receipts
+                           if receipt['author_id'] == author_id]
+            source_pages = {receipt['work_id']: snapshot.source_pages[receipt['work_id']]
+                            for _, receipt, _ in author_rows}
+            source_tokens = {wid: snapshot.work_tokens[wid] for wid in source_pages}
+            receipts = [(relative, receipt, digest) for relative, receipt, digest in author_rows
+                        if source_pages[receipt['work_id']]]
+            if (expected_source_pages is not None
+                    and (type(expected_source_pages) is not dict
+                         or {wid: tuple(pages) for wid, pages in expected_source_pages.items()}
+                            != source_pages)):
+                raise LegacyZipExportError('managed page selection changed before ZIP export')
             if self._closing:
                 raise LegacyZipExportError('ZIP export interrupted by shutdown')
             if not receipts or len(receipts) > MAX_EXPORT_WORKS:
                 raise LegacyZipExportError('author ZIP has no supported work or exceeds limit')
             receipts.sort(key=lambda item: item[1]['work_id'])
-            pages = sum(item[1]['page_count'] for item in receipts)
-            total_bytes = sum(f['bytes'] for _, receipt, _ in receipts for f in receipt['files'])
+            if expected_proofs is not None and [[row['work_id'], proof] for _,row,proof in receipts] != expected_proofs:
+                raise LegacyZipExportError('managed library changed before ZIP export')
+            pages = sum(len(source_pages[receipt['work_id']]) for _, receipt, _ in receipts)
+            total_bytes = sum(receipt['files'][page]['bytes'] for _, receipt, _ in receipts
+                              for page in source_pages[receipt['work_id']])
             if (pages > MAX_EXPORT_PAGES or not 0 < total_bytes <= MAX_EXPORT_INPUT_BYTES):
                 raise LegacyZipExportError('author ZIP exceeds safe size or page limit')
             # Original Flet uses the most recently observed author name. An
@@ -163,13 +183,13 @@ class LegacyZipExporter:
             zip_name = f'{author_name}({author_id}).zip'
             if len(zip_name.encode('utf-8')) > MAX_ZIP_NAME_BYTES:
                 raise LegacyZipExportError('author ZIP filename too long')
-            destination = self.root / zip_name
-            _safe_path(self.root)
+            destination = native_io_path(self.root / zip_name)
+            _safe_path(native_io_path(self.root))
             _safe_path(destination, file=True)
             # The old app reconciles an author rename to a single ZIP. Our
             # non-destructive export cannot rename an earlier archive, so
             # refuse a second ZIP whose author ID matches an older name.
-            for existing in self.root.iterdir():
+            for existing in native_io_path(self.root).iterdir():
                 if existing.name.endswith(f'({author_id}).zip'):
                     raise LegacyZipExportError('legacy author ZIP already exported')
             if destination.exists():
@@ -178,7 +198,8 @@ class LegacyZipExporter:
             members = set()
             entries = []
             for relative, receipt, digest in receipts:
-                for page_index, entry in enumerate(receipt['files']):
+                for page_index in source_pages[receipt['work_id']]:
+                    entry = receipt['files'][page_index]
                     ext = {'png': 'png', 'jpeg': 'jpg', 'webp': 'webp'}[entry['format']]
                     name = legacy_filename(receipt['title'], receipt['work_id'],
                                            page_index, receipt['page_count'], ext)
@@ -187,8 +208,8 @@ class LegacyZipExporter:
                     members.add(name)
                     entries.append((relative, digest, page_index, name))
 
-            _safe_path(self.incomplete)
-            staging = self.incomplete / ('zip-' + uuid4().hex + '.tmp')
+            _safe_path(native_io_path(self.incomplete))
+            staging = native_io_path(self.incomplete) / ('zip-' + uuid4().hex + '.tmp')
             # Create before ZipFile with xb: an earlier failed staging archive
             # may never be silently overwritten or mistaken for a final ZIP.
             with staging.open('xb') as output:
@@ -208,25 +229,35 @@ class LegacyZipExporter:
                 raise LegacyZipExportError('ZIP export interrupted by shutdown')
             # Prevent exporting an outdated author generation after a
             # concurrent Pixiv managed download has changed active pointers.
-            expected = {receipt['work_id']: digest for _, receipt, digest in receipts}
-            current = {receipt['work_id']: digest
-                       for _, receipt, digest in self.managed.saved_receipts()
-                       if receipt['author_id'] == author_id}
-            if current != expected:
-                raise LegacyZipExportError('managed library changed during ZIP export')
-            _safe_path(self.root)
-            _safe_path(destination, file=True)
-            # A same-volume hard link is an atomic *exclusive create* on both
-            # POSIX and NTFS. os.rename/replace could overwrite on POSIX.
-            os.link(staging, destination)
-            _fsync_dir(self.root)
-            return destination
+            with ExitStack() as locks:
+                for wid in sorted(source_pages):
+                    locks.enter_context(self.managed.work_lock(wid))
+                current_snapshot = self.managed.catalog_snapshot()
+                current_rows = [(relative, row, digest)
+                                for relative, row, digest in current_snapshot.receipts
+                                if row['author_id'] == author_id]
+                current_pages = {row['work_id']: current_snapshot.source_pages[row['work_id']]
+                                 for _, row, _ in current_rows}
+                current_tokens = {wid: current_snapshot.work_tokens[wid] for wid in current_pages}
+                if current_pages != source_pages or current_tokens != source_tokens:
+                    raise LegacyZipExportError('managed library changed during ZIP export')
+                _safe_path(native_io_path(self.root))
+                _safe_path(destination, file=True)
+                if before_publish is not None:
+                    retain_stage = True
+                    before_publish(staging,destination)
+                if any(self.managed._generations.work_state_token(wid) != token
+                       for wid, token in source_tokens.items()):
+                    raise LegacyZipExportError('managed library changed during ZIP export')
+                os.link(staging, destination)
+                _fsync_dir(native_io_path(self.root))
+            return logical_path(destination)
         except (LegacyZipExportError, ManagedDownloadError):
             raise
         except (OSError, ValueError, LargeZipFile, KeyError, RuntimeError):
             raise LegacyZipExportError('legacy ZIP export failed') from None
         finally:
-            if staging is not None:
+            if staging is not None and not retain_stage:
                 try:
                     staging.unlink(missing_ok=True)
                 except OSError:

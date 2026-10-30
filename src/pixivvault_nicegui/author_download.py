@@ -19,6 +19,8 @@ class AuthorTarget:
     user_id: str
     display_name: str
     origin: str
+    is_favorite: bool | None = None
+    follow_order: int | None = None
 
     def __post_init__(self):
         if not isinstance(self.user_id, str) or not _AUTHOR_ID.fullmatch(self.user_id):
@@ -27,6 +29,11 @@ class AuthorTarget:
             raise ValueError("invalid author origin")
         if not isinstance(self.display_name, str) or len(self.display_name) > 256:
             raise ValueError("invalid author name")
+        if self.is_favorite is not None and type(self.is_favorite) is not bool:
+            raise ValueError("invalid author favorite state")
+        if self.follow_order is not None and (type(self.follow_order) is not int
+                                              or self.follow_order < 0):
+            raise ValueError("invalid author follow order")
 
 
 def select_author(targets: tuple[AuthorTarget, ...], candidate: AuthorTarget) -> tuple[AuthorTarget, ...]:

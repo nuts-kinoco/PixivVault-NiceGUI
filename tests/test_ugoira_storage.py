@@ -247,25 +247,37 @@ def test_failure_after_rename_never_returns_success_or_rolls_back_valid_orphan(t
 
 @pytest.mark.parametrize('component', ['root', 'ancestor'])
 def test_link_or_junction_chain_rejected_without_writes(tmp_path, monkeypatch, component):
+    from pixivvault_nicegui.fs_paths import logical_path
     root = tmp_path / 'isolated'
     blocked = root if component == 'root' else tmp_path
     is_symlink = Path.is_symlink
-    monkeypatch.setattr(Path, 'is_symlink', lambda path: path == blocked or is_symlink(path))
+    injected = []
+    def linked(path):
+        if logical_path(path) == logical_path(blocked):
+            injected.append(str(path))
+            return True
+        return is_symlink(path)
+    monkeypatch.setattr(Path, 'is_symlink', linked)
     with pytest.raises(UgoiraStorageError):
         UgoiraFrameStore(root)
+    assert injected, 'the link fault must reach the actual native IO spelling'
     assert list(tmp_path.iterdir()) == []
 
 
 def test_reparse_attribute_rejected_without_requiring_windows_link_privilege(tmp_path, monkeypatch):
+    from pixivvault_nicegui.fs_paths import logical_path
     root = tmp_path / 'isolated'
     lstat = Path.lstat
+    injected = []
     def reparse(path, *args, **kwargs):
-        if path == tmp_path:
+        if logical_path(path) == logical_path(tmp_path):
+            injected.append(str(path))
             return SimpleNamespace(st_file_attributes=0x400, st_mode=lstat(path).st_mode)
         return lstat(path, *args, **kwargs)
     monkeypatch.setattr(Path, 'lstat', reparse)
     with pytest.raises(UgoiraStorageError):
         UgoiraFrameStore(root)
+    assert injected, 'the reparse fault must reach the actual native IO spelling'
     assert list(tmp_path.iterdir()) == []
 
 
@@ -869,6 +881,23 @@ def test_reconcile_opens_existing_owner_without_write_create_append_or_truncate(
     assert len(opened) == 1
 
 
+
+def test_reconcile_transient_io_is_distinct_from_corruption(tmp_path, monkeypatch):
+    raw, manifest, _ = _fixture()
+    store = UgoiraFrameStore(tmp_path / 'isolated')
+    saved = store.save(raw, manifest)
+    read_bounded = subject._read_bounded
+
+    def temporary_io(path, limit):
+        if Path(path).name == 'receipt.json':
+            raise PermissionError('synthetic temporary sharing violation')
+        return read_bounded(path, limit)
+
+    monkeypatch.setattr(subject, '_read_bounded', temporary_io)
+    with pytest.raises(subject.UgoiraStorageIOError) as caught:
+        store.reconcile(saved.relative_receipt)
+    assert 'synthetic temporary sharing violation' not in str(caught.value)
+
 def test_reconcile_excludes_a_different_store_save_through_entire_verification(tmp_path, monkeypatch):
     raw, manifest, _ = _fixture()
     writer = UgoiraFrameStore(tmp_path / 'isolated')
@@ -878,7 +907,7 @@ def test_reconcile_excludes_a_different_store_save_through_entire_verification(t
     verify = subject._verify_contents
     attempts = []
     def concurrent_save(folder, *args):
-        if folder.parent == writer.frames and len(args) == 4:
+        if folder.parent == writer.frames and len(args) == 5:
             attempts.append('save-refused')
             with pytest.raises(UgoiraStorageError):
                 writer.save(raw, manifest)

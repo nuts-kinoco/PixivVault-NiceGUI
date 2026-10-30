@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import inspect
+from uuid import uuid4
 
 from nicegui import ui
 
@@ -14,12 +15,16 @@ from .grid_layout import MAX_COLUMNS
 class BookmarkView:
     def __init__(self, state: BookmarkState, *, on_refresh: Callable[[], None] | None = None,
                  on_open: Callable[[str], None] | None = None,
+                 on_enqueue: Callable | None = None,
+                 on_similar: Callable[[str], object] | None = None,
                  image_url: Callable[[str], str] | None = None,
                  can_open: Callable[[str], bool] | None = None,
                  with_filter_toggle: bool = False) -> None:
         self.state = state
         self.on_refresh = on_refresh
         self.on_open = on_open
+        self.on_enqueue = on_enqueue
+        self.on_similar = on_similar
         self.image_url = image_url
         self.can_open = can_open
         self.with_filter_toggle = with_filter_toggle
@@ -33,6 +38,8 @@ class BookmarkView:
         self._session = object()
         self.more_cell = None
         self.card_size = "large"
+        self._download_busy = False
+        self._download_operations: dict[str,str] = {}
 
     def render(self, parent=None):
         if self.root is not None:
@@ -51,16 +58,20 @@ class BookmarkView:
                     self.counter = ui.label().classes("pv-counter").props("data-testid=bookmark-count")
                     self.selected_count = ui.label().classes("pv-counter").props(
                         "data-testid=bookmark-selection")
-                    self.download_button = ui.button("選択した作品をDL", color=None).props(
+                    self.download_button = ui.button("選択した作品をDL", color=None,
+                        on_click=self.download_selected).props(
                         "flat dense data-testid=bookmark-download")
                     self.download_button.disable()
-                    self.download_button.tooltip("実ダウンロードは未接続です")
+                    if self.on_enqueue is None:
+                        self.download_button.tooltip("この起動では作品の保存先が未接続です")
                     self.retry = ui.button("再読込", on_click=self.request_refresh).props(
                         "flat dense data-testid=bookmark-refresh")
                 self.search_input = ui.input("ブックマーク内を検索", value=self.state.query,
                     on_change=lambda event: self.search(event.value or "")).props(
-                    "outlined dense clearable dark debounce=200 data-testid=bookmark-search")
+                    "outlined dense clearable debounce=200 data-testid=bookmark-search")
                 self.message = ui.label().classes("pv-empty").props("data-testid=bookmark-status role=status")
+                self.download_status = ui.label("").classes("pv-subtitle").props(
+                    "role=status data-testid=bookmark-download-status")
                 with ui.element("div").classes("pv-gallery-scroll").props("data-testid=bookmark-scroll") as self.scroll:
                     self.grid = ui.element("div").classes("pv-grid").style(
                         f"--pv-max-cols:{MAX_COLUMNS[self.card_size]}")
@@ -102,6 +113,11 @@ class BookmarkView:
                 choice = ui.checkbox("選択", value=checked, on_change=lambda event,
                     wid=art.work_id, token=self._session: self.select(wid, bool(event.value), token))
                 choice.props("data-testid=bookmark-select")
+                if self.on_similar is not None:
+                    with ui.context_menu().props('data-testid=bookmark-similar-context') as menu:
+                        ui.button('似た絵を探す',on_click=lambda _,wid=art.work_id,
+                                  token=self._session,popup=menu:self.search_similar(wid,token,popup)).props(
+                            'flat dense data-testid=bookmark-similar-open')
         self.cards[art.work_id] = card
         self.checkboxes[art.work_id] = choice
 
@@ -150,6 +166,65 @@ class BookmarkView:
         self.retry.set_visibility(status != "loading")
         self.counter.set_text(f"{len(visible)} / {len(self.state.matched_items)} 件表示")
         self.selected_count.set_text(f"選択中: {len(self.state.selected_ids)}件")
+        self.download_button.set_enabled(bool(self.state.active and not self.state.closed
+            and self.state.selected_ids and self.on_enqueue is not None and not self._download_busy))
+
+    async def download_selected(self):
+        """Batch explicit bookmarks through the normal durable job admission.
+
+        The selected IDs are frozen before the first await; a tab change does not
+        cancel a user's accepted batch. Reception is never called a saved file.
+        """
+        if (self._download_busy or self.on_enqueue is None
+                or self.state.closed or not self.state.active):
+            return False
+        chosen=tuple(item.work_id for item in self.state.items
+                     if item.work_id in self.state.selected_ids)
+        if not chosen:
+            self.refresh()
+            return False
+        self._download_busy=True
+        self.refresh()
+        accepted=0;failed=0;interrupted=False
+        self.download_status.set_text(f"選択した {len(chosen)} 件を保存キューへ受け付けています")
+        try:
+            for wid in chosen:
+                if self.state.closed:
+                    interrupted=True
+                    break
+                operation=self._download_operations.setdefault(wid,uuid4().hex)
+                try:
+                    result=self.on_enqueue(wid,operation,
+                        is_current=lambda:not self.state.closed)
+                    job=await result if inspect.isawaitable(result) else result
+                except Exception:
+                    failed+=1
+                else:
+                    if job is None:
+                        interrupted=True
+                        break
+                    accepted+=1
+        finally:
+            self._download_busy=False
+            if not self.state.closed:
+                message=f"保存キュー受付 {accepted} 件"
+                if failed: message+=f"・受付できなかった作品 {failed} 件（選択は保持）"
+                if interrupted: message+="・受付が中断されました"
+                message+="。保存完了・失敗はキューで確認してください。"
+                self.download_status.set_text(message)
+                self.refresh()
+        return failed==0 and not interrupted
+
+    async def search_similar(self,work_id,session,menu=None):
+        if (self.state.closed or not self.state.active or self.state.loading
+                or self.on_similar is None or session is not self._session
+                or work_id not in self.cards
+                or not any(item.work_id==work_id for item in self.state.visible_items)):
+            return False
+        if menu is not None:menu.close()
+        result=self.on_similar(work_id)
+        if inspect.isawaitable(result):await result
+        return True
 
     def select(self, work_id: str, checked: bool, session=None) -> None:
         if self.state.closed or not self.state.active or (session is not None and session is not self._session):

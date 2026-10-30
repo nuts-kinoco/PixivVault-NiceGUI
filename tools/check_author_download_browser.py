@@ -132,10 +132,38 @@ def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True,
           lambda: expect(page.get_by_test_id('tab-download')).to_be_visible())
     capture('initial_shell')
     first_enqueue_started = None
+    def open_download_mode(mode):
+        # The product now owns two selectable modes in one download tab.
+        # Exercise the actual browser button, including from its default
+        # bookmark mode; DOM existence alone would not verify the transition.
+        view = page.get_by_test_id('managed-download-view')
+        assert mode in ('bookmark', 'author')
+        view.get_by_test_id('managed-download-mode-' + mode).click()
+        expect(view).to_have_attribute('data-target-mode', mode)
+        if mode == 'bookmark':
+            expect(view.get_by_test_id('managed-download-bookmark-panel')).to_be_visible()
+            expect(view.get_by_test_id('managed-download-author-panel')).to_be_hidden()
+        else:
+            expect(view.get_by_test_id('managed-download-bookmark-panel')).to_be_hidden()
+            expect(view.get_by_test_id('managed-download-author-panel')).to_be_visible()
+        return view
     if not restart:
         view = page.get_by_test_id('managed-download-view')
         timed('open_download_tab', lambda: page.get_by_test_id('tab-download').click(),
               lambda: expect(view).to_be_visible())
+        expect(view).to_have_attribute('data-target-mode', 'bookmark')
+        timed('explicit_bookmark_mode', lambda: open_download_mode('bookmark'),
+              lambda: (expect(view.get_by_test_id('managed-download-bookmark-select-all')).to_be_visible(),
+                       expect(view.get_by_test_id('managed-download-bookmark-clear')).to_be_visible()))
+        # An empty first-run cache is still a real selection/clear action and
+        # must not silently enqueue any job or hide the bookmark list.
+        bookmark_selection = view.get_by_test_id('managed-download-selection').inner_text()
+        view.get_by_test_id('managed-download-bookmark-select-all').click()
+        view.get_by_test_id('managed-download-bookmark-clear').click()
+        expect(view.get_by_test_id('managed-download-selection')).to_have_text('対象 0 件')
+        assert bookmark_selection == '対象 0 件'
+        timed('switch_to_follow_author_mode', lambda: open_download_mode('author'),
+              lambda: expect(view.get_by_test_id('managed-download-author-id')).to_be_visible())
         capture('download')
         author_id = view.get_by_test_id('managed-download-author-id')
         author_id.fill('bad')
@@ -161,9 +189,20 @@ def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True,
             other.goto(base, wait_until='domcontentloaded')
             other.get_by_test_id('tab-download').click()
             another = other.get_by_test_id('managed-download-view')
+            expect(another).to_have_attribute('data-target-mode', 'bookmark')
+            another.get_by_test_id('managed-download-mode-author').click()
+            expect(another).to_have_attribute('data-target-mode', 'author')
+            expect(another.get_by_test_id('managed-download-author-panel')).to_be_visible()
+            expect(another.get_by_test_id('managed-download-author-selection')).to_have_text('選択作者 0 件')
             expect(another.get_by_test_id('managed-download-selection')).to_have_text('対象 0 件')
         finally:
             other.close()
+        # Switching modes must not lose the accepted candidate, its author
+        # provenance, or the visible right-hand queue target.
+        timed('preserve_author_selection_across_modes',
+              lambda: (open_download_mode('bookmark'), open_download_mode('author')),
+              lambda: (expect(view.get_by_test_id('managed-download-author-selection')).to_have_text('選択作者 1 件'),
+                       expect(view.get_by_test_id('managed-download-selection')).to_have_text('対象 1 件')))
         # Verify the bottom queue action is reachable on short viewports.
         download_root = page.get_by_test_id('managed-download-view')
         download_scroll = download_root.evaluate("""el => ({clientHeight: el.clientHeight,
@@ -206,6 +245,8 @@ def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True,
         page.request.post(base + '/_managed_test/control?author_updated=true', headers=headers)
         page.get_by_test_id('tab-download').click()
         view = page.get_by_test_id('managed-download-view')
+        timed('revisit_follow_author_mode', lambda: open_download_mode('author'),
+              lambda: expect(view.get_by_test_id('managed-download-author-selection')).to_have_text('選択作者 1 件'))
         view.get_by_test_id('managed-download-author-fetch').click()
         expect(view.get_by_test_id('managed-download-author-status')).to_contain_text(
             '更新 1 件', timeout=25000)
@@ -215,6 +256,17 @@ def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True,
             '1件をキュー', timeout=20000)
         page.get_by_test_id('tab-queue').click()
         expect(queue.get_by_test_id('queue-filter-done')).to_contain_text('完了 2', timeout=30000)
+    else:
+        # Restart creates a new client selection scope. The durable queue and
+        # receipt are checked below; neither should be mistaken for a checkbox.
+        timed('restart_open_download_tab', lambda: page.get_by_test_id('tab-download').click(),
+              lambda: expect(page.get_by_test_id('managed-download-view')).to_be_visible())
+        view = page.get_by_test_id('managed-download-view')
+        expect(view).to_have_attribute('data-target-mode', 'bookmark')
+        timed('restart_mode_switch_roundtrip',
+              lambda: (open_download_mode('author'), open_download_mode('bookmark')),
+              lambda: (expect(view.get_by_test_id('managed-download-author-selection')).to_have_text('選択作者 0 件'),
+                       expect(view.get_by_test_id('managed-download-selection')).to_have_text('対象 0 件')))
     # Phase10 M4 UI: opening a tab must neither provision a side-ledger nor
     # read the fake remote account. Only the explicit button creates a local
     # metadata ledger. The ON setting persists on restart but starts no GET.
@@ -531,6 +583,286 @@ def inspect(page, base, headers, root, *, restart, scheduler_acceptance=True,
             'scheduler_settings_dispatch_receipt_history':
                 (scheduler_saved or restart) if scheduler_acceptance else False,
             'original_gets': status['original_gets'].get('321', 0)}
+
+
+def _scheduler_70_ledger(root):
+    """Read one consistent snapshot of the owned live scheduler ledger."""
+    from pixivvault_nicegui.fs_paths import sqlite_readonly_uri
+    from pixivvault_nicegui.managed_downloads import _safe_path
+
+    path = Path(root) / '.pixivvault-managed-scheduler.sqlite3'
+    _safe_path(path, file=True)
+    with closing(sqlite3.connect(sqlite_readonly_uri(path, immutable=False),
+                                 uri=True, timeout=1.0)) as db:
+        db.row_factory = sqlite3.Row
+        db.execute('PRAGMA query_only=ON')
+        db.execute('BEGIN')
+        schedule = dict(db.execute(
+            'SELECT interval_hours,startup_check,revision,last_status FROM schedule WHERE id=1'
+        ).fetchone())
+        authors = [row[0] for row in db.execute(
+            'SELECT author_id FROM favourite_authors ORDER BY length(author_id),author_id')]
+        history = [dict(row) for row in db.execute(
+            'SELECT slot,status,authors,accepted,deferred,error_code FROM dispatch_history '
+            'ORDER BY started_utc,slot')]
+        items = [dict(row) for row in db.execute(
+            'SELECT slot,work_id,author_id,operation_id,job_id,accepted_fingerprint,state '
+            'FROM dispatch_items ORDER BY length(author_id),author_id,work_id')]
+        deferred = [dict(row) for row in db.execute(
+            'SELECT author_id,work_id FROM deferred_work ORDER BY author_id,work_id')]
+        return dict(schedule=schedule, authors=authors, history=history,
+                    items=items, deferred=deferred)
+
+
+def _scheduler_70_storage_proof(root, pairs, *, observation=None):
+    """Hash/decode each distinct identity; counts alone are not a saved result."""
+    import hashlib
+    from io import BytesIO
+    from PIL import Image
+    from pixivvault_nicegui.fs_paths import native_io_path
+    from pixivvault_nicegui.managed_downloads import (
+        IDENTITY, MARKER, MAX_PAGE_BYTES, MAX_RECEIPT_BYTES,
+        _json_unique, _read_bounded, _safe_path,
+    )
+
+    root = Path(root).absolute()
+    assert len(pairs) == len({aid for aid, _ in pairs}) == len({wid for _, wid in pairs}) == 70
+    assert json.loads(_read_bounded(root / MARKER, 4096)) == IDENTITY
+    index_path = root / 'active-generations.json'
+    index_bytes = _read_bounded(index_path, 2 * 1024 * 1024)
+    index = json.loads(index_bytes, object_pairs_hook=_json_unique)
+    assert type(index['version']) is int and index['version'] in (2, 3)
+    assert index.get('exclusions', {}) == {} and index.get('quarantine_operations', {}) == {}
+    assert set(index['entries']) == {wid for _, wid in pairs}
+    rows, folders = [], set()
+    observation = {} if observation is None else observation
+    observation['rows'] = rows
+    for aid, wid in pairs:
+        observation['current_identity'] = dict(author_id=aid, work_id=wid)
+        entry = index['entries'][wid]
+        assert entry['work_id'] == wid
+        assert entry['update_date'] == '2026-10-23T10:00:00+09:00'
+        assert re.fullmatch(r'[a-f0-9]{64}', entry['accepted_fingerprint'])
+        relative = entry['relative_receipt']
+        assert re.fullmatch(r'generations/work-' + wid + r'-[a-f0-9]{32}/receipt\.json', relative)
+        receipt_path = root / relative
+        receipt_bytes = _read_bounded(receipt_path, MAX_RECEIPT_BYTES)
+        receipt_sha = hashlib.sha256(receipt_bytes).hexdigest()
+        assert receipt_sha == entry['sha256']
+        receipt = json.loads(receipt_bytes, object_pairs_hook=_json_unique)
+        assert receipt['version'] == 1 and receipt['source'] == 'pixiv-original'
+        assert (receipt['author_id'], receipt['work_id'], receipt['page_count']) == (aid, wid, 2)
+        assert receipt['illustration_type'] == 0 and len(receipt['files']) == 2
+        pages = []
+        for page_no, item in enumerate(receipt['files']):
+            filename = 'page-' + str(page_no + 1) + '.png'
+            assert item['name'] == filename and item['format'] == 'png'
+            assert (item['width'], item['height']) == (120, 84)
+            payload = _read_bounded(receipt_path.parent / filename, MAX_PAGE_BYTES)
+            actual_sha = hashlib.sha256(payload).hexdigest()
+            assert actual_sha == item['sha256'] and len(payload) == item['bytes']
+            expected_rgb = (int(wid) % 256, int(aid) % 256, 40 + page_no * 100)
+            source = BytesIO()
+            Image.new('RGB', (120, 84), expected_rgb).save(source, format='PNG')
+            assert payload == source.getvalue(), 'original bytes belong to another synthetic identity'
+            with Image.open(BytesIO(payload)) as decoded:
+                decoded.load()
+                assert decoded.format == 'PNG' and decoded.size == (120, 84)
+                pixel = decoded.convert('RGB').getpixel((60, 42))
+                assert pixel == expected_rgb
+            pages.append(dict(source_page_no=page_no, file=filename, bytes=len(payload),
+                              sha256=actual_sha, width=120, height=84, rgb=list(pixel)))
+        _safe_path(receipt_path.parent)
+        assert {path.name for path in native_io_path(receipt_path.parent).iterdir()} == {
+            'receipt.json', 'page-1.png', 'page-2.png'}
+        folders.add(receipt_path.parent.name)
+        rows.append(dict(author_id=aid, work_id=wid, relative_receipt=relative,
+                         receipt_sha256=receipt_sha, receipt_bytes=len(receipt_bytes),
+                         index_accepted_fingerprint=entry['accepted_fingerprint'], pages=pages))
+    _safe_path(root / 'generations')
+    assert {path.name for path in native_io_path(root / 'generations').iterdir()} == folders
+    assert _read_bounded(index_path, 2 * 1024 * 1024) == index_bytes, 'active index changed during proof'
+    assert len({page['sha256'] for row in rows for page in row['pages']}) == 140
+    observation.clear()
+    observation.update(index_version=index['version'], index_sha256=hashlib.sha256(index_bytes).hexdigest(),
+                       authors=70, works=70, pages=140, generations=70, rows=rows)
+    return observation
+
+
+def inspect_scheduler_70_authors(page, base, headers, root, *, restart,
+                                 evidence_dir, previous=None, result_record=None):
+    """T01 only. Caller owns browser/server/PID/port shutdown and source hashes."""
+    from playwright.sync_api import expect
+    from tools.check_managed_downloads_browser import SCHEDULER_70_PAIRS
+    from pixivvault_nicegui.fs_paths import native_io_path
+
+    root, evidence_dir = Path(root).absolute(), Path(evidence_dir).absolute()
+    assert evidence_dir.is_dir()
+    evidence_file = evidence_dir / 'scheduler-70-inspection.json'
+    assert not evidence_file.exists(), 'fresh evidence directory required'
+    pairs = tuple(SCHEDULER_70_PAIRS)
+    expected_map = dict(pairs)
+    expected_items = {(aid, wid) for aid, wid in pairs}
+    record = dict(success=False, synthetic_only=True, restart=bool(restart),
+                  scope='T01: 70 authors, one work each; functional evidence only',
+                  lifecycle_scope='normal owned process/child/port exit is the caller gate',
+                  phase='created', expected_pairs=[list(pair) for pair in pairs])
+    if result_record is not None:
+        result_record['scheduler_70'] = record
+
+    def save():
+        evidence_file.write_text(json.dumps(record, ensure_ascii=False, indent=2),
+                                 encoding='utf-8')
+
+    def phase(name):
+        record['phase'] = name
+        save()
+
+    def status():
+        response = page.request.get(base + '/_managed_test/status', headers=headers,
+                                    timeout=10000)
+        assert response.ok
+        value = response.json()
+        assert value['synthetic'] is True and value['scheduler_70_authors'] is True
+        assert value['scheduler_author_works'] == expected_map
+        assert value['all_requests_get'] and value['allowed_https_hosts_only']
+        assert value['image_requests_cookie_free']
+        return value
+
+    def wait_ledger(predicate, label, timeout=180):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                latest = _scheduler_70_ledger(root)
+            except sqlite3.OperationalError:
+                page.wait_for_timeout(200)
+                continue
+            record['last_ledger'] = latest
+            if predicate(latest):
+                return latest
+            page.wait_for_timeout(200)
+        raise AssertionError(label)
+
+    def complete(ledger):
+        rows = ledger['items']
+        return (len(rows) == 70 and not ledger['deferred']
+                and {(row['author_id'], row['work_id']) for row in rows} == expected_items
+                and all(row['state'] == 'saved' for row in rows))
+
+    save()
+    try:
+        record['before'] = status()
+        assert record['before']['request_count'] == 0, 'startup made implicit Pixiv GET'
+        if restart:
+            assert previous is not None and previous.get('success') is True
+            assert previous['expected_pairs'] == record['expected_pairs']
+        else:
+            assert not native_io_path(root / '.pixivvault-managed-scheduler.sqlite3').exists()
+            index = root / 'active-generations.json'
+            if native_io_path(index).exists():
+                assert json.loads(native_io_path(index).read_bytes())['entries'] == {}
+
+        page.goto(base, wait_until='domcontentloaded')
+        page.get_by_test_id('tab-scheduler').click()
+        expect(page.get_by_test_id('scheduler-status')).to_be_visible()
+        page.get_by_test_id('scheduler-open').click()
+        expect(page.get_by_test_id('scheduler-run')).to_be_enabled(timeout=20000)
+        opened = wait_ledger(lambda value: True, 'scheduler ledger did not open', timeout=20)
+        record['opened'] = opened
+        assert status()['request_count'] == 0, 'opening scheduler made implicit Pixiv GET'
+
+        if not restart:
+            phase('save-70-author-settings')
+            assert opened['authors'] == [] and opened['history'] == [] and opened['items'] == []
+            expect(page.get_by_test_id('scheduler-startup')).not_to_be_checked()
+            page.get_by_test_id('scheduler-authors').fill(','.join(expected_map))
+            page.get_by_test_id('scheduler-interval').click()
+            page.get_by_text('自動チェックしない', exact=True).click()
+            revision = opened['schedule']['revision']
+            page.get_by_test_id('scheduler-save').click()
+            configured = wait_ledger(
+                lambda value: (set(value['authors']) == set(expected_map)
+                               and value['schedule']['interval_hours'] == 0
+                               and value['schedule']['startup_check'] == 0
+                               and value['schedule']['revision'] == revision + 1),
+                '70-author settings did not commit', timeout=20)
+            record['configured'] = configured
+            expect(page.get_by_test_id('scheduler-run')).to_be_enabled()
+            assert status()['request_count'] == 0, 'settings save made implicit Pixiv GET'
+            phase('manual-70-author-dispatch')
+            page.get_by_test_id('scheduler-run').click()
+            admitted = wait_ledger(
+                lambda value: any(row['slot'].startswith('manual-') and row['status'] != 'running'
+                                  for row in value['history']),
+                'manual author dispatch did not finish')
+            manual = [row for row in admitted['history'] if row['slot'].startswith('manual-')]
+            assert len(manual) == 1
+            assert (manual[0]['authors'], manual[0]['accepted'], manual[0]['deferred']) == (70, 50, 20)
+            assert manual[0]['error_code'] is None
+            record['admission_50_20'] = manual[0]
+            record['ledger_at_admission_observation'] = admitted
+            expect(page.get_by_test_id('scheduler-action-notice')).to_contain_text('受付 50件、保留 20件')
+            page.screenshot(path=str(evidence_dir / 'scheduler-70-admission.png'))
+            phase('wait-70-verified-saves')
+        else:
+            phase('restart-observe-only')
+            assert set(opened['authors']) == set(expected_map)
+            assert opened['schedule']['interval_hours'] == 0 and opened['schedule']['startup_check'] == 0
+            expect(page.get_by_test_id('scheduler-authors')).to_have_value(','.join(sorted(expected_map)))
+            assert complete(opened), 'restart lost a previously saved scheduler identity'
+
+        final_ledger = wait_ledger(complete, '70 distinct author/work items did not reach saved')
+        assert len({row['job_id'] for row in final_ledger['items']}) == 70
+        assert len({row['operation_id'] for row in final_ledger['items']}) == 70
+        assert all(re.fullmatch(r'[a-f0-9]{32}', row['job_id'] or '')
+                   and re.fullmatch(r'[a-f0-9]{32}', row['operation_id'])
+                   and re.fullmatch(r'[a-f0-9]{64}', row['accepted_fingerprint'] or '')
+                   for row in final_ledger['items'])
+        record['final_ledger'] = final_ledger
+        phase('verify-every-receipt-and-image')
+        _scheduler_70_storage_proof(root, pairs, observation=record.setdefault('saved_manifest', {}))
+        # This dedicated fixture has only the static managed owner. Its
+        # scheduler acceptance fingerprint is the active CAS generation's
+        # fingerprint, unlike the separate combined-media admission journal.
+        active = {row['work_id']: row for row in record['saved_manifest']['rows']}
+        assert all(row['accepted_fingerprint'] == active[row['work_id']]['index_accepted_fingerprint']
+                   for row in final_ledger['items'])
+        if restart:
+            assert record['saved_manifest'] == previous['saved_manifest'], 'restart changed saved bytes/identities'
+            assert final_ledger['items'] == previous['final_ledger']['items'], 'restart duplicated/rebound accepted jobs'
+            assert final_ledger['history'] == previous['final_ledger']['history'], 'restart started another dispatch'
+        page.get_by_test_id('scheduler-refresh').click()
+        expect(page.get_by_test_id('scheduler-history')).to_contain_text('完了', timeout=20000)
+        record['visible_history'] = page.get_by_test_id('scheduler-history').inner_text()
+        record['visible_status'] = page.get_by_test_id('scheduler-status').inner_text()
+        record['after'] = status()
+        if restart:
+            assert record['after']['request_count'] == 0
+            assert record['after']['original_gets'] == {}
+            assert record['after']['scheduler_profile_gets'] == {}
+            assert record['after']['scheduler_metadata_gets'] == {}
+        else:
+            assert record['after']['original_gets'] == {wid: 2 for _, wid in pairs}
+            assert set(record['after']['scheduler_metadata_gets']) == {wid for _, wid in pairs}
+            assert all(record['after']['scheduler_metadata_gets'][wid] > 0 for _, wid in pairs)
+            assert all(record['after']['scheduler_profile_gets'].get(aid + ':all', 0) >= 1
+                       and record['after']['scheduler_profile_gets'].get(aid + ':illusts', 0) >= 1
+                       for aid, _ in pairs)
+        page.screenshot(path=str(evidence_dir / 'scheduler-70-complete.png'))
+        record['phase'] = 'complete'
+        record['success'] = True
+        return record
+    except BaseException as error:
+        record['error_type'] = type(error).__name__
+        record['failure_phase'] = record['phase']
+        import traceback
+        record['failure_location'] = [
+            {'file': Path(frame.filename).name, 'line': frame.lineno, 'function': frame.name}
+            for frame in traceback.extract_tb(error.__traceback__)[-8:]]
+        raise
+    finally:
+        save()
+
 
 
 def run(channel, output):

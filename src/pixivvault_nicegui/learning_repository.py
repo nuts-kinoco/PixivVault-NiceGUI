@@ -107,7 +107,7 @@ class LearningRepository:
                         opened=excluded.opened, bookmarked=excluded.bookmarked,
                         thumbnail_url=COALESCE(excluded.thumbnail_url, discovery_swipe_history.thumbnail_url)
                 """, (work_id, judgment.choice, datetime.now().isoformat(), source,
-                      reason, json.dumps(tags, ensure_ascii=False), author_id, 0, 0, None))
+                      reason, json.dumps(tags, ensure_ascii=False), author_id, 0, 0, metadata.get("thumbnail_url")))
                 targets = {author_id}
                 if prev and prev["author_id"]:
                     targets.add(prev["author_id"])
@@ -152,3 +152,64 @@ class LearningRepository:
                 self.db._prune_empty_preference_rows()
             self._stack.pop()
             self._used.add(operation_id)
+
+
+    def review_snapshot(self):
+        """One consistent history/revision/preference snapshot for the review UI."""
+        with self._lock, self.db._transaction():
+            rows = [dict(row) for row in self.db.conn.execute("""
+                SELECT h.*, w.title, w.work_meta, w.is_deleted, w.last_backup
+                FROM discovery_swipe_history h LEFT JOIN works w ON w.work_id=h.work_id
+                ORDER BY h.judged_at DESC
+            """)]
+            for row in rows:
+                row['revision'] = self._revision(row['work_id'])
+            tags = {}
+            for row in self.db.conn.execute('SELECT * FROM discovery_preference'):
+                tags[row['tag']] = {key: row[key] or 0 for key in self.db._PREF_COUNT_COLUMNS}
+                tags[row['tag']]['display_tag'] = row['display_tag'] or row['tag']
+            authors = {}
+            for row in self.db.conn.execute('SELECT * FROM discovery_author_preference'):
+                authors[row['author_id']] = {key: row[key] or 0 for key in self.db._AUTHOR_COUNT_COLUMNS}
+                authors[row['author_id']]['display_name'] = row['display_name']
+            return {'rows': rows, 'tags': tags, 'authors': authors}
+
+    def review_undo(self, work_id, expected_revision):
+        """Undo a selected saved judgment, not an arbitrary old stack entry."""
+        if type(expected_revision) is not int or expected_revision < 1:
+            raise LearningConflict('invalid review revision')
+        with self._lock, self.db._transaction():
+            if self._revision(work_id) != expected_revision:
+                raise LearningConflict('review judgment changed')
+            row = self.db.conn.execute('SELECT * FROM discovery_swipe_history WHERE work_id=?',
+                                       (work_id,)).fetchone()
+            if row is None: raise LearningConflict('review judgment missing')
+            saved = dict(row)
+            saved['_review_display_tags'] = {tag: (record[0] or tag) for tag in json.loads(row['tags'] or '[]')
+                if (record := self.db.conn.execute('SELECT display_tag FROM discovery_preference WHERE tag=?',(tag,)).fetchone())}
+            author = self.db.conn.execute('SELECT display_name FROM discovery_author_preference WHERE author_id=?',(row['author_id'],)).fetchone()
+            saved['_review_author_name'] = author[0] if author else None
+            self.db._apply_judgment(row['verdict'], row['reason'], json.loads(row['tags'] or '[]'),
+                                   row['author_id'], row['source'], bool(row['opened']), bool(row['bookmarked']), sign=-1)
+            self.db.conn.execute('DELETE FROM discovery_swipe_history WHERE work_id=?', (work_id,))
+            self.db._recompute_consecutive_skips(row['author_id'])
+            self.db._prune_empty_preference_rows()
+            revision = self._revision(work_id)
+        return saved, revision
+
+    def review_restore(self, saved, expected_revision):
+        """Restore only this review's still-current tombstone; reject ABA writes."""
+        work_id = saved['work_id']
+        with self._lock, self.db._transaction():
+            if (self._revision(work_id) != expected_revision or self.db.conn.execute(
+                    'SELECT 1 FROM discovery_swipe_history WHERE work_id=?', (work_id,)).fetchone()):
+                raise LearningConflict('review judgment changed after undo')
+            tags = json.loads(saved['tags'] or '[]')
+            self.db._apply_judgment(saved['verdict'], saved['reason'], tags, saved['author_id'], saved['source'],
+                                   bool(saved['opened']), bool(saved['bookmarked']), sign=1,
+                                   display_tags=saved.get('_review_display_tags'),display_name=saved.get('_review_author_name'))
+            columns = ('work_id','verdict','judged_at','source','reason','tags','author_id','opened','bookmarked','thumbnail_url')
+            restored = dict(saved, judged_at=datetime.now().isoformat())
+            self.db.conn.execute('INSERT INTO discovery_swipe_history ('+','.join(columns)+') VALUES ('+
+                                 ','.join('?' for _ in columns)+')', tuple(restored.get(key) for key in columns))
+            self.db._recompute_consecutive_skips(saved['author_id'])

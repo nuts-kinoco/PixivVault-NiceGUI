@@ -88,7 +88,10 @@ def run_checks(page: Page, url: str, successes: list[str]) -> None:
     ready(root)
     for label in CHOICES:
         button = root.get_by_role('button', name=label, exact=True)
-        expect(button.locator('.q-btn__content')).to_have_css('color', 'rgb(232, 232, 239)')
+        # The active blue "いいね" button intentionally uses white foreground
+        # (theme.py .pv-judgment-like); the outlined alternatives use text.
+        expected_color = 'rgb(255, 255, 255)' if label == 'いいね' else 'rgb(232, 232, 239)'
+        expect(button.locator('.q-btn__content')).to_have_css('color', expected_color)
     successes.append("学習タブ表示・画像decode・判定有効")
 
     for i, label in enumerate(CHOICES, start=1):
@@ -143,6 +146,14 @@ def run_checks(page: Page, url: str, successes: list[str]) -> None:
     ready(root)
     successes.append("通常ショートカット判定")
 
+    # D06 原期待: 真のブラウザーキー操作で Ctrl+Z が直前の判定を
+    # 戻す。サーバーのUndo関数直呼び・合成KeyboardEventではない。
+    root.focus()
+    page.keyboard.press("Control+z")
+    expect_progress(root, previous)
+    ready(root)
+    successes.append("Ctrl+Zで直前の判定をUndo・画像再読込")
+
     page.get_by_test_id("tab-ranking").click()
     expect(root).to_be_hidden()
     # inactiveな旧DOMでキーイベントを発火させてもサーバに届かない。
@@ -153,7 +164,7 @@ def run_checks(page: Page, url: str, successes: list[str]) -> None:
     press_synthetic(inactive, key="1")
     page.wait_for_timeout(350)
     page.get_by_test_id("tab-learning").click()
-    expect_progress(learning_root(page), previous + 1)
+    expect_progress(learning_root(page), previous)
     successes.append("非active時キー抑止")
 
 

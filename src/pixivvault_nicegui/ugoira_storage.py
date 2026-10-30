@@ -9,6 +9,7 @@ As with managed originals, the private root must be owned by the application,
 not concurrently modified by another filesystem writer.
 """
 from __future__ import annotations
+from .fs_paths import native_io_path
 
 from contextlib import contextmanager
 import ctypes
@@ -28,6 +29,7 @@ import zipfile
 from PIL import Image
 
 from .managed_downloads import _fsync_dir, _json_unique, _read_bounded, _safe_path, _write
+from .job_service import JobCancelled
 from .media_parity_policy import MAX_UGOIRA_FRAMES, UgoiraManifest, parse_ugoira_manifest
 from .ugoira_archive import (
     MAX_SINGLE_FRAME_BYTES, MAX_TOTAL_FRAME_BYTES, MAX_FRAME_PIXELS,
@@ -59,6 +61,9 @@ class UgoiraStorageError(ValueError):
 
     def __init__(self):
         super().__init__('ugoira frame storage failed')
+
+class UgoiraStorageIOError(UgoiraStorageError):
+    """Transient filesystem I/O prevented a trustworthy reconciliation."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -155,7 +160,7 @@ def _saved_result(token: str, inspection: InspectedUgoira, receipt: bytes) -> Sa
                             len(inspection.frames), inspection.total_uncompressed_bytes, inspection.duration_ms)
 
 
-def _receipt_inspection(payload: bytes) -> tuple[InspectedUgoira, bytes]:
+def _receipt_inspection(payload: bytes, checkpoint=lambda: None) -> tuple[InspectedUgoira, bytes]:
     """Revalidate persisted v1 metadata without trusting caller-built DTOs."""
     packet = json.loads(payload, object_pairs_hook=_json_unique)
     keys = {'version', 'kind', 'work_id', 'duration_ms', 'total_uncompressed_bytes', 'frames'}
@@ -177,6 +182,7 @@ def _receipt_inspection(payload: bytes) -> tuple[InspectedUgoira, bytes]:
     details = []
     total_bytes = total_pixels = 0
     for row in rows:
+        checkpoint()
         if (any(type(row[key]) is not int for key in ('width', 'height', 'bytes'))
                 or row['width'] <= 0 or row['height'] <= 0
                 or row['width'] * row['height'] > MAX_FRAME_PIXELS
@@ -245,7 +251,8 @@ def _metadata(inspection: InspectedUgoira) -> tuple[bytes, bytes]:
 
 
 def _verify_contents(folder: Path, inspection: InspectedUgoira, metadata: bytes, receipt: bytes,
-                     completion: bytes | None = None) -> None:
+                     completion: bytes | None = None, checkpoint=lambda: None) -> None:
+    checkpoint()
     _safe_path(folder)
     expected_names = {frame.filename for frame in inspection.frames} | {'ugoira_meta.json', 'receipt.json'}
     if completion is not None:
@@ -253,12 +260,14 @@ def _verify_contents(folder: Path, inspection: InspectedUgoira, metadata: bytes,
     seen = set()
     with os.scandir(folder) as children:
         for child in children:
+            checkpoint()
             if child.name not in expected_names or child.name in seen:
                 raise UgoiraStorageError()
             seen.add(child.name)
     if seen != expected_names:
         raise UgoiraStorageError()
     for frame in inspection.frames:
+        checkpoint()
         content = _read_bounded(folder / frame.filename, frame.bytes_count)
         if len(content) != frame.bytes_count or hashlib.sha256(content).hexdigest() != frame.sha256:
             raise UgoiraStorageError()
@@ -283,7 +292,7 @@ class UgoiraFrameStore:
             if not path.is_absolute() or path == path.parent or '..' in path.parts:
                 raise UgoiraStorageError()
             _safe_path(path)
-            self.root = path.resolve()
+            self.root = native_io_path(path.resolve())
             self.incomplete = self.root / 'incomplete'
             self.frames = self.root / 'frames'
             self._identities: dict[Path, tuple[int, int]] = {}
@@ -358,7 +367,19 @@ class UgoiraFrameStore:
                 or size + incoming_bytes > MAX_RETAINED_BYTES):
             raise UgoiraStorageError()
 
-    def reconcile(self, relative_receipt: str, *, expected_sha256: str | None = None) -> ReconciledUgoiraFrames:
+    @contextmanager
+    def _reconcile_lock(self, checkpoint):
+        # Busy OS ownership still fails closed. A reader waiting on this
+        # instance's lock checks cancellation without an unrelated mutex.
+        while not self._lock.acquire(timeout=0.05):
+            checkpoint()
+        try:
+            yield
+        finally:
+            self._lock.release()
+
+    def reconcile(self, relative_receipt: str, *, expected_sha256: str | None = None,
+                  checkpoint=None) -> ReconciledUgoiraFrames:
         """Read only: folder/receipt presence never establishes completion.
 
         Missing folders are 'missing'; a folder without completion.json is
@@ -370,8 +391,13 @@ class UgoiraFrameStore:
         snapshot taken during publication. No lock/proof is created or repaired.
         Corruption raises; no marker is rebuilt and no orphan is auto-adopted.
         """
+        check = (lambda: None) if checkpoint is None else checkpoint
+        if not callable(check):
+            raise UgoiraStorageError()
         try:
-            with self._lock:
+            check()
+            with self._reconcile_lock(check):
+                check()
                 if type(relative_receipt) is not str or len(relative_receipt) > 64:
                     raise UgoiraStorageError()
                 match = _RECEIPT_PATH.fullmatch(relative_receipt)
@@ -380,6 +406,7 @@ class UgoiraFrameStore:
                     raise UgoiraStorageError()
                 with _owner_lock(self.root, create=False):
                     for folder in (self.root, self.incomplete, self.frames):
+                        check()
                         identity = _directory_identity(folder)
                         if folder in self._identities and self._identities[folder] != identity:
                             raise UgoiraStorageError()
@@ -394,14 +421,16 @@ class UgoiraFrameStore:
                         completion = _read_bounded(folder / COMPLETION, MAX_COMPLETION_BYTES)
                     except FileNotFoundError:
                         return ReconciledUgoiraFrames('uncommitted')
+                    check()
                     receipt = _read_bounded(folder / 'receipt.json', MAX_RECEIPT_BYTES)
                     digest = hashlib.sha256(receipt).hexdigest()
                     if ((expected_sha256 is not None and digest != expected_sha256)
                             or completion != _completion_bytes(token, digest)):
                         raise UgoiraStorageError()
-                    inspection, metadata = _receipt_inspection(receipt)
-                    _verify_contents(folder, inspection, metadata, receipt, completion)
+                    inspection, metadata = _receipt_inspection(receipt, check)
+                    _verify_contents(folder, inspection, metadata, receipt, completion, check)
                     for frame in inspection.frames:
+                        check()
                         content = _read_bounded(folder / frame.filename, frame.bytes_count)
                         expected_format = SUPPORTED_TYPES['.' + frame.filename.rsplit('.', 1)[-1]]
                         with Image.open(BytesIO(content), formats=(expected_format,)) as image:
@@ -409,14 +438,29 @@ class UgoiraFrameStore:
                                     or getattr(image, 'n_frames', 1) != 1):
                                 raise UgoiraStorageError()
                             image.load()
+                        check()
                     self._check_root()
                     return ReconciledUgoiraFrames('complete', _saved_result(token, inspection, receipt))
+        except JobCancelled:
+            raise
+        except FileNotFoundError:
+            # A missing file after the completion marker is an integrity failure,
+            # not a transient read error. Missing completion itself is handled above.
+            raise UgoiraStorageError() from None
+        except OSError:
+            raise UgoiraStorageIOError() from None
         except Exception:
             raise UgoiraStorageError() from None
 
-    def save(self, raw_zip: bytes, manifest: UgoiraManifest) -> SavedUgoiraFrames:
+    def save(self, raw_zip: bytes, manifest: UgoiraManifest, *, generation_token: str | None = None,
+             checkpoint=None) -> SavedUgoiraFrames:
         # All raw frames must validate before storage preparation or reservation.
+        check = (lambda: None) if checkpoint is None else checkpoint
+        if not callable(check):
+            raise UgoiraStorageError()
+        check()
         inspection = inspect_ugoira_archive(raw_zip, manifest)
+        check()
         try:
             with self._lock:
                 if self._identities:
@@ -424,7 +468,7 @@ class UgoiraFrameStore:
                 self._prepare_root()
                 with _owner_lock(self.root):
                     self._check_root()
-                    token = uuid4().hex
+                    token = uuid4().hex if generation_token is None else generation_token
                     if type(token) is not str or _TOKEN.fullmatch(token) is None:
                         raise UgoiraStorageError()
                     metadata, receipt = _metadata(inspection)
@@ -434,11 +478,18 @@ class UgoiraFrameStore:
                         raise UgoiraStorageError()
                     self._reserve_budget(len(inspection.frames) + 3,
                                          inspection.total_uncompressed_bytes + len(metadata) + len(receipt) + len(completion))
-                    stage, target = self.incomplete / token, self.frames / token
+                    # Retried jobs use a stable final candidate but retain each
+                    # failed stage separately; old stages are never overwritten.
+                    stage_token = token if generation_token is None else uuid4().hex
+                    if type(stage_token) is not str or _TOKEN.fullmatch(stage_token) is None:
+                        raise UgoiraStorageError()
+                    stage, target = self.incomplete / stage_token, self.frames / token
+                    check()
                     stage.mkdir(mode=0o700)
                     stage_identity = _directory_identity(stage)
                     with zipfile.ZipFile(BytesIO(raw_zip), 'r', allowZip64=True) as archive:
                         for frame in inspection.frames:
+                            check()
                             self._check_root()
                             if _directory_identity(stage) != stage_identity:
                                 raise UgoiraStorageError()
@@ -447,6 +498,7 @@ class UgoiraFrameStore:
                             if (len(content) != frame.bytes_count
                                     or hashlib.sha256(content).hexdigest() != frame.sha256):
                                 raise UgoiraStorageError()
+                            check()
                             _write(stage / frame.filename, content)
                     self._check_root()
                     if _directory_identity(stage) != stage_identity:
@@ -458,6 +510,7 @@ class UgoiraFrameStore:
                     self._check_root()
                     if _directory_identity(stage) != stage_identity:
                         raise UgoiraStorageError()
+                    check()
                     _publish_directory(stage, target)
                     _fsync_dir(self.frames)
                     _fsync_dir(self.incomplete)
@@ -468,6 +521,7 @@ class UgoiraFrameStore:
                     # This proof is created only after the complete published
                     # generation was checked. A failed/partial proof is never
                     # sufficient for reconcile(), even if the folder exists.
+                    check()
                     _write(target / COMPLETION, completion)
                     _fsync_dir(target)
                     _fsync_dir(self.frames)
@@ -475,6 +529,8 @@ class UgoiraFrameStore:
                         raise UgoiraStorageError()
                     self._check_root()
                     return _saved_result(token, inspection, receipt)
+        except JobCancelled:
+            raise
         except Exception:
             # No deletion or rollback. A caller-visible failure may be either
             # uncommitted or committed-but-unacknowledged; only reconcile() can

@@ -86,7 +86,7 @@ class BookmarkState:
     def matched_items(self) -> tuple[BookmarkCard, ...]:
         needle = self.query.lower()
         return tuple(card for card in self.items
-                     if self.filters.matches(card.artwork.tags)
+                     if self.filters.matches_artwork(card.artwork, downloaded=card.downloaded)
                      and (not needle or needle in " ".join((
                          card.work_id, card.artwork.title, card.artwork.author,
                          *card.artwork.tags)).lower()))

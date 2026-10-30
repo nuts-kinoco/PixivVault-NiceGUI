@@ -195,6 +195,7 @@ def test_receipt_bool_version_and_deep_json_rejected(tmp_path):
 
 def test_reparse_flag_and_hardlink_rejected_without_symlink_privileges(tmp_path, monkeypatch):
     import pixivvault_nicegui.managed_downloads as module
+    from pixivvault_nicegui.fs_paths import logical_path
     runner, _ = create(tmp_path)
     marker = runner.root / module.MARKER
     original_lstat = Path.lstat
@@ -215,7 +216,7 @@ def test_reparse_flag_and_hardlink_rejected_without_symlink_privileges(tmp_path,
 
     def flagged(path):
         info = original_lstat(path)
-        if path == marker:
+        if logical_path(path) == marker:
             return StatProxy(info, st_file_attributes=0x400)
         return info
 
@@ -226,7 +227,7 @@ def test_reparse_flag_and_hardlink_rejected_without_symlink_privileges(tmp_path,
 
     def linked(path):
         info = original_lstat(path)
-        return StatProxy(info, st_nlink=2) if path == marker else info
+        return StatProxy(info, st_nlink=2) if logical_path(path) == marker else info
 
     monkeypatch.setattr(Path, 'lstat', linked)
     with pytest.raises(ManagedDownloadError, match='managed file rejected'):

@@ -69,3 +69,55 @@ def place_owned_client(root: int, birth: int, hwnd: int, origin, expected_identi
     ensure_physical_dpi()
     window = Win32Window(root, birth, hwnd)
     return position_client(window, tuple(origin), expected_identity=expected_identity)
+
+
+def resize_owned_client(root: int, birth: int, hwnd: int, dimensions,
+                        expected_identity) -> dict:
+    """Adjust only the pinned test HWND's physical client size, same monitor/DPI.
+
+    This is explicit test setup for a fully visible smaller capture viewport
+    when another desktop overlay obscures a large 4K/DPI175% client. It does
+    not dismiss, move, hide or resize any other process/window.
+    """
+    ensure_physical_dpi()
+    window = Win32Window(root, birth, hwnd)
+    window.verify_top()
+    if window.top_identity != expected_identity:
+        raise RuntimeError('resize owner mismatch')
+    if (len(dimensions) != 2 or any(type(value) is not int or value < 400
+                                   for value in dimensions)):
+        raise ValueError('client dimensions require two positive physical pixels')
+    user, top = window.user, window.top
+    if user.IsIconic(top) or not user.IsWindowVisible(top):
+        raise RuntimeError('resize requires a visible normal test window')
+    before_size = window.client(top)
+    before_origin = window.origin(top)
+    before_dpi = int(user.GetDpiForWindow(top))
+    user.GetWindowRect.argtypes = [w.HWND, ctypes.POINTER(w.RECT)]
+    user.GetWindowRect.restype = w.BOOL
+    user.MonitorFromWindow.argtypes = [w.HWND, w.DWORD]
+    user.MonitorFromWindow.restype = w.HANDLE
+    outer = w.RECT()
+    if not user.GetWindowRect(top, ctypes.byref(outer)):
+        raise RuntimeError('resize outer geometry unavailable')
+    old_monitor = user.MonitorFromWindow(top, 2)
+    outer_width = outer.right - outer.left + dimensions[0] - before_size[0]
+    outer_height = outer.bottom - outer.top + dimensions[1] - before_size[1]
+    if outer_width < 400 or outer_height < 400:
+        raise RuntimeError('resize outer geometry invalid')
+    window.verify_top()
+    # SWP_NOZORDER | SWP_NOACTIVATE, with the original outer top-left pinned.
+    if not user.SetWindowPos(top, 0, outer.left, outer.top,
+                             outer_width, outer_height, 0x0014):
+        raise RuntimeError('owned resize failed')
+    window.verify_top()
+    after_size = window.client(top)
+    after_origin = window.origin(top)
+    after_dpi = int(user.GetDpiForWindow(top))
+    if (after_size != tuple(dimensions) or after_dpi != before_dpi or
+            user.MonitorFromWindow(top, 2) != old_monitor):
+        raise RuntimeError('resize changed size, DPI or monitor unexpectedly')
+    return {'explicit_setup': True, 'before_client_size': list(before_size),
+            'client_size': list(after_size), 'before_origin': list(before_origin),
+            'client_origin': list(after_origin), 'dpi': after_dpi,
+            'same_monitor': True, 'resized': True, 'set_window_pos_flags': 0x0014}

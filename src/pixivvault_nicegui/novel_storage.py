@@ -3,6 +3,7 @@ Uses the existing NovelDocument and deterministic TXT/EPUB exporters. Receipt,
 namespace, and quotas below are proposals, not accepted application policy.
 """
 from __future__ import annotations
+from .fs_paths import native_io_path
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 import hashlib, json, os, re, stat
@@ -54,6 +55,7 @@ class SavedNovel:
     work_id: str = field(repr=False)
     output_format: str
     output_names: tuple[str, ...]
+    metadata: dict | None = field(default=None, repr=False)
 
 
 class NovelStorageIOError(NovelStorageError):
@@ -151,6 +153,7 @@ class NovelExportStore:
         if not self.root.is_absolute() or self.root.parent == self.root:
             raise NovelStorageError()
         _safe(self.root)
+        self.root = native_io_path(self.root)
         self._thread_lock = Lock()
         try:
             if not self.root.exists():
@@ -271,19 +274,10 @@ class NovelExportStore:
                             or re.fullmatch(r"novel-[1-9][0-9]{0,19}-[a-f0-9]{32}", folder.name) is None):
                         raise NovelStorageError()
                     generations += 1
-                    with os.scandir(folder) as children:
-                        for child in children:
-                            path = Path(child.path)
-                            allowed = {"novel.txt", "novel.epub", "receipt.json", "completion.json"}
-                            if (child.name not in allowed or child.is_symlink()
-                                    or child.is_dir(follow_symlinks=False)):
-                                raise NovelStorageError()
-                            _safe(path, file=True)
-                            info = Path(child.path).lstat()
-                            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
-                                raise NovelStorageError()
-                            files += 1
-                            size += info.st_size
+                    from .novel_bundle_storage import inventory
+                    contents = inventory(folder)
+                    files += len(contents)
+                    size += sum(contents.values())
         return generations, files, size
 
     @staticmethod
@@ -305,8 +299,14 @@ class NovelExportStore:
             raise NovelStorageError()
         return result
 
-    def save(self, document: NovelDocument, *, author_name: str, output_format="TXT"):
-        payloads = self._payloads(document, author_name, output_format)
+    def save(self, document: NovelDocument, *, author_name: str, output_format="TXT",
+             before_publish=None, bundle=None, metadata=None):
+        if bundle is None:
+            payloads = self._payloads(document, author_name, output_format)
+        else:
+            from .novel_bundle_storage import validate_bundle
+            validate_bundle(bundle, output_format, metadata)
+            payloads = dict(bundle)
         work_id, author_id = document.work_id, document.author_id
         if (type(work_id) is not str or _ID.fullmatch(work_id) is None
                 or type(author_id) is not str or _ID.fullmatch(author_id) is None):
@@ -316,8 +316,11 @@ class NovelExportStore:
         final = self.root / "outputs" / generation
         rows = [{"name": name, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
                 for name, data in sorted(payloads.items())]
-        receipt = _json_bytes({"schema": 1, "kind": "novel-export", "work_id": work_id,
-                               "author_id": author_id, "format": output_format, "outputs": rows})
+        receipt_object = {"schema": 1 if bundle is None else 2, "kind": "novel-export", "work_id": work_id,
+                          "author_id": author_id, "format": output_format, "outputs": rows}
+        if bundle is not None:
+            receipt_object["metadata"] = metadata
+        receipt = _json_bytes(receipt_object)
         completion = _json_bytes({"schema": 1, "generation": generation,
                                   "receipt_sha256": hashlib.sha256(receipt).hexdigest()})
         if len(receipt) > _MAX_RECEIPT or len(completion) > _MAX_COMPLETION:
@@ -331,12 +334,24 @@ class NovelExportStore:
                 raise NovelStorageError()
             stage.mkdir()
             try:
+                if any(name.startswith("images/") for name in payloads):
+                    (stage / "images").mkdir()
                 for name, data in payloads.items():
                     _write_new(stage / name, data)
                 _write_new(stage / _RECEIPT, receipt)
                 _write_new(stage / _COMPLETION, completion)
+                if (stage / "images").exists():
+                    _fsync_dir(stage / "images")
                 _fsync_dir(stage)
                 self._verify(stage, generation, receipt, completion)
+                # Journal the exact immutable receipt before rename. A crash
+                # after publication can then be resolved without scanning or
+                # guessing which generation belongs to the accepted job.
+                if before_publish is not None:
+                    before_publish(SavedNovel(
+                        f"outputs/{generation}/{_RECEIPT}",
+                        hashlib.sha256(receipt).hexdigest(), work_id,
+                        output_format, tuple(sorted(payloads)), metadata))
                 if final.exists():
                     raise NovelStorageError()
                 os.rename(stage, final)
@@ -361,13 +376,16 @@ class NovelExportStore:
                 raise NovelStorageError() from None
         rel = f"outputs/{generation}/{_RECEIPT}"
         return SavedNovel(rel, hashlib.sha256(receipt).hexdigest(), work_id,
-                          output_format, tuple(sorted(payloads)))
+                          output_format, tuple(sorted(payloads)), metadata)
 
     @staticmethod
     def _verify(folder, generation, receipt, completion):
         try:
             _safe(folder)
             obj = json.loads(receipt)
+            if type(obj) is dict and obj.get("schema") == 2:
+                from .novel_bundle_storage import verify
+                return verify(folder, generation, receipt, completion)
             if (type(obj) is not dict
                     or set(obj) != {"schema", "kind", "work_id", "author_id", "format", "outputs"}
                     or type(obj["schema"]) is not int or obj["schema"] != 1
@@ -437,7 +455,7 @@ class NovelExportStore:
                 completion = _read_bounded(folder / _COMPLETION, _MAX_COMPLETION)
                 obj = self._verify(folder, generation, receipt, completion)
                 saved = SavedNovel(relative_receipt, digest, obj["work_id"],
-                                   obj["format"], tuple(sorted(r["name"] for r in obj["outputs"])))
+                                   obj["format"], tuple(sorted(r["name"] for r in obj["outputs"])), obj.get("metadata"))
                 return ReconciledNovel("complete", saved)
             except NovelStorageIOError:
                 raise

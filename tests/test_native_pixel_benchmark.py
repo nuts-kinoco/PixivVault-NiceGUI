@@ -87,6 +87,40 @@ def test_window_identity_changes_are_rejected(monkeypatch, current_pid, birth):
         window.verify()
 
 
+def test_transient_descendant_exit_during_adoption_is_ignored(monkeypatch):
+    window = benchmark.OwnedWindow.__new__(benchmark.OwnedWindow)
+    window.kernel = object()
+    window.root, window.root_birth = 10, 100
+    window.window_pids = {1000: 11, 1001: 11}
+    window.identities = {11: 110}
+    snapshots = iter([{10: 1, 11: 10, 12: 10}, {10: 1, 11: 10}])
+    monkeypatch.setattr(benchmark, "process_parents", lambda: next(snapshots))
+    monkeypatch.setattr(benchmark, "process_birth",
+                        lambda kernel, pid: {10: 100, 11: 110}.get(pid))
+    window._adopt_descendants()
+    assert window.identities == {10: 100, 11: 110}
+
+
+@pytest.mark.parametrize("vanished_pid,second_snapshot", [
+    (11, {10: 1, 12: 10}),  # Window owner must not disappear during pinning.
+    (12, {10: 1, 11: 10, 12: 10}),  # Live but inaccessible process is unsafe.
+    (10, {11: 10, 12: 10}),  # Never ignore the root process.
+])
+def test_descendant_adoption_rejects_missing_pinned_or_live_process(
+        monkeypatch, vanished_pid, second_snapshot):
+    window = benchmark.OwnedWindow.__new__(benchmark.OwnedWindow)
+    window.kernel = object()
+    window.root, window.root_birth = 10, 100
+    window.window_pids = {1000: 11, 1001: 11}
+    window.identities = {11: 110}
+    snapshots = iter([{10: 1, 11: 10, 12: 10}, second_snapshot])
+    monkeypatch.setattr(benchmark, "process_parents", lambda: next(snapshots))
+    monkeypatch.setattr(benchmark, "process_birth",
+                        lambda kernel, pid: None if pid == vanished_pid else {10: 100, 11: 110, 12: 120}[pid])
+    with pytest.raises(RuntimeError, match="descendant PID birth unavailable"):
+        window._adopt_descendants()
+
+
 def test_failed_series_has_no_success_percentiles(monkeypatch):
     monkeypatch.setattr(benchmark, "transition_observed", lambda *args: True)
     monkeypatch.setattr(benchmark, "capture_overhead", lambda *args: [10.0])

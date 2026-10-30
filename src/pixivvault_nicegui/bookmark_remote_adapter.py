@@ -63,6 +63,7 @@ class RemoteBookmark:
     illustration_type: int | None
     x_restrict: int
     page_count_known: bool = True
+    viewed: bool | None = None
 
     @property
     def work_id(self) -> str:
@@ -73,7 +74,8 @@ class RemoteBookmark:
         # Lossy rendering projection only. Thumbnail, raw ID, visibility,
         # novel kind and access restrictions remain in RemoteBookmark.
         return Artwork(self.work_id, self.title, self.author_name,
-                       page_count=self.page_count, tags=self.tags)
+                       page_count=self.page_count, tags=self.tags, author_id=self.author_id,
+                       create_date=self.created_at, x_restrict=self.x_restrict, viewed=self.viewed)
 
     @property
     def legacy_identity(self) -> tuple[str, bool]:

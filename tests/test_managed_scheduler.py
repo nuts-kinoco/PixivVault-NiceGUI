@@ -751,8 +751,8 @@ def test_job_receipt_reconciliation_and_notification_are_idempotent(tmp_path):
                                operation_to_job, operation_to_fingerprint)
         assert service.pending_notifications() == ()  # done without receipt is not success
         assert service.history()[0]['status'] == 'unknown'
-        service.reconcile_jobs((job,), {'123': accepted_fingerprint},
-                               operation_to_job, operation_to_fingerprint)
+        assert service.reconcile_jobs((job,), {'123': accepted_fingerprint},
+                                      operation_to_job, operation_to_fingerprint) == ('123',)
         assert service.pending_notifications() == ('123',)
         assert service.history()[0]['status'] == 'saved'
         # Without a browser tab claiming the toast, unattended reconciliation
@@ -761,8 +761,8 @@ def test_job_receipt_reconciliation_and_notification_are_idempotent(tmp_path):
         # A later active generation may replace this receipt before the toast
         # is claimed. The earlier exact-fingerprint success remains historical
         # truth and must retain its pending one-time notification.
-        service.reconcile_jobs((job,), {'123': 'c' * 64},
-                               operation_to_job, operation_to_fingerprint)
+        assert service.reconcile_jobs((job,), {'123': 'c' * 64},
+                                      operation_to_job, operation_to_fingerprint) == ()
         assert service.pending_notifications() == ('123',)
         assert service.history()[0]['status'] == 'saved'
         assert service.claim_pending_notifications() == ('123',)

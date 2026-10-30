@@ -8,7 +8,7 @@ from PIL import Image
 import pytest
 
 from pixivvault_nicegui.services import ApplicationServices
-from pixivvault_nicegui.bootstrap import parse_args
+from pixivvault_nicegui.bootstrap import main, parse_args
 
 
 def test_explicit_readonly_library_services_and_demo_isolation(tmp_path):
@@ -42,13 +42,31 @@ def test_explicit_readonly_library_services_and_demo_isolation(tmp_path):
         services.library_repository.library_snapshot()
 
 
-def test_explicit_pair_required_and_check_does_not_open_files(tmp_path):
+def test_explicit_pair_required_and_check_does_not_open_files(tmp_path, monkeypatch):
     db = tmp_path / "does-not-exist.sqlite"
     with pytest.raises(SystemExit):
         parse_args(["--library-readonly-db", str(db)])
-    config = parse_args(["--check", "--library-readonly-db", str(db),
-                         "--library-image-root", str(tmp_path)])
-    assert config.check_only and config.library_readonly_db == db
+    arguments = ["--check", "--library-readonly-db", str(db),
+                 "--library-image-root", str(tmp_path)]
+    # Preflight now requires an actual standalone frozen source; it must not
+    # create a missing file or relax the source guard merely for --check.
+    with pytest.raises(SystemExit):
+        parse_args(arguments)
     assert not db.exists()
     with pytest.raises(ValueError, match="both explicit"):
         ApplicationServices(library_readonly_db=db)
+    connection = sqlite3.connect(db)
+    try:
+        connection.execute('CREATE TABLE synthetic_fixture(value TEXT)')
+        connection.commit()
+    finally:
+        connection.close()
+    before = db.read_bytes(), db.stat().st_mtime_ns
+    def reject_sqlite_open(*_args, **_kwargs):
+        pytest.fail('--check must not open a SQLite connection')
+    monkeypatch.setattr(sqlite3, 'connect', reject_sqlite_open)
+    config = parse_args(arguments)
+    assert config.check_only and config.library_readonly_db == db
+    assert main(arguments) == 0
+    assert (db.read_bytes(), db.stat().st_mtime_ns) == before
+    assert not list(tmp_path.glob(db.name + '-*'))

@@ -16,13 +16,20 @@ import stat
 from PIL import Image
 from datetime import datetime
 APPLICATION_ID = 0x50564A31
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 MARKER = ".pixivvault-managed-pixiv-downloads.json"
 IDENTITY = {"application": "pixivvault-nicegui", "purpose": "managed-pixiv-originals", "version": 1}
 FOLDER = re.compile(r"work-([1-9][0-9]{0,19})-[a-f0-9]{32}\Z")
 SHA = re.compile(r"[a-f0-9]{64}\Z")
 EXT = {"png": "png", "jpeg": "jpg", "webp": "webp"}
+
+
+
+if __package__:
+    from .job_store_schema import _job_schema,_job_payload,_job_bindings
+else:
+    from job_store_schema import _job_schema,_job_payload,_job_bindings
 
 
 def _safe(path: Path) -> None:
@@ -175,26 +182,14 @@ def verify_storage(root: Path) -> dict:
     try:
         if connection.execute("PRAGMA quick_check").fetchone()[0] != "ok":
             raise ValueError("managed job database invalid")
-        if (connection.execute("PRAGMA application_id").fetchone()[0] != APPLICATION_ID
-                or connection.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION):
-            raise ValueError("managed database identity mismatch")
-        tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-        if tables != {"jobs", "operations"}:
-            raise ValueError("managed database schema mismatch")
+        schema_version=_job_schema(connection)
+        live_jobs={}
         jobs = 0
         done_results = set()
         durable_ids = set()
         for job_id, payload in connection.execute("SELECT job_id,payload FROM jobs ORDER BY ordinal"):
-            if len(payload) > 8192:
-                raise ValueError("invalid job payload")
-            job = json.loads(payload, object_pairs_hook=_unique)
-            if (type(job) is not dict or job.get("job_id") != job_id
-                    or not re.fullmatch(r"[a-f0-9]{32}", job_id)
-                    or type(job.get("attempt")) is not int or job["attempt"] < 1
-                    or job.get("state") not in {"queued", "running", "paused", "stopping", "stopped", "done", "error"}
-                    or type(job.get("done")) is not int or type(job.get("total")) is not int
-                    or not 0 <= job["done"] <= job["total"]):
-                raise ValueError("invalid job state")
+            job=_job_payload(payload,job_id)
+            live_jobs[job_id]=job
             # This checker creates one fresh, successful job. It does not
             # certify arbitrary existing stores with unrelated failed work.
             if job.get("state") != "done" or job["attempt"] != 1:
@@ -213,8 +208,7 @@ def verify_storage(root: Path) -> dict:
         if done_results != receipt_paths:
             raise ValueError("saved receipts and jobs disagree")
         accepted_ids = set()
-        for operation, job_id, fingerprint in connection.execute(
-                "SELECT operation_id,job_id,fingerprint FROM operations ORDER BY operation_id"):
+        for operation, job_id, fingerprint in _job_bindings(connection,live_jobs):
             if job_id not in durable_ids or type(operation) is not str or not 0 < len(operation) <= 128:
                 raise ValueError("managed operation ledger mismatch")
             accepted_ids.add(job_id)
@@ -223,12 +217,23 @@ def verify_storage(root: Path) -> dict:
             path = root / "requests" / (hashlib.sha256(operation.encode("utf-8")).hexdigest() + ".json")
             intent = _read(path, 128 * 1024)
             spec = json.loads(intent, object_pairs_hook=_unique)
-            request_fingerprint = json.loads(fingerprint)
+            request_fingerprint = json.loads(fingerprint,object_pairs_hook=_unique)
+            if request_fingerprint!=[live_jobs[job_id][k] for k in ("kind","target_id","title")]:
+                raise ValueError("managed job fingerprint mismatch")
             if (type(spec) is not dict or request_fingerprint !=
                     ["pixiv-illust", spec.get("remote_id"), spec.get("title")]):
                 raise ValueError("managed accepted input mismatch")
             signature.append(hashlib.sha256(intent).digest())
             signature.append(hashlib.sha256(json.dumps([operation, job_id, fingerprint]).encode()).digest())
+        if schema_version==2:
+            history_ids=set()
+            for job_id,payload in connection.execute('SELECT job_id,payload FROM job_history ORDER BY job_id'):
+                history=_job_payload(payload,job_id)
+                if (job_id not in accepted_ids or history['state'] not in ('done','error','stopped')
+                    or history['paused_from'] is not None or history!=live_jobs.get(job_id)):
+                    raise ValueError('managed terminal history mismatch')
+                history_ids.add(job_id);signature.append(hashlib.sha256(payload.encode('utf-8')).digest())
+            if history_ids!=accepted_ids:raise ValueError('managed terminal history missing')
         if accepted_ids != durable_ids or jobs != 1 or receipt_count != 1:
             raise ValueError("managed acceptance expected one durable saved artwork")
     finally:
@@ -247,6 +252,26 @@ def inspect_managed(page, guard, root: Path, *, restart: bool, before: dict) -> 
         result["passed"] = False
         result["synthetic_return"] = False
         result["error_class"] = type(exc).__name__
+        if result.get("phase") == "synthetic_return":
+            try:
+                result["return_checks"] = guard.run(page.evaluate, """() => {
+                    const visible = e => !!e && !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
+                    const item = id => document.querySelector('[data-testid="'+id+'"]');
+                    const tab = item('tab-learning');
+                    const learning = document.querySelector('.pv-learning[data-active="true"]');
+                    return {
+                        learning_tab_active: tab?.getAttribute('aria-current')==='page',
+                        learning_focused: document.activeElement===learning,
+                        learning_synthetic: visible(learning) &&
+                            learning.dataset.storageMode==='memory' &&
+                            /^demo-[0-9]{4}$/.test(learning.dataset.workId||''),
+                        library_hidden: !visible(item('library-view')),
+                        download_hidden: !visible(item('managed-download-view')),
+                        viewer_hidden: !visible(item('library-viewer'))
+                    };
+                }""", with_timeout=False)
+            except Exception:
+                result["return_checks"] = {"diagnostic_unavailable": True}
         return result
 
 
@@ -254,6 +279,7 @@ def _inspect_managed(page, guard, root: Path, *, restart: bool, before: dict, re
     from playwright.sync_api import expect
     run = guard.run
     if restart:
+        selected_pages = before["pages"]
         run(page.get_by_test_id("tab-queue").click)
         run(expect(page.get_by_test_id("queue-view").get_by_test_id("queue-filter-done")).to_have_text,
             re.compile(r"完了 [1-9][0-9]*"))
@@ -329,7 +355,7 @@ def _inspect_managed(page, guard, root: Path, *, restart: bool, before: dict, re
         rf"/media/{re.escape(selected_id)}/0/view\.png\?catalog="))
     decoded = guard.decode(image)
     result["viewer_decoded"] = decoded["naturalWidth"] > 0
-    if not restart and selected_pages > 1:
+    if selected_pages > 1:
         run(page.keyboard.press, "ArrowRight", with_timeout=False)
         run(expect(viewer.locator(".pv-counter")).to_have_text, f"2/{selected_pages}")
         run(expect(image).to_have_attribute, "src", re.compile(rf"/media/{re.escape(selected_id)}/1/view\.png\?catalog="))
@@ -343,42 +369,58 @@ def _inspect_managed(page, guard, root: Path, *, restart: bool, before: dict, re
     run(expect(card).to_be_focused)
     result["focus_restored"] = True
     result["phase"] = "synthetic_return"
-    run(page.get_by_test_id("tab-ranking").click)
-    run(expect(page.get_by_test_id("tab-ranking")).to_be_focused)
+    # Live-cookie mode uses real ranking data. Its empty or fetched ranking
+    # must not be mistaken for the synthetic 50-card demo. This CLI does not
+    # configure discovery or learning storage, so the memory learning surface
+    # is the explicit synthetic destination.
+    run(page.get_by_test_id("tab-learning").click)
+    learning = page.locator('.pv-learning[data-active="true"]')
+    run(expect(page.get_by_test_id("tab-learning")).to_have_attribute, "aria-current", "page")
+    run(expect(learning).to_have_attribute, "data-storage-mode", "memory")
+    run(expect(learning).to_have_attribute, "data-work-id", re.compile(r"^demo-[0-9]{4}$"))
+    run(expect(learning).to_be_focused)
     run(expect(library).to_have_attribute, "data-active", "false")
     download_panel = page.get_by_test_id("managed-download-view")
     # A restart can view saved files without constructing this lazy tab.
     if run(download_panel.count, with_timeout=False):
         run(expect(download_panel).to_be_hidden)
     run(expect(viewer).to_be_hidden)
-    cards = page.locator(".pv-card:visible")
-    run(expect(cards).to_have_count, 50)
-    # Native capture covers the viewport, not unloaded images below its scroll
-    # area. Prove every card is synthetic and every currently paintable image
-    # is a decoded loopback demo image; wait for its normal lazy-load completion.
+    run(expect(learning.get_by_role("button", name="いいね", exact=True)).to_be_enabled)
+    guard.decode(learning.locator(".pv-view-art img:visible"))
+    # Capture remains forbidden until every visible work identity and every
+    # paintable image is synthetic and all private surfaces are hidden.
     condition = r"""() => {
        const visible = e => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
-       const cards = [...document.querySelectorAll('.pv-card')].filter(visible);
-       if (cards.length !== 50 || !cards.every(e => /^demo-[0-9]{4}$/.test(e.dataset.workId || '')))
-          return false;
+       const learning = document.querySelector('.pv-learning[data-active="true"]');
+       if (!learning || !visible(learning) || learning.dataset.storageMode !== 'memory' ||
+           !/^demo-[0-9]{4}$/.test(learning.dataset.workId || '')) return false;
+       const identities = [...document.querySelectorAll('[data-work-id]')]
+           .filter(e => visible(e) && e.dataset.workId);
+       if (!identities.every(e => /^demo-[0-9]{4}$/.test(e.dataset.workId))) return false;
        const privateViews = [...document.querySelectorAll(
-         '[data-testid="library-view"], [data-testid="managed-download-view"], [data-testid="queue-view"]')];
+         '[data-testid="library-view"], [data-testid="managed-download-view"], [data-testid="queue-view"], .pv-viewer')];
        if (privateViews.some(visible)) return false;
-       const imgs = [...document.querySelectorAll('.pv-card img')].filter(img => {
+       const imgs = [...document.querySelectorAll('img')].filter(img => {
           const r = img.getBoundingClientRect();
           return visible(img) && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
        });
        return imgs.length > 0 && imgs.every(img => {
          const source = new URL(img.currentSrc || img.src, document.baseURI);
-         return source.origin === location.origin && /^\/media\/demo-[0-9]{4}\/[0-9]+\/(thumb|view)\.png$/.test(source.pathname)
-           && img.complete && img.naturalWidth > 0;
+         return learning.contains(img) && source.origin === location.origin &&
+           source.pathname === '/media/' + learning.dataset.workId + '/0/view.png' &&
+           img.complete && img.naturalWidth > 0 && img.naturalHeight > 0;
        });
     }"""
     result["phase"] = "synthetic_identity"
     run(page.wait_for_function, condition)
     safe = run(page.evaluate, condition, with_timeout=False)
     if safe is not True:
-        raise AssertionError("synthetic ranking restore unproven")
+        raise AssertionError("synthetic learning restore unproven")
+    result["return_checks"] = {
+        "learning_tab_active": True, "learning_focused": True,
+        "learning_synthetic": True, "library_hidden": True,
+        "download_hidden": True, "viewer_hidden": True,
+    }
     result["synthetic_return"] = True
     result["passed"] = True
     result["phase"] = "done"

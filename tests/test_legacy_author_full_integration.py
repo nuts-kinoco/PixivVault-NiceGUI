@@ -24,7 +24,9 @@ def png(rgb=(42, 71, 109)):
 
 
 def fixture(tmp_path):
-    source = tmp_path / 'offline-db-copy.sqlite3'
+    frozen_root=tmp_path/'frozen-old-copy'
+    frozen_root.mkdir()
+    source = frozen_root / 'offline-db-copy.sqlite3'
     old_media = tmp_path / 'old-media'
     old_media.mkdir()
     with sqlite3.connect(source) as db:

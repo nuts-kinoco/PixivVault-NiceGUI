@@ -23,6 +23,8 @@ class Reader:
 def preview_service(works, saved=()):
     app = object.__new__(ApplicationServices)
     app.closing = False
+    # Match the constructor's managed-only mode: no frozen legacy repository.
+    app.library_repository = None
     app.managed_downloads = SimpleNamespace(saved_receipts=lambda: tuple(
         ('outputs/fake/receipt.json', {'work_id': wid}, 'digest') for wid in saved))
     app.live_client = Reader(works)

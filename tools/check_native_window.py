@@ -693,6 +693,70 @@ def close_owned_window(root_pid: int, root_birth: int, hwnd: int,
     return bool(user.PostMessageW(hwnd, 0x0010, 0, 0))
 
 
+def acknowledge_owned_close_confirmation(expected_owner: tuple[int, int],
+                                         expected_window_hwnd: int, deadline: float) -> bool:
+    """Accept only the WinForms OK/Cancel prompt of our exact window owner.
+
+    pywebview's confirm_close=True uses a native #32770 MessageBox with
+    IDCANCEL=2 and IDOK=1. A bare WM_CLOSE must NOT be counted as normal exit
+    while this application-owned confirmation remains unacknowledged. The
+    dialog must have the *exact tested HWND* as its GW_OWNER, not merely share
+    the process with an unrelated same-PID modal dialog. Never
+    send keyboard input or click an arbitrary foreground/foreign dialog.
+    """
+    user = ctypes.WinDLL('user32', use_last_error=True)
+    callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    user.EnumWindows.argtypes = [callback_type, wintypes.LPARAM]
+    user.EnumWindows.restype = wintypes.BOOL
+    user.IsWindowVisible.argtypes = [wintypes.HWND]
+    user.IsWindowVisible.restype = wintypes.BOOL
+    user.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+    user.GetClassNameW.restype = ctypes.c_int
+    user.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+    user.GetWindowThreadProcessId.restype = wintypes.DWORD
+    user.GetDlgItem.argtypes = [wintypes.HWND, ctypes.c_int]
+    user.GetDlgItem.restype = wintypes.HWND
+    user.GetWindow.argtypes = [wintypes.HWND, wintypes.UINT]
+    user.GetWindow.restype = wintypes.HWND
+    user.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+    user.PostMessageW.restype = wintypes.BOOL
+
+    while time.monotonic() < deadline:
+        candidates = []
+
+        def probe(window, _):
+            pid = wintypes.DWORD()
+            user.GetWindowThreadProcessId(window, ctypes.byref(pid))
+            if pid.value != expected_owner[0] or not user.IsWindowVisible(window):
+                return True
+            if int(user.GetWindow(window, 4) or 0) != int(expected_window_hwnd):
+                return True
+            name = ctypes.create_unicode_buffer(64)
+            if user.GetClassNameW(window, name, len(name)) <= 0 or name.value != '#32770':
+                return True
+            ok = user.GetDlgItem(window, 1)
+            cancel = user.GetDlgItem(window, 2)
+            if ok and cancel:
+                candidates.append(int(ok))
+            return True
+
+        cb = callback_type(probe)
+        if not user.EnumWindows(cb, 0):
+            raise OSError(ctypes.get_last_error(), 'owned close dialog enumeration failed')
+        if len(candidates) > 1:
+            raise RuntimeError('multiple application-owned close dialogs; refusing ambiguous click')
+        if len(candidates) == 1:
+            if process_identity(expected_owner[0]) != expected_owner[1]:
+                raise RuntimeError('close-dialog owner PID was reused')
+            # BM_CLICK targets the exact native OK child. No focus or keyboard
+            # event is sent to another process/window.
+            if not user.PostMessageW(candidates[0], 0x00F5, 0, 0):
+                raise OSError(ctypes.get_last_error(), 'owned OK button click failed')
+            return True
+        time.sleep(0.1)
+    return False
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Windows native demo window smoke test")
     run = parser.add_mutually_exclusive_group(required=True)
@@ -703,12 +767,18 @@ def main(argv: list[str] | None = None) -> int:
                         help="total seconds; phases max health30/window20/baseline5/minimize5/restore5/close30")
     parser.add_argument("--output", type=Path, default=Path("artifacts/windows-packaging/native-check.json"))
     parser.add_argument("--inspect-ui", action="store_true", help="Inspect this WebView over local CDP")
+    parser.add_argument("--acknowledge-close-confirmation", action="store_true",
+                        help="Require and click only this app's native OK/Cancel close prompt")
+    parser.add_argument("--no-force-cleanup", action="store_true",
+                        help="Strict acceptance: never terminate surviving owned processes; record FAIL and ownership")
     parser.add_argument("--inspect-failed-records", action="store_true",
                         help="Require synthetic SQLite failure list and actual native CSV save")
     parser.add_argument("--failed-csv-dialog-seconds", type=float, default=0.0,
                         help="Explicit extra operator budget (0-120s) for the owned CSV SaveFileDialog only")
     parser.add_argument("--client-origin", nargs=2, type=int, metavar=("X", "Y"),
                         help="Explicit physical client origin for our owned test window before acceptance; never resize")
+    parser.add_argument("--client-size", nargs=2, type=int, metavar=("WIDTH", "HEIGHT"),
+                        help="Explicit physical size of the verified owned test HWND; retain same monitor/DPI")
     parser.add_argument("--learning-sandbox", type=Path,
                         help="Explicit synthetic learning directory; reuse it to check a native restart")
     parser.add_argument("--download-sandbox", type=Path,
@@ -918,6 +988,19 @@ def main(argv: list[str] | None = None) -> int:
                     if owned_window_identity(root.pid, root_identity, hwnd, identities) != expected_owner:
                         raise RuntimeError("native UI window owner changed")
 
+                if args.client_size is not None:
+                    try:
+                        if __package__:
+                            from .native_window_position import resize_owned_client
+                        else:
+                            from native_window_position import resize_owned_client
+                        check_ui_owner()
+                        report["initial_resize"] = resize_owned_client(
+                            root.pid, root_identity, hwnd, args.client_size, expected_owner)
+                        check_ui_owner()
+                    except Exception as exc:
+                        report["initial_resize"] = {"passed": False, "reason": type(exc).__name__}
+                        report["errors"].append("initial_resize_failed")
                 if args.client_origin is not None:
                     try:
                         if __package__:
@@ -985,6 +1068,15 @@ def main(argv: list[str] | None = None) -> int:
                 if not report["wm_close_sent"]:
                     report["errors"].append("wm_close_failed")
                 close_deadline = phase_deadline(deadline, "close")
+                if args.acknowledge_close_confirmation and report["wm_close_sent"]:
+                    try:
+                        report["close_confirmation_accepted"] = acknowledge_owned_close_confirmation(
+                            expected_owner, hwnd, min(close_deadline, time.monotonic() + 8.0))
+                    except Exception as exc:
+                        report["close_confirmation_accepted"] = False
+                        report["errors"].append("owned_close_confirmation_" + type(exc).__name__)
+                    if not report.get("close_confirmation_accepted"):
+                        report["errors"].append("close_confirmation_not_accepted")
 
                 def all_exited() -> bool:
                     scan()
@@ -1048,6 +1140,8 @@ def main(argv: list[str] | None = None) -> int:
                     and report["minimized"] and report["restored"]
                     and report["normal_exit"] and report["port_released"]
                     and report.get("wm_close_sent")
+                    and (not args.acknowledge_close_confirmation or
+                         report.get("close_confirmation_accepted") is True)
                     and (not args.inspect_failed_records or
                          saved_csv_accepted((report["ui_inspection"] or {}).get("failed_records")))
                     and (args.download_sandbox is None or
@@ -1065,9 +1159,12 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 survivors = living_pids(identities)
                 if survivors:
-                    report["errors"].append("forced_cleanup_required")
-                    report["forced_cleanup"] = terminate_owned(
-                        {pid: identities[pid] for pid in survivors})
+                    if args.no_force_cleanup:
+                        report["errors"].append("owned_processes_remaining_no_force_cleanup")
+                    else:
+                        report["errors"].append("forced_cleanup_required")
+                        report["forced_cleanup"] = terminate_owned(
+                            {pid: identities[pid] for pid in survivors})
                     report["status"] = "failed"
             except Exception as exc:
                 report["errors"].append("cleanup_" + type(exc).__name__ if managed
@@ -1083,11 +1180,46 @@ def main(argv: list[str] | None = None) -> int:
             except OSError:
                 report["errors"].append("process_log_unreadable")
                 report["status"] = "failed"
+        strict_cleanup = None
+        if args.no_force_cleanup:
+            # Observation only: never resend a close whose result may be unknown.
+            # IDs and ports below belong exclusively to this launched process tree.
+            strict_cleanup = {
+                "policy": "normal_close_only", "forced_cleanup": list(report["forced_cleanup"]),
+                "root_pid": root.pid if root is not None else None,
+                "root_birth": identities.get(root.pid) if root is not None else None,
+                "observed_owned": [{"pid": pid, "birth": birth}
+                                   for pid, birth in sorted(identities.items())],
+                "app_port": port, "debug_port": debug_port,
+                "normal_exit_verified": False, "needs_manual_close": True,
+            }
+            try:
+                remaining = sorted(living_pids(dict(identities)))
+                exit_code = root.poll() if root is not None else None
+                app_free = port_released(port)
+                debug_free = debug_port is None or port_released(debug_port)
+                strict_cleanup.update(
+                    remaining_owned=[{"pid": pid, "birth": identities[pid]} for pid in remaining],
+                    root_exit_code=exit_code, app_port_released=app_free,
+                    debug_port_released=debug_free,
+                    needs_manual_close=bool(remaining or (root is not None and exit_code is None)),
+                    normal_exit_verified=bool(report.get("normal_exit")
+                        and report.get("wm_close_sent") and exit_code == 0 and not remaining
+                        and app_free and debug_free and not report["forced_cleanup"]
+                        and (not args.acknowledge_close_confirmation
+                             or report.get("close_confirmation_accepted") is True)))
+            except Exception as exc:
+                strict_cleanup["error_class"] = type(exc).__name__
+            if not strict_cleanup["normal_exit_verified"]:
+                report["normal_exit"] = False
+                report["status"] = "failed"
+                report["errors"].append("strict_normal_exit_unverified")
         if managed:
             ui_result = report.get("ui_inspection") or {}
             post = report.get("managed_post_close") or {}
-            # A strict public allowlist. Process IDs, paths, browser metadata,
-            # exceptions and application strings remain in memory only.
+            # A strict public allowlist. Paths, browser metadata, exceptions and
+            # application strings remain in memory only. Explicit strict mode
+            # additionally retains only owned process identities and local ports.
             report = {
                 "status": "passed" if report["status"] == "passed" else "failed",
                 "phase": ui_result.get("phase", "native") if type(ui_result.get("phase")) is str
@@ -1095,6 +1227,13 @@ def main(argv: list[str] | None = None) -> int:
                 "error_class": ui_result.get("error_class") if ui_result.get("error_class") in
                     {"AssertionError", "TimeoutError", "RuntimeError", "ValueError", "Error"} else None,
                 "synthetic_return": ui_result.get("synthetic_return") is True,
+                "synthetic_return_checks": {
+                    key: value for key, value in (ui_result.get("return_checks") or {}).items()
+                    if (key in {"learning_tab_active", "learning_focused", "learning_synthetic",
+                                "library_hidden", "download_hidden", "viewer_hidden",
+                                "diagnostic_unavailable"} and type(value) is bool)
+                    or (key == "visible_cards_count" and type(value) is int and 0 <= value <= 10000)
+                },
                 "ui_passed": ui_result.get("passed") is True,
                 "selected": ui_result.get("selected") is True,
                 "queue_done": ui_result.get("queue_done") is True,
@@ -1111,6 +1250,8 @@ def main(argv: list[str] | None = None) -> int:
                 "job_count": post.get("job_count", 0) if type(post.get("job_count")) is int else 0,
                 "error_count": len(report["errors"]),
             }
+        if strict_cleanup is not None:
+            report["strict_cleanup"] = strict_cleanup
         output_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     return 0 if report["status"] == "passed" else 1
 

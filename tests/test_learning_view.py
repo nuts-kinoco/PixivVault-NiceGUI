@@ -1,23 +1,35 @@
 """学習画面のイベント契約と世代整合性（実ブラウザ試験は統合側）。"""
 
+import asyncio
 from types import SimpleNamespace
 
 import pytest
-from nicegui import ui
+from nicegui import Client, background_tasks, core, ui
 
 from pixivvault_nicegui.services import ApplicationServices
 from pixivvault_nicegui.ui.learning_view import LearningView
 
 
 @pytest.fixture
-def view():
+async def view(monkeypatch):
+    # Exercise the real NiceGUI client/slot and timer lifecycle on the test loop.
+    monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
     services = ApplicationServices(count=2)
-    with ui.card():
+    client = Client(ui.page('/_learning_view_contract'))
+    before = set(background_tasks.running_tasks)
+    with client, ui.card():
         result = LearningView(services)
-    result.set_active(True)
-    yield result
-    result.close()
-    services.close()
+    owned = set(background_tasks.running_tasks) - before
+    try:
+        result.set_active(True)
+        yield result
+    finally:
+        result.close()
+        client.delete()
+        for task in owned:
+            if not task.done(): task.cancel()
+        if owned: await asyncio.gather(*owned, return_exceptions=True)
+        services.close()
 
 
 def payload(view, operation_id="judgment-1"):
@@ -25,12 +37,12 @@ def payload(view, operation_id="judgment-1"):
             "generation": view.state.generation, "operation_id": operation_id}
 
 
-def test_judgment_and_undo_colors_are_controlled_by_existing_theme(view):
+async def test_judgment_and_undo_colors_are_controlled_by_existing_theme(view):
     assert all(button.props.get('color') is None for button in view.buttons.values())
     assert view.undo_button.props.get('color') is None
 
 
-def test_image_load_is_required_and_stale_events_cannot_enable_buttons(view):
+async def test_image_load_is_required_and_stale_events_cannot_enable_buttons(view):
     first_token, first_url = view._image_token, view._image_url
     assert not view.state.ready
     assert not view.judge("like", payload(view))
@@ -47,7 +59,7 @@ def test_image_load_is_required_and_stale_events_cannot_enable_buttons(view):
     assert view.state.ready
 
 
-def test_browser_absolute_load_source_and_stale_generation(view):
+async def test_browser_absolute_load_source_and_stale_generation(view):
     old_url = view._image_url
     view.request_image()
     old_absolute = "http://127.0.0.1:8089" + old_url
@@ -58,7 +70,7 @@ def test_browser_absolute_load_source_and_stale_generation(view):
     assert view.state.ready
 
 
-def test_image_event_after_close_cannot_reactivate(view):
+async def test_image_event_after_close_cannot_reactivate(view):
     captured_url = view._image_url
     view.close()
     view._on_loaded(SimpleNamespace(args=captured_url))
@@ -66,7 +78,7 @@ def test_image_event_after_close_cannot_reactivate(view):
 
 
 @pytest.mark.parametrize("choice", ["skip", "hate", "like", "superLike"])
-def test_capture_at_click_prevents_late_judgment_on_next_item(view, choice):
+async def test_capture_at_click_prevents_late_judgment_on_next_item(view, choice):
     view._on_loaded(SimpleNamespace(args=view._image_url))
     old = payload(view)
     assert view.judge(choice, old)
@@ -78,7 +90,7 @@ def test_capture_at_click_prevents_late_judgment_on_next_item(view, choice):
     assert view.state.current_artwork is None
 
 
-def test_undo_is_generation_scoped_and_reloads(view):
+async def test_undo_is_generation_scoped_and_reloads(view):
     view._on_loaded(SimpleNamespace(args=view._image_url))
     stale = payload(view)
     assert view.judge("like", stale)
@@ -91,7 +103,7 @@ def test_undo_is_generation_scoped_and_reloads(view):
     assert not view.ledger.entries
 
 
-def test_inactive_and_closed_view_reject_server_events(view):
+async def test_inactive_and_closed_view_reject_server_events(view):
     view._on_loaded(SimpleNamespace(args=view._image_url))
     captured = payload(view)
     view.set_active(False)
@@ -103,7 +115,7 @@ def test_inactive_and_closed_view_reject_server_events(view):
     assert not view.judge("like", captured)
 
 
-def test_failed_save_does_not_advance_or_change_image(view):
+async def test_failed_save_does_not_advance_or_change_image(view):
     view._on_loaded(SimpleNamespace(args=view._image_url))
     captured = payload(view)
     original_url = view._image_url

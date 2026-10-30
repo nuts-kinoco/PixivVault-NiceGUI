@@ -185,7 +185,9 @@ async def test_read_service_runs_in_worker_thread(tmp_path, monkeypatch):
     main_thread = threading.get_ident()
     visited = []
 
-    def slow(path):
+    def slow(path, *, immutable):
+        assert immutable is True
+        assert path == service.library_readonly_db
         visited.append(threading.get_ident())
         time.sleep(0.1)
         return ()

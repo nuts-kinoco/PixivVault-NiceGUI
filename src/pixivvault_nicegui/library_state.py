@@ -9,7 +9,7 @@ from .library_models import AuthorSummary, LibrarySnapshot, PageRef
 
 
 _generations = count(1)  # 状態インスタンスを作り直しても古いUI callbackを再利用させない。
-_SORT_KEYS = frozenset({"view_count", "last_backup"})
+_SORT_KEYS = frozenset({"view_count", "last_backup", "capacity"})
 
 
 class LibraryState:
@@ -23,7 +23,7 @@ class LibraryState:
         self.query = ""
         self.filters = LibraryFilters()
         self.sort_key = "view_count"
-        self.sort_directions = {"view_count": True, "last_backup": True}
+        self.sort_directions = {"view_count": True, "last_backup": True, "capacity": True}
         self.selected_author_id: str | None = None
         self._all_authors = snapshot.authors
         self._by_author = {author.author_id: author for author in self._all_authors}
@@ -94,8 +94,10 @@ class LibraryState:
         self.generation = next(_generations)
 
     def _matches(self, author: AuthorSummary, needle: str) -> bool:
+        if self.filters.unread_only and author.representative.artwork.viewed is True:
+            return False
         return any(
-            self.filters.matches(work.artwork.tags) and (
+            self.filters.matches_artwork(work.artwork, author_id=work.author_id, apply_unread=False) and (
                 not needle or needle in author.name.casefold() or
                 any(needle in value.casefold() for value in (
                     work.work_id, work.artwork.title, work.display_author_name,
@@ -109,8 +111,11 @@ class LibraryState:
         needle = self.query.strip().casefold()
         matching = (author for author in self._all_authors
                     if self._matches(author, needle))
-        key = ((lambda author: author.view_count) if self.sort_key == "view_count"
-               else (lambda author: author.last_backup or ""))
+        # Preserve original Flet capacity tuple ordering, including unknowns.
+        key = {"view_count": lambda author: author.view_count,
+               "last_backup": lambda author: author.last_backup or "",
+               "capacity": lambda author: (author.capacity_bytes is not None,
+                   author.capacity_bytes if author.capacity_bytes is not None else -1)}[self.sort_key]
         self._matched_authors = tuple(sorted(matching, key=key, reverse=self.descending))
 
     def _leave_detail(self) -> None:

@@ -37,6 +37,7 @@ def build_fixture(path: Path) -> tuple[Path, Path]:
             INSERT INTO bookmark_remote_cache VALUES ('101',0,'架空作品','12','架空保存作者',
                 '["診断用","保存済み"]','2026-10-22','https://i.pximg.net/synthetic/101.png','show',0);
         """)
+    conn.close()  # A frozen fixture must not retain its writable SQLite handle.
     root = path / "fake-images"
     folder = root / "架空保存作者(12)"
     folder.mkdir(parents=True)

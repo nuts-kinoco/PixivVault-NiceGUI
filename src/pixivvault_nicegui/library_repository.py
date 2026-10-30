@@ -10,14 +10,40 @@ import sqlite3
 from threading import RLock
 
 from .bookmark_remote_adapter import RemoteBookmark, parse_bookmark
+from .fs_paths import sqlite_readonly_uri
 from .models import Artwork
 from .library_models import LibrarySnapshot, LibraryWork
+
+
+def require_frozen_library_copy(db_path: str | Path) -> Path:
+    """Fail before SQLite opens a source that could produce WAL/SHM writes.
+
+    The application consumes a standalone, checkpointed copy of the old DB.
+    Direct ReadonlyLibraryRepository callers may explicitly use live WAL via
+    the default mode=ro API, but the application must never create shared
+    memory/rollback files in the user's original data directory.
+    """
+    if db_path is None or not str(db_path).strip():
+        raise ValueError('an explicit frozen legacy DB copy is required')
+    path = Path(db_path).absolute()
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    for item in (path, *path.parents):
+        try:
+            observed=item.lstat()
+        except FileNotFoundError:
+            continue
+        if item.is_symlink() or (getattr(observed, 'st_file_attributes', 0) & 0x400):
+            raise ValueError('frozen legacy DB source must not use a reparse path')
+    if any(Path(str(path)+suffix).exists() for suffix in ('-wal','-shm','-journal')):
+        raise ValueError('legacy source needs a standalone checkpointed frozen copy; WAL/SHM present')
+    return path
 
 
 class ReadonlyLibraryRepository:
     """A snapshot-per-query reader; never initializes or migrates the legacy DB."""
 
-    def __init__(self, db_path: str | Path):
+    def __init__(self, db_path: str | Path, *, immutable: bool = False):
         if db_path is None or not str(db_path).strip():
             raise ValueError("explicit db_path required")
         path = Path(db_path).absolute()
@@ -25,8 +51,13 @@ class ReadonlyLibraryRepository:
             raise FileNotFoundError(path)
         self._lock = RLock()
         self._closed = False
-        # mode=ro honors the WAL view; immutable=1 would ignore live WAL data.
-        self._conn = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, check_same_thread=False)
+        if type(immutable) is not bool:
+            raise ValueError('immutable source option must be boolean')
+        if immutable:
+            path=require_frozen_library_copy(path)
+        # Direct callers may read a live WAL version under mode=ro, whereas
+        # the application always passes immutable=True after rejecting WAL.
+        self._conn = sqlite3.connect(sqlite_readonly_uri(path, immutable=immutable), uri=True, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         try:
             self._conn.execute("PRAGMA query_only=ON")
@@ -52,6 +83,20 @@ class ReadonlyLibraryRepository:
         except (TypeError, ValueError, UnicodeError):
             return ()
         return tuple(tag for tag in parsed if type(tag) is str) if isinstance(parsed, list) else ()
+
+    @staticmethod
+    def _metadata(row, *, viewed=None):
+        keys=set(row.keys())
+        return dict(author_id=str(row["user_id"] or "") if "user_id" in keys else None,
+                    create_date=row["create_date"] if "create_date" in keys and isinstance(row["create_date"],str) else None,
+                    viewed=viewed,
+                    **{name:row[name] if name in keys and type(row[name]) is int and row[name]>=0 else None
+                       for name in ("bookmark_count","x_restrict","ai_type")})
+
+    def _history_ids(self, tables):
+        if "discovery_view_history" not in tables:return None
+        try:return {row[0] for row in self._conn.execute("SELECT work_id FROM discovery_view_history")}
+        except sqlite3.OperationalError:return None
 
     @staticmethod
     def _ui_work_id(raw_id: object, content_type: object) -> str:
@@ -113,7 +158,11 @@ class ReadonlyLibraryRepository:
             self._conn.execute("BEGIN")
             try:
                 columns = {row[1] for row in self._conn.execute("PRAGMA table_info(works)")}
-                optional = ("last_backup", "content_type")
+                author_columns={row[1] for row in self._conn.execute("PRAGMA table_info(following_users)")}
+                author_order='follow_order ASC' if 'follow_order' in author_columns else 'rowid'
+                author_names={str(row[0]):str(row[1] or '') for row in self._conn.execute(
+                    f"SELECT user_id,name FROM following_users ORDER BY {author_order}")}
+                optional = ("last_backup", "content_type", "create_date", "bookmark_count", "x_restrict", "ai_type")
                 fields = [f"w.{name}" if name in columns else f"NULL AS {name}" for name in optional]
                 tables = {row[0] for row in self._conn.execute(
                     "SELECT name FROM sqlite_master WHERE type='table'")}
@@ -123,6 +172,7 @@ class ReadonlyLibraryRepository:
                     + " FROM works w LEFT JOIN following_users f ON f.user_id=w.user_id"
                     " WHERE w.is_deleted=0 ORDER BY w.rowid"
                 ).fetchall()
+                viewed_ids = self._history_ids(tables)
                 view_counts = {}
                 if "discovery_view_history" in tables:
                     try:
@@ -161,14 +211,15 @@ class ReadonlyLibraryRepository:
             author_name = str(row["author_name"] or author_id)
             artwork = Artwork(self._ui_work_id(row["work_id"], row["content_type"]),
                               str(row["title"] or ""),
-                              author_name, page_count=pages, tags=tags)
+                              author_name, page_count=pages, tags=tags,
+                              **self._metadata(row,viewed=None if viewed_ids is None else row["work_id"] in viewed_ids))
             works.append(LibraryWork(artwork, author_id,
                                      last_backup=row["last_backup"],
                                      page_count_known=known,
                                      view_count=max(0, int(view_counts.get(row["work_id"]) or 0)),
                                      work_type=str(row["content_type"] or "illust"),
                                      author_name=author_name))
-        return LibrarySnapshot(tuple(works), author_capacities=capacity_by_author)
+        return LibrarySnapshot(tuple(works), author_capacities=capacity_by_author,author_names=author_names)
 
     def _bookmark_rows(self, *, include_local: bool = True, include_remote: bool = True
                        ) -> tuple[list[sqlite3.Row] | None, list[sqlite3.Row]]:
@@ -205,12 +256,19 @@ class ReadonlyLibraryRepository:
                 if include_local and "is_bookmarked" in columns:
                     local_type = ("w.content_type" if "content_type" in columns
                                   else "NULL")
+                    metadata_fields = ','.join(f'w.{name}' if name in columns else f'NULL AS {name}'
+                        for name in ('create_date','bookmark_count','x_restrict','ai_type'))
                     local_rows = self._conn.execute(
                         "SELECT w.work_id,w.title,w.page_count,w.tags,w.user_id,f.name AS author_name "
-                        + f",{local_type} AS content_type "
+                        + f",{local_type} AS content_type,{metadata_fields} "
                         "FROM works w LEFT JOIN following_users f ON f.user_id=w.user_id "
                         "WHERE w.is_deleted=0 AND w.is_bookmarked=1 ORDER BY w.rowid"
                     ).fetchall()
+                viewed_ids=self._history_ids(tables)
+                def with_history(records):
+                    return [dict(row,_viewed=None if viewed_ids is None else row['work_id'] in viewed_ids) for row in records]
+                rows=None if rows is None else with_history(rows)
+                local_rows=with_history(local_rows)
                 self._conn.execute("COMMIT")
             except BaseException:
                 self._conn.rollback()
@@ -248,7 +306,7 @@ class ReadonlyLibraryRepository:
             }
             record = parse_bookmark(payload, kind=kind, visibility=row["rest_type"])
             if record is not None:
-                record = replace(record, page_count_known=(kind == "novel" or locally_known))
+                record = replace(record, page_count_known=(kind == "novel" or locally_known), viewed=row.get("_viewed"))
                 records.setdefault(record.work_id, record)
         return tuple(records.values())
 
@@ -283,7 +341,7 @@ class ReadonlyLibraryRepository:
             local.append(Artwork(work_id, str(row["title"] or ""),
                                  str(row["author_name"] or row["user_id"] or ""),
                                  page_count=pages if type(pages) is int and pages > 0 else 1,
-                                 tags=cls._tags(row["tags"])))
+                                 tags=cls._tags(row["tags"]), **cls._metadata(row,viewed=row.get("_viewed"))))
         return tuple(local)
 
     def local_bookmark_snapshot(self) -> tuple[Artwork, ...]:

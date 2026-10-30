@@ -13,6 +13,7 @@ export default {
   `,
   props: {
     src: { type: String, default: '' },
+    event_source: { type: String, default: '' },
     request_id: { type: Number, default: 0 },
     alt: { type: String, default: '' },
     retain_previous: { type: Boolean, default: false },
@@ -41,6 +42,7 @@ export default {
     async verify() {
       const version = ++this.version;
       const source = this.src || '';
+      const reportedSource = this.event_source || source;
       // Only the accepted front image is retained. A superseded pending request
       // must never become the next request's rollback image.
       const front = this.retain_previous
@@ -78,11 +80,11 @@ export default {
         await this.$nextTick();
         await new Promise(resolve => requestAnimationFrame(resolve));
         if (version === this.version && image === this.imageNodes.get(version))
-          this.$emit('load', source);
+          this.$emit('load', reportedSource);
       } catch (_) {
         if (version === this.version) {
           this.frames = this.frames.filter(frame => frame.id === this.displayVersion);
-          this.$emit('error', source);
+          this.$emit('error', reportedSource);
         }
       }
     },

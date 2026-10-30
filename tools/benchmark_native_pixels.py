@@ -261,7 +261,16 @@ class OwnedWindow:
         for pid in parents:
             if is_descendant(pid, self.root, parents):
                 birth = process_birth(self.kernel, pid)
-                if birth is None or birth < self.root_birth:
+                if birth is None:
+                    # A browser utility process may exit between enumerating the
+                    # process tree and opening its handle. Only an actually gone,
+                    # non-window descendant can be ignored; inaccessible live
+                    # descendants and pinned window owners must fail closed.
+                    if (pid != self.root and pid not in self.window_pids.values()
+                            and pid not in process_parents()):
+                        continue
+                    raise RuntimeError("descendant PID birth unavailable")
+                if birth < self.root_birth:
                     raise RuntimeError("descendant PID birth unavailable")
                 self.identities[pid] = birth
 

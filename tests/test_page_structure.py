@@ -22,7 +22,7 @@ async def test_page_builds_fifty_cards_one_dialog_and_existing_navigation():
         assert dialogs[0].props["aria-hidden"] == "true"
         tabs = [element for element in buttons if "pv-tab" in element.classes]
         assert [element.text.split(" · ")[0] for element in tabs] == [
-            "ダウンロード", "キュー", "失敗リスト", "重複整理",
+            "ダウンロード", "キュー", "失敗リスト", "直近のバックアップ", "重複整理",
             "学習", "ランキング", "ライブラリ", "おすすめ", "定期チェック", "メタデータ補完",
         ]
         # Job screens explain the opt-in destination; actual mutation controls
@@ -30,7 +30,7 @@ async def test_page_builds_fifty_cards_one_dialog_and_existing_navigation():
         enabled = {element.props["data-testid"] for element in tabs if not element.props.get("disable")}
         assert enabled == {"tab-ranking", "tab-learning", "tab-library", "tab-failed", "tab-download", "tab-queue", "tab-scheduler"}
         assert {element.props["data-testid"] for element in tabs if element.props.get("disable")} == {
-            "tab-dedup", "tab-recommend", "tab-metadata"}
+            "tab-history", "tab-dedup", "tab-recommend", "tab-metadata"}
         # ナビゲーションは既存トークンのCSSで色を制御する。
         # Quasar既定text-primaryを残すと選択中の青背景と文字が同色になる。
         assert all(element.props.get("color") is None for element in tabs)

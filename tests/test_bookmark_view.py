@@ -1,5 +1,6 @@
 """Standalone synthetic bookmark controls; no real account or API."""
 
+import asyncio
 from nicegui import Client, ui
 import pytest
 import pytest_asyncio
@@ -97,3 +98,71 @@ async def test_fetch_failure_and_successful_empty_are_distinct(bookmark):
     assert not state.select("synthetic-1")
     view.close()
     assert state.closed
+
+
+@pytest.mark.asyncio
+async def test_selected_bookmark_bulk_download_is_explicit_and_idempotent():
+    client=Client(ui.page("/_bookmark_bulk_unit"))
+    state=BookmarkState(cached_remote=arts(3))
+    calls=[];ready=asyncio.Event();finish=asyncio.Event()
+    async def enqueue(work_id,operation,is_current):
+        assert is_current()
+        calls.append((work_id,operation))
+        ready.set()
+        await finish.wait()
+        return {'job_id': 'fixture-'+work_id}
+    with client:
+        view=BookmarkView(state,on_enqueue=enqueue)
+        view.render()
+    try:
+        assert not view.download_button.enabled
+        assert not await view.download_selected()
+        view.select('synthetic-1',True)
+        view.select('synthetic-2',True)
+        assert view.download_button.enabled
+        running=asyncio.create_task(view.download_selected())
+        await asyncio.wait_for(ready.wait(),2)
+        assert not view.download_button.enabled
+        assert not await view.download_selected()
+        # A changed checkbox must not mutate the already admitted batch.
+        view.select('synthetic-1',False)
+        finish.set()
+        assert await running
+        assert [wid for wid,_ in calls]==['synthetic-1','synthetic-2']
+        assert '保存キュー受付 2 件' in view.download_status.text
+        assert '保存完了・失敗はキュー' in view.download_status.text
+        assert state.selected_ids=={'synthetic-2'}
+        assert view.download_button.enabled
+        assert await view.download_selected()
+        assert calls[-1][1]==calls[-2][1]
+        view.select('synthetic-2',False)
+        assert not view.download_button.enabled
+    finally:
+        client.delete()
+
+
+@pytest.mark.asyncio
+async def test_bookmark_bulk_partial_failure_preserves_selection_and_replay_operation():
+    client=Client(ui.page("/_bookmark_bulk_retry_unit"))
+    state=BookmarkState(cached_remote=arts(3))
+    calls=[]
+    async def enqueue(work_id,operation,is_current):
+        calls.append((work_id,operation))
+        if work_id=='synthetic-0':raise RuntimeError('fixture admission failed')
+        return {'job_id': 'fixture-'+work_id}
+    with client:
+        view=BookmarkView(state,on_enqueue=enqueue)
+        view.render()
+    try:
+        view.select('synthetic-0',True)
+        view.select('synthetic-2',True)
+        assert not await view.download_selected()
+        assert len(calls)==2 and state.selected_ids=={'synthetic-0','synthetic-2'}
+        assert '受付できなかった作品 1 件' in view.download_status.text
+        assert await view.download_selected() is False
+        assert calls[0][1]==calls[2][1] and calls[1][1]==calls[3][1]
+        view.set_active(False)
+        assert not view.download_button.enabled
+        assert not await view.download_selected()
+    finally:
+        client.delete()

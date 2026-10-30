@@ -1,0 +1,15 @@
+# L12 取消とcache commit決定（CoS検証待ち）
+
+固定252 `76d47d49c5c4a681b794db30578de88b87ecddc507a6cb17eb9661616e77dbe7` と原票 `artifacts/p3-capacity-cancel-20261028/cos-owned-r1/logs/cancel-nonblocking.stdout.txt` SHA `d567271e40b107ef554e4da42dc68363cebd1522d5f81068e4a9cea03680d549` を照合。元の1秒停止検知と回帰assertを保持し、SlowCacheを新batch契約へ適合、取消成立なら保存なしassertを追加。1秒は製品性能基準ではない。
+
+原Flet library_tab.py:420–493は旧ZIP優先/folder全files、未発見0・失敗Noneと成功cacheを規定する。原版・提示文書を検索した範囲では取消後物理commitの明示条文は確認できない。旧managed合算は撤回済み。新candidateはSQLite BEGIN IMMEDIATEと作者別CAS updateをbatch transactionで行い、COMMIT直前の短いlease lockで取消と決定を直列化する。lock順はcache→leaseのみ。UI cancelはleaseだけを取る。取消がOPENに勝てばCANCELLED、ROLLBACK、旧値/revision維持。先に決定したらSEALEDであり、commit成功でも耐久確定でもない。その後UI失効でもcommitが成功する可能性があり、画面への反映はepochで拒否、busyはworker終端まで保持。COMMITTEDはCOMMIT正常復帰後のみ。COMMIT前に失敗しrollback成功ならFAILED、COMMIT成否不明やrollback失敗ならUNKNOWN。UNKNOWNは自動再送しない。
+
+この設計は「取消成立後にcommitしない」と「決定前取消は即座に成立」を満たす意図であり、**決定後の取消要求後も物理commitし得る**。もし採用済み原条件が決定後も絶対に物理永続化しないことを意味するなら本候補はその強い条件を満たさず、レビューでその差を解決する必要がある。原版の条文未発見は原条件の全面解釈確定ではない。原旧ZIP/フォルダー・管理保存別表示・250の通常構成は変更しない。
+
+接続はsqlite3.connect(check_same_thread=False、default isolation_level/timeout)、UIのsnapshot readはasyncio.to_thread、cache.closeは同じcache RLockでworker完了まで待ち、通常shutdownはbootstrap.py:379のasyncio.to_thread経由。外部注入connectionもcallerのthread設定/close責任を保持。同期closeや長時間のOS I/O、UNKNOWN後の再起動整合はCoSにて確認。
+
+回帰: `tests/test_capacity_cancel_nonblocking.py` は同じ停止検知1秒を保持し取消結果と未保存も検査。`tests/test_capacity_lease_sqlite.py` は実SQLite BEGIN IMMEDIATE競合で決定前取消/旧値revision/再起動、決定後停止でSEALEDとCOMMITTED、commit前失敗・commit後応答喪失UNKNOWN・rollback失敗UNKNOWN、CAS失敗/None/確定0、決定後取消→commit失敗、画面不反映/busy保持、closeとworkerの順序を対象とする。未collect・未実行。
+
+CoS一括: S隔離fixtureで `python -B -m pytest tests/test_capacity_cancel_nonblocking.py tests/test_capacity_lease_sqlite.py tests/test_legacy_capacity_connected.py tests/test_capacity_cache_injected.py tests/test_capacity_normal_configuration.py tests/test_managed_capacity.py tests/test_capacity_display.py tests/test_library_view.py tests/test_library_filters.py -q` を実行。実SQLite競合では決定前取消と決定後取消を別記録、COMMIT失敗・不明・rollback不明・再起動時の実値/旧revision・screen不反映/busy・close待ちを確認。実画面では合成rootで再計測中のタブ切替/検索/閉鎖と通常容量/managed別表示、2解像度を確認。symlink権限変更なし。hash前後、全owned workerの終端とport解放を記録。再試行が必要な不明状態を勝手に再送しない。
+
+固定252/250/248/245/240は不変。Codexはpytest/import/構文/build/GUIを実行していない。独立監査・CoS受入・L12/P3全体と原152台帳は未完。

@@ -199,6 +199,46 @@ def test_error_retry_rotates_attempt_and_old_context_is_rejected():
         service.close()
 
 
+def test_deep_job_store_keeps_location_exclusivity_and_reopens_without_replay(tmp_path):
+    from pixivvault_nicegui.fs_paths import native_io_path
+
+    folder = tmp_path
+    while len(str(folder)) < 285:
+        folder /= "deep-owned-job-store"
+    path = folder / "jobs.sqlite3"
+    calls = []
+
+    def runner(job, context):
+        calls.append(job.job_id)
+        context.progress(1, 1)
+        return "outputs/long-path/receipt.json"
+
+    service = JobService(runner, path)
+    try:
+        assert service._store.path == path
+        job = service.enqueue("demo", "deep", operation_id="deep-owned-operation")
+        completed = wait(service, job.job_id, "done")
+        assert completed.result == "outputs/long-path/receipt.json"
+        with pytest.raises(JobStorageError, match="already owned"):
+            other = JobService(runner, path)
+            other.close()  # Release an unexpected owner before failing the test.
+        assert native_io_path(path).is_file()
+        assert native_io_path(path).stat().st_nlink == 1
+        assert len(str(path)) > 285
+    finally:
+        service.close()
+    assert calls == [job.job_id]
+
+    reopened = JobService(runner, path)
+    try:
+        assert reopened._store.path == path
+        assert find(reopened, job.job_id) == completed
+        assert reopened.enqueue("demo", "deep", operation_id="deep-owned-operation") == completed
+        assert calls == [job.job_id]
+    finally:
+        reopened.close()
+
+
 def test_unmanaged_database_is_preserved(tmp_path):
     path = tmp_path / "foreign.sqlite3"
     connection = sqlite3.connect(path)

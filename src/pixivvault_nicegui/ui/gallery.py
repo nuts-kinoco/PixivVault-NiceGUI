@@ -36,7 +36,7 @@ class GalleryView(ViewerController):
                 self.search_input = ui.input(
                     placeholder="作品名・作者・タグで検索",
                     on_change=lambda event: self.search(event.value),
-                ).props("outlined dense clearable dark debounce=200 data-testid=gallery-search").classes("pv-search")
+                ).props("outlined dense clearable debounce=200 data-testid=gallery-search").classes("pv-search")
                 self.search_input.on("keydown.enter", lambda _: self.search(self.search_input.value))
                 ui.button("検索", on_click=lambda: self.search(self.search_input.value))
                 ui.label("カードサイズ").classes("pv-subtitle")

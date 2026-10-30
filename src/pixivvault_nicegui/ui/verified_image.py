@@ -14,11 +14,15 @@ class VerifiedImage(ui.element, component='verified_image.js'):
         if source:
             self.set_source(source)
 
-    def set_source(self, source: str) -> 'VerifiedImage':
+    def set_source(self, source: str, *, event_source: str | None = None,
+                   retain_previous: bool | None = None) -> 'VerifiedImage':
         if not isinstance(source, str):
             raise TypeError('source must be a string')
         self._request_id += 1
+        if retain_previous is not None:
+            self._props['retain_previous'] = bool(retain_previous)
         self._props['src'] = source
+        self._props['event_source'] = event_source or ''
         self._props['request_id'] = self._request_id
         self.update()
         return self

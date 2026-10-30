@@ -48,6 +48,7 @@ class Reader:
 def app_with_bridge(works, old_works):
     service = object.__new__(ApplicationServices)
     service.closing = False
+    service.library_repository = None
     service.managed_downloads = SimpleNamespace(saved_receipts_with_dates=lambda: ())
     service.live_client = Reader(works)
     service.legacy_author_bridge = Bridge(old_works)

@@ -10,8 +10,10 @@ from nicegui import ui
 
 from ..bookmark_remote_adapter import RemoteBookmark
 from ..author_download import AuthorTarget, Difference, filter_authors, select_author
+from ..author_target_selection import MAX_SELECTED_AUTHORS, visible_authors, select_many_authors
 from ..managed_download_requests import ManagedAuthorIntent
 from .job_views import _accepted_call, _browser_event
+from .download_status_details import DownloadStatusDetails
 
 
 def _supported(record: object) -> bool:
@@ -33,6 +35,7 @@ class ManagedDownloadView:
         self.refreshing = False
         self.looking_up = False
         self.author_loading = False
+        self.author_media_view = None
         self.author_diff_rows = ()
         self.author_diff_revision = -1
         self.author_diff_shown = 50
@@ -45,6 +48,11 @@ class ManagedDownloadView:
         self.follow_authors: tuple[AuthorTarget, ...] = ()
         self.follow_query = ''
         self.follow_shown = 48
+        self.author_chips_shown = 48
+        self.follow_sort_key = 'follow_order'
+        self.follow_descending = False
+        self.follow_favorites_only = False
+        self.target_mode = 'bookmark'
         self._render_pending = False
         self.epoch = 0
         self._owner = uuid4().hex  # Server-owned, never accepted from a browser payload.
@@ -66,12 +74,21 @@ class ManagedDownloadView:
         self._choice_generations = {}
         self._load_cached()
         with ui.column().classes("pv-jobs-view w-full").props(
-            "data-testid=managed-download-view data-active=true data-epoch=0 data-selection-revision=0 data-author-revision=0"
+            "data-testid=managed-download-view data-active=true data-epoch=0 data-selection-revision=0 data-author-revision=0 data-target-mode=bookmark"
         ) as self.root:
+            with ui.row().classes('w-full items-center'):
+                self.bookmark_mode_button = ui.button('マイブックマーク', color=None).props(
+                    'no-caps data-testid=managed-download-mode-bookmark')
+                self.bookmark_mode_button.on('click', lambda event: self._mode_event(event, 'bookmark'),
+                    js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
+                self.author_mode_button = ui.button('フォロー中の作者', color=None).props(
+                    'no-caps data-testid=managed-download-mode-author')
+                self.author_mode_button.on('click', lambda event: self._mode_event(event, 'author'),
+                    js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
             with ui.row().classes("pv-toolbar"):
                 ui.label("Pixivブックマークからダウンロード").classes("pv-library-heading")
                 self.search_input = ui.input(placeholder="作品名・作者・IDで検索").props(
-                    "outlined dense clearable dark debounce=200 data-testid=managed-download-search"
+                    "outlined dense clearable debounce=200 data-testid=managed-download-search"
                 ).classes("pv-search")
                 self.search_input.on("update:model-value", self._search_event,
                     js_handler=f"value => emit({{value,epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
@@ -82,52 +99,84 @@ class ManagedDownloadView:
                 js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
             with ui.row().classes("w-full items-center"):
                 self.direct_input = ui.input(placeholder="単一作品ID（数字）").props(
-                    "outlined dense dark data-testid=managed-download-direct-id").classes("pv-search")
+                    "outlined dense data-testid=managed-download-direct-id").classes("pv-search")
                 self.direct_button = ui.button("IDから作品を確認", color=None).props(
                     "flat no-caps data-testid=managed-download-direct-lookup")
                 self.direct_button.on("click", self._lookup_event,
                     js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
             ui.label("ブックマーク以外の作品もIDで確認できます。確認だけでは保存・登録しません。").classes("pv-subtitle")
-            with ui.row().classes("w-full items-center"):
-                self.author_input = ui.input(placeholder="作者ID（作品IDではありません）").props(
-                    "outlined dense dark data-testid=managed-download-author-id").classes("pv-search")
-                self.author_add_button = ui.button("作者を選択", color=None).props(
-                    "flat no-caps data-testid=managed-download-author-add")
-                self.author_add_button.on("click", self._author_add_event,
-                    js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
-                self.author_fetch_button = ui.button("選択作者の差分を確認", color=None).props(
-                    "flat no-caps data-testid=managed-download-author-fetch")
-                self.author_fetch_button.on("click", self._author_fetch_event,
-                    js_handler=f"() => {{const d=document.getElementById('{self.root.html_id}').dataset;emit({{epoch:d.epoch,authorRevision:d.authorRevision}})}}")
-                self.author_scan_button = ui.button('旧DBと照合して欠落を確認', color=None).props(
-                    'flat no-caps data-testid=managed-download-author-scan')
-                self.author_scan_button.on('click', self._author_scan_event,
-                    js_handler=f"() => {{const d=document.getElementById('{self.root.html_id}').dataset;emit({{epoch:d.epoch,authorRevision:d.authorRevision}})}}")
-            self.author_selected_label = ui.label("選択作者 0 件").props(
-                "data-testid=managed-download-author-selection")
-            self.author_chips = ui.column().classes('w-full gap-1').props(
-                'data-testid=managed-download-author-targets')
-            self.author_status_label = ui.label().props(
-                "data-testid=managed-download-author-status role=status")
-            self.author_diff_list = ui.column().classes('w-full gap-1 pv-author-diff-list').props(
-                'data-testid=managed-download-author-differences')
-            self.author_remote_absent_list = ui.column().classes('w-full gap-1 pv-author-remote-absent-list').props(
-                'data-testid=managed-download-remote-absent')
-            with ui.row().classes('w-full items-center'):
-                self.follow_refresh_button = ui.button('フォロー作者一覧を取得', color=None).props(
-                    'flat no-caps data-testid=managed-download-follow-refresh')
-                self.follow_refresh_button.on('click', self._follow_refresh_event,
-                    js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
-                self.follow_search_input = ui.input(placeholder='フォロー作者名・作者IDで絞り込み').props(
-                    'outlined dense dark debounce=200 data-testid=managed-download-follow-search')
-                self.follow_search_input.on('update:model-value', self._follow_search_event,
-                    js_handler=f"value => emit({{value,epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
-            self.follow_list = ui.column().classes('w-full gap-1').props(
-                'data-testid=managed-download-follow-list')
+            with ui.column().classes('w-full gap-1').props('data-testid=managed-download-author-panel') as self.author_panel:
+                with ui.row().classes("w-full items-center"):
+                    self.author_input = ui.input(placeholder="作者ID（作品IDではありません）").props(
+                        "outlined dense data-testid=managed-download-author-id").classes("pv-search")
+                    self.author_add_button = ui.button("作者を選択", color=None).props(
+                        "flat no-caps data-testid=managed-download-author-add")
+                    self.author_add_button.on("click", self._author_add_event,
+                        js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
+                    self.author_fetch_button = ui.button("選択作者の差分を確認", color=None).props(
+                        "flat no-caps data-testid=managed-download-author-fetch")
+                    self.author_fetch_button.on("click", self._author_fetch_event,
+                        js_handler=f"() => {{const d=document.getElementById('{self.root.html_id}').dataset;emit({{epoch:d.epoch,authorRevision:d.authorRevision}})}}")
+                    self.author_scan_button = ui.button('旧DBと照合して欠落を確認', color=None).props(
+                        'flat no-caps data-testid=managed-download-author-scan')
+                    self.author_scan_button.on('click', self._author_scan_event,
+                        js_handler=f"() => {{const d=document.getElementById('{self.root.html_id}').dataset;emit({{epoch:d.epoch,authorRevision:d.authorRevision}})}}")
+                self.author_selected_label = ui.label("選択作者 0 件").props(
+                    "data-testid=managed-download-author-selection")
+                self.author_chips = ui.column().classes('w-full gap-1').props(
+                    'data-testid=managed-download-author-targets')
+                self.author_status_label = ui.label().props(
+                    "data-testid=managed-download-author-status role=status")
+                self.author_diff_list = ui.column().classes('w-full gap-1 pv-author-diff-list').props(
+                    'data-testid=managed-download-author-differences')
+                self.author_remote_absent_list = ui.column().classes('w-full gap-1 pv-author-remote-absent-list').props(
+                    'data-testid=managed-download-remote-absent')
+                with ui.row().classes('w-full items-center'):
+                    self.follow_refresh_button = ui.button('フォロー作者一覧を取得', color=None).props(
+                        'flat no-caps data-testid=managed-download-follow-refresh')
+                    self.follow_refresh_button.on('click', self._follow_refresh_event,
+                        js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
+                    self.follow_search_input = ui.input(placeholder='フォロー作者名・作者IDで絞り込み').props(
+                        'outlined dense clearable debounce=200 data-testid=managed-download-follow-search')
+                    self.follow_search_input.on('update:model-value', self._follow_search_event,
+                        js_handler=f"value => emit({{value,epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
+                with ui.row().classes('w-full items-center'):
+                    self.follow_sort = ui.select({'follow_order':'フォロー登録順','name':'名前順','id':'作者ID順'},
+                        value=self.follow_sort_key, label='並び替え').props('dense outlined data-testid=managed-download-follow-sort')
+                    self.follow_sort.on_value_change(lambda e: self._set_follow_sort(e.value))
+                    self.follow_direction = ui.button('昇順', color=None).props(
+                        'flat no-caps data-testid=managed-download-follow-direction')
+                    self.follow_direction.on_click(lambda: self._set_follow_direction(not self.follow_descending))
+                    self.follow_star_filter = ui.button('☆のみ', color=None).props(
+                        'flat no-caps data-testid=managed-download-follow-star-only')
+                    self.follow_star_filter.on_click(self._toggle_follow_stars)
+                with ui.row().classes('w-full items-center'):
+                    self.follow_all_button = ui.button('絞り込み結果を全部選ぶ', color=None).props(
+                        'flat no-caps data-testid=managed-download-follow-select-all')
+                    self.follow_all_button.on_click(self._select_visible_follow)
+                    self.follow_clear_button = ui.button('選択を全部外す', color=None).props(
+                        'flat no-caps data-testid=managed-download-follow-clear')
+                    self.follow_clear_button.on_click(self._clear_follow_selection)
+                    self.follow_star_add_button = ui.button('☆を対象にする', color=None).props(
+                        'flat no-caps data-testid=managed-download-follow-star-add')
+                    self.follow_star_add_button.on_click(self._select_favorite_follow)
+                self.follow_counter = ui.label().classes('pv-counter').props('data-testid=managed-download-follow-count')
+                self.follow_list = ui.column().classes('w-full gap-1').props(
+                    'data-testid=managed-download-follow-list')
             ui.label("ブックマーク取得はGETのみ。元DBは変更せず、保存先は設定済みの専用フォルダーです。").classes("pv-subtitle")
             self.notice = ui.label().props("data-testid=managed-download-notice role=status")
+            self.details = DownloadStatusDetails(self, managed=True)
             with ui.row().classes("pv-download-body w-full"):
-                self.list = ui.column().classes("pv-jobs-scroll pv-download-candidates")
+                with ui.column().classes('pv-download-candidates').props(
+                        'data-testid=managed-download-bookmark-panel') as self.bookmark_panel:
+                    with ui.row().classes('w-full items-center'):
+                        self.bookmark_all_button = ui.button('表示中を全部選ぶ', color=None).props(
+                            'flat no-caps data-testid=managed-download-bookmark-select-all')
+                        self.bookmark_all_button.on_click(self._select_visible_bookmarks)
+                        self.bookmark_clear_button = ui.button('選択を全部外す', color=None).props(
+                            'flat no-caps data-testid=managed-download-bookmark-clear')
+                        self.bookmark_clear_button.on_click(self._clear_bookmark_selection)
+                    self.list = ui.column().classes("pv-jobs-scroll pv-download-candidates")
                 with ui.column().classes("pv-download-targets"):
                     self.selection_count = ui.label().props("data-testid=managed-download-selection")
                     self.targets = ui.column().classes("w-full gap-1")
@@ -135,8 +184,16 @@ class ManagedDownloadView:
                         "flat no-caps data-testid=managed-download-submit")
                     self.submit_button.on("click", self._submit_event,
                         js_handler=f"() => {{const d=document.getElementById('{self.root.html_id}').dataset;emit({{epoch:d.epoch,selectionRevision:d.selectionRevision}})}}")
+        if getattr(services, "author_media", None) is not None:
+            from .author_media_view import AuthorMediaView
+            with self.root:
+                with ui.column().classes('w-full').props('data-testid=managed-download-all-media-panel') as self.author_media_slot:
+                    self.author_media_view = AuthorMediaView(self)
+        else:
+            self.author_media_slot = None
         self.client.on_delete(self.close)
         self.render()
+        self._sync_target_mode()
 
     def _load_cached(self):
         try:
@@ -159,6 +216,37 @@ class ManagedDownloadView:
         return (self.active and not self.closed
                 and (epoch is None or str(epoch) == str(self.epoch)))
 
+    def _mode_event(self, event, mode):
+        if self._valid() and _browser_event(event, epoch=self.epoch):
+            self.set_target_mode(mode)
+
+    def set_target_mode(self, mode):
+        if not self._valid() or mode not in ('bookmark', 'author'):
+            return False
+        if mode != self.target_mode:
+            # Mode transitions invalidate stale browser actions, but preserve
+            # both sets of selections and their intended submission identities.
+            self.epoch += 1
+            self.root.props['data-epoch'] = str(self.epoch)
+            self.target_mode = mode
+            self._sync_target_mode()
+        return True
+
+    def _sync_target_mode(self):
+        self.root.props['data-target-mode'] = self.target_mode
+        self.root.update()
+        for name, button in (('bookmark', self.bookmark_mode_button),
+                             ('author', self.author_mode_button)):
+            button.props['data-selected'] = str(name == self.target_mode).lower()
+            button.props['color'] = 'primary' if name == self.target_mode else 'grey-7'
+            button.update()
+        self.bookmark_panel.set_visibility(self.target_mode == 'bookmark')
+        self.author_panel.set_visibility(self.target_mode == 'author')
+        if self.author_media_slot is not None:
+            self.author_media_slot.set_visibility(self.target_mode == 'author')
+        if self.author_media_view is not None:
+            self.author_media_view.set_active(self.active and self.target_mode == 'author')
+
     def _bump_selection(self):
         self.selection_revision += 1
         if not self.closed:
@@ -175,6 +263,45 @@ class ManagedDownloadView:
         self.query = str(value or "").strip().casefold()
         self.shown = 50
         self.render()
+
+    def _visible_bookmark_records(self):
+        return tuple(r for r in self.records.values()
+                     if self.query in f'{r.remote_id} {r.title} {r.author_name}'.casefold())
+
+    def _select_visible_bookmarks(self):
+        if not self._valid() or self.busy or self.author_loading:
+            return False
+        records = self._visible_bookmark_records()[:self.shown]
+        pending = tuple(r for r in records if r.work_id not in self.selected)
+        if len(self.selected) + len(pending) > 128:
+            self.notice.set_text('一度にキューへ積める対象は128件までです。対象を減らしてください')
+            return False
+        for record in pending:
+            self._available_author_intents.pop(record.work_id, None)
+            self.selected[record.work_id] = record
+        if pending:
+            self._bump_selection()
+            self.render()
+        self.notice.set_text(f'表示中から {len(pending)} 件を追加しました（対象 {len(self.selected)} 件）')
+        return True
+
+    def _clear_bookmark_selection(self):
+        if not self._valid() or self.busy or self.author_loading:
+            return False
+        author_ids = tuple(wid for wid in self.selected if wid in self._available_author_intents)
+        if author_ids:
+            forget = getattr(self.services, 'forget_accepted_managed_author_batch', None)
+            if callable(forget):
+                forget(self._owner, author_ids)
+        changed = bool(self.selected)
+        self.selected.clear()
+        self._available_author_intents.clear()
+        self._operations.clear()
+        if changed:
+            self._bump_selection()
+            self.render()
+        self.notice.set_text('作品の選択をすべて解除しました')
+        return True
 
     def _invalidate_choice(self, work_id):
         generation = self._choice_generations.get(work_id, 0) + 1
@@ -253,8 +380,7 @@ class ManagedDownloadView:
         self._render_session = object()
         self._choice_serials = {}
         self._choice_generations = {}
-        matches = [r for r in self.records.values()
-                   if self.query in f"{r.remote_id} {r.title} {r.author_name}".casefold()]
+        matches = self._visible_bookmark_records()
         self.list.clear()
         self._choices = {}
         with self.list:
@@ -291,6 +417,8 @@ class ManagedDownloadView:
             if not matches:
                 ui.label("条件に合う対応作品がありません").classes("pv-empty")
         self.counter.set_text(f"{min(len(matches), self.shown)} / {len(matches)} 件表示")
+        self.bookmark_all_button.set_enabled(self.active and not self.busy and not self.author_loading)
+        self.bookmark_clear_button.set_enabled(self.active and not self.busy and not self.author_loading)
         if self.services.managed_downloads is None:
             self.notice.set_text("管理ダウンロードは未設定です。専用保存先を指定してください。")
         self._render_targets()
@@ -311,6 +439,7 @@ class ManagedDownloadView:
             and self.services.managed_downloads is not None
             and self.services.jobs is not None and self.active
             and not self.closed and not self.busy)
+        self.details.refresh()
 
     def _remove_target_event(self, event, work_id):
         if (self._valid() and _browser_event(event, epoch=self.epoch,
@@ -358,9 +487,9 @@ class ManagedDownloadView:
             self.author_status_label.set_text('正しい作者IDを入力してください')
             return
         candidate = AuthorTarget(raw, f'ID {raw}', 'id')
-        if len(self.author_targets) >= 256 and not any(
+        if len(self.author_targets) >= MAX_SELECTED_AUTHORS and not any(
                 a.user_id == raw for a in self.author_targets):
-            self.author_status_label.set_text('選択作者は最大256件です')
+            self.author_status_label.set_text('選択作者が読取上限に達しました')
             return
         before = self.author_targets
         self.author_targets = select_author(self.author_targets, candidate)
@@ -380,6 +509,8 @@ class ManagedDownloadView:
             self._render_follow_list()
 
     def _render_author_targets(self):
+        if self.author_media_view is not None:
+            self.author_media_view.render()
         self.root.props['data-author-revision'] = str(self.author_revision)
         self.root.update()
         self.author_selected_label.set_text(f'選択作者 {len(self.author_targets)} 件')
@@ -390,7 +521,7 @@ class ManagedDownloadView:
             and getattr(self.services, 'legacy_author_bridge', None) is not None)
         self.author_chips.clear()
         with self.author_chips:
-            for author in self.author_targets:
+            for author in self.author_targets[:self.author_chips_shown]:
                 with ui.row().classes('w-full items-center'):
                     ui.label(f'{author.display_name} ({author.origin})').classes('pv-subtitle')
                     button = ui.button('解除', color=None).props(
@@ -398,6 +529,17 @@ class ManagedDownloadView:
                     button.on('click', lambda _e, uid=author.user_id, epoch=self.epoch,
                               revision=self.author_revision: self._remove_author(uid, epoch, revision))
                     button.set_enabled(self.active and not self.author_loading)
+            if len(self.author_targets) > self.author_chips_shown:
+                ui.button('選択作者をもっと見る', color=None,
+                    on_click=self._show_more_author_chips).props(
+                    'flat dense no-caps data-testid=managed-download-author-chips-more')
+
+    def _show_more_author_chips(self):
+        if not self._valid() or self.author_loading:
+            return False
+        self.author_chips_shown += 48
+        self._render_author_targets()
+        return True
 
     def _render_author_differences(self):
         """All inspected classifications, including deferred legacy states."""
@@ -453,6 +595,80 @@ class ManagedDownloadView:
             self.follow_shown = 48
             self._render_follow_list()
 
+    def _set_follow_sort(self, key):
+        if not self._valid() or self.author_loading or key not in ('follow_order','name','id'):
+            return False
+        self.follow_sort_key = key
+        self.follow_shown = 48
+        self._render_follow_list()
+        return True
+
+    def _set_follow_direction(self, descending):
+        if not self._valid() or self.author_loading or type(descending) is not bool:
+            return False
+        self.follow_descending = descending
+        self.follow_direction.set_text('降順' if descending else '昇順')
+        self.follow_shown = 48
+        self._render_follow_list()
+        return True
+
+    def _favorites_known(self):
+        return bool(self.follow_authors) and all(
+            a.is_favorite is not None for a in self.follow_authors)
+
+    def _toggle_follow_stars(self):
+        if not self._valid() or self.author_loading:
+            return False
+        if not self._favorites_known():
+            self.author_status_label.set_text('☆情報は未取得です。フォロー作者一覧を同期してからお試しください')
+            return False
+        self.follow_favorites_only = not self.follow_favorites_only
+        self.follow_shown = 48
+        self._render_follow_list()
+        return True
+
+    def _select_follow_batch(self, candidates):
+        if not self._valid() or self.author_loading or self.busy:
+            return False
+        try:
+            updated = select_many_authors(self.author_targets, tuple(candidates))
+        except ValueError:
+            self.author_status_label.set_text('選択作者が読取上限に達しました。対象を絞ってください')
+            return False
+        added = len(updated) - len(self.author_targets)
+        if added:
+            self.author_targets = updated
+            self.author_revision += 1
+            self._render_author_targets()
+            self._render_follow_list()
+        self.author_status_label.set_text(f'作者 {added} 件を追加しました（選択 {len(self.author_targets)} 件）')
+        return True
+
+    def _select_visible_follow(self):
+        return self._select_follow_batch(self._visible_follow_authors())
+
+    def _select_favorite_follow(self):
+        if not self._favorites_known():
+            self.author_status_label.set_text('☆情報を確認できないため、一括選択できません')
+            return False
+        return self._select_follow_batch(tuple(a for a in self.follow_authors if a.is_favorite is True))
+
+    def _clear_follow_selection(self):
+        if not self._valid() or self.author_loading or self.busy:
+            return False
+        if self.author_targets:
+            self.author_targets = ()
+            self.author_revision += 1
+            self._render_author_targets()
+            self._render_follow_list()
+        self.author_status_label.set_text('作者の選択をすべて解除しました')
+        return True
+
+    def _visible_follow_authors(self):
+        return visible_authors(self.follow_authors, query=self.follow_query,
+            favorites_only=self.follow_favorites_only,
+            sort_key=self.follow_sort_key, descending=self.follow_descending)
+
     def _follow_pick(self, uid, epoch, selected_revision):
         if (not self._valid(epoch) or self.author_loading or
                 self.follow_render_generation != selected_revision):
@@ -460,7 +676,7 @@ class ManagedDownloadView:
         author = next((item for item in self.follow_authors if item.user_id == uid), None)
         if author is None:
             return
-        if len(self.author_targets) >= 256 and not any(
+        if len(self.author_targets) >= MAX_SELECTED_AUTHORS and not any(
                 a.user_id == uid for a in self.author_targets):
             return
         previous = self.author_targets
@@ -475,15 +691,29 @@ class ManagedDownloadView:
     def _render_follow_list(self, *, invalidate=True):
         if self.closed:
             return
-        matches = filter_authors(self.follow_authors, self.follow_query)
+        matches = self._visible_follow_authors()
         if invalidate:
             self.follow_render_generation += 1
+        favorites_known = self._favorites_known()
+        self.follow_star_filter.set_enabled(self.active and not self.author_loading and favorites_known)
+        self.follow_star_add_button.set_enabled(self.active and not self.author_loading and favorites_known)
+        self.follow_star_filter.props['data-selected'] = str(self.follow_favorites_only).lower()
+        self.follow_star_filter.props['color'] = 'primary' if self.follow_favorites_only else 'grey-7'
+        self.follow_star_filter.update()
+        self.follow_direction.set_enabled(self.active and not self.author_loading)
+        self.follow_sort.set_enabled(self.active and not self.author_loading)
+        self.follow_all_button.set_enabled(self.active and not self.author_loading)
+        self.follow_clear_button.set_enabled(self.active and not self.author_loading)
+        self.follow_counter.set_text(f'作者 {min(len(matches), self.follow_shown)} / {len(matches)} 件表示 · 選択 {len(self.author_targets)} 件'
+            + ('' if favorites_known or not self.follow_authors else ' · ☆情報未確認'))
         self.follow_list.clear()
+        selected_ids = {item.user_id for item in self.author_targets}
         with self.follow_list:
             for author in matches[:self.follow_shown]:
-                picked = author.user_id in {item.user_id for item in self.author_targets}
+                picked = author.user_id in selected_ids
                 button = ui.button(
-                    f'{author.display_name} · {author.user_id}' + (' ✓' if picked else ''),
+                    ('★ ' if author.is_favorite is True else '☆ ' if author.is_favorite is False else '')
+                    + f'{author.display_name} · {author.user_id}' + (' ✓' if picked else ''),
                     color=None).props('flat dense no-caps data-testid=managed-download-follow-select')
                 button.on('click', lambda _e, uid=author.user_id, epoch=self.epoch,
                           revision=self.follow_render_generation: self._follow_pick(uid, epoch, revision))
@@ -493,6 +723,8 @@ class ManagedDownloadView:
                 ui.button('作者をもっと見る', color=None,
                     on_click=lambda _e, gen=generation: self._more_follow(gen)).props(
                     'flat dense data-testid=managed-download-follow-more')
+            if not matches:
+                ui.label('条件に合う作者は0件です').classes('pv-empty')
 
     def _more_follow(self, generation):
         if self._valid() and not self.author_loading and generation == self.follow_render_generation:
@@ -515,6 +747,8 @@ class ManagedDownloadView:
             if not self._valid(issued_epoch):
                 return False
             self.follow_authors = tuple(authors)
+            if self.follow_favorites_only and not self._favorites_known():
+                self.follow_favorites_only = False
             self.follow_shown = 48
             self._render_follow_list()
             self.author_status_label.set_text(f'フォロー作者 {len(authors)} 件を取得しました')
@@ -871,9 +1105,12 @@ class ManagedDownloadView:
         if self.active != bool(active):
             self.epoch += 1
         self.active = bool(active)
+        if self.author_media_view is not None:
+            self.author_media_view.set_active(self.active and self.target_mode == 'author')
         self.root.props["data-active"] = str(self.active).lower()
         self.root.props["data-epoch"] = str(self.epoch)
         self.root.update()
+        self.details.set_active(self.active)
         if self.active and self._render_pending:
             self._render_pending = False
             self.render()
@@ -897,6 +1134,8 @@ class ManagedDownloadView:
     def close(self):
         if not self.closed:
             self.closed = True
+            if self.author_media_view is not None:
+                self.author_media_view.close()
             self.active = False
             self.epoch += 1
             self._release_owner_if_done()

@@ -6,6 +6,7 @@ managed JobService enqueue. This module does not perform network requests.
 """
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import os
@@ -249,6 +250,12 @@ class ManagedScheduler:
             self._db.execute('INSERT OR IGNORE INTO dispatch_items(slot,work_id,author_id,operation_id,job_id,state) VALUES(?,?,?,?,NULL,?)',
                              (slot, work_id, author_id, operation_id, 'submitting'))
 
+    def dispatch_operation(self, slot, work_id):
+        with self._lock:
+            self._ensure_open()
+            return self._db.execute('SELECT operation_id,job_id FROM dispatch_items WHERE slot=? AND work_id=?',
+                                    (slot, work_id)).fetchone()
+
     def bind_dispatch_job(self, *, slot: str, work_id: str, operation_id: str,
                           job_id: str, accepted_fingerprint: str) -> None:
         with self._lock:
@@ -360,6 +367,8 @@ class ManagedScheduler:
                     state = 'unknown'
                 if state != prior:
                     self._db.execute('UPDATE dispatch_items SET state=? WHERE slot=? AND work_id=?', (state, slot, wid))
+                    if state == 'saved':
+                        newly_saved.append(wid)
             slots = self._db.execute("SELECT DISTINCT slot FROM dispatch_items").fetchall()
             for (slot,) in slots:
                 states = [row[0] for row in self._db.execute(
@@ -537,6 +546,9 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
     must be preconfigured in isolated managed settings, not inferred from a
     legacy database. A fresh owner capability is scoped to this one dispatch.
     """
+    if getattr(services, 'author_media', None) is not None:
+        return submit_author_media_batch(services, author_ids, cancellation=cancellation,
+            max_items=max_items, ledger=ledger, slot=slot)
     from .author_download import Difference, decide_difference
     from .managed_download_requests import ManagedAuthorIntent
     from .pixiv_read_client import _identifier
@@ -674,7 +686,12 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                 # GET and enqueue against both manual acceptance and the worker
                 # publication path. Otherwise a same-ID job can finish during
                 # the detail GET and leave this dispatch bound to a stale CAS.
-                with services.managed_downloads.work_lock(wid):
+                with getattr(services, "_media_admission_lock", nullcontext()), services.managed_downloads.work_lock(wid):
+                    if sum(j.state in UNFINISHED for j in services.jobs.snapshot()) >= max_items:
+                        deferred += 1
+                        if ledger is not None:
+                            ledger.defer_work(author_id=author_id, work=work, now=datetime.now(timezone.utc))
+                        continue
                     current_pending = any(
                         j.kind == 'pixiv-illust' and j.target_id == wid and j.state in UNFINISHED
                         for j in services.jobs.snapshot())
@@ -755,6 +772,85 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
         raise
     finally:
         services.release_managed_owner(owner)
+
+
+def submit_author_media_batch(services, author_ids, *, cancellation, max_items=50, ledger=None, slot=None):
+    """Original both=illustrations (including ugoira)+novels, bounded at 50.
+
+    Complete inventories are fetched before admitting an author's first item.
+    Deferred keys retain their media namespace; old bare static keys survive.
+    """
+    from .author_media import AuthorMediaCandidate, identifier
+    from .job_service import UNFINISHED
+    if services.closing or services.jobs is None:
+        raise ScheduleError('author media unavailable')
+    if type(author_ids) not in (tuple,list) or len(author_ids)>128:
+        raise ValueError('invalid configured favourite authors')
+    if type(max_items) is not int or not 1<=max_items<=50:
+        raise ValueError('invalid scheduler queue capacity')
+    authors=tuple(dict.fromkeys(identifier(uid) for uid in author_ids))
+    slot=slot or _timestamp(datetime.now(timezone.utc))
+    accepted=deferred=0
+    if ledger is not None:
+        ledger.begin_dispatch(slot,datetime.now(timezone.utc),len(authors))
+    try:
+        for aid in authors:
+            if cancellation.is_set() or services.closing: break
+            rows=tuple(services.author_media_preview(aid))
+            if any(type(c) is not AuthorMediaCandidate or c.author_id!=aid for c in rows):
+                raise ScheduleError('complete author media identity changed')
+            if len({c.key for c in rows})!=len(rows):
+                raise ScheduleError('duplicate author media inventory key')
+            backlog=ledger.deferred_ids(aid) if ledger else frozenset()
+            if ledger is not None:
+                ledger.prune_deferred_inventory(aid,{c.key for c in rows})
+            rows=sorted(rows,key=lambda c:(c.key not in backlog,-int(c.work_id),c.kind))
+            for c in rows:
+                if not c.eligible:
+                    deferred+=1
+                    if ledger is not None: ledger.resolve_deferred(aid,c.key)
+                    continue
+                if (cancellation.is_set() or services.closing or accepted>=max_items
+                        or sum(j.state in UNFINISHED for j in services.jobs.snapshot())>=max_items):
+                    deferred+=1
+                    if ledger is not None:
+                        ledger.defer_work(author_id=aid,work=c.deferred_work(),now=datetime.now(timezone.utc))
+                    continue
+                with getattr(services, '_media_admission_lock', nullcontext()):
+                    if sum(j.state in UNFINISHED for j in services.jobs.snapshot())>=max_items:
+                        deferred+=1
+                        if ledger is not None:
+                            ledger.defer_work(author_id=aid,work=c.deferred_work(),now=datetime.now(timezone.utc))
+                        continue
+                    existing=ledger.dispatch_operation(slot,c.key) if ledger else None
+                    operation=existing[0] if existing else uuid4().hex
+                    if existing and existing[1]:
+                        # Previously accepted in this slot; reconcile will decide
+                        # saved/failed, never an automatic new operation/retry.
+                        deferred+=1
+                        if ledger is not None: ledger.resolve_deferred(aid,c.key)
+                        continue
+                    if ledger is not None:
+                        ledger.prepare_dispatch_item(slot=slot,work_id=c.key,author_id=aid,operation_id=operation)
+                    try:
+                        job,created,fingerprint=services.enqueue_author_media(c,operation,origin='follow')
+                    except Exception:
+                        if ledger is not None:
+                            ledger.fail_dispatch_item(slot=slot,work_id=c.key,operation_id=operation)
+                        raise
+                    accepted+=int(created); deferred+=int(not created)
+                    if ledger is not None:
+                        ledger.bind_dispatch_job(slot=slot,work_id=c.key,operation_id=operation,
+                                                 job_id=job.job_id,accepted_fingerprint=fingerprint)
+                        ledger.resolve_deferred(aid,c.key)
+        if ledger is not None:
+            ledger.finish_dispatch(slot,status='queued' if accepted or deferred else 'empty',
+                                   accepted=accepted,deferred=deferred)
+        return dict(accepted=accepted,deferred=deferred,authors=len(authors))
+    except Exception as exc:
+        if ledger is not None:
+            ledger.finish_dispatch(slot,status='failed',accepted=accepted,deferred=deferred,error_code=type(exc).__name__)
+        raise
 
 
 class ManagedScheduleRunner:

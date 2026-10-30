@@ -292,7 +292,7 @@ def check_tag_filters(page: Page, root, output: Path, key: str, record: dict) ->
           open_rect["width"] < closed_rect["width"] - 275,
           "filter panel must push content aside, never overlay images")
     expect(panel.locator(".pv-library-filter-seat")).to_have_count(8)
-    for key_name in ("date", "bookmark", "per_author", "exclude", "type_format"):
+    for key_name in ("per_author", "type_format"):
         expect(panel.get_by_test_id(f"library-filter-seat-{key_name}").locator("input,button")).to_have_count(0)
     tag = panel.get_by_placeholder("タグを追加")
 
@@ -358,6 +358,51 @@ def check_tag_filters(page: Page, root, output: Path, key: str, record: dict) ->
                              "exclude_count": 66, "panel_width": panel_rect["width"],
                              "push_aside": True, "detail_pages_unfiltered": 98,
                              "selection_and_tab_return": True, "now_chip_clear": True}
+
+
+def check_metadata_filters(page: Page, root, output: Path, key: str, record: dict) -> None:
+    """Real browser events for source-metadata filters; fixture unknowns stay unknown."""
+    root.get_by_test_id('library-subview-downloaded').click()
+    search_field(root).fill('')
+    root.get_by_test_id('library-filter-toggle').click()
+    panel=root.get_by_test_id('library-filter-panel')
+    expect(panel).to_be_visible()
+    panel.get_by_test_id('library-date-from').fill('2026-01-01')
+    author_count(root,0,0)
+    panel.get_by_test_id('library-date-preset-all').click()
+    author_count(root,4,4)
+    panel.get_by_test_id('library-bookmark-preset-100').click()
+    author_count(root,0,0)
+    panel.get_by_test_id('library-bookmark-preset-0').click()
+    author_count(root,4,4)
+    panel.get_by_test_id('library-author-filter-input').fill('架空作家 01')
+    panel.get_by_test_id('library-author-filter-add').click()
+    author_count(root,1,1)
+    panel.get_by_test_id('library-author-filter-remove').click()
+    author_count(root,4,4)
+    panel.get_by_test_id('library-exclude-ai').click()
+    expect(panel.get_by_test_id('library-exclude-ai')).to_have_attribute('aria-checked','true')
+    expect(root.get_by_test_id('library-filter-now')).to_contain_text('AI除外')
+    panel.get_by_test_id('library-include-r18').click()
+    expect(panel.get_by_test_id('library-include-r18')).to_have_attribute('aria-checked','false')
+    expect(root.get_by_test_id('library-filter-now')).to_contain_text('R-18除外')
+    panel.get_by_test_id('library-unread-only').click()
+    expect(panel.get_by_test_id('library-unread-only')).to_have_attribute('aria-checked','true')
+    expect(root.get_by_test_id('library-filter-now')).to_contain_text('未読のみ')
+    root.get_by_test_id('library-filter-now-clear').click()
+    root.get_by_test_id('library-sort-capacity').click()
+    expect(root.get_by_test_id('library-sort-capacity')).to_have_attribute('aria-pressed','true')
+    root.get_by_test_id('library-subview-bookmarks').click()
+    panel.get_by_test_id('library-unfetched-only').click()
+    expect(panel.get_by_test_id('library-unfetched-only')).to_have_attribute('aria-checked','true')
+    expect(root.get_by_test_id('bookmark-count')).to_have_text('50 / 70 件表示')
+    page.screenshot(path=str(output/f'library-{key}-metadata-filters.png'),full_page=True)
+    root.get_by_test_id('library-filter-now-clear').click()
+    expect(root.get_by_test_id('bookmark-count')).to_have_text('50 / 110 件表示')
+    root.get_by_test_id('bookmark-filter-toggle').click()
+    check_layout(page)
+    record['metadata_filters']={'date_unknown_excluded':True,'bookmark_unknown_excluded':True,
+        'author_filter':True,'r18_ai_unread_controls':True,'capacity_sort':True,'unfetched_count':70}
 
 
 def check_failure_retry(page: Page, root, result: dict, record: dict) -> None:
@@ -535,6 +580,7 @@ def run_viewport(page: Page, url: str, size: tuple[int, int],
     page.screenshot(path=str(output / f"library-{key}-final.png"), full_page=True)
     check_synthetic_bookmarks(page, root, output, key, record)
     check_tag_filters(page, root, output, key, record)
+    check_metadata_filters(page, root, output, key, record)
 
 
 def check_client_isolation(context, url: str, result: dict) -> None:
@@ -588,16 +634,256 @@ def check_client_isolation(context, url: str, result: dict) -> None:
         second.close()
 
 
+
+def _calendar_slider_panel(page: Page, url: str, size: tuple[int, int]):
+    page.set_viewport_size({"width": size[0], "height": size[1]})
+    page.goto(url, wait_until="domcontentloaded", timeout=25_000)
+    page.get_by_test_id("tab-library").click()
+    root = library(page)
+    author_count(root, 4, 4)
+    root.get_by_test_id("library-filter-toggle").click()
+    panel = root.get_by_test_id("library-filter-panel")
+    expect(panel).to_be_visible()
+    return root, panel
+
+
+def _calendar_day(dialog, number: int):
+    # Select a displayed day button, not an injected model event or server call.
+    button = dialog.get_by_test_id("library-date-picker").locator(
+        ".q-date__calendar-item--in button").filter(
+            has_text=re.compile(rf"^\s*{number}\s*$"))
+    expect(button).to_have_count(1)
+    expect(button).to_be_enabled()
+    return button
+
+
+def _open_calendar(page: Page, panel, field: str):
+    panel.get_by_test_id(f"library-{field}-calendar").click()
+    dialog = page.get_by_test_id("library-date-dialog")
+    expect(dialog).to_be_visible()
+    expect(dialog.get_by_test_id("library-date-picker")).to_be_visible()
+    return dialog
+
+
+def _slider_value(panel, value: int) -> None:
+    expect(panel.get_by_test_id("library-bookmark-slider")).to_have_attribute(
+        "aria-valuenow", str(value))
+
+
+def run_calendar_slider_viewport(page: Page, url: str, size: tuple[int, int],
+                                 output: Path, result: dict) -> None:
+    key = f"{size[0]}x{size[1]}"
+    record = {"viewport": {"width": size[0], "height": size[1]}, "original_ids": ["L04", "L07"]}
+    result["viewports"][key] = record
+    root, panel = _calendar_slider_panel(page, url, size)
+    start, end = (panel.get_by_test_id(f"library-date-{name}") for name in ("from", "to"))
+    start.fill("2024-02-28")
+    author_count(root, 0, 0)
+    dialog = _open_calendar(page, panel, "date-from")
+    page.screenshot(path=str(output / f"library-{key}-calendar.png"), full_page=True)
+    _calendar_day(dialog, 29).click()
+    expect(dialog).to_be_hidden()
+    expect(start).to_have_value("2024-02-29")
+    expect(panel.get_by_test_id("library-date-preset-custom")).to_have_attribute("aria-pressed", "true")
+    end.fill("2024-03-01")
+    expect(root.get_by_test_id("library-filter-now")).to_contain_text("2024-03-01")
+    dialog = _open_calendar(page, panel, "date-to")
+    _calendar_day(dialog, 2).click()
+    expect(dialog).to_be_hidden()
+    expect(end).to_have_value("2024-03-02")
+    dialog = _open_calendar(page, panel, "date-to")
+    dialog.get_by_test_id("library-date-cancel").click()
+    expect(dialog).to_be_hidden()
+    expect(end).to_have_value("2024-03-02")
+    root.get_by_test_id("library-subview-bookmarks").click()
+    expect(root.get_by_test_id("bookmark-count")).to_have_text("0 / 0 件表示")
+    expect(start).to_have_value("2024-02-29")
+    expect(end).to_have_value("2024-03-02")
+    root.get_by_test_id("library-subview-downloaded").click()
+    author_count(root, 0, 0)
+    # Exercise native text/checkbox model events independently of the calendar
+    # buttons. Their primitive values must survive shared subviews and a tab
+    # roundtrip, including Number/Input's former envelope-preservation failure.
+    manual_from, manual_to = "2024-02-20", "2024-03-03"
+    start.fill(manual_from)
+    expect(root.get_by_test_id("library-filter-now")).to_contain_text(manual_from)
+    end.fill(manual_to)
+    expect(root.get_by_test_id("library-filter-now")).to_contain_text(manual_to)
+    expect(start).to_have_value(manual_from)
+    expect(end).to_have_value(manual_to)
+    expect(panel.get_by_test_id("library-date-preset-custom")).to_have_attribute("aria-pressed", "true")
+    author_count(root, 0, 0)
+    exclude_ai = panel.get_by_test_id("library-exclude-ai")
+    expect(exclude_ai).to_have_attribute("aria-checked", "false")
+    exclude_ai.click()
+    expect(exclude_ai).to_have_attribute("aria-checked", "true")
+    expect(root.get_by_test_id("library-filter-now")).to_contain_text("AI除外")
+    root.get_by_test_id("library-subview-bookmarks").click()
+    expect(root.get_by_test_id("bookmark-count")).to_have_text("0 / 0 件表示")
+    expect(start).to_have_value(manual_from)
+    expect(end).to_have_value(manual_to)
+    expect(exclude_ai).to_have_attribute("aria-checked", "true")
+    page.get_by_test_id("tab-ranking").click()
+    expect(page.get_by_test_id("tab-ranking")).to_have_attribute("aria-current", "page")
+    expect(root).to_be_hidden()
+    page.get_by_test_id("tab-library").click()
+    expect(page.get_by_test_id("tab-library")).to_have_attribute("aria-current", "page")
+    expect(panel).to_be_visible()
+    expect(start).to_have_value(manual_from)
+    expect(end).to_have_value(manual_to)
+    expect(exclude_ai).to_have_attribute("aria-checked", "true")
+    expect(root.get_by_test_id("library-filter-now")).to_contain_text(manual_from)
+    expect(root.get_by_test_id("library-filter-now")).to_contain_text(manual_to)
+    expect(root.get_by_test_id("library-filter-now")).to_contain_text("AI除外")
+    expect(root.get_by_test_id("bookmark-count")).to_have_text("0 / 0 件表示")
+    record["manual_models"] = {
+        "from": start.input_value(), "to": end.input_value(),
+        "exclude_ai": exclude_ai.get_attribute("aria-checked"),
+        "shared_subviews": True, "tab_return": True,
+        "bookmark_count": root.get_by_test_id("bookmark-count").inner_text(),
+    }
+    page.screenshot(path=str(output / f"library-{key}-manual-models.png"), full_page=True)
+    root.get_by_test_id("library-subview-downloaded").click()
+    author_count(root, 0, 0)
+    exclude_ai.click()
+    expect(exclude_ai).to_have_attribute("aria-checked", "false")
+    expect(root.get_by_test_id("library-filter-now")).not_to_contain_text("AI除外")
+    record["manual_models"]["checkbox_restored"] = True
+    for years in (1, 3):
+        today = datetime.now().date()
+        try:
+            expected = today.replace(year=today.year - years).isoformat()
+        except ValueError:
+            expected = today.replace(year=today.year - years, day=28).isoformat()
+        panel.get_by_test_id(f"library-date-preset-{years}").click()
+        expect(start).to_have_value(expected)
+        expect(end).to_have_value("")
+    before_custom = start.input_value()
+    panel.get_by_test_id("library-date-preset-custom").click()
+    expect(start).to_have_value(before_custom)
+    panel.get_by_test_id("library-date-preset-all").click()
+    expect(start).to_have_value("")
+    expect(end).to_have_value("")
+    author_count(root, 4, 4)
+    record["calendar"] = {"leap_day": "2024-02-29", "end": "2024-03-02",
+                          "cancel_retained": True, "presets": [1, 3, "custom", "all"],
+                          "shared_subviews": True}
+
+    slider = panel.get_by_test_id("library-bookmark-slider")
+    number = panel.get_by_test_id("library-bookmark-min")
+    slider.scroll_into_view_if_needed()
+    _slider_value(panel, 0)
+    track = slider.locator(".q-slider__track-container")
+    expect(track).to_have_count(1)
+    box = track.bounding_box()
+    check(box is not None and box["width"] > 0, "ブクマスライダーの実トラック矩形がない")
+    generation = root.get_attribute("data-library-generation")
+    y = box["y"] + box["height"] / 2
+    page.mouse.move(box["x"] + 1, y)
+    page.mouse.down()
+    try:
+        page.mouse.move(box["x"] + box["width"] / 2, y, steps=10)
+        _slider_value(panel, 500)
+        # Hold beyond the 50 ms model throttle; result application is release-only.
+        page.wait_for_timeout(150)
+        expect(number).to_have_value("0")
+        author_count(root, 4, 4)
+        check(root.get_attribute("data-library-generation") == generation,
+              "ドラッグ中にライブラリの結果世代が変更された")
+        record["drag_held"] = {"thumb": 500, "number": number.input_value(),
+                               "generation": generation, "authors": 4, "hold_ms": 150}
+    finally:
+        page.mouse.up()
+    expect(number).to_have_value("500")
+    _slider_value(panel, 500)
+    author_count(root, 0, 0)
+    check(root.get_attribute("data-library-generation") != generation,
+          "離した後にライブラリの結果が反映されていない")
+    record["release"] = {"threshold": 500, "authors": 0,
+                         "generation": root.get_attribute("data-library-generation")}
+
+    for value in (0, 100, 500, 1000):
+        panel.get_by_test_id(f"library-bookmark-preset-{value}").click()
+        expect(number).to_have_value(str(value))
+        _slider_value(panel, value)
+        expect(panel.get_by_test_id(f"library-bookmark-preset-{value}")).to_have_attribute(
+            "aria-pressed", "true")
+        author_count(root, 4 if value == 0 else 0, 4 if value == 0 else 0)
+    for value, thumb in ((137, 137), (1500, 1000)):
+        number.fill(str(value))
+        expect(panel.get_by_test_id("library-bookmark-value")).to_have_text(f"{value:,}+")
+        expect(number).to_have_value(str(value))
+        _slider_value(panel, thumb)
+    page.get_by_test_id("tab-ranking").click()
+    page.get_by_test_id("tab-library").click()
+    expect(number).to_have_value("1500")
+    _slider_value(panel, 1000)
+    root.get_by_test_id("library-subview-bookmarks").click()
+    expect(root.get_by_test_id("bookmark-count")).to_have_text("0 / 0 件表示")
+    expect(number).to_have_value("1500")
+    panel.get_by_test_id("library-bookmark-preset-0").click()
+    expect(root.get_by_test_id("bookmark-count")).to_have_text("50 / 110 件表示")
+    root.get_by_test_id("library-subview-downloaded").click()
+    author_count(root, 4, 4)
+    panel.get_by_test_id("library-filter-clear").click()
+    expect(number).to_have_value("0")
+    _slider_value(panel, 0)
+    page.wait_for_timeout(150)
+    _slider_value(panel, 0)
+    record["slider"] = {"presets": [0, 100, 500, 1000],
+                        "manual_thresholds": [137, 1500], "visible_thumbs": [137, 1000],
+                        "tab_return": True, "shared_subviews": True, "clear": True}
+    record["layout"] = check_layout(page)
+    page.screenshot(path=str(output / f"library-{key}-calendar-slider.png"), full_page=True)
+
+
+def check_calendar_slider_clients(context, url: str, result: dict) -> None:
+    first, second = context.new_page(), context.new_page()
+    try:
+        a_root, a = _calendar_slider_panel(first, url, (1280, 720))
+        b_root, b = _calendar_slider_panel(second, url, (1280, 720))
+        a.get_by_test_id("library-date-from").fill("2024-02-28")
+        b.get_by_test_id("library-date-to").fill("2024-03-01")
+        a_dialog = _open_calendar(first, a, "date-from")
+        b_dialog = _open_calendar(second, b, "date-to")
+        _calendar_day(a_dialog, 29).click()
+        expect(a.get_by_test_id("library-date-from")).to_have_value("2024-02-29")
+        expect(b_dialog).to_be_visible()
+        expect(b.get_by_test_id("library-date-to")).to_have_value("2024-03-01")
+        a.get_by_test_id("library-bookmark-preset-500").click()
+        expect(a.get_by_test_id("library-bookmark-min")).to_have_value("500")
+        expect(b.get_by_test_id("library-bookmark-min")).to_have_value("0")
+        _slider_value(a, 500)
+        _slider_value(b, 0)
+        b_dialog.get_by_test_id("library-date-cancel").click()
+        expect(b_dialog).to_be_hidden()
+        b.get_by_test_id("library-filter-clear").click()
+        author_count(b_root, 4, 4)
+        expect(a.get_by_test_id("library-date-from")).to_have_value("2024-02-29")
+        expect(a.get_by_test_id("library-bookmark-min")).to_have_value("500")
+        author_count(a_root, 0, 0)
+        result["two_clients"] = {"calendar_pending_independent": True,
+                                  "calendar_selection_independent": True,
+                                  "slider_and_clear_independent": True}
+    finally:
+        first.close()
+        second.close()
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default="http://127.0.0.1:8089")
     parser.add_argument("--output", type=Path, default=Path("artifacts/library-browser"))
     parser.add_argument("--channel", choices=("chromium", "msedge"), default="msedge")
     parser.add_argument("--headed", action="store_true")
+    parser.add_argument("--calendar-slider-only", action="store_true",
+                        help="L04/L07: real calendar clicks and release-only slider gestures")
     args = parser.parse_args()
+    if args.calendar_slider_only and args.output.exists() and any(args.output.iterdir()):
+        parser.error("calendar/slider evidence requires an empty output directory")
     args.output.mkdir(parents=True, exist_ok=True)
     result = {
         "url": args.url, "channel": args.channel,
+        "scope": "L04/L07 calendar-slider" if args.calendar_slider_only else "library",
         "started_at": datetime.now(timezone.utc).isoformat(),
         "viewports": {}, "two_clients": None, "passed": [],
         "console_errors": [], "page_errors": [], "blocked_foreign_requests": [],
@@ -653,11 +939,19 @@ def main() -> int:
                         str(error)))
 
                 context.on("page", capture_page)
+                if args.calendar_slider_only:
+                    health = context.request.get(args.url.rstrip('/') + '/healthz',
+                                                 timeout=5_000, max_redirects=0)
+                    check(health.status == 200 and health.json() == {
+                        'status': 'ok', 'mode': 'demo', 'data': 'synthetic'},
+                        'L04/L07 browser acceptance requires the isolated synthetic app')
                 page = context.new_page()
                 for size in VIEWPORTS:
-                    run_viewport(page, args.url, size, args.output, result)
+                    operation = run_calendar_slider_viewport if args.calendar_slider_only else run_viewport
+                    operation(page, args.url, size, args.output, result)
                     result["passed"].append(f"library viewport {size[0]}x{size[1]}")
-                check_client_isolation(context, args.url, result)
+                clients = check_calendar_slider_clients if args.calendar_slider_only else check_client_isolation
+                clients(context, args.url, result)
                 result["passed"].append("two independent clients")
                 check(not result["console_errors"] and not result["page_errors"],
                       "ブラウザconsole/pageエラー: "

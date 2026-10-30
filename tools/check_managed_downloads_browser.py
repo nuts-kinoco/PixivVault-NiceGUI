@@ -25,6 +25,8 @@ from tools.run_browser_checks import (child_environment, free_port, port_release
     source_hashes, stop_child, wait_for_health)
 
 ORIGINAL = "https://i.pximg.net/img-original/img/2026/10/01/12/00/00/{wid}_p{page}.png"
+SCHEDULER_70_PAIRS = (('24', '321'),) + tuple(
+    (str(100 + index), str(400 + index)) for index in range(69))
 
 
 def png(size, color):
@@ -34,15 +36,44 @@ def png(size, color):
 
 
 class ManagedTransport(SyntheticPixivTransport):
-    def __init__(self):
+    def __init__(self, *, scheduler_70_authors=False):
         super().__init__("next")
         self.original_gets = Counter()
         self.regular_gets = Counter()
         self.author_revision = '2026-10-23T10:00:00+09:00'
         self.scheduler_many = False
+        self.scheduler_70_authors = scheduler_70_authors
+        self.scheduler_author_works = dict(SCHEDULER_70_PAIRS) if scheduler_70_authors else {}
+        self.scheduler_work_authors = {wid: aid for aid, wid in self.scheduler_author_works.items()}
+        self.scheduler_profile_gets = Counter()
+        self.scheduler_metadata_gets = Counter()
 
     def __call__(self, request, timeout, limit, deadline):
         url = urlsplit(request.full_url)
+        profile = re.fullmatch(r'/ajax/user/([1-9][0-9]*)/profile/(all|illusts)', url.path)
+        if self.scheduler_70_authors and profile is not None:
+            aid, route = profile.groups()
+            if aid not in self.scheduler_author_works:
+                raise AssertionError('unexpected synthetic scheduler author')
+            self.request_count += 1
+            self.all_requests_get &= request.get_method() == 'GET'
+            self.allowed_https_hosts_only &= (
+                url.scheme == 'https' and url.hostname == self.API_HOST
+                and url.port is None and url.username is None and url.password is None)
+            if not (self.all_requests_get and self.allowed_https_hosts_only and request.has_header('Cookie')):
+                raise AssertionError('invalid synthetic scheduler profile request')
+            self.scheduler_profile_gets[aid + ':' + route] += 1
+            wid = self.scheduler_author_works[aid]
+            if route == 'all':
+                return self._packet({'illusts': {wid: None}, 'manga': {}, 'novels': {}})
+            from urllib.parse import parse_qs
+            if parse_qs(url.query).get('ids[]') != [wid]:
+                raise AssertionError('synthetic scheduler author/work mismatch')
+            return self._packet({'works': {wid: {
+                'id': wid, 'userId': aid, 'userName': '合成定期作者 ' + aid,
+                'title': '合成定期作品 ' + wid, 'illustType': 0, 'pageCount': 2,
+                'updateDate': self.author_revision, 'createDate': '2026-10-01T00:00:00+09:00',
+            }}})
         if url.path == '/ajax/user/12/following':
             self.request_count += 1
             self.all_requests_get &= request.get_method() == 'GET'
@@ -60,7 +91,7 @@ class ManagedTransport(SyntheticPixivTransport):
             self.request_count += 1
             assert request.get_method() == 'GET' and request.has_header('Cookie')
             ids = ['321'] + ([str(wid) for wid in range(400, 469)] if self.scheduler_many else [])
-            return self._packet({'illusts': {wid: None for wid in ids}, 'manga': {}})
+            return self._packet({'illusts': {wid: None for wid in ids}, 'manga': {}, 'novels': {}})
         if url.path == '/ajax/user/24/profile/illusts':
             self.request_count += 1
             assert request.get_method() == 'GET' and request.has_header('Cookie')
@@ -92,6 +123,14 @@ class ManagedTransport(SyntheticPixivTransport):
                 r"/img-original/img/2026/10/01/12/00/00/([0-9]+)_p([0-9]+)\.png", url.path)
             if match:
                 self.original_gets[match.group(1)] += 1
+                if self.scheduler_70_authors:
+                    wid, page = match.groups()
+                    if wid not in self.scheduler_work_authors or page not in ('0', '1'):
+                        raise AssertionError('unexpected synthetic scheduler image')
+                    aid = self.scheduler_work_authors[wid]
+                    # Distinct bytes per author/work/page detect crossed saves.
+                    return png((120, 84), (int(wid) % 256, int(aid) % 256,
+                                           40 + int(page) * 100))
                 if (match.group(1) == '321' and
                         self.author_revision == '2026-10-24T10:00:00+09:00'):
                     return png((120, 84), (74, 28, 90) if match.group(2) == '0' else (17, 89, 141))
@@ -110,8 +149,13 @@ class ManagedTransport(SyntheticPixivTransport):
             if not (request.has_header("Cookie") and self.all_requests_get
                     and self.allowed_https_hosts_only):
                 raise AssertionError("direct artwork metadata request invalid")
+            if self.scheduler_70_authors:
+                if wid not in self.scheduler_work_authors:
+                    raise AssertionError('unexpected synthetic scheduler metadata')
+                self.scheduler_metadata_gets[wid] += 1
             return self._packet({
-                "id": wid, "title": "架空のID指定作品", "userId": "24",
+                "id": wid, "title": "架空のID指定作品",
+                "userId": self.scheduler_work_authors.get(wid, "24"),
                 "userName": "架空の直接作者", "tags": {"tags": [{"tag": "合成"}]},
                 "illustType": 2 if wid == "322" else 0, "pageCount": 2,
                 "xRestrict": 0, "createDate": "2026-10-23T00:00:00+09:00",
@@ -154,7 +198,8 @@ def verify_receipts(root, expected_jobs=1):
     return receipts[0]
 
 
-def serve(port, root, nonce, *, zip_export_root=None):
+def serve(port, root, nonce, *, zip_export_root=None, scheduler_70_authors=False,
+          acceptance_hooks=None):
     from nicegui import app, ui
     from fastapi import Header, HTTPException
     from pixivvault_nicegui.bootstrap import register_pages
@@ -171,12 +216,13 @@ def serve(port, root, nonce, *, zip_export_root=None):
         return original_select(view, event, work_id, session)
     ManagedDownloadView._select_event = traced_select
     with tempfile.TemporaryDirectory(prefix="pv-synthetic-cookie-") as cookie_dir:
-        injected = ManagedTransport()
+        injected = ManagedTransport(scheduler_70_authors=scheduler_70_authors)
         client = LivePixivReadClient(write_synthetic_cookie(cookie_dir),
                                      transport=injected)
         try:
             register_pages(live_client=client, pixiv_download_root=root,
                            legacy_zip_export_root=zip_export_root)
+            shutdown_state = {'requests': 0, 'accepted': False}
 
             @app.get("/_managed_test/status")
             def status(x_acceptance: str | None = Header(default=None)):
@@ -189,7 +235,11 @@ def serve(port, root, nonce, *, zip_export_root=None):
                         "all_requests_get": t.all_requests_get,
                         "allowed_https_hosts_only": t.allowed_https_hosts_only,
                         "image_requests_cookie_free": t.image_requests_cookie_free,
-                        "routes": t.route_calls, "selection_events": selections}
+                        "routes": t.route_calls, "selection_events": selections,
+                        "scheduler_70_authors": t.scheduler_70_authors,
+                        "scheduler_author_works": t.scheduler_author_works,
+                        "scheduler_profile_gets": dict(t.scheduler_profile_gets),
+                        "scheduler_metadata_gets": dict(t.scheduler_metadata_gets)}
 
             @app.post("/_managed_test/control")
             def control(fail: bool = False, author_updated: bool = False,
@@ -210,8 +260,16 @@ def serve(port, root, nonce, *, zip_export_root=None):
             def shutdown(x_acceptance: str | None = Header(default=None)):
                 if x_acceptance != nonce:
                     raise HTTPException(403)
+                shutdown_state['requests'] += 1
+                if shutdown_state['accepted']:
+                    raise HTTPException(409)
+                shutdown_state['accepted'] = True
                 app.shutdown()
                 return {"stopping": True}
+
+            if acceptance_hooks is not None:
+                from pixivvault_nicegui.services import get_services
+                acceptance_hooks(app, get_services(app), client, injected, shutdown_state)
 
             # Bound WebSocket draining during synthetic-browser shutdown.
             # The earlier Phase8 checker needed the same bound on Windows
@@ -432,14 +490,19 @@ if __name__ == "__main__":
     parser.add_argument("--root", type=Path)
     parser.add_argument("--nonce")
     parser.add_argument("--zip-export-root", type=Path)
+    parser.add_argument("--scheduler-70-authors", action="store_true",
+                        help="serve-only T01 fixture: 70 distinct authors, one work each")
     parser.add_argument("--channel", choices=("chromium", "msedge"), default="chromium")
     parser.add_argument("--output", required=False, type=Path)
     args = parser.parse_args()
+    if args.scheduler_70_authors and not args.serve:
+        parser.error("--scheduler-70-authors requires --serve")
     if args.serve:
         if not args.root or not args.root.is_absolute() or not args.nonce:
             parser.error("serve requires absolute root and nonce")
         serve(args.serve, args.root, args.nonce,
-              zip_export_root=args.zip_export_root)
+              zip_export_root=args.zip_export_root,
+              scheduler_70_authors=args.scheduler_70_authors)
     else:
         if args.output is None:
             parser.error("--output is required")

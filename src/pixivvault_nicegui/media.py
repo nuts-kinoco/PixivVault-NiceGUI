@@ -15,7 +15,7 @@ from .models import Artwork
 
 
 _SAFE_ID = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
-_VARIANTS = {"thumb": 192, "view": 640}
+_VARIANTS = {"thumb": 192, "view": 640, "original": 1280}
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,7 +35,10 @@ def _png(work_id: str, page: int, variant: str, ratio: float) -> bytes:
         width, height = longest, max(1, round(longest / ratio))
     else:
         width, height = max(1, round(longest * ratio)), longest
-    seed = hashlib.sha256(f"{work_id}:{page}:{variant}".encode("ascii")).digest()
+    # Original is the same generated artwork at a larger resolution, never a
+    # different random work or an upscaled 640-pixel view.
+    seed_variant = "view" if variant == "original" else variant
+    seed = hashlib.sha256(f"{work_id}:{page}:{seed_variant}".encode("ascii")).digest()
     # Per-row color bars and a page-dependent marker make decoding and page identity inspectable.
     pixels = bytearray()
     for y in range(height):
@@ -69,6 +72,20 @@ class DemoImageCatalog:
         self._hits = 0
         self._misses = 0
         self._closed = False
+        self._shared_cache=None
+        self._shared_owner=None
+
+    def configure_cache(self, shared_cache):
+        """Bind one application-owned aggregate cache before publication."""
+        with self._lock:
+            if self._closed: raise RuntimeError("image catalog closed")
+            if self._shared_owner is shared_cache: return
+            if self._shared_cache is not None: self._shared_cache.close()
+            self._cache.clear()
+            if hasattr(self,"_bytes"):self._bytes=0
+            if hasattr(self,"_cache_bytes"):self._cache_bytes=0
+            self._shared_owner=shared_cache
+            self._shared_cache=shared_cache.namespace()
 
     def _validate(self, work_id: str, page_no: int, variant: str) -> Artwork:
         if not isinstance(work_id, str) or not _SAFE_ID.fullmatch(work_id):
@@ -87,19 +104,33 @@ class DemoImageCatalog:
             self._validate(work_id, page_no, variant)
             return f"/media/{work_id}/{page_no}/{variant}.png"
 
+    def supports_original(self, work_id: str) -> bool:
+        with self._lock:
+            if self._closed:
+                return False
+            return work_id in self._artworks
+
     def get(self, work_id: str, page_no: int = 0, variant: str = "view") -> ImageBlob:
         with self._lock:
             if self._closed:
                 raise RuntimeError("catalog closed")
             artwork = self._validate(work_id, page_no, variant)
             key = (work_id, page_no, variant)
-            if key in self._cache:
+            if self._shared_cache is not None:
+                cached=self._shared_cache.get(key)
+                if cached is not None:
+                    self._hits+=1
+                    return cached
+            elif key in self._cache:
                 self._hits += 1
                 self._cache.move_to_end(key)
                 return self._cache[key]
             self._misses += 1
             data = _png(work_id, page_no, variant, artwork.aspect_ratio)
             blob = ImageBlob(data, "image/png", '"' + hashlib.sha256(data).hexdigest() + '"')
+            if self._shared_cache is not None:
+                self._shared_cache.put(key,blob)
+                return blob
             if len(data) <= self._max_bytes:
                 while self._cache and self._bytes + len(data) > self._max_bytes:
                     _, old = self._cache.popitem(last=False)
@@ -115,5 +146,6 @@ class DemoImageCatalog:
     def close(self) -> None:
         with self._lock:
             self._closed = True
+            if self._shared_cache is not None:self._shared_cache.close()
             self._cache.clear()
             self._bytes = 0

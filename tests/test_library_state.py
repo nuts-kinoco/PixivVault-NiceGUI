@@ -111,7 +111,7 @@ def test_sort_direction_preserved_per_column_and_null_backup_last():
     assert state.select_sort("view_count") and not state.descending
     assert state.select_sort("last_backup") and not state.descending
     with pytest.raises(ValueError, match="sort key"):
-        state.select_sort("capacity")
+        state.select_sort("unsupported-column")
     nullable = LibrarySnapshot((
         LibraryWork(Artwork("undated", "タイトル", "作者A"), "a", last_backup=None),
         LibraryWork(Artwork("dated", "タイトル", "作者B"), "b", last_backup="2026-10-20"),

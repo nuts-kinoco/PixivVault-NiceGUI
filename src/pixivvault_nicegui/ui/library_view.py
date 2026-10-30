@@ -12,6 +12,7 @@ from ..library_models import AuthorSummary, LibrarySnapshot, PageRef
 from ..library_state import LibraryState
 from ..services import ApplicationServices
 from ..state import GalleryState
+from ..viewer_metadata import pixiv_url
 from .card_size_control import size_buttons, update_size_buttons
 from .grid_layout import MAX_COLUMNS
 from .viewer_controller import ViewerController
@@ -61,11 +62,22 @@ class LibraryView(ViewerController):
         self.refresh_error = False
         self._refresh_epoch = 0
         self._refreshing = False
+        self._capacity_busy = False
+        self._legacy_capacity_busy = False
+        self._legacy_lease = None
+        self._capacity_epoch = 0
+        self._legacy_restore_needed = True
+        self._legacy_restore_request = None
+        self._legacy_cached_ids = set()
+        self._legacy_auto_attempted = set()
+        self._legacy_auto_task = None
+        self._managed_capacities = {}
         self._bookmark_refreshing = False
         self._bookmark_open_epoch = 0
         self._resolved_bookmark_artwork = {}
         self._zip_export_busy = False
         self._zip_export_epoch = uuid4().hex
+        self.similarity = None
 
         with ui.column().classes("pv-library w-full").props(
             "data-testid=library-view data-active=true"
@@ -83,7 +95,7 @@ class LibraryView(ViewerController):
                 self.search_input = ui.input(
                     placeholder="作品名・作者・タグで検索",
                     on_change=lambda event: self.search(event.value),
-                ).props("outlined dense clearable dark debounce=200 data-testid=library-search").classes(
+                ).props("outlined dense clearable debounce=200 data-testid=library-search").classes(
                     "pv-library-search")
                 self.search_input.on("keydown.enter", lambda _: self.search(self.search_input.value))
                 ui.label("ライブラリ内").classes("pv-subtitle pv-library-scope")
@@ -94,11 +106,10 @@ class LibraryView(ViewerController):
                         color=None, on_click=self.refresh_from_disk).props(
                         "flat dense no-caps data-testid=library-db-refresh")
                 self.sort_buttons = {}
-                for key in ("view_count", "last_backup"):
+                for key in ("view_count", "last_backup", "capacity"):
                     self.sort_buttons[key] = ui.button(
                         "", color=None, on_click=lambda _, value=key: self.sort(value),
                     ).props(f"flat dense no-caps data-testid=library-sort-{key}")
-                self._unavailable("容量", "容量順の並べ替えは移植準備中です")
                 with ui.row().classes("pv-library-sizes"):
                     self.size_buttons = size_buttons(self.change_size, prefix="library")
 
@@ -115,7 +126,11 @@ class LibraryView(ViewerController):
                 with ui.row().classes("pv-library-summary w-full"):
                     self.filter_toggle = ui.button("絞り込み ›").props(
                         "flat dense no-caps data-testid=library-filter-toggle")
-                    self._unavailable("容量を再計測", "保存先の容量計測は移植準備中です")
+                    self.capacity_button = ui.button("管理保存容量を再計測", on_click=self.measure_capacity).props("flat dense data-testid=library-capacity-measure")
+                    self.capacity_status = ui.label("").props("role=status data-testid=library-capacity-status")
+                    self.legacy_capacity_button = ui.button('作者保存先の容量を再計測',on_click=self.measure_legacy_capacity).props('flat dense data-testid=library-legacy-capacity-measure')
+                    self.legacy_capacity_status = ui.label('').props('role=status data-testid=library-legacy-capacity-status')
+                    self.legacy_auto_capacity_status = ui.label('').props('role=status data-testid=library-legacy-capacity-auto-status')
                     ui.space()
                     self.author_counter = ui.label().classes("pv-counter").props(
                         "data-testid=library-author-count")
@@ -158,6 +173,9 @@ class LibraryView(ViewerController):
                 self.bookmark_state,
                 on_refresh=self.refresh_bookmarks,
                 on_open=self.open_bookmark,
+                on_enqueue=services.save_explicit_work if services.managed_downloads is not None else None,
+                on_similar=(self.search_bookmark_similar
+                            if getattr(services,'similarity_source',None) is not None else None),
                 image_url=lambda work_id: self._image_provider.url(work_id, 0, "thumb"),
                 can_open=lambda work_id: self._image_provider.can_open(work_id),
                 with_filter_toggle=True,
@@ -170,7 +188,8 @@ class LibraryView(ViewerController):
             with ui.row().classes("pv-library-body w-full no-wrap") as self.body:
                 self.filter_panel = LibraryFilterPanel(
                     get_filters=lambda: self.filters, on_change=self.apply_filters,
-                    can_edit=self._filters_editable, body=self.body, now_parent=self.filter_now_host)
+                    can_edit=self._filters_editable, body=self.body, now_parent=self.filter_now_host,
+                    get_authors=self._filter_authors)
                 self.filter_content = ui.column().classes("pv-library-filter-content")
             for panel in (self.authors_panel, self.pages_panel, self.bookmarks.root):
                 panel.move(self.filter_content)
@@ -178,6 +197,17 @@ class LibraryView(ViewerController):
             self.filter_panel.register_toggle(self.bookmarks.filter_toggle)
 
         self._init_viewer(services, GalleryState(()), self.root, library=True)
+        if getattr(services,'similarity_source',None) is not None:
+            from .similar_view import SimilarView
+            self.similarity=SimilarView(
+                services.similarity_source,self._open_similar,
+                image_url=self._similar_image_url,
+                analyze=(services.analyze_saved_for_similarity
+                         if services.similarity_analysis_enabled else None),
+                analysis_status=services.similarity_analysis_status if services.similarity_analysis_enabled else None,
+                start_analysis=services.start_similarity_analysis if services.similarity_analysis_enabled else None,
+                pause_analysis=services.pause_similarity_analysis if services.similarity_analysis_enabled else None,
+                resume_analysis=services.resume_similarity_analysis if services.similarity_analysis_enabled else None)
         self.client.on_delete(self.close)
         self.apply_card_size(card_size)
         self.reload()
@@ -209,12 +239,15 @@ class LibraryView(ViewerController):
         }})""")
 
     def _sync_panels(self) -> None:
+        if self.similarity is not None:self.similarity.set_active(self.active and not self.load_error)
         self._zip_export_epoch = uuid4().hex
         self.root.props['data-zip-export-epoch'] = self._zip_export_epoch
         self.zip_export_status.set_text('')
         selected = self.state.selected_author_id is not None
         self.root.props["data-library-generation"] = str(self.state.generation)
         downloaded = self.subview == "downloaded"
+        self.capacity_button.set_enabled(downloaded and not selected and self.active and not self.closed and not self.load_error and not self._capacity_busy and self.services.managed_downloads is not None)
+        self.legacy_capacity_button.set_enabled(downloaded and not selected and self.active and not self.closed and not self.load_error and not self._legacy_capacity_busy and getattr(self.services,'legacy_capacity',None) is not None)
         self.authors_panel.set_visibility(downloaded and not selected and not self.load_error)
         self.pages_panel.set_visibility(downloaded and selected and not self.load_error)
         enabled = (bool(getattr(self.services, 'legacy_zip_export_available', False))
@@ -246,7 +279,7 @@ class LibraryView(ViewerController):
             self.bookmarks.root.set_visibility(not downloaded)
             self.bookmarks.set_active(self.active and not downloaded)
         for key, button in self.sort_buttons.items():
-            label = "閲覧数" if key == "view_count" else "保存日"
+            label = {"view_count":"閲覧数", "last_backup":"保存日", "capacity":"容量"}[key]
             direction = "↓" if self.state.sort_directions[key] else "↑"
             button.set_text(label + direction)
             button.props(f"aria-pressed={'true' if key == self.state.sort_key else 'false'}")
@@ -301,6 +334,224 @@ class LibraryView(ViewerController):
                     and self.active and self.subview == 'downloaded'
                     and self.state.selected_author_id is not None)
 
+    def _invalidate_capacity(self, *, clear_values=False):
+        self._capacity_epoch += 1
+        self._legacy_restore_needed = True
+        self.capacity_status.set_text('')
+        self.legacy_capacity_status.set_text('')
+        self.legacy_auto_capacity_status.set_text('')
+        if self._legacy_lease is not None:self._legacy_lease.cancel()
+        if clear_values:self._managed_capacities.clear()
+
+    def _apply_legacy_capacities(self, state, values):
+        if not values:return
+        capacities=dict(state.snapshot.author_capacities);capacities.update(values)
+        state.snapshot=LibrarySnapshot(state.snapshot.works,capacities,state.snapshot.author_names)
+        state._all_authors=state.snapshot.authors
+        state._by_author={author.author_id:author for author in state._all_authors}
+        state._refresh_matches();state._invalidate()
+        self.author_grid.clear();self.author_cards.clear();self.author_openers.clear()
+        self._rendered_authors=();self._author_session=object();self.render_authors();self._sync_panels()
+
+    def _legacy_current(self,state,generation,epoch):
+        return (not self.closed and not getattr(self.services,'closing',False)
+                and self.active and self.subview=='downloaded'
+                and self.state is state and state.selected_author_id is None
+                and state.generation==generation and self._capacity_epoch==epoch)
+
+    def _schedule_legacy_capacity_restore(self):
+        """Restore cached capacities before scheduling missing visible authors.
+
+        Repeated activation shares the pending read. The separate sequential
+        measurement worker retains the same lifetime and cancellation guards.
+        """
+        state=self.state
+        if getattr(self.services,'closing',False):return
+        if not self._legacy_restore_needed:
+            self._schedule_unmeasured_capacity()
+            return
+        if (self.closed or not self.active
+                or self.subview!='downloaded' or state.selected_author_id is not None
+                or self.load_error or self._capacity_busy or self._legacy_capacity_busy
+                or getattr(self.services,'legacy_capacity',None) is None):return
+        # Restore the whole known author cache before sorting/filtering. The
+        # first-50 limit belongs only to explicit disk measurement below.
+        targets=tuple(author.author_id for author in state.snapshot.authors)
+        request=(state,state.generation,self._capacity_epoch,targets)
+        if request==self._legacy_restore_request:return
+        from nicegui import background_tasks
+        self._legacy_restore_request=request
+        background_tasks.create(self._restore_legacy_capacities(*request))
+
+    async def _restore_legacy_capacities(self,state,generation,epoch,targets):
+        request=(state,generation,epoch,targets)
+        service=getattr(self.services,'legacy_capacity',None)
+        try:
+            if (service is None or not self._legacy_current(state,generation,epoch)
+                    or self.load_error or self._capacity_busy or self._legacy_capacity_busy):return
+            values=await asyncio.to_thread(lambda:{aid:value for aid in targets
+                for revision,value in (service.cached(aid),) if value is not None})
+            if (self._legacy_current(state,generation,epoch) and not self.load_error
+                    and not self._capacity_busy and not self._legacy_capacity_busy):
+                self._apply_legacy_capacities(state,values)
+                # The readonly legacy snapshot may already contain genuine
+                # cache rows. Preserve them too; per-work size hints are not cache.
+                self._legacy_cached_ids={aid for aid,value in state.snapshot.author_capacities.items()
+                                         if value is not None}
+                self._legacy_restore_needed=False
+        except Exception:
+            if self._legacy_current(state,generation,epoch):
+                self.legacy_capacity_status.set_text('保存済みの容量を読み込めません。')
+        finally:
+            if self._legacy_restore_request==request:self._legacy_restore_request=None
+            if not self._legacy_restore_needed:self._schedule_unmeasured_capacity()
+
+    def _schedule_unmeasured_capacity(self):
+        """One sequential worker for uncached visible authors, once per visit."""
+        state=self.state
+        service=getattr(self.services,'legacy_capacity',None)
+        if (service is None or self.closed or getattr(self.services,'closing',False)
+                or not self.active or self.subview!='downloaded'
+                or self.load_error or state.selected_author_id is not None
+                or self._legacy_restore_needed or self._legacy_auto_task is not None
+                or self._legacy_capacity_busy or self._capacity_busy):return
+        targets=tuple(a.author_id for a in state.visible_authors
+                      if a.author_id not in self._legacy_cached_ids
+                      and a.author_id not in self._legacy_auto_attempted)
+        if not targets:return
+        from nicegui import background_tasks
+        self._legacy_capacity_busy=True
+        self.legacy_capacity_button.disable()
+        self._legacy_auto_task=background_tasks.create(self._measure_unmeasured_capacity(
+            service,state,state.generation,self._capacity_epoch,targets,self._legacy_auto_attempted))
+
+    async def _measure_unmeasured_capacity(self,service,state,generation,epoch,targets,attempted):
+        from ..legacy_capacity import MeasurementLease
+        completed=0;failed=0
+        def current():
+            return (self._legacy_current(state,generation,epoch) and not self.load_error
+                    and getattr(self.services,'legacy_capacity',None) is service)
+        try:
+            for aid in targets:
+                if not current():return
+                lease=MeasurementLease();self._legacy_lease=lease
+                self.legacy_auto_capacity_status.set_text('未計測の作者保存先容量を確認しています…')
+                try:
+                    revision,cached=await asyncio.to_thread(service.cached,aid)
+                    if not current():return
+                    if cached is None:
+                        values=await asyncio.to_thread(service.measure,(aid,))
+                        if not current():return
+                        # A failed author stays unmeasured. Never turn None into zero.
+                        if values[aid] is None:
+                            attempted.add(aid);failed+=1
+                            continue
+                        committed=await asyncio.to_thread(lease.publish,service.cache,values,{aid:revision})
+                        if not current():return
+                        if not committed:
+                            # Another accepted measurement may have won the CAS.
+                            _,cached=await asyncio.to_thread(service.cached,aid)
+                            if not current():return
+                            committed={} if cached is None else {aid:cached}
+                    else:
+                        committed={aid:cached}
+                    attempted.add(aid)
+                    if committed:
+                        self._apply_legacy_capacities(state,committed)
+                        # Our own redraw advances state generation; user actions still
+                        # invalidate epoch/state and cannot publish late results.
+                        generation=state.generation
+                        self._legacy_cached_ids.update(committed)
+                        completed+=1
+                    else:failed+=1
+                except Exception:
+                    if not current():return
+                    attempted.add(aid);failed+=1
+                finally:
+                    if self._legacy_lease is lease:self._legacy_lease=None
+            if current():
+                self.legacy_auto_capacity_status.set_text(
+                    f'作者保存先 {completed}作者の容量を確認。未計測 {failed}作者。次回表示時に再試行します。'
+                    if failed else '')
+        finally:
+            self._legacy_auto_task=None
+            self._legacy_capacity_busy=False
+            if not self.closed:
+                self._sync_panels()
+                # An invalidation or appended page may have arrived while the
+                # cancelled worker was draining. Never overlap disk measurements.
+                self._schedule_legacy_capacity_restore()
+
+    async def measure_legacy_capacity(self):
+        service=getattr(self.services,'legacy_capacity',None)
+        if (service is None or self.closed or not self.active or self.subview!='downloaded'
+                or self.state.selected_author_id is not None or self.load_error or self._legacy_capacity_busy):return
+        targets=tuple(a.author_id for a in self.state.visible_authors[:50])
+        if not targets:
+            self.legacy_capacity_status.set_text('表示中の作者がいません。');return
+        from ..legacy_capacity import MeasurementLease
+        state=self.state;generation=state.generation;epoch=self._capacity_epoch
+        lease=MeasurementLease();self._legacy_lease=lease;self._legacy_capacity_busy=True
+        self.legacy_capacity_button.disable();self.legacy_capacity_status.set_text('作者保存先の容量を再計測しています…')
+        try:
+            revisions=await asyncio.to_thread(lambda:{aid:service.cached(aid)[0] for aid in targets})
+            values=await asyncio.to_thread(service.measure,targets)
+            if not self._legacy_current(state,generation,epoch):return
+            committed=await asyncio.to_thread(lease.publish,service.cache,values,revisions)
+            if not self._legacy_current(state,generation,epoch):return
+            self._apply_legacy_capacities(state,committed)
+            self.legacy_capacity_status.set_text(f'作者保存先 {len(committed)}作者を再計測。未計測 {len(targets)-len(committed)}作者。')
+        except Exception:
+            if self._legacy_current(state,generation,epoch):self.legacy_capacity_status.set_text('容量を確認できません。以前の値を保持します。')
+        finally:
+            if self._legacy_lease is lease:self._legacy_lease=None
+            self._legacy_capacity_busy=False
+            if not self.closed:
+                self._sync_panels()
+                self._schedule_legacy_capacity_restore()
+
+    async def measure_capacity(self):
+        owner=self.services.managed_downloads
+        if (owner is None or self.closed or not self.active or self.subview != 'downloaded'
+                or self.state.selected_author_id is not None or self.load_error or self._capacity_busy):
+            return
+        targets=tuple(author.author_id for author in self.state.visible_authors[:50])
+        if not targets:
+            self.capacity_status.set_text('表示中の作者がいません。');return
+        state=self.state;generation=state.generation;epoch=self._capacity_epoch
+        self._capacity_busy=True;self.capacity_button.disable()
+        self.capacity_status.set_text('管理保存作品を再計測しています…')
+        try:
+            from ..managed_capacity import measure_managed_capacities
+            values,failed,active=await asyncio.to_thread(measure_managed_capacities,owner,targets)
+            current=await asyncio.to_thread(owner._generations.entries)
+            if (self.closed or not self.active or self.subview!='downloaded' or self.state is not state
+                    or state.generation!=generation or epoch!=self._capacity_epoch or current!=active):
+                if not self.closed:self.capacity_status.set_text('')
+                return
+            self._managed_capacities.update(values)
+            self.author_grid.clear();self.author_cards.clear();self.author_openers.clear()
+            self._rendered_authors=();self._author_session=object();self.render_authors();self._sync_panels()
+            self.capacity_status.set_text(f'管理保存 {len(values)}作者を再計測。未計測 {len(targets)-len(values)}作者。')
+        except Exception:
+            if (not self.closed and self.active and self.subview=='downloaded' and self.state is state
+                    and state.generation==generation and epoch==self._capacity_epoch):
+                self.capacity_status.set_text('管理保存の容量を確認できません。以前の表示を保持します。')
+            elif not self.closed:self.capacity_status.set_text('')
+        finally:
+            self._capacity_busy=False
+            if not self.closed:
+                self._sync_panels()
+                self._schedule_legacy_capacity_restore()
+
+    def _filter_authors(self):
+        authors=dict(self.state.snapshot.author_names)
+        for author in self.state.snapshot.authors:authors.setdefault(author.author_id,author.name)
+        for card in self.bookmark_state.items:
+            if card.artwork.author_id:
+                authors.setdefault(card.artwork.author_id,card.artwork.author)
+        return authors
+
     def _filters_editable(self) -> bool:
         viewer_state = getattr(self, "_viewer_state", None)
         return (not self.closed and self.active and
@@ -311,6 +562,8 @@ class LibraryView(ViewerController):
             raise TypeError("filters must be LibraryFilters")
         if not self._filters_editable() or filters == self.filters:
             return False
+        self._invalidate_capacity()
+        if self.similarity is not None:self.similarity.invalidate()
         self.filters = filters
         self._bookmark_open_epoch += 1
         self.state.set_filters(filters)
@@ -328,6 +581,7 @@ class LibraryView(ViewerController):
         self.bookmarks.refresh(reset_controls=True)
         self._sync_panels()
         self._restore_scroll(self.authors_scroll, reset=True)
+        self._schedule_legacy_capacity_restore()
         if self.client.has_socket_connection:
             self.client.run_javascript(
                 f"const node=document.getElementById('{self.bookmarks.scroll.html_id}');"
@@ -339,10 +593,14 @@ class LibraryView(ViewerController):
             return
         if subview == self.subview:
             return
+        if self.similarity is not None:self.similarity.invalidate()
         self.close_viewer(restore_focus=False)
         self._bookmark_open_epoch += 1
+        self._invalidate_capacity()
         self.subview = subview
+        if subview == 'downloaded':self._legacy_auto_attempted=set()
         self._sync_panels()
+        self._schedule_legacy_capacity_restore()
         if subview == "bookmarks" and not self.bookmark_state.has_remote_cache:
             self.refresh_bookmarks()
 
@@ -353,6 +611,7 @@ class LibraryView(ViewerController):
         epoch = self.bookmark_state.begin_fetch()
         if epoch is None:
             return
+        if self.similarity is not None:self.similarity.invalidate()
         if self.services.library_repository is not None or self.services.live_client is not None:
             from nicegui import background_tasks
             self._bookmark_refreshing = True
@@ -437,7 +696,9 @@ class LibraryView(ViewerController):
     def reload(self, *, preserve: bool = False) -> None:
         if self.closed or not self.active:
             return
+        if self.similarity is not None:self.similarity.invalidate()
         self.filter_panel.invalidate()
+        self._invalidate_capacity(clear_values=True)
         previous_state = self.state
         saved_query = previous_state.query
         saved_sort = previous_state.sort_key
@@ -490,6 +751,7 @@ class LibraryView(ViewerController):
         if state.selected_author is not None:
             self.render_pages()
         self._sync_panels()
+        self._schedule_legacy_capacity_restore()
         if preserve:
             self._restore_scroll(self.pages_scroll if state.selected_author is not None else self.authors_scroll)
 
@@ -540,14 +802,29 @@ class LibraryView(ViewerController):
                             "fit=cover loading=lazy no-transition"
                         ).classes("pv-thumb")
                     profile = ui.button(icon="open_in_new", color=None).props(
-                        "flat dense round aria-label=pixivの作者ページ").classes("pv-library-profile")
-                    profile.disable()
-                    profile.tooltip("pixivの作者ページを開く操作は移植準備中です")
+                        "flat dense round aria-label=pixivの作者ページ data-testid=library-author-profile").classes("pv-library-profile")
+                    target = pixiv_url(author.author_id, author=True)
+                    if target is None:
+                        profile.disable()
+                        profile.tooltip("Pixivの作者IDを確認できません")
+                    else:
+                        profile.props['href'] = target
+                        profile.props['target'] = '_blank'
+                        profile.props['rel'] = 'noopener noreferrer'
+                        profile.tooltip("pixivの作者ページを開く")
                 ui.label(author.name).classes("pv-library-card-title")
                 with ui.row().classes("pv-library-card-info"):
                     ui.label(f"{author.work_count}点")
                     ui.label(f"閲覧 {author.view_count}回")
                     ui.label(format_capacity(author.capacity_bytes))
+                if author.author_id in self._managed_capacities:
+                    ui.label('管理保存 '+format_capacity(self._managed_capacities[author.author_id])).props(
+                        'data-testid=library-managed-capacity').classes('pv-library-card-info')
+                if self.similarity is not None:
+                    with ui.context_menu().props('data-testid=library-author-similar-context') as menu:
+                        ui.button('似た絵を探す',on_click=lambda _,aid=author.author_id,
+                                  owner=self._author_session,popup=menu:self.search_similar_author(aid,owner,popup)).props(
+                            'flat dense data-testid=library-author-similar-open')
         self.author_cards[author.author_id] = card
         self.author_openers[author.author_id] = opener
 
@@ -575,6 +852,7 @@ class LibraryView(ViewerController):
         if (self.subview == "downloaded" and self.active and not self.closed
                 and not self.load_error and self.state.load_more_authors()):
             self.render_authors()
+            self._schedule_legacy_capacity_restore()
 
     def _clear_pages(self) -> None:
         self._more_session = object()
@@ -603,7 +881,103 @@ class LibraryView(ViewerController):
                 ui.label(work.artwork.title).classes("pv-library-card-title")
                 saved = work.last_backup[:10] if work.last_backup else "保存日 不明"
                 ui.label(f"p.{page.page_no + 1} ／ {saved}").classes("pv-library-card-info")
+                if getattr(self.services,'desktop',None) is not None and self._image_provider.can_open_external(work.work_id):
+                    external=ui.button('外部ビューアで開く').props('flat dense data-testid=library-external-open')
+                    async def external_event(_,wid=work.work_id,number=page.page_no,epoch=generation,session=self._page_session):
+                        await self.open_external(wid,number,epoch,session)
+                    external.on('click',external_event,js_handler='event => {event.stopPropagation();emit();}')
+                    external.on('keydown',js_handler='event => {event.stopPropagation();}')
+                if self.similarity is not None:
+                    button=ui.button('似た絵を探す').props('flat dense data-testid=library-similar-open')
+                    async def similar_event(_,wid=work.work_id,number=page.page_no,epoch=generation,session=self._page_session):
+                        await self.search_similar(wid,number,epoch,session)
+                    button.on('click',similar_event,js_handler='event => {event.stopPropagation();emit();}')
+                    button.on('keydown',js_handler='event => {event.stopPropagation();}')
         self.page_cards[page.key] = card
+
+    async def open_external(self,work_id,page_no,generation,session):
+        if (self.closed or not self.active or self.subview!='downloaded' or self.load_error
+                or generation!=self.state.generation or session is not self._page_session
+                or (work_id,page_no) not in self.page_cards or getattr(self,'_external_busy',False)
+                or getattr(self.services,'desktop',None) is None
+                or not self._image_provider.can_open_external(work_id)):return
+        token=self._image_provider.token
+        self._external_busy=True
+        try:
+            await self.services.open_external_saved(work_id,page_no+1,catalog_token=token)
+        except Exception:
+            if not self.closed and self.active and generation==self.state.generation and session is self._page_session:
+                ui.notify('保存場所を外部ビューアで開けませんでした。',type='negative')
+        finally:self._external_busy=False
+
+    def _similar_work(self,work_id,page):
+        work=next((w for w in self.state.snapshot.works if w.work_id==work_id),None)
+        if (work is None or type(page) is not int or not 1<=page<=work.page_count
+                or not self._image_provider.can_open(work_id)):
+            return None
+        return work
+
+    def _similar_image_url(self,work_id,page):
+        return self._image_provider.url(work_id,page-1,'thumb') if self._similar_work(work_id,page) else None
+
+    async def search_similar_author(self,author_id,session,menu=None):
+        state=self.state;provider=self._image_provider;epoch=self._bookmark_open_epoch
+        def current():
+            return (not self.closed and self.active and not self.services.closing
+                    and self.similarity is not None and not self.load_error
+                    and self.subview=='downloaded' and self.state is state
+                    and self.state.selected_author_id is None
+                    and self._author_session is session and author_id in self.author_cards
+                    and self._image_provider is provider and self._bookmark_open_epoch==epoch)
+        if not current():return
+        author=next((item for item in state.visible_authors if item.author_id==author_id),None)
+        if author is None:return
+        if menu is not None:menu.close()
+        representative=author.representative
+        await self.similarity.show(representative.work_id,representative.artwork.title,1,
+            query_candidates=tuple((work.work_id,work.artwork.title) for work in author.works),
+            is_current=current)
+
+    async def search_bookmark_similar(self,work_id):
+        state=self.bookmark_state;session=self.bookmarks._session
+        provider=self._image_provider;epoch=self._bookmark_open_epoch;fetch_epoch=state.epoch
+        def current():
+            return (not self.closed and self.active and not self.services.closing
+                    and self.similarity is not None and not self.load_error
+                    and self.subview=='bookmarks' and self.bookmark_state is state
+                    and state.active and not state.closed and not state.loading
+                    and state.epoch==fetch_epoch and self.bookmarks._session is session
+                    and work_id in self.bookmarks.cards
+                    and self._image_provider is provider and self._bookmark_open_epoch==epoch)
+        if not current():return
+        item=next((item for item in state.visible_items if item.work_id==work_id),None)
+        if item is None:return
+        # An unsaved query is allowed to report its missing embedding. It must
+        # never enter the remote bookmark-detail/image resolution path.
+        await self.similarity.show(work_id,item.artwork.title,1,is_current=current)
+
+    async def search_similar(self,work_id,page_no,generation,session):
+        if (self.similarity is None or self.closed or not self.active or self.subview!='downloaded'
+                or self.load_error or generation!=self.state.generation or session is not self._page_session
+                or (work_id,page_no) not in self.page_cards):return
+        work=self._similar_work(work_id,page_no+1)
+        if work is None:return
+        await self.similarity.show(work_id,work.artwork.title,page_no+1)
+
+    def open_saved_work(self,work_id,page=1) -> bool:
+        """Open an already available saved page; never resolves remote metadata."""
+        if self.closed or not self.active or self.load_error:return False
+        if self._similar_work(work_id,page) is None:return False
+        self.show_subview('downloaded')
+        self._build_viewer_state()
+        super().open(work_id,page-1)
+        return True
+
+    def _open_similar(self,work_id,page):
+        if self.closed or not self.active:return
+        if not self.open_saved_work(work_id,page) and self.similarity is not None:
+            self.similarity.notice.set_text('この保存画像を参照できません。ライブラリを更新してください。')
+            self.similarity.dialog.open()
 
     def render_pages(self) -> None:
         author = self.state.selected_author
@@ -637,21 +1011,25 @@ class LibraryView(ViewerController):
         if self.closed or not self.active or self.load_error or self.subview != "downloaded":
             return
         if self.state.set_query(value or ""):
+            self._invalidate_capacity()
             self.close_viewer(restore_focus=False)
             self._clear_pages()
             self.render_authors()
             self._sync_panels()
             self._restore_scroll(self.authors_scroll, reset=True)
+            self._schedule_legacy_capacity_restore()
 
     def sort(self, key: str) -> None:
         if self.closed or not self.active or self.load_error or self.subview != "downloaded":
             return
         if self.state.select_sort(key):
+            self._invalidate_capacity()
             self.close_viewer(restore_focus=False)
             self._clear_pages()
             self.render_authors()
             self._sync_panels()
             self._restore_scroll(self.authors_scroll, reset=True)
+            self._schedule_legacy_capacity_restore()
 
     def open_author(self, author_id: str, session: object | None = None) -> None:
         if self.closed or not self.active or self.load_error or self.subview != "downloaded":
@@ -659,6 +1037,7 @@ class LibraryView(ViewerController):
         if session is not None and session is not self._author_session:
             return
         if self.state.open_author(author_id):
+            self._invalidate_capacity()
             self.close_viewer(restore_focus=False)
             self._clear_pages()
             self.render_pages()
@@ -675,6 +1054,7 @@ class LibraryView(ViewerController):
         self._clear_pages()
         self._sync_panels()
         self._restore_scroll(self.authors_scroll)
+        self._schedule_legacy_capacity_restore()
         opener = self.author_openers.get(author_id)
         if opener is not None and self.client.has_socket_connection:
             self.client.run_javascript(f"""requestAnimationFrame(() => {{
@@ -726,12 +1106,14 @@ class LibraryView(ViewerController):
 
     def set_active(self, active: bool) -> None:
         if self.active != bool(active):
+            self._invalidate_capacity()
             self.filter_panel.invalidate()
             self._bookmark_open_epoch += 1
             self._refresh_epoch += 1
             self._refreshing = False
             if self.db_refresh_button is not None:
                 self.db_refresh_button.enable()
+        if bool(active) and not self.active:self._legacy_auto_attempted=set()
         self.active = bool(active)
         self._zip_export_epoch = uuid4().hex
         self.root.props['data-zip-export-epoch'] = self._zip_export_epoch
@@ -742,16 +1124,20 @@ class LibraryView(ViewerController):
             and bool(getattr(self.services, 'legacy_zip_export_available', False)))
         self.root.props["data-active"] = str(self.active).lower()
         self.set_viewer_active(active)
+        if self.similarity is not None:self.similarity.set_active(self.active and not self.load_error)
         if self.bookmarks is not None:
             self.bookmarks.set_active(self.active and self.subview == "bookmarks")
         if active:
             self._restore_scroll(self.pages_scroll if self.state.selected_author else self.authors_scroll)
+            self._schedule_legacy_capacity_restore()
 
     def close(self) -> None:
         if self.closed:
             return
+        self._invalidate_capacity()
         self.closed = True
         self.filter_panel.retire()
+        if self.similarity is not None:self.similarity.close()
         self._bookmark_open_epoch += 1
         self._refresh_epoch += 1
         self.active = False

@@ -422,3 +422,15 @@ def test_oversize_decoded_dimensions_are_unavailable(tmp_path, monkeypatch):
     with pytest.raises(MediaUnavailable, match="dimension"):
         catalog.get("101", 0)
     catalog.close()
+
+
+def test_capacity_fixture_flat_name_and_unrelated_zip_member(tmp_path):
+    folder=tmp_path/'fixture(12)'
+    folder.mkdir()
+    (folder/'Fixture work(101).png').write_bytes(png('red'))
+    with ZipFile(tmp_path/'fixture(12).zip','w') as archive:
+        archive.writestr('capacity-only.bin',b'fixture')
+    catalog=ReadonlyLocalMediaCatalog(tmp_path,snapshot())
+    try:
+        assert catalog.get('101',0).data
+    finally:catalog.close()

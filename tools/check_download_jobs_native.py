@@ -16,6 +16,12 @@ import struct
 import zlib
 
 
+if __package__:
+    from .job_store_schema import _job_schema,_job_payload,_job_bindings
+else:
+    from job_store_schema import _job_schema,_job_payload,_job_bindings
+
+
 MARKER = ".pixivvault-download-sandbox.json"
 MARKER_CONTENT = {"application": "pixivvault-nicegui", "purpose": "synthetic-downloads", "version": 1}
 APPLICATION_ID = 0x50564A31
@@ -140,13 +146,27 @@ def verify_native_jobs(root: Path, *, remaining_ids: frozenset[str]) -> dict:
     _safe_chain(database)
     connection = sqlite3.connect(database.as_uri() + "?mode=ro", uri=True, timeout=2)
     try:
-        _assert(connection.execute("PRAGMA application_id").fetchone()[0] == APPLICATION_ID
-                and connection.execute("PRAGMA user_version").fetchone()[0] == 1,
-                "download database identity invalid")
-        tables = {r[0] for r in connection.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'")}
-        _assert(tables == {"jobs", "operations"}, "download database tables invalid")
-        jobs = [json.loads(row[0]) for row in connection.execute("SELECT payload FROM jobs ORDER BY ordinal")]
+        version=_job_schema(connection)
+        jobs=[_job_payload(payload,jid) for jid,payload in connection.execute('SELECT job_id,payload FROM jobs ORDER BY ordinal')]
+        live={item['job_id']:item for item in jobs};history={}
+        if version==2:
+            for jid,payload in connection.execute('SELECT job_id,payload FROM job_history'):
+                item=_job_payload(payload,jid)
+                _assert(item['state'] in ('done','error','stopped') and item['paused_from'] is None,
+                        'invalid download terminal history')
+                _assert(item['kind']=='demo' and item['target_id'] in WORK_PAGES
+                        and item['state']=='done' and item['attempt']==1
+                        and item['done']==item['total']==WORK_PAGES[item['target_id']],
+                        'download archived target mismatch')
+                history[jid]=item
+        known={**history,**live}
+        operations=_job_bindings(connection,known)
+        bound={jid for _,jid,_ in operations}
+        if version==2:
+            _assert(set(history)<=bound,'unbound download terminal history')
+            for item in jobs:
+                if item['job_id'] in bound and item['state'] in ('done','error','stopped'):
+                    _assert(history.get(item['job_id'])==item,'download terminal history mismatch')
     finally:
         connection.close()
     _assert(len(jobs) == len(remaining_ids)
@@ -208,6 +228,8 @@ def verify_native_jobs(root: Path, *, remaining_ids: frozenset[str]) -> dict:
                               "sha256": hashlib.sha256(receipt_bytes).hexdigest(),
                               "pages": file_digests}
     _assert(found == set(WORK_PAGES), "synthetic receipt page set incomplete")
+    for item in history.values():
+        _assert(item['result']==manifests[item['target_id']]['receipt'],'download archived receipt mismatch')
     return {"passed": True, "history": len(jobs), "receipts": manifests,
             "validated_page_count": sum(len(v["pages"]) for v in manifests.values())}
 

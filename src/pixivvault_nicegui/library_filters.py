@@ -26,8 +26,26 @@ class LibraryFilters:
     include: frozenset[str] = field(default_factory=frozenset)
     exclude: frozenset[str] = field(default_factory=frozenset)
     mode: str = "and"
+    authors: frozenset[str] = field(default_factory=frozenset)
+    date_from: str = ""
+    date_to: str = ""
+    bookmark_min: int = 0
+    include_r18: bool = True
+    exclude_ai: bool = False
+    unread_only: bool = False
+    unfetched_only: bool = False
 
     def __post_init__(self) -> None:
+        if type(self.bookmark_min) is not int or self.bookmark_min < 0:
+            raise ValueError("bookmark_min must be non-negative")
+        if any(type(v) is not bool for v in (self.include_r18,self.exclude_ai,self.unread_only,self.unfetched_only)):
+            raise ValueError("filter switches must be boolean")
+        if any(not isinstance(v,str) for v in (self.date_from,self.date_to)):
+            raise ValueError("date bounds must be strings")
+        authors=frozenset(self.authors)
+        if any(type(a) is not str or not a for a in authors):
+            raise ValueError("author filters require IDs")
+        object.__setattr__(self,"authors",authors)
         included = _normalize_tags(self.include)
         excluded = _normalize_tags(self.exclude)
         if self.mode not in {"and", "or"}:
@@ -45,3 +63,25 @@ class LibraryFilters:
             if self.mode == "or" and not (self.include & actual):
                 return False
         return not bool(self.exclude & actual)
+
+
+    def matches_artwork(self, artwork, *, author_id=None, downloaded=None, apply_unread=True) -> bool:
+        """Original library_tab._matches semantics, including unknown fallbacks.
+
+        Dates compare only the first ten characters. Missing bookmark count
+        fails a positive minimum; missing restriction/AI/history is retained as
+        unknown in the DTO and has the same permissive filter fallback as Flet.
+        Unfetched applies only to bookmarks (downloaded is explicitly supplied).
+        """
+        if not self.matches(artwork.tags): return False
+        identity=artwork.author_id if author_id is None else author_id
+        if self.authors and identity not in self.authors: return False
+        created=(artwork.create_date or '')[:10]
+        if self.date_from and created<self.date_from: return False
+        if self.date_to and created>self.date_to: return False
+        if self.bookmark_min and (artwork.bookmark_count is None or artwork.bookmark_count<self.bookmark_min): return False
+        if not self.include_r18 and (artwork.x_restrict or 0)!=0: return False
+        if self.exclude_ai and (artwork.ai_type or 0)==2: return False
+        if apply_unread and self.unread_only and artwork.viewed is True: return False
+        if self.unfetched_only and downloaded is True: return False
+        return True

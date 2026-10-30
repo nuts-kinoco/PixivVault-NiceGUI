@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import math
+import re
 from uuid import uuid4
 
 from nicegui import ui
 
 from ..job_service import UNFINISHED
+from .download_status_details import DownloadStatusDetails
 
 
 LABELS = {"queued": "待機中", "running": "実行中", "paused": "一時停止",
@@ -19,6 +21,14 @@ ACTION_STATES = {"pause": {"queued", "running"}, "resume": {"paused"},
                  "stop": {"queued", "running", "paused"}, "retry": {"error"},
                  "delete": set(LABELS)}
 
+
+def _novel_identity(job):
+    if job.kind.startswith("ugoira-"):
+        return job.title or "うごイラ", "うごイラ保存ジョブ"
+    if job.kind == "novel-export" and (match := re.fullmatch(r"([1-9][0-9]{0,19}):(TXT|EPUB|BOTH)(?::series:[a-f0-9]{16})?", job.target_id)):
+        category = "小説シリーズ" if ":series:" in job.target_id else "小説"
+        return f"{category} {match.group(1)}", f"{category} · {match.group(2)} · ID {match.group(1)}"
+    return job.title or job.target_id, job.target_id
 
 def _event_number(payload, key, expected):
     value = payload.get(key)
@@ -62,12 +72,13 @@ class DownloadView:
             with ui.row().classes("pv-toolbar"):
                 ui.label("ダウンロード").classes("pv-library-heading")
                 self.search_input = ui.input(placeholder="作品名・作者・IDで絞り込む").props(
-                    "outlined dense clearable dark debounce=200 data-testid=download-search").classes("pv-search")
+                    "outlined dense clearable debounce=200 data-testid=download-search").classes("pv-search")
                 self.search_input.on("update:model-value", self._search_event,
                     js_handler=f"value => emit({{value, epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
                 self.counter = ui.label().classes("pv-counter").props("data-testid=download-count")
             ui.label("移植検証用：架空画像の全ページを専用フォルダーへ保存します").classes("pv-subtitle")
             self.notice = ui.label().props("data-testid=download-notice role=status")
+            self.details = DownloadStatusDetails(self, managed=False)
             with ui.row().classes("pv-download-body w-full"):
                 self.list = ui.column().classes("pv-jobs-scroll pv-download-candidates").props("data-testid=download-candidates")
                 with ui.column().classes("pv-download-targets"):
@@ -174,6 +185,7 @@ class DownloadView:
                     ui.label(item.title).classes("pv-job-title")
         self.submit_button.set_enabled(bool(self.selected) and self.services.jobs is not None
                                        and not self.busy and self.active and not self.closed)
+        self.details.refresh()
 
     async def _submit_event(self, event):
         if self._valid() and _browser_event(event, epoch=self.epoch,
@@ -217,6 +229,7 @@ class DownloadView:
         self.root.props["data-active"] = str(self.active).lower()
         self.root.props["data-epoch"] = str(self.epoch)
         self.root.update()
+        self.details.set_active(self.active)
         # A tab roundtrip only changes activation identity. Preserve the list
         # elements and their browser scroll position.
         self._render_targets()
@@ -257,7 +270,7 @@ class QueueView:
             with ui.row().classes("pv-toolbar"):
                 ui.label("失敗リスト" if failed_only else "キュー").classes("pv-library-heading")
                 self.search_input = ui.input(placeholder="タイトル・IDで検索" if failed_only else "作者名・作品IDで絞り込む").props(
-                    f"outlined dense dark clearable debounce=200 data-testid={self.prefix}-search").classes("pv-search")
+                    f"outlined dense clearable debounce=200 data-testid={self.prefix}-search").classes("pv-search")
                 self.search_input.on("update:model-value", self._search_event,
                     js_handler=f"value => emit({{value,epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
                 self.counter = ui.label().classes("pv-counter").props(f"data-testid={self.prefix}-count")
@@ -290,6 +303,9 @@ class QueueView:
                         button.on("click", lambda e, callback=callback: self._selection_event(e, callback),
                             js_handler=f"() => {{const d=document.getElementById('{self.root.html_id}').dataset;emit({{epoch:d.epoch,selectionRevision:d.selectionRevision,viewGeneration:d.viewGeneration}})}}")
             self.notice = ui.label().classes("pv-subtitle").props(f"data-testid={self.prefix}-notice role=status")
+            self.export_notice = ui.label().classes("pv-subtitle").props(f"data-testid={self.prefix}-export-status role=status")
+            self.retained_list=ui.column().props(f"data-testid={self.prefix}-retained-exports")
+            self._retained_signature=None
             self.list = ui.column().classes("pv-jobs-scroll w-full gap-0").props(f"data-testid={self.prefix}-list")
             with ui.row().classes("w-full items-center justify-end"):
                 self.previous = ui.button("前へ", color=None).props(f"flat dense data-testid={self.prefix}-previous")
@@ -406,8 +422,10 @@ class QueueView:
 
     def _matching(self):
         authors = {item.work_id: item.author for item in self.services.artworks}
+        names = getattr(self.services, 'managed_job_author_names', None)
+        managed_authors = names(self._latest) if callable(names) else {}
         jobs = [job for job in self._latest if (self.filter == "all" or job.state == self.filter)
-                and self.query in f"{job.title} {job.target_id} {authors.get(job.target_id, '')}".casefold()]
+                and self.query in f"{job.title} {job.target_id} {managed_authors.get(job.job_id, authors.get(job.target_id, ''))}".casefold()]
         if not self.failed_only:
             jobs.sort(key=lambda job: job.state not in UNFINISHED)
         return jobs
@@ -430,7 +448,8 @@ class QueueView:
         if not frozen:
             return
         with ui.dialog() as dialog, ui.card():
-            ui.label("選択したジョブを削除しますか？")
+            ui.label(f"選択した {len(frozen)} 件のジョブ履歴を削除しますか？")
+            ui.label("この履歴削除は取り消せません。実行中のジョブは停止します。")
             ui.label("保存済みファイルは削除しません")
             with ui.row():
                 ui.button("キャンセル", on_click=lambda: dialog.submit(False)).props("flat")
@@ -485,8 +504,10 @@ class QueueView:
             with ui.row().classes("pv-job-row w-full items-center").props(
                 f"data-testid=job-row data-job-id={job.job_id} data-state={job.state}") as root:
                 with ui.column().classes("pv-job-description gap-1"):
-                    title = ui.label(job.title or job.target_id).classes("pv-job-title")
-                    target = ui.label(job.target_id).classes("pv-subtitle")
+                    display_title, display_target = _novel_identity(job)
+                    title = ui.label(display_title).classes("pv-job-title")
+                    target = ui.label("うごイラ保存ジョブ" if job.kind.startswith("ugoira-") else display_target).classes("pv-subtitle")
+                    result = ui.label().classes("pv-subtitle").props("data-testid=job-save-result")
                     progress = ui.linear_progress(value=0).props("size=3px")
                 state = ui.label().classes("pv-job-state").props("data-testid=job-state")
                 with state:
@@ -516,7 +537,7 @@ class QueueView:
                         buttons[action] = button
         return {"root": root, "title": title, "target": target, "progress": progress,
                 "state": state, "tooltip": tooltip, "count": count, "buttons": buttons,
-                "checkbox": checkbox if not self.failed_only else None, "rendered": None}
+                "checkbox": checkbox if not self.failed_only else None, "result": result, "rendered": None}
 
     def refresh(self):
         if not self._valid():
@@ -528,6 +549,27 @@ class QueueView:
             self.notice.set_text("専用保存先を指定するとキューと保存試験を利用できます")
         elif service.faulted:
             self.notice.set_text("保存失敗により処理を停止しています。表示は最後に保存できた状態です")
+        exports=getattr(self.services,'save_exports',None)
+        messages=exports.status_messages() if exports is not None else ()
+        ugoira=getattr(self.services,'ugoira',None)
+        if ugoira is not None:messages+=getattr(ugoira,'status_messages',lambda:())()
+        authors=getattr(self.services,'author_media',None)
+        if authors is not None:messages+=getattr(authors,'reconcile_status_messages',lambda:())()
+        self.export_notice.set_text('\n'.join(messages))
+        self.export_notice.set_visibility(bool(messages))
+        offers=exports.retained_requests() if exports is not None and self.failed_only else ()
+        signature=tuple(entry.job_id for entry in offers)
+        if signature!=self._retained_signature:
+            self._retained_signature=signature;self.retained_list.clear()
+            with self.retained_list:
+                for entry in offers:
+                    with ui.row().classes('items-center'):
+                        ui.label(entry.title+' · '+entry.job_id).classes('pv-subtitle')
+                        button=ui.button('退避履歴を再試行',color=None).props(
+                            f'flat data-testid=retained-export-retry data-job-id={entry.job_id}')
+                        button.on('click',lambda event,jid=entry.job_id:self._retained_event(event,jid),
+                            js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
+        self.retained_list.set_visibility(bool(offers))
         before = len(self.selected)
         self.selected.intersection_update(job.job_id for job in jobs)
         if len(self.selected) != before:
@@ -560,6 +602,9 @@ class QueueView:
             row["state"].set_text("状態未確定" if service.faulted and job.state in UNFINISHED else LABELS[job.state])
             row["tooltip"].set_text("状態保存失敗" if job.error_code == "storage_unavailable" else
                                      "処理に失敗しました" if job.error_code else LABELS[job.state])
+            row["result"].set_text(("保存済み · ライブラリで確認できます" if job.state == "done" else
+                "保存失敗。再試行または形式を選び直してください。MP4は既存OpenCV環境が必要です。" if job.state == "error" and job.kind.startswith("ugoira-") else "")
+                if job.kind == "novel-export" or job.kind.startswith("ugoira-") else "")
             row["count"].set_text(f"{job.done}/{job.total}" if job.total else "—")
             row["progress"].set_value(job.done / job.total if job.total else 0)
             if not self.failed_only:
@@ -597,6 +642,18 @@ class QueueView:
                 button.set_visibility(self.selection_mode)
                 button.set_enabled(not self.bulk_busy and service is not None and not service.faulted and any(
                     job.job_id in self.selected and job.state in ACTION_STATES[action] for job in jobs))
+
+    async def _retained_event(self,event,job_id):
+        if not self._valid() or not _browser_event(event,epoch=self.epoch) or job_id in self.busy:return
+        self.busy.add(job_id)
+        try:
+            exports=getattr(self.services,'save_exports',None)
+            changed=await _accepted_call(exports.retry_retained,job_id) if exports is not None else False
+            if not self.closed:self.notice.set_text('再試行を受け付けました' if changed else '履歴の状態を確認してください')
+        except Exception:
+            if not self.closed:self.notice.set_text('履歴を復帰できません。状態を確認してください')
+        finally:
+            self.busy.discard(job_id);self.refresh()
 
     async def _action_event(self, event):
         if not self._valid() or not _browser_event(event, epoch=self.epoch,

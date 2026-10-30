@@ -192,12 +192,20 @@ async def test_animation_thumbnail_does_not_break_other_bookmark_viewers():
         view = LibraryView(services)
         view.show_subview("bookmarks")
     try:
-        assert not view._image_provider.can_open("299")
+        # The real GIF viewer is now connected; unavailable source metadata
+        # remains a visible load failure and must not break the other work.
+        assert view._image_provider.can_open("299")
         assert services.images.get_versioned(view._image_provider.token, "299", 0, "thumb").data
         view.open_bookmark("202")
         assert view._viewer_state.viewer_open
         assert view._viewer_state.selected_artwork.work_id == "202"
         view.open_bookmark("299")
+        assert view._viewer_state.selected_artwork.work_id == "299"
+        await view._animation_task  # Mixed deliberately has no ugoira transport.
+        assert view._displayed_gif is None
+        assert '読み込めません' in view.viewer.image_status.text
+        assert not view.viewer.download_button.enabled
+        view.open_bookmark("202")
         assert view._viewer_state.selected_artwork.work_id == "202"
     finally:
         client.delete()

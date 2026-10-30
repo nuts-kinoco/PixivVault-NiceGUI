@@ -12,7 +12,10 @@ def register_media_routes(app, catalog: DemoImageCatalog) -> None:
     def serve(work_id: str, page_no: str, variant: str, request: Request) -> Response:
         cache_policy = (catalog.cache_control(work_id) if hasattr(catalog, "cache_control")
                         else "private, max-age=3600")
-        headers = {"X-Content-Type-Options": "nosniff", "Cache-Control": cache_policy}
+        # Exact originals are only fetched on explicit viewer action. Do not
+        # persist them in the browser's long-lived thumbnail cache.
+        headers = {"X-Content-Type-Options": "nosniff",
+                   "Cache-Control": "private, no-store" if variant == "original" else cache_policy}
         if (not 1 <= len(page_no) <= 4 or not page_no.isascii()
                 or not page_no.isdecimal() or (len(page_no) > 1 and page_no.startswith("0"))):
             raise HTTPException(status_code=404)

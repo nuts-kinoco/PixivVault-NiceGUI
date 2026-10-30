@@ -141,7 +141,7 @@ def test_native_start_applies_layout_before_registering_resources(monkeypatch):
     assert bootstrap.main(["--native"]) == 0
     assert calls[:2] == ["layout", "register"]
     assert calls[-1]["window_size"] == (layout.width, layout.height)
-    assert app.native.window_args == {"x": layout.x, "y": layout.y}
+    assert app.native.window_args == {"x": layout.x, "y": layout.y, "confirm_close": True}
     assert app.native.settings["ALLOW_DOWNLOADS"] is True
 
 
