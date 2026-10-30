@@ -6,7 +6,9 @@ from copy import deepcopy
 import hashlib
 import json
 from pathlib import Path
+import sys
 
+import tools.check_formal_152_coverage as formal_gate
 from tools.check_formal_152_coverage import audit, digest, source_fingerprint
 
 
@@ -249,3 +251,56 @@ def test_actual_immutable_v8_stays_unaccepted_without_current_candidate():
     assert result["total"] == 152
     assert result["original_references"] == 479
     assert result["counts"]["INCOMPLETE"] == 152
+
+
+def test_formal_ci_accepts_reviewed_tracked_evidence_not_ignored_runtime_artifacts():
+    root = Path(__file__).resolve().parents[1]
+    workflow = (root / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    formal_section = workflow.split("  formal-152-acceptance:\n", 1)[1].split("\n  browser:\n", 1)[0]
+    assert "--manifest docs/formal-152/current-candidate.json" in formal_section
+    assert "--output artifacts/formal-152/ci-result.json" in formal_section
+    assert "artifacts/" in (root / ".gitignore").read_text(encoding="utf-8")
+
+
+def test_ci_docs_manifest_cli_loads_reconciled_proofs_and_rejects_missing_one(
+        tmp_path, monkeypatch):
+    """Exercise the real CLI with an isolated, synthetic docs/ evidence bundle."""
+    ledger, candidate = setup_candidate(tmp_path)
+    docs = tmp_path / "docs" / "formal-152"
+    docs.mkdir(parents=True)
+    for name in ("proof.json", "review.json"):
+        (docs / name).write_bytes((tmp_path / "artifacts" / name).read_bytes())
+    for row in candidate["records"]:
+        for ref in row["references"]:
+            ref["proof_path"] = "docs/formal-152/proof.json"
+        row["independent_review"]["proof_path"] = "docs/formal-152/review.json"
+
+    ledger_path = tmp_path / formal_gate.LEDGER
+    ledger_path.write_text(json.dumps(ledger), encoding="utf-8")
+    pinned = digest(ledger_path)
+    candidate["ledger_sha256"] = pinned
+    manifest_path = docs / "current-candidate.json"
+    manifest_path.write_text(json.dumps(candidate), encoding="utf-8")
+    monkeypatch.setattr(formal_gate, "FROZEN_V8_SHA256", pinned)
+
+    def invoke(stem):
+        monkeypatch.setattr(sys, "argv", ["check_formal_152_coverage.py", "--root", str(tmp_path),
+                            "--manifest", "docs/formal-152/current-candidate.json",
+                            "--output", f"artifacts/formal-152/{stem}.json"])
+        result = formal_gate.main()
+        payload = json.loads((tmp_path / "artifacts" / "formal-152" / f"{stem}.json")
+                             .read_text(encoding="utf-8"))
+        return result, payload
+
+    exit_code, observed = invoke("from-tracked-docs")
+    assert exit_code == 0
+    assert observed["counts"]["PASS"] == 152
+    assert observed["original_references"] == 153
+
+    candidate["records"][0]["references"][0]["proof_path"] = "docs/formal-152/missing.json"
+    manifest_path.write_text(json.dumps(candidate), encoding="utf-8")
+    exit_code, observed = invoke("missing-docs-proof")
+    assert exit_code == 1
+    assert observed["counts"]["PASS"] == 151
+    assert observed["counts"]["INCOMPLETE"] == 1
+    assert "reference 0: proof file missing or unreadable" in observed["operations"][0]["reasons"]

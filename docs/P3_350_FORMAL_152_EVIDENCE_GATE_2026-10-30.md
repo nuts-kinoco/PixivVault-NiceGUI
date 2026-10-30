@@ -11,10 +11,11 @@
 - 実行：`S:/Projects/PixivVault-NiceGUI/.venv/Scripts/python.exe -X utf8 -m pytest -q tests/test_formal_152_coverage.py`。合成専用fixtureで漏れ・重複・偽参照・SHA変化・証拠改ざん・レビュー範囲差および**現物v8の未合格状態**などをテスト。**15 PASS / exit 0（12.30秒）**。結果は局所結果のみであり、実GUI/実Pixiv成功には換算しない。
 - 実行：`S:/Projects/PixivVault-NiceGUI/.venv/Scripts/python.exe -X utf8 tools/check_formal_152_coverage.py --output artifacts/p3-350-formal-gate/current-evidence-bounded-r1.json`。現時点の入力はv8原票のみで、候補の完全な正式証拠manifestは未作成。**152 INCOMPLETE / 0 PASS / 479原参照 / exit 1**となった。JSON証拠はGit追跡外の専用 `artifacts/` 内。最新の本ゲートを再実行するときは別の証跡ファイル名を使う。
 - CIでは `formal-152-acceptance` を通常pytest・ブラウザとは独立したジョブにした。**実証拠が揃うまで意図的にRED**とする。偽の空欄埋めや、合成操作を実データの成功として扱うことを禁止。pytestがGREENでも正式受入はREDのまま。
+- Stage2追補: CIはGit無視の `artifacts/` をcheckoutできないため、正式受入用には**機密を除去し独立レビューで承認したものだけ** `docs/formal-152/current-candidate.json` とその参照JSONをGit追跡して証拠を供給する。CIは明示 `--manifest docs/formal-152/current-candidate.json` で読み、結果のみ無視対象 `artifacts/formal-152/ci-result.json` へ保存する。実Cookie/作者・作品ID/画像/個人データ/実運用ログをGitへ移動しない。候補manifestはまだ存在しないのでCIゲートは意図的にREDであり、証拠を捏造して作らない。
 
 ## 今後の候補manifestとレビュー要件
 
-- 既定入力 `artifacts/formal-152/current-candidate.json`。`version=1`、`ledger_sha256`、`source_sha256`、`source_before_sha256`、`source_after_sha256` と、**152原IDを重複なしに含む** `records` が必要。各原IDに `status=PASS`、`run_id`、`start_condition`、実操作と実観測の `steps`、checker path/SHA、全ての `references`、独立reviewが必要。
+- リリースCIが明示して読むmanifestは `docs/formal-152/current-candidate.json`（ローカルCLIは引数で指定でき、未指定時の既定は `artifacts/formal-152/current-candidate.json`）。`version=1`、`ledger_sha256`、`source_sha256`、`source_before_sha256`、`source_after_sha256` と、**152原IDを重複なしに含む** `records` が必要。各原IDに `status=PASS`、`run_id`、`start_condition`、実操作と実観測の `steps`、checker path/SHA、全ての `references`、独立reviewが必要。
 - 各参照はv8固有 `binding_id`、元選択行SHA、原期待の逐語内容または独立復元した期待、観測、`verdict`、検証可能なJSON receiptの相対path/SHAに紐づく。receiptには同一run ID、実行前後source SHA、checker SHA、操作event、原ID・binding ID別 assertion 結果を収める。
 - 独立review JSONには、実装とは別の担当者、現ソースSHA、run ID、対象原ID、承認した **binding ID別receipt SHA**、元選択行SHA、承認した期待本文SHAと原条件の網羅確認を記録する。これを実装者の自己申告だけで済ませない。
 - 原v8の `literal_expectation` が空の参照が233あり、全479参照で `full_original_scope_reconciled=false`。これらは元Fletソース・元実画面・原チェックリストを独立して突き合わせ、曖昧さや仕様変更案を分けてから承認する。v8本体を結果で書き換えない。

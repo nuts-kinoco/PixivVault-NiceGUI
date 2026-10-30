@@ -19,7 +19,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    # Windows full pytest was measured above ten minutes even before install.
+    # Bound the hosted run while allowing dependency setup and real collection.
+    timeout-minutes: 30
     env:
       PYTHONUTF8: "1"
     steps:
@@ -51,7 +53,10 @@ jobs:
       # Deliberately RED until every original reference has current, independently
       # reviewed evidence. This is a release gate, separate from normal pytest.
       - name: Require all 152 original operations and 479 reference proofs
-        run: python tools/check_formal_152_coverage.py --output artifacts/formal-152/ci-result.json
+        # The runner only sees tracked files. Reviewed, redacted acceptance
+        # receipts must be committed under docs/formal-152/ at the exact head.
+        # Runtime artifacts/ and raw Cookie/account data remain Git-ignored.
+        run: python tools/check_formal_152_coverage.py --manifest docs/formal-152/current-candidate.json --output artifacts/formal-152/ci-result.json
       - name: Preserve incomplete formal acceptance report
         if: always()
         uses: actions/upload-artifact@v4
