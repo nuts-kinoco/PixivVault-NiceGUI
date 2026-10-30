@@ -40,6 +40,27 @@ jobs:
       - name: Report bootstrap metadata
         run: python -m pixivvault_nicegui --check
 
+  formal-152-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      # Deliberately RED until every original reference has current, independently
+      # reviewed evidence. This is a release gate, separate from normal pytest.
+      - name: Require all 152 original operations and 479 reference proofs
+        run: python tools/check_formal_152_coverage.py --output artifacts/formal-152/ci-result.json
+      - name: Preserve incomplete formal acceptance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: formal-152-acceptance
+          path: artifacts/formal-152/ci-result.json
+          if-no-files-found: warn
+          retention-days: 7
+
   browser:
     # ブランチpushとPRの二重実行を避け、実ブラウザはPR/mainで1回ずつ検証する。
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
