@@ -71,6 +71,12 @@ worker-4はread-r2/r3の限定GET証拠とbootstrapをread-only監査。`bootstr
 - **187 PASS / 0 FAIL / exit0 / 5.47s**。Junit XML `artifacts/p3-352-stage3-http-faults-r1/result.xml` SHA256 `b375b5dba4fcb5be0bc9cf77ef5213fd7b4388f8c382db6a27c7b6e47d50f886`。`stdout.txt` は同じ証拠directoryに記録。
 - ケースには生成Cookieの失効・不正・identity不一致、合成HTTP 401/403/404/429/500/503の安全分類、redirect/Content-Encoding/over-size拒否、通信失敗・deadline、CDN画像Cookie非送信、書込method拒否、各種不正JSON、うごイラZIPの境界検証を含む。外部通信障害を実現したわけではなく、実Pixivの429再試行や失効Cookieからの**実画面復帰**を証明したものではない。
 
+### ZIP保存形式 — 同一合成作者から生成し再起動後の非上書きを検証
+
+- コマンド：`S:/Projects/PixivVault-NiceGUI/.venv/Scripts/python.exe -X utf8 tools/check_legacy_zip_export_browser.py --channel chromium --output artifacts/p3-352-stage3-legacy-zip-r1`。原Cookie・元実画像・DBを一切読まない既存の架空作者/作品fixtureを使用。
+- `result.json` SHA256 `1c9b4a8bc2253f88025a346f8c102f3a8cf9ea56d68ca995286f55db7378a3d3`。**success=true、exit0、1280×720・1920×1080の初回/再起動計4/4 PASS、自然終了4/4、port解放4/4、page/console/外部要求0**。作者のNEW/UPDATED保存を経たZIPは2ページ、期待名/データbytes同一・ZIP CRC (`testzip`)・圧縮形式を検証し、再起動後非上書きとexport SHA不変を確認した。
+- 合成版でのZIP保存形式と再起動復帰の限定証明にすぎず、**実Cookie由来の作品→差分DL→実ZIP→専用Vault保存**、Flet実同条件の件数・ファイル名/時間比較、既存実ZIP原本互換の全網羅は未実施。
+
 ## 次ゲート（未完は未完）
 
 1. D01 checker限定独立監査は上記のとおり完了。正式証拠は自然20round・原Flet同条件・各原bindingの期待/操作/receipt SHA・scope reviewが揃うまでPASSにしない。
