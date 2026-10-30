@@ -65,6 +65,12 @@
 
 worker-4はread-r2/r3の限定GET証拠とbootstrapをread-only監査。`bootstrap.py:73-77` のrootとCookieパス重複拒否、保存/ZIP/Vaultの専用CLI引数、Pixivアカウント書込みフラグ既定OFFを確認。しかし、現在使う専用root/Vaultの所有・隔離・復旧条件までは確証できなかった。**現在の実GET成功を実保存ワークフローへ拡大せず、新たなPixiv通信を実行していない**。元FletのCookieや実作品IDを表示・Git追跡しない。
 
+### HTTP認証・失効・429等の合成障害回帰
+
+- `tests/test_pixiv_read_client.py` はファイル先頭で明示されたoffline mock transportと生成Cookie fixtureを使用する。実Pixiv Cookie/ID/APIの参照は行わない。コマンド：`S:/Projects/PixivVault-NiceGUI/.venv/Scripts/python.exe -X utf8 -m pytest -q --junitxml=artifacts/p3-352-stage3-http-faults-r1/result.xml tests/test_pixiv_read_client.py`。
+- **187 PASS / 0 FAIL / exit0 / 5.47s**。Junit XML `artifacts/p3-352-stage3-http-faults-r1/result.xml` SHA256 `b375b5dba4fcb5be0bc9cf77ef5213fd7b4388f8c382db6a27c7b6e47d50f886`。`stdout.txt` は同じ証拠directoryに記録。
+- ケースには生成Cookieの失効・不正・identity不一致、合成HTTP 401/403/404/429/500/503の安全分類、redirect/Content-Encoding/over-size拒否、通信失敗・deadline、CDN画像Cookie非送信、書込method拒否、各種不正JSON、うごイラZIPの境界検証を含む。外部通信障害を実現したわけではなく、実Pixivの429再試行や失効Cookieからの**実画面復帰**を証明したものではない。
+
 ## 次ゲート（未完は未完）
 
 1. D01 checker限定独立監査は上記のとおり完了。正式証拠は自然20round・原Flet同条件・各原bindingの期待/操作/receipt SHA・scope reviewが揃うまでPASSにしない。
