@@ -43,11 +43,14 @@ class RankingView:
         self.client=ui.context.client
         with ui.column().classes('pv-gallery w-full').props('data-testid=ranking-view') as self.root:
             with ui.row().classes('pv-toolbar'):
-                self.mode=ui.select(MODES,value='daily',label='ランキング').props('outlined dense data-testid=ranking-mode')
-                self.content=ui.select(CONTENTS,value='illust',label='作品種別').props('outlined dense data-testid=ranking-content')
+                self.mode=ui.select(MODES,value='daily',label='ランキング').props(
+                    'outlined dense data-testid=ranking-mode').style('min-width:145px')
+                self.content=ui.select(CONTENTS,value='illust',label='作品種別').props(
+                    'outlined dense data-testid=ranking-content').style('min-width:165px')
                 self.date_button=ui.button('今日',icon='calendar_month',on_click=self.open_calendar).props(
                     'flat no-caps data-testid=ranking-date-calendar aria-label=ランキングの日付を選ぶ')
-                self.date=ui.input('日付 YYYYMMDD（空欄は今日）').props('outlined dense data-testid=ranking-date')
+                self.date=ui.input('日付 YYYYMMDD（空欄は今日）').props(
+                    'outlined dense data-testid=ranking-date').style('min-width:270px')
                 self.r18=ui.checkbox('R-18',value=False).props('data-testid=ranking-r18')
                 self.ai=ui.checkbox('AIを除外',value=False).props('data-testid=ranking-exclude-ai')
                 self.tag=ui.input('タグ検索').props('outlined dense data-testid=ranking-tag')
@@ -56,6 +59,8 @@ class RankingView:
             self.notice=ui.label('条件を選び、取得してください。').props('role=status data-testid=ranking-notice')
             self.gallery=_RankingGallery(self.proxy,card_size=card_size,on_size_change=on_size_change)
             self.gallery.owner=self
+            # Initial no-request state is not a successful empty response.
+            self.gallery.empty.set_text('ランキングは未取得です。条件を選び「取得・更新」を押してください。')
         for control in (self.mode,self.content,self.date,self.r18,self.ai):
             control.on_value_change(lambda _:self.changed(refresh=True))
         # Original tag entry is a submit operation, unlike selecting a date,
@@ -240,6 +245,7 @@ class RankingView:
         state=GalleryState(tuple(i.record.as_artwork() for i in items),page_size=max(50,len(items)))
         state.set_card_size(old.card_size);state.set_query(old.query);state.generation=old.generation+1;old.close()
         self.gallery.state=self.gallery._viewer_state=state
+        self.gallery.empty.set_text('取得した条件に該当する作品がありません。')
         self.gallery.render_gallery()
         for work_id,image in self.gallery.images.items():image.set_source(self.proxy.images.url(work_id,0,'thumb'))
         self.gallery.more_cell.set_visibility(not self.page.exhausted)

@@ -98,6 +98,8 @@ jobs:
         run: python tools/run_browser_checks.py --channel chromium --output artifacts/browser-ci
       - name: Check synthetic learning persistence, recovery and session conflicts
         run: python tools/check_learning_persistence_browser.py --channel chromium --output artifacts/browser-ci/learning-persistence
+      - name: Check Stage4 required navigation geometry, overlays and warm UI response
+        run: python tools/check_stage4_visual_geometry_browser.py --channel chromium --output artifacts/browser-ci/stage4-geometry
       - name: Check explicit discovery retry after exhausted synthetic acquisition
         run: python tools/check_discovery_manual_retry_browser.py --channel chromium --output artifacts/browser-ci/discovery-manual-retry
       - name: Check read-only legacy SQLite and saved images
