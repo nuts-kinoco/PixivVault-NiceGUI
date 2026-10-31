@@ -44,6 +44,49 @@ def test_localhost_traffic_stays_permitted_without_external_attempts():
         assert guard.clean
 
 
+def test_sendmsg_external_udp_is_denied_and_restored_on_supported_socket(monkeypatch):
+    # Windows has no sendmsg. Emulate the *availability* only; the fake method
+    # never performs network I/O, including against an unpatched old fence.
+    original_class=socket.socket
+    simulated_calls=[]
+    class SimulatedSendmsg(original_class):
+        def sendmsg(self, buffers, ancdata=(), flags=0, address=None):
+            simulated_calls.append(('would_send',address))
+            return sum(len(x) for x in buffers)
+    monkeypatch.setattr(socket,'socket',SimulatedSendmsg)
+    original_method=SimulatedSendmsg.sendmsg
+    with OfflineNetworkFence() as guard:
+        target=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        try:
+            with pytest.raises(PermissionError):
+                target.sendmsg([b'probe'],[],0,('203.0.113.55',9999))
+            assert guard.attempts==['socket.sendmsg']
+        finally:target.close()
+    assert simulated_calls==[], 'even the inert simulated send must not be called'
+    assert SimulatedSendmsg.sendmsg is original_method
+
+
+def test_sendmsg_restore_after_exception_and_loopback_allowed(monkeypatch):
+    original_class=socket.socket
+    calls=[]
+    class SimulatedSendmsg(original_class):
+        def sendmsg(self, buffers, ancdata=(), flags=0, address=None):
+            calls.append(address)
+            return sum(len(x) for x in buffers)
+    monkeypatch.setattr(socket,'socket',SimulatedSendmsg)
+    original_method=SimulatedSendmsg.sendmsg
+    with pytest.raises(RuntimeError,match='test exception'):
+        with OfflineNetworkFence() as guard:
+            target=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+            try:
+                assert target.sendmsg([b'local'],[],0,('127.0.0.1',9999))==5
+                assert guard.clean
+                raise RuntimeError('test exception')
+            finally:target.close()
+    assert calls==[('127.0.0.1',9999)]
+    assert SimulatedSendmsg.sendmsg is original_method
+
+
 def test_s08_real_parent_phase_swallowed_attempt_fails_entire_generated_gui_run(monkeypatch):
     """Inject in PARENT create_services, not the independent --serve child."""
     from uuid import uuid4

@@ -47,6 +47,11 @@ class OfflineNetworkFence:
             socket.create_connection, socket.getaddrinfo, socket.socket.sendto,
         )
         self._previous = previous
+        # sendmsg exists on some platforms (not on Windows). An inherited
+        # descriptor must be deleted on restore rather than left shadowed.
+        self._sendmsg_available = hasattr(socket.socket, 'sendmsg')
+        self._sendmsg_owned = self._sendmsg_available and 'sendmsg' in vars(socket.socket)
+        self._sendmsg_original = (socket.socket.sendmsg if self._sendmsg_available else None)
         connect, connect_ex, create_connection, getaddrinfo, sendto = previous
         fence = self
 
@@ -77,11 +82,18 @@ class OfflineNetworkFence:
                 fence._ensure(address, 'socket.sendto')
             return sendto(sock, data, *args)
 
+        def guarded_sendmsg(sock, buffers, ancdata=(), flags=0, address=None):
+            if getattr(sock, 'family', None) != getattr(socket, 'AF_UNIX', None):
+                fence._ensure(address, 'socket.sendmsg')
+            return fence._sendmsg_original(sock, buffers, ancdata, flags, address)
+
         socket.socket.connect = guarded_connect
         socket.socket.connect_ex = guarded_connect_ex
         socket.create_connection = guarded_create_connection
         socket.getaddrinfo = guarded_getaddrinfo
         socket.socket.sendto = guarded_sendto
+        if self._sendmsg_available:
+            socket.socket.sendmsg = guarded_sendmsg
         return self
 
     def __exit__(self, exc_type, exc, tb):
@@ -89,5 +101,10 @@ class OfflineNetworkFence:
             (socket.socket.connect, socket.socket.connect_ex,
              socket.create_connection, socket.getaddrinfo,
              socket.socket.sendto) = self._previous
+            if self._sendmsg_available:
+                if self._sendmsg_owned:
+                    socket.socket.sendmsg = self._sendmsg_original
+                else:
+                    delattr(socket.socket, 'sendmsg')
             self._previous = None
         return False

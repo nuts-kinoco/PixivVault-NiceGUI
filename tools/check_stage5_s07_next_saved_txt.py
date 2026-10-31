@@ -98,11 +98,20 @@ def finalize_s07_run(report, services, source, source_hash, result_path, *,
     except Exception as error:
         report['source_generated_preference_unchanged']=False
         errors.append({'stage':'source_sha','type':type(error).__name__})
-    report['parent_outbound_attempts']=network.attempt_count if network is not None else 0
-    if report['parent_outbound_attempts']:
-        errors.append({'stage':'offline_parent_fence','type':'OutboundAttempt'})
+    def record_network_attempts():
+        count=network.attempt_count if network is not None else 0
+        report['parent_outbound_attempts']=count
+        if count and not any(e['stage']=='offline_parent_fence' for e in errors):
+            errors.append({'stage':'offline_parent_fence','type':'OutboundAttempt'})
+        return count
+
+    record_network_attempts()
     report['cleanup_errors']=errors
-    report['success']=bool(report.get('success') and not errors and not report.get('failure'))
+    candidate_success=bool(report.get('success') and not errors and not report.get('failure'))
+    # Fail closed on disk until the custom writer has returned and its
+    # possible swallowed network attempts have been inspected.
+    report['success']=False
+    destination=result_path
     try:
         write_func(result_path,report)
     except Exception as error:
@@ -111,11 +120,36 @@ def finalize_s07_run(report, services, source, source_hash, result_path, *,
         # Keep primary error intact even if the normal receipt cannot be written.
         # No replay of the original write: use a distinct, fresh fallback name.
         fallback=result_path.with_name('result-write-failure.json')
+        destination=fallback
         try:
             write_func(fallback,report)
         except Exception as fallback_error:
             errors.append({'stage':'fallback_receipt_write','type':type(fallback_error).__name__})
             raise RuntimeError('S07 could not persist either result receipt') from fallback_error
+    # Re-check AFTER both normal and fallback writer returns; the writer can
+    # catch a prohibited DNS attempt and otherwise appear successful.
+    record_network_attempts()
+    report['success']=bool(candidate_success and not errors and
+                           (network is None or network.clean))
+    # A two-phase receipt: the first durable record was explicitly RED.
+    # Only publish GREEN by replacing it with a fully serialized, validated
+    # final snapshot after writer-side network observation.
+    final_temp=destination.with_name(destination.name+'.verified.tmp')
+    try:
+        with final_temp.open('x',encoding='utf8') as stream:
+            json.dump(report,stream,ensure_ascii=False,indent=2)
+        final_temp.replace(destination)
+    except Exception as error:
+        report['success']=False
+        errors.append({'stage':'receipt_finalize','type':type(error).__name__})
+        raise RuntimeError('S07 final receipt could not be committed safely') from error
+    # Protect against an unexpected swallowed egress during final publishing;
+    # never leave an authoritative GREEN receipt when an attempt was seen.
+    if record_network_attempts() and report['success']:
+        report['success']=False
+        with final_temp.open('x',encoding='utf8') as stream:
+            json.dump(report,stream,ensure_ascii=False,indent=2)
+        final_temp.replace(destination)
     return report
 
 

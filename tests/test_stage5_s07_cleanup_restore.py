@@ -74,3 +74,26 @@ def test_s07_swallowed_parent_egress_is_recorded_as_cleanup_failure(tmp_path):
     assert result['parent_outbound_attempts']==1
     assert not result['success']
     assert result['cleanup_errors'][0]['stage']=='offline_parent_fence'
+
+
+def test_s07_caught_dns_attempt_during_receipt_write_fails_and_persisted_result_red(tmp_path):
+    source=tmp_path/'source';source.write_bytes(b'generated')
+    receipt=tmp_path/'result.json'
+    original_connect=socket.socket.connect
+    original_dns=socket.getaddrinfo
+    def injected_write(path,payload):
+        # No real network: the fence must intercept before DNS resolution.
+        try:socket.getaddrinfo('external.invalid',443)
+        except PermissionError:pass
+        path.write_text(json.dumps(payload,ensure_ascii=False),encoding='utf8')
+    with OfflineNetworkFence() as guard:
+        result=s07.finalize_s07_run({'success':True,'failure':None,'steps':[]},
+            None,source,s07.sha(source),receipt,write_func=injected_write,network=guard)
+        assert guard.attempt_count>=1
+    assert socket.socket.connect is original_connect
+    assert socket.getaddrinfo is original_dns
+    assert result['success'] is False
+    assert result['parent_outbound_attempts']>=1
+    assert any(e['stage']=='offline_parent_fence' for e in result['cleanup_errors'])
+    # Critical: the on-disk authoritative receipt must not remain falsely green.
+    assert json.loads(receipt.read_text(encoding='utf8'))['success'] is False
