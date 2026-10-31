@@ -28,6 +28,7 @@ from tools import check_p3_residuals_browser as fixture_server
 from tools.p3_residuals_fixtures import create_services
 from tools.owned_process_tree import OwnedProcessTree
 from tools.run_browser_checks import child_environment,free_port,port_released,source_hashes,stop_child,wait_for_health
+from tools.stage5_offline_parent_fence import OfflineNetworkFence
 
 def sha(path):return sha256(path.read_bytes()).hexdigest()
 
@@ -42,7 +43,7 @@ def serve(port,sandbox,nonce):
     sys.addaudithook(deny)
     fixture_server.serve(port,sandbox,nonce)
 
-def run(out):
+def _run_guarded(out, parent_network):
     out=out.resolve()
     if out.exists() or not out.is_relative_to(ROOT/'artifacts'):
         raise ValueError('new, dedicated generated root required')
@@ -193,18 +194,29 @@ def run(out):
         report['app']['port_released']=port_released(port)
         report['source_changed']=source_hashes()!=product_before
         report['harness_changed']=hashes!={str(p.relative_to(ROOT)):sha(p) for p in monitored}
+        # A swallowed outbound PermissionError must STILL fail the run.
+        report['parent_outbound_attempts']=parent_network.attempt_count
+        report['parent_outbound_attempt_routes']=list(parent_network.attempts)
         report['success']=bool(report.get('tested') and
             report['app'].get('exit_code')==0 and report['app']['normal_exit']
             and not report['app']['forced_cleanup'] and report['app']['port_released']
             and report['app']['tree'].get('remaining_count')==0
             and not report['app']['tree'].get('errors') and not report['source_changed']
-            and not report['harness_changed'] and not report.get('close_services_error'))
+            and not report['harness_changed'] and not report.get('close_services_error')
+            and parent_network.clean)
         with (out/'result.json').open('x',encoding='utf8') as fp:
             json.dump(report,fp,ensure_ascii=False,indent=2)
     print(json.dumps({'success':report['success'],'steps':len(report['steps']),
         'failure':report['failure'],'formal_pass_added':0,
         'owned_remaining':report['app']['tree'].get('remaining_count')}))
     return 0 if report['success'] else 1
+
+
+def run(out):
+    # Protect the parent from *before* fixture/server construction through
+    # service save/playback, final SHA and receipt write, including shutdown.
+    with OfflineNetworkFence() as parent_network:
+        return _run_guarded(out,parent_network)
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)

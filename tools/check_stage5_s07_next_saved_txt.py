@@ -17,6 +17,7 @@ from fastapi import FastAPI
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from tools.p3_residuals_fixtures import create_services
+from tools.stage5_offline_parent_fence import OfflineNetworkFence
 
 SOURCE=ROOT/'artifacts/p3-369-s07-s08-prefs-r1/generated-data/preferences/preferences.sqlite3'
 # Independent, known generated input: FixtureReader.get_novel_payload('501','91')
@@ -73,7 +74,52 @@ def verify_generated_txt_501(txt_path: Path, receipt_path: Path) -> dict:
             'byte_count':len(payload),'text_matches_fixture':True}
 
 
-def run(out):
+def finalize_s07_run(report, services, source, source_hash, result_path, *,
+                     sha_func=None, write_func=None, network=None):
+    """Never hide a primary error behind a cleanup or receipt failure.
+
+    Called while the outer reversible network fence is still installed.
+    The caller's with/finally restores socket functions on *all* outcomes.
+    """
+    if sha_func is None:sha_func=sha
+    if write_func is None:
+        def write_func(path,payload):
+            with path.open('x',encoding='utf8') as stream:
+                json.dump(payload,stream,ensure_ascii=False,indent=2)
+    errors=[]
+    if services is not None:
+        try:services.close()
+        except Exception as error:
+            errors.append({'stage':'services.close','type':type(error).__name__})
+    try:
+        same=sha_func(source)==source_hash
+        report['source_generated_preference_unchanged']=same
+        if not same:errors.append({'stage':'source_sha','type':'HashMismatch'})
+    except Exception as error:
+        report['source_generated_preference_unchanged']=False
+        errors.append({'stage':'source_sha','type':type(error).__name__})
+    report['parent_outbound_attempts']=network.attempt_count if network is not None else 0
+    if report['parent_outbound_attempts']:
+        errors.append({'stage':'offline_parent_fence','type':'OutboundAttempt'})
+    report['cleanup_errors']=errors
+    report['success']=bool(report.get('success') and not errors and not report.get('failure'))
+    try:
+        write_func(result_path,report)
+    except Exception as error:
+        errors.append({'stage':'receipt_write','type':type(error).__name__})
+        report['success']=False
+        # Keep primary error intact even if the normal receipt cannot be written.
+        # No replay of the original write: use a distinct, fresh fallback name.
+        fallback=result_path.with_name('result-write-failure.json')
+        try:
+            write_func(fallback,report)
+        except Exception as fallback_error:
+            errors.append({'stage':'fallback_receipt_write','type':type(fallback_error).__name__})
+            raise RuntimeError('S07 could not persist either result receipt') from fallback_error
+    return report
+
+
+def _run_guarded(out, network):
     out=out.resolve()
     if out.exists() or not out.is_relative_to(ROOT/'artifacts'):
         raise ValueError('new generated artifact root required')
@@ -86,21 +132,6 @@ def run(out):
     shutil.copyfile(SOURCE,prefs)
     if sha(prefs)!=source_hash:
         raise RuntimeError('generated preference DB changed during read-only copy')
-
-    # All reader calls are synthetic, including the image bytes. Deny any
-    # accidental network egress from this explicitly offline follow-up.
-    original_socket_connect=socket.socket.connect
-    original_dns=socket.getaddrinfo
-    def local_socket(self,address):
-        if not isinstance(address,tuple) or address[0] not in ('127.0.0.1','::1','localhost'):
-            raise RuntimeError('outside network prohibited')
-        return original_socket_connect(self,address)
-    def local_dns(host,*args,**kwargs):
-        if host not in ('127.0.0.1','::1','localhost',None):
-            raise RuntimeError('outside DNS prohibited')
-        return original_dns(host,*args,**kwargs)
-    socket.socket.connect=local_socket
-    socket.getaddrinfo=local_dns
 
     report={'schema':1,'original_id':'S07','prior_GUI_preferences_sha256':source_hash,
         'scope':'next actual generated novel save after GUI choice TXT; no original Flet/Cookie',
@@ -164,15 +195,17 @@ def run(out):
         report['failure']=type(exc).__name__
         report['error_short']=str(exc)[:220]
     finally:
-        if services is not None:services.close()
-        report['source_generated_preference_unchanged']=sha(SOURCE)==source_hash
-        with (out/'result.json').open('x',encoding='utf8') as f:
-            json.dump(report,f,ensure_ascii=False,indent=2)
-        socket.socket.connect=original_socket_connect
-        socket.getaddrinfo=original_dns
+        finalize_s07_run(report,services,SOURCE,source_hash,out/'result.json',network=network)
     print(json.dumps({'success':report['success'],'steps':len(report['steps']),
         'failure':report['failure'],'formal_pass_added':0}))
     return 0 if report['success'] else 1
+
+
+def run(out):
+    # A context-manager outer finally guarantees restoration even if close,
+    # hash validation or both result writers raise unexpectedly.
+    with OfflineNetworkFence() as network:
+        return _run_guarded(out,network)
 
 if __name__=='__main__':
     if len(sys.argv)!=2:raise SystemExit('usage: check_stage5_s07_next_saved_txt.py NEW_OUTPUT')
