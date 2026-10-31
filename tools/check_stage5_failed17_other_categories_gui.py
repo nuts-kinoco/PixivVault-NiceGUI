@@ -9,6 +9,9 @@ import json
 import os
 from pathlib import Path
 import secrets
+from dataclasses import asdict
+from hashlib import sha256
+import sqlite3
 import stat
 import subprocess
 import sys
@@ -22,6 +25,7 @@ from playwright.sync_api import expect, sync_playwright
 from tools import check_stage5_failed17_filter_and_search_gui as prior
 from tools import check_stage5_original_failed17_native as original
 from tools.check_failed_records_browser import build_failure_fixture
+from pixivvault_nicegui.failed_records_state import FailureRecord
 from tools.owned_process_tree import OwnedProcessTree
 from tools.run_browser_checks import (
     child_environment, free_port, port_released, source_hashes, stop_child, wait_for_health,
@@ -107,8 +111,21 @@ def verify_original_categories(root=None):
     return prior_hash
 
 
+def generated_db_fingerprint(db):
+    """Derive the failure-row fingerprint from immutable SQLite bytes, not a claim."""
+    uri = db.resolve().as_uri() + '?immutable=1'
+    with sqlite3.connect(uri, uri=True) as conn:
+        fields = tuple(FailureRecord.__dataclass_fields__)
+        rows = conn.execute(
+            'SELECT ' + ', '.join(fields) + ' FROM failed_queue ORDER BY rowid'
+        ).fetchall()
+    records = tuple(asdict(FailureRecord(**dict(zip(fields, row)))) for row in rows)
+    return sha256(json.dumps(records, ensure_ascii=False, sort_keys=True).encode('utf8')).hexdigest()
+
+
 def run(out, *, original_verifier=verify_original_categories,
-        ui_steps=None, scope=None, extra_watched=(), expected_steps=7):
+        ui_steps=None, scope=None, extra_watched=(), expected_steps=7,
+        fixture_builder=build_failure_fixture, initial_total=17):
     """Use one owner/network/lifecycle harness for distinct frozen GUI actions.
 
     With no arguments beyond out, the original P3-396 seven-step Q14 check is
@@ -121,7 +138,12 @@ def run(out, *, original_verifier=verify_original_categories,
         raise ValueError('new generated-only output root required')
     flet_fixture_hash = original_verifier()
     out.mkdir(parents=True, exist_ok=False)
-    fixture_db, images = build_failure_fixture(out / 'fixture')
+    fixture_db, images = fixture_builder(out / 'fixture')
+    from tools.failed_records_fixture_guard import verify_fixture_manifest
+    verify_fixture_manifest(fixture_db, images)
+    db_fixture_hash = generated_db_fingerprint(fixture_db)
+    if db_fixture_hash != flet_fixture_hash:
+        raise RuntimeError('real Flet and generated NiceGUI DB fixture fingerprint differ')
     initial_db_hash = prior.sha(fixture_db)
     from tools import check_failed_records_browser as server
     watched = [Path(__file__), Path(prior.__file__), Path(server.__file__),
@@ -138,7 +160,7 @@ def run(out, *, original_verifier=verify_original_categories,
     headers = {'X-Acceptance': nonce}
     report = {
         'scope': scope or 'P3-396 actual NiceGUI Q14 other five categories compared with fixed real Flet P3-395 UIA',
-        'flet_fixture_sha256': flet_fixture_hash, 'nicegui_fixture_sha256': prior.fixture_fingerprint(),
+        'flet_fixture_sha256': flet_fixture_hash, 'nicegui_fixture_sha256': db_fixture_hash,
         'formal_pass_added': 0, 'same_native_gdi_capture': False,
         'capture_backend': 'Playwright_CDP_NOT_NATIVE_GDI',
         'steps': [], 'screenshots': {}, 'browser_external_requests': 0,
@@ -211,8 +233,10 @@ def run(out, *, original_verifier=verify_original_categories,
                     page.get_by_test_id('tab-failed').click()
                     panel = page.get_by_test_id('failed-records-view')
                     expect(panel).to_be_visible()
-                    expect(panel.get_by_test_id('failed-count')).to_have_text('17 / 17 件')
-                    report['steps'].append('generated real NiceGUI all 17 initial')
+                    expect(panel.get_by_test_id('failed-count')).to_have_text(
+                        f'{initial_total} / {initial_total} 件')
+                    report['steps'].append(
+                        f'generated real NiceGUI all {initial_total} initial')
                     if ui_steps is None:
                         for key, phase, ids, count in CATEGORIES:
                             panel.get_by_test_id('failed-category-' + key).click()
