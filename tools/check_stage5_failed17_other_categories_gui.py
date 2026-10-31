@@ -107,11 +107,19 @@ def verify_original_categories(root=None):
     return prior_hash
 
 
-def run(out):
+def run(out, *, original_verifier=verify_original_categories,
+        ui_steps=None, scope=None, extra_watched=(), expected_steps=7):
+    """Use one owner/network/lifecycle harness for distinct frozen GUI actions.
+
+    With no arguments beyond out, the original P3-396 seven-step Q14 check is
+    unchanged. Another checked-in scenario may supply a frozen real-Flet
+    validator and a different *new* NiceGUI action sequence without cloning the
+    owner/shutdown/network code or repeating the original scenario.
+    """
     out = out.resolve()
     if out.exists() or not out.is_relative_to((ROOT / 'artifacts').resolve()):
         raise ValueError('new generated-only output root required')
-    flet_fixture_hash = verify_original_categories()
+    flet_fixture_hash = original_verifier()
     out.mkdir(parents=True, exist_ok=False)
     fixture_db, images = build_failure_fixture(out / 'fixture')
     initial_db_hash = prior.sha(fixture_db)
@@ -120,7 +128,8 @@ def run(out):
                ROOT / 'tools/owned_process_tree.py', ROOT / 'tools/run_browser_checks.py',
                ROOT / 'tools/check_readonly_library_browser.py',
                ROOT / 'tools/failed_records_fixture_guard.py',
-               ROOT / 'tools/check_library_calendar_slider_owned.py']
+               ROOT / 'tools/check_library_calendar_slider_owned.py',
+               *(Path(item) for item in extra_watched)]
     harness_before = {str(p.relative_to(ROOT)): prior.sha(p) for p in watched}
     product_before = source_hashes()
     port, nonce = free_port(), secrets.token_hex(24)
@@ -128,7 +137,7 @@ def run(out):
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     headers = {'X-Acceptance': nonce}
     report = {
-        'scope': 'P3-396 actual NiceGUI Q14 other five categories compared with fixed real Flet P3-395 UIA',
+        'scope': scope or 'P3-396 actual NiceGUI Q14 other five categories compared with fixed real Flet P3-395 UIA',
         'flet_fixture_sha256': flet_fixture_hash, 'nicegui_fixture_sha256': prior.fixture_fingerprint(),
         'formal_pass_added': 0, 'same_native_gdi_capture': False,
         'capture_backend': 'Playwright_CDP_NOT_NATIVE_GDI',
@@ -204,22 +213,25 @@ def run(out):
                     expect(panel).to_be_visible()
                     expect(panel.get_by_test_id('failed-count')).to_have_text('17 / 17 件')
                     report['steps'].append('generated real NiceGUI all 17 initial')
-                    for key, phase, ids, count in CATEGORIES:
-                        panel.get_by_test_id('failed-category-' + key).click()
-                        expect(panel.get_by_test_id('failed-count')).to_have_text(f'{count} / 17 件')
-                        rows = panel.get_by_test_id('failed-rows')
-                        for work_id in ids:
-                            expect(rows).to_contain_text(work_id)
-                        for other in ({f'failure-{i:04d}' for i in range(1, 18)} - set(ids)):
-                            expect(rows).not_to_contain_text(other)
-                        report['steps'].append(phase + ': ' + str(count))
-                    page.screenshot(path=str(out / 'other2-cdp.png'))
-                    report['screenshots']['other2'] = prior.sha(out / 'other2-cdp.png')
-                    panel.get_by_test_id('failed-category-all').click()
-                    expect(panel.get_by_test_id('failed-count')).to_have_text('17 / 17 件')
-                    report['steps'].append('all categories restored 17')
-                    page.screenshot(path=str(out / 'all17-cdp.png'))
-                    report['screenshots']['all17'] = prior.sha(out / 'all17-cdp.png')
+                    if ui_steps is None:
+                        for key, phase, ids, count in CATEGORIES:
+                            panel.get_by_test_id('failed-category-' + key).click()
+                            expect(panel.get_by_test_id('failed-count')).to_have_text(f'{count} / 17 件')
+                            rows = panel.get_by_test_id('failed-rows')
+                            for work_id in ids:
+                                expect(rows).to_contain_text(work_id)
+                            for other in ({f'failure-{i:04d}' for i in range(1, 18)} - set(ids)):
+                                expect(rows).not_to_contain_text(other)
+                            report['steps'].append(phase + ': ' + str(count))
+                        page.screenshot(path=str(out / 'other2-cdp.png'))
+                        report['screenshots']['other2'] = prior.sha(out / 'other2-cdp.png')
+                        panel.get_by_test_id('failed-category-all').click()
+                        expect(panel.get_by_test_id('failed-count')).to_have_text('17 / 17 件')
+                        report['steps'].append('all categories restored 17')
+                        page.screenshot(path=str(out / 'all17-cdp.png'))
+                        report['screenshots']['all17'] = prior.sha(out / 'all17-cdp.png')
+                    else:
+                        ui_steps(page, panel, report, out)
                     size = page.evaluate('({w:Math.round(innerWidth*devicePixelRatio),'
                                          'h:Math.round(innerHeight*devicePixelRatio),'
                                          'scroll:document.documentElement.scrollWidth})')
@@ -232,7 +244,7 @@ def run(out):
             if (report['browser_external_requests'] or report['browser_external_websockets']
                     or report['javascript_errors'] or report['console_errors']):
                 raise RuntimeError('browser/network violations')
-            report['tested'] = len(report['steps']) == 7
+            report['tested'] = len(report['steps']) == expected_steps
     except Exception as exc:
         report['failure'] = type(exc).__name__
         report['error_short'] = str(exc)[:250]
