@@ -152,3 +152,173 @@ def test_fake_success_with_bad_server_lifecycle_rejected(tmp_path, field, forged
 def test_missing_server_lifecycle_rejected(tmp_path):
     assert compare.verify_failure_server_lifecycle(
         tmp_path / 'missing.json', listener_pid=123, db_sha='a' * 64) is False
+
+
+@pytest.mark.parametrize('all_categories', [False, True])
+def test_correct_counter_but_missing_visible_rows_must_fail(tmp_path, all_categories):
+    """RED: the old checker did not validate real rows after restoring filters."""
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        try:
+            page = browser.new_page()
+            count = 17 if all_categories else 3
+            page.set_content(f'''
+                <section data-testid="failed-records-view">
+                  <div data-testid="failed-count">{count} / 17 件</div>
+                  <button data-testid="failed-category-communication"
+                          aria-pressed="{'false' if all_categories else 'true'}">通信3</button>
+                  <button data-testid="failed-category-all"
+                          aria-pressed="{'true' if all_categories else 'false'}">すべて17</button>
+                  <div data-testid="failed-page">1 / {'3' if all_categories else '1'}</div>
+                  <div data-testid="failed-rows"></div>
+                </section>
+            ''')
+            with pytest.raises(AssertionError):
+                compare.assert_restored_rows(
+                    page.get_by_test_id('failed-records-view'),
+                    all_categories=all_categories)
+        finally:
+            browser.close()
+
+
+@pytest.mark.parametrize('all_categories', [False, True])
+def test_real_restored_dom_row_ids_and_category_state_pass(all_categories):
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        try:
+            page = browser.new_page()
+            ids = (
+                [f'failure-{i:04d}' for i in range(1, 9)]
+                if all_categories else ['failure-0001', 'failure-0007', 'failure-0013'])
+            rows = ''.join(
+                f'<div data-testid="failed-record" data-work-id="{item}">{item}</div>'
+                for item in ids)
+            page.set_content(f'''
+                <section data-testid="failed-records-view">
+                  <div data-testid="failed-count">{17 if all_categories else 3} / 17 件</div>
+                  <button data-testid="failed-category-communication"
+                          aria-pressed="{'false' if all_categories else 'true'}">通信3</button>
+                  <button data-testid="failed-category-all"
+                          aria-pressed="{'true' if all_categories else 'false'}">すべて17</button>
+                  <div data-testid="failed-page">1 / {'3' if all_categories else '1'}</div>
+                  <div data-testid="failed-rows">{rows}</div>
+                  <div data-testid="failed-empty" hidden>一致する失敗はありません</div>
+                </section>
+            ''')
+            compare.assert_restored_rows(
+                page.get_by_test_id('failed-records-view'),
+                all_categories=all_categories)
+        finally:
+            browser.close()
+
+
+def test_title_007_counter_and_expected_text_with_extra_stale_row_must_fail():
+    """RED: title007 1/17 label must not validate a DOM with two rendered rows."""
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        try:
+            page = browser.new_page()
+            page.set_content('''
+                <section data-testid="failed-records-view">
+                  <input placeholder="タイトル・IDで検索" value="架空の失敗作品 007">
+                  <div data-testid="failed-count">1 / 17 件</div>
+                  <button data-testid="failed-category-communication"
+                          aria-pressed="true">通信3</button>
+                  <div data-testid="failed-page">1 / 1</div>
+                  <div data-testid="failed-rows">
+                    <div data-testid="failed-record" data-work-id="failure-0007">failure-0007</div>
+                    <div data-testid="failed-record" data-work-id="failure-0013">failure-0013</div>
+                  </div>
+                  <div data-testid="failed-empty" hidden>一致する失敗はありません</div>
+                </section>
+            ''')
+            root = page.get_by_test_id('failed-records-view')
+            with pytest.raises(AssertionError):
+                compare.assert_title_007_filtered_ui(
+                    root, root.get_by_placeholder('タイトル・IDで検索'))
+        finally:
+            browser.close()
+
+
+def test_title_007_genuine_exactly_one_row_passes():
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        try:
+            page = browser.new_page()
+            page.set_content('''
+                <section data-testid="failed-records-view">
+                  <input placeholder="タイトル・IDで検索" value="架空の失敗作品 007">
+                  <div data-testid="failed-count">1 / 17 件</div>
+                  <button data-testid="failed-category-communication"
+                          aria-pressed="true">通信3</button>
+                  <div data-testid="failed-page">1 / 1</div>
+                  <div data-testid="failed-rows">
+                    <div data-testid="failed-record" data-work-id="failure-0007">failure-0007</div>
+                  </div>
+                  <div data-testid="failed-empty" hidden>一致する失敗はありません</div>
+                </section>
+            ''')
+            root = page.get_by_test_id('failed-records-view')
+            compare.assert_title_007_filtered_ui(
+                root, root.get_by_placeholder('タイトル・IDで検索'))
+        finally:
+            browser.close()
+
+
+@pytest.mark.parametrize('all_categories', [False, True])
+def test_hidden_rendered_rows_with_correct_ids_must_fail(tmp_path, all_categories):
+    """RED: count/data-work-id match but an invisible parent hides all rows."""
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        try:
+            page = browser.new_page()
+            ids = ([f'failure-{i:04d}' for i in range(1, 9)] if all_categories
+                   else ['failure-0001', 'failure-0007', 'failure-0013'])
+            rows = ''.join(
+                f'<div data-testid="failed-record" data-work-id="{item}">{item}</div>'
+                for item in ids)
+            page.set_content(f'''
+                <section data-testid="failed-records-view">
+                  <div data-testid="failed-count">{17 if all_categories else 3} / 17 件</div>
+                  <button data-testid="failed-category-communication"
+                          aria-pressed="{'false' if all_categories else 'true'}">通信3</button>
+                  <button data-testid="failed-category-all"
+                          aria-pressed="{'true' if all_categories else 'false'}">すべて17</button>
+                  <div data-testid="failed-page">1 / {'3' if all_categories else '1'}</div>
+                  <div data-testid="failed-rows" hidden>{rows}</div>
+                  <div data-testid="failed-empty" hidden>一致する失敗はありません</div>
+                </section>
+            ''')
+            with pytest.raises(AssertionError):
+                compare.assert_restored_rows(
+                    page.get_by_test_id('failed-records-view'),
+                    all_categories=all_categories)
+        finally:
+            browser.close()
+
+
+def test_title_007_hidden_rendered_row_must_fail():
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        try:
+            page = browser.new_page()
+            page.set_content('''
+                <section data-testid="failed-records-view">
+                  <input placeholder="タイトル・IDで検索" value="架空の失敗作品 007">
+                  <div data-testid="failed-count">1 / 17 件</div>
+                  <button data-testid="failed-category-communication"
+                          aria-pressed="true">通信3</button>
+                  <div data-testid="failed-page">1 / 1</div>
+                  <div data-testid="failed-rows" hidden>
+                    <div data-testid="failed-record"
+                         data-work-id="failure-0007">failure-0007</div>
+                  </div>
+                  <div data-testid="failed-empty" hidden>一致する失敗はありません</div>
+                </section>
+            ''')
+            root = page.get_by_test_id('failed-records-view')
+            with pytest.raises(AssertionError):
+                compare.assert_title_007_filtered_ui(
+                    root, root.get_by_placeholder('タイトル・IDで検索'))
+        finally:
+            browser.close()

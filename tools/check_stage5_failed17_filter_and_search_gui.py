@@ -98,6 +98,48 @@ def assert_no_match_ui(root, search):
     expect(root.get_by_test_id('failed-empty')).to_have_text('一致する失敗はありません')
 
 
+def assert_restored_rows(root, *, all_categories):
+    """P394 follow-up: counter alone is not proof that matching DOM rows render."""
+    expected_ids = (
+        tuple(f'failure-{i:04d}' for i in range(1, 9))
+        if all_categories else ('failure-0001', 'failure-0007', 'failure-0013')
+    )
+    expect(root.get_by_test_id('failed-count')).to_have_text(
+        '17 / 17 件' if all_categories else '3 / 17 件')
+    expect(root.get_by_test_id('failed-category-communication')).to_have_attribute(
+        'aria-pressed', 'false' if all_categories else 'true')
+    expect(root.get_by_test_id('failed-category-all')).to_have_attribute(
+        'aria-pressed', 'true' if all_categories else 'false')
+    expect(root.get_by_test_id('failed-page')).to_have_text(
+        '1 / 3' if all_categories else '1 / 1')
+    expect(root.get_by_test_id('failed-record')).to_have_count(len(expected_ids))
+    for work_id in expected_ids:
+        row = root.locator(f'[data-testid="failed-record"][data-work-id="{work_id}"]')
+        expect(row).to_have_count(1)
+        expect(row).to_be_visible()
+    if not all_categories:
+        for number in range(1, 18):
+            work_id = f'failure-{number:04d}'
+            if work_id not in expected_ids:
+                expect(root.locator(
+                    f'[data-testid="failed-record"][data-work-id="{work_id}"]')).to_have_count(0)
+    expect(root.get_by_test_id('failed-empty')).to_be_hidden()
+
+
+def assert_title_007_filtered_ui(root, search):
+    """Single title AND category (P2 negative fixture also exercises this)."""
+    expect(search).to_have_value('架空の失敗作品 007')
+    expect(root.get_by_test_id('failed-category-communication')).to_have_attribute(
+        'aria-pressed', 'true')
+    expect(root.get_by_test_id('failed-count')).to_have_text('1 / 17 件')
+    expect(root.get_by_test_id('failed-page')).to_have_text('1 / 1')
+    expect(root.get_by_test_id('failed-record')).to_have_count(1)
+    row = root.locator('[data-testid="failed-record"][data-work-id="failure-0007"]')
+    expect(row).to_have_count(1)
+    expect(row).to_be_visible()
+    expect(root.get_by_test_id('failed-empty')).to_be_hidden()
+
+
 def verify_flet_filter_actions(root=None):
     """Only original gui.py UIA evidence, not a formal independent attestation."""
     if root is None:
@@ -412,19 +454,16 @@ def run(out):
                     page.get_by_test_id('tab-failed').click()
                     root = page.get_by_test_id('failed-records-view')
                     expect(root).to_be_visible()
-                    expect(root.get_by_test_id('failed-count')).to_have_text('17 / 17 件')
+                    assert_restored_rows(root, all_categories=True)
                     expect(root.get_by_test_id('failed-category-all')).to_have_text('すべて 17')
                     report['steps'].append('Same 17 generated rows from full original Flet gui.py')
                     search = root.get_by_placeholder('タイトル・IDで検索')
                     communication = root.get_by_test_id('failed-category-communication')
                     communication.click()
-                    expect(root.get_by_test_id('failed-count')).to_have_text('3 / 17 件')
-                    expect(root.get_by_test_id('failed-rows')).to_contain_text('failure-0007')
-                    expect(root.get_by_test_id('failed-rows')).to_contain_text('failure-0013')
+                    assert_restored_rows(root, all_categories=False)
                     report['steps'].append('actual communication reason category filters 17 to 3')
                     search.fill('架空の失敗作品 007')
-                    expect(root.get_by_test_id('failed-count')).to_have_text('1 / 17 件')
-                    expect(root.get_by_test_id('failed-rows')).to_contain_text('failure-0007')
+                    assert_title_007_filtered_ui(root, search)
                     report['steps'].append('actual AND title 007 against communication category yields 1')
                     page.screenshot(path=str(out / 'communication-title007-cdp.png'))
                     report['screenshots']['one'] = sha(out / 'communication-title007-cdp.png')
@@ -432,11 +471,11 @@ def run(out):
                     assert_no_match_ui(root, search)
                     report['steps'].append('actual AND title 002 outside category yields no-match')
                     root.get_by_test_id('failed-clear-search').click()
-                    expect(root.get_by_test_id('failed-count')).to_have_text('3 / 17 件')
+                    assert_restored_rows(root, all_categories=False)
                     expect(search).to_have_value('')
                     report['steps'].append('clear search retains communication category and restores 3')
                     root.get_by_test_id('failed-category-all').click()
-                    expect(root.get_by_test_id('failed-count')).to_have_text('17 / 17 件')
+                    assert_restored_rows(root, all_categories=True)
                     report['steps'].append('all category reset restores 17')
                     page.screenshot(path=str(out / 'restored-all17-cdp.png'))
                     report['screenshots']['seventeen'] = sha(out / 'restored-all17-cdp.png')
