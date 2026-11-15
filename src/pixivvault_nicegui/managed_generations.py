@@ -190,7 +190,7 @@ class ManagedGenerations:
             result[wid] = self._receipt_entry(relative, wid, update_date='')
         return result
 
-    def _index(self) -> dict[str, dict[str, str]]:
+    def _index(self, *, verify_quarantine_payloads=True) -> dict[str, dict[str, str]]:
         if native_io_path(self.index_path).is_symlink():
             raise ManagedDownloadError('generation index link rejected')
         if not native_io_path(self.index_path).exists():
@@ -214,7 +214,7 @@ class ManagedGenerations:
                 raise ValueError()
             if packet['version'] not in (3, 4) and self._has_quarantine_records():
                 raise ValueError()
-            self._quarantine_fields(packet)
+            self._quarantine_fields(packet, verify_payloads=verify_quarantine_payloads)
             result = {}
             for wid, entry in packet['entries'].items():
                 _id(wid)
@@ -240,9 +240,9 @@ class ManagedGenerations:
         except (OSError, ValueError, TypeError, KeyError, UnicodeError, RecursionError):
             raise ManagedDownloadError('active generation index rejected') from None
 
-    def entries(self) -> dict[str, dict[str, str]]:
+    def entries(self, *, verify_quarantine_payloads=True) -> dict[str, dict[str, str]]:
         with self._lock:
-            indexed = self._index()
+            indexed = self._index(verify_quarantine_payloads=verify_quarantine_payloads)
             active = self._legacy()
             active.update(indexed)
             if len(active) > _MAX_ENTRIES:
@@ -377,7 +377,7 @@ class ManagedGenerations:
         _safe_path(folder)
         return folder.exists() and any(folder.iterdir())
 
-    def _quarantine_fields(self, packet=None):
+    def _quarantine_fields(self, packet=None, *, verify_payloads=True):
         """Validate index/manifest agreement without exposing copied images.
 
         The immutable original receipt remains the source proof. A missing or
@@ -480,13 +480,14 @@ class ManagedGenerations:
                         _safe_path(folder)
                         copy = folder / item['file']
                         _safe_path(copy, file=True)
-                        if native_io_path(copy).lstat().st_nlink != 1:
-                            raise ValueError()
-                        data = _read_bounded(copy, MAX_PAGE_BYTES)
-                        if (len(data) != item['bytes'] or
-                                hashlib.sha256(data).hexdigest() != item['sha256'] or
-                                _image(data)[1:] != (item['format'], item['width'], item['height'])):
-                            raise ValueError()
+                        if verify_payloads:
+                            if native_io_path(copy).lstat().st_nlink != 1:
+                                raise ValueError()
+                            data = _read_bounded(copy, MAX_PAGE_BYTES)
+                            if (len(data) != item['bytes'] or
+                                    hashlib.sha256(data).hexdigest() != item['sha256'] or
+                                    _image(data)[1:] != (item['format'], item['width'], item['height'])):
+                                raise ValueError()
                         # After final commit every selected physical source must
                         # have left the owned output folder. Restored must exist.
                         source_path = (self.root / item['relative_receipt']).parent / original['files'][page]['name']
@@ -534,10 +535,10 @@ class ManagedGenerations:
                          separators=(',', ':')).encode('ascii')
         return hashlib.sha256(raw).hexdigest()
 
-    def state_snapshot(self):
+    def state_snapshot(self, *, verify_quarantine_payloads=True):
         with self._lock:
-            active = self.entries()
-            exclusions, operations, enabled = self._quarantine_fields()
+            active = self.entries(verify_quarantine_payloads=verify_quarantine_payloads)
+            exclusions, operations, enabled = self._quarantine_fields(verify_payloads=verify_quarantine_payloads)
             if any(wid not in active for wid in exclusions):
                 raise ManagedDownloadError('quarantine source receipt missing')
             value = {'entries': active, 'exclusions': exclusions, 'operations': operations}

@@ -52,6 +52,25 @@ class QuarantineSnapshot:
     location: Path | None
     state_revision: str
     missing_count: int = 0
+    corrupt_count: int = 0
+
+
+def inspect_quarantine_copy(path, size, digest):
+    """Display-only payload validation; structural/path errors still propagate."""
+    _safe_path(path, file=True)
+    try:
+        with native_io_path(path).open('rb') as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+                raise ManagedDownloadError('quarantine file rejected')
+            if info.st_size != size:
+                return 'corrupt', 0
+            data = stream.read(size + 1)
+    except FileNotFoundError:
+        return 'missing', 0
+    if len(data) != size or hashlib.sha256(data).hexdigest() != digest:
+        return 'corrupt', 0
+    return 'healthy', len(data)
 
 class ManagedQuarantine:
     def __init__(self, owner):
@@ -95,14 +114,14 @@ class ManagedQuarantine:
         with self._lock:
             try:
                 location = self.location()
-                state = self.owner._generations.state_snapshot()
+                state = self.owner._generations.state_snapshot(verify_quarantine_payloads=False)
                 excluded = sum(len(pages) for pages in state['exclusions'].values())
                 if location is None:
                     if state['operations'] or excluded:
                         raise ManagedDownloadError('quarantine root missing')
                     return QuarantineSnapshot('uncreated', 0, 0, 0, None,
                                               state['revision'])
-                count = total = missing = 0
+                count = total = missing = corrupt = 0
                 for operation_id, operation in state['operations'].items():
                     # state_snapshot already validates schema, original proof,
                     # exact filename, operation identity and manifest SHA.
@@ -111,22 +130,20 @@ class ManagedQuarantine:
                     _safe_path(folder)
                     for item in manifest['items']:
                         path = folder / item['file']
-                        _safe_path(path, file=True)
-                        try:
-                            info = native_io_path(path).lstat()
-                        except FileNotFoundError:
+                        status, size = inspect_quarantine_copy(path, item['bytes'], item['sha256'])
+                        if status == 'missing':
                             missing += 1
-                            continue
-                        if info.st_size != item['bytes']:
-                            raise ManagedDownloadError('quarantine copy changed')
-                        count += 1
-                        total += info.st_size
-                if self.owner._generations.state_snapshot()['revision'] != state['revision']:
+                        elif status == 'corrupt':
+                            corrupt += 1
+                        else:
+                            count += 1
+                            total += size
+                if self.owner._generations.state_snapshot(verify_quarantine_payloads=False)['revision'] != state['revision']:
                     raise ManagedDownloadError('quarantine snapshot changed')
                 if self.location() != location:
                     raise ManagedDownloadError('quarantine root changed')
                 return QuarantineSnapshot('ready', count, total, excluded,
-                                          location, state['revision'], missing)
+                                          location, state['revision'], missing, corrupt)
             except ManagedDownloadError:
                 raise
             except (OSError, ValueError, TypeError, KeyError):

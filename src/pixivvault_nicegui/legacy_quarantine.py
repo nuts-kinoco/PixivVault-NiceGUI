@@ -21,7 +21,7 @@ from PIL import Image
 from .fs_paths import native_io_path
 from .local_media_adapter import ReadonlyLocalMediaCatalog, MediaUnavailable, MediaMissing, _safe_entry
 from .managed_downloads import _safe_path, _write, _read_bounded, _json_unique, _fsync_dir, MARKER, IDENTITY
-from .managed_quarantine import QuarantineResult, QuarantineSnapshot
+from .managed_quarantine import QuarantineResult, QuarantineSnapshot, inspect_quarantine_copy
 from .library_models import LibrarySnapshot
 from .media import ImageBlob
 from .managed_root_writer import fenced_writer, writer_fence
@@ -93,10 +93,10 @@ class LegacyQuarantine:
         _safe_path(path,file=True)
         return native_io_path(path)
 
-    def state(self,*,verify_outputs=True):
-        with self._lock:
+    def state(self,*,verify_outputs=True,recover=True):
+        with self._lock if recover else self._mutex:
             self._check()
-            if self._physical is not None:self._physical.recover()
+            if recover and self._physical is not None:self._physical.recover()
             empty={'version':1,'revision':'','exclusions':{},'archives':{},'operations':{}}
             if self.root is None:return empty
             _safe_path(self.root)
@@ -413,20 +413,21 @@ class LegacyQuarantine:
     def snapshot(self):
         # Summary reads validate the durable index, then inspect each copy.
         # Missing payloads do not erase exclusions or hide healthy copies.
-        state=self.state(verify_outputs=False);items=state['exclusions'].values()
-        count=total=missing=0
+        state=self.state(verify_outputs=False,recover=False);items=state['exclusions'].values()
+        count=total=missing=corrupt=0
         for item in items:
-            try:
-                raw=_read_bounded(self._path(item['copy']),24*1024*1024)
-            except FileNotFoundError:
+            status,size=inspect_quarantine_copy(self._path(item['copy']),item['size'],item['sha256'])
+            if status=='missing':
                 missing+=1
-                continue
-            if len(raw)!=item['size'] or sha256(raw).hexdigest()!=item['sha256']:
-                raise ValueError('legacy quarantine evidence changed')
-            count+=1;total+=len(raw)
+            elif status=='corrupt':
+                corrupt+=1
+            else:
+                count+=1;total+=size
+        if self.state(verify_outputs=False,recover=False)['revision']!=state['revision']:
+            raise ValueError('legacy quarantine snapshot changed')
         return QuarantineSnapshot('ready',count,total,len(items),
                                   self.root if self.root and native_io_path(self.root).exists() else None,
-                                  state['revision'],missing)
+                                  state['revision'],missing,corrupt)
 
     def project(self,snapshot):
         state=self.state();works=[];mapping={}

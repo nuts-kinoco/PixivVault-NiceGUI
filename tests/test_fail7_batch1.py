@@ -125,13 +125,17 @@ async def test_x09_missing_summary_visible_in_product_dialog(tmp_path):
             view.close()
     finally:client.delete();source.close();owner.close()
 
-def test_x09_changed_present_copy_is_still_rejected(tmp_path):
+def test_x09_changed_copy_is_reported_but_default_state_rejects_it(tmp_path):
     source, legacy, owner, *_ = setup(tmp_path)
     try:
         source.execute(select(source, {'1'}), operation_id=uuid4().hex)
         item=next(iter(legacy.state()['exclusions'].values()))
         legacy._path(item['copy']).write_bytes(b'corrupt synthetic copy')
-        with pytest.raises(ValueError):source.quarantine_snapshot()
+        snapshot=source.quarantine_snapshot()
+        assert snapshot.corrupt_count==1 and snapshot.copy_count==0
+        assert snapshot.copy_bytes==0 and snapshot.missing_count==0
+        assert snapshot.excluded_pages==1
+        with pytest.raises(ValueError):legacy.state()
     finally:source.close();owner.close()
 
 def add_second(q):
