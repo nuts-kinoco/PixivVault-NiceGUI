@@ -309,9 +309,11 @@ class RecommendationController:
         identifier(work_id)
         with self._mutex:
             state=self.snapshot()
+            if self.preferences is None:raise RecommendationError()
+            _,overrides,_=self.preferences.snapshot()
+            if overrides.get(('superlike',work_id)):return state  # already withdrawn: idempotent
             if not any(w.work_id==work_id for g in state['sections'].get('superlike',()) for w in g.works):
                 raise RecommendationError()
-            if self.preferences is None:raise RecommendationError()
             self.preferences.apply('superlike',work_id,True,expected_revision=revision)
             return self.snapshot()
     def configure(self,kind,value,revision):

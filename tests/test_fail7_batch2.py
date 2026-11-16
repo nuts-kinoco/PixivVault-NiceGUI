@@ -51,7 +51,7 @@ async def test_r07_actual_button_withdraws_only_shelf_and_survives_restart(tmp_p
     try:
         with client:
             view=RecommendView(NS(recommendations=controller));view.active=True;await view.refresh()
-            buttons=[b for b in view.body.descendants() if isinstance(b,ui.button) and b.text=='取り下げる']
+            buttons=[b for b in view.body.descendants() if isinstance(b,ui.button) and b.text=='SuperLikeを取り下げる']
             observe('R07-before-click',dict(buttons=len(buttons),superlike=ids(view.data,'superlike'),certain=ids(view.data,'certain')))
             assert len(buttons)==1,'SuperLike withdrawal has no UI entry'
             callback=next(e.handler for e in buttons[0]._event_listeners.values() if e.type=='click')
@@ -93,7 +93,7 @@ async def test_r07_readonly_has_disabled_withdrawal():
     try:
         with client:
             view=RecommendView(NS(recommendations=c));view.active=True;await view.refresh()
-            buttons=[b for b in view.body.descendants() if isinstance(b,ui.button) and b.text=='取り下げる']
+            buttons=[b for b in view.body.descendants() if isinstance(b,ui.button) and b.text=='SuperLikeを取り下げる']
             assert len(buttons)==1 and not buttons[0].enabled
             view.close()
     finally:client.delete();c.close()

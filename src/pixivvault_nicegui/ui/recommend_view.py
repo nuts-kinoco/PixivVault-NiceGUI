@@ -150,14 +150,26 @@ class RecommendView:
     async def dismiss_superlike(self,work_id,*,generation):
         if (self.closed or not self.active or self.busy or self.data is None
                 or generation!=self._render_generation):return
+        if not any(w.work_id==work_id for g in self.data['sections'].get('superlike',()) for w in g.works):return
         revision=self.data['revision']
         if await self._change(lambda:self.controller.dismiss_superlike(work_id,revision),
                 busy_text='SuperLikeのおすすめから取り下げています…'):
             self.notice.set_text('おすすめから取り下げました。作品の判定は変更していません。')
+            if self.data is not None and self.data['revision']!=revision:
+                self.undo=('superlike',work_id,self.data['revision'])
+                self.undo_button.set_text('SuperLikeの取り下げを取り消す')
+                self.undo_button.set_visibility(True);self.undo_button.set_enabled(True)
     async def update(self):
         if self.data is None:return
         revision=self.data['revision']
-        await self._change(lambda:self.controller.update(revision), busy_text='おすすめを取得中…', show_count=True)
+        if await self._change(lambda:self.controller.update(revision), busy_text='おすすめを読み込んでいます…') and self.data is not None:
+            data=self.data
+            sections=len([k for k in data['order'] if k not in data['unavailable']])
+            works=sum(len(g.works) for rows in data['sections'].values() for g in rows)
+            count=f'（{sections}節・{works}作品）。' if works else f'（{sections}節・0作品）。表示できる作品はありません。'
+            if data.get('errors'):
+                self.notice.set_text(f'おすすめを更新しました{count}一部を取得できませんでした。保存済み結果を保持しています。再操作で再試行できます。')
+            else:self.notice.set_text(f'おすすめを更新しました{count}専用設定に保存しました。')
     async def toggle_trend(self,tag,display):
         if self.data is None:return
         revision=self.data['revision']
@@ -193,6 +205,7 @@ class RecommendView:
         await self._change(lambda:self.controller.hide(kind,target,hidden,revision,reason=reason))
         if self.data is not None and self.data['revision']!=revision and hidden:
             self.undo=(kind,target,self.data['revision'])
+            self.undo_button.set_text('出さないを取り消す')
             self.undo_button.set_visibility(True)
             self.undo_button.set_enabled(True)
     async def undo_hide(self):
@@ -200,7 +213,7 @@ class RecommendView:
         kind,target,revision=self.undo
         accepted=await self._change(lambda:self.controller.hide(kind,target,False,revision))
         if accepted and self.data is not None and self.data["revision"]!=revision:
-            self.undo=None;self.undo_button.set_visibility(False)
+            self.undo=None;self.undo_button.set_visibility(False);self.undo_button.set_text('出さないを取り消す')
     async def collapse(self,kind):
         if self.data is None:return
         values=set(self.data['collapsed'])
@@ -412,7 +425,7 @@ class RecommendView:
                                             and not self.busy and self._render_generation==g))
                                     self._action_bindings.append(controls)
                                     if kind=='superlike':
-                                        dismiss=ui.button('取り下げる',on_click=lambda e,w=work.work_id,g=generation:
+                                        dismiss=ui.button('SuperLikeを取り下げる',on_click=lambda e,w=work.work_id,g=generation:
                                             self.dismiss_superlike(w,generation=g)).props(
                                             f'flat data-testid=recommend-dismiss-superlike-{work.work_id}')
                                         dismiss.set_enabled(data['writable'])
