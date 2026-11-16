@@ -219,6 +219,8 @@ class PersonalRankingView(RankingView):
             from ..premium_read import unavailable_message
             if not self.closed and self.active and epoch==self.epoch:
                 code=getattr(error,'code',None)
+                import logging
+                logging.getLogger(__name__).warning('personal search failed: %s code=%s reason=%s',type(error).__name__,code,getattr(error,'reason',None))
                 if code in ('invalid-grant','token-unavailable') and self.vault is not None:
                     self._failed_vault_epoch=self.vault.status().get('auto_unlock_epoch',0)
                     self.notice.set_text('借用アカウントを利用できません。外部連携で保管庫をロックし、再度解除してアカウントを確認してください。')
