@@ -1,5 +1,6 @@
 """Generated passwords and keys only; production password is never a fixture."""
 import asyncio
+import base64
 import hashlib
 import os
 from pathlib import Path
@@ -31,6 +32,64 @@ def create(root,protection,now):
 def enable(gate,remember=False):
     gate.authenticate(TEST_PASSWORD);assert not gate.status()['enabled']
     gate.confirm(remember)
+
+def regenerated_vault(root, protection, now):
+    v,g,_=create(root,protection,now)
+    enable(g,True);g.initialize_vault('1','generated-secret')
+    old=g._read_protected('material.dpapi')
+    salt=os.urandom(16);verify,key=v.crypto.derive(TEST_PASSWORD,salt)
+    meta=dict(version=1,salt=base64.b64encode(salt).decode(),verify=base64.b64encode(verify).decode())
+    v._commit(v._data,key,meta,v._revision)
+    g.close();v.close()
+    return old
+
+def test_stale_material_password_recaptures_only_on_confirm(tmp_path):
+    root=tmp_path/'v';p=Protection();now=[1000]
+    old=regenerated_vault(root,p,now)
+    v,g,_=create(root,p,now)
+    try:
+        assert g.authenticate(TEST_PASSWORD)
+        assert g._read_protected('material.dpapi')==old
+        g.confirm(True)
+        assert g._read_protected('material.dpapi')!=old
+        v.lock()
+        assert g.restore_vault() and v.status()['open']
+    finally:g.close();v.close()
+
+def test_stale_material_startup_preserves_permission(tmp_path):
+    root=tmp_path/'v';p=Protection();now=[1000]
+    regenerated_vault(root,p,now)
+    v,g,_=create(root,p,now)
+    try:
+        assert g.status()['error']=='premium-material-stale'
+        assert not g.status()['enabled']
+        assert (root/'premium-activation-state').read_bytes()==b'on\n'
+    finally:g.close();v.close()
+
+def test_stale_material_message_is_shown_at_startup(tmp_path):
+    from nicegui import Client,ui
+    from pixivvault_nicegui.ui.premium_gate_view import PremiumGateDialog,vault_unlock_error_message
+    root=tmp_path/'v';p=Protection();now=[1000]
+    regenerated_vault(root,p,now)
+    v,g,_=create(root,p,now);client=Client(ui.page('/_stale_material'));dialog=None
+    try:
+        with client:dialog=PremiumGateDialog(g)
+        assert dialog.notice.text==vault_unlock_error_message('premium-material-stale')
+        assert 'パスワード' in dialog.notice.text
+    finally:
+        if dialog:dialog.close()
+        client.delete();g.close();v.close()
+
+def test_stale_material_wrong_password_counts_failure(tmp_path):
+    root=tmp_path/'v';p=Protection();now=[1000]
+    regenerated_vault(root,p,now)
+    v,g,_=create(root,p,now)
+    try:
+        with pytest.raises(PremiumGateError,match='premium-password-rejected'):
+            g.authenticate('generated-wrong')
+        assert g._attempts()['failures']==1 and g.status()['retry_after']==1
+        assert not g.status()['enabled']
+    finally:g.close();v.close()
 
 def test_default_off_even_if_token_vault_is_locally_unlocked(tmp_path):
     v,g,t=create(tmp_path/'v',Protection(),[1000])

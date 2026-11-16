@@ -61,7 +61,12 @@ class PremiumAuthorization:
             proof=self._read_protected('activation.dpapi')
             if proof!={'purpose':'pv-premium-permission-v1','verifier':self._verifier_id,'enabled':True}:return
             self._enabled=self._remembered=True
-            self._load_material();self.restore_vault()
+            self._load_material()
+            try:self.restore_vault()
+            except VaultError as error:
+                if error.code!='unlock-failed':raise
+                self._material=None
+                self._enabled=self._remembered=False;self._error='premium-material-stale'
         except VaultError as error:
             self._enabled=self._remembered=False
             self._error=error.code if error.code in VAULT_INTEGRITY_ERRORS else 'premium-restore-unconfirmed'
@@ -112,8 +117,12 @@ class PremiumAuthorization:
                 if self.vault.status()['open']:
                     self._capture_material()
                 elif self.vault.status()['initialized']:
-                    if self._material is not None:self._restore_key()
-                    else:
+                    if self._material is not None:
+                        try:self._restore_key()
+                        except VaultError as error:
+                            if error.code!='unlock-failed':raise
+                            self._material=None
+                    if self._material is None:
                         try:self.vault.unlock(password)
                         except VaultError as error:
                             if error.code!='unlock-failed':raise

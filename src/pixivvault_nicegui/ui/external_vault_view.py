@@ -255,7 +255,7 @@ class ExternalVaultView:
         if opened:self._unlock_error=None
         permission_error=self.gate.status().get('error') if self.gate is not None else None
         unlock_message=None if opened else vault_unlock_error_message(
-            permission_error if permission_error in VAULT_INTEGRITY_ERRORS else self._unlock_error)
+            permission_error if permission_error in VAULT_INTEGRITY_ERRORS or permission_error=='premium-material-stale' else self._unlock_error)
         # Keep the result visible after import, but never offer overwrite.
         for control in (self.legacy_password,self.legacy_salt,self.legacy_verify,self.legacy_upload,self.legacy_import_button):
             control.set_enabled(self._can_import())

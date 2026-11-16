@@ -4,6 +4,8 @@ from nicegui import ui
 from ..external_vault import VaultError, VAULT_INTEGRITY_ERRORS
 
 def vault_unlock_error_message(code):
+    if code == 'premium-material-stale':
+        return '保存済みの鍵が古くなっています。借用プレミアムを ON にしてパスワードを入力し直してください。'
     if code in ('invalid-generation', 'invalid-vault'):
         return '保管庫の構造を確認できません。ファイルを保持し、保管状態を確認してください。'
     if code == 'invalid-ciphertext':
@@ -36,7 +38,7 @@ class PremiumGateDialog:
                 with ui.row().classes('w-full justify-end'):
                     ui.button('保存しない',on_click=lambda:self.save_dialog.submit(False)).props('flat data-testid=premium-save-no')
                     ui.button('保存する',on_click=lambda:self.save_dialog.submit(True)).props('data-testid=premium-save-yes')
-        self.notice=ui.label('').props('role=status data-testid=premium-permission-status')
+        self.notice=ui.label(vault_unlock_error_message(gate.status().get('error')) or '').props('role=status data-testid=premium-permission-status')
         ui.context.client.on_delete(self.close)
     def _reset_password(self):
         # QDialog unmount can restore QInput's last inputValue on the client
