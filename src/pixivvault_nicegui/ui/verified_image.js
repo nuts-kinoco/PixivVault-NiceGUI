@@ -1,0 +1,97 @@
+export default {
+  template: `
+    <div style="position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+      <svg v-if="!displayVersion" role="img" aria-label="画像未表示"
+           data-testid="viewer-image-placeholder" viewBox="0 0 24 24" width="48" height="48"
+           style="fill:currentColor;opacity:.55;flex-shrink:0;transform:translateY(-56px)" focusable="false">
+        <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM5 5h14v14H5V5zm8.5 6.5-3 3.51-2-2.5L6 17h12l-4.5-5.5z" />
+      </svg>
+      <img v-for="frame in frames" :key="frame.id" :ref="node => setFrameRef(frame.id, node)"
+           :src="frame.url" :alt="frame.id === displayVersion ? (alt || '') : ''"
+           :aria-hidden="frame.id !== displayVersion"
+           :data-pv-displayed="frame.id === displayVersion ? 'true' : 'false'"
+           :style="{display:'block', maxWidth:'100%', maxHeight:'100%', width:'auto', height:'auto',
+                    objectFit:'contain', position:frame.id === displayVersion ? 'static' : 'absolute',
+                    visibility:frame.id === displayVersion ? 'visible' : 'hidden',
+                    pointerEvents:frame.id === displayVersion ? 'auto' : 'none'}" />
+    </div>
+  `,
+  props: {
+    src: { type: String, default: '' },
+    event_source: { type: String, default: '' },
+    request_id: { type: Number, default: 0 },
+    alt: { type: String, default: '' },
+    retain_previous: { type: Boolean, default: false },
+  },
+  data() {
+    return { frames: [], imageNodes: new Map(), displayVersion: 0, version: 0 };
+  },
+  watch: {
+    src() { this.verify(); },
+    request_id() { this.verify(); },
+    retain_previous() { this.verify(); },
+  },
+  mounted() {
+    this.verify();
+  },
+  beforeUnmount() {
+    this.version += 1;
+    this.frames = [];
+    this.imageNodes.clear();
+  },
+  methods: {
+    setFrameRef(id, node) {
+      if (node) this.imageNodes.set(id, node);
+      else this.imageNodes.delete(id);
+    },
+    async verify() {
+      const version = ++this.version;
+      const source = this.src || '';
+      const reportedSource = this.event_source || source;
+      // Only the accepted front image is retained. A superseded pending request
+      // must never become the next request's rollback image.
+      const front = this.retain_previous
+        ? this.frames.find(frame => frame.id === this.displayVersion) : null;
+      this.frames = source && front ? [front] : [];
+      if (!source || !front) this.displayVersion = 0;
+      if (!source) return;
+      const url = (source.startsWith('/') ? (window.path_prefix || '') : '') + source;
+      const candidate = {id: version, url};
+      this.frames = [...this.frames, candidate];
+      try {
+        await this.$nextTick();
+        if (version !== this.version) return;
+        const image = this.imageNodes.get(version);
+        if (!image) throw new Error('candidate image was not mounted');
+        // Decode the actual mounted candidate while it remains invisible.
+        // Promotion keeps this exact keyed node, so no second undecoded img is created.
+        await image.decode();
+        if (version !== this.version || source !== this.src) return;
+        if (image !== this.imageNodes.get(version) || image.getAttribute('src') !== url ||
+            !image.complete || !image.naturalWidth || !image.naturalHeight) {
+          throw new Error('candidate image changed before verification');
+        }
+        // 画素のHTTP資源も照合する。ブラウザが保持する古いfragmentだけを除く。
+        // サーバーへは引き続き捕捉した要求のfragmentを送り、世代検証を維持する。
+        const actualResource = new URL(image.currentSrc || image.src, document.baseURI);
+        const expectedResource = new URL(url, document.baseURI);
+        actualResource.hash = '';
+        expectedResource.hash = '';
+        if (actualResource.href !== expectedResource.href) {
+          throw new Error('decoded image resource does not match request');
+        }
+        this.displayVersion = version;
+        this.frames = [candidate];
+        await this.$nextTick();
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        if (version === this.version && image === this.imageNodes.get(version))
+          this.$emit('load', reportedSource);
+      } catch (_) {
+        if (version === this.version) {
+          this.frames = this.frames.filter(frame => frame.id === this.displayVersion);
+          this.$emit('error', reportedSource);
+        }
+      }
+    },
+  },
+};

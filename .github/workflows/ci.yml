@@ -1,0 +1,154 @@
+name: migration-bootstrap
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    # Windows full pytest was measured above ten minutes even before install.
+    # Bound the hosted run while allowing dependency setup and real collection.
+    timeout-minutes: 30
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install isolated test dependencies
+        run: python -m pip install -e ".[test,video]"
+      - name: Check dependency consistency
+        run: python -m pip check
+      - name: Select installed CPU codec runtime for media tests
+        run: python -c "import os,sys; open(os.environ['GITHUB_ENV'],'a',encoding='utf-8').write('PV_TEST_CODEC_PYTHON='+sys.executable+'\n')"
+      - name: Run actual pytest collection
+        run: python -m pytest -q --junitxml=artifacts/pytest.xml
+      - name: Check B3 recovery guidance with generated state
+        run: python -m pytest -q tests/test_b3_recovery_guidance_20261116.py
+      - name: Check B3 shared-stop actor guidance
+        run: python -m pytest -q tests/test_b3_c2_stop_actor_20261116.py
+      - name: Check combined B3 and L14 paths
+        run: python -m pytest -q tests/test_b3_l14_integrated_20261116.py
+      - name: Check normal startup owner and first native settings
+        run: python -m pytest -q tests/test_startup_owner_lifecycle_20261116.py
+      - name: Check source syntax
+        run: python -m compileall -q src tests
+      - name: Report bootstrap metadata
+        run: python -m pixivvault_nicegui --check
+
+  formal-152-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      # Deliberately RED until every original reference has current, independently
+      # reviewed evidence. This is a release gate, separate from normal pytest.
+      - name: Require all 152 original operations and 479 reference proofs
+        # The runner only sees tracked files. Reviewed, redacted acceptance
+        # receipts must be committed under docs/formal-152/ at the exact head.
+        # Runtime artifacts/ and raw Cookie/account data remain Git-ignored.
+        run: python tools/check_formal_152_coverage.py --manifest docs/formal-152/current-candidate.json --output artifacts/formal-152/ci-result.json
+      - name: Preserve incomplete formal acceptance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: formal-152-acceptance
+          path: artifacts/formal-152/ci-result.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  browser:
+    # ブランチpushとPRの二重実行を避け、実ブラウザはPR/mainで1回ずつ検証する。
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install isolated browser test dependencies
+        run: python -m pip install -e ".[test,browser,video]"
+      - name: Use canonical Ubuntu archive for browser system dependencies
+        # The hosted Azure mirror stalled before any browser test ran.
+        # Keep all dependencies and checks; only change the package mirror.
+        run: |
+          # Hosted runners may use mirror+file:/etc/apt/apt-mirrors.txt;
+          # editing only sources.list leaves its HTTP Azure URL untouched.
+          for sources in /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources /etc/apt/apt-mirrors.txt; do
+            if [ -f "$sources" ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$sources"
+            fi
+          done
+      - name: Install Chromium for this job
+        run: python -m playwright install --with-deps chromium
+      - name: Check Stage4 geometry fail-closed controls in real Chromium
+        run: python -m pytest -q tools/check_stage4_geometry_guard.py --junitxml=artifacts/browser-ci/stage4-geometry-guard.xml
+      - name: Check real gallery, learning, library and image failure interactions
+        run: python tools/run_browser_checks.py --channel chromium --output artifacts/browser-ci
+      - name: Check synthetic learning persistence, recovery and session conflicts
+        run: python tools/check_learning_persistence_browser.py --channel chromium --output artifacts/browser-ci/learning-persistence
+      - name: Check Stage4 required navigation geometry, overlays and warm UI response
+        run: python tools/check_stage4_visual_geometry_browser.py --channel chromium --output artifacts/browser-ci/stage4-geometry
+      - name: Check explicit discovery retry after exhausted synthetic acquisition
+        run: python tools/check_discovery_manual_retry_browser.py --channel chromium --output artifacts/browser-ci/discovery-manual-retry
+      - name: Check ranking K13 first-page failure and explicit same-condition retry
+        run: python tools/check_k13_first_page_retry_browser.py --channel chromium --output artifacts/browser-ci/k13-first-page-retry
+      - name: Check read-only legacy SQLite and saved images
+        run: python tools/check_readonly_library_browser.py --channel chromium --output artifacts/browser-ci/readonly-library
+      - name: Check authenticated bookmark UI through actual reader and synthetic Next.js transport
+        run: python tools/check_live_bookmark_browser.py --channel chromium --identity-format next --output artifacts/browser-ci/live-bookmarks
+      - name: Check legacy failure records, filtered CSV and recovery
+        run: python tools/check_failed_records_browser.py --channel chromium --output artifacts/browser-ci/failed-records
+      - name: Check synthetic download saves, durable queue and batch controls
+        run: python tools/check_download_jobs_browser.py --channel chromium --output artifacts/browser-ci/download-jobs
+      - name: Check managed original downloads with offline authenticated transport and restart
+        run: python tools/check_managed_downloads_browser.py --channel chromium --output artifacts/browser-ci/managed-downloads
+      - name: Check non-bookmarked ID lookup and managed original download across restart
+        run: python tools/check_direct_work_browser.py --channel chromium --output artifacts/browser-ci/direct-work-download
+      - name: Check opt-in legacy failure retry into managed jobs without legacy mutation
+        run: python tools/check_failed_managed_retry_browser.py --channel chromium --output artifacts/browser-ci/failed-managed-retry
+      - name: Check author-ID and followed-author differential download across restart
+        run: python tools/check_author_download_browser.py --channel chromium --output artifacts/browser-ci/author-download
+      - name: Check explicit synthetic physical quarantine move and restore
+        run: python tools/check_x07_explicit_move_browser.py --channel chromium --output artifacts/p3-318-x07-quarantine/browser-ci-explicit-move
+      - name: Check legacy RESTORED/MISSING/UNKNOWN states, remote absence and source immutability
+        run: python tools/check_legacy_author_diff_browser.py --channel chromium --output artifacts/browser-ci/legacy-author-diff
+      - name: Check explicit legacy author ZIP export and no-overwrite on restart
+        run: python tools/check_legacy_zip_export_browser.py --channel chromium --output artifacts/browser-ci/legacy-zip-export
+      - name: Check native profile UI with synthetic picker callbacks and restart
+        env:
+          PIXIVVAULT_BROWSER_CHANNEL: chromium
+        run: python -m pytest -q tools/check_native_profile_browser.py --basetemp=artifacts/browser-ci/native-profile/tmp --junitxml=artifacts/browser-ci/native-profile/result.xml
+      - name: Preserve synthetic browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-browser-evidence
+          path: |
+            artifacts/browser-ci/**/*.png
+            artifacts/browser-ci/**/*.json
+            artifacts/browser-ci/**/*.xml
+            artifacts/p3-318-x07-quarantine/browser-ci-explicit-move/**/*.json
+            artifacts/p3-318-x07-quarantine/browser-ci-explicit-move/**/*.png
+          retention-days: 7
