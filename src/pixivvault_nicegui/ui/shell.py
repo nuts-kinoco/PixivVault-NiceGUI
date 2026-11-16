@@ -88,9 +88,9 @@ class DemoShell:
                 if getattr(services,'external_vault',None) is not None:
                     gate=getattr(services,'premium_authorization',None)
                     if gate is not None:
-                        from .premium_gate_view import PremiumGateDialog
+                        from .premium_gate_view import PremiumGateDialog,DEFAULT_UID_PATH
                         self.borrow_dialog=PremiumGateDialog(gate,on_change=self.sync_borrow,
-                            default_uid_path=getattr(services,'default_uid_path',r'S:\Projects\PixivVault\nana7mi_uids.txt'))
+                            default_uid_path=getattr(services,'default_uid_path',DEFAULT_UID_PATH))
                     self.borrow_switch=ui.switch('借用プレミアム',on_change=self.borrow_changed).props(
                         'data-testid=premium-borrow-toggle')
                     self._borrow_timer=ui.timer(1,self.sync_borrow)

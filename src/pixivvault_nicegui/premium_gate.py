@@ -143,6 +143,32 @@ class PremiumAuthorization:
             # Password is only a transient parameter; keep derived material.
             self._pending=True
             return True
+    def unlock_legacy(self,vault_password,*,expected_epoch=None):
+        """Second step when the vault password differs from the activation one.
+
+        Only valid after authenticate() reported premium-legacy-unlock-required.
+        A wrong vault password shares the activation backoff; no plaintext is kept.
+        """
+        with self._lock:
+            if self._closed:raise PremiumGateError('premium-disabled')
+            if expected_epoch is not None and expected_epoch!=self._epoch:raise PremiumGateError('stale-session')
+            if not self._pending or self._error!='premium-legacy-unlock-required':
+                raise PremiumGateError('premium-confirmation-required')
+            state=self._attempts();now=self.clock()
+            if state['next_at']>now:raise PremiumGateError('premium-password-wait')
+            try:self.vault.unlock(vault_password)
+            except VaultError as error:
+                if error.code=='unlock-failed':
+                    count=min(1000,state['failures']+1)
+                    self._atomic('attempts.json',json.dumps(dict(failures=count,next_at=now+min(900,2**min(count-1,10)))).encode())
+                    raise PremiumGateError('premium-vault-password-rejected') from None
+                if error.code in VAULT_INTEGRITY_ERRORS:
+                    self._enabled=self._remembered=False;self._material=None;self._pending=False
+                    self._error=error.code
+                    self._atomic('activation-state',b'off\n')
+                raise
+            self._capture_material()
+            self._error=None
     def confirm(self,remember,*,expected_epoch=None):
         with self._lock:
             if self._error in VAULT_INTEGRITY_ERRORS:

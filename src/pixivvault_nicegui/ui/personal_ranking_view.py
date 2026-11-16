@@ -156,7 +156,7 @@ class PersonalRankingView(RankingView):
         self.gallery.more_button.set_enabled(usable and self._current_page())
         if update_notice:
             if not enabled:
-                self.notice.set_text('外部連携で保管庫を解除し、借用アカウントを更新してください。' if status.get('crypto_available') else '借用アカウント検索は未設定、または暗号化依存が利用できません。')
+                self.notice.set_text('借用プレミアムをONにして、借用アカウントを更新してください。' if status.get('crypto_available') else '借用アカウント検索は未設定、または暗号化依存が利用できません。')
             elif not has_tags:
                 self.notice.set_text('タグを選び、取得してください。')
             elif self.page is None:
@@ -223,7 +223,7 @@ class PersonalRankingView(RankingView):
                 logging.getLogger(__name__).warning('personal search failed: %s code=%s reason=%s',type(error).__name__,code,getattr(error,'reason',None))
                 if code in ('invalid-grant','token-unavailable') and self.vault is not None:
                     self._failed_vault_epoch=self.vault.status().get('auto_unlock_epoch',0)
-                    self.notice.set_text('借用アカウントを利用できません。外部連携で保管庫をロックし、再度解除してアカウントを確認してください。')
+                    self.notice.set_text('借用アカウントを利用できません。借用プレミアムを一度OFFにしてから再度ONにし、アカウントを確認してください。')
                 else:
                     message=unavailable_message(code,reason=getattr(error,'reason',None))
                     if message is None:

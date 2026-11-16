@@ -158,11 +158,54 @@ async def test_ui_setup_requires_user_key_and_clears_input(tmp_path,monkeypatch)
         client.delete();v.close()
 
 @pytest.mark.asyncio
+async def test_header_toggle_unlocks_through_popup_with_earlier_vault_password(tmp_path,monkeypatch):
+    import asyncio
+    from nicegui import Client,ui,core
+    from types import SimpleNamespace
+    from pixivvault_nicegui.premium_gate import PremiumAuthorization
+    from pixivvault_nicegui.ui.shell import DemoShell
+    from test_external_vault_ui import setup
+    from test_premium_authorization import Protection,CHECK,TEST_PASSWORD
+    from pixivvault_nicegui import external_vault_autounlock
+    monkeypatch.setattr(core,'loop',asyncio.get_running_loop())
+    protection=Protection();monkeypatch.setattr(external_vault_autounlock,'_dpapi',protection)
+    services,v,t,_=setup(tmp_path)
+    v.lock();monkeypatch.setattr(v,'start_keeper',lambda **kw:None)
+    gate=PremiumAuthorization(v,protect=protection,verifier=CHECK,clock=lambda:1000)
+    v.premium_authorization=gate;services.premium_authorization=gate
+    default=tmp_path/'default.txt';default.write_bytes(b'99999\n');services.default_uid_path=default
+    client=Client(ui.page('/_borrow_popup_unlock'));shell=None
+    try:
+        with client:shell=DemoShell(services)
+        dialog=shell.borrow_dialog
+        assert dialog is not None and not gate.status()['enabled']
+        task=asyncio.create_task(shell.borrow_changed(SimpleNamespace(value=True)))
+        await asyncio.sleep(0)
+        dialog.password.set_value(TEST_PASSWORD);dialog.password_dialog.submit(True)
+        for _ in range(500):
+            if dialog.legacy_box.visible or task.done():break
+            await asyncio.sleep(.01)
+        # activation password differs from the vault's: the popup asks for the earlier one
+        assert dialog.legacy_box.visible and not v.status()['open']
+        dialog.legacy.set_value('fixture-password');dialog.password_dialog.submit(True)
+        for _ in range(500):
+            if dialog.save_dialog.value or task.done():break
+            await asyncio.sleep(.01)
+        dialog.save_dialog.submit(False)
+        await asyncio.wait_for(task,10)
+        assert gate.status()['enabled'] and v.status()['open'] and t.calls==[]
+        assert v._snapshot()[1]['shaft_uids']==[1]  # default file never overwrote the saved UIDs
+        assert shell.borrow_switch.value
+    finally:
+        if shell:shell.close()
+        client.delete();gate.close();services.close()
+
+@pytest.mark.asyncio
 async def test_header_toggle_and_library_search_entry_are_local_until_fetch(tmp_path,monkeypatch):
     import asyncio
     from nicegui import Client,ui,core
     from types import SimpleNamespace
-    from pixivvault_nicegui.ui.shell import DemoShell
+    from pixivvault_nicegui.ui.shell import DemoShell,NAVIGATION,AVAILABLE_TABS
     from test_external_vault_ui import setup
     monkeypatch.setattr(core,'loop',asyncio.get_running_loop())
     services,v,t,_=setup(tmp_path)
@@ -173,7 +216,10 @@ async def test_header_toggle_and_library_search_entry_are_local_until_fetch(tmp_
         with client:shell=DemoShell(services)
         assert shell.borrow_switch is not None and not shell.borrow_switch.value
         await shell.borrow_changed(SimpleNamespace(value=True))
-        assert shell.active_tab!='external' and not v.status()['open']
+        # The removed Shaft tab must not exist as a navigation entry or tab at all.
+        assert 'external' not in dict(NAVIGATION) and 'external' not in AVAILABLE_TABS
+        assert not any('Shaft' in label or '外部連携' in label for _,label in NAVIGATION)
+        assert not v.status()['open']
         v.unlock('fixture-password');shell.sync_borrow()
         assert shell.borrow_switch.value and t.calls==[]
         shell.open_premium_search('sample')

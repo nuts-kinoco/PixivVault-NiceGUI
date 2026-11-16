@@ -115,7 +115,7 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
     parser.add_argument('--discovery-root',type=_sandbox_path,help='実作品候補の学習履歴を保存する専用root。取得は明示操作のみ')
     parser.add_argument('--following-sync-root',type=_sandbox_path,
                         help='明示したフォロー同期結果を保存する専用root。同期操作まで通信しない')
-    parser.add_argument('--external-vault-root',type=_sandbox_path,help='Shaft連携の専用暗号化保存先。自動解錠を保存した場合だけ起動時セッション更新')
+    parser.add_argument('--external-vault-root',type=_sandbox_path,help='借用プレミアム用の専用暗号化保存先。自動解錠を保存した場合だけ起動時セッション更新')
     parser.add_argument('--image-cache-root',type=_sandbox_path,help='共有サムネイルキャッシュの専用保存先')
     from .uri_launch import parse_start_uri
     parser.add_argument('startup_uri', nargs='?', type=parse_start_uri)
