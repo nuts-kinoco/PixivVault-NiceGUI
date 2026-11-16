@@ -11,6 +11,7 @@ def unavailable_message(code, *, reason=None):
     if code == 'borrow-accounts-unavailable' and reason == 'not-premium':
         return '利用可能な借用アカウントがありません。候補に非プレミアムのアカウントが含まれています。Shaft連携の状態を確認してください。'
     return {
+        'busy':'\u501f\u7528\u30a2\u30ab\u30a6\u30f3\u30c8\u306e\u6e96\u5099\u4e2d\u3067\u3059\u3002\u3057\u3070\u3089\u304f\u5f85\u3063\u3066\u304b\u3089\u3082\u3046\u4e00\u5ea6\u300c\u53d6\u5f97\u30fb\u66f4\u65b0\u300d\u3092\u62bc\u3057\u3066\u304f\u3060\u3055\u3044\u3002',
         'not-premium':'返された借用アカウントは非プレミアムです。Shaft連携の状態を確認してください。',
         'expired-payout':'Shaftが失効済みアカウントを返しました。外部連携でアカウントの状態を確認してから再試行してください。',
         'fallback-date-range-unavailable':'本人の経路では期間指定を適用できません。借用プレミアムを有効にしてください。',

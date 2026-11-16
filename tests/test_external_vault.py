@@ -506,3 +506,73 @@ def test_poison_during_fake_online_callback_cannot_enqueue_retry():
     assert len(request.calls)==1 and transport.revocation_unverified
     assert transport._online==[]
     assert transport.online_tick(1030)==900 and len(request.calls)==1
+
+
+def test_read_waits_for_keeper_and_uses_its_payout(tmp_path,monkeypatch):
+    import pixivvault_nicegui.external_vault as module
+    transport=FixtureTransport();entered=threading.Event();release=threading.Event();waiting=threading.Event()
+    original_sleep=module.time.sleep
+    def observed_sleep(delay):
+        waiting.set();original_sleep(delay)
+    monkeypatch.setattr(module.time,'sleep',observed_sleep)
+    original=transport.fetch_account
+    def delayed(*args):
+        entered.set();assert release.wait(3)
+        return original(*args)
+    transport.fetch_account=delayed
+    v=ExternalVaultService(tmp_path/'vault',crypto=FixtureCrypto(),transport=transport,
+        clock=lambda:1000,read_busy_timeout=1)
+    v.initialize('fixture-password','1','fixture-secret')
+    keeper=threading.Thread(target=v.keeper_tick);keeper.start()
+    try:
+        assert entered.wait(3)
+        result=[];reader=threading.Thread(target=lambda:result.append(v.search('tag')))
+        reader.start();assert waiting.wait(3);release.set();reader.join(3);keeper.join(3)
+        assert not reader.is_alive() and not keeper.is_alive()
+        assert result[0]['illusts']==[]
+        assert [call[0] for call in transport.calls]==['refresh','search']
+    finally:
+        release.set();keeper.join(3);v.close()
+
+
+def test_read_busy_wait_times_out(vault):
+    v,t=vault;v._read_busy_timeout=0.02
+    assert v._busy.acquire(False)
+    try:
+        with pytest.raises(VaultError) as exc:v.search('tag')
+        assert exc.value.code=='busy' and t.calls==[]
+    finally:v._busy.release()
+
+
+def test_read_wait_is_cancelled_by_lock(vault,monkeypatch):
+    import pixivvault_nicegui.external_vault as module
+    v,t=vault;waiting=threading.Event();original_sleep=module.time.sleep
+    def observed_sleep(delay):waiting.set();original_sleep(delay)
+    monkeypatch.setattr(module.time,'sleep',observed_sleep)
+    errors=[]
+    def read():
+        try:v.search('tag')
+        except VaultError as error:errors.append(error.code)
+    assert v._busy.acquire(False)
+    reader=threading.Thread(target=read);reader.start()
+    try:
+        assert waiting.wait(3);v.lock();reader.join(3)
+        assert not reader.is_alive() and errors==['locked'] and t.calls==[]
+    finally:v._busy.release();reader.join(3)
+
+
+def test_read_wait_stops_when_keeper_is_stopped(vault,monkeypatch):
+    import pixivvault_nicegui.external_vault as module
+    v,t=vault;waiting=threading.Event();original_sleep=module.time.sleep
+    def observed_sleep(delay):waiting.set();original_sleep(delay)
+    monkeypatch.setattr(module.time,'sleep',observed_sleep)
+    errors=[]
+    def read():
+        try:v.search('tag')
+        except VaultError as error:errors.append(error.code)
+    assert v._busy.acquire(False)
+    reader=threading.Thread(target=read);reader.start()
+    try:
+        assert waiting.wait(3);v._keeper_stop.set();reader.join(3)
+        assert not reader.is_alive() and errors==['keeper-stopped'] and t.calls==[]
+    finally:v._busy.release();reader.join(3)

@@ -224,7 +224,20 @@ class PersonalRankingView(RankingView):
                 if code in ('invalid-grant','token-unavailable') and self.vault is not None:
                     self._failed_vault_epoch=self.vault.status().get('auto_unlock_epoch',0)
                     self.notice.set_text('借用アカウントを利用できません。外部連携で保管庫をロックし、再度解除してアカウントを確認してください。')
-                else:self.notice.set_text(unavailable_message(code,reason=getattr(error,'reason',None)) or '検索を完了できませんでした。外部連携の状態を確認し、再試行してください。')
+                else:
+                    message=unavailable_message(code,reason=getattr(error,'reason',None))
+                    if message is None:
+                        message='\u691c\u7d22\u3092\u5b8c\u4e86\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f\u3002\u5916\u90e8\u9023\u643a\u306e\u72b6\u614b\u3092\u78ba\u8a8d\u3057\u3001\u518d\u8a66\u884c\u3057\u3066\u304f\u3060\u3055\u3044\u3002'
+                        # Display only fixed error codes, never arbitrary exception data.
+                        if code in {'search-failed','transport-failed','invalid-response','stale-session',
+                                    'closed','keeper-stopped','transport-fence-unavailable',
+                                    'socket-shutdown-unverified','generation-conflict','vault-persistence-failed',
+                                    'pixiv-network-busy','fallback-page-unavailable','invalid-search-result',
+                                    'search-page-metadata-unavailable','refresh-failed'}:
+                            safe_code=code
+                        else:safe_code='unknown' if code else None
+                        if safe_code:message+=f'\uff08\u7406\u7531: {safe_code}\uff09'
+                    self.notice.set_text(message)
                 if getattr(error,'warning',None)=='expired-payout':
                     self.notice.set_text(unavailable_message('expired-payout')+' '+self.notice.text)
         finally:

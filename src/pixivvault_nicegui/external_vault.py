@@ -177,13 +177,14 @@ class ExternalVaultService:
     """
     supports_page_sessions=True
 
-    def __init__(self,root,*,transport=None,crypto=None,clock=time.time,maintenance=None):
+    def __init__(self,root,*,transport=None,crypto=None,clock=time.time,maintenance=None,read_busy_timeout=20):
         self.root=Path(root).absolute();self.transport=transport;self.crypto=crypto or LegacyVaultCrypto();self.clock=clock
         self._rejections=RejectedRefreshArchive(self.root)
         self._known_result_retention=KnownResultRetention(self.root)
         self._known_result_retention_state='unexamined'
         self._request_budget=None;self._availability_reason=None;self._paging_owner=object()
         self._maintenance_policy=maintenance
+        self._read_busy_timeout=max(0,read_busy_timeout)
         self._mutex=threading.RLock();self._busy=threading.Lock();self._data=None;self._key=None;self._meta=None
         self._auto_unlock_save_failed=False
         self._unlock_intent_lock=threading.RLock();self._unlock_intent_epoch=0
@@ -1053,9 +1054,25 @@ class ExternalVaultService:
         return self._app_read('ranking',dict(mode=mode,date=date,offset=offset),page_session=page_session,with_page_session=with_page_session)
     def _app_read(self,operation,params,*,page_session=None,with_page_session=False):
         self._require_premium()
-        if not self._busy.acquire(False):raise VaultError('busy')
+        with self._mutex:
+            self._require_transport_healthy()
+            if self._closed or self._data is None:raise VaultError('locked')
+            wait_epoch=self._epoch;stop=self._keeper_stop;was_stopped=stop.is_set()
+        deadline=time.monotonic()+self._read_busy_timeout
+        while True:
+            with self._mutex:
+                self._require_transport_healthy()
+                if self._closed or self._data is None:raise VaultError('locked')
+                if self._epoch!=wait_epoch:raise VaultError('stale-session')
+                if not was_stopped and stop.is_set():raise VaultError('keeper-stopped')
+            if self._busy.acquire(False):break
+            delay=min(0.05,deadline-time.monotonic())
+            if delay<=0:raise VaultError('busy')
+            time.sleep(delay)
         try:
+            self._require_premium()
             epoch,data=self._snapshot()
+            if epoch!=wait_epoch:raise VaultError('stale-session')
             if self.transport is None:raise VaultError('transport-unavailable')
             query=tuple(sorted((k,v) for k,v in params.items() if k!='offset'))
             pinned=page_session is not None
