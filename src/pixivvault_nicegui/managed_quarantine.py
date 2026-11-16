@@ -53,6 +53,7 @@ class QuarantineSnapshot:
     state_revision: str
     missing_count: int = 0
     corrupt_count: int = 0
+    unconfirmed_count: int = 0
 
 
 def inspect_quarantine_copy(path, size, digest):
@@ -114,15 +115,21 @@ class ManagedQuarantine:
         with self._lock:
             try:
                 location = self.location()
-                state = self.owner._generations.state_snapshot(verify_quarantine_payloads=False)
+                state = self.owner._generations.state_snapshot(
+                    verify_quarantine_payloads=False, tolerate_missing=True)
                 excluded = sum(len(pages) for pages in state['exclusions'].values())
                 if location is None:
                     if state['operations'] or excluded:
                         raise ManagedDownloadError('quarantine root missing')
                     return QuarantineSnapshot('uncreated', 0, 0, 0, None,
                                               state['revision'])
-                count = total = missing = corrupt = 0
+                count = total = missing = corrupt = unconfirmed = 0
+                lost = state['unconfirmed_operations']
                 for operation_id, operation in state['operations'].items():
+                    if operation_id in lost:
+                        unconfirmed += sum(1 for pages in state['exclusions'].values()
+                                           for owner in pages.values() if owner == operation_id)
+                        continue
                     # state_snapshot already validates schema, original proof,
                     # exact filename, operation identity and manifest SHA.
                     manifest = self._manifest(operation_id, operation)
@@ -138,12 +145,13 @@ class ManagedQuarantine:
                         else:
                             count += 1
                             total += size
-                if self.owner._generations.state_snapshot(verify_quarantine_payloads=False)['revision'] != state['revision']:
+                if self.owner._generations.state_snapshot(
+                        verify_quarantine_payloads=False, tolerate_missing=True)['revision'] != state['revision']:
                     raise ManagedDownloadError('quarantine snapshot changed')
                 if self.location() != location:
                     raise ManagedDownloadError('quarantine root changed')
                 return QuarantineSnapshot('ready', count, total, excluded,
-                                          location, state['revision'], missing, corrupt)
+                                          location, state['revision'], missing, corrupt, unconfirmed)
             except ManagedDownloadError:
                 raise
             except (OSError, ValueError, TypeError, KeyError):

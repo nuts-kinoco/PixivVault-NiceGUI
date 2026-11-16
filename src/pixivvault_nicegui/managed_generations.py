@@ -193,7 +193,7 @@ class ManagedGenerations:
             result[wid] = self._receipt_entry(relative, wid, update_date='')
         return result
 
-    def _index(self, *, verify_quarantine_payloads=True) -> dict[str, dict[str, str]]:
+    def _index(self, *, verify_quarantine_payloads=True, tolerate_missing=False) -> dict[str, dict[str, str]]:
         if native_io_path(self.index_path).is_symlink():
             raise ManagedDownloadError('generation index link rejected')
         if not native_io_path(self.index_path).exists():
@@ -217,7 +217,8 @@ class ManagedGenerations:
                 raise ValueError()
             if packet['version'] not in (3, 4) and self._has_quarantine_records():
                 raise ValueError()
-            self._quarantine_fields(packet, verify_payloads=verify_quarantine_payloads)
+            self._quarantine_fields(packet, verify_payloads=verify_quarantine_payloads,
+                                    tolerate_missing=tolerate_missing)
             result = {}
             for wid, entry in packet['entries'].items():
                 _id(wid)
@@ -243,9 +244,10 @@ class ManagedGenerations:
         except (OSError, ValueError, TypeError, KeyError, UnicodeError, RecursionError):
             raise ManagedDownloadError('active generation index rejected') from None
 
-    def entries(self, *, verify_quarantine_payloads=True) -> dict[str, dict[str, str]]:
+    def entries(self, *, verify_quarantine_payloads=True, tolerate_missing=False) -> dict[str, dict[str, str]]:
         with self._lock:
-            indexed = self._index(verify_quarantine_payloads=verify_quarantine_payloads)
+            indexed = self._index(verify_quarantine_payloads=verify_quarantine_payloads,
+                                  tolerate_missing=tolerate_missing)
             active = self._legacy()
             active.update(indexed)
             if len(active) > _MAX_ENTRIES:
@@ -380,12 +382,13 @@ class ManagedGenerations:
         _safe_path(folder)
         return folder.exists() and any(folder.iterdir())
 
-    def _quarantine_fields(self, packet=None, *, verify_payloads=True):
+    def _quarantine_fields(self, packet=None, *, verify_payloads=True, tolerate_missing=False):
         """Validate index/manifest agreement without exposing copied images.
 
         The immutable original receipt remains the source proof. A missing or
         malformed exclusion is never interpreted as permission to show a page.
         """
+        self._unconfirmed_operations = set()
         try:
             if packet is None:
                 if not native_io_path(self.index_path).exists():
@@ -420,7 +423,15 @@ class ManagedGenerations:
                     raise ValueError()
                 _sha(operation['manifest_sha256'])
                 _sha(operation['selection_sha256'])
-                raw = _read_bounded(self.root / relative, MAX_RECEIPT_BYTES)
+                try:
+                    raw = _read_bounded(self.root / relative, MAX_RECEIPT_BYTES)
+                except FileNotFoundError:
+                    # Display-only summary: one vanished operation is reported
+                    # as unconfirmable; every mutation path stays strict.
+                    if not tolerate_missing:
+                        raise
+                    self._unconfirmed_operations.add(operation_id)
+                    continue
                 if hashlib.sha256(raw).hexdigest() != operation['manifest_sha256']:
                     raise ValueError()
                 manifest = json.loads(raw, object_pairs_hook=_json_unique)
@@ -526,7 +537,14 @@ class ManagedGenerations:
                             or str(int(page)) != page or not 0 <= int(page) < MAX_PAGES
                             or type(operation_id) is not str):
                         raise ValueError()
-            if exclusions != expected:
+            checked = exclusions
+            if self._unconfirmed_operations:
+                checked = {}
+                for wid, pages in exclusions.items():
+                    rest = {p: o for p, o in pages.items() if o not in self._unconfirmed_operations}
+                    if rest:
+                        checked[wid] = rest
+            if checked != expected:
                 raise ValueError()
             return deepcopy(exclusions), deepcopy(operations), True
         except (OSError, ValueError, TypeError, KeyError, UnicodeError, RecursionError):
@@ -538,15 +556,18 @@ class ManagedGenerations:
                          separators=(',', ':')).encode('ascii')
         return hashlib.sha256(raw).hexdigest()
 
-    def state_snapshot(self, *, verify_quarantine_payloads=True):
+    def state_snapshot(self, *, verify_quarantine_payloads=True, tolerate_missing=False):
         with self._lock:
-            active = self.entries(verify_quarantine_payloads=verify_quarantine_payloads)
-            exclusions, operations, enabled = self._quarantine_fields(verify_payloads=verify_quarantine_payloads)
+            active = self.entries(verify_quarantine_payloads=verify_quarantine_payloads,
+                                  tolerate_missing=tolerate_missing)
+            exclusions, operations, enabled = self._quarantine_fields(
+                verify_payloads=verify_quarantine_payloads, tolerate_missing=tolerate_missing)
+            unconfirmed = frozenset(self._unconfirmed_operations)
             if any(wid not in active for wid in exclusions):
                 raise ManagedDownloadError('quarantine source receipt missing')
             value = {'entries': active, 'exclusions': exclusions, 'operations': operations}
             return {**value, 'revision': self._state_digest(value),
-                    'quarantine_enabled': enabled}
+                    'quarantine_enabled': enabled, 'unconfirmed_operations': unconfirmed}
 
     def relocation_proofs(self):
         """Exact source receipt/page -> verified managed backup for v4 moves.

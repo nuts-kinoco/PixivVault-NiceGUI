@@ -197,7 +197,8 @@ class DuplicateView:
             from .library_view import format_capacity
             self.trash_copy_count.set_text(f'公開済みの隔離コピー: {snapshot.copy_count}件')
             self.trash_copy_bytes.set_text(f'隔離コピーの容量: {format_capacity(snapshot.copy_bytes)}')
-            if getattr(snapshot,'corrupt_count',0) or getattr(snapshot,'missing_count',0):
+            if (getattr(snapshot,'corrupt_count',0) or getattr(snapshot,'missing_count',0)
+                    or getattr(snapshot,'unconfirmed_count',0)):
                 self.trash_copy_count.set_text(f'検証できた健全な隔離コピー: {snapshot.copy_count}件')
                 self.trash_copy_bytes.set_text(f'健全な隔離コピーの実測容量: {format_capacity(snapshot.copy_bytes)}')
             self.trash_excluded.set_text(f'通常の一覧から除外中: {snapshot.excluded_pages}ページ')
@@ -211,7 +212,8 @@ class DuplicateView:
             'ごみ箱に隔離コピーはありません。' if snapshot is not None
             and snapshot.copy_count==0 else 'ごみ箱の内容を確認しました。'))
         if (snapshot is not None and snapshot.copy_count==0
-                and (getattr(snapshot,'missing_count',0) or getattr(snapshot,'corrupt_count',0))):
+                and (getattr(snapshot,'missing_count',0) or getattr(snapshot,'corrupt_count',0)
+                     or getattr(snapshot,'unconfirmed_count',0))):
             self.trash_status.set_text('健全な隔離コピーはありません。')
         if snapshot is not None and getattr(snapshot,'missing_count',0):
             self.trash_status.set_text(self.trash_status.text
@@ -219,6 +221,9 @@ class DuplicateView:
         if snapshot is not None and getattr(snapshot,'corrupt_count',0):
             self.trash_status.set_text(self.trash_status.text
                 + f' サイズまたは内容が一致しない隔離コピー: {snapshot.corrupt_count}件（件数・容量には含めず、除外状態は維持しています）。')
+        if snapshot is not None and getattr(snapshot,'unconfirmed_count',0):
+            self.trash_status.set_text(self.trash_status.text
+                + f'（確認できない項目: {snapshot.unconfirmed_count}件）')
         self.trash_restore_rows.clear()
         self._trash_restore_buttons=[]
         if self._trash_state=='ready' and self._trash_moves:

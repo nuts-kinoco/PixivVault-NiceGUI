@@ -330,8 +330,11 @@ class FailedRecordsView:
             elif state == 'stopped': stopped += 1
             else: pending += 1
         unprocessed = batch['total'] - batch['failed'] - len(batch['jobs'])
+        # Original `_on_retry_filtered` aggregate notice; unprocessed only when a gate aborted.
         self.retry_notice.set_text(
-            f"対象 {batch['total']} 件中、再失敗 {failed} 件 · 未処理 {unprocessed} 件"
+            f"再試行: {failed}/{batch['total']}件が失敗しました"
+            + (f"、未処理 {unprocessed} 件" if unprocessed > 0 else '') + '。'
+            + f"対象 {batch['total']} 件中、再失敗 {failed} 件 · 未処理 {unprocessed} 件"
             + f" · 保存完了 {done} 件 · 保存結果未確定 {pending} 件 · 停止 {stopped} 件。"
             + f"{len(batch['jobs'])} 件を管理キューへ追加・照合しました。元失敗DBは変更していません"
             + (f"。未追加 {batch['total']-len(batch['jobs'])} 件" if len(batch['jobs']) != batch['total'] else '')

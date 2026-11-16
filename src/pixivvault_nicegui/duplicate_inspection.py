@@ -373,7 +373,7 @@ class ManagedDuplicateInspection:
             current=self.owner.quarantine.snapshot()
             if self.legacy is None:return current
             old=self.legacy.snapshot()
-            if self.owner._generations.state_snapshot(verify_quarantine_payloads=False)['revision']!=current.state_revision:
+            if self.owner._generations.state_snapshot(verify_quarantine_payloads=False,tolerate_missing=True)['revision']!=current.state_revision:
                 raise DuplicateInspectionError('quarantine snapshot changed')
             # Totals span both stores; existence must do the same. A legacy
             # snapshot is also 'ready' before its directory exists, so use its
@@ -383,6 +383,7 @@ class ManagedDuplicateInspection:
                            copy_count=current.copy_count+old.copy_count,
                            missing_count=current.missing_count+old.missing_count,
                            corrupt_count=current.corrupt_count+old.corrupt_count,
+                           unconfirmed_count=current.unconfirmed_count+old.unconfirmed_count,
                            copy_bytes=current.copy_bytes+old.copy_bytes,
                            excluded_pages=current.excluded_pages+old.excluded_pages,
                            location=self.owner.root)
@@ -406,9 +407,10 @@ class ManagedDuplicateInspection:
         with self._lock:
             self._check()
             if self.owner is None:return ()
-            state = self.owner._generations.state_snapshot(verify_quarantine_payloads=False)
+            state = self.owner._generations.state_snapshot(verify_quarantine_payloads=False,tolerate_missing=True)
             results = []
             for operation_id, operation in state['operations'].items():
+                if operation_id in state['unconfirmed_operations']:continue  # reported by the summary
                 if (operation.get('mode') != 'move'
                         or operation['state'] not in ('relocating', 'moved', 'restoring')):
                     continue
