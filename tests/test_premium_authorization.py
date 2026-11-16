@@ -73,7 +73,7 @@ def test_stale_material_message_is_shown_at_startup(tmp_path):
     regenerated_vault(root,p,now)
     v,g,_=create(root,p,now);client=Client(ui.page('/_stale_material'));dialog=None
     try:
-        with client:dialog=PremiumGateDialog(g)
+        with client:dialog=PremiumGateDialog(g,default_uid_path=None)
         assert dialog.notice.text==vault_unlock_error_message('premium-material-stale')
         assert 'パスワード' in dialog.notice.text
     finally:
@@ -216,11 +216,11 @@ async def test_ui_one_password_then_save_choice_and_no_off_network(tmp_path,monk
     v,g,t=create(tmp_path/'v',Protection(),[1000])
     client=Client(ui.page('/_premium_permission'));dialog=None;task=None
     try:
-        with client:dialog=PremiumGateDialog(g)
+        with client:dialog=PremiumGateDialog(g,default_uid_path=None)
         assert not g.status()['enabled'] and t.calls==[]
         task=asyncio.create_task(dialog.request_enable());await asyncio.sleep(0)
-        assert len([x for x in dialog.password_dialog.descendants() if isinstance(x,ui.input)])==1
-        dialog.password.set_value(TEST_PASSWORD);dialog.password_dialog.submit(True)
+        assert len([x for x in dialog.password_dialog.descendants() if isinstance(x,ui.input)])==2
+        dialog.password.set_value(TEST_PASSWORD);dialog.secret.set_value('fixture-key');dialog._load_uid_bytes(b'1');dialog.password_dialog.submit(True)
         for _ in range(300):
             if g.status()['pending'] and dialog.save_dialog.value:break
             await asyncio.sleep(.01)

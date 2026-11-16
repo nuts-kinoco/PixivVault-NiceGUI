@@ -11,10 +11,10 @@ NAVIGATION = (
     ("download", "ダウンロード"), ("queue", "キュー"), ("failed", "失敗リスト"),
     ("history", "直近のバックアップ"), ("dedup", "重複整理"), ("learning", "学習"), ("ranking", "ランキング"),
     ("library", "ライブラリ"), ("recommend", "おすすめ"),
-    ("personal", "自分のランキング"), ("external", "Shaft連携"),
+    ("personal", "自分のランキング"),
     ("scheduler", "定期チェック"), ("metadata", "メタデータ補完"),
 )
-AVAILABLE_TABS = {"history", "ranking", "learning", "library", "failed", "download", "queue", "scheduler", "metadata", "dedup", "recommend", "personal", "external"}
+AVAILABLE_TABS = {"history", "ranking", "learning", "library", "failed", "download", "queue", "scheduler", "metadata", "dedup", "recommend", "personal"}
 
 
 class DemoShell:
@@ -33,7 +33,6 @@ class DemoShell:
         self.duplicate_view = None
         self.recommend_view = None
         self.personal_view = None
-        self.external_view = None
         self.preferences_view = None
         self.profile_view = None
         self.get_recovery_view = None
@@ -90,7 +89,8 @@ class DemoShell:
                     gate=getattr(services,'premium_authorization',None)
                     if gate is not None:
                         from .premium_gate_view import PremiumGateDialog
-                        self.borrow_dialog=PremiumGateDialog(gate,on_change=self.sync_borrow)
+                        self.borrow_dialog=PremiumGateDialog(gate,on_change=self.sync_borrow,
+                            default_uid_path=getattr(services,'default_uid_path',r'S:\Projects\PixivVault\nana7mi_uids.txt'))
                     self.borrow_switch=ui.switch('借用プレミアム',on_change=self.borrow_changed).props(
                         'data-testid=premium-borrow-toggle')
                     self._borrow_timer=ui.timer(1,self.sync_borrow)
@@ -113,7 +113,6 @@ class DemoShell:
                                  or getattr(services, 'native_profile', None) is not None)
             with ui.element("nav").classes("pv-nav").props("aria-label=メインナビゲーション"):
                 for key, label in NAVIGATION:
-                    if key=='external' and getattr(services,'external_vault',None) is None:continue
                     if key=='personal' and getattr(services,'external_vault',None) is None and services.live_client is None:continue
                     available = (key in AVAILABLE_TABS and
                                  (key != 'history' or getattr(services,'save_exports',None) is not None
@@ -121,7 +120,7 @@ class DemoShell:
                                  (key != 'metadata' or services.managed_downloads is not None) and
                                  (key != 'dedup' or services.duplicate_inspection is not None) and
                                  (key != 'recommend' or services.recommendations is not None) and
-                                 (key not in ('personal', 'external') or getattr(services, 'external_vault', None) is not None))
+                                 (key not in ('personal',) or getattr(services, 'external_vault', None) is not None))
                     button = ui.button(label, color=None, on_click=lambda _, tab=key: self.show(tab))
                     button.classes("pv-tab").props(f"flat no-caps data-testid=tab-{key}")
                     button.set_enabled(available)
@@ -161,6 +160,7 @@ class DemoShell:
                 extension_status=lambda:getattr(self.services,"extension_bridge_status","disabled"),
                 extension_snapshot=lambda: self.services.extension_bridge.response_snapshot() if self.services.extension_bridge is not None else ({}, {}),
                 native_profile=self.profile_view, following_sync=self.following_view,
+                vault=getattr(self.services, 'external_vault', None),
                 pixiv_actions_mode=getattr(self.services, 'pixiv_actions_mode', 'readonly'))
         self.preferences_view.open()
 
@@ -180,21 +180,20 @@ class DemoShell:
             if bool(event.value)==gate.status()['enabled']:return
             if event.value:
                 await self.borrow_dialog.request_enable()
-                if gate.status()['enabled']:self.show('external')
             else:
                 import asyncio
                 try:await asyncio.to_thread(gate.disable)
-                except Exception:ui.notify('OFFの保存を確認できません。Shaft連携の状態を確認してください。',type='warning')
+                except Exception:ui.notify('OFFの保存を確認できません。設定の借用プレミアムの状態を確認してください。',type='warning')
             self.sync_borrow();return
         if bool(event.value)==bool(vault.status().get('open')):return
         if event.value:
             # ON always goes through the password/setup flow. No credentials
             # are copied into the browser and the switch itself sends no HTTP.
-            self.show('external')
+            with self.root: ui.notify('\u501f\u7528\u30d7\u30ec\u30df\u30a2\u30e0\u306e\u8a8d\u8a3c\u3092\u5229\u7528\u3067\u304d\u307e\u305b\u3093\u3002',type='warning')
         else:
             import asyncio
             try:await asyncio.to_thread(vault.lock_explicitly)
-            except Exception:ui.notify('ロックの完了を確認できません。Shaft連携の状態を確認してください。',type='warning')
+            except Exception:ui.notify('ロックの完了を確認できません。設定の借用プレミアムの状態を確認してください。',type='warning')
         self.sync_borrow()
     def open_premium_search(self,word):
         self.show('personal')
@@ -219,7 +218,7 @@ class DemoShell:
                 or (tab == 'metadata' and self.services.managed_downloads is None)
                 or (tab == 'dedup' and self.services.duplicate_inspection is None)
                 or (tab == 'recommend' and self.services.recommendations is None)
-                or (tab in ('personal', 'external') and getattr(self.services, 'external_vault', None) is None)):
+                or (tab in ('personal',) and getattr(self.services, 'external_vault', None) is None)):
             return
         self.gallery.set_viewer_active(False)
         if self.library is not None:
@@ -262,10 +261,6 @@ class DemoShell:
             with self.content:
                 self.personal_view = PersonalRankingView(self.services, card_size=self.card_size,
                                                         on_size_change=self.change_card_size)
-        if tab == 'external' and self.external_view is None:
-            from .external_vault_view import ExternalVaultView
-            with self.content:
-                self.external_view = ExternalVaultView(self.services)
         if tab == 'dedup' and self.duplicate_view is None:
             from .duplicate_view import DuplicateView
             with self.content:
@@ -305,7 +300,7 @@ class DemoShell:
                 else:
                     self.job_views[tab] = (DownloadView(self.services) if tab == "download" else
                                           QueueView(self.services, failed_only=tab == "failed"))
-        for key, view in (('personal', self.personal_view), ('external', self.external_view)):
+        for key, view in (('personal', self.personal_view),):
             if view is not None:
                 view.root.set_visibility(tab == key)
                 view.set_active(tab == key)
@@ -410,7 +405,7 @@ class DemoShell:
             self.duplicate_view.close()
         if self.recommend_view is not None:
             self.recommend_view.close()
-        for view in (self.personal_view, self.external_view, self.preferences_view, self.profile_view, self.following_view):
+        for view in (self.personal_view, self.preferences_view, self.profile_view, self.following_view):
             if view is not None:
                 view.close()
         for view in self.job_views.values():

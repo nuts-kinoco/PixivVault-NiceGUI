@@ -167,14 +167,14 @@ async def test_header_toggle_and_library_search_entry_are_local_until_fetch(tmp_
     monkeypatch.setattr(core,'loop',asyncio.get_running_loop())
     services,v,t,_=setup(tmp_path)
     v.lock();monkeypatch.setattr(v,'start_keeper',lambda **kw:None)
+    monkeypatch.setattr(v,'_write_auto',lambda enabled:None)
     client=Client(ui.page('/_borrow_navigation'));shell=None
     try:
         with client:shell=DemoShell(services)
         assert shell.borrow_switch is not None and not shell.borrow_switch.value
         await shell.borrow_changed(SimpleNamespace(value=True))
-        assert shell.active_tab=='external' and not v.status()['open']
-        shell.external_view.password.set_value('fixture-password')
-        await shell.external_view.action('unlock');shell.sync_borrow()
+        assert shell.active_tab!='external' and not v.status()['open']
+        v.unlock('fixture-password');shell.sync_borrow()
         assert shell.borrow_switch.value and t.calls==[]
         shell.open_premium_search('sample')
         assert shell.active_tab=='personal' and shell.personal_view.tags.value=='sample' and t.calls==[]

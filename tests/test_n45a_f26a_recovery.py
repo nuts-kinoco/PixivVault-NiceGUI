@@ -36,14 +36,14 @@ async def test_prompt_replaces_even_an_already_empty_server_value(tmp_path,monke
     password,now,vault,gate,transport=fixture(tmp_path)
     client=Client(ui.page('/_n45_empty'));task=None
     try:
-        with client:dialog=PremiumGateDialog(gate)
+        with client:dialog=PremiumGateDialog(gate,default_uid_path=None)
         old=dialog.password
         task=await open_prompt(dialog)
         fresh=dialog.password.id!=old.id and old.is_deleted
         assert fresh, 'Each prompt must use a new empty browser model'
         empty=dialog.password.value==''
         assert empty
-        assert len([e for e in dialog.password_dialog.descendants() if isinstance(e,ui.input)])==1
+        assert len([e for e in dialog.password_dialog.descendants() if isinstance(e,ui.input)])==2
         dialog.password_dialog.submit(False);await task
         empty=dialog.password.value==''
         assert empty and not gate.status()['enabled'] and not transport.calls
@@ -59,7 +59,7 @@ async def test_failed_then_correct_authentication_discards_old_input(tmp_path,mo
     password,now,vault,gate,transport=fixture(tmp_path)
     client=Client(ui.page('/_n45_failed'));task=None
     try:
-        with client:dialog=PremiumGateDialog(gate)
+        with client:dialog=PremiumGateDialog(gate,default_uid_path=None)
         task=await open_prompt(dialog)
         failed_input=dialog.password
         failed_input.set_value(password+'!');dialog.password_dialog.submit(True)
@@ -71,7 +71,8 @@ async def test_failed_then_correct_authentication_discards_old_input(tmp_path,mo
         task=await open_prompt(dialog)
         empty=dialog.password.value==''
         assert empty and dialog.password.id!=failed_input.id
-        dialog.password.set_value(password);dialog.password_dialog.submit(True)
+        dialog.password.set_value(password);dialog.secret.set_value('fixture-key');dialog._load_uid_bytes(b'1')
+        dialog.password_dialog.submit(True)
         for _ in range(300):
             if dialog.save_dialog.value:break
             await asyncio.sleep(.01)
@@ -92,7 +93,7 @@ async def test_cancel_discards_input_before_reopening(tmp_path,monkeypatch):
     password,now,vault,gate,transport=fixture(tmp_path)
     client=Client(ui.page('/_n45_cancel'));task=None
     try:
-        with client:dialog=PremiumGateDialog(gate)
+        with client:dialog=PremiumGateDialog(gate,default_uid_path=None)
         task=await open_prompt(dialog);old=dialog.password
         old.set_value(password);dialog.password_dialog.submit(False);await task
         cleared=old.value=='' and dialog.password.value==''
