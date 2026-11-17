@@ -103,6 +103,10 @@ class NativeProfileBinding:
         self._cookie_lock = Lock()
         self._startup_extract_done = False
         self.last_cookie_adoption = None
+        # FL-A09/A10: after a confirmed Cookie, account-switch confirmation and
+        # the 24 hour automatic following sync (same stop gate as the check).
+        from .account_followup import AccountFollowup
+        self.followup = AccountFollowup(self)
 
     def saved_folder_context(self):
         from .desktop_integration import DesktopActionRejected
@@ -363,10 +367,14 @@ class NativeProfileBinding:
                     self.auth_status.publish(missing_status())
                 else:
                     result = await self.check_authentication(cookie, _imported=imported)
+                    identity = self._last_identity if result.code == 'verified' else None
                     if startup and not self._startup_extract_done and self._extraction_wanted(result):
                         # Original: only the startup check tries the browser, once.
                         self._startup_extract_done = True
-                        await self.adopt_browser_cookies()
+                        if await self.adopt_browser_cookies() == 'adopted':
+                            identity = self._last_identity
+                    if identity is not None and identity[0] is not None and not self._closed:
+                        await self.followup.after_confirmed(str(identity[0]))
                 if self._refresh_again is None:
                     return
                 imported, self._refresh_again = self._refresh_again, None
@@ -511,6 +519,7 @@ class NativeProfileBinding:
             stopped.set()
             if reader is not None:
                 reader.close()
+        self.followup.close()
         with self._cookie_lock:
             cookie_store, self._cookie_store = self._cookie_store, None
         if cookie_store is not None:

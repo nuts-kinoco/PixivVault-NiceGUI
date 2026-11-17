@@ -45,6 +45,7 @@ class FakeSource:
                  result='rows'):
         self.calls = 0
         self.days, self.name, self.value, self.browser, self.result = days, name, value, browser, result
+        self.expiry = int(time.time() + days * 86400)  # fixed: a second extraction must be identical
 
     def extract(self):
         self.calls += 1
@@ -54,7 +55,7 @@ class FakeSource:
             raise RuntimeError('browser store exploded')
         return ExtractedCookies(self.browser, [
             {'domain': '.pixiv.net', 'path': '/', 'name': self.name, 'value': self.value,
-             'secure': True, 'expirationDate': int(time.time() + self.days * 86400)}])
+             'secure': True, 'expirationDate': self.expiry}])
 
 
 def make(tmp_path, monkeypatch, *, cookie_days=20, configured=True, source=True, store_factory=True,

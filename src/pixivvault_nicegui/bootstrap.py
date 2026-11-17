@@ -626,6 +626,7 @@ def register_pages(learning_sandbox: Path | None = None,
             services.tray=bind_native_tray(app,services.preferences,services=services)
         if native_profile is not None:
             services.native_profile = native_profile
+            native_profile.followup.store_provider = lambda: services.following_sync
         register_media_routes(app, services.images)
 
         async def close_services() -> None:

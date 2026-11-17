@@ -383,6 +383,37 @@ class FollowingSyncStore:
         except Exception:
             raise FollowingSyncError() from None
 
+    def last_synced_account(self):
+        """Account of the newest completed sync (the original's saved my_user_id)."""
+        with self._lock:
+            try:
+                self._ensure_open()
+                rows = self._connection.execute(
+                    'SELECT account_id,last_synced_at FROM following_accounts '
+                    'WHERE last_synced_at IS NOT NULL').fetchall()
+                newest = max(((_stamp(stamp), _identifier(account)) for account, stamp in rows),
+                             default=None)
+                return None if newest is None else newest[1]
+            except BaseException as error:
+                self._abort(error)
+
+    def clear_account(self, account_id):
+        """Delete one account's saved following data (the original's account switch).
+
+        Irreversible: is_favorite / is_zipped / last_downloaded exist only here.
+        Callers must have the user's explicit confirmation first.
+        """
+        account_id = _identifier(account_id)
+        with self._lock:
+            try:
+                self._ensure_open()
+                self._connection.execute('BEGIN IMMEDIATE')
+                self._connection.execute('DELETE FROM following_authors WHERE account_id=?', (account_id,))
+                self._connection.execute('DELETE FROM following_accounts WHERE account_id=?', (account_id,))
+                self._connection.execute('COMMIT')
+            except BaseException as error:
+                self._abort(error)
+
     def record_followed(self, account_id, user_id, name='', restrict=0, *, expected_revision=None):
         account_id, user_id = _identifier(account_id), _identifier(user_id)
         name = _text(name)
