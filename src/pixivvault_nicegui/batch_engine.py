@@ -1,0 +1,488 @@
+"""Batch run engine: the original's "実行 1 回" over the existing managed pipeline.
+
+For every selected author, one after another: list the whole inventory, compare
+update dates (new / updated / restored / missing), save through the existing
+durable jobs, observe deletions, record the author in the run ledger, then wait
+4-6 seconds before the next author. Differences from the original that are on
+purpose: the wait wakes up at once on stop/pause, a closed network gate pauses
+the run (never "fails" it), and work is handed to JobService a few at a time.
+
+The engine never talks to the network itself. Everything it touches is behind a
+`port` (see `ServicesPort`): the gate, the full author listing, the enqueue and
+the job states. Tests supply a fake port; the app supplies `ServicesPort`.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from threading import Condition, RLock, Thread
+import random
+import time
+from uuid import uuid4
+
+from .author_download import Difference
+from .batch_runs import COUNTERS, BatchRunError
+
+BETWEEN_AUTHORS = (4.0, 6.0)          # original core.py:2269 random.uniform(4.0, 6.0)
+MAX_IN_FLIGHT = 16                    # unfinished jobs the engine itself keeps queued
+POLL_SECONDS = 0.25
+_TERMINAL_JOBS = ('done', 'error', 'stopped')
+
+
+class RunStopped(Exception):
+    """Internal unwind: the user (or app shutdown) asked the run to stop."""
+
+
+class GateClosed(Exception):
+    """Internal unwind: the network stop gate is closed; the run pauses, never fails."""
+
+    def __init__(self, code='network_stopped'):
+        super().__init__(code)
+        self.code = code
+
+
+class RunFailed(Exception):
+    """Internal unwind: a run-level fault (not one author's) ends the whole run."""
+
+    def __init__(self, code):
+        super().__init__(code)
+        self.code = code
+
+
+def capacity_code(error):
+    """Name a hard storage-capacity refusal; None for any other error."""
+    text = str(error)
+    if 'job operation history is full' in text:
+        return 'job_operation_history_full'
+    if type(error).__name__ == 'ManagedRequestError' and 'directory rejected' in text:
+        return 'intent_store_full'
+    return None
+
+
+def _queue_full(error):
+    """Nothing was accepted because the queue is at capacity: wait, do not fail the work."""
+    if type(error).__name__ == 'DownloadQueueCapacityReached':
+        return True
+    text = str(error)
+    return 'queue capacity reached' in text or text == 'job queue is full'
+
+
+def _gate_error(error):
+    return type(error).__name__ in ('ManagedNetworkStopped', 'ManagedNetworkGateStorageError',
+                                    'ManagedNetworkGateBusy')
+
+
+@dataclass(frozen=True, slots=True)
+class JobRef:
+    kind: str
+    job_id: str
+    operation_id: str
+
+
+class ServicesPort:
+    """Adapter over ApplicationServices (or anything shaped like it)."""
+
+    def __init__(self, services):
+        self.s = services
+
+    @property
+    def closing(self):
+        return bool(getattr(self.s, 'closing', False))
+
+    def require_allowed(self):
+        integration = getattr(self.s, 'managed_network_stop', None)
+        if integration is not None:
+            integration.require_allowed()
+
+    def author_target(self, author_id):
+        media = getattr(self.s, 'author_media', None)
+        return None if media is None else media.author_target(author_id).target_type
+
+    def list_author(self, author_id, target_type):
+        return tuple(self.s.author_media_preview(author_id, target_type))
+
+    def enqueue(self, candidate, operation_id):
+        job, created, _ = self.s.enqueue_author_media(candidate, operation_id, origin='follow')
+        return job.job_id, bool(created)
+
+    def _owner(self, kind):
+        media = getattr(self.s, 'author_media', None)
+        return media.owner_jobs(kind) if media is not None else self.s.jobs
+
+    def job_states(self, refs):
+        """{job_id: (state, error_code)}; an unknown id is reported as ('lost', '')."""
+        result = {}
+        owners = {}
+        for ref in refs:
+            owner = owners.setdefault(ref.kind, self._owner(ref.kind))
+            job = next((j for j in owner.snapshot() if j.job_id == ref.job_id), None)
+            if job is None and hasattr(owner, 'retained_job'):
+                job = owner.retained_job(ref.job_id)
+            result[ref.job_id] = ('lost', '') if job is None else (job.state, job.error_code)
+        return result
+
+    def stop_jobs(self, refs):
+        for ref in refs:
+            try:
+                self._owner(ref.kind).control(ref.job_id, 'stop')
+            except Exception:
+                pass
+
+    def observe_deletion(self, author_id, remote, scan_id):
+        """(pending, confirmed) from one recorded complete crawl; None without a legacy bridge."""
+        bridge = getattr(self.s, 'legacy_author_bridge', None)
+        if bridge is None:
+            return None
+        bridge.assert_source_unchanged()
+        scan = bridge.observe_author(author_id, remote, scan_id=scan_id)
+        return scan.remote_missing_pending, scan.remote_missing_confirmed
+
+    def settle(self, author_id):
+        """Bind finished jobs to their proofs before the bounded job window forgets them."""
+        media = getattr(self.s, 'author_media', None)
+        if media is not None:
+            media.reconcile(author_id=author_id)
+
+    def retire(self, refs):
+        hook = getattr(self.s, 'retire_settled_author_jobs', None)
+        return 0 if hook is None else hook(tuple(refs))
+
+
+class BatchRunEngine:
+    def __init__(self, port, ledger, *, following=None, account_id=None, on_progress=None,
+                 between_authors=BETWEEN_AUTHORS, uniform=random.uniform, wait=None,
+                 max_in_flight=MAX_IN_FLIGHT, poll_seconds=POLL_SECONDS, monotonic=time.monotonic):
+        if type(max_in_flight) is not int or not 1 <= max_in_flight <= 40:
+            raise ValueError('invalid in-flight limit')
+        self.port, self.ledger = port, ledger
+        self.following, self.account_id = following, account_id
+        self.on_progress = on_progress
+        self.between_authors, self._uniform = between_authors, uniform
+        self._external_wait = wait
+        self.max_in_flight, self.poll_seconds = max_in_flight, poll_seconds
+        self._monotonic = monotonic
+        self._cond = Condition(RLock())
+        self._stop = False
+        self._paused = False
+        self._current = None
+        self._thread = None
+        self.run_id = None
+        self.state = 'idle'
+        self.pause_reason = ''
+        self.totals = {name: 0 for name in COUNTERS}
+
+    # -- control -----------------------------------------------------------
+    @property
+    def active(self):
+        return self.state in ('running', 'paused', 'stopping')
+
+    def pause(self, reason='user'):
+        with self._cond:
+            if self.active and not self._stop:
+                self._paused, self.pause_reason, self.state = True, reason, 'paused'
+                self._set_run('paused', reason if reason != 'user' else '')
+                self._cond.notify_all()
+
+    def resume(self):
+        with self._cond:
+            if self.state == 'paused':
+                self._paused, self.pause_reason, self.state = False, '', 'running'
+                self._set_run('running')
+                self._cond.notify_all()
+                return True
+            return False
+
+    def stop(self):
+        """Ask the run to stop. Safe from any thread; wakes every wait at once."""
+        with self._cond:
+            if self.active and not self._stop:
+                self._stop, self._paused, self.state = True, False, 'stopping'
+                self._set_run('stopping')
+                self._cond.notify_all()
+
+    def join(self, timeout=None):
+        thread = self._thread
+        if thread is not None:
+            thread.join(timeout)
+        return thread is None or not thread.is_alive()
+
+    def _set_run(self, state, error_code=''):
+        if self.run_id is not None:
+            try:
+                self.ledger.set_run_state(self.run_id, state, error_code)
+            except BatchRunError:
+                pass
+
+    def _check_state(self):
+        """Original check_state(): raise on stop, block while paused."""
+        with self._cond:
+            while True:
+                if self._stop or self.port.closing:
+                    raise RunStopped()
+                if not self._paused:
+                    return
+                self._cond.wait(0.5)
+
+    def _sleep(self, seconds, *, between_authors=False):
+        """Wait up to `seconds`; return early on stop or pause (the original could not)."""
+        if between_authors and self._external_wait is not None:
+            self._external_wait(seconds)
+            return
+        deadline = self._monotonic() + seconds
+        with self._cond:
+            while not self._stop and not self._paused and not self.port.closing:
+                left = deadline - self._monotonic()
+                if left <= 0:
+                    return
+                self._cond.wait(min(left, 0.5))
+
+    def _emit(self, event, **values):
+        if self.on_progress is not None:
+            try:
+                self.on_progress(dict(event=event, run_id=self.run_id, totals=dict(self.totals), **values))
+            except Exception:
+                pass
+
+    # -- entry points ------------------------------------------------------
+    def start(self, author_ids, *, kind='authors', origin='manual', target_type=None):
+        """Begin a run on its own thread and return the run id."""
+        run_id = self._begin(author_ids, kind, origin, target_type)
+        self._thread = Thread(target=self._execute, args=(run_id, tuple(self._authors)),
+                              name='pixivvault-batch', daemon=True)
+        self._thread.start()
+        return run_id
+
+    def run(self, author_ids, *, kind='authors', origin='manual', target_type=None):
+        """Same as `start`, but on the calling thread (tests, scripts)."""
+        run_id = self._begin(author_ids, kind, origin, target_type)
+        self._execute(run_id, tuple(self._authors))
+        return run_id
+
+    def _begin(self, author_ids, kind, origin, target_type):
+        if kind != 'authors':
+            raise NotImplementedError('only the author run is implemented here')
+        with self._cond:
+            if self.active:
+                raise RuntimeError('a batch run is already active')
+            self._authors = tuple(dict.fromkeys(author_ids))
+            self.run_id = self.ledger.begin_run(kind, origin, target_type or 'both' if kind == 'authors' else '',
+                                                self._authors, account_id=self.account_id)
+            self._stop = self._paused = False
+            self.state, self.pause_reason = 'running', ''
+            self.totals = {name: 0 for name in COUNTERS}
+            self.kind, self.target_type = kind, target_type
+            self._started = self._monotonic()
+            return self.run_id
+
+    # -- the run -----------------------------------------------------------
+    def _execute(self, run_id, authors):
+        total = len(authors)
+        outcome, code = 'done', ''
+        self._emit('run_start', total=total)
+        try:
+            for index, author_id in enumerate(authors, 1):
+                self._current = None
+                if index > 1:
+                    self._between_authors()
+                self._current = author_id
+                while True:
+                    self._check_state()
+                    try:
+                        self._process_author(run_id, index, total, author_id)
+                        break
+                    except GateClosed as closed:
+                        self._reset_author(run_id, author_id)
+                        self.pause(closed.code)
+                        self._emit('run_paused', reason=closed.code, index=index, total=total,
+                                   author_id=author_id)
+                    except (RunStopped, RunFailed):
+                        raise
+                    except Exception as error:
+                        self._author_failed(run_id, index, total, author_id, error)
+                        break
+        except RunStopped:
+            outcome = 'stopped'
+            self._close_author(run_id, 'stopped', '')
+        except RunFailed as failed:
+            outcome, code = 'failed', failed.code
+            self._close_author(run_id, 'failed', failed.code)
+        except Exception as error:  # a ledger fault etc.: end the run, never hang the thread
+            outcome, code = 'failed', type(error).__name__
+            self._close_author(run_id, 'failed', code)
+        finally:
+            with self._cond:
+                self.state = outcome
+                self._paused = False
+            self._set_run(outcome, code)
+            self._emit('run_end', outcome=outcome, error_code=code, total=total,
+                       elapsed=self._monotonic() - self._started)
+
+    def _close_author(self, run_id, state, code):
+        """The author that was mid-step when the run ended: never `done`, never stamped."""
+        author_id, self._current = self._current, None
+        if author_id is not None:
+            try:
+                self.ledger.finish_author(run_id, author_id, state, error_code=code)
+            except BatchRunError:
+                pass  # already settled
+
+    def _between_authors(self):
+        low, high = self.between_authors
+        self._sleep(self._uniform(low, high), between_authors=True)
+        self._check_state()
+
+    def _reset_author(self, run_id, author_id):
+        try:
+            self.ledger.update_author(run_id, author_id, state='pending')
+        except BatchRunError:
+            pass
+
+    def _author_failed(self, run_id, index, total, author_id, error):
+        code = type(error).__name__
+        try:
+            self.ledger.finish_author(run_id, author_id, 'failed', error_code=code)
+        except BatchRunError:
+            pass
+        self._emit('author_failed', index=index, total=total, author_id=author_id, error_code=code)
+
+    def _gate(self):
+        try:
+            self.port.require_allowed()
+        except Exception as error:
+            if _gate_error(error):
+                raise GateClosed('network_stopped' if type(error).__name__ == 'ManagedNetworkStopped'
+                                 else 'network_gate_unavailable') from None
+            raise
+
+    def _target_for(self, author_id):
+        # Original core.py:1185-1189: an author's own setting beats the run's toggle.
+        own = self.port.author_target(author_id)
+        return own or self.target_type
+
+    def _process_author(self, run_id, index, total, author_id):
+        self._gate()
+        self.ledger.update_author(run_id, author_id, state='listing')
+        self._emit('author_start', index=index, total=total, author_id=author_id)
+        target = self._target_for(author_id)
+        try:
+            rows = self.port.list_author(author_id, target)
+        except Exception as error:
+            if _gate_error(error):
+                raise GateClosed('network_stopped' if type(error).__name__ == 'ManagedNetworkStopped'
+                                 else 'network_gate_unavailable') from None
+            raise
+        self._check_state()
+        keys = [(c.kind, c.work_id) for c in rows]
+        if any(c.author_id != author_id for c in rows) or len(set(keys)) != len(keys):
+            raise ValueError('author inventory identity changed')
+        counters = {name: 0 for name in COUNTERS}
+        names = {Difference.NEW: 'n_new', Difference.UPDATED: 'n_updated', Difference.RESTORED: 'n_restored',
+                 Difference.MISSING: 'n_missing', Difference.SKIPPED: 'n_skipped', Difference.UNKNOWN: 'n_unknown'}
+        for candidate in rows:
+            counters[names[candidate.difference]] += 1
+        self._observe_deletion(run_id, author_id, target, rows, counters)
+        self.ledger.update_author(run_id, author_id, state='downloading', counters=counters)
+        self._emit('author_listed', index=index, total=total, author_id=author_id, counters=dict(counters))
+        queue = sorted((c for c in rows if c.eligible), key=lambda c: (-int(c.work_id), c.kind))
+        failed = self._download(run_id, index, total, author_id, queue)
+        counters['n_failed'] = failed
+        self._check_state()
+        self.ledger.complete_author(run_id, author_id, counters, following=self.following,
+                                    account_id=self.account_id)
+        for name in COUNTERS:
+            self.totals[name] += counters[name]
+        self._emit('author_done', index=index, total=total, author_id=author_id, counters=dict(counters))
+
+    def _observe_deletion(self, run_id, author_id, target, rows, counters):
+        """Original phase B. Skipped (never guessed) unless a full illustration list was read."""
+        illust = [c for c in rows if c.kind in ('illustration', 'ugoira')]
+        if target == 'novel':
+            check = 'skipped_novel_only'
+        elif not illust:
+            check = 'skipped_no_illustration_list'
+        else:
+            scan_id = uuid4().hex
+            remote = tuple(dict(id=c.work_id, user_id=c.author_id, type=c.work_type,
+                                page_count=c.page_count, update_date=c.update_date) for c in illust)
+            self.ledger.update_author(run_id, author_id, scan_id=scan_id, deletion_check='pending')
+            try:
+                result = self.port.observe_deletion(author_id, remote, scan_id)
+            except Exception:
+                result = False  # the download goes on; only the deletion check is skipped
+            if result is None:
+                check = 'skipped_no_legacy_db'
+            elif result is False:
+                check = 'failed'
+            else:
+                check = 'done'
+                counters['n_absent_pending'], counters['n_absent_confirmed'] = result
+        self.ledger.update_author(run_id, author_id, deletion_check=check)
+
+    def _download(self, run_id, index, total, author_id, queue):
+        """Hand work to the durable jobs a few at a time; return how many did not save."""
+        inflight, failed, done_count = {}, 0, 0
+        pending = list(queue)
+        settled = []
+        try:
+            while pending or inflight:
+                self._check_state()
+                progressed = False
+                while pending and len(inflight) < self.max_in_flight:
+                    self._gate()
+                    candidate = pending[0]
+                    operation_id = uuid4().hex
+                    try:
+                        job_id, _created = self.port.enqueue(candidate, operation_id)
+                    except Exception as error:
+                        if _gate_error(error):
+                            raise GateClosed('network_stopped' if type(error).__name__ == 'ManagedNetworkStopped'
+                                             else 'network_gate_unavailable') from None
+                        code = capacity_code(error)
+                        if code is not None:
+                            raise RunFailed(code) from None
+                        if _queue_full(error):
+                            break  # wait for jobs to finish, then offer it again
+                        pending.pop(0)
+                        failed += 1
+                        self.ledger.record_item(run_id, author_id, candidate.key, candidate.kind,
+                                                operation_id, state='error')
+                        continue
+                    pending.pop(0)
+                    progressed = True
+                    ref = JobRef(candidate.kind, job_id, operation_id)
+                    inflight[job_id] = (ref, candidate)
+                    self.ledger.record_item(run_id, author_id, candidate.key, candidate.kind,
+                                            operation_id, job_id=job_id)
+                if inflight:
+                    states = self.port.job_states([ref for ref, _ in inflight.values()])
+                    finished = []
+                    for job_id, (ref, candidate) in tuple(inflight.items()):
+                        state, error_code = states.get(job_id, ('lost', ''))
+                        if state == 'paused' and error_code == 'admission_blocked':
+                            raise GateClosed('network_stopped')
+                        if state in _TERMINAL_JOBS or state == 'lost':
+                            finished.append((ref, candidate, state))
+                            del inflight[job_id]
+                    if finished:
+                        progressed = True
+                        self.port.settle(author_id)
+                        for ref, candidate, state in finished:
+                            done_count += 1
+                            if state != 'done':
+                                failed += 1
+                            self.ledger.record_item(run_id, author_id, candidate.key, candidate.kind,
+                                                    ref.operation_id, job_id=ref.job_id,
+                                                    state={'done': 'done', 'error': 'error',
+                                                           'stopped': 'stopped'}.get(state, 'lost'))
+                            settled.append(ref)
+                        self.ledger.update_author(run_id, author_id, counters={'n_failed': failed})
+                        self._emit('work_progress', index=index, total=total, author_id=author_id,
+                                   done=done_count, queued=len(queue), failed=failed)
+                if not progressed and (pending or inflight):
+                    self._sleep(self.poll_seconds)
+        except (RunStopped, RunFailed):
+            if inflight:
+                self.port.stop_jobs([ref for ref, _ in inflight.values()])
+            raise
+        if settled:
+            self.port.retire(settled)
+        return failed

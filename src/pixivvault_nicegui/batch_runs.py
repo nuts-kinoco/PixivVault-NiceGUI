@@ -534,7 +534,10 @@ class BatchRunLedger:
         account = account_id if account_id is not None else run_account
         if account is None:
             return None
-        following.record_downloaded(account, author_id, stamp)
+        try:
+            following.record_downloaded(account, author_id, stamp)
+        except Exception:
+            return None  # the author is recorded done; stamp_written stays 0 and shows it
         self._transaction(lambda c: c.execute(
             'UPDATE run_authors SET stamp_written=1 WHERE run_id=? AND author_id=?', (run_id, author_id)))
         return stamp

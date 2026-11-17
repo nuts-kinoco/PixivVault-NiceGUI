@@ -194,6 +194,10 @@ class AuthorMediaService:
             db.execute('INSERT INTO author_targets(author_id,target_type,revision,auto_zip) VALUES(?,NULL,?,?) ON CONFLICT(author_id) DO UPDATE SET revision=excluded.revision,auto_zip=excluded.auto_zip',(author_id,revision+1,None if enabled is None else int(enabled)))
             return revision+1
 
+    def owner_jobs(self, kind):
+        """The durable JobService that owns this media kind (read-only use by the batch engine)."""
+        return self._owner_jobs(kind)
+
     def _owner_jobs(self, kind):
         owner = self.services.static_jobs if kind == 'illustration' else (
             self.services.novel_jobs.jobs if kind == 'novel' else self.services.ugoira.jobs)
