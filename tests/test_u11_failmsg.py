@@ -18,14 +18,17 @@ from pixivvault_nicegui.ui.author_media_view import AuthorMediaView
 def import_provenance():
     import pixivvault_nicegui.author_media as service
     import pixivvault_nicegui.ui.author_media_view as view
-    root = Path(os.environ['U11_SOURCE_ROOT']).resolve()
+    # 環境変数が未設定でも動くよう、既定はこのリポジトリの src とする。
+    root = Path(os.environ.get('U11_SOURCE_ROOT') or Path(__file__).resolve().parents[1] / 'src').resolve()
     imports = {}
     for module in (service, view):
         path = Path(module.__file__).resolve()
         assert path.is_relative_to(root), str(path)
         imports[module.__name__] = {'path': str(path), 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
     evidence = {'pid': os.getpid(), 'imports': imports, 'env': {key:os.environ.get(key) for key in ('TEMP','TMP','TMPDIR','XDG_CACHE_HOME','MPLCONFIGDIR','PYTHONDONTWRITEBYTECODE')}}
-    (Path(os.environ['U11_EVIDENCE']) / 'actual-process.json').write_text(json.dumps(evidence,indent=2))
+    evidence_dir = os.environ.get('U11_EVIDENCE')
+    if evidence_dir:
+        (Path(evidence_dir) / 'actual-process.json').write_text(json.dumps(evidence,indent=2))
 
 
 @contextmanager

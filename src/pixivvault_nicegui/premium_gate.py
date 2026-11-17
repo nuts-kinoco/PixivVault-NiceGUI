@@ -56,6 +56,11 @@ class PremiumAuthorization:
             except FileNotFoundError:
                 # A missing activation record is not authorization to modify files.
                 return
+            if state == b'off\n':
+                # 明示的な OFF 記録がある場合だけ、旧版が残した保存済みの鍵を取り除く。
+                # 記録が無い場合は従来どおりファイルに触れない。
+                self._remove_material()
+                return
             if state != b'on\n':
                 return
             proof=self._read_protected('activation.dpapi')

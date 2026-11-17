@@ -34,7 +34,7 @@ async def bookmark():
 async def test_selection_more_and_stable_existing_cards(bookmark):
     view, state, opened, _ = bookmark
     assert len(view.cards) == 50
-    assert view.counter.text == "50 / 120 件表示"
+    assert view.counter.text == "表示 50 件 / 条件一致 120 件 / 読込済み 120 件"
     first_node = view.cards["synthetic-0"].id
     view.select("synthetic-0", True)
     assert state.selected_ids == {"synthetic-0"}
