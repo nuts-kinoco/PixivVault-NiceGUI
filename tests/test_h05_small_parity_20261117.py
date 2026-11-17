@@ -113,7 +113,11 @@ async def test_recommend_empty_state_offers_jump_to_learning_tab():
     from types import SimpleNamespace as NS
     from pixivvault_nicegui.recommendation_state import RecommendationController
     from pixivvault_nicegui.ui.recommend_view import RecommendView
-    from test_fail7_batch1 import EmptyRecommendationSource
+    from pixivvault_nicegui.recommendation_state import RecommendationSnapshot
+
+    class EmptyRecommendationSource:
+        def load(self):
+            return RecommendationSnapshot(unavailable=())      # 接続済みで、保存済み結果が本当に空
     jumps = []
     client = Client(ui.page('/_h05_recommend_empty'))
     try:

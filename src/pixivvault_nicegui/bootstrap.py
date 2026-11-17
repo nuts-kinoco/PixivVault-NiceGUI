@@ -428,8 +428,10 @@ def extension_bridge_wanted(explicit, auto, preferences) -> bool:
     """拡張機能の受信サーバーを起動するか。明示指定は従来どおり。既定起動は設定で止められる。"""
     if explicit:
         return True
-    if not auto or preferences is None:
+    if not auto:
         return False
+    if preferences is None:
+        return True      # 設定の保存先が無い起動では止める設定が無い（--no-extension-bridge で止める）
     try:
         return preferences.get_setting('extension_bridge_enabled', '1') != '0'
     except Exception:
@@ -632,7 +634,14 @@ def register_pages(learning_sandbox: Path | None = None,
             services.extension_bridge_status = 'setting_off'
         if services.managed_downloads is not None and (bridge_wanted or
                 (services.managed_downloads.root / 'extension-commands').exists()):
-            services.enable_extension_commands()
+            try:
+                services.enable_extension_commands()
+            except Exception:
+                if extension_bridge or not extension_bridge_auto:
+                    raise            # 明示指定・既存台帳の失敗は従来どおり起動を止める
+                # 既定起動だけの受信準備の失敗で、通常起動を巻き込まない。
+                services.extension_bridge_status = 'unavailable'
+                bridge_wanted = False
         if bridge_wanted:
             app.on_startup(services.start_extension_bridge)
         if desktop_enabled:
@@ -964,7 +973,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             registration["desktop_enabled"] = True
             if config.pixiv_download_root is not None:
                 from .uri_launch import build_protocol_command
-                args_for_uri = ['--native', '--host', config.host, '--port', str(config.port), '--extension-bridge']
+                # 元の URI 起動で受信が立つかは、既定起動と同じく設定（受信を止める）に従う。
+                args_for_uri = ['--native', '--host', config.host, '--port', str(config.port)]
                 from dataclasses import fields
                 if config.profile_root is not None:
                     args_for_uri.extend(['--profile-root', str(config.profile_root)])

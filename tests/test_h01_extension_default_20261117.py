@@ -57,7 +57,9 @@ def test_wanted_follows_setting_only_for_default_start():
     assert extension_bridge_wanted(False, True, off) is False      # 設定で止められる
     assert extension_bridge_wanted(True, False, off) is True       # 明示指定は従来どおり
     assert extension_bridge_wanted(False, False, on) is False
-    assert extension_bridge_wanted(False, True, None) is False     # 設定を読めない場合は起動しない
+    assert extension_bridge_wanted(False, True, None) is True      # 設定の保存先が無い起動は止める設定が無い
+    broken = SimpleNamespace(get_setting=lambda key, default=None: (_ for _ in ()).throw(RuntimeError()))
+    assert extension_bridge_wanted(False, True, broken) is False   # 設定を読めない場合は起動しない
 
 
 def test_setting_exists_default_on():
@@ -189,3 +191,45 @@ def test_cookie_receipt_only_schedules_the_gated_check():
 def test_unconfigured_bridge_status_label_mentions_setting():
     from pixivvault_nicegui.ui.preferences_view import EXTENSION_STATUS_LABELS
     assert '設定で停止' in EXTENSION_STATUS_LABELS['setting_off']
+
+
+# ---- profile 起動（launch_work.ps1 と同じ引数の形）-----------------------------
+
+def _configured_profile(tmp_path):
+    from pixivvault_nicegui.native_profile import NativeProfileStore, provision_storage
+    from test_stage5_r1_native_storage_binding import _cookie
+    profile = tmp_path / 'profile-native'
+    parent = tmp_path / 'save-parent'
+    parent.mkdir()
+    cookie = _cookie(tmp_path)
+    store = NativeProfileStore(profile)
+    try:
+        store.update(cookie_file=cookie, save_parent=parent, expected_revision=0)
+        provision_storage(store.snapshot(), profile)
+    finally:
+        store.close()
+    return profile
+
+
+def test_profile_launch_enables_bridge_by_default(tmp_path):
+    profile = _configured_profile(tmp_path)
+    # launch_work.ps1: --host 127.0.0.1 --port N --native --profile-root <dir>（--extension-bridge 無し）
+    config = parse_args(['--host', '127.0.0.1', '--port', '22999', '--native', '--profile-root', str(profile)])
+    assert config.pixiv_download_root is not None
+    assert config.extension_bridge is False and config.extension_bridge_auto is True
+
+
+def test_unconfigured_profile_launch_starts_nothing(tmp_path):
+    from pixivvault_nicegui.native_profile import NativeProfileStore
+    profile = tmp_path / 'fresh-profile'
+    NativeProfileStore(profile).close()
+    config = parse_args(['--native', '--profile-root', str(profile)])
+    assert config.pixiv_download_root is None
+    assert config.extension_bridge is False and config.extension_bridge_auto is False
+
+
+def test_uri_relaunch_does_not_force_the_receiver_on():
+    import inspect
+    from pixivvault_nicegui import bootstrap
+    source = inspect.getsource(bootstrap.main)
+    assert "'--extension-bridge'" not in source      # URI 起動も設定（受信を止める）に従う

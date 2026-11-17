@@ -322,7 +322,8 @@ class RecommendView:
     @staticmethod
     def _all_empty(data):
         # 元: trend / superlikes / certain / trend_added / 登録中の作者 がすべて空のときだけ。
-        return (not data.get('trends') and not data.get('added_tags') and not data.get('boosted')
+        # 取得元が未接続・未更新の節がある間は「材料が無い」とは言えないので出さない。
+        return (not data.get('unavailable') and not data.get('trends') and not data.get('added_tags') and not data.get('boosted')
                 and not any(g.works for groups in data['sections'].values() for g in groups))
 
     def render(self):
