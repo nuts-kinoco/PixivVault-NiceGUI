@@ -52,9 +52,6 @@ class Harness:
             assert d.legacy_box.visible and not d.main_box.visible
             d.legacy.set_value(legacy)
             d.password_dialog.submit(True)
-        await self.wait_for(lambda: d.save_dialog.value, task)
-        if d.save_dialog.value:
-            d.save_dialog.submit(remember)
         await asyncio.wait_for(task, 10)
 
     def close(self):

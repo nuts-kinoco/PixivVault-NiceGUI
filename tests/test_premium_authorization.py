@@ -209,7 +209,7 @@ def test_currentuser_dpapi_real_roundtrip_uses_generated_credentials(tmp_path):
     finally:gate.close();v.close()
 
 @pytest.mark.asyncio
-async def test_ui_one_password_then_save_choice_and_no_off_network(tmp_path,monkeypatch):
+async def test_ui_one_password_then_always_kept_on_and_no_off_network(tmp_path,monkeypatch):
     from nicegui import Client,ui,core
     from pixivvault_nicegui.ui.premium_gate_view import PremiumGateDialog
     monkeypatch.setattr(core,'loop',asyncio.get_running_loop())
@@ -218,6 +218,9 @@ async def test_ui_one_password_then_save_choice_and_no_off_network(tmp_path,monk
     # keeper, which talks to the transport on its own thread. Replace only the
     # keeper start so "no traffic before ON" is judged on the popup path itself.
     started=[];monkeypatch.setattr(v,'start_keeper',lambda **kw:started.append(1))
+    before_on=[];real_confirm=g.confirm
+    def spy(*a,**k):before_on.append((list(t.calls),list(started)));return real_confirm(*a,**k)
+    monkeypatch.setattr(g,'confirm',spy)
     client=Client(ui.page('/_premium_permission'));dialog=None;task=None
     try:
         with client:dialog=PremiumGateDialog(g,default_uid_path=None)
@@ -225,13 +228,11 @@ async def test_ui_one_password_then_save_choice_and_no_off_network(tmp_path,monk
         task=asyncio.create_task(dialog.request_enable());await asyncio.sleep(0)
         assert len([x for x in dialog.password_dialog.descendants() if isinstance(x,ui.input)])==2
         dialog.password.set_value(TEST_PASSWORD);dialog.secret.set_value('fixture-key');dialog._load_uid_bytes(b'1');dialog.password_dialog.submit(True)
-        for _ in range(300):
-            if g.status()['pending'] and dialog.save_dialog.value:break
-            await asyncio.sleep(.01)
-        assert g.status()['pending'] and not g.status()['enabled'] and dialog.password.value==''
-        assert t.calls==[] and started==[]  # nothing is sent or started before ON
-        dialog.save_dialog.submit(False);await asyncio.wait_for(task,5)
-        assert g.status()['enabled'] and not g.status()['remembered'] and t.calls==[] and started==[1]
+        await asyncio.wait_for(task,5)
+        assert dialog.password.value==''
+        assert before_on==[([],[])]  # nothing was sent or started before ON was confirmed
+        # ON is always kept for the next launch (no separate save question).
+        assert g.status()['enabled'] and g.status()['remembered'] and t.calls==[] and started==[1]
     finally:
         if dialog:dialog.close()
         if task and not task.done():task.cancel();await asyncio.gather(task,return_exceptions=True)

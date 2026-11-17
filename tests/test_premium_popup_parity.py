@@ -54,8 +54,6 @@ async def test_wrong_password_shows_message_under_field_and_keeps_inputs(tmp_pat
         h.now[0] += 1000
         d.password.set_value(TEST_PASSWORD)
         d.password_dialog.submit(True)
-        await h.wait_for(lambda: d.save_dialog.value, task)
-        d.save_dialog.submit(False)
         await asyncio.wait_for(task, 10)
         assert h.gate.status()['enabled'] and h.vault.status()['open']
         assert saved(h)['secret_key'] == 'keep-key' and saved(h)['shaft_uids'] == [12345, 67890]
@@ -139,8 +137,6 @@ async def test_default_file_is_shown_when_popup_opens_and_saved_on_confirm(tmp_p
         assert d.uid_notice.text == 'UID一覧: 3件を自動読み込みしました（default.txt）'
         d.password.set_value(TEST_PASSWORD)  # only the password is typed
         d.password_dialog.submit(True)
-        await h.wait_for(lambda: d.save_dialog.value, task)
-        d.save_dialog.submit(False)
         await asyncio.wait_for(task, 10)
         assert saved(h)['shaft_uids'] == [11111, 22222, 33333]
         assert saved(h)['secret_key'] == 'first-key'
@@ -175,8 +171,6 @@ async def test_missing_file_keeps_saved_uids_and_says_nothing_is_changed(tmp_pat
         assert d.uid_notice.text == 'UID一覧: 未読み込み（変更しません）'
         d.password.set_value(TEST_PASSWORD)
         d.password_dialog.submit(True)
-        await h.wait_for(lambda: d.save_dialog.value, task)
-        d.save_dialog.submit(False)
         await asyncio.wait_for(task, 10)
         assert saved(h)['shaft_uids'] == [12345, 67890] and h.gate.status()['enabled']
     finally:
@@ -198,8 +192,6 @@ async def test_unusable_file_never_overwrites_saved_uids_and_lists_every_problem
         assert not task.done() and d.password_dialog.value  # shown inside the open dialog
         d.password.set_value(TEST_PASSWORD)
         d.password_dialog.submit(True)
-        await h.wait_for(lambda: d.save_dialog.value, task)
-        d.save_dialog.submit(False)
         await asyncio.wait_for(task, 10)
         assert h.gate.status()['enabled'] and saved(h)['shaft_uids'] == [12345, 67890]
     finally:
@@ -220,8 +212,6 @@ async def test_explicit_pick_overrides_default_file_and_bad_pick_keeps_previous_
         assert not task.done() and d._uids == [44444, 55555]
         d.password.set_value(TEST_PASSWORD)
         d.password_dialog.submit(True)
-        await h.wait_for(lambda: d.save_dialog.value, task)
-        d.save_dialog.submit(False)
         await asyncio.wait_for(task, 10)
         assert saved(h)['shaft_uids'] == [44444, 55555]
     finally:
@@ -243,8 +233,6 @@ async def test_first_setup_without_usable_uids_stays_in_dialog_and_spends_no_att
         assert d.secret.value == 'only-a-key'
         assert d._load_uid_bytes(b'12345')
         d.password_dialog.submit(True)
-        await h.wait_for(lambda: d.save_dialog.value, task)
-        d.save_dialog.submit(False)
         await asyncio.wait_for(task, 10)
         assert saved(h)['shaft_uids'] == [12345] and saved(h)['secret_key'] == 'only-a-key'
     finally:
@@ -319,5 +307,25 @@ async def test_startup_reflection_skips_off_pending_and_unset_path(tmp_path, mon
         assert saved(h)['shaft_uids'] == [12345, 67890]
         d.default_uid_path = None
         assert d.reflect_uid_file_at_startup() == 'skipped'
+    finally:
+        h.close()
+
+
+# ---- no "save the enabled state?" question: ON always stays ON next launch ----
+
+@pytest.mark.asyncio
+async def test_on_is_always_kept_for_next_launch_without_a_save_question(tmp_path, monkeypatch):
+    h = Harness(tmp_path, monkeypatch)
+    try:
+        d = h.open_dialog(None)
+        assert not hasattr(d, 'save_dialog')
+        await h.submit(TEST_PASSWORD, 'keep-key', b'12345')
+        assert h.gate.status()['enabled'] and h.gate.status()['remembered']
+        assert 'このセッション限り' not in d.notice.text and '次回起動後も維持' in d.notice.text
+        # a fresh start of the same vault restores ON by itself
+        from test_premium_authorization import create
+        h.gate.close(); h.vault.close()
+        h.vault, h.gate, _ = create(tmp_path/'vault', h.protection, h.now)
+        assert h.gate.status()['enabled'] and h.vault.status()['open']
     finally:
         h.close()

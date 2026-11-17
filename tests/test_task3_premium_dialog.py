@@ -28,10 +28,9 @@ async def test_dialog_initializes_updates_and_rejects_wrong_password(tmp_path, m
         assert dialog._load_uid_bytes(payload)
         dialog.password_dialog.submit(True)
         for _ in range(500):
-            if task.done() or dialog.save_dialog.value or dialog.dialog_error.text: break
+            if task.done() or dialog.dialog_error.text: break
             await asyncio.sleep(.01)
-        if dialog.save_dialog.value: dialog.save_dialog.submit(remember)
-        elif not task.done(): dialog.password_dialog.submit(False)  # wrong password: dialog stays open until cancelled
+        if not task.done(): dialog.password_dialog.submit(False)  # wrong password: dialog stays open until cancelled
         await asyncio.wait_for(task, 10)
     try:
         with client: dialog=PremiumGateDialog(gate, default_uid_path=None)

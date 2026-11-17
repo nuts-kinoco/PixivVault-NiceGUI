@@ -1,4 +1,4 @@
-"""One activation-password input, followed by a separate persistence choice."""
+"""One activation-password popup; ON is always kept for the next launch (original)."""
 import asyncio
 from pathlib import Path
 from nicegui import ui
@@ -63,13 +63,6 @@ class PremiumGateDialog:
                 with ui.row().classes('w-full justify-end'):
                     ui.button('キャンセル',on_click=lambda:self.password_dialog.submit(False)).props('flat')
                     self.confirm_button=ui.button('\u6709\u52b9\u306b\u3059\u308b',on_click=lambda:self.password_dialog.submit(True)).props('data-testid=premium-password-confirm')
-        with ui.dialog().props('persistent') as self.save_dialog:
-            with ui.card().classes('w-full max-w-md gap-4'):
-                ui.label('有効な状態を保存しますか？').classes('text-h6')
-                ui.label('保存すると次回もONで始まります。このWindowsユーザーだけが使えるよう、有効化の証跡を保護します。')
-                with ui.row().classes('w-full justify-end'):
-                    ui.button('保存しない',on_click=lambda:self.save_dialog.submit(False)).props('flat data-testid=premium-save-no')
-                    ui.button('保存する',on_click=lambda:self.save_dialog.submit(True)).props('data-testid=premium-save-yes')
         self.notice=ui.label(vault_unlock_error_message(gate.status().get('error')) or '').props('role=status data-testid=premium-permission-status')
         ui.context.client.on_delete(self.close)
     def _wait_message(self):
@@ -241,9 +234,9 @@ class PremiumGateDialog:
             if not self.gate.vault.status()['initialized'] and (not secret or not uid_text):
                 self.notice.set_text('\u521d\u671f\u8a2d\u5b9a\u306b\u306f Shaft \u7f72\u540d\u30ad\u30fc\u3068 UID \u4e00\u89a7\u306e\u4e21\u65b9\u304c\u5fc5\u8981\u3067\u3059\u3002')
                 return
-            remember=await self.save_dialog
             if self.closed:return
-            await asyncio.to_thread(self.gate.confirm,bool(remember),expected_epoch=epoch)
+            # The original always keeps ON for the next launch: no separate question.
+            await asyncio.to_thread(self.gate.confirm,True,expected_epoch=epoch)
             try:
                 if not self.gate.vault.status()['initialized']:
                     await asyncio.to_thread(self.gate.initialize_vault,uid_text,secret)
@@ -270,7 +263,7 @@ class PremiumGateDialog:
             review=bool(ready and self.gate.vault.status().get('oauth_review_required'))
             if ready and not review:
                 self.gate.vault.start_keeper()
-            self.notice.set_text('借用プレミアムはONです。'+('次回起動後も維持します。' if remember else 'このセッション限りです。')+
+            self.notice.set_text('借用プレミアムはONです。'+'次回起動後も維持します。'+
                 ('' if ready else '保管庫を開けませんでした。借用プレミアムをOFFにしてから再度ONにし、署名キーとUID一覧を確認してください。')+
                 ('前回の通信の結果を確認できていない登録があるため、借用の通信は停止したままです。保管されているデータには変更を加えていません。' if review else ''))
         except Exception as error:
@@ -290,4 +283,4 @@ class PremiumGateDialog:
         self.closed=True;self.password.set_value('');self.secret.set_value('')
         if self.legacy is not None:self.legacy.set_value('')
         self._clear_uids()
-        self.password_dialog.submit(False);self.save_dialog.submit(False)
+        self.password_dialog.submit(False)

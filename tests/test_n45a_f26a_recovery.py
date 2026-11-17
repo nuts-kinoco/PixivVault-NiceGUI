@@ -75,13 +75,8 @@ async def test_failed_then_correct_authentication_discards_old_input(tmp_path,mo
         assert empty and dialog.password.id!=failed_input.id
         dialog.password.set_value(password);dialog.secret.set_value('fixture-key');dialog._load_uid_bytes(b'1')
         dialog.password_dialog.submit(True)
-        for _ in range(300):
-            if dialog.save_dialog.value:break
-            await asyncio.sleep(.01)
-        assert gate.status()['pending'] and dialog.save_dialog.value
-        cleared=dialog.password.value==''
-        assert cleared
-        dialog.save_dialog.submit(False);await asyncio.wait_for(task,5)
+        await asyncio.wait_for(task,5)
+        assert dialog.password.value==''
         assert gate.status()['enabled'] and not transport.calls
     finally:
         dialog.close()

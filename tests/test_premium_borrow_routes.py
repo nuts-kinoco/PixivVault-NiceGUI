@@ -188,10 +188,6 @@ async def test_header_toggle_unlocks_through_popup_with_earlier_vault_password(t
         # activation password differs from the vault's: the popup asks for the earlier one
         assert dialog.legacy_box.visible and not v.status()['open']
         dialog.legacy.set_value('fixture-password');dialog.password_dialog.submit(True)
-        for _ in range(500):
-            if dialog.save_dialog.value or task.done():break
-            await asyncio.sleep(.01)
-        dialog.save_dialog.submit(False)
         await asyncio.wait_for(task,10)
         assert gate.status()['enabled'] and v.status()['open'] and t.calls==[]
         assert v._snapshot()[1]['shaft_uids']==[99999]  # the fixed UID file is the authority (original)
