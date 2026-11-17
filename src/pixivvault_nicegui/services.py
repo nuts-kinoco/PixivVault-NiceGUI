@@ -1555,17 +1555,25 @@ class ApplicationServices:
 
         def quiet():
             return not any(job.state in UNFINISHED for job in self.jobs.snapshot())
-        if not quiet():
-            return None
         exports = self.save_exports
+        if not quiet():
+            self._retire_baseline = None
+            return None
         if exports is not None:
-            first = exports.scans_completed
+            # Two scanner passes must complete after the world went quiet and the exporter
+            # accepted nothing new. A pass can take seconds on a big library, so the baseline
+            # is kept across calls instead of restarting the count on every ask.
+            marker = getattr(getattr(exports, 'jobs', None), 'operation_count', 0)
+            baseline = getattr(self, '_retire_baseline', None)
+            if baseline is None or baseline[1] != marker:
+                baseline = self._retire_baseline = (exports.scans_completed, marker)
             deadline = time.monotonic() + settle_timeout
-            while exports.scans_completed < first + 2:
+            while exports.scans_completed < baseline[0] + 2:
                 if self.closing or time.monotonic() > deadline:
                     return None
                 time.sleep(0.05)
-            if not quiet():
+            if not quiet() or getattr(getattr(exports, 'jobs', None), 'operation_count', 0) != baseline[1]:
+                self._retire_baseline = None
                 return None  # the scan queued ZIP / projection work: let it finish first
         with self._media_admission_lock:
             if not quiet():
@@ -1588,6 +1596,7 @@ class ApplicationServices:
                 self.author_media.forget_admissions(freed)
             for job_id in retired:
                 self._managed_job_records.pop(job_id, None)
+            self._retire_baseline = None
             return len(retired)
 
     def enqueue_novel_export(self, intent, operation_id):

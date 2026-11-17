@@ -420,3 +420,113 @@ async def test_real_services_retire_keeps_the_saved_work_and_restarts_cleanly(tm
         assert [w.work_id for w in reopened.library_snapshot().works] == ['202']
     finally:
         await asyncio.to_thread(reopened.close)
+
+
+def retire_when_quiet(services, ref, timeout=30):
+    """What the engine does at its boundaries: ask again until the exporter has nothing in flight."""
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        result = services.retire_settled_author_jobs((ref,))
+        if result is not None:
+            return result
+        time.sleep(0.1)
+    return None
+
+
+@pytest.mark.asyncio
+async def test_real_services_and_real_exporter_zip_then_retire_then_restart(tmp_path):
+    import asyncio
+    from test_managed_download_services import FakeSource, terminal
+    root, exports, prefs = tmp_path / 'managed', tmp_path / 'exports', tmp_path / 'prefs'
+
+    def build():
+        services = ApplicationServices(live_client=FakeSource(), pixiv_download_root=root, preferences_root=prefs)
+        services.configure_save_exports(exports, '12')
+        return services
+    services = build()
+    try:
+        services.preferences.set_setting('zip_all_after_download', '1')
+        services.save_exports.start()
+        await services.refresh_bookmark_cache()
+        job = await asyncio.to_thread(services.enqueue_managed_download, services.download_candidates()[0], 'first')
+        await asyncio.to_thread(terminal, services.static_jobs, job.job_id)
+        # The exporter notices the finished download and publishes the author's ZIP.
+        assert await asyncio.to_thread(
+            wait_for, lambda: any(j.kind == 'auto-zip' and j.state == 'done'
+                                  for j in services.save_exports.jobs.snapshot()), 30)
+        ref = JobRef('illustration', job.job_id, 'first')
+        assert await asyncio.to_thread(retire_when_quiet, services, ref) == 1
+        assert services.static_jobs.operation_count == 0
+        zips = [j for j in services.save_exports.jobs.snapshot() if j.kind == 'auto-zip']
+        assert zips and all(j.state == 'done' for j in zips)       # the exporter's own ledger is untouched
+    finally:
+        await asyncio.to_thread(services.close)
+    reopened = build()
+    try:
+        assert reopened.static_jobs.snapshot() == ()
+        assert [w.work_id for w in reopened.library_snapshot().works] == ['202']
+    finally:
+        await asyncio.to_thread(reopened.close)
+
+
+# ---- review fixes: hard store cap, hold-back retry, admission pauses, settle cadence ----
+
+def test_author_that_cannot_fit_the_managed_store_is_refused_before_any_work_is_queued(ledger):
+    port = CappedPort()
+    port.inventory = {'41': works('41', 5)}
+    port.saved_headroom = lambda: 4
+    run_id = run_engine(port, ledger, ('41',))
+    assert ledger.run(run_id).state == 'failed' and ledger.run(run_id).error_code == 'saved_works_limit'
+    assert port.n == 0 and ledger.authors(run_id)[0].state == 'failed'   # nothing queued, never `done`
+
+
+def test_updates_do_not_count_against_the_store_cap_and_unknown_headroom_is_allowed(ledger):
+    updates = tuple(AuthorMediaCandidate('illustration', str(2000 + i), '41', 'd', 1, 't', Difference.UPDATED,
+                                         prior_token='tok') for i in range(5))
+    for headroom in (0, None):
+        port = CappedPort()
+        port.inventory = {'41': updates}
+        port.saved_headroom = lambda headroom=headroom: headroom
+        run_id = run_engine(port, ledger, ('41',))
+        assert ledger.run(run_id).state == 'done' and port.n == 5
+
+
+def test_services_port_saved_headroom_reads_the_generation_count():
+    from pixivvault_nicegui.managed_generations import _MAX_ENTRIES
+    def port(entries):
+        return ServicesPort(NS(managed_downloads=NS(_generations=NS(entries=entries))))
+    assert port(lambda: {str(i): {} for i in range(30)}).saved_headroom() == _MAX_ENTRIES - 30
+    assert port(lambda: (_ for _ in ()).throw(ValueError('generation limit exceeded'))).saved_headroom() == 0
+    assert port(lambda: (_ for _ in ()).throw(OSError('x'))).saved_headroom() is None
+    assert ServicesPort(NS()).saved_headroom() is None
+
+
+def test_hold_back_that_gave_up_tries_again_after_the_next_batch(ledger):
+    port = CappedPort(quiet_after=10 ** 9)
+    port.inventory = {'41': works('41', 90)}
+    run_id = run_engine(port, ledger, ('41',), retire_every=20, retire_wait_seconds=0.01)
+    assert ledger.run(run_id).state == 'done' and ledger.authors(run_id)[0].n_new == 90
+    assert port.retire_calls >= 5   # about every 20 works, not once
+
+
+@pytest.mark.parametrize('code', ['admission_blocked', 'admission_unavailable'])
+def test_jobs_paused_by_admission_pause_the_run_instead_of_hanging(ledger, code):
+    port = CappedPort()
+    port.inventory = {'41': works('41', 2)}
+    port.job_states = lambda refs: {r.job_id: ('paused', code) for r in refs}
+    engine = BatchRunEngine(port, ledger, poll_seconds=0.001, wait=lambda s: None)
+    run_id = engine.start(('41',))
+    assert wait_for(lambda: ledger.run(run_id).state == 'paused')
+    assert ledger.run(run_id).error_code == ('network_stopped' if code == 'admission_blocked'
+                                             else 'network_gate_unavailable')
+    engine.stop()
+    assert engine.join(5)
+
+
+def test_proof_binding_runs_every_16_finished_jobs_and_at_the_author_end(ledger):
+    port = CappedPort()
+    port.inventory = {'41': works('41', 100)}
+    settles = []
+    port.settle = lambda aid: settles.append(aid)
+    run_engine(port, ledger, ('41',))
+    assert 6 <= len(settles) <= 9

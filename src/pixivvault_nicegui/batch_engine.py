@@ -26,6 +26,9 @@ BETWEEN_AUTHORS = (4.0, 6.0)          # original core.py:2269 random.uniform(4.0
 MAX_IN_FLIGHT = 16                    # unfinished jobs the engine itself keeps queued
 RETIRE_EVERY = 500                    # finished jobs after which the capped ledgers are freed
 RETIRE_WAIT_SECONDS = 60.0            # how long to hold back new work for that, at most
+SETTLE_EVERY = 16                     # finished jobs between proof-binding passes (job window is 50)
+_ADMISSION_PAUSES = {'admission_blocked': 'network_stopped',
+                     'admission_unavailable': 'network_gate_unavailable'}
 POLL_SECONDS = 0.25
 _TERMINAL_JOBS = ('done', 'error', 'stopped')
 
@@ -138,6 +141,21 @@ class ServicesPort:
         scan = bridge.observe_author(author_id, remote, scan_id=scan_id)
         return scan.remote_missing_pending, scan.remote_missing_confirmed
 
+    def saved_headroom(self):
+        """How many more works the managed store can hold (hard cap 10,000), None if unknown.
+
+        Past the cap every later save fails inside its job with only a generic code, so the
+        engine must refuse before queueing rather than discover it one work at a time.
+        """
+        generations = getattr(getattr(self.s, 'managed_downloads', None), '_generations', None)
+        if generations is None:
+            return None
+        from .managed_generations import _MAX_ENTRIES
+        try:
+            return max(0, _MAX_ENTRIES - len(generations.entries()))
+        except Exception as error:
+            return 0 if 'limit exceeded' in str(error) else None
+
     def settle(self, author_id):
         """Bind finished jobs to their proofs before the bounded job window forgets them."""
         media = getattr(self.s, 'author_media', None)
@@ -166,6 +184,7 @@ class BatchRunEngine:
         self.retire_every, self.retire_wait_seconds = retire_every, retire_wait_seconds
         self._settled = []
         self._retire_disabled = False
+        self._next_drain_at = retire_every
         self._monotonic = monotonic
         self._cond = Condition(RLock())
         self._stop = False
@@ -270,12 +289,16 @@ class BatchRunEngine:
         with self._cond:
             if self.active:
                 raise RuntimeError('a batch run is already active')
+            # The ledger has one process owner, so a run still marked active while this engine
+            # is idle is left over from a crash or shutdown: close it as `interrupted` first.
+            self.ledger.recover_interrupted()
             self._authors = tuple(dict.fromkeys(author_ids))
             self.run_id = self.ledger.begin_run(kind, origin, target_type or 'both' if kind == 'authors' else '',
                                                 self._authors, account_id=self.account_id)
             self._stop = self._paused = False
             self.state, self.pause_reason = 'running', ''
             self._settled, self._retire_disabled = [], False
+            self._next_drain_at = self.retire_every
             self.totals = {name: 0 for name in COUNTERS}
             self.kind, self.target_type = kind, target_type
             self._started = self._monotonic()
@@ -388,6 +411,7 @@ class BatchRunEngine:
         for candidate in rows:
             counters[names[candidate.difference]] += 1
         self._observe_deletion(run_id, author_id, target, rows, counters)
+        self._check_saved_capacity(rows)
         self.ledger.update_author(run_id, author_id, state='downloading', counters=counters)
         self._emit('author_listed', index=index, total=total, author_id=author_id, counters=dict(counters))
         queue = sorted((c for c in rows if c.eligible), key=lambda c: (-int(c.work_id), c.kind))
@@ -399,6 +423,16 @@ class BatchRunEngine:
         for name in COUNTERS:
             self.totals[name] += counters[name]
         self._emit('author_done', index=index, total=total, author_id=author_id, counters=dict(counters))
+
+    def _check_saved_capacity(self, rows):
+        """Refuse an author whose new works cannot fit the managed store (no partial, stamped run)."""
+        headroom = getattr(self.port, 'saved_headroom', None)
+        if headroom is None:
+            return
+        room = headroom()
+        new = sum(1 for c in rows if c.eligible and c.kind == 'illustration' and c.prior_token is None)
+        if room is not None and new > room:
+            raise RunFailed('saved_works_limit')
 
     def _observe_deletion(self, run_id, author_id, target, rows, counters):
         """Original phase B. Skipped (never guessed) unless a full illustration list was read."""
@@ -437,6 +471,7 @@ class BatchRunEngine:
         if result is None:
             return False
         self._settled = []
+        self._next_drain_at = self.retire_every
         return True
 
     def _download(self, run_id, index, total, author_id, queue):
@@ -445,21 +480,23 @@ class BatchRunEngine:
         The job ledger caps at 10,000 operations (job_service.MAX_OPERATION_IDS), so after
         `retire_every` finished jobs new work is held back until the port can free them.
         """
-        inflight, failed, done_count = {}, 0, 0
+        inflight, failed, done_count, unsettled = {}, 0, 0, 0
         pending = list(queue)
         drain_since = None
         try:
             while pending or inflight:
                 self._check_state()
                 progressed = False
-                draining = len(self._settled) >= self.retire_every and not self._retire_disabled
+                draining = len(self._settled) >= self._next_drain_at and not self._retire_disabled
                 if draining and drain_since is None:
                     drain_since = self._monotonic()
-                if draining and not inflight:
-                    if self._retire():
-                        drain_since = None
-                        draining = False
-                holding = (draining and self._monotonic() - drain_since <= self.retire_wait_seconds)
+                if draining and not inflight and self._retire():
+                    drain_since, draining = None, False
+                holding = draining and self._monotonic() - drain_since <= self.retire_wait_seconds
+                if draining and not holding:
+                    # Gave up waiting: carry on, and try again after the next `retire_every` works.
+                    drain_since, draining = None, False
+                    self._next_drain_at = len(self._settled) + self.retire_every
                 while pending and not holding and len(inflight) < self.max_in_flight:
                     self._gate()
                     candidate = pending[0]
@@ -491,14 +528,17 @@ class BatchRunEngine:
                     finished = []
                     for job_id, (ref, candidate) in tuple(inflight.items()):
                         state, error_code = states.get(job_id, ('lost', ''))
-                        if state == 'paused' and error_code == 'admission_blocked':
-                            raise GateClosed('network_stopped')
+                        if state == 'paused' and error_code in _ADMISSION_PAUSES:
+                            raise GateClosed(_ADMISSION_PAUSES[error_code])
                         if state in _TERMINAL_JOBS or state == 'lost':
                             finished.append((ref, candidate, state))
                             del inflight[job_id]
                     if finished:
                         progressed = True
-                        self.port.settle(author_id)
+                        unsettled += len(finished)
+                        if unsettled >= SETTLE_EVERY:
+                            self.port.settle(author_id)
+                            unsettled = 0
                         rows = []
                         for ref, candidate, state in finished:
                             done_count += 1
@@ -517,5 +557,7 @@ class BatchRunEngine:
             if inflight:
                 self.port.stop_jobs([ref for ref, _ in inflight.values()])
             raise
+        if unsettled:
+            self.port.settle(author_id)
         self._retire()  # best effort at the author boundary; carried over when not yet safe
         return failed
