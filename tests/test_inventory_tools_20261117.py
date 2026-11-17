@@ -231,16 +231,20 @@ def test_valid_target_rules():
     assert cic.valid_target("n/a:内部実装", ids)[0]
 
 
-def _setup_repo(tmp_path, monkeypatch, mapping, inv_items):
+def _setup_repo(tmp_path, monkeypatch, mapping, inv_items, ledger=None, addenda=None):
     docs = tmp_path / "docs"
     docs.mkdir(exist_ok=True)
     (docs / "inventory.json").write_text(json.dumps({"meta": {"total": len(inv_items)}, "items": inv_items}), encoding="utf-8")
     (docs / "ledger_map.json").write_text(json.dumps(mapping), encoding="utf-8")
     led = docs / "FEATURE_LEDGER_2026-11-17.md"
-    led.write_text("## A. t\n| FL-A01 | x | gui.py:1-5 | | 有 | |\n", encoding="utf-8")
+    led.write_text(ledger or "## A. t\n| FL-A01 | x | gui.py:1-5 | | 有 | |\n", encoding="utf-8")
+    add = docs / "none.md"
+    if addenda is not None:
+        add = docs / "ADDENDA.md"
+        add.write_text(addenda, encoding="utf-8")
     monkeypatch.setattr(cic, "HERE", tmp_path / "tools")
     monkeypatch.setattr(blm, "LEDGER", led)
-    monkeypatch.setattr(blm, "ADDENDA", docs / "none.md")
+    monkeypatch.setattr(blm, "ADDENDA", add)
 
 
 ITEMS = [{"id": "inv-a", "kind": "ui_text", "file": "gui.py", "line": 2, "name": "保存"},
@@ -279,14 +283,49 @@ def test_rule_scope_name_re_and_wide_rule_are_graded():
     rules = [{"file": "server.py", "lines": [1, 2000], "fl": "FL-N01", "kinds": ["api_public"], "scope": None},
              {"file": "server.py", "lines": [1, 2000], "fl": "FL-X02", "kinds": ["api_public"], "scope": None,
               "name_re": "_check_web_token"}]
-    assert cic.resolve(base, _mp(rules=rules)) == ("FL-X02", "rule")           # 名前で決まる規則は範囲が広くても優先・確かな扱い
+    # 名前で決まる規則は、どの規則が採られるかでは優先する。ただし根拠の強さは幅で決めるので、広ければ tier C
+    assert cic.resolve(base, _mp(rules=rules)) == ("FL-X02", "rule-wide")
     assert cic.resolve(base, _mp(rules=rules[:1])) == ("FL-N01", "rule-wide")  # 名前の無い広い手規則は弱い扱い
     narrow = [{"file": "server.py", "lines": [690, 710], "fl": "FL-N02", "kinds": None, "scope": None}]
     assert cic.resolve(base, _mp(rules=narrow)) == ("FL-N02", "rule")
-    whole = [{"file": "server.py", "lines": [1, 2000], "fl": "FL-N01", "kinds": None, "scope": "file"}]
-    assert cic.resolve(base, _mp(rules=whole)) == ("FL-N01", "rule-file")
+    named_narrow = [{"file": "server.py", "lines": [600, 700], "fl": "FL-X03", "kinds": None, "scope": None, "name_re": "_check_web"}]
+    assert cic.resolve(base, _mp(rules=named_narrow)) == ("FL-X03", "rule")    # 名前指定でも幅が狭ければ tier A
     na = [{"file": "server.py", "lines": [1, 2000], "fl": "n/a:内部", "kinds": None, "scope": None}]
-    assert cic.resolve(base, _mp(rules=na)) == ("n/a:内部", "rule")           # n/a は広くても弱い扱いにしない
+    assert cic.resolve(base, _mp(rules=na)) == ("n/a:内部", "rule-wide")      # n/a も幅で判定する(広ければ tier C)
+    na_narrow = [{"file": "server.py", "lines": [690, 710], "fl": "n/a:内部", "kinds": None, "scope": None}]
+    assert cic.resolve(base, _mp(rules=na_narrow)) == ("n/a:内部", "rule")
+
+
+def test_scope_label_is_capped_by_unit_max():
+    base = {"id": "i", "kind": "api_public", "file": "server.py", "line": 700, "name": "Handler.x"}
+    unit = [{"file": "server.py", "lines": [600, 600 + cic.UNIT_MAX - 1], "fl": "FL-N01", "kinds": None, "scope": "function"}]
+    assert cic.resolve(base, _mp(rules=unit)) == ("FL-N01", "rule-function")   # 関数 1 つ分の大きさなら tier B
+    file_unit = [{"file": "server.py", "lines": [1, cic.UNIT_MAX], "fl": "FL-N01", "kinds": None, "scope": "file"}]
+    base2 = dict(base, line=10)
+    assert cic.resolve(base2, _mp(rules=file_unit)) == ("FL-N01", "rule-file")
+    huge = [{"file": "server.py", "lines": [1, 6000], "fl": "FL-N01", "kinds": None, "scope": "function"}]
+    assert cic.resolve(base, _mp(rules=huge)) == ("FL-N01", "rule-wide")        # 巨大な関数・ファイルは scope ラベルだけでは tier B にしない
+    huge_file = [{"file": "server.py", "lines": [1, 3000], "fl": "FL-N01", "kinds": None, "scope": "file"}]
+    assert cic.resolve(base, _mp(rules=huge_file)) == ("FL-N01", "rule-wide")
+    assert "rule-wide" in cic.WEAK_SRC
+
+
+def test_dynamic_dispatch_methods_are_not_auto_unused():
+    mk = lambda name: {"id": "i", "kind": "api_public", "file": "server.py", "line": 1, "name": name, "ref_count": 0}
+    for dyn in ("Handler.do_OPTIONS", "Handler.do_DELETE", "Handler.log_message", "Worker.run"):
+        assert cic.resolve(mk(dyn), _mp()) == (None, "unmapped"), dyn          # 呼び出し元なしにせず、個別に対応づける
+    assert cic.resolve(mk("Handler.helper"), _mp())[1] == "unused"
+    # 動的ディスパッチでも rules に範囲があれば、そちらで対応づく
+    rule = [{"file": "server.py", "lines": [1, 40], "fl": "FL-N04", "kinds": None, "scope": None}]
+    assert cic.resolve(mk("Handler.do_OPTIONS"), _mp(rules=rule)) == ("FL-N04", "rule")
+
+
+def test_auto_also_targets_are_all_kept():
+    it = {"id": "inv-1", "kind": "api_public", "file": "gui.py", "line": 10, "name": "f"}
+    au = {"inv-1": {"fl": "FL-A", "also": ["FL-B", "FL-A"], "method": "name"}}
+    assert cic.resolve(it, _mp(auto=au)) == ("FL-A, FL-B", "auto-name")
+    assert cic.split_targets("FL-A, FL-B") == ["FL-A", "FL-B"] and cic.split_targets("n/a:理由") == []
+    assert cic.valid_target("FL-A, FL-B", {"FL-A", "FL-B"})[0]
 
 
 def test_log_residual_is_limited_to_real_loggers(tmp_path):
@@ -305,3 +344,136 @@ def test_log_residual_is_limited_to_real_loggers(tmp_path):
     names = {i["name"] for i in data["items"]}
     assert "ダイアログの本文です" in names and "カタログの文言です" in names     # 'log' を含む名前でも落とさない
     assert data["meta"]["residual_cjk_literals_not_captured"]["m.py"].get("log") == 1
+
+
+ADDENDA_TEXT = textwrap.dedent('''
+    # 追記
+    ## 追記行
+    | ID | 元の機能 | 元の場所 | 移植版の場所 | 状態 | 根拠 |
+    |---|---|---|---|---|---|
+    | FL-Y01 | 追記の機能 | gui.py:20-40 | 無 | 無 | 根拠に `on_save` などの識別子を書いても名前の対応には使わない |
+    | FL-Z01 | もう一つ | core.py:1-3 `verify_work` | x.py:1 | 有 | |
+    ## 付録A
+    | 台帳 FL | 台帳の状態 | 未検出の文言 件数 | 例(元の場所) |
+    |---|---|---|---|
+    | FL-Z01 | 有 | 2 | 「例」core.py:1 |
+''')
+
+
+def test_parse_addenda_accepts_fl_y_and_ignores_appendix_table(tmp_path):
+    p = tmp_path / "add.md"
+    p.write_text(ADDENDA_TEXT, encoding="utf-8")
+    rows = blm.parse_addenda(p)
+    assert set(rows) == {"FL-Y01", "FL-Z01"}
+    assert rows["FL-Z01"]["orig"] == "もう一つ" and rows["FL-Z01"]["state"] == "有"   # 付録の表で本文の行を上書きしない
+    assert ("gui.py", 20, 40) in rows["FL-Y01"]["refs"]
+    assert set(blm.parse_addenda_ids(p)) == {"FL-Y01", "FL-Z01"}
+    assert blm.parse_addenda_ids(tmp_path / "none.md") == {}
+
+
+def test_build_ledger_map_main_uses_addenda(src, tmp_path):
+    led = tmp_path / "ledger.md"
+    led.write_text("## A. t\n| FL-A01 | 狭い | gui.py:1-12 | | 有 | |\n", encoding="utf-8")
+    add = tmp_path / "add.md"
+    add.write_text(ADDENDA_TEXT, encoding="utf-8")
+    inv = tmp_path / "inventory.json"
+    inv.write_text(json.dumps(bi.build(src)), encoding="utf-8")
+    mp = tmp_path / "map.json"
+    assert blm.main(["--ledger", str(led), "--addenda", str(add), "--inventory", str(inv), "--map", str(mp),
+                     "--port", str(tmp_path / "noport")]) == 0
+    data = json.loads(mp.read_text(encoding="utf-8"))
+    assert data["meta"]["addenda_rows"] == 2 and data["meta"]["ledger_rows_A_to_P"] == 1
+    items = {i["id"]: i for i in json.loads(inv.read_text(encoding="utf-8"))["items"]}
+    hits = {items[k]["line"]: v["fl"] for k, v in data["auto"].items() if items[k]["file"] == "gui.py" and v["method"] == "range"}
+    assert any(fl == "FL-Y01" for fl in hits.values())                    # 追記の引用範囲が対応づけに参加する
+    assert any(fl == "FL-Z01" and items[k]["file"] == "core.py" for k, v in data["auto"].items() for fl in [v["fl"]])
+    # 追記の根拠欄の識別子(on_save。元の関数名と一致する)は、名前の対応(tier A)に使わない
+    assert any(i["name"].endswith("on_save") for i in items.values() if i["kind"] == "api_public")   # 元に on_save がある前提
+    assert not any(v["fl"] == "FL-Y01" and v["method"] == "name" for v in data["auto"].values())
+
+
+def test_closure_functions_are_listed_as_api_public(src):
+    names = {i["name"]: i for i in _by(bi.build(src)["items"], "api_public") if i["file"] == "gui.py"}
+    assert {"build", "build.on_save", "build.on_key"} <= set(names)
+    assert names["build.on_save"]["sub"] == "closure" and names["build"]["sub"] == "function"
+    db = {i["name"] for i in _by(bi.build(src)["items"], "db_method")}
+    assert "Database.get_work" in db and not any("." in n and n.split(".")[0] == "get_work" for n in db)
+
+
+WRAPPER_SRC = textwrap.dedent('''
+    import filter_panel
+    _OPEN_KEY = "ranking_open_flag"
+    _FILTERS_SETTING_KEY = "ranking_filters"
+
+    def build(db):
+        opened = filter_panel.load_json_setting(db, _OPEN_KEY, True)
+        filter_panel.save_json_setting(db, _OPEN_KEY, not opened)
+        filter_panel.load_json_setting(db, "literal_key")
+        filter_panel.load_json_setting(db)
+        return filter_panel.load_json_setting(db, _FILTERS_SETTING_KEY)
+''')
+
+
+def test_setting_keys_through_json_setting_wrappers(tmp_path):
+    d = tmp_path / "w"
+    d.mkdir()
+    (d / "m.py").write_text(WRAPPER_SRC, encoding="utf-8")
+    keys = {i["name"]: i for i in _by(bi.build(d)["items"], "setting_key")}
+    assert {"ranking_open_flag", "literal_key", "ranking_filters"} <= set(keys)
+    assert keys["ranking_open_flag"]["use_count"] == 2
+    ops = {u.split(":")[2] for u in keys["ranking_open_flag"]["uses"]}
+    assert ops == {"get", "set"}                                           # load=get / save=set
+
+
+GAP_LEDGER = textwrap.dedent('''
+    ## A. t
+    | FL-A01 | 弱い行 | gui.py:1-5 | | 弱 | |
+    | FL-A02 | 引用が空 | gui.py:900-905 | | 有 | |
+    | FL-B02 | 有の行 | core.py:1-5 | | 有 | |
+''')
+
+
+def test_unresolved_gaps_and_strict_gaps(tmp_path, monkeypatch, capsys):
+    items = ITEMS + [{"id": "inv-c", "kind": "ui_text", "file": "core.py", "line": 2, "name": "有の行の文言"}]
+    mapping = _mp(auto={"inv-a": {"fl": "FL-A01", "method": "range"}, "inv-b": {"fl": "FL-B02", "method": "range"},
+                        "inv-c": {"fl": "FL-B02", "method": "range"}},
+                  port_text_missing=["inv-c"])
+    _setup_repo(tmp_path, monkeypatch, mapping, items, ledger=GAP_LEDGER)
+    assert cic.main([]) == 0
+    out = capsys.readouterr().out
+    assert "未解決の差: 2 件" in out and "対応先が無・弱の項目 1 件" in out and "有でも元の UI 文言が移植版に無い項目 1 件" in out
+    assert "弱 1 行" in out and "port_text_missing: 1 件" in out
+    assert cic.main(["--strict-gaps"]) == 1                                # 差が残っているので非 0
+    out = capsys.readouterr().out
+    assert "警告: 引用範囲に inventory 項目が 0 件" in out and "FL-A02" in out
+    # 差が無ければ --strict-gaps でも 0
+    clean = _mp(auto={"inv-a": {"fl": "FL-B02", "method": "range"}, "inv-b": {"fl": "FL-B02", "method": "range"}})
+    _setup_repo(tmp_path, monkeypatch, clean, ITEMS, ledger=GAP_LEDGER)
+    assert cic.main(["--strict-gaps"]) == 0
+
+
+def test_strict_reverse_turns_empty_rows_into_errors(tmp_path, monkeypatch, capsys):
+    mapping = _mp(auto={"inv-a": {"fl": "FL-A01", "method": "range"}, "inv-b": {"fl": "FL-B02", "method": "range"}})
+    _setup_repo(tmp_path, monkeypatch, mapping, ITEMS, ledger=GAP_LEDGER)
+    assert cic.main([]) == 0                       # 既定では警告だけ
+    assert "FL-A02" in capsys.readouterr().out
+    assert cic.main(["--strict-reverse"]) == 2     # 厳格ならエラー
+    assert "逆方向: FL-A02" in capsys.readouterr().out
+
+
+def test_multiple_fl_targets_are_counted_for_every_fl(tmp_path, monkeypatch, capsys):
+    mapping = _mp(manual={"inv-a": "FL-A01, FL-B02"}, auto={"inv-b": {"fl": "FL-A01", "also": ["FL-B02"], "method": "name"}})
+    _setup_repo(tmp_path, monkeypatch, mapping, ITEMS, ledger=GAP_LEDGER)
+    assert cic.main([]) == 0
+    out = capsys.readouterr().out
+    assert "対応先に使われた FL の数: 2" in out                              # 先頭の FL だけに切り詰めない
+    assert "無・弱の台帳行: 1 行" in out                                      # 後続の FL-A01(弱)も差として数える
+    assert "未解決の差: 2 件" in out
+
+
+def test_addenda_ids_are_valid_targets_and_weak_rows_use_addenda_state(tmp_path, monkeypatch, capsys):
+    mapping = _mp(manual={"inv-a": "FL-Y01"}, auto={"inv-b": {"fl": "FL-Z01", "method": "range"}})
+    _setup_repo(tmp_path, monkeypatch, mapping, ITEMS, ledger=GAP_LEDGER, addenda=ADDENDA_TEXT)
+    assert cic.main([]) == 0
+    out = capsys.readouterr().out
+    assert "未解決の差: 1 件" in out and "無 1 行" in out                     # FL-Y01 は追記の状態が「無」

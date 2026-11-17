@@ -7,6 +7,8 @@ ledger_map.json の構成:
   manual   : {inv_id: "FL-xxx" | "n/a:理由"}      手で決めた個別の対応。再生成しても保持する
   port_text_missing : 移植版 src に文言が見つからない UI 文言の inv_id(挙動の同値ではなく文言の存在確認)
 解決の優先順位は tools/check_inventory_coverage.py の resolve() が正(manual > 明確な自動 > rules > 広い範囲の自動)。
+台帳は本体(FEATURE_LEDGER_2026-11-17.md)と追記(FEATURE_LEDGER_ADDENDA_2026-11-17.md の「追記行」。FL-Z・FL-Y など)の両方を読む。
+追記の行は、引用範囲・元の機能の文言・元の機能欄と元の場所の関数名で対応づけに参加する(根拠欄は移植版側の識別子を含むので関数名の対応には使わない)。
 使い方: python -B tools/build_ledger_map.py [--port S:\\Projects\\PV-DEV-20261117\\work]
 """
 from __future__ import annotations
@@ -82,6 +84,8 @@ def parse_ledger(path: Path):
             continue
         if len(cells) >= 5 and re.match(r"^FL-[A-Z]+\d+", cells[0]):
             fid = cells[0]
+            if fid in rows:
+                continue   # 同じ ID の 2 行目(付録の表など)で先の行を上書きしない
             rows[fid] = {
                 "id": fid, "section": section, "orig": cells[1], "origin": cells[2],
                 "port": cells[3] if len(cells) > 3 else "", "state": cells[4] if len(cells) > 4 else "",
@@ -104,15 +108,19 @@ def expand_ids(cell: str):
     return out
 
 
-def parse_addenda_ids(path: Path):
-    ids = {}
+def parse_addenda(path: Path):
+    """追記台帳の「追記行」(FL-Z・FL-Y ほか)を parse_ledger と同じ形で返す。付録Aの表(4 列)は行に数えない。"""
     if not path.exists():
-        return ids
-    for line in path.read_text(encoding="utf-8").splitlines():
-        m = re.match(r"^\|\s*(FL-Z\d+)\s*\|", line)
-        if m:
-            ids[m.group(1)] = line
-    return ids
+        return {}
+    rows, _ = parse_ledger(path)
+    for r in rows.values():
+        r["addenda"] = True
+    return rows
+
+
+def parse_addenda_ids(path: Path):
+    """追記台帳の FL-ID -> 行(parse_ledger と同じ辞書)。parse_addenda と同じ行だけを数える。"""
+    return parse_addenda(path)
 
 
 def backtick_names(text: str):
@@ -151,7 +159,9 @@ def build_auto(inv, rows, sec_t, port_blob):
     for fid, r in rows.items():
         for f, a, b in r["refs"]:
             refs_by_file.setdefault(f, []).append((a, b, fid))
-        for n in backtick_names(r["orig"] + " " + r["origin"] + " " + r["note"]):
+        # 追記の根拠欄は移植版側の識別子を含むので、関数名での対応づけには元の機能欄と元の場所だけを使う
+        name_src = r["orig"] + " " + r["origin"] + ("" if r.get("addenda") else " " + r["note"])
+        for n in backtick_names(name_src):
             name_index.setdefault(n, []).append(fid)
     text_rows = [(fid, r["orig"] + " " + r["origin"]) for fid, r in rows.items()]
     auto = {}
@@ -235,11 +245,16 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", default=DEFAULT_PORT)
     ap.add_argument("--ledger", default=str(LEDGER))
+    ap.add_argument("--addenda", default=str(ADDENDA))
     ap.add_argument("--inventory", default=str(INV))
     ap.add_argument("--map", default=str(MAP))
     a = ap.parse_args(argv)
     inv = json.loads(Path(a.inventory).read_text(encoding="utf-8"))
     rows, sec_t = parse_ledger(Path(a.ledger))
+    main_rows = len(rows)
+    add_rows = parse_addenda(Path(a.addenda))
+    for fid, r in add_rows.items():
+        rows.setdefault(fid, r)       # 本体と追記の ID は重ならない前提。重なったら本体を優先
     port = Path(a.port)
     blob = port_text_index(port) if (port / "src").exists() else ""
     auto, missing = build_auto(inv, rows, sec_t, blob)
@@ -250,7 +265,8 @@ def main(argv=None):
     out = dict(old)  # rules / manual / table_rules / column_rules / na_unused を保持
     out.update({
         "meta": {
-            "ledger_rows_A_to_P": len(rows),
+            "ledger_rows_A_to_P": main_rows,
+            "addenda_rows": len(add_rows),
             "port_commit": git_head(port),
             "port_note": "移植版の文言存在確認に使った work のコミット(読取のみ)",
             "inventory_total": inv["meta"]["total"],
@@ -266,7 +282,7 @@ def main(argv=None):
     by = {}
     for v in auto.values():
         by[v["method"]] = by.get(v["method"], 0) + 1
-    print("ledger rows:", len(rows), " auto:", len(auto), by, " port_text_missing:", len(missing))
+    print("ledger rows:", main_rows, " addenda rows:", len(add_rows), " auto:", len(auto), by, " port_text_missing:", len(missing))
     return 0
 
 

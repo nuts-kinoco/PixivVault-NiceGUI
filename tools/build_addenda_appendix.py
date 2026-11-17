@@ -24,23 +24,26 @@ def build_text():
     inv, mp, fl = c.load()
     miss = set(mp["port_text_missing"])
     groups = collections.defaultdict(list)
+    uniq = set()
     for it in inv["items"]:
         if it["id"] in miss and it["kind"] in KINDS:
             tgt, src = c.resolve(it, mp)
-            groups[(tgt or "?").split(",")[0]].append((it, src))
-    rows, _ = blm.parse_ledger(blm.LEDGER)
+            uniq.add(it["id"])
+            # 複数の FL に結ばれた項目は、先頭だけでなく全ての FL の行に数える
+            for fl in (c.split_targets(tgt) if tgt and not tgt.startswith("n/a") else [tgt or "?"]):
+                groups[fl[:60]].append((it, src))
+    rows, _ = c.load_rows()
     out = [BEGIN, "",
            "元の UI 文言(ui_text・menu_item・label_const・snack)のうち、移植版 `src/pixivvault_nicegui` 全体にその文言(f 文字列は最長の固定部分)が見つからないもの。",
            "言い回しが違うだけの可能性があるため、**同値の判定ではなく確認の手がかり**。件数は台帳の FL ごと。",
            "", "| 台帳 FL | 台帳の状態 | 未検出の文言 件数 | 例(元の場所) |", "|---|---|---|---|"]
-    total = 0
+    total = len(uniq)
     for k in sorted(groups):
         v = groups[k]
-        total += len(v)
         st = rows[k]["state"][:8] if k in rows else ("n/a" if k.startswith("n/a") else "")
         ex = "; ".join("「%s」%s:%d" % (i["name"][:22].replace("|", "/").replace("\n", " "), i["file"], i["line"]) for i, _ in v[:3])
         out.append("| %s | %s | %d | %s |" % (k[:60], st, len(v), ex))
-    out += ["", "合計 %d 件。" % total, "", END]
+    out += ["", "合計 %d 件(複数の FL に結ばれた項目は、各 FL の行に 1 件ずつ数えるため、表の件数の和は合計より多い)。" % total, "", END]
     return "\n".join(out), total
 
 

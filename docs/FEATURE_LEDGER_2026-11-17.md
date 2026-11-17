@@ -149,7 +149,7 @@
 
 | ID | 元の操作・機能 | 元の場所 | 移植版の場所 | 状態 | 根拠 / 備考 |
 |---|---|---|---|---|---|
-| FL-G01 | 作者フォルダ単位でサムネイルを並べる（バックアップ日時順）、クリックで保存先を開く、ホバー表示、カードサイズ（大中小）、更新 | gui.py:4444-4810 | ui/viewer_backup_view.py:9-20, 82（「旧ライブラリのバックアップ日時順・最大60作者」「保存先を開く」「更新」）、`card_size` 引数 | 有 | ホバー演出は未確認（元の関数本体は未読） |
+| FL-G01 | 作者フォルダ単位でサムネイルを並べる（バックアップ日時順）、クリックで保存先を開く、ホバー表示、カードサイズ（大中小）、更新 | gui.py:4444-4810 | ui/viewer_backup_view.py:9-20, 82（「旧ライブラリのバックアップ日時順・最大60作者」「保存先を開く」「更新」）、`card_size` 引数 | 弱 | ホバー演出は未確認（元の関数本体は未読）。**2026-11-17 に Argon 指摘を元と移植版で再読して検証（一部事実・規模 小）**。事実: 元は作者名バーを最初 opacity=0 にしてホバー時だけフェード表示する正方形タイル（gui.py:4648-4697）、移植版は作者名・題名・日付を常時 3 行で出す別カード（ui/viewer_backup_view.py:71-74）。誤り: 探索範囲は同等（元 gui.py:4545-4569 のフォルダ・☆ブックマーク配下・ZIP。移植版は local_media_adapter.py:180-186, 317-319 が ☆ブックマーク配下と ZIP を走査し、legacy_backup_history.py:73-125 が ZIP 内日時と最大 60 作者を踏襲）、カードサイズ通知は on_size_change で共有（viewer_backup_view.py:30）。10 件ずつの逐次描画は移植版に無い（未確認ではなく読んだ範囲で全件を一度に描く） |
 
 ## H. 重複整理（gui.py:5025-5860）
 
@@ -158,8 +158,8 @@
 | FL-H01 | スキャン（近似画像の距離付き重複グループ） | gui.py:5704-5760 | ui/duplicate_view.py:37、duplicate_inspection.py | 有 | 旧 X01 部分確認 |
 | FL-H02 | 表示チップ「決められないもの N／近似重複の候補 N」で切替 | gui.py:5439-5480 | 無（両セクションを縦に並べる: duplicate_view.py:64-72） | 弱 | 小 |
 | FL-H03 | 決められないもの（A）の解決: 候補作品を選び「…のものにする」で台帳確定、先頭 50 件のみ表示 | gui.py:5138-5195 | duplicate_view.py:64-70（「作品への対応付け確定は、この読取画面からは実行できません」） | 無 | 中。確定操作が移植版に無い（読取専用設計の意図。元の機能なので退行扱い） |
-| FL-H04 | 近似グループ行: サムネイル、画質の低い方に「低画質」バッジ、距離・枚数、チェックボックス、「ごみ箱へ移す」、先頭 50 件 | gui.py:5238-5360, 5395-5438 | duplicate_view.py:74-80, 45 | 有 | 「画質の低い方を一括で選ぶ」「選んだものをごみ箱へ移す」。組ごと 1 枚以上残す規則の文言あり（duplicate_view.py:72） |
-| FL-H05 | 移動確認ダイアログ（「この操作では消えません。あとから戻せます。各組には必ず 1 枚以上残ります」） | gui.py:5500-5540 | duplicate_view.py:80-93 | 有 | 隔離方式の説明が増えている（上位） |
+| FL-H04 | 近似グループ行: サムネイル、画質の低い方に「低画質」バッジ、距離・枚数、チェックボックス、「ごみ箱へ移す」、先頭 50 件 | gui.py:5238-5360, 5395-5438 | duplicate_view.py:74-80, 45 | 有 | 「画質の低い方を一括で選ぶ」「選んだものをごみ箱へ移す」。組ごと 1 枚以上残す規則の文言あり（duplicate_view.py:72）。**2026-11-17 に Argon 指摘を元と移植版で再読して検証（Argon 指摘は大半が誤り・有のまま）**。1 行 5 枚と +N 表示は移植版にある（ui/duplicate_view.py:555, 568「非表示の画像は選択しません」）。一括選択は可視範囲だけ（duplicate_inspection.py:192-194 low_quality_keys は MAX_VISIBLE_ITEMS、元 gui.py:5314-5317 も members[:MAX_THUMBS]）。先頭 50 件（duplicate_inspection.py:26 MAX_VISIBLE_GROUPS=50、元 gui.py:5427 MAX_ROWS） |
+| FL-H05 | 移動確認ダイアログ（「この操作では消えません。あとから戻せます。各組には必ず 1 枚以上残ります」） | gui.py:5500-5540 | duplicate_view.py:80-93 | 有 | 隔離方式の説明が増えている（上位）。**2026-11-17 に Argon 指摘を元と移植版で再読して検証（Argon 指摘は一部誤り・有のまま）**。旧フォルダ・ZIP は実移動＋元 ZIP 更新の経路がある（ui/duplicate_view.py:67-70 の注記、duplicate_inspection.py:510 が legacy.execute_physical を呼ぶ、legacy_quarantine.py:208-212、journal 付き legacy_physical_quarantine.py）。この経路の ZIP 内エントリ削除が元の core.remove_entry_from_zip と同じ結果になるかは未読（FL-Z02 で追う）。管理領域内の既定は隔離コピーで、物理移動は確認ダイアログのチェックで選ぶ（duplicate_view.py:94-97。設計差 D-00 で元より安全側） |
 | FL-H06 | ごみ箱サマリ（件数・容量）とごみ箱ダイアログ、**空にする（件数入力で解錠）** | gui.py:5604-5702 | duplicate_view.py:97-113（件数・隔離コピー容量・保存先を開く・再読込のみ） | 無 | 中。work に「空にする」無し（`empty_trash`/「空にす」grep 0 件）。**wt-f `c9c77c7` が未取り込み**（P1 計画。HEAD 5ca397a 時点でも未取込） |
 | FL-H07 | 重複整理の検索、サムネイルサイズ、ごみ箱の保存先を開く | gui.py:5025-5060, 5761-5800, 5083 | duplicate_view.py:38, 46, 113 | 有 | 旧 X09 は fix 済み |
 
@@ -179,15 +179,15 @@
 | FL-I08 | 画像クリックで画集ビューアを開く／pixiv ページを直接開く | discovery_tab.py:2062, 2446-2456 | learning_view.py:165 `_open_learning_picture`、1643 `view_history.open_work(record=True)` | 有 | 閲覧履歴に記録（`record_discovery_open`）。FOLLOWUP 時点の「接続なし」は解消 |
 | FL-I09 | カード下の「ブックマーク」（pixiv へ書込・♥） | discovery_tab.py:2132-2216, 2536-2584 | 無（learning_view.py に bookmark ボタンなし。ビューアを開けば `ブクマ` ボタンあり: artwork_viewer.py:42, pixiv_action_buttons.py:108） | 弱 | 判定画面から直接ブクマ不可、ビューア経由のみ。小〜中（`pixiv_actions` 接続時のみ） |
 | FL-I10 | 「作品を保存」（保存対象へ追加） | 元は「ダウンロードキューへ積む」系 | learning_view.py:187（`managed_button`） | 条件付きで有 | 管理保存構成のみ |
-| FL-I11 | 好みの傾向パネル（判定 20 枚から。「いまはあなたの保存から出しています」「まだ傾向が出ていません」） | discovery_tab.py:2930-3120, 4229-4242 | learning_view.py:191-193, 1317-1336（「傾向表示は20件から」） | 有 | 判定すると自動で閉じる（tooltip 同文言: 193） |
+| FL-I11 | 好みの傾向パネル（判定 20 枚から。「いまはあなたの保存から出しています」「まだ傾向が出ていません」） | discovery_tab.py:2930-3120, 4229-4242 | learning_view.py:191-193, 1317-1336（「傾向表示は20件から」） | 弱 | 判定すると自動で閉じる（tooltip 同文言: 193）。**2026-11-17 に Argon 指摘を元と移植版で再読して検証（一部事実・規模 小）**。事実: 元はビューポート高さと配置 rail/band/fold で表示件数を増減（discovery_tab.py:2930-3158, 2995-2997）、移植版は全行を 1 列固定で描く（ui/learning_view.py:1342-1356）。誤り: バーの長さは元も合成スコア相対（row["score"]/score_max、discovery_tab.py:2768-2817）で、「最大いいね数比」ではない。行の文言（いいね N・表示 N、MAX バッジ）は同じ |
 | FL-I12 | 探索の設定（「知らないジャンルを見る割合」「知らない絵柄を見る割合」スライダー、ドロワー） | discovery_tab.py:3176-3330 | learning_view.py:184, 220-229（`発掘設定` ダイアログ: 数値入力＋保存）、discovery_settings.py | 弱 | 即時スライダー→ダイアログ＋保存ボタンへ UI 変更。FOLLOWUP D07 で「入力粒度・保存表記の違い」と記録済み。検索対象（すべて/全年齢/R-18）の選択は移植版で追加 |
 | FL-I13 | 作品の概要（説明文）板、ページ送り、取得失敗で再取得 | discovery_tab.py:3593-4119 | learning_view.py:122-160, 386-408 | 有 | 状態 5 種（ready/none/unavailable/failed/retrying） |
 | FL-I14 | 候補の先読み・補充・在庫切れ表示「表示できる候補がありません」「もう一度探す」、取得失敗表示 | discovery_tab.py:977-1232, 4349-4488 | learning_view.py:185（`候補を取得`）、1360-1435（自動補充の状態文）、discovery_refill.py | 有 | 学習タブへ来た時に在庫切れなら再取得する（gui.py:5972）相当は `set_active`（要確認） |
 | FL-I15 | 画像タグ補完の案内「ローカルモデルの導入（任意）→設定を開く」（空状態） | discovery_tab.py:4366-4367 | 無 | 無 | 小。空状態の案内のみ（「ローカルモデル／タグ補完」を移植版 .py で grep 0 件） |
-| FL-I16 | 振り返り（好意側/否定側の 2 列、今日/前/次、タイトル・タグ検索、未保存だけ/SuperLikeだけ/合わないだけ、取り消す/元に戻す、保存済み、めくる） | discovery_tab.py:5258-5600 | learning_view.py:197-215, 1081-1240 | 有 | 期間フィルターは拡張（全期間/今日/7日/30日/セッション）。D13/D14 は FOLLOWUP で決着 |
+| FL-I16 | 振り返り（好意側/否定側の 2 列、今日/前/次、タイトル・タグ検索、未保存だけ/SuperLikeだけ/合わないだけ、取り消す/元に戻す、保存済み、めくる） | discovery_tab.py:5258-5600 | learning_view.py:197-215, 1081-1240 | 弱 | 期間フィルターは拡張（全期間/今日/7日/30日/セッション）。D13/D14 は FOLLOWUP で決着。**2026-11-17 に Argon 指摘を元と移植版で再読して検証（一部事実・規模 小）**。事実: 元の取消は差し戻し結果 requeued/current/absent を 3 通りの文言で出す（discovery_tab.py:5283-5321）。移植版は一律「判定を取り消しました。学習候補を読み直しました。」（ui/learning_view.py:1219）。誤り: 在庫切れ画面からの復帰は、移植版も取消のたびに候補キューを作り直す（learning_view.py:872-903 reload_storage(review_queue=...)）ので自動で戻る。未保存作品の題名・サムネイル遅延取得は FL-Y11 |
 | FL-I17 | 閲覧履歴の判定バッジ（SuperLike/いいね/見送り/合わない） | gui.py:2598-2612、FOLLOWUP「RC#57」 | ui/view_history_view.py:8（`LABELS`）、legacy/database.py（JOIN） | 有 | FOLLOWUP の「未移植」は古い。`view_history_view.py` で表示を確認（バッジの描画位置は未確認） |
 | FL-I18 | 学習状況のリセット | gui.py:2183-2313 | ui/learning_reset.py | 有 | FL-C23 |
-| FL-I19 | 作者連続見送り等の学習ロジック（`discovery_ranking.py` 839 行、`discovery_engine.py` 680 行） | discovery_*.py | discovery_ranking.py:1-839、discovery_engine.py、discovery_population.py、discovery_learning.py | 有 | 構造対応（AST/係数の一致は未走査。FOLLOWUP は D02 の関数本体一致を確認済み） |
+| FL-I19 | 作者連続見送り等の学習ロジック（`discovery_ranking.py` 839 行、`discovery_engine.py` 680 行） | discovery_*.py | discovery_ranking.py:1-839、discovery_engine.py、discovery_population.py、discovery_learning.py | 有 | 構造対応（AST/係数の一致は未走査。FOLLOWUP は D02 の関数本体一致を確認済み）。**2026-11-17 に Argon 指摘を元と移植版で再読して検証（Argon 指摘は一部誤り・有のまま）**。関数本体の AST 照合（コメント・docstring・logger 呼び出しを除く。tmp_r の astcmp.py）: discovery_ranking.py は 30 関数中 29 が一致で、差は import 先だけ。定数 27 個すべて一致。discovery_population.py は 6 関数すべて一致。discovery_engine.py は 14 関数中 10 が一致で、差は _get_db・_get_client（明示注入）と _source_tag_search の import、_is_not_found。_is_not_found は元の「例外文字列に 404 を含む」判定を移植版が落としている（status_code のみ）。呼び出し側（rank_candidates・get_next_batch の引数）は元 discovery_tab.py:1331-1340, 4686-4691 と移植版 discovery_learning.py:227-231, 252, 269-272 が同じ（n=30・4 つの取得元・除外集合・recent_author_ids）。補充の周期・失敗時の挙動（元 discovery_tab.py の fetch ループと learning_view.py の refill）は未比較。discovery_description.py は HTML パーサへ書き直されている（FL-Y09） |
 
 ## J. ランキング（ranking_tab.py 2611 行）
 
@@ -197,14 +197,14 @@
 | FL-J02 | 作品種別（イラスト/マンガ/うごイラ） | ranking_tab.py:51-56, 1302 | ranking_source.py:13（＋小説）、ranking_view.py:50 | 有 | 旧 K04。小説を追加（上位） |
 | FL-J03 | 日付選択（DatePicker、「今日」） | ranking_tab.py:1311-1340 | ranking_view.py:52-54, 122-155（カレンダー、YYYYMMDD 入力） | 有 | |
 | FL-J04 | 並び替え 4 種（公式順/評価数/閲覧数/伸びしろ） | ranking_tab.py:60-65 | ranking_source.py:14、ranking_view.py:60 | 有 | |
-| FL-J05 | R-18 を含める / AI 除外（AI 除外は作品ごとの追加確認のため自動継ぎ足しを止め「もっと見る」に切替） | ranking_tab.py:1319-1328, 988-1015 | ranking_view.py:56-57, 85-92 | 有 | R-18 チェックボックスは ranking_view.py:56（非対応モードで無効化 85-88）。「AI除外で自動継ぎ足しを止めて もっと見る に切替」の挙動までは未確認 |
-| FL-J06 | タグで絞り込み（世間ランキングを pixiv のタグ検索へ切替） | ranking_tab.py:1093-1142 | ranking_view.py:58 | 有 | |
+| FL-J05 | R-18 を含める / AI 除外（AI 除外は作品ごとの追加確認のため自動継ぎ足しを止め「もっと見る」に切替） | ranking_tab.py:1319-1328, 988-1015 | ranking_view.py:56-57, 85-92 | 弱 | R-18 チェックボックスは ranking_view.py:56（非対応モードで無効化 85-88）。「AI除外で自動継ぎ足しを止めて もっと見る に切替」の挙動までは未確認。**2026-11-17 に Argon 指摘を元と移植版で再読して検証（一部事実・規模 小）**。事実: R-18 切替は元が既定 ON で借用タグ検索中も操作でき（ranking_tab.py:2135, 2062）、移植版は借用中に disabled・既定 False で理由を表示する（ui/ranking_view.py:84-91）。誤り: Argon の「挙動が逆転」。元の借用検索は pixiv_client.py:1361-1530 のとおり r18 をリクエストにも結果の絞り込みにも使わない（x_restrict の絞り込みはライブラリ側 library_tab.py:541 のみ）ので、結果は同じで差は操作の見え方だけ。AI 除外は移植版も作品ごとに詳細で ai_type を確かめ（ranking_source.py:252-256）、「もっと見る」（ui/ranking_view.py:253）で元（ranking_tab.py:988-1015）と一致 |
+| FL-J06 | タグで絞り込み（世間ランキングを pixiv のタグ検索へ切替） | ranking_tab.py:1093-1142 | ranking_view.py:58 | 有 | **2026-11-17 に Argon 指摘を元と移植版で再読して検証（Argon 指摘は J05 と同じ理由で誤り・有のまま）**。借用タグ検索時の R-18 は元も API に送らない（pixiv_client.py:1361-1460）。非借用のタグ検索は元 ranking_tab.py:1115-1117 と同じく mode=r18/safe を送り、移植版 ui/ranking_view.py:84-91 も R-18 を有効のまま扱う |
 | FL-J07 | 更新ボタン、無限スクロール/「もっと見る」セル（グリッド最終セル） | ranking_tab.py:1181-1216, 1275 | ranking_view.py:59（取得・更新）、gallery.py:100-110 | 有 | 原版の「最終セル」契約を移植（gallery.py:100 のコメント） |
 | FL-J08 | カードのクリックで画集ビューア | ranking_tab.py:1577 | gallery.py:58-62 | 有 | |
 | FL-J09 | カードの右クリック（ブックマークする／ダウンロードキューへ積む／出さない／この作者をもっと見る／pixivで作品ページを開く） | ranking_tab.py:763-790 | gallery.py:68-72（「作者ページを開く」の 1 項目のみ） | 弱 | ブクマ・キュー・出さない・もっと見る・pixiv は右クリックに無し（ビューア内の `ブクマ`/`フォロー`/`Pixivで作品を開く` は有）。中 |
 | FL-J10 | 出さない一覧の管理（ランキング右上、作品を取り消す・元に戻す、バッジ件数） | ranking_tab.py:632-730, 2505-2580 | 無（`ranking_view.py`/`gallery.py` に hide なし。`hide_work` は recommend/personal/services/discovery_* のみ） | 無 | 中。ランキングで作品を非表示にする入口自体が無い。KNOWN_ISSUES の N45-B（取得停止解除手段）とは別 |
 | FL-J11 | 「自分のランキング」モード（ランキングタブ内で世間/自分を切替、選択タグ・フィルター・カード・よく効くタグ・タグ AND 検索） | ranking_tab.py:2397-2430, 1436-2400 | ui/personal_ranking_view.py:26-50、shell.py の `personal` タブ（`external_vault` または `live_client` が無いと非表示: shell.py ナビ生成部） | 条件付きで有 | ランキングタブ内の切替から独立タブへ変更。旧 K09。タグ入力が「1 行に 1 件のテキストエリア」でチップ＋Enter 追加ではない（弱の側面）。R-18 は原 API 未対応で無効（personal_ranking_view.py:31）→ 元でも同じかは未確認 |
-| FL-J12 | 自分のランキングの絞り込み（ブクマ数下限プリセット、並び順、投稿日、含む/除外タグ、1 作者の上限、保存済み/非表示作者/非表示作品/合わない を除外、条件の保存・クリア、有効条件チップ） | ranking_tab.py:1921-2350, 165-346 | personal_ranking_view.py:27-50 | 有 | `ranking_personal_filters` に相当（保存: `この条件を保存`）。有効条件チップの表示は未確認 |
+| FL-J12 | 自分のランキングの絞り込み（ブクマ数下限プリセット、並び順、投稿日、含む/除外タグ、1 作者の上限、保存済み/非表示作者/非表示作品/合わない を除外、条件の保存・クリア、有効条件チップ） | ranking_tab.py:1921-2350, 165-346 | personal_ranking_view.py:27-50 | 弱 | `ranking_personal_filters` に相当（保存: `この条件を保存`）。有効条件チップの表示は未確認。**2026-11-17 に Argon 指摘を元と移植版で再読して検証（事実・規模 中）**。差: (1) 有効条件(NOW)チップ行（1 クリックで個別解除）が移植版に無い。元 ranking_tab.py:2315-2350 _personal_active_chips、移植版 ui/personal_ranking_view.py:27-63 にチップ UI なし。(2) ブクマ数下限・並び順・「条件をクリア」で再検索が走らない。元 ranking_tab.py:1935-1947, 2012-2022 は re_search=True、移植版 168-184 は _show_unfetched() で「未取得」へ戻し「取得・更新」待ち。(3) R-18 スイッチは元が既定 ON（ranking_tab.py:2135）、移植版は常時 disabled・既定 False（personal_ranking_view.py:32）。ただし元も R-18 を API へ送らない（pixiv_client.py:1361-1460 の params に r18 無し）ので検索結果は同じで、差は表示だけ。保存・含む除外タグ・上限・除外 4 種・クリアは有 |
 | FL-J13 | タブ初回表示で pixiv ランキングを自動取得（`on_tab_open`） | ranking_tab.py:1387-1435 | ranking_view.py:283-289（`set_active` → `_schedule_first_load`）、fix-d df78ff0 | 有 | 実画面確認は未実施 |
 | FL-J14 | 画集ビューアをタブ離脱時に閉じる | gui.py:5987-6002 | gallery.py:`set_viewer_active`（learning_view と同形: viewer_controller.py:95-97） | 有 | |
 
@@ -215,7 +215,7 @@
 | FL-K01 | サブビュー切替（作者一覧「DL済み」／マイブックマーク／作者詳細 ← 作者一覧） | library_tab.py:2985-3056, 1758-1797 | ui/library_view.py:100-110, 161-177 | 有 | |
 | FL-K02 | 検索（タイトル・作者・タグ）とスコープ切替「ライブラリのみ／pixiv本体も含む」＋再検索 | library_tab.py:2279-2360, 583-650 | library_view.py:110-117（「ライブラリ内」固定ラベル＋「人気順で探す」ボタン） | 弱 | pixiv 全体検索は「人気順で探す」（借用）に置換され、通常 Cookie でのスコープ切替は無し。中 |
 | FL-K03 | 並び替え（閲覧数・保存日・容量、各方向トグル） | library_tab.py:92-96, 2370-2400 | library_view.py:300-310 | 有 | |
-| FL-K04 | 絞り込みパネル 8 席（並び順・期間・ブクマ数・タグ含む・タグ除く・作者あたり上限・除外・種別/形式） | library_tab.py:2410-2990、filter_panel.py | ui/library_filter_panel.py:127-200 | 有 | 8 席の表示と「ここには無い →／仕様上不要」を踏襲。作者フィルター・未読のみ・R-18・AI・未取得のみ・タグ＋/−・どれか/すべて・日付プリセット（1年/3年/期間指定/すべて）・ブクマ数プリセットを確認 |
+| FL-K04 | 絞り込みパネル 8 席（並び順・期間・ブクマ数・タグ含む・タグ除く・作者あたり上限・除外・種別/形式） | library_tab.py:2410-2990、filter_panel.py | ui/library_filter_panel.py:127-200 | 有 | 8 席の表示と「ここには無い →／仕様上不要」を踏襲。作者フィルター・未読のみ・R-18・AI・未取得のみ・タグ＋/−・どれか/すべて・日付プリセット（1年/3年/期間指定/すべて）・ブクマ数プリセットを確認。**2026-11-17 に Argon 指摘を元と移植版で再読して検証（Argon 指摘は誤り・有のまま）**。タグチップの ＋/− 反転は有（ui/library_filter_panel.py:457, 533-539）、席 01 の elsewhere／unavailable 切替も有（同 427-429）。借用検索で AI 除外切替が再検索を走らせる挙動（元 library_tab.py:2819-2826）は、元が「pixiv 本体も含む」スコープの中で行うもので、移植版は借用検索を「人気順で探す」から人気順タブへ置き換えている（ui/library_view.py:116-117、ui/shell.py:340-342 は personal タブを開いてタグ欄へ語を入れる）。この差は FL-K02 に含まれ、二重には数えない |
 | FL-K05 | 容量表示と再計測（キャッシュ消去して計測し直す） | library_tab.py:413-495, 1297-1313, 2978 | library_view.py:148-150, 424-559 | 有 | 管理保存と作者保存先（旧）を分けて再計測（上位） |
 | FL-K06 | マイブックマーク: 一覧取得・選択チェック・「選択をダウンロード」・更新・もっと見る・最終更新時刻の表示・タブを開いた時の自動更新（120 秒間引き） | library_tab.py:224-395, 1881-2160 | ui/bookmark_view.py:56-130（再読込、選択、`選択した作品をDL`） | 弱 | 「最終更新: YYYY-MM-DD HH:MM」表示（library_tab.py:1881-1888）と、タブを開いた時の自動更新（2115-2155）は無し。旧 L17「ライブラリを明示更新する」は C 分類で「追随しない・手動更新」が既定案（FOLLOWUP/OLD45）。小 |
 | FL-K07 | 「DL済み」バッジ、ブクマカードのクリック＝ビューア、右クリック「似た絵を探す」 | library_tab.py:1229-1440, 1805-1836, 1149-1168 | bookmark_view.py:112-130, library_view.py:924 | 有 | |
@@ -232,9 +232,9 @@
 | ID | 元の操作・機能 | 元の場所 | 移植版の場所 | 状態 | 根拠 / 備考 |
 |---|---|---|---|---|---|
 | FL-L01 | 5 つの節（追加した傾向／好みの傾向／好みの傾向から（確実）／もっと見る登録作者の新着／SuperLike した作品）、節ごとの開く/畳む、「もっと見る」ページ送り | recommend_tab.py:876-2500 | recommendation_state.py:19-21（ORDER/LABELS）、ui/recommend_view.py:321-450 | 有 | |
-| FL-L02 | 節の並び替え（上へ/下へ/既定に戻す）と状態保存（`recommend_section_order`/`_collapsed`/`_certain_group_collapsed`/`_trend_added_tags`） | recommend_tab.py:2794-3100 | recommend_view.py:217-235, 351（`move`/`collapse`/`reset_order`）、recommendation_state.py:160-166 | 有 | |
+| FL-L02 | 節の並び替え（上へ/下へ/既定に戻す）と状態保存（`recommend_section_order`/`_collapsed`/`_certain_group_collapsed`/`_trend_added_tags`） | recommend_tab.py:2794-3100 | recommend_view.py:217-235, 351（`move`/`collapse`/`reset_order`）、recommendation_state.py:160-166 | 弱 | **2026-11-17 に Argon 指摘を元と移植版で再読して検証（事実・規模 中）**。節の並べ替えと節ごとの折りたたみ（上へ/下へ/既定に戻す）は有（ui/recommend_view.py:217-237, 362-396）。無いのは「確実枠」内の個別タググループごとの開閉 recommend_certain_group_collapsed（元 recommend_tab.py:1860-1914）。移植版 src に同名キー・同機能は grep 0 件 |
 | FL-L03 | 更新（取得済みの内容を取り直す）／初回読込（保存結果）／取得件数の表示 | recommend_tab.py:2656-2700 | recommend_view.py:34-37, 162-172 | 有 | R01a/R01b/R07 は fix 済み（5871aae）。旧 R01b は「更新後の節数・作品数」まで |
-| FL-L04 | 傾向ピル（タップで追加/外す、「このタグを開く」） | recommend_tab.py:921-961, 2193-2260 | recommend_view.py:173-176, 359-367 | 有 | |
+| FL-L04 | 傾向ピル（タップで追加/外す、「このタグを開く」） | recommend_tab.py:921-961, 2193-2260 | recommend_view.py:173-176, 359-367 | 弱 | **2026-11-17 に Argon 指摘を元と移植版で再読して検証（事実・規模 小）**。タップで追加/外すは有（ui/recommend_view.py:173-176, 362-396）。無いのは順位別 4 段階のサイズと枠線太さ _TREND_TIERS、2 行クリップ、+N 残数表示（元 recommend_tab.py:238-243, 893-949）。移植版は同じ大きさの outline ボタンを並べるだけ |
 | FL-L05 | カードの右クリック 12 項目（ブックマークする／好み（保存する）／取り下げる／出さない／出さない（理由）／DL キューへ積む／この作者をもっと見る／この作者を出さない／このタグで検索／作者の作品一覧へ／pixivでフォロー／pixivで作品ページを開く） | recommend_tab.py:815-876 | recommend_view.py:404-436（インラインボタン: 保存済みを開く／キューに追加／SuperLike取り下げ／出さない／作者を出さない／登録解除・作者をもっと見る／Pixivで作品を開く／作者ページを開く） | 弱 | 「ブックマークする」「このタグで検索」「pixivでフォロー」「好み（保存する）」が無し（ビューアに `ブクマ`/`フォロー` は有）。「このタグで検索」は元で個人ランキングのタグへ遷移（gui.py:4857）。中 |
 | FL-L06 | 出さない理由ダイアログ（ジャンル/絵柄/選ばない） | recommend_tab.py:630-645 | recommend_view.py:42-52, 191-200 | 有 | |
 | FL-L07 | 出さない/もっと見る/出さない作者の一覧管理（オーバーレイ、元に戻す）、出さないの取り消し | recommend_tab.py:1194-1430, 2780-2800, 3800-3870 | recommend_view.py:41, 211-216, 451-458 | 有 | 「出さない一覧」展開で元に戻す。もっと見る登録解除は 370 |
@@ -261,7 +261,7 @@
 | FL-N01 | `GET /ping`、`GET /api/work/{id}`（保存済み状態）、`GET /api/user/{id}/status` | server.py:294-330 | extension_bridge.py:221-250、extension_application.py:284-300 | 弱 | **`--extension-bridge` 指定時のみ起動**（bootstrap.py:122, 603-604。引数なしの通常起動では受信サーバーが立たない）。元は常時起動。**profile 起動でも立たない**: `native_kwargs`（native_profile.py:257-290）は `extension_bridge` を渡さない。**条件が厳しい**ため 弱 寄り（`launch_work.ps1` が付けているかは未確認） 【`--extension-bridge` が無い通常起動・launch_work.ps1/launch_native.ps1 では受信サーバーが起動しない（bootstrap.py:603-604、launch_work.ps1:18）】 |
 | FL-N02 | `POST /download`（作品/作者を保存キューへ。重複キュー登録を防止） | server.py:612、1680-1700 | extension_bridge.py:221、extension_application.py:71-258 | 弱 | 同上。旧 N09/N10 は E 分類（専用拡張・URI 登録が必要） 【`--extension-bridge` が無い通常起動・launch_work.ps1/launch_native.ps1 では受信サーバーが起動しない（bootstrap.py:603-604、launch_work.ps1:18）】 |
 | FL-N03 | `POST /api/cookie/sync`（拡張が Cookie を自動同期。UI ヘッダー更新） | server.py:631-660 | extension_bridge.py:221, 280、extension_cookie_store.py、native_startup.py:235-240 | 弱 | fix-d で「拡張機能受信時の確認」を取り込み。**Cookie 同期成功時の緑（#00FF66）キューログ通知**（FEATURES.md §10）は移植版で未確認 【`--extension-bridge` が無い通常起動・launch_work.ps1/launch_native.ps1 では受信サーバーが起動しない（bootstrap.py:603-604、launch_work.ps1:18）】 |
-| FL-N04 | Origin 検証（`chrome-extension://` のみ） | server.py `_check_origin` | extension_bridge.py（`path` 判定前の検証。実装は読んでいない） | 有 | 構造のみ確認 |
+| FL-N04 | Origin 検証（`chrome-extension://` と、ループバックからの `https://pixiv.net`・`https://*.pixiv.net`） | server.py:21-26, 222-235, 257-272（`_is_allowed_extension_origin`・`do_OPTIONS` の CORS 応答・`_check_origin`） | extension_bridge.py（`allowed_origin`:74-80、`path` 判定前に検証・204-205、CORS 応答 225-228） | 有 | **2026-11-17 に Argon 指摘を元と移植版で再読して検証（Argon 指摘は事実。台帳の仕様記述を訂正・移植版は元と同値で有のまま）**。元の仕様は chrome-extension:// に加えて、ループバックからの https://pixiv.net と https://*.pixiv.net も許可（server.py:21-26, 222-235。content.js の直接 fetch フォールバック用）。移植版 extension_bridge.py:74-80 allowed_origin も同じ 2 系統（拡張 ID は 32 文字・pixiv.net は :443 のみ許可）で、Origin が 1 件でない要求も拒否（同 204-205）。移植版は実装を読んで確認した |
 | FL-N05 | DL 開始/完了/失敗の Windows トースト通知（拡張機能経由・設定 `enable_notifications`） | server.py:1693-1696 | 無（notifications.py は `services.py:2890` の定期チェック新規保存通知のみ利用） | 弱 | 中。拡張機能ジョブの完了通知と ZIP 破損通知（core.py:112）が無い |
 | FL-N06 | 拡張機能の「保存済み ✅」表示の元となる `GET /library/*` | server.py:306, 380-480 | — | 意図的削除 | `/library/*`・`/jobs`・`/progress/*`・`/bookmark`・`/jobs/bulk/*` は iOS/Web 専用（server.py:28-55, 301, 617-626 のコメント）。拡張機能は `/ping`・`/api/work`・`/api/user`・`/download`・`/api/cookie/sync` のみ |
 | FL-N07 | 設定の「拡張機能の受付状況」表示（応答の内訳） | 元に無し | preferences_view.py:169-176 | — | 台帳対象外（上位） |
@@ -323,9 +323,9 @@
 ## R. 件数
 
 - 総行数 171（うち対象外 3「—」: FL-B12, FL-M07, FL-N07。スクリプトで集計）
-- 有 82（上位 1 含む）／条件付きで有 33／**弱 34**／**無 13**／意図的削除 6（FL-C26, FL-N06, FL-X01〜X04）
-- 弱 のうち FL-O05 は FL-C20 と同一原因（二重計上）。実質 弱 33
-- **無 13 ＋ 弱 33 ＝ 46 ID**。規模の内訳は 小 28／中 15／大 3（大＝FL-D00・FL-C20・FL-B08）。小は表示・文言・既定値・数行の追加
+- 有 75（上位 1 含む）／条件付きで有 33／**弱 41**／**無 13**／意図的削除 6（FL-C26, FL-N06, FL-X01〜X04）。2026-11-17 の Argon 検証で FL-J12・J05・G01・I11・I16・L02・L04 の 7 行が 有→弱（下の「Argon 検証による更新」）
+- 弱 のうち FL-O05 は FL-C20 と同一原因（二重計上）。実質 弱 40
+- **無 13 ＋ 弱 40 ＝ 53 ID**。規模の内訳は 小 33／中 17／大 3（大＝FL-D00・FL-C20・FL-B08）。小は表示・文言・既定値・数行の追加。追記台帳（FL-Y・FL-Z）の無・弱は FEATURE_LEDGER_ADDENDA を参照
 
 ## S. 無・弱 の一覧と規模見積り（小＝1 ファイル・半日以内／中＝複数ファイルまたは新規 UI／大＝設計判断が要る）
 
@@ -347,7 +347,7 @@
 | FL-I15 | 空状態の「ローカルモデル導入」案内 | 小 | |
 | FL-J10 | ランキングの「出さない」入口と管理 | 中 | 「出さない」データ層は既存（recommend と共有） |
 
-### 弱（33）
+### 弱（33。2026-11-17 の Argon 検証より前の一覧。この後の更新は下の「Argon 検証による更新」）
 
 | ID | 内容 | 規模 |
 |---|---|---|
@@ -381,6 +381,22 @@
 | FL-K06 | ブクマ一覧の最終更新表示と自動更新（120 秒間引き） | 小（L17 は C 分類） |
 | FL-L09 | おすすめ空状態の「学習タブへ」 | 小 |
 | FL-M04 | ビューアの右クリックに「出さない」が無い | 小 |
+
+### Argon 検証による更新（2026-11-17。有→弱へ直した 7 行）
+
+元と移植版の該当箇所を読み直した結果。根拠は各行の備考欄に file:line つきで書いた。
+
+| ID | 内容 | 規模 |
+|---|---|---|
+| FL-J12 | 自分のランキング: 有効条件チップ行が無い／ブクマ数・並び順・クリアで自動再検索しない／R-18 は表示上 disabled | 中 |
+| FL-L02 | おすすめ: 確実枠の個別タググループの折りたたみ（`recommend_certain_group_collapsed`）が無い | 中 |
+| FL-L04 | おすすめ: 傾向ピルの順位別サイズ・枠線・2 行クリップ・`+N` が無い | 小 |
+| FL-G01 | 直近のバックアップ: ホバーで出る作者名バーと正方形タイルが無い（常時ラベルの別カード） | 小 |
+| FL-I11 | 学習: 好みの傾向パネルの表示件数の増減と 3 列配置（rail/band/fold）が無い | 小 |
+| FL-I16 | 学習: 取消の差し戻し結果ごとの文言 3 通りと在庫切れ画面からの自動復帰が無い | 小 |
+| FL-J05 | ランキング: 借用タグ検索中の R-18 切替が disabled・既定 OFF（元は操作でき既定 ON。結果は同じ） | 小 |
+
+検証の結果、有のまま残したもの: FL-J06（タグ絞り込み）、FL-K04（＋/− 反転・席の状態切替は有。借用再検索の差は FL-K02 に含まれる）、FL-H04・H05（5 枚＋`+N`・50 件・実移動の経路あり）、FL-I19（ranking・population は AST 一致、engine は差が一部。補充周期は未比較）、FL-N04（台帳の仕様記述を訂正）。
 
 ### 大規模な未確認・今後の走査
 
@@ -418,5 +434,6 @@
 | discovery_ratio_subject / discovery_ratio_style | FL-I12 | |
 | discovery_generic_tags_extra | FL-I19 | discovery_ranking.py:222 に同名キー |
 | exclude_hidden_authors / exclude_hidden_works / ranking_personal_tags / ranking_personal_filters | FL-J11, J12 | |
+| ranking_personal_candidates_open | FL-Y02 | 自分のランキングの「よく効くタグ」副行の開閉（`filter_panel.load_json_setting`/`save_json_setting` 経由。元 ranking_tab.py:130, 1844-1866, 2146-2166） |
 | recommend_section_order / _collapsed / recommend_certain_group_collapsed / recommend_trend_added_tags | FL-L02 | recommendation_state.py:160-166 |
 | grid_card_size_mode | FL-C25 | |
