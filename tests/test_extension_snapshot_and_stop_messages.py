@@ -1,6 +1,7 @@
 import sys, io, threading
 from pathlib import Path
 from types import SimpleNamespace
+from nicegui import Client, ui
 from email.message import Message
 import pixivvault_nicegui.extension_bridge as bridge
 from pixivvault_nicegui.ui.preferences_view import PreferencesView
@@ -30,12 +31,19 @@ def test_routes_snapshot_preferences(monkeypatch):
     assert counts=={200:1,400:1,503:1}
     assert reasons=={(200,'accepted'):1,(400,'invalid_command'):1,(503,'status_unavailable'):1}
     store=SimpleNamespace(snapshot=lambda:SimpleNamespace(values={s.key:s.default for s in SPECS}))
-    v=PreferencesView(store,extension_status=lambda:'running',extension_snapshot=b.response_snapshot)
-    v.open()
-    labels=[getattr(e,'text','') for e in v.dialog.descendants()]
-    assert any('200 1 / 400 1 / 503 1' in t for t in labels if isinstance(t,str))
-    assert any('正常応答 1' in t and 'コマンド不正 1' in t and '状態取得不可 1' in t for t in labels if isinstance(t,str))
-    v.close(); b.close()
+    # Client の外で UI 要素を作ると NiceGUI がグローバルな script mode と擬似 Client を
+    # 残し、後続の試験の ui.timer が起動しなくなる。専用 Client の中で作って後始末する。
+    client=Client(ui.page('/_snapshot_preferences'))
+    try:
+        with client:
+            v=PreferencesView(store,extension_status=lambda:'running',extension_snapshot=b.response_snapshot)
+            v.open()
+            labels=[getattr(e,'text','') for e in v.dialog.descendants()]
+            assert any('200 1 / 400 1 / 503 1' in t for t in labels if isinstance(t,str))
+            assert any('正常応答 1' in t and 'コマンド不正 1' in t and '状態取得不可 1' in t for t in labels if isinstance(t,str))
+            v.close()
+    finally:
+        client.delete(); b.close()
 
 def test_concurrent_snapshot():
     b=bridge.ExtensionBridge(enqueue=lambda c:'job',work_status=lambda x:{},author_status=lambda x:{})
