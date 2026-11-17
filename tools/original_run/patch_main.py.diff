@@ -1,0 +1,38 @@
+﻿diff --git a/S:/Projects/PixivVault/main.py b/S:/Projects/PV-DEV-20261117/original_copy/main.py
+index 0abdf98..13ddeec 100644
+--- a/S:/Projects/PixivVault/main.py
++++ b/S:/Projects/PV-DEV-20261117/original_copy/main.py
+@@ -279,7 +279,7 @@ def _find_port_owner_pid(port):
+ 
+ _instance_lock_socket = None
+ 
+-def check_single_instance(port=25011):
++def check_single_instance(port=int(os.environ.get("PV_LOCK_PORT","25011"))):
+     import socket
+     import sys
+     global _instance_lock_socket
+@@ -380,7 +380,7 @@ def main():
+     from server import start_server
+     
+     client = PixivClient(db=db)
+-    server_thread = threading.Thread(target=start_server, args=(25010, db, client), daemon=True)
++    server_thread = threading.Thread(target=start_server, args=(int(os.environ.get("PV_SERVER_PORT","25010")), db, client), daemon=True)
+     server_thread.start()
+ 
+     import sys
+@@ -539,10 +539,13 @@ def main():
+ 
+ 
+         # トレイアイコンをバックグラウンドで開始
+-        _tray_icon = run_tray(on_show_clicked, on_exit_clicked)
++        _tray_icon = None if os.environ.get("PV_NO_TRAY") == "1" else run_tray(on_show_clicked, on_exit_clicked)
+         _tray_ref[0] = _tray_icon  # T-0437: ft.run()が返ったあとの後片付け用
+ 
+-    ft.run(app_target, assets_dir="assets")
++    if os.environ.get("PV_WEB_PORT"):
++        ft.run(app_target, assets_dir="assets", view=ft.AppView.WEB_BROWSER, port=int(os.environ["PV_WEB_PORT"]))
++    else:
++        ft.run(app_target, assets_dir="assets")
+ 
+     # ⚠️⚠️ T-0095対策: ここへ返ってきたこと自体が想定外の終了経路の可能性が高い。
+     # 通常の終了(×ボタン/トレイの「終了」)は_do_shutdown()内のos._exit(0)で完結し、

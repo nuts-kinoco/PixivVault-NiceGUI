@@ -1,0 +1,13 @@
+﻿diff --git a/S:/Projects/PixivVault/pixiv_client.py b/S:/Projects/PV-DEV-20261117/original_copy/pixiv_client.py
+index f75cc18..5d76228 100644
+--- a/S:/Projects/PixivVault/pixiv_client.py
++++ b/S:/Projects/PV-DEV-20261117/original_copy/pixiv_client.py
+@@ -573,6 +573,8 @@ class PixivClient:
+     def auto_extract_browser_cookies(cls, target_file: str = "cookies.txt") -> dict:
+         """主要ブラウザ (Chrome, Edge, Firefox, Brave) から Pixiv の Cookie を全自動抽出して Netscape 形式で保存します"""
+         import os, glob, sqlite3, tempfile, shutil
++        if os.environ.get("PV_NO_BROWSER_COOKIES") == "1":
++            return {"status": "expired", "message": "isolated run: browser cookie extraction disabled"}
+         browsers = ["Chrome", "Edge", "Brave"]
+         extracted_cookies = None
+         used_browser = ""
