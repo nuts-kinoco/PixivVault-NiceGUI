@@ -83,7 +83,7 @@ def check(page, url: str, output: Path, width: int, height: int) -> dict:
     expect(cards.get_by_test_id("library-author-open")).to_be_focused()
     library.get_by_test_id("library-subview-bookmarks").click()
     bookmarks = library.get_by_test_id("bookmark-view")
-    expect(bookmarks.get_by_test_id("bookmark-count")).to_have_text("1 / 1 件表示")
+    expect(bookmarks.get_by_test_id("bookmark-count")).to_have_text("表示 1 件 / 条件一致 1 件 / 読込済み 1 件")
     expect(bookmarks.get_by_text("DL済み", exact=True)).to_be_visible()
     bookmarks.get_by_test_id("bookmark-open").click()
     expect(viewer).to_be_visible()
