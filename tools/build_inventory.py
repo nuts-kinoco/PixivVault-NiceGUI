@@ -43,7 +43,10 @@ TEXT_VALUE_CONTROLS = {"Text", "Markdown", "Chip", "Tab", "Badge", "Tooltip", "S
 NON_TEXT_CTRL = {"Key", "ScrollKey", "Ref", "Offset", "Animation", "TextStyle", "ButtonStyle", "Padding"}
 MENU_CTRL = {"PopupMenuItem", "MenuItemButton", "SubmenuButton", "MenuItem", "ContextMenu"}
 HANDLER_KW = re.compile(r"^on_[a-z_]+$")
-SETTING_CALL = re.compile(r"(get|set|del|delete|update)_?(setting|config|settings)$|^(get|set)_setting$")
+SETTING_CALL = re.compile(r"(get|set|del|delete|update)_?(setting|config|settings)$|^(get|set)_setting$|^(load|save)_json_setting$")
+# 設定キーを 2 番目の引数(db の次)に取る薄い包み(filter_panel.load_json_setting / save_json_setting)。
+# get_setting/set_setting を直接呼ばないので、これを拾わないと `*_KEY` 定数経由の設定キーが inventory から落ちる。
+SETTING_WRAPPERS = {"load_json_setting", "save_json_setting"}
 SNACK_NAME = re.compile(r"snack|toast|notify|show_msg|show_message|alert|_toast", re.I)
 LOG_NAME = re.compile(r"(^|_)(log|logs|logger|logging)(_|$)|^(print|debug|info|warning|warn|error|exception|critical)$", re.I)
 PASS_CALLS = {"format", "str", "join", "repr", "int", "strip", "lower", "upper", "replace", "len", "f"}
@@ -278,7 +281,7 @@ class Collector:
                 for hn in handler_names(kw.value):
                     lab = self.control_label(node) if ctrl else ""
                     self.add("handler", hn, kw, event=kw.arg, control=ctrl or nm, label=lab)
-        if SETTING_CALL.search(nm) and node.args:
+        if SETTING_CALL.search(nm) and len(node.args) >= (2 if nm in SETTING_WRAPPERS else 1):
             self.setting(node, nm)
         if SNACK_NAME.search(nm) and not ctrl:
             for a in node.args[:3]:
@@ -353,7 +356,7 @@ class Collector:
                     self.consumed.add(id(a))
 
     def setting(self, node: ast.Call, nm: str):
-        a = node.args[0]
+        a = node.args[1] if nm in SETTING_WRAPPERS else node.args[0]
         key = None
         if isinstance(a, ast.Constant) and isinstance(a.value, str):
             key = a.value
@@ -364,12 +367,12 @@ class Collector:
         elif isinstance(a, ast.JoinedStr):
             key = jtext(a)[0]
         elif isinstance(a, ast.Subscript) and isinstance(a.value, ast.Name) and a.value.id in self.dict_consts:
-            op = "set" if nm.startswith(("set", "update")) else ("del" if "del" in nm else "get")
+            op = "set" if nm.startswith(("set", "update", "save")) else ("del" if "del" in nm else "get")
             for k in self.dict_consts[a.value.id]:
                 self.add("setting_key", k, node, op=op, via="dict:" + a.value.id)
             return
         if key:
-            op = "set" if nm.startswith(("set", "update")) else ("del" if "del" in nm else "get")
+            op = "set" if nm.startswith(("set", "update", "save")) else ("del" if "del" in nm else "get")
             self.add("setting_key", key, node, op=op)
 
     def on_assign(self, node: ast.Assign):
@@ -562,15 +565,33 @@ class Collector:
         return "other"
 
 
-def public_defs(fname: str, tree: ast.Module, kind: str):
+def public_defs(fname: str, tree: ast.Module, kind: str, closures: bool = False):
+    """closures=True: 関数・メソッドの本体の中で定義された内部関数(クロージャ)も `外側.内側` の名前で列挙する。
+    gui.py の main_window や discovery_tab.py の build_discovery_tab のように、画面のロジックの大半が
+    1 つの外側関数の中の内部関数になっているため、これを数えないと inventory がその大半を見落とす。
+    内部関数は先頭が _ でも列挙する(利用者の操作ごとのハンドラが _ 始まりのため)。"""
     out = []
     private = fname in PRIVATE_FILES
+
+    def nested(body, prefix):
+        for n in body:
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if not (n.name.startswith("__") and n.name.endswith("__")):
+                    out.append((prefix + n.name, n.lineno, "closure"))
+                nested(n.body, prefix + n.name + ".")
+            elif isinstance(n, (ast.If, ast.For, ast.AsyncFor, ast.While, ast.With, ast.AsyncWith, ast.Try)):
+                for fld in ("body", "orelse", "finalbody"):
+                    nested(getattr(n, fld, []) or [], prefix)
+                for h in getattr(n, "handlers", []) or []:
+                    nested(h.body, prefix)
 
     def rec(body, prefix, top):
         for n in body:
             if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if not n.name.startswith("_") or (private and not n.name.startswith("__")):
                     out.append((prefix + n.name, n.lineno, "function" if not prefix else "method"))
+                if closures:
+                    nested(n.body, prefix + n.name + ".")
             elif isinstance(n, ast.ClassDef):
                 if not n.name.startswith("_"):
                     out.append((prefix + n.name, n.lineno, "class"))
@@ -685,7 +706,7 @@ def build(src: Path):
                 items.append({"kind": "db_method", "name": nm, "file": fname, "line": ln, "qualname": "<module>",
                               "screen": SCREEN_BY_FILE[fname], "sub": sub})
         if fname in API_FILES:
-            for nm, ln, sub in public_defs(fname, tree, "api_public"):
+            for nm, ln, sub in public_defs(fname, tree, "api_public", closures=True):
                 items.append({"kind": "api_public", "name": nm, "file": fname, "line": ln, "qualname": "<module>",
                               "screen": screen_of(fname, ln), "sub": sub})
         if fname in NET_FILES:
