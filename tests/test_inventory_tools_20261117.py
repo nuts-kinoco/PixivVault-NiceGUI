@@ -272,3 +272,35 @@ def test_strict_weak_counts_weak_as_unmapped(tmp_path, monkeypatch):
     _setup_repo(tmp_path, monkeypatch, mapping, ITEMS)
     assert cic.main([]) == 0
     assert cic.main(["--strict-weak"]) == 1
+
+
+def test_rule_scope_name_re_and_wide_rule_are_graded():
+    base = {"id": "i", "kind": "api_public", "file": "server.py", "line": 700, "name": "Handler._check_web_token"}
+    rules = [{"file": "server.py", "lines": [1, 2000], "fl": "FL-N01", "kinds": ["api_public"], "scope": None},
+             {"file": "server.py", "lines": [1, 2000], "fl": "FL-X02", "kinds": ["api_public"], "scope": None,
+              "name_re": "_check_web_token"}]
+    assert cic.resolve(base, _mp(rules=rules)) == ("FL-X02", "rule-wide")      # 名前の規則が優先。範囲が広いので弱い扱い
+    narrow = [{"file": "server.py", "lines": [690, 710], "fl": "FL-N02", "kinds": None, "scope": None}]
+    assert cic.resolve(base, _mp(rules=narrow)) == ("FL-N02", "rule")
+    whole = [{"file": "server.py", "lines": [1, 2000], "fl": "FL-N01", "kinds": None, "scope": "file"}]
+    assert cic.resolve(base, _mp(rules=whole)) == ("FL-N01", "rule-file")
+    na = [{"file": "server.py", "lines": [1, 2000], "fl": "n/a:内部", "kinds": None, "scope": None}]
+    assert cic.resolve(base, _mp(rules=na)) == ("n/a:内部", "rule")           # n/a は広くても弱い扱いにしない
+
+
+def test_log_residual_is_limited_to_real_loggers(tmp_path):
+    d = tmp_path / "o2"
+    d.mkdir()
+    src = textwrap.dedent("""
+        import logging
+        import flet as ft
+        def f(page):
+            page.show_dialog("ダイアログの本文です")
+            logging.info("ログです")
+            catalog = open_catalog("カタログの文言です")
+    """)
+    (d / "m.py").write_text(src, encoding="utf-8")
+    data = bi.build(d)
+    names = {i["name"] for i in data["items"]}
+    assert "ダイアログの本文です" in names and "カタログの文言です" in names     # 'log' を含む名前でも落とさない
+    assert data["meta"]["residual_cjk_literals_not_captured"]["m.py"].get("log") == 1

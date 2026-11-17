@@ -10,6 +10,11 @@
    "from": "build_ranking_tab",
    "method": "qualname"
   },
+  "inv-004e6a653e": {
+   "also": [],
+   "fl": "FL-K14",
+   "method": "name"
+  },
   "inv-006421c279": {
    "distance": 29,
    "fl": "FL-M03",
@@ -287,6 +292,11 @@
    "method": "range",
    "width": 146
   },
+  "inv-05dadb40db": {
+   "fl": "FL-C25",
+   "method": "range",
+   "width": 72
+  },
   "inv-05f94ef4c8": {
    "fl": "FL-F04",
    "method": "range",
@@ -393,6 +403,11 @@
    "distance": 50,
    "fl": "FL-L05",
    "method": "nearest"
+  },
+  "inv-08d256421f": {
+   "fl": "FL-X01",
+   "method": "range-wide",
+   "width": 326
   },
   "inv-08ec178c3c": {
    "fl": "FL-J03",
@@ -620,6 +635,11 @@
    "fl": "FL-A12",
    "method": "range-wide",
    "width": 259
+  },
+  "inv-0eff9d6636": {
+   "fl": "FL-X01",
+   "method": "range",
+   "width": 28
   },
   "inv-0effdcd33d": {
    "distance": 16,
@@ -1285,6 +1305,11 @@
    "fl": "FL-C07",
    "method": "section-T"
   },
+  "inv-1e887bb4a2": {
+   "fl": "FL-C20",
+   "method": "range",
+   "width": 20
+  },
   "inv-1e91653f9d": {
    "fl": "FL-M02",
    "method": "range",
@@ -1530,6 +1555,11 @@
    "method": "range-wide",
    "width": 1625
   },
+  "inv-23999a119c": {
+   "fl": "FL-X01",
+   "method": "range-wide",
+   "width": 326
+  },
   "inv-23c4c5a611": {
    "fl": "FL-D13",
    "method": "range",
@@ -1584,6 +1614,16 @@
    "fl": "FL-A14",
    "method": "range",
    "width": 48
+  },
+  "inv-250e2374ec": {
+   "fl": "FL-X01",
+   "method": "range-wide",
+   "width": 326
+  },
+  "inv-2514c5c2b6": {
+   "fl": "FL-J12",
+   "method": "range-wide",
+   "width": 182
   },
   "inv-256ab323a7": {
    "distance": 31,
@@ -2382,6 +2422,11 @@
    "method": "range",
    "width": 75
   },
+  "inv-3af25dee3d": {
+   "fl": "FL-N03",
+   "method": "range",
+   "width": 30
+  },
   "inv-3b50fea74a": {
    "fl": "FL-J12",
    "method": "range-wide",
@@ -2654,6 +2699,11 @@
    "method": "range",
    "width": 71
   },
+  "inv-42993ddff2": {
+   "also": [],
+   "fl": "FL-I12",
+   "method": "section-T"
+  },
   "inv-42b7436864": {
    "fl": "FL-K11",
    "method": "range-wide",
@@ -2821,6 +2871,11 @@
    "distance": 22,
    "fl": "FL-C01",
    "method": "nearest"
+  },
+  "inv-46be9fb217": {
+   "fl": "FL-N05",
+   "method": "range",
+   "width": 4
   },
   "inv-46c501a05c": {
    "fl": "FL-L01",
@@ -3022,6 +3077,11 @@
    "method": "range-wide",
    "width": 280
   },
+  "inv-4c0c402caa": {
+   "fl": "FL-J12",
+   "method": "range-wide",
+   "width": 182
+  },
   "inv-4c2310839d": {
    "fl": "FL-K04",
    "method": "range-wide",
@@ -3193,6 +3253,11 @@
    "method": "range",
    "width": 5
   },
+  "inv-506102635d": {
+   "fl": "FL-C20",
+   "method": "range",
+   "width": 20
+  },
   "inv-5095923b88": {
    "fl": "FL-C15",
    "from": "main_window",
@@ -3202,6 +3267,11 @@
    "fl": "FL-L01",
    "method": "range-wide",
    "width": 1625
+  },
+  "inv-50b93642bc": {
+   "fl": "FL-E05",
+   "method": "range",
+   "width": 120
   },
   "inv-50da052725": {
    "also": [
@@ -3252,6 +3322,11 @@
    "fl": "FL-A11",
    "method": "range",
    "width": 26
+  },
+  "inv-5316c412f3": {
+   "fl": "FL-J12",
+   "method": "range-wide",
+   "width": 182
   },
   "inv-532abf3b87": {
    "also": [],
@@ -3426,6 +3501,11 @@
    "fl": "FL-C20",
    "method": "range",
    "width": 115
+  },
+  "inv-568afb2c86": {
+   "fl": "FL-N06",
+   "method": "range",
+   "width": 101
   },
   "inv-56aefacd41": {
    "fl": "FL-N01",
@@ -3791,6 +3871,11 @@
    "method": "range",
    "width": 64
   },
+  "inv-6109a564e8": {
+   "fl": "FL-N06",
+   "method": "range",
+   "width": 101
+  },
   "inv-613241107a": {
    "fl": "FL-I02",
    "method": "range",
@@ -3926,6 +4011,11 @@
    "from": "<module>",
    "method": "qualname"
   },
+  "inv-651d01df9e": {
+   "fl": "FL-N01",
+   "method": "range",
+   "width": 37
+  },
   "inv-6562e3c84d": {
    "distance": 15,
    "fl": "FL-J10",
@@ -4018,6 +4108,11 @@
    "method": "range",
    "width": 37
   },
+  "inv-6762389eac": {
+   "fl": "FL-M05",
+   "method": "range",
+   "width": 41
+  },
   "inv-67680b3de9": {
    "fl": "FL-I16",
    "method": "range-wide",
@@ -4100,6 +4195,11 @@
    "fl": "FL-K04",
    "method": "range-wide",
    "width": 581
+  },
+  "inv-69358fa086": {
+   "fl": "FL-X01",
+   "method": "range",
+   "width": 28
   },
   "inv-693591fa2a": {
    "fl": "FL-A06",
@@ -4248,6 +4348,11 @@
    "distance": 4,
    "fl": "FL-I16",
    "method": "nearest"
+  },
+  "inv-6c32860339": {
+   "fl": "FL-N06",
+   "method": "range",
+   "width": 101
   },
   "inv-6c40db5f1e": {
    "fl": "FL-C15",
@@ -4427,6 +4532,11 @@
    "method": "range",
    "width": 17
   },
+  "inv-6f8a502dbd": {
+   "fl": "FL-A02",
+   "method": "range",
+   "width": 10
+  },
   "inv-6f94821083": {
    "fl": "FL-D14",
    "method": "range-wide",
@@ -4561,6 +4671,11 @@
    "fl": "FL-L10",
    "method": "range",
    "width": 146
+  },
+  "inv-736c85d52b": {
+   "fl": "FL-N06",
+   "method": "range",
+   "width": 101
   },
   "inv-7373ebe90d": {
    "fl": "FL-K08",
@@ -4856,6 +4971,11 @@
    "method": "range",
    "width": 15
   },
+  "inv-7a29f67cc9": {
+   "fl": "FL-O06",
+   "method": "range",
+   "width": 48
+  },
   "inv-7a5dc58043": {
    "fl": "FL-J12",
    "method": "range-wide",
@@ -4904,6 +5024,11 @@
    "method": "range-wide",
    "width": 316
   },
+  "inv-7b0dc99627": {
+   "fl": "FL-X01",
+   "method": "range-wide",
+   "width": 326
+  },
   "inv-7b1383da21": {
    "fl": "FL-L09",
    "from": "build_recommend_tab",
@@ -4924,6 +5049,11 @@
    "method": "range",
    "width": 23
   },
+  "inv-7b63e7eb89": {
+   "also": [],
+   "fl": "FL-O03",
+   "method": "name"
+  },
   "inv-7b6891df55": {
    "fl": "FL-C13",
    "method": "range",
@@ -4933,6 +5063,11 @@
    "fl": "FL-D13",
    "method": "range",
    "width": 64
+  },
+  "inv-7c11bcb6a3": {
+   "also": [],
+   "fl": "FL-N04",
+   "method": "name"
   },
   "inv-7c370a95dd": {
    "distance": 17,
@@ -5151,6 +5286,11 @@
    "from": "build_recommend_tab",
    "method": "qualname"
   },
+  "inv-8303dfff1e": {
+   "fl": "FL-A01",
+   "method": "range",
+   "width": 51
+  },
   "inv-8305d8408a": {
    "fl": "FL-L05",
    "method": "range",
@@ -5316,12 +5456,22 @@
    "fl": "FL-G01",
    "method": "nearest"
   },
+  "inv-88a73e9921": {
+   "fl": "FL-X01",
+   "method": "range-wide",
+   "width": 326
+  },
   "inv-88d751b8ff": {
    "also": [
     "FL-J09"
    ],
    "fl": "FL-I10",
    "method": "text"
+  },
+  "inv-88dcfb8d74": {
+   "fl": "FL-K14",
+   "method": "range",
+   "width": 50
   },
   "inv-8935ca6382": {
    "fl": "FL-H04",
@@ -5821,6 +5971,11 @@
    "fl": "FL-C11",
    "method": "section-T"
   },
+  "inv-9519599e9f": {
+   "fl": "FL-M05",
+   "method": "range",
+   "width": 41
+  },
   "inv-9533dfd3c1": {
    "fl": "FL-C15",
    "method": "range",
@@ -5830,6 +5985,11 @@
    "fl": "FL-K02",
    "from": "build_library_tab",
    "method": "qualname"
+  },
+  "inv-959fd7d31a": {
+   "fl": "FL-O01",
+   "method": "range-wide",
+   "width": 175
   },
   "inv-95bd5a2321": {
    "fl": "FL-D11",
@@ -5911,6 +6071,11 @@
    ],
    "fl": "FL-C08",
    "method": "section-T"
+  },
+  "inv-98acad080c": {
+   "fl": "FL-C25",
+   "method": "range",
+   "width": 72
   },
   "inv-98da04b292": {
    "fl": "FL-I13",
@@ -6264,6 +6429,11 @@
    "method": "range-wide",
    "width": 248
   },
+  "inv-a36d2b5e43": {
+   "fl": "FL-X01",
+   "method": "range-wide",
+   "width": 326
+  },
   "inv-a3776a202a": {
    "fl": "FL-C17",
    "method": "range",
@@ -6327,11 +6497,6 @@
    "also": [],
    "fl": "FL-A10",
    "method": "section-T"
-  },
-  "inv-a4b905bfb7": {
-   "fl": "FL-L01",
-   "method": "range-wide",
-   "width": 1625
   },
   "inv-a4ee2c97e4": {
    "distance": 6,
@@ -6689,6 +6854,11 @@
    "fl": "FL-H04",
    "method": "text"
   },
+  "inv-aca6c278ec": {
+   "fl": "FL-X01",
+   "method": "range-wide",
+   "width": 326
+  },
   "inv-acae397712": {
    "fl": "FL-J05",
    "method": "range",
@@ -6834,6 +7004,11 @@
    "method": "range",
    "width": 57
   },
+  "inv-b043669591": {
+   "fl": "FL-N06",
+   "method": "range",
+   "width": 101
+  },
   "inv-b0646fd5a7": {
    "fl": "FL-L01",
    "method": "range-wide",
@@ -6918,6 +7093,11 @@
    "fl": "FL-A06",
    "method": "range",
    "width": 36
+  },
+  "inv-b290c6e147": {
+   "fl": "FL-X01",
+   "method": "range-wide",
+   "width": 326
   },
   "inv-b2af7983d4": {
    "fl": "FL-K02",
@@ -7441,6 +7621,11 @@
    "method": "range-wide",
    "width": 343
   },
+  "inv-bf5fd6c1c4": {
+   "fl": "FL-N05",
+   "method": "range",
+   "width": 4
+  },
   "inv-bf7ee7f36a": {
    "fl": "FL-A12",
    "method": "range-wide",
@@ -7518,6 +7703,11 @@
    "fl": "FL-C20",
    "method": "range",
    "width": 115
+  },
+  "inv-c29e86b787": {
+   "fl": "FL-J12",
+   "method": "range-wide",
+   "width": 182
   },
   "inv-c2f9dd3de4": {
    "also": [],
@@ -7700,6 +7890,11 @@
    "method": "range",
    "width": 48
   },
+  "inv-c7a6bc2efe": {
+   "fl": "FL-J12",
+   "method": "range-wide",
+   "width": 182
+  },
   "inv-c7a9275c4d": {
    "distance": 78,
    "fl": "FL-L02",
@@ -7746,6 +7941,11 @@
    "fl": "FL-C02",
    "method": "range",
    "width": 5
+  },
+  "inv-c97ab07c25": {
+   "also": [],
+   "fl": "FL-A02",
+   "method": "name"
   },
   "inv-c9880c33a9": {
    "fl": "FL-X01",
@@ -8584,6 +8784,11 @@
    "method": "range-wide",
    "width": 316
   },
+  "inv-dca2bdbc6d": {
+   "fl": "FL-C25",
+   "method": "range",
+   "width": 72
+  },
   "inv-dd17c80bb3": {
    "fl": "FL-I16",
    "method": "range-wide",
@@ -8901,6 +9106,11 @@
    "method": "range-wide",
    "width": 965
   },
+  "inv-e5926e5960": {
+   "fl": "FL-C25",
+   "method": "range",
+   "width": 72
+  },
   "inv-e5aa1d266b": {
    "fl": "FL-K04",
    "method": "range-wide",
@@ -8991,6 +9201,11 @@
    "from": "download_bookmarks",
    "method": "qualname"
   },
+  "inv-e84ca0bbff": {
+   "fl": "FL-D13",
+   "from": "download_bookmarks",
+   "method": "qualname"
+  },
   "inv-e85297843b": {
    "distance": 80,
    "fl": "FL-X01",
@@ -9035,6 +9250,16 @@
    "fl": "FL-X01",
    "method": "range-wide",
    "width": 326
+  },
+  "inv-e921e941d7": {
+   "also": [],
+   "fl": "FL-I12",
+   "method": "section-T"
+  },
+  "inv-e924a49062": {
+   "fl": "FL-A02",
+   "method": "range",
+   "width": 10
   },
   "inv-e93b96e498": {
    "also": [],
@@ -9493,6 +9718,11 @@
    "fl": "FL-D14",
    "method": "range-wide",
    "width": 316
+  },
+  "inv-f60f347714": {
+   "fl": "FL-N02",
+   "method": "range",
+   "width": 1
   },
   "inv-f64439c3a7": {
    "fl": "FL-B06",
@@ -9980,9 +10210,9 @@
  },
  "manual": {},
  "meta": {
-  "inventory_total": 2553,
+  "inventory_total": 2808,
   "ledger_rows_A_to_P": 171,
-  "port_commit": "46da19babbd99407a05b1818d7f7882e88bf8ff6",
+  "port_commit": "53a4baaa96b50e92449fec1a6c69ddaef849b6d0",
   "port_note": "移植版の文言存在確認に使った work のコミット(読取のみ)",
   "source_commit": "3ac3aa0d47a64785251593bcb09bb2d5f6df374b",
   "wide_threshold_lines": 150
@@ -10029,6 +10259,7 @@
   "inv-0adda3fa11",
   "inv-0aec2f4548",
   "inv-0b108af10a",
+  "inv-0b3a7b74ec",
   "inv-0bb3986a2d",
   "inv-0bea816157",
   "inv-0c73940811",
@@ -10054,6 +10285,7 @@
   "inv-122122fe4e",
   "inv-125873bd42",
   "inv-1272361fba",
+  "inv-128bedd670",
   "inv-12b70c0b91",
   "inv-12c54b0aeb",
   "inv-12d439b755",
@@ -10086,6 +10318,7 @@
   "inv-1a979dc307",
   "inv-1b4d9964e8",
   "inv-1b592a49b8",
+  "inv-1b61df21c8",
   "inv-1b6eaaaf84",
   "inv-1b90289480",
   "inv-1bece5e9af",
@@ -10206,6 +10439,7 @@
   "inv-400376cf78",
   "inv-40406660e9",
   "inv-406c308c23",
+  "inv-4090d7348b",
   "inv-40e9bb972c",
   "inv-41253ff464",
   "inv-4183ed1976",
@@ -10257,6 +10491,7 @@
   "inv-4f5f3bd644",
   "inv-4f77d3fa3e",
   "inv-509f19ab50",
+  "inv-50b93642bc",
   "inv-50f343c269",
   "inv-510f8475da",
   "inv-516cafef45",
@@ -10287,6 +10522,7 @@
   "inv-5a36af66c1",
   "inv-5b37bfa5e3",
   "inv-5b491bd777",
+  "inv-5b9808ea90",
   "inv-5b9a8f18be",
   "inv-5bafd1ed44",
   "inv-5c005f79bc",
@@ -10364,6 +10600,7 @@
   "inv-7055fe71c0",
   "inv-705c53b0a1",
   "inv-706e284143",
+  "inv-70ca7f21b0",
   "inv-70e92e39a0",
   "inv-7132a15798",
   "inv-71b324612a",
@@ -10427,6 +10664,7 @@
   "inv-8106b61076",
   "inv-810b3faa00",
   "inv-813a0985e8",
+  "inv-81b3e5b78f",
   "inv-81d7978565",
   "inv-828ac69369",
   "inv-82abbe46e4",
@@ -10502,6 +10740,7 @@
   "inv-9a4cedd571",
   "inv-9a70f02f80",
   "inv-9aa80430c8",
+  "inv-9ac38ea598",
   "inv-9ac4cdbdf4",
   "inv-9ae578d387",
   "inv-9b61af92cb",
@@ -10561,6 +10800,7 @@
   "inv-ac4606b95e",
   "inv-ac4ac14863",
   "inv-ac6fcce693",
+  "inv-ad61e67f30",
   "inv-adbff9727c",
   "inv-ae60388563",
   "inv-ae8966f197",
@@ -10575,11 +10815,14 @@
   "inv-b11a0b0ae5",
   "inv-b18bceb19e",
   "inv-b1d1be7fad",
+  "inv-b1d5888ef8",
   "inv-b23caffc59",
   "inv-b2405c8107",
   "inv-b2af7983d4",
   "inv-b3066e9266",
+  "inv-b37038f863",
   "inv-b3a1a492c2",
+  "inv-b3c3fbb30c",
   "inv-b4b58397a3",
   "inv-b4dd58c003",
   "inv-b51c75bbc9",
@@ -10636,6 +10879,7 @@
   "inv-c3777b41bd",
   "inv-c3bcf5fb05",
   "inv-c4559009ab",
+  "inv-c47efc9395",
   "inv-c5474b5e26",
   "inv-c558999e31",
   "inv-c567e93bfd",
@@ -10766,6 +11010,7 @@
   "inv-e7abe79f9b",
   "inv-e7d532f9c3",
   "inv-e847033172",
+  "inv-e84ca0bbff",
   "inv-e8571ee290",
   "inv-e85dd33a89",
   "inv-e89f4d6928",
@@ -10774,6 +11019,7 @@
   "inv-e93b96e498",
   "inv-e9de2ef5a2",
   "inv-ea669943cb",
+  "inv-eaa09ff1d5",
   "inv-eae53975e0",
   "inv-eb215028f6",
   "inv-eb30dcd7f2",
@@ -10869,7 +11115,9 @@
    "lines": [
     29,
     31
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -10878,7 +11126,9 @@
    "lines": [
     33,
     79
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -10887,7 +11137,9 @@
    "lines": [
     80,
     88
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -10896,7 +11148,9 @@
    "lines": [
     89,
     98
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -10905,7 +11159,9 @@
    "lines": [
     99,
     122
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -10914,7 +11170,9 @@
    "lines": [
     123,
     434
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -10923,7 +11181,9 @@
    "lines": [
     435,
     466
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -10932,7 +11192,9 @@
    "lines": [
     467,
     524
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -10941,7 +11203,9 @@
    "lines": [
     525,
     720
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -10950,7 +11214,9 @@
    "lines": [
     721,
     856
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -10959,7 +11225,9 @@
    "lines": [
     857,
     936
-   ]
+   ],
+   "name_re": null,
+   "scope": "function"
   },
   {
    "file": "core.py",
@@ -10968,7 +11236,9 @@
    "lines": [
     1075,
     1085
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -10977,7 +11247,9 @@
    "lines": [
     937,
     1108
-   ]
+   ],
+   "name_re": null,
+   "scope": "function"
   },
   {
    "file": "core.py",
@@ -10986,7 +11258,9 @@
    "lines": [
     1150,
     1170
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -10995,7 +11269,9 @@
    "lines": [
     1185,
     1195
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -11004,7 +11280,9 @@
    "lines": [
     1255,
     1300
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -11013,7 +11291,9 @@
    "lines": [
     1329,
     1340
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -11022,7 +11302,9 @@
    "lines": [
     1109,
     1813
-   ]
+   ],
+   "name_re": null,
+   "scope": "function"
   },
   {
    "file": "core.py",
@@ -11031,7 +11313,9 @@
    "lines": [
     1845,
     1855
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -11040,7 +11324,9 @@
    "lines": [
     1814,
     2181
-   ]
+   ],
+   "name_re": null,
+   "scope": "function"
   },
   {
    "file": "core.py",
@@ -11049,7 +11335,9 @@
    "lines": [
     2182,
     2279
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -11058,7 +11346,9 @@
    "lines": [
     2280,
     2384
-   ]
+   ],
+   "name_re": null,
+   "scope": "function"
   },
   {
    "file": "core.py",
@@ -11067,7 +11357,9 @@
    "lines": [
     2385,
     2546
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -11076,7 +11368,9 @@
    "lines": [
     2547,
     2719
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "core.py",
@@ -11085,7 +11379,9 @@
    "lines": [
     2720,
     3131
-   ]
+   ],
+   "name_re": null,
+   "scope": "function"
   },
   {
    "file": "core.py",
@@ -11094,7 +11390,9 @@
    "lines": [
     3132,
     3176
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11103,7 +11401,9 @@
    "lines": [
     24,
     119
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11112,7 +11412,9 @@
    "lines": [
     159,
     226
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11121,16 +11423,20 @@
    "lines": [
     227,
     343
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
-   "fl": "FL-A11",
+   "fl": "FL-A11, FL-Z15",
    "kinds": null,
    "lines": [
     344,
     456
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11139,7 +11445,9 @@
    "lines": [
     457,
     685
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11148,7 +11456,9 @@
    "lines": [
     686,
     760
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11157,7 +11467,9 @@
    "lines": [
     761,
     943
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11166,7 +11478,9 @@
    "lines": [
     944,
     1029
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11175,7 +11489,9 @@
    "lines": [
     1030,
     1090
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11184,16 +11500,20 @@
    "lines": [
     1091,
     1191
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
-   "fl": "FL-C02",
+   "fl": "FL-C02, FL-Z16",
    "kinds": null,
    "lines": [
     1192,
     1233
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11202,7 +11522,9 @@
    "lines": [
     1234,
     1254
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11211,7 +11533,9 @@
    "lines": [
     1255,
     1309
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11220,7 +11544,9 @@
    "lines": [
     1310,
     1360
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11229,16 +11555,20 @@
    "lines": [
     1361,
     1480
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
-   "fl": "FL-K06",
+   "fl": "FL-K06, FL-Z17",
    "kinds": null,
    "lines": [
     1481,
     1608
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11247,7 +11577,9 @@
    "lines": [
     1609,
     1626
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11256,7 +11588,9 @@
    "lines": [
     1627,
     1651
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11265,7 +11599,9 @@
    "lines": [
     1652,
     1678
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11274,7 +11610,9 @@
    "lines": [
     1679,
     1744
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11283,7 +11621,9 @@
    "lines": [
     1745,
     1838
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11292,7 +11632,9 @@
    "lines": [
     1839,
     1885
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11301,7 +11643,9 @@
    "lines": [
     1886,
     1924
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11310,7 +11654,9 @@
    "lines": [
     1925,
     1968
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11319,7 +11665,9 @@
    "lines": [
     1969,
     2010
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11328,7 +11676,9 @@
    "lines": [
     2011,
     2086
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11337,7 +11687,9 @@
    "lines": [
     2087,
     2120
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11346,7 +11698,9 @@
    "lines": [
     2121,
     2329
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11355,7 +11709,9 @@
    "lines": [
     1,
     23
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "pixiv_client.py",
@@ -11364,7 +11720,9 @@
    "lines": [
     110,
     158
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11373,7 +11731,9 @@
    "lines": [
     26,
     151
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11382,7 +11742,9 @@
    "lines": [
     192,
     218
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11391,7 +11753,9 @@
    "lines": [
     219,
     239
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11400,7 +11764,9 @@
    "lines": [
     240,
     240
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11409,7 +11775,9 @@
    "lines": [
     241,
     262
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11420,7 +11788,9 @@
    "lines": [
     264,
     790
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11429,7 +11799,9 @@
    "lines": [
     794,
     899
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11438,7 +11810,9 @@
    "lines": [
     903,
     919
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11447,7 +11821,9 @@
    "lines": [
     921,
     945
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11456,7 +11832,9 @@
    "lines": [
     947,
     995
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11465,7 +11843,9 @@
    "lines": [
     997,
     1034
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11474,7 +11854,9 @@
    "lines": [
     1036,
     1084
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11483,7 +11865,9 @@
    "lines": [
     1086,
     1099
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11492,7 +11876,9 @@
    "lines": [
     1101,
     1128
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11501,7 +11887,9 @@
    "lines": [
     1130,
     1270
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11510,7 +11898,9 @@
    "lines": [
     1272,
     1330
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11519,7 +11909,9 @@
    "lines": [
     1356,
     1493
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11528,7 +11920,9 @@
    "lines": [
     1495,
     1516
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11537,7 +11931,9 @@
    "lines": [
     1518,
     1555
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11546,7 +11942,9 @@
    "lines": [
     1556,
     1604
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11555,7 +11953,9 @@
    "lines": [
     1606,
     1710
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11564,7 +11964,9 @@
    "lines": [
     1711,
     1752
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11573,7 +11975,9 @@
    "lines": [
     1753,
     1772
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11582,7 +11986,9 @@
    "lines": [
     1773,
     1832
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11591,7 +11997,9 @@
    "lines": [
     1833,
     1852
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11600,7 +12008,9 @@
    "lines": [
     1853,
     1860
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11609,7 +12019,9 @@
    "lines": [
     1861,
     1876
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11618,7 +12030,9 @@
    "lines": [
     1877,
     1939
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11627,7 +12041,9 @@
    "lines": [
     1940,
     1974
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11636,7 +12052,9 @@
    "lines": [
     1975,
     1998
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11645,7 +12063,9 @@
    "lines": [
     1999,
     2032
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11654,7 +12074,9 @@
    "lines": [
     2033,
     2470
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11663,7 +12085,9 @@
    "lines": [
     2471,
     2571
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11672,7 +12096,9 @@
    "lines": [
     2572,
     2607
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11681,7 +12107,9 @@
    "lines": [
     2608,
     2673
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11690,7 +12118,9 @@
    "lines": [
     2674,
     2825
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "database.py",
@@ -11699,7 +12129,9 @@
    "lines": [
     2826,
     2832
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "epub_builder.py",
@@ -11708,7 +12140,9 @@
    "lines": [
     1,
     200
-   ]
+   ],
+   "name_re": null,
+   "scope": "file"
   },
   {
    "file": "rate_coordinator.py",
@@ -11717,7 +12151,9 @@
    "lines": [
     1,
     100
-   ]
+   ],
+   "name_re": null,
+   "scope": "file"
   },
   {
    "file": "registry_helper.py",
@@ -11726,7 +12162,9 @@
    "lines": [
     1,
     100
-   ]
+   ],
+   "name_re": null,
+   "scope": "file"
   },
   {
    "file": "scheduler.py",
@@ -11735,7 +12173,9 @@
    "lines": [
     1,
     260
-   ]
+   ],
+   "name_re": null,
+   "scope": "file"
   },
   {
    "file": "tray.py",
@@ -11744,7 +12184,9 @@
    "lines": [
     1,
     60
-   ]
+   ],
+   "name_re": null,
+   "scope": "file"
   },
   {
    "file": "ui_dispatch.py",
@@ -11752,8 +12194,10 @@
    "kinds": null,
    "lines": [
     1,
-    400
-   ]
+    700
+   ],
+   "name_re": null,
+   "scope": "file"
   },
   {
    "file": "style_infer.py",
@@ -11762,7 +12206,9 @@
    "lines": [
     1,
     600
-   ]
+   ],
+   "name_re": null,
+   "scope": "file"
   },
   {
    "file": "nana7mi_vault.py",
@@ -11771,7 +12217,9 @@
    "lines": [
     1,
     3000
-   ]
+   ],
+   "name_re": null,
+   "scope": "file"
   },
   {
    "file": "main.py",
@@ -11780,7 +12228,9 @@
    "lines": [
     355,
     365
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "main.py",
@@ -11789,7 +12239,9 @@
    "lines": [
     375,
     390
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "main.py",
@@ -11798,7 +12250,9 @@
    "lines": [
     540,
     570
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "server.py",
@@ -11807,7 +12261,9 @@
    "lines": [
     790,
     800
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "server.py",
@@ -11816,7 +12272,9 @@
    "lines": [
     835,
     845
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "server.py",
@@ -11825,7 +12283,9 @@
    "lines": [
     900,
     975
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "server.py",
@@ -11834,7 +12294,9 @@
    "lines": [
     1005,
     1012
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "server.py",
@@ -11843,7 +12305,9 @@
    "lines": [
     1115,
     1125
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "server.py",
@@ -11852,7 +12316,9 @@
    "lines": [
     1150,
     1155
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "server.py",
@@ -11861,7 +12327,9 @@
    "lines": [
     1170,
     1180
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "server.py",
@@ -11870,7 +12338,9 @@
    "lines": [
     1300,
     1335
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "server.py",
@@ -11879,7 +12349,9 @@
    "lines": [
     1350,
     1530
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "server.py",
@@ -11888,7 +12360,9 @@
    "lines": [
     1530,
     1545
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "artbook_viewer.py",
@@ -11897,7 +12371,9 @@
    "lines": [
     440,
     465
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "artbook_viewer.py",
@@ -11906,7 +12382,9 @@
    "lines": [
     505,
     560
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "artbook_viewer.py",
@@ -11915,7 +12393,9 @@
    "lines": [
     760,
     790
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "artbook_viewer.py",
@@ -11924,7 +12404,9 @@
    "lines": [
     810,
     820
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "artbook_viewer.py",
@@ -11933,7 +12415,9 @@
    "lines": [
     1160,
     1170
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "artbook_viewer.py",
@@ -11942,7 +12426,9 @@
    "lines": [
     1260,
     1275
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "artbook_viewer.py",
@@ -11951,7 +12437,9 @@
    "lines": [
     1290,
     1320
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "artbook_viewer.py",
@@ -11960,7 +12448,9 @@
    "lines": [
     1470,
     1490
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_engine.py",
@@ -11969,7 +12459,9 @@
    "lines": [
     20,
     70
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_engine.py",
@@ -11978,7 +12470,9 @@
    "lines": [
     630,
     660
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_ranking.py",
@@ -11987,7 +12481,9 @@
    "lines": [
     200,
     230
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_display_state.py",
@@ -11996,7 +12492,9 @@
    "lines": [
     60,
     100
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_outcome.py",
@@ -12005,7 +12503,9 @@
    "lines": [
     60,
     150
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_population.py",
@@ -12014,7 +12514,9 @@
    "lines": [
     190,
     215
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_tab.py",
@@ -12023,7 +12525,9 @@
    "lines": [
     125,
     145
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_tab.py",
@@ -12032,7 +12536,9 @@
    "lines": [
     480,
     495
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_tab.py",
@@ -12041,7 +12547,9 @@
    "lines": [
     510,
     525
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_tab.py",
@@ -12050,7 +12558,9 @@
    "lines": [
     885,
     905
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_tab.py",
@@ -12059,7 +12569,9 @@
    "lines": [
     1900,
     2110
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_tab.py",
@@ -12068,7 +12580,9 @@
    "lines": [
     2280,
     2360
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_tab.py",
@@ -12077,7 +12591,9 @@
    "lines": [
     2780,
     2900
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_tab.py",
@@ -12086,7 +12602,9 @@
    "lines": [
     3120,
     3140
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_tab.py",
@@ -12095,7 +12613,9 @@
    "lines": [
     3340,
     3420
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_tab.py",
@@ -12104,7 +12624,9 @@
    "lines": [
     4240,
     4260
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_tab.py",
@@ -12113,7 +12635,9 @@
    "lines": [
     4620,
     4670
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_tab.py",
@@ -12122,7 +12646,9 @@
    "lines": [
     4760,
     4840
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_tab.py",
@@ -12131,7 +12657,9 @@
    "lines": [
     4980,
     5030
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_tab.py",
@@ -12140,7 +12668,9 @@
    "lines": [
     5160,
     5265
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "discovery_tab.py",
@@ -12149,7 +12679,9 @@
    "lines": [
     5600,
     5700
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "filter_panel.py",
@@ -12158,7 +12690,9 @@
    "lines": [
     1,
     500
-   ]
+   ],
+   "name_re": null,
+   "scope": "file"
   },
   {
    "file": "grid_card_size_ui.py",
@@ -12167,7 +12701,9 @@
    "lines": [
     1,
     120
-   ]
+   ],
+   "name_re": null,
+   "scope": "file"
   },
   {
    "file": "gui.py",
@@ -12176,7 +12712,9 @@
    "lines": [
     140,
     150
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12185,7 +12723,9 @@
    "lines": [
     275,
     285
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12194,7 +12734,9 @@
    "lines": [
     470,
     490
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12203,7 +12745,9 @@
    "lines": [
     1110,
     1175
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12212,7 +12756,9 @@
    "lines": [
     1685,
     1695
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12221,7 +12767,9 @@
    "lines": [
     2905,
     2930
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12230,7 +12778,9 @@
    "lines": [
     3200,
     3212
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12239,7 +12789,9 @@
    "lines": [
     3610,
     3625
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12248,7 +12800,9 @@
    "lines": [
     3700,
     3705
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12257,7 +12811,9 @@
    "lines": [
     4340,
     4372
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12266,7 +12822,9 @@
    "lines": [
     4820,
     4870
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12275,7 +12833,9 @@
    "lines": [
     4876,
     4985
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12284,7 +12844,9 @@
    "lines": [
     5005,
     5020
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12293,7 +12855,9 @@
    "lines": [
     5380,
     5395
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12302,7 +12866,9 @@
    "lines": [
     5490,
     5498
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12311,7 +12877,9 @@
    "lines": [
     5575,
     5598
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12320,7 +12888,9 @@
    "lines": [
     5820,
     5840
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "gui.py",
@@ -12329,7 +12899,9 @@
    "lines": [
     6125,
     6135
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "library_tab.py",
@@ -12338,7 +12910,9 @@
    "lines": [
     135,
     150
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "library_tab.py",
@@ -12347,7 +12921,9 @@
    "lines": [
     1170,
     1180
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "library_tab.py",
@@ -12356,7 +12932,9 @@
    "lines": [
     1215,
     1230
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "library_tab.py",
@@ -12365,7 +12943,9 @@
    "lines": [
     1840,
     1880
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "library_tab.py",
@@ -12374,7 +12954,9 @@
    "lines": [
     2160,
     2240
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "library_tab.py",
@@ -12383,7 +12965,9 @@
    "lines": [
     2360,
     2370
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "library_tab.py",
@@ -12392,7 +12976,9 @@
    "lines": [
     3110,
     3190
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "ranking_tab.py",
@@ -12401,7 +12987,9 @@
    "lines": [
     130,
     165
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "ranking_tab.py",
@@ -12410,7 +12998,9 @@
    "lines": [
     450,
     460
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "ranking_tab.py",
@@ -12419,7 +13009,9 @@
    "lines": [
     515,
     520
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "ranking_tab.py",
@@ -12428,7 +13020,9 @@
    "lines": [
     585,
     635
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "ranking_tab.py",
@@ -12437,7 +13031,9 @@
    "lines": [
     745,
     755
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "ranking_tab.py",
@@ -12446,7 +13042,9 @@
    "lines": [
     800,
     860
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "ranking_tab.py",
@@ -12455,7 +13053,9 @@
    "lines": [
     945,
     1070
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "ranking_tab.py",
@@ -12464,7 +13064,9 @@
    "lines": [
     1145,
     1160
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "ranking_tab.py",
@@ -12473,7 +13075,9 @@
    "lines": [
     1170,
     1180
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "ranking_tab.py",
@@ -12482,7 +13086,9 @@
    "lines": [
     1260,
     1270
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "ranking_tab.py",
@@ -12491,7 +13097,9 @@
    "lines": [
     1280,
     1360
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "ranking_tab.py",
@@ -12500,7 +13108,9 @@
    "lines": [
     2480,
     2495
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "recommend_tab.py",
@@ -12509,7 +13119,9 @@
    "lines": [
     138,
     145
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "recommend_tab.py",
@@ -12518,7 +13130,9 @@
    "lines": [
     148,
     158
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "recommend_tab.py",
@@ -12527,7 +13141,9 @@
    "lines": [
     255,
     265
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "recommend_tab.py",
@@ -12535,8 +13151,10 @@
    "kinds": null,
    "lines": [
     318,
-    335
-   ]
+    355
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "recommend_tab.py",
@@ -12545,7 +13163,9 @@
    "lines": [
     450,
     460
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "recommend_tab.py",
@@ -12554,7 +13174,9 @@
    "lines": [
     490,
     520
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "recommend_tab.py",
@@ -12563,7 +13185,9 @@
    "lines": [
     600,
     815
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "recommend_tab.py",
@@ -12572,7 +13196,9 @@
    "lines": [
     2525,
     2535
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "recommend_tab.py",
@@ -12581,7 +13207,9 @@
    "lines": [
     2700,
     2780
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "recommend_tab.py",
@@ -12590,7 +13218,9 @@
    "lines": [
     3125,
     3265
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "recommend_tab.py",
@@ -12599,7 +13229,9 @@
    "lines": [
     3370,
     3380
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "recommend_tab.py",
@@ -12608,7 +13240,9 @@
    "lines": [
     3420,
     3430
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "recommend_tab.py",
@@ -12617,7 +13251,9 @@
    "lines": [
     3460,
     3600
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "recommend_tab.py",
@@ -12626,7 +13262,9 @@
    "lines": [
     3940,
     3945
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "unified_download.py",
@@ -12635,7 +13273,9 @@
    "lines": [
     20,
     40
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "unified_download.py",
@@ -12644,7 +13284,9 @@
    "lines": [
     41,
     92
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "unified_download.py",
@@ -12653,7 +13295,9 @@
    "lines": [
     93,
     104
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "unified_download.py",
@@ -12662,7 +13306,9 @@
    "lines": [
     105,
     175
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "unified_download.py",
@@ -12671,7 +13317,9 @@
    "lines": [
     176,
     215
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "unified_download.py",
@@ -12680,7 +13328,9 @@
    "lines": [
     216,
     290
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "unified_download_tab.py",
@@ -12689,7 +13339,9 @@
    "lines": [
     150,
     165
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "unified_download_tab.py",
@@ -12698,7 +13350,9 @@
    "lines": [
     345,
     385
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "unified_download_tab.py",
@@ -12707,7 +13361,9 @@
    "lines": [
     425,
     435
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "unified_download_tab.py",
@@ -12716,7 +13372,9 @@
    "lines": [
     465,
     475
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "unified_download_tab.py",
@@ -12725,7 +13383,9 @@
    "lines": [
     505,
     540
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "unified_download_tab.py",
@@ -12734,7 +13394,9 @@
    "lines": [
     585,
     640
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "unified_download_tab.py",
@@ -12743,7 +13405,9 @@
    "lines": [
     735,
     785
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "unified_download_tab.py",
@@ -12752,7 +13416,9 @@
    "lines": [
     1235,
     1270
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "unified_download_tab.py",
@@ -12761,7 +13427,9 @@
    "lines": [
     1370,
     1480
-   ]
+   ],
+   "name_re": null,
+   "scope": null
   },
   {
    "file": "unified_download_tab.py",
@@ -12770,7 +13438,433 @@
    "lines": [
     1550,
     1565
-   ]
+   ],
+   "name_re": null,
+   "scope": null
+  },
+  {
+   "file": "artbook_viewer.py",
+   "fl": "n/a:UI スレッドへの投入機構（内部実装。NiceGUI では別方式）",
+   "kinds": null,
+   "lines": [
+    105,
+    109
+   ],
+   "name_re": null,
+   "scope": null
+  },
+  {
+   "file": "artbook_viewer.py",
+   "fl": "FL-M03",
+   "kinds": null,
+   "lines": [
+    110,
+    239
+   ],
+   "name_re": null,
+   "scope": null
+  },
+  {
+   "file": "artbook_viewer.py",
+   "fl": "FL-M01, FL-M02, FL-M03, FL-M04",
+   "kinds": [
+    "api_public"
+   ],
+   "lines": [
+    240,
+    1494
+   ],
+   "name_re": null,
+   "scope": "function"
+  },
+  {
+   "file": "discovery_description.py",
+   "fl": "FL-I13",
+   "kinds": null,
+   "lines": [
+    1,
+    300
+   ],
+   "name_re": null,
+   "scope": "file"
+  },
+  {
+   "file": "discovery_display_state.py",
+   "fl": "FL-I06",
+   "kinds": null,
+   "lines": [
+    1,
+    52
+   ],
+   "name_re": null,
+   "scope": null
+  },
+  {
+   "file": "discovery_display_state.py",
+   "fl": "FL-I14",
+   "kinds": null,
+   "lines": [
+    53,
+    200
+   ],
+   "name_re": null,
+   "scope": null
+  },
+  {
+   "file": "discovery_engine.py",
+   "fl": "FL-I14",
+   "kinds": null,
+   "lines": [
+    585,
+    660
+   ],
+   "name_re": null,
+   "scope": null
+  },
+  {
+   "file": "discovery_outcome.py",
+   "fl": "FL-I14",
+   "kinds": null,
+   "lines": [
+    50,
+    150
+   ],
+   "name_re": null,
+   "scope": null
+  },
+  {
+   "file": "discovery_population.py",
+   "fl": "FL-I14",
+   "kinds": null,
+   "lines": [
+    1,
+    300
+   ],
+   "name_re": null,
+   "scope": "file"
+  },
+  {
+   "file": "discovery_pref_viewport.py",
+   "fl": "FL-I11",
+   "kinds": null,
+   "lines": [
+    1,
+    40
+   ],
+   "name_re": null,
+   "scope": "file"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "fl": "FL-I19",
+   "kinds": null,
+   "lines": [
+    1,
+    900
+   ],
+   "name_re": null,
+   "scope": "file"
+  },
+  {
+   "file": "discovery_size_coordinator.py",
+   "fl": "FL-I11",
+   "kinds": null,
+   "lines": [
+    1,
+    160
+   ],
+   "name_re": null,
+   "scope": "file"
+  },
+  {
+   "file": "discovery_tab.py",
+   "fl": "FL-I01, FL-I02, FL-I11, FL-I14, FL-I16",
+   "kinds": [
+    "api_public"
+   ],
+   "lines": [
+    67,
+    5700
+   ],
+   "name_re": null,
+   "scope": "function"
+  },
+  {
+   "file": "gui.py",
+   "fl": "FL-B02",
+   "kinds": null,
+   "lines": [
+    151,
+    178
+   ],
+   "name_re": null,
+   "scope": null
+  },
+  {
+   "file": "gui.py",
+   "fl": "n/a:色・罫線などの見た目の部品（機能ではない）",
+   "kinds": null,
+   "lines": [
+    179,
+    199
+   ],
+   "name_re": null,
+   "scope": null
+  },
+  {
+   "file": "gui.py",
+   "fl": "FL-E04",
+   "kinds": null,
+   "lines": [
+    200,
+    312
+   ],
+   "name_re": null,
+   "scope": null
+  },
+  {
+   "file": "gui.py",
+   "fl": "FL-C12",
+   "kinds": null,
+   "lines": [
+    313,
+    425
+   ],
+   "name_re": null,
+   "scope": null
+  },
+  {
+   "file": "gui.py",
+   "fl": "FL-H05",
+   "kinds": null,
+   "lines": [
+    426,
+    461
+   ],
+   "name_re": null,
+   "scope": null
+  },
+  {
+   "file": "gui.py",
+   "fl": "FL-B01, FL-E01, FL-F01, FL-H01",
+   "kinds": [
+    "api_public"
+   ],
+   "lines": [
+    462,
+    6350
+   ],
+   "name_re": null,
+   "scope": "function"
+  },
+  {
+   "file": "main.py",
+   "fl": "FL-A13",
+   "kinds": null,
+   "lines": [
+    150,
+    200
+   ],
+   "name_re": null,
+   "scope": null
+  },
+  {
+   "file": "ranking_tab.py",
+   "fl": "FL-J01, FL-J07, FL-J11",
+   "kinds": [
+    "api_public"
+   ],
+   "lines": [
+    439,
+    2611
+   ],
+   "name_re": null,
+   "scope": "function"
+  },
+  {
+   "file": "recommend_tab.py",
+   "fl": "FL-L01, FL-L03",
+   "kinds": [
+    "api_public"
+   ],
+   "lines": [
+    246,
+    3979
+   ],
+   "name_re": null,
+   "scope": "function"
+  },
+  {
+   "file": "shared_image_cache.py",
+   "fl": "FL-C15",
+   "kinds": null,
+   "lines": [
+    1,
+    250
+   ],
+   "name_re": null,
+   "scope": "file"
+  },
+  {
+   "file": "similar_works.py",
+   "fl": "FL-K10",
+   "kinds": null,
+   "lines": [
+    1,
+    150
+   ],
+   "name_re": null,
+   "scope": "file"
+  },
+  {
+   "file": "ui_dialog.py",
+   "fl": "n/a:ダイアログを閉じる内部補助（利用者の機能ではない）",
+   "kinds": null,
+   "lines": [
+    1,
+    50
+   ],
+   "name_re": null,
+   "scope": "file"
+  },
+  {
+   "file": "unified_download_tab.py",
+   "fl": "n/a:色・罫線などの見た目の部品（機能ではない）",
+   "kinds": null,
+   "lines": [
+    49,
+    76
+   ],
+   "name_re": null,
+   "scope": null
+  },
+  {
+   "file": "unified_download_tab.py",
+   "fl": "FL-D01, FL-D02, FL-D09, FL-D10",
+   "kinds": [
+    "api_public"
+   ],
+   "lines": [
+    77,
+    1570
+   ],
+   "name_re": null,
+   "scope": "function"
+  },
+  {
+   "file": "zip_locks.py",
+   "fl": "FL-Z11",
+   "kinds": null,
+   "lines": [
+    1,
+    60
+   ],
+   "name_re": null,
+   "scope": "file"
+  },
+  {
+   "file": "server.py",
+   "fl": "FL-N04",
+   "kinds": [
+    "api_public"
+   ],
+   "lines": [
+    1,
+    2000
+   ],
+   "name_re": "_is_allowed_extension_origin|_is_allowed_origin|_is_loopback_client|_send_cors_headers|_send_response",
+   "scope": null
+  },
+  {
+   "file": "server.py",
+   "fl": "FL-X02",
+   "kinds": [
+    "api_public"
+   ],
+   "lines": [
+    1,
+    2000
+   ],
+   "name_re": "_is_allowed_web_origin|_check_web_token|_check_web_bridge_enabled|is_web_bridge_enabled|get_web_token|generate_web_token",
+   "scope": null
+  },
+  {
+   "file": "server.py",
+   "fl": "FL-N02",
+   "kinds": [
+    "api_public"
+   ],
+   "lines": [
+    1,
+    2000
+   ],
+   "name_re": "_handle_download|_handle_legacy_download|_log_extension_job_received|_handle_bookmark",
+   "scope": null
+  },
+  {
+   "file": "server.py",
+   "fl": "FL-N03",
+   "kinds": [
+    "api_public"
+   ],
+   "lines": [
+    1,
+    2000
+   ],
+   "name_re": "save_cookies_from_extension",
+   "scope": null
+  },
+  {
+   "file": "server.py",
+   "fl": "FL-X01, FL-X02",
+   "kinds": [
+    "api_public"
+   ],
+   "lines": [
+    1,
+    2000
+   ],
+   "name_re": "_handle_web_download|_run_web_download_job|register_web_batch|list_web_batches|_handle_jobs_list|_handle_jobs_bulk_control|_account_batch_terminal|_mark_web_job_terminal|_notify_web_job_result|_set_gui_flow_active|enqueue_gui_job|control_web_job_from_gui|dismiss_web_job_from_gui",
+   "scope": null
+  },
+  {
+   "file": "server.py",
+   "fl": "FL-X01",
+   "kinds": [
+    "api_public"
+   ],
+   "lines": [
+    1,
+    2000
+   ],
+   "name_re": "mark_app_contact|last_app_contact_at",
+   "scope": null
+  },
+  {
+   "file": "server.py",
+   "fl": "FL-E06",
+   "kinds": [
+    "api_public"
+   ],
+   "lines": [
+    1,
+    2000
+   ],
+   "name_re": "_job_label_for_log|_emit_pc_operation_log|_emit_queue_log|_emit_coalesced_queue_log|_flush_coalesced_queue_log",
+   "scope": null
+  },
+  {
+   "file": "server.py",
+   "fl": "FL-N01, FL-N02, FL-N03",
+   "kinds": [
+    "api_public"
+   ],
+   "lines": [
+    1,
+    2000
+   ],
+   "name_re": "^PixivVaultRequestHandler$|^PixivVaultServer$",
+   "scope": null
   }
  ],
  "table_rules": {

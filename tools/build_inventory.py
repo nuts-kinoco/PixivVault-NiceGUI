@@ -45,7 +45,8 @@ MENU_CTRL = {"PopupMenuItem", "MenuItemButton", "SubmenuButton", "MenuItem", "Co
 HANDLER_KW = re.compile(r"^on_[a-z_]+$")
 SETTING_CALL = re.compile(r"(get|set|del|delete|update)_?(setting|config|settings)$|^(get|set)_setting$")
 SNACK_NAME = re.compile(r"snack|toast|notify|show_msg|show_message|alert|_toast", re.I)
-LOG_NAME = re.compile(r"^(print|log|logger|log_callback|log_fn|_log|logging|debug|info|warning|error|exception)$|log", re.I)
+LOG_NAME = re.compile(r"(^|_)(log|logs|logger|logging)(_|$)|^(print|debug|info|warning|warn|error|exception|critical)$", re.I)
+PASS_CALLS = {"format", "str", "join", "repr", "int", "strip", "lower", "upper", "replace", "len", "f"}
 
 # 画面(タブ)名: ファイル単位。gui.py は行範囲(ledger 見出しの範囲)で上書きする
 SCREEN_BY_FILE = {
@@ -85,8 +86,18 @@ GUI_SCREENS = [  # (開始行, 終了行, 画面)  gui.py の台帳見出し範�
     (5861, 99999, "起動・タブ切替・キーボード"),
 ]
 # 非 UI だが列挙する公開 API ファイル
+# 公開関数/クラス/メソッドを列挙するファイル。database.py は別途 db_method として列挙する。
+# 画面(UI)モジュールも、関数名だけで挙動を表すもの(work_actually_saved など)を取りこぼさないよう含める
 API_FILES = {"core.py", "pixiv_client.py", "scheduler.py", "epub_builder.py", "unified_download.py",
-             "rate_coordinator.py", "tray.py", "registry_helper.py"}
+             "rate_coordinator.py", "tray.py", "registry_helper.py", "server.py", "library_tab.py",
+             "ranking_tab.py", "recommend_tab.py", "discovery_tab.py", "unified_download_tab.py",
+             "artbook_viewer.py", "filter_panel.py", "discovery_engine.py", "discovery_ranking.py",
+             "discovery_population.py", "discovery_description.py", "discovery_display_state.py",
+             "discovery_outcome.py", "discovery_size_coordinator.py", "discovery_pref_viewport.py",
+             "grid_card_size.py", "grid_card_size_ui.py", "shared_image_cache.py", "similar_works.py",
+             "style_infer.py", "zip_locks.py", "ui_dialog.py", "ui_dispatch.py", "main.py", "gui.py"}
+# 非公開メソッド(_ 始まり)も列挙するファイル(クラスの内部判定が利用者の挙動を決めるもの)
+PRIVATE_FILES = {"scheduler.py", "server.py"}
 NET_FILES = {"core.py", "pixiv_client.py"}
 
 
@@ -176,11 +187,20 @@ class Collector:
             for c in ast.iter_child_nodes(p):
                 self.parents[id(c)] = p
         self.consts: dict[str, str] = {}
-        for n in tree.body if isinstance(tree, ast.Module) else []:
+        self.dict_consts: dict[str, list[str]] = {}
+        seen_vals: dict[str, set] = {}
+        for n in ast.walk(tree):
             if isinstance(n, ast.Assign) and len(n.targets) == 1 and isinstance(n.targets[0], ast.Name):
-                v = jtext(n.value)
-                if v and isinstance(n.value, ast.Constant):
-                    self.consts[n.targets[0].id] = v[0]
+                nm = n.targets[0].id
+                if isinstance(n.value, ast.Constant) and isinstance(n.value.value, str):
+                    seen_vals.setdefault(nm, set()).add(n.value.value)
+                elif isinstance(n.value, ast.Dict):
+                    vals = [v.value for v in n.value.values if isinstance(v, ast.Constant) and isinstance(v.value, str)]
+                    if vals:
+                        self.dict_consts[nm] = vals
+        for nm, vs in seen_vals.items():
+            if len(vs) == 1:       # 同名で値が複数あるものは曖昧なので使わない
+                self.consts[nm] = next(iter(vs))
         self.kbd_funcs: set[int] = set()
         for n in ast.walk(tree):
             if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -329,6 +349,11 @@ class Collector:
             key = "{attr:%s}" % a.attr
         elif isinstance(a, ast.JoinedStr):
             key = jtext(a)[0]
+        elif isinstance(a, ast.Subscript) and isinstance(a.value, ast.Name) and a.value.id in self.dict_consts:
+            op = "set" if nm.startswith(("set", "update")) else ("del" if "del" in nm else "get")
+            for k in self.dict_consts[a.value.id]:
+                self.add("setting_key", k, node, op=op, via="dict:" + a.value.id)
+            return
         if key:
             op = "set" if nm.startswith(("set", "update")) else ("del" if "del" in nm else "get")
             self.add("setting_key", key, node, op=op)
@@ -499,19 +524,22 @@ class Collector:
         return res
 
     def classify_residual(self, node) -> str:
+        """最も内側の「決め手になる呼び出し」で分類する(format/str などは素通し)。文・def・lambda を越えない。"""
         p = self.parents.get(id(node))
         depth = 0
-        while p is not None and depth < 6:
-            if isinstance(p, ast.Call):
-                nm = fn_name(p.func)
-                if LOG_NAME.search(nm):
-                    return "log"
-                if nm in ("Exception", "ValueError", "RuntimeError", "OSError", "TypeError") or nm.endswith("Error"):
-                    return "error_msg"
+        while p is not None and depth < 8:
+            if isinstance(p, (ast.stmt, ast.Lambda)) and not isinstance(p, ast.Raise):
+                return "other"
             if isinstance(p, ast.Raise):
                 return "error_msg"
-            if isinstance(p, ast.JoinedStr):
-                node = p
+            if isinstance(p, ast.Call):
+                nm = fn_name(p.func)
+                if nm not in PASS_CALLS:
+                    if LOG_NAME.search(nm):
+                        return "log"
+                    if nm.endswith(("Error", "Exception")):
+                        return "error_msg"
+                    return "other"
             p = self.parents.get(id(p))
             depth += 1
         return "other"
@@ -519,11 +547,12 @@ class Collector:
 
 def public_defs(fname: str, tree: ast.Module, kind: str):
     out = []
+    private = fname in PRIVATE_FILES
 
     def rec(body, prefix, top):
         for n in body:
             if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                if not n.name.startswith("_") or n.name in ("__init__",) and False:
+                if not n.name.startswith("_") or (private and not n.name.startswith("__")):
                     out.append((prefix + n.name, n.lineno, "function" if not prefix else "method"))
             elif isinstance(n, ast.ClassDef):
                 if not n.name.startswith("_"):

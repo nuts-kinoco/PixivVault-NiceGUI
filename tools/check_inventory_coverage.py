@@ -20,6 +20,7 @@ import build_ledger_map as blm  # noqa: E402
 
 STRONG = ("section-T", "name", "text", "range", "qualname")
 WEAK = ("range-wide", "nearest")
+WEAK_SRC = ("auto-range-wide", "auto-nearest", "rule-wide")
 
 
 def valid_target(t: str, fl_ids: set):
@@ -45,6 +46,10 @@ def rule_hit(rules, it):
         if rl.get("kinds") and it["kind"] not in rl["kinds"]:
             continue
         w = b - a
+        if rl.get("name_re"):
+            if not re.search(rl["name_re"], it["name"]):
+                continue
+            w = -1           # 名前で決まる規則は範囲だけの規則より優先
         if best is None or w < best[0]:
             best = (w, rl)
     return best[1] if best else None
@@ -71,6 +76,11 @@ def resolve(it, mp):
         return mp.get("na_unused", "n/a:呼び出し元なし"), "unused"
     rl = rule_hit(mp.get("rules", []), it)
     if rl:
+        width = rl["lines"][1] - rl["lines"][0] + 1
+        if rl.get("scope") in ("file", "function"):
+            return rl["fl"], "rule-" + rl["scope"]
+        if width > blm.WIDE and not rl["fl"].startswith("n/a"):
+            return rl["fl"], "rule-wide"      # 複数の関数をまとめた広い範囲: 取りこぼしを隠しうるので弱い扱い
         return rl["fl"], "rule"
     if au and au["method"] in WEAK:
         return au["fl"], "auto-" + au["method"]
@@ -137,18 +147,38 @@ def main(argv=None):
             na += 1
         else:
             used_fl[tgt.split(",")[0]] = used_fl.get(tgt.split(",")[0], 0) + 1
-        if src in ("auto-range-wide", "auto-nearest"):
+        if src in WEAK_SRC:
             weak.append(it)
     total = len(items)
     print("inventory 件数:", total)
     print("対応づけの出所:", json.dumps(by_src, ensure_ascii=False, sort_keys=True))
     print("  うち n/a:", na, " / 台帳 FL へ:", total - len(unmapped) - na)
-    print("  弱い方法(広い範囲・近傍)のみ:", len(weak), "(--strict-weak で未対応扱い)")
+    print("  弱い方法(広い範囲・近傍・広い手規則)のみ:", len(weak), "(--strict-weak で未対応扱い)")
+    strict_unmapped = len(unmapped) + len(weak)
+    print("厳格な未対応(未対応+弱い方法):", strict_unmapped)
     print("対応先に使われた FL の数:", len(used_fl))
+    wk: dict[str, int] = {}
+    for it in weak:
+        t_, _ = resolve(it, mp)
+        wk[t_.split(",")[0]] = wk.get(t_.split(",")[0], 0) + 1
+    print("弱い対応の多い FL(上位 10):", ", ".join("%s=%d" % kv for kv in sorted(wk.items(), key=lambda x: -x[1])[:10]))
     n_un = len(unmapped) + (len(weak) if a.strict_weak else 0)
     print("未対応:", len(unmapped) + (len(weak) if a.strict_weak else 0))
     for it in (unmapped + (weak if a.strict_weak else []))[: a.list]:
         print("  %s %s:%d [%s] %s" % (it["id"], it["file"], it["line"], it["kind"], it["name"][:60].replace("\n", " ")))
+    # 逆方向の検査(参考。終了コードには影響しない)
+    rows, sec_t = blm.parse_ledger(blm.LEDGER)
+    inv_keys = {i["name"] for i in items if i["kind"] == "setting_key"}
+    t_missing = sorted(k for k in sec_t if not k.startswith("_") and k not in inv_keys)
+    by_file: dict[str, list] = {}
+    for it in items:
+        by_file.setdefault(it["file"], []).append(it["line"])
+    empty_rows = []
+    for fid, r in rows.items():
+        if r["refs"] and not any(a_ <= ln <= b_ for f_, a_, b_ in r["refs"] for ln in by_file.get(f_, [])):
+            empty_rows.append(fid)
+    print("参考: 台帳の設定キー索引(T)にあるが inventory に無いキー:", t_missing or "なし")
+    print("参考: 引用範囲に inventory 項目が 0 件の台帳行:", len(empty_rows), empty_rows)
     if errors:
         print("整合エラー:", len(errors))
         for e in errors[:30]:

@@ -1,6 +1,164 @@
 {
  "items": [
   {
+   "file": "artbook_viewer.py",
+   "id": "inv-9519599e9f",
+   "kind": "api_public",
+   "line": 55,
+   "name": "build_ugoira_gif_bytes",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "artbook_viewer.py": 2
+   },
+   "screen": "画集ビューア",
+   "sub": "function"
+  },
+  {
+   "file": "artbook_viewer.py",
+   "id": "inv-6762389eac",
+   "kind": "api_public",
+   "line": 97,
+   "name": "artbook_result_is_current",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 6,
+   "refs": {
+    "artbook_viewer.py": 6
+   },
+   "screen": "画集ビューア",
+   "sub": "function"
+  },
+  {
+   "file": "artbook_viewer.py",
+   "id": "inv-a22104f9f6",
+   "kind": "api_public",
+   "line": 105,
+   "name": "marshal_to_ui",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 8,
+   "refs": {
+    "artbook_viewer.py": 8
+   },
+   "screen": "画集ビューア",
+   "sub": "function"
+  },
+  {
+   "file": "artbook_viewer.py",
+   "id": "inv-b02756aa84",
+   "kind": "api_public",
+   "line": 110,
+   "name": "artbook_write_succeeded",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "artbook_viewer.py": 2
+   },
+   "screen": "画集ビューア",
+   "sub": "function"
+  },
+  {
+   "file": "artbook_viewer.py",
+   "id": "inv-35c2e9f9b2",
+   "kind": "api_public",
+   "line": 116,
+   "name": "resolve_author_dir_name",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 7,
+   "refs": {
+    "artbook_viewer.py": 4,
+    "library_tab.py": 1,
+    "ranking_tab.py": 1,
+    "recommend_tab.py": 1
+   },
+   "screen": "画集ビューア",
+   "sub": "function"
+  },
+  {
+   "file": "artbook_viewer.py",
+   "id": "inv-9e647af64e",
+   "kind": "api_public",
+   "line": 188,
+   "name": "artbook_safe_title",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "artbook_viewer.py": 2
+   },
+   "screen": "画集ビューア",
+   "sub": "function"
+  },
+  {
+   "file": "artbook_viewer.py",
+   "id": "inv-27f4d9abf4",
+   "kind": "api_public",
+   "line": 197,
+   "name": "artbook_work_folder_name",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "artbook_viewer.py": 2
+   },
+   "screen": "画集ビューア",
+   "sub": "function"
+  },
+  {
+   "file": "artbook_viewer.py",
+   "id": "inv-57140a0ccc",
+   "kind": "api_public",
+   "line": 207,
+   "name": "artbook_download_dir",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "artbook_viewer.py": 3
+   },
+   "screen": "画集ビューア",
+   "sub": "function"
+  },
+  {
+   "file": "artbook_viewer.py",
+   "id": "inv-b435255cb5",
+   "kind": "api_public",
+   "line": 225,
+   "name": "artbook_save_filename",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "artbook_viewer.py": 2
+   },
+   "screen": "画集ビューア",
+   "sub": "function"
+  },
+  {
+   "file": "artbook_viewer.py",
+   "id": "inv-4080e712af",
+   "kind": "api_public",
+   "line": 240,
+   "name": "build_artbook_viewer",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 10,
+   "refs": {
+    "artbook_viewer.py": 2,
+    "discovery_tab.py": 1,
+    "gui.py": 1,
+    "library_tab.py": 3,
+    "ranking_tab.py": 1,
+    "recommend_tab.py": 2
+   },
+   "screen": "画集ビューア",
+   "sub": "function"
+  },
+  {
    "arg": "value",
    "control": "(assign)",
    "file": "artbook_viewer.py",
@@ -2670,6 +2828,16 @@
   },
   {
    "file": "core.py",
+   "id": "inv-e84ca0bbff",
+   "kind": "text_literal",
+   "line": 3128,
+   "name": "ZIP化済みのため落とし直しを飛ばした作品",
+   "ordinal": 1,
+   "qualname": "download_bookmarks",
+   "screen": "(エンジン)core"
+  },
+  {
+   "file": "core.py",
    "id": "inv-67e32f5dee",
    "kind": "api_public",
    "line": 3132,
@@ -2792,6 +2960,16 @@
    },
    "screen": "(エンジン)database",
    "sub": "function"
+  },
+  {
+   "file": "database.py",
+   "id": "inv-b3c3fbb30c",
+   "kind": "text_literal",
+   "line": 151,
+   "name": "本番DBのバックアップに失敗しました: {}",
+   "ordinal": 0,
+   "qualname": "ensure_prod_backup",
+   "screen": "(エンジン)database"
   },
   {
    "file": "database.py",
@@ -5129,6 +5307,203 @@
    "sub": "method"
   },
   {
+   "file": "discovery_description.py",
+   "id": "inv-117513d15a",
+   "kind": "api_public",
+   "line": 41,
+   "name": "Run",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 18,
+   "refs": {
+    "discovery_description.py": 17,
+    "library_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "class"
+  },
+  {
+   "file": "discovery_description.py",
+   "id": "inv-5b9d7cac37",
+   "kind": "api_public",
+   "line": 61,
+   "name": "resolve_link",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_description.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_description.py",
+   "id": "inv-79fc99c23a",
+   "kind": "api_public",
+   "line": 84,
+   "name": "is_external",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_description.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_description.py",
+   "id": "inv-803e107ec7",
+   "kind": "api_public",
+   "line": 95,
+   "name": "parse_description",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "discovery_description.py": 2
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_description.py",
+   "id": "inv-251245a4ec",
+   "kind": "api_public",
+   "line": 165,
+   "name": "is_blank",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_description.py",
+   "id": "inv-6e82e7872a",
+   "kind": "api_public",
+   "line": 170,
+   "name": "text_width",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "discovery_description.py": 1,
+    "gui.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_description.py",
+   "id": "inv-3ded08d631",
+   "kind": "api_public",
+   "line": 183,
+   "name": "wrap_lines",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "discovery_description.py": 2
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_description.py",
+   "id": "inv-a06fe968ac",
+   "kind": "api_public",
+   "line": 213,
+   "name": "split_pages",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_description.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_description.py",
+   "id": "inv-152c1340d3",
+   "kind": "api_public",
+   "line": 227,
+   "name": "layout",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 8,
+   "refs": {
+    "discovery_tab.py": 8
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_display_state.py",
+   "id": "inv-34cd1e9975",
+   "kind": "api_public",
+   "line": 23,
+   "name": "toast_decision",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_display_state.py",
+   "id": "inv-b5734f593b",
+   "kind": "api_public",
+   "line": 38,
+   "name": "toast_hide_decision",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_display_state.py",
+   "id": "inv-4fbaf757b5",
+   "kind": "api_public",
+   "line": 53,
+   "name": "image_target_fresh",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_display_state.py",
+   "id": "inv-a4152ed77d",
+   "kind": "api_public",
+   "line": 71,
+   "name": "exhausted_look",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
    "file": "discovery_display_state.py",
    "id": "inv-903828ba90",
    "kind": "text_literal",
@@ -5167,6 +5542,67 @@
    "ordinal": 0,
    "qualname": "exhausted_look",
    "screen": "学習"
+  },
+  {
+   "file": "discovery_display_state.py",
+   "id": "inv-4797f0296a",
+   "kind": "api_public",
+   "line": 91,
+   "name": "late_failure_fresh",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_display_state.py",
+   "id": "inv-3640a80e3f",
+   "kind": "api_public",
+   "line": 122,
+   "name": "requeue_decision",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "discovery_display_state.py": 1,
+    "discovery_tab.py": 2
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_display_state.py",
+   "id": "inv-2c61fb7531",
+   "kind": "api_public",
+   "line": 149,
+   "name": "redo_removal",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_display_state.py",
+   "id": "inv-8ad53c363d",
+   "kind": "api_public",
+   "line": 171,
+   "name": "next_queue_state",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "discovery_tab.py": 2
+   },
+   "screen": "学習",
+   "sub": "function"
   },
   {
    "const": "_MOCK_POOL",
@@ -5512,6 +5948,49 @@
   },
   {
    "file": "discovery_engine.py",
+   "id": "inv-143462c763",
+   "kind": "api_public",
+   "line": 591,
+   "name": "BatchResult",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "discovery_engine.py": 5
+   },
+   "screen": "学習",
+   "sub": "class"
+  },
+  {
+   "file": "discovery_engine.py",
+   "id": "inv-f4c8f8d78d",
+   "kind": "api_public",
+   "line": 628,
+   "name": "BatchResult.all_failed",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 0,
+   "refs": {},
+   "screen": "学習",
+   "sub": "method"
+  },
+  {
+   "file": "discovery_engine.py",
+   "id": "inv-3e66bf4da0",
+   "kind": "api_public",
+   "line": 633,
+   "name": "BatchResult.nothing_and_failed",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "method"
+  },
+  {
+   "file": "discovery_engine.py",
    "id": "inv-e3cec455a5",
    "kind": "text_literal",
    "line": 642,
@@ -5519,6 +5998,52 @@
    "ordinal": 0,
    "qualname": "BatchResult.__repr__",
    "screen": "学習"
+  },
+  {
+   "file": "discovery_engine.py",
+   "id": "inv-4137410633",
+   "kind": "api_public",
+   "line": 646,
+   "name": "get_next_batch",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 8,
+   "refs": {
+    "discovery_engine.py": 5,
+    "discovery_tab.py": 3
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_outcome.py",
+   "id": "inv-0a7aca1694",
+   "kind": "api_public",
+   "line": 59,
+   "name": "Outcome",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 9,
+   "refs": {
+    "discovery_outcome.py": 9
+   },
+   "screen": "学習",
+   "sub": "class"
+  },
+  {
+   "file": "discovery_outcome.py",
+   "id": "inv-80eb416122",
+   "kind": "api_public",
+   "line": 77,
+   "name": "Outcome.must_show",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "method"
   },
   {
    "file": "discovery_outcome.py",
@@ -5539,6 +6064,62 @@
    "ordinal": 0,
    "qualname": "Outcome.__repr__",
    "screen": "学習"
+  },
+  {
+   "file": "discovery_outcome.py",
+   "id": "inv-732bca483f",
+   "kind": "api_public",
+   "line": 89,
+   "name": "done",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 103,
+   "refs": {
+    "database.py": 5,
+    "discovery_outcome.py": 3,
+    "discovery_tab.py": 29,
+    "gui.py": 10,
+    "server.py": 20,
+    "unified_download.py": 15,
+    "unified_download_tab.py": 21
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_outcome.py",
+   "id": "inv-ab0db369eb",
+   "kind": "api_public",
+   "line": 94,
+   "name": "retrying",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 12,
+   "refs": {
+    "discovery_outcome.py": 6,
+    "discovery_tab.py": 6
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_outcome.py",
+   "id": "inv-0c3234b44e",
+   "kind": "api_public",
+   "line": 108,
+   "name": "gave_up",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 49,
+   "refs": {
+    "database.py": 10,
+    "discovery_display_state.py": 6,
+    "discovery_outcome.py": 11,
+    "discovery_tab.py": 17,
+    "gui.py": 5
+   },
+   "screen": "学習",
+   "sub": "function"
   },
   {
    "file": "discovery_outcome.py",
@@ -5581,6 +6162,82 @@
    "screen": "学習"
   },
   {
+   "file": "discovery_outcome.py",
+   "id": "inv-04a475fc93",
+   "kind": "api_public",
+   "line": 144,
+   "name": "run_worker",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "discovery_outcome.py": 1,
+    "discovery_tab.py": 3
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_population.py",
+   "id": "inv-cb110f6af8",
+   "kind": "api_public",
+   "line": 86,
+   "name": "get_page_limits",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "discovery_population.py": 3
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_population.py",
+   "id": "inv-9405541c82",
+   "kind": "api_public",
+   "line": 114,
+   "name": "remember_page_exhausted",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "discovery_engine.py": 2
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_population.py",
+   "id": "inv-2f9394a2bc",
+   "kind": "api_public",
+   "line": 157,
+   "name": "build_slices",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "discovery_population.py": 2
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_population.py",
+   "id": "inv-b2d8ffef4f",
+   "kind": "api_public",
+   "line": 186,
+   "name": "next_slice",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_engine.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
    "file": "discovery_population.py",
    "id": "inv-0513da3012",
    "kind": "setting_key",
@@ -5595,6 +6252,111 @@
     "discovery_population.py:203:get",
     "discovery_population.py:208:set"
    ]
+  },
+  {
+   "file": "discovery_population.py",
+   "id": "inv-94df874b79",
+   "kind": "api_public",
+   "line": 227,
+   "name": "record_ranking_items",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_engine.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_pref_viewport.py",
+   "id": "inv-8b84fc109c",
+   "kind": "api_public",
+   "line": 8,
+   "name": "DiscoveryPreferenceViewportCapacity",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "discovery_tab.py": 2
+   },
+   "screen": "学習",
+   "sub": "class"
+  },
+  {
+   "file": "discovery_pref_viewport.py",
+   "id": "inv-d943bb6d7d",
+   "kind": "api_public",
+   "line": 16,
+   "name": "DiscoveryPreferenceViewportCapacity.row_pitch",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_pref_viewport.py": 1
+   },
+   "screen": "学習",
+   "sub": "method"
+  },
+  {
+   "file": "discovery_pref_viewport.py",
+   "id": "inv-2482a1a601",
+   "kind": "api_public",
+   "line": 19,
+   "name": "DiscoveryPreferenceViewportCapacity.required_height",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "discovery_pref_viewport.py": 2
+   },
+   "screen": "学習",
+   "sub": "method"
+  },
+  {
+   "file": "discovery_pref_viewport.py",
+   "id": "inv-37e664858d",
+   "kind": "api_public",
+   "line": 22,
+   "name": "DiscoveryPreferenceViewportCapacity.rows_for_rebuild",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "method"
+  },
+  {
+   "file": "discovery_pref_viewport.py",
+   "id": "inv-b0bb9dc402",
+   "kind": "api_public",
+   "line": 26,
+   "name": "DiscoveryPreferenceViewportCapacity.update",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 384,
+   "refs": {
+    "artbook_viewer.py": 34,
+    "database.py": 1,
+    "discovery_tab.py": 31,
+    "filter_panel.py": 4,
+    "grid_card_size_ui.py": 2,
+    "gui.py": 81,
+    "library_tab.py": 75,
+    "main.py": 3,
+    "nana7mi_vault.py": 3,
+    "pixiv_client.py": 4,
+    "ranking_tab.py": 49,
+    "recommend_tab.py": 69,
+    "server.py": 1,
+    "ui_dialog.py": 2,
+    "ui_dispatch.py": 5,
+    "unified_download_tab.py": 20
+   },
+   "screen": "学習",
+   "sub": "method"
   },
   {
    "const": "DEFAULT_GENERIC_EXTRA",
@@ -5744,6 +6506,446 @@
     "discovery_ranking.py:222:define",
     "discovery_ranking.py:253:get"
    ]
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-b8c9da00f4",
+   "kind": "api_public",
+   "line": 225,
+   "name": "generic_tags",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "discovery_ranking.py": 3
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-bac9663cac",
+   "kind": "api_public",
+   "line": 249,
+   "name": "resolve_generic_extra",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "discovery_ranking.py": 2
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-78d44364ae",
+   "kind": "api_public",
+   "line": 294,
+   "name": "search_tag_candidates",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "discovery_engine.py": 1,
+    "discovery_ranking.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-35917cc169",
+   "kind": "api_public",
+   "line": 320,
+   "name": "wilson_bounds",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_ranking.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-232016d433",
+   "kind": "api_public",
+   "line": 337,
+   "name": "skip_dilution_factor",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_ranking.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-79c9ff6f1c",
+   "kind": "api_public",
+   "line": 362,
+   "name": "author_bounds",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 8,
+   "refs": {
+    "discovery_ranking.py": 8
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-d1240c0887",
+   "kind": "api_public",
+   "line": 379,
+   "name": "preference_bounds",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "database.py": 1,
+    "discovery_ranking.py": 4
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-eb0e1eff4d",
+   "kind": "api_public",
+   "line": 405,
+   "name": "build_bounds",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "discovery_ranking.py": 2,
+    "discovery_tab.py": 2,
+    "ranking_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-0be261b916",
+   "kind": "api_public",
+   "line": 440,
+   "name": "tag_trend_score",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "discovery_ranking.py": 2
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-b6f0365e53",
+   "kind": "api_public",
+   "line": 453,
+   "name": "trend_rows",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 17,
+   "refs": {
+    "database.py": 1,
+    "discovery_ranking.py": 7,
+    "discovery_tab.py": 6,
+    "ranking_tab.py": 2,
+    "recommend_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-0322cfd42a",
+   "kind": "api_public",
+   "line": 506,
+   "name": "score_candidate",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "discovery_ranking.py": 1,
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-d0ab80b84f",
+   "kind": "api_public",
+   "line": 548,
+   "name": "resolve_ratios",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "discovery_ranking.py": 1,
+    "discovery_tab.py": 2
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-42993ddff2",
+   "kind": "setting_key",
+   "line": 559,
+   "name": "discovery_ratio_style",
+   "op": "get",
+   "ordinal": 0,
+   "qualname": "<settings>",
+   "screen": "(設定キー)",
+   "use_count": 1,
+   "uses": [
+    "discovery_ranking.py:559:get"
+   ],
+   "via": "dict:RATIO_SETTING_KEYS"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-e921e941d7",
+   "kind": "setting_key",
+   "line": 559,
+   "name": "discovery_ratio_subject",
+   "op": "get",
+   "ordinal": 0,
+   "qualname": "<settings>",
+   "screen": "(設定キー)",
+   "use_count": 1,
+   "uses": [
+    "discovery_ranking.py:559:get"
+   ],
+   "via": "dict:RATIO_SETTING_KEYS"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-d87da47651",
+   "kind": "api_public",
+   "line": 589,
+   "name": "author_reject_tier",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "discovery_ranking.py": 4
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-f0eca37142",
+   "kind": "api_public",
+   "line": 621,
+   "name": "assign_frames",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_ranking.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-25a771f565",
+   "kind": "api_public",
+   "line": 714,
+   "name": "apply_author_quota",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "discovery_ranking.py": 3,
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-f21c368276",
+   "kind": "api_public",
+   "line": 755,
+   "name": "finalize_display_order",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "discovery_ranking.py": 3,
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-80511a96cd",
+   "kind": "api_public",
+   "line": 783,
+   "name": "apply_author_cooldown",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "discovery_ranking.py": 1,
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_ranking.py",
+   "id": "inv-a6ef6aeaac",
+   "kind": "api_public",
+   "line": 802,
+   "name": "rank_candidates",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "discovery_ranking.py": 1,
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "function"
+  },
+  {
+   "file": "discovery_size_coordinator.py",
+   "id": "inv-fc58d01a3d",
+   "kind": "api_public",
+   "line": 19,
+   "name": "DiscoverySizeSnapshot",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "discovery_size_coordinator.py": 4
+   },
+   "screen": "学習",
+   "sub": "class"
+  },
+  {
+   "file": "discovery_size_coordinator.py",
+   "id": "inv-cfb6e8928c",
+   "kind": "api_public",
+   "line": 34,
+   "name": "DiscoverySizeCoordinator",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "discovery_tab.py": 2
+   },
+   "screen": "学習",
+   "sub": "class"
+  },
+  {
+   "file": "discovery_size_coordinator.py",
+   "id": "inv-7aa3d2d30c",
+   "kind": "api_public",
+   "line": 79,
+   "name": "DiscoverySizeCoordinator.snapshot",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 15,
+   "refs": {
+    "discovery_size_coordinator.py": 1,
+    "discovery_tab.py": 4,
+    "recommend_tab.py": 2,
+    "server.py": 4,
+    "ui_dispatch.py": 4
+   },
+   "screen": "学習",
+   "sub": "method"
+  },
+  {
+   "file": "discovery_size_coordinator.py",
+   "id": "inv-36b7a56224",
+   "kind": "api_public",
+   "line": 95,
+   "name": "DiscoverySizeCoordinator.on_control",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "method"
+  },
+  {
+   "file": "discovery_size_coordinator.py",
+   "id": "inv-1d9b0a1766",
+   "kind": "api_public",
+   "line": 122,
+   "name": "DiscoverySizeCoordinator.on_page",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "method"
+  },
+  {
+   "file": "discovery_size_coordinator.py",
+   "id": "inv-d1d631a59b",
+   "kind": "api_public",
+   "line": 137,
+   "name": "DiscoverySizeCoordinator.dispose",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "method"
+  },
+  {
+   "file": "discovery_size_coordinator.py",
+   "id": "inv-c8b3a9ecb3",
+   "kind": "api_public",
+   "line": 149,
+   "name": "DiscoverySizeCoordinator.set_on_change",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "discovery_tab.py": 1
+   },
+   "screen": "学習",
+   "sub": "method"
+  },
+  {
+   "file": "discovery_tab.py",
+   "id": "inv-fc4b4b2ccc",
+   "kind": "api_public",
+   "line": 67,
+   "name": "build_discovery_tab",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "gui.py": 2
+   },
+   "screen": "学習",
+   "sub": "function"
   },
   {
    "file": "discovery_tab.py",
@@ -8862,6 +10064,52 @@
   },
   {
    "file": "filter_panel.py",
+   "id": "inv-06be864326",
+   "kind": "api_public",
+   "line": 142,
+   "name": "normalize_sections",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "filter_panel.py": 3
+   },
+   "screen": "共通フィルター",
+   "sub": "function"
+  },
+  {
+   "file": "filter_panel.py",
+   "id": "inv-1258ee5c12",
+   "kind": "api_public",
+   "line": 184,
+   "name": "assign_seats",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "filter_panel.py": 1,
+    "library_tab.py": 1
+   },
+   "screen": "共通フィルター",
+   "sub": "function"
+  },
+  {
+   "file": "filter_panel.py",
+   "id": "inv-df605e94c4",
+   "kind": "api_public",
+   "line": 205,
+   "name": "toggle_label",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "filter_panel.py": 2
+   },
+   "screen": "共通フィルター",
+   "sub": "function"
+  },
+  {
+   "file": "filter_panel.py",
    "id": "inv-20a0c902ad",
    "kind": "text_literal",
    "line": 205,
@@ -8879,6 +10127,68 @@
    "ordinal": 0,
    "qualname": "toggle_label",
    "screen": "共通フィルター"
+  },
+  {
+   "file": "filter_panel.py",
+   "id": "inv-0fcc0cb671",
+   "kind": "api_public",
+   "line": 214,
+   "name": "normalize_chips",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "filter_panel.py": 1
+   },
+   "screen": "共通フィルター",
+   "sub": "function"
+  },
+  {
+   "file": "filter_panel.py",
+   "id": "inv-005af5a1fb",
+   "kind": "api_public",
+   "line": 228,
+   "name": "load_json_setting",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "ranking_tab.py": 2
+   },
+   "screen": "共通フィルター",
+   "sub": "function"
+  },
+  {
+   "file": "filter_panel.py",
+   "id": "inv-c6b232ba37",
+   "kind": "api_public",
+   "line": 245,
+   "name": "save_json_setting",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "ranking_tab.py": 2
+   },
+   "screen": "共通フィルター",
+   "sub": "function"
+  },
+  {
+   "file": "filter_panel.py",
+   "id": "inv-96632f454d",
+   "kind": "api_public",
+   "line": 260,
+   "name": "build_filter_panel",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "filter_panel.py": 3,
+    "library_tab.py": 1,
+    "ranking_tab.py": 1
+   },
+   "screen": "共通フィルター",
+   "sub": "function"
   },
   {
    "file": "filter_panel.py",
@@ -9039,6 +10349,95 @@
    ]
   },
   {
+   "file": "grid_card_size.py",
+   "id": "inv-98acad080c",
+   "kind": "api_public",
+   "line": 36,
+   "name": "cols_for_mode",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 21,
+   "refs": {
+    "grid_card_size.py": 1,
+    "gui.py": 3,
+    "library_tab.py": 6,
+    "ranking_tab.py": 6,
+    "recommend_tab.py": 5
+   },
+   "screen": "grid_card_size.py",
+   "sub": "function"
+  },
+  {
+   "file": "grid_card_size.py",
+   "id": "inv-dca2bdbc6d",
+   "kind": "api_public",
+   "line": 44,
+   "name": "grid_max_extent_for_cols",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 20,
+   "refs": {
+    "gui.py": 2,
+    "library_tab.py": 6,
+    "ranking_tab.py": 5,
+    "recommend_tab.py": 7
+   },
+   "screen": "grid_card_size.py",
+   "sub": "function"
+  },
+  {
+   "file": "grid_card_size.py",
+   "id": "inv-e5926e5960",
+   "kind": "api_public",
+   "line": 60,
+   "name": "load_grid_card_size",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "gui.py": 1,
+    "library_tab.py": 1,
+    "ranking_tab.py": 1,
+    "recommend_tab.py": 1
+   },
+   "screen": "grid_card_size.py",
+   "sub": "function"
+  },
+  {
+   "file": "grid_card_size.py",
+   "id": "inv-05dadb40db",
+   "kind": "api_public",
+   "line": 70,
+   "name": "save_grid_card_size",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "grid_card_size_ui.py": 2,
+    "gui.py": 1
+   },
+   "screen": "grid_card_size.py",
+   "sub": "function"
+  },
+  {
+   "file": "grid_card_size_ui.py",
+   "id": "inv-bf46015a64",
+   "kind": "api_public",
+   "line": 21,
+   "name": "build_grid_size_row",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 9,
+   "refs": {
+    "gui.py": 3,
+    "library_tab.py": 2,
+    "ranking_tab.py": 2,
+    "recommend_tab.py": 2
+   },
+   "screen": "grid_card_size_ui.py",
+   "sub": "function"
+  },
+  {
    "control": "(assign)",
    "event": "on_click",
    "file": "grid_card_size_ui.py",
@@ -9141,6 +10540,21 @@
   },
   {
    "file": "gui.py",
+   "id": "inv-c97ab07c25",
+   "kind": "api_public",
+   "line": 128,
+   "name": "resolve_startup_tab",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "main.py": 2
+   },
+   "screen": "共通(定数・部品・設定ダイアログ前)",
+   "sub": "function"
+  },
+  {
+   "file": "gui.py",
    "id": "inv-17d49d2f65",
    "kind": "text_literal",
    "line": 147,
@@ -9160,6 +10574,58 @@
    "screen": "共通(定数・部品・設定ダイアログ前)"
   },
   {
+   "file": "gui.py",
+   "id": "inv-3e223a65d6",
+   "kind": "api_public",
+   "line": 151,
+   "name": "DesignTokens",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 96,
+   "refs": {
+    "gui.py": 95,
+    "unified_download_tab.py": 1
+   },
+   "screen": "共通(定数・部品・設定ダイアログ前)",
+   "sub": "class"
+  },
+  {
+   "file": "gui.py",
+   "id": "inv-29ebd34a21",
+   "kind": "api_public",
+   "line": 179,
+   "name": "uniform_border",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 71,
+   "refs": {
+    "artbook_viewer.py": 1,
+    "discovery_tab.py": 17,
+    "filter_panel.py": 6,
+    "gui.py": 12,
+    "library_tab.py": 12,
+    "ranking_tab.py": 11,
+    "recommend_tab.py": 12
+   },
+   "screen": "共通(定数・部品・設定ダイアログ前)",
+   "sub": "function"
+  },
+  {
+   "file": "gui.py",
+   "id": "inv-652600ed4d",
+   "kind": "api_public",
+   "line": 200,
+   "name": "build_filter_chip",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 6,
+   "refs": {
+    "gui.py": 6
+   },
+   "screen": "共通(定数・部品・設定ダイアログ前)",
+   "sub": "function"
+  },
+  {
    "control": "(assign)",
    "event": "on_hover",
    "file": "gui.py",
@@ -9171,6 +10637,21 @@
    "ordinal": 0,
    "qualname": "build_filter_chip",
    "screen": "共通(定数・部品・設定ダイアログ前)"
+  },
+  {
+   "file": "gui.py",
+   "id": "inv-8e790e9087",
+   "kind": "api_public",
+   "line": 313,
+   "name": "normalize_download_interval",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "gui.py": 2
+   },
+   "screen": "共通(定数・部品・設定ダイアログ前)",
+   "sub": "function"
   },
   {
    "file": "gui.py",
@@ -9241,6 +10722,54 @@
    "ordinal": 0,
    "qualname": "_EtaTimer._run._apply_eta",
    "screen": "共通(定数・部品・設定ダイアログ前)"
+  },
+  {
+   "file": "gui.py",
+   "id": "inv-a72ca58901",
+   "kind": "api_public",
+   "line": 426,
+   "name": "dedup_group_key",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 10,
+   "refs": {
+    "gui.py": 10
+   },
+   "screen": "共通(定数・部品・設定ダイアログ前)",
+   "sub": "function"
+  },
+  {
+   "file": "gui.py",
+   "id": "inv-8bd1867172",
+   "kind": "api_public",
+   "line": 431,
+   "name": "dedup_execute_move_selections",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "gui.py": 2
+   },
+   "screen": "共通(定数・部品・設定ダイアログ前)",
+   "sub": "function"
+  },
+  {
+   "file": "gui.py",
+   "id": "inv-d9ea0ea404",
+   "kind": "api_public",
+   "line": 462,
+   "name": "main_window",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 10,
+   "refs": {
+    "discovery_tab.py": 2,
+    "gui.py": 4,
+    "main.py": 2,
+    "server.py": 2
+   },
+   "screen": "共通(定数・部品・設定ダイアログ前)",
+   "sub": "function"
   },
   {
    "arg": "arg0",
@@ -13777,6 +15306,16 @@
   },
   {
    "file": "gui.py",
+   "id": "inv-50b93642bc",
+   "kind": "text_literal",
+   "line": 3287,
+   "name": "対象のジョブがありません",
+   "ordinal": 0,
+   "qualname": "main_window._bulk_job_action",
+   "screen": "キュー"
+  },
+  {
+   "file": "gui.py",
    "how": "Thread",
    "id": "inv-c090b862d1",
    "kind": "background",
@@ -17321,6 +18860,24 @@
    "screen": "起動・タブ切替・キーボード"
   },
   {
+   "file": "library_tab.py",
+   "id": "inv-004e6a653e",
+   "kind": "api_public",
+   "line": 76,
+   "name": "work_actually_saved",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 9,
+   "refs": {
+    "database.py": 1,
+    "discovery_tab.py": 2,
+    "library_tab.py": 2,
+    "recommend_tab.py": 4
+   },
+   "screen": "ライブラリ",
+   "sub": "function"
+  },
+  {
    "const": "_SORTS",
    "file": "library_tab.py",
    "id": "inv-143260f7c1",
@@ -17352,6 +18909,22 @@
    "ordinal": 0,
    "qualname": "<module>",
    "screen": "ライブラリ"
+  },
+  {
+   "file": "library_tab.py",
+   "id": "inv-88dcfb8d74",
+   "kind": "api_public",
+   "line": 126,
+   "name": "build_library_tab",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "gui.py": 2,
+    "library_tab.py": 3
+   },
+   "screen": "ライブラリ",
+   "sub": "function"
   },
   {
    "file": "library_tab.py",
@@ -19925,6 +21498,36 @@
   },
   {
    "file": "main.py",
+   "id": "inv-1370661252",
+   "kind": "api_public",
+   "line": 154,
+   "name": "setup_logging",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "main.py": 5
+   },
+   "screen": "起動・ライフサイクル",
+   "sub": "function"
+  },
+  {
+   "file": "main.py",
+   "id": "inv-8303dfff1e",
+   "kind": "api_public",
+   "line": 282,
+   "name": "check_single_instance",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "main.py": 1
+   },
+   "screen": "起動・ライフサイクル",
+   "sub": "function"
+  },
+  {
+   "file": "main.py",
    "id": "inv-0325d9cee2",
    "kind": "text_literal",
    "line": 305,
@@ -19966,6 +21569,21 @@
   },
   {
    "file": "main.py",
+   "id": "inv-e924a49062",
+   "kind": "api_public",
+   "line": 333,
+   "name": "parse_args",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "main.py": 2
+   },
+   "screen": "起動・ライフサイクル",
+   "sub": "function"
+  },
+  {
+   "file": "main.py",
    "id": "inv-e788e74856",
    "kind": "text_literal",
    "line": 338,
@@ -19973,6 +21591,28 @@
    "ordinal": 0,
    "qualname": "parse_args",
    "screen": "起動・ライフサイクル"
+  },
+  {
+   "file": "main.py",
+   "id": "inv-6f8a502dbd",
+   "kind": "api_public",
+   "line": 342,
+   "name": "main",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 21,
+   "refs": {
+    "core.py": 1,
+    "database.py": 1,
+    "discovery_tab.py": 2,
+    "gui.py": 8,
+    "library_tab.py": 1,
+    "main.py": 5,
+    "pixiv_client.py": 1,
+    "server.py": 2
+   },
+   "screen": "起動・ライフサイクル",
+   "sub": "function"
   },
   {
    "file": "main.py",
@@ -20211,6 +21851,16 @@
    "name": "レート上限のため、約{}分後に自動で再試行します。",
    "ordinal": 0,
    "qualname": "describe_unavailable_reason",
+   "screen": "Shaft連携"
+  },
+  {
+   "file": "nana7mi_vault.py",
+   "id": "inv-0b3a7b74ec",
+   "kind": "text_literal",
+   "line": 856,
+   "name": "refresh_tokenが失効しています（invalid_grant）。",
+   "ordinal": 0,
+   "qualname": "refresh_access_token_detailed",
    "screen": "Shaft連携"
   },
   {
@@ -21415,6 +23065,16 @@
   },
   {
    "file": "pixiv_client.py",
+   "id": "inv-152d9200db",
+   "kind": "text_literal",
+   "line": 1880,
+   "name": "不明なエラー",
+   "ordinal": 0,
+   "qualname": "PixivClient.follow_user",
+   "screen": "(エンジン)pixiv_client"
+  },
+  {
+   "file": "pixiv_client.py",
    "id": "inv-baa9d95e80",
    "kind": "api_public",
    "line": 1886,
@@ -21427,6 +23087,16 @@
    },
    "screen": "(エンジン)pixiv_client",
    "sub": "method"
+  },
+  {
+   "file": "pixiv_client.py",
+   "id": "inv-cbd8819ea6",
+   "kind": "text_literal",
+   "line": 1919,
+   "name": "不明なエラー",
+   "ordinal": 0,
+   "qualname": "PixivClient.unfollow_user",
+   "screen": "(エンジン)pixiv_client"
   },
   {
    "file": "pixiv_client.py",
@@ -21480,6 +23150,16 @@
   },
   {
    "file": "pixiv_client.py",
+   "id": "inv-23369064ed",
+   "kind": "text_literal",
+   "line": 1963,
+   "name": "不明なエラー",
+   "ordinal": 0,
+   "qualname": "PixivClient.add_illust_bookmark",
+   "screen": "(エンジン)pixiv_client"
+  },
+  {
+   "file": "pixiv_client.py",
    "id": "inv-24dae77be5",
    "kind": "api_public",
    "line": 1969,
@@ -21525,6 +23205,16 @@
   },
   {
    "file": "pixiv_client.py",
+   "id": "inv-db9134beb5",
+   "kind": "text_literal",
+   "line": 2005,
+   "name": "不明なエラー",
+   "ordinal": 0,
+   "qualname": "PixivClient.add_novel_bookmark",
+   "screen": "(エンジン)pixiv_client"
+  },
+  {
+   "file": "pixiv_client.py",
    "id": "inv-a2d869a8be",
    "kind": "net_endpoint",
    "line": 2014,
@@ -21566,6 +23256,16 @@
    "name": "https://www.pixiv.net/ajax/{}s/bookmarks/delete",
    "ordinal": 0,
    "qualname": "<module>",
+   "screen": "(エンジン)pixiv_client"
+  },
+  {
+   "file": "pixiv_client.py",
+   "id": "inv-9cebf13d10",
+   "kind": "text_literal",
+   "line": 2058,
+   "name": "不明なエラー",
+   "ordinal": 0,
+   "qualname": "PixivClient._delete_bookmark",
    "screen": "(エンジン)pixiv_client"
   },
   {
@@ -22049,6 +23749,51 @@
   },
   {
    "file": "ranking_tab.py",
+   "id": "inv-2514c5c2b6",
+   "kind": "api_public",
+   "line": 165,
+   "name": "default_personal_filters",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "ranking_tab.py": 2
+   },
+   "screen": "ランキング",
+   "sub": "function"
+  },
+  {
+   "file": "ranking_tab.py",
+   "id": "inv-c29e86b787",
+   "kind": "api_public",
+   "line": 187,
+   "name": "normalize_personal_filters",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "ranking_tab.py": 1
+   },
+   "screen": "ランキング",
+   "sub": "function"
+  },
+  {
+   "file": "ranking_tab.py",
+   "id": "inv-5316c412f3",
+   "kind": "api_public",
+   "line": 225,
+   "name": "active_filter_descriptors",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "ranking_tab.py": 1
+   },
+   "screen": "ランキング",
+   "sub": "function"
+  },
+  {
+   "file": "ranking_tab.py",
    "id": "inv-e32985234e",
    "kind": "text_literal",
    "line": 234,
@@ -22076,6 +23821,52 @@
    "ordinal": 0,
    "qualname": "active_filter_descriptors",
    "screen": "ランキング"
+  },
+  {
+   "file": "ranking_tab.py",
+   "id": "inv-c7a6bc2efe",
+   "kind": "api_public",
+   "line": 270,
+   "name": "apply_personal_filters",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "ranking_tab.py": 2
+   },
+   "screen": "ランキング",
+   "sub": "function"
+  },
+  {
+   "file": "ranking_tab.py",
+   "id": "inv-4c0c402caa",
+   "kind": "api_public",
+   "line": 347,
+   "name": "merge_personal_page",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "ranking_tab.py": 1
+   },
+   "screen": "ランキング",
+   "sub": "function"
+  },
+  {
+   "file": "ranking_tab.py",
+   "id": "inv-b1303c92e9",
+   "kind": "api_public",
+   "line": 439,
+   "name": "build_ranking_tab",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 6,
+   "refs": {
+    "gui.py": 2,
+    "ranking_tab.py": 4
+   },
+   "screen": "ランキング",
+   "sub": "function"
   },
   {
    "file": "ranking_tab.py",
@@ -24170,6 +25961,22 @@
   },
   {
    "file": "recommend_tab.py",
+   "id": "inv-493de0457d",
+   "kind": "api_public",
+   "line": 246,
+   "name": "build_recommend_tab",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "gui.py": 2,
+    "recommend_tab.py": 3
+   },
+   "screen": "おすすめ",
+   "sub": "function"
+  },
+  {
+   "file": "recommend_tab.py",
    "how": "ThreadPoolExecutor",
    "id": "inv-aa03d828d9",
    "kind": "background",
@@ -24217,6 +26024,56 @@
    "name": "{}={}ms({}件)",
    "ordinal": 0,
    "qualname": "build_recommend_tab._timing_log_if_done._fmt",
+   "screen": "おすすめ"
+  },
+  {
+   "file": "recommend_tab.py",
+   "id": "inv-b37038f863",
+   "kind": "text_literal",
+   "line": 343,
+   "name": "DB(傾向)",
+   "ordinal": 0,
+   "qualname": "build_recommend_tab._timing_log_if_done",
+   "screen": "おすすめ"
+  },
+  {
+   "file": "recommend_tab.py",
+   "id": "inv-1b61df21c8",
+   "kind": "text_literal",
+   "line": 346,
+   "name": "API(確実枠)",
+   "ordinal": 0,
+   "qualname": "build_recommend_tab._timing_log_if_done",
+   "screen": "おすすめ"
+  },
+  {
+   "file": "recommend_tab.py",
+   "id": "inv-128bedd670",
+   "kind": "text_literal",
+   "line": 349,
+   "name": "画像メモリ命中",
+   "ordinal": 0,
+   "qualname": "build_recommend_tab._timing_log_if_done",
+   "screen": "おすすめ"
+  },
+  {
+   "file": "recommend_tab.py",
+   "id": "inv-b1d5888ef8",
+   "kind": "text_literal",
+   "line": 350,
+   "name": "画像メモリ非命中",
+   "ordinal": 0,
+   "qualname": "build_recommend_tab._timing_log_if_done",
+   "screen": "おすすめ"
+  },
+  {
+   "file": "recommend_tab.py",
+   "id": "inv-851e7731f0",
+   "kind": "text_literal",
+   "line": 351,
+   "name": "描画",
+   "ordinal": 0,
+   "qualname": "build_recommend_tab._timing_log_if_done",
    "screen": "おすすめ"
   },
   {
@@ -25384,23 +27241,9 @@
    "ordinal": 0,
    "qualname": "<settings>",
    "screen": "(設定キー)",
-   "use_count": 1,
+   "use_count": 3,
    "uses": [
-    "recommend_tab.py:2042:define"
-   ]
-  },
-  {
-   "file": "recommend_tab.py",
-   "id": "inv-a4b905bfb7",
-   "kind": "setting_key",
-   "line": 2045,
-   "name": "{const:_TREND_ADDED_SETTING_KEY}",
-   "op": "get",
-   "ordinal": 0,
-   "qualname": "<settings>",
-   "screen": "(設定キー)",
-   "use_count": 2,
-   "uses": [
+    "recommend_tab.py:2042:define",
     "recommend_tab.py:2045:get",
     "recommend_tab.py:2056:set"
    ]
@@ -27035,6 +28878,21 @@
   },
   {
    "file": "scheduler.py",
+   "id": "inv-7a29f67cc9",
+   "kind": "api_public",
+   "line": 56,
+   "name": "Scheduler._loop",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "scheduler.py": 1
+   },
+   "screen": "定期処理",
+   "sub": "method"
+  },
+  {
+   "file": "scheduler.py",
    "how": "while+sleep",
    "id": "inv-119baf7e1a",
    "kind": "background",
@@ -27043,6 +28901,51 @@
    "ordinal": 0,
    "qualname": "Scheduler._loop",
    "screen": "定期処理"
+  },
+  {
+   "file": "scheduler.py",
+   "id": "inv-7b63e7eb89",
+   "kind": "api_public",
+   "line": 91,
+   "name": "Scheduler._download_is_running",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "scheduler.py": 2
+   },
+   "screen": "定期処理",
+   "sub": "method"
+  },
+  {
+   "file": "scheduler.py",
+   "id": "inv-506102635d",
+   "kind": "api_public",
+   "line": 104,
+   "name": "Scheduler._run_meta_backfill_if_enabled",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "scheduler.py": 2
+   },
+   "screen": "定期処理",
+   "sub": "method"
+  },
+  {
+   "file": "scheduler.py",
+   "id": "inv-1e887bb4a2",
+   "kind": "api_public",
+   "line": 125,
+   "name": "Scheduler._run_nana7mi_shaft_refresh_if_enabled",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "scheduler.py": 1
+   },
+   "screen": "定期処理",
+   "sub": "method"
   },
   {
    "file": "scheduler.py",
@@ -27059,6 +28962,21 @@
     "scheduler.py:151:get",
     "scheduler.py:167:set"
    ]
+  },
+  {
+   "file": "scheduler.py",
+   "id": "inv-959fd7d31a",
+   "kind": "api_public",
+   "line": 182,
+   "name": "Scheduler._run_check",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "scheduler.py": 2
+   },
+   "screen": "定期処理",
+   "sub": "method"
   },
   {
    "file": "scheduler.py",
@@ -27084,6 +29002,69 @@
   },
   {
    "file": "server.py",
+   "id": "inv-69358fa086",
+   "kind": "api_public",
+   "line": 41,
+   "name": "get_last_app_contact",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "gui.py": 2,
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "function"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-0eff9d6636",
+   "kind": "api_public",
+   "line": 53,
+   "name": "list_web_jobs_snapshot",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "gui.py": 4,
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "function"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-ef4d60aca1",
+   "kind": "api_public",
+   "line": 66,
+   "name": "enqueue_gui_job",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "ranking_tab.py": 2,
+    "recommend_tab.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "function"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-b853d8649f",
+   "kind": "api_public",
+   "line": 81,
+   "name": "_job_label_for_log",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "function"
+  },
+  {
+   "file": "server.py",
    "id": "inv-5e13408293",
    "kind": "text_literal",
    "line": 84,
@@ -27091,6 +29072,22 @@
    "ordinal": 0,
    "qualname": "_job_label_for_log",
    "screen": "拡張機能連携サーバー"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-b7831196e2",
+   "kind": "api_public",
+   "line": 88,
+   "name": "_emit_pc_operation_log",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "gui.py": 1,
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "function"
   },
   {
    "file": "server.py",
@@ -27104,6 +29101,36 @@
   },
   {
    "file": "server.py",
+   "id": "inv-c68295a84c",
+   "kind": "api_public",
+   "line": 98,
+   "name": "_emit_queue_log",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "server.py": 5
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "function"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-6916224d10",
+   "kind": "api_public",
+   "line": 119,
+   "name": "_emit_coalesced_queue_log",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "server.py": 4
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "function"
+  },
+  {
+   "file": "server.py",
    "how": "Timer",
    "id": "inv-e85297843b",
    "kind": "background",
@@ -27112,6 +29139,37 @@
    "ordinal": 0,
    "qualname": "_emit_coalesced_queue_log",
    "screen": "拡張機能連携サーバー"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-a4bb8d9efd",
+   "kind": "api_public",
+   "line": 141,
+   "name": "_flush_coalesced_queue_log",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "function"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-4ca633d81e",
+   "kind": "api_public",
+   "line": 153,
+   "name": "control_web_job_from_gui",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 6,
+   "refs": {
+    "gui.py": 5,
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "function"
   },
   {
    "file": "server.py",
@@ -27145,6 +29203,185 @@
   },
   {
    "file": "server.py",
+   "id": "inv-95854f30d8",
+   "kind": "api_public",
+   "line": 186,
+   "name": "dismiss_web_job_from_gui",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "gui.py": 4
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "function"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-fc00e2cd3a",
+   "kind": "api_public",
+   "line": 211,
+   "name": "generate_web_token",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "gui.py": 2,
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "function"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-bb0de83e8f",
+   "kind": "api_public",
+   "line": 215,
+   "name": "PixivVaultRequestHandler",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "class"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-51552024c2",
+   "kind": "api_public",
+   "line": 216,
+   "name": "PixivVaultRequestHandler._is_loopback_client",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-eae4a93817",
+   "kind": "api_public",
+   "line": 222,
+   "name": "PixivVaultRequestHandler._is_allowed_extension_origin",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "server.py": 5
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-679f56817b",
+   "kind": "api_public",
+   "line": 236,
+   "name": "PixivVaultRequestHandler._is_allowed_web_origin",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "server.py": 4
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-385adfe1cf",
+   "kind": "api_public",
+   "line": 243,
+   "name": "PixivVaultRequestHandler._is_allowed_origin",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-557b5d2e66",
+   "kind": "api_public",
+   "line": 247,
+   "name": "PixivVaultRequestHandler._send_cors_headers",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "server.py": 4
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-f6bcfb257c",
+   "kind": "api_public",
+   "line": 257,
+   "name": "PixivVaultRequestHandler.do_OPTIONS",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 0,
+   "refs": {},
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-7c11bcb6a3",
+   "kind": "api_public",
+   "line": 263,
+   "name": "PixivVaultRequestHandler._check_origin",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "server.py": 5
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-ad83bb4dc7",
+   "kind": "api_public",
+   "line": 273,
+   "name": "PixivVaultRequestHandler._check_web_token",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 7,
+   "refs": {
+    "server.py": 7
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-e68a66db4b",
+   "kind": "api_public",
+   "line": 281,
+   "name": "PixivVaultRequestHandler._check_web_bridge_enabled",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 9,
+   "refs": {
+    "server.py": 9
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
    "id": "inv-5b9a8f18be",
    "kind": "text_literal",
    "line": 287,
@@ -27152,6 +29389,19 @@
    "ordinal": 0,
    "qualname": "PixivVaultRequestHandler._check_web_bridge_enabled",
    "screen": "拡張機能連携サーバー"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-651d01df9e",
+   "kind": "api_public",
+   "line": 291,
+   "name": "PixivVaultRequestHandler.do_GET",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 0,
+   "refs": {},
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
   },
   {
    "file": "server.py",
@@ -27225,6 +29475,36 @@
   },
   {
    "file": "server.py",
+   "id": "inv-b290c6e147",
+   "kind": "api_public",
+   "line": 352,
+   "name": "PixivVaultRequestHandler._parse_library_query",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-250e2374ec",
+   "kind": "api_public",
+   "line": 370,
+   "name": "PixivVaultRequestHandler._handle_library_get",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
    "id": "inv-0cd7eadb50",
    "kind": "route",
    "line": 380,
@@ -27242,6 +29522,81 @@
    "ordinal": 0,
    "qualname": "PixivVaultRequestHandler._handle_library_get",
    "screen": "拡張機能連携サーバー"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-b043669591",
+   "kind": "api_public",
+   "line": 387,
+   "name": "PixivVaultRequestHandler._library_root",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-6c32860339",
+   "kind": "api_public",
+   "line": 392,
+   "name": "PixivVaultRequestHandler._safe_join",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-736c85d52b",
+   "kind": "api_public",
+   "line": 402,
+   "name": "PixivVaultRequestHandler._query1",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 7,
+   "refs": {
+    "server.py": 7
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-6109a564e8",
+   "kind": "api_public",
+   "line": 406,
+   "name": "PixivVaultRequestHandler._paginate",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-568afb2c86",
+   "kind": "api_public",
+   "line": 419,
+   "name": "PixivVaultRequestHandler._handle_library_list",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
   },
   {
    "file": "server.py",
@@ -27295,6 +29650,21 @@
   },
   {
    "file": "server.py",
+   "id": "inv-08d256421f",
+   "kind": "api_public",
+   "line": 501,
+   "name": "PixivVaultRequestHandler._handle_library_image",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
    "id": "inv-039f30f62f",
    "kind": "text_literal",
    "line": 510,
@@ -27345,6 +29715,64 @@
   },
   {
    "file": "server.py",
+   "id": "inv-7b0dc99627",
+   "kind": "api_public",
+   "line": 545,
+   "name": "PixivVaultRequestHandler._make_thumbnail",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-a36d2b5e43",
+   "kind": "api_public",
+   "line": 562,
+   "name": "PixivVaultRequestHandler._content_type_for",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-88a73e9921",
+   "kind": "api_public",
+   "line": 572,
+   "name": "PixivVaultRequestHandler._send_bytes",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-aca6c278ec",
+   "kind": "api_public",
+   "line": 580,
+   "name": "PixivVaultRequestHandler.do_DELETE",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 0,
+   "refs": {},
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
    "id": "inv-8ce0ef30e6",
    "kind": "route",
    "line": 582,
@@ -27355,6 +29783,21 @@
   },
   {
    "file": "server.py",
+   "id": "inv-23999a119c",
+   "kind": "api_public",
+   "line": 587,
+   "name": "PixivVaultRequestHandler._handle_job_delete",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
    "id": "inv-c9880c33a9",
    "kind": "text_literal",
    "line": 602,
@@ -27362,6 +29805,19 @@
    "ordinal": 0,
    "qualname": "PixivVaultRequestHandler._handle_job_delete",
    "screen": "拡張機能連携サーバー"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-f60f347714",
+   "kind": "api_public",
+   "line": 609,
+   "name": "PixivVaultRequestHandler.do_POST",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 0,
+   "refs": {},
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
   },
   {
    "file": "server.py",
@@ -27415,6 +29871,66 @@
   },
   {
    "file": "server.py",
+   "id": "inv-3af25dee3d",
+   "kind": "api_public",
+   "line": 651,
+   "name": "PixivVaultRequestHandler._handle_ping",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-1ac7a815e0",
+   "kind": "api_public",
+   "line": 665,
+   "name": "PixivVaultRequestHandler._handle_download",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-0fe2537b01",
+   "kind": "api_public",
+   "line": 674,
+   "name": "PixivVaultRequestHandler._handle_legacy_download",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-6ceca92a3d",
+   "kind": "api_public",
+   "line": 712,
+   "name": "PixivVaultRequestHandler._log_extension_job_received",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
    "id": "inv-f7ca5ca06c",
    "kind": "text_literal",
    "line": 713,
@@ -27435,6 +29951,21 @@
   },
   {
    "file": "server.py",
+   "id": "inv-5c1ac0cb55",
+   "kind": "api_public",
+   "line": 722,
+   "name": "PixivVaultRequestHandler._handle_web_download",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
    "id": "inv-813a0985e8",
    "kind": "text_literal",
    "line": 792,
@@ -27445,6 +29976,21 @@
   },
   {
    "file": "server.py",
+   "id": "inv-fee8b1c5d3",
+   "kind": "api_public",
+   "line": 804,
+   "name": "PixivVaultRequestHandler._handle_bookmark",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
    "id": "inv-df25e204af",
    "kind": "text_literal",
    "line": 841,
@@ -27452,6 +29998,36 @@
    "ordinal": 0,
    "qualname": "PixivVaultRequestHandler._handle_bookmark",
    "screen": "拡張機能連携サーバー"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-49dd869a94",
+   "kind": "api_public",
+   "line": 857,
+   "name": "PixivVaultRequestHandler._handle_jobs_list",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-56507d6453",
+   "kind": "api_public",
+   "line": 870,
+   "name": "PixivVaultRequestHandler._handle_jobs_bulk_control",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
   },
   {
    "file": "server.py",
@@ -27505,6 +30081,21 @@
   },
   {
    "file": "server.py",
+   "id": "inv-59aa3814f7",
+   "kind": "api_public",
+   "line": 928,
+   "name": "PixivVaultRequestHandler._handle_job_control",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
    "id": "inv-3174951b66",
    "kind": "text_literal",
    "line": 964,
@@ -27555,6 +30146,21 @@
   },
   {
    "file": "server.py",
+   "id": "inv-ea3cda5503",
+   "kind": "api_public",
+   "line": 971,
+   "name": "PixivVaultRequestHandler._handle_web_progress",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
    "how": "while+sleep",
    "id": "inv-f9c8f17464",
    "kind": "background",
@@ -27563,6 +30169,49 @@
    "ordinal": 0,
    "qualname": "PixivVaultRequestHandler._handle_web_progress",
    "screen": "拡張機能連携サーバー"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-fb3c0cf1e9",
+   "kind": "api_public",
+   "line": 1024,
+   "name": "PixivVaultRequestHandler._send_response",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 62,
+   "refs": {
+    "server.py": 62
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-5600706cf5",
+   "kind": "api_public",
+   "line": 1031,
+   "name": "PixivVaultRequestHandler.log_message",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 0,
+   "refs": {},
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-3f0480ff56",
+   "kind": "api_public",
+   "line": 1039,
+   "name": "save_cookies_from_extension",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "function"
   },
   {
    "file": "server.py",
@@ -27576,6 +30225,21 @@
   },
   {
    "file": "server.py",
+   "id": "inv-8569684806",
+   "kind": "api_public",
+   "line": 1130,
+   "name": "PixivVaultServer",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "server.py": 3
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "class"
+  },
+  {
+   "file": "server.py",
    "how": "Thread",
    "id": "inv-a4e829f59d",
    "kind": "background",
@@ -27584,6 +30248,21 @@
    "ordinal": 0,
    "qualname": "PixivVaultServer.__init__",
    "screen": "拡張機能連携サーバー"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-e4a0758675",
+   "kind": "api_public",
+   "line": 1160,
+   "name": "PixivVaultServer.mark_app_contact",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 10,
+   "refs": {
+    "server.py": 10
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
   },
   {
    "file": "server.py",
@@ -27604,6 +30283,139 @@
    "ordinal": 0,
    "qualname": "PixivVaultServer.mark_app_contact",
    "screen": "拡張機能連携サーバー"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-a062bab2a3",
+   "kind": "api_public",
+   "line": 1186,
+   "name": "PixivVaultServer.last_app_contact_at",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-d65c2c25eb",
+   "kind": "api_public",
+   "line": 1192,
+   "name": "PixivVaultServer.is_web_bridge_enabled",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-89b6b58095",
+   "kind": "api_public",
+   "line": 1198,
+   "name": "PixivVaultServer.set_web_bridge_enabled",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 0,
+   "refs": {},
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-2268bc0432",
+   "kind": "api_public",
+   "line": 1201,
+   "name": "PixivVaultServer.get_web_token",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "server.py": 5
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-3d7994d224",
+   "kind": "api_public",
+   "line": 1226,
+   "name": "PixivVaultServer.register_web_batch",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-f99014c7e5",
+   "kind": "api_public",
+   "line": 1257,
+   "name": "PixivVaultServer.list_web_batches",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-2d00d0c24a",
+   "kind": "api_public",
+   "line": 1262,
+   "name": "PixivVaultServer._account_batch_terminal",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-fb8576e36c",
+   "kind": "api_public",
+   "line": 1287,
+   "name": "PixivVaultServer._mark_web_job_terminal",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "server.py": 5
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-471dda08d0",
+   "kind": "api_public",
+   "line": 1303,
+   "name": "PixivVaultServer._notify_batch_complete",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
   },
   {
    "file": "server.py",
@@ -27671,6 +30483,21 @@
   },
   {
    "file": "server.py",
+   "id": "inv-688b0f1dca",
+   "kind": "api_public",
+   "line": 1313,
+   "name": "PixivVaultServer._notify_job_state",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
    "id": "inv-01443da1c3",
    "kind": "text_literal",
    "line": 1325,
@@ -27725,6 +30552,21 @@
   },
   {
    "file": "server.py",
+   "id": "inv-9578d03007",
+   "kind": "api_public",
+   "line": 1331,
+   "name": "PixivVaultServer.register_web_job",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
    "id": "inv-bded88d487",
    "kind": "text_literal",
    "line": 1353,
@@ -27735,6 +30577,111 @@
   },
   {
    "file": "server.py",
+   "id": "inv-2cd67e0baa",
+   "kind": "api_public",
+   "line": 1366,
+   "name": "PixivVaultServer.get_web_job",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 13,
+   "refs": {
+    "server.py": 13
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-9bc5867138",
+   "kind": "api_public",
+   "line": 1371,
+   "name": "PixivVaultServer.enqueue_extension_job",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "server.py": 4
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-4cca9b9285",
+   "kind": "api_public",
+   "line": 1387,
+   "name": "PixivVaultServer.list_web_jobs",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "server.py": 3
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-830c9776a4",
+   "kind": "api_public",
+   "line": 1392,
+   "name": "PixivVaultServer.update_web_job",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 7,
+   "refs": {
+    "server.py": 7
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-baf54ebf98",
+   "kind": "api_public",
+   "line": 1398,
+   "name": "PixivVaultServer._backfill_web_job_author",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-a4b7d3df99",
+   "kind": "api_public",
+   "line": 1409,
+   "name": "PixivVaultServer.dismiss_web_job",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "server.py": 4
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-db38d6d10e",
+   "kind": "api_public",
+   "line": 1435,
+   "name": "PixivVaultServer.pause_web_job",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "server.py": 3
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
    "id": "inv-860d534b5a",
    "kind": "text_literal",
    "line": 1446,
@@ -27742,6 +30689,21 @@
    "ordinal": 0,
    "qualname": "PixivVaultServer.pause_web_job",
    "screen": "拡張機能連携サーバー"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-838ae5c880",
+   "kind": "api_public",
+   "line": 1450,
+   "name": "PixivVaultServer.resume_web_job",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "server.py": 3
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
   },
   {
    "file": "server.py",
@@ -27765,6 +30727,21 @@
   },
   {
    "file": "server.py",
+   "id": "inv-17aeb523f4",
+   "kind": "api_public",
+   "line": 1463,
+   "name": "PixivVaultServer.stop_web_job",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "server.py": 3
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
    "id": "inv-48b0dfe3be",
    "kind": "text_literal",
    "line": 1471,
@@ -27772,6 +30749,36 @@
    "ordinal": 0,
    "qualname": "PixivVaultServer.stop_web_job",
    "screen": "拡張機能連携サーバー"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-41cf875990",
+   "kind": "api_public",
+   "line": 1475,
+   "name": "PixivVaultServer._web_job_stop_requested",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "server.py": 4
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-6f51928314",
+   "kind": "api_public",
+   "line": 1480,
+   "name": "PixivVaultServer._web_job_wait_if_paused",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "server.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
   },
   {
    "file": "server.py",
@@ -27783,6 +30790,21 @@
    "ordinal": 0,
    "qualname": "PixivVaultServer._web_job_wait_if_paused",
    "screen": "拡張機能連携サーバー"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-bb72901b45",
+   "kind": "api_public",
+   "line": 1493,
+   "name": "PixivVaultServer._web_queue_worker",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
   },
   {
    "file": "server.py",
@@ -27875,6 +30897,36 @@
    "ordinal": 0,
    "qualname": "PixivVaultServer._web_queue_worker",
    "screen": "拡張機能連携サーバー"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-1c8414ea49",
+   "kind": "api_public",
+   "line": 1551,
+   "name": "PixivVaultServer._set_gui_flow_active",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-834718f125",
+   "kind": "api_public",
+   "line": 1559,
+   "name": "PixivVaultServer._notify_web_job_result",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "server.py": 4
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
   },
   {
    "file": "server.py",
@@ -27982,6 +31034,21 @@
   },
   {
    "file": "server.py",
+   "id": "inv-694905770d",
+   "kind": "api_public",
+   "line": 1590,
+   "name": "PixivVaultServer._run_web_download_job",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
    "id": "inv-91995ab175",
    "kind": "text_literal",
    "line": 1602,
@@ -28052,6 +31119,24 @@
   },
   {
    "file": "server.py",
+   "id": "inv-bf5fd6c1c4",
+   "kind": "api_public",
+   "line": 1692,
+   "name": "PixivVaultServer.notify",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 12,
+   "refs": {
+    "gui.py": 2,
+    "scheduler.py": 2,
+    "server.py": 7,
+    "style_infer.py": 1
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "method"
+  },
+  {
+   "file": "server.py",
    "how": "Thread",
    "id": "inv-93ee0e52da",
    "kind": "background",
@@ -28060,6 +31145,22 @@
    "ordinal": 0,
    "qualname": "PixivVaultServer.notify",
    "screen": "拡張機能連携サーバー"
+  },
+  {
+   "file": "server.py",
+   "id": "inv-46be9fb217",
+   "kind": "api_public",
+   "line": 1699,
+   "name": "start_server",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "main.py": 2,
+    "server.py": 2
+   },
+   "screen": "拡張機能連携サーバー",
+   "sub": "function"
   },
   {
    "file": "server.py",
@@ -28081,6 +31182,343 @@
    "ordinal": 0,
    "qualname": "start_server",
    "screen": "拡張機能連携サーバー"
+  },
+  {
+   "file": "shared_image_cache.py",
+   "id": "inv-273a3274a4",
+   "kind": "api_public",
+   "line": 39,
+   "name": "SharedImageCache",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "pixiv_client.py": 2,
+    "recommend_tab.py": 1
+   },
+   "screen": "shared_image_cache.py",
+   "sub": "class"
+  },
+  {
+   "file": "shared_image_cache.py",
+   "id": "inv-d128c06ea3",
+   "kind": "api_public",
+   "line": 62,
+   "name": "SharedImageCache.get",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1200,
+   "refs": {
+    "artbook_viewer.py": 61,
+    "core.py": 85,
+    "database.py": 24,
+    "discovery_engine.py": 34,
+    "discovery_population.py": 4,
+    "discovery_ranking.py": 45,
+    "discovery_tab.py": 111,
+    "filter_panel.py": 4,
+    "gui.py": 71,
+    "library_tab.py": 111,
+    "main.py": 3,
+    "nana7mi_vault.py": 67,
+    "pixiv_client.py": 187,
+    "ranking_tab.py": 106,
+    "recommend_tab.py": 130,
+    "server.py": 111,
+    "shared_image_cache.py": 11,
+    "similar_works.py": 2,
+    "style_infer.py": 2,
+    "ui_dispatch.py": 2,
+    "unified_download.py": 14,
+    "unified_download_tab.py": 14,
+    "zip_locks.py": 1
+   },
+   "screen": "shared_image_cache.py",
+   "sub": "method"
+  },
+  {
+   "file": "shared_image_cache.py",
+   "id": "inv-6c5b1aca64",
+   "kind": "api_public",
+   "line": 89,
+   "name": "SharedImageCache.get_b64",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "pixiv_client.py": 1
+   },
+   "screen": "shared_image_cache.py",
+   "sub": "method"
+  },
+  {
+   "file": "shared_image_cache.py",
+   "id": "inv-3d6bead8e3",
+   "kind": "api_public",
+   "line": 100,
+   "name": "SharedImageCache.put",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 13,
+   "refs": {
+    "discovery_tab.py": 3,
+    "pixiv_client.py": 2,
+    "recommend_tab.py": 1,
+    "server.py": 2,
+    "shared_image_cache.py": 5
+   },
+   "screen": "shared_image_cache.py",
+   "sub": "method"
+  },
+  {
+   "file": "shared_image_cache.py",
+   "id": "inv-01208b6f63",
+   "kind": "api_public",
+   "line": 129,
+   "name": "SharedImageCache.put_b64",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "pixiv_client.py": 1,
+    "shared_image_cache.py": 2
+   },
+   "screen": "shared_image_cache.py",
+   "sub": "method"
+  },
+  {
+   "file": "shared_image_cache.py",
+   "id": "inv-66f002cf17",
+   "kind": "api_public",
+   "line": 156,
+   "name": "SharedImageCache.begin_or_wait",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "pixiv_client.py": 2,
+    "shared_image_cache.py": 1
+   },
+   "screen": "shared_image_cache.py",
+   "sub": "method"
+  },
+  {
+   "file": "shared_image_cache.py",
+   "id": "inv-58ce56d449",
+   "kind": "api_public",
+   "line": 177,
+   "name": "SharedImageCache.finish",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 4,
+   "refs": {
+    "pixiv_client.py": 2,
+    "shared_image_cache.py": 1,
+    "unified_download_tab.py": 1
+   },
+   "screen": "shared_image_cache.py",
+   "sub": "method"
+  },
+  {
+   "file": "shared_image_cache.py",
+   "id": "inv-bf3d60a876",
+   "kind": "api_public",
+   "line": 188,
+   "name": "SharedImageCache.stats",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 80,
+   "refs": {
+    "artbook_viewer.py": 9,
+    "core.py": 50,
+    "gui.py": 3,
+    "pixiv_client.py": 2,
+    "recommend_tab.py": 3,
+    "style_infer.py": 8,
+    "ui_dispatch.py": 1,
+    "unified_download_tab.py": 4
+   },
+   "screen": "shared_image_cache.py",
+   "sub": "method"
+  },
+  {
+   "file": "shared_image_cache.py",
+   "id": "inv-136106c92c",
+   "kind": "api_public",
+   "line": 212,
+   "name": "SharedImageCache.clear",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 79,
+   "refs": {
+    "discovery_tab.py": 8,
+    "gui.py": 15,
+    "library_tab.py": 11,
+    "nana7mi_vault.py": 4,
+    "pixiv_client.py": 1,
+    "ranking_tab.py": 5,
+    "recommend_tab.py": 18,
+    "scheduler.py": 1,
+    "server.py": 3,
+    "shared_image_cache.py": 2,
+    "style_infer.py": 2,
+    "ui_dispatch.py": 7,
+    "unified_download_tab.py": 2
+   },
+   "screen": "shared_image_cache.py",
+   "sub": "method"
+  },
+  {
+   "file": "similar_works.py",
+   "id": "inv-670bb4facf",
+   "kind": "api_public",
+   "line": 25,
+   "name": "normalize_key",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "similar_works.py": 2
+   },
+   "screen": "(エンジン)類似作品",
+   "sub": "function"
+  },
+  {
+   "file": "similar_works.py",
+   "id": "inv-91c65991ce",
+   "kind": "api_public",
+   "line": 38,
+   "name": "decode_embeddings",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "similar_works.py": 3
+   },
+   "screen": "(エンジン)類似作品",
+   "sub": "function"
+  },
+  {
+   "file": "similar_works.py",
+   "id": "inv-9cc8d23995",
+   "kind": "api_public",
+   "line": 81,
+   "name": "decode_embeddings_pages",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "library_tab.py": 2,
+    "similar_works.py": 1
+   },
+   "screen": "(エンジン)類似作品",
+   "sub": "function"
+  },
+  {
+   "file": "similar_works.py",
+   "id": "inv-662e6ff764",
+   "kind": "api_public",
+   "line": 96,
+   "name": "search_similar",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "library_tab.py": 2,
+    "similar_works.py": 1
+   },
+   "screen": "(エンジン)類似作品",
+   "sub": "function"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-69ee135fc1",
+   "kind": "api_public",
+   "line": 76,
+   "name": "FileProblem",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "style_infer.py": 5
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "class"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-a3414ed474",
+   "kind": "api_public",
+   "line": 80,
+   "name": "TransientProblem",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "style_infer.py": 2
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "class"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-13c57d0630",
+   "kind": "api_public",
+   "line": 84,
+   "name": "ModelProblem",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "style_infer.py": 5
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "class"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-16d5c1e553",
+   "kind": "api_public",
+   "line": 93,
+   "name": "ModelLoadProblem",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "style_infer.py": 3
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "class"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-dca61a4d00",
+   "kind": "api_public",
+   "line": 97,
+   "name": "InferenceProblem",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "style_infer.py": 2
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "class"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-a1ef29d0ca",
+   "kind": "api_public",
+   "line": 101,
+   "name": "CompositionOutputMissing",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "style_infer.py": 2
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "class"
   },
   {
    "const": "_MODEL_PROBLEM_LABEL",
@@ -28117,6 +31555,21 @@
   },
   {
    "file": "style_infer.py",
+   "id": "inv-32f0f83468",
+   "kind": "api_public",
+   "line": 112,
+   "name": "describe_problem",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "style_infer.py": 1
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "function"
+  },
+  {
+   "file": "style_infer.py",
    "id": "inv-90e7ed455e",
    "kind": "text_literal",
    "line": 114,
@@ -28124,6 +31577,228 @@
    "ordinal": 0,
    "qualname": "describe_problem",
    "screen": "(エンジン)画風推定"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-37ebd2a43e",
+   "kind": "api_public",
+   "line": 135,
+   "name": "Model",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "gui.py": 1,
+    "style_infer.py": 1
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "class"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-bfeb564afd",
+   "kind": "api_public",
+   "line": 147,
+   "name": "Model.ensure",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 2,
+   "refs": {
+    "gui.py": 1,
+    "style_infer.py": 1
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "method"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-c47efc9395",
+   "kind": "text_literal",
+   "line": 153,
+   "name": "モデルが見つかりません: {}",
+   "ordinal": 0,
+   "qualname": "Model.ensure",
+   "screen": "(エンジン)画風推定"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-5b9808ea90",
+   "kind": "text_literal",
+   "line": 159,
+   "name": "モデルを読めません（{}）: {}",
+   "ordinal": 0,
+   "qualname": "Model.ensure",
+   "screen": "(エンジン)画風推定"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-79f5aa215a",
+   "kind": "api_public",
+   "line": 171,
+   "name": "Model.embed",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "style_infer.py": 1
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "method"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-81b3e5b78f",
+   "kind": "text_literal",
+   "line": 177,
+   "name": "画像が壊れている: {}",
+   "ordinal": 0,
+   "qualname": "Model.embed",
+   "screen": "(エンジン)画風推定"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-eaa09ff1d5",
+   "kind": "text_literal",
+   "line": 186,
+   "name": "推論が落ちました（{}）: {}",
+   "ordinal": 0,
+   "qualname": "Model.embed",
+   "screen": "(エンジン)画風推定"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-f80ecbbdef",
+   "kind": "api_public",
+   "line": 191,
+   "name": "StoreIndex",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "library_tab.py": 4,
+    "style_infer.py": 1
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "class"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-536f995c23",
+   "kind": "api_public",
+   "line": 202,
+   "name": "StoreIndex.close",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 26,
+   "refs": {
+    "core.py": 1,
+    "database.py": 5,
+    "gui.py": 5,
+    "library_tab.py": 2,
+    "main.py": 2,
+    "pixiv_client.py": 2,
+    "recommend_tab.py": 1,
+    "style_infer.py": 4,
+    "ui_dispatch.py": 4
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "method"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-ce229e2fd2",
+   "kind": "api_public",
+   "line": 211,
+   "name": "StoreIndex.read",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 24,
+   "refs": {
+    "core.py": 4,
+    "gui.py": 2,
+    "library_tab.py": 1,
+    "nana7mi_vault.py": 2,
+    "pixiv_client.py": 3,
+    "server.py": 8,
+    "style_infer.py": 4
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "method"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-9ac38ea598",
+   "kind": "text_literal",
+   "line": 221,
+   "name": "ファイルが無い: {}",
+   "ordinal": 0,
+   "qualname": "StoreIndex.read",
+   "screen": "(エンジン)画風推定"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-ad61e67f30",
+   "kind": "text_literal",
+   "line": 225,
+   "name": "置き場から読めません: {}",
+   "ordinal": 0,
+   "qualname": "StoreIndex.read",
+   "screen": "(エンジン)画風推定"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-7207fb2bf8",
+   "kind": "api_public",
+   "line": 228,
+   "name": "is_db_closed_error",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "style_infer.py": 3
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "function"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-767a93ec3b",
+   "kind": "api_public",
+   "line": 247,
+   "name": "StyleInferWorker",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "gui.py": 1
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "class"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-4090d7348b",
+   "kind": "text_literal",
+   "line": 304,
+   "name": "作者の置き場が無い: user_id={}",
+   "ordinal": 0,
+   "qualname": "StyleInferWorker._store_for",
+   "screen": "(エンジン)画風推定"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-108cafc036",
+   "kind": "api_public",
+   "line": 315,
+   "name": "StyleInferWorker.process_one",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1,
+   "refs": {
+    "style_infer.py": 1
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "method"
   },
   {
    "file": "style_infer.py",
@@ -28187,6 +31862,16 @@
   },
   {
    "file": "style_infer.py",
+   "id": "inv-70ca7f21b0",
+   "kind": "text_literal",
+   "line": 393,
+   "name": "このモデルには {} の出口がありません（読んだファイル: {}）",
+   "ordinal": 0,
+   "qualname": "StyleInferWorker._process_page",
+   "screen": "(エンジン)画風推定"
+  },
+  {
+   "file": "style_infer.py",
    "id": "inv-ff7d0c101c",
    "kind": "text_literal",
    "line": 420,
@@ -28234,6 +31919,42 @@
    "ordinal": 0,
    "qualname": "StyleInferWorker._note_file_failure",
    "screen": "(エンジン)画風推定"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-258cbcd6ce",
+   "kind": "api_public",
+   "line": 493,
+   "name": "StyleInferWorker.notify",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 12,
+   "refs": {
+    "gui.py": 2,
+    "scheduler.py": 2,
+    "server.py": 8
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "method"
+  },
+  {
+   "file": "style_infer.py",
+   "id": "inv-f3e9414caa",
+   "kind": "api_public",
+   "line": 497,
+   "name": "StyleInferWorker.run",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 29,
+   "refs": {
+    "discovery_description.py": 4,
+    "discovery_tab.py": 6,
+    "gui.py": 8,
+    "main.py": 10,
+    "style_infer.py": 1
+   },
+   "screen": "(エンジン)画風推定",
+   "sub": "method"
   },
   {
    "file": "style_infer.py",
@@ -28323,6 +32044,117 @@
    "screen": "起動・ライフサイクル"
   },
   {
+   "file": "ui_dialog.py",
+   "id": "inv-579c39b879",
+   "kind": "api_public",
+   "line": 10,
+   "name": "dismiss_dialog",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 29,
+   "refs": {
+    "gui.py": 22,
+    "main.py": 3,
+    "recommend_tab.py": 3,
+    "ui_dialog.py": 1
+   },
+   "screen": "ui_dialog.py",
+   "sub": "function"
+  },
+  {
+   "file": "ui_dispatch.py",
+   "id": "inv-7ac8474f74",
+   "kind": "api_public",
+   "line": 46,
+   "name": "UiDispatcher",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "gui.py": 1,
+    "ranking_tab.py": 1,
+    "ui_dispatch.py": 3
+   },
+   "screen": "ui_dispatch.py",
+   "sub": "class"
+  },
+  {
+   "file": "ui_dispatch.py",
+   "id": "inv-85614f986a",
+   "kind": "api_public",
+   "line": 105,
+   "name": "UiDispatcher.post",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 35,
+   "refs": {
+    "artbook_viewer.py": 1,
+    "gui.py": 14,
+    "library_tab.py": 7,
+    "nana7mi_vault.py": 5,
+    "pixiv_client.py": 6,
+    "ranking_tab.py": 1,
+    "recommend_tab.py": 1
+   },
+   "screen": "ui_dispatch.py",
+   "sub": "method"
+  },
+  {
+   "file": "ui_dispatch.py",
+   "id": "inv-f6e91ded74",
+   "kind": "api_public",
+   "line": 152,
+   "name": "UiDispatcher.mark",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 32,
+   "refs": {
+    "discovery_tab.py": 7,
+    "gui.py": 21,
+    "ranking_tab.py": 2,
+    "unified_download_tab.py": 2
+   },
+   "screen": "ui_dispatch.py",
+   "sub": "method"
+  },
+  {
+   "file": "ui_dispatch.py",
+   "id": "inv-bd6ad63125",
+   "kind": "api_public",
+   "line": 172,
+   "name": "UiDispatcher.flush_now",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 5,
+   "refs": {
+    "ui_dispatch.py": 5
+   },
+   "screen": "ui_dispatch.py",
+   "sub": "method"
+  },
+  {
+   "file": "ui_dispatch.py",
+   "id": "inv-350e3f03c0",
+   "kind": "api_public",
+   "line": 203,
+   "name": "UiDispatcher.stats",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 80,
+   "refs": {
+    "artbook_viewer.py": 9,
+    "core.py": 50,
+    "gui.py": 3,
+    "pixiv_client.py": 2,
+    "recommend_tab.py": 3,
+    "shared_image_cache.py": 1,
+    "style_infer.py": 8,
+    "unified_download_tab.py": 4
+   },
+   "screen": "ui_dispatch.py",
+   "sub": "method"
+  },
+  {
    "file": "ui_dispatch.py",
    "how": "run_task",
    "id": "inv-5cdcb6db0f",
@@ -28332,6 +32164,43 @@
    "ordinal": 0,
    "qualname": "UiDispatcher._schedule_drain",
    "screen": "ui_dispatch.py"
+  },
+  {
+   "file": "ui_dispatch.py",
+   "id": "inv-ddf339036d",
+   "kind": "api_public",
+   "line": 565,
+   "name": "get",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 1200,
+   "refs": {
+    "artbook_viewer.py": 61,
+    "core.py": 85,
+    "database.py": 24,
+    "discovery_engine.py": 34,
+    "discovery_population.py": 4,
+    "discovery_ranking.py": 45,
+    "discovery_tab.py": 111,
+    "filter_panel.py": 4,
+    "gui.py": 71,
+    "library_tab.py": 111,
+    "main.py": 3,
+    "nana7mi_vault.py": 67,
+    "pixiv_client.py": 187,
+    "ranking_tab.py": 106,
+    "recommend_tab.py": 130,
+    "server.py": 111,
+    "shared_image_cache.py": 12,
+    "similar_works.py": 2,
+    "style_infer.py": 2,
+    "ui_dispatch.py": 1,
+    "unified_download.py": 14,
+    "unified_download_tab.py": 14,
+    "zip_locks.py": 1
+   },
+   "screen": "ui_dispatch.py",
+   "sub": "function"
   },
   {
    "file": "unified_download.py",
@@ -28660,6 +32529,54 @@
    "ordinal": 0,
    "qualname": "estimate_completion",
    "screen": "ダウンロード(統合)"
+  },
+  {
+   "file": "unified_download_tab.py",
+   "id": "inv-325c5c0723",
+   "kind": "api_public",
+   "line": 51,
+   "name": "T",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 275,
+   "refs": {
+    "artbook_viewer.py": 7,
+    "core.py": 2,
+    "database.py": 9,
+    "discovery_display_state.py": 2,
+    "discovery_ranking.py": 1,
+    "discovery_tab.py": 14,
+    "filter_panel.py": 2,
+    "gui.py": 31,
+    "library_tab.py": 21,
+    "main.py": 22,
+    "nana7mi_vault.py": 25,
+    "pixiv_client.py": 6,
+    "recommend_tab.py": 5,
+    "scheduler.py": 4,
+    "similar_works.py": 1,
+    "style_infer.py": 8,
+    "ui_dialog.py": 2,
+    "unified_download_tab.py": 113
+   },
+   "screen": "ダウンロード(統合)",
+   "sub": "class"
+  },
+  {
+   "file": "unified_download_tab.py",
+   "id": "inv-0a8b487e3d",
+   "kind": "api_public",
+   "line": 77,
+   "name": "build",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "gui.py": 2,
+    "nana7mi_vault.py": 1
+   },
+   "screen": "ダウンロード(統合)",
+   "sub": "function"
   },
   {
    "file": "unified_download_tab.py",
@@ -30169,11 +34086,44 @@
    "ordinal": 1,
    "qualname": "build",
    "screen": "ダウンロード(統合)"
+  },
+  {
+   "file": "zip_locks.py",
+   "id": "inv-39d5a5f519",
+   "kind": "api_public",
+   "line": 30,
+   "name": "zip_key",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 3,
+   "refs": {
+    "core.py": 1,
+    "style_infer.py": 1,
+    "zip_locks.py": 1
+   },
+   "screen": "zip_locks.py",
+   "sub": "function"
+  },
+  {
+   "file": "zip_locks.py",
+   "id": "inv-571df01279",
+   "kind": "api_public",
+   "line": 35,
+   "name": "zip_lock",
+   "ordinal": 0,
+   "qualname": "<module>",
+   "ref_count": 9,
+   "refs": {
+    "core.py": 7,
+    "style_infer.py": 2
+   },
+   "screen": "zip_locks.py",
+   "sub": "function"
   }
  ],
  "meta": {
   "counts": {
-   "api_public": 106,
+   "api_public": 338,
    "background": 144,
    "db_method": 114,
    "db_table": 52,
@@ -30182,10 +34132,10 @@
    "menu_item": 34,
    "net_endpoint": 33,
    "route": 15,
-   "setting_key": 47,
+   "setting_key": 48,
    "shortcut": 25,
    "snack": 103,
-   "text_literal": 743,
+   "text_literal": 765,
    "ui_text": 648
   },
   "files_scanned": [
@@ -30232,10 +34182,10 @@
    },
    "core.py": {
     "error_msg": 4,
-    "log": 150
+    "log": 149
    },
    "database.py": {
-    "error_msg": 4,
+    "error_msg": 3,
     "log": 1,
     "other": 1
    },
@@ -30266,7 +34216,7 @@
    "grid_card_size.py": {},
    "grid_card_size_ui.py": {},
    "gui.py": {
-    "log": 91
+    "log": 90
    },
    "library_tab.py": {
     "log": 41
@@ -30275,19 +34225,19 @@
     "log": 16
    },
    "nana7mi_vault.py": {
-    "error_msg": 4,
+    "error_msg": 3,
     "log": 60
    },
    "pixiv_client.py": {
     "error_msg": 3,
-    "log": 88
+    "log": 83
    },
    "ranking_tab.py": {
     "log": 18
    },
    "rate_coordinator.py": {},
    "recommend_tab.py": {
-    "log": 45
+    "log": 40
    },
    "registry_helper.py": {
     "log": 5
@@ -30303,7 +34253,6 @@
    },
    "similar_works.py": {},
    "style_infer.py": {
-    "error_msg": 8,
     "log": 16
    },
    "tray.py": {},
@@ -30326,6 +34275,6 @@
   "source": "S:\\Projects\\PixivVault (root *.py only)",
   "source_commit": "3ac3aa0d47a64785251593bcb09bb2d5f6df374b",
   "source_dirty_py": [],
-  "total": 2553
+  "total": 2808
  }
 }

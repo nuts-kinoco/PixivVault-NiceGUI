@@ -26,8 +26,9 @@ NA_UIDISPATCH = "n/a:UI スレッドへの投入機構（内部実装。NiceGUI 
 R = []
 
 
-def r(file, a, b, fl, kinds=None):
-    R.append(dict(file=file, lines=[a, b], fl=fl, kinds=kinds))
+def r(file, a, b, fl, kinds=None, scope=None, name_re=None):
+    """scope: "file"=ファイル全体が 1 つの機能 / "function"=1 つの関数全体。None=複数の関数をまとめた範囲(広いと弱い対応)"""
+    R.append(dict(file=file, lines=[a, b], fl=fl, kinds=kinds, scope=scope, name_re=name_re))
 
 
 # ---- core.py (ダウンロード本体) ----
@@ -41,40 +42,40 @@ r("core.py", 435, 466, "FL-Z03")
 r("core.py", 467, 524, "FL-Z01")
 r("core.py", 525, 720, "FL-C20")
 r("core.py", 721, 856, "FL-Z09")
-r("core.py", 857, 936, "FL-D16")
+r("core.py", 857, 936, "FL-D16", scope="function")
 r("core.py", 1075, 1085, "FL-Z12")
-r("core.py", 937, 1108, "FL-D15")
+r("core.py", 937, 1108, "FL-D15", scope="function")
 r("core.py", 1150, 1170, "FL-D09")
 r("core.py", 1185, 1195, "FL-Z08")
 r("core.py", 1255, 1300, "FL-Z06")
 r("core.py", 1329, 1340, "FL-Z09")
-r("core.py", 1109, 1813, "FL-D00")
+r("core.py", 1109, 1813, "FL-D00", scope="function")
 r("core.py", 1845, 1855, "FL-D09")
-r("core.py", 1814, 2181, "FL-D07")
+r("core.py", 1814, 2181, "FL-D07", scope="function")
 r("core.py", 2182, 2279, "FL-D00")
-r("core.py", 2280, 2384, "FL-C22")
+r("core.py", 2280, 2384, "FL-C22", scope="function")
 r("core.py", 2385, 2546, "FL-Z02")
 r("core.py", 2547, 2719, "FL-Z09")
-r("core.py", 2720, 3131, "FL-D13")
+r("core.py", 2720, 3131, "FL-D13", scope="function")
 r("core.py", 3132, 3176, "FL-D14")
 
 # ---- pixiv_client.py ----
 r("pixiv_client.py", 24, 119, "FL-C15")
 r("pixiv_client.py", 159, 226, "FL-Z05")
 r("pixiv_client.py", 227, 343, "FL-Z04")
-r("pixiv_client.py", 344, 456, "FL-A11")
+r("pixiv_client.py", 344, 456, "FL-A11, FL-Z15")
 r("pixiv_client.py", 457, 685, "FL-A08")
 r("pixiv_client.py", 686, 760, "FL-Z05")
 r("pixiv_client.py", 761, 943, "FL-D00")
 r("pixiv_client.py", 944, 1029, "FL-D15")
 r("pixiv_client.py", 1030, 1090, "FL-M02")
 r("pixiv_client.py", 1091, 1191, "FL-A11")
-r("pixiv_client.py", 1192, 1233, "FL-C02")
+r("pixiv_client.py", 1192, 1233, "FL-C02, FL-Z16")
 r("pixiv_client.py", 1234, 1254, "FL-J01")
 r("pixiv_client.py", 1255, 1309, "FL-I19")
 r("pixiv_client.py", 1310, 1360, "FL-J06")
 r("pixiv_client.py", 1361, 1480, "FL-K02")
-r("pixiv_client.py", 1481, 1608, "FL-K06")
+r("pixiv_client.py", 1481, 1608, "FL-K06, FL-Z17")
 r("pixiv_client.py", 1609, 1626, "FL-D00")
 r("pixiv_client.py", 1627, 1651, "FL-I13")
 r("pixiv_client.py", 1652, 1678, "FL-D15")
@@ -130,14 +131,14 @@ r("database.py", 2674, 2825, "FL-I19")
 r("database.py", 2826, 2832, "FL-A05")
 
 # ---- 周辺エンジン ----
-r("epub_builder.py", 1, 200, "FL-D15")
-r("rate_coordinator.py", 1, 100, "FL-Z10")
-r("registry_helper.py", 1, 100, "FL-A14")
-r("scheduler.py", 1, 260, "FL-O01")
-r("tray.py", 1, 60, "FL-A06")
-r("ui_dispatch.py", 1, 400, NA_UIDISPATCH)
-r("style_infer.py", 1, 600, "FL-C21")
-r("nana7mi_vault.py", 1, 3000, "FL-B10")
+r("epub_builder.py", 1, 200, "FL-D15", scope="file")
+r("rate_coordinator.py", 1, 100, "FL-Z10", scope="file")
+r("registry_helper.py", 1, 100, "FL-A14", scope="file")
+r("scheduler.py", 1, 260, "FL-O01", scope="file")
+r("tray.py", 1, 60, "FL-A06", scope="file")
+r("ui_dispatch.py", 1, 700, NA_UIDISPATCH, scope="file")
+r("style_infer.py", 1, 600, "FL-C21", scope="file")
+r("nana7mi_vault.py", 1, 3000, "FL-B10", scope="file")
 r("main.py", 355, 365, "FL-B11")
 r("main.py", 375, 390, "FL-N01")
 r("main.py", 540, 570, "FL-A13")
@@ -188,8 +189,8 @@ r("discovery_tab.py", 5160, 5265, "FL-I16")
 r("discovery_tab.py", 5600, 5700, "FL-I14")
 
 # ---- UI: 共通部品 ----
-r("filter_panel.py", 1, 500, "FL-K04")
-r("grid_card_size_ui.py", 1, 120, "FL-C25")
+r("filter_panel.py", 1, 500, "FL-K04", scope="file")
+r("grid_card_size_ui.py", 1, 120, "FL-C25", scope="file")
 
 # ---- UI: gui.py ----
 r("gui.py", 140, 150, "FL-A02")
@@ -238,7 +239,7 @@ r("ranking_tab.py", 2480, 2495, "FL-J11")
 r("recommend_tab.py", 138, 145, "FL-L02")
 r("recommend_tab.py", 148, 158, "FL-L01")
 r("recommend_tab.py", 255, 265, "FL-L01")
-r("recommend_tab.py", 318, 335, NA_TIMING)
+r("recommend_tab.py", 318, 355, NA_TIMING)
 r("recommend_tab.py", 450, 460, "FL-L01")
 r("recommend_tab.py", 490, 520, "FL-L05")
 r("recommend_tab.py", 600, 815, "FL-L05")
@@ -267,6 +268,52 @@ r("unified_download_tab.py", 735, 785, "FL-D02")
 r("unified_download_tab.py", 1235, 1270, "FL-D09")
 r("unified_download_tab.py", 1370, 1480, "FL-D01")
 r("unified_download_tab.py", 1550, 1565, "FL-D10")
+
+# ---- 画面・周辺モジュールの公開関数(名前から機能が決まるもの) ----
+NA_TOKENS = "n/a:色・罫線などの見た目の部品（機能ではない）"
+r("artbook_viewer.py", 105, 109, NA_UIDISPATCH)
+r("artbook_viewer.py", 110, 239, "FL-M03")
+r("artbook_viewer.py", 240, 1494, "FL-M01, FL-M02, FL-M03, FL-M04", kinds=["api_public"], scope="function")
+r("discovery_description.py", 1, 300, "FL-I13", scope="file")
+r("discovery_display_state.py", 1, 52, "FL-I06")
+r("discovery_display_state.py", 53, 200, "FL-I14")
+r("discovery_engine.py", 585, 660, "FL-I14")
+r("discovery_outcome.py", 50, 150, "FL-I14")
+r("discovery_population.py", 1, 300, "FL-I14", scope="file")
+r("discovery_pref_viewport.py", 1, 40, "FL-I11", scope="file")
+r("discovery_ranking.py", 1, 900, "FL-I19", scope="file")
+r("discovery_size_coordinator.py", 1, 160, "FL-I11", scope="file")
+r("discovery_tab.py", 67, 5700, "FL-I01, FL-I02, FL-I11, FL-I14, FL-I16", kinds=["api_public"], scope="function")
+r("gui.py", 151, 178, "FL-B02")
+r("gui.py", 179, 199, NA_TOKENS)
+r("gui.py", 200, 312, "FL-E04")
+r("gui.py", 313, 425, "FL-C12")
+r("gui.py", 426, 461, "FL-H05")
+r("gui.py", 462, 6350, "FL-B01, FL-E01, FL-F01, FL-H01", kinds=["api_public"], scope="function")
+r("main.py", 150, 200, "FL-A13")
+r("ranking_tab.py", 439, 2611, "FL-J01, FL-J07, FL-J11", kinds=["api_public"], scope="function")
+r("recommend_tab.py", 246, 3979, "FL-L01, FL-L03", kinds=["api_public"], scope="function")
+r("shared_image_cache.py", 1, 250, "FL-C15", scope="file")
+r("similar_works.py", 1, 150, "FL-K10", scope="file")
+r("ui_dialog.py", 1, 50, "n/a:ダイアログを閉じる内部補助（利用者の機能ではない）", scope="file")
+r("unified_download_tab.py", 49, 76, NA_TOKENS)
+r("unified_download_tab.py", 77, 1570, "FL-D01, FL-D02, FL-D09, FL-D10", kinds=["api_public"], scope="function")
+r("zip_locks.py", 1, 60, "FL-Z11", scope="file")
+
+# ---- server.py: 名前で決まるもの(rule は name_re があれば範囲より優先) ----
+for _nm, _fl in [
+    (r"_is_allowed_extension_origin|_is_allowed_origin|_is_loopback_client|_send_cors_headers|_send_response", "FL-N04"),
+    (r"_is_allowed_web_origin|_check_web_token|_check_web_bridge_enabled|is_web_bridge_enabled|get_web_token|generate_web_token", "FL-X02"),
+    (r"_handle_download|_handle_legacy_download|_log_extension_job_received|_handle_bookmark", "FL-N02"),
+    (r"save_cookies_from_extension", "FL-N03"),
+    (r"_handle_web_download|_run_web_download_job|register_web_batch|list_web_batches|_handle_jobs_list|_handle_jobs_bulk_control|"
+     r"_account_batch_terminal|_mark_web_job_terminal|_notify_web_job_result|_set_gui_flow_active|enqueue_gui_job|"
+     r"control_web_job_from_gui|dismiss_web_job_from_gui", "FL-X01, FL-X02"),
+    (r"mark_app_contact|last_app_contact_at", "FL-X01"),
+    (r"_job_label_for_log|_emit_pc_operation_log|_emit_queue_log|_emit_coalesced_queue_log|_flush_coalesced_queue_log", "FL-E06"),
+    (r"^PixivVaultRequestHandler$|^PixivVaultServer$", "FL-N01, FL-N02, FL-N03"),
+]:
+    r("server.py", 1, 2000, _fl, ["api_public"], name_re=_nm)
 
 TABLE_RULES = {
     # テーブル名(または テーブル.列の先頭テーブル) → 対応先
