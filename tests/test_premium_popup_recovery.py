@@ -17,7 +17,8 @@ class Harness:
         from pixivvault_nicegui import external_vault_autounlock
         self.protection = Protection()
         monkeypatch.setattr(external_vault_autounlock, '_dpapi', self.protection)
-        self.vault, self.gate, self.transport = create(tmp_path/'vault', self.protection, [1000])
+        self.now = [1000]
+        self.vault, self.gate, self.transport = create(tmp_path/'vault', self.protection, self.now)
         self.keeper = []
         monkeypatch.setattr(self.vault, 'start_keeper', lambda **kw: self.keeper.append(1))
         self.default = tmp_path/'default.txt'
@@ -192,9 +193,9 @@ async def test_legacy_vault_password_second_field_enables(tmp_path, monkeypatch)
         await h.submit(TEST_PASSWORD, legacy=LEGACY_PASSWORD)
         assert h.gate.status()['enabled'] and h.vault.status()['open']
         assert h.vault._snapshot()[1]['secret_key'] == 'legacy-key'
-        assert not d.legacy_box.visible and d.main_box.visible and d.legacy.value == ''
+        assert not d.legacy_box.visible and d.main_box.visible and d.legacy is None
         assert 'ON' in d.notice.text
-        # remembered material lets the next ON work without the legacy password
+        # OFF removes the derived material, so the earlier password is asked again
         h.gate.disable()
         await h.submit(TEST_PASSWORD, legacy=LEGACY_PASSWORD)
         assert h.gate.status()['enabled']
@@ -214,7 +215,27 @@ async def test_legacy_wrong_vault_password_is_specific_and_backs_off(tmp_path, m
         assert d.notice.text.startswith(vault_unlock_error_message('premium-vault-password-rejected'))
         assert 'generated-wrong-vault-password' not in d.notice.text and TEST_PASSWORD not in d.notice.text
         assert h.gate.status()['retry_after'] > 0 and h.gate._attempts()['failures'] == 1
-        assert not h.transport.calls and not d.legacy_box.visible and d.legacy.value == ''
+        assert not h.transport.calls and not d.legacy_box.visible and d.legacy is None
+    finally:
+        h.close()
+
+
+@pytest.mark.asyncio
+async def test_legacy_wrong_vault_password_backoff_escalates(tmp_path, monkeypatch):
+    h = Harness(tmp_path, monkeypatch)
+    try:
+        h.vault.initialize(LEGACY_PASSWORD, '12345', 'legacy-key')
+        h.vault.lock()
+        h.open_dialog(None)
+        waits = []
+        for expected in (1, 2, 3):
+            await h.submit(TEST_PASSWORD, legacy='generated-wrong-vault-password')
+            assert h.gate._attempts()['failures'] == expected and not h.gate.status()['enabled']
+            waits.append(h.gate.status()['retry_after'])
+            h.now[0] += 1000
+        assert waits[0] < waits[1] < waits[2]
+        await h.submit(TEST_PASSWORD, legacy=LEGACY_PASSWORD)
+        assert h.gate.status()['enabled'] and h.vault.status()['open'] and h.gate._attempts()['failures'] == 0
     finally:
         h.close()
 
@@ -260,5 +281,7 @@ def test_messages_no_longer_point_to_removed_shaft_tab():
         text = unavailable_message(code)
         assert text and 'Shaft連携' not in text and '外部連携' not in text
         assert '借用プレミアム' in text
+    # shown while the switch may be ON: must not claim the switch is OFF
+    assert 'OFFのまま' not in unavailable_message('pixiv-outcome-uncertain')
     text = unavailable_message('borrow-accounts-unavailable', reason='not-premium')
     assert 'Shaft連携' not in text and '借用プレミアム' in text

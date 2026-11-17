@@ -45,8 +45,7 @@ class PremiumGateDialog:
                 with ui.column().classes('w-full gap-2') as self.legacy_box:
                     ui.label('保管庫は以前に設定した別のパスワードで保護されています。そのパスワードを入力してください。入力内容は保存しません。')
                     with ui.column().classes('w-full') as self.legacy_slot:
-                        self.legacy=None
-                        self._reset_legacy()
+                        self.legacy=None  # the input exists only while it is needed
                 self.legacy_box.set_visibility(False)
                 with ui.column().classes('w-full gap-2') as self.main_box:
                     with ui.column().classes('w-full') as self.secret_slot:
@@ -87,15 +86,18 @@ class PremiumGateDialog:
         with self.secret_slot:
             self.secret=ui.input('Shaft \u7f72\u540d\u30ad\u30fc\uff08\u4efb\u610f\u30fb\u65e2\u306b\u767b\u9332\u6e08\u307f\u306a\u3089\u7a7a\u6b04\u3067\u3088\u3044\uff09',password=True).props(
                 'outlined autocomplete=off data-testid=premium-secret')
-    def _reset_legacy(self):
+    def _reset_legacy(self,create=False):
         if self.legacy is not None:
             self.legacy.set_value('')
+        self.legacy=None
         self.legacy_slot.clear()
+        if not create:return
         with self.legacy_slot:
             self.legacy=ui.input('保管庫のパスワード（以前に設定したもの）',password=True).props(
                 'outlined autofocus autocomplete=off data-testid=premium-vault-password')
             self.legacy.on('keydown.enter',lambda:self.password_dialog.submit(True))
     def _show_legacy(self,visible):
+        self._reset_legacy(create=visible)
         self.password_slot.set_visibility(not visible)
         self.main_box.set_visibility(not visible)
         self.legacy_box.set_visibility(visible)
@@ -152,7 +154,7 @@ class PremiumGateDialog:
             if state['retry_after']>0:
                 self.notice.set_text(f"しばらく待ってから操作してください（あと{int(state['retry_after'])+1}秒）。")
                 return
-            self._show_legacy(False);self._reset_password();self._reset_legacy();self._reset_secret()
+            self._show_legacy(False);self._reset_password();self._reset_secret()
             # An initialised vault already holds its UIDs; the default file
             # must never be read for it (it would overwrite saved UIDs).
             if self.gate.vault.status()['initialized']:self._clear_uids()
@@ -220,5 +222,7 @@ class PremiumGateDialog:
             if self.on_change and not self.closed:self.on_change()
     def close(self):
         if self.closed:return
-        self.closed=True;self.password.set_value('');self.secret.set_value('');self.legacy.set_value('');self._clear_uids()
+        self.closed=True;self.password.set_value('');self.secret.set_value('')
+        if self.legacy is not None:self.legacy.set_value('')
+        self._clear_uids()
         self.password_dialog.submit(False);self.save_dialog.submit(False)

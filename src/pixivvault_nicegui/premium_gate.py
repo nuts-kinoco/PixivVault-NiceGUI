@@ -140,6 +140,10 @@ class PremiumAuthorization:
                     self._error=error.code
                     self._atomic('activation-state',b'off\n')
                 raise
+            if self._error=='premium-legacy-unlock-required':
+                # Not yet fully verified: keep the earlier failure count so that
+                # wrong vault passwords in unlock_legacy keep escalating.
+                self._atomic('attempts.json',json.dumps(dict(failures=state['failures'],next_at=0)).encode())
             # Password is only a transient parameter; keep derived material.
             self._pending=True
             return True
@@ -169,6 +173,7 @@ class PremiumAuthorization:
                 raise
             self._capture_material()
             self._error=None
+            self._atomic('attempts.json',b'{"failures":0,"next_at":0}')
     def confirm(self,remember,*,expected_epoch=None):
         with self._lock:
             if self._error in VAULT_INTEGRITY_ERRORS:
