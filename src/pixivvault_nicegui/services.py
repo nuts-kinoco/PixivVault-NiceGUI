@@ -2014,7 +2014,8 @@ class ApplicationServices:
         finally:
             with self._managed_target_lock:
                 self._active_managed_record = None
-            if self._similarity_worker is not None and not self.closing:
+            if (self._similarity_worker is not None and not self.closing
+                    and self.similarity_auto_enabled()):
                 self._similarity_worker.wake()
 
     def _reconcile_interrupted_author_jobs(self):
@@ -3013,9 +3014,13 @@ class ApplicationServices:
 
     def _metadata_candidates(self, ledger, limit):
         from .metadata_policy import MetadataCandidate, select_candidates
-        snapshot = self.managed_downloads.catalog_snapshot(verify_pages=False)
+        try:
+            receipts = self.managed_downloads.catalog_snapshot(verify_pages=False).receipts
+        except Exception:
+            # 保存済みの 1 件が壊れていても、一覧全体を止めない。壊れた作品だけ候補から外す。
+            receipts, _skipped = self.managed_downloads.saved_receipts_tolerant(verify_pages=False)
         rows = []
-        for _relative, receipt, digest in snapshot.receipts:
+        for _relative, receipt, digest in receipts:
             try:
                 work_id, author_id = receipt['work_id'], receipt['author_id']
                 prior = ledger.entry(work_id)
@@ -3133,6 +3138,7 @@ class ApplicationServices:
             runner = MetadataAutoRunner(
                 lambda: self.run_managed_metadata_all(transport=transport),
                 self.metadata_auto_enabled, initial_delay=initial_delay, intervals=intervals)
+            self._metadata_auto_seen = self.metadata_auto_enabled()
             runner.start()
             self._metadata_auto = runner
             return True
@@ -3142,9 +3148,14 @@ class ApplicationServices:
         runner = self._metadata_auto
         if runner is None:
             return
-        if not self.metadata_auto_enabled():
+        current = self.metadata_auto_enabled()
+        previous = getattr(self, '_metadata_auto_seen', None)
+        self._metadata_auto_seen = current
+        if not current:
             self.stop_managed_metadata()
-        runner.wake()
+        # 入切が変わったときだけ起こす。関係のない設定の保存で、失敗後の待ち時間を飛ばさない。
+        if current != previous:
+            runner.wake()
 
     def reconcile_managed_scheduler(self):
         """Join JobService operation history to verified managed CAS receipts."""

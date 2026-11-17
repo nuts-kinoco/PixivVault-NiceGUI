@@ -435,6 +435,25 @@ class ManagedPixivDownloads:
             raise ManagedDownloadError('active receipt fingerprint rejected')
         return relative, receipt, digest, date, fingerprint
 
+    def saved_receipts_tolerant(self, *, verify_pages=False) -> tuple[tuple[tuple[str, dict, str], ...], int]:
+        """Per-work read for background readers: a broken work is left out, not fatal.
+
+        Returns (rows, skipped). Every row is still a verified active receipt; only
+        the index itself failing to read raises. Not a published catalog snapshot.
+        """
+        if self.closed:
+            raise ManagedDownloadError('managed download is closed')
+        rows, skipped = [], 0
+        for wid in sorted(self._generations.entries()):
+            try:
+                found = self.verified_saved_receipt(wid, verify_pages=verify_pages)
+            except Exception:
+                skipped += 1
+                continue
+            if found is not None:
+                rows.append((found[0], found[1], found[2]))
+        return tuple(rows), skipped
+
     def saved_receipts(self, *, verify_pages=True, progress=None) -> tuple[tuple[str, dict, str], ...]:
         """Compatibility projection; v1 catalogs keep their original shape."""
         return tuple((relative, receipt, digest)

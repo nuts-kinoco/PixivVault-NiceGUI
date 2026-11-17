@@ -27,7 +27,7 @@ DEFAULT_INTERVALS = {
 }
 _BACKOFF_REASONS = frozenset((
     'global_failure', 'authentication_unverified', 'authentication_or_state_unavailable',
-    'five_consecutive_unknown_failures',
+    'five_consecutive_unknown_failures', 'managed_state_changed',
 ))
 
 

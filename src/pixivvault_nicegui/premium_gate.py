@@ -207,9 +207,10 @@ class PremiumAuthorization:
             if self.vault._key is None:raise PremiumGateError('locked')
             self._material=dict(salt=self.vault._meta['salt'],verify=self.vault._meta['verify'],key=base64.b64encode(self.vault._key).decode())
     def _remove_material(self):
-        self.vault._ensure_writable(self.vault._revision)
         path=self._path('material.dpapi')
+        # ファイルが無いときは書き込みロックを取らない（別インスタンスの保持と競合させない）。
         if native_io_path(path).exists():
+            self.vault._ensure_writable(self.vault._revision)
             native_io_path(path).unlink();_fsync_dir(self.root)
     def _restore_key(self):
         if self._material is not None:self.vault.unlock_derived(self._material)
