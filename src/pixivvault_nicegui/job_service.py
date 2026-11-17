@@ -221,13 +221,13 @@ class _Store:
         except (ValueError, TypeError, sqlite3.Error):
             raise JobStorageError("saved job state rejected") from None
 
-    def write(self, jobs, operations):
+    def write(self, jobs, operations, retired=frozenset()):
         try:
             _regular_unlinked(self.path)
             current = self._io_path.stat()
             if (current.st_dev, current.st_ino) != self.identity:
                 raise JobStorageError("job storage identity changed")
-            history=dict(self.history)
+            history={jid: item for jid, item in self.history.items() if jid not in retired}
             bound={jid for jid,_ in operations.values()}
             for jid,old in self._last_jobs.items():
                 if jid in bound and jid not in jobs:
@@ -239,6 +239,9 @@ class _Store:
             updates=[(jid,json.dumps(asdict(item),ensure_ascii=True)) for jid,item in history.items()
                      if self.history.get(jid)!=item]
             with self.connection:
+                if retired:
+                    self.connection.executemany('DELETE FROM job_history WHERE job_id=?',[(jid,) for jid in retired])
+                    self.connection.executemany('DELETE FROM operations WHERE job_id=?',[(jid,) for jid in retired])
                 self.connection.executemany('INSERT INTO job_history VALUES (?,?) ON CONFLICT(job_id) DO UPDATE SET payload=excluded.payload',updates)
                 self.connection.execute("DELETE FROM jobs")
                 self.connection.executemany("INSERT INTO jobs VALUES (?,?,?)", [
@@ -247,7 +250,8 @@ class _Store:
                 if operations is not self._last_operations:
                     previous = self._last_operations or {}
                     if (len(operations) > MAX_OPERATION_IDS or any(
-                            operations.get(key) != value for key, value in previous.items())):
+                            operations.get(key) != value for key, value in previous.items()
+                            if value[0] not in retired)):
                         raise JobStorageError("operation ledger mutation rejected")
                     self.connection.executemany("INSERT INTO operations VALUES (?,?,?)", [
                         (op, value[0], value[1]) for op, value in operations.items() if op not in previous])
@@ -487,10 +491,10 @@ class JobService:
                               result=None, error_code='receipt_invalid')
             return True
 
-    def _commit(self, jobs, operations=None):
+    def _commit(self, jobs, operations=None, retired=frozenset()):
         operations = self._operations if operations is None else operations
         if self._store is not None:
-            self._store.write(jobs, operations)
+            self._store.write(jobs, operations, retired)
         self._jobs = jobs
         self._operations = operations
         self._published = tuple(reversed(tuple(jobs.values())))
@@ -546,6 +550,40 @@ class JobService:
                 self._thread = Thread(target=self._work, name="pixivvault-jobs", daemon=True)
                 self._thread.start()
             return job
+
+    def retire_jobs(self, job_ids) -> tuple[str, ...]:
+        """Forget finished jobs together with their operation IDs (bulk-run capacity).
+
+        The operation ledger is append-only and capped, so a long author run would
+        otherwise fill it. Owner API: the caller must already have recorded each
+        job's outcome elsewhere and must not retire a job another component still
+        needs. Only terminal, non-active jobs are retired; the rest are left alone.
+        Jobs, their operations and their history leave in one transaction. A retired
+        operation ID may be accepted again as a new request.
+        """
+        ids = set(job_ids)
+        if any(type(job_id) is not str or not re.fullmatch(r"[a-f0-9]{32}", job_id) for job_id in ids):
+            raise JobServiceError("invalid job id")
+        with self._condition:
+            if self._closing or self._fatal:
+                raise JobServiceError("job service is unavailable")
+            retire = set()
+            for job_id in ids:
+                job = self._jobs.get(job_id) or (self._store.history.get(job_id) if self._store else None)
+                if (job is not None and job.state in ("done", "error", "stopped")
+                        and not (self._active and self._active[0] == job_id)):
+                    retire.add(job_id)
+            if not retire:
+                return ()
+            jobs = {key: job for key, job in self._jobs.items() if key not in retire}
+            operations = {key: value for key, value in self._operations.items() if value[0] not in retire}
+            try:
+                self._commit(jobs, operations, frozenset(retire))
+            except JobStorageError:
+                self._fatal = True
+                self._condition.notify_all()
+                raise
+            return tuple(sorted(retire))
 
     def control(self, job_id: str, action: str, expected_revision: int | None = None,
                 expected_control_revision: int | None = None) -> bool:

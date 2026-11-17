@@ -417,5 +417,5 @@ def test_services_port_maps_services_onto_the_engine_port():
     assert port.job_states(refs) == {'a' * 32: ('error', 'boom'), 'b' * 32: ('done', ''), 'c' * 32: ('lost', '')}
     port.stop_jobs(refs[:1])
     port.settle('41')
-    assert port.observe_deletion('41', (), 'd' * 32) is None and port.retire(refs) == 0
+    assert port.observe_deletion('41', (), 'd' * 32) is None and port.retire(refs) == 'unsupported'
     assert calls == ['gate', ('preview', '41', 'both'), ('a' * 32, 'stop'), ('reconcile', '41')]

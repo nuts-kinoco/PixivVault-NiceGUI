@@ -24,6 +24,8 @@ from .batch_runs import COUNTERS, BatchRunError
 
 BETWEEN_AUTHORS = (4.0, 6.0)          # original core.py:2269 random.uniform(4.0, 6.0)
 MAX_IN_FLIGHT = 16                    # unfinished jobs the engine itself keeps queued
+RETIRE_EVERY = 500                    # finished jobs after which the capped ledgers are freed
+RETIRE_WAIT_SECONDS = 60.0            # how long to hold back new work for that, at most
 POLL_SECONDS = 0.25
 _TERMINAL_JOBS = ('done', 'error', 'stopped')
 
@@ -143,14 +145,16 @@ class ServicesPort:
             media.reconcile(author_id=author_id)
 
     def retire(self, refs):
+        """Free the capped ledgers: int = retired, None = not safe yet, 'unsupported' = never."""
         hook = getattr(self.s, 'retire_settled_author_jobs', None)
-        return 0 if hook is None else hook(tuple(refs))
+        return 'unsupported' if hook is None else hook(tuple(refs))
 
 
 class BatchRunEngine:
     def __init__(self, port, ledger, *, following=None, account_id=None, on_progress=None,
                  between_authors=BETWEEN_AUTHORS, uniform=random.uniform, wait=None,
-                 max_in_flight=MAX_IN_FLIGHT, poll_seconds=POLL_SECONDS, monotonic=time.monotonic):
+                 max_in_flight=MAX_IN_FLIGHT, poll_seconds=POLL_SECONDS, monotonic=time.monotonic,
+                 retire_every=RETIRE_EVERY, retire_wait_seconds=RETIRE_WAIT_SECONDS):
         if type(max_in_flight) is not int or not 1 <= max_in_flight <= 40:
             raise ValueError('invalid in-flight limit')
         self.port, self.ledger = port, ledger
@@ -159,6 +163,9 @@ class BatchRunEngine:
         self.between_authors, self._uniform = between_authors, uniform
         self._external_wait = wait
         self.max_in_flight, self.poll_seconds = max_in_flight, poll_seconds
+        self.retire_every, self.retire_wait_seconds = retire_every, retire_wait_seconds
+        self._settled = []
+        self._retire_disabled = False
         self._monotonic = monotonic
         self._cond = Condition(RLock())
         self._stop = False
@@ -268,6 +275,7 @@ class BatchRunEngine:
                                                 self._authors, account_id=self.account_id)
             self._stop = self._paused = False
             self.state, self.pause_reason = 'running', ''
+            self._settled, self._retire_disabled = [], False
             self.totals = {name: 0 for name in COUNTERS}
             self.kind, self.target_type = kind, target_type
             self._started = self._monotonic()
@@ -417,16 +425,42 @@ class BatchRunEngine:
                 counters['n_absent_pending'], counters['n_absent_confirmed'] = result
         self.ledger.update_author(run_id, author_id, deletion_check=check)
 
+    def _retire(self):
+        """Ask the port to free finished jobs; True when done (or never going to be possible)."""
+        if not self._settled or self._retire_disabled:
+            return True
+        result = self.port.retire(tuple(self._settled))
+        if result == 'unsupported':
+            self._retire_disabled = True
+            self._settled = []
+            return True
+        if result is None:
+            return False
+        self._settled = []
+        return True
+
     def _download(self, run_id, index, total, author_id, queue):
-        """Hand work to the durable jobs a few at a time; return how many did not save."""
+        """Hand work to the durable jobs a few at a time; return how many did not save.
+
+        The job ledger caps at 10,000 operations (job_service.MAX_OPERATION_IDS), so after
+        `retire_every` finished jobs new work is held back until the port can free them.
+        """
         inflight, failed, done_count = {}, 0, 0
         pending = list(queue)
-        settled = []
+        drain_since = None
         try:
             while pending or inflight:
                 self._check_state()
                 progressed = False
-                while pending and len(inflight) < self.max_in_flight:
+                draining = len(self._settled) >= self.retire_every and not self._retire_disabled
+                if draining and drain_since is None:
+                    drain_since = self._monotonic()
+                if draining and not inflight:
+                    if self._retire():
+                        drain_since = None
+                        draining = False
+                holding = (draining and self._monotonic() - drain_since <= self.retire_wait_seconds)
+                while pending and not holding and len(inflight) < self.max_in_flight:
                     self._gate()
                     candidate = pending[0]
                     operation_id = uuid4().hex
@@ -443,15 +477,15 @@ class BatchRunEngine:
                             break  # wait for jobs to finish, then offer it again
                         pending.pop(0)
                         failed += 1
-                        self.ledger.record_item(run_id, author_id, candidate.key, candidate.kind,
-                                                operation_id, state='error')
+                        self.ledger.record_items(run_id, author_id, (
+                            (candidate.key, candidate.kind, operation_id, None, 'error'),))
                         continue
                     pending.pop(0)
                     progressed = True
                     ref = JobRef(candidate.kind, job_id, operation_id)
                     inflight[job_id] = (ref, candidate)
-                    self.ledger.record_item(run_id, author_id, candidate.key, candidate.kind,
-                                            operation_id, job_id=job_id)
+                    self.ledger.record_items(run_id, author_id, (
+                        (candidate.key, candidate.kind, operation_id, job_id, 'queued'),))
                 if inflight:
                     states = self.port.job_states([ref for ref, _ in inflight.values()])
                     finished = []
@@ -465,15 +499,15 @@ class BatchRunEngine:
                     if finished:
                         progressed = True
                         self.port.settle(author_id)
+                        rows = []
                         for ref, candidate, state in finished:
                             done_count += 1
                             if state != 'done':
                                 failed += 1
-                            self.ledger.record_item(run_id, author_id, candidate.key, candidate.kind,
-                                                    ref.operation_id, job_id=ref.job_id,
-                                                    state={'done': 'done', 'error': 'error',
-                                                           'stopped': 'stopped'}.get(state, 'lost'))
-                            settled.append(ref)
+                            rows.append((candidate.key, candidate.kind, ref.operation_id, ref.job_id,
+                                         {'done': 'done', 'error': 'error', 'stopped': 'stopped'}.get(state, 'lost')))
+                            self._settled.append(ref)
+                        self.ledger.record_items(run_id, author_id, rows)
                         self.ledger.update_author(run_id, author_id, counters={'n_failed': failed})
                         self._emit('work_progress', index=index, total=total, author_id=author_id,
                                    done=done_count, queued=len(queue), failed=failed)
@@ -483,6 +517,5 @@ class BatchRunEngine:
             if inflight:
                 self.port.stop_jobs([ref for ref, _ in inflight.values()])
             raise
-        if settled:
-            self.port.retire(settled)
+        self._retire()  # best effort at the author boundary; carried over when not yet safe
         return failed

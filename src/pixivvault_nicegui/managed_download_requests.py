@@ -236,6 +236,32 @@ class ManagedDownloadRequests:
             except Exception as error:
                 raise _failure('saved intent rejected', error, 'read_intent') from None
 
+    def release(self, operation_ids) -> int:
+        """Delete the saved intents of operations whose jobs were retired; return how many.
+
+        Only call after JobService no longer lists the operation: startup reloads the
+        intent of every job it still holds, and this folder is capped at MAX_INTENTS.
+        """
+        removed = 0
+        with self._lock:
+            try:
+                folder_io = native_io_path(self.folder)
+                _safe_path(folder_io)
+                for operation_id in operation_ids:
+                    target = native_io_path(self._path(operation_id))
+                    if target.is_symlink():
+                        raise ManagedRequestError('managed intent directory rejected')
+                    if target.exists():
+                        target.unlink()
+                        removed += 1
+                if removed:
+                    _fsync_dir(folder_io)
+            except ManagedRequestError:
+                raise
+            except Exception as error:
+                raise _failure('managed intent release failed', error, 'release') from None
+        return removed
+
     def store(self, operation_id: str, record: RemoteBookmark | ManagedAuthorIntent) -> None:
         spec = _intent_spec(record)
         data = json.dumps(spec, sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode('ascii')

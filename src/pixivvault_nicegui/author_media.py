@@ -438,6 +438,21 @@ class AuthorMediaService:
                 job=s.ugoira.enqueue_selection(match.payload,operation_id)
             return job,job.job_id not in before,self._bind(candidate,operation_id,job)
 
+    def forget_admissions(self, operation_ids):
+        """Drop journal rows of retired static (illustration) operations; return how many.
+
+        Their jobs and receipts-of-record are gone from JobService, so the rows can no
+        longer bind to anything, yet every preview reconciles every row.
+        Novel/ugoira rows are never touched: their owners keep their ledgers.
+        """
+        ids = [op for op in operation_ids if type(op) is str and re.fullmatch(r'[a-f0-9]{32}', op)]
+        removed = 0
+        with self.lock, self._db() as db:
+            for op in ids:
+                removed += db.execute("DELETE FROM admissions WHERE operation_id=? AND media_key NOT LIKE '%:%'",
+                                      (op,)).rowcount
+        return removed
+
     def _bind(self,candidate,operation,job):
         with self._db() as db:
             row=db.execute('SELECT spec FROM admissions WHERE operation_id=?',(operation,)).fetchone()

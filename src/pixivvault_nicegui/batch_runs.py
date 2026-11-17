@@ -21,6 +21,7 @@ from pathlib import Path
 import re
 import sqlite3
 from threading import RLock
+import time
 from uuid import uuid4
 
 from .fs_paths import native_io_path, sqlite_readonly_uri
@@ -189,10 +190,13 @@ _SCHEMA = f'''
 class BatchRunLedger:
     """One process owner per folder; engine and views share this instance."""
 
-    def __init__(self, root, *, clock=None):
+    def __init__(self, root, *, clock=None, synchronous='FULL'):
+        if synchronous not in ('FULL', 'NORMAL'):  # NORMAL exists for bulk-scale tests only
+            raise BatchRunError()
         self._lock = RLock()
         self._closed = False
         self._connection = self._owner = None
+        self._validated_at = float('-inf')
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         try:
             raw = Path(root)
@@ -225,7 +229,7 @@ class BatchRunLedger:
             self._connection = sqlite3.connect(str(self.path), timeout=0.1,
                                                isolation_level=None, check_same_thread=False)
             self._connection.execute('PRAGMA foreign_keys=ON')
-            self._connection.execute('PRAGMA synchronous=FULL')
+            self._connection.execute('PRAGMA synchronous=' + synchronous)
             if not existed:
                 self._connection.executescript(_SCHEMA)
             self._verify_schema(self._connection)
@@ -268,6 +272,12 @@ class BatchRunLedger:
     def _ensure_open(self):
         if self._closed or self._connection is None:
             raise BatchRunError()
+        # The link/identity re-check walks every ancestor of the folder; a bulk run writes
+        # thousands of rows, so it is repeated at most twice a second, not once per row.
+        now = time.monotonic()
+        if now - self._validated_at < 0.5:
+            return
+        self._validated_at = now
         self._check_root()
         metadata = self.root.lstat()
         if (metadata.st_dev, metadata.st_ino) != self._root_identity:
@@ -564,6 +574,28 @@ class BatchRunLedger:
                 'DO UPDATE SET job_id=COALESCE(excluded.job_id,job_id),state=excluded.state,'
                 'operation_id=excluded.operation_id',
                 (run_id, author_id, work_key, media, operation_id, job_id, state))
+        self._transaction(record)
+
+    def record_items(self, run_id, author_id, rows):
+        """Many `record_item` rows in one transaction: (work_key, media, operation_id, job_id, state)."""
+        _run_id(run_id)
+        _identifier(author_id)
+        clean = []
+        for work_key, media, operation_id, job_id, state in rows:
+            for value, limit in ((work_key, 64), (media, 32), (operation_id, 128)):
+                if type(value) is not str or not 1 <= len(value) <= limit:
+                    raise BatchRunError()
+            if state not in ITEM_STATES or (job_id is not None and (type(job_id) is not str or len(job_id) > 64)):
+                raise BatchRunError()
+            clean.append((run_id, author_id, work_key, media, operation_id, job_id, state))
+        if not clean:
+            return
+
+        def record(connection):
+            connection.executemany(
+                'INSERT INTO run_items VALUES(?,?,?,?,?,?,?) ON CONFLICT(run_id,author_id,work_key) '
+                'DO UPDATE SET job_id=COALESCE(excluded.job_id,job_id),state=excluded.state,'
+                'operation_id=excluded.operation_id', clean)
         self._transaction(record)
 
     def items(self, run_id, author_id=None):
