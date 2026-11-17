@@ -10,6 +10,8 @@ from ..legacy_metadata_export import LegacyMetadataExportError
 EXTENSION_STATUS_LABELS = {
     'running': '拡張連携: 受付中',
     'unavailable': '拡張連携: ポートを使用できません。既存アプリの終了後に再起動してください。',
+    'in_use': '拡張連携: 他のアプリがポートを使用中です（元のPixivVaultなど）。そのアプリを終了して再起動してください。',
+    'commands_unavailable': '拡張連携: 受信の準備に失敗しました。保存先の状態を確認して再起動してください。',
     'setting_off': '拡張連携: 設定で停止中です。次回の起動から受け付けます（設定でONに戻せます）。',
     'disabled': '拡張連携: 無効（Cookieと保存先の設定が必要です）',
 }

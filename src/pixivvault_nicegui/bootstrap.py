@@ -438,6 +438,24 @@ def extension_bridge_wanted(explicit, auto, preferences) -> bool:
         return False
 
 
+def prepare_extension_receiver(services, explicit, auto, wanted) -> bool:
+    """受信用の台帳を用意し、受信サーバーを起動するかを返す。"""
+    if services.managed_downloads is None:
+        return wanted
+    existing = (services.managed_downloads.root / 'extension-commands').exists()
+    if not (wanted or existing):
+        return wanted
+    try:
+        services.enable_extension_commands()
+    except Exception:
+        if explicit or existing or not auto:
+            raise            # 明示指定・既存台帳の失敗は従来どおり起動を止める
+        # 既定起動で新しく作る台帳の失敗では、通常起動を止めない（ポートの問題とは別に表示する）。
+        services.extension_bridge_status = 'commands_unavailable'
+        return False
+    return wanted
+
+
 def register_pages(learning_sandbox: Path | None = None,
                    library_readonly_db: Path | None = None,
                    library_image_root: Path | None = None,
@@ -632,16 +650,7 @@ def register_pages(learning_sandbox: Path | None = None,
         bridge_wanted = extension_bridge_wanted(extension_bridge, extension_bridge_auto, services.preferences)
         if extension_bridge_auto and not bridge_wanted:
             services.extension_bridge_status = 'setting_off'
-        if services.managed_downloads is not None and (bridge_wanted or
-                (services.managed_downloads.root / 'extension-commands').exists()):
-            try:
-                services.enable_extension_commands()
-            except Exception:
-                if extension_bridge or not extension_bridge_auto:
-                    raise            # 明示指定・既存台帳の失敗は従来どおり起動を止める
-                # 既定起動だけの受信準備の失敗で、通常起動を巻き込まない。
-                services.extension_bridge_status = 'unavailable'
-                bridge_wanted = False
+        bridge_wanted = prepare_extension_receiver(services, extension_bridge, extension_bridge_auto, bridge_wanted)
         if bridge_wanted:
             app.on_startup(services.start_extension_bridge)
         if desktop_enabled:

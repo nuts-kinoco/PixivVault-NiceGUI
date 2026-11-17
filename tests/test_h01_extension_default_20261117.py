@@ -233,3 +233,68 @@ def test_uri_relaunch_does_not_force_the_receiver_on():
     from pixivvault_nicegui import bootstrap
     source = inspect.getsource(bootstrap.main)
     assert "'--extension-bridge'" not in source      # URI 起動も設定（受信を止める）に従う
+
+
+# ---- checker 指摘 1・2・5 -------------------------------------------------------
+
+def test_port_answered_by_another_app_is_not_taken(monkeypatch):
+    # 元アプリは 0.0.0.0:25010 に bind する。127.0.0.1 の bind は成功してしまい、指示が黙って流れるため、
+    # 起動前に接続を試し、応答があれば起動しない。
+    monkeypatch.setattr(bridge, '_port_answers', lambda port: True)
+    b = bridge.ExtensionBridge(enqueue=lambda c: 'j', work_status=lambda w: {}, author_status=lambda a: {})
+    with pytest.raises(bridge.PortInUse):
+        b.start()
+    assert b._server is None
+
+
+def test_probe_is_skipped_for_ephemeral_port(monkeypatch):
+    monkeypatch.setattr(bridge, '_port_answers', lambda port: pytest.fail('probe must not run'))
+    monkeypatch.setattr(bridge, '_Server', _FakeServer)
+    b = bridge.ExtensionBridge(enqueue=lambda c: 'j', work_status=lambda w: {}, author_status=lambda a: {}, port=0)
+    b.start()
+    b.close()
+
+
+def test_service_reports_port_in_use(monkeypatch):
+    monkeypatch.setattr(bridge, '_port_answers', lambda port: True)
+    owner = _Owner()
+    owner.start_extension_bridge()
+    assert owner.extension_bridge_status == 'in_use'
+    from pixivvault_nicegui.ui.preferences_view import EXTENSION_STATUS_LABELS
+    assert '他のアプリがポートを使用中' in EXTENSION_STATUS_LABELS['in_use']
+
+
+def _services_for_prepare(root_exists, fail):
+    class Root:
+        def __init__(self): self.exists_value = root_exists
+        def __truediv__(self, name): return self
+        def exists(self): return self.exists_value
+
+    def enable():
+        if fail:
+            raise ValueError('ledger')
+    return SimpleNamespace(managed_downloads=SimpleNamespace(root=Root()), enable_extension_commands=enable,
+                           extension_bridge_status='setting_off')
+
+
+def test_existing_ledger_failure_still_stops_startup():
+    from pixivvault_nicegui.bootstrap import prepare_extension_receiver
+    services = _services_for_prepare(True, True)
+    with pytest.raises(ValueError):
+        prepare_extension_receiver(services, False, True, False)      # 設定OFFでも既存台帳が壊れていれば止める
+    assert services.extension_bridge_status == 'setting_off'
+
+
+def test_new_ledger_failure_does_not_block_default_start_and_is_not_called_port_problem():
+    from pixivvault_nicegui.bootstrap import prepare_extension_receiver
+    services = _services_for_prepare(False, True)
+    assert prepare_extension_receiver(services, False, True, True) is False
+    assert services.extension_bridge_status == 'commands_unavailable'
+    from pixivvault_nicegui.ui.preferences_view import EXTENSION_STATUS_LABELS
+    assert 'ポート' not in EXTENSION_STATUS_LABELS['commands_unavailable']
+
+
+def test_explicit_flag_failure_still_raises():
+    from pixivvault_nicegui.bootstrap import prepare_extension_receiver
+    with pytest.raises(ValueError):
+        prepare_extension_receiver(_services_for_prepare(False, True), True, False, True)

@@ -25,6 +25,19 @@ class BridgeUnavailable(RuntimeError):
     pass
 
 
+class PortInUse(BridgeUnavailable):
+    pass
+
+
+def _port_answers(port):
+    """127.0.0.1:port に応答する別のアプリがあるか（元アプリは 0.0.0.0 に bind するため bind 失敗では分からない）。"""
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+            return True
+    except OSError:
+        return False
+
+
 @dataclass(frozen=True)
 class ExtensionDownload:
     kind: str
@@ -352,6 +365,8 @@ class ExtensionBridge:
                         return
                     self._respond(200, {"status": "ok", "jobId": job_id})
 
+            if self.port != 0 and _port_answers(self.port):
+                raise PortInUse("他のアプリがポートを使用中です。そのアプリを終了してから再起動してください。")
             try:
                 server = _Server(("127.0.0.1", self.port), Handler)
             except OSError:

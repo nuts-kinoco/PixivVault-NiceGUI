@@ -989,8 +989,9 @@ class ApplicationServices:
         try:
             self.extension_bridge.start()
             self.extension_bridge_status = 'running'
-        except Exception:
-            self.extension_bridge_status = 'unavailable'
+        except Exception as error:
+            from .extension_bridge import PortInUse
+            self.extension_bridge_status = 'in_use' if isinstance(error, PortInUse) else 'unavailable'
 
     def _configure_request_preferences(self):
         from .request_policy import RequestAdmission, RequestRetryPolicy
