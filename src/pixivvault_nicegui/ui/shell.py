@@ -7,6 +7,7 @@ from .gallery import GalleryView
 from .grid_layout import MAX_COLUMNS
 from ..auth_status import BLUE as AUTH_BLUE, CHECKING_TEXT as AUTH_CHECKING_TEXT
 from .theme import CSS, TOKENS
+from ..startup_tab import TAB_INITIAL, shell_tab_key
 
 NAVIGATION = (
     ("download", "ダウンロード"), ("queue", "キュー"), ("failed", "失敗リスト"),
@@ -153,8 +154,17 @@ class DemoShell:
                 else:
                     self.gallery = GalleryView(services, card_size=self.card_size, on_size_change=self.change_card_size)
         self._attach_auth_status()
-        self.gallery.set_viewer_active(True)
-        self._update_tabs()
+        # 起動直後のタブは元 TAB_INITIAL（ダウンロード）。--tab で変えられる。
+        # ランキングは開いたときに初回取得する（元 on_tab_open）ので、先に有効化しない。
+        initial = getattr(services, 'startup_tab', None) or shell_tab_key(TAB_INITIAL)
+        if not self._tab_available(initial):
+            initial = shell_tab_key(TAB_INITIAL)
+        if initial != 'ranking':
+            self._update_tabs()
+            self.show(initial)
+        else:
+            self.gallery.set_viewer_active(True)
+            self._update_tabs()
 
     def _build_cookie_banner(self):
         # Original gui.py cookie_banner: blue-bordered info container.
@@ -268,6 +278,16 @@ class DemoShell:
     def apply_preferences(self,snapshot=None):
         self.services.apply_preferences(snapshot)
         if self.learning is not None:self.learning.refresh_prefetch()
+
+    def _tab_available(self, tab: str) -> bool:
+        services = self.services
+        return (tab in AVAILABLE_TABS and
+                (tab != 'history' or getattr(services, 'save_exports', None) is not None
+                 or getattr(services, 'legacy_backup_history_available', False)) and
+                (tab != 'metadata' or services.managed_downloads is not None) and
+                (tab != 'dedup' or services.duplicate_inspection is not None) and
+                (tab != 'recommend' or services.recommendations is not None) and
+                (tab != 'personal' or getattr(services, 'external_vault', None) is not None))
 
     def _update_tabs(self) -> None:
         for key, button in self.buttons.items():

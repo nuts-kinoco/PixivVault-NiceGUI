@@ -52,6 +52,7 @@ class RunConfig:
     similarity_provider: str = 'auto'
     similarity_auto: bool = False
     extension_bridge_auto: bool = False
+    startup_tab: str | None = None
 
 
 def _port(value: str) -> int:
@@ -122,6 +123,8 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
     parser.add_argument('startup_uri', nargs='?', type=parse_start_uri)
     parser.add_argument('--extension-bridge', action='store_true',
                         help='Enable the original browser extension loopback receiver')
+    parser.add_argument('--tab', default=None,
+                        help='起動時に開くタブのキー（省略時は既定タブ）')
     parser.add_argument('--no-extension-bridge', action='store_true',
                         help='管理保存先があっても、拡張機能の受信サーバーを起動しない')
     parser.add_argument('--save-export-root',type=_sandbox_path)
@@ -354,7 +357,7 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
                      args.failed_queue_readonly_db, args.legacy_zip_export_root,
                      args.legacy_diff_image_root, args.novel_fixture_root, args.novel_download_root,args.ugoira_root,args.ugoira_fixture_root,args.ugoira_codec_python,args.recommendation_preferences_root,args.preferences_root,args.discovery_root,args.external_vault_root,args.image_cache_root,args.startup_uri,args.extension_bridge,args.save_export_root,args.bookmark_account_id,args.profile_root,profile_revision,profile_reference_unavailable,args.following_sync_root,args.enable_pixiv_actions,
                      args.similarity_index_root,args.similarity_model_file,args.similarity_provider,args.similarity_auto,
-                     extension_bridge_auto)
+                     extension_bridge_auto, args.tab)
 
 
 _registered = False
@@ -451,7 +454,8 @@ def register_pages(learning_sandbox: Path | None = None,
                    native_profile=None, following_sync_root=None, pixiv_actions_mode='readonly',
                    managed_network_stop_scope=None, shared_network_stop_scope=None,
                    similarity_index_root=None, similarity_model_file=None,
-                   similarity_provider='auto', similarity_auto=False, extension_bridge_auto=False) -> None:
+                   similarity_provider='auto', similarity_auto=False, extension_bridge_auto=False,
+                   startup_tab=None) -> None:
     """NiceGUIのHTTPルートを登録する。呼ぶだけではサーバーを起動しない。"""
     global _registered
     if _registered:
@@ -621,6 +625,8 @@ def register_pages(learning_sandbox: Path | None = None,
                 model_file=similarity_model_file, provider=similarity_provider)
             if similarity_auto:
                 app.on_startup(services.start_similarity_analysis)
+        if startup_tab is not None:
+            services.startup_tab = startup_tab
         bridge_wanted = extension_bridge_wanted(extension_bridge, extension_bridge_auto, services.preferences)
         if extension_bridge_auto and not bridge_wanted:
             services.extension_bridge_status = 'setting_off'
@@ -948,6 +954,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             registration['extension_bridge'] = True
         if config.extension_bridge_auto:
             registration['extension_bridge_auto'] = True
+        # 元 main.py:367-372: 不正キーは黙らず印字してから既定タブへ。
+        from .startup_tab import resolve_startup_tab, shell_tab_key
+        resolved_tab, tab_warning = resolve_startup_tab(config.startup_tab)
+        if tab_warning:
+            print(tab_warning)
+        registration['startup_tab'] = shell_tab_key(resolved_tab)
         if config.native:
             registration["desktop_enabled"] = True
             if config.pixiv_download_root is not None:
