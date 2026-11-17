@@ -3134,6 +3134,7 @@ class ApplicationServices:
             runner = MetadataAutoRunner(
                 lambda: self.run_managed_metadata_all(transport=transport),
                 self.metadata_auto_enabled, initial_delay=initial_delay, intervals=intervals)
+            self._metadata_auto_seen = self.metadata_auto_enabled()
             runner.start()
             self._metadata_auto = runner
             return True
@@ -3143,9 +3144,14 @@ class ApplicationServices:
         runner = self._metadata_auto
         if runner is None:
             return
-        if not self.metadata_auto_enabled():
+        current = self.metadata_auto_enabled()
+        previous = getattr(self, '_metadata_auto_seen', None)
+        self._metadata_auto_seen = current
+        if not current:
             self.stop_managed_metadata()
-        runner.wake()
+        # 入切が変わったときだけ起こす。関係のない設定の保存で、失敗後の待ち時間を飛ばさない。
+        if current != previous:
+            runner.wake()
 
     def reconcile_managed_scheduler(self):
         """Join JobService operation history to verified managed CAS receipts."""
