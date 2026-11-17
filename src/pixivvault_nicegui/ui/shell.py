@@ -112,7 +112,9 @@ class DemoShell:
                                 # Original gui.py:859: an opened vault takes the fixed UID file at start.
                                 self._reflect_uid_once(self.borrow_dialog)
                             self.borrow_switch=ui.switch('API切り替え',on_change=self.borrow_changed).props(
-                                'dense data-testid=premium-borrow-toggle aria-label=借用プレミアム（API切り替え）')
+                                'dense data-testid=premium-borrow-toggle')
+                            # .props の文字列は全角括弧を含む値を捨てる（Props.parse）。完全な値を直接代入する。
+                            self.borrow_switch.props['aria-label'] = '借用プレミアム（API切り替え）'
                             with self.borrow_switch:ui.tooltip('借用プレミアム')
                             if self.borrow_dialog is not None:
                                 # Shown only while a Pixiv result is unconfirmed (the Shaft tab no longer exists).
@@ -122,7 +124,8 @@ class DemoShell:
                             self.sync_borrow()
                         else:
                             self.borrow_switch=ui.switch('API切り替え',value=False).props(
-                                'dense data-testid=premium-borrow-toggle aria-label=借用プレミアム（API切り替え）')
+                                'dense data-testid=premium-borrow-toggle')
+                            self.borrow_switch.props['aria-label'] = '借用プレミアム（API切り替え）'
                             self.borrow_switch.disable()
                             with self.borrow_switch:ui.tooltip('借用プレミアム: 設定でCookieと保存先を保存し、再起動するとONにできます。')
                         shared = shared_get_scope(services)
@@ -137,9 +140,11 @@ class DemoShell:
                 with ui.element("div").classes("pv-header-actions"):
                     history = ui.button(icon='history', color=None, on_click=lambda _: self.show('history')).classes(
                         'pv-hbtn').props('flat round data-testid=tab-history aria-label=直近のバックアップ')
+                    history_available = self._tab_available('history')
                     with history:
-                        ui.tooltip('直近のバックアップ')
-                    history.set_enabled(self._tab_available('history'))
+                        # 使えないときは理由を出す（タブ側と同じ文言）。
+                        ui.tooltip('直近のバックアップ' if history_available else 'この起動設定では利用できません')
+                    history.set_enabled(history_available)
                     self.buttons['history'] = history
                     self.view_history_button = ui.button(icon='visibility', color=None,
                                                          on_click=self.open_view_history).classes('pv-hbtn').props(
