@@ -301,7 +301,20 @@ class QueueView:
         with ui.column().classes("pv-jobs-view pv-queue-view w-full").props(
             f"data-testid={self.prefix}-view data-active=true data-epoch=0 data-selection-revision=0 data-view-generation=0") as self.root:
             with ui.row().classes("pv-toolbar"):
-                ui.label("失敗リスト" if failed_only else "キュー").classes("pv-library-heading")
+                if failed_only:
+                    ui.label("失敗リスト").classes("pv-library-heading")
+                    # 元 gui.py:4406 の「リスト更新」。ジョブ台帳を読み直すだけで通信しない。
+                    self.refresh_button = ui.button(icon="refresh", color=None).props(
+                        "flat dense aria-label=リスト更新 data-testid=failed-refresh")
+                    self.refresh_button.tooltip("リスト更新")
+                    self.refresh_button.on_click(lambda: self.refresh())
+                else:
+                    # 元 gui.py:3734-3739 の見出しと補助文。補助文の後半「一覧かタイトルの
+                    # ダブルクリックでログと切替」は、ログ欄(FL-E06)が無いので載せない。
+                    with ui.column().classes("gap-0"):
+                        ui.label("現在のジョブ（アプリ連携）").classes("pv-library-heading")
+                        ui.label(f"{int(self.REFRESH_INTERVAL_SECONDS)}秒毎に自動更新").classes("pv-subtitle").style(
+                            "font-size:10.5px")
                 self.search_input = ui.input(placeholder="タイトル・IDで検索" if failed_only else "作者名・作品IDで絞り込む").props(
                     f"outlined dense clearable debounce=200 data-testid={self.prefix}-search").classes("pv-search")
                 self.search_input.on("update:model-value", self._search_event,
