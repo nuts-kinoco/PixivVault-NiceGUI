@@ -287,7 +287,8 @@ class FollowingSyncStore:
             except BaseException as error:
                 self._abort(error)
 
-    def _commit(self, account_id, expected_revision, mutate, *, synced_at=None, checkpoint=lambda: None):
+    def _commit(self, account_id, expected_revision, mutate, *, synced_at=None, checkpoint=lambda: None,
+                bump_revision=True):
         with self._lock:
             try:
                 self._ensure_open()
@@ -303,7 +304,9 @@ class FollowingSyncStore:
                 if not mutate(self._connection, before):
                     self._connection.execute('ROLLBACK')
                     return before
-                if synced_at is None:
+                if not bump_revision:
+                    pass
+                elif synced_at is None:
                     self._connection.execute(
                         'UPDATE following_accounts SET revision=revision+1 WHERE account_id=?', (account_id,))
                 else:
@@ -445,6 +448,40 @@ class FollowingSyncStore:
                                (account_id, user_id))
             return True
         return self._commit(account_id, expected_revision, record)
+
+    def set_favorite(self, account_id, user_id, favorite, *, expected_revision=None):
+        """The single owned home of the original's following_users.is_favorite star."""
+        account_id, user_id = _identifier(account_id), _identifier(user_id)
+        expected_revision = _revision(expected_revision)
+        if type(favorite) is not bool:
+            raise FollowingSyncError()
+        def record(connection, before):
+            existing = next((row for row in before.authors if row.user_id == user_id), None)
+            if existing is None or existing.is_favorite == favorite:
+                return False
+            connection.execute('UPDATE following_authors SET is_favorite=? WHERE account_id=? AND user_id=?',
+                               (int(favorite), account_id, user_id))
+            return True
+        return self._commit(account_id, expected_revision, record)
+
+    def record_downloaded(self, account_id, user_id, at=None, *, expected_revision=None):
+        """Stamp last_downloaded for one author the account already has a row for.
+
+        Mirrors the original's `UPDATE following_users SET last_downloaded` (0 rows
+        for an author that was never followed). It does not bump the list revision:
+        the follow list itself is unchanged, and a revision bump on every finished
+        author would make an unrelated in-flight follow sync fail with a conflict.
+        """
+        account_id, user_id = _identifier(account_id), _identifier(user_id)
+        expected_revision = _revision(expected_revision)
+        at = _stamp(datetime.now(timezone.utc).isoformat() if at is None else at)
+        def record(connection, before):
+            if not any(row.user_id == user_id for row in before.authors):
+                return False
+            connection.execute('UPDATE following_authors SET last_downloaded=? WHERE account_id=? AND user_id=?',
+                               (at, account_id, user_id))
+            return True
+        return self._commit(account_id, expected_revision, record, bump_revision=False)
 
     def close(self):
         with self._lock:
