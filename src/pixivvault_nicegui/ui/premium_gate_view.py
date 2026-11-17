@@ -164,7 +164,8 @@ class PremiumGateDialog:
             if self._uid_error:
                 self.notice.set_text('UID\u4e00\u89a7\u3092\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\u3002');return
             password=str(self.password.value or '');self._reset_password()
-            secret=str(self.secret.value or '');self._reset_secret()
+            # The original strips the signing key before saving it (gui.py:989).
+            secret=str(self.secret.value or '').strip();self._reset_secret()
             uid_text='\n'.join(map(str,self._uids));explicit_uids=self._uid_explicit;self._clear_uids()
             await asyncio.to_thread(self.gate.authenticate,password,expected_epoch=epoch)
             password=''
@@ -179,7 +180,7 @@ class PremiumGateDialog:
                 if not accepted or self.closed:return
                 await asyncio.to_thread(self.gate.unlock_legacy,legacy_password,expected_epoch=epoch)
                 legacy_password=''
-            if not self.gate.vault.status()['initialized'] and (not secret.strip() or not uid_text):
+            if not self.gate.vault.status()['initialized'] and (not secret or not uid_text):
                 self.notice.set_text('\u521d\u671f\u8a2d\u5b9a\u306b\u306f Shaft \u7f72\u540d\u30ad\u30fc\u3068 UID \u4e00\u89a7\u306e\u4e21\u65b9\u304c\u5fc5\u8981\u3067\u3059\u3002')
                 return
             remember=await self.save_dialog
@@ -193,9 +194,9 @@ class PremiumGateDialog:
                     if not ready:raise VaultError('premium-legacy-unlock-required')
                     # Saved UIDs/tokens are replaced only on explicit request:
                     # a signing key typed here or a file picked here.
-                    if secret.strip() or (uid_text and explicit_uids):
+                    if secret or (uid_text and explicit_uids):
                         kwargs={}
-                        if secret.strip():kwargs['secret_key']=secret
+                        if secret:kwargs['secret_key']=secret
                         if uid_text and explicit_uids:kwargs['uid_text']=uid_text
                         await asyncio.to_thread(self.gate.vault.update_config,**kwargs)
             except Exception:
