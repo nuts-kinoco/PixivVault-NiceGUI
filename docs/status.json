@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-18 03:52",
+  "updated": "2026-11-18 08:02",
   "phases": [
     {
       "id": "P0",
@@ -25,20 +25,20 @@
       "id": "P2",
       "name": "台帳と土台",
       "goal": "機械列挙の台帳、元アプリの隔離起動の可否、共通シェルの復元",
-      "state": "進行中（残 3）",
+      "state": "ほぼ完了（checker 待ち）",
       "approval": "事前承認（この計画）",
-      "done": 5,
-      "total": 8,
-      "pct": 62
+      "done": 8,
+      "total": 9,
+      "pct": 89
     },
     {
       "id": "P3",
       "name": "機能の完成",
       "goal": "台帳の「無」「弱」を機能単位で実装（元との並置・取得停止ゲートの検査つき）",
-      "state": "先行着手",
+      "state": "進行中",
       "approval": "事前承認（この計画）",
       "done": 0,
-      "total": 4,
+      "total": 5,
       "pct": 0
     },
     {
@@ -186,42 +186,54 @@
     {
       "phase": "P2",
       "condition": "台帳を Argon がレビュー、検証して台帳へ反映",
-      "met": "未",
-      "evidence": "docs/LEDGER_REVIEW_ARGON_2026-11-17.md（wt-r で反映中）"
+      "met": "達成",
+      "evidence": "docs/LEDGER_REVIEW_ARGON_2026-11-17.md → 台帳へ反映（FL-Y/V 追記、再ステータス）"
     },
     {
       "phase": "P2",
       "condition": "台帳をアドバイザーがレビュー",
-      "met": "未",
-      "evidence": ""
+      "met": "達成",
+      "evidence": "アドバイザー助言（再ステータス・本人裁定行・出口条件）を反映"
     },
     {
       "phase": "P2",
       "condition": "P3 の作業リストと規模の確定",
+      "met": "達成",
+      "evidence": "P3-1〜P3-10（本進捗の作業項目）"
+    },
+    {
+      "phase": "P2",
+      "condition": "共通シェルの checker 検査",
+      "met": "未",
+      "evidence": "検査中"
+    },
+    {
+      "phase": "P3",
+      "condition": "台帳の無・弱 57 行を、本人裁定・意図的削除を除いてゼロにする（check_inventory_coverage --strict-gaps が 0）",
       "met": "未",
       "evidence": ""
     },
     {
       "phase": "P3",
-      "condition": "台帳の「無」「弱」がゼロ",
+      "condition": "FL-D00 ダウンロードの全体設計（WU-1〜8, 10）",
+      "met": "未",
+      "evidence": "設計書 docs/design/DOWNLOAD_TAB_DESIGN_2026-11-17.md"
+    },
+    {
+      "phase": "P3",
+      "condition": "Z04・Z07・Z12 を実装",
       "met": "未",
       "evidence": ""
     },
     {
       "phase": "P3",
-      "condition": "自動実行の既定と設定（メタデータ・推論）",
+      "condition": "条件付きの機能（おすすめ・重複整理）を、旧ライブラリ接続の検証用プロファイルで実機確認",
       "met": "未",
       "evidence": ""
     },
     {
       "phase": "P3",
-      "condition": "Cookie 自動抽出・別アカウント検出・自動フォロー同期",
-      "met": "未",
-      "evidence": ""
-    },
-    {
-      "phase": "P3",
-      "condition": "データ互換（元の DB・設定・cookies.txt）を台帳に載せて試験",
+      "condition": "統合後の全体テスト失敗 0・画面スモーク PASS・checker 指摘ゼロ・実機（COS）確認",
       "met": "未",
       "evidence": ""
     },
@@ -461,21 +473,141 @@
       "phase": "P2",
       "id": "wt-r",
       "title": "台帳の監査（Argon 指摘 20 件の検証・網羅チェックの強化）",
-      "stage": 2,
-      "stage_name": "編集",
-      "checker": "未",
+      "stage": 4,
+      "stage_name": "局所成立",
+      "checker": "未（未対応 0・逆方向警告 0）",
       "real_app": "—",
-      "evidence": "0d72cd4"
+      "evidence": "48fc5b9"
     },
     {
       "phase": "P3",
       "id": "wt-s",
       "title": "ダウンロードの全体設計書（FL-D00）",
+      "stage": 4,
+      "stage_name": "局所成立",
+      "checker": "未",
+      "real_app": "—",
+      "evidence": "8dc5a6c 設計書（推奨案 C、WU-1〜10）。本人の裁定で WU-9 は作らない"
+    },
+    {
+      "phase": "P3",
+      "id": "P3-1",
+      "title": "右クリック共通部品＋J09・L05・M04",
+      "stage": 0,
+      "stage_name": "受付",
+      "checker": "未",
+      "real_app": "未",
+      "evidence": ""
+    },
+    {
+      "phase": "P3",
+      "id": "P3-2",
+      "title": "ランキング（J12・J05・J10・Y01・Y02・Y04）",
+      "stage": 0,
+      "stage_name": "受付",
+      "checker": "未",
+      "real_app": "未",
+      "evidence": ""
+    },
+    {
+      "phase": "P3",
+      "id": "P3-3",
+      "title": "おすすめ（L01・L02・L04・Y14）",
+      "stage": 0,
+      "stage_name": "受付",
+      "checker": "未",
+      "real_app": "未",
+      "evidence": ""
+    },
+    {
+      "phase": "P3",
+      "id": "P3-4a",
+      "title": "学習タブ前半（I05・I06・I12・Y07・Y08・Y10）",
+      "stage": 0,
+      "stage_name": "受付",
+      "checker": "未",
+      "real_app": "未",
+      "evidence": ""
+    },
+    {
+      "phase": "P3",
+      "id": "P3-4b",
+      "title": "学習タブ後半（I09・I11・I16・Y11）",
+      "stage": 0,
+      "stage_name": "受付",
+      "checker": "未",
+      "real_app": "未",
+      "evidence": ""
+    },
+    {
+      "phase": "P3",
+      "id": "P3-5",
+      "title": "ライブラリ（K02・K06・Y05・G01）",
+      "stage": 0,
+      "stage_name": "受付",
+      "checker": "未",
+      "real_app": "未",
+      "evidence": ""
+    },
+    {
+      "phase": "P3",
+      "id": "P3-6",
+      "title": "ダウンロード系・D00 非依存分（D03・D08・D11・D12・E06）",
+      "stage": 0,
+      "stage_name": "受付",
+      "checker": "未",
+      "real_app": "未",
+      "evidence": ""
+    },
+    {
+      "phase": "P3",
+      "id": "P3-7",
+      "title": "ダウンロード系・D00 後（D09・D10・D16）",
+      "stage": 0,
+      "stage_name": "受付",
+      "checker": "未",
+      "real_app": "未",
+      "evidence": ""
+    },
+    {
+      "phase": "P3",
+      "id": "P3-8",
+      "title": "シェル・起動（B08・A04・A07・A13・B07・N03）",
+      "stage": 0,
+      "stage_name": "受付",
+      "checker": "未",
+      "real_app": "未",
+      "evidence": ""
+    },
+    {
+      "phase": "P3",
+      "id": "P3-9",
+      "title": "保存基盤・認証（Z01・Z02・Z05・Z10・Z12・Z14・Z07・Z04）",
+      "stage": 0,
+      "stage_name": "受付",
+      "checker": "未",
+      "real_app": "未",
+      "evidence": ""
+    },
+    {
+      "phase": "P3",
+      "id": "P3-10",
+      "title": "通知・定期チェック・重複整理（N05・O01・H03）",
+      "stage": 0,
+      "stage_name": "受付",
+      "checker": "未",
+      "real_app": "未",
+      "evidence": ""
+    },
+    {
+      "phase": "P3",
+      "id": "wt-t",
+      "title": "ダウンロード WU-1〜3（実行台帳・バッチエンジン・積み込み）",
       "stage": 2,
       "stage_name": "編集",
       "checker": "未",
       "real_app": "—",
-      "evidence": "設計書→advisor・Argon レビュー→実装"
+      "evidence": "実装中"
     }
   ],
   "decisions": [
@@ -562,24 +694,54 @@
       "value": "最後に任意で（本人が指示したときだけ）",
       "set_by": "本人",
       "status": "確定"
+    },
+    {
+      "topic": "旧リポ（元アプリ）",
+      "value": "放棄・サポート終了。併用しない。旧 DB へは書かない（FL-D00 は管理領域の台帳で完結。設計書 WU-9 の反映器は作らない）",
+      "set_by": "本人",
+      "status": "確定（11-18）"
+    },
+    {
+      "topic": "旧ライブラリ（おすすめ・重複整理の条件付き機能）",
+      "value": "元 DB は読み取り専用の参照のみ。検証は複製で行い、実機への接続は最後に本人へ確認",
+      "set_by": "私",
+      "status": "既定で進行"
+    },
+    {
+      "topic": "Z04 Cookie の延長保存・Z07 自動バックアップ・Z12 MP4 失敗時の GIF 切替",
+      "value": "3 点とも実装する（Z07 は移植版自身の DB・台帳の変更前に自動バックアップ）",
+      "set_by": "本人",
+      "status": "確定（11-18）"
+    },
+    {
+      "topic": "1280px でのタブ",
+      "value": "2 段に折り返して全タブを見えるようにする（等幅は保つ）",
+      "set_by": "本人",
+      "status": "確定（11-18）"
+    },
+    {
+      "topic": "P3 の出口条件",
+      "value": "台帳の check_inventory_coverage --strict-gaps が、本人裁定・意図的削除の行を除いてクリア（tier C は追わない）",
+      "set_by": "私（アドバイザー助言）",
+      "status": "既定で進行"
     }
   ],
   "running": [
     {
-      "who": "wt-r",
-      "what": "台帳の監査（Argon 指摘の検証・網羅チェック強化）"
+      "who": "wt-t",
+      "what": "ダウンロード WU-1〜3（実行台帳・バッチエンジン）"
     },
     {
-      "who": "wt-s",
-      "what": "ダウンロードの全体設計書"
+      "who": "checker",
+      "what": "共通シェルの検査"
     }
   ],
   "ledger_counts_provisional": {
-    "有": 82,
-    "無": 18,
+    "有": 83,
+    "無": 17,
     "弱": 29,
     "条件付きで有": 33,
-    "不明": 43,
+    "不明": 50,
     "意図的削除": 6
   },
   "full_test": {
@@ -589,12 +751,12 @@
     "errors": 0,
     "seconds": 653.13
   },
-  "head": "4e4ec38 Merge feat-q (共通シェルを元の見た目へ: ヘッダー・タブ・配色・ライトの明るいカード)",
+  "head": "9dbe443 FL-V03（1280px の 2 段折り返し）を実装済みに更新",
   "worktrees": [
     {
       "path": "work",
       "branch": "pv-dev-baseline",
-      "head": "4e4ec38"
+      "head": "9dbe443"
     },
     {
       "path": "basewt",
@@ -694,12 +856,17 @@
     {
       "path": "wt-r",
       "branch": "feat-r-ledger-audit",
-      "head": "c9f87d8"
+      "head": "14f937b"
     },
     {
       "path": "wt-s",
       "branch": "feat-s-download-design",
-      "head": "4e4ec38"
+      "head": "8dc5a6c"
+    },
+    {
+      "path": "wt-t",
+      "branch": "feat-t-download-engine",
+      "head": "dbece97"
     }
   ],
   "stop": ""
