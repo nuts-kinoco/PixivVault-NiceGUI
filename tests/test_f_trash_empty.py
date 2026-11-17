@@ -363,7 +363,16 @@ def test_inspection_total_is_managed_plus_legacy_and_mismatch_is_refused(tmp_pat
         source.close(); owner.close()
 
 
-def test_legacy_redownload_of_purged_page_fails_closed_without_network(tmp_path):
+def _png(color=(10, 20, 30), size=(16, 12)):
+    from io import BytesIO
+    from PIL import Image
+    stream = BytesIO()
+    Image.new('RGB', size, color).save(stream, 'PNG')
+    return stream.getvalue()
+
+
+def test_legacy_redownload_of_purged_page_skips_it_and_still_succeeds(tmp_path):
+    """Item 3: like the original, an excluded page is just not fetched; the work still updates."""
     from pixivvault_nicegui.bookmark_remote_adapter import RemoteBookmark
     source, legacy, owner, *_ = _legacy(tmp_path, {'3'}, 'copy')
     calls = []
@@ -376,20 +385,216 @@ def test_legacy_redownload_of_purged_page_fails_closed_without_network(tmp_path)
             return ('https://i.pximg.net/p0', 'https://i.pximg.net/p1')
 
         def get_image_bytes(self, url):
-            calls.append(url); return b''
+            calls.append(url); return _png((90, 80, 70), (20, 14))
 
     owner.client = Reader()
     owner.resolve_record = lambda wid: RemoteBookmark(wid, 'illustration', 'show', 'Generated', '92', 'Generated',
         (), 'https://i.pximg.net/t', '2026-11-01T00:00:00Z', 2, 0, 0)
     try:
+        before = legacy.state()['exclusions']
         legacy.purge(expected_count=1, confirmed=True)
-        with pytest.raises(ValueError):  # public text is fixed ('managed download failed')
-            owner.run(SimpleNamespace(kind='pixiv-illust', target_id='3'), Context())
-        assert not any(url.startswith('https://') for url in calls)  # no page was fetched
+        relative = owner.run(SimpleNamespace(kind='pixiv-illust', target_id='3'), Context())
+        assert 'https://i.pximg.net/p0' not in calls and 'https://i.pximg.net/p1' in calls
+        assert len(owner.saved_receipts(verify_pages=True)) >= 1
+        assert owner.visible_source_pages('3') == (1,)  # the excluded page stays hidden
+        assert set(legacy.state()['exclusions']) == set(before)
         with pytest.raises(ValueError, match='purged'):
             legacy.download_proof(SimpleNamespace(work_id='3', author_id='92', page_count=2), 0)
+        assert owner.run(SimpleNamespace(kind='pixiv-illust', target_id='3'), Context()) == relative
     finally:
         source.close(); owner.close()
+
+
+def _intent(record_, entry, mode, date):
+    from pixivvault_nicegui.managed_download_requests import ManagedAuthorIntent
+    if entry is None:
+        return ManagedAuthorIntent(record_, 'follow', date, None, mode)
+    return ManagedAuthorIntent(record_, 'follow', date, entry['sha256'], mode, entry['relative_receipt'])
+
+
+@pytest.fixture
+def generations(tmp_path):
+    """Four works saved as author generations, so each can later be updated."""
+    from test_managed_quarantine import Client as Remote
+    remote = Remote()
+    remote.date = '2026-11-16'
+    remote.get_artwork_update_revision = lambda wid, author: dict(
+        author_id='24' if wid in ('123', '124') else '25',
+        page_count=3 if wid == '123' else 1, illustration_type=0, update_date=remote.date)
+    writer = ManagedPixivDownloads(tmp_path / 'managed', remote, resolve_record=record)
+    for wid in ('123', '124', '223', '224'):
+        writer.run(SimpleNamespace(kind='pixiv-illust', target_id=wid, job_id=wid.ljust(32, '0')), Context(),
+                   intent=_intent(record(wid), None, 'new', remote.date))
+    source = ManagedDuplicateInspection(writer)
+    try:
+        yield writer, source, remote
+    finally:
+        source.close(); writer.close()
+
+
+@pytest.mark.parametrize('mode', ['copy', 'move'])
+def test_update_after_empty_skips_the_purged_page_and_keeps_everything_consistent(generations, mode):
+    writer, source, remote = generations
+    kwargs = dict(mode='move', confirmed_move=True) if mode == 'move' else {}
+    source.execute(plan_for(source, '123:2'), operation_id='d' * 32, **kwargs)
+    assert writer.quarantine.purge(expected_count=1, confirmed=True).removed == 1
+    exclusions = writer._generations.state_snapshot()['exclusions']
+    remote.images.clear()
+    remote.date = '2026-11-17'
+    first = writer._generations.current('123')
+    relative = writer.run(SimpleNamespace(kind='pixiv-illust', target_id='123', job_id='e' * 32),
+                          Context(), intent=_intent(record('123'), first, 'updated', remote.date))
+    assert relative.startswith('generations/') and relative != first['relative_receipt']
+    assert not any(url.endswith('/123/1.png') for url in remote.images)  # the excluded page is not fetched
+    assert len(remote.images) == 2
+    assert writer._generations.state_snapshot()['exclusions'] == exclusions
+    assert writer.visible_source_pages('123') == (0, 2)
+    assert len(writer.saved_receipts(verify_pages=True)) == 4
+    entry = writer._generations.current('123')
+    assert writer.measure_active_receipt_bytes(entry['relative_receipt'], entry['sha256'])[0] == '24'
+    assert writer.quarantine.snapshot().purgeable_count == 0
+    restarted = _reopen(writer, remote)
+    try:
+        assert len(restarted.saved_receipts(verify_pages=True)) == 4
+        assert restarted.visible_source_pages('123') == (0, 2)
+    finally:
+        restarted.close()
+
+
+def test_capacity_measurement_survives_an_emptied_move(owned):
+    """Item 1: a purged page counts as 0 bytes instead of failing the author's measurement."""
+    writer, source, _ = owned
+    entry = writer._generations.current('123')
+    full = writer.measure_active_receipt_bytes(entry['relative_receipt'], entry['sha256'])[1]
+    plan = plan_for(source, '123:2')
+    item = plan.items[0]
+    page_bytes = len(writer.read_saved_page(item.relative_receipt, 1, item.receipt_sha256))
+    source.execute(plan, operation_id='f' * 32, mode='move', confirmed_move=True)
+    assert writer.measure_active_receipt_bytes(entry['relative_receipt'], entry['sha256'])[1] == full
+    assert writer.quarantine.purge(expected_count=1, confirmed=True).removed == 1
+    author, total = writer.measure_active_receipt_bytes(entry['relative_receipt'], entry['sha256'])
+    assert (author, total) == ('24', full - page_bytes)
+
+
+class _FailingLegacy:
+    """A legacy store whose purge fails with an I/O error."""
+
+    def __init__(self, count=1):
+        from pixivvault_nicegui.managed_quarantine import QuarantineSnapshot
+        self.snap = QuarantineSnapshot('ready', count, 10, count, None, 'r', 0, 0, 0, count, 10)
+
+    def snapshot(self):
+        return self.snap
+
+    def finish_purges(self):
+        return 0
+
+    def purge(self, *, expected_count, confirmed):
+        raise OSError('synthetic legacy failure')
+
+    def close(self):
+        pass
+
+
+def test_managed_done_then_legacy_failure_returns_a_partial_result(owned):
+    writer, source, _ = owned
+    source.execute(plan_for(source, '123:2'), operation_id='1' * 32)
+    source.legacy = _FailingLegacy(1)
+    assert source.quarantine_snapshot().purgeable_count == 2
+    done = source.empty_trash(expected_count=2, confirmed=True)
+    assert (done.removed, done.failed) == (1, 1)
+    assert not _copy(writer, '1' * 32).exists()
+    assert source.quarantine_snapshot().purgeable_count == 1  # re-running only has the legacy item left
+
+
+def test_managed_interrupted_midway_reports_what_was_done_and_converges(owned, monkeypatch):
+    writer, source, _ = owned
+    source.execute(plan_for(source, '123:2'), operation_id='2' * 32)
+    source.execute(plan_for(source, '224:1'), operation_id='3' * 32)
+    real = writer._generations.purge_quarantine
+    calls = []
+
+    def once(operation_id, **kw):
+        calls.append(operation_id)
+        if len(calls) == 2:
+            raise OSError('synthetic commit failure')
+        return real(operation_id, **kw)
+
+    monkeypatch.setattr(writer._generations, 'purge_quarantine', once)
+    done = source.empty_trash(expected_count=2, confirmed=True)
+    assert (done.removed, done.failed) == (1, 1)
+    monkeypatch.undo()
+    assert source.quarantine_snapshot().purgeable_count == 1
+    again = source.empty_trash(expected_count=1, confirmed=True)
+    assert (again.removed, again.failed) == (1, 0)
+    _strict(writer)
+
+
+@pytest.mark.asyncio
+async def test_ui_partial_result_names_both_counts(owned):
+    writer, source, _ = owned
+    source.execute(plan_for(source, '123:2'), operation_id='4' * 32)
+    source.legacy = _FailingLegacy(1)
+    client = Client(ui.page('/_f_trash_empty_ui_partial'))
+    try:
+        with client:
+            view = DuplicateView(source)
+            view.set_active(True)
+            await view.open_trash()
+            view.trash_confirm_count.set_value('2')
+            await view.empty_trash()
+            assert view.notice.text.startswith('ごみ箱: 1件を空にしました。残り1件は空にできませんでした')
+            assert '空にできませんでした。内容が変わった' not in view.notice.text
+    finally:
+        client.delete()
+
+
+def _format_cases():
+    return ((95, '95B'), (1536, '1.5KB'), (5 * 1024 * 1024, '5.0MB'), (0, '0B'))
+
+
+@pytest.mark.asyncio
+async def test_ui_wording_matches_the_original_dialog_and_entry_link(owned):
+    writer, source, _ = owned
+    op = source.execute(plan_for(source, '123:2'), operation_id='5' * 32).operation_id
+    from pixivvault_nicegui.ui.duplicate_view import format_trash_size
+    for value, text in _format_cases():
+        assert format_trash_size(value) == text
+    size = _copy(writer, op).stat().st_size
+    client = Client(ui.page('/_f_trash_empty_ui_wording'))
+    try:
+        with client:
+            view = DuplicateView(source)
+            view.set_active(True)
+            assert view.trash_button.text == 'ごみ箱'
+            await view.refresh_trash_summary()
+            assert view.trash_button.text == f'ごみ箱 1件・{format_trash_size(size)}'
+            await view.open_trash()
+            assert view.trash_title.text == f'ごみ箱 1件・{format_trash_size(size)}'
+            assert 'KiB' not in view.trash_title.text and ' B' not in view.trash_title.text
+            labels = [element.text for element in view.trash_dialog.descendants() if hasattr(element, 'text')]
+            assert not any('消えるのは隔離コピーだけです' in label for label in labels)
+            assert any('空にすると元に戻せません。件数を入力すると「空にする」が押せます。' == label for label in labels)
+    finally:
+        client.delete()
+
+
+@pytest.mark.asyncio
+async def test_ui_title_and_body_agree_when_a_copy_is_damaged(owned):
+    writer, source, _ = owned
+    op = source.execute(plan_for(source, '123:2'), operation_id='6' * 31 + '0').operation_id
+    _copy(writer, op).write_bytes(b'damaged')
+    client = Client(ui.page('/_f_trash_empty_ui_damaged'))
+    try:
+        with client:
+            view = DuplicateView(source)
+            view.set_active(True)
+            await view.open_trash()
+            assert view.trash_title.text.startswith('ごみ箱 1件・')
+            body = view.trash_copy_count.text + view.trash_status.text
+            assert '1件' in view.trash_status.text and 'ごみ箱の件数' in view.trash_status.text, body
+    finally:
+        client.delete()
 
 
 # ---- UI (original dialog wording and typed-count gate) -----------------------

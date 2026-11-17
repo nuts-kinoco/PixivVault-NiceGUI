@@ -390,12 +390,19 @@ class ManagedDuplicateInspection:
             if managed+old!=expected_count:raise DuplicateInspectionError()
             removed=failed=0
             try:
+                # The two stores are separate durable transactions. A failure in one
+                # must not hide what the other already destroyed: report both counts
+                # (failed = everything not removed); a rerun converges on the rest.
                 if managed:
-                    part=self.owner.quarantine.purge(expected_count=managed,confirmed=True)
-                    removed+=part.removed;failed+=part.failed
+                    try:
+                        part=self.owner.quarantine.purge(expected_count=managed,confirmed=True)
+                        removed+=part.removed;failed+=part.failed
+                    except Exception:failed+=managed
                 if old:
-                    part=self.legacy.purge(expected_count=old,confirmed=True)
-                    removed+=part.removed;failed+=part.failed
+                    try:
+                        part=self.legacy.purge(expected_count=old,confirmed=True)
+                        removed+=part.removed;failed+=part.failed
+                    except Exception:failed+=old
             finally:
                 # Candidate bindings include the changed state revisions.
                 self._latest=None;self._planned=None

@@ -269,10 +269,16 @@ class ManagedQuarantine:
                     locks.enter_context(self.owner.work_lock(wid))
                 for operation_id, current, _, present in candidates:
                     if current in ('committed', 'moved'):
-                        revision = self.owner._generations.state_snapshot(
-                            verify_quarantine_payloads=False)['revision']
-                        self.owner._generations.purge_quarantine(
-                            operation_id, expected_revision=revision)
+                        try:
+                            revision = self.owner._generations.state_snapshot(
+                                verify_quarantine_payloads=False)['revision']
+                            self.owner._generations.purge_quarantine(
+                                operation_id, expected_revision=revision)
+                        except (OSError, ValueError, ManagedDownloadError):
+                            # Nothing of this operation was committed or deleted:
+                            # report it as left over and go on; a rerun converges.
+                            failed += len(present)
+                            continue
                     for path in present:
                         try:
                             if self._delete_copy(path):

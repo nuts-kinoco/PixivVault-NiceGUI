@@ -155,6 +155,17 @@ def _record(value: object, work_id: str) -> RemoteBookmark:
     return value
 
 
+def _purged_stand_in() -> bytes:
+    """Smallest valid image for a page that was emptied from the trash.
+
+    The page stays excluded (hidden) and unrecoverable; the stand-in only keeps
+    the immutable receipt structurally complete without fetching the page again.
+    """
+    stream = io.BytesIO()
+    Image.new('RGB', (1, 1), (0, 0, 0)).save(stream, 'PNG')
+    return stream.getvalue()
+
+
 def _image(data: bytes) -> tuple[str, str, int, int]:
     if type(data) is not bytes or not data:
         raise ManagedDownloadError("image size rejected", reason_code="image_format_invalid")
@@ -553,6 +564,9 @@ class ManagedPixivDownloads:
         total = len(raw)
         for number, entry in enumerate(receipt['files']):
             # Physical capacity still includes immutable recovery originals.
+            # A page destroyed by "empty trash" no longer occupies any space.
+            if self._page_is_purged(relative_receipt, number, entry):
+                continue
             data = self._read_saved_page_proof(relative_receipt, number, digest)
             if _image(data)[1:] != (entry['format'], entry['width'], entry['height']):
                 raise ManagedDownloadError('capacity image rejected')
@@ -560,6 +574,17 @@ class ManagedPixivDownloads:
         if self.closed or self._generations.current(work_id) != before:
             raise ManagedDownloadError('capacity active generation changed')
         return receipt['author_id'], total
+
+    def _page_is_purged(self, relative_receipt: str, page_no: int, entry) -> bool:
+        """True when the source page is gone and its backup was emptied on purpose."""
+        path = self.root / relative_receipt.rsplit('/', 1)[0] / entry['name']
+        _safe_path(path, file=True)
+        if native_io_path(path).exists():
+            return False
+        proof = self._generations.relocation_proofs().get((relative_receipt, page_no))
+        return (proof is not None and proof['state'] == 'purged'
+                and all(proof['item'][field] == entry[field]
+                        for field in ('sha256', 'bytes', 'format', 'width', 'height')))
 
     def read_saved_page(self, relative_receipt: str, page_no: int, expected_receipt_sha256: str) -> bytes:
         receipt, digest = self._receipt(relative_receipt, verify_pages=False)
@@ -651,6 +676,8 @@ class ManagedPixivDownloads:
             if type(job_id) is not str or not 1<=len(job_id)<=128:job_id='untracked-'+uuid4().hex
             legacy_pages,legacy_token=(self.legacy_quarantine.download_state(record)
                 if self.legacy_quarantine is not None else (frozenset(),None))
+            legacy_purged=(self.legacy_quarantine.purged_pages(record.remote_id)
+                if self.legacy_quarantine is not None else frozenset())
             if legacy_pages and legacy_pages==frozenset(range(record.page_count)):
                 raise ManagedDownloadError('legacy artwork is quarantined')
             _safe_path(self.outputs)
@@ -738,11 +765,17 @@ class ManagedPixivDownloads:
                         and self.legacy_quarantine.download_state(record)[1]!=legacy_token):
                     raise ManagedDownloadError('legacy quarantine changed during download')
                 if index-1 in legacy_pages:
-                    data=self.legacy_quarantine.download_proof(record,index-1)
+                    # Like the original, an emptied page is simply not taken; a hidden
+                    # stand-in keeps the receipt complete.
+                    data=(_purged_stand_in() if index-1 in legacy_purged
+                          else self.legacy_quarantine.download_proof(record,index-1))
                 elif index - 1 in excluded_pages:
                     if previous is None or index > previous[1]['page_count']:
                         raise ManagedDownloadError('quarantine recovery proof unavailable')
-                    data = self._read_saved_page_proof(previous[0], index - 1, previous[2])
+                    if self._page_is_purged(previous[0], index - 1, previous[1]['files'][index - 1]):
+                        data = _purged_stand_in()
+                    else:
+                        data = self._read_saved_page_proof(previous[0], index - 1, previous[2])
                 else:
                     try:
                         data = self.client.get_image_bytes(url)

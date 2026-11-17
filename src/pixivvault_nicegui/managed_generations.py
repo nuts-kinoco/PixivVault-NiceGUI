@@ -359,7 +359,9 @@ class ManagedGenerations:
                 if version == 4:
                     # A relocation pins its own work's immutable receipt. An
                     # unrelated work may still publish a new generation.
-                    if any(proof['item']['work_id'] == wid
+                    # A purged backup can never be restored, so a newer
+                    # generation cannot invalidate it any more.
+                    if any(proof['item']['work_id'] == wid and proof['state'] != 'purged'
                            for proof in self.relocation_proofs().values()):
                         raise ManagedDownloadError('relocation blocks generation publication')
                 packet.update(version=version, exclusions=state['exclusions'],

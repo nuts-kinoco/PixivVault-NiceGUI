@@ -12,6 +12,14 @@ from .card_size_control import update_size_buttons
 
 THUMB_SIZES = {'small':88, 'medium':144, 'large':200}
 
+def format_trash_size(n):
+    """Original gui.py:5599 `_format_size`: 95B / 1.5KB / 2.0MB (1024 based)."""
+    for unit in ('B','KB','MB','GB'):
+        if n<1024 or unit=='GB':
+            return f'{n:.0f}{unit}' if unit=='B' else f'{n:.1f}{unit}'
+        n/=1024
+    return f'{n:.1f}TB'
+
 class DuplicateView:
     def __init__(self,source,*,open_trash=None):
         self.source=source;self.active=False;self.closed=False;self.busy=False
@@ -107,7 +115,6 @@ class DuplicateView:
                          '元の保存証拠と一覧の除外記録は保持されます。').classes('pv-subtitle')
                 # Original gui.py:5640-5669: type the count to enable the empty button.
                 ui.label('空にすると元に戻せません。件数を入力すると「空にする」が押せます。').classes('pv-subtitle')
-                ui.label('消えるのは隔離コピーだけです。通常の一覧からの除外の記録は残ります。').classes('pv-subtitle')
                 self.trash_confirm_count=ui.input(label='件数を入力',on_change=lambda _:self.sync()).props(
                     'outlined dense inputmode=numeric data-testid=duplicate-trash-confirm-count').style('width:140px')
                 self.trash_restore_rows=ui.column().classes('w-full').props(
@@ -200,6 +207,28 @@ class DuplicateView:
         return (not self.closed and self.active and self.trash_dialog.value
             and epoch==self._trash_epoch and generation==self.generation)
 
+    def _set_trash_link(self,snapshot):
+        """Entry link like the original (gui.py:5612): ごみ箱 N件・容量."""
+        text='ごみ箱'
+        if snapshot is not None and getattr(snapshot,'state',None)=='ready' and hasattr(snapshot,'purgeable_count'):
+            text=f'ごみ箱 {snapshot.purgeable_count}件・{format_trash_size(snapshot.purgeable_bytes)}'
+        self.trash_button.set_text(text)
+
+    async def refresh_trash_summary(self):
+        reader=getattr(self.source,'quarantine_snapshot',None)
+        if self.closed or not callable(reader):return
+        try:snapshot=await asyncio.to_thread(reader)
+        except Exception:return
+        if not self.closed:self._set_trash_link(snapshot)
+
+    def _schedule_trash_summary(self):
+        task=getattr(self,'_summary_task',None)
+        if self.closed or not self.active or (task is not None and not task.done()):return
+        if not callable(getattr(self.source,'quarantine_snapshot',None)):return
+        try:self._summary_task=asyncio.get_running_loop().create_task(
+            self.refresh_trash_summary(),name='duplicate trash summary read')
+        except RuntimeError:pass
+
     def _trash_count_confirmed(self):
         count=getattr(self._trash_snapshot,'purgeable_count',0)
         try:return count>0 and int(self.trash_confirm_count.value)==count
@@ -207,23 +236,22 @@ class DuplicateView:
 
     def _render_trash(self):
         snapshot=self._trash_snapshot
-        from .library_view import format_capacity
         if snapshot is not None and hasattr(snapshot,'purgeable_count'):
-            self.trash_title.set_text(f'ごみ箱 {snapshot.purgeable_count}件・{format_capacity(snapshot.purgeable_bytes)}')
+            self.trash_title.set_text(f'ごみ箱 {snapshot.purgeable_count}件・{format_trash_size(snapshot.purgeable_bytes)}')
         else:
             self.trash_title.set_text('ごみ箱')
+        if snapshot is not None:self._set_trash_link(snapshot)
         if snapshot is None:
             self.trash_copy_count.set_text('公開済みの隔離コピー: 未確認')
             self.trash_copy_bytes.set_text('隔離コピーの容量: 未確認')
             self.trash_excluded.set_text('通常の一覧から除外中: 未確認')
         else:
-            from .library_view import format_capacity
             self.trash_copy_count.set_text(f'公開済みの隔離コピー: {snapshot.copy_count}件')
-            self.trash_copy_bytes.set_text(f'隔離コピーの容量: {format_capacity(snapshot.copy_bytes)}')
+            self.trash_copy_bytes.set_text(f'隔離コピーの容量: {format_trash_size(snapshot.copy_bytes)}')
             if (getattr(snapshot,'corrupt_count',0) or getattr(snapshot,'missing_count',0)
                     or getattr(snapshot,'unconfirmed_count',0)):
                 self.trash_copy_count.set_text(f'検証できた健全な隔離コピー: {snapshot.copy_count}件')
-                self.trash_copy_bytes.set_text(f'健全な隔離コピーの実測容量: {format_capacity(snapshot.copy_bytes)}')
+                self.trash_copy_bytes.set_text(f'健全な隔離コピーの実測容量: {format_trash_size(snapshot.copy_bytes)}')
             self.trash_excluded.set_text(f'通常の一覧から除外中: {snapshot.excluded_pages}ページ')
         messages={
             'unloaded':'ごみ箱の内容は未確認です。',
@@ -247,6 +275,12 @@ class DuplicateView:
         if snapshot is not None and getattr(snapshot,'unconfirmed_count',0):
             self.trash_status.set_text(self.trash_status.text
                 + f'（確認できない項目: {snapshot.unconfirmed_count}件）')
+        if (snapshot is not None and hasattr(snapshot,'purgeable_count')
+                and snapshot.purgeable_count!=snapshot.copy_count):
+            # The title and the typed count are what "empty" deletes (like the original,
+            # every copy still present); the healthy-copy lines below count fewer.
+            self.trash_status.set_text(self.trash_status.text
+                + f' ごみ箱の件数（{snapshot.purgeable_count}件）には、壊れた隔離コピーや復元済みの控えも含み、空にするとすべて削除されます。')
         self.trash_restore_rows.clear()
         self._trash_restore_buttons=[]
         if self._trash_state=='ready' and self._trash_moves:
@@ -329,9 +363,17 @@ class DuplicateView:
             ui.notify(message,type='warning')
         else:
             self.scan_result=getattr(self.source,'latest_scan',None);self.selections={};self.render()
-            message=f'ごみ箱: {result.removed}件を完全に削除しました（除外の記録は残ります）'
-            if result.failed:message+=f'・失敗 {result.failed}件'
+            if not result.failed:
+                message=f'ごみ箱: {result.removed}件を完全に削除しました（除外の記録は残ります）'
+            elif result.removed:
+                # Partial progress is real and permanent: say both numbers.
+                message=(f'ごみ箱: {result.removed}件を空にしました。残り{result.failed}件は空にできませんでした'
+                         '（除外の記録は残ります。もう一度「空にする」で続きを実行できます）')
+            else:
+                message=(f'ごみ箱を空にできませんでした。{result.failed}件が残っています。'
+                         'ごみ箱を開き直してもう一度お試しください。')
             ui.notify(message,type='warning' if result.failed else 'positive')
+        self._schedule_trash_summary()
         self.notice.set_text(message)
         self.sync()
 
@@ -371,6 +413,7 @@ class DuplicateView:
                     refresh_warning=True
             if not self.closed:
                 self.scan_result=None;self.selections={};self.render()
+                self._schedule_trash_summary()
                 self.notice.set_text('管理領域の復元が完了しました。再スキャンしてください。'
                                      +(' ライブラリ表示も再読込してください。' if refresh_warning else ''))
         except Exception:
@@ -715,6 +758,7 @@ class DuplicateView:
                 if result.cleanup_warning:message+=' 一時領域の後始末を確認してください。'
                 if refresh_warning:message+=' ライブラリ表示を再読込してください。'
                 self.notice.set_text(message)
+                self._schedule_trash_summary()
                 ui.notify(message,type='warning' if result.failed or getattr(result,'unprocessed',())
                           or result.cleanup_warning or refresh_warning else 'positive')
             if cancelled:raise asyncio.CancelledError()
@@ -752,6 +796,7 @@ class DuplicateView:
             else:
                 self.undecidable_state='unavailable'
             self.render_undecidable()
+        if self.active:self._schedule_trash_summary()
         self.sync()
     def close(self):
         self._progress_timer.deactivate()

@@ -300,6 +300,11 @@ class LegacyQuarantine:
         return frozenset(item['page']-1 for item in state['exclusions'].values()
                          if item['work_id']==work_id)
 
+    def purged_pages(self,work_id):
+        state=self.state(verify_outputs=False)
+        return frozenset(item['page']-1 for item in state['exclusions'].values()
+                         if item['work_id']==work_id and item.get('purged'))
+
     def download_state(self,record):
         state=self.state(verify_outputs=False)
         self.require_available(record.work_id)
