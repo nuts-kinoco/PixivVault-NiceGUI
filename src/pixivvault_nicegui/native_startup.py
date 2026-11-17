@@ -84,6 +84,15 @@ class NativeProfileBinding:
         self.auth_shared_stop_required = False
         self.shared_network_stop_scope = None
         self.auth_startup_result = None
+        # Header login status shared by every client of this process.
+        from .auth_status import AuthStatusHolder
+        self.auth_status = AuthStatusHolder()
+        self.startup_auth_task = None
+        self._loop = None
+        self._refresh_running = False
+        self._refresh_again = None
+        self._last_identity = None
+        self._background_tasks = set()
 
     def saved_folder_context(self):
         from .desktop_integration import DesktopActionRejected
@@ -144,6 +153,7 @@ class NativeProfileBinding:
                                  pick_model=self.pick_model,
                                   verify_auth=self.check_authentication if allow_auth else None)
         view.migration_factory = self.create_migration_view
+        view.on_saved = self.request_cookie_check
         view.request_retry_policy = self.auth_retry_policy
         return view
 
@@ -191,8 +201,14 @@ class NativeProfileBinding:
     async def verify_auth(self, cookie_file):
         return (await self.check_authentication(cookie_file)).ok
 
-    async def check_authentication(self, cookie_file):
-        """Explicit button only; bounded GET reader, never expose an account ID."""
+    async def check_authentication(self, cookie_file, *, _imported=False):
+        """Bounded GET reader through the STOP fence.
+
+        Triggers: the settings button, application start, a saved Cookie and an
+        extension Cookie receipt. The result is unchanged; the signed-in user ID
+        and Cookie expiry observed by the same check are published only to the
+        header status (restoring the original login-status line).
+        """
         async with self._auth_lock:
             if self._closed:
                 from .native_auth_result import NativeAuthResult
@@ -200,8 +216,11 @@ class NativeProfileBinding:
             stopped = Event()
             with self._reader_lock:
                 self._requests[stopped] = None
+                self._last_identity = None
             try:
-                return await asyncio.to_thread(self._verify_auth_result, Path(cookie_file), stopped)
+                result = await asyncio.to_thread(self._verify_auth_result, Path(cookie_file), stopped)
+                self._publish_auth(result, _imported)
+                return result
             except asyncio.CancelledError:
                 stopped.set()
                 with self._reader_lock:
@@ -211,6 +230,84 @@ class NativeProfileBinding:
                 if reader is not None:
                     reader.close()
                 raise
+
+    def _publish_auth(self, result, imported):
+        from .auth_status import status_from_result, NOTICE_UPDATED
+        if self._closed or result.code == 'closed':
+            return
+        uid, days = self._last_identity or (None, None)
+        status = status_from_result(result, uid, days)
+        self.auth_status.publish(status, NOTICE_UPDATED if imported and status.ok else None)
+
+    def _configured_cookie(self):
+        try:
+            return self.store.snapshot().cookie_file
+        except Exception:
+            return None
+
+    async def refresh_auth_status(self, *, imported=False):
+        """Header check through the same gated reader as the settings button.
+
+        Concurrent requests coalesce: one runs, and one more follows only if a
+        request arrived meanwhile (a Cookie saved during a check is re-read).
+        """
+        if self._refresh_running:
+            self._refresh_again = bool(self._refresh_again) or imported
+            return
+        self._refresh_running = True
+        try:
+            while True:
+                if self._closed:
+                    return
+                cookie = self._configured_cookie()
+                if cookie is None:
+                    from .auth_status import missing_status
+                    self.auth_status.publish(missing_status())
+                else:
+                    await self.check_authentication(cookie, _imported=imported)
+                if self._refresh_again is None:
+                    return
+                imported, self._refresh_again = self._refresh_again, None
+        finally:
+            self._refresh_running = False
+
+    def _spawn(self, coroutine):
+        task = asyncio.ensure_future(coroutine)
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+        return task
+
+    def bind_loop(self, loop):
+        self._loop = loop
+
+    def request_cookie_check(self, *, imported=True):
+        """Schedule a header check from any thread; never blocks or connects inline."""
+        if self._closed:
+            return
+        loop = self._loop
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            running = None
+        if running is not None:
+            self._loop = running
+            self._spawn(self.refresh_auth_status(imported=imported))
+        elif loop is not None and not loop.is_closed():
+            loop.call_soon_threadsafe(
+                lambda: self._spawn(self.refresh_auth_status(imported=imported)))
+
+    def start_startup_auth_check(self):
+        """Once per process, only for a STOP-fenced native profile."""
+        if self.startup_auth_task is not None:
+            return self.startup_auth_task
+        if self._closed or not self.auth_stop_required or self.auth_startup_result is not None:
+            return None
+        try:
+            self._loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return None  # no event loop yet (not a served page): retry at the next shell build
+        self.startup_auth_task = self._spawn(self.refresh_auth_status())
+        return self.startup_auth_task
 
     def _verify_auth(self, cookie_file, stopped):
         # Keep the historical bool interface for non-UI callers.
@@ -267,8 +364,11 @@ class NativeProfileBinding:
                 self._requests[stopped] = reader
                 if stopped.is_set():
                     return NativeAuthResult('closed')
-            reader.require_identity()
+            uid = reader.require_identity()
             with self._reader_lock:
+                if not self._closed and not stopped.is_set():
+                    from .auth_status import cookie_days_left
+                    self._last_identity = (uid, cookie_days_left(cookie_file))
                 return NativeAuthResult('verified' if not self._closed and not stopped.is_set() else 'closed')
         except CookieSourceRejected:
             return NativeAuthResult('cookie_unreadable')
@@ -303,6 +403,7 @@ class NativeProfileBinding:
             if self._closed:
                 return
             self._closed = True
+        with self._reader_lock:
             requests = tuple(self._requests.items())
         for stopped, reader in requests:
             stopped.set()

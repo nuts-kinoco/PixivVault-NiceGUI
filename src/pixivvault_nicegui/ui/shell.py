@@ -5,6 +5,7 @@ from nicegui import app, ui
 from ..services import ApplicationServices, get_services
 from .gallery import GalleryView
 from .grid_layout import MAX_COLUMNS
+from ..auth_status import BLUE as AUTH_BLUE, CHECKING_TEXT as AUTH_CHECKING_TEXT
 from .theme import CSS, TOKENS
 
 NAVIGATION = (
@@ -50,6 +51,10 @@ class DemoShell:
         self._borrow_timer=None
         self.borrow_dialog=None
         self.buttons: dict[str, ui.button] = {}
+        self.auth_label = None
+        self.cookie_banner = None
+        self._auth_unsubscribe = None
+        self._banner_dismissed = False
         self.client.on_delete(self.close)
         ui.add_css(CSS)
         ui.colors(primary=TOKENS["accent"])
@@ -61,7 +66,7 @@ class DemoShell:
                     descriptions = {
                         "synthetic": "移植検証用 · 架空作品 / 実アカウントへの接続なし",
                         "library-readonly": "旧ライブラリ読取専用 · 元DB・画像の変更なし",
-                        "pixiv-readonly": "pixiv読取接続 · 認証確認はブックマーク更新時 / 書込操作なし",
+                        "pixiv-readonly": "pixiv読取接続 · 認証確認は起動時・Cookie更新時・ブックマーク更新時 / 書込操作なし",
                     }
                     description = ("pixiv GET専用 · 選択した原寸画像を専用管理先へ保存 / 元DB・Cookieは変更しません"
                                    if services.managed_downloads is not None else descriptions[services.data_mode])
@@ -72,6 +77,11 @@ class DemoShell:
                     if services.novel_jobs is not None:
                         description = ("小説 · 明示した作品の取得と専用フォルダーへの保存" if services.data_mode != "synthetic" else "合成小説 · 専用フォルダーへの保存 / 実サービスへの接続なし")
                     ui.label("小説・うごイラ · 専用管理先へ保存" if services.novel_jobs is not None and services.ugoira is not None else "うごイラ · 専用管理先へ保存" if services.ugoira is not None else description).classes("pv-subtitle")
+                    # Original gui.py login_status_text: always visible under the title.
+                    if getattr(services, 'native_profile', None) is not None:
+                        self.auth_label = ui.label(AUTH_CHECKING_TEXT).props(
+                            'role=status aria-live=polite data-testid=auth-status').style(
+                            'font-size:13px;font-weight:500')
                 ui.label("オフライン検証" if services.data_mode == "synthetic" else
                          "発掘開始後は候補を自動補充" if getattr(services, "discovery", None) is not None else
                          "学習は合成データ" if services.ranking_source is not None else "ランキング・学習は合成データ").classes("pv-subtitle")
@@ -111,6 +121,8 @@ class DemoShell:
             settings = ui.button('設定', icon='settings', on_click=self.open_preferences).props('flat data-testid=preferences-open')
             settings.set_enabled(getattr(services, 'preferences', None) is not None
                                  or getattr(services, 'native_profile', None) is not None)
+            if self.auth_label is not None:
+                self._build_cookie_banner()
             with ui.element("nav").classes("pv-nav").props("aria-label=メインナビゲーション"):
                 for key, label in NAVIGATION:
                     if key=='personal' and getattr(services,'external_vault',None) is None and services.live_client is None:continue
@@ -133,8 +145,54 @@ class DemoShell:
                     self.gallery = RankingView(services, card_size=self.card_size, on_size_change=self.change_card_size)
                 else:
                     self.gallery = GalleryView(services, card_size=self.card_size, on_size_change=self.change_card_size)
+        self._attach_auth_status()
         self.gallery.set_viewer_active(True)
         self._update_tabs()
+
+    def _build_cookie_banner(self):
+        # Original gui.py cookie_banner: blue-bordered info container.
+        with ui.row().classes('w-full items-center no-wrap').style(
+                f'background:{TOKENS["raised"]};border:1px solid {AUTH_BLUE};border-radius:8px;padding:10px;gap:12px'
+        ).props('role=status data-testid=cookie-banner') as self.cookie_banner:
+            ui.icon('info_outline').style(f'color:{AUTH_BLUE}')
+            with ui.column().classes('gap-0').style('flex:1 1 0;min-width:0'):
+                ui.label('【Cookie未連携】').style('font-weight:700;font-size:14px')
+                ui.label('PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。\n'
+                         'ブラウザでPixivを開くだけで自動的に連携されます。').style(
+                    f'font-size:13px;white-space:pre-line;color:{TOKENS["muted"]}')
+            link = ui.link('Pixivを開く', 'https://www.pixiv.net/', new_tab=True).props(
+                'data-testid=cookie-banner-open aria-label=ブラウザでPixivを開く')
+            link.props['rel'] = 'noopener noreferrer'
+            ui.button(icon='close', on_click=self.close_cookie_banner).props(
+                'flat round dense aria-label=閉じる data-testid=cookie-banner-close')
+        self.cookie_banner.set_visibility(False)
+
+    def close_cookie_banner(self):
+        self._banner_dismissed = True
+        if self.cookie_banner is not None:
+            self.cookie_banner.set_visibility(False)
+
+    def _render_auth_status(self, status, notice=None):
+        if self.closed or self.auth_label is None:
+            return
+        self.auth_label.set_text(status.text)
+        self.auth_label.style(replace=f'font-size:13px;font-weight:500;color:{status.color}')
+        if not status.banner:
+            self._banner_dismissed = False
+        self.cookie_banner.set_visibility(status.banner and not self._banner_dismissed)
+        if notice:
+            with self.client:
+                ui.notify(notice, type='positive')
+
+    def _attach_auth_status(self):
+        profile = getattr(self.services, 'native_profile', None)
+        if self.auth_label is None or profile is None:
+            return
+        holder = profile.auth_status
+        self._auth_unsubscribe = holder.subscribe(self._render_auth_status)
+        self._render_auth_status(holder.status)
+        # Once per process, only for a STOP-fenced profile; a no-op otherwise.
+        profile.start_startup_auth_check()
 
     def open_preferences(self):
         if self.closed:
@@ -381,6 +439,9 @@ class DemoShell:
             self.personal_view.apply_card_size(size)
 
     def close(self) -> None:
+        if self._auth_unsubscribe is not None:
+            self._auth_unsubscribe()
+            self._auth_unsubscribe = None
         if self.closed:
             return
         self.closed = True

@@ -35,8 +35,10 @@ class _RankingGallery(GalleryView):
         super().open(work_id,page_no)
 
 class RankingView:
+    _auto_loaded=False;_auto_task=None  # first-open fetch state (see _schedule_first_load)
     def __init__(self,services,*,card_size='large',on_size_change=None):
         self.services=services;self.proxy=_ViewServices(services)
+        self._auto_loaded=False;self._auto_task=None
         self.active=False;self.closed=False;self.busy=False;self.epoch=0;self._open_generation=0;self.page=None;self.pin=None
         self._condition_task=None;self._condition_pending=False;self._syncing_controls=False
         self._calendar_token=None;self.calendar_dialog=None;self.calendar_picker=None
@@ -283,6 +285,26 @@ class RankingView:
         self.active=bool(active) and not self.closed;self.gallery.set_viewer_active(self.active)
         if not self.active:
             self._condition_pending=False;self._close_calendar()
+        else:self._schedule_first_load()
+    def _schedule_first_load(self):
+        # Original ranking_tab.on_tab_open: the first time the tab becomes
+        # visible and nothing is cached, fetch once. Only with a live reader.
+        if (self._auto_loaded or self.page is not None or self.closed
+                or getattr(self.services,'live_client',None) is None
+                or (self._auto_task is not None and not self._auto_task.done())):return
+        try:self._auto_task=asyncio.get_running_loop().create_task(self._first_load())
+        except RuntimeError:pass
+    async def _first_load(self):
+        # Header authentication check first, so the two requests are not
+        # contending for the shared GET fence. Same load() as the button.
+        profile=getattr(self.services,'native_profile',None)
+        pending=getattr(profile,'startup_auth_task',None)
+        if pending is not None and not pending.done():
+            try:await asyncio.wait_for(asyncio.shield(pending),timeout=20)
+            except Exception:pass
+        if self.closed or not self.active or self.busy or self.page is not None:return
+        self._auto_loaded=True
+        await self.load()
     def apply_card_size(self,size):self.gallery.apply_card_size(size)
     def close(self):
         if self.closed:return

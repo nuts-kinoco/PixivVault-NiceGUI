@@ -7,6 +7,7 @@ from ..state import GalleryState
 from .ranking_view import RankingView,_ViewServices,_RankingGallery
 
 class PersonalRankingView(RankingView):
+    def _schedule_first_load(self):pass  # original auto-fetch is only the public ranking tab
     def __init__(self,services,*,card_size='large',on_size_change=None):
         self.services=services;self.proxy=_ViewServices(services);self.vault=getattr(services,'external_vault',None)
         from ..premium_read import PremiumSearch
