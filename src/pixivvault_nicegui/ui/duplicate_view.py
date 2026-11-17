@@ -46,7 +46,7 @@ class DuplicateView:
                 self.search=ui.input(placeholder='作者名・IDで絞り込む',on_change=lambda e:self.filter(e.value)).props('outlined dense clearable debounce=200 data-testid=duplicate-search')
                 self.mode_buttons={}
                 for label,key in (('決められないもの','undecidable'),('近似重複の候補','near')):
-                    self.mode_buttons[key]=ui.button(label,on_click=lambda _,value=key:self.set_mode(value)).props(
+                    self.mode_buttons[key]=ui.button(label,color=None,on_click=lambda _,value=key:self.set_mode(value)).props(
                         f'flat no-caps aria-pressed=false data-testid=duplicate-mode-{key}').style('width:190px')  # 元: 等幅2択
                 self.trash_button=ui.button('ごみ箱',on_click=self.open_trash).props('flat data-testid=duplicate-trash')
             with ui.row().classes('pv-toolbar'):
@@ -54,7 +54,7 @@ class DuplicateView:
                 ui.label('サムネイルサイズ').classes('pv-subtitle')
                 self.size_buttons={}
                 for label,size in (('小','small'),('中','medium'),('大','large')):
-                    button=ui.button(label,on_click=lambda _,value=size:self.change_thumb_size(value)).props(
+                    button=ui.button(label,color=None,on_click=lambda _,value=size:self.change_thumb_size(value)).props(
                         f'flat dense no-caps aria-label=サムネイル{label} data-testid=duplicate-size-{size}').classes('pv-size-button')
                     self.size_buttons[size]=button
                 update_size_buttons(self.size_buttons,self.thumb_size)

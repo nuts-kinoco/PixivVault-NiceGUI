@@ -28,13 +28,13 @@ CSS = """
 .pv-failure-search {width:360px;max-width:100%;}
 .pv-failure-chips {gap:8px;flex-wrap:wrap;}
 .pv-failure-chip {border:1px solid #2a2b38;border-radius:8px;min-height:34px;font-size:12px;}
-.pv-failure-chip[aria-pressed=true] {background:#0096fa !important;color:#fff !important;}
+.pv-failure-chip[aria-pressed=true] {background:var(--pv-fill) !important;color:var(--pv-on-fill) !important;}
 .pv-failure-rows {width:100%;gap:0;}
 .pv-failure-row {width:100%;padding:4px 14px;border-bottom:1px solid #15161c;gap:2px;min-width:0;}
 .pv-failure-row-top {width:100%;gap:8px;align-items:center;flex-wrap:wrap;}
 .pv-failure-title {flex:1 1 240px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;}
-.pv-failure-reason {font-size:11px;color:#8a8a99;white-space:pre-wrap;overflow-wrap:anywhere;width:100%;}
-.pv-failure-meta {font-size:11px;color:#e8e8ef;}
+.pv-failure-reason {font-size:11px;color:var(--pv-muted);white-space:pre-wrap;overflow-wrap:anywhere;width:100%;}
+.pv-failure-meta {font-size:11px;color:var(--pv-text);}
 .pv-failure-empty {padding:24px 14px;white-space:pre-wrap;}
 .pv-failure-pages {width:100%;justify-content:flex-end;align-items:center;gap:4px;}
 """

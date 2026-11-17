@@ -213,7 +213,7 @@ class DemoShell:
         # Original gui.py cookie_banner: 青枠の情報帯。ヘッダーとタブバーの間。
         with ui.row().classes('pv-cookie-banner items-center no-wrap').props(
                 'role=status data-testid=cookie-banner') as self.cookie_banner:
-            ui.icon('info_outline').style('color:var(--pv-auth-blue)')
+            ui.icon('info_outline').classes('pv-banner-icon').style('color:var(--pv-auth-blue)')
             with ui.column().classes('gap-0').style('flex:1 1 0;min-width:0'):
                 ui.label('【Cookie未連携】').classes('pv-banner-title')
                 ui.label('PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。\n'
