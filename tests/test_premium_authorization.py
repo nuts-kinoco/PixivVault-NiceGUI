@@ -214,6 +214,10 @@ async def test_ui_one_password_then_save_choice_and_no_off_network(tmp_path,monk
     from pixivvault_nicegui.ui.premium_gate_view import PremiumGateDialog
     monkeypatch.setattr(core,'loop',asyncio.get_running_loop())
     v,g,t=create(tmp_path/'v',Protection(),[1000])
+    # The popup hands the signing key and UIDs to the vault and then starts the
+    # keeper, which talks to the transport on its own thread. Replace only the
+    # keeper start so "no traffic before ON" is judged on the popup path itself.
+    started=[];monkeypatch.setattr(v,'start_keeper',lambda **kw:started.append(1))
     client=Client(ui.page('/_premium_permission'));dialog=None;task=None
     try:
         with client:dialog=PremiumGateDialog(g,default_uid_path=None)
@@ -225,8 +229,9 @@ async def test_ui_one_password_then_save_choice_and_no_off_network(tmp_path,monk
             if g.status()['pending'] and dialog.save_dialog.value:break
             await asyncio.sleep(.01)
         assert g.status()['pending'] and not g.status()['enabled'] and dialog.password.value==''
+        assert t.calls==[] and started==[]  # nothing is sent or started before ON
         dialog.save_dialog.submit(False);await asyncio.wait_for(task,5)
-        assert g.status()['enabled'] and not g.status()['remembered'] and t.calls==[]
+        assert g.status()['enabled'] and not g.status()['remembered'] and t.calls==[] and started==[1]
     finally:
         if dialog:dialog.close()
         if task and not task.done():task.cancel();await asyncio.gather(task,return_exceptions=True)
