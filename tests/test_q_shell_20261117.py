@@ -4,6 +4,7 @@
 実寸（全タブ同幅）は実ブラウザの計算値で判定する。
 """
 import re
+from types import SimpleNamespace
 
 import pytest
 from nicegui import Client, ui
@@ -35,7 +36,7 @@ def tid(element):
 
 
 def build(services):
-    services.live_client = object()  # 「自分のランキング」を並べる条件
+    services.live_client = SimpleNamespace(close=lambda: None)  # 「自分のランキング」を並べる条件
     client = Client(ui.page('/_q_shell'))
     return client
 
@@ -206,6 +207,16 @@ def test_shell_text_contrast_is_at_least_4_5(theme, tokens):
         pairs[f'auth {tone}/page'] = (tokens[f'--pv-auth-{tone}'], page)
     low = {name: round(contrast(*pair), 2) for name, pair in pairs.items() if contrast(*pair) < 4.5}
     assert not low, low
+
+
+def test_light_block_redeclares_the_aliases_so_views_do_not_keep_dark_cards():
+    # :root の `--pv-surface: var(--pv-bg-surface)` は :root で解決される。body 側で別名を宣言し直さないと、
+    # ライトでも暗色カードのままになる（実画面で確認した不具合の再発防止）。
+    for alias, token in (('--pv-bg', '--pv-bg-vault'), ('--pv-surface', '--pv-bg-surface'),
+                         ('--pv-raised', '--pv-bg-card'), ('--pv-border', '--pv-border-vault'),
+                         ('--pv-text', '--pv-text-main'), ('--pv-muted', '--pv-text-muted'),
+                         ('--pv-overlay', '--pv-glass-bg')):
+        assert LIGHT.get(alias, '').replace(' ', '') == f'var({token})', alias
 
 
 def test_light_theme_cards_are_bright():

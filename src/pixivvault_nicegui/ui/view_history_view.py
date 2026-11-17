@@ -15,7 +15,10 @@ class ViewHistoryView:
         self.rows = []
         self.shown = 50
         self.generation = 0
-        self.button = ui.button('閲覧履歴', on_click=self.open).props('flat data-testid=view-history-open')
+        # 入口はヘッダー右端の VISIBILITY ボタン（shell.open_view_history）へ移した。ここは件数の保持だけ。
+        self.on_count = None
+        self.button = ui.button('閲覧履歴', on_click=self.open).props('flat data-testid=view-history-inner')
+        self.button.set_visibility(False)
         self.button.set_enabled(storage is not None)
         with ui.dialog().props('data-testid=view-history-dialog') as self.dialog, ui.card().classes('w-full').style('max-width:900px'):
             ui.label('閲覧履歴（学習タブ）').classes('pv-view-title')
@@ -67,6 +70,7 @@ class ViewHistoryView:
             rows = await self.storage.view_history()
             if self.closed or epoch != self.generation:return
             self.button.set_text(f'閲覧履歴 · {len(rows)}件')
+            if self.on_count is not None:self.on_count(len(rows))
             if rows != self.rows or not self.body.default_slot.children:
                 self.rows = rows
                 self.confirm.set_value('')
