@@ -654,9 +654,9 @@
    "width": 527
   },
   "inv-0a7845c0ae": {
-   "fl": "FL-O02",
+   "fl": "FL-C05",
    "method": "range",
-   "width": 1
+   "width": 6
   },
   "inv-0a97e01fe1": {
    "distance": 29,
@@ -3614,9 +3614,9 @@
    "method": "nearest"
   },
   "inv-3c5225814f": {
-   "fl": "FL-I01",
+   "fl": "FL-I04",
    "method": "range",
-   "width": 37
+   "width": 6
   },
   "inv-3c5345bd63": {
    "fl": "FL-N03",
@@ -11433,9 +11433,9 @@
    "width": 343
   },
   "inv-c1ece9ef43": {
-   "distance": 62,
-   "fl": "FL-D10",
-   "method": "nearest"
+   "fl": "FL-B11",
+   "method": "range",
+   "width": 14
   },
   "inv-c1fd453146": {
    "fl": "FL-K04",
@@ -11554,9 +11554,9 @@
    "width": 9
   },
   "inv-c3ec1b1247": {
-   "distance": 55,
-   "fl": "FL-D10",
-   "method": "nearest"
+   "fl": "FL-B11",
+   "method": "range",
+   "width": 14
   },
   "inv-c3f38b1ca9": {
    "fl": "FL-K04",
@@ -13963,9 +13963,9 @@
    "width": 85
   },
   "inv-eabfc08f68": {
-   "fl": "FL-O02",
+   "fl": "FL-C05",
    "method": "range",
-   "width": 1
+   "width": 6
   },
   "inv-eae4a93817": {
    "also": [],
@@ -15306,12 +15306,63 @@
   "works.missing_streak": "FL-Z06",
   "works.work_meta": "FL-C20"
  },
- "manual": {},
+ "manual": {
+  "inv-06192d999d": "FL-K11",
+  "inv-14c0681591": "FL-K02",
+  "inv-15e0cd80c1": "FL-K08",
+  "inv-18cb999dbb": "FL-K08",
+  "inv-27a0280793": "n/a:内部（Flet のページ構築の入口。個々の機能は内側の項目で対応）",
+  "inv-2d685e591a": "FL-K08",
+  "inv-370c0d8cb1": "FL-K06",
+  "inv-3b38227842": "FL-K04",
+  "inv-47870215d9": "n/a:UI スレッドへの投入機構（内部実装。NiceGUI では別方式）",
+  "inv-489cd834bd": "FL-K03",
+  "inv-51d708317d": "n/a:内部（PixivClient の遅延生成。個別機能ではない）",
+  "inv-5600706cf5": "n/a:内部（http.server の標準アクセスログを logger.debug へ流すだけ）",
+  "inv-66b338474b": "FL-A06",
+  "inv-6cfddd1d1a": "FL-K08",
+  "inv-6ff90453a7": "FL-K08",
+  "inv-712769181d": "FL-K04",
+  "inv-7c647c9871": "n/a:設定値の読み口（キー save_path の機能は setting_key 項目で対応）",
+  "inv-9e8462caca": "FL-K08",
+  "inv-ba2f52b103": "FL-X01",
+  "inv-bc0c28cc64": "FL-I19",
+  "inv-d6dcabe64f": "FL-K02",
+  "inv-ee4048bed3": "FL-K03",
+  "inv-f113296492": "n/a:内部（ビューアへ成否通知の関数を渡す橋渡し。通知文言は snack 項目で対応）",
+  "inv-fa044e496c": "FL-K08"
+ },
+ "manual_reasons": {
+  "inv-06192d999d": "library_tab.py:1446-1457 作品の画像枚数を返す。ページ数不明は 1 枚（作者詳細の全ページ表示）",
+  "inv-14c0681591": "library_tab.py:561- pixiv 検索結果をローカル作品とメモリ上でマージする（「pixiv 本体も含む」スコープ）",
+  "inv-15e0cd80c1": "library_tab.py:195-209 DB から作品一覧と作者名を一度だけ読み込み、作者カード一覧の材料にする（呼び出し 3180 はタブ表示時）。移植版は library_repository.py",
+  "inv-18cb999dbb": "library_tab.py:667-670 作者カードの代表作品（絞り込み前の全作品で最後の保存日が最大のもの）",
+  "inv-27a0280793": "main.py:397- app_target(page)。ウィンドウ設定・トレイ・ライフサイクルの配線を行う入口で、機能は FL-A04〜A07 など個別の項目に結ばれている",
+  "inv-2d685e591a": "library_tab.py:786-795 取得したサムネイルをカードのコンテナへ反映する（_fetch_thumb_and_apply の内側）",
+  "inv-370c0d8cb1": "library_tab.py:211-221 my_user_id 設定を返し、無ければ取得して保存する。マイブックマーク取得の基準（呼び出し 241）",
+  "inv-3b38227842": "library_tab.py:550-554 絞り込み条件に 1 件でも一致すれば作者を表示する OR 集約（絞り込みパネルの挙動）",
+  "inv-47870215d9": "library_tab.py:749-750 同期コールバックを Flet のイベントループで実行するための薄い包み",
+  "inv-489cd834bd": "library_tab.py:695-698 容量順の並べ替えキー（未計測は末尾）",
+  "inv-51d708317d": "library_tab.py:187-190 クライアントを 1 つだけ作って使い回す。移植版は services の読取クライアントを注入する",
+  "inv-5600706cf5": "server.py:1031-1033 BaseHTTPRequestHandler.log_message の上書き。利用者の機能ではない",
+  "inv-66b338474b": "main.py:536-538 トレイの「終了」から呼ばれ、アプリを完全終了する（トレイ「PixivVaultを開く／終了」）",
+  "inv-6cfddd1d1a": "library_tab.py:719-722 作品のサムネイル URL を返す（作者カードのサムネイル）",
+  "inv-6ff90453a7": "library_tab.py:707-717 work_meta の 2 つのスキーマ（urls 辞書／url 文字列）からサムネイル URL を取り出す（作者カードのサムネイル）",
+  "inv-712769181d": "library_tab.py:2262-2275 絞り込み条件を変えたとき、表示中のサブビューへ再描画を振り分ける",
+  "inv-7c647c9871": "library_tab.py:192-193 db.get_setting(\"save_path\",\"Images\") を返すだけ",
+  "inv-9e8462caca": "library_tab.py:660-665 作品を作者単位にまとめる（作者カード一覧）",
+  "inv-ba2f52b103": "server.py:1718-1728 起動時に iOS／Web 連携の接続トークンをアプリのログ欄へ出す（get_web_token の通知）。iOS 連携は本人が除外（意図的削除）",
+  "inv-bc0c28cc64": "discovery_engine.py:188-195 フォロー新着の取得で、既知作品または最初の 48 件で打ち切る判定。学習の候補取得ロジックの一部で、移植版 discovery_engine.py の _source_following と AST 一致",
+  "inv-d6dcabe64f": "library_tab.py:557-559 借用アカウントがプレミアム判定のときだけ pixiv 検索を有効にする（「pixiv 本体も含む」スコープの前提）",
+  "inv-ee4048bed3": "library_tab.py:672-705 作者一覧を絞り込み・並び替え（閲覧数・保存日・容量、方向トグル）して返す",
+  "inv-f113296492": "library_tab.py:896-900 artbook_viewer が要求する (message, ok) 形の通知を、タブのスナックバーへ中継する",
+  "inv-fa044e496c": "library_tab.py:776-795 サムネイル画像を共有キャッシュ経由で取得してカードへ反映する"
+ },
  "meta": {
   "addenda_rows": 35,
   "inventory_total": 4052,
   "ledger_rows_A_to_P": 171,
-  "port_commit": "c9f87d8bfecb3dc9d441c67831c145783159c5c6",
+  "port_commit": "68594803a8975b3ab07db76225f377c22014182a",
   "port_note": "移植版の文言存在確認に使った work のコミット(読取のみ)",
   "source_commit": "3ac3aa0d47a64785251593bcb09bb2d5f6df374b",
   "wide_threshold_lines": 150
@@ -15613,7 +15664,6 @@
   "inv-56556b1471",
   "inv-56598e95f6",
   "inv-57a1dc3894",
-  "inv-5829c8fed0",
   "inv-5864e98f72",
   "inv-58d195f461",
   "inv-5912948b1a",
@@ -15635,7 +15685,6 @@
   "inv-5e2d36ea14",
   "inv-5e4fb1ac65",
   "inv-5ead3825f4",
-  "inv-5f0176933c",
   "inv-5f6aa8dd16",
   "inv-5fdb0e174d",
   "inv-5ff8257663",
@@ -15679,7 +15728,6 @@
   "inv-6c07f4c4d9",
   "inv-6c138ab995",
   "inv-6c40db5f1e",
-  "inv-6c5a8fb78b",
   "inv-6c8afe43a0",
   "inv-6c940d2b7a",
   "inv-6cd81cad6a",
@@ -16105,7 +16153,6 @@
   "inv-e6675efe40",
   "inv-e6a552ea38",
   "inv-e6e2b61ee1",
-  "inv-e791ab1fe7",
   "inv-e7abe79f9b",
   "inv-e7d532f9c3",
   "inv-e847033172",
@@ -16178,7 +16225,6 @@
   "inv-f8f200e199",
   "inv-f98c34d8bc",
   "inv-fa02a269fc",
-  "inv-fa55042375",
   "inv-fa67535427",
   "inv-fa6f987bd5",
   "inv-fab99552dc",
