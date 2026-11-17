@@ -351,7 +351,7 @@ ADDENDA_TEXT = textwrap.dedent('''
     ## 追記行
     | ID | 元の機能 | 元の場所 | 移植版の場所 | 状態 | 根拠 |
     |---|---|---|---|---|---|
-    | FL-Y01 | 追記の機能 | gui.py:20-40 | 無 | 無 | 根拠に `save_path` などの識別子を書いても名前の対応には使わない |
+    | FL-Y01 | 追記の機能 | gui.py:20-40 | 無 | 無 | 根拠に `on_save` などの識別子を書いても名前の対応には使わない |
     | FL-Z01 | もう一つ | core.py:1-3 `verify_work` | x.py:1 | 有 | |
     ## 付録A
     | 台帳 FL | 台帳の状態 | 未検出の文言 件数 | 例(元の場所) |
@@ -387,8 +387,9 @@ def test_build_ledger_map_main_uses_addenda(src, tmp_path):
     hits = {items[k]["line"]: v["fl"] for k, v in data["auto"].items() if items[k]["file"] == "gui.py" and v["method"] == "range"}
     assert any(fl == "FL-Y01" for fl in hits.values())                    # 追記の引用範囲が対応づけに参加する
     assert any(fl == "FL-Z01" and items[k]["file"] == "core.py" for k, v in data["auto"].items() for fl in [v["fl"]])
-    # 追記の根拠欄の識別子(save_path)は、元の設定キーの名前対応を奪わない
-    assert all(v["fl"] != "FL-Y01" or v["method"] != "name" for v in data["auto"].values())
+    # 追記の根拠欄の識別子(on_save。元の関数名と一致する)は、名前の対応(tier A)に使わない
+    assert any(i["name"].endswith("on_save") for i in items.values() if i["kind"] == "api_public")   # 元に on_save がある前提
+    assert not any(v["fl"] == "FL-Y01" and v["method"] == "name" for v in data["auto"].values())
 
 
 def test_closure_functions_are_listed_as_api_public(src):

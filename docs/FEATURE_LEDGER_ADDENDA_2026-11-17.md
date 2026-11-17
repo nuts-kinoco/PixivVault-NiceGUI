@@ -39,24 +39,24 @@
 | FL-Z15 | Cookie の期限判定（`check_cookie_status`。PHPSESSID の期限を優先、無ければ他の Cookie の最大。残り日数で 7 日超=有効／4〜7 日=黄／3 日以内=赤、通信エラー・未認証・Cookie 無しを区別） | pixiv_client.py:344-455 | auth_status.py:51-140（`cookie_days_left`、`status_from_result`。名前・ドメイン・期限だけを読む） | 有 | 日数の丸め（切り上げ・最小 1・期限不明は 30）、7 日／3 日の閾値、無視する Cookie（`_cfuvid` など）、PHPSESSID 優先まで元と同じ。通信しない写像で、確認は services 側。FL-A11 の根拠の補強 |
 | FL-Z16 | フォロー中一覧の取得（公開 `show`・非公開 `hide`、24 件ずつ、`/ajax/user/{id}/following`） | pixiv_client.py:1192-1232 | pixiv_read_client.py:1011-1040（`get_following_users`、同じ経路・同じ `limit=24`・`rest`）、following_sync.py:320-376（公開・非公開の両方を同期） | 有 | 取得の経路と刻みは同じ。移植版は件数上限（`MAX_FOLLOWED_AUTHORS`）と読み取り期限を持つ。自動同期（24 時間経過で起動時に走る）は FL-A10 で無 |
 | FL-Z17 | ブックマーク一覧の取得（イラスト・漫画 48 件ずつ、小説 24 件ずつ、公開・非公開） | pixiv_client.py:1481-1607 | pixiv_read_client.py:903-916, 1005-1008（`get_bookmarked_works`・`get_bookmarked_novels`、`limit=48`・`tag=`・`rest`）、bookmark_remote_adapter.py:157 | 有 | 経路・刻み・重複 ID の除外は同じ（読んだのは取得部分のみ）。一括 DL（`download_bookmarks`）側の保存方式・ハードリンクは FL-D12・FL-D13 |
-| FL-Y01 | 世間ランキングのカードに、好みのタグを持つ作品の順位横へ青ハート印を出し、更新ボタンで好みの集合を引き直す（get_discovery_preferences・build_bounds） | ranking_tab.py:519-544, 822-824, 1276 | 無（`FAVORITE`・`heart`・`has_preferred_tag`・`build_bounds` を非 legacy の src で grep。`build_bounds` は discovery_ranking.py:405 の定義だけで、ランキングのカード描画からは呼ばれない。ui/gallery.py:54-75 にも印が無い） | 無 | 規模 小。検証済み（元 ranking_tab.py:519-544 の `_has_preferred_tag`、822-824 の印、1276 の `_on_refresh`）。Argon の指摘は事実 |
-| FL-Y02 | 自分のランキングの「よく効くタグ」副行を隠す／表示するトグルと、開閉の保存（設定キー `ranking_personal_candidates_open`、既定は開き） | ranking_tab.py:130, 1844-1866, 2146-2166 | ui/personal_ranking_view.py:36-37（`ui.expansion('よく効くタグ', value=True)`。開閉は保存しない） | 弱 | 規模 小。検証済み。開閉の入口はあるが、閉じた状態が次回に残らない。元は `filter_panel.save_json_setting` で保存（ranking_tab.py:1861-1863）。台帳 T 節にも無かったので追加した。Argon の指摘は事実 |
-| FL-Y03 | 自分のランキングで、取得ページ内を作者別ブクマ実績（`seed_bookmarked`）の降順に並べ替える（ページ内だけ。追記しても先に出たものは動かない） | ranking_tab.py:1512-1520, 1708-1715 | personal_ranking.py:279（作者実績の降順・同点は作者 ID・作品 ID）、services.py:1592（`author_seed_bookmarked` を `author_counts` に渡す） | 有 | 検証済み。Argon の指摘のうち、この並べ替えが無いという部分は誤り |
-| FL-Y04 | 自分のランキングで、除外集合の DB 読込に失敗したとき「⚠️一部の除外条件を適用できませんでした」を出す（除外しない側へ倒して警告） | ranking_tab.py:1436-1460, 1640-1642 | ui/personal_ranking_view.py:166-167（文脈に除外集合が無いと該当の除外チェックを無効化する。警告文言は無） | 弱 | 規模 小。検証済み。除外が黙って効かない状態は避けているが、警告の文言と、読めた分だけ適用する挙動は違う。Argon の指摘のうち警告文言の欠落は事実 |
-| FL-Y05 | ライブラリの作者一覧・作者詳細で、サムネイル URL を持たない小説に、保存済みの表紙 `cover_{work_id}.*` を作者フォルダ配下から探して表示する | library_tab.py:724-774, 1246-1250, 1673-1675 | 無（`cover_` は novel_bundle_storage.py:15・novel_practical_export.py:126 の書き出し側だけ。library_media_registry.py:197-201 は「ローカルの静止画カタログは小説を扱わない」とし、読み込み側に表紙探索が無い） | 無 | 規模 中。検証済み。リモートのプレビューが使えれば表示されうるが、保存済み表紙を読む経路は無い。Argon の指摘は事実 |
-| FL-Y06 | ライブラリ作者詳細のページ（`p.N`）カードから、そのページ起点で似た絵を探す。作者カードの代表作が未解析なら、同作者の解析済み作品へフォールバックする | library_tab.py:1137-1168, 1196-1219, 1695 | ui/library_view.py:926-929（ページカードの「似た絵を探す」ボタン）、958-975（`query_candidates` に同作者の作品を渡す）、ui/similar_view.py:259-265, 322（候補から検索） | 有 | 検証済み。右クリックではなくボタンだが、ページ起点の検索と代表作のフォールバックはある。Argon の指摘は誤り |
-| FL-Y07 | 学習タブの判定画面で、探索枠から出た候補に「新しい絵柄を試しています」「知らない題材を試しています」のバッジを添える | discovery_tab.py:2680, 2819-2831, 2918-2927 | ui/learning_view.py:993-994（枠の種別を `frame_label` に「確実枠／題材探索枠／絵柄探索枠」と出す） | 弱 | 規模 小。検証済み。枠を知らせる入口はあるが、文言とバッジの形が元と違う。Argon の指摘は一部事実 |
-| FL-Y08 | 学習タブの進捗行に「SuperLike使用: N回」を、1 回以上使ったときだけ出す | discovery_tab.py:136-145, 1876-1877, 1996-1998 | 無（`SuperLike使用`・`superlike_used` を非 legacy の src で grep 0 件。ui/learning_view.py:26-35 に SuperLike ボタンの定義だけ） | 無 | 規模 小。検証済み。Argon の指摘は事実 |
-| FL-Y09 | 学習タブの「概要」板で、説明文の `<a href>` と URL をクリックできるリンク（外部は `↗` つき）にする | discovery_tab.py:853-896, 3751-3780 | ui/learning_view.py:627（`ui.link(run.text + ' ↗')`）、discovery_description.py:143-160（HTML パーサで行ごとの run に分ける） | 有 | 検証済み。Argon の指摘のうちリンク抽出は誤り（書き直されているが同じ機能） |
+| FL-Y01 | 世間ランキングのカードに、好みのタグを持つ作品の順位横へ青ハート印を出し、更新ボタンで好みの集合を引き直す（get_discovery_preferences・build_bounds） | ranking_tab.py:522-541, 822-824, 1276 | 無（`FAVORITE`・`heart`・`has_preferred_tag`・`build_bounds` を非 legacy の src で grep。`build_bounds` は discovery_ranking.py:405 の定義だけで、ランキングのカード描画からは呼ばれない。ui/gallery.py:54-75 にも印が無い） | 無 | 規模 小。検証済み（元 ranking_tab.py:519-544 の `_has_preferred_tag`、822-824 の印、1276 の `_on_refresh`）。Argon の指摘は事実 |
+| FL-Y02 | 自分のランキングの「よく効くタグ」副行を隠す／表示するトグルと、開閉の保存（設定キー `ranking_personal_candidates_open`、既定は開き） | ranking_tab.py:130, 1844-1862, 2146-2166 | ui/personal_ranking_view.py:36-37（`ui.expansion('よく効くタグ', value=True)`。開閉は保存しない） | 弱 | 規模 小。検証済み。開閉の入口はあるが、閉じた状態が次回に残らない。元は `filter_panel.save_json_setting` で保存（ranking_tab.py:1861-1863）。台帳 T 節にも無かったので追加した。Argon の指摘は事実 |
+| FL-Y03 | 自分のランキングで、取得ページ内を作者別ブクマ実績（`seed_bookmarked`）の降順に並べ替える（ページ内だけ。追記しても先に出たものは動かない） | ranking_tab.py:1512-1517, 1708-1715 | personal_ranking.py:279（作者実績の降順・同点は作者 ID・作品 ID）、services.py:1592（`author_seed_bookmarked` を `author_counts` に渡す） | 有 | 検証済み。Argon の指摘のうち、この並べ替えが無いという部分は誤り |
+| FL-Y04 | 自分のランキングで、除外集合の DB 読込に失敗したとき「⚠️一部の除外条件を適用できませんでした」を出す（除外しない側へ倒して警告） | ranking_tab.py:1436-1456, 1640-1642 | ui/personal_ranking_view.py:166-167（文脈に除外集合が無いと該当の除外チェックを無効化する。警告文言は無） | 弱 | 規模 小。検証済み。除外が黙って効かない状態は避けているが、警告の文言と、読めた分だけ適用する挙動は違う。Argon の指摘のうち警告文言の欠落は事実 |
+| FL-Y05 | ライブラリの作者一覧・作者詳細で、サムネイル URL を持たない小説に、保存済みの表紙 `cover_{work_id}.*` を作者フォルダ配下から探して表示する | library_tab.py:724-744, 753-772, 1246-1250, 1673-1675 | 無（`cover_` は novel_bundle_storage.py:15・novel_practical_export.py:126 の書き出し側だけ。library_media_registry.py:197-201 は「ローカルの静止画カタログは小説を扱わない」とし、読み込み側に表紙探索が無い） | 無 | 規模 中。検証済み。リモートのプレビューが使えれば表示されうるが、保存済み表紙を読む経路は無い。Argon の指摘は事実 |
+| FL-Y06 | ライブラリ作者詳細のページ（`p.N`）カードから、そのページ起点で似た絵を探す。作者カードの代表作が未解析なら、同作者の解析済み作品へフォールバックする | library_tab.py:1139-1165, 1196-1216, 1695 | ui/library_view.py:926-929（ページカードの「似た絵を探す」ボタン）、958-975（`query_candidates` に同作者の作品を渡す）、ui/similar_view.py:259-265, 322（候補から検索） | 有 | 検証済み。右クリックではなくボタンだが、ページ起点の検索と代表作のフォールバックはある。Argon の指摘は誤り |
+| FL-Y07 | 学習タブの判定画面で、探索枠から出た候補に「新しい絵柄を試しています」「知らない題材を試しています」のバッジを添える | discovery_tab.py:2819-2828, 2918-2926 | ui/learning_view.py:993-994（枠の種別を `frame_label` に「確実枠／題材探索枠／絵柄探索枠」と出す） | 弱 | 規模 小。検証済み。枠を知らせる入口はあるが、文言とバッジの形が元と違う。Argon の指摘は一部事実 |
+| FL-Y08 | 学習タブの進捗行に「SuperLike使用: N回」を、1 回以上使ったときだけ出す | discovery_tab.py:136-142, 1876-1877, 1996-1998, 2680 | 無（`SuperLike使用`・`superlike_used` を非 legacy の src で grep 0 件。ui/learning_view.py:26-35 に SuperLike ボタンの定義だけ） | 無 | 規模 小。検証済み。Argon の指摘は事実 |
+| FL-Y09 | 学習タブの「概要」板で、説明文の `<a href>` と URL をクリックできるリンク（外部は `↗` つき）にする | discovery_tab.py:3751-3777 | ui/learning_view.py:627（`ui.link(run.text + ' ↗')`）、discovery_description.py:143-160（HTML パーサで行ごとの run に分ける） | 有 | 検証済み。Argon の指摘のうちリンク抽出は誤り（書き直されているが同じ機能） |
 | FL-Y10 | 学習タブで、保存・仕入れなどの重い失敗を、自動で消えず手動の「閉じる」まで残す 2 行の通知枠で出す | discovery_tab.py:853-896（`_discovery_gave_up_toast`） | ui/learning_view.py:1447-1449（補充停止の説明を `refill_status` に常設表示。手動で閉じる通知枠は無） | 弱 | 規模 小。検証済み。消えない通知という目的は常設テキストで満たすが、「閉じる」操作と 2 行枠は無い。FL-I06（判定直後のトースト帯）と同じ領域。Argon の指摘は一部事実 |
-| FL-Y11 | 学習タブ「振り返り」で、ローカルに無い作品の題名・サムネイルを get_work_info で遅延取得し、失敗したら「取得失敗（タップで再取得）」枠に変える | discovery_tab.py:4869-5020, 5054-5055 | ui/learning_view.py:1202-1207（保存済みの題名か作品 ID と「画像未取得」の表示のみ。遅延取得も再取得も無い） | 無 | 規模 中。検証済み。元 4955-5005 は失敗枠のタップで再取得。Argon の指摘のうち遅延取得と再取得枠は事実 |
-| FL-Y12 | 学習タブ「振り返り」の期間絞り込みの「この学習セッション」 | discovery_tab.py:4869-4871, 5329-5331, 5485 | ui/learning_view.py:222（期間 `session`＝「この学習セッション」）、1195（`session_started`） | 有 | 検証済み。台帳 FL-I16 の期間フィルターの記述に含まれており、移植版にもある。Argon の指摘は誤り |
-| FL-Y13 | おすすめタブで、「もっと見る」で展開した後に初期件数へ戻す「畳む」ボタン | recommend_tab.py:1522-1543 | ui/recommend_view.py:455（`ui.button('畳む')`）、`fold` | 有 | 検証済み。Argon の指摘は誤り |
-| FL-Y14 | おすすめの SuperLike 節で、以前に表示できた作品が削除・非公開で取得できなくなったら、「⚠ 表示できません」のカードとして残す | recommend_tab.py:1042-1053, 1165-1192 | 無（`deleted`・`表示できません` を recommendation*.py・ui/recommend_view.py で grep。ui/recommend_view.py:412 の「画像を表示できません」はサムネイル取得の例外用で別の用途） | 無 | 規模 小。検証済み。Argon の指摘は事実 |
+| FL-Y11 | 学習タブ「振り返り」で、ローカルに無い作品の題名・サムネイルを get_work_info で遅延取得し、失敗したら「取得失敗（タップで再取得）」枠に変える | discovery_tab.py:4955-5017, 5329-5331 | ui/learning_view.py:1202-1207（保存済みの題名か作品 ID と「画像未取得」の表示のみ。遅延取得も再取得も無い） | 無 | 規模 中。検証済み。元 4955-5005 は失敗枠のタップで再取得。Argon の指摘のうち遅延取得と再取得枠は事実 |
+| FL-Y12 | 学習タブ「振り返り」の期間絞り込みの「この学習セッション」 | discovery_tab.py:4869-4871, 5054-5055, 5485 | ui/learning_view.py:222（期間 `session`＝「この学習セッション」）、1195（`session_started`） | 有 | 検証済み。台帳 FL-I16 の期間フィルターの記述に含まれており、移植版にもある。Argon の指摘は誤り |
+| FL-Y13 | おすすめタブで、「もっと見る」で展開した後に初期件数へ戻す「畳む」ボタン | recommend_tab.py:1190-1190, 1845-1849, 2418-2422 | ui/recommend_view.py:455（`ui.button('畳む')`）、`fold` | 有 | 検証済み。Argon の指摘は誤り |
+| FL-Y14 | おすすめの SuperLike 節で、以前に表示できた作品が削除・非公開で取得できなくなったら、「⚠ 表示できません」のカードとして残す | recommend_tab.py:1042-1053, 1165-1172 | 無（`deleted`・`表示できません` を recommendation*.py・ui/recommend_view.py で grep。ui/recommend_view.py:412 の「画像を表示できません」はサムネイル取得の例外用で別の用途） | 無 | 規模 小。検証済み。Argon の指摘は事実 |
 | FL-Y15 | おすすめの節（確実枠・boosted）の結果を DB に持ち越し（`recommend_section_carryover`）、開いた直後に即時表示する。空の結果では上書きしない | recommend_tab.py:2285-2299, 1522-1543 | recommendation_state.py:140（`recommend_section_carryover` を読む）、recommendation_acquisition.py:95, 164（持ち越しの保持と、空・失敗で消さない処理） | 有 | 検証済み。Argon の指摘は誤り |
 | FL-Y16 | 借用トークンの失効を先回りで防ぐウォッチャー（`start_token_keeper`。解錠中だけ、失効時刻から逆算して更新） | scheduler.py:137-142 | external_vault.py:1052-1081（`start_keeper`、スレッド `pixivvault-external-token-keeper`）、services.py:788（起動）、ui/external_vault_view.py:379-381、ui/premium_gate_view.py:287 | 有 | 検証済み。Argon の指摘は誤り（名前が違うだけ） |
-| FL-Y17 | 拡張機能連携で、進行中の同一ジョブ（種別と対象 ID が同じ）を新しく作らず再利用する | server.py:1371-1385 | job_service.py:526-532（同じ kind・target_id の未完了ジョブを返す）、extension_application.py:71-85 | 有 | 検証済み。Argon の指摘は誤り |
-| FL-Y18 | `POST /download` で type=work かつ new_only=True を、作者の差分 DL へ変換する | server.py:1614-1633 | 該当なし（拡張機能の経路は work を `new_only=False` 固定で積む。server.py:689-701。移植版 extension_bridge.py:55-60 は work に new_only を許さない） | 意図的削除 | 検証済み。変換が使われるのは iOS／Web 連携の経路（`newOnly`、server.py:775-801）で、本人が除外した範囲。拡張機能からは起きない。Argon の指摘は誤り（対象外） |
+| FL-Y17 | 拡張機能連携で、進行中の同一ジョブ（種別と対象 ID が同じ）を新しく作らず再利用する | server.py:1371-1383 | job_service.py:526-532（同じ kind・target_id の未完了ジョブを返す）、extension_application.py:71-85 | 有 | 検証済み。Argon の指摘は誤り |
+| FL-Y18 | `POST /download` で type=work かつ new_only=True を、作者の差分 DL へ変換する | server.py の _run_web_download_job の new_only 分岐（iOS／Web 連携の経路） | 該当なし（拡張機能の経路は work を `new_only=False` 固定で積む。server.py:689-701。移植版 extension_bridge.py:55-60 は work に new_only を許さない） | 意図的削除 | 検証済み。変換が使われるのは iOS／Web 連携の経路（`newOnly`、server.py:775-801）で、本人が除外した範囲。拡張機能からは起きない。Argon の指摘は誤り（対象外） |
 
 ## 無・弱の規模見積り（FL-Z）
 
@@ -165,7 +165,7 @@
 | FL-I15 | 無 | 2 | 「画像からのタグ補完にはローカルモデルの導入（」discovery_tab.py:4366; 「設定を開く」discovery_tab.py:4367 |
 | FL-I16 | 弱 | 7 | 「『{}』の判定を取り消しました — {}」discovery_tab.py:5302; 「今日は該当なし」discovery_tab.py:5412; 「今日は該当なし」discovery_tab.py:5418 |
 | FL-I18 | 有 | 4 | 「これまでの判定（{}枚）と、そこから学んだ好」gui.py:2195; 「学習状況: リセットに失敗しました: {}」gui.py:2224; 「CSV出力完了: {}」gui.py:2260 |
-| FL-J05 | 有 | 2 | 「R-18を含める」ranking_tab.py:1319; 「AI作品を除外（作品ごとに追加確認するため、」ranking_tab.py:1324 |
+| FL-J05 | 弱 | 2 | 「R-18を含める」ranking_tab.py:1319; 「AI作品を除外（作品ごとに追加確認するため、」ranking_tab.py:1324 |
 | FL-J06 | 有 | 2 | 「タグ検索に失敗しました（{}）」ranking_tab.py:1130; 「タグで絞り込み」ranking_tab.py:1328 |
 | FL-J07 | 有 | 3 | 「取得時刻: {}　{}件」ranking_tab.py:955; 「ランキングを取得できませんでした（{}）」ranking_tab.py:1056; 「ランキングを取得できませんでした（{}）」ranking_tab.py:1067 |
 | FL-J08 | 有 | 2 | 「クリックで画集ビューアを開く」ranking_tab.py:857; 「クリックで画集ビューアを開く」ranking_tab.py:1577 |
@@ -175,7 +175,7 @@
 | FL-J12 | 弱 | 14 | 「DL済みを除外」ranking_tab.py:158; 「出さない作者を除外」ranking_tab.py:159; 「「出さない」登録の作者」ranking_tab.py:159 |
 | FL-K01 | 有 | 10 | 「{} 人の作者中 {} 人を表示 / 全 {」library_tab.py:2203; 「{} 人の作者 / 全 {} 人」library_tab.py:2205; 「pixiv本体の検索に失敗しました（{}）」library_tab.py:2215 |
 | FL-K02 | 弱 | 6 | 「タイトル・作者・タグを検索」library_tab.py:2279; 「ライブラリのみ」library_tab.py:2325; 「pixiv本体も含む」library_tab.py:2326 |
-| FL-K04 | 弱 | 15 | 「このタブでは使いません」filter_panel.py:88; 「データ取得後に使えるようになります」filter_panel.py:89; 「未実装です」filter_panel.py:90 |
+| FL-K04 | 有 | 15 | 「このタブでは使いません」filter_panel.py:88; 「データ取得後に使えるようになります」filter_panel.py:89; 「未実装です」filter_panel.py:90 |
 | FL-K05 | 有 | 1 | 「いま表示している作者ぶんの容量キャッシュを消」library_tab.py:2978 |
 | FL-K06 | 弱 | 12 | 「選択中: 0件」library_tab.py:1875; 「選択をダウンロード」library_tab.py:1876; 「{} 件中 {} 件を表示 / 全 {} 件」library_tab.py:1950 |
 | FL-K07 | 有 | 2 | 「<ContextMenu>」library_tab.py:1168; 「クリックで画集ビューアを開く」library_tab.py:1383 |
@@ -195,6 +195,7 @@
 | FL-M03 | 条件付きで有 | 5 | 「ページを取得できませんでした。」artbook_viewer.py:510; 「画像を取得できませんでした。」artbook_viewer.py:540; 「ブックマークしました。」artbook_viewer.py:673 |
 | FL-M04 | 弱 | 2 | 「次回から表示しません。」artbook_viewer.py:817; 「pixivで作品ページを開く」artbook_viewer.py:860 |
 | FL-M05 | 条件付きで有 | 3 | 「アニメーション」artbook_viewer.py:413; 「うごイラを取得できませんでした。」artbook_viewer.py:448; 「まだうごイラを読み込めていないため保存できま」artbook_viewer.py:1045 |
+| FL-N02 | 弱 | 4 | 「PixivVault ダウンロード完了」server.py:1586; 「{} (id={}) の保存が完了しました！」server.py:1586; 「PixivVault エラー」server.py:1588 |
 | FL-N05 | 弱 | 7 | 「PixivVault 転送完了（一部失敗）」server.py:1308; 「{} の転送が終わりました（成功{}件／失敗」server.py:1309; 「PixivVault 転送完了」server.py:1311 |
 | FL-O01 | 弱 | 2 | 「PixivVault 定期チェック」scheduler.py:227; 「お気に入りの作者から {} 件の作品を保存し」scheduler.py:228 |
 | FL-O02 | 条件付きで有 | 1 | 「起動時にもお気に入り新着チェックを実行する」gui.py:1309 |
@@ -204,7 +205,6 @@
 | FL-Y11 | 無 | 1 | 「タップで再取得」discovery_tab.py:5001 |
 | FL-Y12 | 有 | 2 | 「直近7日」discovery_tab.py:5482; 「直近30日」discovery_tab.py:5483 |
 | FL-Y14 | 無 | 1 | 「⚠ 表示できません」recommend_tab.py:1170 |
-| FL-Y18 | 意図的削除 | 4 | 「PixivVault ダウンロード完了」server.py:1586; 「{} (id={}) の保存が完了しました！」server.py:1586; 「PixivVault エラー」server.py:1588 |
 | FL-Z06 | 有 | 3 | 「user_id={}: 未認証のため、削除の」core.py:1243; 「user_id={}: 今回の一覧に見当たら」core.py:1275; 「以下の作品がPixivから削除されている可能」core.py:1288 |
 | FL-Z07 | 無 | 2 | 「M:\2次\PixivVault」database.py:20; 「M:\2次\PixivVault」database.py:23 |
 | FL-Z09 | 有 | 1 | 「user_id={}: この作者の実物が1つ」core.py:1335 |
