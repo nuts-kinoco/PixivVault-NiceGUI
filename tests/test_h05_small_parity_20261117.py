@@ -100,3 +100,53 @@ async def test_duplicate_mode_chips_are_equal_width_190px_like_original():
             view.close()
     finally:
         client.delete()
+
+
+# ---- FL-L09 おすすめの空状態 ------------------------------------------------
+
+def _recommend_texts(view):
+    return [str(getattr(e, 'text', '')) for e in view.body.descendants() if getattr(e, 'text', None) is not None]
+
+
+@pytest.mark.asyncio
+async def test_recommend_empty_state_offers_jump_to_learning_tab():
+    from types import SimpleNamespace as NS
+    from pixivvault_nicegui.recommendation_state import RecommendationController
+    from pixivvault_nicegui.ui.recommend_view import RecommendView
+    from test_fail7_batch1 import EmptyRecommendationSource
+    jumps = []
+    client = Client(ui.page('/_h05_recommend_empty'))
+    try:
+        with client:
+            view = RecommendView(NS(recommendations=RecommendationController(EmptyRecommendationSource())),
+                                 on_navigate_to_learning=lambda: jumps.append('learning'))
+            view.active = True
+            await view.refresh()
+            texts = _recommend_texts(view)
+            assert 'おすすめの材料がまだありません' in texts                       # 元 recommend_tab.py:2896
+            assert '学習タブで好み・嫌いを判定すると、ここにおすすめが表示されます。' in texts
+            button = next(e for e in view.body.descendants() if getattr(e, 'text', None) == '学習タブへ')
+            click = next(e.handler for e in button._event_listeners.values() if e.type == 'click')
+            click(NS(args={}))
+            assert jumps == ['learning']
+            view.close()
+    finally:
+        client.delete()
+
+
+@pytest.mark.asyncio
+async def test_recommend_empty_state_has_no_button_without_a_destination():
+    from types import SimpleNamespace as NS
+    from pixivvault_nicegui.recommendation_state import RecommendationController
+    from pixivvault_nicegui.ui.recommend_view import RecommendView
+    from test_fail7_batch1 import EmptyRecommendationSource
+    client = Client(ui.page('/_h05_recommend_empty2'))
+    try:
+        with client:
+            view = RecommendView(NS(recommendations=RecommendationController(EmptyRecommendationSource())))
+            view.active = True
+            await view.refresh()
+            assert not any(getattr(e, 'text', None) == '学習タブへ' for e in view.body.descendants())
+            view.close()
+    finally:
+        client.delete()

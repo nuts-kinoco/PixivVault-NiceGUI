@@ -349,6 +349,7 @@ class DemoShell:
             from .recommend_view import RecommendView
             with self.content:
                 self.recommend_view = RecommendView(self.services, card_size=self.card_size, on_size_change=self.change_card_size, on_open=self.open_recommended,
+                    on_navigate_to_learning=lambda: self.show('learning'),
                     on_enqueue=self.services.save_explicit_work if self.services.managed_downloads else None)
         if tab == 'personal' and self.personal_view is None:
             from .personal_ranking_view import PersonalRankingView
