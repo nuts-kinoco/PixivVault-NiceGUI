@@ -12,6 +12,7 @@ UNAVAILABLE_REASONS = {
     'download_interval': '通信間隔の適用先がこの起動では接続されていません。',
     'zip_all_after_download': '作者保存完了後の自動ZIP処理は未接続です。',
     'bookmark_download_mode': '現在の管理保存方式では、既存画像のリンク・移動による配置変更に対応していません。',
+    'nana7mi_shaft_refresh_interval_hours': '借用プレミアムの保管庫がこの起動では接続されていません。',
     'discovery_cache_limit_mode': '学習画像の先読みキャッシュは未接続です。',
     'discovery_cache_size_mb': '学習画像の先読みキャッシュは未接続です。',
     'discovery_cache_size_count': '学習画像の先読みキャッシュは未接続です。',
@@ -24,6 +25,13 @@ CHOICE_LABELS = {
     'epub':'EPUBのみ', 'txt':'TXTのみ', 'both':'EPUBとTXT両方',
     'gif':'GIF動画', 'mp4':'MP4動画', 'folder':'フォルダ（フレームとJSON）',
     'bytes':'メモリ使用量', 'count':'画像枚数', 'direct':'直下にフラット配置', 'link':'作者別フォルダに配置',
+}
+# 値だけのラベル表（CHOICE_LABELS）は '1' '6' '12' '24' を ON/OFF・回数・容量の項目と共有するため、
+# 項目ごとの表示は別に持つ（元 gui.py:1290-1297 の文言）。
+KEY_CHOICE_LABELS = {
+    'nana7mi_shaft_refresh_interval_hours': {
+        '1':'1時間ごと', '6':'6時間ごと', '12':'12時間ごと', '24':'24時間ごと (1日)', '48':'48時間ごと (2日)',
+    },
 }
 CACHE_LIMIT_FIELDS = {
     'bytes': 'discovery_cache_size_mb',
@@ -121,7 +129,8 @@ class PreferencesView:
                 ui.label(group).classes('text-subtitle1')
                 for spec in SPECS:
                     if spec.group!=group or spec.key == 'grid_card_size_mode': continue
-                    options={v:CHOICE_LABELS.get(v, ('ON' if v=='1' else 'OFF') if spec.choices==('0','1') else v) for v in spec.choices}
+                    key_labels=KEY_CHOICE_LABELS.get(spec.key,{})
+                    options={v:key_labels.get(v, CHOICE_LABELS.get(v, ('ON' if v=='1' else 'OFF') if spec.choices==('0','1') else v)) for v in spec.choices}
                     value=self.snapshot.values[spec.key]
                     if spec.key == 'pixiv_actions_enabled' and self.pixiv_actions_mode != 'preferences':
                         value='1' if self.pixiv_actions_mode == 'enabled' else '0'

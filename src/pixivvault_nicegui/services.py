@@ -754,6 +754,10 @@ class ApplicationServices:
                 bind_permission=getattr(self.external_vault.transport,'bind_premium_authorization',None)
                 if callable(bind_permission):bind_permission(self.premium_authorization.require_enabled)
                 self.external_vault.enable_request_budget()
+                # 設定の「借用アカウント自動更新間隔」。値は更新のたびに読むので再起動は要らない。
+                self.external_vault.set_refresh_interval_provider(
+                    lambda: self.preferences.get_setting('nana7mi_shaft_refresh_interval_hours','24')
+                    if self.preferences is not None and not self.closing else None)
                 # Explicit borrowed-account policy: only a resolved App GET
                 # 429 cools that borrower. Existing user-wide STOP remains
                 # authoritative; own-account/OAuth/401/403 are unchanged.
@@ -1024,6 +1028,9 @@ class ApplicationServices:
             if self.discovery is not None:
                 enabled.update(('discovery_cache_limit_mode','discovery_cache_size_mb','discovery_cache_size_count'))
             if self.shared_image_cache.disk is not None:enabled.add('pixiv_disk_thumbnail_cache_size_gb')
+        if (getattr(self,'external_vault',None) is not None
+                and callable(getattr(self.external_vault,'set_refresh_interval_provider',None))):
+            enabled.add('nana7mi_shaft_refresh_interval_hours')
         if self.notifications is not None and self.notifications.available:enabled.add('enable_notifications')
         if self.tray is not None and self.tray.available:enabled.add('minimize_to_tray')
         return enabled

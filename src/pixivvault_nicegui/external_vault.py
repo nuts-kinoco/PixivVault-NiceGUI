@@ -140,13 +140,36 @@ def proactive_wait(slot,now):
     return max(0,slot.get('backoff_until',0)-now,(last+2100-now) if last else 0)
 
 
-def keeper_plan(data,now):
+def periodic_interval_seconds(hours):
+    """元 scheduler.py の読み方: 壊れた値は既定の24時間、1時間未満は1時間に切り上げる。"""
+    if hours is None:return None
+    try:value=int(hours)
+    except (TypeError,ValueError):value=24
+    return max(1,value)*3600
+
+
+def periodic_due_in(slot,now,interval):
+    """最後の更新から設定間隔までの残り秒。更新の記録が無いスロットは対象にしない（安全側）。"""
+    stamp=max(slot.get('last_fetch_at') or 0,slot.get('token_fetched_at') or 0)
+    if not stamp:return None
+    return max(0,stamp+interval-now)
+
+
+def keeper_plan(data,now,interval_hours=None):
+    """interval_hours が None のときは従来どおり有効期限だけで決める。
+
+    指定時は「有効期限に余裕があっても、最後の更新から設定間隔が過ぎた」スロットも更新対象にする
+    （元アプリの定期更新）。対象になったスロットも proactive_wait（35分の下限と backoff）を通る。
+    """
+    interval=periodic_interval_seconds(interval_hours)
     eligible=[];waiting=[];order=[]
     for uid in data['shaft_uids']:
         slot=data['slots'][str(uid)]; left=remaining(slot,now)
         priority=(float('-inf') if left is None else left,slot.get('last_refresh_attempt_at',0),uid)
         order.append(priority)
-        if left is not None and left>600:waiting.append(min(left-600,900))
+        due_in=periodic_due_in(slot,now,interval) if interval is not None and left is not None and left>600 else None
+        if left is not None and left>600 and due_in!=0:
+            waiting.append(min(left-600,900) if due_in is None else min(left-600,due_in,900))
         else:
             wait=proactive_wait(slot,now)
             if wait:waiting.append(min(wait,900))
@@ -1008,16 +1031,24 @@ class ExternalVaultService:
                 epoch,data=self._snapshot()
             if any(s.get('oauth_send_pending',False) for s in data['slots'].values()):
                 raise VaultError('pixiv-outcome-uncertain')
-            uid,fetch,wait=keeper_plan(data,self.clock())
+            uid,fetch,wait=keeper_plan(data,self.clock(),self._refresh_interval_hours())
             if hasattr(self.transport,'online_tick'):wait=min(wait,self.transport.online_tick(self.clock()))
             with self._mutex:self._require_transport_healthy()
             if fetch:self._refresh(epoch,data,uid,proactive=True)
             return self._keeper_next_wait(wait) if fetch else wait
         finally:self._busy.release()
+    def set_refresh_interval_provider(self,provider):
+        """設定の「借用アカウント自動更新間隔（時間）」を返す呼び出し。None を返すか例外なら周期更新は行わない。"""
+        self._refresh_interval_provider=provider
+    def _refresh_interval_hours(self):
+        provider=getattr(self,'_refresh_interval_provider',None)
+        if provider is None:return None
+        try:return provider()
+        except Exception:return None
     def _keeper_next_wait(self,default=300):
         with self._mutex:
             if self._closed or self._data is None:return default
-            _,ready,wait=keeper_plan(self._data,self.clock())
+            _,ready,wait=keeper_plan(self._data,self.clock(),self._refresh_interval_hours())
             return min(default,1 if ready else wait)
     def start_keeper(self,*,expected_epoch=None):
         self._require_premium()
