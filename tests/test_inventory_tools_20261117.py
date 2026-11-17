@@ -477,3 +477,18 @@ def test_addenda_ids_are_valid_targets_and_weak_rows_use_addenda_state(tmp_path,
     assert cic.main([]) == 0
     out = capsys.readouterr().out
     assert "未解決の差: 1 件" in out and "無 1 行" in out                     # FL-Y01 は追記の状態が「無」
+
+
+def test_reverse_exemption_needs_a_reason_and_manual_reasons_are_checked(tmp_path, monkeypatch, capsys):
+    mapping = _mp(auto={"inv-a": {"fl": "FL-A01", "method": "range"}, "inv-b": {"fl": "FL-B02", "method": "range"}})
+    ledger = GAP_LEDGER.replace("core.py:1-5", "gui.py:1-5").replace("| gui.py:900-905 | | 有 | |", "| gui.py:900-905 | | 有 | 逆方向除外:関数内の文で列挙対象外 |")
+    _setup_repo(tmp_path, monkeypatch, mapping, ITEMS, ledger=ledger)
+    assert cic.main(["--strict-reverse"]) == 0
+    assert "理由つきで除外した台帳行: 1 ['FL-A02']" in capsys.readouterr().out
+    empty = GAP_LEDGER.replace("core.py:1-5", "gui.py:1-5").replace("| gui.py:900-905 | | 有 | |", "| gui.py:900-905 | | 有 | 逆方向除外: |")
+    _setup_repo(tmp_path, monkeypatch, mapping, ITEMS, ledger=empty)
+    assert cic.main(["--strict-reverse"]) == 2           # 理由が空なら除外しない
+    capsys.readouterr()
+    bad = dict(mapping, manual_reasons={"inv-zzz": "x"}, manual={})
+    _setup_repo(tmp_path, monkeypatch, bad, ITEMS, ledger=ledger)
+    assert cic.main([]) == 2                              # 存在しない項目の理由は整合エラー

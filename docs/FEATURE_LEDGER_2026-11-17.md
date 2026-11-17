@@ -62,7 +62,7 @@
 | FL-B08 | 共有ログ欄（各タブ下部、折りたたみ、色分け、タイムスタンプ、タブごと表示切替 `LOG_HIDDEN_TABS`） | gui.py:591-640, 108-122 | 無（共通ログ欄は無い。各画面のステータスラベルで代替） | 弱 | 大。ダウンロード系の詳細ログは `download_status_details.py` 等へ分散。元の「ログ欄」自体は無い。元でも主要タブは非表示（`LOG_HIDDEN_TABS` に 9 タブ全て）のため影響は限定的 |
 | FL-B09 | スナックバー通知（成功=緑/警告/エラー） | gui.py:642-680 | NiceGUI `ui.notify`（duplicate_view.py:665 他） | 有 | 形は違うが同等 |
 | FL-B10 | 借用プレミアム（旧 nana7mi）トグルとラベル、ON でパスワード/署名キー/UID ダイアログ | gui.py:818-1065 | shell.py:105-117、ui/premium_gate_view.py、external_vault*.py | 条件付きで有 | `external_vault` 構成のときのみ（shell.py:96-113、非構成時は無効スイッチ）。fix-g（ポップアップの原本一致・「有効な状態を保存しますか」廃止・回復操作）は **5ca397a で取り込み済み**（ui/premium_gate_view.py、premium_recovery_view.py、premium_uid_file.py。文言・挙動の実機確認は未実施） |
-| FL-B11 | DB 状態バナー（`db_status_banner`） | gui.py:6126 | 無 | 無 | 小。元は gui.py:470-483 で「DB: <パス>」を常時表示し、本番DB なら赤帯「⚠️⚠️ 本番DBを使用中」。移植版に「本番DB/DBを使用」を grep 0 件 |
+| FL-B11 | DB 状態バナー（`db_status_banner`） | gui.py:470-483, 6126 | 無 | 無 | 小。元は gui.py:470-483 で「DB: <パス>」を常時表示し、本番DB なら赤帯「⚠️⚠️ 本番DBを使用中」。移植版に「本番DB/DBを使用」を grep 0 件 |
 | FL-B12 | 初回起動時の「ようこそ」類 | 元に無し | なし | — | 台帳対象外（本人未指示の機能は入れない方針） |
 
 ## C. 設定ダイアログ（gui.py:1561-2430 全文確認）と config キー
@@ -172,7 +172,7 @@
 | FL-I01 | 判定 4 種（見送る←/A/1、合わない↓/S/2、いいね→/D/3、SuperLike↑/W/4） | gui.py:6027-6063、discovery_tab.py:2585-2770 | ui/learning_view.py:26-28, 280-300（JS の `map`）、173 | 有 | キー対応表が一致。`SuperLike` の 4 つ目は JS 側（learning_view.py:287-291）で確認 |
 | FL-I02 | Ctrl+Z で直前の判定を取り消す、取り消すボタン（ツールチップ「直前の判定を取り消す Ctrl+Z」） | gui.py:6047-6050、discovery_tab.py:2510-2553 | learning_view.py:177-178, 236-250（`ctrlKey && z`） | 有 | FOLLOWUP D06 で決着済み |
 | FL-I03 | Esc で概要の板を閉じる（他は判定に落とさない） | gui.py:6053-6059 | learning_view.py:280-292 | 有 | |
-| FL-I04 | 学習タブ以外ではキーを無視、入力欄・IME 中は無視 | gui.py:6042-6043 | learning_view.py:236-262（`isComposing`/`tag` 判定） | 有 | 要素単位の `keydown`（ページ全体フックではない） |
+| FL-I04 | 学習タブ以外ではキーを無視、入力欄・IME 中は無視 | gui.py:6038-6043 | learning_view.py:236-262（`isComposing`/`tag` 判定） | 有 | 要素単位の `keydown`（ページ全体フックではない） |
 | FL-I05 | 「合わない」後の理由 2 択チップ「何が合いませんでしたか？ 絵柄／ジャンル」（任意・無視すると「タグだけ下げる」） | discovery_tab.py:1701-1765 | 無（`learning_view.py` に `reason` 表示なし。`learning_repository.py:75-79` と `legacy/database.py:34 VALID_HATE_REASONS` はデータ層のみ） | 無 | **小〜中**。データ層は残っているので UI の追加のみ。好みの学習精度に直結。FOLLOWUP/KNOWN_ISSUES に記録なし（見落とされていた） |
 | FL-I06 | 判定直後のトースト帯「判定しました ／取り消す」（5 秒、理由帯と共存） | discovery_tab.py:1528-1700 | learning_view.py:734（`status` に「判定を保存しています…」）、177（常設 Undo ボタン） | 弱 | 時限付きの取り消し帯は無く常設ボタンのみ。小 |
 | FL-I07 | 画像が表示されるまで判定不可（`画像を読み込んでいます`／`画像を見ないままの判定はできません`／再試行） | discovery_tab.py:399, 2384-2386, 409-448 | learning_view.py:1050-1069, 179（`画像を再読込`） | 有 | |
@@ -206,7 +206,7 @@
 | FL-J11 | 「自分のランキング」モード（ランキングタブ内で世間/自分を切替、選択タグ・フィルター・カード・よく効くタグ・タグ AND 検索） | ranking_tab.py:2397-2430, 1436-2400 | ui/personal_ranking_view.py:26-50、shell.py の `personal` タブ（`external_vault` または `live_client` が無いと非表示: shell.py ナビ生成部） | 条件付きで有 | ランキングタブ内の切替から独立タブへ変更。旧 K09。タグ入力が「1 行に 1 件のテキストエリア」でチップ＋Enter 追加ではない（弱の側面）。R-18 は原 API 未対応で無効（personal_ranking_view.py:31）→ 元でも同じかは未確認 |
 | FL-J12 | 自分のランキングの絞り込み（ブクマ数下限プリセット、並び順、投稿日、含む/除外タグ、1 作者の上限、保存済み/非表示作者/非表示作品/合わない を除外、条件の保存・クリア、有効条件チップ） | ranking_tab.py:1921-2350, 165-346 | personal_ranking_view.py:27-50 | 弱 | `ranking_personal_filters` に相当（保存: `この条件を保存`）。有効条件チップの表示は未確認。**2026-11-17 に Argon 指摘を元と移植版で再読して検証（事実・規模 中）**。差: (1) 有効条件(NOW)チップ行（1 クリックで個別解除）が移植版に無い。元 ranking_tab.py:2315-2350 _personal_active_chips、移植版 ui/personal_ranking_view.py:27-63 にチップ UI なし。(2) ブクマ数下限・並び順・「条件をクリア」で再検索が走らない。元 ranking_tab.py:1935-1947, 2012-2022 は re_search=True、移植版 168-184 は _show_unfetched() で「未取得」へ戻し「取得・更新」待ち。(3) R-18 スイッチは元が既定 ON（ranking_tab.py:2135）、移植版は常時 disabled・既定 False（personal_ranking_view.py:32）。ただし元も R-18 を API へ送らない（pixiv_client.py:1361-1460 の params に r18 無し）ので検索結果は同じで、差は表示だけ。保存・含む除外タグ・上限・除外 4 種・クリアは有 |
 | FL-J13 | タブ初回表示で pixiv ランキングを自動取得（`on_tab_open`） | ranking_tab.py:1387-1435 | ranking_view.py:283-289（`set_active` → `_schedule_first_load`）、fix-d df78ff0 | 有 | 実画面確認は未実施 |
-| FL-J14 | 画集ビューアをタブ離脱時に閉じる | gui.py:5987-6002 | gallery.py:`set_viewer_active`（learning_view と同形: viewer_controller.py:95-97） | 有 | |
+| FL-J14 | 画集ビューアをタブ離脱時に閉じる | gui.py:5987-6002 | gallery.py:`set_viewer_active`（learning_view と同形: viewer_controller.py:95-97） | 有 | 逆方向除外:引用先 gui.py:5987-6002 は main_window の中のタブ切替ハンドラの本文（if 文の連なり）で、inventory が列挙する関数・文言・ハンドラの項目が無い（2026-11-18 に確認）。 |
 
 ## K. ライブラリ（library_tab.py 3216 行）
 
@@ -271,7 +271,7 @@
 | ID | 元の操作・機能 | 元の場所 | 移植版の場所 | 状態 | 根拠 / 備考 |
 |---|---|---|---|---|---|
 | FL-O01 | 定期チェック（お気に入り作者を間隔で自動チェック→新規保存を通知）。対象＝DB の `is_favorite=1` 作者全員 | scheduler.py:56-230 | managed_scheduler.py、ui/scheduler_view.py:29-50（対象は「お気に入り作者ID（カンマ区切り、最大128件）」を手入力。台帳 `managed_scheduler.py:116` が独自の `favourite_authors` を持ち、旧 DB の `is_favorite` とは連動しない（services.py の `is_favorite` 参照は作者一覧の ☆ 表示のみ: 1849, 1864））、services.py:2886-2890 | 弱 | **対象の決め方が違う**。元は ☆ を付けた全員（FL-D05）を自動で対象。移植版は画面で ID を手入力（最大 128 件）。☆ との連動が無ければ元の運用はできない。中。旧 T02（履歴・状態）は scheduler_view.py:49-50 で有 |
-| FL-O02 | 起動時チェック（`check_on_startup`） | gui.py:1308、scheduler.py | scheduler_view.py:36 | 条件付きで有 | FL-C05 |
+| FL-O02 | 起動時チェック（`check_on_startup`） | gui.py:1304-1311, scheduler.py | scheduler_view.py:36 | 条件付きで有 | FL-C05 |
 | FL-O03 | 実行中ダウンロードがある間はスケジュールをずらす | scheduler.py:91 `_download_is_running` | managed_scheduler.py（`resume`/`pause` 系）、services.py | 有 | 構造対応のみ確認（本体未読） |
 | FL-O04 | 借用アカウントの自動更新（間隔設定、起動ごとに叩かない） | scheduler.py:125-175 | external_vault.py:144-175、services.py:1038-1040 | 条件付きで有 | fix-e 取り込み済み |
 | FL-O05 | メタデータ後埋めの自動実行（`meta_backfill_enabled` ON 時） | scheduler.py:104-123 | metadata_view.py:28（自動通信しない） | 弱 | FL-C20 と同一原因。重複計上しない |

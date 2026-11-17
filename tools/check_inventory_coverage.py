@@ -9,7 +9,8 @@
   幅 RULE_NARROW_MAX 行以内 → tier A / scope が function・file で幅 UNIT_MAX 行以内 → tier B / それより広い規則 → tier C(rule-wide)。
 対応先の台帳の判定が「無」「弱」の項目と、元の UI 文言が移植版に見つからない項目(port_text_missing)は、
 「未解決の差」として別集計する(対応づけ済みでも差は残っているため。--strict-gaps で非 0 終了)。
-引用範囲に inventory 項目が 0 件の台帳行は逆方向の警告として出す(--strict-reverse でエラー)。
+引用範囲に inventory 項目が 0 件の台帳行は逆方向の警告として出す(--strict-reverse でエラー)。列挙対象外を引用する行は、備考に「逆方向除外:<理由>」を書けば理由つきで除外できる。
+ledger_map.json の manual_reasons は manual の各項目の根拠(file:line と理由)で、存在しない項目・空の理由は整合エラー。
 使い方: python -B tools/check_inventory_coverage.py [--list N] [--json OUT] [--strict-weak] [--strict-all] [--strict-gaps] [--strict-reverse]
 """
 from __future__ import annotations
@@ -35,6 +36,9 @@ GAP_STATES = ("無", "弱")     # 台帳の状態がこれで始まる行に結�
 
 # フレームワークが getattr などで動的に呼ぶメソッド。静的な参照数が 0 でも「呼び出し元なし」にしない
 DYNAMIC_DISPATCH = re.compile(r"(?:^|\.)(?:do_[A-Z]+|log_message|log_request|log_error|handle|handle_one_request|setup|finish|run|emit)$")
+
+
+EXEMPT_RE = re.compile(r"逆方向除外[:：]([^。|]*)")
 
 
 def split_targets(t: str):
@@ -181,6 +185,11 @@ def main(argv=None):
         ok, why = valid_target(v, fl_ids)
         if not ok:
             errors.append("table/column rule %s: %s" % (k, why))
+    for k, v in mp.get("manual_reasons", {}).items():
+        if k not in ids:
+            errors.append("manual_reasons に inventory に無い項目: " + k)
+        elif not str(v).strip():
+            errors.append("manual_reasons の理由が空: " + k)
     bad_auto = [k for k in mp.get("auto", {}) if k not in ids]
     if bad_auto:
         errors.append("auto に inventory に無い項目 %d 件(inventory 再生成後に build_ledger_map.py を実行): %s" % (len(bad_auto), bad_auto[:3]))
@@ -277,11 +286,20 @@ def main(argv=None):
     for it in items:
         by_file.setdefault(it["file"], []).append(it["line"])
     empty_rows = []
+    exempt_rows = {}
     for fid, r in rows.items():
         if r["refs"] and not any(a_ <= ln <= b_ for f_, a_, b_ in r["refs"] for ln in by_file.get(f_, [])):
-            empty_rows.append(fid)
+            # 引用先が列挙の対象外(非公開メソッド・関数内の文・定数など)で、inventory に項目が無い行は、
+            # 備考(根拠)に「逆方向除外:<理由>」と書けば、理由つきの除外として警告から外す(理由が空なら除外しない)
+            mm = EXEMPT_RE.search(r["note"])
+            if mm and mm.group(1).strip():
+                exempt_rows[fid] = mm.group(1).strip()
+            else:
+                empty_rows.append(fid)
     print("参考: 台帳の設定キー索引(T)にあるが inventory に無いキー:", t_missing or "なし")
     print("警告: 引用範囲に inventory 項目が 0 件の台帳行(行番号のずれ・引用形式の不備の疑い):", len(empty_rows), empty_rows)
+    if exempt_rows:
+        print("参考: 逆方向の検査から理由つきで除外した台帳行:", len(exempt_rows), sorted(exempt_rows))
     if a.strict_reverse:
         for fid in empty_rows:
             errors.append("逆方向: %s の引用範囲に inventory 項目が 0 件" % fid)
