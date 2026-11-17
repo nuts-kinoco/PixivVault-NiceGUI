@@ -3014,9 +3014,13 @@ class ApplicationServices:
 
     def _metadata_candidates(self, ledger, limit):
         from .metadata_policy import MetadataCandidate, select_candidates
-        snapshot = self.managed_downloads.catalog_snapshot(verify_pages=False)
+        try:
+            receipts = self.managed_downloads.catalog_snapshot(verify_pages=False).receipts
+        except Exception:
+            # 保存済みの 1 件が壊れていても、一覧全体を止めない。壊れた作品だけ候補から外す。
+            receipts, _skipped = self.managed_downloads.saved_receipts_tolerant(verify_pages=False)
         rows = []
-        for _relative, receipt, digest in snapshot.receipts:
+        for _relative, receipt, digest in receipts:
             try:
                 work_id, author_id = receipt['work_id'], receipt['author_id']
                 prior = ledger.entry(work_id)

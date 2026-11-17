@@ -26,6 +26,10 @@ from .metadata_transport import (
 _ID = re.compile(r'[1-9][0-9]{0,19}\Z')
 
 
+class _ActiveUnavailable(MetadataLedgerError):
+    """The saved state of one work could not be read; the run skips that work."""
+
+
 @dataclass(frozen=True, slots=True)
 class MetadataRunSummary:
     target: int = 0
@@ -66,7 +70,7 @@ class ManagedMetadataBackfillRunner:
         try:
             value = callback(work_id)
         except Exception:
-            raise MetadataLedgerError('active managed receipt unavailable') from None
+            raise _ActiveUnavailable('active managed receipt unavailable') from None
         if value is None:
             return None
         if type(value) is not str or not re.fullmatch(r'[a-f0-9]{64}\Z', value):
@@ -146,7 +150,12 @@ class ManagedMetadataBackfillRunner:
                     return self._stopped(
                         summary, 'cancelled' if stop_event and stop_event.is_set()
                         else 'download_busy')
-                digest = self._active_digest(self._active, candidate.work_id)
+                try:
+                    digest = self._active_digest(self._active, candidate.work_id)
+                except _ActiveUnavailable:
+                    # この作品の保存済みデータが読めない（壊れた・消えた）。他の作品へ進む。
+                    summary['skipped'] += 1
+                    continue
                 if digest is None:
                     summary['skipped'] += 1
                     continue
