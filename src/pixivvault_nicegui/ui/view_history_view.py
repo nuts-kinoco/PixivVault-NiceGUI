@@ -31,6 +31,8 @@ class HeaderHistoryHost:
         self.discovery = getattr(shell.services, 'discovery', None)
         self.status = _NoticeStatus()
         self.storage = storage
+        # ダイアログ（Quasar のオーバーレイ）はビューアーより前面に出るので、作品を開くときは閉じる。
+        self.close_dialog_on_open = True
 
     @property
     def active(self):
@@ -188,6 +190,7 @@ class ViewHistoryView:
             selection = SimpleNamespace(closed=False, artwork=artwork, images=pin,
                 close=(lambda:None) if pin is self.parent.services.images else pin.close)
             self.viewer.show(selection,card_size='large')
+            if getattr(self.parent,'close_dialog_on_open',False):self.dialog.close()
         except Exception:
             if pin is not None and pin is not self.parent.services.images:pin.close()
             self.parent.status.set_text('作品を表示できません。取得状態を確認してください。')
