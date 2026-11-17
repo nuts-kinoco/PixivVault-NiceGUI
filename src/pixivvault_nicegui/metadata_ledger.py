@@ -569,6 +569,48 @@ class ManagedMetadataLedger:
                 raise MetadataLedgerError('metadata operation no longer current')
             self._same_epoch_unknown.add((wid, base))
 
+    def reset_gave_up(self) -> int:
+        """「取れなかったものをもう一度」: 諦めた作品を待機へ戻す。通信はしない。
+
+        元の reset_meta_attempts 相当。回数を 0 に戻すだけで、取得は次の実行で行う。
+        """
+        with self._lock:
+            self._ensure_open()
+            self._db.execute('BEGIN IMMEDIATE')
+            try:
+                cur = self._db.execute(
+                    "UPDATE metadata SET state='pending',attempts=0 "
+                    "WHERE state='gave_up' AND lease_id IS NULL AND lease_epoch IS NULL")
+                count = cur.rowcount
+                if count:
+                    self._db.execute('UPDATE settings SET revision=revision+1 WHERE id=1')
+                self._db.execute('COMMIT')
+                return count
+            except BaseException:
+                self._db.execute('ROLLBACK')
+                raise
+
+    def resume_all_blocked(self) -> int:
+        """全体障害で保留した作品を待機へ戻す。呼ぶ側が間隔を空ける責任を持つ。
+
+        自動実行は 15 分以上のバックオフを置いてから呼ぶ。通信はしない。
+        """
+        with self._lock:
+            self._ensure_open()
+            self._db.execute('BEGIN IMMEDIATE')
+            try:
+                cur = self._db.execute(
+                    "UPDATE metadata SET state='pending' "
+                    "WHERE state='blocked' AND lease_id IS NULL AND lease_epoch IS NULL")
+                count = cur.rowcount
+                if count:
+                    self._db.execute('UPDATE settings SET revision=revision+1 WHERE id=1')
+                self._db.execute('COMMIT')
+                return count
+            except BaseException:
+                self._db.execute('ROLLBACK')
+                raise
+
     def verified_overlay(self, work_id: str, active_receipt_sha256: str) -> dict | None:
         """Only a complete record bound to the current managed generation."""
         wid, digest = _work_id(work_id), _fingerprint(active_receipt_sha256)

@@ -21,6 +21,13 @@ UNAVAILABLE_REASONS = {
     'pixiv_disk_thumbnail_cache_size_gb': '専用ディスクキャッシュへの適用は未接続です。',
     'minimize_to_tray': 'Windowsトレイの接続がこの起動では利用できません。',
     'enable_notifications': 'Windows通知の実行依存（win11toast）がこの環境にはありません。',
+    'meta_backfill_enabled': 'この起動ではPixivの取得元または専用保存先が接続されていないため、自動後埋めは動きません。',
+}
+# 元 gui.py の _settings_item_desc 相当（項目の下に出す説明）。
+DESCRIPTIONS = {
+    'meta_backfill_enabled': (
+        'ブックマーク数・いいね数・閲覧数などは、作品ごとに詳細を1回ずつ取りに行かないと分かりません。'
+        'ダウンロード中・取得停止中は動かず、終わるまで待ちます。'),
 }
 CHOICE_LABELS = {
     'epub':'EPUBのみ', 'txt':'TXTのみ', 'both':'EPUBとTXT両方',
@@ -155,6 +162,9 @@ class PreferencesView:
                     control.on_value_change(acknowledge)
                     control.set_enabled(spec.key in self.enabled_keys)
                     self.controls[spec.key]=control
+                    if spec.key in DESCRIPTIONS:
+                        ui.label(DESCRIPTIONS[spec.key]).classes('text-caption text-grey').props(
+                            f'data-testid=preference-description-{spec.key}')
                     if spec.key == 'pixiv_actions_enabled':
                         notice=('変更は次回の通常起動から適用されます。Cookieの参照先が必要です。'
                                 if spec.key in self.enabled_keys else self.reasons[spec.key])

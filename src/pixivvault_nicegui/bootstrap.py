@@ -597,6 +597,12 @@ def register_pages(learning_sandbox: Path | None = None,
                 model_file=similarity_model_file, provider=similarity_provider)
             if similarity_auto:
                 app.on_startup(services.start_similarity_analysis)
+        # 元 scheduler.py:104-123 相当の自動後埋め。設定（既定 ON）に従い、取得停止ゲートと
+        # ダウンロード優先を通すループを 1 本だけ立てる。通信は最初の周（60 秒後）まで起きない。
+        from .pixiv_read_client import LivePixivReadClient
+        if (services.managed_downloads is not None and services.preferences is not None
+                and isinstance(services.live_client, LivePixivReadClient)):
+            app.on_startup(services.start_metadata_auto)
         if services.managed_downloads is not None and (extension_bridge or
                 (services.managed_downloads.root / 'extension-commands').exists()):
             services.enable_extension_commands()

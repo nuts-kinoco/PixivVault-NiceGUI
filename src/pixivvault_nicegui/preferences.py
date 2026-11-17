@@ -34,6 +34,8 @@ SPECS = (
     PreferenceSpec('download_interval', 'ダウンロード待機時間（秒）', '0.6', ('0.3','0.4','0.5','0.6','1.0','1.5'), '通信'),
     PreferenceSpec('api_retry_count', '通信エラー時リトライ上限回数', '3', ('1','3','5','10'), '通信'),
     PreferenceSpec('api_retry_wait', '429レート制限時待機時間（秒）', '5.0', ('3.0','5.0','10.0','30.0'), '通信'),
+    # 既定は ON（本人の裁定）。元 gui.py:1789 の meta_backfill_enabled は既定 OFF だった。
+    PreferenceSpec('meta_backfill_enabled', 'メタデータ（ブックマーク数など）をバックグラウンドで自動的に埋める', '1', ('0','1'), '作品メタデータ'),
     PreferenceSpec('discovery_cache_limit_mode', '学習: 先読みキャッシュ上限指定方法', 'bytes', ('bytes','count'), 'キャッシュ'),
     PreferenceSpec('discovery_cache_size_mb', '学習: 先読みキャッシュ上限（MB）', '512', ('512','1024','2048','4096'), 'キャッシュ'),
     PreferenceSpec('discovery_cache_size_count', '学習: 先読みキャッシュ上限（枚）', '100', ('50','100','200','500','1000'), 'キャッシュ'),
