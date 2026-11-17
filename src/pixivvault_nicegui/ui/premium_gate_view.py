@@ -70,15 +70,15 @@ class PremiumGateDialog:
         with ui.dialog() as self.recovery_dialog:
             with ui.card().classes('w-full max-w-md gap-3'):
                 ui.label('通信結果の確認').classes('text-h6')
-                self.recovery=PremiumRecoveryPanel(gate.vault,gate=gate,on_change=self._recovery_changed)
+                self.recovery=PremiumRecoveryPanel(gate.vault,gate=gate,on_change=self._recovery_changed) if getattr(gate,'vault',None) is not None else None
                 ui.button('閉じる',on_click=self.recovery_dialog.close).props('flat data-testid=premium-recovery-close')
         self.recovery_open.set_visibility(self.recovery_visible())
         self.notice=ui.label(vault_unlock_error_message(gate.status().get('error')) or '').props('role=status data-testid=premium-permission-status')
         ui.context.client.on_delete(self.close)
     def recovery_visible(self):
-        return self.recovery.unconfirmed()
+        return bool(self.recovery is not None and self.recovery.unconfirmed())
     def open_recovery(self):
-        if self.closed:return
+        if self.closed or self.recovery is None:return
         self.recovery.render();self.recovery_dialog.open()
     def _recovery_changed(self):
         if self.closed:return
@@ -299,7 +299,8 @@ class PremiumGateDialog:
                 self._close_password_dialog();self._set_dialog_error('')
                 self._show_legacy(False);self._clear_uids();self._reset_password();self._reset_legacy();self._reset_secret()
             self.gate.end_prompt()
-            if not self.closed:self.recovery_open.set_visibility(self.recovery_visible());self.recovery.render()
+            if not self.closed:self.recovery_open.set_visibility(self.recovery_visible())
+            if not self.closed and self.recovery is not None:self.recovery.render()
             if self.on_change and not self.closed:self.on_change()
     def close(self):
         if self.closed:return

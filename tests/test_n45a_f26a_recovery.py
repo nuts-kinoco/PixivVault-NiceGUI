@@ -57,6 +57,7 @@ async def test_prompt_replaces_even_an_already_empty_server_value(tmp_path,monke
 async def test_failed_then_correct_authentication_discards_old_input(tmp_path,monkeypatch):
     monkeypatch.setattr(core,'loop',asyncio.get_running_loop())
     password,now,vault,gate,transport=fixture(tmp_path)
+    monkeypatch.setattr(vault,'start_keeper',lambda *a,**k:None)  # the keeper's own refresh is not under test here
     client=Client(ui.page('/_n45_failed'));task=None
     try:
         with client:dialog=PremiumGateDialog(gate,default_uid_path=None)
