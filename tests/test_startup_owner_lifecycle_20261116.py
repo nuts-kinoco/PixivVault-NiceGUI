@@ -25,6 +25,14 @@ from test_stage5_r1_native_first_draft_shared import _stub_native
 def isolated(tmp_path):
     (tmp_path / '.pixivvault-isolated-test-workspace').write_bytes(
         b'PixivVault isolated source test workspace v1\n')
+    # 同一プロセスで先に走った試験が、終了済み(closing)の ApplicationServices を
+    # NiceGUI のグローバル app.state に残すことがある。実際の起動は 1 プロセス 1 回で
+    # 起きないため、この試験の起動が拒否されないよう、残骸だけを取り除く。
+    from nicegui import app
+    from pixivvault_nicegui.services import _APP_KEY
+    stale = getattr(app.state, _APP_KEY, None)
+    if stale is not None and getattr(stale, 'closing', False):
+        delattr(app.state, _APP_KEY)
     with isolated_test_workspace(tmp_path):
         yield tmp_path
 
