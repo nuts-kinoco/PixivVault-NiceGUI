@@ -49,6 +49,7 @@ class DemoShell:
         self.borrow_switch=None
         self._borrow_timer=None
         self.borrow_dialog=None
+        self.borrow_recovery_button=None
         self.buttons: dict[str, ui.button] = {}
         self.client.on_delete(self.close)
         ui.add_css(CSS)
@@ -95,6 +96,10 @@ class DemoShell:
                         self.borrow_dialog.reflect_uid_file_at_startup()
                     self.borrow_switch=ui.switch('借用プレミアム',on_change=self.borrow_changed).props(
                         'data-testid=premium-borrow-toggle')
+                    if self.borrow_dialog is not None:
+                        # Shown only while a Pixiv result is unconfirmed (the Shaft tab no longer exists).
+                        self.borrow_recovery_button=ui.button('通信結果を確認',on_click=self.borrow_dialog.open_recovery).props(
+                            'flat dense no-caps data-testid=premium-recovery-shell')
                     self._borrow_timer=ui.timer(1,self.sync_borrow)
                     self.sync_borrow()
                 else:
@@ -174,6 +179,8 @@ class DemoShell:
         self._syncing_borrow=True
         try:self.borrow_switch.set_value(bool(status.get('enabled') if gate is not None else status.get('open')))
         finally:self._syncing_borrow=False
+        if self.borrow_recovery_button is not None and self.borrow_dialog is not None:
+            self.borrow_recovery_button.set_visibility(self.borrow_dialog.recovery_visible())
     async def borrow_changed(self,event):
         if self._syncing_borrow or self.closed:return
         vault=self.services.external_vault

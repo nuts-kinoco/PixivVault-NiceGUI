@@ -3,6 +3,7 @@ import asyncio
 from pathlib import Path
 from nicegui import ui
 from ..external_vault import VaultError, VAULT_INTEGRITY_ERRORS
+from .premium_recovery_view import PremiumRecoveryPanel
 from ..premium_uid_file import DEFAULT_UID_PATH, read_uid_file, uid_text_errors, apply_uid_file
 
 def vault_unlock_error_message(code):
@@ -60,11 +61,31 @@ class PremiumGateDialog:
                     self.uid_upload=ui.upload(on_upload=self.pick_uid_file,on_rejected=self.reject_uid_file,
                         multiple=False,max_file_size=65536,auto_upload=True,label='UID\u4e00\u89a7 txt \u3092\u9078\u629e').props('accept=.txt data-testid=premium-uid-upload')
                     self.uid_notice=ui.label('').props('role=status data-testid=premium-uid-count')
+                # Leaving an unconfirmed Pixiv result (the old "Shaft連携" tab is gone).
+                self.recovery_open=ui.button('未確認の通信結果を確認する',on_click=self.open_recovery).props(
+                    'flat dense data-testid=premium-recovery-open')
                 with ui.row().classes('w-full justify-end'):
                     ui.button('キャンセル',on_click=lambda:self.password_dialog.submit(False)).props('flat')
                     self.confirm_button=ui.button('\u6709\u52b9\u306b\u3059\u308b',on_click=lambda:self.password_dialog.submit(True)).props('data-testid=premium-password-confirm')
+        with ui.dialog() as self.recovery_dialog:
+            with ui.card().classes('w-full max-w-md gap-3'):
+                ui.label('通信結果の確認').classes('text-h6')
+                self.recovery=PremiumRecoveryPanel(gate.vault,gate=gate,on_change=self._recovery_changed)
+                ui.button('閉じる',on_click=self.recovery_dialog.close).props('flat data-testid=premium-recovery-close')
+        self.recovery_open.set_visibility(self.recovery_visible())
         self.notice=ui.label(vault_unlock_error_message(gate.status().get('error')) or '').props('role=status data-testid=premium-permission-status')
         ui.context.client.on_delete(self.close)
+    def recovery_visible(self):
+        return self.recovery.unconfirmed()
+    def open_recovery(self):
+        if self.closed:return
+        self.recovery.render();self.recovery_dialog.open()
+    def _recovery_changed(self):
+        if self.closed:return
+        visible=self.recovery_visible()
+        self.recovery_open.set_visibility(visible)
+        if not visible and '停止したまま' in (self.notice.text or ''):self.notice.set_text('')
+        if self.on_change:self.on_change()
     def _wait_message(self):
         state=self.gate.status()
         return f"しばらく待ってから、もう一度「有効にする」を押してください（あと{int(state['retry_after'])+1}秒）。"
@@ -188,6 +209,7 @@ class PremiumGateDialog:
                 self.notice.set_text(f"しばらく待ってから操作してください（あと{int(state['retry_after'])+1}秒）。")
                 return
             self._show_legacy(False);self._reset_password();self._reset_secret();self._set_dialog_error('')
+            self.recovery_open.set_visibility(self.recovery_visible())
             # The fixed UID file is read every time the popup opens (original).
             self._load_default_uids()
             while True:
@@ -277,6 +299,7 @@ class PremiumGateDialog:
                 self._close_password_dialog();self._set_dialog_error('')
                 self._show_legacy(False);self._clear_uids();self._reset_password();self._reset_legacy();self._reset_secret()
             self.gate.end_prompt()
+            if not self.closed:self.recovery_open.set_visibility(self.recovery_visible());self.recovery.render()
             if self.on_change and not self.closed:self.on_change()
     def close(self):
         if self.closed:return

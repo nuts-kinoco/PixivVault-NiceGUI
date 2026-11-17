@@ -1,6 +1,7 @@
 """Per-client explicit settings form; unsupported consumers remain unavailable."""
 import asyncio
 from nicegui import ui
+from .premium_recovery_view import PremiumRecoveryPanel
 from ..preferences import SPECS, SPEC_BY_KEY, PreferencesError
 from ..legacy_metadata_export import LegacyMetadataExportError
 
@@ -72,6 +73,15 @@ class PreferencesView:
         self.dialog=ui.dialog().props('persistent data-testid=preferences-dialog')
         self.dialog.on('keydown', self._on_dialog_key, js_handler="(event) => { if (event.key === 'Escape') emit({key: event.key}); }")
 
+    def _vault_state_changed(self,label):
+        if self.closed:return
+        try:
+            state=self.vault.status()
+            message=('ロック解除済み・検索時にトークンの有効期限を確認します。' if state.get('open') else 'ロック中' if state.get('initialized') else '保管庫は未設定です。')
+            if state.get('oauth_review_required'):message+=' 更新結果の確認が必要です。'
+            label.set_text(message)
+        except Exception:label.set_text('状態を確認できません。')
+
     def open(self):
         if self.closed: return
         self.opened=True
@@ -101,10 +111,13 @@ class PreferencesView:
                     state=self.vault.status()
                     message=('\u30ed\u30c3\u30af\u89e3\u9664\u6e08\u307f\u30fb\u691c\u7d22\u6642\u306b\u30c8\u30fc\u30af\u30f3\u306e\u6709\u52b9\u671f\u9650\u3092\u78ba\u8a8d\u3057\u307e\u3059\u3002' if state.get('open') else '\u30ed\u30c3\u30af\u4e2d' if state.get('initialized') else '\u4fdd\u7ba1\u5eab\u306f\u672a\u8a2d\u5b9a\u3067\u3059\u3002')
                     if state.get('oauth_review_required'): message+=' \u66f4\u65b0\u7d50\u679c\u306e\u78ba\u8a8d\u304c\u5fc5\u8981\u3067\u3059\u3002'
-                    ui.label(message).props('data-testid=premium-vault-state')
+                    state_label=ui.label(message).props('data-testid=premium-vault-state')
                     pool=self.vault.premium_pool_status()
                     for slot in pool:
                         ui.label(f"\u767b\u9332{slot['index']}\uff1a\u6255\u3044\u51fa\u30575\u6642\u9593 {slot['payouts']}/{slot['payout_limit']}\u4ef6\u30fb\u501f\u75281\u5206 {slot['borrowed']}/{slot['borrow_limit']}\u4ef6\u30fb\u5f85\u6a5f {int(slot['wait'])}\u79d2").props('data-testid=premium-request-budget')
+                    # Leaving an unconfirmed Pixiv result (the "Shaft連携" tab is gone).
+                    self.vault_recovery=PremiumRecoveryPanel(self.vault,gate=getattr(self.vault,'premium_authorization',None),
+                        on_change=lambda:self._vault_state_changed(state_label))
                 except Exception:
                     ui.label('\u72b6\u614b\u3092\u78ba\u8a8d\u3067\u304d\u307e\u305b\u3093\u3002').props('data-testid=premium-vault-state')
                 ui.separator()
