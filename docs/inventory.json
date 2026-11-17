@@ -7818,6 +7818,19 @@
    "screen": "学習"
   },
   {
+   "control": "Container",
+   "event": "on_click",
+   "file": "discovery_tab.py",
+   "id": "inv-9eddcd6908",
+   "kind": "handler",
+   "label": "直前の判定を取り消す　Ctrl+Z",
+   "line": 2548,
+   "name": "_on_discovery_undo",
+   "ordinal": 0,
+   "qualname": "build_discovery_tab._build_discovery_undo_chip",
+   "screen": "学習"
+  },
+  {
    "file": "discovery_tab.py",
    "id": "inv-ed8f647412",
    "kind": "text_literal",
@@ -7847,6 +7860,32 @@
    "name": "pixivでブックマーク（pixiv側に書き込みます）",
    "ordinal": 0,
    "qualname": "build_discovery_tab._refresh_discovery_action_controls",
+   "screen": "学習"
+  },
+  {
+   "control": "(assign)",
+   "event": "on_click",
+   "file": "discovery_tab.py",
+   "id": "inv-154c30520c",
+   "kind": "handler",
+   "label": "bookmark",
+   "line": 2581,
+   "name": "_on_discovery_bookmark",
+   "ordinal": 0,
+   "qualname": "build_discovery_tab._refresh_discovery_action_controls",
+   "screen": "学習"
+  },
+  {
+   "control": "Container",
+   "event": "on_click",
+   "file": "discovery_tab.py",
+   "id": "inv-f482dbe86c",
+   "kind": "handler",
+   "label": "",
+   "line": 2636,
+   "name": "on_click",
+   "ordinal": 0,
+   "qualname": "build_discovery_tab._build_discovery_actions._action_pill",
    "screen": "学習"
   },
   {
@@ -8097,6 +8136,19 @@
    "kind": "text_literal",
    "line": 2886,
    "name": "絵が表示されてから押せます",
+   "ordinal": 0,
+   "qualname": "build_discovery_tab._build_discovery_meta_block",
+   "screen": "学習"
+  },
+  {
+   "control": "Container",
+   "event": "on_click",
+   "file": "discovery_tab.py",
+   "id": "inv-8d7090a0ae",
+   "kind": "handler",
+   "label": "pixivでブックマーク（pixiv側に書き込みます）",
+   "line": 2890,
+   "name": "_on_discovery_bookmark",
    "ordinal": 0,
    "qualname": "build_discovery_tab._build_discovery_meta_block",
    "screen": "学習"
@@ -8434,6 +8486,19 @@
    "kind": "ui_text",
    "line": 3862,
    "name": "概要 ▾",
+   "ordinal": 0,
+   "qualname": "build_discovery_tab._apply_discovery_summary_chip",
+   "screen": "学習"
+  },
+  {
+   "control": "(assign)",
+   "event": "on_click",
+   "file": "discovery_tab.py",
+   "id": "inv-e175503972",
+   "kind": "handler",
+   "label": "chip",
+   "line": 3865,
+   "name": "_toggle_discovery_summary",
    "ordinal": 0,
    "qualname": "build_discovery_tab._apply_discovery_summary_chip",
    "screen": "学習"
@@ -9334,6 +9399,19 @@
    "kind": "ui_text",
    "line": 5337,
    "name": "保存済み",
+   "ordinal": 0,
+   "qualname": "build_discovery_tab._review_build_positive_card",
+   "screen": "学習"
+  },
+  {
+   "control": "TextButton",
+   "event": "on_click",
+   "file": "discovery_tab.py",
+   "id": "inv-07aec4af17",
+   "kind": "handler",
+   "label": "",
+   "line": 5339,
+   "name": "lambda:_review_on_save",
    "ordinal": 0,
    "qualname": "build_discovery_tab._review_build_positive_card",
    "screen": "学習"
@@ -10624,6 +10702,19 @@
    },
    "screen": "共通(定数・部品・設定ダイアログ前)",
    "sub": "function"
+  },
+  {
+   "control": "Container",
+   "event": "on_click",
+   "file": "gui.py",
+   "id": "inv-f6c9675bd3",
+   "kind": "handler",
+   "label": "",
+   "line": 266,
+   "name": "on_click",
+   "ordinal": 0,
+   "qualname": "build_filter_chip",
+   "screen": "共通(定数・部品・設定ダイアログ前)"
   },
   {
    "control": "(assign)",
@@ -18391,17 +18482,6 @@
   },
   {
    "file": "gui.py",
-   "id": "inv-008746a84b",
-   "kind": "shortcut",
-   "line": 6029,
-   "name": "skip",
-   "ordinal": 0,
-   "qualname": "main_window",
-   "screen": "起動・タブ切替・キーボード",
-   "via": "keymap"
-  },
-  {
-   "file": "gui.py",
    "id": "inv-243b9bdbb2",
    "kind": "shortcut",
    "line": 6029,
@@ -18428,17 +18508,6 @@
    "kind": "shortcut",
    "line": 6029,
    "name": "1",
-   "ordinal": 0,
-   "qualname": "main_window",
-   "screen": "起動・タブ切替・キーボード",
-   "via": "keymap"
-  },
-  {
-   "file": "gui.py",
-   "id": "inv-397f657168",
-   "kind": "shortcut",
-   "line": 6030,
-   "name": "hate",
    "ordinal": 0,
    "qualname": "main_window",
    "screen": "起動・タブ切替・キーボード",
@@ -18483,17 +18552,6 @@
    "kind": "shortcut",
    "line": 6031,
    "name": "d",
-   "ordinal": 0,
-   "qualname": "main_window",
-   "screen": "起動・タブ切替・キーボード",
-   "via": "keymap"
-  },
-  {
-   "file": "gui.py",
-   "id": "inv-8b3b1defe6",
-   "kind": "shortcut",
-   "line": 6031,
-   "name": "like",
    "ordinal": 0,
    "qualname": "main_window",
    "screen": "起動・タブ切替・キーボード",
@@ -18549,17 +18607,6 @@
    "kind": "shortcut",
    "line": 6032,
    "name": "w",
-   "ordinal": 0,
-   "qualname": "main_window",
-   "screen": "起動・タブ切替・キーボード",
-   "via": "keymap"
-  },
-  {
-   "file": "gui.py",
-   "id": "inv-f7d6df4765",
-   "kind": "shortcut",
-   "line": 6032,
-   "name": "superLike",
    "ordinal": 0,
    "qualname": "main_window",
    "screen": "起動・タブ切替・キーボード",
@@ -24217,6 +24264,19 @@
    "screen": "ランキング"
   },
   {
+   "control": "Container",
+   "event": "on_click",
+   "file": "ranking_tab.py",
+   "id": "inv-2388aff26a",
+   "kind": "handler",
+   "label": "クリックで画集ビューアを開く",
+   "line": 853,
+   "name": "open_viewer():work_id",
+   "ordinal": 0,
+   "qualname": "build_ranking_tab._build_card",
+   "screen": "ランキング"
+  },
+  {
    "file": "ranking_tab.py",
    "id": "inv-1a7ab2099b",
    "kind": "text_literal",
@@ -26774,6 +26834,19 @@
    "name": "Thread->_work",
    "ordinal": 0,
    "qualname": "build_recommend_tab._on_dismiss_superlike._handler",
+   "screen": "おすすめ"
+  },
+  {
+   "control": "Container",
+   "event": "on_click",
+   "file": "recommend_tab.py",
+   "id": "inv-dcf0cf8d4d",
+   "kind": "handler",
+   "label": "クリックで画集ビューアを開く",
+   "line": 1147,
+   "name": "open_viewer():work_id",
+   "ordinal": 0,
+   "qualname": "build_recommend_tab._build_superlike_card",
    "screen": "おすすめ"
   },
   {
@@ -33977,6 +34050,19 @@
    "screen": "ダウンロード(統合)"
   },
   {
+   "control": "OutlinedButton",
+   "event": "on_click",
+   "file": "unified_download_tab.py",
+   "id": "inv-0fa3b66b12",
+   "kind": "handler",
+   "label": "未フォロー作者を確認",
+   "line": 1466,
+   "name": "lambda:on_check_unfollowed,_bm_rest_types",
+   "ordinal": 0,
+   "qualname": "build",
+   "screen": "ダウンロード(統合)"
+  },
+  {
    "arg": "arg0",
    "control": "Text",
    "file": "unified_download_tab.py",
@@ -34127,13 +34213,13 @@
    "background": 144,
    "db_method": 114,
    "db_table": 52,
-   "handler": 374,
+   "handler": 384,
    "label_const": 115,
    "menu_item": 34,
    "net_endpoint": 33,
    "route": 15,
    "setting_key": 48,
-   "shortcut": 25,
+   "shortcut": 21,
    "snack": 103,
    "text_literal": 765,
    "ui_text": 648
@@ -34275,6 +34361,6 @@
   "source": "S:\\Projects\\PixivVault (root *.py only)",
   "source_commit": "3ac3aa0d47a64785251593bcb09bb2d5f6df374b",
   "source_dirty_py": [],
-  "total": 2808
+  "total": 2814
  }
 }

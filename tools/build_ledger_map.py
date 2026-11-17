@@ -26,6 +26,7 @@ MAP = HERE / "docs" / "ledger_map.json"
 DEFAULT_PORT = r"S:\Projects\PV-DEV-20261117\work"
 
 TOL = 3            # 行の許容誤差(元が更新されたときの数行のずれ)
+NEAR_Q = 40        # qualname 対応の最大距離(行)
 NEAR = 120         # nearest 対応の最大距離(行)
 WIDE = 150         # この行数を超える範囲での一致は「広い範囲」(取りこぼしを隠しうる)として別扱い
 ID_RE = re.compile(r"\bFL-[A-Z]+\d*[A-Za-z]?\d*\b")
@@ -167,10 +168,10 @@ def build_auto(inv, rows, sec_t, port_blob):
                 hit = {"fl": fls[0], "also": fls[1:], "method": "name"}
         if hit is None and k in ("ui_text", "menu_item", "snack", "label_const", "text_literal") and len(it["name"]) >= 4:
             lit = re.sub(r"\{\}", "", it["name"]).strip()
-            if len(lit) >= 4:
+            if len(lit) >= 6:
                 cands = [fid for fid, t in text_rows if lit in t and (not rows[fid]["refs"] or any(rf == f for rf, _, _ in rows[fid]["refs"]))]
-                if cands:
-                    hit = {"fl": cands[0], "also": cands[1:3], "method": "text"}
+                if len(cands) == 1:      # 台帳の複数の行に同じ文言が出るときは、先頭を採らず対応づけない
+                    hit = {"fl": cands[0], "method": "text"}
         if hit is None and f in refs_by_file:
             best = None
             for a, b, fid in refs_by_file[f]:
@@ -187,24 +188,24 @@ def build_auto(inv, rows, sec_t, port_blob):
             lit = max(re.split(r"\{\}", it["name"]), key=len).strip()
             if len(lit) >= 2 and lit not in port_blob:
                 missing.append(it["id"])
-    # 2 段目: 同じ関数(qualname)に既に確かな対応がある項目は、その行へ寄せる(method=qualname)
-    strong: dict = {}
+    # 2 段目: 同じ関数(qualname)内で、確かな対応を持つ最も近い項目(NEAR_Q 行以内)と同じ行へ寄せる(method=qualname)
+    #   外側の巨大な関数全体の多数決はしない(別機能の文言が最頻の行へ寄ってしまうため)
+    strong_items: dict = {}
     for it in items:
         h = auto.get(it["id"])
         if h and h["method"] in ("range", "text", "name", "section-T"):
-            d = strong.setdefault((it["file"], it["qualname"]), {})
-            d[h["fl"]] = d.get(h["fl"], 0) + 1
+            strong_items.setdefault((it["file"], it["qualname"]), []).append((it["line"], h["fl"]))
     skip_kinds = ("setting_key", "db_method", "db_table", "api_public", "net_endpoint")
     for it in items:
         if it["id"] in auto or it["kind"] in skip_kinds:
             continue
-        q = it["qualname"]
-        for cand in (q, q.rsplit(".", 1)[0] if q.count(".") >= 2 else None):
-            if cand and (it["file"], cand) in strong:
-                d = strong[(it["file"], cand)]
-                fl = max(d, key=lambda k: d[k])
-                auto[it["id"]] = {"fl": fl, "method": "qualname", "from": cand}
-                break
+        best = None
+        for ln_, fl_ in strong_items.get((it["file"], it["qualname"]), []):
+            d = abs(ln_ - it["line"])
+            if d <= NEAR_Q and (best is None or d < best[0]):
+                best = (d, fl_)
+        if best:
+            auto[it["id"]] = {"fl": best[1], "method": "qualname", "distance": best[0]}
     # 3 段目: 同じファイルで最も近い台帳の範囲(NEAR 行以内)。弱い対応として別集計する
     for it in items:
         if it["id"] in auto or it["kind"] in skip_kinds:

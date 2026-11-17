@@ -156,6 +156,21 @@ def callee_names(node) -> list[str]:
     return out
 
 
+def handler_names(node) -> list[str]:
+    """条件式(X if c else None)・or/and で結んだハンドラは、各枝の名前を別々に返す。"""
+    if isinstance(node, ast.IfExp):
+        return handler_names(node.body) + handler_names(node.orelse)
+    if isinstance(node, ast.BoolOp):
+        out = []
+        for v in node.values:
+            out += handler_names(v)
+        return out
+    if isinstance(node, ast.Constant):      # None / False など
+        return []
+    hn = handler_name(node)
+    return [hn] if hn else []
+
+
 def handler_name(node) -> str:
     if isinstance(node, (ast.Name, ast.Attribute)):
         return fn_name(node)
@@ -260,8 +275,7 @@ class Collector:
                 self.ui_texts(node, ctrl)
         for kw in node.keywords:
             if kw.arg and HANDLER_KW.match(kw.arg):
-                hn = handler_name(kw.value)
-                if hn:
+                for hn in handler_names(kw.value):
                     lab = self.control_label(node) if ctrl else ""
                     self.add("handler", hn, kw, event=kw.arg, control=ctrl or nm, label=lab)
         if SETTING_CALL.search(nm) and node.args:
@@ -362,8 +376,7 @@ class Collector:
         for t in node.targets:
             if isinstance(t, ast.Attribute):
                 if HANDLER_KW.match(t.attr):
-                    hn = handler_name(node.value)
-                    if hn:
+                    for hn in handler_names(node.value):
                         self.add("handler", hn, node, event=t.attr, control="(assign)", label=fn_name(t.value))
                 if t.attr in ("tooltip", "label", "text", "hint_text", "title", "helper_text", "value", "error_text"):
                     for s in jtext(node.value):
@@ -459,9 +472,13 @@ class Collector:
             if isinstance(node, ast.For):
                 seg = ast.get_source_segment(self.source, node) or ""
                 if re.search(r"KEYMAP\w*\[|KEY_MAP\w*\[", seg):
-                    for sub in ast.walk(node.iter):
-                        if isinstance(sub, ast.Constant) and isinstance(sub.value, str) and len(sub.value) <= 24:
-                            self.add("shortcut", sub.value, sub, via="keymap")
+                    elts = node.iter.elts if isinstance(node.iter, (ast.Tuple, ast.List)) else []
+                    for e in elts:
+                        # (("arrow left", "a", "1"), "skip") の先頭(キー名の組)だけを取り、動作名は取らない
+                        scope = e.elts[0] if isinstance(e, (ast.Tuple, ast.List)) and e.elts and isinstance(e.elts[0], (ast.Tuple, ast.List)) else e
+                        for sub in ast.walk(scope):
+                            if isinstance(sub, ast.Constant) and isinstance(sub.value, str) and len(sub.value) <= 24:
+                                self.add("shortcut", sub.value, sub, via="keymap")
 
     def label_consts(self):
         """module/class 直下の代入内の日本語文字列(Tuple/List/Dict 内)。ui_text 等で未取り込みのものだけ。"""

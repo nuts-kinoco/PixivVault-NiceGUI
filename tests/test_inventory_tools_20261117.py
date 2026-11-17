@@ -279,7 +279,8 @@ def test_rule_scope_name_re_and_wide_rule_are_graded():
     rules = [{"file": "server.py", "lines": [1, 2000], "fl": "FL-N01", "kinds": ["api_public"], "scope": None},
              {"file": "server.py", "lines": [1, 2000], "fl": "FL-X02", "kinds": ["api_public"], "scope": None,
               "name_re": "_check_web_token"}]
-    assert cic.resolve(base, _mp(rules=rules)) == ("FL-X02", "rule-wide")      # 名前の規則が優先。範囲が広いので弱い扱い
+    assert cic.resolve(base, _mp(rules=rules)) == ("FL-X02", "rule")           # 名前で決まる規則は範囲が広くても優先・確かな扱い
+    assert cic.resolve(base, _mp(rules=rules[:1])) == ("FL-N01", "rule-wide")  # 名前の無い広い手規則は弱い扱い
     narrow = [{"file": "server.py", "lines": [690, 710], "fl": "FL-N02", "kinds": None, "scope": None}]
     assert cic.resolve(base, _mp(rules=narrow)) == ("FL-N02", "rule")
     whole = [{"file": "server.py", "lines": [1, 2000], "fl": "FL-N01", "kinds": None, "scope": "file"}]

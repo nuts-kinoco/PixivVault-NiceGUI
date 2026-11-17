@@ -18,9 +18,10 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import build_ledger_map as blm  # noqa: E402
 
-STRONG = ("section-T", "name", "text", "range", "qualname")
+STRONG_A = ("section-T", "name", "text", "range")
 WEAK = ("range-wide", "nearest")
 WEAK_SRC = ("auto-range-wide", "auto-nearest", "rule-wide")
+TIER_B = ("auto-qualname", "rule-function", "rule-file")
 
 
 def valid_target(t: str, fl_ids: set):
@@ -56,13 +57,17 @@ def rule_hit(rules, it):
 
 
 def resolve(it, mp):
-    """戻り値=(対応先, 出所) 。対応なしは (None, 'unmapped')"""
+    """戻り値=(対応先, 出所)。対応なしは (None, 'unmapped')。出所の強さ(tier):
+      A(狭い根拠): manual / auto-section-T,name,text,range / table-rule / unused / rule(範囲 150 行以内か名前指定か n/a)
+      B(単位での対応): auto-qualname(同じ関数内の近い項目) / rule-function / rule-file
+      C(弱い): rule-wide(複数関数をまとめた広い手規則) / auto-range-wide / auto-nearest
+    順序: manual > 自動(A) > テーブル規則 > 未使用 > 狭い規則 > qualname > 単位規則 > 広い規則 > 自動(C)"""
     iid = it["id"]
     man = mp.get("manual", {})
     if iid in man:
         return man[iid], "manual"
     au = mp.get("auto", {}).get(iid)
-    if au and au["method"] in STRONG:
+    if au and au["method"] in STRONG_A:
         return au["fl"], "auto-" + au["method"]
     if it["kind"] == "db_table":
         name = it["name"]
@@ -75,13 +80,20 @@ def resolve(it, mp):
     if it["kind"] in ("api_public", "db_method") and it.get("ref_count", 1) == 0:
         return mp.get("na_unused", "n/a:呼び出し元なし"), "unused"
     rl = rule_hit(mp.get("rules", []), it)
+    kind_of_rule = None
     if rl:
         width = rl["lines"][1] - rl["lines"][0] + 1
+        if rl.get("name_re") or rl["fl"].startswith("n/a") or (width <= blm.WIDE):
+            return rl["fl"], "rule"
+        kind_of_rule = "wide"
         if rl.get("scope") in ("file", "function"):
-            return rl["fl"], "rule-" + rl["scope"]
-        if width > blm.WIDE and not rl["fl"].startswith("n/a"):
-            return rl["fl"], "rule-wide"      # 複数の関数をまとめた広い範囲: 取りこぼしを隠しうるので弱い扱い
-        return rl["fl"], "rule"
+            kind_of_rule = rl["scope"]
+    if au and au["method"] == "qualname":
+        return au["fl"], "auto-qualname"
+    if kind_of_rule in ("file", "function"):
+        return rl["fl"], "rule-" + kind_of_rule
+    if kind_of_rule == "wide":
+        return rl["fl"], "rule-wide"
     if au and au["method"] in WEAK:
         return au["fl"], "auto-" + au["method"]
     return None, "unmapped"
@@ -103,7 +115,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--list", type=int, default=40, help="未対応の一覧の最大表示件数")
     ap.add_argument("--json", default="")
-    ap.add_argument("--strict-weak", action="store_true")
+    ap.add_argument("--strict-weak", action="store_true", help="弱い対応(tier C)も未対応として扱う")
+    ap.add_argument("--strict-all", action="store_true", help="単位での対応(tier B)と弱い対応(tier C)も未対応として扱う")
     a = ap.parse_args(argv)
     inv, mp, fl_ids = load()
     items = inv["items"]
@@ -123,15 +136,14 @@ def main(argv=None):
         ok, why = valid_target(v, fl_ids)
         if not ok:
             errors.append("table/column rule %s: %s" % (k, why))
+    bad_auto = [k for k in mp.get("auto", {}) if k not in ids]
+    if bad_auto:
+        errors.append("auto に inventory に無い項目 %d 件(inventory 再生成後に build_ledger_map.py を実行): %s" % (len(bad_auto), bad_auto[:3]))
     for k, v in mp.get("auto", {}).items():
-        if k not in ids:
-            errors.append("auto に inventory に無い項目(inventory 再生成後に build_ledger_map.py を実行): " + k)
-            break
-        if v["fl"] not in fl_ids and not all(p in fl_ids for p in v["fl"].split(",")):
-            errors.append("auto が台帳に無い ID を指す: %s" % v["fl"])
-            break
+        if k in ids and v["fl"] not in fl_ids and not all(p_.strip() in fl_ids for p_ in v["fl"].split(",")):
+            errors.append("auto が台帳に無い ID を指す: %s (%s)" % (v["fl"], k))
     by_src: dict[str, int] = {}
-    unmapped, weak = [], []
+    unmapped, weak, unit = [], [], []
     na = 0
     used_fl: dict[str, int] = {}
     for it in items:
@@ -149,27 +161,33 @@ def main(argv=None):
             used_fl[tgt.split(",")[0]] = used_fl.get(tgt.split(",")[0], 0) + 1
         if src in WEAK_SRC:
             weak.append(it)
+        elif src in TIER_B:
+            unit.append(it)
     total = len(items)
     print("inventory 件数:", total)
     print("対応づけの出所:", json.dumps(by_src, ensure_ascii=False, sort_keys=True))
     print("  うち n/a:", na, " / 台帳 FL へ:", total - len(unmapped) - na)
-    print("  弱い方法(広い範囲・近傍・広い手規則)のみ:", len(weak), "(--strict-weak で未対応扱い)")
-    strict_unmapped = len(unmapped) + len(weak)
-    print("厳格な未対応(未対応+弱い方法):", strict_unmapped)
+    a_n = total - len(unmapped) - len(weak) - len(unit)
+    print("  tier A 狭い根拠:", a_n, " / tier B 単位での対応(同じ関数内の近い項目・関数全体・ファイル全体):", len(unit),
+          " / tier C 弱い(広い範囲・近傍・広い手規則):", len(weak))
+    print("厳格な未対応: 未対応+C =", len(unmapped) + len(weak), " / 未対応+B+C =", len(unmapped) + len(weak) + len(unit))
     print("対応先に使われた FL の数:", len(used_fl))
     wk: dict[str, int] = {}
     for it in weak:
         t_, _ = resolve(it, mp)
         wk[t_.split(",")[0]] = wk.get(t_.split(",")[0], 0) + 1
     print("弱い対応の多い FL(上位 10):", ", ".join("%s=%d" % kv for kv in sorted(wk.items(), key=lambda x: -x[1])[:10]))
-    n_un = len(unmapped) + (len(weak) if a.strict_weak else 0)
-    print("未対応:", len(unmapped) + (len(weak) if a.strict_weak else 0))
-    for it in (unmapped + (weak if a.strict_weak else []))[: a.list]:
+    extra = (weak if (a.strict_weak or a.strict_all) else []) + (unit if a.strict_all else [])
+    n_un = len(unmapped) + len(extra)
+    print("未対応:", n_un)
+    for it in (unmapped + extra)[: a.list]:
         print("  %s %s:%d [%s] %s" % (it["id"], it["file"], it["line"], it["kind"], it["name"][:60].replace("\n", " ")))
     # 逆方向の検査(参考。終了コードには影響しない)
     rows, sec_t = blm.parse_ledger(blm.LEDGER)
     inv_keys = {i["name"] for i in items if i["kind"] == "setting_key"}
-    t_missing = sorted(k for k in sec_t if not k.startswith("_") and k not in inv_keys)
+    # exclude_hidden_* は ranking_tab.py:159-182 の絞り込み辞書のキーで、get_setting のキーではない(台帳 T 節の分類誤り)
+    t_missing = sorted(k for k in sec_t if not k.startswith("_") and k not in inv_keys
+                       and k not in ("exclude_hidden_authors", "exclude_hidden_works"))
     by_file: dict[str, list] = {}
     for it in items:
         by_file.setdefault(it["file"], []).append(it["line"])

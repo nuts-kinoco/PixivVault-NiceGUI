@@ -6,6 +6,15 @@
 - 対応表: `ledger_map.json`（inventory 項目 → FL-ID または `n/a:理由`）。検査: `tools\check_inventory_coverage.py`。
 - 読んだ深さ: 元は下記「元の場所」の範囲を読んだ。移植版は grep で入口を探し、判定に使った箇所だけ読んだ。**「有」は読んだ範囲での判断で、実機での同値確認ではない。**
 
+## 網羅検査の読み方（`tools\check_inventory_coverage.py`）
+
+- 未対応 0 は「全項目が何かの FL または `n/a:理由` に結ばれた」意味で、**挙動の同値の確認ではない**。対応の強さを 3 段に分けて数える。
+  - tier A（狭い根拠）: 台帳の引用範囲が 150 行以内、同じ文言が台帳の 1 行にだけ出る、設定キー索引（T 節）、名前の一致、元で呼び出し元なしの関数、DB の表、150 行以内の手規則・名前指定の手規則・`n/a`。
+  - tier B（単位での対応）: 同じ関数内の近い項目に寄せたもの、1 つの関数全体・1 つのファイル全体を 1 つの機能と見なした手規則。
+  - tier C（弱い）: 台帳の引用範囲が 150 行を超える、近傍（120 行以内）、複数の関数をまとめた広い手規則。`--strict-weak` で未対応扱い、`--strict-all` で B も未対応扱い。**tier C が「台帳のどの行の内側かだけは分かるが、その行が項目を説明しているかは未確認」の残件**。
+- 付録 A は確認の手がかりであり、判定ではない。FL-Z は core.py・database.py・pixiv_client.py 由来で読んだもの。画面側（UI 文言）の未確認は付録 A と tier C の一覧が入口で、FL-Z の行にはしていない。
+- 元の `get_setting` に結ばれないキー（`exclude_hidden_authors`・`exclude_hidden_works`）は、台帳 T 節に設定キーとして載っているが、実際は ranking_tab.py:159-182 の絞り込み辞書のキー。
+
 ## 追記行
 
 | ID | 元の機能 | 元の場所 | 移植版の場所 | 状態 | 根拠 |
@@ -13,7 +22,7 @@
 | FL-Z01 | 保存ファイル名の規則（題名の無害化 `sanitize_filename`、`illust_save_filename`（題名・作品 ID・p 番号）、旧名 `illust_legacy_filename` との互換） | core.py:29-31, 467-523 | managed_downloads.py:814（管理領域内は `page-{n}.{ext}`）。元の配置への投影は save_exports.py:482（ジョブ `作者互換配置` = `author-projection`） | 弱 | 管理領域の名前は元と違う（設計差 D-00）。元の命名で書き出す投影ジョブはあるが、命名規則が元と同じかは読んでいない（要確認） |
 | FL-Z02 | 作者フォルダの ZIP 追記・ZIP64 互換化・エントリ削除・ZIP 内の名称整合（`append_to_zip`、`normalize_zip_for_compatibility`、`remove_entry_from_zip`、`read_zip_entry_sizes`、`reconcile_author_zip_path`、`find_author_library_entry`） | core.py:123-434, 2385-2546 | save_exports.py:160, 359, 542-545（ジョブ `自動ZIP` = `auto-zip`。全体設定 `zip_all_after_download` または作者フラグで起動。542 行のコメントは元の合成規則と同じ） | 弱 | ZIP 化の起動規則は元と同じ。ZIP64 互換化・既存 ZIP への追記・名称整合の同等物は `normalize_zip`/`zip64` を save_exports.py で grep 0 件（ヒットは novel_*・ugoira_* の別用途）。作者 ZIP の中身の作り方は未読 |
 | FL-Z03 | ダウンロード前のログイン生存確認（`check_login_alive`。`verify_login` で応答を確かめ、設定の `my_user_id` と違うアカウントなら止める。`is_authenticated` の弱い判定へ落とさない） | core.py:435-466（呼び出し 642, 1232）、pixiv_client.py:1112-1190 | managed_downloads.py:762, author_media.py:237, managed_scheduler.py:607（`verify_identity()`）、auth_status.py | 有 | 保存・作者取得・自動取得の各入口で、口座に結びついた本人確認をしてから進む。名前は違うが同じ役割（別アカウント検出の確認ダイアログ自体は FL-A09 で無） |
-| FL-Z04 | 通信完了時に Cookie を `cookies.txt` へ自動で延長保存（`_save_cookies_if_changed`、セッション Cookie を書き戻す） | pixiv_client.py:270-343, 725-735 | 無（`_save_cookies_if_changed`・`save_cookies`・`cookie.*refresh` を非 legacy の src で grep 0 件。`MozillaCookieJar` は auth_status.py:55・pixiv_read_client.py:268 で読むだけ。書くのは拡張からの受信時 extension_cookie_store.py:502 のみ） | 無 | 中。通信のたびに期限を延ばす挙動が無い。拡張機能を使わない人は期限が来たら取り直す。FL-A08（ブラウザからの自動抽出）と同じ領域。実装前に「Cookie を移植版が書き換えてよいか」の裁定が要る |
+| FL-Z04 | 通信完了時に Cookie を `cookies.txt` へ自動で延長保存（`_save_cookies_if_changed`、セッション Cookie を書き戻す） | pixiv_client.py:270-343, 725-735 | 無（`_save_cookies_if_changed`・`save_cookies`・`cookie.*refresh` を非 legacy の src で grep 0 件。`MozillaCookieJar` は auth_status.py:55・pixiv_read_client.py:268 で読むだけ。書くのは拡張からの受信時 extension_cookie_store.py:503 のみ） | 無 | 中。通信のたびに期限を延ばす挙動が無い。拡張機能を使わない人は期限が来たら取り直す。FL-A08（ブラウザからの自動抽出）と同じ領域。実装前に「Cookie を移植版が書き換えてよいか」の裁定が要る |
 | FL-Z05 | 通信の再試行・待機・レート制限対応（`_request_with_retry`。待機間隔 ±20% の乱数、総試行数 `api_retry_count`、429 は `api_retry_wait` 待機、それ以外は 2^n+乱数 の指数待機、404 は即失敗。`get_rate_settings`） | pixiv_client.py:165-225, 686-760 | request_policy.py:81-187（`RequestAdmission` 81-97、`RequestRetryPolicy` 98-187）、preferences.py（`api_retry_count`/`api_retry_wait`/`download_interval`） | 弱 | 総試行数・429 待機・指数待機＋乱数・404 即失敗は同じ。**差**: (1) 待機間隔は固定の選択肢 0.3/0.4/0.5/0.6/1.0/1.5 秒で、元の ±20% の乱数は無い(request_policy.py:91)。(2) 再試行は GET のみ（元は POST も `_request_with_retry`）。(3) 401/403/リダイレクトも即失敗（元は 404 のみ即失敗）。(4) 408/425/5xx を一時障害として再試行（元は全例外を再試行）。意図した硬化か要確認。小 |
 | FL-Z06 | 削除作品の確定規則（今回の一覧に無い作品を連続欠落でカウント、通常 3 回で確定、一度に 40% 以上・母集団 5 以上なら 5 回、確定時に警告） | core.py:1255-1300（定数 66-72）、database.py:1518-1555 | legacy_author_sync.py:429-445（母集団 5 以上かつ欠落 40% 以上なら閾値 5、それ以外は 3。再出現で 0 に戻す）、ui/managed_download_view.py:616（`連続N回` の表示）、services.py:1852-1858（完全な一覧取得のときだけ連続欠落を進める） | 有 | 確定規則（3 回／5 回／40%／母集団 5）は同じ。再出現だけでは復元扱いにせず受領書の検証を要する点は元より厳しい。元の確定時警告「削除されている可能性があります」の文言は未確認（連続表示で代替か） |
 | FL-Z07 | 本番 DB へ接続する前の自動バックアップ（`prod_backup_state`/`ensure_prod_backup`、本番 DB パス判定） | database.py:26-151 | 無（`prod_backup`・`ensure_prod_backup`・`before_wipe` を非 legacy の src で grep 0 件） | 無 | 移植版は元の DB を書き換えない設計（D-00）のため、不要の可能性が高い。「不要」と決めるなら本人裁定を記録して `n/a` にする。それまでは無 |
@@ -23,7 +32,7 @@
 | FL-Z11 | 同一作者の処理を直列化するロック（手動実行・定期チェック・拡張機能の 3 経路が同時に ZIP を壊さないため、`get_user_lock`） | core.py:77-88 | managed_downloads.py:256-264（作品単位の `work_lock`）、691（`_writer.acquire(blocking=False)`＝書き込みは全体で 1 本） | 有 | 書き込みが全体で 1 本のため、作者単位のロックが無くても同時書き込みは起きない（別方式）。作者単位ロックは `author_lock` を grep 0 件 |
 | FL-Z12 | うごイラの MP4 保存に失敗したら GIF で保存し直す（OpenCV → imageio の 2 段、最後に GIF。失敗理由を残す） | core.py:1030-1085（1080 行のメッセージ） | job_failure.py:14（`ugoira_mp4_failed` として失敗で返す）、ugoira_mp4_worker.py:1・ugoira_gif.py:6（コメントが「形式の切替なし」「黙って MP4 に戻さない」と明記） | 弱 | ugoira*.py・managed_ugoira.py・save_exports.py を `fallback` で grep し、実コードの切替は 0 件（コメントが「切替なし」と書くのみ）。移植版が意図して外した可能性があり、本人裁定が要る。元の挙動（失敗時 GIF）を残すなら小 |
 | FL-Z13 | 元の SQLite DB のスキーマ（52 の表・列。作品台帳・フォロー中・設定・失敗キュー・学習・ブックマーク/SuperLike キャッシュ・埋め込み・重複台帳・容量キャッシュなど） | database.py:264-790 | 専用管理領域の DB 群（managed_*.py、failed_record_*.py、learning_repository.py、library_repository.py など）。元 DB は読むだけ（legacy_*.py） | 弱 | 設計差 D-00（元の DB・Images を更新しない）。表ごとの対応は `ledger_map.json` の `table_rules`（works→FL-D00、failed_queue→FL-F01、discovery_*→FL-I19・FL-L07・FL-B06、など）。同値確認ではなく、どの機能の表かの対応づけ |
-| FL-Z14 | 保存し直した作品の推論記録を消して推論ワーカーを起こす（`_after_illust_saved`：`work_page_scan`・`work_embed_failures` の削除、起床通知） | core.py:33-78 | similarity_worker.py:92（`wake()`＝イベント駆動の起床）。記録の削除に当たる処理は無（`page_scan`・`embed_failure`・`clear_embed`・`notify_embed` を非 legacy の src で grep 0 件） | 弱 | 起床の仕組みはある。落とし直して画像が変わった作品が、古い推論結果や「諦め」のまま残らないための処理（記録の削除）が別方式で満たされるかは未読（FL-A12・FL-C21 と同じ領域）。小 |
+| FL-Z14 | 保存し直した作品の推論記録を消して推論ワーカーを起こす（`_after_illust_saved`：`work_page_scan`・`work_embed_failures` の削除、起床通知） | core.py:33-60 | similarity_worker.py:92（`wake()`＝イベント駆動の起床）。記録の削除に当たる処理は無（`page_scan`・`embed_failure`・`clear_embed`・`notify_embed` を非 legacy の src で grep 0 件） | 弱 | 起床の仕組みはある。落とし直して画像が変わった作品が、古い推論結果や「諦め」のまま残らないための処理（記録の削除）が別方式で満たされるかは未読（FL-A12・FL-C21 と同じ領域）。小 |
 | FL-Z15 | Cookie の期限判定（`check_cookie_status`。PHPSESSID の期限を優先、無ければ他の Cookie の最大。残り日数で 7 日超=有効／4〜7 日=黄／3 日以内=赤、通信エラー・未認証・Cookie 無しを区別） | pixiv_client.py:344-455 | auth_status.py:51-140（`cookie_days_left`、`status_from_result`。名前・ドメイン・期限だけを読む） | 有 | 日数の丸め（切り上げ・最小 1・期限不明は 30）、7 日／3 日の閾値、無視する Cookie（`_cfuvid` など）、PHPSESSID 優先まで元と同じ。通信しない写像で、確認は services 側。FL-A11 の根拠の補強 |
 | FL-Z16 | フォロー中一覧の取得（公開 `show`・非公開 `hide`、24 件ずつ、`/ajax/user/{id}/following`） | pixiv_client.py:1192-1232 | pixiv_read_client.py:1011-1040（`get_following_users`、同じ経路・同じ `limit=24`・`rest`）、following_sync.py:320-376（公開・非公開の両方を同期） | 有 | 取得の経路と刻みは同じ。移植版は件数上限（`MAX_FOLLOWED_AUTHORS`）と読み取り期限を持つ。自動同期（24 時間経過で起動時に走る）は FL-A10 で無 |
 | FL-Z17 | ブックマーク一覧の取得（イラスト・漫画 48 件ずつ、小説 24 件ずつ、公開・非公開） | pixiv_client.py:1481-1607 | pixiv_read_client.py:903-916, 1005-1008（`get_bookmarked_works`・`get_bookmarked_novels`、`limit=48`・`tag=`・`rest`）、bookmark_remote_adapter.py:157 | 有 | 経路・刻み・重複 ID の除外は同じ（読んだのは取得部分のみ）。一括 DL（`download_bookmarks`）側の保存方式・ハードリンクは FL-D12・FL-D13 |
@@ -50,8 +59,7 @@
 
 | 台帳 FL | 台帳の状態 | 未検出の文言 件数 | 例(元の場所) |
 |---|---|---|---|
-| FL-A04 | 弱 | 1 | 「終了確認」main.py:494 |
-| FL-A06 | 条件付きで有 | 1 | 「いいえ」main.py:498 |
+| FL-A06 | 条件付きで有 | 2 | 「終了確認」main.py:494; 「いいえ」main.py:498 |
 | FL-A08 | 無 | 10 | 「[確認中] Cookie の状態をチェック中」gui.py:1119; 「[更新完了] {}」gui.py:1132; 「✓ Cookie をブラウザ ({}) から」gui.py:1134 |
 | FL-A09 | 無 | 1 | 「現在保存されているフォロー中データ（お気に入」gui.py:6304 |
 | FL-A11 | 有 | 1 | 「PV拡張機能をご利用中の場合、cookies」gui.py:2844 |
@@ -72,7 +80,7 @@
 | FL-C12 | 条件付きで有 | 6 | 「ダウンロード待機時間 (秒)」gui.py:1400; 「0.3秒 (最速・自己責任)」gui.py:1402; 「0.4秒 (高速)」gui.py:1403 |
 | FL-C13 | 条件付きで有 | 7 | 「3回 (推奨)」gui.py:1420; 「5回」gui.py:1421; 「429 レート制限検知時待機時間」gui.py:1433 |
 | FL-C14 | 条件付きで有 | 14 | 「学習: 画像先読みキャッシュの上限指定方法」gui.py:1458; 「メモリ使用量で指定」gui.py:1460; 「画像枚数で指定」gui.py:1461 |
-| FL-C15 | 条件付きで有 | 16 | 「画像キャッシュ上限 (全タブ共有・メモリ使用」gui.py:1494; 「512MB」gui.py:1496; 「1024MB」gui.py:1497 |
+| FL-C15 | 条件付きで有 | 15 | 「画像キャッシュ上限 (全タブ共有・メモリ使用」gui.py:1494; 「512MB」gui.py:1496; 「1024MB」gui.py:1497 |
 | FL-C16 | 条件付きで有 | 3 | 「キャッシュを削除しました ({}件)」gui.py:1365; 「キャッシュはありませんでした。」gui.py:1368; 「キャッシュを削除する」gui.py:1374 |
 | FL-C17 | 条件付きで有 | 1 | 「すべての作者に対しダウンロード完了後zipに」gui.py:1231 |
 | FL-C18 | 条件付きで有 | 1 | 「最小化時にタスクトレイに格納する」gui.py:1344 |
@@ -80,20 +88,20 @@
 | FL-C22 | 条件付きで有 | 5 | 「エクスポートを実行」gui.py:2320; 「エクスポートが完了しました: {}」gui.py:2330; 「エクスポートに失敗しました: {}」gui.py:2336 |
 | FL-C24 | 無 | 1 | 「ver 4.0.0 build260913-」gui.py:2420 |
 | FL-C26 | 意図的削除 | 4 | 「接続トークンを再発行する（旧トークンで設定済」gui.py:803; 「API経路を切り替える」gui.py:820; 「API切り替え」gui.py:822 |
+| FL-D00 | 弱 | 1 | 「user_id={}: 未認証のため、削除の」core.py:1243 |
+| FL-D01 | 有 | 3 | 「作者を選ぶか、IDを入れて実行します」unified_download_tab.py:1378; 「対象の選び方はありません」unified_download_tab.py:1471; 「含めるブックマーク」unified_download_tab.py:1472 |
 | FL-D02 | 有 | 3 | 「絞り込み（数字はID指定）」unified_download_tab.py:404; 「前の50人」unified_download_tab.py:413; 「次の50人」unified_download_tab.py:418 |
 | FL-D03 | 弱 | 4 | 「作者名順」unified_download.py:53; 「保存済みの多い順」unified_download.py:54; 「最後に取得した日」unified_download.py:55 |
 | FL-D04 | 有 | 2 | 「マイブックマーク（全体）」unified_download_tab.py:587; 「左の一覧でチェックすると、ここに積まれます」unified_download_tab.py:628 |
 | FL-D05 | 条件付きで有 | 2 | 「0 人」unified_download_tab.py:1513; 「自動監視」unified_download_tab.py:1519 |
 | FL-D06 | 有 | 2 | 「対象に積む」unified_download_tab.py:389; 「フォロー中の {} です（ID: {}）」unified_download_tab.py:798 |
-| FL-D09 | 弱 | 5 | 「左の一覧で作者を選ぶと押せます」unified_download_tab.py:513; 「差分DL · {} · 保存先 {}」unified_download_tab.py:533; 「再開しました。」unified_download_tab.py:1046 |
-| FL-D10 | 弱 | 12 | 「残り時間計算中...」gui.py:381; 「この回の対象」unified_download_tab.py:206; 「0 人」unified_download_tab.py:207 |
-| FL-D11 | 弱 | 2 | 「{} 人を処理しています…」unified_download_tab.py:1241; 「含めるブックマークを1つ選びます」unified_download_tab.py:1437 |
+| FL-D09 | 弱 | 6 | 「左の一覧で作者を選ぶと押せます」unified_download_tab.py:513; 「差分DL · {} · 保存先 {}」unified_download_tab.py:533; 「再開しました。」unified_download_tab.py:1046 |
+| FL-D10 | 弱 | 9 | 「残り時間計算中...」gui.py:381; 「この回の対象」unified_download_tab.py:206; 「0 人」unified_download_tab.py:207 |
+| FL-D11 | 弱 | 1 | 「含めるブックマークを1つ選びます」unified_download_tab.py:1437 |
 | FL-D12 | 弱 | 1 | 「階層化（作者別フォルダ）」unified_download_tab.py:1440 |
 | FL-D13 | 条件付きで有 | 10 | 「cookies.txt が見つかりません。設」gui.py:4884; 「統合DL が完了しました」gui.py:4911; 「統合DL でエラー: {}」gui.py:4916 |
 | FL-D14 | 条件付きで有 | 16 | 「ログインチェックを完了してください。」gui.py:3785; 「含めるブックマークを1つ選びます。」gui.py:3788; 「抽出エラー: {}」gui.py:3805 |
-| FL-D15 | 条件付きで有 | 3 | 「user_id={}: 未認証のため、削除の」core.py:1243; 「user_id={}: 今回の一覧に見当たら」core.py:1275; 「以下の作品がPixivから削除されている可能」core.py:1288 |
 | FL-D16 | 弱 | 2 | 「PixivVault - ZIP破損検出」core.py:112; 「{} のアーカイブに問題があります: {}」core.py:112 |
-| FL-D17 | 有 | 2 | 「M:\2次\PixivVault」database.py:20; 「M:\2次\PixivVault」database.py:23 |
 | FL-E01 | 有 | 3 | 「現在のジョブはありません」gui.py:3617; 「iOS版から送られた取得ジョブがここに並びま」gui.py:3618; 「一致するジョブはありません」gui.py:3622 |
 | FL-E04 | 有 | 1 | 「作者名で絞り込む」gui.py:3386 |
 | FL-E05 | 有 | 5 | 「全ジョブを削除しますか？」gui.py:3341; 「完了・エラーを含む全ジョブをキューから削除し」gui.py:3342; 「{}件を削除しますか？」gui.py:3363 |
@@ -102,39 +110,38 @@
 | FL-F02 | 有 | 1 | 「再試行エラー ({}): {}」gui.py:4217 |
 | FL-F03 | 有 | 6 | 「再試行対象の失敗作品がありません。」gui.py:4291; 「失敗リスト（絞り込み分）の再試行: {}/{」gui.py:4307; 「失敗リストを全件クリアしますか？」gui.py:4319 |
 | FL-G01 | 有 | 5 | 「直近バックアップ履歴取得エラー: {}」gui.py:4512; 「直近バックアップ履歴: PixivClien」gui.py:4528; 「{} ({}) クリックして開く」gui.py:4693 |
-| FL-H01 | 有 | 2 | 「スキャン中…」gui.py:5711; 「重複整理スキャン: 」gui.py:5742 |
+| FL-H01 | 有 | 3 | 「🗑 ごみ箱」gui.py:5016; 「スキャン中…」gui.py:5711; 「重複整理スキャン: 」gui.py:5742 |
 | FL-H03 | 無 | 1 | 「{}（{}）のものにする」gui.py:5172 |
-| FL-H04 | 有 | 5 | 「{}枚を選択中」gui.py:5261; 「全選択を戻しました（1枚は必ず残ります）」gui.py:5269; 「画質の低い方をまとめて選ぶ」gui.py:5351 |
-| FL-H05 | 有 | 1 | 「この操作では消えません。あとから戻せます。各」gui.py:5529 |
+| FL-H04 | 有 | 3 | 「{}枚を選択中」gui.py:5261; 「全選択を戻しました（1枚は必ず残ります）」gui.py:5269; 「画質の低い方をまとめて選ぶ」gui.py:5351 |
+| FL-H05 | 有 | 3 | 「{}組・{}枚を選択中・{}」gui.py:5388; 「0件選択中」gui.py:5390; 「この操作では消えません。あとから戻せます。各」gui.py:5529 |
 | FL-H07 | 有 | 4 | 「作者名・user_idで絞り込む」gui.py:5032; 「1組ずつ開かずに、この一覧のまま選んで移せま」gui.py:5044; 「0件選択中」gui.py:5051 |
 | FL-I02 | 有 | 1 | 「直前の判定を取り消す　Ctrl+Z」discovery_tab.py:2544 |
 | FL-I05 | 無 | 1 | 「何が合いませんでしたか？」discovery_tab.py:1760 |
 | FL-I06 | 弱 | 1 | 「判定しました」discovery_tab.py:1680 |
 | FL-I07 | 有 | 1 | 「画像を見ないままの判定はできません」discovery_tab.py:2385 |
-| FL-I08 | 有 | 4 | 「クリックで画集ビューアを開く」discovery_tab.py:2446; 「クリックでpixivの作品ページを開く」discovery_tab.py:2456; 「絵が表示されてから押せます」discovery_tab.py:2885 |
+| FL-I08 | 有 | 2 | 「クリックで画集ビューアを開く」discovery_tab.py:2446; 「クリックでpixivの作品ページを開く」discovery_tab.py:2456 |
 | FL-I09 | 弱 | 1 | 「絵が表示されてから押せます」discovery_tab.py:2577 |
-| FL-I10 | 条件付きで有 | 2 | 「ダウンロードキューへ積む」ranking_tab.py:780; 「ダウンロードキューへ積む」recommend_tab.py:847 |
-| FL-I11 | 有 | 5 | 「SuperLike使用: {}回」discovery_tab.py:143; 「いまはあなたの保存から出しています」discovery_tab.py:2975; 「これまでの判定: {}枚」discovery_tab.py:2976 |
+| FL-I10 | 条件付きで有 | 1 | 「ダウンロードキューへ積む」recommend_tab.py:847 |
+| FL-I11 | 有 | 7 | 「SuperLike使用: {}回」discovery_tab.py:143; 「絵が表示されてから押せます」discovery_tab.py:2885; 「pixivでブックマーク（pixiv側に書き」discovery_tab.py:2885 |
 | FL-I12 | 弱 | 3 | 「探索の設定」discovery_tab.py:3295; 「どのくらい知らないものを見るかを変えます」discovery_tab.py:3302; 「判定は保存され、次に出す候補の並べ替えに反映」discovery_tab.py:3360 |
 | FL-I13 | 有 | 3 | 「作品の情報を取れませんでした。押すともう一度」discovery_tab.py:3853; 「作品の情報を取りにいっています」discovery_tab.py:3860; 「タップで再取得」discovery_tab.py:5001 |
 | FL-I14 | 有 | 3 | 「作品を「見送る」「合わない」「いいね」「Su」discovery_tab.py:4357; 「自動での再取得は止まっています。」discovery_tab.py:4409; 「通信に失敗しました。30秒ごとにもう一度試し」discovery_tab.py:4409 |
 | FL-I15 | 無 | 2 | 「画像からのタグ補完にはローカルモデルの導入（」discovery_tab.py:4366; 「設定を開く」discovery_tab.py:4367 |
 | FL-I16 | 有 | 9 | 「『{}』の判定を取り消しました — {}」discovery_tab.py:5302; 「今日は該当なし」discovery_tab.py:5412; 「今日は該当なし」discovery_tab.py:5418 |
 | FL-I18 | 有 | 4 | 「これまでの判定（{}枚）と、そこから学んだ好」gui.py:2195; 「学習状況: リセットに失敗しました: {}」gui.py:2224; 「CSV出力完了: {}」gui.py:2260 |
-| FL-J01 | 有 | 7 | 「DL済みを除外」ranking_tab.py:158; 「出さない作者を除外」ranking_tab.py:159; 「「出さない」登録の作者」ranking_tab.py:159 |
 | FL-J05 | 有 | 2 | 「R-18を含める」ranking_tab.py:1319; 「AI作品を除外（作品ごとに追加確認するため、」ranking_tab.py:1324 |
 | FL-J06 | 有 | 2 | 「タグ検索に失敗しました（{}）」ranking_tab.py:1130; 「タグで絞り込み」ranking_tab.py:1328 |
 | FL-J07 | 有 | 3 | 「取得時刻: {}　{}件」ranking_tab.py:955; 「ランキングを取得できませんでした（{}）」ranking_tab.py:1056; 「ランキングを取得できませんでした（{}）」ranking_tab.py:1067 |
 | FL-J08 | 有 | 2 | 「クリックで画集ビューアを開く」ranking_tab.py:857; 「クリックで画集ビューアを開く」ranking_tab.py:1577 |
-| FL-J09 | 弱 | 5 | 「ブックマークしました。」ranking_tab.py:617; 「「{}」をもっと見るに追加しました。」ranking_tab.py:760; 「ブックマークする」ranking_tab.py:778 |
-| FL-J10 | 無 | 7 | 「iOS連携サーバーが起動していないためキュー」ranking_tab.py:627; 「ダウンロードキューへ積みました。」ranking_tab.py:629; 「出さない一覧（{}件）」ranking_tab.py:678 |
+| FL-J09 | 弱 | 7 | 「ブックマークしました。」ranking_tab.py:617; 「iOS連携サーバーが起動していないためキュー」ranking_tab.py:627; 「「{}」をもっと見るに追加しました。」ranking_tab.py:760 |
+| FL-J10 | 無 | 6 | 「ダウンロードキューへ積みました。」ranking_tab.py:629; 「出さない一覧（{}件）」ranking_tab.py:678; 「次回から表示しません。」ranking_tab.py:751 |
 | FL-J11 | 条件付きで有 | 6 | 「検索中…」ranking_tab.py:1592; 「検索に失敗しました（{}）」ranking_tab.py:1690; 「検索結果の処理に失敗しました。」ranking_tab.py:1737 |
-| FL-J12 | 有 | 9 | 「いまの絞り込み条件を保存しました。」ranking_tab.py:2033; 「タグを追加してEnter（複数タグの組み合わ」ranking_tab.py:2120; 「R-18を含める」ranking_tab.py:2136 |
+| FL-J12 | 有 | 16 | 「DL済みを除外」ranking_tab.py:158; 「出さない作者を除外」ranking_tab.py:159; 「「出さない」登録の作者」ranking_tab.py:159 |
 | FL-K01 | 有 | 10 | 「{} 人の作者中 {} 人を表示 / 全 {」library_tab.py:2203; 「{} 人の作者 / 全 {} 人」library_tab.py:2205; 「pixiv本体の検索に失敗しました（{}）」library_tab.py:2215 |
-| FL-K02 | 弱 | 7 | 「選択中: 0件」library_tab.py:1875; 「タイトル・作者・タグを検索」library_tab.py:2279; 「ライブラリのみ」library_tab.py:2325 |
+| FL-K02 | 弱 | 6 | 「タイトル・作者・タグを検索」library_tab.py:2279; 「ライブラリのみ」library_tab.py:2325; 「pixiv本体も含む」library_tab.py:2326 |
 | FL-K04 | 有 | 15 | 「このタブでは使いません」filter_panel.py:88; 「データ取得後に使えるようになります」filter_panel.py:89; 「未実装です」filter_panel.py:90 |
 | FL-K05 | 有 | 1 | 「いま表示している作者ぶんの容量キャッシュを消」library_tab.py:2978 |
-| FL-K06 | 弱 | 11 | 「選択をダウンロード」library_tab.py:1876; 「{} 件中 {} 件を表示 / 全 {} 件」library_tab.py:1950; 「{} 件 / 全 {} 件」library_tab.py:1952 |
+| FL-K06 | 弱 | 12 | 「選択中: 0件」library_tab.py:1875; 「選択をダウンロード」library_tab.py:1876; 「{} 件中 {} 件を表示 / 全 {} 件」library_tab.py:1950 |
 | FL-K07 | 有 | 2 | 「<ContextMenu>」library_tab.py:1168; 「クリックで画集ビューアを開く」library_tab.py:1383 |
 | FL-K08 | 有 | 2 | 「クリックでこの作者の作品一覧を開きます」library_tab.py:1241; 「クリックでpixivの作者ページを開く」library_tab.py:1262 |
 | FL-K10 | 条件付きで有 | 6 | 「クリックで画集ビューアを開く」library_tab.py:1007; 「解析済みの作品がまだありません。」library_tab.py:1028; 「この作品はまだ解析されていません（解析済み:」library_tab.py:1030 |
@@ -143,19 +150,22 @@
 | FL-L02 | 有 | 9 | 「この節を開く」recommend_tab.py:2830; 「この節を開く」recommend_tab.py:2860; 「この節を閉じる」recommend_tab.py:2860 |
 | FL-L03 | 有 | 2 | 「更新（取得済みの内容を取り直します）」recommend_tab.py:2671; 「今日は該当なし」recommend_tab.py:2681 |
 | FL-L04 | 有 | 2 | 「このタグを開く」recommend_tab.py:1894; 「このタグを開く」recommend_tab.py:1987 |
-| FL-L05 | 弱 | 15 | 「ブックマークしました。」recommend_tab.py:509; 「iOS連携サーバーが起動していないためキュー」recommend_tab.py:651; 「ダウンロードキューへ積みました。」recommend_tab.py:653 |
-| FL-L07 | 有 | 9 | 「次回から表示しません。」recommend_tab.py:622; 「「{}」を次回から表示しません。」recommend_tab.py:722; 「出さない一覧（{}件）」recommend_tab.py:1337 |
-| FL-L09 | 弱 | 8 | 「今日は該当なし」recommend_tab.py:2707; 「もっと見る に登録中の作者」recommend_tab.py:2731; 「もっと見る登録中の作者はいません。」recommend_tab.py:2733 |
-| FL-L10 | 条件付きで有 | 7 | 「フォローしました。」recommend_tab.py:3484; 「差分DLを実行しました。」recommend_tab.py:3494; 「差分DLに失敗しました。」recommend_tab.py:3497 |
-| FL-M02 | 有 | 1 | 「説明文はありません。」artbook_viewer.py:1371 |
+| FL-L05 | 弱 | 16 | 「ブックマークしました。」recommend_tab.py:509; 「次回から表示しません。」recommend_tab.py:622; 「iOS連携サーバーが起動していないためキュー」recommend_tab.py:651 |
+| FL-L07 | 有 | 14 | 「出さない一覧（{}件）」recommend_tab.py:1337; 「もっと見る作者（{}人）」recommend_tab.py:1338; 「出さない作者一覧（{}人）」recommend_tab.py:1339 |
+| FL-L09 | 弱 | 1 | 「登録中の作者に新着はありません」recommend_tab.py:2905 |
+| FL-L10 | 条件付きで有 | 8 | 「フォローしました。」recommend_tab.py:3484; 「差分DLを実行しました。」recommend_tab.py:3494; 「差分DLに失敗しました。」recommend_tab.py:3497 |
+| FL-M01 | 有 | 3 | 「前へ（←）」artbook_viewer.py:1270; 「次へ（→）」artbook_viewer.py:1272; 「閉じる（Escでも可）」artbook_viewer.py:1480 |
+| FL-M02 | 有 | 2 | 「<ContextMenu>」artbook_viewer.py:1303; 「説明文はありません。」artbook_viewer.py:1371 |
 | FL-M03 | 条件付きで有 | 5 | 「ページを取得できませんでした。」artbook_viewer.py:510; 「画像を取得できませんでした。」artbook_viewer.py:540; 「ブックマークしました。」artbook_viewer.py:673 |
-| FL-M04 | 弱 | 6 | 「次回から表示しません。」artbook_viewer.py:817; 「pixivで作品ページを開く」artbook_viewer.py:860; 「前へ（←）」artbook_viewer.py:1270 |
+| FL-M04 | 弱 | 2 | 「次回から表示しません。」artbook_viewer.py:817; 「pixivで作品ページを開く」artbook_viewer.py:860 |
 | FL-M05 | 条件付きで有 | 3 | 「アニメーション」artbook_viewer.py:413; 「うごイラを取得できませんでした。」artbook_viewer.py:448; 「まだうごイラを読み込めていないため保存できま」artbook_viewer.py:1045 |
 | FL-N02 | 弱 | 4 | 「PixivVault ダウンロード完了」server.py:1586; 「{} (id={}) の保存が完了しました！」server.py:1586; 「PixivVault エラー」server.py:1588 |
 | FL-N05 | 弱 | 7 | 「PixivVault 転送完了（一部失敗）」server.py:1308; 「{} の転送が終わりました（成功{}件／失敗」server.py:1309; 「PixivVault 転送完了」server.py:1311 |
 | FL-O01 | 弱 | 2 | 「PixivVault 定期チェック」scheduler.py:227; 「お気に入りの作者から {} 件の作品を保存し」scheduler.py:228 |
 | FL-O02 | 条件付きで有 | 1 | 「起動時にもお気に入り新着チェックを実行する」gui.py:1309 |
 | FL-X01 | PV_DEV_P | 3 | 「アプリ: 未接続」gui.py:690; 「PixivVault ダウンロード開始」server.py:1522; 「{} (id={}) の保存を開始します。」server.py:1522 |
+| FL-Z06 |  | 2 | 「user_id={}: 今回の一覧に見当たら」core.py:1275; 「以下の作品がPixivから削除されている可能」core.py:1288 |
+| FL-Z07 |  | 2 | 「M:\2次\PixivVault」database.py:20; 「M:\2次\PixivVault」database.py:23 |
 | FL-Z09 |  | 1 | 「user_id={}: この作者の実物が1つ」core.py:1335 |
 
 合計 466 件。
