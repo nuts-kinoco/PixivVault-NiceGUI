@@ -155,6 +155,26 @@ def _record(value: object, work_id: str) -> RemoteBookmark:
     return value
 
 
+# A fixed 1x1 PNG: its digest identifies a stand-in even when no quarantine store is bound.
+_STAND_IN = bytes.fromhex('89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de0000000c49444154789c63606060000000040001f61738550000000049454e44ae426082')
+_STAND_IN_SHA = hashlib.sha256(_STAND_IN).hexdigest()
+
+
+def _stand_in_pages(receipt) -> frozenset:
+    """Pages that hold only the stand-in of an emptied page: never visible."""
+    return frozenset(index for index, entry in enumerate(receipt['files'])
+                     if entry['sha256'] == _STAND_IN_SHA)
+
+
+def _purged_stand_in() -> bytes:
+    """Smallest valid image for a page that was emptied from the trash.
+
+    The page stays excluded (hidden) and unrecoverable; the stand-in only keeps
+    the immutable receipt structurally complete without fetching the page again.
+    """
+    return _STAND_IN
+
+
 def _image(data: bytes) -> tuple[str, str, int, int]:
     if type(data) is not bytes or not data:
         raise ManagedDownloadError("image size rejected", reason_code="image_format_invalid")
@@ -323,11 +343,14 @@ class ManagedPixivDownloads:
                         raise ValueError()
                 if verify_pages:
                     if progress is not None:progress(index-1,len(entries))
-                    data = (_read_bounded(item, MAX_PAGE_BYTES) if exists else
-                            _read_bounded(proof['path'], MAX_PAGE_BYTES))
-                    if (len(data) != entry["bytes"] or hashlib.sha256(data).hexdigest() != entry["sha256"]
-                            or _image(data)[1:] != (entry["format"], entry["width"], entry["height"])):
-                        raise ValueError()
+                    # A purged relocation keeps its manifest/receipt identity but
+                    # its bytes were destroyed on purpose (empty trash).
+                    if exists or proof['state'] != 'purged':
+                        data = (_read_bounded(item, MAX_PAGE_BYTES) if exists else
+                                _read_bounded(proof['path'], MAX_PAGE_BYTES))
+                        if (len(data) != entry["bytes"] or hashlib.sha256(data).hexdigest() != entry["sha256"]
+                                or _image(data)[1:] != (entry["format"], entry["width"], entry["height"])):
+                            raise ValueError()
                     if progress is not None:progress(index,len(entries))
             if sum(entry["bytes"] for entry in entries) > MAX_TOTAL:
                 raise ValueError()
@@ -445,7 +468,8 @@ class ManagedPixivDownloads:
                 receipt['work_id']: tuple(
                     number for number in range(receipt['page_count'])
                     if str(number) not in before['exclusions'].get(receipt['work_id'], {})
-                    and f"{receipt['work_id']}:{number+1}" not in legacy_excluded)
+                    and f"{receipt['work_id']}:{number+1}" not in legacy_excluded
+                    and number not in _stand_in_pages(receipt))
                 for _, receipt, _ in rows
             }
             tokens = {wid: self._generations._work_token(before, wid) for wid in pages}
@@ -467,8 +491,9 @@ class ManagedPixivDownloads:
         excluded = state['exclusions'].get(work_id, {})
         legacy_excluded=(self.legacy_quarantine.excluded_pages(work_id)
                          if self.legacy_quarantine is not None else ())
+        hidden = _stand_in_pages(receipt)
         return tuple(page for page in range(receipt['page_count'])
-                     if str(page) not in excluded and page not in legacy_excluded)
+                     if str(page) not in excluded and page not in legacy_excluded and page not in hidden)
 
     def assert_page_available(self, work_id: str, page_no: int, *,
                               expected_work_state_token: str | None = None) -> str:
@@ -480,15 +505,25 @@ class ManagedPixivDownloads:
             raise ManagedPageQuarantined('managed page is quarantined')
         if str(page_no) in state['exclusions'].get(work_id, {}):
             raise ManagedPageQuarantined('managed page is quarantined')
+        self._assert_not_stand_in(state, work_id, page_no)
         token = self._generations._work_token(state, work_id)
         if expected_work_state_token is not None and token != expected_work_state_token:
             raise ManagedPageSelectionChanged('managed page snapshot changed')
         return token
 
+    def _assert_not_stand_in(self, state, work_id: str, page_no: int) -> None:
+        current = state['entries'].get(work_id)
+        if current is None:
+            return
+        receipt, _ = self._receipt(current['relative_receipt'], verify_pages=False)
+        if page_no in _stand_in_pages(receipt):
+            raise ManagedPageQuarantined('managed page is quarantined')
+
     def assert_page_visible(self, work_id: str, page_no: int) -> None:
         if self.closed:
             raise ManagedDownloadError('managed download is closed')
         self._generations.assert_page_visible(work_id, page_no)
+        self._assert_not_stand_in(self._generations.state_snapshot(), work_id, page_no)
         if self.legacy_quarantine is not None and page_no in self.legacy_quarantine.excluded_pages(work_id):
             raise ManagedPageQuarantined('managed page is quarantined')
 
@@ -550,6 +585,9 @@ class ManagedPixivDownloads:
         total = len(raw)
         for number, entry in enumerate(receipt['files']):
             # Physical capacity still includes immutable recovery originals.
+            # A page destroyed by "empty trash" no longer occupies any space.
+            if self._page_is_purged(relative_receipt, number, entry):
+                continue
             data = self._read_saved_page_proof(relative_receipt, number, digest)
             if _image(data)[1:] != (entry['format'], entry['width'], entry['height']):
                 raise ManagedDownloadError('capacity image rejected')
@@ -558,11 +596,24 @@ class ManagedPixivDownloads:
             raise ManagedDownloadError('capacity active generation changed')
         return receipt['author_id'], total
 
+    def _page_is_purged(self, relative_receipt: str, page_no: int, entry) -> bool:
+        """True when the source page is gone and its backup was emptied on purpose."""
+        path = self.root / relative_receipt.rsplit('/', 1)[0] / entry['name']
+        _safe_path(path, file=True)
+        if native_io_path(path).exists():
+            return False
+        proof = self._generations.relocation_proofs().get((relative_receipt, page_no))
+        return (proof is not None and proof['state'] == 'purged'
+                and all(proof['item'][field] == entry[field]
+                        for field in ('sha256', 'bytes', 'format', 'width', 'height')))
+
     def read_saved_page(self, relative_receipt: str, page_no: int, expected_receipt_sha256: str) -> bytes:
         receipt, digest = self._receipt(relative_receipt, verify_pages=False)
         if digest != expected_receipt_sha256:
             raise ManagedDownloadError('saved page snapshot changed')
         self.assert_page_visible(receipt['work_id'], page_no)
+        if page_no in _stand_in_pages(receipt):
+            raise ManagedPageQuarantined('managed page is quarantined')
         data = self._read_saved_page_proof(relative_receipt, page_no, expected_receipt_sha256)
         self.assert_page_visible(receipt['work_id'], page_no)
         return data
@@ -592,6 +643,8 @@ class ManagedPixivDownloads:
             if proof is None or any(proof['item'][field] != entry[field]
                                     for field in ('sha256', 'bytes', 'format', 'width', 'height')):
                 raise ManagedDownloadError('saved page changed')
+            if proof['state'] == 'purged':
+                raise ManagedDownloadError('saved page purged from quarantine')
             data = _read_bounded(proof['path'], MAX_PAGE_BYTES)
         if (len(data) != receipt["files"][page_no]["bytes"] or
                 hashlib.sha256(data).hexdigest() != receipt["files"][page_no]["sha256"]):
@@ -646,6 +699,8 @@ class ManagedPixivDownloads:
             if type(job_id) is not str or not 1<=len(job_id)<=128:job_id='untracked-'+uuid4().hex
             legacy_pages,legacy_token=(self.legacy_quarantine.download_state(record)
                 if self.legacy_quarantine is not None else (frozenset(),None))
+            legacy_purged=(self.legacy_quarantine.purged_pages(record.remote_id)
+                if self.legacy_quarantine is not None else frozenset())
             if legacy_pages and legacy_pages==frozenset(range(record.page_count)):
                 raise ManagedDownloadError('legacy artwork is quarantined')
             _safe_path(self.outputs)
@@ -733,11 +788,17 @@ class ManagedPixivDownloads:
                         and self.legacy_quarantine.download_state(record)[1]!=legacy_token):
                     raise ManagedDownloadError('legacy quarantine changed during download')
                 if index-1 in legacy_pages:
-                    data=self.legacy_quarantine.download_proof(record,index-1)
+                    # Like the original, an emptied page is simply not taken; a hidden
+                    # stand-in keeps the receipt complete.
+                    data=(_purged_stand_in() if index-1 in legacy_purged
+                          else self.legacy_quarantine.download_proof(record,index-1))
                 elif index - 1 in excluded_pages:
                     if previous is None or index > previous[1]['page_count']:
                         raise ManagedDownloadError('quarantine recovery proof unavailable')
-                    data = self._read_saved_page_proof(previous[0], index - 1, previous[2])
+                    if self._page_is_purged(previous[0], index - 1, previous[1]['files'][index - 1]):
+                        data = _purged_stand_in()
+                    else:
+                        data = self._read_saved_page_proof(previous[0], index - 1, previous[2])
                 else:
                     try:
                         data = self.client.get_image_bytes(url)
