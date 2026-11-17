@@ -18,7 +18,7 @@ from threading import Event, RLock, Lock
 from uuid import uuid4
 from PIL import Image
 from .fs_paths import sqlite_readonly_uri
-from .managed_downloads import ManagedPixivDownloads
+from .managed_downloads import ManagedDownloadError, ManagedPixivDownloads
 from .managed_quarantine import TrashEmptyResult, check_trash_confirmation
 
 THRESHOLD=4
@@ -397,12 +397,17 @@ class ManagedDuplicateInspection:
                     try:
                         part=self.owner.quarantine.purge(expected_count=managed,confirmed=True)
                         removed+=part.removed;failed+=part.failed
-                    except Exception:failed+=managed
+                    except OSError:failed+=managed  # a refusal (count changed etc.) still propagates
                 if old:
                     try:
                         part=self.legacy.purge(expected_count=old,confirmed=True)
                         removed+=part.removed;failed+=part.failed
-                    except Exception:failed+=old
+                    except OSError:failed+=old
+                    except (ManagedDownloadError,ValueError,DuplicateInspectionError):
+                        # Refusing before anything happened keeps the whole call a refusal;
+                        # after the managed side already deleted, report it as left over.
+                        if not (removed or failed):raise
+                        failed+=old
             finally:
                 # Candidate bindings include the changed state revisions.
                 self._latest=None;self._planned=None

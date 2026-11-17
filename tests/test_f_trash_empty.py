@@ -530,21 +530,93 @@ def test_managed_interrupted_midway_reports_what_was_done_and_converges(owned, m
     _strict(writer)
 
 
-@pytest.mark.asyncio
-async def test_ui_partial_result_names_both_counts(owned):
+class _CountingLegacy(_FailingLegacy):
+    def __init__(self, count=1):
+        super().__init__(count)
+        self.purge_calls = 0
+
+    def purge(self, *, expected_count, confirmed):
+        self.purge_calls += 1
+        return super().purge(expected_count=expected_count, confirmed=confirmed)
+
+
+def test_managed_refusal_stops_everything_and_never_reaches_legacy(owned, monkeypatch):
+    """Recheck item 1: a count mismatch refuses the whole call, as in c9c77c7."""
     writer, source, _ = owned
-    source.execute(plan_for(source, '123:2'), operation_id='4' * 32)
+    op = source.execute(plan_for(source, '123:2'), operation_id='7' * 32).operation_id
+    legacy = source.legacy = _CountingLegacy(1)
+
+    def refuse(**kw):
+        raise ManagedDownloadError('trash content changed')
+
+    monkeypatch.setattr(writer.quarantine, 'purge', refuse)
+    with pytest.raises(ManagedDownloadError):
+        source.empty_trash(expected_count=2, confirmed=True)
+    assert legacy.purge_calls == 0 and _copy(writer, op).exists()
+
+
+def test_stand_in_page_stays_hidden_when_the_legacy_store_is_not_bound(tmp_path):
+    """Recheck item 2: a start without the old-DB snapshot must not show the black stand-in."""
+    from pixivvault_nicegui.bookmark_remote_adapter import RemoteBookmark
+    from pixivvault_nicegui.managed_downloads import ManagedPageQuarantined
+    source, legacy, owner, *_ = _legacy(tmp_path, {'3'}, 'copy')
+
+    class Reader:
+        def verify_identity(self):
+            return '7'
+
+        def get_artwork_original_pages(self, wid):
+            return ('https://i.pximg.net/p0', 'https://i.pximg.net/p1')
+
+        def get_image_bytes(self, url):
+            return _png((90, 80, 70), (20, 14))
+
+    owner.client = Reader()
+    maker = lambda wid: RemoteBookmark(wid, 'illustration', 'show', 'Generated', '92', 'Generated',
+        (), 'https://i.pximg.net/t', '2026-11-01T00:00:00Z', 2, 0, 0)
+    owner.resolve_record = maker
+    try:
+        legacy.purge(expected_count=1, confirmed=True)
+        relative = owner.run(SimpleNamespace(kind='pixiv-illust', target_id='3'), Context())
+        digest = owner._generations.current('3')['sha256']
+        unbound = ManagedPixivDownloads(tmp_path / 'managed', object(), resolve_record=maker)
+        try:
+            assert unbound.legacy_quarantine is None
+            assert unbound.visible_source_pages('3') == (1,)
+            with pytest.raises(ManagedPageQuarantined):
+                unbound.read_saved_page(relative, 0, digest)
+            with pytest.raises(ManagedPageQuarantined):
+                unbound.assert_page_available('3', 0)
+            assert len(unbound.read_saved_page(relative, 1, digest)) > 0
+            snapshot = unbound.receipt_snapshot() if hasattr(unbound, 'receipt_snapshot') else None
+            if snapshot is not None:
+                assert snapshot.pages['3'] == (1,)
+        finally:
+            unbound.close()
+    finally:
+        source.close(); owner.close()
+
+
+@pytest.mark.asyncio
+async def test_ui_dialog_keeps_the_original_shape_and_partial_wording(owned):
+    writer, source, _ = owned
+    source.execute(plan_for(source, '123:2'), operation_id='8' * 32)
     source.legacy = _FailingLegacy(1)
-    client = Client(ui.page('/_f_trash_empty_ui_partial'))
+    client = Client(ui.page('/_f_trash_empty_ui_shape'))
     try:
         with client:
             view = DuplicateView(source)
             view.set_active(True)
             await view.open_trash()
+            inside = set(view.trash_details.descendants())
+            for element in (view.trash_copy_count, view.trash_copy_bytes, view.trash_excluded,
+                            view.trash_restore_rows, view.trash_refresh_button, view.trash_open_button):
+                assert element in inside
+            for element in (view.trash_title, view.trash_confirm_count, view.trash_empty_button):
+                assert element not in inside
             view.trash_confirm_count.set_value('2')
             await view.empty_trash()
-            assert view.notice.text.startswith('ごみ箱: 1件を空にしました。残り1件は空にできませんでした')
-            assert '空にできませんでした。内容が変わった' not in view.notice.text
+            assert view.notice.text == 'ごみ箱: 1件を完全に削除しました（除外の記録は残ります）・失敗 1件'
     finally:
         client.delete()
 

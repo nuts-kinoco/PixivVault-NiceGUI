@@ -103,30 +103,34 @@ class DuplicateView:
         with ui.dialog().props('data-testid=duplicate-trash-dialog') as self.trash_dialog:
             with ui.card().classes('w-full').style('max-width:640px'):
                 self.trash_title=ui.label('ごみ箱').classes('text-lg').props('data-testid=duplicate-trash-title')
-                self.trash_status=ui.label('ごみ箱の内容は未確認です。').props(
-                    'role=status data-testid=duplicate-trash-status')
-                self.trash_copy_count=ui.label('公開済みの隔離コピー: 未確認').props(
-                    'data-testid=duplicate-trash-copy-count')
-                self.trash_copy_bytes=ui.label('隔離コピーの容量: 未確認').props(
-                    'data-testid=duplicate-trash-copy-bytes')
-                self.trash_excluded=ui.label('通常の一覧から除外中: 未確認').props(
-                    'data-testid=duplicate-trash-excluded')
-                ui.label('件数と容量は公開済みの隔離コピーです。未完了の作業用コピーは含みません。'
-                         '元の保存証拠と一覧の除外記録は保持されます。').classes('pv-subtitle')
-                # Original gui.py:5640-5669: type the count to enable the empty button.
+                # Original gui.py:5604-5702: title, one warning line, the typed count, 閉じる / 空にする.
                 ui.label('空にすると元に戻せません。件数を入力すると「空にする」が押せます。').classes('pv-subtitle')
                 self.trash_confirm_count=ui.input(label='件数を入力',on_change=lambda _:self.sync()).props(
                     'outlined dense inputmode=numeric data-testid=duplicate-trash-confirm-count').style('width:140px')
-                self.trash_restore_rows=ui.column().classes('w-full').props(
-                    'data-testid=duplicate-trash-move-recovery')
+                # Only shown while loading, on errors or when something needs attention.
+                self.trash_status=ui.label('ごみ箱の内容は未確認です。').props(
+                    'role=status data-testid=duplicate-trash-status')
+                # Not in the original: kept (earlier requirements) but folded away by default.
+                with ui.expansion('詳細・復元').props('dense data-testid=duplicate-trash-details') as self.trash_details:
+                    self.trash_copy_count=ui.label('公開済みの隔離コピー: 未確認').props(
+                        'data-testid=duplicate-trash-copy-count')
+                    self.trash_copy_bytes=ui.label('隔離コピーの容量: 未確認').props(
+                        'data-testid=duplicate-trash-copy-bytes')
+                    self.trash_excluded=ui.label('通常の一覧から除外中: 未確認').props(
+                        'data-testid=duplicate-trash-excluded')
+                    ui.label('件数と容量は公開済みの隔離コピーです。未完了の作業用コピーは含みません。'
+                             '元の保存証拠と一覧の除外記録は保持されます。').classes('pv-subtitle')
+                    self.trash_restore_rows=ui.column().classes('w-full').props(
+                        'data-testid=duplicate-trash-move-recovery')
+                    with ui.row().classes('w-full justify-end'):
+                        self.trash_refresh_button=ui.button('再読込',on_click=self.refresh_trash).props(
+                            'flat data-testid=duplicate-trash-refresh')
+                        self.trash_open_button=ui.button('保存先を開く',on_click=self.open_trash_location).props(
+                            'flat data-testid=duplicate-trash-open')
+                        self.trash_open_button.tooltip('このアプリ専用のごみ箱フォルダをOSで開きます。'
+                            if self._open_trash_callback is not None else
+                            'この起動ではOSで開く操作を利用できません。')
                 with ui.row().classes('w-full justify-end'):
-                    self.trash_refresh_button=ui.button('再読込',on_click=self.refresh_trash).props(
-                        'flat data-testid=duplicate-trash-refresh')
-                    self.trash_open_button=ui.button('保存先を開く',on_click=self.open_trash_location).props(
-                        'flat data-testid=duplicate-trash-open')
-                    self.trash_open_button.tooltip('このアプリ専用のごみ箱フォルダをOSで開きます。'
-                        if self._open_trash_callback is not None else
-                        'この起動ではOSで開く操作を利用できません。')
                     ui.button('閉じる',on_click=self.close_trash).props(
                         'flat data-testid=duplicate-trash-close')
                     self.trash_empty_button=ui.button('空にする',on_click=self.empty_trash,color='amber').props(
@@ -281,6 +285,8 @@ class DuplicateView:
             # every copy still present); the healthy-copy lines below count fewer.
             self.trash_status.set_text(self.trash_status.text
                 + f' ごみ箱の件数（{snapshot.purgeable_count}件）には、壊れた隔離コピーや復元済みの控えも含み、空にするとすべて削除されます。')
+        self.trash_status.set_visibility(self.trash_status.text not in (
+            'ごみ箱の内容を確認しました。','ごみ箱に隔離コピーはありません。'))
         self.trash_restore_rows.clear()
         self._trash_restore_buttons=[]
         if self._trash_state=='ready' and self._trash_moves:
@@ -363,15 +369,9 @@ class DuplicateView:
             ui.notify(message,type='warning')
         else:
             self.scan_result=getattr(self.source,'latest_scan',None);self.selections={};self.render()
-            if not result.failed:
-                message=f'ごみ箱: {result.removed}件を完全に削除しました（除外の記録は残ります）'
-            elif result.removed:
-                # Partial progress is real and permanent: say both numbers.
-                message=(f'ごみ箱: {result.removed}件を空にしました。残り{result.failed}件は空にできませんでした'
-                         '（除外の記録は残ります。もう一度「空にする」で続きを実行できます）')
-            else:
-                message=(f'ごみ箱を空にできませんでした。{result.failed}件が残っています。'
-                         'ごみ箱を開き直してもう一度お試しください。')
+            # Original gui.py:5683: the same sentence, with the failure count appended.
+            message=f'ごみ箱: {result.removed}件を完全に削除しました（除外の記録は残ります）'
+            if result.failed:message+=f'・失敗 {result.failed}件'
             ui.notify(message,type='warning' if result.failed else 'positive')
         self._schedule_trash_summary()
         self.notice.set_text(message)

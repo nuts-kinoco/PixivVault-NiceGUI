@@ -155,15 +155,24 @@ def _record(value: object, work_id: str) -> RemoteBookmark:
     return value
 
 
+# A fixed 1x1 PNG: its digest identifies a stand-in even when no quarantine store is bound.
+_STAND_IN = bytes.fromhex('89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de0000000c49444154789c63606060000000040001f61738550000000049454e44ae426082')
+_STAND_IN_SHA = hashlib.sha256(_STAND_IN).hexdigest()
+
+
+def _stand_in_pages(receipt) -> frozenset:
+    """Pages that hold only the stand-in of an emptied page: never visible."""
+    return frozenset(index for index, entry in enumerate(receipt['files'])
+                     if entry['sha256'] == _STAND_IN_SHA)
+
+
 def _purged_stand_in() -> bytes:
     """Smallest valid image for a page that was emptied from the trash.
 
     The page stays excluded (hidden) and unrecoverable; the stand-in only keeps
     the immutable receipt structurally complete without fetching the page again.
     """
-    stream = io.BytesIO()
-    Image.new('RGB', (1, 1), (0, 0, 0)).save(stream, 'PNG')
-    return stream.getvalue()
+    return _STAND_IN
 
 
 def _image(data: bytes) -> tuple[str, str, int, int]:
@@ -459,7 +468,8 @@ class ManagedPixivDownloads:
                 receipt['work_id']: tuple(
                     number for number in range(receipt['page_count'])
                     if str(number) not in before['exclusions'].get(receipt['work_id'], {})
-                    and f"{receipt['work_id']}:{number+1}" not in legacy_excluded)
+                    and f"{receipt['work_id']}:{number+1}" not in legacy_excluded
+                    and number not in _stand_in_pages(receipt))
                 for _, receipt, _ in rows
             }
             tokens = {wid: self._generations._work_token(before, wid) for wid in pages}
@@ -481,8 +491,9 @@ class ManagedPixivDownloads:
         excluded = state['exclusions'].get(work_id, {})
         legacy_excluded=(self.legacy_quarantine.excluded_pages(work_id)
                          if self.legacy_quarantine is not None else ())
+        hidden = _stand_in_pages(receipt)
         return tuple(page for page in range(receipt['page_count'])
-                     if str(page) not in excluded and page not in legacy_excluded)
+                     if str(page) not in excluded and page not in legacy_excluded and page not in hidden)
 
     def assert_page_available(self, work_id: str, page_no: int, *,
                               expected_work_state_token: str | None = None) -> str:
@@ -494,15 +505,25 @@ class ManagedPixivDownloads:
             raise ManagedPageQuarantined('managed page is quarantined')
         if str(page_no) in state['exclusions'].get(work_id, {}):
             raise ManagedPageQuarantined('managed page is quarantined')
+        self._assert_not_stand_in(state, work_id, page_no)
         token = self._generations._work_token(state, work_id)
         if expected_work_state_token is not None and token != expected_work_state_token:
             raise ManagedPageSelectionChanged('managed page snapshot changed')
         return token
 
+    def _assert_not_stand_in(self, state, work_id: str, page_no: int) -> None:
+        current = state['entries'].get(work_id)
+        if current is None:
+            return
+        receipt, _ = self._receipt(current['relative_receipt'], verify_pages=False)
+        if page_no in _stand_in_pages(receipt):
+            raise ManagedPageQuarantined('managed page is quarantined')
+
     def assert_page_visible(self, work_id: str, page_no: int) -> None:
         if self.closed:
             raise ManagedDownloadError('managed download is closed')
         self._generations.assert_page_visible(work_id, page_no)
+        self._assert_not_stand_in(self._generations.state_snapshot(), work_id, page_no)
         if self.legacy_quarantine is not None and page_no in self.legacy_quarantine.excluded_pages(work_id):
             raise ManagedPageQuarantined('managed page is quarantined')
 
@@ -591,6 +612,8 @@ class ManagedPixivDownloads:
         if digest != expected_receipt_sha256:
             raise ManagedDownloadError('saved page snapshot changed')
         self.assert_page_visible(receipt['work_id'], page_no)
+        if page_no in _stand_in_pages(receipt):
+            raise ManagedPageQuarantined('managed page is quarantined')
         data = self._read_saved_page_proof(relative_receipt, page_no, expected_receipt_sha256)
         self.assert_page_visible(receipt['work_id'], page_no)
         return data
