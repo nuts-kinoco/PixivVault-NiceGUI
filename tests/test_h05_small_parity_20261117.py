@@ -83,3 +83,20 @@ async def test_legacy_failed_records_refresh_tooltip_is_original(tmp_path):
     finally:
         client.delete()
         service.close()
+
+
+@pytest.mark.asyncio
+async def test_duplicate_mode_chips_are_equal_width_190px_like_original():
+    # 元 gui.py:5462-5469: 重複整理の2チップは「等幅2択」(190px固定)。件数・未走査の「–」・
+    # 切替は既存の DuplicateView 実装（tests/test_duplicate_view.py）で既に原本どおり。
+    from test_duplicate_view import StubSource
+    from pixivvault_nicegui.ui.duplicate_view import DuplicateView
+    client = Client(ui.page('/_h05_dup_chips'))
+    try:
+        with client:
+            view = DuplicateView(StubSource())
+            for key in ('undecidable', 'near'):
+                assert view.mode_buttons[key]._style.get('width') == '190px'
+            view.close()
+    finally:
+        client.delete()
