@@ -1010,10 +1010,16 @@ class ApplicationServices:
             if callable(retry):
                 retry(self._request_retry)
 
+    def extension_setting_available(self):
+        # The receiver is started at launch from the managed download root only.
+        return getattr(self, 'managed_downloads', None) is not None
+
     def preference_consumers(self):
         enabled = set()
         if self.pixiv_actions_mode == 'preferences' and self.preferences is not None:
             enabled.add('pixiv_actions_enabled')
+        if self.extension_setting_available():
+            enabled.add('extension_bridge_enabled')
         if self.save_exports is not None:
             enabled.add("zip_all_after_download")
             # These are local choices. An unbound normal profile can save

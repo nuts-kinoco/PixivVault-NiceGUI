@@ -6,7 +6,15 @@ from ..preferences import SPECS, SPEC_BY_KEY, PreferencesError
 from ..legacy_metadata_export import LegacyMetadataExportError
 
 
+EXTENSION_STATUS_LABELS = {
+    'running': '拡張連携: 受付中',
+    'unavailable': '拡張連携: ポートを使用できません。既存アプリの終了後に再起動してください。',
+    'setting_off': '拡張連携: 設定で停止中です。次回の起動から受け付けます（設定でONに戻せます）。',
+    'disabled': '拡張連携: 無効（Cookieと保存先の設定が必要です）',
+}
+
 UNAVAILABLE_REASONS = {
+    'extension_bridge_enabled': 'この起動には保存先がないため、拡張機能の受信は使えません。',
     'pixiv_actions_enabled': 'この起動ではPixiv操作の設定を変更できません。',
     'api_retry_count': 'この保存経路は停止して確認後に再試行します。通信の自動再送は未対応です。',
     'api_retry_wait': '429は全体障害として停止します。自動待機・再送は未接続です。',
@@ -159,6 +167,9 @@ class PreferencesView:
                         notice=('変更は次回の通常起動から適用されます。Cookieの参照先が必要です。'
                                 if spec.key in self.enabled_keys else self.reasons[spec.key])
                         ui.label(notice).classes('text-caption text-grey').props('data-testid=preference-pixiv-actions-mode')
+                    elif spec.key == 'extension_bridge_enabled' and spec.key in self.enabled_keys:
+                        ui.label('変更は次回の起動から適用されます。実行中の受信は止めません。127.0.0.1（このPC内）だけで受け付けます。').classes(
+                            'text-caption text-grey').props('data-testid=preference-extension-bridge-note')
                     elif spec.key == 'bookmark_download_mode' and spec.key in self.enabled_keys:
                         ui.label('設定保存だけでは通信しません。通常起動では、マイブックマークの「再読込」が成功してから、そのアカウントの保存配置に適用します。').classes(
                             'text-caption text-grey').props('data-testid=preference-bookmark-account-gate')
@@ -179,7 +190,7 @@ class PreferencesView:
                                 '変更は専用設定に保存され、次の操作から使われます。実行中のジョブは変更しません。')
             ui.label(application_notice).classes('text-caption')
             if self.extension_status is not None:
-                label={'running':'拡張連携: 受付中','unavailable':'拡張連携: ポートを使用できません。既存アプリの終了後に再起動してください。','disabled':'拡張連携: 無効（明示した起動設定が必要）'}.get(self.extension_status(),'拡張連携: 状態不明')
+                label=EXTENSION_STATUS_LABELS.get(self.extension_status(),'拡張連携: 状態不明')
                 ui.label(label).props('role=status data-testid=extension-status')
                 if self.extension_snapshot is not None or self.extension_counts is not None:
                     counts, reasons = self.extension_snapshot() if self.extension_snapshot is not None else (self.extension_counts(), self.extension_reasons() if self.extension_reasons is not None else {})

@@ -51,6 +51,7 @@ class RunConfig:
     similarity_model_file: Path | None = None
     similarity_provider: str = 'auto'
     similarity_auto: bool = False
+    extension_bridge_auto: bool = False
 
 
 def _port(value: str) -> int:
@@ -121,6 +122,8 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
     parser.add_argument('startup_uri', nargs='?', type=parse_start_uri)
     parser.add_argument('--extension-bridge', action='store_true',
                         help='Enable the original browser extension loopback receiver')
+    parser.add_argument('--no-extension-bridge', action='store_true',
+                        help='管理保存先があっても、拡張機能の受信サーバーを起動しない')
     parser.add_argument('--save-export-root',type=_sandbox_path)
     parser.add_argument('--bookmark-account-id')
     parser.add_argument('--profile-root', type=_sandbox_path,
@@ -337,12 +340,21 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
                      image in args.legacy_zip_export_root.resolve().parents or
                      args.legacy_zip_export_root.resolve() in image.parents))):
             parser.error('legacy image root must be separate from managed, Cookie, snapshot and ZIP export paths')
+    if args.extension_bridge and args.no_extension_bridge:
+        parser.error('--extension-bridge と --no-extension-bridge は併用できません')
+    from . import test_owner_runtime
+    # 元(server.py)は常時起動。管理保存先があるときだけ既定で起動する。
+    # テスト用の隔離領域では起動しない。設定「拡張機能の受信」で止められる。
+    extension_bridge_auto = (not args.extension_bridge and not args.no_extension_bridge
+                             and args.pixiv_download_root is not None
+                             and test_owner_runtime._root is None)
     return RunConfig(args.host, args.port, args.native, args.check, args.learning_sandbox,
                      args.library_readonly_db, args.library_image_root, args.pixiv_cookie_file,
                      args.download_sandbox, args.pixiv_download_root,
                      args.failed_queue_readonly_db, args.legacy_zip_export_root,
                      args.legacy_diff_image_root, args.novel_fixture_root, args.novel_download_root,args.ugoira_root,args.ugoira_fixture_root,args.ugoira_codec_python,args.recommendation_preferences_root,args.preferences_root,args.discovery_root,args.external_vault_root,args.image_cache_root,args.startup_uri,args.extension_bridge,args.save_export_root,args.bookmark_account_id,args.profile_root,profile_revision,profile_reference_unavailable,args.following_sync_root,args.enable_pixiv_actions,
-                     args.similarity_index_root,args.similarity_model_file,args.similarity_provider,args.similarity_auto)
+                     args.similarity_index_root,args.similarity_model_file,args.similarity_provider,args.similarity_auto,
+                     extension_bridge_auto)
 
 
 _registered = False
@@ -409,6 +421,18 @@ def _build_owned_media_readers(*, pixiv_cookie_file, pixiv_download_root,
     return live_client, novel_source, novel_fixture_root, ugoira_source, ugoira_root
 
 
+def extension_bridge_wanted(explicit, auto, preferences) -> bool:
+    """拡張機能の受信サーバーを起動するか。明示指定は従来どおり。既定起動は設定で止められる。"""
+    if explicit:
+        return True
+    if not auto or preferences is None:
+        return False
+    try:
+        return preferences.get_setting('extension_bridge_enabled', '1') != '0'
+    except Exception:
+        return False
+
+
 def register_pages(learning_sandbox: Path | None = None,
                    library_readonly_db: Path | None = None,
                    library_image_root: Path | None = None,
@@ -427,7 +451,7 @@ def register_pages(learning_sandbox: Path | None = None,
                    native_profile=None, following_sync_root=None, pixiv_actions_mode='readonly',
                    managed_network_stop_scope=None, shared_network_stop_scope=None,
                    similarity_index_root=None, similarity_model_file=None,
-                   similarity_provider='auto', similarity_auto=False) -> None:
+                   similarity_provider='auto', similarity_auto=False, extension_bridge_auto=False) -> None:
     """NiceGUIのHTTPルートを登録する。呼ぶだけではサーバーを起動しない。"""
     global _registered
     if _registered:
@@ -597,10 +621,13 @@ def register_pages(learning_sandbox: Path | None = None,
                 model_file=similarity_model_file, provider=similarity_provider)
             if similarity_auto:
                 app.on_startup(services.start_similarity_analysis)
-        if services.managed_downloads is not None and (extension_bridge or
+        bridge_wanted = extension_bridge_wanted(extension_bridge, extension_bridge_auto, services.preferences)
+        if extension_bridge_auto and not bridge_wanted:
+            services.extension_bridge_status = 'setting_off'
+        if services.managed_downloads is not None and (bridge_wanted or
                 (services.managed_downloads.root / 'extension-commands').exists()):
             services.enable_extension_commands()
-        if extension_bridge:
+        if bridge_wanted:
             app.on_startup(services.start_extension_bridge)
         if desktop_enabled:
             from .native_lifecycle import bind_native_tray
@@ -919,6 +946,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 similarity_provider=config.similarity_provider,similarity_auto=config.similarity_auto)
         if config.extension_bridge:
             registration['extension_bridge'] = True
+        if config.extension_bridge_auto:
+            registration['extension_bridge_auto'] = True
         if config.native:
             registration["desktop_enabled"] = True
             if config.pixiv_download_root is not None:
