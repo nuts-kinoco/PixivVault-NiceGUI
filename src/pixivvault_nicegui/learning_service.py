@@ -325,6 +325,29 @@ class LearningService:
     async def view_history(self):
         return await self._wait(self._submit(self._view_rows))
 
+    # --- 学習状況のリセット（元 gui.py:2183-2297 / database.reset_discovery_learning） ---
+    async def judged_count(self):
+        return await self._wait(self._submit(lambda: len(self._database().get_judged_work_ids())))
+
+    async def judgment_export_rows(self):
+        return await self._wait(self._submit(lambda: self._database().get_discovery_swipe_history_for_review()))
+
+    def submit_reset(self) -> Future:
+        """Accepted on the worker before awaiting, like review undo."""
+        return self._submit(self._reset)
+
+    async def reset_learning(self):
+        return await self._wait(self.submit_reset())
+
+    def _reset(self):
+        result = self._database().reset_discovery_learning(keep_seed=True)
+        # 判定行が消えたあとも残る取り消し状態（Undoスタック・振り返りの取消済み台帳）は
+        # 消えた履歴を指すので、全セッション分を破棄する。
+        for session in self._sessions.values():
+            session.repository.discard_undo_state()
+            session.review_undo.clear()
+        return result
+
     async def clear_view_history(self, expected):
         def clear():
             if self._view_rows() != expected:

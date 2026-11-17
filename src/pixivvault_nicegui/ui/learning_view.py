@@ -197,6 +197,8 @@ class LearningView:
             self.review_button = ui.button('振り返り', on_click=self.open_review).props('flat data-testid=learning-review-open')
             from .view_history_view import ViewHistoryView
             self.view_history = ViewHistoryView(self, self.storage)
+            from .learning_reset import LearningResetView
+            self.reset_view = LearningResetView(self, self.storage) if self.storage is not None else None
 
             self.review_button.set_visibility(self.storage is not None)
         with ui.dialog().props('data-testid=learning-review-dialog') as self.review_dialog, ui.card().classes('w-full').style('max-width:1000px'):
@@ -1605,6 +1607,7 @@ class LearningView:
         self._summary_epoch += 1
         self._review_timer.cancel()
         self.view_history.close()
+        if self.reset_view is not None:self.reset_view.close()
         self._stop_initial_load()
         self._stop_candidate_refill()
         self._stop_prefetch(close=True)

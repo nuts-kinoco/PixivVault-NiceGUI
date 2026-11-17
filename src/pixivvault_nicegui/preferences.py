@@ -25,6 +25,7 @@ class PreferenceSpec:
 SPECS = (
     PreferenceSpec('grid_card_size_mode', 'カードサイズ', 'large', ('large','medium','small'), '表示'),
     PreferenceSpec('use_work_folder','作品ごとのフォルダーを使う','0',('0','1'),'保存'),
+    PreferenceSpec('nana7mi_shaft_refresh_interval_hours', 'Nana7mi借用アカウント自動更新間隔', '24', ('1','6','12','24','48'), '保存'),
     PreferenceSpec('novel_save_format', '小説の保存形式', 'epub', ('epub','txt','both'), '保存'),
     PreferenceSpec('ugoira_save_format', 'うごイラの保存形式', 'gif', ('gif','mp4','folder'), '保存'),
     PreferenceSpec('zip_all_after_download', '作者のダウンロード完了後ZIPにする', '0', ('0','1'), '保存'),

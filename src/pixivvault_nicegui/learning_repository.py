@@ -53,6 +53,12 @@ class LearningRepository:
                 END;
             """)
 
+    def discard_undo_state(self) -> None:
+        """学習状況のリセット後、消えた判定を指すUndoスタックと世代記録を捨てる。"""
+        with self._lock:
+            self._stack.clear()
+            self._versions.clear()
+
     def _revision(self, work_id: str) -> int:
         row = self.db.conn.execute(
             "SELECT revision FROM learning_adapter_revision WHERE work_id=?", (str(work_id),)
