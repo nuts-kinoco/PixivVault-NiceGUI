@@ -54,7 +54,7 @@ class SaveExports:
         self._dependency_local=local()
         self._log_salt=os.urandom(32)
         self.stop=Event();self.thread=None;self.lock=RLock();self.last_error='';self.scan_errors={};self._reported_errors={};self.scan_warnings={};self._reported_warnings={}
-        self._admissions={};self._seen_operations=set();self._unresolved={};self._operation_count=-1
+        self._admissions={};self._seen_operations=set();self._unresolved={};self._operation_count=-1;self.scans_completed=0
         self._recovered={};self._retired_offers={};self._legacy_publications=set()
         self._accepted_inputs={};self._projection_families={};self._author_publications={};self._work_publications={};self._static_records={}
         self.jobs=JobService(self.run,self.root/'jobs.sqlite3')
@@ -488,7 +488,10 @@ class SaveExports:
 
     def scan(self):
         self._cycle_errors={};self._cycle_warnings={}
-        try:return self._scan()
+        try:
+            result=self._scan()
+            self.scans_completed+=1
+            return result
         except Exception as error:
             self._scan_error('scan',error)
             raise

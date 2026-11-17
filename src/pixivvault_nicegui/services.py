@@ -1535,6 +1535,70 @@ class ApplicationServices:
         with self._media_admission_lock:
             return self.author_media.enqueue(candidate, operation_id, origin=origin)
 
+    def retire_settled_author_jobs(self, refs, *, settle_timeout=10.0):
+        """Free the capped job/intent ledgers after a bulk author run (JobService caps at 10,000).
+
+        Only finished (`done`) static jobs the caller recorded elsewhere are retired, and only at
+        full quiescence: no unfinished job anywhere, and the export scanner has since completed
+        two full passes with nothing new queued. The scanner only zips / projects works that still
+        have a done job in the ledger, so retiring earlier would silently skip them.
+        Returns the number retired (0 when there was nothing to do), or None when it is not yet
+        safe to retire: ask again at the next boundary.
+        """
+        import time
+        from .job_service import UNFINISHED
+        if self.closing or self.static_jobs is None or self.managed_downloads is None:
+            return None
+        ids = {ref.job_id for ref in refs if ref.kind == 'illustration'}
+        if not ids:
+            return 0
+
+        def quiet():
+            return not any(job.state in UNFINISHED for job in self.jobs.snapshot())
+        exports = self.save_exports
+        if not quiet():
+            self._retire_baseline = None
+            return None
+        if exports is not None:
+            # Two scanner passes must complete after the world went quiet and the exporter
+            # accepted nothing new. A pass can take seconds on a big library, so the baseline
+            # is kept across calls instead of restarting the count on every ask.
+            marker = getattr(getattr(exports, 'jobs', None), 'operation_count', 0)
+            baseline = getattr(self, '_retire_baseline', None)
+            if baseline is None or baseline[1] != marker:
+                baseline = self._retire_baseline = (exports.scans_completed, marker)
+            deadline = time.monotonic() + settle_timeout
+            while exports.scans_completed < baseline[0] + 2:
+                if self.closing or time.monotonic() > deadline:
+                    return None
+                time.sleep(0.05)
+            if not quiet() or getattr(getattr(exports, 'jobs', None), 'operation_count', 0) != baseline[1]:
+                self._retire_baseline = None
+                return None  # the scan queued ZIP / projection work: let it finish first
+        with self._media_admission_lock:
+            if not quiet():
+                return None
+            done = [job_id for job_id in ids
+                    if getattr(self.static_jobs.retained_job(job_id), 'state', None) == 'done']
+            if not done:
+                return 0
+            wanted = set(done)
+            operations = {}
+            for operation, job_id, _kind, _target, _title in self.static_jobs.accepted_operations():
+                if job_id in wanted:
+                    operations.setdefault(job_id, []).append(operation)
+            retired = self.static_jobs.retire_jobs(done)
+            freed = [op for job_id in retired for op in operations.get(job_id, ())]
+            # Intents go only after JobService forgot them: startup reloads the intent of every
+            # job it still lists and refuses to start when one is missing.
+            self._managed_requests.release(freed)
+            if self.author_media is not None:
+                self.author_media.forget_admissions(freed)
+            for job_id in retired:
+                self._managed_job_records.pop(job_id, None)
+            self._retire_baseline = None
+            return len(retired)
+
     def enqueue_novel_export(self, intent, operation_id):
         """Explicit fixture-only M3 acceptance; caller performs local I/O off-loop."""
         if self.closing or self.novel_jobs is None:

@@ -194,6 +194,10 @@ class AuthorMediaService:
             db.execute('INSERT INTO author_targets(author_id,target_type,revision,auto_zip) VALUES(?,NULL,?,?) ON CONFLICT(author_id) DO UPDATE SET revision=excluded.revision,auto_zip=excluded.auto_zip',(author_id,revision+1,None if enabled is None else int(enabled)))
             return revision+1
 
+    def owner_jobs(self, kind):
+        """The durable JobService that owns this media kind (read-only use by the batch engine)."""
+        return self._owner_jobs(kind)
+
     def _owner_jobs(self, kind):
         owner = self.services.static_jobs if kind == 'illustration' else (
             self.services.novel_jobs.jobs if kind == 'novel' else self.services.ugoira.jobs)
@@ -433,6 +437,21 @@ class AuthorMediaService:
             else:
                 job=s.ugoira.enqueue_selection(match.payload,operation_id)
             return job,job.job_id not in before,self._bind(candidate,operation_id,job)
+
+    def forget_admissions(self, operation_ids):
+        """Drop journal rows of retired static (illustration) operations; return how many.
+
+        Their jobs and receipts-of-record are gone from JobService, so the rows can no
+        longer bind to anything, yet every preview reconciles every row.
+        Novel/ugoira rows are never touched: their owners keep their ledgers.
+        """
+        ids = [op for op in operation_ids if type(op) is str and re.fullmatch(r'[a-f0-9]{32}', op)]
+        removed = 0
+        with self.lock, self._db() as db:
+            for op in ids:
+                removed += db.execute("DELETE FROM admissions WHERE operation_id=? AND media_key NOT LIKE '%:%'",
+                                      (op,)).rowcount
+        return removed
 
     def _bind(self,candidate,operation,job):
         with self._db() as db:
