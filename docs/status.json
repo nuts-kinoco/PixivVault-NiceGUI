@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-17 19:26",
+  "updated": "2026-11-18 03:52",
   "phases": [
     {
       "id": "P0",
@@ -25,11 +25,11 @@
       "id": "P2",
       "name": "台帳と土台",
       "goal": "機械列挙の台帳、元アプリの隔離起動の可否、共通シェルの復元",
-      "state": "次に着手",
+      "state": "進行中（残 3）",
       "approval": "事前承認（この計画）",
-      "done": 1,
-      "total": 6,
-      "pct": 17
+      "done": 5,
+      "total": 8,
+      "pct": 62
     },
     {
       "id": "P3",
@@ -161,31 +161,43 @@
     },
     {
       "phase": "P2",
-      "condition": "inventory.json と網羅チェック（元の識別子の取りこぼしゼロ）",
-      "met": "未",
-      "evidence": ""
+      "condition": "inventory.json と網羅チェック（取りこぼし 0）",
+      "met": "達成",
+      "evidence": "docs/inventory.json（2814 件）、tools/check_inventory_coverage.py"
     },
     {
       "phase": "P2",
-      "condition": "core.py・database.py・pixiv_client.py の走査",
-      "met": "未",
-      "evidence": ""
+      "condition": "core.py・database.py・pixiv_client.py の走査を台帳へ",
+      "met": "達成",
+      "evidence": "FL-Z01〜Z17"
     },
     {
       "phase": "P2",
-      "condition": "元アプリが隔離データで起動できるか確認（D2・D6 の方法確定）",
-      "met": "未",
-      "evidence": ""
+      "condition": "元アプリを隔離データで起動し画面を取得できる（D2・D6 の方法確定）",
+      "met": "達成",
+      "evidence": "tools/original_run/, verify/original_20261117_225445/"
     },
     {
       "phase": "P2",
       "condition": "共通シェル（ナビ・ヘッダー）を元の見た目へ",
+      "met": "達成",
+      "evidence": "verify/shell_20261117_final/comparison.md"
+    },
+    {
+      "phase": "P2",
+      "condition": "台帳を Argon がレビュー、検証して台帳へ反映",
+      "met": "未",
+      "evidence": "docs/LEDGER_REVIEW_ARGON_2026-11-17.md（wt-r で反映中）"
+    },
+    {
+      "phase": "P2",
+      "condition": "台帳をアドバイザーがレビュー",
       "met": "未",
       "evidence": ""
     },
     {
       "phase": "P2",
-      "condition": "台帳をアドバイザーと Argon がレビュー",
+      "condition": "P3 の作業リストと規模の確定",
       "met": "未",
       "evidence": ""
     },
@@ -414,6 +426,56 @@
       "checker": "未",
       "real_app": "未",
       "evidence": "本人の裁定 11-17"
+    },
+    {
+      "phase": "P2",
+      "id": "COS-R1",
+      "title": "COS による実機の画面確認 R1（PASS 14 / FAIL 1＝期待の誤り）",
+      "stage": 4,
+      "stage_name": "局所成立",
+      "checker": "—",
+      "real_app": "済（COS）",
+      "evidence": "evidence_cos_R1_2026-11-18.md"
+    },
+    {
+      "phase": "P2",
+      "id": "wt-q",
+      "title": "共通シェルを元の見た目へ（ヘッダー・タブ・配色・ライトの明るいカード）",
+      "stage": 4,
+      "stage_name": "局所成立",
+      "checker": "未",
+      "real_app": "未（R2 で COS 確認）",
+      "evidence": "4e4ec38（全体 2142 成功・画面スモーク PASS）"
+    },
+    {
+      "phase": "P2",
+      "id": "wt-n",
+      "title": "台帳の機械列挙（inventory 2814 件・網羅チェック）",
+      "stage": 4,
+      "stage_name": "局所成立",
+      "checker": "済（指摘反映）",
+      "real_app": "—",
+      "evidence": "feat-n 取り込み済み"
+    },
+    {
+      "phase": "P2",
+      "id": "wt-r",
+      "title": "台帳の監査（Argon 指摘 20 件の検証・網羅チェックの強化）",
+      "stage": 2,
+      "stage_name": "編集",
+      "checker": "未",
+      "real_app": "—",
+      "evidence": "0d72cd4"
+    },
+    {
+      "phase": "P3",
+      "id": "wt-s",
+      "title": "ダウンロードの全体設計書（FL-D00）",
+      "stage": 2,
+      "stage_name": "編集",
+      "checker": "未",
+      "real_app": "—",
+      "evidence": "設計書→advisor・Argon レビュー→実装"
     }
   ],
   "decisions": [
@@ -476,9 +538,42 @@
       "value": "python.exe を Stop-Process/taskkill で止めない（他のテストを巻き込む。全体テストが途中で消えた原因の可能性）",
       "set_by": "私",
       "status": "運用規則"
+    },
+    {
+      "topic": "タブの等幅",
+      "value": "全タブを同じ幅にする（アイコン付きの元の見た目は保つ）",
+      "set_by": "本人",
+      "status": "確定"
+    },
+    {
+      "topic": "タブの並び",
+      "value": "元の順（ダウンロード・キュー・失敗リスト・重複整理・学習・ランキング）→ 自分のランキング → ライブラリ・おすすめ → 定期チェック・メタデータ補完。直近のバックアップは元どおりヘッダーのアイコン",
+      "set_by": "本人",
+      "status": "確定"
+    },
+    {
+      "topic": "ライトモードのカード",
+      "value": "明るいカードにする（元は暗色のまま残るが、本人の裁定で元と変える）",
+      "set_by": "本人",
+      "status": "確定"
+    },
+    {
+      "topic": "実ブラウザでの Cookie 抽出の試験",
+      "value": "最後に任意で（本人が指示したときだけ）",
+      "set_by": "本人",
+      "status": "確定"
     }
   ],
-  "running": [],
+  "running": [
+    {
+      "who": "wt-r",
+      "what": "台帳の監査（Argon 指摘の検証・網羅チェック強化）"
+    },
+    {
+      "who": "wt-s",
+      "what": "ダウンロードの全体設計書"
+    }
+  ],
   "ledger_counts_provisional": {
     "有": 82,
     "無": 18,
@@ -494,12 +589,12 @@
     "errors": 0,
     "seconds": 653.13
   },
-  "head": "ae443b4 本人の裁定を記録: DL は元に合わせる・補完は既定オン・タブ整理と等幅・push はローカル",
+  "head": "4e4ec38 Merge feat-q (共通シェルを元の見た目へ: ヘッダー・タブ・配色・ライトの明るいカード)",
   "worktrees": [
     {
       "path": "work",
       "branch": "pv-dev-baseline",
-      "head": "ae443b4"
+      "head": "4e4ec38"
     },
     {
       "path": "basewt",
@@ -575,6 +670,36 @@
       "path": "wt-m",
       "branch": "fix-m-legacy-thumb",
       "head": "4f21155"
+    },
+    {
+      "path": "wt-n",
+      "branch": "feat-n-inventory",
+      "head": "64a20b3"
+    },
+    {
+      "path": "wt-o",
+      "branch": "feat-o-original-run",
+      "head": "8d16af5"
+    },
+    {
+      "path": "wt-p",
+      "branch": "fix-p-checker-findings",
+      "head": "66c33a0"
+    },
+    {
+      "path": "wt-q",
+      "branch": "feat-q-shell",
+      "head": "69997a8"
+    },
+    {
+      "path": "wt-r",
+      "branch": "feat-r-ledger-audit",
+      "head": "c9f87d8"
+    },
+    {
+      "path": "wt-s",
+      "branch": "feat-s-download-design",
+      "head": "4e4ec38"
     }
   ],
   "stop": ""

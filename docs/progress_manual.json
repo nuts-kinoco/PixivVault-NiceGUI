@@ -82,7 +82,7 @@
    "name": "台帳と土台",
    "goal": "機械列挙の台帳、元アプリの隔離起動の可否、共通シェルの復元",
    "approval": "事前承認（この計画）",
-   "state": "次に着手",
+   "state": "進行中（残 3）",
    "exits": [
     {
      "t": "台帳の初版（171 項目）",
@@ -90,27 +90,37 @@
      "ev": "docs/FEATURE_LEDGER_2026-11-17.md"
     },
     {
-     "t": "inventory.json と網羅チェック（元の識別子の取りこぼしゼロ）",
-     "ok": false,
-     "ev": ""
+     "t": "inventory.json と網羅チェック（取りこぼし 0）",
+     "ok": true,
+     "ev": "docs/inventory.json（2814 件）、tools/check_inventory_coverage.py"
     },
     {
-     "t": "core.py・database.py・pixiv_client.py の走査",
-     "ok": false,
-     "ev": ""
+     "t": "core.py・database.py・pixiv_client.py の走査を台帳へ",
+     "ok": true,
+     "ev": "FL-Z01〜Z17"
     },
     {
-     "t": "元アプリが隔離データで起動できるか確認（D2・D6 の方法確定）",
-     "ok": false,
-     "ev": ""
+     "t": "元アプリを隔離データで起動し画面を取得できる（D2・D6 の方法確定）",
+     "ok": true,
+     "ev": "tools/original_run/, verify/original_20261117_225445/"
     },
     {
      "t": "共通シェル（ナビ・ヘッダー）を元の見た目へ",
+     "ok": true,
+     "ev": "verify/shell_20261117_final/comparison.md"
+    },
+    {
+     "t": "台帳を Argon がレビュー、検証して台帳へ反映",
+     "ok": false,
+     "ev": "docs/LEDGER_REVIEW_ARGON_2026-11-17.md（wt-r で反映中）"
+    },
+    {
+     "t": "台帳をアドバイザーがレビュー",
      "ok": false,
      "ev": ""
     },
     {
-     "t": "台帳をアドバイザーと Argon がレビュー",
+     "t": "P3 の作業リストと規模の確定",
      "ok": false,
      "ev": ""
     }
@@ -369,6 +379,51 @@
    "checker": "未",
    "real": "未",
    "ev": "本人の裁定 11-17"
+  },
+  {
+   "phase": "P2",
+   "id": "COS-R1",
+   "title": "COS による実機の画面確認 R1（PASS 14 / FAIL 1＝期待の誤り）",
+   "stage": 4,
+   "checker": "—",
+   "real": "済（COS）",
+   "ev": "evidence_cos_R1_2026-11-18.md"
+  },
+  {
+   "phase": "P2",
+   "id": "wt-q",
+   "title": "共通シェルを元の見た目へ（ヘッダー・タブ・配色・ライトの明るいカード）",
+   "stage": 4,
+   "checker": "未",
+   "real": "未（R2 で COS 確認）",
+   "ev": "4e4ec38（全体 2142 成功・画面スモーク PASS）"
+  },
+  {
+   "phase": "P2",
+   "id": "wt-n",
+   "title": "台帳の機械列挙（inventory 2814 件・網羅チェック）",
+   "stage": 4,
+   "checker": "済（指摘反映）",
+   "real": "—",
+   "ev": "feat-n 取り込み済み"
+  },
+  {
+   "phase": "P2",
+   "id": "wt-r",
+   "title": "台帳の監査（Argon 指摘 20 件の検証・網羅チェックの強化）",
+   "stage": 2,
+   "checker": "未",
+   "real": "—",
+   "ev": "0d72cd4"
+  },
+  {
+   "phase": "P3",
+   "id": "wt-s",
+   "title": "ダウンロードの全体設計書（FL-D00）",
+   "stage": 2,
+   "checker": "未",
+   "real": "—",
+   "ev": "設計書→advisor・Argon レビュー→実装"
   }
  ],
  "decisions": [
@@ -457,6 +512,15 @@
    "st": "確定"
   }
  ],
- "running": [],
+ "running": [
+  {
+   "who": "wt-r",
+   "what": "台帳の監査（Argon 指摘の検証・網羅チェック強化）"
+  },
+  {
+   "who": "wt-s",
+   "what": "ダウンロードの全体設計書"
+  }
+ ],
  "stop": ""
 }
