@@ -291,7 +291,7 @@ class DemoShell:
                 f'現在保存されているフォロー中データ（お気に入り・ダウンロード状況などを含む）を'
                 f'すべて削除し、アカウント（ID: {request.new_account}）の情報で再取得します。'
                 'この操作は元に戻せません。よろしいですか？'
-            ).style(f'font-size:13px;color:{TOKENS["muted"]}')
+            ).style(f'font-size:13px;color:var(--pv-muted)')
             with ui.row().classes('w-full justify-end'):
                 ui.button('キャンセル', on_click=self._followup.cancel_account_switch).props(
                     'flat no-caps data-testid=account-switch-cancel')
@@ -446,6 +446,8 @@ class DemoShell:
                 or (tab == 'recommend' and self.services.recommendations is None)
                 or (tab in ('personal',) and getattr(self.services, 'external_vault', None) is None)):
             return
+        if self.view_history is not None:
+            self.view_history.viewer.close_viewer(restore_focus=False)  # 履歴から開いた作品は別タブへ持ち越さない
         self.gallery.set_viewer_active(False)
         if self.library is not None:
             self.library.set_active(False)

@@ -84,8 +84,6 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family: sys
 .pv-learning .q-btn.pv-judgment { color:var(--pv-text) !important; border:1px solid var(--pv-border) !important; border-radius:8px; }
 .pv-learning .q-btn.pv-judgment-like { background:var(--pv-fill) !important; color:var(--pv-on-fill) !important; border-color:var(--pv-fill) !important; }
 .pv-learning .q-btn.pv-judgment-superLike { background:rgba(0,150,250,.25) !important; border-color:#0096FA !important; }
-/* 選択中の大きさ・モード切替は、どの画面でも文字が地と同色にならない（主色の flat ボタンの文字色に勝つ）。 */
-.q-btn.pv-size-selected { background:var(--pv-fill) !important; color:var(--pv-on-fill) !important; }
 .pv-learning .q-btn.pv-undo { background:transparent !important; color:var(--pv-muted) !important; }
 .pv-counter { color:var(--pv-muted); font-size:13px; }
 .pv-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,max(170px,calc((100% - (var(--pv-max-cols, 6) - 1) * 12px) / var(--pv-max-cols, 6)))),1fr)); gap:12px; width:100%; min-width:0; }

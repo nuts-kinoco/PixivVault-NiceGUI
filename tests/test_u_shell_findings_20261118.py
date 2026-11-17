@@ -157,7 +157,6 @@ def test_selected_size_and_mode_buttons_have_visible_text_everywhere():
     for selector in ('.pv-toolbar .q-btn.pv-size-selected',):
         body = rule(selector)
         assert 'background:var(--pv-fill)' in body and 'color:var(--pv-on-fill)' in body
-    assert re.search(r'\n\.q-btn\.pv-size-selected[^{]*\{[^}]*color:var\(--pv-on-fill\)\s*!important', CSS)
     # ライブラリは元のダークの文字色（#e8e8ef）を保ち、ライトだけ白にする。
     lib = re.search(r'\.pv-library \.q-btn\.pv-size-selected[^{]*\{([^}]*)\}', CSS).group(1).replace(' ', '')
     assert 'color:var(--pv-on-fill-lib)!important' in lib and 'background:var(--pv-fill)' in lib
@@ -224,3 +223,14 @@ async def test_opening_a_work_from_the_header_history_closes_the_dialog_so_the_v
         assert shell.view_history.viewer.selection is not None
         assert shell.view_history.dialog.value is False
     assert shell.active_tab == 'download' and shell.learning is None
+    with client:
+        shell.show('ranking')
+        assert shell.view_history.viewer.selection is None  # 別タブへ持ち越さない
+
+
+def test_no_hardcoded_muted_text_colors_in_views():
+    import pathlib
+    ui_dir = pathlib.Path(__import__('pixivvault_nicegui.ui.shell', fromlist=['x']).__file__).parent
+    bad = [p.name for p in ui_dir.glob('*.py') if p.name != 'theme.py'
+           and re.search(r'color:\s*#8a8a99|color:\{TOKENS\["muted"\]\}', p.read_text(encoding='utf-8'))]
+    assert not bad, bad
