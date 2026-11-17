@@ -528,7 +528,7 @@ class LegacyQuarantineCatalog:
     def url(self,wid,page_no=0,variant='view'):
         self._page(wid,page_no)
         if variant not in ('thumb','view','original'):raise MediaMissing('invalid variant')
-        return f'/api/images/{wid}/{page_no}?variant={variant}'
+        return f'/media/{wid}/{page_no}/{variant}.png'
     def supports_original(self,wid):return wid in self.works and self.leaf.supports_original(wid)
     def get(self,wid,page_no=0,variant='view'):
         page=self._page(wid,page_no);self.leaf._ensure_index()
