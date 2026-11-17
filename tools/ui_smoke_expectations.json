@@ -12,7 +12,7 @@
       "ダウンロード", "キュー", "失敗リスト", "直近のバックアップ", "重複整理", "学習", "ランキング",
       "ライブラリ", "おすすめ", "自分のランキング", "定期チェック", "メタデータ補完"
     ],
-    "startup_allowed_calls": []
+    "startup_allowed_calls": ["require_identity", "get_following_users", "get_ranking"]
   },
   "screens": {
     "startup": {
