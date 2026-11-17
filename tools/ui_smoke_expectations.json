@@ -1,0 +1,108 @@
+{
+  "_comment": "UI smoke expectations (tools/ui_smoke_browser.py). testids: data-testid that must be VISIBLE on the screen (the first one is the 'screen is ready' element; a trailing * is a prefix match). texts: substrings of the screen's visible text. absent_testids: must NOT be visible. allowed_calls: fake live client methods this screen is DESIGNED to call on first open (user-initiated tab fetch); anything else on a screen fails. Update procedure: tools/UI_SMOKE_README.md.",
+  "global": {
+    "testids": [
+      "db-status-banner", "auth-status", "cookie-banner", "premium-borrow-toggle", "theme-toggle",
+      "preferences-open", "pixiv-home-link",
+      "tab-download", "tab-queue", "tab-failed", "tab-history", "tab-dedup", "tab-learning", "tab-ranking",
+      "tab-library", "tab-recommend", "tab-personal", "tab-scheduler", "tab-metadata"
+    ],
+    "texts": [
+      "PixivVault", "借用プレミアム", "本番DBを使用中", "未認証/期限切れ", "【Cookie未連携】",
+      "ダウンロード", "キュー", "失敗リスト", "直近のバックアップ", "重複整理", "学習", "ランキング",
+      "ライブラリ", "おすすめ", "自分のランキング", "定期チェック", "メタデータ補完"
+    ],
+    "startup_allowed_calls": []
+  },
+  "screens": {
+    "startup": {
+      "label": "起動直後", "kind": "startup",
+      "testids": ["managed-download-view", "managed-download-mode-bookmark", "managed-download-submit"],
+      "texts": ["マイブックマーク", "フォロー中の作者"],
+      "absent_testids": ["library-view", "queue-view", "ranking-view", "recommend-view", "failed-records-view",
+                         "duplicate-view", "metadata-view", "backup-history", "personal-ranking-view", "scheduler-open"]
+    },
+    "download": {
+      "label": "ダウンロード",
+      "testids": ["managed-download-view", "managed-download-mode-bookmark", "managed-download-mode-author",
+                  "managed-download-submit", "managed-download-refresh", "managed-download-direct-lookup",
+                  "managed-download-author-panel"],
+      "texts": ["マイブックマーク", "フォロー中の作者", "IDから作品を確認", "ブックマーク更新"]
+    },
+    "queue": {
+      "label": "キュー",
+      "testids": ["queue-view", "queue-count", "queue-search", "queue-select-mode", "queue-filter-all", "queue-list"],
+      "texts": ["現在のジョブ", "すべて 0"]
+    },
+    "failed": {
+      "label": "失敗リスト",
+      "testids": ["failed-records-view", "failed-count", "failed-search", "failed-retry-all",
+                  "failed-category-all", "failed-rows", "failed-reload"],
+      "texts": ["ダウンロード失敗キュー・保存品質異常リスト", "すべて 17"]
+    },
+    "history": {
+      "label": "直近のバックアップ",
+      "testids": ["backup-history", "backup-grid", "backup-refresh", "backup-size-large", "backup-author-12"],
+      "texts": ["直近のバックアップ", "旧ライブラリのバックアップ日時順", "synthetic author"]
+    },
+    "dedup": {
+      "label": "重複整理",
+      "testids": ["duplicate-view", "duplicate-scan", "duplicate-mode-near", "duplicate-mode-undecidable",
+                  "duplicate-trash", "duplicate-search"],
+      "texts": ["重複候補の確認", "スキャンして更新", "ごみ箱"]
+    },
+    "learning": {
+      "label": "学習",
+      "note": "Opening the tab refills discovery candidates by design (画面を開いている間に候補を補充).",
+      "allowed_calls": ["require_identity", "get_user_works", "get_ranking"],
+      "testids": ["discovery-fetch", "discovery-settings-open", "learning-summary-toggle", "learning-reset-open",
+                  "learning-review-open", "view-history-open"],
+      "texts": ["発掘の判定は専用保存先に記録します", "見送る", "いいね"]
+    },
+    "ranking": {
+      "label": "ランキング",
+      "note": "First open fetches the official ranking by design (元 on_tab_open).",
+      "allowed_calls": ["require_identity", "get_ranking"],
+      "testids": ["ranking-view", "ranking-fetch", "ranking-mode", "ranking-date", "ranking-tag", "ranking-sort",
+                  "gallery-search"],
+      "texts": ["作品種別", "取得・更新", "タグ検索"]
+    },
+    "library": {
+      "label": "ライブラリ",
+      "testids": ["library-view", "library-author-count", "library-search", "library-sort-last_backup",
+                  "library-subview-downloaded", "library-subview-bookmarks", "library-author-open"],
+      "texts": ["DL済み", "マイブックマーク", "synthetic author", "1 / 1 作者表示"]
+    },
+    "recommend": {
+      "label": "おすすめ",
+      "testids": ["recommend-view", "recommend-update", "recommend-refresh", "recommend-order-reset",
+                  "recommend-size-large"],
+      "texts": ["おすすめを更新", "順序を既定に戻す", "好みの傾向"]
+    },
+    "personal": {
+      "label": "自分のランキング",
+      "testids": ["personal-ranking-view", "personal-fetch", "personal-tags", "personal-sort", "personal-bookmarks",
+                  "personal-ai"],
+      "texts": ["選択タグ", "取得・更新"]
+    },
+    "scheduler": {
+      "label": "定期チェック",
+      "testids": ["scheduler-open", "scheduler-interval", "scheduler-save", "scheduler-run", "scheduler-authors",
+                  "scheduler-startup", "scheduler-status"],
+      "texts": ["お気に入り作者の定期チェック", "今すぐチェック"]
+    },
+    "metadata": {
+      "label": "メタデータ補完",
+      "testids": ["metadata-view", "metadata-run-all", "metadata-stop", "metadata-status-line"],
+      "texts": ["メタデータ後埋め", "いま埋める"]
+    },
+    "settings": {
+      "label": "設定", "open": "preferences-open",
+      "testids": ["preferences-dialog", "preferences-save", "preferences-reload", "native-profile-pick-cookie",
+                  "native-profile-pick-folder", "native-profile-save", "preference-download_interval",
+                  "preferences-version"],
+      "texts": ["Pixiv Cookieファイル", "作品の保存先（親フォルダ）", "旧ライブラリ（任意・読取専用）",
+                "フォロー中リストの同期"]
+    }
+  }
+}
