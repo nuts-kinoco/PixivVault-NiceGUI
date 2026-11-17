@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import sqlite3
+import time
 
 import pytest
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -88,7 +89,7 @@ def test_chrome_values_are_decrypted_and_filtered_to_pixiv_net(tmp_path):
     rows = by_name(result)
     assert rows['PHPSESSID']['value'] == 'dummy-session'  # first one kept, duplicate dropped
     assert rows['PHPSESSID']['expirationDate'] == 2000000000
-    assert rows['p_ab_id']['expirationDate'] is None  # session cookie: the store assigns expiry
+    assert abs(rows['p_ab_id']['expirationDate'] - (time.time() + 30 * 86400)) < 60  # 元: 期限なしは 30 日後
     assert rows['p_ab_id']['value'] == 'plain-value'
     assert len(result.cookies) == 3
     assert all(row['domain'].lstrip('.').endswith('pixiv.net') for row in result.cookies)
@@ -123,7 +124,7 @@ def test_firefox_plain_store(tmp_path):
     result = source(tmp_path).extract()
     assert result.browser == 'Firefox'
     assert by_name(result)['PHPSESSID']['value'] == 'fox-session'
-    assert by_name(result)['x']['expirationDate'] is None
+    assert abs(by_name(result)['x']['expirationDate'] - (time.time() + 30 * 86400)) < 60
 
 
 def test_nothing_found_or_unreadable_returns_none(tmp_path):

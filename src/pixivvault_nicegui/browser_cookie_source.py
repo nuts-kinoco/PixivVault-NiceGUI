@@ -20,6 +20,7 @@ import os
 import shutil
 import sqlite3
 import tempfile
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -32,6 +33,7 @@ CHROMIUM_BROWSERS = (
 _PROFILES = ('Default',) + tuple(f'Profile {i}' for i in range(1, 10))
 _CHROME_EPOCH_OFFSET = 11644473600
 _MAX_DB_BYTES = 256 * 1024 * 1024
+_SESSION_COOKIE_SECONDS = 86400 * 30  # 元: 期限の無い Cookie は今から 30 日後として扱う
 
 
 @dataclass(frozen=True)
@@ -180,7 +182,8 @@ class BrowserCookieSource:
                 if not value:
                     continue
                 expiry = (int(expires_utc / 1000000 - _CHROME_EPOCH_OFFSET)
-                          if expires_utc and expires_utc > 0 else None)
+                          if expires_utc and expires_utc > 0
+                          else int(time.time() + _SESSION_COOKIE_SECONDS))
                 found.append({'domain': host, 'name': name, 'value': value,
                               'path': path, 'expirationDate': expiry, 'secure': secure})
             found = _clean(found)
@@ -204,8 +207,8 @@ class BrowserCookieSource:
             for host, name, value, path, expiry, secure in rows:
                 if not value:
                     continue
-                expiry = int(expiry) if expiry else None
-                if expiry is not None and expiry > 100_000_000_000:  # milliseconds (older builds)
+                expiry = int(expiry) if expiry else int(time.time() + _SESSION_COOKIE_SECONDS)
+                if expiry > 100_000_000_000:  # milliseconds (older builds)
                     expiry //= 1000
                 found.append({'domain': host, 'name': name, 'value': value, 'path': path,
                               'expirationDate': expiry, 'secure': secure})
