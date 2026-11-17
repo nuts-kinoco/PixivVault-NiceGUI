@@ -349,7 +349,7 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
     # 元(server.py)は常時起動。管理保存先があるときだけ既定で起動する。
     # テスト用の隔離領域では起動しない。設定「拡張機能の受信」で止められる。
     extension_bridge_auto = (not args.extension_bridge and not args.no_extension_bridge
-                             and args.pixiv_download_root is not None
+                             and (args.pixiv_download_root is not None or args.profile_root is not None)
                              and test_owner_runtime._root is None)
     return RunConfig(args.host, args.port, args.native, args.check, args.learning_sandbox,
                      args.library_readonly_db, args.library_image_root, args.pixiv_cookie_file,
@@ -436,6 +436,18 @@ def extension_bridge_wanted(explicit, auto, preferences) -> bool:
         return preferences.get_setting('extension_bridge_enabled', '1') != '0'
     except Exception:
         return False
+
+
+def _wire_cookie_store(native_profile, store):
+    """拡張機能から受けた Cookie の保存先（プロファイルの隣の -credentials）。作成は最初の受信時。"""
+    from . import test_owner_runtime
+    if test_owner_runtime.owner_root() is not None:
+        return
+    from .extension_cookie_store import ExtensionCookieStore
+
+    root = Path(store.root)
+    credentials = root.with_name(root.name + '-credentials')
+    native_profile.cookie_store_factory = lambda: ExtensionCookieStore(credentials, profile=store)
 
 
 def prepare_extension_receiver(services, explicit, auto, wanted) -> bool:
@@ -821,6 +833,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     store.close()
                     return 0
             native_profile = NativeProfileBinding(store, launch_snapshot=snapshot)
+            _wire_cookie_store(native_profile, store)
             # All GUI auth checks, including draft Cookie validation, require
             # the same stop fence as the managed application readers.
             native_profile.auth_stop_required = True

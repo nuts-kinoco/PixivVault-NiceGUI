@@ -20,6 +20,15 @@ NAVIGATION = (
 AVAILABLE_TABS = {"history", "ranking", "learning", "library", "failed", "download", "queue", "scheduler", "metadata", "dedup", "recommend", "personal"}
 
 
+def cookie_banner_second_line(status):
+    """受信が実際に動いているときだけ、元の『自動的に連携されます』を言う。"""
+    if status == 'running':
+        return 'ブラウザでPixivを開くだけで自動的に連携されます。'
+    reason = {'in_use': '他のアプリがポートを使用中です。',
+              'setting_off': '拡張機能の受信が設定で停止中です。'}.get(status, '拡張機能の受信が動いていません。')
+    return reason + '自動連携は使えません。設定からcookies.txtを選んでください。'
+
+
 class DemoShell:
     def __init__(self, services: ApplicationServices) -> None:
         self.services = services
@@ -182,7 +191,7 @@ class DemoShell:
             with ui.column().classes('gap-0').style('flex:1 1 0;min-width:0'):
                 ui.label('【Cookie未連携】').style('font-weight:700;font-size:14px')
                 ui.label('PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。\n'
-                         'ブラウザでPixivを開くだけで自動的に連携されます。').style(
+                         + cookie_banner_second_line(getattr(self.services, 'extension_bridge_status', 'disabled'))).style(
                     f'font-size:13px;white-space:pre-line;color:{TOKENS["muted"]}')
             link = ui.link('Pixivを開く', 'https://www.pixiv.net/', new_tab=True).props(
                 'data-testid=cookie-banner-open aria-label=ブラウザでPixivを開く')

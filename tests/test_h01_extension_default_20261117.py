@@ -69,7 +69,7 @@ def test_setting_exists_default_on():
 
 def test_setting_is_offered_only_with_managed_storage():
     managed = SimpleNamespace(managed_downloads=object())
-    none = SimpleNamespace(managed_downloads=None)
+    none = SimpleNamespace(managed_downloads=None, native_profile=None)
     assert ApplicationServices.extension_setting_available(managed) is True
     assert ApplicationServices.extension_setting_available(none) is False
 
@@ -219,13 +219,13 @@ def test_profile_launch_enables_bridge_by_default(tmp_path):
     assert config.extension_bridge is False and config.extension_bridge_auto is True
 
 
-def test_unconfigured_profile_launch_starts_nothing(tmp_path):
+def test_unconfigured_profile_launch_has_no_storage_but_receives_cookies(tmp_path):
     from pixivvault_nicegui.native_profile import NativeProfileStore
     profile = tmp_path / 'fresh-profile'
     NativeProfileStore(profile).close()
     config = parse_args(['--native', '--profile-root', str(profile)])
     assert config.pixiv_download_root is None
-    assert config.extension_bridge is False and config.extension_bridge_auto is False
+    assert config.extension_bridge is False and config.extension_bridge_auto is True
 
 
 def test_uri_relaunch_does_not_force_the_receiver_on():
@@ -298,3 +298,133 @@ def test_explicit_flag_failure_still_raises():
     from pixivvault_nicegui.bootstrap import prepare_extension_receiver
     with pytest.raises(ValueError):
         prepare_extension_receiver(_services_for_prepare(False, True), True, False, True)
+
+
+# ---- FL-N03: POST /api/cookie/sync の結線 ---------------------------------------
+
+SECRET = '55_secretvalue_must_not_leak'
+
+
+def _cookie_rows(value=SECRET):
+    import time
+    return [{'name': 'PHPSESSID', 'value': value, 'domain': '.pixiv.net', 'path': '/',
+             'secure': True, 'expirationDate': int(time.time()) + 86400}]
+
+
+class _SyncOwner(_Owner):
+    _extension_cookie_sync = ApplicationServices._extension_cookie_sync
+
+    def __init__(self, binding):
+        super().__init__()
+        self.native_profile = binding
+        self.native_profile.request_cookie_check = lambda imported=True: self.cookie_checks.append(imported)
+
+
+def _binding(tmp_path, with_factory=True):
+    from pixivvault_nicegui.native_profile import NativeProfileStore
+    from pixivvault_nicegui.native_startup import NativeProfileBinding
+    from pixivvault_nicegui.extension_cookie_store import ExtensionCookieStore
+    store = NativeProfileStore(tmp_path / 'profile-native')
+    binding = NativeProfileBinding(store)
+    if with_factory:
+        credentials = tmp_path / 'profile-native-credentials'
+        binding.cookie_store_factory = lambda: ExtensionCookieStore(credentials, profile=store)
+    return binding, store
+
+
+def _start(monkeypatch, owner):
+    real = bridge.ExtensionBridge
+    monkeypatch.setattr(bridge, 'ExtensionBridge', lambda **kw: real(port=0, **kw))
+    monkeypatch.setattr(bridge, '_Server', _FakeServer)
+    owner.start_extension_bridge()
+    return owner.extension_bridge
+
+
+def test_cookie_sync_is_not_offered_without_a_profile_store(monkeypatch, tmp_path):
+    binding, store = _binding(tmp_path, with_factory=False)
+    owner = _SyncOwner(binding)
+    b = _start(monkeypatch, owner)
+    try:
+        assert _call(b, 'POST', '/api/cookie/sync', {'cookies': _cookie_rows()})[0] == 404
+    finally:
+        b.close(); binding.close()
+
+
+def test_cookie_sync_saves_to_profile_and_triggers_gated_check(monkeypatch, tmp_path):
+    binding, store = _binding(tmp_path)
+    owner = _SyncOwner(binding)
+    b = _start(monkeypatch, owner)
+    try:
+        status, body = _call(b, 'POST', '/api/cookie/sync', {'cookies': _cookie_rows()})
+        assert status == 200 and body['saved'] is True and body['state'] == 'pending'
+        assert SECRET not in json.dumps(body)
+        saved = store.snapshot().cookie_file
+        assert saved is not None and 'profile-native-credentials' in str(saved)
+        assert SECRET in saved.read_text(encoding='utf-8')      # 保存先には保存される
+        assert owner.cookie_checks == [True]                    # 保存後に認証チェック（ゲート経由）を依頼
+        first = saved
+        status, body = _call(b, 'POST', '/api/cookie/sync', {'cookies': _cookie_rows()})
+        assert status == 200 and body['state'] == 'unchanged'
+        assert store.snapshot().cookie_file == first
+    finally:
+        b.close(); binding.close()
+
+
+def test_rejected_cookie_never_echoes_values(monkeypatch, tmp_path):
+    binding, store = _binding(tmp_path)
+    owner = _SyncOwner(binding)
+    b = _start(monkeypatch, owner)
+    try:
+        rows = _cookie_rows()
+        rows[0]['domain'] = ''
+        status, body = _call(b, 'POST', '/api/cookie/sync', {'cookies': rows})
+        assert status in (400, 409, 503) and SECRET not in json.dumps(body)
+        assert store.snapshot().cookie_file is None and owner.cookie_checks == []
+    finally:
+        b.close(); binding.close()
+
+
+# ---- 最初の Cookie 連携（Cookie 未設定の profile 起動でも受信する）----------------------
+
+def test_unconfigured_profile_still_receives_for_cookie_sync(tmp_path):
+    from pixivvault_nicegui.native_profile import NativeProfileStore
+    profile = tmp_path / 'fresh-profile'
+    NativeProfileStore(profile).close()
+    config = parse_args(['--native', '--profile-root', str(profile)])
+    assert config.pixiv_download_root is None
+    assert config.extension_bridge_auto is True       # 保存先が無くても、Cookie を受けるために起動する
+
+
+def test_bridge_without_managed_queue_answers_ping_and_cookie_but_refuses_commands(monkeypatch, tmp_path):
+    binding, store = _binding(tmp_path)
+    owner = _SyncOwner(binding)
+    owner.extension_commands = None
+    b = _start(monkeypatch, owner)
+    try:
+        assert owner.extension_bridge_status == 'running'
+        assert _call(b, 'GET', '/ping')[0] == 200
+        assert _call(b, 'POST', '/download', {'type': 'work', 'work_id': '1'})[0] == 503
+        assert _call(b, 'GET', '/api/work/1')[0] == 503
+        assert _call(b, 'POST', '/api/cookie/sync', {'cookies': _cookie_rows()})[0] == 200
+    finally:
+        b.close(); binding.close()
+
+
+def test_without_queue_or_profile_store_nothing_starts(monkeypatch):
+    owner = _Owner()
+    owner.extension_commands = None
+    owner.start_extension_bridge()
+    assert owner.extension_bridge is None
+
+
+def test_setting_is_offered_for_profile_launch_without_storage():
+    profile = SimpleNamespace(cookie_store_factory=lambda: None)
+    assert ApplicationServices.extension_setting_available(SimpleNamespace(managed_downloads=None, native_profile=profile))
+
+
+def test_cookie_banner_claim_matches_receiver_state():
+    from pixivvault_nicegui.ui.shell import cookie_banner_second_line
+    assert cookie_banner_second_line('running') == 'ブラウザでPixivを開くだけで自動的に連携されます。'
+    for state in ('in_use', 'setting_off', 'unavailable', 'disabled', 'commands_unavailable'):
+        text = cookie_banner_second_line(state)
+        assert '自動的に連携されます' not in text and 'cookies.txt' in text

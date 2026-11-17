@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 from pathlib import Path
-from threading import Event, RLock
+from threading import Event, Lock, RLock
 
 
 def native_entry_arguments(arguments):
@@ -93,6 +93,11 @@ class NativeProfileBinding:
         self._refresh_again = None
         self._last_identity = None
         self._background_tasks = set()
+        # Credential store that adopts a received Cookie (extension sync). Only an
+        # explicit native launch supplies the factory; a bare binding stays None.
+        self.cookie_store_factory = None
+        self._cookie_store = None
+        self._cookie_lock = Lock()
 
     def saved_folder_context(self):
         from .desktop_integration import DesktopActionRejected
@@ -238,6 +243,14 @@ class NativeProfileBinding:
         uid, days = self._last_identity or (None, None)
         status = status_from_result(result, uid, days)
         self.auth_status.publish(status, NOTICE_UPDATED if imported and status.ok else None)
+
+    def _open_cookie_store(self):
+        with self._cookie_lock:
+            if self._cookie_store is None:
+                if self._closed or self.cookie_store_factory is None:
+                    raise RuntimeError('credential store unavailable')
+                self._cookie_store = self.cookie_store_factory()
+            return self._cookie_store
 
     def _configured_cookie(self):
         try:
@@ -409,6 +422,13 @@ class NativeProfileBinding:
             stopped.set()
             if reader is not None:
                 reader.close()
+        with self._cookie_lock:
+            cookie_store, self._cookie_store = self._cookie_store, None
+        if cookie_store is not None:
+            try:
+                cookie_store.close()
+            except Exception:
+                pass
         self.store.close()
 
 
