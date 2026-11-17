@@ -256,6 +256,7 @@ async def test_two_clients_keep_private_library_state_and_share_sizes_only_insid
                 shells.append(DemoShell(services))
         first, second = shells
         with clients[0]:
+            first.show("ranking")  # 起動直後はダウンロード（元 TAB_INITIAL）。ランキングを開いてから操作する
             first.gallery.change_size("small")
             first.show("library")
             left = first.library

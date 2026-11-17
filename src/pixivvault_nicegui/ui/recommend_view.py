@@ -11,8 +11,9 @@ from .grid_layout import MAX_COLUMNS
 from .recommendation_viewer import RecommendationViewer
 
 class RecommendView:
-    def __init__(self,services,*,on_open=None,on_enqueue=None,card_size="large",on_size_change=None):
+    def __init__(self,services,*,on_open=None,on_enqueue=None,card_size="large",on_size_change=None,on_navigate_to_learning=None):
         self.services=services
+        self._on_navigate_to_learning=on_navigate_to_learning
         self.card_size=card_size;self._on_size_change=on_size_change
         self.controller=getattr(services,'recommendations',None)
         self.on_open=on_open;self.on_enqueue=on_enqueue
@@ -318,6 +319,13 @@ class RecommendView:
             if selection is not None:selection.close()
             if self._opening==opening and request==self._open_generation:self._opening=None
 
+    @staticmethod
+    def _all_empty(data):
+        # 元: trend / superlikes / certain / trend_added / 登録中の作者 がすべて空のときだけ。
+        # 取得元が未接続・未更新の節がある間は「材料が無い」とは言えないので出さない。
+        return (not data.get('unavailable') and not data.get('trends') and not data.get('added_tags') and not data.get('boosted')
+                and not any(g.works for groups in data['sections'].values() for g in groups))
+
     def render(self):
         if self.data is None or self.closed:return
         self._recommend_viewer.close_viewer(restore_focus=False)
@@ -341,6 +349,15 @@ class RecommendView:
         with self.body:
             if not data['writable']:ui.label('おすすめの登録設定は閲覧のみです。専用設定の保存先が未指定です。').classes('pv-subtitle')
             elif not data.get('can_acquire'):ui.label('取得元が未接続です。保存済み結果と登録設定を操作できます。').classes('pv-subtitle')
+            if self._all_empty(data):  # render() は読み込み完了後だけ呼ばれる（元の「読込中は出さない」と同じ）
+                # 元 recommend_tab.py:2894-2900 empty_all_panel（節は出さずこの案内だけ）。
+                with ui.column().classes('gap-2').props('data-testid=recommend-empty-all'):
+                    ui.label('おすすめの材料がまだありません').classes('pv-view-title')
+                    ui.label('学習タブで好み・嫌いを判定すると、ここにおすすめが表示されます。').classes('pv-subtitle')
+                    if self._on_navigate_to_learning is not None:
+                        ui.button('学習タブへ',on_click=lambda e=None:self._on_navigate_to_learning()).props(
+                            'outline data-testid=recommend-go-learning')
+                return
             for kind in data['order']:
                 with ui.column().classes('w-full gap-2').props(f'data-testid=recommend-section-{kind}'):
                     with ui.row().classes('items-center'):

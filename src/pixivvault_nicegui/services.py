@@ -1052,18 +1052,51 @@ class ApplicationServices:
         if profile is not None and not self.closing:
             profile.request_cookie_check(imported=True)
 
+    def _extension_cookie_sync(self, rows):
+        """POST /api/cookie/sync（元 server.py:631-660）。Bridge thread で呼ばれる。
+
+        受け取った Cookie を、プロファイルの資格情報保存先（ExtensionCookieStore）へ保存するだけ。
+        通信はしない。保存後の認証チェックは on_cookie_received が、認証確認と同じ停止ゲート経由で行う。
+        Cookie の値はログ・例外に出さない。
+        """
+        from types import SimpleNamespace
+        profile = getattr(self, 'native_profile', None)
+        if profile is None or self.closing:
+            raise RuntimeError('cookie store unavailable')
+        store = profile._open_cookie_store()
+        candidate = store.prepare(rows, expected_revision=profile.store.snapshot().revision)
+        if not candidate.changed:
+            store.discard(candidate)
+            return SimpleNamespace(state='unchanged', saved=True)
+        store.commit(candidate)
+        # 実行中の取得はこの起動時の Cookie のまま。新しい Cookie は次回の起動から使う。
+        return SimpleNamespace(state='pending', saved=True)
+
     def start_extension_bridge(self):
         from .extension_bridge import ExtensionBridge
-        if self.extension_commands is None or self.closing:return
+        cookie_capable = getattr(getattr(self, 'native_profile', None), 'cookie_store_factory', None) is not None
+        commands = self.extension_commands
+        if self.closing or (commands is None and not cookie_capable):return
+        if commands is None:
+            # 保存先がまだ無い profile 起動: Cookie だけ受ける。保存指示と保存済み状態は 503 で断る。
+            def refuse(*args):
+                raise RuntimeError('managed queue unavailable')
+            enqueue = work_status = author_status = refuse
+        else:
+            enqueue, work_status, author_status = commands.enqueue, commands.work_status, commands.author_status
         if self.extension_bridge is None:
-            self.extension_bridge = ExtensionBridge(enqueue=self.extension_commands.enqueue,
-                work_status=self.extension_commands.work_status,author_status=self.extension_commands.author_status,
+            self.extension_bridge = ExtensionBridge(enqueue=enqueue,
+                work_status=work_status,author_status=author_status,
+                cookie_sync=(self._extension_cookie_sync
+                             if getattr(getattr(self, 'native_profile', None), 'cookie_store_factory', None) is not None
+                             else None),
                 on_cookie_received=self._extension_cookie_received)
         try:
             self.extension_bridge.start()
             self.extension_bridge_status = 'running'
-        except Exception:
-            self.extension_bridge_status = 'unavailable'
+        except Exception as error:
+            from .extension_bridge import PortInUse
+            self.extension_bridge_status = 'in_use' if isinstance(error, PortInUse) else 'unavailable'
 
     def _configure_request_preferences(self):
         from .request_policy import RequestAdmission, RequestRetryPolicy
@@ -1083,10 +1116,17 @@ class ApplicationServices:
             if callable(retry):
                 retry(self._request_retry)
 
+    def extension_setting_available(self):
+        # Started at launch from the managed download root, or (Cookie sync only) from a profile.
+        return (getattr(self, 'managed_downloads', None) is not None
+                or getattr(getattr(self, 'native_profile', None), 'cookie_store_factory', None) is not None)
+
     def preference_consumers(self):
         enabled = set()
         if self.pixiv_actions_mode == 'preferences' and self.preferences is not None:
             enabled.add('pixiv_actions_enabled')
+        if self.extension_setting_available():
+            enabled.add('extension_bridge_enabled')
         if self.save_exports is not None:
             enabled.add("zip_all_after_download")
             # These are local choices. An unbound normal profile can save

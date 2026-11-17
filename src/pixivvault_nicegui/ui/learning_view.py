@@ -21,6 +21,12 @@ from ..services import ApplicationServices
 from .verified_image import VerifiedImage
 
 
+# 元 discovery_tab.py:4358-4361
+EMPTY_TITLE = "表示できる候補がありません"
+EMPTY_BODY = ("作品を「見送る」「合わない」「いいね」「SuperLike」で判定していくと、\n"
+              "好みの傾向を学習し、次第に精度の高いおすすめが表示されるようになります。")
+
+
 class LearningView:
     CHOICES = (
         ("見送る", "skip", "arrowleft", "a", "1"),
@@ -164,6 +170,13 @@ class LearningView:
             self.picture = VerifiedImage(alt="判定対象の作品画像").classes("pv-view-art")
             self.picture.on('click', self._open_learning_picture, js_handler=self._click_js())
             self.status = ui.label().classes("pv-subtitle pv-learning-status").props("role=status aria-live=polite")
+            # 元 discovery_tab.py:4358-4365 の空状態の案内（候補が無いとき、何をすると何が起きるか）。
+            # 画像タグ補完のローカルモデル案内は、移植版に該当機能が無いので載せない。
+            with ui.column().classes("items-center gap-1").props("data-testid=learning-empty") as self.empty_card:
+                ui.icon("explore").classes("text-4xl")
+                ui.label(EMPTY_TITLE).classes("pv-view-title")
+                ui.label(EMPTY_BODY).classes("pv-subtitle").style("white-space:pre-line;text-align:center")
+            self.empty_card.set_visibility(False)
             with ui.row().classes("items-center gap-2"):
                 self.buttons = {}
                 for label, choice, *_ in self.CHOICES:
@@ -969,12 +982,17 @@ class LearningView:
             self.managed_button.set_enabled(available and item is not None and not self._managed_busy and getattr(self.services, 'managed_downloads', None) is not None)
         self.review_button.set_enabled(available and self.storage is not None and not self._review_busy)
 
+    def _empty_state_shown(self) -> bool:
+        return (self.discovery is not None and self.state.current_artwork is None
+                and bool(self._refill.armed))
+
     def refresh(self) -> None:
         item = self.state.current_artwork
         self._summary_sync()
         if self.discovery is not None:
             frame=self._discovery_frames.get(item.work_id) if item else None
             self.frame_label.set_text({'sure':'確実枠','subject':'題材探索枠','style':'絵柄探索枠'}.get(frame,''))
+        self.empty_card.set_visibility(self._empty_state_shown())
         self.title.set_text(item.title if item else ("現在の候補がありません" if self._refill.armed else "初回候補を読み込んでいます") if self.discovery is not None else "判定が完了しました")
         self.progress.set_text(f"{self._baseline_count + self.state.index} / {len(self._artworks)} 件判定済み")
         if item is None:

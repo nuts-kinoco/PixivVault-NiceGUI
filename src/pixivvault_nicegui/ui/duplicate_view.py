@@ -47,7 +47,7 @@ class DuplicateView:
                 self.mode_buttons={}
                 for label,key in (('決められないもの','undecidable'),('近似重複の候補','near')):
                     self.mode_buttons[key]=ui.button(label,on_click=lambda _,value=key:self.set_mode(value)).props(
-                        f'flat no-caps aria-pressed=false data-testid=duplicate-mode-{key}')
+                        f'flat no-caps aria-pressed=false data-testid=duplicate-mode-{key}').style('width:190px')  # 元: 等幅2択
                 self.trash_button=ui.button('ごみ箱',on_click=self.open_trash).props('flat data-testid=duplicate-trash')
             with ui.row().classes('pv-toolbar'):
                 self.low_button=ui.button('画質の低い方を一括で選ぶ',on_click=self.select_low).props('flat data-testid=duplicate-bulk-low')

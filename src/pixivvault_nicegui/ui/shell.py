@@ -7,6 +7,8 @@ from .gallery import GalleryView
 from .grid_layout import MAX_COLUMNS
 from ..auth_status import BLUE as AUTH_BLUE, CHECKING_TEXT as AUTH_CHECKING_TEXT
 from .theme import CSS, TOKENS
+from ..startup_tab import TAB_INITIAL, shell_tab_key
+from ..db_status import db_status
 
 NAVIGATION = (
     ("download", "ダウンロード"), ("queue", "キュー"), ("failed", "失敗リスト"),
@@ -16,6 +18,15 @@ NAVIGATION = (
     ("scheduler", "定期チェック"), ("metadata", "メタデータ補完"),
 )
 AVAILABLE_TABS = {"history", "ranking", "learning", "library", "failed", "download", "queue", "scheduler", "metadata", "dedup", "recommend", "personal"}
+
+
+def cookie_banner_second_line(status):
+    """受信が実際に動いているときだけ、元の『自動的に連携されます』を言う。"""
+    if status == 'running':
+        return 'ブラウザでPixivを開くだけで自動的に連携されます。'
+    reason = {'in_use': '他のアプリがポートを使用中です。',
+              'setting_off': '拡張機能の受信が設定で停止中です。'}.get(status, '拡張機能の受信が動いていません。')
+    return reason + '自動連携は使えません。設定からcookies.txtを選んでください。'
 
 
 class DemoShell:
@@ -63,6 +74,12 @@ class DemoShell:
         ui.colors(primary=TOKENS["accent"])
         self.dark_mode = ui.dark_mode(True)
         with ui.column().classes("pv-shell") as self.root:
+            # 元 gui.py:6126 db_status_banner: ヘッダーより上、最上段に常時表示。
+            is_production, db_text = db_status(services)
+            self.db_banner = ui.label(db_text).props('role=status data-testid=db-status-banner')
+            self.db_banner.style(
+                'background-color:#d32f2f;color:#fff;font-weight:bold;padding:8px;width:100%' if is_production
+                else 'font-size:11px;color:#9e9e9e;padding:2px 0 0 8px')
             with ui.element("div").classes("pv-header"):
                 with ui.column().classes("gap-0"):
                     ui.label("PixivVault").classes("pv-title")
@@ -105,7 +122,7 @@ class DemoShell:
                         self.borrow_dialog=PremiumGateDialog(gate,on_change=self.sync_borrow,
                             default_uid_path=getattr(services,'default_uid_path',DEFAULT_UID_PATH))
                         # Original gui.py:859: an opened vault takes the fixed UID file at start.
-                        self.borrow_dialog.reflect_uid_file_at_startup()
+                        self._reflect_uid_once(self.borrow_dialog)
                     self.borrow_switch=ui.switch('借用プレミアム',on_change=self.borrow_changed).props(
                         'data-testid=premium-borrow-toggle')
                     if self.borrow_dialog is not None:
@@ -155,8 +172,17 @@ class DemoShell:
                 else:
                     self.gallery = GalleryView(services, card_size=self.card_size, on_size_change=self.change_card_size)
         self._attach_auth_status()
-        self.gallery.set_viewer_active(True)
-        self._update_tabs()
+        # 起動直後のタブは元 TAB_INITIAL（ダウンロード）。--tab で変えられる。
+        # ランキングは開いたときに初回取得する（元 on_tab_open）ので、先に有効化しない。
+        initial = getattr(services, 'startup_tab', None) or shell_tab_key(TAB_INITIAL)
+        if not self._tab_available(initial):
+            initial = shell_tab_key(TAB_INITIAL)
+        if initial != 'ranking':
+            self._update_tabs()
+            self.show(initial)
+        else:
+            self.gallery.set_viewer_active(True)
+            self._update_tabs()
 
     def _build_cookie_banner(self):
         # Original gui.py cookie_banner: blue-bordered info container.
@@ -167,7 +193,7 @@ class DemoShell:
             with ui.column().classes('gap-0').style('flex:1 1 0;min-width:0'):
                 ui.label('【Cookie未連携】').style('font-weight:700;font-size:14px')
                 ui.label('PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。\n'
-                         'ブラウザでPixivを開くだけで自動的に連携されます。').style(
+                         + cookie_banner_second_line(getattr(self.services, 'extension_bridge_status', 'disabled'))).style(
                     f'font-size:13px;white-space:pre-line;color:{TOKENS["muted"]}')
             link = ui.link('Pixivを開く', 'https://www.pixiv.net/', new_tab=True).props(
                 'data-testid=cookie-banner-open aria-label=ブラウザでPixivを開く')
@@ -318,6 +344,23 @@ class DemoShell:
         self.services.apply_preferences(snapshot)
         if self.learning is not None:self.learning.refresh_prefetch()
 
+    def _reflect_uid_once(self, dialog) -> None:
+        # プロセス起動時に1回だけ（シェルは画面を開くたびに作られる）。
+        if getattr(self.services, 'uid_file_reflected', False):
+            return
+        self.services.uid_file_reflected = True
+        dialog.reflect_uid_file_at_startup()
+
+    def _tab_available(self, tab: str) -> bool:
+        services = self.services
+        return (tab in AVAILABLE_TABS and
+                (tab != 'history' or getattr(services, 'save_exports', None) is not None
+                 or getattr(services, 'legacy_backup_history_available', False)) and
+                (tab != 'metadata' or services.managed_downloads is not None) and
+                (tab != 'dedup' or services.duplicate_inspection is not None) and
+                (tab != 'recommend' or services.recommendations is not None) and
+                (tab != 'personal' or getattr(services, 'external_vault', None) is not None))
+
     def _update_tabs(self) -> None:
         for key, button in self.buttons.items():
             if key == self.active_tab:
@@ -371,6 +414,7 @@ class DemoShell:
             from .recommend_view import RecommendView
             with self.content:
                 self.recommend_view = RecommendView(self.services, card_size=self.card_size, on_size_change=self.change_card_size, on_open=self.open_recommended,
+                    on_navigate_to_learning=lambda: self.show('learning'),
                     on_enqueue=self.services.save_explicit_work if self.services.managed_downloads else None)
         if tab == 'personal' and self.personal_view is None:
             from .personal_ranking_view import PersonalRankingView

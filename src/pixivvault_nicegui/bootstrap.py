@@ -51,6 +51,8 @@ class RunConfig:
     similarity_model_file: Path | None = None
     similarity_provider: str = 'auto'
     similarity_auto: bool = False
+    extension_bridge_auto: bool = False
+    startup_tab: str | None = None
 
 
 def _port(value: str) -> int:
@@ -121,6 +123,10 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
     parser.add_argument('startup_uri', nargs='?', type=parse_start_uri)
     parser.add_argument('--extension-bridge', action='store_true',
                         help='Enable the original browser extension loopback receiver')
+    parser.add_argument('--tab', default=None,
+                        help='起動時に開くタブのキー（省略時は既定タブ）')
+    parser.add_argument('--no-extension-bridge', action='store_true',
+                        help='管理保存先があっても、拡張機能の受信サーバーを起動しない')
     parser.add_argument('--save-export-root',type=_sandbox_path)
     parser.add_argument('--bookmark-account-id')
     parser.add_argument('--profile-root', type=_sandbox_path,
@@ -337,12 +343,21 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
                      image in args.legacy_zip_export_root.resolve().parents or
                      args.legacy_zip_export_root.resolve() in image.parents))):
             parser.error('legacy image root must be separate from managed, Cookie, snapshot and ZIP export paths')
+    if args.extension_bridge and args.no_extension_bridge:
+        parser.error('--extension-bridge と --no-extension-bridge は併用できません')
+    from . import test_owner_runtime
+    # 元(server.py)は常時起動。管理保存先があるときだけ既定で起動する。
+    # テスト用の隔離領域では起動しない。設定「拡張機能の受信」で止められる。
+    extension_bridge_auto = (not args.extension_bridge and not args.no_extension_bridge
+                             and (args.pixiv_download_root is not None or args.profile_root is not None)
+                             and test_owner_runtime._root is None)
     return RunConfig(args.host, args.port, args.native, args.check, args.learning_sandbox,
                      args.library_readonly_db, args.library_image_root, args.pixiv_cookie_file,
                      args.download_sandbox, args.pixiv_download_root,
                      args.failed_queue_readonly_db, args.legacy_zip_export_root,
                      args.legacy_diff_image_root, args.novel_fixture_root, args.novel_download_root,args.ugoira_root,args.ugoira_fixture_root,args.ugoira_codec_python,args.recommendation_preferences_root,args.preferences_root,args.discovery_root,args.external_vault_root,args.image_cache_root,args.startup_uri,args.extension_bridge,args.save_export_root,args.bookmark_account_id,args.profile_root,profile_revision,profile_reference_unavailable,args.following_sync_root,args.enable_pixiv_actions,
-                     args.similarity_index_root,args.similarity_model_file,args.similarity_provider,args.similarity_auto)
+                     args.similarity_index_root,args.similarity_model_file,args.similarity_provider,args.similarity_auto,
+                     extension_bridge_auto, args.tab)
 
 
 _registered = False
@@ -437,6 +452,50 @@ def _build_owned_media_readers(*, pixiv_cookie_file, pixiv_download_root,
     return live_client, novel_source, novel_fixture_root, ugoira_source, ugoira_root
 
 
+def extension_bridge_wanted(explicit, auto, preferences) -> bool:
+    """拡張機能の受信サーバーを起動するか。明示指定は従来どおり。既定起動は設定で止められる。"""
+    if explicit:
+        return True
+    if not auto:
+        return False
+    if preferences is None:
+        return True      # 設定の保存先が無い起動では止める設定が無い（--no-extension-bridge で止める）
+    try:
+        return preferences.get_setting('extension_bridge_enabled', '1') != '0'
+    except Exception:
+        return False
+
+
+def _wire_cookie_store(native_profile, store):
+    """拡張機能から受けた Cookie の保存先（プロファイルの隣の -credentials）。作成は最初の受信時。"""
+    from . import test_owner_runtime
+    if test_owner_runtime.owner_root() is not None:
+        return
+    from .extension_cookie_store import ExtensionCookieStore
+
+    root = Path(store.root)
+    credentials = root.with_name(root.name + '-credentials')
+    native_profile.cookie_store_factory = lambda: ExtensionCookieStore(credentials, profile=store)
+
+
+def prepare_extension_receiver(services, explicit, auto, wanted) -> bool:
+    """受信用の台帳を用意し、受信サーバーを起動するかを返す。"""
+    if services.managed_downloads is None:
+        return wanted
+    existing = (services.managed_downloads.root / 'extension-commands').exists()
+    if not (wanted or existing):
+        return wanted
+    try:
+        services.enable_extension_commands()
+    except Exception:
+        if explicit or existing or not auto:
+            raise            # 明示指定・既存台帳の失敗は従来どおり起動を止める
+        # 既定起動で新しく作る台帳の失敗では、通常起動を止めない（ポートの問題とは別に表示する）。
+        services.extension_bridge_status = 'commands_unavailable'
+        return False
+    return wanted
+
+
 def register_pages(learning_sandbox: Path | None = None,
                    library_readonly_db: Path | None = None,
                    library_image_root: Path | None = None,
@@ -455,7 +514,8 @@ def register_pages(learning_sandbox: Path | None = None,
                    native_profile=None, following_sync_root=None, pixiv_actions_mode='readonly',
                    managed_network_stop_scope=None, shared_network_stop_scope=None,
                    similarity_index_root=None, similarity_model_file=None,
-                   similarity_provider='auto', similarity_auto=False) -> None:
+                   similarity_provider='auto', similarity_auto=False, extension_bridge_auto=False,
+                   startup_tab=None) -> None:
     """NiceGUIのHTTPルートを登録する。呼ぶだけではサーバーを起動しない。"""
     global _registered
     if _registered:
@@ -633,10 +693,13 @@ def register_pages(learning_sandbox: Path | None = None,
         if (services.managed_downloads is not None and services.preferences is not None
                 and isinstance(services.live_client, LivePixivReadClient)):
             app.on_startup(services.start_metadata_auto)
-        if services.managed_downloads is not None and (extension_bridge or
-                (services.managed_downloads.root / 'extension-commands').exists()):
-            services.enable_extension_commands()
-        if extension_bridge:
+        if startup_tab is not None:
+            services.startup_tab = startup_tab
+        bridge_wanted = extension_bridge_wanted(extension_bridge, extension_bridge_auto, services.preferences)
+        if extension_bridge_auto and not bridge_wanted:
+            services.extension_bridge_status = 'setting_off'
+        bridge_wanted = prepare_extension_receiver(services, extension_bridge, extension_bridge_auto, bridge_wanted)
+        if bridge_wanted:
             app.on_startup(services.start_extension_bridge)
         if desktop_enabled:
             from .native_lifecycle import bind_native_tray
@@ -807,6 +870,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     store.close()
                     return 0
             native_profile = NativeProfileBinding(store, launch_snapshot=snapshot)
+            _wire_cookie_store(native_profile, store)
             # All GUI auth checks, including draft Cookie validation, require
             # the same stop fence as the managed application readers.
             native_profile.auth_stop_required = True
@@ -957,11 +1021,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                 similarity_provider=config.similarity_provider,similarity_auto=config.similarity_auto)
         if config.extension_bridge:
             registration['extension_bridge'] = True
+        if config.extension_bridge_auto:
+            registration['extension_bridge_auto'] = True
+        # 元 main.py:367-372: 不正キーは黙らず印字してから既定タブへ。
+        from .startup_tab import resolve_startup_tab, shell_tab_key
+        resolved_tab, tab_warning = resolve_startup_tab(config.startup_tab)
+        if tab_warning:
+            print(tab_warning)
+        registration['startup_tab'] = shell_tab_key(resolved_tab)
         if config.native:
             registration["desktop_enabled"] = True
             if config.pixiv_download_root is not None:
                 from .uri_launch import build_protocol_command
-                args_for_uri = ['--native', '--host', config.host, '--port', str(config.port), '--extension-bridge']
+                # 元の URI 起動で受信が立つかは、既定起動と同じく設定（受信を止める）に従う。
+                args_for_uri = ['--native', '--host', config.host, '--port', str(config.port)]
                 from dataclasses import fields
                 if config.profile_root is not None:
                     args_for_uri.extend(['--profile-root', str(config.profile_root)])

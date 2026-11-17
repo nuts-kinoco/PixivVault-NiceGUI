@@ -75,7 +75,7 @@ class FailedRecordsView:
                 ui.label("ダウンロード失敗キュー・保存品質異常リスト").classes("pv-failure-heading")
                 self.reload_button = ui.button(icon="refresh", color=None).props(
                     "flat dense aria-label=リスト更新 data-testid=failed-reload")
-                self.reload_button.tooltip("失敗記録を読み直す（DBは変更しません）")
+                self.reload_button.tooltip("リスト更新")
             if getattr(services, 'failed_record_removal_available', False):
                 subtitle = ('一覧の削除は専用台帳に保存します。元DB・画像・ZIPは変更しません。'
                             + (' 再試行は対応作品だけ管理キューへ明示再投入します。'
