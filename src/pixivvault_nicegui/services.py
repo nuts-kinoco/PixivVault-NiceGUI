@@ -2014,7 +2014,8 @@ class ApplicationServices:
         finally:
             with self._managed_target_lock:
                 self._active_managed_record = None
-            if self._similarity_worker is not None and not self.closing:
+            if (self._similarity_worker is not None and not self.closing
+                    and self.similarity_auto_enabled()):
                 self._similarity_worker.wake()
 
     def _reconcile_interrupted_author_jobs(self):
