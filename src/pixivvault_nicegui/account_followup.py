@@ -28,6 +28,8 @@ NOTICE_SWITCH_CONFIRMED = '別アカウント(ID: {uid})のCookieを読み込み
 NOTICE_SWITCH_CANCELLED = '別アカウントのCookieを検出しましたが、フォロー一覧の削除をキャンセルしました。'
 NOTICE_SYNC_DONE = '起動時自動同期完了 ({count}人の作者)'
 NOTICE_SYNC_FAILED = '自動同期失敗: 保存済みの一覧は保持されています。'
+NOTICE_SWITCH_NOT_STARTED = '別アカウントへの切り替えを始められませんでした（取得停止中など）。旧フォロー中データは削除していません。'
+NOTICE_SWITCH_FETCH_FAILED = '自動同期失敗: 旧フォロー中データは削除済みです。取得できるようになってから、もう一度同期してください。'
 NOTICE_SYNC_RUNNING = '同期中です。完了してからもう一度お試しください。'
 SYNC_INTERVAL_SECONDS = 24 * 3600
 
@@ -162,24 +164,51 @@ class AccountFollowup:
             return
         self._running = True
         self._close_dialog()
+        # 元と同じく「削除してから取得」。ただし取得停止ゲートが閉じているときは、
+        # 先に読み取り手段を開いて確かめ、何も削除せずに終える（新旧とも 0 件にしない）。
+        reader = await self._open_gated_reader()
+        if reader is None:
+            self._running = False
+            self._notice(NOTICE_SWITCH_NOT_STARTED, 'warning')
+            return
         self._notice(NOTICE_SWITCH_CONFIRMED.format(uid=request.new_account), 'warning')
         try:
             await asyncio.to_thread(store.clear_account, request.old_account)
         except Exception:
             self._running = False
+            self._close_reader(reader)
             self._notice(NOTICE_SYNC_FAILED, 'negative')
             return
-        await self._sync(request.new_account, store)
+        await self._sync(request.new_account, store, failed_notice=NOTICE_SWITCH_FETCH_FAILED,
+                         first_reader=reader)
 
     # -- sync ------------------------------------------------------------------
 
-    async def _sync(self, account, store):
+    async def _open_gated_reader(self):
+        """The stop-gated reader, or None when the gate is closed. No request is sent."""
+        cookie = self.binding._configured_cookie()
+        if cookie is None or self.binding._closed:
+            return None
+        try:
+            return await asyncio.to_thread(self._open_reader, cookie)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _close_reader(reader):
+        try:
+            reader.close()
+        except Exception:
+            pass
+
+    async def _sync(self, account, store, failed_notice=NOTICE_SYNC_FAILED, first_reader=None):
         """``_running`` is already set by the caller; always cleared here."""
         from .managed_network_stop_gate import ManagedNetworkGateBusy
         try:
             for attempt in range(self.busy_retries + 1):
                 try:
-                    count = await self._attempt(account, store)
+                    reader, first_reader = first_reader, None
+                    count = await self._attempt(account, store, reader)
                 except (ManagedNetworkGateBusy, FollowingSyncError) as error:
                     transient = (isinstance(error, ManagedNetworkGateBusy)
                                  or type(error) is FollowingSyncError)
@@ -194,19 +223,21 @@ class AccountFollowup:
             raise
         except Exception:
             if not self.binding._closed:
-                self._notice(NOTICE_SYNC_FAILED, 'negative')
+                self._notice(failed_notice, 'negative')
         finally:
             self._running = False
 
-    async def _attempt(self, account, store):
+    async def _attempt(self, account, store, reader=None):
         """One gated run; the saved list changes only when the whole fetch succeeded."""
         cookie = self.binding._configured_cookie()
         if cookie is None or self.binding._closed:
+            if reader is not None:
+                self._close_reader(reader)
             return None
         key = Event()
-        reader = None
         try:
-            reader = await asyncio.to_thread(self._open_reader, cookie)
+            if reader is None:
+                reader = await asyncio.to_thread(self._open_reader, cookie)
             if reader is None:
                 return None  # no stop-gated path here: no request is made
             with self.binding._reader_lock:

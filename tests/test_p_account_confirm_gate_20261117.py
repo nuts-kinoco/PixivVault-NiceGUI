@@ -46,14 +46,11 @@ async def test_failure_after_deletion_is_not_reported_as_data_kept(tmp_path, mon
     binding, following, events = F.make(tmp_path, monkeypatch, uid="888")
     F.seed_account(following, "777", hours_ago=40)
     await F.go(binding)
-    opened = []
 
-    def second_open_fails(cookie):
-        opened.append(1)
-        if len(opened) == 1:
-            return F.FakeFollowReader("888")
-        raise ManagedNetworkStopped(429)
-    binding.followup.reader_factory = second_open_fails
+    class Closing(F.FakeFollowReader):
+        def get_following_users_detailed(self, account_id, rest_type='show'):
+            raise ManagedNetworkStopped(429)  # 開けたが、取得の途中でゲートが閉じた
+    binding.followup.reader_factory = lambda cookie: Closing("888")
     await binding.followup.confirm_account_switch()
     notices = F.texts(events)
     assert following.snapshot("777").authors == ()
