@@ -8,6 +8,7 @@ from .grid_layout import MAX_COLUMNS
 from ..auth_status import BLUE as AUTH_BLUE, CHECKING_TEXT as AUTH_CHECKING_TEXT
 from .theme import CSS, TOKENS
 from ..startup_tab import TAB_INITIAL, shell_tab_key
+from ..db_status import db_status
 
 NAVIGATION = (
     ("download", "ダウンロード"), ("queue", "キュー"), ("failed", "失敗リスト"),
@@ -62,6 +63,12 @@ class DemoShell:
         ui.colors(primary=TOKENS["accent"])
         self.dark_mode = ui.dark_mode(True)
         with ui.column().classes("pv-shell") as self.root:
+            # 元 gui.py:6126 db_status_banner: ヘッダーより上、最上段に常時表示。
+            is_production, db_text = db_status(services)
+            self.db_banner = ui.label(db_text).props('role=status data-testid=db-status-banner')
+            self.db_banner.style(
+                'background-color:#d32f2f;color:#fff;font-weight:bold;padding:8px;width:100%' if is_production
+                else 'font-size:11px;color:#9e9e9e;padding:2px 0 0 8px')
             with ui.element("div").classes("pv-header"):
                 with ui.column().classes("gap-0"):
                     ui.label("PixivVault").classes("pv-title")
