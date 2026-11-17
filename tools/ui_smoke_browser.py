@@ -71,6 +71,18 @@ class FakeClient:
     def close(self):
         pass
 
+    def get_following_users(self, uid, rest="show"):
+        self._hit("get_following_users:" + str(rest))
+        return []
+
+    def __getattr__(self, name):
+        # Only called for attributes the fake lacks.  A caller that swallows AttributeError (e.g.
+        # start_discovery_initial_load) would otherwise truncate the call sequence silently, so
+        # record every public name the product asked for; capability probes still see it missing.
+        if not name.startswith("_"):
+            self.__dict__.setdefault("missing", []).append(name)
+        raise AttributeError(name)
+
     def get_artwork_download_record(self, wid):
         self._hit("get_artwork_download_record:" + str(wid))
         from pixivvault_nicegui.pixiv_read_client import ArtworkUnavailable
@@ -191,7 +203,8 @@ def serve(args):
     @app.get("/_smoke/network", include_in_schema=False)
     def net(x_acceptance: str | None = Header(default=None)):
         authorized(x_acceptance)
-        return {"calls": list(fake.calls), "sites": list(fake.sites), "denied": network["denied"]}
+        return {"calls": list(fake.calls), "sites": list(fake.sites), "denied": network["denied"],
+                "missing_attributes": sorted(set(fake.__dict__.get("missing", [])))}
 
     @app.post("/_smoke/shutdown", include_in_schema=False)
     def shutdown(x_acceptance: str | None = Header(default=None)):
@@ -394,7 +407,9 @@ def run(args):
     url = f"http://{HOST}:{args.port}"
     harness_errors: list[str] = []
     cells, foreign, dumps, call_log = {}, [], {}, {}
-    network = {"calls": [], "denied": 0}
+    network = {"calls": [], "denied": 0, "missing_attributes": []}
+    # Edge/Playwright temp files must stay on S: even when the caller did not export TEMP/TMP.
+    os.environ["TEMP"] = os.environ["TMP"] = str(base / "tmp")
     try:
         deadline = time.time() + 60
         while True:
@@ -447,6 +462,7 @@ def run(args):
                    sizes=[list(s) for s in H.SIZES], themes=list(H.THEMES), screens=screens,
                    strict_network=args.strict_network, cells=cells,
                    network=dict(calls=network["calls"], denied=network["denied"], call_log=call_log,
+                                fake_client_missing_attributes=network.get("missing_attributes", []),
                                 foreign_browser_requests=foreign, failures=net_failures,
                                 declared_on_open_calls_seen=allowed_seen),
                    harness_errors=harness_errors, testids=dumps)
@@ -463,6 +479,9 @@ def run(args):
         print(f"[ERROR] {f}")
     print(f"\n偽 live client 呼び出し: {len(network['calls'])} 件 / 外部接続試行(遮断): {network['denied']} 件 / "
           f"ブラウザ外部リクエスト: {len(foreign)} 件")
+    if network.get("missing_attributes"):
+        print("  偽 live client に無かった属性（製品が要求。呼び出し列が途中で切れた可能性）: "
+              + ", ".join(network["missing_attributes"]))
     startup_calls = sum(len(v["calls"]) for k, v in call_log.items() if k == "startup" or k.startswith("load|"))
     print(f"起動・読込直後の呼び出し: {startup_calls} 件（0 必須）")
     for phase, entry in call_log.items():
