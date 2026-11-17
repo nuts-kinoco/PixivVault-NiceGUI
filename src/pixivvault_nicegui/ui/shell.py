@@ -111,7 +111,7 @@ class DemoShell:
                         self.borrow_dialog=PremiumGateDialog(gate,on_change=self.sync_borrow,
                             default_uid_path=getattr(services,'default_uid_path',DEFAULT_UID_PATH))
                         # Original gui.py:859: an opened vault takes the fixed UID file at start.
-                        self.borrow_dialog.reflect_uid_file_at_startup()
+                        self._reflect_uid_once(self.borrow_dialog)
                     self.borrow_switch=ui.switch('借用プレミアム',on_change=self.borrow_changed).props(
                         'data-testid=premium-borrow-toggle')
                     if self.borrow_dialog is not None:
@@ -285,6 +285,13 @@ class DemoShell:
     def apply_preferences(self,snapshot=None):
         self.services.apply_preferences(snapshot)
         if self.learning is not None:self.learning.refresh_prefetch()
+
+    def _reflect_uid_once(self, dialog) -> None:
+        # プロセス起動時に1回だけ（シェルは画面を開くたびに作られる）。
+        if getattr(self.services, 'uid_file_reflected', False):
+            return
+        self.services.uid_file_reflected = True
+        dialog.reflect_uid_file_at_startup()
 
     def _tab_available(self, tab: str) -> bool:
         services = self.services

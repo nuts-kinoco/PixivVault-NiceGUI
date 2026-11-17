@@ -78,3 +78,14 @@ async def test_shell_honours_startup_tab_and_falls_back_when_unavailable():
     finally:
         client.delete()
         services.close()
+
+
+def test_uid_file_is_reflected_once_per_process_not_per_shell():
+    # 元 gui.py:859: 起動時に1回。シェル（画面）を作るたびに読み直さない。
+    from types import SimpleNamespace
+    calls = []
+    dialog = SimpleNamespace(reflect_uid_file_at_startup=lambda: calls.append(1))
+    services = SimpleNamespace()
+    for _ in range(3):
+        DemoShell._reflect_uid_once(SimpleNamespace(services=services), dialog)
+    assert calls == [1]
