@@ -57,7 +57,7 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family: sys
 .pv-cookie-banner .pv-banner-title { font-weight:700; font-size:14px; color:var(--pv-on-surface); }
 .pv-cookie-banner .pv-banner-body { font-size:14px; line-height:1.5; white-space:pre-line; color:var(--pv-on-surface-variant); }
 .pv-pill { display:inline-flex; align-items:center; gap:8px; padding:8px 18px; border-radius:20px; background:var(--pv-container-pill); color:var(--pv-primary); font-size:14px; text-decoration:none; white-space:nowrap; }
-.pv-nav { display:flex; flex-wrap:nowrap; gap:8px; width:100%; flex-shrink:0; overflow-x:auto; overflow-y:hidden; scrollbar-width:thin; }
+.pv-nav { display:flex; flex-wrap:wrap; gap:6px 8px; width:100%; flex-shrink:0; overflow:visible; }
 .pv-tab { font-family:inherit; font-size:14px; font-weight:500; text-transform:none; width:162px; min-width:162px; flex:0 0 162px; height:32px; min-height:32px; padding:0 10px; border-radius:20px !important; box-sizing:border-box; }
 .pv-tab .q-btn__content { flex-wrap:nowrap; white-space:nowrap; }
 .pv-nav .q-btn.pv-tab { background:transparent !important; border:0 !important; color:var(--pv-on-surface) !important; }

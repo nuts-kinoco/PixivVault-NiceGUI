@@ -256,10 +256,16 @@ def test_all_tabs_have_the_same_width_and_keep_icon_and_label_visible():
         assert len({b['w'] for b in boxes}) == 1, boxes
         assert all(b['fits'] for b in boxes)
         assert len({b['h'] for b in boxes}) == 1
-        # 1 行のまま（折り返さない）。はみ出す分はバー内スクロール。
-        tops = page.evaluate("[...document.querySelectorAll('.pv-tab')].map(e => e.getBoundingClientRect().top)")
-        assert len(set(tops)) == 1
-        assert page.evaluate("getComputedStyle(document.querySelector('.pv-nav')).overflowX") == 'auto'
+        # 1280px では 2 段に折り返し（本人の裁定 2026-11-18）、全タブが画面内に見える。バー内スクロールはしない。
+        rects = page.evaluate("[...document.querySelectorAll('.pv-tab')].map(e => { const r = e.getBoundingClientRect(); return {top: Math.round(r.top), right: r.right}; })")
+        assert len({r['top'] for r in rects}) == 2, rects
+        assert all(r['right'] <= 1280 for r in rects), rects
+        assert page.evaluate("getComputedStyle(document.querySelector('.pv-nav')).flexWrap") == 'wrap'
+        assert page.evaluate("getComputedStyle(document.querySelector('.pv-nav')).overflowX") != 'auto'
+        # 1920px では 1 行に収まる
+        page.set_viewport_size({'width': 1920, 'height': 1080})
+        tops = page.evaluate("[...document.querySelectorAll('.pv-tab')].map(e => Math.round(e.getBoundingClientRect().top))")
+        assert len(set(tops)) == 1, tops
     finally:
         browser.close()
         pw.stop()
