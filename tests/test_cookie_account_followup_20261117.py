@@ -4,10 +4,15 @@ Fake reader and a real FollowingSyncStore in tmp_path; no network, no real brows
 Every user-visible string checked here is the original gui.py wording.
 """
 import asyncio
+import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
+import pixivvault_nicegui.bootstrap  # noqa: F401  (import real owners before any test patches the reader class)
+import pixivvault_nicegui.managed_network_stop_integration  # noqa: F401
+import pixivvault_nicegui.managed_network_stop_reader  # noqa: F401
+import pixivvault_nicegui.managed_network_stop_shared_transport  # noqa: F401
 from pixivvault_nicegui.following_sync import FollowingSyncStore
 from pixivvault_nicegui.native_profile import NativeProfileStore
 from pixivvault_nicegui.native_startup import NativeProfileBinding
@@ -75,6 +80,7 @@ def make(tmp_path, monkeypatch, *, uid='777', reader_factory='default', with_sto
     binding = NativeProfileBinding(profile)
     following = FollowingSyncStore(tmp_path / 'follow') if with_store else None
     followup = binding.followup
+    followup.busy_retry_delay = 0
     followup.store_provider = (lambda: following) if with_store else None
     followup.reader_factory = ((lambda cookie: FakeFollowReader(uid)) if reader_factory == 'default'
                                else reader_factory)
@@ -85,7 +91,6 @@ def make(tmp_path, monkeypatch, *, uid='777', reader_factory='default', with_sto
 
 async def go(binding, **kw):
     await binding.refresh_auth_status(**kw)
-    await binding.followup.wait_idle()
 
 
 def texts(events):
@@ -202,7 +207,6 @@ async def test_a_stopped_gate_keeps_saved_data_and_reports_failure(tmp_path, mon
 async def test_concurrent_checks_run_one_sync(tmp_path, monkeypatch):
     binding, following, events = make(tmp_path, monkeypatch)
     await asyncio.gather(binding.refresh_auth_status(), binding.refresh_auth_status(imported=True))
-    await binding.followup.wait_idle()
     assert len(FakeFollowReader.runs) == 1
     binding.close()
 
@@ -323,3 +327,137 @@ async def test_shell_shows_the_original_confirmation_and_routes_the_buttons(tmp_
         client.delete()
         services.close()
         binding.close()
+
+
+# ---- review fixes: pacing, retry, running confirm, wiring ----------------------------
+
+@pytest.mark.asyncio
+async def test_a_busy_gate_attempt_is_retried_and_the_list_changes_once(tmp_path, monkeypatch):
+    binding, following, events = make(tmp_path, monkeypatch)
+    state = {'n': 0}
+
+    def flaky(cookie):
+        state['n'] += 1
+        reader = FakeFollowReader('777')
+        if state['n'] == 1:
+            def boom(*a, **k):
+                raise RuntimeError('another request holds the shared fence')
+            reader.get_following_users_detailed = boom
+        return reader
+    binding.followup.reader_factory = flaky
+    await go(binding)
+    assert state['n'] == 2 and len(following.snapshot('777').following) == 3
+    assert texts(events).count('起動時自動同期完了 (3人の作者)') == 1
+    assert not any(t.startswith('自動同期失敗') for t in texts(events))
+    binding.close()
+
+
+def test_the_per_run_reader_gets_the_application_request_pacing(tmp_path, monkeypatch):
+    binding, following, events = make(tmp_path, monkeypatch)
+    given = []
+    reader = FakeFollowReader('777')
+    reader.set_request_admission = given.append
+    binding.followup.admission_provider = lambda: 'shared-admission'
+    binding.followup._pace(reader)
+    assert given == ['shared-admission']
+    binding.followup.admission_provider = None      # no pacing source: nothing is configured
+    binding.followup._pace(reader)
+    assert given == ['shared-admission']
+    binding.close()
+
+
+@pytest.mark.asyncio
+async def test_confirming_while_a_sync_runs_keeps_the_dialog_and_says_why(tmp_path, monkeypatch):
+    binding, following, events = make(tmp_path, monkeypatch, uid='888')
+    seed_account(following, '777', hours_ago=40)
+    await go(binding)
+    binding.followup._running = True
+    await binding.followup.confirm_account_switch()
+    assert binding.followup.pending is not None
+    assert '同期中です。完了してからもう一度お試しください。' in texts(events)
+    assert len(following.snapshot('777').authors) == 2
+    binding.followup._running = False
+    binding.close()
+
+
+def test_native_launch_wiring_gives_the_followup_its_store_and_pacing(tmp_path):
+    import inspect
+    from types import SimpleNamespace
+    from pixivvault_nicegui import bootstrap
+    profile = NativeProfileStore(tmp_path / 'profile')
+    binding = NativeProfileBinding(profile)
+    services = SimpleNamespace(following_sync='STORE', _request_admission='PACE')
+    bootstrap._wire_followup(binding, services)
+    assert binding.followup.store_provider() == 'STORE' and binding.followup.admission_provider() == 'PACE'
+    assert '_wire_followup(native_profile, services)' in inspect.getsource(bootstrap.register_pages)
+    binding.close()
+
+
+# ---- the real stop-gated reader path (no GET is made) ------------------------------------
+
+def _gated_binding(tmp_path):
+    from pixivvault_nicegui.extension_cookie_store import ExtensionCookieStore
+    from pixivvault_nicegui.managed_network_stop_profile_scope import ManagedProfileNetworkStopScope
+    from pixivvault_nicegui.managed_network_stop_shared_scope import ManagedUserNetworkStopScope
+    from test_stage5_r1_shared_product_integration import synthetic_owner
+    shared_root, cookie = synthetic_owner(tmp_path)
+    shared = ManagedUserNetworkStopScope(shared_root)
+    profile_root = tmp_path / 'gated-profile'
+    NativeProfileStore(profile_root).close()
+    scope = ManagedProfileNetworkStopScope(profile_root)
+    store = NativeProfileStore(profile_root)
+    store.update(cookie_file=cookie, expected_revision=store.snapshot().revision)
+    binding = NativeProfileBinding(store)
+    binding.auth_stop_required = binding.auth_shared_stop_required = True
+    binding.managed_network_stop_scope, binding.shared_network_stop_scope = scope, shared
+    return binding, store, shared, cookie, ExtensionCookieStore
+
+
+def test_real_gate_gives_a_following_capable_reader_and_no_get_is_made(tmp_path):
+    binding, store, shared, cookie, _ = _gated_binding(tmp_path)
+    reader = binding.followup._open_reader(cookie)
+    try:
+        assert callable(reader.get_following_users_detailed) and callable(reader.require_identity)
+    finally:
+        reader.close()
+    binding.close()
+
+
+@pytest.mark.parametrize('status', (401, 403, 429))
+def test_latched_stop_yields_no_reader_and_keeps_saved_data(tmp_path, status):
+    from pixivvault_nicegui.managed_network_stop_gate import ManagedNetworkStopped
+    binding, store, shared, cookie, _ = _gated_binding(tmp_path)
+    following = FollowingSyncStore(tmp_path / 'follow')
+    seed_account(following, '777', hours_ago=30)
+    shared.gate.trip(status)
+    with pytest.raises(ManagedNetworkStopped):
+        binding.followup._open_reader(cookie)
+    binding.followup.store_provider = lambda: following
+    binding.followup.busy_retry_delay = 0
+    events = []
+    binding.followup.subscribe(lambda kind, payload: events.append((kind, payload)))
+
+    async def run():
+        binding.followup._running = True
+        await binding.followup._sync('777', following)
+    asyncio.run(run())
+    assert len(following.snapshot('777').authors) == 2
+    assert any(t.startswith('自動同期失敗') for t in texts(events))
+    binding.close()
+
+
+def test_real_reader_follows_an_adopted_cookie_but_not_a_stale_path(tmp_path):
+    from pixivvault_nicegui.managed_network_stop_gate import ManagedNetworkGateStorageError
+    binding, store, shared, cookie, Store = _gated_binding(tmp_path)
+    credentials = Store(tmp_path / 'gated-credentials', profile=store)
+    candidate = credentials.prepare([{'domain': '.pixiv.net', 'path': '/', 'name': 'PHPSESSID',
+                                      'value': 'dummy-new', 'secure': True,
+                                      'expirationDate': int(time.time()) + 86400 * 20}],
+                                    expected_revision=store.snapshot().revision)
+    new_cookie = credentials.commit(candidate).cookie_file
+    reader = binding.followup._open_reader(new_cookie)      # the current profile Cookie works
+    reader.close()
+    with pytest.raises(ManagedNetworkGateStorageError):     # the launch Cookie no longer matches
+        binding.followup._open_reader(cookie)
+    credentials.close()
+    binding.close()

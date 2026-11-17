@@ -22,12 +22,13 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from threading import Event
 
-from .following_sync import FollowingSyncCancelled
+from .following_sync import FollowingSyncCancelled, FollowingSyncError
 
 NOTICE_SWITCH_CONFIRMED = '別アカウント(ID: {uid})のCookieを読み込みました。旧フォロー中データを削除・再取得します。'
 NOTICE_SWITCH_CANCELLED = '別アカウントのCookieを検出しましたが、フォロー一覧の削除をキャンセルしました。'
 NOTICE_SYNC_DONE = '起動時自動同期完了 ({count}人の作者)'
 NOTICE_SYNC_FAILED = '自動同期失敗: 保存済みの一覧は保持されています。'
+NOTICE_SYNC_RUNNING = '同期中です。完了してからもう一度お試しください。'
 SYNC_INTERVAL_SECONDS = 24 * 3600
 
 
@@ -70,12 +71,15 @@ class AccountFollowup:
         self.binding = binding
         self.store_provider = None       # callable -> FollowingSyncStore | None
         self.reader_factory = None       # test/override: callable(cookie_file) -> reader
-        self.busy_retry_delay = 5.0
-        self.busy_retries = 3
+        self.admission_provider = None   # callable -> shared request pacing (RequestAdmission)
+        # The shared GET fence admits one request at a time. Another request in
+        # flight (for instance the first ranking fetch) surfaces as a failed
+        # attempt; the transactional sync is simply tried again a little later.
+        self.busy_retry_delay = 10.0
+        self.busy_retries = 2
         self.pending = None
         self._declined = None
         self._listeners = []
-        self._task = None
         self._running = False
 
     # -- events (shell subscribes; payloads never carry credentials) --------
@@ -127,10 +131,14 @@ class AccountFollowup:
                 self._emit('account_switch', {'new_account': account, 'old_account': old})
                 return
             snapshot = await asyncio.to_thread(store.snapshot, account)
-            if sync_is_due(snapshot.last_synced_at):
-                self._schedule(account, store)
+            if not sync_is_due(snapshot.last_synced_at) or self._running:
+                return
         except Exception:
             return
+        # Inline: the startup check task (which the first ranking fetch waits
+        # for) finishes after this, so the two requests are not contending.
+        self._running = True
+        await self._sync(account, store)
 
     def _close_dialog(self):
         if self.pending is not None:
@@ -147,7 +155,10 @@ class AccountFollowup:
     async def confirm_account_switch(self):
         request = self.pending
         store = self._store()
-        if request is None or store is None or self._running or self.binding._closed:
+        if request is None or store is None or self.binding._closed:
+            return
+        if self._running:
+            self._notice(NOTICE_SYNC_RUNNING, 'warning')   # the dialog stays open
             return
         self._running = True
         self._close_dialog()
@@ -162,49 +173,48 @@ class AccountFollowup:
 
     # -- sync ------------------------------------------------------------------
 
-    def _schedule(self, account, store):
-        if self._running or self.binding._closed:
-            return
-        self._running = True
-        self._task = self.binding._spawn(self._sync(account, store))
-
-    async def wait_idle(self):
-        task = self._task
-        if task is not None:
-            await asyncio.gather(task, return_exceptions=True)
-
     async def _sync(self, account, store):
         """``_running`` is already set by the caller; always cleared here."""
         from .managed_network_stop_gate import ManagedNetworkGateBusy
-        key = Event()
-        reader = None
         try:
             for attempt in range(self.busy_retries + 1):
-                cookie = self.binding._configured_cookie()
-                if cookie is None or self.binding._closed:
-                    return
                 try:
-                    reader = await asyncio.to_thread(self._open_reader, cookie)
-                except ManagedNetworkGateBusy:
-                    reader = None
-                    if attempt < self.busy_retries:
+                    count = await self._attempt(account, store)
+                except (ManagedNetworkGateBusy, FollowingSyncError) as error:
+                    transient = (isinstance(error, ManagedNetworkGateBusy)
+                                 or type(error) is FollowingSyncError)
+                    if transient and attempt < self.busy_retries and not self.binding._closed:
                         await asyncio.sleep(self.busy_retry_delay)
                         continue
                     raise
-                break
-            if reader is None:
-                return  # no stop-gated path here: no request is made
-            with self.binding._reader_lock:
-                self.binding._requests[key] = reader
-            result = await asyncio.to_thread(
-                store.sync, _PinnedReader(reader, account),
-                cancelled=lambda: self.binding._closed, timeout=120)
-            self._notice(NOTICE_SYNC_DONE.format(count=len(result.following)), 'positive')
+                if count is not None:
+                    self._notice(NOTICE_SYNC_DONE.format(count=count), 'positive')
+                return
         except asyncio.CancelledError:
             raise
         except Exception:
             if not self.binding._closed:
                 self._notice(NOTICE_SYNC_FAILED, 'negative')
+        finally:
+            self._running = False
+
+    async def _attempt(self, account, store):
+        """One gated run; the saved list changes only when the whole fetch succeeded."""
+        cookie = self.binding._configured_cookie()
+        if cookie is None or self.binding._closed:
+            return None
+        key = Event()
+        reader = None
+        try:
+            reader = await asyncio.to_thread(self._open_reader, cookie)
+            if reader is None:
+                return None  # no stop-gated path here: no request is made
+            with self.binding._reader_lock:
+                self.binding._requests[key] = reader
+            result = await asyncio.to_thread(
+                store.sync, _PinnedReader(reader, account),
+                cancelled=lambda: self.binding._closed, timeout=120)
+            return len(result.following)
         finally:
             with self.binding._reader_lock:
                 self.binding._requests.pop(key, None)
@@ -213,7 +223,6 @@ class AccountFollowup:
                     reader.close()
                 except Exception:
                     pass
-            self._running = False
 
     def _open_reader(self, cookie_file):
         """A per-run reader on the same stop-gated path as the header check."""
@@ -245,10 +254,18 @@ class AccountFollowup:
             from .managed_network_stop_reader import create_exact_managed_read_client
             reader = create_exact_managed_read_client(cookie_file, scope.gate)
         reader.set_retry_policy(binding.auth_retry_policy)
+        self._pace(reader)
         return reader
 
+    def _pace(self, reader):
+        """Same request pacing as the application's other readers (avoids a 429 stop)."""
+        try:
+            admission = self.admission_provider() if self.admission_provider is not None else None
+        except Exception:
+            admission = None
+        configure = getattr(reader, 'set_request_admission', None)
+        if admission is not None and callable(configure):
+            configure(admission)
+
     def close(self):
-        task, self._task = self._task, None
-        if task is not None and not task.done():
-            task.cancel()
         self.pending = None

@@ -363,8 +363,17 @@ def _wire_browser_cookie_source(native_profile, store):
 
     root = Path(store.root)
     credentials = root.with_name(root.name + '-credentials')
-    native_profile.browser_cookie_source = default_browser_cookie_source()
+    # Browser DB copies (Firefox holds every site's cookies in plaintext) go to
+    # an app-owned folder, not the shared system TEMP; each copy is removed.
+    scratch = root.with_name(root.name + '-scratch')
+    native_profile.browser_cookie_source = default_browser_cookie_source(scratch)
     native_profile.cookie_store_factory = lambda: ExtensionCookieStore(credentials, profile=store)
+
+
+def _wire_followup(native_profile, services):
+    """FL-A09/A10: the following store and request pacing of this application."""
+    native_profile.followup.store_provider = lambda: services.following_sync
+    native_profile.followup.admission_provider = lambda: getattr(services, '_request_admission', None)
 
 
 def _build_owned_media_readers(*, pixiv_cookie_file, pixiv_download_root,
@@ -626,7 +635,7 @@ def register_pages(learning_sandbox: Path | None = None,
             services.tray=bind_native_tray(app,services.preferences,services=services)
         if native_profile is not None:
             services.native_profile = native_profile
-            native_profile.followup.store_provider = lambda: services.following_sync
+            _wire_followup(native_profile, services)
         register_media_routes(app, services.images)
 
         async def close_services() -> None:

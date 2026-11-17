@@ -303,3 +303,18 @@ async def test_adopted_generation_passes_the_next_start_profile_validation(tmp_p
     assert values['pixiv_cookie_file'] == snapshot.cookie_file
     validate_profile_boundaries(store.root, snapshot, values)
     binding.close()
+
+
+@pytest.mark.asyncio
+async def test_empty_cookie_file_is_missing_not_expired_and_imported_startup_never_extracts(tmp_path, monkeypatch):
+    binding, store, old = make(tmp_path, monkeypatch, expired=True)
+    monkeypatch.setattr(binding, '_verify_auth_result', lambda path, stopped: NativeAuthResult('cookie_unreadable'))
+    await binding.refresh_auth_status(imported=True, startup=True)   # coalesced re-check
+    assert binding.browser_cookie_source.calls == 0
+    old.write_bytes(b'')                                             # original "missing"
+    await binding.refresh_auth_status(startup=True)
+    assert binding.browser_cookie_source.calls == 0
+    old.write_text('garbage', encoding='utf-8')                      # present but unusable: expired
+    await binding.refresh_auth_status(startup=True)
+    assert binding.browser_cookie_source.calls == 1
+    binding.close()

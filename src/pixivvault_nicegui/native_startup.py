@@ -258,7 +258,7 @@ class NativeProfileBinding:
 
     # -- FL-A08: automatic extraction from the browser -------------------------
 
-    def _extraction_wanted(self, result):
+    def _extraction_wanted(self, result, cookie=None):
         """Original check_login_status: expired, or 1 week or less left.
 
         Never for a missing setting (original "missing"), a communication
@@ -268,6 +268,11 @@ class NativeProfileBinding:
         """
         code = getattr(result, 'code', None)
         if code in ('cookie_unreadable', 'identity_unverified'):
+            try:  # original "missing": an absent or empty file is not an expiry
+                if cookie is not None and (not Path(cookie).is_file() or Path(cookie).stat().st_size == 0):
+                    return False
+            except OSError:
+                return False
             return True
         if code == 'verified':
             days = (self._last_identity or (None, None))[1]
@@ -368,7 +373,8 @@ class NativeProfileBinding:
                 else:
                     result = await self.check_authentication(cookie, _imported=imported)
                     identity = self._last_identity if result.code == 'verified' else None
-                    if startup and not self._startup_extract_done and self._extraction_wanted(result):
+                    if (startup and not imported and not self._startup_extract_done
+                            and self._extraction_wanted(result, cookie)):
                         # Original: only the startup check tries the browser, once.
                         self._startup_extract_done = True
                         if await self.adopt_browser_cookies() == 'adopted':
