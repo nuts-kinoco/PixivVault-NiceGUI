@@ -55,6 +55,8 @@ class DemoShell:
         self.auth_label = None
         self.cookie_banner = None
         self._auth_unsubscribe = None
+        self._followup_unsubscribe = None
+        self.account_switch_dialog = None
         self._banner_dismissed = False
         self.client.on_delete(self.close)
         ui.add_css(CSS)
@@ -198,8 +200,55 @@ class DemoShell:
         holder = profile.auth_status
         self._auth_unsubscribe = holder.subscribe(self._render_auth_status)
         self._render_auth_status(holder.status)
+        self._attach_followup(profile)
         # Once per process, only for a STOP-fenced profile; a no-op otherwise.
         profile.start_startup_auth_check()
+
+    def _attach_followup(self, profile):
+        followup = getattr(profile, 'followup', None)
+        if followup is None:
+            return
+        self._followup = followup
+        self._followup_unsubscribe = followup.subscribe(self._on_followup)
+        if followup.pending is not None:
+            self._show_account_switch(followup.pending)
+
+    def _on_followup(self, kind, payload):
+        if self.closed:
+            return
+        with self.client:
+            if kind == 'notice':
+                ui.notify(payload['text'], type=payload.get('type', 'info'))
+            elif kind == 'account_switch':
+                self._show_account_switch(self._followup.pending)
+            elif kind == 'account_switch_closed':
+                self._close_account_switch()
+
+    def _show_account_switch(self, request):
+        # Original gui.py confirm_dlg: the irreversible deletion needs an explicit yes.
+        self._close_account_switch()
+        if request is None:
+            return
+        with ui.dialog().props('persistent data-testid=account-switch-dialog') as dialog,                 ui.card().style('max-width:480px'):
+            ui.label('別アカウントのCookieを検出しました').style('font-size:16px;font-weight:700')
+            ui.label(
+                f'現在保存されているフォロー中データ（お気に入り・ダウンロード状況などを含む）を'
+                f'すべて削除し、アカウント（ID: {request.new_account}）の情報で再取得します。'
+                'この操作は元に戻せません。よろしいですか？'
+            ).style(f'font-size:13px;color:{TOKENS["muted"]}')
+            with ui.row().classes('w-full justify-end'):
+                ui.button('キャンセル', on_click=self._followup.cancel_account_switch).props(
+                    'flat no-caps data-testid=account-switch-cancel')
+                ui.button('削除して再取得する', on_click=self._followup.confirm_account_switch).props(
+                    'color=negative no-caps data-testid=account-switch-confirm')
+        self.account_switch_dialog = dialog
+        dialog.open()
+
+    def _close_account_switch(self):
+        dialog, self.account_switch_dialog = self.account_switch_dialog, None
+        if dialog is not None:
+            dialog.close()
+            dialog.delete()
 
     def open_preferences(self):
         if self.closed:
@@ -451,6 +500,9 @@ class DemoShell:
         if self._auth_unsubscribe is not None:
             self._auth_unsubscribe()
             self._auth_unsubscribe = None
+        if self._followup_unsubscribe is not None:
+            self._followup_unsubscribe()
+            self._followup_unsubscribe = None
         if self.closed:
             return
         self.closed = True
