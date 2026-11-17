@@ -41,7 +41,7 @@ class PremiumGateDialog:
         self._uid_explicit=False
         with ui.dialog().props('persistent') as self.password_dialog:
             with ui.card().classes('w-full max-w-md gap-4'):
-                ui.label('借用プレミアムをONにする').classes('text-h6')
+                ui.label('借用プレミアムをONにする').classes('text-h6 pv-dialog-title')
                 ui.label('パスワードを確認してから有効にします。入力内容は保存しません。')
                 with ui.column().classes('w-full') as self.password_slot:
                     self.password=None

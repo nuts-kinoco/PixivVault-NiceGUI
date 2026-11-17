@@ -17,23 +17,51 @@ TOKENS = {
 }
 
 CSS = """
-:root { --pv-bg:#0b0b10; --pv-surface:#15161c; --pv-raised:#1e202d; --pv-border:#2a2b38; --pv-text:#e8e8ef; --pv-muted:#8a8a99; --pv-overlay:rgba(21,22,28,.94); }
-body.body--light { --pv-bg:#fafafa; --pv-surface:#ffffff; --pv-raised:#eef1f5; --pv-border:#c7cdd7; --pv-text:#1d2632; --pv-muted:#586575; --pv-overlay:rgba(255,255,255,.96); }
+:root { --pv-bg-vault:#0b0b10; --pv-bg-surface:#15161c; --pv-bg-card:#1e202d; --pv-border-vault:#2a2b38; --pv-pixiv-blue:#0096FA; --pv-pixiv-blue-hover:#0080d6; --pv-pixiv-blue-glow:rgba(0,150,250,.25); --pv-glass-bg:rgba(21,22,28,.94); --pv-text-main:#e8e8ef; --pv-text-muted:#8a8a99; --pv-text-elsewhere:#b9b9c4;
+  --pv-page:#111418; --pv-on-surface:#e1e2e8; --pv-on-surface-variant:#c3c6cf; --pv-primary:#9ec7f9; --pv-primary-rgb:158,199,249; --pv-container:#32353a; --pv-container-pill:#191c20;
+  --pv-auth-red:#ef5350; --pv-auth-green:#66bb6a; --pv-auth-yellow:#ffee58; --pv-auth-blue:#42a5f5; --pv-auth-primary:#0096FA;
+  --pv-bg:var(--pv-bg-vault); --pv-surface:var(--pv-bg-surface); --pv-raised:var(--pv-bg-card); --pv-border:var(--pv-border-vault); --pv-text:var(--pv-text-main); --pv-muted:var(--pv-text-muted); --pv-overlay:var(--pv-glass-bg); }
+/* ライトは元(暗色カードが残る)と違い、本人の裁定で明るいカードにする。 */
+body.body--light { --pv-page:#f8f9ff; --pv-bg-vault:#f3f5fb; --pv-bg-surface:#ffffff; --pv-bg-card:#eef1f8; --pv-border-vault:#c7cdd7; --pv-glass-bg:rgba(255,255,255,.96); --pv-text-main:#191c20; --pv-text-muted:#4b5058; --pv-text-elsewhere:#3a3f47;
+  --pv-on-surface:#191c20; --pv-on-surface-variant:#43474e; --pv-primary:#2a5886; --pv-primary-rgb:42,88,134; --pv-container:#e1e2e8; --pv-container-pill:#f2f3fa;
+  --pv-auth-red:#c62828; --pv-auth-green:#2e7d32; --pv-auth-yellow:#7a5c00; --pv-auth-blue:#1565c0; --pv-auth-primary:#00639b;
+  /* var() は宣言した要素で解決されるので、別名は光側でも宣言し直す（:root の別名は暗色のまま残る）。 */
+  --pv-bg:var(--pv-bg-vault); --pv-surface:var(--pv-bg-surface); --pv-raised:var(--pv-bg-card); --pv-border:var(--pv-border-vault); --pv-text:var(--pv-text-main); --pv-muted:var(--pv-text-muted); --pv-overlay:var(--pv-glass-bg); }
 
 html, body { width:100%; height:100%; overflow:hidden; }
-body { background: var(--pv-bg); color: var(--pv-text); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+body { background: var(--pv-page); color: var(--pv-on-surface); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 .nicegui-content { height:100dvh; min-height:0; padding:0 !important; overflow:hidden; }
-.pv-shell { height:100dvh; min-height:0; width:100%; max-width:100%; padding:24px; gap:16px; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
+.pv-shell { height:100dvh; min-height:0; width:100%; max-width:100%; padding:10px; gap:10px; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
 .pv-content { position:relative; width:100%; min-width:0; min-height:0; flex:1 1 0; display:flex; flex-direction:column; overflow:hidden; }
 .pv-metadata-view { flex:1 1 0; min-height:0; min-width:0; max-width:100%; overflow-y:auto; overflow-x:hidden; padding-right:8px; box-sizing:border-box; }
 .pv-gallery { flex:1 1 0; min-height:0; min-width:0; overflow:hidden; display:flex; flex-direction:column; }
-.pv-header { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; width:100%; flex-shrink:0; }
-.pv-title { font-family:"Yu Mincho", "YuMincho", serif; font-size:28px; font-weight:700; letter-spacing:.06em; }
+.pv-header { display:flex; flex-wrap:nowrap; align-items:flex-start; justify-content:space-between; gap:12px; width:100%; flex-shrink:0; }
+.pv-header-main { display:flex; flex-direction:column; align-items:flex-start; gap:10px; flex:1 1 0; min-width:0; }
+.pv-header-actions { display:flex; flex-wrap:nowrap; align-items:center; gap:5px; flex:0 0 auto; align-self:center; }
+.pv-title { font-family:inherit; font-size:32px; font-weight:700; line-height:46px; }
 .pv-subtitle { color:var(--pv-muted); font-size:13px; }
-.pv-nav { display:flex; flex-wrap:wrap; gap:8px; width:100%; flex-shrink:0; }
-.pv-tab { background:var(--pv-surface) !important; border:1px solid var(--pv-border) !important; border-radius:8px !important; font-family:"Yu Mincho", "YuMincho", serif; }
-.pv-nav .q-btn.pv-tab { color:var(--pv-text) !important; }
-.pv-nav .q-btn.pv-tab.pv-tab-active { background:#0096FA !important; color:#ffffff !important; }
+.pv-dialog-title { font-family:"Yu Mincho", "YuMincho", serif; color:var(--pv-text-main); }
+.pv-auth { font-size:13px; font-weight:500; line-height:1.2; }
+.pv-auth[data-tone=red] { color:var(--pv-auth-red); } .pv-auth[data-tone=green] { color:var(--pv-auth-green); }
+.pv-auth[data-tone=yellow] { color:var(--pv-auth-yellow); } .pv-auth[data-tone=blue] { color:var(--pv-auth-blue); }
+.pv-auth[data-tone=primary] { color:var(--pv-auth-primary); }
+.pv-conn-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px; min-height:32px; margin-top:8px; font-size:12px; color:var(--pv-on-surface-variant); }
+.pv-conn-row .q-toggle__label, .pv-conn-row .q-toggle { font-size:12px; color:var(--pv-on-surface-variant); }
+.pv-conn-dot { width:10px; height:10px; border-radius:50%; background:var(--pv-on-surface-variant); flex:0 0 10px; }
+.pv-conn-dot[data-state=waiting] { background:var(--pv-auth-green); } .pv-conn-dot[data-state=off] { background:var(--pv-auth-red); }
+.q-btn.pv-hbtn, .pv-hbtn { width:40px; height:40px; min-width:40px; min-height:40px; padding:0; border-radius:50%; color:var(--pv-on-surface-variant) !important; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
+.pv-hbtn .q-icon { font-size:24px; }
+.q-btn.pv-hbtn { color:var(--pv-on-surface-variant) !important; }
+.pv-hbtn.pv-tab-active, .q-btn.pv-hbtn.pv-tab-active { background:rgba(var(--pv-primary-rgb), .12) !important; color:var(--pv-primary) !important; }
+.pv-cookie-banner { width:100%; flex-shrink:0; box-sizing:border-box; background:var(--pv-container); border:1px solid var(--pv-auth-blue); border-radius:12px; padding:10px 14px; gap:12px; }
+.pv-cookie-banner .pv-banner-title { font-weight:700; font-size:14px; color:var(--pv-on-surface); }
+.pv-cookie-banner .pv-banner-body { font-size:14px; line-height:1.5; white-space:pre-line; color:var(--pv-on-surface-variant); }
+.pv-pill { display:inline-flex; align-items:center; gap:8px; padding:8px 18px; border-radius:20px; background:var(--pv-container-pill); color:var(--pv-primary); font-size:14px; text-decoration:none; white-space:nowrap; }
+.pv-nav { display:flex; flex-wrap:nowrap; gap:8px; width:100%; flex-shrink:0; overflow-x:auto; overflow-y:hidden; scrollbar-width:thin; }
+.pv-tab { font-family:inherit; font-size:14px; font-weight:500; text-transform:none; width:162px; min-width:162px; flex:0 0 162px; height:32px; min-height:32px; padding:0 10px; border-radius:20px !important; box-sizing:border-box; }
+.pv-tab .q-btn__content { flex-wrap:nowrap; white-space:nowrap; }
+.pv-nav .q-btn.pv-tab { background:transparent !important; border:0 !important; color:var(--pv-on-surface) !important; }
+.pv-nav .q-btn.pv-tab.pv-tab-active { background:rgba(var(--pv-primary-rgb), .12) !important; color:var(--pv-primary) !important; }
 .pv-tab-disabled { opacity:.48; cursor:not-allowed; }
 .pv-toolbar { background:var(--pv-surface); padding:16px; border-radius:12px; width:100%; display:flex; flex-wrap:wrap; align-items:center; gap:12px; flex-shrink:0; }
 .pv-search { flex:1 1 240px; min-width:160px; }
@@ -108,13 +136,13 @@ body { background: var(--pv-bg); color: var(--pv-text); font-family: system-ui, 
 .pv-learning > :not(.pv-view-art) { flex-shrink:0; }
 .pv-learning .pv-view-art { flex:1 1 auto; width:100%; min-height:160px; max-width:560px; max-height:45dvh; object-fit:contain; }
 .pv-learning .pv-view-art img { width:100%; height:100%; object-fit:contain !important; }
-.pv-view-title { font-family:"Yu Mincho", "YuMincho", serif; font-size:20px; }
+.pv-view-title { font-size:20px; }
 .pv-description { color:var(--pv-text); font-size:13px; white-space:pre-wrap; }
 .pv-card-size { font-size:9px; line-height:1.2; min-width:32px; padding:3px 5px !important; }
 .pv-card-size .q-icon { font-size:16px; }
 .pv-library { flex:1 1 0; min-width:0; min-height:0; overflow:hidden; display:flex; flex-direction:column; gap:6px; }
 .pv-library-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:10px; width:100%; flex:0 0 auto; }
-.pv-library-heading { font-family:"Yu Mincho", "YuMincho", serif; font-size:15px; font-weight:700; }
+.pv-library-heading { font-size:15px; font-weight:700; }
 .pv-library-subviews { gap:2px; flex-wrap:nowrap; }
 .pv-library .q-btn { color:var(--pv-text) !important; font-size:11px; }
 .pv-library .pv-library-subview-selected, .pv-library .pv-size-selected { background:#0096FA !important; border-radius:8px; }
@@ -224,9 +252,9 @@ body { background: var(--pv-bg); color: var(--pv-text); font-family: system-ui, 
 .pv-job-chips { gap:4px; }
 .pv-job-chips .q-btn { font-size:11px; border:1px solid var(--pv-border); border-radius:8px; }
 .pv-job-chips [aria-pressed=true] { background:var(--pv-raised) !important; border-color:#0096FA; }
-@media(max-width:1280px) { .pv-shell { padding:16px; gap:12px; } .pv-toolbar { padding:12px; } .pv-view-art { max-height:48dvh; } }
+@media(max-width:1280px) { .pv-shell { padding:10px; gap:10px; } .pv-toolbar { padding:12px; } .pv-view-art { max-height:48dvh; } }
 @media(max-width:1280px) { .pv-viewer .pv-view-art, .pv-viewer .pv-view-art img { max-height:none; } }
-@media(max-width:600px) { .pv-shell { padding:12px; } .pv-title { font-size:24px; } .pv-toolbar { padding:12px; } }
+@media(max-width:600px) { .pv-shell { padding:10px; } .pv-title { font-size:24px; } .pv-toolbar { padding:12px; } }
 """
 
 __all__ = ["TOKENS", "CSS"]
