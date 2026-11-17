@@ -53,7 +53,7 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family: sys
 .pv-hbtn .q-icon { font-size:24px; }
 .q-btn.pv-hbtn { color:var(--pv-on-surface-variant) !important; }
 .pv-hbtn.pv-tab-active, .q-btn.pv-hbtn.pv-tab-active { background:rgba(var(--pv-primary-rgb), .12) !important; color:var(--pv-primary) !important; }
-.pv-cookie-banner { width:100%; flex-shrink:0; box-sizing:border-box; background:var(--pv-container); border:1px solid var(--pv-auth-blue); border-radius:12px; padding:10px 14px; gap:12px; }
+.pv-cookie-banner { width:100%; flex-shrink:0; box-sizing:border-box; background:var(--pv-container); border:1px solid #42a5f5; border-radius:12px; padding:10px 14px; gap:12px; }
 .pv-cookie-banner .pv-banner-title { font-weight:700; font-size:14px; color:var(--pv-on-surface); }
 .pv-cookie-banner .pv-banner-body { font-size:14px; line-height:1.5; white-space:pre-line; color:var(--pv-on-surface-variant); }
 .pv-pill { display:inline-flex; align-items:center; gap:8px; padding:8px 18px; border-radius:20px; background:var(--pv-container-pill); color:var(--pv-primary); font-size:14px; text-decoration:none; white-space:nowrap; }
