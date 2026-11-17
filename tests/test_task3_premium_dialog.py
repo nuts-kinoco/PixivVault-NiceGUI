@@ -28,9 +28,10 @@ async def test_dialog_initializes_updates_and_rejects_wrong_password(tmp_path, m
         assert dialog._load_uid_bytes(payload)
         dialog.password_dialog.submit(True)
         for _ in range(500):
-            if task.done() or dialog.save_dialog.value: break
+            if task.done() or dialog.save_dialog.value or dialog.dialog_error.text: break
             await asyncio.sleep(.01)
         if dialog.save_dialog.value: dialog.save_dialog.submit(remember)
+        elif not task.done(): dialog.password_dialog.submit(False)  # wrong password: dialog stays open until cancelled
         await asyncio.wait_for(task, 10)
     try:
         with client: dialog=PremiumGateDialog(gate, default_uid_path=None)
@@ -43,9 +44,16 @@ async def test_dialog_initializes_updates_and_rejects_wrong_password(tmp_path, m
         assert vault._snapshot()[1]['shaft_uids']==[54321]
         assert vault._snapshot()[1]['secret_key']=='second-key'
         gate.disable()
-        await submit('incorrect', 'bad-key', b'99999')
+        task=asyncio.create_task(dialog.request_enable()); await asyncio.sleep(0)
+        dialog.password.set_value('incorrect'); dialog.secret.set_value('bad-key')
+        assert dialog._load_uid_bytes(b'99999')
+        dialog.password_dialog.submit(True)
+        for _ in range(500):
+            if task.done() or dialog.dialog_error.text: break
+            await asyncio.sleep(.01)
+        assert not task.done() and 'パスワードが違います' in dialog.dialog_error.text
         assert not gate.status()['enabled'] and not vault.status()['open']
-        assert '\u4e00\u81f4\u3057\u307e\u305b\u3093' in dialog.notice.text
+        dialog.password_dialog.submit(False); await asyncio.wait_for(task, 10)
         assert not transport.calls
         assert not dialog._load_uid_bytes(b'12345\nsecret-value')
         assert '2' in dialog.uid_notice.text and 'secret-value' not in dialog.uid_notice.text

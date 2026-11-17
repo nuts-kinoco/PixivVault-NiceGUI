@@ -63,12 +63,14 @@ async def test_failed_then_correct_authentication_discards_old_input(tmp_path,mo
         task=await open_prompt(dialog)
         failed_input=dialog.password
         failed_input.set_value(password+'!');dialog.password_dialog.submit(True)
-        await asyncio.wait_for(task,5)
+        for _ in range(300):
+            if 'パスワードが違います' in dialog.dialog_error.text:break
+            await asyncio.sleep(.01)
+        assert not task.done(), 'a wrong password keeps the dialog open'
         cleared=failed_input.value=='' and dialog.password.value==''
         assert cleared and failed_input.is_deleted
-        assert 'パスワードが一致しません' in dialog.notice.text and not gate.status()['enabled']
+        assert 'パスワードが違います' in dialog.dialog_error.text and not gate.status()['enabled']
         now[0]+=10
-        task=await open_prompt(dialog)
         empty=dialog.password.value==''
         assert empty and dialog.password.id!=failed_input.id
         dialog.password.set_value(password);dialog.secret.set_value('fixture-key');dialog._load_uid_bytes(b'1')

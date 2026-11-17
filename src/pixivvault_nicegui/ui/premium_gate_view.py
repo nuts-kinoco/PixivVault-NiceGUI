@@ -30,6 +30,12 @@ def vault_unlock_error_message(code):
         return 'パスワードが一致しません。入力を確認して、もう一度試してください。'
     return None
 
+def dialog_error_message(code):
+    """In-dialog wording; the original says the password is wrong (gui.py:947)."""
+    if code in ('premium-password-rejected','unlock-failed'):
+        return 'パスワードが違います。入力を確認して、もう一度試してください。'
+    return vault_unlock_error_message(code) or ''
+
 class PremiumGateDialog:
     def __init__(self,gate,*,on_change=None, default_uid_path=DEFAULT_UID_PATH):
         self.gate=gate;self.on_change=on_change;self.closed=False
@@ -42,6 +48,9 @@ class PremiumGateDialog:
                 with ui.column().classes('w-full') as self.password_slot:
                     self.password=None
                     self._reset_password()
+                # Wrong password and similar input errors stay here, under the
+                # field, so the dialog and the other inputs are kept (original).
+                self.dialog_error=ui.label('').classes('text-negative').props('role=alert data-testid=premium-dialog-error')
                 with ui.column().classes('w-full gap-2') as self.legacy_box:
                     ui.label('保管庫は以前に設定した別のパスワードで保護されています。そのパスワードを入力してください。入力内容は保存しません。')
                     with ui.column().classes('w-full') as self.legacy_slot:
@@ -56,7 +65,7 @@ class PremiumGateDialog:
                     self.uid_notice=ui.label('').props('role=status data-testid=premium-uid-count')
                 with ui.row().classes('w-full justify-end'):
                     ui.button('キャンセル',on_click=lambda:self.password_dialog.submit(False)).props('flat')
-                    ui.button('\u6709\u52b9\u306b\u3059\u308b',on_click=lambda:self.password_dialog.submit(True)).props('data-testid=premium-password-confirm')
+                    self.confirm_button=ui.button('\u6709\u52b9\u306b\u3059\u308b',on_click=lambda:self.password_dialog.submit(True)).props('data-testid=premium-password-confirm')
         with ui.dialog().props('persistent') as self.save_dialog:
             with ui.card().classes('w-full max-w-md gap-4'):
                 ui.label('有効な状態を保存しますか？').classes('text-h6')
@@ -66,6 +75,28 @@ class PremiumGateDialog:
                     ui.button('保存する',on_click=lambda:self.save_dialog.submit(True)).props('data-testid=premium-save-yes')
         self.notice=ui.label(vault_unlock_error_message(gate.status().get('error')) or '').props('role=status data-testid=premium-permission-status')
         ui.context.client.on_delete(self.close)
+    def _wait_message(self):
+        state=self.gate.status()
+        return f"しばらく待ってから、もう一度「有効にする」を押してください（あと{int(state['retry_after'])+1}秒）。"
+    def _wait_suffix(self):
+        state=self.gate.status()
+        return f" あと{int(state['retry_after'])+1}秒待ってください。" if state['retry_after']>0 else ''
+    def _set_dialog_error(self,text):
+        self.dialog_error.set_text(text)
+    async def _wait_password(self):
+        """Wait for submit() WITHOUT closing the dialog (awaiting it would close it).
+
+        True/False is the user's confirm/cancel; a closed or deleted dialog is a cancel.
+        """
+        dialog=self.password_dialog
+        if self.closed:return False
+        dialog._result=None;dialog.submitted.clear()
+        if not dialog.value:dialog.open()
+        await dialog.submitted.wait()
+        result=dialog._result;dialog._result=None
+        return result is True and not self.closed
+    def _close_password_dialog(self):
+        if not self.closed:self.password_dialog.close()
     def _reset_password(self):
         # QDialog unmount can restore QInput's last inputValue on the client
         # after set_value('') was sent. A new element ID cannot inherit that
@@ -154,30 +185,49 @@ class PremiumGateDialog:
             if state['retry_after']>0:
                 self.notice.set_text(f"しばらく待ってから操作してください（あと{int(state['retry_after'])+1}秒）。")
                 return
-            self._show_legacy(False);self._reset_password();self._reset_secret()
+            self._show_legacy(False);self._reset_password();self._reset_secret();self._set_dialog_error('')
             # An initialised vault already holds its UIDs; the default file
             # must never be read for it (it would overwrite saved UIDs).
             if self.gate.vault.status()['initialized']:self._clear_uids()
             else:self._load_default_uids()
-            accepted=await self.password_dialog
-            if not accepted or self.closed:return
-            if self._uid_error:
-                self.notice.set_text('UID\u4e00\u89a7\u3092\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\u3002');return
-            password=str(self.password.value or '');self._reset_password()
+            while True:
+                if not await self._wait_password():return
+                self._set_dialog_error('')
+                if self._uid_error:
+                    self._set_dialog_error('UID\u4e00\u89a7\u3092\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\u3002');continue
+                password=str(self.password.value or '')
+                self.confirm_button.disable()
+                try:
+                    await asyncio.to_thread(self.gate.authenticate,password,expected_epoch=epoch)
+                except VaultError as error:
+                    if self.closed:return
+                    if error.code=='premium-password-wait':
+                        # Typed but not tried: keep it and let the user press again.
+                        self._set_dialog_error(self._wait_message());continue
+                    if error.code=='premium-password-rejected':
+                        self._reset_password()
+                        self._set_dialog_error(dialog_error_message(error.code)+self._wait_suffix());continue
+                    raise
+                finally:
+                    password=''
+                    if not self.closed:self.confirm_button.enable()
+                break
+            # The password was accepted: take the remaining inputs and leave the dialog.
+            self._reset_password()
             # The original strips the signing key before saving it (gui.py:989).
             secret=str(self.secret.value or '').strip();self._reset_secret()
             uid_text='\n'.join(map(str,self._uids));explicit_uids=self._uid_explicit;self._clear_uids()
-            await asyncio.to_thread(self.gate.authenticate,password,expected_epoch=epoch)
-            password=''
+            self._close_password_dialog()
             vault_status=self.gate.vault.status()
             if (self.gate.status().get('error')=='premium-legacy-unlock-required'
                     and vault_status['initialized'] and not vault_status['open']):
                 # The vault was protected with a different (earlier) password.
                 self._show_legacy(True)
-                accepted=await self.password_dialog
+                accepted=await self._wait_password()
                 legacy_password=str(self.legacy.value or '');self._reset_legacy()
                 self._show_legacy(False)
                 if not accepted or self.closed:return
+                self._close_password_dialog()
                 await asyncio.to_thread(self.gate.unlock_legacy,legacy_password,expected_epoch=epoch)
                 legacy_password=''
             if not self.gate.vault.status()['initialized'] and (not secret or not uid_text):
@@ -218,6 +268,7 @@ class PremiumGateDialog:
         finally:
             password=legacy_password='';secret=uid_text=''
             if not self.closed:
+                self._close_password_dialog();self._set_dialog_error('')
                 self._show_legacy(False);self._clear_uids();self._reset_password();self._reset_legacy();self._reset_secret()
             self.gate.end_prompt()
             if self.on_change and not self.closed:self.on_change()

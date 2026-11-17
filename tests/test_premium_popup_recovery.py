@@ -145,6 +145,9 @@ async def test_signing_key_input_is_recreated_each_time_popup_opens(tmp_path, mo
             d.password.set_value('wrong')
             d.secret.set_value('typed-signing-key')
             d.password_dialog.submit(True)
+            await Harness.wait_for(None, lambda: 'パスワードが違います' in d.dialog_error.text, task)
+            assert not task.done() and d.secret.value == 'typed-signing-key'  # kept while the dialog stays open
+            d.password_dialog.submit(False)
             await asyncio.wait_for(task, 10)
             assert d.secret.value == ''
             h.gate._atomic('attempts.json', b'{"failures":0,"next_at":0}')
