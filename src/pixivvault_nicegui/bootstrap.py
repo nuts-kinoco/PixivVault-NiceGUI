@@ -348,6 +348,25 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
 _registered = False
 
 
+def _wire_browser_cookie_source(native_profile, store):
+    """FL-A08 (explicit native launch only): installed-browser Cookie source.
+
+    Never inside a test-owner workspace, which must not read a real browser.
+    The credential store is built lazily on the first adoption, as an owned
+    sibling of the profile root, so launching never creates it.
+    """
+    from . import test_owner_runtime
+    if test_owner_runtime.owner_root() is not None:
+        return
+    from .browser_cookie_source import default_browser_cookie_source
+    from .extension_cookie_store import ExtensionCookieStore
+
+    root = Path(store.root)
+    credentials = root.with_name(root.name + '-credentials')
+    native_profile.browser_cookie_source = default_browser_cookie_source()
+    native_profile.cookie_store_factory = lambda: ExtensionCookieStore(credentials, profile=store)
+
+
 def _build_owned_media_readers(*, pixiv_cookie_file, pixiv_download_root,
                                novel_download_root, novel_fixture_root,
                                novel_source, ugoira_root, ugoira_fixture_root,
@@ -775,6 +794,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             native_profile.auth_stop_required = True
             native_profile.auth_shared_stop_required = True
             registration['native_profile'] = native_profile
+            _wire_browser_cookie_source(native_profile, store)
             # Establish a stable owned profile stop *before* constructing any
             # authenticated media reader. Newly created revision-zero profiles
             # can safely initialize it; previously configured profiles without

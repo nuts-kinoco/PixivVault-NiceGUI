@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 from pathlib import Path
-from threading import Event, RLock
+from threading import Event, Lock, RLock
 
 
 def native_entry_arguments(arguments):
@@ -93,6 +93,16 @@ class NativeProfileBinding:
         self._refresh_again = None
         self._last_identity = None
         self._background_tasks = set()
+        # FL-A08: replaceable browser Cookie source and the factory of the
+        # credential store that adopts what it finds. Both stay None for a bare
+        # binding; only the explicit native launch supplies them, so a test or
+        # tool never reads a real browser profile implicitly.
+        self.browser_cookie_source = None
+        self.cookie_store_factory = None
+        self._cookie_store = None
+        self._cookie_lock = Lock()
+        self._startup_extract_done = False
+        self.last_cookie_adoption = None
 
     def saved_folder_context(self):
         from .desktop_integration import DesktopActionRejected
@@ -201,7 +211,7 @@ class NativeProfileBinding:
     async def verify_auth(self, cookie_file):
         return (await self.check_authentication(cookie_file)).ok
 
-    async def check_authentication(self, cookie_file, *, _imported=False):
+    async def check_authentication(self, cookie_file, *, _imported=False, _publish=True):
         """Bounded GET reader through the STOP fence.
 
         Triggers: the settings button, application start, a saved Cookie and an
@@ -219,7 +229,8 @@ class NativeProfileBinding:
                 self._last_identity = None
             try:
                 result = await asyncio.to_thread(self._verify_auth_result, Path(cookie_file), stopped)
-                self._publish_auth(result, _imported)
+                if _publish:
+                    self._publish_auth(result, _imported)
                 return result
             except asyncio.CancelledError:
                 stopped.set()
@@ -231,13 +242,100 @@ class NativeProfileBinding:
                     reader.close()
                 raise
 
-    def _publish_auth(self, result, imported):
+    def _publish_auth(self, result, imported, *, identity=None, notice=None):
         from .auth_status import status_from_result, NOTICE_UPDATED
         if self._closed or result.code == 'closed':
             return
-        uid, days = self._last_identity or (None, None)
+        uid, days = identity or self._last_identity or (None, None)
         status = status_from_result(result, uid, days)
-        self.auth_status.publish(status, NOTICE_UPDATED if imported and status.ok else None)
+        if notice is None and imported and status.ok:
+            notice = NOTICE_UPDATED
+        self.auth_status.publish(status, notice if status.ok else None)
+
+    # -- FL-A08: automatic extraction from the browser -------------------------
+
+    def _extraction_wanted(self, result):
+        """Original check_login_status: expired, or 1 week or less left.
+
+        Never for a missing setting (original "missing"), a communication
+        failure or any STOP/busy/uncertain state: no request outcome says the
+        Cookie is stale there. A 401/403 is excluded too, because it latches the
+        fence and the replacement could not be verified.
+        """
+        code = getattr(result, 'code', None)
+        if code in ('cookie_unreadable', 'identity_unverified'):
+            return True
+        if code == 'verified':
+            days = (self._last_identity or (None, None))[1]
+            return days is not None and days <= 7
+        return False
+
+    def _open_cookie_store(self):
+        with self._cookie_lock:
+            if self._cookie_store is None:
+                if self._closed or self.cookie_store_factory is None:
+                    raise RuntimeError('credential store unavailable')
+                self._cookie_store = self.cookie_store_factory()
+            return self._cookie_store
+
+    async def adopt_browser_cookies(self):
+        """Extract, verify through the gate, then adopt the browser Cookie.
+
+        Returns adopted / unchanged / not_found / rejected / blocked /
+        unavailable / error. The original manual helper
+        (_run_auto_browser_cookie_picker) has no call site, so this has no
+        button; the startup path is its only caller. The profile changes only
+        after the candidate file passed the same gated authentication check.
+        """
+        outcome = await self._adopt_browser_cookies()
+        self.last_cookie_adoption = outcome
+        return outcome
+
+    async def _adopt_browser_cookies(self):
+        source = self.browser_cookie_source
+        if source is None or self.cookie_store_factory is None or self._closed:
+            return 'unavailable'
+        try:
+            found = await asyncio.to_thread(source.extract)
+        except Exception:
+            return 'error'
+        if found is None:
+            return 'not_found'
+        candidate = store = None
+        try:
+            store = await asyncio.to_thread(self._open_cookie_store)
+            revision = self.store.snapshot().revision
+            candidate = await asyncio.to_thread(store.prepare, found.cookies, expected_revision=revision)
+            if not candidate.changed:
+                store.discard(candidate)
+                return 'unchanged'
+            result = await self.check_authentication(candidate.cookie_file, _publish=False)
+            identity = self._last_identity
+            if result.code != 'verified' or self._closed:
+                store.discard(candidate)
+                return ('rejected' if result.code in ('identity_unverified', 'cookie_unreadable',
+                                                     'remote_denied') else 'blocked')
+            await asyncio.to_thread(store.commit, candidate)
+        except asyncio.CancelledError:
+            if candidate is not None:
+                store.discard(candidate)
+            raise
+        except Exception:
+            if candidate is not None and store is not None:
+                store.discard(candidate)
+            return 'error'
+        self._publish_auth(result, True, identity=identity,
+                           notice=f'ブラウザ ({found.browser}) からの Cookie 自動抽出・更新に成功しました！'
+                                  '取得・更新の通信は再起動後に新しい Cookie で行われます。')
+        return 'adopted'
+
+    def cookie_replaced_since_launch(self):
+        """True when the saved Cookie differs from the one the readers were built with."""
+        try:
+            return (self.launch_snapshot is not None
+                    and self.store.snapshot().cookie_file != self.launch_snapshot.cookie_file)
+        except Exception:
+            return False
 
     def _configured_cookie(self):
         try:
@@ -245,7 +343,7 @@ class NativeProfileBinding:
         except Exception:
             return None
 
-    async def refresh_auth_status(self, *, imported=False):
+    async def refresh_auth_status(self, *, imported=False, startup=False):
         """Header check through the same gated reader as the settings button.
 
         Concurrent requests coalesce: one runs, and one more follows only if a
@@ -264,7 +362,11 @@ class NativeProfileBinding:
                     from .auth_status import missing_status
                     self.auth_status.publish(missing_status())
                 else:
-                    await self.check_authentication(cookie, _imported=imported)
+                    result = await self.check_authentication(cookie, _imported=imported)
+                    if startup and not self._startup_extract_done and self._extraction_wanted(result):
+                        # Original: only the startup check tries the browser, once.
+                        self._startup_extract_done = True
+                        await self.adopt_browser_cookies()
                 if self._refresh_again is None:
                     return
                 imported, self._refresh_again = self._refresh_again, None
@@ -306,7 +408,7 @@ class NativeProfileBinding:
             self._loop = asyncio.get_running_loop()
         except RuntimeError:
             return None  # no event loop yet (not a served page): retry at the next shell build
-        self.startup_auth_task = self._spawn(self.refresh_auth_status())
+        self.startup_auth_task = self._spawn(self.refresh_auth_status(startup=True))
         return self.startup_auth_task
 
     def _verify_auth(self, cookie_file, stopped):
@@ -409,6 +511,13 @@ class NativeProfileBinding:
             stopped.set()
             if reader is not None:
                 reader.close()
+        with self._cookie_lock:
+            cookie_store, self._cookie_store = self._cookie_store, None
+        if cookie_store is not None:
+            try:
+                cookie_store.close()
+            except Exception:
+                pass
         self.store.close()
 
 

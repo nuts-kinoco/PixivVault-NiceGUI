@@ -302,6 +302,10 @@ class RankingView:
         if pending is not None and not pending.done():
             try:await asyncio.wait_for(asyncio.shield(pending),timeout=20)
             except Exception:pass
+        # FL-A08: the readers still hold the launch Cookie after a browser
+        # replacement. Do not send an automatic GET with the stale one.
+        replaced=getattr(profile,'cookie_replaced_since_launch',None)
+        if callable(replaced) and replaced():return
         if self.closed or not self.active or self.busy or self.page is not None:return
         self._auto_loaded=True
         await self.load()
