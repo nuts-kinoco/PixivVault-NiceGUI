@@ -19,6 +19,7 @@ from uuid import uuid4
 from PIL import Image
 from .fs_paths import sqlite_readonly_uri
 from .managed_downloads import ManagedPixivDownloads
+from .managed_quarantine import TrashEmptyResult, check_trash_confirmation
 
 THRESHOLD=4
 PER_AUTHOR_FILE_LIMIT=2000
@@ -366,7 +367,49 @@ class ManagedDuplicateInspection:
                 groups=tuple(group for group in scan.groups if group.group_id in selected_groups))
             self._planned=plan
             return plan
+    def _finish_trash_purges(self):
+        """Complete deletions already committed before an interruption (idempotent)."""
+        for store in (self.owner.quarantine if self.owner is not None else None,self.legacy):
+            if store is None:continue
+            try:store.finish_purges()
+            except Exception:pass  # never block reading the trash; retried next time
+
+    def empty_trash(self,*,expected_count,confirmed):
+        """Original gui.py:5640-5669: permanently delete the trash after a typed count.
+
+        Only copies are destroyed; exclusion records stay (they prevent re-acquisition).
+        The managed and legacy stores are separate durable transactions, so each
+        re-derives its own eligible set under its writer fence and refuses on mismatch.
+        """
+        with self._lock:
+            self._check()
+            check_trash_confirmation(expected_count,confirmed)
+            self._finish_trash_purges()
+            managed=self.owner.quarantine.snapshot().purgeable_count if self.owner is not None else 0
+            old=self.legacy.snapshot().purgeable_count if self.legacy is not None else 0
+            if managed+old!=expected_count:raise DuplicateInspectionError()
+            removed=failed=0
+            try:
+                if managed:
+                    part=self.owner.quarantine.purge(expected_count=managed,confirmed=True)
+                    removed+=part.removed;failed+=part.failed
+                if old:
+                    part=self.legacy.purge(expected_count=old,confirmed=True)
+                    removed+=part.removed;failed+=part.failed
+            finally:
+                # Candidate bindings include the changed state revisions.
+                self._latest=None;self._planned=None
+            return TrashEmptyResult(removed,failed)
+
     def quarantine_snapshot(self):
+        with self._lock:
+            result=self._quarantine_snapshot()
+            # After the summary: purged operations are never counted, so finishing
+            # their pending deletions cannot change what was just read.
+            self._finish_trash_purges()
+            return result
+
+    def _quarantine_snapshot(self):
         with self._lock:
             self._check()
             if self.owner is None:return self.legacy.snapshot()
@@ -385,6 +428,8 @@ class ManagedDuplicateInspection:
                            corrupt_count=current.corrupt_count+old.corrupt_count,
                            unconfirmed_count=current.unconfirmed_count+old.unconfirmed_count,
                            copy_bytes=current.copy_bytes+old.copy_bytes,
+                           purgeable_count=current.purgeable_count+old.purgeable_count,
+                           purgeable_bytes=current.purgeable_bytes+old.purgeable_bytes,
                            excluded_pages=current.excluded_pages+old.excluded_pages,
                            location=self.owner.root)
 

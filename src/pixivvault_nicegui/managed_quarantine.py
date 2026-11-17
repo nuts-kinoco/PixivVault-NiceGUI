@@ -13,7 +13,7 @@ from threading import RLock
 from uuid import uuid4
 
 from .fs_paths import native_io_path
-from .managed_root_writer import fenced_writer
+from .managed_root_writer import fenced_writer, writer_fence
 from .managed_downloads import (
     IDENTITY, MARKER, MAX_PAGE_BYTES, MAX_RECEIPT_BYTES, ManagedDownloadError,
     ManagedPixivDownloads, _fsync_dir, _image, _json_unique, _read_bounded,
@@ -54,6 +54,26 @@ class QuarantineSnapshot:
     missing_count: int = 0
     corrupt_count: int = 0
     unconfirmed_count: int = 0
+    # Present copies that "empty trash" would destroy (same unit as the dialog count).
+    purgeable_count: int = 0
+    purgeable_bytes: int = 0
+
+
+@dataclass(frozen=True)
+class TrashEmptyResult:
+    removed: int
+    failed: int
+
+
+# States whose copy files are trash. relocating/restoring are in-progress work.
+_PURGEABLE_STATES = ('committed', 'moved', 'restored')
+
+
+def check_trash_confirmation(expected_count, confirmed):
+    """Shared gate: an explicit confirmation and a positive integer count."""
+    if (confirmed is not True or type(expected_count) is not int
+            or expected_count < 1):
+        raise ManagedDownloadError('trash confirmation required')
 
 
 def inspect_quarantine_copy(path, size, digest):
@@ -124,12 +144,15 @@ class ManagedQuarantine:
                     return QuarantineSnapshot('uncreated', 0, 0, 0, None,
                                               state['revision'])
                 count = total = missing = corrupt = unconfirmed = 0
+                purgeable = purgeable_bytes = 0
                 lost = state['unconfirmed_operations']
                 for operation_id, operation in state['operations'].items():
                     if operation_id in lost:
                         unconfirmed += sum(1 for pages in state['exclusions'].values()
                                            for owner in pages.values() if owner == operation_id)
                         continue
+                    if operation['state'] == 'purged':
+                        continue  # destroyed on purpose; the exclusion is kept
                     # state_snapshot already validates schema, original proof,
                     # exact filename, operation identity and manifest SHA.
                     manifest = self._manifest(operation_id, operation)
@@ -139,23 +162,124 @@ class ManagedQuarantine:
                         path = folder / item['file']
                         status, size = inspect_quarantine_copy(path, item['bytes'], item['sha256'])
                         if status == 'missing':
-                            missing += 1
-                        elif status == 'corrupt':
+                            # A restored copy is not a proof any more; its absence
+                            # is not damage (it may have been emptied).
+                            if operation['state'] != 'restored':
+                                missing += 1
+                            continue
+                        if status == 'corrupt':
                             corrupt += 1
                         else:
                             count += 1
                             total += size
+                        if operation['state'] in _PURGEABLE_STATES:
+                            purgeable += 1
+                            purgeable_bytes += item['bytes']
                 if self.owner._generations.state_snapshot(
                         verify_quarantine_payloads=False, tolerate_missing=True)['revision'] != state['revision']:
                     raise ManagedDownloadError('quarantine snapshot changed')
                 if self.location() != location:
                     raise ManagedDownloadError('quarantine root changed')
                 return QuarantineSnapshot('ready', count, total, excluded,
-                                          location, state['revision'], missing, corrupt, unconfirmed)
+                                          location, state['revision'], missing, corrupt, unconfirmed,
+                                          purgeable, purgeable_bytes)
             except ManagedDownloadError:
                 raise
             except (OSError, ValueError, TypeError, KeyError):
                 raise ManagedDownloadError('quarantine summary rejected') from None
+
+    @staticmethod
+    def _delete_copy(path):
+        """Delete one manifest-listed copy; the manifest itself is never touched."""
+        _safe_path(path, file=True)
+        try:
+            native_io_path(path).unlink()
+        except FileNotFoundError:
+            return False
+        _fsync_dir(path.parent)
+        return True
+
+    def _pending_purge_files(self):
+        """Copies of already purged operations that still exist (crash residue)."""
+        state = self.owner._generations.state_snapshot(
+            verify_quarantine_payloads=False, tolerate_missing=True)
+        pending = []
+        for operation_id, operation in state['operations'].items():
+            if operation['state'] != 'purged' or operation_id in state['unconfirmed_operations']:
+                continue
+            manifest = self._manifest(operation_id, operation)
+            folder = self.operations / operation_id
+            for item in manifest['items']:
+                path = folder / item['file']
+                _safe_path(path, file=True)
+                if native_io_path(path).exists():
+                    pending.append(path)
+        return pending
+
+    def finish_purges(self):
+        """Complete deletions whose terminal state is already durable."""
+        with self._lock:
+            self._check()
+            if self.location() is None or not self._pending_purge_files():
+                return 0
+            done = 0
+            with writer_fence(self.owner.root):
+                for path in self._pending_purge_files():
+                    try:
+                        done += bool(self._delete_copy(path))
+                    except (OSError, ManagedDownloadError):
+                        pass  # retried on the next call
+            return done
+
+    @fenced_writer
+    def purge(self, *, expected_count, confirmed):
+        """Destroy the copies counted by snapshot().purgeable_count.
+
+        The terminal state is committed first, then the bytes are deleted, so an
+        interruption leaves a valid index that the next call completes.
+        Exclusions and manifests are kept. In-progress and unverifiable
+        operations are never touched; any of them that cannot be validated
+        makes the whole call refuse before anything changes.
+        """
+        check_trash_confirmation(expected_count, confirmed)
+        with self._lock:
+            self._check()
+            self.finish_purges()
+            state = self.owner._generations.state_snapshot(verify_quarantine_payloads=False)
+            candidates = []
+            for operation_id, operation in state['operations'].items():
+                if operation['state'] not in _PURGEABLE_STATES:
+                    continue
+                manifest = self._manifest(operation_id, operation)
+                folder = self.operations / operation_id
+                _safe_path(folder)
+                present = []
+                for item in manifest['items']:
+                    status, _ = inspect_quarantine_copy(folder / item['file'], item['bytes'], item['sha256'])
+                    if status != 'missing':
+                        present.append(folder / item['file'])
+                if present:
+                    candidates.append((operation_id, operation['state'], manifest, present))
+            if sum(len(entry[3]) for entry in candidates) != expected_count:
+                raise ManagedDownloadError('trash content changed')
+            removed = failed = 0
+            with ExitStack() as locks:
+                for wid in sorted({item['work_id'] for entry in candidates
+                                   for item in entry[2]['items']}):
+                    locks.enter_context(self.owner.work_lock(wid))
+                for operation_id, current, _, present in candidates:
+                    if current in ('committed', 'moved'):
+                        revision = self.owner._generations.state_snapshot(
+                            verify_quarantine_payloads=False)['revision']
+                        self.owner._generations.purge_quarantine(
+                            operation_id, expected_revision=revision)
+                    for path in present:
+                        try:
+                            if self._delete_copy(path):
+                                removed += 1
+                        except (OSError, ManagedDownloadError):
+                            failed += 1
+            return TrashEmptyResult(removed, failed)
 
     def _prepare(self):
         self._check()

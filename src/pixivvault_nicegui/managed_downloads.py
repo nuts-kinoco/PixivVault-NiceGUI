@@ -323,11 +323,14 @@ class ManagedPixivDownloads:
                         raise ValueError()
                 if verify_pages:
                     if progress is not None:progress(index-1,len(entries))
-                    data = (_read_bounded(item, MAX_PAGE_BYTES) if exists else
-                            _read_bounded(proof['path'], MAX_PAGE_BYTES))
-                    if (len(data) != entry["bytes"] or hashlib.sha256(data).hexdigest() != entry["sha256"]
-                            or _image(data)[1:] != (entry["format"], entry["width"], entry["height"])):
-                        raise ValueError()
+                    # A purged relocation keeps its manifest/receipt identity but
+                    # its bytes were destroyed on purpose (empty trash).
+                    if exists or proof['state'] != 'purged':
+                        data = (_read_bounded(item, MAX_PAGE_BYTES) if exists else
+                                _read_bounded(proof['path'], MAX_PAGE_BYTES))
+                        if (len(data) != entry["bytes"] or hashlib.sha256(data).hexdigest() != entry["sha256"]
+                                or _image(data)[1:] != (entry["format"], entry["width"], entry["height"])):
+                            raise ValueError()
                     if progress is not None:progress(index,len(entries))
             if sum(entry["bytes"] for entry in entries) > MAX_TOTAL:
                 raise ValueError()
@@ -592,6 +595,8 @@ class ManagedPixivDownloads:
             if proof is None or any(proof['item'][field] != entry[field]
                                     for field in ('sha256', 'bytes', 'format', 'width', 'height')):
                 raise ManagedDownloadError('saved page changed')
+            if proof['state'] == 'purged':
+                raise ManagedDownloadError('saved page purged from quarantine')
             data = _read_bounded(proof['path'], MAX_PAGE_BYTES)
         if (len(data) != receipt["files"][page_no]["bytes"] or
                 hashlib.sha256(data).hexdigest() != receipt["files"][page_no]["sha256"]):

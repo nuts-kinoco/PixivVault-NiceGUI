@@ -22,7 +22,7 @@ class DuplicateView:
         self._pending_quarantines=set()
         self._open_trash_callback=open_trash
         self._trash_epoch=0;self._trash_state='unloaded';self._trash_snapshot=None
-        self._trash_reading=False;self._trash_opening=False
+        self._trash_reading=False;self._trash_opening=False;self._trash_emptying=False
         self._trash_moves=();self._trash_restore_buttons=[]
         self._restore_candidate=None
         self.mode='undecidable'  # Original gui.py:5022, 5445-5469.
@@ -94,7 +94,7 @@ class DuplicateView:
                 self.relocation_choice.on_value_change(lambda _:self._sync_relocation_choice())
         with ui.dialog().props('data-testid=duplicate-trash-dialog') as self.trash_dialog:
             with ui.card().classes('w-full').style('max-width:640px'):
-                ui.label('ごみ箱').classes('text-lg')
+                self.trash_title=ui.label('ごみ箱').classes('text-lg').props('data-testid=duplicate-trash-title')
                 self.trash_status=ui.label('ごみ箱の内容は未確認です。').props(
                     'role=status data-testid=duplicate-trash-status')
                 self.trash_copy_count=ui.label('公開済みの隔離コピー: 未確認').props(
@@ -105,6 +105,11 @@ class DuplicateView:
                     'data-testid=duplicate-trash-excluded')
                 ui.label('件数と容量は公開済みの隔離コピーです。未完了の作業用コピーは含みません。'
                          '元の保存証拠と一覧の除外記録は保持されます。').classes('pv-subtitle')
+                # Original gui.py:5640-5669: type the count to enable the empty button.
+                ui.label('空にすると元に戻せません。件数を入力すると「空にする」が押せます。').classes('pv-subtitle')
+                ui.label('消えるのは隔離コピーだけです。通常の一覧からの除外の記録は残ります。').classes('pv-subtitle')
+                self.trash_confirm_count=ui.input(label='件数を入力',on_change=lambda _:self.sync()).props(
+                    'outlined dense inputmode=numeric data-testid=duplicate-trash-confirm-count').style('width:140px')
                 self.trash_restore_rows=ui.column().classes('w-full').props(
                     'data-testid=duplicate-trash-move-recovery')
                 with ui.row().classes('w-full justify-end'):
@@ -117,6 +122,8 @@ class DuplicateView:
                         'この起動ではOSで開く操作を利用できません。')
                     ui.button('閉じる',on_click=self.close_trash).props(
                         'flat data-testid=duplicate-trash-close')
+                    self.trash_empty_button=ui.button('空にする',on_click=self.empty_trash,color='amber').props(
+                        'text-color=black data-testid=duplicate-trash-empty')
         with ui.dialog().props('persistent data-testid=duplicate-restore-dialog') as self.restore_dialog:
             with ui.card().classes('w-full').style('max-width:560px'):
                 self.restore_title=ui.label().props('data-testid=duplicate-restore-title')
@@ -166,6 +173,12 @@ class DuplicateView:
         for button in self.group_low_buttons.values():button.set_enabled(enabled and self.mode=='near')
         self.confirm_button.set_enabled(enabled and self._confirmation is not None)
         self.restore_button.set_enabled(enabled and self._restore_candidate is not None)
+        can_empty=(enabled and self.trash_dialog.value and not self._trash_reading
+            and not self._trash_opening and self._trash_state=='ready'
+            and callable(getattr(self.source,'empty_trash',None))
+            and getattr(self._trash_snapshot,'purgeable_count',0)>0)
+        self.trash_confirm_count.set_enabled(bool(can_empty))
+        self.trash_empty_button.set_enabled(bool(can_empty and self._trash_count_confirmed()))
         for button in self._trash_restore_buttons:
             button.set_enabled(enabled and self.trash_dialog.value and not self._trash_reading)
         self.undecidable_refresh.set_enabled(enabled and self._has_undecidable_source()
@@ -187,8 +200,18 @@ class DuplicateView:
         return (not self.closed and self.active and self.trash_dialog.value
             and epoch==self._trash_epoch and generation==self.generation)
 
+    def _trash_count_confirmed(self):
+        count=getattr(self._trash_snapshot,'purgeable_count',0)
+        try:return count>0 and int(self.trash_confirm_count.value)==count
+        except (TypeError,ValueError):return False
+
     def _render_trash(self):
         snapshot=self._trash_snapshot
+        from .library_view import format_capacity
+        if snapshot is not None and hasattr(snapshot,'purgeable_count'):
+            self.trash_title.set_text(f'ごみ箱 {snapshot.purgeable_count}件・{format_capacity(snapshot.purgeable_bytes)}')
+        else:
+            self.trash_title.set_text('ごみ箱')
         if snapshot is None:
             self.trash_copy_count.set_text('公開済みの隔離コピー: 未確認')
             self.trash_copy_bytes.set_text('隔離コピーの容量: 未確認')
@@ -244,6 +267,7 @@ class DuplicateView:
 
     def close_trash(self):
         self._trash_epoch+=1
+        if not self.closed:self.trash_confirm_count.set_value('')
         self.trash_dialog.close()
         self.cancel_restore()
         self._trash_snapshot=None
@@ -260,6 +284,7 @@ class DuplicateView:
         self._trash_snapshot=None
         self._trash_moves=()
         self._trash_state='loading'
+        self.trash_confirm_count.set_value('')
         self._render_trash();self.sync()
         try:
             reader=getattr(self.source,'quarantine_snapshot',None)
@@ -281,6 +306,34 @@ class DuplicateView:
         finally:
             self._trash_reading=False
             if not self.closed:self.sync()
+
+    async def empty_trash(self):
+        """Original gui.py:5640-5669: permanent deletion after the typed count matched."""
+        emptier=getattr(self.source,'empty_trash',None)
+        if (self.closed or not self.active or self.busy or self._trash_reading or not self.trash_dialog.value
+                or self._trash_state!='ready' or not callable(emptier)
+                or not self._trash_count_confirmed()):return
+        count=self._trash_snapshot.purgeable_count
+        self.busy=True;self.sync()
+        result=None
+        try:
+            result=await asyncio.to_thread(lambda:emptier(expected_count=count,confirmed=True))
+        except Exception:
+            result=None
+        finally:
+            self.busy=False
+        if self.closed:return
+        self.close_trash()
+        if result is None:
+            message='ごみ箱を空にできませんでした。内容が変わった可能性があります。ごみ箱を開き直して件数を確認してください。'
+            ui.notify(message,type='warning')
+        else:
+            self.scan_result=getattr(self.source,'latest_scan',None);self.selections={};self.render()
+            message=f'ごみ箱: {result.removed}件を完全に削除しました（除外の記録は残ります）'
+            if result.failed:message+=f'・失敗 {result.failed}件'
+            ui.notify(message,type='warning' if result.failed else 'positive')
+        self.notice.set_text(message)
+        self.sync()
 
     def confirm_restore(self,record):
         if (self.closed or not self.active or self.busy or not self.trash_dialog.value

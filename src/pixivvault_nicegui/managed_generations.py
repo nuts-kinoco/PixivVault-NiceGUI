@@ -411,7 +411,8 @@ class ManagedGenerations:
             expected = {}
             for operation_id, operation in operations.items():
                 moving = packet['version'] == 4 and type(operation) is dict and operation.get('mode') == 'move'
-                allowed_states = ('relocating', 'moved', 'restoring', 'restored') if moving else ('committed', 'restored')
+                allowed_states = (('relocating', 'moved', 'restoring', 'restored', 'purged') if moving
+                                  else ('committed', 'restored', 'purged'))
                 if (type(operation_id) is not str or not _OPERATION_ID.fullmatch(operation_id)
                         or type(operation) is not dict
                         or operation.keys() != (_MOVE_OPERATION_KEYS if packet['version'] == 4 else _OPERATION_KEYS)
@@ -494,7 +495,10 @@ class ManagedGenerations:
                         _safe_path(folder)
                         copy = folder / item['file']
                         _safe_path(copy, file=True)
-                        if verify_payloads:
+                        # A restored copy is no longer a proof (the source is back);
+                        # a purged one was deliberately destroyed (empty trash).
+                        # Either may be present, partially deleted or absent.
+                        if verify_payloads and operation['state'] not in ('restored', 'purged'):
                             if native_io_path(copy).lstat().st_nlink != 1:
                                 raise ValueError()
                             data = _read_bounded(copy, MAX_PAGE_BYTES)
@@ -509,11 +513,11 @@ class ManagedGenerations:
                         if (native_io_path(source_path).exists()
                                 and native_io_path(source_path).lstat().st_nlink != 1):
                             raise ValueError()
-                        if operation['state'] == 'moved' and native_io_path(source_path).exists():
+                        if operation['state'] in ('moved', 'purged') and native_io_path(source_path).exists():
                             raise ValueError()
                         if operation['state'] == 'restored' and not native_io_path(source_path).is_file():
                             raise ValueError()
-                    if operation['state'] in ('committed', 'relocating', 'moved', 'restoring'):
+                    if operation['state'] in ('committed', 'relocating', 'moved', 'restoring', 'purged'):
                         pages = expected.setdefault(wid, {})
                         if str(page) in pages:
                             raise ValueError()
@@ -704,6 +708,35 @@ class ManagedGenerations:
             self._quarantine_fields(packet)
             self._commit_packet(packet)
             return self.state_snapshot()
+
+    @fenced_writer
+    def purge_quarantine(self, operation_id: str, *, expected_revision: str):
+        """Terminal commit before the bytes are destroyed (empty-trash intent).
+
+        Exclusions stay (re-acquisition prevention); only copy mode 'committed'
+        and move mode 'moved' can be purged. Working states are never touched.
+        The copy payload is deliberately not verified: a damaged copy may be
+        purged, and the new state never reads it again.
+        """
+        if type(operation_id) is not str or not _OPERATION_ID.fullmatch(operation_id):
+            raise ManagedDownloadError('quarantine operation rejected')
+        _sha(expected_revision)
+        with self._lock:
+            state = self.state_snapshot(verify_quarantine_payloads=False)
+            operation = state['operations'].get(operation_id)
+            moving = operation is not None and operation.get('mode') == 'move'
+            if (state['revision'] != expected_revision or operation is None
+                    or operation['state'] != ('moved' if moving else 'committed')):
+                raise ManagedDownloadError('quarantine compare-and-swap rejected')
+            operations = deepcopy(state['operations'])
+            operations[operation_id]['state'] = 'purged'
+            packet = {'version': 4 if any('mode' in op for op in operations.values()) else 3,
+                      'entries': self._index(verify_quarantine_payloads=False),
+                      'exclusions': state['exclusions'],
+                      'quarantine_operations': operations}
+            self._quarantine_fields(packet, verify_payloads=False)
+            self._commit_packet(packet)
+            return self.state_snapshot(verify_quarantine_payloads=False)
 
     @fenced_writer
     def restore_quarantine(self, operation_id: str, *, expected_revision: str):

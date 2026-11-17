@@ -21,7 +21,8 @@ from PIL import Image
 from .fs_paths import native_io_path
 from .local_media_adapter import ReadonlyLocalMediaCatalog, MediaUnavailable, MediaMissing, _safe_entry
 from .managed_downloads import _safe_path, _write, _read_bounded, _json_unique, _fsync_dir, MARKER, IDENTITY
-from .managed_quarantine import QuarantineResult, QuarantineSnapshot, inspect_quarantine_copy
+from .managed_quarantine import (QuarantineResult, QuarantineSnapshot, TrashEmptyResult,
+                                 check_trash_confirmation, inspect_quarantine_copy)
 from .library_models import LibrarySnapshot
 from .media import ImageBlob
 from .managed_root_writer import fenced_writer, writer_fence
@@ -120,7 +121,11 @@ class LegacyQuarantine:
                         or not 1<=item['page']<=1000 or not _SHA.fullmatch(item['sha256'])
                         or type(item['size']) is not int or not 0<item['size']<=24*1024*1024):
                     raise ValueError('legacy exclusion rejected')
-                if verify_outputs and sha256(_read_bounded(self._path(item['copy']),24*1024*1024)).hexdigest()!=item['sha256']:
+                if 'purged' in item and item['purged'] is not True:
+                    raise ValueError('legacy exclusion rejected')
+                # A purged copy was destroyed on purpose (empty trash); the
+                # exclusion itself is kept and nothing reads the bytes again.
+                if verify_outputs and not item.get('purged') and sha256(_read_bounded(self._path(item['copy']),24*1024*1024)).hexdigest()!=item['sha256']:
                     raise ValueError('legacy quarantine evidence changed')
             for relative,item in result['archives'].items():
                 if not _safe_entry(relative) or not _SHA.fullmatch(item['source_sha256']):
@@ -309,6 +314,7 @@ class LegacyQuarantine:
         self.download_state(record)
         item=self.state(verify_outputs=False)['exclusions'].get(f'{record.work_id}:{page+1}')
         if item is None:raise ValueError('legacy quarantine proof unavailable')
+        if item.get('purged'):raise ValueError('legacy quarantine proof purged')
         raw=_read_bounded(self._path(item['copy']),24*1024*1024)
         if len(raw)!=item['size'] or sha256(raw).hexdigest()!=item['sha256']:
             raise ValueError('legacy quarantine proof changed')
@@ -414,20 +420,74 @@ class LegacyQuarantine:
         # Summary reads validate the durable index, then inspect each copy.
         # Missing payloads do not erase exclusions or hide healthy copies.
         state=self.state(verify_outputs=False,recover=False);items=state['exclusions'].values()
-        count=total=missing=corrupt=0
+        count=total=missing=corrupt=purgeable=purgeable_bytes=0
         for item in items:
+            if item.get('purged'):continue  # destroyed on purpose; exclusion kept
             status,size=inspect_quarantine_copy(self._path(item['copy']),item['size'],item['sha256'])
             if status=='missing':
                 missing+=1
-            elif status=='corrupt':
+                continue
+            if status=='corrupt':
                 corrupt+=1
             else:
                 count+=1;total+=size
+            purgeable+=1;purgeable_bytes+=item['size']
         if self.state(verify_outputs=False,recover=False)['revision']!=state['revision']:
             raise ValueError('legacy quarantine snapshot changed')
         return QuarantineSnapshot('ready',count,total,len(items),
                                   self.root if self.root and native_io_path(self.root).exists() else None,
-                                  state['revision'],missing,corrupt)
+                                  state['revision'],missing,corrupt,0,purgeable,purgeable_bytes)
+
+    def _delete_copy(self,relative):
+        """Delete exactly one exclusion copy; state.json and active ZIPs share its folder."""
+        path=self._path(relative)
+        try:path.unlink()
+        except FileNotFoundError:return False
+        _fsync_dir(path.parent)
+        return True
+
+    def finish_purges(self):
+        """Complete deletions whose purged marker is already durable."""
+        with self._lock:
+            self._check()
+            if self.root is None:return 0
+            state=self.state(verify_outputs=False,recover=False)
+            pending=[item['copy'] for item in state['exclusions'].values()
+                     if item.get('purged') and native_io_path(self._path(item['copy'])).exists()]
+            done=0
+            for relative in pending:
+                try:done+=bool(self._delete_copy(relative))
+                except OSError:pass  # retried on the next call
+            return done
+
+    def purge(self,*,expected_count,confirmed):
+        """Empty the legacy trash: mark the counted copies purged, then delete them."""
+        check_trash_confirmation(expected_count,confirmed)
+        with self._lock:
+            self._check()
+            if self.root is None:raise ValueError('managed quarantine root required')
+            self.finish_purges()
+            state=self.state(verify_outputs=False)
+            candidates=[]
+            for key,item in state['exclusions'].items():
+                if item.get('purged'):continue
+                status,_=inspect_quarantine_copy(self._path(item['copy']),item['size'],item['sha256'])
+                if status!='missing':candidates.append((key,item['copy']))
+            if len(candidates)!=expected_count:raise ValueError('legacy trash content changed')
+            updated=json.loads(packet(state))
+            for key,_ in candidates:updated['exclusions'][key]['purged']=True
+            revision=uuid4().hex
+            updated['revision']=revision
+            updated['operations'][revision]=[key for key,_ in candidates]
+            stage=native_io_path(self.root/'operations'/revision)
+            stage.mkdir();_safe_path(self.root/'operations'/revision)
+            self._publish_state(updated,stage)
+            self._checkpoint('purge-published')
+            removed=failed=0
+            for _,relative in candidates:
+                try:removed+=bool(self._delete_copy(relative))
+                except OSError:failed+=1
+            return TrashEmptyResult(removed,failed)
 
     def project(self,snapshot):
         state=self.state();works=[];mapping={}
