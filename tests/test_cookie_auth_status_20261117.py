@@ -438,3 +438,46 @@ def test_bridge_hook_failure_never_changes_the_response(monkeypatch):
         raise RuntimeError('boom')
     counts = _post_cookie(monkeypatch, lambda rows: _Receipt(), bad)
     assert counts[200] == 1 and counts[503] == 0
+
+
+@pytest.mark.asyncio
+async def test_busy_gate_is_retried_so_the_header_does_not_stay_stopped(tmp_path, monkeypatch):
+    """Startup check met a briefly busy shared gate on the real app (2026-11-17) and
+    the header stayed on "別の通信または設定処理が実行中です". A busy gate is transient."""
+    binding, store = make_binding(tmp_path, monkeypatch)
+    monkeypatch.setattr('pixivvault_nicegui.native_startup.BUSY_RETRY_DELAYS', (0.0, 0.0, 0.0))
+    calls = []
+    real = binding.check_authentication
+
+    async def flaky(cookie, **kw):
+        calls.append(1)
+        if len(calls) <= 2:
+            result = NativeAuthResult('busy')
+            binding.auth_status.publish(A.status_from_result(result))
+            return result
+        return await real(cookie, **kw)
+
+    monkeypatch.setattr(binding, 'check_authentication', flaky)
+    await binding.refresh_auth_status(startup=True)
+    assert len(calls) == 3
+    assert binding.auth_status.status.level == 'valid'
+    binding.close()
+
+
+@pytest.mark.asyncio
+async def test_busy_gate_gives_up_after_the_bounded_retries(tmp_path, monkeypatch):
+    binding, store = make_binding(tmp_path, monkeypatch)
+    monkeypatch.setattr('pixivvault_nicegui.native_startup.BUSY_RETRY_DELAYS', (0.0, 0.0))
+    calls = []
+
+    async def always_busy(cookie, **kw):
+        calls.append(1)
+        result = NativeAuthResult('busy')
+        binding.auth_status.publish(A.status_from_result(result))
+        return result
+
+    monkeypatch.setattr(binding, 'check_authentication', always_busy)
+    await binding.refresh_auth_status(startup=True)
+    assert len(calls) == 3  # first try + two retries, then it stops
+    assert binding.auth_status.status.text.startswith('▲ [通信停止中]')
+    binding.close()

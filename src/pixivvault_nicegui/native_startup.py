@@ -59,6 +59,10 @@ def validate_profile_boundaries(profile_root, snapshot, values):
             validate_media_roots(storage, source)
 
 
+# Seconds between retries when the shared gate reports busy (transient contention).
+BUSY_RETRY_DELAYS = (3.0, 8.0, 20.0, 45.0)
+
+
 class NativeProfileBinding:
     """One application-owned store; each client gets its own draft view."""
 
@@ -372,6 +376,14 @@ class NativeProfileBinding:
                     self.auth_status.publish(missing_status())
                 else:
                     result = await self.check_authentication(cookie, _imported=imported)
+                    # The shared stop gate is briefly busy while another request holds it
+                    # (seen on the real app at startup). It is transient, so retry a few
+                    # times instead of leaving the header on the busy message.
+                    for delay in BUSY_RETRY_DELAYS:
+                        if result.code != 'busy' or self._closed:
+                            break
+                        await asyncio.sleep(delay)
+                        result = await self.check_authentication(cookie, _imported=imported)
                     identity = self._last_identity if result.code == 'verified' else None
                     if (startup and not imported and not self._startup_extract_done
                             and self._extraction_wanted(result, cookie)):
