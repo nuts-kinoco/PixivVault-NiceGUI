@@ -50,8 +50,15 @@ S:\Projects\PixivVault-NiceGUI\.venv\Scripts\python.exe -B tools\ui_smoke_browse
 - サーバーログの Traceback。Windows の asyncio が接続切断時に出す
   `_call_connection_lost` / `ConnectionResetError` は製品の不具合ではないので除く。
 
-注意: 偽 live client は停止ゲートを通らない。「製品が通信を試みたか」は分かるが、実クライアントの
-停止ゲートが実際に止めるかは、この試験では確認できない。
+注意:
+
+- 偽 live client は停止ゲートを通らない。「製品が通信を試みたか」は分かるが、実クライアントの
+  停止ゲートが実際に止めるかは、この試験では確認できない。
+- `LivePixivReadClient` 実体のときだけ動く経路（メタデータ自動後埋めのループなど。最初の周は 60 秒後）は、
+  偽クライアントでは起動しないので、この試験の対象外。
+- 製品が例外を握りつぶして続ける経路（発掘の初回読込など）では、偽クライアントに無いメソッドを呼んだ時点で
+  呼び出し列が止まる。偽クライアントに無かった公開属性は標準出力と `summary.json` の
+  `network.fake_client_missing_attributes` に出す。ここに通信系のメソッドが出たら偽クライアントに足す。
 
 ## 起動構成（隔離）
 
