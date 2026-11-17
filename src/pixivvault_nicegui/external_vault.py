@@ -745,6 +745,10 @@ class ExternalVaultService:
             # Do not claim confirmed lock/close if a custom transport reported
             # poison but returned normally from its cancellation callback.
             self._require_transport_healthy()
+    def registered_uids(self):
+        """UIDs of the opened vault in registration order; None while locked."""
+        with self._mutex:
+            return None if self._data is None else list(self._data['shaft_uids'])
     def status(self):
         with self._mutex:
             poisoned=self._transport_unverified()

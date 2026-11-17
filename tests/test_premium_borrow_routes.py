@@ -194,8 +194,38 @@ async def test_header_toggle_unlocks_through_popup_with_earlier_vault_password(t
         dialog.save_dialog.submit(False)
         await asyncio.wait_for(task,10)
         assert gate.status()['enabled'] and v.status()['open'] and t.calls==[]
-        assert v._snapshot()[1]['shaft_uids']==[1]  # default file never overwrote the saved UIDs
+        assert v._snapshot()[1]['shaft_uids']==[99999]  # the fixed UID file is the authority (original)
         assert shell.borrow_switch.value
+    finally:
+        if shell:shell.close()
+        client.delete();gate.close();services.close()
+
+@pytest.mark.asyncio
+async def test_app_start_reflects_fixed_uid_file_into_an_opened_vault(tmp_path,monkeypatch):
+    import asyncio
+    from nicegui import Client,ui,core
+    from pixivvault_nicegui.premium_gate import PremiumAuthorization
+    from pixivvault_nicegui.ui.shell import DemoShell
+    from test_external_vault_ui import setup
+    from test_premium_authorization import Protection,CHECK
+    monkeypatch.setattr(core,'loop',asyncio.get_running_loop())
+    services,v,t,_=setup(tmp_path)
+    v.lock();monkeypatch.setattr(v,'start_keeper',lambda **kw:None)
+    gate=PremiumAuthorization(v,protect=Protection(),verifier=CHECK,clock=lambda:1000)
+    v.premium_authorization=gate;services.premium_authorization=gate
+    default=tmp_path/'default.txt';services.default_uid_path=default
+    client=Client(ui.page('/_borrow_start_uids'));shell=None
+    try:
+        v.unlock('fixture-password');gate._enabled=True  # restored ON with an opened vault
+        assert v.registered_uids()==[1]
+        default.write_bytes(b'99999\n24680\n')
+        with client:shell=DemoShell(services)
+        assert v.registered_uids()==[99999,24680] and t.calls==[]
+        # A broken file leaves the saved UIDs alone and never stops start-up.
+        default.write_bytes(b'12345\nabc\n')
+        with client:other=DemoShell(services)
+        assert v.registered_uids()==[99999,24680]
+        other.close()
     finally:
         if shell:shell.close()
         client.delete();gate.close();services.close()

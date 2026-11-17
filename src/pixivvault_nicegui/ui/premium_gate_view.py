@@ -2,11 +2,8 @@
 import asyncio
 from pathlib import Path
 from nicegui import ui
-from ..external_vault import VaultError, VAULT_INTEGRITY_ERRORS, parse_uid_text
-
-# Pre-fills ONLY the first-time vault initialisation; it is never read for an
-# already initialised vault. Overridable via ApplicationServices.default_uid_path.
-DEFAULT_UID_PATH=r"S:\Projects\PixivVault\nana7mi_uids.txt"
+from ..external_vault import VaultError, VAULT_INTEGRITY_ERRORS
+from ..premium_uid_file import DEFAULT_UID_PATH, read_uid_file, uid_text_errors, apply_uid_file
 
 def vault_unlock_error_message(code):
     if code == 'pixiv-outcome-uncertain':
@@ -132,31 +129,35 @@ class PremiumGateDialog:
         self.password_slot.set_visibility(not visible)
         self.main_box.set_visibility(not visible)
         self.legacy_box.set_visibility(visible)
+    def _set_uid_notice(self,text,*,error=False):
+        self.uid_notice.set_text(text)
+        if error:self.uid_notice.classes(add='text-negative')
+        else:self.uid_notice.classes(remove='text-negative')
     def _clear_uids(self):
         self._pick_epoch+=1;self._uids=[];self._uid_error=False;self._uid_explicit=False
-        self.uid_notice.set_text('UID\u4e00\u89a7: \u672a\u8aad\u307f\u8fbc\u307f')
+        self._set_uid_notice('UID一覧: 未読み込み（変更しません）')
     def _load_uid_bytes(self,payload,*,explicit=True):
-        self._clear_uids()
+        """Take a UID list from a picked file.
+
+        A bad list shows EVERY problem line (line numbers only) in the dialog and
+        leaves the list loaded before it untouched, as the original does.
+        """
         try:
             if not isinstance(payload,bytes) or len(payload)>65536:raise ValueError()
-            self._uids=parse_uid_text(payload.decode('utf-8-sig'))
-        except VaultError as error:
-            self._uid_error=True
-            code=error.code
-            if code.startswith('invalid-uid-line-') and code[17:].isdigit():
-                message=f'UID\u4e00\u89a7: {code[17:]}\u884c\u76ee\u304c\u4e0d\u6b63\u3067\u3059\u3002'
-            else:message='UID\u4e00\u89a7\u306f1\uff5e10\u4ef6\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002'
-            self.uid_notice.set_text(message);return False
+            uids,errors=uid_text_errors(payload.decode('utf-8-sig'))
         except (ValueError,UnicodeError):
             self._uid_error=True
-            self.uid_notice.set_text('UID\u4e00\u89a7\u306e txt \u3092\u8aad\u307f\u8fbc\u3081\u307e\u305b\u3093\u3002');return False
-        self._uid_explicit=explicit
-        self.uid_notice.set_text(f'UID\u4e00\u89a7: {len(self._uids)}\u4ef6\u3092\u8aad\u307f\u8fbc\u307f\u307e\u3057\u305f')
+            self._set_uid_notice('ファイルを読めませんでした（UTF-8のテキストにしてください）。',error=True);return False
+        if errors:
+            self._uid_error=True
+            self._set_uid_notice(' '.join(errors),error=True);return False
+        self._uids=uids;self._uid_explicit=explicit;self._uid_error=False
+        self._set_uid_notice(f'UID一覧: {len(uids)}件を読み込みました（有効にすると保存されます）')
         return True
     def reject_uid_file(self,event=None):
-        self._clear_uids();self._uid_error=True;self.uid_notice.set_text('UID\u4e00\u89a7\u306e txt \u3092\u8aad\u307f\u8fbc\u3081\u307e\u305b\u3093\u3002')
+        self._uid_error=True;self._set_uid_notice('UID一覧の txt を読み込めません。',error=True)
     async def pick_uid_file(self,event):
-        self._clear_uids();epoch=self._pick_epoch
+        self._pick_epoch+=1;epoch=self._pick_epoch
         try:
             file=event.file
             if not str(file.name).lower().endswith('.txt'):raise ValueError()
@@ -166,16 +167,24 @@ class PremiumGateDialog:
             return
         if not self.closed and epoch==self._pick_epoch:self._load_uid_bytes(payload)
     def _load_default_uids(self):
-        """Pre-fill for first-time initialisation only (never an update source)."""
+        """The fixed UID file is the authority whenever it exists (original gui.py:859).
+
+        Absent: nothing is loaded and the saved UIDs stay. Unreadable or invalid: every
+        problem is shown, nothing is loaded and the saved UIDs are never overwritten.
+        """
         self._clear_uids()
-        if not self.default_uid_path:return
+        state,uids,errors=read_uid_file(self.default_uid_path)
+        if state=='ok':
+            self._uids=uids;self._uid_explicit=False
+            self._set_uid_notice(f'UID一覧: {len(uids)}件を自動読み込みしました（{Path(self.default_uid_path).name}）')
+        elif state=='error':
+            self._uid_error=True;self._set_uid_notice(' '.join(errors),error=True)
+    def reflect_uid_file_at_startup(self):
+        """At application start an opened vault takes the file's list (original). Never raises."""
         try:
-            with Path(self.default_uid_path).open('rb') as stream:payload=stream.read(65537)
-        except FileNotFoundError:return
-        except OSError:
-            self._uid_error=True
-            self.uid_notice.set_text('UID\u4e00\u89a7\u306e txt \u3092\u8aad\u307f\u8fbc\u3081\u307e\u305b\u3093\u3002');return
-        self._load_uid_bytes(payload,explicit=False)
+            if self.closed or not self.default_uid_path or not self.gate.status()['enabled']:return 'skipped'
+            return apply_uid_file(self.gate.vault,self.default_uid_path)
+        except Exception:return 'failed'
     async def request_enable(self):
         epoch=self.gate.begin_prompt()
         if epoch is None:return
@@ -186,15 +195,11 @@ class PremiumGateDialog:
                 self.notice.set_text(f"しばらく待ってから操作してください（あと{int(state['retry_after'])+1}秒）。")
                 return
             self._show_legacy(False);self._reset_password();self._reset_secret();self._set_dialog_error('')
-            # An initialised vault already holds its UIDs; the default file
-            # must never be read for it (it would overwrite saved UIDs).
-            if self.gate.vault.status()['initialized']:self._clear_uids()
-            else:self._load_default_uids()
+            # The fixed UID file is read every time the popup opens (original).
+            self._load_default_uids()
             while True:
                 if not await self._wait_password():return
                 self._set_dialog_error('')
-                if self._uid_error:
-                    self._set_dialog_error('UID\u4e00\u89a7\u3092\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\u3002');continue
                 password=str(self.password.value or '')
                 self.confirm_button.disable()
                 try:
@@ -211,12 +216,15 @@ class PremiumGateDialog:
                 finally:
                     password=''
                     if not self.closed:self.confirm_button.enable()
+                if not self.gate.vault.status()['initialized'] and (not str(self.secret.value or '').strip() or not self._uids):
+                    # The password itself was right; keep the dialog and everything typed.
+                    self._set_dialog_error('初期設定には Shaft 署名キーと UID 一覧の両方が必要です。');continue
                 break
             # The password was accepted: take the remaining inputs and leave the dialog.
             self._reset_password()
             # The original strips the signing key before saving it (gui.py:989).
             secret=str(self.secret.value or '').strip();self._reset_secret()
-            uid_text='\n'.join(map(str,self._uids));explicit_uids=self._uid_explicit;self._clear_uids()
+            uid_list=list(self._uids);uid_text='\n'.join(map(str,uid_list));explicit_uids=self._uid_explicit;self._clear_uids()
             self._close_password_dialog()
             vault_status=self.gate.vault.status()
             if (self.gate.status().get('error')=='premium-legacy-unlock-required'
@@ -242,12 +250,17 @@ class PremiumGateDialog:
                 else:
                     ready=await asyncio.to_thread(self.gate.restore_vault)
                     if not ready:raise VaultError('premium-legacy-unlock-required')
-                    # Saved UIDs/tokens are replaced only on explicit request:
-                    # a signing key typed here or a file picked here.
-                    if secret or (uid_text and explicit_uids):
+                    # The UID file (or a file picked here) replaces the saved UIDs when it
+                    # differs; a signing key typed here replaces the saved key. An
+                    # unconfirmed send blocks every change, so a list that only came from
+                    # the fixed file is then left alone instead of blocking ON.
+                    change_uids=bool(uid_list) and uid_list!=self.gate.vault.registered_uids()
+                    if change_uids and not explicit_uids and self.gate.vault.status().get('oauth_review_required'):
+                        change_uids=False
+                    if secret or change_uids:
                         kwargs={}
                         if secret:kwargs['secret_key']=secret
-                        if uid_text and explicit_uids:kwargs['uid_text']=uid_text
+                        if change_uids:kwargs['uid_text']=uid_text
                         await asyncio.to_thread(self.gate.vault.update_config,**kwargs)
             except Exception:
                 await asyncio.to_thread(self.gate.disable)
