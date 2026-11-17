@@ -81,6 +81,17 @@ async def test_activation_gui_retains_reason_and_off_after_render(tmp_path,monke
         task=asyncio.create_task(view.gate_dialog.request_enable());await asyncio.sleep(0)
         view.gate_dialog.password.set_value(os.urandom(24).hex() if kind=='wrong' else password)
         view.gate_dialog.password_dialog.submit(True)
+        if kind=='wrong':
+            for _ in range(300):
+                if view.gate_dialog.dialog_error.text:break
+                await asyncio.sleep(.01)
+            assert not task.done() and 'パスワードが違います' in view.gate_dialog.dialog_error.text
+            view.gate_dialog.password_dialog.submit(False)
+            await asyncio.wait_for(task,10)
+            assert 'OFF' in view.permission_status.text
+            assert not gate.status()['pending'] and not vault.status()['open'] and transport.calls==[]
+            assert view.gate_dialog.password.value==''
+            return
         await asyncio.wait_for(task,10)
         expected='パスワードが一致しません' if kind=='wrong' else '鍵ファイルの復号に失敗しました'
         assert expected in view.gate_dialog.notice.text

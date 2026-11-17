@@ -100,7 +100,10 @@ class FailedRecordsView:
                 self.retry_all = ui.button("再試行", color=None).props(
                     "flat dense data-testid=failed-retry-all")
                 self.retry_all.disable()
-                self.retry_all.tooltip("ダウンロード再試行の書込み接続は未受入です")
+                # Only the disabled button explains itself; render() hides this
+                # once the retry connection is accepted and the button is live.
+                with self.retry_all:
+                    self._retry_unaccepted_tip = ui.tooltip("ダウンロード再試行の書込み接続は未受入です")
                 self.cancel_retry_button = ui.button('再投入を中断', color=None).props(
                     'flat dense data-testid=failed-retry-cancel')
                 self.cancel_retry_button.set_visibility(False)
@@ -231,6 +234,7 @@ class FailedRecordsView:
         self.clear_all_item.set_enabled(can_remove and bool(state.records))
         eligible = tuple(item for item in matched if self._retry_supported(item))
         self.retry_all.set_enabled(can_retry and bool(eligible))
+        self._retry_unaccepted_tip.set_visibility(not opted_in)
         self.cancel_retry_button.set_visibility(self._retry_busy)
         self.cancel_retry_button.set_enabled(self._retry_busy and self._allowed())
         if opted_in and self._loaded:

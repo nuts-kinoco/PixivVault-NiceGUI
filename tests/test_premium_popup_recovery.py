@@ -52,9 +52,6 @@ class Harness:
             assert d.legacy_box.visible and not d.main_box.visible
             d.legacy.set_value(legacy)
             d.password_dialog.submit(True)
-        await self.wait_for(lambda: d.save_dialog.value, task)
-        if d.save_dialog.value:
-            d.save_dialog.submit(remember)
         await asyncio.wait_for(task, 10)
 
     def close(self):
@@ -66,35 +63,36 @@ class Harness:
 
 
 @pytest.mark.asyncio
-async def test_production_default_path_never_overwrites_saved_uids_of_initialized_vault(tmp_path, monkeypatch):
+async def test_default_file_replaces_saved_uids_of_initialized_vault_like_the_original(tmp_path, monkeypatch):
+    # Reverses the earlier "never overwrite" rule: the original treats the fixed
+    # UID file as the authority every time the dialog opens (gui.py:859 and the dialog).
     h = Harness(tmp_path, monkeypatch)
     try:
-        h.open_dialog()  # production path: default_uid_path is a real, readable file
+        h.open_dialog()  # production path: default_uid_path is a real, readable file (11111)
         await h.submit(TEST_PASSWORD, 'first-key', b'12345\n67890')
-        before = copy.deepcopy(h.vault._snapshot()[1])
-        assert before['shaft_uids'] == [12345, 67890]
+        assert h.vault._snapshot()[1]['shaft_uids'] == [12345, 67890]  # a picked file wins on first setup
         h.gate.disable()
         await h.submit(TEST_PASSWORD)  # user only types the password
         after = h.vault._snapshot()[1]
         assert h.gate.status()['enabled'] and h.vault.status()['open']
-        assert after['shaft_uids'] == [12345, 67890] and sorted(after['slots']) == sorted(before['slots'])
+        assert after['shaft_uids'] == [11111] and sorted(after['slots']) == ['11111']
         assert after['secret_key'] == 'first-key'
-        assert '11111' not in h.dialog.uid_notice.text and h.dialog._uids == []
     finally:
         h.close()
 
 
 @pytest.mark.asyncio
-async def test_default_file_is_not_even_read_for_initialized_vault(tmp_path, monkeypatch):
+async def test_default_file_is_read_every_time_the_popup_opens(tmp_path, monkeypatch):
     h = Harness(tmp_path, monkeypatch)
     try:
         h.open_dialog()
         await h.submit(TEST_PASSWORD, 'first-key', b'12345')
         h.gate.disable()
         calls = []
-        monkeypatch.setattr(h.dialog, '_load_default_uids', lambda: calls.append(1))
+        original = h.dialog._load_default_uids
+        monkeypatch.setattr(h.dialog, '_load_default_uids', lambda: calls.append(1) or original())
         await h.submit(TEST_PASSWORD)
-        assert calls == []
+        assert calls == [1]
     finally:
         h.close()
 
@@ -114,7 +112,7 @@ async def test_default_file_prefills_first_time_initialization_only(tmp_path, mo
 async def test_explicit_signing_key_without_file_keeps_saved_uids(tmp_path, monkeypatch):
     h = Harness(tmp_path, monkeypatch)
     try:
-        h.open_dialog()
+        h.open_dialog(None)  # no fixed UID file: the saved UIDs stay
         await h.submit(TEST_PASSWORD, 'first-key', b'12345\n67890')
         h.gate.disable()
         await h.submit(TEST_PASSWORD, 'second-key')
@@ -145,6 +143,9 @@ async def test_signing_key_input_is_recreated_each_time_popup_opens(tmp_path, mo
             d.password.set_value('wrong')
             d.secret.set_value('typed-signing-key')
             d.password_dialog.submit(True)
+            await Harness.wait_for(None, lambda: 'パスワードが違います' in d.dialog_error.text, task)
+            assert not task.done() and d.secret.value == 'typed-signing-key'  # kept while the dialog stays open
+            d.password_dialog.submit(False)
             await asyncio.wait_for(task, 10)
             assert d.secret.value == ''
             h.gate._atomic('attempts.json', b'{"failures":0,"next_at":0}')
