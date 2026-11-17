@@ -30,6 +30,9 @@ class NativeProfileView:
         self.provider_select = None
         self.auto_switch = None
         self.verify_auth = verify_auth
+        # Called (no arguments) after a successful save; the application then
+        # rechecks the saved Cookie and updates the header login status.
+        self.on_saved = None
         self.dialog = ui.dialog().props('persistent data-testid=native-profile-dialog')
         self.snapshot = None
         self.draft_cookie = None
@@ -331,6 +334,11 @@ class NativeProfileView:
             '再起動後、借用プレミアムをONにして解除用パスワードを入力できます。'
             if snapshot.cookie_file is not None and snapshot.save_parent is not None else
             '利用するにはCookieと保存先の両方を設定してください。'))
+        if self.on_saved is not None and snapshot.cookie_file is not None:
+            try:
+                self.on_saved()
+            except Exception:
+                pass  # The header check must never turn a saved setting into a failure.
         return True
 
     def cancel(self) -> None:

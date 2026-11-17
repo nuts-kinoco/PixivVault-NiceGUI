@@ -117,6 +117,8 @@ class ExtensionBridge:
     Call close off the application's event loop if enqueue marshals to it.
     close waits for the current handler, so services may close safely afterward.
     cookie_sync, when supplied, performs bounded offline storage acceptance only;
+    after an accepted receipt on_cookie_received may schedule an authentication
+    check elsewhere (the bridge itself still makes no remote request);
     reader-generation drain/publication belongs to its coordinator. It is called
     once. Its result exposes only state and saved, never credentials or paths.
     Port zero is reserved for isolated fixture tests; production default 25010
@@ -125,7 +127,8 @@ class ExtensionBridge:
     def __init__(self, *, enqueue: Callable[[ExtensionDownload], str],
                  work_status: Callable[[str], Mapping],
                  author_status: Callable[[str], Mapping], port: int = 25010,
-                 cookie_sync: Callable[[list[dict]], object] | None = None):
+                 cookie_sync: Callable[[list[dict]], object] | None = None,
+                 on_cookie_received: Callable[[], None] | None = None):
         if type(port) is not int or not 0 <= port <= 65535:
             raise ValueError("Invalid bridge port")
         if cookie_sync is not None and not callable(cookie_sync):
@@ -134,6 +137,10 @@ class ExtensionBridge:
         self.work_status = work_status
         self.author_status = author_status
         self.cookie_sync = cookie_sync
+        # Optional, called without arguments after an accepted Cookie. It must
+        # only schedule work (the bridge itself never makes a remote request);
+        # its failure never changes the extension's response.
+        self.on_cookie_received = on_cookie_received
         self.port = port
         self._server = None
         self._thread = None
@@ -329,6 +336,12 @@ class ExtensionBridge:
                             return
                         self._respond(200, {"status": "ok", "state": state, "saved": True,
                                             "message": "Cookie update received"})
+                        hook = owner.on_cookie_received
+                        if hook is not None:
+                            try:
+                                hook()
+                            except Exception:
+                                pass
                         return
                     try:
                         job_id = owner.enqueue(command)

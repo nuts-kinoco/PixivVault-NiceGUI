@@ -969,12 +969,19 @@ class ApplicationServices:
                 self.jobs = MediaJobs(*owners, self.extension_commands)
             return self.extension_commands
 
+    def _extension_cookie_received(self):
+        # Bridge thread: only schedule the gated header check on the app loop.
+        profile = getattr(self, 'native_profile', None)
+        if profile is not None and not self.closing:
+            profile.request_cookie_check(imported=True)
+
     def start_extension_bridge(self):
         from .extension_bridge import ExtensionBridge
         if self.extension_commands is None or self.closing:return
         if self.extension_bridge is None:
             self.extension_bridge = ExtensionBridge(enqueue=self.extension_commands.enqueue,
-                work_status=self.extension_commands.work_status,author_status=self.extension_commands.author_status)
+                work_status=self.extension_commands.work_status,author_status=self.extension_commands.author_status,
+                on_cookie_received=self._extension_cookie_received)
         try:
             self.extension_bridge.start()
             self.extension_bridge_status = 'running'
