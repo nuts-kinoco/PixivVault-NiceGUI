@@ -79,6 +79,7 @@ class DemoShell:
         self._banner_dismissed = False
         self._app_conn_timer = None
         self.view_history_button = None
+        self.view_history = None
         self.client.on_delete(self.close)
         ui.add_css(CSS)
         ui.colors(primary=TOKENS["accent"])
@@ -152,7 +153,7 @@ class DemoShell:
                     with self.view_history_button:
                         self.view_history_badge = ui.badge('').props('floating color=primary')
                         self.view_history_badge.set_visibility(False)
-                        self.view_history_tooltip = ui.tooltip('閲覧履歴')
+                        self.view_history_tooltip = ui.tooltip('閲覧履歴（学習タブ）')
                     from .saved_folder_button import SavedFolderButton
                     self.saved_folder_button = SavedFolderButton(services)
                     self.saved_folder_button.button.classes('pv-hbtn').props('round')
@@ -193,6 +194,8 @@ class DemoShell:
                     self.gallery = RankingView(services, card_size=self.card_size, on_size_change=self.change_card_size)
                 else:
                     self.gallery = GalleryView(services, card_size=self.card_size, on_size_change=self.change_card_size)
+            # 閲覧履歴（元 gui.py の閲覧履歴ボタン）は学習タブを開かずに、起動時から件数を出してダイアログを開く。
+            self._build_view_history()
         self._attach_auth_status()
         # 起動直後のタブは元 TAB_INITIAL（ダウンロード）。--tab で変えられる。
         # ランキングは開いたときに初回取得する（元 on_tab_open）ので、先に有効化しない。
@@ -342,12 +345,19 @@ class DemoShell:
         self.app_conn_label.set_text(text)
         self.app_conn_dot.props(f'data-state={state}')
 
+    def _build_view_history(self):
+        storage = getattr(self.services, 'discovery', None) or getattr(self.services, 'learning', None)
+        if storage is None:
+            return
+        from .view_history_view import HeaderHistoryHost, ViewHistoryView
+        self.view_history = ViewHistoryView(HeaderHistoryHost(self, storage), storage)
+        self.view_history.on_count = self.set_view_history_count
+
     async def open_view_history(self):
-        # 閲覧履歴の画面は学習タブの部品（画像・ビューアー）を使う。ヘッダーのボタンから学習タブを開いて出す。
+        # 元 gui.py: ダイアログを開くだけで、タブは変えない。学習タブは作らず、通信も起こさない。
         if self.closed:
             return
-        self.show('learning')
-        view = getattr(self.learning, 'view_history', None)
+        view = self.view_history
         if view is None or view.storage is None:
             ui.notify('閲覧履歴を利用できません。', type='warning')
             return
@@ -358,7 +368,8 @@ class DemoShell:
             return
         self.view_history_badge.set_text(str(count))
         self.view_history_badge.set_visibility(count > 0)
-        self.view_history_tooltip.set_text(f'閲覧履歴 · {count}件')
+        # 元 gui.py:2466 の文言。
+        self.view_history_tooltip.set_text(f'閲覧履歴（学習タブ・{count}件）')
 
     def sync_borrow(self):
         if self.closed or self.borrow_switch is None:return
@@ -616,6 +627,7 @@ class DemoShell:
         if self.get_recovery_view is not None:self.get_recovery_view.close()
         if self.request_status_view is not None:self.request_status_view.close()
         self.gallery.close()
+        if self.view_history is not None:self.view_history.close()
         if self.backup_view is not None:self.backup_view.close()
         if self.library is not None:
             self.library.close()
