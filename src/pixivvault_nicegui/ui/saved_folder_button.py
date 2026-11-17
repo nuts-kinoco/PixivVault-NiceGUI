@@ -18,7 +18,7 @@ class SavedFolderButton:
         self.choices = ()
         self.token = ''
         self.menu_token = None
-        self.button = ui.button(icon='folder_open').props(
+        self.button = ui.button(icon='folder_open', color=None).props(
             'flat data-testid=saved-folder-open aria-label=保存フォルダを開く')
         with self.button:
             self.tooltip = ui.tooltip('保存フォルダを開く')

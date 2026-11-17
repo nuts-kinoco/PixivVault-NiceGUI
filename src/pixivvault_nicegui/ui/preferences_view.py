@@ -128,7 +128,7 @@ class PreferencesView:
         self.dialog.clear()
         with self.dialog, ui.card().classes('w-full max-w-2xl').style('max-height:90vh;overflow:auto'):
             with ui.row().classes('w-full items-center justify-between'):
-                ui.label('設定').classes('text-h6')
+                ui.label('設定').classes('text-h6 pv-dialog-title')
                 ui.button('閉じる', on_click=self.close_dialog).props('data-testid=preferences-close-top')
             if self.native_profile is not None:
                 self.native_profile.build()
