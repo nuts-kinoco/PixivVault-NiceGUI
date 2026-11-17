@@ -36,6 +36,8 @@ SPECS = (
     PreferenceSpec('api_retry_wait', '429レート制限時待機時間（秒）', '5.0', ('3.0','5.0','10.0','30.0'), '通信'),
     # 既定は ON（本人の裁定）。元 gui.py:1789 の meta_backfill_enabled は既定 OFF だった。
     PreferenceSpec('meta_backfill_enabled', 'メタデータ（ブックマーク数など）をバックグラウンドで自動的に埋める', '1', ('0','1'), '作品メタデータ'),
+    # 既定は ON（元 gui.py:2032 の embed_auto_on_download も既定 ON）。通信はしない。
+    PreferenceSpec('embed_auto_on_download', 'ダウンロードした画像を、バックグラウンドで自動的に推論する', '1', ('0','1'), '絵柄・構図の推論'),
     PreferenceSpec('discovery_cache_limit_mode', '学習: 先読みキャッシュ上限指定方法', 'bytes', ('bytes','count'), 'キャッシュ'),
     PreferenceSpec('discovery_cache_size_mb', '学習: 先読みキャッシュ上限（MB）', '512', ('512','1024','2048','4096'), 'キャッシュ'),
     PreferenceSpec('discovery_cache_size_count', '学習: 先読みキャッシュ上限（枚）', '100', ('50','100','200','500','1000'), 'キャッシュ'),

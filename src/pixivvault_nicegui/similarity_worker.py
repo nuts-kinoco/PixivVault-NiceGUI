@@ -37,7 +37,8 @@ class SimilarityWorker:
     publishing output after a pause, stop or a superseding resume generation.
     """
 
-    def __init__(self, page_iterator: Callable, analyze_page: Callable, *, idle_seconds=60):
+    def __init__(self, page_iterator: Callable, analyze_page: Callable, *, idle_seconds=60,
+                 auto: Callable[[], bool] | None = None):
         if not callable(page_iterator) or not callable(analyze_page):
             raise TypeError('page iterator and analyzer must be callable')
         if (type(idle_seconds) not in (int, float) or not math.isfinite(idle_seconds)
@@ -46,6 +47,11 @@ class SimilarityWorker:
         self._page_iterator = page_iterator
         self._analyze_page = analyze_page
         self._idle_seconds = float(idle_seconds)
+        # None は従来どおり（一定間隔で再走査）。callable が False を返すあいだは、
+        # 走査が終わったら wake()/resume() まで待つ（元の「自動実行 OFF」＝勝手に動かない）。
+        if auto is not None and not callable(auto):
+            raise TypeError('auto must be callable')
+        self._auto = auto
         self._lock = RLock()
         self._signal = Event()
         self._thread: Thread | None = None
@@ -219,6 +225,14 @@ class SimilarityWorker:
                 except Exception:
                     self._record_failure('iterator_error', generation)
 
+    def _timed_rescan(self) -> bool:
+        if self._auto is None:
+            return True
+        try:
+            return bool(self._auto())
+        except Exception:
+            return False
+
     def _run(self) -> None:
         try:
             while True:
@@ -248,7 +262,7 @@ class SimilarityWorker:
                     signaled = self._signal.is_set()
                 if signaled:
                     continue
-                self._signal.wait(self._idle_seconds)
+                self._signal.wait(self._idle_seconds if self._timed_rescan() else None)
         finally:
             with self._lock:
                 self._phase = 'stopped'

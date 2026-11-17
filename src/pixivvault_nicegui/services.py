@@ -216,6 +216,11 @@ class ApplicationServices:
         self._similarity_run_lock = RLock()
         self._similarity_stop = Event()
         self._similarity_worker = None
+        # 元 gui.py:1816-2153 の embed_auto_on_download（既定 ON）。--similarity-auto は
+        # 設定に関わらず自動を強制する従来の起動オプション。
+        self.similarity_auto_flag = False
+        self._similarity_auto_seen = None
+        self._similarity_idle_seconds = 60
         self.ugoira = None
         self.ugoira_root, self.ugoira_source = ugoira_root, ugoira_source
         if (ugoira_root is None) != (ugoira_source is None):
@@ -921,10 +926,72 @@ class ApplicationServices:
             if not self.similarity_analysis_enabled:
                 raise ValueError('similarity analyzer unavailable')
             if self._similarity_worker is None:
-                self._similarity_worker = SimilarityWorker(self._similarity_pages, self.analyze_saved_for_similarity)
+                self._similarity_worker = SimilarityWorker(
+                    self._similarity_pages, self.analyze_saved_for_similarity,
+                    idle_seconds=self._similarity_idle_seconds, auto=self.similarity_auto_enabled)
                 self._similarity_worker.start()
             else:
                 self._similarity_worker.wake()
+
+    def similarity_auto_enabled(self) -> bool:
+        """設定 embed_auto_on_download（既定 ON）。保存先の無い起動では起動オプションだけが効く。"""
+        if self.similarity_auto_flag:
+            return True
+        store = self.preferences
+        if store is None:
+            return False
+        try:
+            return store.get_setting('embed_auto_on_download', '1') == '1'
+        except Exception:
+            return False
+
+    def start_similarity_auto(self) -> bool:
+        """起動時の自動起動。モデルが無ければ何もしない（エラーにしない）。"""
+        self._similarity_auto_seen = self.similarity_auto_enabled()
+        if self.closing or self.closed or not self.similarity_analysis_enabled:
+            return False
+        if not self._similarity_auto_seen:
+            return False
+        self.start_similarity_analysis()
+        return True
+
+    def _sync_similarity_auto(self):
+        """設定の入切を即座に反映する（元 _on_embed_auto_toggle）。変わっていなければ何もしない。"""
+        current = self.similarity_auto_enabled()
+        previous = True if self._similarity_auto_seen is None else self._similarity_auto_seen
+        self._similarity_auto_seen = current
+        if current == previous or not self.similarity_analysis_enabled:
+            return
+        if current:
+            if self._similarity_worker is None:
+                self.start_similarity_analysis()
+            else:
+                self._similarity_worker.resume()
+                self._similarity_worker.wake()
+        elif self._similarity_worker is not None:
+            self._similarity_worker.pause()
+
+    def rescan_similarity_analysis(self):
+        """「数え直す」: 保存済みページを最初から数え直して解析する。"""
+        worker = self._similarity_worker
+        if worker is None:
+            self.start_similarity_analysis()
+        elif worker.status()['phase'] in ('paused', 'failed'):
+            worker.resume()
+        else:
+            worker.wake()
+
+    def reset_similarity_analysis(self) -> bool:
+        """「諦めたぶんを対象へ戻す」: 止まっていたワーカーの失敗を忘れて続きから再開する。"""
+        worker = self._similarity_worker
+        if worker is None:
+            self.start_similarity_analysis()
+            return True
+        if worker.status()['phase'] in ('paused', 'failed'):
+            worker.resume()
+            return True
+        worker.wake()
+        return False
 
     def pause_similarity_analysis(self):
         if self._similarity_worker is not None:
@@ -940,7 +1007,8 @@ class ApplicationServices:
         status = (self._similarity_worker.status() if self._similarity_worker is not None else
                   dict(phase='idle', indexed=0, resumed=0, errors=0, examined=0))
         engine = self._egara_inference
-        return dict(status, provider=engine.provider_active if engine is not None else None,
+        return dict(status, auto=self.similarity_auto_enabled(),
+                    provider=engine.provider_active if engine is not None else None,
                     started=self._similarity_worker is not None,
                     requested=self._egara_provider,
                     fallback_reason=engine.fallback_reason if engine is not None else None)
@@ -1046,6 +1114,8 @@ class ApplicationServices:
         if (self.preferences is not None and self.managed_downloads is not None
                 and self.live_client is not None):
             enabled.add('meta_backfill_enabled')
+        if self.preferences is not None and self.similarity_analysis_enabled:
+            enabled.add('embed_auto_on_download')
         if self.notifications is not None and self.notifications.available:enabled.add('enable_notifications')
         if self.tray is not None and self.tray.available:enabled.add('minimize_to_tray')
         return enabled
@@ -1054,6 +1124,7 @@ class ApplicationServices:
         if self.closing or self.preferences is None:
             return
         self._sync_metadata_auto()
+        self._sync_similarity_auto()
         if self.shared_image_cache is not None:
             self.shared_image_cache.configure(int(self.preferences.get_setting('pixiv_shared_image_cache_size_mb','1024'))*1024**2)
             if self.shared_image_cache.disk is not None:

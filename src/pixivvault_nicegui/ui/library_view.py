@@ -227,7 +227,9 @@ class LibraryView(ViewerController):
                 analysis_status=services.similarity_analysis_status if services.similarity_analysis_enabled else None,
                 start_analysis=services.start_similarity_analysis if services.similarity_analysis_enabled else None,
                 pause_analysis=services.pause_similarity_analysis if services.similarity_analysis_enabled else None,
-                resume_analysis=services.resume_similarity_analysis if services.similarity_analysis_enabled else None)
+                resume_analysis=services.resume_similarity_analysis if services.similarity_analysis_enabled else None,
+                reset_analysis=services.reset_similarity_analysis if services.similarity_analysis_enabled else None,
+                rescan_analysis=services.rescan_similarity_analysis if services.similarity_analysis_enabled else None)
         self.client.on_delete(self.close)
         self.apply_card_size(card_size)
         self.reload()
