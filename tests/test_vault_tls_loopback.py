@@ -15,6 +15,14 @@ from test_external_vault import FixtureCrypto,profile
 from vault_tls_loopback_fixture import LoopbackTLS,CA
 
 
+@pytest.fixture(autouse=True)
+def no_network():
+    """全体実行の required_network_guard を、この module だけ置き換える。
+    この試験は実際の loopback TCP/TLS 接続が目的で、Session の RestrictedSocket と
+    DNS 差し替えが 127.0.0.1 の試験サーバー以外への接続・名前解決を禁止する。"""
+    yield
+
+
 class Session:
     def __init__(self,tmp_path,monkeypatch,*,server_mode='normal',gate=None,status=200,host='localhost'):
         tmp_path.mkdir(parents=True,exist_ok=False)

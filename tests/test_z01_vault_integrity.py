@@ -93,7 +93,7 @@ async def test_activation_gui_retains_reason_and_off_after_render(tmp_path,monke
             assert view.gate_dialog.password.value==''
             return
         await asyncio.wait_for(task,10)
-        expected='パスワードが一致しません' if kind=='wrong' else '鍵ファイルの復号に失敗しました'
+        expected='パスワードが一致しません' if kind=='wrong' else {'invalid-ciphertext':'鍵ファイルの復号を確認できません','invalid-generation':'保管庫の構造を確認できません'}[code]
         assert expected in view.gate_dialog.notice.text
         for _ in range(3):
             view.render()
@@ -121,7 +121,7 @@ async def test_manual_legacy_unlock_corruption_stays_visible_and_disables_gate(t
         await view.action('unlock')
         for _ in range(3):
             view.render()
-            assert '鍵ファイルの復号に失敗しました' in view.notice.text
+            assert '鍵ファイルの復号を確認できません' in view.notice.text
             assert 'OFF' in view.permission_status.text
         assert view.password.value=='' and transport.calls==[]
     finally:
