@@ -2581,7 +2581,8 @@
   },
   "inv-2971ad911f": {
    "fl": "FL-B05",
-   "method": "text"
+   "method": "range",
+   "width": 4
   },
   "inv-297c207c59": {
    "fl": "FL-H07",
@@ -9442,8 +9443,9 @@
    "width": 16
   },
   "inv-a17d2d94af": {
-   "fl": "FL-B05",
-   "method": "text"
+   "fl": "FL-G01",
+   "method": "range-wide",
+   "width": 367
   },
   "inv-a195dafb71": {
    "fl": "FL-E05",
@@ -10090,9 +10092,8 @@
    "method": "section-T"
   },
   "inv-ab0d431f97": {
-   "distance": 4,
-   "fl": "FL-B11",
-   "method": "nearest"
+   "fl": "FL-V06",
+   "method": "text"
   },
   "inv-ab376d70f8": {
    "fl": "FL-J11",
@@ -11217,8 +11218,9 @@
    "width": 173
   },
   "inv-bd9d29316e": {
-   "fl": "FL-A06",
-   "method": "text"
+   "fl": "FL-A01",
+   "method": "range",
+   "width": 51
   },
   "inv-bd9ee5b2be": {
    "fl": "FL-C26",
@@ -15359,10 +15361,10 @@
   "inv-fa044e496c": "library_tab.py:776-795 サムネイル画像を共有キャッシュ経由で取得してカードへ反映する"
  },
  "meta": {
-  "addenda_rows": 35,
+  "addenda_rows": 41,
   "inventory_total": 4052,
   "ledger_rows_A_to_P": 171,
-  "port_commit": "68594803a8975b3ab07db76225f377c22014182a",
+  "port_commit": "dbece97be6258ec65765591ddf9c189d410d61bb",
   "port_note": "移植版の文言存在確認に使った work のコミット(読取のみ)",
   "source_commit": "3ac3aa0d47a64785251593bcb09bb2d5f6df374b",
   "wide_threshold_lines": 150

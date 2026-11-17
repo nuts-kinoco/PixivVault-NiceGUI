@@ -8,7 +8,8 @@
 規則(rules)の根拠の強さは、規則の行範囲の幅で決める(名前指定・n/a も同じ。RULE_NARROW_MAX と UNIT_MAX):
   幅 RULE_NARROW_MAX 行以内 → tier A / scope が function・file で幅 UNIT_MAX 行以内 → tier B / それより広い規則 → tier C(rule-wide)。
 対応先の台帳の判定が「無」「弱」の項目と、元の UI 文言が移植版に見つからない項目(port_text_missing)は、
-「未解決の差」として別集計する(対応づけ済みでも差は残っているため。--strict-gaps で非 0 終了)。
+「未解決の差」として別集計する(対応づけ済みでも差は残っているため)。--strict-gaps は「無」「弱」の行に結ばれた項目だけを
+見て非 0 終了する(状態が「本人裁定」「意図的削除」の行は数えない。P3 の出口条件)。文言の差は --strict-text(付録Aで確認)。
 引用範囲に inventory 項目が 0 件の台帳行は逆方向の警告として出す(--strict-reverse でエラー)。列挙対象外を引用する行は、備考に「逆方向除外:<理由>」を書けば理由つきで除外できる。
 ledger_map.json の manual_reasons は manual の各項目の根拠(file:line と理由)で、存在しない項目・空の理由は整合エラー。
 使い方: python -B tools/check_inventory_coverage.py [--list N] [--json OUT] [--strict-weak] [--strict-all] [--strict-gaps] [--strict-reverse]
@@ -163,7 +164,9 @@ def main(argv=None):
     ap.add_argument("--strict-weak", action="store_true", help="弱い対応(tier C)も未対応として扱う")
     ap.add_argument("--strict-all", action="store_true", help="単位での対応(tier B)と弱い対応(tier C)も未対応として扱う")
     ap.add_argument("--strict-gaps", action="store_true",
-                    help="未解決の差(対応先の台帳判定が無・弱の項目、元の UI 文言が移植版に無い項目)があれば非 0 で終了")
+                    help="対応先の台帳判定が無・弱の項目が 1 件でもあれば非 0 で終了(状態が本人裁定・意図的削除の行は数えない)")
+    ap.add_argument("--strict-text", action="store_true",
+                    help="対応先は有でも元の UI 文言が移植版に無い項目(port_text_missing)も、あれば非 0 で終了")
     ap.add_argument("--strict-reverse", action="store_true", help="引用範囲に inventory 項目が 0 件の台帳行をエラーにする")
     a = ap.parse_args(argv)
     inv, mp, fl_ids = load()
@@ -316,7 +319,7 @@ def main(argv=None):
             "reverse_empty_rows": empty_rows, "errors": errors}, ensure_ascii=False, indent=1), encoding="utf-8")
     if errors:
         return 2
-    if n_un or (a.strict_gaps and gap_total):
+    if n_un or (a.strict_gaps and gap_items) or (a.strict_text and miss_ok):
         return 1
     return 0
 

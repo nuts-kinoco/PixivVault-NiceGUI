@@ -492,3 +492,18 @@ def test_reverse_exemption_needs_a_reason_and_manual_reasons_are_checked(tmp_pat
     bad = dict(mapping, manual_reasons={"inv-zzz": "x"}, manual={})
     _setup_repo(tmp_path, monkeypatch, bad, ITEMS, ledger=ledger)
     assert cic.main([]) == 2                              # 存在しない項目の理由は整合エラー
+
+
+def test_strict_gaps_ignores_wording_only_gaps_and_decided_rows(tmp_path, monkeypatch, capsys):
+    led = textwrap.dedent('''
+        ## A. t
+        | FL-A01 | 有の行 | gui.py:1-5 | | 有 | |
+        | FL-A02 | 本人裁定の行 | gui.py:90-99 | | 本人裁定 | |
+        | FL-A03 | 意図的削除の行 | gui.py:200-210 | | 意図的削除 | |
+    ''')
+    items = ITEMS + [{"id": "inv-c", "kind": "ui_text", "file": "gui.py", "line": 95, "name": "裁定の文言"}]
+    mapping = _mp(auto={"inv-a": {"fl": "FL-A01", "method": "range"}, "inv-b": {"fl": "FL-A02", "method": "range"},
+                        "inv-c": {"fl": "FL-A02", "method": "range"}}, port_text_missing=["inv-a"])
+    _setup_repo(tmp_path, monkeypatch, mapping, items, ledger=led)
+    assert cic.main(["--strict-gaps"]) == 0       # 文言の差だけ・本人裁定の行は数えない
+    assert cic.main(["--strict-text"]) == 1       # 文言の差は別に厳格化できる
