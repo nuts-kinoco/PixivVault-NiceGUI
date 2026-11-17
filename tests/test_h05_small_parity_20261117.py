@@ -150,3 +150,36 @@ async def test_recommend_empty_state_has_no_button_without_a_destination():
             view.close()
     finally:
         client.delete()
+
+
+# ---- FL-I15 学習タブの空状態 ------------------------------------------------
+
+def test_learning_empty_state_texts_and_visibility_rule():
+    from pixivvault_nicegui.ui.learning_view import LearningView, EMPTY_TITLE, EMPTY_BODY
+    assert EMPTY_TITLE == '表示できる候補がありません'                      # 元 discovery_tab.py:4358
+    assert EMPTY_BODY == ('作品を「見送る」「合わない」「いいね」「SuperLike」で判定していくと、\n'
+                          '好みの傾向を学習し、次第に精度の高いおすすめが表示されるようになります。')
+    rule = LearningView._empty_state_shown
+    view = lambda item, discovery, armed: SimpleNamespace(
+        state=SimpleNamespace(current_artwork=item), discovery=discovery, _refill=SimpleNamespace(armed=armed))
+    assert rule(view(None, object(), True)) is True
+    assert rule(view(None, object(), False)) is False      # 初回読み込み中は出さない
+    assert rule(view(object(), object(), True)) is False   # 候補があるときは出さない
+    assert rule(view(None, None, True)) is False           # 発掘を使わない起動では出さない
+
+
+@pytest.mark.asyncio
+async def test_learning_view_builds_the_empty_card_hidden_by_default(tmp_path):
+    from pixivvault_nicegui.services import ApplicationServices
+    from pixivvault_nicegui.ui.learning_view import LearningView
+    services = ApplicationServices(3)
+    client = Client(ui.page('/_h05_learning_empty'))
+    try:
+        with client:
+            view = LearningView(services)
+            assert view.empty_card.visible is False
+            assert any(getattr(e, 'text', None) == '表示できる候補がありません' for e in view.empty_card.descendants())
+            view.close()
+    finally:
+        client.delete()
+        services.close()
