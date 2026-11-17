@@ -166,8 +166,8 @@ class NativeProfileView:
             ui.button('解析モデルの選択解除', on_click=lambda:self.clear_model() if self._epoch == epoch else None).props('data-testid=native-gpu-clear-model')
             self.provider_select = ui.select({'auto':'自動（GPU優先・利用不可ならCPU）', 'cuda':'GPU（CUDA必須）', 'cpu':'CPU'},
                 label='解析の実行先', value=self.snapshot.similarity_provider if self.snapshot else 'auto').classes('w-full').props('data-testid=native-gpu-provider')
-            self.auto_switch = ui.switch('保存後に未解析ページを自動解析', value=self.snapshot.similarity_auto if self.snapshot else False).props('data-testid=native-gpu-auto')
-            ui.label('元のegara_bb.onnxを参照します。設定保存だけでは推論・モデルの取得を行いません。変更は次回起動から適用します。').classes('text-caption')
+            ui.label('元のegara_bb.onnxを参照します。設定保存だけでは推論・モデルの取得を行いません。モデルと実行先の変更は次回起動から適用します。').classes('text-caption')
+            ui.label('自動で推論するかどうかは、この下の設定「絵柄・構図の推論」で切り替えます（すぐ反映します）。').classes('text-caption')
             self._sync_values()
         ui.label('保存した設定は次回起動から反映されます。実行中のジョブや保存先は変わりません。').classes('text-caption')
         self.status = ui.label('' if self.snapshot else '設定を読み込めません。旧設定は保持されています。').props(
@@ -285,10 +285,8 @@ class NativeProfileView:
     def clear_model(self) -> None:
         if self.snapshot is not None and self._active:
             self.draft_model = None
-            # The model and automatic indexing are one opt-in capability.
-            # A stale switch must never silently restore automatic analysis.
-            if self.auto_switch is not None:
-                self.auto_switch.set_value(False)
+            # モデルを外すと自動解析は動かない（設定の入切は残るが何もしない）。
+            # 保存時に旧 profile の「自動」印も外す（save を参照）。
             self._sync_values()
 
     def clear_cookie(self) -> None:
@@ -319,7 +317,9 @@ class NativeProfileView:
                 library_image_root=self.draft_images,
                 similarity_model_file=self.draft_model,
                 similarity_provider=self.provider_select.value if self.provider_select else 'auto',
-                similarity_auto=bool(self.auto_switch.value) if self.auto_switch else False)
+                # 自動実行の入切は設定の embed_auto_on_download が持つ。モデルを外すときだけ、
+                # 旧 profile の「自動」印も外す（モデル無しの自動は profile として不正なため）。
+                **({'similarity_auto': False} if self.draft_model is None else {}))
         except NativeProfileConflict:
             self.status.set_text('別の画面で設定が変わりました。取消して開き直してください。')
             return False
@@ -359,8 +359,6 @@ class NativeProfileView:
         self.draft_model = self.snapshot.similarity_model_file if self.snapshot else None
         if self.provider_select is not None:
             self.provider_select.set_value(self.snapshot.similarity_provider if self.snapshot else 'auto')
-        if self.auto_switch is not None:
-            self.auto_switch.set_value(self.snapshot.similarity_auto if self.snapshot else False)
         self._sync_values()
         if self.status is not None:
             self.status.set_text('変更を破棄しました。')

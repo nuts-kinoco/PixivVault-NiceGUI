@@ -26,18 +26,19 @@ class SimilarView:
 
     def __init__(self,source,on_select,*,image_url=None,analyze=None,
                  analysis_status=None,start_analysis=None,pause_analysis=None,
-                 resume_analysis=None):
+                 resume_analysis=None,reset_analysis=None,rescan_analysis=None):
         self.source=source;self.on_select=on_select;self.image_url=image_url
         self.analyze=analyze
         self.analysis_status=analysis_status
         self._analysis_controls={'start':start_analysis,'pause':pause_analysis,
-                                 'resume':resume_analysis}
+                                 'resume':resume_analysis,'reset':reset_analysis,
+                                 'rescan':rescan_analysis}
         self.active=True;self.closed=False;self.generation=0;self.origin=None
         self._query_candidates=();self._is_current=None
         self._analysis_token=None;self._analysis_busy=False;self._analysis_run=None
         self._analysis_available=False
         self._control_tokens={};self._control_busy=False
-        self._status_timer=None;self._status_phase='idle'
+        self._status_timer=None;self._status_phase='idle';self._status_errors=0
         self._bulk_started=False
         self.client=ui.context.client
         with ui.dialog() as self.dialog,ui.card().classes('w-full').style('width:900px;max-width:95vw'):
@@ -62,8 +63,12 @@ class SimilarView:
                 self.start_button=ui.button('全保存ページの解析').props('flat data-testid=similar-analysis-start')
                 self.pause_button=ui.button('一時停止').props('flat data-testid=similar-analysis-pause')
                 self.resume_button=ui.button('再開').props('flat data-testid=similar-analysis-resume')
+                # 元 gui.py の「諦めたぶんを対象へ戻す」「数え直す」。通信はしない。
+                self.reset_button=ui.button('諦めたぶんを対象へ戻す').props('flat data-testid=similar-analysis-reset')
+                self.rescan_button=ui.button('数え直す').props('flat data-testid=similar-analysis-rescan')
             for action,button in (('start',self.start_button),('pause',self.pause_button),
-                                  ('resume',self.resume_button)):
+                                  ('resume',self.resume_button),('reset',self.reset_button),
+                                  ('rescan',self.rescan_button)):
                 button.on('click',lambda event,action=action:self.run_analysis_control(action,event),
                           js_handler="""event => {
                               const button=event.currentTarget;
@@ -129,10 +134,13 @@ class SimilarView:
         available={'start':self._status_phase=='idle',
                    'pause':self._status_phase=='running' or
                            (self._status_phase=='idle' and self._bulk_started),
-                   'resume':self._status_phase in ('paused','failed')}
+                   'resume':self._status_phase in ('paused','failed'),
+                   'reset':self._status_phase=='failed' or self._status_errors>0,
+                   'rescan':self._status_phase in ('idle','running')}
         self.start_button.set_text('新しい保存を確認' if self._bulk_started else '全保存ページの解析')
         for action,button in (('start',self.start_button),('pause',self.pause_button),
-                              ('resume',self.resume_button)):
+                              ('resume',self.resume_button),('reset',self.reset_button),
+                              ('rescan',self.rescan_button)):
             enabled=bool(valid and available[action] and self._analysis_controls[action] is not None)
             if not enabled:
                 self._control_tokens.pop(action,None)
@@ -161,13 +169,15 @@ class SimilarView:
             if self._valid(generation):
                 self.analysis_text.set_text('解析状態を確認できません。')
                 self._control_tokens.clear()
-                for button in (self.start_button,self.pause_button,self.resume_button):
+                for button in (self.start_button,self.pause_button,self.resume_button,
+                               self.reset_button,self.rescan_button):
                     button.set_enabled(False)
             return
         if not self._valid(generation):
             return
         phase=status.get('phase')
         self._status_phase=phase if phase in self.PHASE_LABELS else 'failed'
+        self._status_errors=status['errors'] if type(status.get('errors')) is int else 0
         active_provider=self.ACTIVE_PROVIDERS.get(status.get('provider')) if type(status.get('provider')) is str else None
         requested=self.REQUESTED_PROVIDERS.get(status.get('requested')) if type(status.get('requested')) is str else None
         activity=any(type(status.get(key)) is int and status[key]>0
@@ -198,6 +208,11 @@ class SimilarView:
             reason=self.FALLBACK_REASONS.get(status['fallback_reason'],
                                              'GPUからCPUへ切替（詳細な理由は非表示）')
             detail+=' / フォールバック: '+reason
+        # 元 _apply_embed_status: 自動実行の状態を必ず出す（OFF のとき「自動で始まる」と嘘をつかない）。
+        if status.get('auto') is True:
+            detail+=' / 自動実行は ON（ダウンロード後、続きから自動で解析します）'
+        elif status.get('auto') is False:
+            detail+=' / 自動実行は OFF です。『全保存ページの解析』で手動実行できます'
         self.analysis_text.set_text(detail)
         self._sync_control_buttons()
 

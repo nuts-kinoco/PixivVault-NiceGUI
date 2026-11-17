@@ -216,6 +216,11 @@ class ApplicationServices:
         self._similarity_run_lock = RLock()
         self._similarity_stop = Event()
         self._similarity_worker = None
+        # 元 gui.py:1816-2153 の embed_auto_on_download（既定 ON）。--similarity-auto は
+        # 設定に関わらず自動を強制する従来の起動オプション。
+        self.similarity_auto_flag = False
+        self._similarity_auto_seen = None
+        self._similarity_idle_seconds = 60
         self.ugoira = None
         self.ugoira_root, self.ugoira_source = ugoira_root, ugoira_source
         if (ugoira_root is None) != (ugoira_source is None):
@@ -373,6 +378,11 @@ class ApplicationServices:
         self._managed_metadata_lock = RLock()
         self._metadata_run_lock = Lock()
         self._metadata_cancel_event = Event()
+        # 元 scheduler.py:104-123 相当の自動後埋め。スレッドは start_metadata_auto が
+        # 明示的に立てるまで存在しない（Services の生成だけでは通信も起動もしない）。
+        self._metadata_auto = None
+        self._metadata_auto_lock = Lock()
+        self._metadata_total_cache = None
         self._managed_scheduler_lock = Lock()
         self._scheduler_dispatch_lock = Lock()
         self._scheduler_cancel_event = Event()
@@ -916,10 +926,72 @@ class ApplicationServices:
             if not self.similarity_analysis_enabled:
                 raise ValueError('similarity analyzer unavailable')
             if self._similarity_worker is None:
-                self._similarity_worker = SimilarityWorker(self._similarity_pages, self.analyze_saved_for_similarity)
+                self._similarity_worker = SimilarityWorker(
+                    self._similarity_pages, self.analyze_saved_for_similarity,
+                    idle_seconds=self._similarity_idle_seconds, auto=self.similarity_auto_enabled)
                 self._similarity_worker.start()
             else:
                 self._similarity_worker.wake()
+
+    def similarity_auto_enabled(self) -> bool:
+        """設定 embed_auto_on_download（既定 ON）。保存先の無い起動では起動オプションだけが効く。"""
+        if self.similarity_auto_flag:
+            return True
+        store = self.preferences
+        if store is None:
+            return False
+        try:
+            return store.get_setting('embed_auto_on_download', '1') == '1'
+        except Exception:
+            return False
+
+    def start_similarity_auto(self) -> bool:
+        """起動時の自動起動。モデルが無ければ何もしない（エラーにしない）。"""
+        self._similarity_auto_seen = self.similarity_auto_enabled()
+        if self.closing or self.closed or not self.similarity_analysis_enabled:
+            return False
+        if not self._similarity_auto_seen:
+            return False
+        self.start_similarity_analysis()
+        return True
+
+    def _sync_similarity_auto(self):
+        """設定の入切を即座に反映する（元 _on_embed_auto_toggle）。変わっていなければ何もしない。"""
+        current = self.similarity_auto_enabled()
+        previous = True if self._similarity_auto_seen is None else self._similarity_auto_seen
+        self._similarity_auto_seen = current
+        if current == previous or not self.similarity_analysis_enabled:
+            return
+        if current:
+            if self._similarity_worker is None:
+                self.start_similarity_analysis()
+            else:
+                self._similarity_worker.resume()
+                self._similarity_worker.wake()
+        elif self._similarity_worker is not None:
+            self._similarity_worker.pause()
+
+    def rescan_similarity_analysis(self):
+        """「数え直す」: 保存済みページを最初から数え直して解析する。"""
+        worker = self._similarity_worker
+        if worker is None:
+            self.start_similarity_analysis()
+        elif worker.status()['phase'] in ('paused', 'failed'):
+            worker.resume()
+        else:
+            worker.wake()
+
+    def reset_similarity_analysis(self) -> bool:
+        """「諦めたぶんを対象へ戻す」: 止まっていたワーカーの失敗を忘れて続きから再開する。"""
+        worker = self._similarity_worker
+        if worker is None:
+            self.start_similarity_analysis()
+            return True
+        if worker.status()['phase'] in ('paused', 'failed'):
+            worker.resume()
+            return True
+        worker.wake()
+        return False
 
     def pause_similarity_analysis(self):
         if self._similarity_worker is not None:
@@ -935,7 +1007,8 @@ class ApplicationServices:
         status = (self._similarity_worker.status() if self._similarity_worker is not None else
                   dict(phase='idle', indexed=0, resumed=0, errors=0, examined=0))
         engine = self._egara_inference
-        return dict(status, provider=engine.provider_active if engine is not None else None,
+        return dict(status, auto=self.similarity_auto_enabled(),
+                    provider=engine.provider_active if engine is not None else None,
                     started=self._similarity_worker is not None,
                     requested=self._egara_provider,
                     fallback_reason=engine.fallback_reason if engine is not None else None)
@@ -1038,6 +1111,11 @@ class ApplicationServices:
         if (getattr(self,'external_vault',None) is not None
                 and callable(getattr(self.external_vault,'set_refresh_interval_provider',None))):
             enabled.add('nana7mi_shaft_refresh_interval_hours')
+        if (self.preferences is not None and self.managed_downloads is not None
+                and self.live_client is not None):
+            enabled.add('meta_backfill_enabled')
+        if self.preferences is not None and self.similarity_analysis_enabled:
+            enabled.add('embed_auto_on_download')
         if self.notifications is not None and self.notifications.available:enabled.add('enable_notifications')
         if self.tray is not None and self.tray.available:enabled.add('minimize_to_tray')
         return enabled
@@ -1045,6 +1123,8 @@ class ApplicationServices:
     def apply_preferences(self, snapshot=None):
         if self.closing or self.preferences is None:
             return
+        self._sync_metadata_auto()
+        self._sync_similarity_auto()
         if self.shared_image_cache is not None:
             self.shared_image_cache.configure(int(self.preferences.get_setting('pixiv_shared_image_cache_size_mb','1024'))*1024**2)
             if self.shared_image_cache.disk is not None:
@@ -2528,6 +2608,9 @@ class ApplicationServices:
                 self._metadata_cancel_event.set()
                 if self._similarity_worker is not None:
                     self._similarity_worker.stop(timeout=150.0)
+                # 自動後埋めの待機スレッドも、台帳・通信路を閉じる前に畳む。
+                if self._metadata_auto is not None:
+                    self._metadata_auto.stop(timeout=150.0)
                 # A synchronous close waits for action workers (including
                 # local follow commits) without depending on the UI loop.
                 self._close_pixiv_actions()
@@ -2688,26 +2771,49 @@ class ApplicationServices:
         preference as an automatic network worker after application restart.
         """
         with self._close_lock, self._managed_metadata_lock:
-            if self.closing:
+            return self._provision_metadata_locked()
+
+    def _provision_metadata_for_run(self):
+        """実行（手動・自動）用の台帳を開く。終了処理と鍵を取り合っても詰まらない。"""
+        ledger = self.managed_metadata
+        if ledger is not None:
+            return ledger
+        while not self._close_lock.acquire(timeout=0.25):
+            if self.closing or self._metadata_cancel_event.is_set():
                 raise RuntimeError('application services are closing')
-            if self.managed_downloads is None:
-                raise RuntimeError('isolated managed Pixiv mode is required')
-            if self.managed_metadata is None:
-                from .metadata_ledger import ManagedMetadataLedger
+        try:
+            with self._managed_metadata_lock:
+                return self._provision_metadata_locked()
+        finally:
+            self._close_lock.release()
 
-                def active_receipt(work_id):
-                    if self.closing or self.managed_downloads is None:
-                        raise RuntimeError('managed receipt provider closed')
-                    receipt = self.managed_downloads.verified_saved_receipt(work_id)
-                    # receipt[2] is SHA256 of immutable receipt bytes. The
-                    # optional receipt[4] is *job acceptance* fingerprint,
-                    # which is a different concept and may be absent for v1.
-                    return receipt[2] if receipt is not None else None
+    def _provision_metadata_locked(self):
+        if self.closing:
+            raise RuntimeError('application services are closing')
+        if self.managed_downloads is None:
+            raise RuntimeError('isolated managed Pixiv mode is required')
+        if self.managed_metadata is None:
+            from .metadata_ledger import ManagedMetadataLedger
 
-                self.managed_metadata = ManagedMetadataLedger(
-                    self.managed_downloads.root,
-                    active_receipt_sha256=active_receipt)
-            return self.managed_metadata
+            def active_receipt(work_id):
+                if self.closing or self.managed_downloads is None:
+                    raise RuntimeError('managed receipt provider closed')
+                receipt = self.managed_downloads.verified_saved_receipt(work_id)
+                # receipt[2] is SHA256 of immutable receipt bytes. The
+                # optional receipt[4] is *job acceptance* fingerprint,
+                # which is a different concept and may be absent for v1.
+                return receipt[2] if receipt is not None else None
+
+            self.managed_metadata = ManagedMetadataLedger(
+                self.managed_downloads.root,
+                active_receipt_sha256=active_receipt)
+        # 台帳の enabled は「実行してよい」内部の門。自動実行の入切は設定
+        # (meta_backfill_enabled) が持ち、手動の「いま埋める」は設定が OFF でも
+        # 動かせる（元と同じ）。台帳が既定 OFF のまま残ると手動も止まるので揃える。
+        current = self.managed_metadata.settings()
+        if not current.enabled:
+            self.managed_metadata.configure(enabled=True, expected_revision=current.revision)
+        return self.managed_metadata
 
     def managed_metadata_settings(self):
         """Read an already-open side-ledger only; no auto-provisioning or GET."""
@@ -2840,6 +2946,165 @@ class ApplicationServices:
             if not self.closing:
                 self._metadata_cancel_event.clear()
             self._metadata_run_lock.release()
+
+    # --- 作品メタデータの自動後埋め（元 gui.py:1700-1814, scheduler.py:104-123） ---
+    METADATA_PASS_LIMIT = 300
+
+    def metadata_auto_enabled(self) -> bool:
+        """設定 meta_backfill_enabled（既定 ON）。設定の保存先が無い起動では自動で動かさない。"""
+        store = self.preferences
+        if store is None:
+            return False
+        try:
+            return store.get_setting('meta_backfill_enabled', '1') == '1'
+        except Exception:
+            return False
+
+    def _metadata_network_blocked(self) -> bool:
+        """「取得・更新」と同じ取得停止ゲート。読めないときは止まっている側に倒す。"""
+        integration = getattr(self, 'managed_network_stop', None)
+        if integration is None:
+            return False
+        try:
+            integration.require_allowed()
+            return False
+        except Exception:
+            return True
+
+    def _metadata_candidates(self, ledger, limit):
+        from .metadata_policy import MetadataCandidate, select_candidates
+        snapshot = self.managed_downloads.catalog_snapshot(verify_pages=False)
+        rows = []
+        for _relative, receipt, digest in snapshot.receipts:
+            try:
+                work_id, author_id = receipt['work_id'], receipt['author_id']
+                prior = ledger.entry(work_id)
+                same = prior is not None and prior.base_receipt_sha256 == digest
+                if same and prior.state != 'pending':
+                    continue  # 済・諦め・保留・中断は触らない
+                rows.append(MetadataCandidate(work_id, author_id, 'illust', False, None,
+                                              prior.attempts if same else 0))
+            except (KeyError, TypeError, ValueError):
+                continue
+        return select_candidates(tuple(rows))[:limit]
+
+    def run_managed_metadata_all(self, *, transport=None, limit: int | None = None):
+        """保存済み作品を一巡で後埋めする（「いま埋める」と自動実行の共通の口）。
+
+        取得停止ゲートが閉じているとき、ダウンロードが走っているときは、通信どころか
+        認証確認も送らない。1 周の件数は上限つきで、全体障害・5 連続の不明失敗で止まる。
+        """
+        from dataclasses import replace
+        from .metadata_auto import FencedTransport
+        from .metadata_runner import ManagedMetadataBackfillRunner, MetadataRunSummary
+        from .metadata_transport import LivePixivMetadataTransport
+        from .job_service import UNFINISHED
+
+        limit = self.METADATA_PASS_LIMIT if limit is None else limit
+        if type(limit) is not int or not 1 <= limit <= 1000:
+            raise ValueError('invalid metadata pass limit')
+        if not self._metadata_run_lock.acquire(blocking=False):
+            return MetadataRunSummary(stopped='already_running')
+        try:
+            if self.closing or self.managed_downloads is None or self.jobs is None:
+                return MetadataRunSummary(stopped='unavailable')
+            # 古い停止要求（実行と実行のあいだに残ったもの）は持ち越さない。
+            self._metadata_cancel_event.clear()
+            ledger = self._provision_metadata_for_run()
+            current = ledger.settings()
+            if not current.enabled:
+                ledger.configure(enabled=True, expected_revision=current.revision)
+
+            def busy():
+                return (self.closing or self.jobs is None
+                        or any(j.state in UNFINISHED for j in self.jobs.snapshot())
+                        or self._metadata_network_blocked())
+            if busy():
+                return MetadataRunSummary(
+                    stopped='network_stopped' if self._metadata_network_blocked() else 'download_busy')
+            ledger.resume_all_blocked()
+            candidates = self._metadata_candidates(ledger, limit)
+            if not candidates:
+                return MetadataRunSummary()  # 対象が無ければ認証確認も送らない
+            inner = transport if transport is not None else LivePixivMetadataTransport(self.live_client)
+
+            def active(work_id):
+                if self.closing:
+                    raise RuntimeError('metadata source is closing')
+                current_receipt = self.managed_downloads.verified_saved_receipt(work_id)
+                return current_receipt[2] if current_receipt is not None else None
+
+            runner = ManagedMetadataBackfillRunner(
+                ledger, FencedTransport(inner, self._managed_enqueue_lock),
+                active_receipt_sha256=active, is_download_busy=busy)
+            with request_scope(allow_retry=False):
+                summary = runner.run_once(candidates, stop_event=self._metadata_cancel_event,
+                                          wait_for_idle=False)
+            if summary.stopped == 'download_busy' and self._metadata_network_blocked():
+                summary = replace(summary, stopped='network_stopped')
+            return summary
+        finally:
+            self._metadata_total_cache = None
+            if not self.closing:
+                self._metadata_cancel_event.clear()
+            self._metadata_run_lock.release()
+
+    def managed_metadata_status(self):
+        """局所の台帳と保存済み一覧だけを読む。通信しない。分母は保存済み作品数。"""
+        import time
+        from .metadata_auto import MetadataStatus
+        if self.closing or self.managed_downloads is None:
+            return MetadataStatus()
+        cached = self._metadata_total_cache
+        if cached is None or time.monotonic() - cached[0] > 60:
+            try:
+                total = len(self.managed_downloads.catalog_snapshot(verify_pages=False).receipts)
+            except Exception:
+                total = cached[1] if cached is not None else 0
+            cached = self._metadata_total_cache = (time.monotonic(), total)
+        total = cached[1]
+        counts = self.managed_metadata_progress()
+        if counts is None:
+            return MetadataStatus(0, total, total, 0, 0)
+        filled = min(counts.done, total)
+        gave_up = min(counts.gave_up, max(0, total - filled))
+        return MetadataStatus(filled, total, max(0, total - filled - gave_up), gave_up,
+                              counts.blocked + counts.unknown)
+
+    def reset_managed_metadata_gave_up(self) -> int:
+        """「取れなかったものをもう一度」: 諦めた作品を待機へ戻す（通信しない）。"""
+        ledger = self._provision_metadata_for_run()
+        count = ledger.reset_gave_up()
+        self._metadata_total_cache = None
+        wake = self._metadata_auto
+        if count and wake is not None:
+            wake.wake()
+        return count
+
+    def start_metadata_auto(self, *, transport=None, initial_delay: float = 60.0, intervals=None):
+        """起動時の 1 回。設定が OFF でもスレッドだけは待機で持ち、ON にしたとき起こす。"""
+        from .metadata_auto import MetadataAutoRunner
+        with self._metadata_auto_lock:
+            if (self.closing or self.managed_downloads is None or self.preferences is None
+                    or self._metadata_auto is not None):
+                return False
+            if transport is None and self.live_client is None:
+                return False
+            runner = MetadataAutoRunner(
+                lambda: self.run_managed_metadata_all(transport=transport),
+                self.metadata_auto_enabled, initial_delay=initial_delay, intervals=intervals)
+            runner.start()
+            self._metadata_auto = runner
+            return True
+
+    def _sync_metadata_auto(self):
+        """設定の保存を受けて、ON なら起こし、OFF なら一巡の途中でも次の通信の前に止める。"""
+        runner = self._metadata_auto
+        if runner is None:
+            return
+        if not self.metadata_auto_enabled():
+            self.stop_managed_metadata()
+        runner.wake()
 
     def reconcile_managed_scheduler(self):
         """Join JobService operation history to verified managed CAS receipts."""
