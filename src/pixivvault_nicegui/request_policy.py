@@ -79,9 +79,9 @@ def _wait(seconds,deadline,*,clock,sleep):
 
 
 class RequestAdmission:
-    def __init__(self,interval,*,clock=time.monotonic,sleep=time.sleep):
-        self.interval=interval;self.clock=clock;self.sleep=sleep
-        self._lock=Lock();self._last=None
+    def __init__(self,interval,*,clock=time.monotonic,sleep=time.sleep,jitter=random.uniform):
+        self.interval=interval;self.clock=clock;self.sleep=sleep;self.jitter=jitter
+        self._lock=Lock();self._next=None
     def __call__(self,deadline):
         request_checkpoint();_check_deadline(deadline,self.clock)
         while not self._lock.acquire(timeout=0.1):
@@ -89,9 +89,11 @@ class RequestAdmission:
         try:
             seconds=float(self.interval())
             if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
-            now=self.clock();wait=0 if self._last is None else max(0,self._last+seconds-now)
+            spacing=self.jitter(seconds*0.8,seconds*1.2)
+            if not math.isfinite(spacing) or not seconds*0.8<=spacing<=seconds*1.2:raise ValueError('invalid interval jitter')
+            now=self.clock();wait=0 if self._next is None else max(0,self._next-now)
             _wait(wait,deadline,clock=self.clock,sleep=self.sleep)
-            self._last=self.clock()
+            self._next=self.clock()+spacing
         finally:self._lock.release()
 
 
