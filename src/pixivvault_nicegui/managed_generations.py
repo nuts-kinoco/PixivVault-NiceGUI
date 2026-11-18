@@ -265,7 +265,8 @@ class _Loaded:
     __slots__ = ('version', 'base_sig', 'base_digest', 'base_bytes', 'indexed', 'legacy', 'legacy_names', 'active',
                  'exclusions', 'operations', 'out_sig', 'journal_sig', 'journal_offset',
                  'journal_chain', 'journal_records', 'stale_journal', 'acc', 'shared',
-                 'jid', 'jpath', 'legacy_journal', 'gen_sig', 'mark_records', 'fold_failed', 'header_bytes')
+                 'jid', 'jpath', 'legacy_journal', 'gen_sig', 'mark_records', 'fold_failed', 'header_bytes',
+                 'journal_hasher', 'journal_chains')
 
     def __init__(self):
         self.version = None
@@ -278,6 +279,8 @@ class _Loaded:
         self.jid = self.jpath = self.gen_sig = None
         self.header_bytes = 0
         self.mark_records = 0       # `records` the mark file holds (the journal may be ahead of it)
+        self.journal_hasher = None
+        self.journal_chains = []
         self.fold_failed = False    # the last attempt to fold the journal into the index failed
         self.acc = 0
 
@@ -793,6 +796,36 @@ class ManagedGenerations:
         loaded.journal_records = seq
         loaded.journal_offset = len(header) + end
         loaded.header_bytes = len(header)
+        loaded.journal_hasher = hashlib.sha256(raw[:loaded.journal_offset])
+        loaded.journal_chains = [chain0, *chains]
+
+    def _verify_cached_v5(self, loaded):
+        """Validate the cached prefix and mark, then verify only genuinely new entries."""
+        mark = json.loads(_read_shared(self._mark_file(loaded.jid), 4096), object_pairs_hook=_json_unique)
+        raw, sig = _read_shared_identity(loaded.jpath, _MAX_JOURNAL_BYTES)
+        offset = loaded.journal_offset
+        if len(raw) < offset or hashlib.sha256(raw[:offset]).digest() != loaded.journal_hasher.digest():
+            raise ValueError()
+        tail = raw[offset:]
+        if tail:
+            folders = {'outputs': set(), 'generations': self._scan_dir(
+                self.generation_dir, 'generation folder structure rejected')}
+            entries, chain, seq, end, chains = self._parse_journal(
+                tail, loaded.journal_chain, loaded.journal_records, folders, 5)
+        else:
+            entries, chain, seq, end, chains = [], loaded.journal_chain, loaded.journal_records, 0, []
+        all_chains = loaded.journal_chains + chains
+        if (type(mark) is not dict or mark.keys() != {'id', 'records', 'chain'}
+                or mark['id'] != loaded.jid or type(mark['records']) is not int
+                or not 0 <= mark['records'] <= seq or mark['chain'] != all_chains[mark['records']]):
+            raise ValueError()
+        for entry in entries:
+            self._apply_entry(loaded, entry)
+        loaded.journal_hasher.update(tail[:end])
+        loaded.journal_chains = all_chains
+        loaded.journal_offset += end
+        loaded.journal_chain, loaded.journal_records = chain, seq
+        loaded.mark_records, loaded.journal_sig = mark['records'], sig
 
     def _apply_entry(self, loaded, entry):
         wid = entry['work_id']
@@ -850,9 +883,6 @@ class ManagedGenerations:
             return 'fresh' if _identity(self.output_dir) == loaded.out_sig else 'legacy'
         if base is None or base != loaded.base_sig:
             return 'stale'
-        if loaded.version == 5:
-            # Stat metadata cannot prove the cached prefix or its mark remains intact.
-            return 'stale'
         journal = _identity(loaded.jpath) if loaded.jpath is not None else None
         if journal == loaded.journal_sig:
             return 'fresh' if _identity(self.output_dir) == loaded.out_sig else 'legacy'
@@ -866,6 +896,17 @@ class ManagedGenerations:
         with self._lock:
             loaded = self._loaded
             if loaded is not None:
+                if loaded.version == 5 and _identity(self.index_path) == loaded.base_sig:
+                    try:
+                        self._verify_cached_v5(loaded)
+                        if _identity(self.output_dir) != loaded.out_sig:
+                            self._refresh_legacy(loaded)
+                        return loaded
+                    except Exception:
+                        self._loaded = None
+                        loaded = None
+                if loaded is None:
+                    return self._refresh()
                 state = self._freshness(loaded)
                 if state == 'fresh':
                     return loaded
@@ -1125,6 +1166,8 @@ class ManagedGenerations:
             stream.flush()
             os.fsync(stream.fileno())
         loaded.journal_offset += len(line)
+        loaded.journal_hasher.update(line)
+        loaded.journal_chains.append(chain)
         loaded.journal_chain, loaded.journal_records = chain, seq
         loaded.journal_sig = _identity(loaded.jpath)
         self._apply_entry(loaded, entry)
@@ -1484,6 +1527,8 @@ class ManagedGenerations:
                 loaded.jid = journal[0]
                 loaded.jpath = self._journal_file(journal[0])
                 loaded.journal_chain = hashlib.sha256(journal[1]).hexdigest()
+                loaded.journal_hasher = hashlib.sha256(journal[1])
+                loaded.journal_chains = [loaded.journal_chain]
                 loaded.journal_records = 0
                 loaded.journal_offset = len(journal[1])
                 loaded.header_bytes = len(journal[1])
