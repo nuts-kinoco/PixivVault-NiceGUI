@@ -562,14 +562,10 @@ class ManagedGenerations:
         return result
 
     def _legacy_journal_evidence(self) -> bool:
-        """Leftovers that say a pre-v5 journal existed: a file named like it (a backup, a rename, a
-        deleted-but-kept copy) or an unfinished temporary of one."""
+        """Detect a pre-v5 journal or its retained copy, excluding unpublished temporaries."""
         try:
             with os.scandir(native_io_path(self.root)) as listing:
-                if any(item.name.startswith('active-generations.journal') for item in listing):
-                    return True
-            with os.scandir(native_io_path(self.stage_dir)) as listing:
-                return any(item.name.startswith('journal-') and item.name.endswith('.tmp') for item in listing)
+                return any(item.name.startswith('active-generations.journal') for item in listing)
         except OSError:
             return False
 
