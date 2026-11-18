@@ -97,6 +97,7 @@ class LearningView:
         self._save_task = None
         self._reason_tasks: set = set()
         self._refill_notice_shown = False
+        self._superlike_used = 0
         self._review_session_id = None
         self._review_epoch = 0
         self._review_busy = False
@@ -192,6 +193,11 @@ class LearningView:
                     button.on("click", lambda event, c=choice: self._on_judgment(c, event),
                               js_handler=self._click_js())
                     self.buttons[choice] = button
+            # 元 discovery_tab.py:2672-2680: 判定ボタンの真下の情報行。高さを固定し、出し入れでボタンを動かさない。
+            with ui.row().classes("w-full items-center").style("height:20px"):
+                self.superlike_used_label = ui.label().classes("pv-subtitle").style("font-size:10px").props(
+                    "data-testid=learning-superlike-used")
+            self.superlike_used_label.set_visibility(False)
             with ui.row().classes("items-center gap-2"):
                 self.undo_button = ui.button("ひとつ戻す（Undo）", color=None).props("flat no-caps").classes("pv-undo")
                 self.undo_button.on("click", self._on_undo, js_handler=self._click_js())
@@ -714,6 +720,7 @@ class LearningView:
         if success:
             self.close_summary()
             self.refresh()
+            self._count_superlike(choice, undo=False)
             self._show_judgment_toast(choice)
         elif self.state.last_error:
             self.status.set_text(self.state.last_error)
@@ -733,7 +740,10 @@ class LearningView:
             if command is not None:
                 self._start_save(command)
             return
+        last = self.state._last_judgment
         if self.state.undo(operation_id=payload.get("operation_id")):
+            if last is not None:
+                self._count_superlike(last.choice, undo=True)
             self.toast.hide()
             self.refresh()
         elif self.state.last_error:
@@ -788,6 +798,7 @@ class LearningView:
                         self._notice='判定は保存済みです。候補の並び替えを更新できませんでした。'
                 self.refresh()
                 self.toast.clear_heavy("save")          # 再試行が通ったので「保存できません」を残さない
+                self._count_superlike(command.judgment.choice, undo=command.undo)
                 if command.undo:
                     self.toast.hide()
                 else:
@@ -798,6 +809,18 @@ class LearningView:
                         if not self.state.closed:self._render_trend(trend)
                     except Exception:
                         if not self.state.closed:self.trend_label.set_text('判定は保存済みです。傾向を読み込めませんでした。')
+
+    def _count_superlike(self, choice, *, undo: bool) -> None:
+        """この画面で使った SuperLike の回数（元 discovery_tab.py:1874-1877, 1996-1998）。再読込では戻さない。"""
+        if choice != "superLike":
+            return
+        if undo:
+            self._superlike_used = max(0, self._superlike_used - 1)
+        else:
+            self._superlike_used += 1
+        n = self._superlike_used
+        self.superlike_used_label.set_text(f"SuperLike使用: {n}回" if n else "")
+        self.superlike_used_label.set_visibility(bool(n))
 
     def _show_judgment_toast(self, choice: str, command=None) -> None:
         """判定直後に「判定しました／取り消す」を出す（元 discovery_tab.py:1949-1952）。"""
