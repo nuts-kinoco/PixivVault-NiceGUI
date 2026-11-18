@@ -56,7 +56,7 @@ CSS = """
 .pv-ud-tools { display:flex; flex-direction:row; align-items:center; gap:4px; flex:0 0 32px; height:32px; }
 .pv-ud-tbtn { display:inline-flex; align-items:center; gap:8px; height:32px; padding:0 14px; border:0; border-radius:16px; background:transparent; color:var(--pv-primary); font:inherit; font-size:14px; cursor:pointer; white-space:nowrap; }
 .pv-ud-tbtn .q-icon { font-size:18px; color:var(--pv-muted); }
-.pv-ud-tbtn[data-on=true] .q-icon { color:#0096FA; }
+.pv-ud-tbtn[data-on=true] .q-icon { color:var(--pv-download-accent-text); }
 .pv-ud-tbtn:disabled { opacity:.45; cursor:default; }
 .pv-ud-div { width:1px; height:20px; background:var(--pv-border); }
 .pv-ud-grow { flex:1 1 auto; }
@@ -64,7 +64,7 @@ CSS = """
 .pv-ud-sortbtn .q-icon { font-size:16px; color:var(--pv-muted); }
 .pv-ud-ibtn { width:28px; height:28px; padding:0; border:0; border-radius:14px; background:transparent; color:var(--pv-muted); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
 .pv-ud-ibtn .q-icon { font-size:14px; }
-.pv-ud-ibtn[data-on=true] { color:#0096FA; }
+.pv-ud-ibtn[data-on=true] { color:var(--pv-download-accent-text); }
 .pv-ud-ibtn:disabled { opacity:.4; cursor:default; }
 .pv-ud-note { display:flex; flex-direction:row; align-items:center; gap:2px; flex:0 0 auto; font-size:11px; line-height:17px; color:var(--pv-muted); min-height:17px; }
 .pv-ud-thead { display:flex; flex-direction:row; align-items:center; gap:8px; padding:4px 8px; border-bottom:1px solid var(--pv-border); flex:0 0 auto; font-size:11px; color:var(--pv-muted); }
@@ -75,7 +75,7 @@ CSS = """
 .pv-ud-check[data-state=all], .pv-ud-check[data-state=partial], .pv-ud-row[data-picked=true] .pv-ud-check { background:#0096FA; border-color:#0096FA; }
 .pv-ud-star { flex:0 0 22px; width:22px; height:22px; display:flex; align-items:center; justify-content:center; color:var(--pv-muted); cursor:pointer; }
 .pv-ud-star .q-icon { font-size:15px; }
-.pv-ud-star[data-on=true] { color:#0096FA; }
+.pv-ud-star[data-on=true] { color:var(--pv-download-accent-text); }
 .pv-ud-c-name { flex:0 0 210px; width:210px; font-size:12.5px; color:var(--pv-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pv-ud-running .pv-ud-row[data-picked=false] .pv-ud-c-name { color:var(--pv-muted); }
 .pv-ud-c-id { flex:0 0 96px; width:96px; font-size:11.5px; font-family:Consolas, monospace; color:var(--pv-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -88,7 +88,7 @@ CSS = """
 .pv-ud-card { flex:1 1 0; min-height:0; display:flex; flex-direction:column; gap:10px; padding:16px; background:var(--pv-surface); border:1px solid var(--pv-border); border-radius:12px; }
 .pv-ud-cardhead { display:flex; flex-direction:row; align-items:center; gap:8px; flex:0 0 auto; }
 .pv-ud-cardhead .a { font-size:13px; color:var(--pv-text); }
-.pv-ud-cardhead .b { font-size:12px; font-family:Consolas, monospace; color:#0096FA; }
+.pv-ud-cardhead .b { font-size:12px; font-family:Consolas, monospace; color:var(--pv-download-accent-text); }
 .pv-ud-chips { flex:1 1 0; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
 .pv-ud-chiplist { display:flex; flex-direction:column; gap:8px; flex:0 0 auto; }
 .pv-ud-chip { display:flex; flex-direction:row; align-items:center; gap:8px; height:44px; flex:0 0 44px; padding:0 4px 0 12px; border-radius:8px; background:var(--pv-raised); }
@@ -96,14 +96,14 @@ CSS = """
 .pv-ud-chip .nm { font-size:12.5px; color:var(--pv-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:16px; }
 .pv-ud-chip .id { font-size:11px; font-family:Consolas, monospace; color:var(--pv-muted); line-height:14px; }
 .pv-ud-chip .st { font-size:11px; font-family:Consolas, monospace; color:var(--pv-muted); white-space:nowrap; }
-.pv-ud-chip .st[data-kind=in_progress] { color:#0096FA; }
-.pv-ud-chip .st[data-kind=failed] { color:#e05555; }
+.pv-ud-chip .st[data-kind=in_progress] { color:var(--pv-download-accent-text); }
+.pv-ud-chip .st[data-kind=failed] { color:var(--pv-download-danger-text); }
 .pv-ud-chip .x { width:28px; height:28px; border:0; border-radius:14px; background:transparent; color:var(--pv-muted); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
 .pv-ud-chip .x .q-icon { font-size:14px; }
 .pv-ud-fav { flex:0 0 46px; height:46px; display:flex; flex-direction:row; align-items:center; gap:6px; padding:6px 8px 6px 12px; background:var(--pv-surface); border:1px solid var(--pv-border); border-radius:8px; }
-.pv-ud-fav .q-icon { font-size:14px; color:#0096FA; }
+.pv-ud-fav .q-icon { font-size:14px; color:var(--pv-download-accent-text); }
 .pv-ud-fav .lab { font-size:11.5px; color:var(--pv-muted); }
-.pv-ud-fav .num { font-size:13px; font-family:Consolas, monospace; color:#0096FA; }
+.pv-ud-fav .num { font-size:13px; font-family:Consolas, monospace; color:var(--pv-download-accent-text); }
 .pv-ud-fav .pv-ud-tbtn .q-icon { color:var(--pv-primary); font-size:18px; }
 .pv-ud-runrow { flex:0 0 44px; height:44px; display:flex; flex-direction:row; gap:8px; }
 .pv-ud-sq { flex:0 0 44px; width:44px; height:44px; border-radius:8px; border:1px solid var(--pv-border); background:var(--pv-raised); color:var(--pv-text); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
@@ -123,11 +123,11 @@ CSS = """
 .pv-ud-sumbox { flex:1 1 0; min-width:0; height:32px; display:flex; flex-direction:row; align-items:center; gap:6px; padding:0 8px; background:var(--pv-surface); border:1px solid var(--pv-border); border-radius:8px; }
 .pv-ud-sumbox .k { font-size:10.5px; color:var(--pv-muted); white-space:nowrap; }
 .pv-ud-sumbox .v { font-size:13px; font-family:Consolas, monospace; color:var(--pv-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.pv-ud-sumbox .v[data-danger=true] { color:#e05555; }
+.pv-ud-sumbox .v[data-danger=true] { color:var(--pv-download-danger-text); }
 .pv-ud-hintrow { cursor:pointer; }
 .pv-ud-bmbox { display:flex; flex-direction:column; gap:10px; }
 .pv-ud-bmbox .cap { font-size:13px; color:var(--pv-text); }
-.pv-ud-bmbox .warn { font-size:11px; color:#e05555; }
+.pv-ud-bmbox .warn { font-size:11px; color:var(--pv-download-danger-text); }
 .pv-ud-bmrow { display:flex; flex-direction:row; gap:4px; }
 .pv-ud-bmrow .pv-ud-mode { height:36px; flex:1 1 0; }
 .pv-ud-hr { height:1px; background:var(--pv-border); flex:0 0 1px; }
