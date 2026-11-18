@@ -12,6 +12,8 @@ from .recommendation_viewer import RecommendationViewer
 from .card_actions import CardActions
 from .card_context_menu import MenuEntry, build_context_menu, open_from_keyboard
 
+_TREND_TIERS=((16,2.0),(13.5,1.5),(12,1),(11,1))
+
 class RecommendView:
     def __init__(self,services,*,on_open=None,on_enqueue=None,card_size="large",on_size_change=None,on_navigate_to_learning=None,on_search_tag=None):
         self.services=services
@@ -380,13 +382,17 @@ class RecommendView:
                             b.set_enabled(data['writable'] and 0<=list(data['order']).index(kind)+delta<len(data['order']))
                     if kind in data['collapsed']:continue
                     if kind=='trend':
-                        with ui.row().classes('gap-2'):
+                        trends=data.get('trends',())
+                        if len(trends)>40:ui.label(f'+{len(trends)-40}').classes('pv-subtitle')
+                        with ui.row().classes('gap-2 w-full').style('max-height: 80px; overflow: hidden; align-content: flex-start'):
                             added={r['tag'] for r in data.get('added_tags',())}
-                            for trend in data.get('trends',()):
+                            for index,trend in enumerate(trends[:40]):
                                 tag=trend['tag'];display=trend.get('display') or tag
+                                size,border=_TREND_TIERS[min(index,3)]
                                 b=ui.button(('追加済み: ' if tag in added else '')+display,
-                                    on_click=lambda e,t=tag,d=display:self.toggle_trend(t,d)).props('outline')
-                                b.set_enabled(data.get('can_acquire',False))
+                                    on_click=lambda e,t=tag,d=display:self.toggle_trend(t,d)).props(f'outline data-testid=recommend-trend-pill-{index}')
+                                b.style(f'font-size: {size}px; border-width: {1.5 if tag in added else border}px; border-radius: 999px')
+                                b.set_enabled(data['writable'] if tag in added else data.get('can_acquire',False))
                         if not data.get('trends'):ui.label('表示できる傾向がまだありません。学習済みの判定から計算します。')
                         continue
                     if kind=='trend_added':

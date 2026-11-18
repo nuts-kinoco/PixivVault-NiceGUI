@@ -1,0 +1,23 @@
+import asyncio
+import pytest
+from nicegui import Client, core, ui
+from test_x_ctx_recommend_20261118 import make, open_view
+
+
+@pytest.mark.asyncio
+async def test_trend_tiers_and_overflow_count(tmp_path, monkeypatch):
+    monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
+    services = make(tmp_path)
+    services.recommendations.acquisition.trend_provider = lambda: [dict(tag=f't{i}', display=f'T{i}') for i in range(43)]
+    client = Client(ui.page('/_aa_trend'))
+    try:
+        with client:
+            view = await open_view(services)
+            nodes = list(view.body.descendants())
+            pills = [n for n in nodes if n.props.get('data-testid', '').startswith('recommend-trend-pill-')]
+            assert len(pills) == 40
+            assert [p._style['font-size'] for p in pills[:5]] == ['16px', '13.5px', '12px', '11px', '11px']
+            assert any(getattr(n, 'text', None) == '+3' for n in nodes)
+            view.close()
+    finally:
+        client.delete(); services.close()
