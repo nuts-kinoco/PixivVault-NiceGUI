@@ -132,20 +132,16 @@ class ManagedScheduler:
         book = self._favourites_source
         return self.favourites_seeded() and not (book is not None and book.readable())
 
-    def _is_star(self, author_id: str) -> bool:
+    def _is_star(self, author_id: str) -> bool | None:
         """The same answer as favourites(): the ledger once imported, else the own list plus the
         stars set on the screen (the ledger's), so a pending work is never judged by half of them."""
         book = self._favourites_source
         readable = book is not None and book.readable()
         if readable:
-            import time
-            stamp, cached = self._star_cache
-            if time.monotonic() - stamp > 5.0:
-                try:
-                    cached = frozenset(book.ids())
-                except Exception:
-                    cached = frozenset()
-                self._star_cache = (time.monotonic(), cached)
+            try:
+                cached = frozenset(book.ids())
+            except Exception:
+                return None  # unreadable is unknown, never an empty list
             if author_id in cached:
                 return True
             if self._ledger_is_source():
@@ -397,7 +393,7 @@ class ManagedScheduler:
             # concurrent settings transaction.
             if self._stars_unknown():
                 pass  # keep the pending work; it is judged again when the ledger can be read
-            elif not self._is_star(author_id):
+            elif self._is_star(author_id) is False:
                 return
             self._db.execute('INSERT INTO deferred_work(author_id,work_id,update_date,page_count,work_type,created_utc) VALUES(?,?,?,?,?,?) ON CONFLICT(author_id,work_id) DO UPDATE SET update_date=excluded.update_date,page_count=excluded.page_count,work_type=excluded.work_type',
                              (author_id, work['id'], work['update_date'], work['page_count'], work['type'], _timestamp(now)))
