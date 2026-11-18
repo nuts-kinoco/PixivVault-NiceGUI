@@ -844,6 +844,9 @@ class ManagedGenerations:
             return 'fresh' if _identity(self.output_dir) == loaded.out_sig else 'legacy'
         if base is None or base != loaded.base_sig:
             return 'stale'
+        if loaded.version == 5:
+            # Stat metadata cannot prove the cached prefix or its mark remains intact.
+            return 'stale'
         journal = _identity(loaded.jpath) if loaded.jpath is not None else None
         if journal == loaded.journal_sig:
             return 'fresh' if _identity(self.output_dir) == loaded.out_sig else 'legacy'
