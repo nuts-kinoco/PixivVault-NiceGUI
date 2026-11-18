@@ -3032,13 +3032,13 @@ class ApplicationServices:
         except RuntimeError:
             loop = None
 
-        def refresh_bookmarks():
+        def refresh_bookmarks(expected_account):
             if self.live_client is None and self.library_repository is None:
                 raise RuntimeError('bookmark source unavailable')
             if loop is not None and loop.is_running():
-                asyncio.run_coroutine_threadsafe(self.refresh_bookmark_cache(expected_account=engine.account_id), loop).result()
+                asyncio.run_coroutine_threadsafe(self.refresh_bookmark_cache(expected_account=expected_account), loop).result()
             else:
-                asyncio.run(self.refresh_bookmark_cache(expected_account=engine.account_id))
+                asyncio.run(self.refresh_bookmark_cache(expected_account=expected_account))
 
         return engine.start_unfinished(run_id, bookmark_refresh=refresh_bookmarks)
 
@@ -3063,10 +3063,12 @@ class ApplicationServices:
         engine = self.batch_runs
         if engine is None or self.closing:
             raise RuntimeError('author batch runs are not enabled')
+        account_id = engine.account_id
         if self.following_sync is not None:
             # No network: the account of the newest completed follow sync. Without one nothing is stamped.
-            engine.account_id = self.following_sync.last_synced_account()
-        return engine.start(tuple(author_ids), kind=kind, origin=origin, target_type=target_type)
+            account_id = self.following_sync.last_synced_account()
+        return engine.start(tuple(author_ids), kind=kind, origin=origin, target_type=target_type,
+                            account_id=account_id)
 
     async def start_bookmark_run(self, visibilities, *, origin='manual', target_type=None):
         """「マイブックマーク」の実行 1 回: read the complete bookmark lists (Pixiv, behind the stop gate), then run.
@@ -3081,8 +3083,8 @@ class ApplicationServices:
         engine = self.batch_runs
         if engine is None or self.closing:
             raise RuntimeError('author batch runs are not enabled')
-        engine.account_id = account
-        return engine.start(tuple(visibilities), kind='bookmarks', origin=origin, target_type=target_type)
+        return engine.start(tuple(visibilities), kind='bookmarks', origin=origin, target_type=target_type,
+                            account_id=account)
 
     def bookmark_layout(self):
         """The bookmark projection layout and optional per-work folders."""
