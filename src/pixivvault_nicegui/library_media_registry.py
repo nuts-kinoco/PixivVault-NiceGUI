@@ -188,10 +188,16 @@ class LibraryImageRegistry:
             raise ValueError("image snapshot not found")
         return version
 
-    def _provider(self, version: _Version, work_id: str):
+    def _provider(self, version: _Version, work_id: str, variant=None):
         if version.local is not None and work_id in getattr(version.local, 'source_pages', {}):
             # Empty page maps are managed tombstones, not permission to use
             # another local/remote copy of the same work.
+            return version.local
+        cover = getattr(version.local, 'supports_novel_cover', None)
+        if variant == 'thumb' and callable(cover) and cover(work_id):
+            remote_record = getattr(version.remote, 'works', {}).get(work_id)
+            if remote_record is not None and getattr(remote_record, 'thumbnail', None):
+                return version.remote
             return version.local
         if version.local is not None and work_id in version.local.works:
             # Local still-image catalogs cannot decode novel text/animation.
@@ -301,7 +307,7 @@ class LibraryImageRegistry:
             raise ValueError("invalid image identity")
         with self._lock:
             version = self._version(token)
-            provider = self._provider(version, work_id)
+            provider = self._provider(version, work_id, variant)
             if provider is self.demo:
                 try:
                     return self.demo.url(work_id, page_no, variant)
@@ -357,7 +363,7 @@ class LibraryImageRegistry:
             key = token
             version = self._version(key)
             version.refs += 1  # Own the resource while a response is decoded.
-            provider = self._provider(version, work_id)
+            provider = self._provider(version, work_id, variant)
         try:
             return provider.get(work_id, page_no, variant)
         finally:
@@ -370,7 +376,7 @@ class LibraryImageRegistry:
         if not isinstance(token, str) or not re.fullmatch(r"[a-f0-9]{32}", token):
             raise ValueError("invalid image snapshot")
         with self._lock:
-            provider = self._provider(self._version(token), work_id)
+            provider = self._provider(self._version(token), work_id, variant)
             if provider is self.demo:
                 return self.demo.get(work_id, page_no, variant)
             peek = getattr(provider, "peek", None)

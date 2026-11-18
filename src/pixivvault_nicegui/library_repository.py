@@ -97,6 +97,19 @@ class ReadonlyLibraryRepository:
         return tuple(tag for tag in parsed if type(tag) is str) if isinstance(parsed, list) else ()
 
     @staticmethod
+    def _has_thumbnail_url(raw: object) -> bool:
+        try:
+            meta = json.loads(raw or 'null') or {}
+        except (TypeError, ValueError, UnicodeError):
+            return False
+        if not isinstance(meta, dict):
+            return False
+        urls = meta.get('urls')
+        if urls:
+            return isinstance(urls, dict) and bool(urls.get('small') or urls.get('thumb'))
+        return bool(meta.get('url'))
+
+    @staticmethod
     def _metadata(row, *, viewed=None):
         keys=set(row.keys())
         return dict(author_id=str(row["user_id"] or "") if "user_id" in keys else None,
@@ -199,7 +212,7 @@ class ReadonlyLibraryRepository:
                 author_order='follow_order ASC' if 'follow_order' in author_columns else 'rowid'
                 author_names={str(row[0]):str(row[1] or '') for row in self._conn.execute(
                     f"SELECT user_id,name FROM following_users ORDER BY {author_order}")}
-                optional = ("last_backup", "content_type", "create_date", "bookmark_count", "x_restrict", "ai_type")
+                optional = ("last_backup", "content_type", "create_date", "bookmark_count", "x_restrict", "ai_type", "work_meta")
                 fields = [f"w.{name}" if name in columns else f"NULL AS {name}" for name in optional]
                 tables = {row[0] for row in self._conn.execute(
                     "SELECT name FROM sqlite_master WHERE type='table'")}
@@ -255,6 +268,7 @@ class ReadonlyLibraryRepository:
                                      page_count_known=known,
                                      view_count=max(0, int(view_counts.get(row["work_id"]) or 0)),
                                      work_type=str(row["content_type"] or "illust"),
+                                     has_thumbnail_url=self._has_thumbnail_url(row["work_meta"]),
                                      author_name=author_name))
         return LibrarySnapshot(tuple(works), author_capacities=capacity_by_author,author_names=author_names)
 

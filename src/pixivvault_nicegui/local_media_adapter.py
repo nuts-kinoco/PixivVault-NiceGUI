@@ -86,6 +86,7 @@ class ReadonlyLocalMediaCatalog:
         self._index_lock = Lock()
         self._closed = False
         self._locations: dict[tuple[str, int], tuple[tuple[Path, str | None], ...]] = {}
+        self._novel_covers: dict[tuple[str, int], tuple[tuple[Path, str | None], ...]] = {}
         self._failed_authors: set[str] = set()
         self._ambiguous: set[tuple[str, int]] = set()
         self._presence_uncertain_authors: set[str] = set()
@@ -264,18 +265,25 @@ class ReadonlyLocalMediaCatalog:
                 return match.group(1)
         return None
 
-    def _index(self, works) -> tuple[dict, set, set, set]:
+    def _index(self, works) -> tuple[dict, set, set, set, dict]:
         locations = defaultdict(list)
+        covers = defaultdict(list)
         failed_authors: set[str] = set()
         ambiguous: set[tuple[str, int]] = set()
         uncertain_authors: set[str] = set()
         grouped = defaultdict(dict)
+        novels = defaultdict(dict)
         unique_titles = {}
         examined = 0
         stores_by_author, wrappers = self._discover_stores()
         for work in works.values():
             if work.work_type not in {"ugoira", "novel"}:
                 grouped[work.author_id][work.work_id] = work
+            elif work.work_type == "novel" and not work.has_thumbnail_url:
+                raw_id = work.work_id.removeprefix("novel:")
+                if _ID.fullmatch(raw_id):
+                    novels[work.author_id][raw_id] = work.work_id
+                    grouped.setdefault(work.author_id, {})
         for author_id, author_works in grouped.items():
             by_title = defaultdict(list)
             self._analysis_checkpoint()
@@ -315,6 +323,8 @@ class ReadonlyLocalMediaCatalog:
             for store in stores_by_author.get(author_id, ()):
                 self._analysis_checkpoint()
                 if store.suffix.lower() == ".zip":
+                    if not author_works:
+                        continue
                     try:
                         with self._checked_open(store) as source, ZipFile(source) as archive:
                             infos = archive.infolist()
@@ -351,6 +361,10 @@ class ReadonlyLocalMediaCatalog:
                             raise MediaUnavailable("too many media entries")
                         if not path.is_file() or not _safe_file(path, self.root):
                             continue
+                        if path.suffix.lower() in _IMAGE and path.stem.startswith("cover_"):
+                            novel_id = novels[author_id].get(path.stem[6:])
+                            if novel_id is not None:
+                                covers[(novel_id, 0)].append((path, None))
                         name = path.relative_to(store).as_posix()
                         append((path, None), resolve(name, author_id, author_works,
                                                      unique_titles[author_id]))
@@ -374,7 +388,8 @@ class ReadonlyLocalMediaCatalog:
                     append((path, None), resolve(suffix_name, author_id, author_works,
                                                  unique_titles[author_id]))
         return ({key: tuple(items) for key, items in locations.items()},
-                failed_authors, ambiguous, uncertain_authors)
+                failed_authors, ambiguous, uncertain_authors,
+                {key: tuple(items) for key, items in covers.items()})
 
     def _ensure_index(self) -> None:
         self._analysis_checkpoint()
@@ -395,12 +410,13 @@ class ReadonlyLocalMediaCatalog:
                     return
                 generation = self._generation
                 works = dict(self.works)
-            locations, failures, ambiguous, uncertain_authors = self._index(works)
+            locations, failures, ambiguous, uncertain_authors, covers = self._index(works)
             self._analysis_checkpoint()
             with self._lock:
                 if self._closed or self._generation != generation:
                     raise MediaUnavailable("obsolete library index")
                 self._locations = locations
+                self._novel_covers = covers
                 self._failed_authors = failures
                 self._ambiguous = ambiguous
                 self._presence_uncertain_authors = uncertain_authors
@@ -475,11 +491,21 @@ class ReadonlyLocalMediaCatalog:
         if self._closed:
             raise MediaUnavailable("catalog closed")
         work = self.works.get(work_id)
-        if (work is None or not _ID.fullmatch(work_id) or
+        valid_id = _ID.fullmatch(work_id.removeprefix("novel:")) if isinstance(work_id, str) else False
+        if (work is None or not valid_id or
             type(page_no) is not int or not 0 <= page_no < work.page_count or
             variant not in {"thumb", "view", "original"}):
             raise MediaMissing("image not found")
-        if work.work_type in {"ugoira", "novel"}:
+        if work.work_type == "novel":
+            if variant != "thumb" or page_no != 0:
+                raise MediaMissing("unsupported media type")
+            choices = self._novel_covers.get((work_id, 0), ())
+            if not choices:
+                raise MediaMissing("image not found")
+            if len(choices) != 1:
+                raise MediaAmbiguous("multiple novel covers")
+            return choices[0]
+        if work.work_type == "ugoira":
             raise MediaMissing("unsupported media type")
         if not self._indexed:
             raise MediaUnavailable("library index not yet prepared")
@@ -557,10 +583,18 @@ class ReadonlyLocalMediaCatalog:
             if self._closed:
                 raise MediaUnavailable("catalog closed")
             work = self.works.get(work_id)
-            if (work is None or not _ID.fullmatch(work_id) or type(page_no) is not int
+            if (work is None or not isinstance(work_id, str) or not _ID.fullmatch(work_id.removeprefix("novel:")) or type(page_no) is not int
                     or not 0 <= page_no < work.page_count or variant not in {"thumb", "view", "original"}):
                 raise MediaMissing("image not found")
+            if work.work_type == 'novel' and (variant != 'thumb' or page_no != 0):
+                raise MediaMissing("unsupported media type")
             return f"/media/{work_id}/{page_no}/{variant}.png"
+
+    def supports_novel_cover(self, work_id):
+        with self._lock:
+            work = self.works.get(work_id)
+            return (not self._closed and work is not None and work.work_type == 'novel'
+                    and not work.has_thumbnail_url)
 
     def supports_original(self, work_id: str) -> bool:
         with self._lock:
@@ -574,10 +608,11 @@ class ReadonlyLocalMediaCatalog:
             if self._closed:
                 raise MediaUnavailable("catalog closed")
             work = self.works.get(work_id)
-            if (work is None or not isinstance(work_id, str) or not _ID.fullmatch(work_id)
+            if (work is None or not isinstance(work_id, str) or not _ID.fullmatch(work_id.removeprefix("novel:"))
                     or type(page_no) is not int or not 0 <= page_no < work.page_count
                     or variant not in {"thumb", "view", "original"}
-                    or work.work_type in {"ugoira", "novel"}):
+                    or work.work_type == "ugoira"
+                    or (work.work_type == "novel" and (variant != "thumb" or page_no != 0))):
                 raise MediaMissing("image not found")
         self._ensure_index()
         with self._lock:
@@ -680,6 +715,7 @@ class ReadonlyLocalMediaCatalog:
             self._closed = True
             if self._shared_cache is not None:self._shared_cache.close()
             self._locations.clear()
+            self._novel_covers.clear()
             self._failed_authors.clear()
             self._ambiguous.clear()
             self._presence_uncertain_authors.clear()
@@ -695,6 +731,7 @@ class ReadonlyLocalMediaCatalog:
                 raise MediaUnavailable("catalog closed")
             self.works = {work.work_id: work for work in snapshot.works}
             self._locations.clear()
+            self._novel_covers.clear()
             self._failed_authors.clear()
             self._ambiguous.clear()
             self._presence_uncertain_authors.clear()
