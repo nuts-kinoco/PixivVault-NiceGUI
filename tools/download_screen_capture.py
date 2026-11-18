@@ -51,7 +51,18 @@ def serve(args):
     from pixivvault_nicegui.services import ApplicationServices
 
     base = Path(args.root)
-    fake = S.FakeClient()
+    class CaptureClient(S.FakeClient):
+        """The smoke's fake plus an empty author inventory, so a run can finish offline."""
+
+        def get_author_artworks_complete(self, author_id):
+            self._hit("get_author_artworks_complete")
+            return []
+
+        def get_author_novel_ids(self, author_id):
+            self._hit("get_author_novel_ids")
+            return ()
+
+    fake = CaptureClient()
     store = NativeProfileStore(base / "profile")
     profile = NativeProfileBinding(store, launch_snapshot=store.snapshot())
     profile.auth_stop_required = True
@@ -256,6 +267,11 @@ def drive(args, out: Path, url):
                         page.screenshot(path=str(out / f"ours_{tag}_sortmenu.png"))
                         page.keyboard.press("Escape")
                         page.wait_for_timeout(200)
+                        page.get_by_test_id("unified-mode-bookmark").click()
+                        page.wait_for_timeout(300)
+                        page.screenshot(path=str(out / f"ours_{tag}_bookmark_mode.png"))
+                        page.get_by_test_id("unified-mode-followed").click()
+                        page.wait_for_timeout(300)
                         page.get_by_test_id("unified-details-open").click()
                         page.wait_for_timeout(1200)
                         page.screenshot(path=str(out / f"ours_{tag}_details.png"))

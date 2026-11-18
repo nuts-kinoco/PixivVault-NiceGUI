@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import queue
 import re
+import time
 from datetime import datetime
 
 from nicegui import ui
@@ -86,12 +87,14 @@ CSS = """
 .pv-ud-cardhead .a { font-size:13px; color:var(--pv-text); }
 .pv-ud-cardhead .b { font-size:12px; font-family:Consolas, monospace; color:#0096FA; }
 .pv-ud-chips { flex:1 1 0; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
+.pv-ud-chiplist { display:flex; flex-direction:column; gap:8px; flex:0 0 auto; }
 .pv-ud-chip { display:flex; flex-direction:row; align-items:center; gap:8px; height:44px; flex:0 0 44px; padding:0 4px 0 12px; border-radius:8px; background:var(--pv-raised); }
 .pv-ud-chip .who { flex:1 1 0; min-width:0; display:flex; flex-direction:column; justify-content:center; }
 .pv-ud-chip .nm { font-size:12.5px; color:var(--pv-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:16px; }
 .pv-ud-chip .id { font-size:11px; font-family:Consolas, monospace; color:var(--pv-muted); line-height:14px; }
 .pv-ud-chip .st { font-size:11px; font-family:Consolas, monospace; color:var(--pv-muted); white-space:nowrap; }
 .pv-ud-chip .st[data-kind=in_progress] { color:#0096FA; }
+.pv-ud-chip .st[data-kind=failed] { color:#e05555; }
 .pv-ud-chip .x { width:28px; height:28px; border:0; border-radius:14px; background:transparent; color:var(--pv-muted); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
 .pv-ud-chip .x .q-icon { font-size:14px; }
 .pv-ud-fav { flex:0 0 46px; height:46px; display:flex; flex-direction:row; align-items:center; gap:6px; padding:6px 8px 6px 12px; background:var(--pv-surface); border:1px solid var(--pv-border); border-radius:8px; }
@@ -160,6 +163,8 @@ class UnifiedDownloadView:
         self.resumable = None
         self._events: queue.SimpleQueue = queue.SimpleQueue()
         self._reload_task = None
+        self._mirrored: set[str] = set()
+        self._counts_at = float("-inf")
         self._unsubscribe = None
         self._rows: dict[str, dict] = {}
         self._loaded = False
@@ -357,6 +362,17 @@ class UnifiedDownloadView:
                     ui.label("この回の対象").classes("a")
                     self.target_count = ui.label("0 人").classes("b").props("data-testid=unified-target-count")
                 self.chips = ui.element("div").classes("pv-ud-chips").props("data-testid=unified-targets")
+                with self.chips:
+                    self.targets_empty = ui.label("左の一覧でチェックすると、ここに積まれます").classes("pv-ud-empty").props(
+                        "data-testid=unified-targets-empty")
+                    self.chip_list = ui.element("div").classes("pv-ud-chiplist")
+                    self.bookmark_chip = ui.element("div").classes("pv-ud-chip").props("data-testid=unified-chip-bookmark")
+                    with self.bookmark_chip:
+                        with ui.element("div").classes("who"):
+                            ui.label("マイブックマーク（全体）").classes("nm")
+                        ui.label("対象").classes("st").props("data-kind=in_progress")
+                    self.bookmark_chip.set_visibility(False)
+                self._chips = {}
             with ui.element("div").classes("pv-ud-fav").props("data-testid=unified-favorite-card"):
                 ui.icon("star")
                 ui.label("自動監視").classes("lab")
@@ -489,9 +505,17 @@ class UnifiedDownloadView:
                                     is_favorite=None if not known else bool(favourite),
                                     follow_order=known.get("follow_order") if isinstance(known.get("follow_order"), int)
                                     and known.get("follow_order") >= 0 else None)
-            managed.author_targets = tuple(target(t["user_id"], t["name"], t["origin"])
-                                           for t in self.targets if _is_author_id(t["user_id"]))
-            managed.author_revision += 1
+            desired = {t["user_id"]: t for t in self.targets if _is_author_id(t["user_id"])}
+            existing = tuple(managed.author_targets)
+            # 詳細の中で自分で足した作者は残す。この画面が前に渡して、いまは外れた作者だけを外す。
+            kept = tuple(a for a in existing if not (a.user_id in self._mirrored and a.user_id not in desired))
+            have = {a.user_id for a in kept}
+            added = tuple(target(uid, t["name"], t["origin"]) for uid, t in desired.items() if uid not in have)
+            merged = kept + added
+            if merged != existing:
+                managed.author_targets = merged
+                managed.author_revision += 1
+            self._mirrored = set(desired)
             if not managed.follow_authors and self.authors:
                 managed.follow_authors = tuple(target(str(a["user_id"]), a.get("name"), "follow")
                                                for a in self.authors if _is_author_id(str(a.get("user_id"))))
@@ -501,8 +525,12 @@ class UnifiedDownloadView:
             pass
 
     # ------------------------------------------------------------------ data
-    async def reload(self):
-        """作者表をフォロー台帳（ローカル）から読み直す。通信はしない。"""
+    async def reload(self, *, force_counts=False):
+        """作者表をフォロー台帳（ローカル）から読み直す。通信はしない。
+
+        保存済み件数（受領記録の集計）は重いので、直近 30 秒以内に読んだ値があれば読み直さない
+        （実行が終わったときだけ force_counts で読み直す）。
+        """
         if self.closed:
             return False
         read = getattr(self.services, "unified_download_authors", None)
@@ -514,9 +542,11 @@ class UnifiedDownloadView:
             return False
         self.authors = [dict(row) for row in rows]
         counts = getattr(self.services, "saved_author_counts", None)
-        if callable(counts):
+        now = time.monotonic()
+        if callable(counts) and (force_counts or now - self._counts_at >= 30.0):
             try:
                 self.work_counts = dict(await asyncio.to_thread(counts))
+                self._counts_at = time.monotonic()
             except Exception:
                 self.work_counts = {}
             if self.closed:
@@ -527,6 +557,7 @@ class UnifiedDownloadView:
 
     def apply_authors(self, rows):
         self.authors = [dict(row) for row in rows]
+        self._loaded = True
         self.page = 0
         self.render_all()
 
@@ -649,16 +680,17 @@ class UnifiedDownloadView:
         uid = str(user_id)
         if uid in self.target_ids():
             self.targets = U.remove_target(self.targets, uid)
+            self.after_targets_changed(removed=uid)
         else:
             author = U.find_author(self.authors, uid) or {"user_id": uid, "name": uid}
-            self.targets, _ = U.add_target(self.targets, author, "follow")
-        self.after_targets_changed()
+            self.targets, added = U.add_target(self.targets, author, "follow")
+            self.after_targets_changed(added=self.targets[-1] if added else None)
 
     def drop_target(self, user_id):
         if self.running:
             return
         self.targets = U.remove_target(self.targets, user_id)
-        self.after_targets_changed()
+        self.after_targets_changed(removed=str(user_id))
 
     def pick_from_id(self):
         uid = U.normalize_query(self.query)
@@ -670,7 +702,7 @@ class UnifiedDownloadView:
         self.targets, added = U.add_target(self.targets, author, "follow" if known else "id")
         if not added:
             self.set_notice(f"{author.get('name')} は既に対象に入っています。")
-        self.after_targets_changed()
+        self.after_targets_changed(added=self.targets[-1] if added else None)
         return added
 
     def add_favorites_to_targets(self):
@@ -722,10 +754,21 @@ class UnifiedDownloadView:
         self.notice_text = text
         self._render_band()
 
-    def after_targets_changed(self):
+    def after_targets_changed(self, *, added=None, removed=None):
+        """added / removed: 1 件だけ増減したときはチップを 1 つだけ足す・消す（数百人でも重くしない）。"""
         self._sync_marks()
         self._render_id_row()
-        self.render_targets()
+        if added is None and removed is None:
+            self.render_targets()
+        else:
+            if removed is not None:
+                entry = self._chips.pop(removed, None)
+                if entry is not None:
+                    entry["row"].delete()
+            if added is not None and str(added["user_id"]) not in self._chips and self.mode == "followed":
+                with self.chip_list:
+                    self._chip(added)
+            self._sync_target_header()
         self.render_controls()
         if self.legacy_open:
             self._mirror_to_legacy()
@@ -826,7 +869,7 @@ class UnifiedDownloadView:
                 self.band_error = str(event.get("error_code") or "")
                 self._after_run_end()
         if self.sync_engine() or changed:
-            self.render_targets()
+            self.refresh_chip_status()
             self.render_controls()
 
     def sync_engine(self):
@@ -846,10 +889,6 @@ class UnifiedDownloadView:
             self.band_state = self._ledger_outcome() or "done"
             self._after_run_end()
         if (self.run_state, self.band_state) != before:
-            if self.running:
-                self.root.classes(add="pv-ud-running")
-            else:
-                self.root.classes(remove="pv-ud-running")
             self._render_band()
             return True
         return False
@@ -865,16 +904,16 @@ class UnifiedDownloadView:
     def _after_run_end(self):
         """実行が終わった: 作者表（最後に取得した日・保存済み）を読み直し、再開の提示を確かめる。"""
         self.refresh_resumable()
-        self._schedule_reload()
+        self._schedule_reload(force_counts=True)
 
-    def _schedule_reload(self):
+    def _schedule_reload(self, force_counts=False):
         if self.closed:
             return
         try:
             asyncio.get_running_loop()
         except RuntimeError:
             return
-        self._reload_task = asyncio.ensure_future(self.reload())
+        self._reload_task = asyncio.ensure_future(self.reload(force_counts=force_counts))
 
     # ------------------------------------------------------------------ rendering
     def render_all(self):
@@ -937,7 +976,7 @@ class UnifiedDownloadView:
         self.author_list.clear()
         self._rows = {}
         with self.author_list:
-            if not window:
+            if not window and self._loaded:
                 ui.label("フォロー中の作者がまだ取り込まれていません。設定の「フォロー中リストの同期」を実行してください。"
                          if not self.authors else "条件に合う作者はいません。").classes("pv-ud-empty").props(
                     "data-testid=unified-empty")
@@ -1012,37 +1051,62 @@ class UnifiedDownloadView:
         self.header_check_icon.set_visibility(state in ("all", "partial"))
 
     def render_targets(self):
+        """この回の対象チップを全部作り直す（まとめて増減したとき・モードを替えたとき）。"""
         if self.closed:
             return
-        self.chips.clear()
-        with self.chips:
-            if self.mode == "bookmark":
-                with ui.element("div").classes("pv-ud-chip").props("data-testid=unified-chip"):
-                    with ui.element("div").classes("who"):
-                        ui.label("マイブックマーク（全体）").classes("nm")
-                    ui.label("対象").classes("st").props("data-kind=in_progress")
-                self.target_count.set_text("全体")
-                return
-            if not self.targets:
-                ui.label("左の一覧でチェックすると、ここに積まれます").classes("pv-ud-empty").props(
-                    "data-testid=unified-targets-empty")
-            for target in self.targets:
-                uid = str(target["user_id"])
-                kind, index, total = self.progress.chip(uid)
-                text = ("完了" if kind == "done" else f"取得中 {index}/{total}" if kind == "in_progress" else "待機")
-                with ui.element("div").classes("pv-ud-chip").props(
-                        f"data-testid=unified-chip data-user-id={uid} data-origin={target.get('origin')} data-status={kind}"):
-                    with ui.element("div").classes("who"):
-                        ui.label(str(target.get("name") or uid)).classes("nm")
-                        ui.label(uid).classes("id")
-                    ui.label(text).classes("st").props(f"data-kind={kind}")
-                    drop = ui.element("button").classes("x").props(
-                        "type=button data-testid=unified-chip-remove title=取り消す aria-label=取り消す")
-                    with drop:
-                        ui.icon("close")
-                    drop.on("click", lambda _e, u=uid: self.drop_target(u))
-        summary = U.summarize_targets(self.targets)
-        self.target_count.set_text(f"{summary['total']} 人")
+        self.chip_list.clear()
+        self._chips = {}
+        if self.mode == "followed":
+            with self.chip_list:
+                for target in self.targets:
+                    self._chip(target)
+        self._sync_target_header()
+
+    def _chip_status(self, uid):
+        if uid in self.progress.failed_authors:
+            return "failed", "失敗"
+        kind, index, total = self.progress.chip(uid)
+        text = "完了" if kind == "done" else f"取得中 {index}/{total}" if kind == "in_progress" else "待機"
+        return kind, text
+
+    def _chip(self, target):
+        uid = str(target["user_id"])
+        kind, text = self._chip_status(uid)
+        row = ui.element("div").classes("pv-ud-chip").props(
+            f"data-testid=unified-chip data-user-id={uid} data-origin={target.get('origin')} data-status={kind}")
+        with row:
+            with ui.element("div").classes("who"):
+                ui.label(str(target.get("name") or uid)).classes("nm")
+                ui.label(uid).classes("id")
+            status = ui.label(text).classes("st").props(f"data-kind={kind}")
+            drop = ui.element("button").classes("x").props(
+                "type=button data-testid=unified-chip-remove title=取り消す aria-label=取り消す")
+            with drop:
+                ui.icon("close")
+            drop.on("click", lambda _e, u=uid: self.drop_target(u))
+        self._chips[uid] = dict(row=row, status=status)
+
+    def _sync_target_header(self):
+        followed = self.mode == "followed"
+        self.chip_list.set_visibility(followed)
+        self.bookmark_chip.set_visibility(not followed)
+        self.targets_empty.set_visibility(followed and not self.targets)
+        if followed:
+            self.target_count.set_text(f"{U.summarize_targets(self.targets)['total']} 人")
+        else:
+            self.target_count.set_text("全体")
+
+    def refresh_chip_status(self):
+        """チップの状態（待機/取得中/完了/失敗）だけを書き換える。チップは作り直さない。"""
+        for uid, entry in self._chips.items():
+            kind, text = self._chip_status(uid)
+            if entry["status"].text != text:
+                entry["status"].set_text(text)
+            if entry["status"].props.get("data-kind") != kind:
+                entry["status"].props["data-kind"] = kind
+                entry["status"].update()
+                entry["row"].props["data-status"] = kind
+                entry["row"].update()
 
     def _render_favorite_card(self):
         count = sum(1 for a in self.authors if a.get("is_favorite"))
@@ -1051,6 +1115,10 @@ class UnifiedDownloadView:
     def render_controls(self):
         if self.closed:
             return
+        if self.running:
+            self.root.classes(add="pv-ud-running")
+        else:
+            self.root.classes(remove="pv-ud-running")
         reason = self.run_block_reason()
         runnable = not reason
         self._set_disabled(self.run_button, not runnable)
@@ -1097,6 +1165,8 @@ class UnifiedDownloadView:
         self.resume_button.set_visibility(interrupted)
         self.discard_button.set_visibility(interrupted)
         summary = f"差分DL · {TYPE_LABELS[self.target_type]} · 保存先 {self._save_label()}"
+        if self.band_state in ("done", "stopped", "failed") and progress.failed_authors:
+            summary = f"取得に失敗した作者 {len(progress.failed_authors)} 人 · " + summary
         if self.notice_text:
             summary = self.notice_text
         self.band_summary.set_text(summary)
@@ -1123,6 +1193,9 @@ class UnifiedDownloadView:
         self.active = active
         self.root.props["data-active"] = str(active).lower()
         self.root.update()
+        if not active and self.legacy_open:
+            self.dialog.close()            # 他のタブへ移るとき、詳細ダイアログを開いたままにしない
+            self.legacy_open = False
         self._set_legacy_active()
         if active:
             self.sync_engine()

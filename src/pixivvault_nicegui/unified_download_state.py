@@ -285,6 +285,7 @@ class RunProgress:
         self.pause_reason = ""
         self.counts = {}
         self.finished_authors = set()
+        self.failed_authors = set()      # 一覧取得などで失敗した作者（元と同じく先へ進むが、「完了」とは言わない）
         self.elapsed = 0.0
 
     @property
@@ -309,6 +310,8 @@ class RunProgress:
         elif name in ("author_done", "author_failed"):
             self.done += 1
             self.finished_authors.add(str(event["author_id"]))
+            if name == "author_failed":
+                self.failed_authors.add(str(event["author_id"]))
             self.current = None
         elif name == "run_paused":
             self.state, self.pause_reason = "paused", str(event.get("reason", ""))

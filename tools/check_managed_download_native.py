@@ -291,6 +291,8 @@ def _inspect_managed(page, guard, root: Path, *, restart: bool, before: dict, re
     else:
         result["phase"] = "refresh"
         run(page.get_by_test_id("tab-download").click)
+        # The per-work screen now lives in the 「作品単位で選ぶ（詳細）」 dialog of the restored download screen.
+        run(page.get_by_test_id("unified-details-open").click)
         download = page.get_by_test_id("managed-download-view")
         run(download.get_by_test_id("managed-download-refresh").click)
         run(expect(download.locator(".pv-download-item").first).to_be_visible)

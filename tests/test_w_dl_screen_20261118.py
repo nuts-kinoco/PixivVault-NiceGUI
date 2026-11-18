@@ -12,6 +12,7 @@ from pixivvault_nicegui.batch_engine import BatchRunEngine
 from pixivvault_nicegui.batch_runs import BatchRunLedger
 from pixivvault_nicegui.bookmark_remote_adapter import RemoteBookmark
 from pixivvault_nicegui.following_sync import FollowingSyncStore
+from pixivvault_nicegui.managed_network_stop_gate import ManagedNetworkStopped
 from pixivvault_nicegui.services import ApplicationServices
 from pixivvault_nicegui.ui.unified_download_view import NEED_TARGET, PAGE_SIZE, UnifiedDownloadView
 
@@ -29,14 +30,19 @@ class FakePort:
     def __init__(self, hold=False):
         self.hold = hold
         self.enqueued = []
+        self.gate_closed = False
+        self.failing = set()
 
     def require_allowed(self):
-        pass
+        if self.gate_closed:
+            raise ManagedNetworkStopped(429)
 
     def author_target(self, aid):
         return None
 
     def list_author(self, aid, target):
+        if aid in self.failing:
+            raise RuntimeError('listing failed')
         return (cand(aid, int(aid) * 10 + 1), cand(aid, int(aid) * 10 + 2))
 
     def enqueue(self, candidate, operation_id):
@@ -148,11 +154,11 @@ def texts(client):
     return [element.text for element in client.elements.values() if isinstance(getattr(element, 'text', None), str)]
 
 
-def make(tmp_path, rows=(), **kwargs):
+def make(tmp_path, rows=(), legacy_factory=None, **kwargs):
     services = FakeServices(tmp_path, rows, **kwargs)
     client = Client(ui.page(f'/_w_{id(services)}'))
     with client:
-        view = UnifiedDownloadView(services)
+        view = UnifiedDownloadView(services, legacy_factory=legacy_factory)
     return services, client, view
 
 
@@ -512,3 +518,162 @@ def test_services_expose_the_local_author_rows_and_saved_counts(tmp_path):
         assert events == [{'event': 'run_start'}]
     finally:
         services.close()
+
+
+@pytest.mark.asyncio
+async def test_running_dims_unpicked_names_and_blocks_changes_until_the_run_ends(tmp_path):
+    services, client, view = make(tmp_path, hold=True)
+    try:
+        await view.reload()
+        view.toggle_pick('41')
+        assert view.run()
+        assert 'pv-ud-running' in view.root.classes
+        view.toggle_pick('42')                           # the list of this round is frozen while it runs
+        view.select_all_shown()
+        assert view.target_ids() == ['41']
+        view.cycle_type()
+        assert view.target_type == 'both'
+        view.stop()
+        assert services.batch_runs.join(10)
+        view.tick()
+        assert 'pv-ud-running' not in view.root.classes
+        view.toggle_pick('42')
+        assert view.target_ids() == ['41', '42']
+    finally:
+        finish(services, client)
+
+
+@pytest.mark.asyncio
+async def test_saved_counts_are_not_reread_on_every_reload_but_are_after_a_run(tmp_path):
+    services, client, view = make(tmp_path, author_rows(2))
+    calls = []
+    services.saved_author_counts = lambda: (calls.append(1), {'1001': 4})[1]
+    try:
+        await view.reload()
+        await view.reload()
+        assert len(calls) == 1 and view.work_counts == {'1001': 4}
+        await view.reload(force_counts=True)
+        assert len(calls) == 2
+        view.set_active(False)
+        view.set_active(True)                            # coming back to the tab reads the ledger again, cheaply
+        await asyncio.sleep(0.05)
+        assert len(calls) == 2
+    finally:
+        finish(services, client)
+
+
+@pytest.mark.asyncio
+async def test_a_closed_stop_gate_pauses_the_run_instead_of_failing_it(tmp_path):
+    services, client, view = make(tmp_path)
+    try:
+        await view.reload()
+        services.port.gate_closed = True
+        view.toggle_pick('41')
+        assert view.run()
+        for _ in range(300):
+            view.tick()
+            if view.run_state == 'paused':
+                break
+            await asyncio.sleep(0.01)
+        assert view.run_state == 'paused' and view.progress.pause_reason == 'network_stopped'
+        assert view.band_status.text == U.PAUSE_TEXT['network_stopped'] and view.pause_icon.props['name'] == 'play_arrow'
+        assert view.progress.failed_authors == set()
+        assert services.following_sync.snapshot(ACCOUNT).authors[0].last_downloaded is None
+        services.port.gate_closed = False                # recovered; 再開
+        view.toggle_pause()
+        assert services.batch_runs.join(10)
+        view.tick()
+        assert view.band_status.text == '完了しました。' and services.batch_run_ledger.runs()[0].state == 'done'
+    finally:
+        finish(services, client)
+
+
+@pytest.mark.asyncio
+async def test_an_author_that_could_not_be_listed_is_shown_as_failed_not_done(tmp_path):
+    services, client, view = make(tmp_path)
+    try:
+        await view.reload()
+        services.port.failing = {'42'}
+        view.toggle_pick('41')
+        view.toggle_pick('42')
+        assert view.run()
+        assert services.batch_runs.join(10)
+        view.tick()
+        status = {c.props['data-user-id']: c.props['data-status'] for c in by_testid(client)['unified-chip']}
+        assert status == {'41': 'done', '42': 'failed'}
+        assert [e.text for e in client.elements.values() if getattr(e, 'text', None) in ('完了', '失敗')] == ['完了', '失敗']
+        assert '取得に失敗した作者 1 人' in view.band_summary.text
+        await view.reload(force_counts=True)
+        stamped = {a['user_id']: a['last_downloaded'] for a in view.authors}
+        assert stamped['41'] and stamped['42'] is None   # the failed author is not stamped
+    finally:
+        finish(services, client)
+
+
+@pytest.mark.asyncio
+async def test_four_hundred_authors_select_all_and_chips_update_in_place(tmp_path):
+    import time
+    services, client, view = make(tmp_path, author_rows(400))
+    try:
+        await view.reload()
+        t0 = time.monotonic()
+        view.select_all_shown()
+        assert len(view._chips) == 400 and view.target_count.text == '400 人'
+        view.toggle_pick('1001')                         # one chip goes, none is rebuilt
+        survivor = view._chips['1002']['row']
+        view.toggle_pick('1001')
+        assert view._chips['1002']['row'] is survivor and len(view._chips) == 400
+        view.progress = U.RunProgress(view.target_ids())
+        view.progress.apply({'event': 'author_done', 'author_id': '1002'})
+        view.refresh_chip_status()
+        assert view._chips['1002']['row'] is survivor and view._chips['1002']['status'].text == '完了'
+        assert time.monotonic() - t0 < 20
+        assert view.page_count() == 8 and view.count_label.text.endswith('1 / 8 ページ')
+    finally:
+        finish(services, client)
+
+
+@pytest.mark.asyncio
+async def test_details_dialog_keeps_authors_added_inside_it_and_closes_when_the_tab_is_left(tmp_path):
+    from pixivvault_nicegui.author_download import AuthorTarget
+    services, client, view = make(tmp_path, author_rows(4))
+    try:
+        await view.reload()
+        view.toggle_pick('1002')
+        view.open_details()
+        managed = view.managed
+        managed.author_targets = (*managed.author_targets, AuthorTarget('777', 'ID 777', 'id'))   # added in the dialog
+        view.close_details()
+        view.toggle_pick('1002')                         # dropped from this round
+        view.toggle_pick('1003')
+        view.open_details()
+        assert [a.user_id for a in managed.author_targets] == ['777', '1003']   # 777 kept, 1002 removed, 1003 added
+        revision = managed.author_revision
+        view.close_details()
+        view.open_details()
+        assert managed.author_revision == revision        # nothing changed: the diff list is not reset
+        view.set_active(False)                            # leaving the tab closes the dialog
+        assert view.legacy_open is False and managed.active is False
+    finally:
+        finish(services, client)
+
+
+@pytest.mark.asyncio
+async def test_a_multi_media_legacy_view_fits_in_the_details_dialog(tmp_path):
+    from pixivvault_nicegui.ui.media_views import MediaDownloadView
+    services, client, view = make(tmp_path, author_rows(2), legacy_factory=lambda: MediaDownloadView(services))
+    services.novel_jobs = None
+    services.ugoira = None
+    try:
+        await view.reload()
+        view.toggle_pick('1001')
+        assert view.open_details()
+        assert isinstance(view.legacy, MediaDownloadView) and view.managed is view.legacy.views['illustration']
+        assert [a.user_id for a in view.managed.author_targets] == ['1001']
+        found = by_testid(client)
+        assert 'managed-download-view' in found and 'media-download' in found
+        assert view.legacy.active is True
+        view.close_details()
+        assert view.legacy.active is False
+    finally:
+        finish(services, client)
