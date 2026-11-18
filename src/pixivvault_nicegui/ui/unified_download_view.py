@@ -355,6 +355,7 @@ class UnifiedDownloadView:
         """マイブックマーク面（元 bookmark_pane）: 含めるブックマーク / 保存方式 / 未フォロー作者を確認。"""
         with ui.element("div").classes("pv-ud-bmbox"):
             ui.label("対象の選び方はありません").classes("pv-ud-sub")
+            ui.label("小説・うごイラのブックマークは対象外です").classes("pv-ud-sub")
             ui.label("含めるブックマーク").classes("cap")
             with ui.column().classes("gap-0"):
                 self.bm_checks = {}
