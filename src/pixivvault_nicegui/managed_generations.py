@@ -56,6 +56,7 @@ _JOURNAL = 'active-generations.journal'            # pre-v5 name, read for upgra
 _JOURNAL_FILE = 'active-generations-%s.journal'
 _MARK_FILE = 'active-generations-%s.mark'
 _V5_COMMITTED = 'active-generations.v5-committed'
+_V5_DONE = b'pixivvault generation v5 committed\n'
 _JOURNAL_NAME = re.compile(r'active-generations-([a-f0-9]{32})\.(journal|mark)\Z')
 _JOURNAL_RETAIN_SECONDS = 120.0       # how long a folded-away journal stays for readers of the old index
 _JOURNAL_RECORD_ESTIMATE = 600           # bytes one journal record takes, rounded up
@@ -626,8 +627,13 @@ class ManagedGenerations:
                     raise ValueError()
                 loaded.jid = journal['id']
             else:
-                if _identity(self.root / _V5_COMMITTED) is not None:
-                    raise ValueError()
+                pending_upgrade = False
+                marker_path = self.root / _V5_COMMITTED
+                if _identity(marker_path) is not None:
+                    pending_upgrade = (_read_shared(marker_path, 256) ==
+                                       b'upgrade:' + loaded.base_digest.encode('ascii') + b'\n')
+                    if not pending_upgrade:
+                        raise ValueError()
                 # An older index cannot account for publications in a v5 journal. Empty
                 # journals are allowed: upgrade creates them before replacing the index.
                 for path in self.root.glob('active-generations-*.journal'):
@@ -653,6 +659,14 @@ class ManagedGenerations:
             self._quarantine_fields(loaded.qpacket(), verify_payloads=True, tolerate_missing=False)
             loaded.indexed = self._check_entries(packet['entries'], loaded.version, folders)
             self._replay_journal(loaded, folders)
+            if (loaded.version != 5 and not pending_upgrade
+                    and (any(self.root.glob('active-generations-*.journal'))
+                         or any(self.stage_dir.glob('journal-*.tmp')))):
+                referenced = {entry['relative_receipt'].split('/')[1] for entry in loaded.indexed.values()}
+                if generations - referenced:
+                    # Older releases may have folded and pruned the only published journal.
+                    # Without a durable upgrade intent, an orphan cannot safely be ignored.
+                    raise ValueError()
             if (loaded.version != 5 and not loaded.indexed and generations
                     and self._legacy_journal_evidence()):
                 # An empty index of an older build with sealed generations is usually the harmless
@@ -1484,18 +1498,25 @@ class ManagedGenerations:
         wid = _id(work_id)
         return self._work_token(self.state_snapshot(), wid)
 
+    def _write_v5_marker(self, data):
+        marker = self.root / _V5_COMMITTED
+        _safe_path(self.stage_dir)
+        temporary = self.stage_dir / ('v5-commit-' + uuid4().hex + '.tmp')
+        _write(temporary, data)
+        _fsync_dir(self.stage_dir)
+        _replace_retrying(temporary, marker)
+        _fsync_dir(self.root)
+
     def _ensure_v5_committed(self):
         """Keep durable evidence before a v5 publication or a journal can be folded away."""
         marker = self.root / _V5_COMMITTED
         if _identity(marker) is not None:
-            _safe_path(marker, file=True)
-            return
-        _safe_path(self.stage_dir)
-        temporary = self.stage_dir / ('v5-commit-' + uuid4().hex + '.tmp')
-        _write(temporary, b'pixivvault generation v5 committed\n')
-        _fsync_dir(self.stage_dir)
-        _replace_retrying(temporary, marker)
-        _fsync_dir(self.root)
+            existing = _read_shared(marker, 256)
+            if existing == _V5_DONE:
+                return
+            if re.fullmatch(rb'upgrade:[a-f0-9]{64}\n', existing) is None:
+                raise ValueError()
+        self._write_v5_marker(_V5_DONE)
 
     def _commit_packet(self, packet, patience=5.0) -> None:
         loaded = self._loaded
@@ -1503,6 +1524,8 @@ class ManagedGenerations:
         if packet['version'] == 5 or (loaded is not None and loaded.version == 5 and packet['version'] in (3, 4)):
             if loaded is not None and loaded.version == 5:
                 self._ensure_v5_committed()
+            elif loaded is not None and loaded.version in (1, 2, 3, 4):
+                self._write_v5_marker(b'upgrade:' + loaded.base_digest.encode('ascii') + b'\n')
             # Every full rewrite of a v5 root starts a new, empty journal (the entries it held are in
             # this index), and quarantine commits keep the v5 guard instead of downgrading it.
             journal = self._new_journal(patience)
