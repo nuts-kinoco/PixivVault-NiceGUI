@@ -58,6 +58,7 @@ def test_sequenced_v5_latest_opens_and_rollback_is_refused(tmp_path, revision):
     writer.prepare_for_publication()
     first = publish(writer, root, '1000')
     old_index = (root / 'active-generations.json').read_bytes()
+    assert json.loads(old_index)['journal']['generation'] >= 1
     writer._compact(writer._loaded)
     relative, digest = make_generation(root, '1000', suffix='a' * 32)
     writer.publish('1000', relative, digest, first['update_date'], first['sha256'],
