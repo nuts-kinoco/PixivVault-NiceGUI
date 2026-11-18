@@ -1,0 +1,1596 @@
+{
+  "verdict": "PASS",
+  "out": "S:\\Projects\\PV-DEV-20261117\\wt-w\\.tmp-review\\ui-smoke-bulk-fixed",
+  "port": 22491,
+  "sizes": [
+    [
+      1280,
+      800
+    ],
+    [
+      1920,
+      1080
+    ]
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "screens": [
+    "startup",
+    "download",
+    "queue",
+    "failed",
+    "history",
+    "dedup",
+    "learning",
+    "ranking",
+    "library",
+    "recommend",
+    "personal",
+    "scheduler",
+    "metadata",
+    "settings"
+  ],
+  "strict_network": false,
+  "cells": {
+    "startup|1280x800|light": {
+      "failures": [],
+      "testids": 64,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "download|1280x800|light": {
+      "failures": [],
+      "testids": 64,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "queue|1280x800|light": {
+      "failures": [],
+      "testids": 42,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "failed|1280x800|light": {
+      "failures": [],
+      "testids": 49,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "history|1280x800|light": {
+      "failures": [],
+      "testids": 34,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "dedup|1280x800|light": {
+      "failures": [],
+      "testids": 42,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "learning|1280x800|light": {
+      "failures": [],
+      "testids": 39,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "ranking|1280x800|light": {
+      "failures": [],
+      "testids": 42,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "library|1280x800|light": {
+      "failures": [],
+      "testids": 48,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "recommend|1280x800|light": {
+      "failures": [],
+      "testids": 46,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "personal|1280x800|light": {
+      "failures": [],
+      "testids": 47,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "scheduler|1280x800|light": {
+      "failures": [],
+      "testids": 38,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "metadata|1280x800|light": {
+      "failures": [],
+      "testids": 31,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "settings|1280x800|light": {
+      "failures": [],
+      "testids": 102,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "startup|1280x800|dark": {
+      "failures": [],
+      "testids": 64,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "download|1280x800|dark": {
+      "failures": [],
+      "testids": 64,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "queue|1280x800|dark": {
+      "failures": [],
+      "testids": 42,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "failed|1280x800|dark": {
+      "failures": [],
+      "testids": 49,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "history|1280x800|dark": {
+      "failures": [],
+      "testids": 34,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "dedup|1280x800|dark": {
+      "failures": [],
+      "testids": 42,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "learning|1280x800|dark": {
+      "failures": [],
+      "testids": 39,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "ranking|1280x800|dark": {
+      "failures": [],
+      "testids": 42,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "library|1280x800|dark": {
+      "failures": [],
+      "testids": 48,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "recommend|1280x800|dark": {
+      "failures": [],
+      "testids": 46,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "personal|1280x800|dark": {
+      "failures": [],
+      "testids": 47,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "scheduler|1280x800|dark": {
+      "failures": [],
+      "testids": 38,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "metadata|1280x800|dark": {
+      "failures": [],
+      "testids": 31,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "settings|1280x800|dark": {
+      "failures": [],
+      "testids": 102,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "startup|1920x1080|light": {
+      "failures": [],
+      "testids": 64,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "download|1920x1080|light": {
+      "failures": [],
+      "testids": 64,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "queue|1920x1080|light": {
+      "failures": [],
+      "testids": 42,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "failed|1920x1080|light": {
+      "failures": [],
+      "testids": 49,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "history|1920x1080|light": {
+      "failures": [],
+      "testids": 34,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "dedup|1920x1080|light": {
+      "failures": [],
+      "testids": 42,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "learning|1920x1080|light": {
+      "failures": [],
+      "testids": 39,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "ranking|1920x1080|light": {
+      "failures": [],
+      "testids": 42,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "library|1920x1080|light": {
+      "failures": [],
+      "testids": 48,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "recommend|1920x1080|light": {
+      "failures": [],
+      "testids": 46,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "personal|1920x1080|light": {
+      "failures": [],
+      "testids": 47,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "scheduler|1920x1080|light": {
+      "failures": [],
+      "testids": 38,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "metadata|1920x1080|light": {
+      "failures": [],
+      "testids": 31,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "settings|1920x1080|light": {
+      "failures": [],
+      "testids": 102,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "startup|1920x1080|dark": {
+      "failures": [],
+      "testids": 64,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "download|1920x1080|dark": {
+      "failures": [],
+      "testids": 64,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "queue|1920x1080|dark": {
+      "failures": [],
+      "testids": 42,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "failed|1920x1080|dark": {
+      "failures": [],
+      "testids": 49,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "history|1920x1080|dark": {
+      "failures": [],
+      "testids": 34,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "dedup|1920x1080|dark": {
+      "failures": [],
+      "testids": 42,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "learning|1920x1080|dark": {
+      "failures": [],
+      "testids": 39,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "ranking|1920x1080|dark": {
+      "failures": [],
+      "testids": 42,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "library|1920x1080|dark": {
+      "failures": [],
+      "testids": 48,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "recommend|1920x1080|dark": {
+      "failures": [],
+      "testids": 46,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "personal|1920x1080|dark": {
+      "failures": [],
+      "testids": 47,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "scheduler|1920x1080|dark": {
+      "failures": [],
+      "testids": 38,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "metadata|1920x1080|dark": {
+      "failures": [],
+      "testids": 31,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "settings|1920x1080|dark": {
+      "failures": [],
+      "testids": 102,
+      "scroll": [
+        1920,
+        1920
+      ]
+    }
+  },
+  "network": {
+    "calls": [
+      "require_identity",
+      "get_following_users:show",
+      "get_following_users:hide",
+      "require_identity",
+      "get_ranking",
+      "require_identity",
+      "get_ranking",
+      "require_identity",
+      "get_ranking",
+      "require_identity",
+      "get_ranking",
+      "require_identity",
+      "get_ranking",
+      "require_identity",
+      "get_ranking",
+      "require_identity",
+      "get_ranking",
+      "require_identity",
+      "get_ranking",
+      "require_identity",
+      "get_ranking"
+    ],
+    "denied": 0,
+    "call_log": {
+      "startup": {
+        "calls": [
+          "require_identity",
+          "get_following_users:show",
+          "get_following_users:hide",
+          "require_identity",
+          "get_ranking"
+        ],
+        "sites": [
+          "services.fetch_scoped > services.fetch",
+          "services.fetch_scoped > services.fetch",
+          "services.fetch_scoped > services.fetch",
+          "discovery_learning._fetch_claimed > discovery_learning._fetch_candidates",
+          "discovery_learning._fetch_candidates > discovery_engine.get_next_batch > discovery_engine._source_ranking > discovery_learning.call"
+        ],
+        "denied": 0
+      },
+      "load|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "download|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "queue|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "failed|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "history|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "dedup|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "learning|1280x800|light": {
+        "calls": [
+          "require_identity",
+          "get_ranking"
+        ],
+        "sites": [
+          "discovery_learning._fetch_claimed > discovery_learning._fetch_candidates",
+          "discovery_learning._fetch_candidates > discovery_engine.get_next_batch > discovery_engine._source_ranking > discovery_learning.call"
+        ],
+        "denied": 0
+      },
+      "ranking|1280x800|light": {
+        "calls": [
+          "require_identity",
+          "get_ranking"
+        ],
+        "sites": [
+          "ranking_view._fetch_with_hidden > ranking_source.fetch",
+          "ranking_view._fetch_with_hidden > ranking_source.fetch"
+        ],
+        "denied": 0
+      },
+      "library|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "recommend|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "personal|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "scheduler|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "metadata|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "settings|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "load|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "download|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "queue|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "failed|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "history|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "dedup|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "learning|1280x800|dark": {
+        "calls": [
+          "require_identity",
+          "get_ranking"
+        ],
+        "sites": [
+          "discovery_learning._fetch_claimed > discovery_learning._fetch_candidates",
+          "discovery_learning._fetch_candidates > discovery_engine.get_next_batch > discovery_engine._source_ranking > discovery_learning.call"
+        ],
+        "denied": 0
+      },
+      "ranking|1280x800|dark": {
+        "calls": [
+          "require_identity",
+          "get_ranking"
+        ],
+        "sites": [
+          "ranking_view._fetch_with_hidden > ranking_source.fetch",
+          "ranking_view._fetch_with_hidden > ranking_source.fetch"
+        ],
+        "denied": 0
+      },
+      "library|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "recommend|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "personal|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "scheduler|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "metadata|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "settings|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "load|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "download|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "queue|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "failed|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "history|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "dedup|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "learning|1920x1080|light": {
+        "calls": [
+          "require_identity",
+          "get_ranking"
+        ],
+        "sites": [
+          "discovery_learning._fetch_claimed > discovery_learning._fetch_candidates",
+          "discovery_learning._fetch_candidates > discovery_engine.get_next_batch > discovery_engine._source_ranking > discovery_learning.call"
+        ],
+        "denied": 0
+      },
+      "ranking|1920x1080|light": {
+        "calls": [
+          "require_identity",
+          "get_ranking"
+        ],
+        "sites": [
+          "ranking_view._fetch_with_hidden > ranking_source.fetch",
+          "ranking_view._fetch_with_hidden > ranking_source.fetch"
+        ],
+        "denied": 0
+      },
+      "library|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "recommend|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "personal|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "scheduler|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "metadata|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "settings|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "load|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "download|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "queue|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "failed|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "history|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "dedup|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "learning|1920x1080|dark": {
+        "calls": [
+          "require_identity",
+          "get_ranking"
+        ],
+        "sites": [
+          "discovery_learning._fetch_claimed > discovery_learning._fetch_candidates",
+          "discovery_learning._fetch_candidates > discovery_engine.get_next_batch > discovery_engine._source_ranking > discovery_learning.call"
+        ],
+        "denied": 0
+      },
+      "ranking|1920x1080|dark": {
+        "calls": [
+          "require_identity",
+          "get_ranking"
+        ],
+        "sites": [
+          "ranking_view._fetch_with_hidden > ranking_source.fetch",
+          "ranking_view._fetch_with_hidden > ranking_source.fetch"
+        ],
+        "denied": 0
+      },
+      "library|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "recommend|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "personal|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "scheduler|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "metadata|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "settings|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      }
+    },
+    "fake_client_missing_attributes": [
+      "get_artwork_metadata_raw",
+      "get_following_users_detailed",
+      "set_request_admission",
+      "set_retry_policy"
+    ],
+    "foreign_browser_requests": [],
+    "failures": [],
+    "declared_on_open_calls_seen": {
+      "learning": [
+        "get_ranking",
+        "require_identity"
+      ],
+      "ranking": [
+        "get_ranking",
+        "require_identity"
+      ]
+    }
+  },
+  "harness_errors": [],
+  "testids": {
+    "startup": [
+      "db-status-banner",
+      "auth-status",
+      "app-connection-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-recommend",
+      "tab-scheduler",
+      "tab-metadata",
+      "unified-download-view",
+      "unified-header",
+      "unified-details-open",
+      "unified-body",
+      "unified-left",
+      "unified-mode-followed",
+      "unified-mode-bookmark",
+      "unified-followed-pane",
+      "unified-search",
+      "unified-tools",
+      "unified-select-all",
+      "unified-deselect-all",
+      "unified-star-only",
+      "unified-sort",
+      "unified-sort-asc",
+      "unified-sort-desc",
+      "unified-count",
+      "unified-thead",
+      "unified-header-check",
+      "unified-author-list",
+      "unified-empty",
+      "unified-right",
+      "unified-target-card",
+      "unified-target-count",
+      "unified-targets",
+      "unified-targets-empty",
+      "unified-favorite-card",
+      "unified-favorite-count",
+      "unified-favorite-add",
+      "unified-runrow",
+      "unified-type",
+      "unified-run",
+      "unified-pause",
+      "unified-stop",
+      "unified-band",
+      "unified-band-status",
+      "unified-band-hint-row",
+      "unified-band-summary",
+      "unified-band-hint"
+    ],
+    "download": [
+      "db-status-banner",
+      "auth-status",
+      "app-connection-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-recommend",
+      "tab-scheduler",
+      "tab-metadata",
+      "unified-download-view",
+      "unified-header",
+      "unified-details-open",
+      "unified-body",
+      "unified-left",
+      "unified-mode-followed",
+      "unified-mode-bookmark",
+      "unified-followed-pane",
+      "unified-search",
+      "unified-tools",
+      "unified-select-all",
+      "unified-deselect-all",
+      "unified-star-only",
+      "unified-sort",
+      "unified-sort-asc",
+      "unified-sort-desc",
+      "unified-count",
+      "unified-thead",
+      "unified-header-check",
+      "unified-author-list",
+      "unified-empty",
+      "unified-right",
+      "unified-target-card",
+      "unified-target-count",
+      "unified-targets",
+      "unified-targets-empty",
+      "unified-favorite-card",
+      "unified-favorite-count",
+      "unified-favorite-add",
+      "unified-runrow",
+      "unified-type",
+      "unified-run",
+      "unified-pause",
+      "unified-stop",
+      "unified-band",
+      "unified-band-status",
+      "unified-band-hint-row",
+      "unified-band-summary",
+      "unified-band-hint"
+    ],
+    "queue": [
+      "db-status-banner",
+      "auth-status",
+      "app-connection-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-recommend",
+      "tab-scheduler",
+      "tab-metadata",
+      "queue-view",
+      "queue-search",
+      "queue-count",
+      "queue-filter-all",
+      "queue-filter-queued",
+      "queue-filter-running",
+      "queue-filter-paused",
+      "queue-filter-stopping",
+      "queue-filter-done",
+      "queue-filter-error",
+      "queue-filter-stopped",
+      "queue-select-mode",
+      "queue-notice",
+      "queue-list",
+      "queue-previous",
+      "queue-page",
+      "queue-next"
+    ],
+    "failed": [
+      "db-status-banner",
+      "auth-status",
+      "app-connection-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-recommend",
+      "tab-scheduler",
+      "tab-metadata",
+      "failed-records-view",
+      "failed-reload",
+      "failed-search",
+      "failed-category-all",
+      "failed-category-communication",
+      "failed-category-not_found",
+      "failed-category-permission_age",
+      "failed-category-save_dest",
+      "failed-category-format",
+      "failed-category-other",
+      "failed-retry-all",
+      "failed-menu",
+      "failed-count",
+      "failed-managed-retry-status",
+      "failed-remove-status",
+      "failed-rows",
+      "failed-record",
+      "failed-row-retry",
+      "failed-row-delete",
+      "failed-reason",
+      "failed-row-retry-state",
+      "failed-page",
+      "failed-previous",
+      "failed-next"
+    ],
+    "history": [
+      "db-status-banner",
+      "auth-status",
+      "app-connection-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-recommend",
+      "tab-scheduler",
+      "tab-metadata",
+      "backup-history",
+      "backup-size-large",
+      "backup-size-medium",
+      "backup-size-small",
+      "backup-refresh",
+      "backup-status",
+      "backup-grid",
+      "backup-author-12",
+      "backup-open-12"
+    ],
+    "dedup": [
+      "db-status-banner",
+      "auth-status",
+      "app-connection-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-recommend",
+      "tab-scheduler",
+      "tab-metadata",
+      "duplicate-view",
+      "duplicate-scan",
+      "duplicate-search",
+      "duplicate-mode-undecidable",
+      "duplicate-mode-near",
+      "duplicate-trash",
+      "duplicate-bulk-low",
+      "duplicate-size-small",
+      "duplicate-size-medium",
+      "duplicate-size-large",
+      "duplicate-status",
+      "duplicate-recovery-status",
+      "duplicate-undecidable-panel",
+      "duplicate-undecidable-status",
+      "duplicate-undecidable-refresh",
+      "duplicate-undecidable-rows",
+      "duplicate-undecidable-empty"
+    ],
+    "learning": [
+      "db-status-banner",
+      "auth-status",
+      "app-connection-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-recommend",
+      "tab-scheduler",
+      "tab-metadata",
+      "learning-summary-toggle",
+      "learning-summary-status",
+      "learning-empty",
+      "discovery-settings-open",
+      "discovery-fetch",
+      "discovery-refill-status",
+      "discovery-save",
+      "discovery-trend",
+      "discovery-trend-toggle",
+      "learning-review-open",
+      "learning-reset",
+      "learning-reset-desc",
+      "learning-reset-open",
+      "learning-reset-status"
+    ],
+    "ranking": [
+      "db-status-banner",
+      "auth-status",
+      "app-connection-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-recommend",
+      "tab-scheduler",
+      "tab-metadata",
+      "ranking-view",
+      "ranking-mode",
+      "ranking-content",
+      "ranking-date-calendar",
+      "ranking-date",
+      "ranking-r18",
+      "ranking-exclude-ai",
+      "ranking-tag",
+      "ranking-fetch",
+      "ranking-sort",
+      "ranking-hide-manage",
+      "ranking-notice",
+      "gallery-search",
+      "gallery-size-large",
+      "gallery-size-medium",
+      "gallery-size-small",
+      "gallery-scroll"
+    ],
+    "library": [
+      "db-status-banner",
+      "auth-status",
+      "app-connection-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-recommend",
+      "tab-scheduler",
+      "tab-metadata",
+      "library-view",
+      "library-subview-downloaded",
+      "library-subview-bookmarks",
+      "library-search",
+      "library-premium-search",
+      "library-db-refresh",
+      "library-sort-view_count",
+      "library-sort-last_backup",
+      "library-sort-capacity",
+      "library-size-large",
+      "library-size-medium",
+      "library-size-small",
+      "library-recovery-status",
+      "library-filter-toggle",
+      "library-capacity-measure",
+      "library-capacity-status",
+      "library-legacy-capacity-measure",
+      "library-legacy-capacity-status",
+      "library-legacy-capacity-auto-status",
+      "library-author-count",
+      "library-authors-scroll",
+      "library-author-open",
+      "library-author-profile"
+    ],
+    "recommend": [
+      "db-status-banner",
+      "auth-status",
+      "app-connection-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-recommend",
+      "tab-scheduler",
+      "tab-metadata",
+      "recommend-view",
+      "recommend-size-large",
+      "recommend-size-medium",
+      "recommend-size-small",
+      "recommend-refresh",
+      "recommend-update",
+      "recommend-order-reset",
+      "recommend-notice",
+      "recommend-section-trend_added",
+      "recommend-section-trend",
+      "recommend-section-certain",
+      "recommend-work-certain-901",
+      "recommend-open-certain-901",
+      "recommend-action-certain-901-bookmark",
+      "recommend-action-certain-901-follow",
+      "recommend-work-certain-902",
+      "recommend-open-certain-902",
+      "recommend-action-certain-902-bookmark",
+      "recommend-action-certain-902-follow",
+      "recommend-section-boosted",
+      "recommend-section-superlike"
+    ],
+    "personal": [
+      "db-status-banner",
+      "auth-status",
+      "app-connection-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-recommend",
+      "tab-scheduler",
+      "tab-metadata",
+      "personal-ranking-view",
+      "personal-tags",
+      "personal-bookmarks",
+      "personal-sort",
+      "personal-start-date",
+      "personal-end-date",
+      "personal-r18",
+      "personal-ai",
+      "personal-fetch",
+      "ranking-hide-manage",
+      "personal-candidates-row",
+      "personal-candidates-label",
+      "personal-candidates-box",
+      "personal-candidates-toggle",
+      "personal-chips",
+      "personal-chips-clear",
+      "personal-notice",
+      "gallery-search",
+      "gallery-size-large",
+      "gallery-size-medium",
+      "gallery-size-small",
+      "gallery-scroll"
+    ],
+    "scheduler": [
+      "db-status-banner",
+      "auth-status",
+      "app-connection-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-recommend",
+      "tab-scheduler",
+      "tab-metadata",
+      "scheduler-open",
+      "scheduler-interval",
+      "scheduler-startup",
+      "scheduler-authors",
+      "scheduler-save",
+      "scheduler-discard",
+      "scheduler-run",
+      "scheduler-refresh",
+      "scheduler-ack",
+      "scheduler-status",
+      "scheduler-history",
+      "scheduler-star-import",
+      "scheduler-action-notice"
+    ],
+    "metadata": [
+      "db-status-banner",
+      "auth-status",
+      "app-connection-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-recommend",
+      "tab-scheduler",
+      "tab-metadata",
+      "metadata-view",
+      "metadata-status-line",
+      "metadata-run-all",
+      "metadata-stop",
+      "metadata-run-status",
+      "metadata-action-notice"
+    ],
+    "settings": [
+      "db-status-banner",
+      "auth-status",
+      "app-connection-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-recommend",
+      "tab-scheduler",
+      "tab-metadata",
+      "metadata-view",
+      "metadata-status-line",
+      "metadata-run-all",
+      "metadata-stop",
+      "metadata-run-status",
+      "metadata-action-notice",
+      "preferences-dialog",
+      "preferences-close-top",
+      "native-profile-cookie-value",
+      "native-profile-pick-cookie",
+      "native-profile-clear-cookie",
+      "native-profile-folder-value",
+      "native-profile-pick-folder",
+      "native-profile-clear-folder",
+      "native-profile-library-section",
+      "native-gpu-section",
+      "native-profile-status",
+      "native-profile-auth-check",
+      "native-profile-save",
+      "native-profile-cancel",
+      "native-profile-migration",
+      "following-sync-view",
+      "following-sync-summary",
+      "following-sync-time",
+      "following-sync-status",
+      "following-sync-button",
+      "following-sync-cancel",
+      "following-sync-rows",
+      "premium-vault-state",
+      "premium-recovery",
+      "premium-recovery-guide",
+      "premium-recovery-password",
+      "premium-recovery-reopen",
+      "premium-recovery-recover",
+      "premium-recovery-refresh",
+      "premium-recovery-result",
+      "preferences-status",
+      "preference-use_work_folder",
+      "preference-unavailable-use_work_folder",
+      "preference-nana7mi_shaft_refresh_interval_hours",
+      "preference-novel_save_format",
+      "preference-unavailable-novel_save_format",
+      "preference-ugoira_save_format",
+      "preference-unavailable-ugoira_save_format",
+      "preference-zip_all_after_download",
+      "preference-unavailable-zip_all_after_download",
+      "preference-bookmark_download_mode",
+      "preference-unavailable-bookmark_download_mode",
+      "preference-pixiv_actions_enabled",
+      "preference-pixiv-actions-mode",
+      "preference-extension_bridge_enabled",
+      "preference-extension-bridge-note",
+      "preference-download_interval",
+      "preference-api_retry_count",
+      "preference-api_retry_wait",
+      "preference-meta_backfill_enabled",
+      "preference-description-meta_backfill_enabled",
+      "preference-embed_auto_on_download",
+      "preference-description-embed_auto_on_download",
+      "preference-unavailable-embed_auto_on_download",
+      "preference-discovery_cache_limit_mode",
+      "preference-discovery_cache_size_mb",
+      "preference-pixiv_shared_image_cache_size_mb",
+      "preference-pixiv_disk_thumbnail_cache_size_gb",
+      "preference-minimize_to_tray",
+      "preference-unavailable-minimize_to_tray",
+      "preference-enable_notifications",
+      "preference-unavailable-enable_notifications",
+      "preferences-clear-cache",
+      "extension-status",
+      "extension-counts",
+      "extension-reasons",
+      "preferences-export-db",
+      "preferences-export-status",
+      "preferences-version",
+      "preferences-save",
+      "preferences-reload"
+    ]
+  }
+}
