@@ -564,7 +564,7 @@ class NativeProfileBinding:
 
 def register_profile_recovery(binding, *, cookie_rejected=False,
                               stop_migration_required=False, stop_gate_busy=False,
-                              stop_get_uncertain=False):
+                              stop_get_uncertain=False, legacy_copy_error=False):
     """Show editable configuration only; no media/service fallback is started."""
     from nicegui import app, ui
     from .ui.theme import CSS, TOKENS
@@ -577,7 +577,9 @@ def register_profile_recovery(binding, *, cookie_rejected=False,
             ui.label('PixivVault — 起動設定の確認').classes('text-h5')
             from .native_auth_result import NativeAuthResult
             startup_result = getattr(binding, 'auth_startup_result', None)
-            ui.label(startup_result.message if type(startup_result) is NativeAuthResult else
+            ui.label('\u65e7DB\u306e\u8907\u88fd\u4f5c\u6210\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002\u4fdd\u5b58\u5148\u30fb\u5bb9\u91cf\u30fb\u65e7DB\u306e\u4f7f\u7528\u72b6\u614b\u3092\u78ba\u8a8d\u3057\u3066\u518d\u8d77\u52d5\u3057\u3066\u304f\u3060\u3055\u3044\u3002'
+                     if legacy_copy_error else
+                     startup_result.message if type(startup_result) is NativeAuthResult else
                      '前の取得結果が不確かなため通信を停止しています。取得停止の確認・回復を開いて手順を確認してください。'
                      if stop_get_uncertain else
                      '通信記録が使用中のため確認できません。ほかの処理が終わってからアプリを再起動してください。確認できるまで通信は停止しています。'

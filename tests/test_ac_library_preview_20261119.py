@@ -65,7 +65,7 @@ async def test_legacy_thumbnail_setting_off_does_not_block_existing_bookmark_ima
             ('101',1,'Bookmark','12','Author','[]','',bookmark_url,'show',0))
     reader=Reader()
     svc=ApplicationServices(live_client=reader,library_image_root=img,library_readonly_db=db,
-        preferences_root=tmp_path/'prefs')
+        preferences_root=tmp_path/'prefs',legacy_copy_root=_legacy_copy_root(tmp_path))
     client=Client(ui.page('/_sol_cover_bookmark'))
     app=FastAPI()
     register_media_routes(app,svc.images)
@@ -174,3 +174,9 @@ def test_thumbnail_setting_off_is_checked_after_waiting_for_decode_slot(tmp_path
 
 
 
+
+
+def _legacy_copy_root(tmp_path):
+    root = tmp_path.parent / (tmp_path.name + '-legacy-copies')
+    root.mkdir(exist_ok=True)
+    return root

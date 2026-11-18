@@ -290,7 +290,7 @@ def test_legacy_preview_disabled_or_stopped_never_calls_transport(tmp_path):
         conn.execute('INSERT INTO works VALUES (?, ?, 1, ?, ?, 0, ?, ?)',
                      ('101', 'Novel', '[]', '12', 'novel', json.dumps({'url': 'https://i.pximg.net/synthetic/101.png'})))
     reader = FakeSource()
-    svc = ApplicationServices(live_client=reader, library_image_root=images, library_readonly_db=db)
+    svc = ApplicationServices(live_client=reader, library_image_root=images, library_readonly_db=db, legacy_copy_root=_legacy_copy_root(tmp_path))
     class Prefs:
         enabled = '0'
         def get_setting(self, key, default):
@@ -430,7 +430,7 @@ def test_no_preference_store_disables_legacy_auto_thumbnail_but_configured_defau
         conn.execute('INSERT INTO works VALUES (?, ?, 1, ?, ?, 0, ?, ?)',
                      ('101', 'Novel', '[]', '12', 'novel', json.dumps({'url': 'https://i.pximg.net/synthetic/101.png'})))
     reader = FakeSource()
-    service = ApplicationServices(live_client=reader, library_image_root=images, library_readonly_db=db)
+    service = ApplicationServices(live_client=reader, library_image_root=images, library_readonly_db=db, legacy_copy_root=_legacy_copy_root(tmp_path))
     pin = service.acquire_library_images()
     try:
         assert service.preferences is None
@@ -444,7 +444,7 @@ def test_no_preference_store_disables_legacy_auto_thumbnail_but_configured_defau
 
     reader = FakeSource()
     service = ApplicationServices(live_client=reader, library_image_root=images,
-                                  library_readonly_db=db, preferences_root=tmp_path / 'prefs')
+                                  library_readonly_db=db, preferences_root=tmp_path / 'prefs', legacy_copy_root=_legacy_copy_root(tmp_path))
     pin = service.acquire_library_images()
     try:
         assert service.preferences.get_setting('legacy_novel_thumbnail_auto') == '1'
@@ -453,3 +453,9 @@ def test_no_preference_store_disables_legacy_auto_thumbnail_but_configured_defau
     finally:
         pin.close()
         service.close()
+
+
+def _legacy_copy_root(tmp_path):
+    root = tmp_path.parent / (tmp_path.name + '-legacy-copies')
+    root.mkdir(exist_ok=True)
+    return root

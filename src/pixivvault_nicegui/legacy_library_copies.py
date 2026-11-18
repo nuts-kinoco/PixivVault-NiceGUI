@@ -1,0 +1,320 @@
+"""Owned, bounded frozen copies of one explicitly selected legacy SQLite DB."""
+from __future__ import annotations
+
+from contextlib import closing
+import hashlib
+import os
+from pathlib import Path
+import re
+import sqlite3
+import stat
+from threading import RLock
+from uuid import uuid4
+
+from .fs_paths import sqlite_readonly_uri
+from .managed_downloads import _read_bounded, _safe_path, _write
+from .media_jobs import validate_readonly_boundaries
+from .ugoira_storage import _owner_lock
+
+_MARKER = '.legacy-library-copies'
+_IDENTITY = b'pixivvault-legacy-library-copies-v1\n'
+_NAME = re.compile(r'[0-9a-f]{32}\.sqlite\Z')
+_STAGE = re.compile(r'\.(?:raw-[0-9a-f]{32}|ready-[0-9a-f]{32}\.sqlite(?:-(?:journal|wal|shm))?)\Z')
+_AUXILIARY_RESERVE = 65536
+_CHUNK = 1024 * 1024
+
+
+class LegacyCopyError(ValueError):
+    """A safe snapshot could not be established; message contains no path."""
+
+
+class LegacyCopyCommitUnconfirmed(LegacyCopyError):
+    """Publication may have succeeded; inspect the destination before retrying."""
+
+
+def _identity(info):
+    return (info.st_dev, info.st_ino, info.st_mode, info.st_nlink,
+            info.st_size, info.st_mtime_ns)
+
+
+def _matches_published(path, size, digest):
+    try:
+        _safe_path(path, file=True)
+        before = _identity(path.stat())
+        if before[4] != size:
+            return False
+        calculated = hashlib.sha256()
+        with path.open('rb') as stream:
+            if _identity(os.fstat(stream.fileno())) != before:
+                return False
+            while block := stream.read(_CHUNK):
+                calculated.update(block)
+            if _identity(os.fstat(stream.fileno())) != before:
+                return False
+        return _identity(path.stat()) == before and calculated.digest() == digest
+    except (OSError, ValueError):
+        return False
+
+
+def _sidecars_absent(path):
+    for suffix in ('-wal', '-shm', '-journal'):
+        try:
+            Path(str(path) + suffix).lstat()
+        except FileNotFoundError:
+            continue
+        raise LegacyCopyError('legacy database is in use')
+
+
+class LegacyLibraryCopies:
+    """Own a dedicated existing root until every issued snapshot is closed.
+
+    Source and protected directories are bound before creating any marker or
+    lock file. The caller must keep this owner open until all readers close.
+    """
+    def __init__(self, root, *, source, protected_roots=(), max_generations=3,
+                 max_bytes=4 * 1024**3):
+        self.root = Path(root).absolute()
+        self.source = Path(source).absolute()
+        self.max_generations = max_generations
+        self.max_bytes = max_bytes
+        self._guard = RLock()
+        self._active = set()
+        self._owner = None
+        self._root_identity = None
+        if (not self.root.is_dir() or self.root.drive.upper() != 'S:'
+                or type(max_generations) is not int or max_generations < 1
+                or type(max_bytes) is not int or max_bytes < 1):
+            raise LegacyCopyError('legacy snapshot destination unavailable')
+        try:
+            _safe_path(self.root)
+            _safe_path(self.source, file=True)
+            protected = (self.source.parent,) + tuple(Path(p).absolute() for p in protected_roots if p is not None)
+            validate_readonly_boundaries((self.root,), protected)
+            marker = self.root / _MARKER
+            # Verify ownership before creating the lock. Initialize an empty
+            # root with its marker first, so interruption cannot leave only a
+            # lock in an otherwise unowned directory.
+            if not marker.exists():
+                if any(self.root.iterdir()):
+                    raise LegacyCopyError('legacy snapshot destination is not owned')
+                try:
+                    _write(marker, _IDENTITY)
+                except FileExistsError:
+                    pass  # Another initializer published the same marker.
+            if _read_bounded(marker, len(_IDENTITY)) != _IDENTITY:
+                raise LegacyCopyError('legacy snapshot destination is not owned')
+            self._root_identity = _identity(self.root.stat())[:4]
+            self._owner = _owner_lock(self.root)
+            self._owner.__enter__()
+            self._usable()
+            self._recover_stages()
+        except Exception:
+            self.close()
+            raise LegacyCopyError('legacy snapshot destination unavailable') from None
+
+    def _usable(self):
+        if self._owner is None:
+            raise LegacyCopyError('legacy snapshot owner is closed')
+        _safe_path(self.root)
+        if _identity(self.root.stat())[:4] != self._root_identity:
+            raise LegacyCopyError('legacy snapshot owner changed')
+        if _read_bounded(self.root / _MARKER, len(_IDENTITY)) != _IDENTITY:
+            raise LegacyCopyError('legacy snapshot destination is not owned')
+
+    def _entries(self):
+        retained, stages = [], []
+        for item in self.root.iterdir():
+            if item.name in {_MARKER, '.writer.lock'}:
+                continue
+            if not (_NAME.fullmatch(item.name) or _STAGE.fullmatch(item.name)):
+                raise LegacyCopyError('legacy snapshot destination contains unknown files')
+            _safe_path(item, file=True)
+            info = item.lstat()
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+                raise LegacyCopyError('legacy snapshot destination contains unsafe files')
+            (retained if _NAME.fullmatch(item.name) else stages).append(item)
+        return retained, stages
+
+    def _recover_stages(self):
+        _retained, stages = self._entries()  # Unknown names prevent all cleanup.
+        for stage in stages:
+            self._usable()
+            _safe_path(stage, file=True)
+            stage.unlink()
+
+    def _read_source(self, raw, expected):
+        _sidecars_absent(self.source)
+        _safe_path(self.source, file=True)
+        flags = os.O_RDONLY | getattr(os, 'O_BINARY', 0) | getattr(os, 'O_NOFOLLOW', 0)
+        fd = os.open(self.source, flags)
+        try:
+            opened = os.fstat(fd)
+            if _identity(opened) != expected or not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1:
+                raise LegacyCopyError('legacy database changed during snapshot')
+            digest = hashlib.sha256()
+            total = 0
+            with raw.open('xb') as target:
+                while True:
+                    block = os.read(fd, min(_CHUNK, expected[4] + 1 - total))
+                    if not block:
+                        break
+                    total += len(block)
+                    if total > expected[4]:
+                        raise LegacyCopyError('legacy database changed during snapshot')
+                    digest.update(block)
+                    target.write(block)
+                target.flush()
+                os.fsync(target.fileno())
+            if total != expected[4] or _identity(os.fstat(fd)) != expected:
+                raise LegacyCopyError('legacy database changed during snapshot')
+            os.lseek(fd, 0, os.SEEK_SET)
+            second = hashlib.sha256()
+            remaining = expected[4]
+            while remaining:
+                block = os.read(fd, min(_CHUNK, remaining))
+                if not block:
+                    raise LegacyCopyError('legacy database changed during snapshot')
+                second.update(block)
+                remaining -= len(block)
+            if os.read(fd, 1) or second.digest() != digest.digest():
+                raise LegacyCopyError('legacy database changed during snapshot')
+            if _identity(os.fstat(fd)) != expected:
+                raise LegacyCopyError('legacy database changed during snapshot')
+            _safe_path(self.source, file=True)
+            if _identity(self.source.stat()) != expected:
+                raise LegacyCopyError('legacy database changed during snapshot')
+            _sidecars_absent(self.source)
+            return digest.digest()
+        finally:
+            os.close(fd)
+
+    def snapshot(self):
+        with self._guard:
+            self._usable()
+            token = uuid4().hex
+            raw = self.root / ('.raw-' + token)
+            ready = self.root / ('.ready-' + token + '.sqlite')
+            try:
+                _safe_path(self.source, file=True)
+                _sidecars_absent(self.source)
+                initial = self.source.stat()
+                if not stat.S_ISREG(initial.st_mode) or initial.st_nlink != 1:
+                    raise LegacyCopyError('legacy database source unavailable')
+                retained, stages = self._entries()
+                if stages:
+                    raise LegacyCopyError('legacy snapshot stage cleanup required')
+                retained.sort(key=lambda p: (p.stat().st_mtime_ns, p.name))
+                total = (sum(p.stat().st_size for p in retained)
+                         + (self.root / _MARKER).stat().st_size
+                         + (self.root / '.writer.lock').stat().st_size)
+                if (initial.st_size > self.max_bytes or
+                        total + 2 * initial.st_size + _AUXILIARY_RESERVE > self.max_bytes):
+                    raise LegacyCopyError('legacy snapshot exceeds capacity')
+                victim = None
+                if len(retained) >= self.max_generations:
+                    victim = next((p for p in retained if p not in self._active), None)
+                    if victim is None:
+                        raise LegacyCopyError('legacy snapshot generation limit reached')
+                source_digest = self._read_source(raw, _identity(initial))
+                self._usable()
+                with closing(sqlite3.connect(sqlite_readonly_uri(raw, immutable=True), uri=True)) as origin:
+                    with closing(sqlite3.connect(ready)) as destination:
+                        destination.execute('PRAGMA journal_mode=OFF')
+                        destination.execute('PRAGMA temp_store=MEMORY')
+                        page_size = origin.execute('PRAGMA page_size').fetchone()[0]
+                        def progress(_status, _remaining, pages):
+                            if pages * page_size > initial.st_size:
+                                raise LegacyCopyError('legacy snapshot exceeds capacity')
+                        origin.backup(destination, pages=128, progress=progress)
+                for checked_path in (raw, ready):
+                    with closing(sqlite3.connect(sqlite_readonly_uri(checked_path, immutable=True), uri=True)) as checked:
+                        if checked.execute('PRAGMA quick_check').fetchone() != ('ok',):
+                            raise LegacyCopyError('legacy snapshot integrity check failed')
+                        columns = {row[1] for row in checked.execute('PRAGMA table_info(works)')}
+                        authors = {row[1] for row in checked.execute('PRAGMA table_info(following_users)')}
+                        if not {'work_id', 'title', 'page_count', 'user_id', 'tags', 'is_deleted'} <= columns or not {'user_id', 'name'} <= authors:
+                            raise LegacyCopyError('legacy snapshot schema unsupported')
+                        checked.execute('SELECT COUNT(*) FROM works').fetchone()
+                    _sidecars_absent(checked_path)
+                digest = hashlib.sha256()
+                raw_before = _identity(raw.stat())
+                with raw.open('rb') as stream:
+                    while block := stream.read(_CHUNK):
+                        digest.update(block)
+                if (raw_before != _identity(raw.stat()) or raw_before[4] != initial.st_size
+                        or digest.digest() != source_digest):
+                    raise LegacyCopyError('legacy snapshot content changed')
+                if total + raw.stat().st_size + ready.stat().st_size > self.max_bytes:
+                    raise LegacyCopyError('legacy snapshot exceeds capacity')
+                with raw.open('r+b') as stream:
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                self._usable()
+                if _identity(self.source.stat()) != _identity(initial):
+                    raise LegacyCopyError('legacy database changed during snapshot')
+                _sidecars_absent(self.source)
+                target = victim if victim is not None else self.root / (uuid4().hex + '.sqlite')
+                if victim is not None:
+                    _safe_path(victim, file=True)
+                try:
+                    if victim is not None:
+                        os.replace(raw, victim)
+                    else:
+                        os.rename(raw, target)
+                except OSError:
+                    if raw.exists():
+                        raise
+                    if not _matches_published(target, initial.st_size, source_digest):
+                        raise LegacyCopyCommitUnconfirmed('legacy snapshot publication is unconfirmed') from None
+                self._active.add(target)
+                # Keep room for a later snapshot when older unused copies can
+                # be retired; the newly published and active copies stay safe.
+                try:
+                    published, _stages = self._entries()
+                    published.sort(key=lambda path: (path.stat().st_mtime_ns, path.name))
+                    used = (sum(path.stat().st_size for path in published)
+                            + (self.root / _MARKER).stat().st_size
+                            + (self.root / '.writer.lock').stat().st_size)
+                    remaining = len(published)
+                    for old in published:
+                        if (remaining <= self.max_generations and
+                                used + 2 * target.stat().st_size + _AUXILIARY_RESERVE <= self.max_bytes):
+                            break
+                        if old in self._active:
+                            continue
+                        self._usable()
+                        _safe_path(old, file=True)
+                        length = old.stat().st_size
+                        old.unlink()
+                        remaining -= 1
+                        used -= length
+                except (OSError, ValueError):
+                    # Publication already succeeded; verify the hard count below.
+                    pass
+                try:
+                    current, _stages = self._entries()
+                    if len(current) > self.max_generations:
+                        raise LegacyCopyCommitUnconfirmed('legacy snapshot generation cleanup is unconfirmed')
+                except LegacyCopyCommitUnconfirmed:
+                    raise
+                except (OSError, ValueError):
+                    raise LegacyCopyCommitUnconfirmed('legacy snapshot generation cleanup is unconfirmed') from None
+                return target
+            except LegacyCopyError:
+                raise
+            except Exception:
+                raise LegacyCopyError('legacy snapshot unavailable') from None
+            finally:
+                for stage in (raw, ready):
+                    try:
+                        if stage.exists():
+                            _safe_path(stage, file=True)
+                            stage.unlink()
+                    except OSError:
+                        pass  # A later owner recovers only recognized stages.
+
+    def close(self):
+        with self._guard:
+            owner, self._owner = self._owner, None
+            if owner is not None:
+                owner.__exit__(None, None, None)
