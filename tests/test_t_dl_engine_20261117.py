@@ -226,7 +226,7 @@ def test_progress_callback_reports_each_step_in_order(env):
     port = FakePort({'41': (cand('41', 1),), '42': ()})
     engine_for(port, env, on_progress=events.append).run(('41', '42'))
     kinds = [e['event'] for e in events]
-    assert kinds == ['run_start', 'author_start', 'author_listed', 'work_progress', 'author_done',
+    assert kinds == ['run_start', 'author_start', 'author_listed', 'work_info', 'work_progress', 'author_done',
                      'author_start', 'author_listed', 'author_done', 'run_end']
     assert events[1]['index'] == 1 and events[1]['total'] == 2 and events[1]['author_id'] == '41'
     assert events[-1]['outcome'] == 'done' and events[-1]['totals']['n_new'] == 1
