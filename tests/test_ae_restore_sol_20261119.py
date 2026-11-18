@@ -33,21 +33,15 @@ def test_form_restore_is_synchronous_dpi_scaled_and_only_while_visible():
 
 
 def test_tray_unavailable_still_installs_owned_child_hook(monkeypatch):
-    from pixivvault_nicegui import native_lifecycle
-    from pixivvault_nicegui import native_restore_size, native_webview_visibility
-    from pixivvault_nicegui.native_restore_size import install_owned_restore_size
+    from pixivvault_nicegui import native_lifecycle, native_tray_exit
     monkeypatch.setattr(native_lifecycle, 'find_spec', lambda name: None)
-    native=NS(start_args={})
-    assert native_lifecycle.bind_native_tray(NS(native=native),None) is None
-    assert native.start_args['func'] is install_owned_restore_size
-    assert native.start_args['args'] == ()
-    calls=[]
-    window=NS(uid='master')
-    monkeypatch.setitem(sys.modules, 'webview', NS(windows=[window]))
-    monkeypatch.setattr(native_restore_size, 'install_window_restore_size', lambda w: calls.append(('size', w)))
-    monkeypatch.setattr(native_webview_visibility, 'install_owned_visibility', lambda w: calls.append(('visibility', w)))
-    native.start_args['func'](*native.start_args['args'])
-    assert calls == [('visibility', window), ('size', window)]
+    native=NS(start_args={}, on=lambda *args:None)
+    bridge=native_lifecycle.bind_native_tray(NS(native=native),None)
+    try:
+        assert native.start_args['func'] is native_tray_exit.install_owned_tray_exit
+        assert bridge is not None and not bridge.available
+    finally:
+        bridge._on_closed()
 
 
 def test_tray_child_installs_restore_hook_and_existing_visibility(monkeypatch):

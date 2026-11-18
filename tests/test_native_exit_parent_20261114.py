@@ -1,8 +1,14 @@
 from types import SimpleNamespace
+import pytest
 from multiprocessing.reduction import ForkingPickler
 from threading import Event
 import time
 from pixivvault_nicegui.native_lifecycle import NativeTrayBridge
+
+@pytest.fixture(autouse=True)
+def mock_native_prompt(monkeypatch):
+    monkeypatch.setattr('pixivvault_nicegui.native_tray_exit._confirm_exit',
+                        lambda window, active: window.create_confirmation_dialog('終了確認', 'synthetic'))
 
 def test_parent_cancel_failure_closed_and_unknown(monkeypatch):
     class Native:

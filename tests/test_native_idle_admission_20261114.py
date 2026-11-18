@@ -55,7 +55,7 @@ def test_active_and_unknown_confirm_without_freezing(monkeypatch):
     jobs=JobService(runner);jobs.enqueue('synthetic','1');assert started.wait(1)
     calls=[];bridge,app=make(jobs,monkeypatch,lambda app,token,confirm:calls.append(confirm) or True)
     try:
-        assert bridge.controller.exit_from_tray() and calls==[True] and not jobs._native_exit_freeze
+        assert bridge.controller.exit_from_tray() and calls==['active'] and not jobs._native_exit_freeze
         bridge._test_sender.send('cancelled');wait_result(bridge,'cancelled');assert jobs.snapshot()[0].state=='running'
     finally:release.set();app.native.events['closed']();bridge._test_sender.close();jobs.close()
 
@@ -101,7 +101,7 @@ def test_deleted_row_with_worker_still_active_requires_confirmation(monkeypatch)
     assert jobs.control(item.job_id,'delete') and jobs.snapshot()==()
     calls=[];bridge,app=make(jobs,monkeypatch,lambda app,token,confirm:calls.append(confirm) or True)
     try:
-        assert bridge.controller.exit_from_tray() and calls==[True] and not jobs._native_exit_freeze
+        assert bridge.controller.exit_from_tray() and calls==['active'] and not jobs._native_exit_freeze
         bridge._test_sender.send('cancelled');wait_result(bridge,'cancelled')
     finally:release.set();app.native.events['closed']();bridge._test_sender.close();jobs.close()
 

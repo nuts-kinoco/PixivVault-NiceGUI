@@ -1,5 +1,6 @@
 """Synthetic N04 restore over the real tray bridge and NiceGUI executor."""
 import sys,time
+import pytest
 from multiprocessing.reduction import ForkingPickler
 from queue import Queue
 from threading import Event
@@ -8,6 +9,11 @@ from nicegui import core
 from nicegui.native import native,native_mode
 from pixivvault_nicegui.native_lifecycle import NativeTrayBridge
 from pixivvault_nicegui.native_tray_exit import install_owned_tray_exit
+
+@pytest.fixture(autouse=True)
+def mock_native_prompt(monkeypatch):
+    monkeypatch.setattr('pixivvault_nicegui.native_tray_exit._confirm_exit',
+                        lambda window, active: window.create_confirmation_dialog('終了確認', 'synthetic'))
 
 def test_minimize_restore_preserves_content_and_cancel_retry(monkeypatch):
     class Native:
