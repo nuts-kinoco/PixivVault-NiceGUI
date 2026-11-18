@@ -1,0 +1,56 @@
+⚠️⚠️ 本番DBを使用中: S:\Projects\PV-DEV-20261117\wt-w\.tmp-review\ui-smoke-preexisting\run\managed
+PixivVault
+× [未認証/期限切れ] Cookieファイルが設定されていません。設定から選んでください。
+アプリ: 未接続
+API切り替え
+history
+visibility
+folder_open
+dark_mode
+public
+settings
+info_outline
+【Cookie未連携】
+PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。
+拡張機能の受信が動いていません。自動連携は使えません。設定からcookies.txtを選んでください。
+open_in_browser
+Pixivを開く
+close
+download
+ダウンロード
+queue
+キュー
+report_problem
+失敗リスト
+content_copy
+重複整理
+explore
+学習
+leaderboard
+ランキング
+military_tech
+自分のランキング
+photo_library
+ライブラリ
+recommend
+おすすめ
+schedule
+定期チェック
+edit_note
+メタデータ補完
+現在のジョブ（アプリ連携）
+2秒毎に自動更新
+0件
+すべて 0
+待機中 0
+実行中 0
+一時停止 0
+停止中 0
+完了 0
+エラー 0
+停止 0
+選択
+該当するジョブはありません
+前へ
+1 / 1
+次へ
