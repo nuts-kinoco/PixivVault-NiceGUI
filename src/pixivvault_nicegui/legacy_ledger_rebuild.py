@@ -26,7 +26,7 @@ from .failed_records_repository import immutable_copy_signature
 from .fs_paths import native_io_path, sqlite_readonly_uri
 from .local_media_adapter import _safe_entry, _saved_title
 from .managed_downloads import (
-    IDENTITY, MARKER, _fsync_dir, _json_unique, _read_bounded, _safe_path, _write,
+    IDENTITY, MARKER, ManagedDownloadError, _fsync_dir, _json_unique, _read_bounded, _safe_path, _write,
 )
 from .managed_root_writer import writer_fence
 
@@ -240,7 +240,11 @@ def _page_digest(images, page, checkpoint):
                 item = matches[0]
                 if item.is_dir() or stat.S_IFMT(item.external_attr >> 16) == stat.S_IFLNK:
                     raise LedgerRebuildError()
-                with archive.open(item) as member:
+                try:
+                    member = archive.open(item)
+                except (RuntimeError, NotImplementedError) as error:
+                    raise LedgerRebuildError() from error
+                with member:
                     consume(member)
         else:
             consume(stream)
@@ -371,12 +375,21 @@ def rebuild_undecidable_ledger(*, undecidable_db: Path, images_root: Path,
             grouped[key]['candidates'], key=lambda candidate: candidate['work_id']))}
                        for key in sorted(grouped))
         proofs = {}
+        valid_groups = []
         for group in groups:
-            for candidate in group['candidates']:
-                for page in candidate['pages']:
-                    key = (page['store_path'], page['entry_name'])
-                    if key not in proofs:
-                        proofs[key] = _page_digest(images, page, checkpoint)
+            local = {}
+            try:
+                for candidate in group['candidates']:
+                    for page in candidate['pages']:
+                        key = (page['store_path'], page['entry_name'])
+                        if key not in proofs and key not in local:
+                            local[key] = _page_digest(images, page, checkpoint)
+            except (LedgerRebuildError, ManagedDownloadError, OSError, BadZipFile, zlib.error, EOFError):
+                unreadable.append(f"{group['candidates'][0]['user_id']}:source unreadable")
+                continue
+            proofs.update(local)
+            valid_groups.append(group)
+        groups = tuple(valid_groups)
         inventory.verify()
         if immutable_copy_signature(db) != before:
             raise LedgerRebuildError()
@@ -529,7 +542,7 @@ def _owned_manual(payload, images):
 
 
 def resolve_rebuilt_group(*, managed_root: Path, undecidable_db: Path, images_root: Path,
-                          group: dict, work_id: str) -> tuple[dict, ...]:
+                          group: dict, work_id: str, expected_current: bytes) -> tuple[dict, ...]:
     """Persist a selected candidate in a new generation without modifying the source."""
     try:
         db, images, managed, signature, expected = _publication_inputs(managed_root, undecidable_db, images_root)
@@ -538,7 +551,7 @@ def resolve_rebuilt_group(*, managed_root: Path, undecidable_db: Path, images_ro
         _restored_groups([wanted], images)
         with writer_fence(managed):
             raw, payload, groups = _current_snapshot(managed, images, expected)
-            if payload is None or raw is None:
+            if payload is None or raw is None or type(expected_current) is not bytes or raw != expected_current:
                 raise LedgerRebuildError()
             current_groups = payload['groups']
             matches = [g for g in current_groups if g['ambiguous_group'] == wanted['ambiguous_group']]
@@ -606,7 +619,7 @@ def resolve_rebuilt_group(*, managed_root: Path, undecidable_db: Path, images_ro
 
 
 def load_rebuilt_ledger(*, managed_root: Path, undecidable_db: Path,
-                       images_root: Path) -> tuple[dict, ...] | None:
+                       images_root: Path, with_token: bool = False):
     """Read the last explicitly published generation; None means never published.
 
     A corrupt pointer/generation, changed DB, different input path or unowned
@@ -617,13 +630,15 @@ def load_rebuilt_ledger(*, managed_root: Path, undecidable_db: Path,
         inputs = _publication_inputs(managed_root, undecidable_db, images_root,
                                      allow_missing=True)
         if inputs is None:
-            return None
+            return (None, None, False) if with_token else None
         db, images, managed, signature, expected = inputs
         with writer_fence(managed):
-            groups = _read_current(managed, images, expected)
+            raw, payload, groups = _current_snapshot(managed, images, expected)
             after = _publication_inputs(managed, db, images)
             if after[3] != signature:
                 raise LedgerRebuildError()
+            if with_token:
+                return groups, raw, payload is not None and type(payload.get('page_proofs')) is list
             return groups
     except (OSError, ValueError, TypeError, KeyError) as error:
         if isinstance(error, LedgerRebuildError):

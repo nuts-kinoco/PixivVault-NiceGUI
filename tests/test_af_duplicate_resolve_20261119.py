@@ -5,16 +5,23 @@ import hashlib
 import json
 import struct
 import zlib
-from zipfile import ZipFile
+from zipfile import ZipFile, ZIP_DEFLATED
+from io import BytesIO
+from PIL import Image
 from test_original_ledger_rebuild import fixture, store, run, hashes, png
 from pixivvault_nicegui.legacy_ledger_rebuild import (
-    LedgerRebuildError, publish_rebuilt_ledger, load_rebuilt_ledger, resolve_rebuilt_group,
+    LedgerRebuildError, publish_rebuilt_ledger, load_rebuilt_ledger, resolve_rebuilt_group as _resolve,
 )
 from test_original_scan_publication import opened
 from nicegui import Client, ui
 from pixivvault_nicegui.ui.duplicate_view import DuplicateView
-from pixivvault_nicegui.duplicate_inspection import ManagedDuplicateInspection
+from pixivvault_nicegui.duplicate_inspection import ManagedDuplicateInspection, DuplicateInspectionError
 from pixivvault_nicegui.legacy_quarantine import LegacyQuarantine
+
+
+def resolve_rebuilt_group(**kwargs):
+    current = (kwargs['managed_root'] / 'legacy-ledger' / 'CURRENT.json').read_bytes()
+    return _resolve(**kwargs, expected_current=current)
 
 
 def publish(paths, result):
@@ -177,4 +184,82 @@ def test_old_generation_remains_readable_but_requires_rescan(tmp_path):
         finally:
             reopened.close()
     finally:
+        source.close(); owner.close()
+
+
+def test_corrupt_deflate_of_another_author_does_not_block_scan(tmp_path):
+    paths = fixture(tmp_path); store(paths[1])
+    with sqlite3.connect(paths[0]) as db:
+        db.executemany('INSERT INTO works VALUES (?,?,?,?,?,?)', [
+            ('10','10','other',1,'illust',0), ('11','10','other',3,'illust',0)])
+    archive = paths[1] / 'other(10).zip'
+    with ZipFile(archive, 'w', ZIP_DEFLATED) as z:
+        z.writestr('other.png', png())
+    data = bytearray(archive.read_bytes())
+    local = data.find(b'PK\x03\x04')
+    name_len, extra_len = struct.unpack_from('<HH', data, local + 26)
+    start = local + 30 + name_len + extra_len
+    data[start] = (data[start] & 0xf8) | 7  # reserved DEFLATE block type
+    archive.write_bytes(data)
+    result = run(paths)
+    assert [g['ambiguous_group'] for g in result.groups] == ['9:題名']
+    assert result.unreadable
+    publish(paths, result)
+
+
+def test_corrupt_deflate_does_not_block_real_inspection_scan(tmp_path):
+    source, owner, legacy, db, _ = opened(tmp_path)
+    try:
+        with sqlite3.connect(db) as conn:
+            conn.executemany('INSERT INTO works VALUES (?,?,?,?,?,?)', [
+                ('10','10','other',1,'illust',0), ('11','10','other',3,'illust',0)])
+        archive = legacy.catalog.root / 'other(10).zip'
+        with ZipFile(archive, 'w', ZIP_DEFLATED) as z:
+            z.writestr('other.png', png())
+        data = bytearray(archive.read_bytes())
+        local = data.find(b'PK\x03\x04')
+        name_len, extra_len = struct.unpack_from('<HH', data, local + 26)
+        start = local + 30 + name_len + extra_len
+        data[start] = (data[start] & 0xf8) | 7
+        archive.write_bytes(data)
+        source.scan()
+        assert [group['ambiguous_group'] for group in source.undecidable_groups()] == ['9:題名']
+    finally:
+        source.close(); owner.close()
+
+
+def test_stale_view_cannot_resolve_equal_group_after_rescan(tmp_path):
+    source, owner, legacy, db, _ = opened(tmp_path)
+    try:
+        source.scan()
+        stale = source.undecidable_groups()[0]
+        image = next(legacy.catalog.root.rglob('題名.png'))
+        out = BytesIO(); Image.new('RGB', (2,2), 'red').save(out, format='PNG')
+        image.write_bytes(out.getvalue())
+        source.scan()
+        assert source.undecidable_groups()[0] == stale
+        with pytest.raises(DuplicateInspectionError):
+            source.resolve_undecidable(stale, '1')
+        assert source.undecidable_groups()
+    finally:
+        source.close(); owner.close()
+
+
+def test_other_source_rescan_invalidates_displayed_equal_group(tmp_path):
+    source, owner, legacy, db, snapshot = opened(tmp_path)
+    other = None
+    try:
+        source.scan()
+        stale = source.undecidable_groups()[0]
+        image = next(legacy.catalog.root.rglob('題名.png'))
+        out = BytesIO(); Image.new('RGB', (2,2), 'red').save(out, format='PNG')
+        image.write_bytes(out.getvalue())
+        other = ManagedDuplicateInspection(owner, legacy=LegacyQuarantine(legacy.catalog.root, snapshot, owner=owner),
+                                           undecidable_db=db)
+        other.scan()
+        assert other.undecidable_groups()[0] == stale
+        with pytest.raises((DuplicateInspectionError, LedgerRebuildError)):
+            source.resolve_undecidable(stale, '1')
+    finally:
+        if other: other.close()
         source.close(); owner.close()

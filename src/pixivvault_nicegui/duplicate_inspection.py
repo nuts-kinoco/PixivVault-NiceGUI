@@ -220,6 +220,7 @@ class ManagedDuplicateInspection:
         self.undecidable_db=Path(undecidable_db) if undecidable_db is not None else None
         self._rebuilt_undecidable=None
         self._rebuilt_has_proofs=False
+        self._rebuilt_token=None
     @property
     def undecidable_available(self):
         return self.undecidable_db is not None
@@ -231,26 +232,30 @@ class ManagedDuplicateInspection:
     def resolve_undecidable(self, group, work_id):
         with self._lock:
             self._check()
-            if not self.can_resolve_undecidable or group not in self._rebuilt_undecidable:
+            if not self.can_resolve_undecidable or not any(item is group for item in self._rebuilt_undecidable):
                 raise DuplicateInspectionError()
             from .legacy_ledger_rebuild import resolve_rebuilt_group
             result=resolve_rebuilt_group(managed_root=self.owner.root, undecidable_db=self.undecidable_db,
-                                         images_root=self.legacy.catalog.root, group=group, work_id=work_id)
-            self._rebuilt_undecidable=result
-            return result
+                                         images_root=self.legacy.catalog.root, group=group, work_id=work_id,
+                                         expected_current=self._rebuilt_token)
+            from .legacy_ledger_rebuild import load_rebuilt_ledger
+            self._rebuilt_undecidable,self._rebuilt_token,self._rebuilt_has_proofs=load_rebuilt_ledger(
+                managed_root=self.owner.root,undecidable_db=self.undecidable_db,
+                images_root=self.legacy.catalog.root,with_token=True)
+            return self._rebuilt_undecidable
     def undecidable_groups(self):
         with self._lock:
             self._check()
             if self.undecidable_db is None:return None
             if self._rebuilt_undecidable is not None:return self._rebuilt_undecidable
             if self.owner is not None and self.legacy is not None:
-                from .legacy_ledger_rebuild import load_rebuilt_ledger, rebuilt_ledger_has_page_proofs
-                current=load_rebuilt_ledger(managed_root=self.owner.root,
-                    undecidable_db=self.undecidable_db,images_root=self.legacy.catalog.root)
+                from .legacy_ledger_rebuild import load_rebuilt_ledger
+                current,token,has_proofs=load_rebuilt_ledger(managed_root=self.owner.root,
+                    undecidable_db=self.undecidable_db,images_root=self.legacy.catalog.root,with_token=True)
                 if current is not None:
                     self._rebuilt_undecidable=current
-                    self._rebuilt_has_proofs=rebuilt_ledger_has_page_proofs(managed_root=self.owner.root,
-                        undecidable_db=self.undecidable_db,images_root=self.legacy.catalog.root)
+                    self._rebuilt_token=token
+                    self._rebuilt_has_proofs=has_proofs
                     return current
             groups=read_undecidable_ledger(self.undecidable_db)
             self._check()
@@ -352,8 +357,10 @@ class ManagedDuplicateInspection:
                 from .legacy_ledger_rebuild import publish_rebuilt_ledger
                 publish_rebuilt_ledger(rebuilt,managed_root=self.owner.root,
                     undecidable_db=self.undecidable_db,images_root=self.legacy.catalog.root)
-                self._rebuilt_undecidable=rebuilt.groups
-                self._rebuilt_has_proofs=True
+                from .legacy_ledger_rebuild import load_rebuilt_ledger
+                self._rebuilt_undecidable,self._rebuilt_token,self._rebuilt_has_proofs=load_rebuilt_ledger(
+                    managed_root=self.owner.root,undecidable_db=self.undecidable_db,
+                    images_root=self.legacy.catalog.root,with_token=True)
             self._latest=result
             self._planned=None
             self._scan_proofs=tuple((relative,digest) for relative,_,digest in rows)
