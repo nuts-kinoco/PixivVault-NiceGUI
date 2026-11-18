@@ -144,7 +144,7 @@ _ITEM_COLUMNS = ('run_id', 'author_id', 'work_key', 'media', 'operation_id', 'jo
 _SCHEMA = f'''
     BEGIN IMMEDIATE;
     PRAGMA application_id={APPLICATION_ID};
-    PRAGMA user_version=1;
+    PRAGMA user_version=2;
     CREATE TABLE runs (
         run_id TEXT PRIMARY KEY,
         kind TEXT NOT NULL CHECK(kind IN ({','.join(repr(k) for k in RUN_KINDS)})),
@@ -183,6 +183,20 @@ _SCHEMA = f'''
         state TEXT NOT NULL CHECK(state IN ({','.join(repr(k) for k in ITEM_STATES)})),
         PRIMARY KEY(run_id,author_id,work_key),
         FOREIGN KEY(run_id) REFERENCES runs(run_id));
+    CREATE TABLE run_flags (
+        run_id TEXT PRIMARY KEY,
+        discarded INTEGER NOT NULL DEFAULT 0 CHECK(discarded IN (0,1)),
+        FOREIGN KEY(run_id) REFERENCES runs(run_id));
+    COMMIT;
+'''
+
+_MIGRATE_1_TO_2 = '''
+    BEGIN IMMEDIATE;
+    CREATE TABLE run_flags (
+        run_id TEXT PRIMARY KEY,
+        discarded INTEGER NOT NULL DEFAULT 0 CHECK(discarded IN (0,1)),
+        FOREIGN KEY(run_id) REFERENCES runs(run_id));
+    PRAGMA user_version=2;
     COMMIT;
 '''
 
@@ -221,7 +235,7 @@ class BatchRunLedger:
                 if self.path.stat().st_size > MAX_DB_BYTES:
                     raise BatchRunError()
                 with closing(sqlite3.connect(sqlite_readonly_uri(self.path), uri=True)) as check:
-                    self._verify_schema(check)
+                    self._verify_schema(check, versions=(1, 2))
             else:
                 descriptor = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY
                                      | getattr(os, 'O_BINARY', 0) | getattr(os, 'O_NOFOLLOW', 0), 0o600)
@@ -232,6 +246,8 @@ class BatchRunLedger:
             self._connection.execute('PRAGMA synchronous=' + synchronous)
             if not existed:
                 self._connection.executescript(_SCHEMA)
+            elif self._connection.execute('PRAGMA user_version').fetchone() == (1,):
+                self._connection.executescript(_MIGRATE_1_TO_2)  # adds the discard flag table only
             self._verify_schema(self._connection)
             metadata = self.path.lstat()
             self._identity = metadata.st_dev, metadata.st_ino
@@ -256,13 +272,15 @@ class BatchRunLedger:
             _safe_path(child, file=True)
 
     @staticmethod
-    def _verify_schema(connection):
+    def _verify_schema(connection, versions=(2,)):
+        version = connection.execute('PRAGMA user_version').fetchone()
         if (connection.execute('PRAGMA application_id').fetchone() != (APPLICATION_ID,)
-                or connection.execute('PRAGMA user_version').fetchone() != (1,)):
+                or version not in [(v,) for v in versions]):
             raise BatchRunError()
         tables = {r[0] for r in connection.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")}
-        if tables != {'runs', 'run_authors', 'run_items'}:
+        if tables != ({'runs', 'run_authors', 'run_items'} if version == (1,)
+                      else {'runs', 'run_authors', 'run_items', 'run_flags'}):
             raise BatchRunError()
         for table, columns in (('runs', _RUN_COLUMNS), ('run_authors', _AUTHOR_COLUMNS),
                                ('run_items', _ITEM_COLUMNS)):
@@ -355,6 +373,8 @@ class BatchRunLedger:
                     SELECT run_id FROM runs ORDER BY started_utc LIMIT 100)''')
                 connection.execute('''DELETE FROM run_authors WHERE run_id IN (
                     SELECT run_id FROM runs ORDER BY started_utc LIMIT 100)''')
+                connection.execute('''DELETE FROM run_flags WHERE run_id IN (
+                    SELECT run_id FROM runs ORDER BY started_utc LIMIT 100)''')
                 connection.execute('DELETE FROM runs WHERE run_id IN ('
                                    'SELECT run_id FROM runs ORDER BY started_utc LIMIT 100)')
             connection.execute('INSERT INTO runs VALUES(?,?,?,?,?,?,NULL,?,1,?,?)',
@@ -426,6 +446,49 @@ class BatchRunLedger:
                     (now, run_id))
             return tuple(ids)
         return self._transaction(recover)
+
+    RESUMABLE_STATES = ('stopped', 'interrupted', 'failed')
+
+    def resumable_run(self):
+        """The newest run, when it ended early with authors left and was not discarded.
+
+        Terminal states are final, so "resume" is a new run seeded from `unfinished_authors`.
+        Any newer run (even a finished one) ends the offer.
+        """
+        def find(connection):
+            row = connection.execute(
+                'SELECT ' + ','.join(_RUN_COLUMNS) + ' FROM runs ORDER BY started_utc DESC,rowid DESC LIMIT 1'
+            ).fetchone()
+            if row is None or row[4] not in self.RESUMABLE_STATES:
+                return None
+            if connection.execute('SELECT 1 FROM run_flags WHERE run_id=? AND discarded=1',
+                                  (row[0],)).fetchone():
+                return None
+            if not connection.execute("SELECT 1 FROM run_authors WHERE run_id=? AND state!='done' LIMIT 1",
+                                      (row[0],)).fetchone():
+                return None
+            return row
+        row = self._read(find)
+        return None if row is None else self._run_row(row)
+
+    def unfinished_authors(self, run_id):
+        """Author IDs of a run that are not `done`, in the run's order."""
+        _run_id(run_id)
+        rows = self._read(lambda c: c.execute(
+            "SELECT author_id FROM run_authors WHERE run_id=? AND state!='done' ORDER BY seq",
+            (run_id,)).fetchall())
+        return tuple(r[0] for r in rows)
+
+    def discard_run(self, run_id):
+        """The user chose not to resume: stop offering this run."""
+        _run_id(run_id)
+
+        def flag(connection):
+            if connection.execute('SELECT 1 FROM runs WHERE run_id=?', (run_id,)).fetchone() is None:
+                raise BatchRunError()
+            connection.execute('INSERT INTO run_flags VALUES(?,1) ON CONFLICT(run_id) DO UPDATE SET discarded=1',
+                               (run_id,))
+        self._transaction(flag)
 
     # -- authors -----------------------------------------------------------
     @staticmethod

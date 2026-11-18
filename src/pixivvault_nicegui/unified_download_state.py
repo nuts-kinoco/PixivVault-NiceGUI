@@ -336,3 +336,27 @@ def end_message(outcome, error_code=""):
     if outcome == "failed" and error_code:
         return f"失敗しました: {error_code}"
     return END_MESSAGES.get(outcome, "")
+
+
+PAUSE_TEXT = {
+    "": "一時停止しています。",
+    "user": "一時停止しています。",
+    "network_stopped": "通信が止まっているため、一時停止しています。復旧後に「再開」を押してください。",
+    "network_gate_unavailable": "通信の安全確認ができないため、一時停止しています。",
+}
+
+
+def status_text(state, *, pause_reason="", index=0, total=0, outcome_code=""):
+    """進捗帯の見出し 1 行。停止は元の文言（UD:1070）を維持し、終わったら「停止しました。」。"""
+    if state == "idle":
+        return "待機中"
+    if state == "running":
+        return f"{index} / {total} 人目…" if total else "実行中…"
+    if state == "paused":
+        return PAUSE_TEXT.get(pause_reason, PAUSE_TEXT["user"])
+    if state == "stopping":
+        return "停止しています（いまの作者が終わるまで待っています）…"
+    return end_message(state, outcome_code)
+
+
+INTERRUPTED_TEXT = "前回は途中で止まりました。続きから再開するか、破棄できます。"
