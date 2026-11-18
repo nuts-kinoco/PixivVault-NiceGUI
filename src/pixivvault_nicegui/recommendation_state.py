@@ -52,6 +52,8 @@ class RecommendationWork:
     tags:tuple[str,...]=()
     create_date:str=''
     x_restrict:int|None=None
+    deleted:bool=False
+    unavailable:bool=False
     def __post_init__(self):
         identifier(self.work_id)
         if self.author_id:identifier(self.author_id)
@@ -66,6 +68,7 @@ class RecommendationWork:
         for value in (self.illust_type,self.x_restrict):
             if value is not None and (type(value) is not int or value not in (0,1,2)):
                 raise RecommendationError()
+        if type(self.deleted) is not bool or type(self.unavailable) is not bool:raise RecommendationError()
         if type(self.tags) not in (tuple,list) or len(self.tags)>1000:raise RecommendationError()
         for value in self.tags:text(value)
         object.__setattr__(self,'tags',tuple(self.tags))

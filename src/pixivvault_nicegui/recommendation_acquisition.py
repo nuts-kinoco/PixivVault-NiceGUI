@@ -5,7 +5,7 @@ judged/hidden filtering, boost registry, nonempty carryover and retry same page.
 Only the dedicated recommendation preference sidecar is written.
 """
 from __future__ import annotations
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import json
 from threading import RLock
 from .recommendation_state import (RecommendationError, RecommendationGroup,
@@ -87,7 +87,8 @@ class RecommendationAcquisition:
         if current_super is not None:
             cached={w.work_id:w for g in sections.get('superlike',()) for w in g.works}
             sections['superlike']=tuple(RecommendationGroup(g.key,g.title,
-                tuple(cached.get(w.work_id,w) for w in g.works)) for g in current_super)
+                tuple(cached.get(w.work_id,w) for w in g.works
+                      if not cached.get(w.work_id,w).unavailable)) for g in current_super)
         added_tags={row['tag'] for row in env['added']}
         if 'trend_added' in sections:
             sections['trend_added']=tuple(g for g in sections['trend_added'] if g.key in added_tags)
@@ -190,17 +191,23 @@ class RecommendationAcquisition:
             previous=dict(self.controller._snapshot.sections).get('superlike',())
             if previous:
                 values=[]
+                cached={w.work_id:w for row in env['cache'].get('superlike',()) for w in decode(row).works}
                 for old in previous[0].works:
                     if old.work_id in state['hidden_works']:continue
+                    prior=cached.get(old.work_id,old)
                     try:
-                        fresh=work(self.source.detail(old.work_id))
+                        row=self.source.detail(old.work_id)
+                        if not row:
+                            values.append(replace(prior,deleted=bool(prior.thumbnail_url),unavailable=not bool(prior.thumbnail_url)))
+                            continue
+                        fresh=work(row)
                         if fresh.work_id!=old.work_id:raise RecommendationError()
                     except Exception:
                         self.errors['superlike:'+old.work_id]='fetch_failed'
-                        fresh=old
+                        fresh=prior
                     if fresh.author_id not in state['hidden_authors']:values.append(fresh)
                     if len(values)>=self.visible_limit*3:break
-                if values:env['cache']['superlike']=[encode(RecommendationGroup('superlike',previous[0].title,tuple(values)))]
+                env['cache']['superlike']=[encode(RecommendationGroup('superlike',previous[0].title,tuple(values)))]
             return self.store(env,revision)
 
     def add_trend(self,tag,display,revision):
