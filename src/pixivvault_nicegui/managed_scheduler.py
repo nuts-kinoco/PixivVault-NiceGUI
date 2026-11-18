@@ -90,7 +90,8 @@ class ManagedScheduler:
         self._star_cache = (0.0, frozenset())
         try:
             book.seed()
-            self._prune_deferred(self.favourites())
+            if self._ledger_is_source():          # only a real, readable star list may prune anything
+                self._prune_deferred(self.favourites())
         except Exception:
             pass  # not synced yet: the next call tries again
 
@@ -117,7 +118,15 @@ class ManagedScheduler:
             return self._db.execute('SELECT imported,dropped FROM favourite_seed WHERE id=1').fetchone()
 
     def _ledger_is_source(self) -> bool:
-        return self._favourites_source is not None and self.favourites_seeded()
+        book = self._favourites_source
+        # An unreadable ledger (no store attached, not synced) is "unknown", not an empty star list.
+        return book is not None and book.readable() and self.favourites_seeded()
+
+    def touch_revision(self) -> None:
+        """A star changed outside the settings form: stale forms must fail their revision check."""
+        with self._lock:
+            self._ensure_open()
+            self._db.execute('UPDATE schedule SET revision=revision+1 WHERE id=1')
 
     def _prune_deferred(self, ids) -> None:
         keep = set(ids)
@@ -609,7 +618,8 @@ class ManagedScheduler:
             book = self._favourites_source
         if not ledger and book is not None:
             try:
-                ledger = book.seed() is not None or self.favourites_seeded()  # the first sync may have happened since
+                book.seed()  # the first sync may have happened since
+                ledger = self._ledger_is_source()
             except Exception:
                 ledger = False
         if ledger:

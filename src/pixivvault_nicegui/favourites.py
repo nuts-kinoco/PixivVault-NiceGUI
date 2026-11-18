@@ -39,6 +39,17 @@ class FavouriteBook:
         rows = self.following.snapshot(account).authors
         return tuple(sorted((row.user_id for row in rows if row.is_favorite), key=int))
 
+    def readable(self):
+        """True only while there is a following ledger with a completed sync to read the stars from.
+
+        Without one an empty answer means "unknown", never "no stars": nothing may be pruned on it."""
+        if self.following is None:
+            return False
+        try:
+            return self.account() is not None
+        except Exception:
+            return False
+
     def seeded(self):
         return self.scheduler is not None and self.scheduler.favourites_seeded()
 
@@ -53,6 +64,10 @@ class FavouriteBook:
         if row is None or row.is_favorite == favourite:
             return False                      # not followed, or nothing to change
         self.following.set_favorite(account, user_id, favourite)
+        if self.scheduler is not None:
+            # A settings form opened before this change holds the old star list; its save must fail the
+            # revision check instead of replacing the new stars.
+            self.scheduler.touch_revision()
         return True
 
     def replace(self, author_ids):
@@ -70,7 +85,11 @@ class FavouriteBook:
 
     # -- the one-time import ------------------------------------------------------------------
     def _legacy_ids(self):
-        """☆ authors of the frozen legacy copy; read only (`immutable=1`), () on anything unexpected."""
+        """☆ authors of the frozen legacy copy; read only (`immutable=1`).
+
+        () when there is genuinely nothing to import (no legacy DB, no file, no star column or table).
+        None when it could not be read (locked, damaged, a transient error): the import must not
+        be recorded as done on that, it is retried at the next read."""
         if self.legacy_db is None:
             return ()
         try:
@@ -80,8 +99,12 @@ class FavouriteBook:
             with closing(sqlite3.connect(sqlite_readonly_uri(self.legacy_db), uri=True, timeout=0.2)) as db:
                 rows = db.execute('SELECT user_id FROM following_users WHERE is_favorite=1').fetchall()
             return tuple(str(r[0]) for r in rows if str(r[0]).isdecimal())
+        except sqlite3.OperationalError as error:
+            if 'no such table' in str(error) or 'no such column' in str(error):
+                return ()
+            return None
         except Exception:
-            return ()
+            return None
 
     def seed(self):
         """Import the legacy ☆ and the scheduler's list into the ledger, once.
@@ -95,7 +118,10 @@ class FavouriteBook:
         account = self.account()
         if account is None:
             return None
-        sources = set(self._legacy_ids()) | set(self.scheduler.legacy_favourites())
+        legacy = self._legacy_ids()
+        if legacy is None:
+            return None  # unreadable now: not seeded, tried again next time
+        sources = set(legacy) | set(self.scheduler.legacy_favourites())
         rows = {row.user_id: row for row in self.following.snapshot(account).authors}
         imported = dropped = 0
         for user_id in sorted(sources, key=int):

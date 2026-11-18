@@ -210,3 +210,22 @@ def test_real_jobservice_pause_and_resume_through_the_services_port(tmp_path):
     finally:
         release.set()
         jobs.close()
+
+
+def test_d_an_automatic_check_does_not_hide_the_interrupted_manual_run(env):
+    ledger, _ = env
+    manual = ledger.begin_run('authors', 'manual', 'both', ('41', '42'))
+    ledger.recover_interrupted()
+    auto = ledger.begin_run('authors', 'auto', 'both', ('43',))
+    ledger.set_run_state(auto, 'done')
+    assert ledger.resumable_run().run_id == manual           # the offer survives the timer's run
+    newer = ledger.begin_run('authors', 'manual', 'both', ('44',))
+    ledger.set_run_state(newer, 'done')
+    assert ledger.resumable_run() is None                    # a newer manual run does end it
+
+
+def test_d_an_interrupted_automatic_run_is_not_offered(env):
+    ledger, _ = env
+    ledger.begin_run('authors', 'auto', 'both', ('41',))
+    ledger.recover_interrupted()
+    assert ledger.resumable_run() is None

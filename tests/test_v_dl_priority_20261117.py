@@ -321,3 +321,74 @@ async def test_real_services_provision_the_engine_recover_after_a_restart_and_cl
         assert engine.resumable_run().run_id == run_id and engine.active is False
     finally:
         await asyncio.to_thread(reopened.close)
+
+
+# ---- checker findings D4-D6 ------------------------------------------------------------------
+
+def test_d4_a_star_change_bumps_the_schedule_revision_so_a_stale_form_cannot_erase_it(world):
+    _, following, scheduler = world
+    sync(following, 4)
+    book = FavouriteBook(following, scheduler=scheduler)
+    scheduler.attach_favourites(book)
+    form_revision = now_state(scheduler).revision                # a settings form is opened here
+    assert book.set('1001', True)
+    assert now_state(scheduler).revision == form_revision + 1
+    with pytest.raises(Exception):
+        scheduler.set_favourites((), expected_revision=form_revision)
+    assert scheduler.favourites() == ('1001',)
+    assert book.set('1001', True) is False                       # no change, no bump
+    assert now_state(scheduler).revision == form_revision + 1
+
+
+def test_d4_the_services_entry_point_bumps_it_too(world):
+    _, following, scheduler = world
+    sync(following, 3)
+    scheduler.attach_favourites(FavouriteBook(following, scheduler=scheduler))
+    before = now_state(scheduler).revision
+    services = NS(favourite_book=lambda: FavouriteBook(following, scheduler=scheduler), managed_scheduler=scheduler)
+    assert ApplicationServices.set_favourite(services, '1002', True)
+    assert now_state(scheduler).revision == before + 1
+
+
+def make_legacy_db(path, stars):
+    database = sqlite3.connect(str(path))
+    database.execute('CREATE TABLE following_users (user_id TEXT, is_favorite INTEGER)')
+    database.executemany('INSERT INTO following_users VALUES (?,?)', [(u, 1) for u in stars])
+    database.commit()
+    database.close()
+
+
+def test_d5_an_unreadable_legacy_db_does_not_end_the_import(world):
+    tmp_path, following, scheduler = world
+    sync(following, 6)
+    legacy = tmp_path / 'legacy.db'
+    legacy.write_bytes(b'this is not a database' * 50)            # unreadable right now
+    book = FavouriteBook(following, scheduler=scheduler, legacy_db=legacy)
+    scheduler.attach_favourites(book)
+    assert scheduler.favourites_seeded() is False and book.seed() is None
+    legacy.unlink()
+    make_legacy_db(legacy, ['1003', '1004'])                     # the copy is fixed / released
+    assert scheduler.favourites() == ('1003', '1004') and scheduler.favourites_seeded()
+
+
+def test_d5_a_legacy_db_without_stars_is_a_finished_import_not_a_failure(world):
+    tmp_path, following, scheduler = world
+    sync(following, 3)
+    legacy = tmp_path / 'legacy.db'
+    sqlite3.connect(str(legacy)).close()                         # a valid file with no following_users table
+    book = FavouriteBook(following, scheduler=scheduler, legacy_db=legacy)
+    scheduler.attach_favourites(book)
+    assert scheduler.favourites_seeded() and scheduler.favourites() == ()
+
+
+def test_d6_an_unattached_or_unsynced_store_never_prunes_the_pending_work(world):
+    _, following, scheduler = world
+    scheduler.set_favourites(('1001',), expected_revision=now_state(scheduler).revision)
+    scheduler.defer_work(author_id='1001', work=dict(id='5', update_date='d', page_count=1, type=0),
+                         now=datetime.now(timezone.utc))
+    scheduler.mark_favourites_seeded(imported=1, dropped=0)       # a profile that was seeded earlier
+    scheduler.attach_favourites(FavouriteBook(None, scheduler=scheduler))   # no follow store at all
+    assert scheduler.has_deferred()                               # nothing was deleted
+    assert scheduler.favourites() == ('1001',)                    # unknown is not "no stars"
+    scheduler.attach_favourites(FavouriteBook(following, scheduler=scheduler))   # a store, never synced
+    assert scheduler.has_deferred() and scheduler.favourites() == ('1001',)
