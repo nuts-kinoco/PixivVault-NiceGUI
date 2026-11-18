@@ -499,8 +499,10 @@ class DuplicateView:
             return
         groups=visible_undecidable_groups(self.undecidable_groups,self.query,limit=None)
         shown=groups[:50]
+        can_resolve=bool(getattr(self.source, 'can_resolve_undecidable', False))
         self.undecidable_notice.set_text(
-            f'{len(shown)} / {len(groups)} 組を表示（台帳全体 {len(self.undecidable_groups)} 組）。旧データベースは読み取り専用のため、対応付けは確定できません。')
+            f'{len(shown)} / {len(groups)} 組を表示（台帳全体 {len(self.undecidable_groups)} 組）。'
+            + ('' if can_resolve else '旧データベースは読み取り専用です。対応付けを確定するには管理保存先でスキャンしてください。'))
         with self.undecidable_rows:
             if not groups:
                 if self.query:
@@ -515,9 +517,31 @@ class DuplicateView:
                     ui.label(f"{sample.get('author_name') or ''} / {sample.get('title') or ''}")
                     ui.label('候補: '+' / '.join(str(c['work_id']) for c in candidates)).classes('pv-subtitle')
                     for candidate in candidates:
-                        ui.label(f"{candidate.get('title') or ''}（{candidate['work_id']}）")
+                        if can_resolve:
+                            ui.button(f"{candidate.get('title') or ''}（{candidate['work_id']}）のものにする",
+                                      on_click=lambda _e, g=group, wid=candidate['work_id']:
+                                      self.resolve_undecidable(g, wid)).props('dense no-caps')
+                        else:
+                            ui.label(f"{candidate.get('title') or ''}（{candidate['work_id']}）")
             if len(groups)>len(shown):
                 ui.label(f'先頭{len(shown)}件のみ表示・残り{len(groups)-len(shown)}件').classes('pv-subtitle')
+
+    async def resolve_undecidable(self, group, work_id):
+        if self.closed or not self.active or self.busy or self.undecidable_state != 'ready':
+            return
+        self.busy=True
+        self.sync()
+        try:
+            groups=await asyncio.to_thread(self.source.resolve_undecidable, group, work_id)
+            if not self.closed and self.active:
+                self.undecidable_groups=tuple(groups)
+                self.render_undecidable()
+        except Exception:
+            if not self.closed and self.active:
+                self.undecidable_notice.set_text('対応付けを保存できませんでした。再読込して確認してください。')
+        finally:
+            self.busy=False
+            if not self.closed:self.sync()
     async def scan(self):
         if self.closed or not self.active or self.busy:return
         self.busy=True;self.generation+=1;generation=self.generation;self.sync();self.notice.set_text('スキャンしています…')
