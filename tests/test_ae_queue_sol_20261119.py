@@ -4,7 +4,7 @@ import sqlite3
 from threading import Event, RLock
 from types import SimpleNamespace
 
-from nicegui import ui
+from nicegui import Client, ui
 
 
 def test_completion_log_observes_committed_done_not_running(tmp_path):
@@ -70,7 +70,8 @@ def test_reopening_log_requests_scroll_after_hidden_update(monkeypatch):
     from pixivvault_nicegui.queue_log import QueueLog
     from pixivvault_nicegui.ui.job_views import QueueView
     log = QueueLog()
-    with ui.column():
+    client = Client(ui.page('/_ae_queue_scroll_isolated'))
+    with client:
         view = QueueView(SimpleNamespace(jobs=SimpleNamespace(snapshot=lambda: (), faulted=False), artworks=(), queue_log=log))
     calls = []
     monkeypatch.setattr(core, 'loop', object())
@@ -83,6 +84,7 @@ def test_reopening_log_requests_scroll_after_hidden_update(monkeypatch):
         assert calls and 'scrollHeight' in calls[-1]
     finally:
         view.close()
+        client.delete()
 
 
 def test_failed_terminal_persistence_never_logs_completion(tmp_path):

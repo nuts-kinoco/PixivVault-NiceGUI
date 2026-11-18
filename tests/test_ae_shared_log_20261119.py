@@ -1,7 +1,7 @@
 ﻿from types import SimpleNamespace
 from threading import RLock
 
-from nicegui import ui
+from nicegui import Client, ui
 
 
 def test_shared_log_hidden_original_tabs_and_keyboard_toggle():
@@ -10,7 +10,8 @@ def test_shared_log_hidden_original_tabs_and_keyboard_toggle():
     assert LOG_HIDDEN_TABS == {'download','queue','failed','history','learning','ranking','library','recommend','dedup'}
     log=QueueLog()
     for n in range(1002): log.append(str(n),level='success')
-    with ui.column(): view=SharedLogView(log)
+    client=Client(ui.page('/_ae_shared_log_isolated'))
+    with client: view=SharedLogView(log)
     try:
         for tab in LOG_HIDDEN_TABS:
             view.show_tab(tab); assert not view.root.visible
@@ -24,7 +25,9 @@ def test_shared_log_hidden_original_tabs_and_keyboard_toggle():
         assert not view.panel.visible and view.button.text == 'ログを表示'
         view.toggle()
         assert view.panel.visible and view.button.text == 'ログを折りたたむ'
-    finally: view.close()
+    finally:
+        view.close()
+        client.delete()
 
 
 def test_only_confirmed_extension_terminal_enters_both_logs_once():

@@ -1,7 +1,7 @@
 ﻿from types import SimpleNamespace
 
 import pytest
-from nicegui import ui
+from nicegui import Client, ui
 
 
 def test_queue_log_bounded_and_view_toggles_from_title_and_list():
@@ -13,7 +13,8 @@ def test_queue_log_bounded_and_view_toggles_from_title_and_list():
     log.append('second', level='error')
     assert [item.message for item in log.snapshot()] == ['first', 'second']
     services = SimpleNamespace(jobs=SimpleNamespace(snapshot=lambda: (), faulted=False), artworks=(), queue_log=log)
-    with ui.column():
+    client = Client(ui.page('/_ae_queue_log_isolated'))
+    with client:
         view = QueueView(services)
     try:
         assert view.log_heading.visible and view.log_container.visible
@@ -31,6 +32,7 @@ def test_queue_log_bounded_and_view_toggles_from_title_and_list():
         assert any('third' in getattr(line, 'text', '') for line in view.log_container.descendants())
     finally:
         view.close()
+        client.delete()
 
 
 def test_extension_enqueue_logs_only_after_acceptance():
