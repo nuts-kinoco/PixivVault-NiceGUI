@@ -58,6 +58,8 @@ class FavouriteBook:
     # -- writing ------------------------------------------------------------------------
     def set(self, user_id, favourite):
         """Flip one star. Only a followed (synced) author can carry one, as in the original."""
+        if self.scheduler is not None:
+            return self.scheduler.set_star(self, str(user_id), bool(favourite))
         account = self.account()
         if account is None:
             return False
@@ -66,10 +68,6 @@ class FavouriteBook:
         if row is None or row.is_favorite == favourite:
             return False                      # not followed, or nothing to change
         self.following.set_favorite(account, user_id, favourite)
-        if self.scheduler is not None:
-            # A settings form opened before this change holds the old star list; its save must fail the
-            # revision check instead of replacing the new stars.
-            self.scheduler.touch_revision()
         return True
 
     def replace(self, author_ids):

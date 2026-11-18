@@ -593,11 +593,11 @@ class ManagedScheduler:
         return ids
 
     @contextmanager
-    def _settings_transaction(self, ids):
+    def _settings_transaction(self, ids, *, book_override=None):
         """Commit the scheduler and following ledgers together when stars are edited."""
         with self._lock:
             self._ensure_open()
-            book = self._favourites_source
+            book = book_override if book_override is not None else self._favourites_source
             following = None if book is None else book.following
             lock = following._lock if ids is not None and following is not None else nullcontext()
             with lock:
@@ -620,6 +620,26 @@ class ManagedScheduler:
                 finally:
                     if attached:
                         self._db.execute('DETACH DATABASE following_settings')
+
+    def set_star(self, book, user_id, favourite):
+        """Commit the star and form revision together under the settings lock."""
+        from .pixiv_read_client import _identifier
+        user_id = _identifier(user_id)
+        with self._settings_transaction((), book_override=book) as account:
+            if account is None:
+                return False
+            row = self._db.execute(
+                'SELECT is_favorite FROM following_settings.following_authors WHERE account_id=? AND user_id=?',
+                (account, user_id)).fetchone()
+            if row is None or bool(row[0]) == favourite:
+                return False
+            self._db.execute('UPDATE following_settings.following_authors SET is_favorite=? '
+                             'WHERE account_id=? AND user_id=?', (int(favourite), account, user_id))
+            self._db.execute('UPDATE following_settings.following_accounts SET revision=revision+1 '
+                             'WHERE account_id=?', (account,))
+            self.touch_revision()
+            self._star_cache = (0.0, frozenset())
+            return True
 
     def configure_all(self, *, author_ids: tuple[str, ...], interval_hours: int,
                       startup_check: bool, expected_revision: int,
