@@ -29,7 +29,7 @@ SPECS = (
     PreferenceSpec('novel_save_format', '小説の保存形式', 'epub', ('epub','txt','both'), '保存'),
     PreferenceSpec('ugoira_save_format', 'うごイラの保存形式', 'gif', ('gif','mp4','folder'), '保存'),
     PreferenceSpec('zip_all_after_download', '作者のダウンロード完了後ZIPにする', '0', ('0','1'), '保存'),
-    PreferenceSpec('bookmark_download_mode', 'ブックマークの保存方法（link = ハードリンク）', 'direct', ('direct','link'), '保存'),
+    PreferenceSpec('bookmark_download_mode', 'ブックマークの保存方法', 'direct', ('direct','link'), '保存'),
     PreferenceSpec('pixiv_actions_enabled', 'Pixiv操作（ブクマ・フォロー）', '0', ('0','1'), '通信'),
     PreferenceSpec('extension_bridge_enabled', 'ブラウザ拡張機能の受信（Pixivページからの保存指示・Cookie同期）', '1', ('0','1'), '通信'),
     PreferenceSpec('download_interval', 'ダウンロード待機時間（秒）', '0.6', ('0.3','0.4','0.5','0.6','1.0','1.5'), '通信'),

@@ -175,14 +175,14 @@ class BmServices(FakeServices):
         return self.batch_runs.start(tuple(visibilities), kind='bookmarks', origin=origin, target_type=target_type)
 
     def bookmark_layout(self):
-        return dict(hierarchical=self.settings['use_work_folder'] == '1',
-                    hardlink=self.settings['bookmark_download_mode'] == 'link')
+        return dict(hierarchical=self.settings['bookmark_download_mode'] == 'link',
+                    work_folder=self.settings['use_work_folder'] == '1')
 
-    def set_bookmark_layout(self, *, hierarchical=None, hardlink=None):
+    def set_bookmark_layout(self, *, hierarchical=None, work_folder=None):
         if hierarchical is not None:
-            self.settings['use_work_folder'] = '1' if hierarchical else '0'
-        if hardlink is not None:
-            self.settings['bookmark_download_mode'] = 'link' if hardlink else 'direct'
+            self.settings['bookmark_download_mode'] = 'link' if hierarchical else 'direct'
+        if work_folder is not None:
+            self.settings['use_work_folder'] = '1' if work_folder else '0'
 
 
 def make_bm(tmp_path, rows=(), records=(), **kw):
@@ -200,7 +200,7 @@ async def test_bookmark_pane_has_the_visibility_checks_layout_toggle_and_unfollo
         view.set_mode('bookmark')
         found = by_testid(client)
         for name in ('unified-bm-show', 'unified-bm-hide', 'unified-bm-hier', 'unified-bm-flat',
-                     'unified-bm-hardlink', 'unified-bm-unfollowed', 'unified-bm-hint'):
+                     'unified-bm-work-folder', 'unified-bm-unfollowed', 'unified-bm-hint'):
             assert name in found, name
         assert [t for t in ('含めるブックマーク', '公開ブックマーク', '非公開ブックマーク', '保存方式',
                             '階層化（作者別フォルダ）', 'フラット配置', '未フォロー作者を確認') if t not in texts(client)] == []
@@ -230,13 +230,14 @@ async def test_layout_toggles_write_the_settings_and_show_the_current_values(tmp
     services, client, view = make_bm(tmp_path)
     try:
         view.set_mode('bookmark')
-        assert view.bm_hierarchical is False and view.bm_hardlink is False
+        assert view.bm_hierarchical is False and view.bm_work_folder is False
         view.set_bm_layout(hierarchical=True)
-        view.set_bm_layout(hardlink=True)
+        assert services.settings == {'use_work_folder': '0', 'bookmark_download_mode': 'link'}
+        view.set_bm_layout(work_folder=True)
         assert services.settings == {'use_work_folder': '1', 'bookmark_download_mode': 'link'}
         assert view.bm_buttons['hier'].props['data-selected'] == 'true' and view.bm_buttons['flat'].props['data-selected'] == 'false'
         view.set_bm_layout(hierarchical=False)
-        assert services.settings['use_work_folder'] == '0'
+        assert services.settings == {'use_work_folder': '1', 'bookmark_download_mode': 'direct'}
     finally:
         finish(services, client)
 

@@ -3036,21 +3036,21 @@ class ApplicationServices:
         return self.start_batch_run(tuple(visibilities), kind='bookmarks', origin=origin, target_type=target_type)
 
     def bookmark_layout(self):
-        """The two bookmark save choices shown on the download screen (original: use_work_folder / hardlink)."""
+        """The bookmark projection layout and optional per-work folders."""
         prefs = self.preferences
         if prefs is None:
-            return dict(hierarchical=False, hardlink=False, editable=False)
-        return dict(hierarchical=prefs.get_setting('use_work_folder', '0') == '1',
-                    hardlink=prefs.get_setting('bookmark_download_mode', 'direct') == 'link', editable=True)
+            return dict(hierarchical=False, work_folder=False, editable=False)
+        return dict(hierarchical=prefs.get_setting('bookmark_download_mode', 'direct') == 'link',
+                    work_folder=prefs.get_setting('use_work_folder', '0') == '1', editable=True)
 
-    def set_bookmark_layout(self, *, hierarchical=None, hardlink=None):
+    def set_bookmark_layout(self, *, hierarchical=None, work_folder=None):
         prefs = self.preferences
         if prefs is None:
             raise RuntimeError('preferences are not configured')
         if hierarchical is not None:
-            prefs.set_setting('use_work_folder', '1' if hierarchical else '0')
-        if hardlink is not None:
-            prefs.set_setting('bookmark_download_mode', 'link' if hardlink else 'direct')
+            prefs.set_setting('bookmark_download_mode', 'link' if hierarchical else 'direct')
+        if work_folder is not None:
+            prefs.set_setting('use_work_folder', '1' if work_folder else '0')
 
     def favourite_book(self, scheduler=None):
         """The single home of the ☆ authors (the following ledger), see favourites.py."""

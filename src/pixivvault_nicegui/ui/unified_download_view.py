@@ -203,7 +203,7 @@ class UnifiedDownloadView:
         self.starting = False
         self._run_task = None
         self.bm_show, self.bm_hide = True, False
-        self.bm_hierarchical = self.bm_hardlink = False
+        self.bm_hierarchical = self.bm_work_folder = False
         self.unfollowed_view = None
         self._read_bookmark_layout()
         self._mirrored: set[str] = set()
@@ -377,10 +377,10 @@ class UnifiedDownloadView:
                         ui.label(label)
                     button.on("click", lambda _e, key=key: self.set_bm_layout(hierarchical=key == "hier"))
                     self.bm_buttons[key] = button
-            self.bm_hardlink_box = ui.checkbox(
-                "ハードリンクで置く（同じ画像を二重に保存しない）", value=self.bm_hardlink,
-                on_change=lambda e: self.set_bm_layout(hardlink=bool(e.value))).props(
-                "dense data-testid=unified-bm-hardlink")
+            self.bm_work_folder_box = ui.checkbox(
+                "作品ごとのフォルダーを使う", value=self.bm_work_folder,
+                on_change=lambda e: self.set_bm_layout(work_folder=bool(e.value))).props(
+                "dense data-testid=unified-bm-work-folder")
             ui.element("div").classes("pv-ud-hr")
             self.bm_unfollowed_button = ui.element("button").classes("pv-ud-tbtn").props(
                 "type=button data-testid=unified-bm-unfollowed")
@@ -957,15 +957,15 @@ class UnifiedDownloadView:
         except Exception:
             layout = {}
         self.bm_hierarchical = bool(layout.get("hierarchical", False))
-        self.bm_hardlink = bool(layout.get("hardlink", False))
+        self.bm_work_folder = bool(layout.get("work_folder", False))
 
     def _render_bm_layout(self):
         self.bm_buttons["hier"].props["data-selected"] = "true" if self.bm_hierarchical else "false"
         self.bm_buttons["flat"].props["data-selected"] = "false" if self.bm_hierarchical else "true"
         for button in self.bm_buttons.values():
             button.update()
-        if self.bm_hardlink_box.value != self.bm_hardlink:
-            self.bm_hardlink_box.set_value(self.bm_hardlink)
+        if self.bm_work_folder_box.value != self.bm_work_folder:
+            self.bm_work_folder_box.set_value(self.bm_work_folder)
 
     def set_bm(self, which, value):
         if which not in ("show", "hide") or self.running:
@@ -979,14 +979,14 @@ class UnifiedDownloadView:
         self._render_band()
         return True
 
-    def set_bm_layout(self, *, hierarchical=None, hardlink=None):
-        """階層化/フラットは use_work_folder、ハードリンクは bookmark_download_mode（link/direct）へ書く。"""
+    def set_bm_layout(self, *, hierarchical=None, work_folder=None):
+        """作者別配置と作品ごとのフォルダーをそれぞれの設定へ書く。"""
         setter = getattr(self.services, "set_bookmark_layout", None)
         if not callable(setter):
             self.set_notice("保存方式を変更できません（設定の保存先がありません）。")
             return False
         try:
-            setter(hierarchical=hierarchical, hardlink=hardlink)
+            setter(hierarchical=hierarchical, work_folder=work_folder)
         except Exception:
             self.set_notice("保存方式を保存できませんでした。")
         self._read_bookmark_layout()
