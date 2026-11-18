@@ -70,7 +70,7 @@ class ManagedLivePixivReadClient(LivePixivReadClient):
             raise
         self._owned_transport = owner
 
-    def _get_once(self, kind: str, url: str, *, deadline: float) -> bytes:
+    def _get_once(self, kind: str, url: str, *, deadline: float, capture_cookies=False):
         """Do not let the base retry policy wait/retry a latched fatal status.
 
         The transport has already persisted the stop before propagating the
@@ -79,7 +79,7 @@ class ManagedLivePixivReadClient(LivePixivReadClient):
         HTTP statuses retain the existing bounded retry policy unchanged.
         """
         try:
-            return super()._get_once(kind, url, deadline=deadline)
+            return super()._get_once(kind, url, deadline=deadline, capture_cookies=capture_cookies)
         except HTTPStatusRejected as error:
             from .request_policy import durable_stop_status
             if durable_stop_status(error.status_code):

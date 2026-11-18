@@ -1,8 +1,8 @@
 """Bounded, GET-only Pixiv reader for explicitly supplied Netscape cookies.
 
-No network or application configuration is consulted at construction. This
-module does not import the legacy application, persist cookies, or write data.
-An optional injected transport lets all behavior be tested without HTTP.
+No network or application configuration is consulted at construction. An
+explicit native coordinator can persist verified expiry extensions. An
+optional injected transport lets all behavior be tested without HTTP.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from __future__ import annotations
 import copy
 from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
+from dataclasses import dataclass, field
 import io
 import json
 import math
@@ -99,6 +100,7 @@ class ReadDeadlineExceeded(PixivReadError):
 
 
 _READ_DEADLINE = ContextVar('pixivvault_read_deadline', default=None)
+_CAPTURE_COOKIE_RESPONSE = ContextVar('pixivvault_capture_cookie_response', default=False)
 
 
 @contextmanager
@@ -167,6 +169,14 @@ class _NoRedirects(HTTPRedirectHandler):
 class _FrozenCookiePolicy(DefaultCookiePolicy):
     def set_ok(self, cookie, request):
         return False
+
+    def return_ok(self, cookie, request):
+        # stdlib return_ok logs cookie.name and cookie.value when its global
+        # debug flag is on. Keep the same checks without logging credentials.
+        for name in ('version', 'verifiability', 'secure', 'expires', 'port', 'domain'):
+            if not getattr(self, 'return_ok_' + name)(cookie, request):
+                return False
+        return True
 
 
 def _identifier(value: object) -> str:
@@ -439,9 +449,16 @@ def _validate_destination(url: str, kind: str) -> None:
         raise DestinationRejected() from None
 
 
+@dataclass(frozen=True)
+class _ReadResponse:
+    body: bytes = field(repr=False)
+    set_cookie: tuple[str, ...] = field(repr=False)
+    sent_cookies: tuple = field(default=(), repr=False)
+
+
 def _read_response(opener, request: Request, timeout: float,
                    limit: int, deadline: float, *, owner=None,
-                   observe_status=None) -> bytes:
+                   observe_status=None, capture_cookies=False):
     """Use urllib without automatic redirects, retries, proxies or decoding."""
     try:
         response = opener.open(request, timeout=timeout)
@@ -493,7 +510,16 @@ def _read_response(opener, request: Request, timeout: float,
                 data.extend(chunk)
                 if len(data) > limit:
                     raise ResponseLimitExceeded()
-            return bytes(data)
+            if not capture_cookies and not _CAPTURE_COOKIE_RESPONSE.get():
+                return bytes(data)
+            get_all = getattr(headers, 'get_all', None)
+            values = (get_all('Set-Cookie', []) if callable(get_all) else
+                      ([headers['Set-Cookie']] if headers.get('Set-Cookie') is not None else []))
+            if (type(values) not in (list, tuple) or len(values) > 128
+                    or any(type(value) is not str or len(value) > MAX_HEADER_BYTES for value in values)
+                    or sum(len(value) for value in values) > MAX_HEADER_BYTES):
+                raise ResponseLimitExceeded()
+            return _ReadResponse(bytes(data), tuple(values))
     except PixivReadError:
         raise
     except HTTPError as exc:
@@ -561,9 +587,13 @@ class _OwnedReadTransport(OwnedHTTPSPool):
                     timeout=min(timeout, MAX_REQUEST_SECONDS), deadline=effective_deadline,
                     host=parsed.hostname, port=port) as owner:
                 opener = build_opener(ProxyHandler({}), _NoRedirects(), OwnedHTTPSHandler(owner))
-                return _read_response(
-                    opener, request, owner.remaining(), limit, owner.deadline,
-                    owner=owner, observe_status=observe_status)
+                token = _CAPTURE_COOKIE_RESPONSE.set(True)
+                try:
+                    return _read_response(
+                        opener, request, owner.remaining(), limit, owner.deadline,
+                        owner=owner, observe_status=observe_status)
+                finally:
+                    _CAPTURE_COOKIE_RESPONSE.reset(token)
         except Exception as error:
             if fatal_status_seen is not None:
                 # This takes priority over ClientClosed, cleanup uncertainty,
@@ -726,6 +756,8 @@ class LivePixivReadClient:
         # Protect the entire identity transition, not just individual fields.
         self._identity_lock = RLock()
         self._closed = False
+        self._expiry_coordinator = None
+        self._expiry_cancel_lock = RLock()
 
     def __enter__(self):
         self._ensure_open()
@@ -737,13 +769,14 @@ class LivePixivReadClient:
     def close(self) -> None:
         # Revoke only this client's default I/O; injected transports are borrowed.
         # The request worker remains responsible for draining its owned aliases.
-        self._closed = True
-        owned = getattr(self, "_owned_transport", None)
-        if owned is not None:
-            owned.close()
-        self._verified_identity = None
-        self._cookie_user_id = None
-        self._cookies.clear()
+        with (getattr(self, '_expiry_cancel_lock', None) or nullcontext()):
+            self._closed = True
+            owned = getattr(self, "_owned_transport", None)
+            if owned is not None:
+                owned.close()
+            self._verified_identity = None
+            self._cookie_user_id = None
+            self._cookies.clear()
 
     @property
     def shutdown_unverified(self) -> bool:
@@ -763,17 +796,21 @@ class LivePixivReadClient:
         if policy is not None and not isinstance(policy,RequestRetryPolicy):raise TypeError('request retry policy required')
         self._retry_policy=policy
 
-    def _get(self, kind: str, url: str, *, deadline: float) -> bytes:
+    def _get(self, kind: str, url: str, *, deadline: float, capture_cookies=False):
         from .request_policy import request_scope
         scoped_deadline = _READ_DEADLINE.get()
         if scoped_deadline is not None:
             deadline = min(deadline, scoped_deadline)
-        with request_scope(checkpoint=self._ensure_open):
-            policy=getattr(self,'_retry_policy',None)
-            if policy is None:return self._get_once(kind,url,deadline=deadline)
-            return policy.execute(lambda:self._get_once(kind,url,deadline=deadline),deadline=deadline)
+        coordinator = getattr(self, '_expiry_coordinator', None)
+        with (coordinator.lock if coordinator is not None else nullcontext()):
+            if coordinator is not None:
+                coordinator.ensure_current(self)
+            with request_scope(checkpoint=self._ensure_open):
+                policy=getattr(self,'_retry_policy',None)
+                if policy is None:return self._get_once(kind,url,deadline=deadline,capture_cookies=capture_cookies)
+                return policy.execute(lambda:self._get_once(kind,url,deadline=deadline,capture_cookies=capture_cookies),deadline=deadline)
 
-    def _get_once(self, kind: str, url: str, *, deadline: float) -> bytes:
+    def _get_once(self, kind: str, url: str, *, deadline: float, capture_cookies=False):
         from .request_policy import request_checkpoint
         scoped_deadline = _READ_DEADLINE.get()
         if scoped_deadline is not None:
@@ -788,6 +825,7 @@ class LivePixivReadClient:
             self._ensure_open()
             _check_time(deadline)
         request = Request(url, method="GET", headers=_JSON_HEADERS)
+        sent_cookies = ()
         if kind in ("image", "ugoira_zip"):
             request.remove_header("Accept")
             request.add_header("Accept", "image/avif,image/webp,image/*")
@@ -795,6 +833,9 @@ class LivePixivReadClient:
             # Construct a frozen snapshot of the Cookie header, rather than
             # allowing any Set-Cookie response to mutate authentication.
             self._cookies.add_cookie_header(request)
+            if capture_cookies and getattr(self, '_expiry_coordinator', None) is not None:
+                sent_cookies = tuple((cookie.domain.lower(), cookie.path, cookie.name, cookie.value)
+                    for cookie in self._cookies._cookies_for_request(request))
             cookie_header = request.get_header("Cookie") or ""
             if (len(cookie_header) > 16384
                     or any(ord(char) < 32 or ord(char) == 127 for char in cookie_header)):
@@ -821,30 +862,47 @@ class LivePixivReadClient:
         except Exception:
             raise TransportFailed() from None
         _check_time(per_request_deadline)
-        if type(response) is not bytes:
+        if type(response) is bytes:
+            response = _ReadResponse(response, ())
+        if (type(response) is not _ReadResponse or type(response.body) is not bytes
+                or type(response.set_cookie) is not tuple or len(response.set_cookie) > 128
+                or any(type(value) is not str for value in response.set_cookie)
+                or sum(len(value) for value in response.set_cookie) > MAX_HEADER_BYTES):
             raise ResponseRejected()
-        if len(response) > limit:
+        if len(response.body) > limit:
             raise ResponseLimitExceeded()
         request_checkpoint()
         self._ensure_open()
-        return response
+        if capture_cookies and kind not in ('image', 'ugoira_zip'):
+            return _ReadResponse(response.body, response.set_cookie, sent_cookies)
+        return response.body
 
-    def _json(self, kind: str, url: str, *, deadline: float) -> object:
-        body = self._get(kind, url, deadline=deadline)
-        try:
-            packet = json.loads(
-                body, object_pairs_hook=_payload_unique_keys,
-                parse_constant=_payload_invalid_constant,
-            )
-        except (ValueError, UnicodeError):
-            raise InvalidPayload() from None
-        if type(packet) is not dict:
-            raise InvalidPayload()
-        if packet.get("error") is not False:
-            raise ApiRejected()
-        if "body" not in packet:
-            raise InvalidPayload()
-        return packet["body"]
+    def _json(self, kind: str, url: str, *, deadline: float, _deferred=None) -> object:
+        coordinator = getattr(self, '_expiry_coordinator', None)
+        with (coordinator.lock if coordinator is not None else nullcontext()):
+            response = self._get(kind, url, deadline=deadline, capture_cookies=True)
+            try:
+                packet = json.loads(
+                    response.body, object_pairs_hook=_payload_unique_keys,
+                    parse_constant=_payload_invalid_constant,
+                )
+            except (ValueError, UnicodeError):
+                raise InvalidPayload() from None
+            if type(packet) is not dict:
+                raise InvalidPayload()
+            if packet.get("error") is not False:
+                raise ApiRejected()
+            if "body" not in packet:
+                raise InvalidPayload()
+            if coordinator is not None and response.set_cookie:
+                if self._verified_identity is not None:
+                    from .request_policy import request_checkpoint
+                    request_checkpoint()
+                    self._ensure_open()
+                    coordinator.observe(self, url, response.set_cookie, response.sent_cookies)
+                elif _deferred is not None:
+                    _deferred.append((url, response, coordinator.generation_token(self)))
+            return packet["body"]
 
     def verify_identity(self) -> str:
         with self._identity_lock:
@@ -865,7 +923,9 @@ class LivePixivReadClient:
         actual = _identity_from_home(homepage)
         if self._cookie_user_id is not None and self._cookie_user_id != actual:
             raise AuthenticationMissing()
-        body = self._json("identity", API_ORIGIN + "/ajax/user/extra", deadline=deadline)
+        pending_expiry = []
+        body = self._json("identity", API_ORIGIN + "/ajax/user/extra", deadline=deadline,
+                          _deferred=pending_expiry)
         if not isinstance(body, dict):
             raise AuthenticationMissing()
         # Some API variants expose a user ID; the legacy endpoint is also
@@ -883,8 +943,24 @@ class LivePixivReadClient:
         response_id = next(iter(response_ids), None)
         if response_id is not None and response_id != actual:
             raise AuthenticationMissing()
-        self._ensure_open()
-        self._verified_identity = actual
+        coordinator = getattr(self, '_expiry_coordinator', None)
+        with (coordinator.lock if coordinator is not None else nullcontext()):
+            self._ensure_open()
+            if coordinator is not None:
+                coordinator.ensure_current(self)
+                coordinator.bind_identity(actual)
+            self._verified_identity = actual
+            try:
+                if coordinator is not None and pending_expiry:
+                    url, response, generation = pending_expiry[0]
+                    if coordinator.generation_token(self) != generation:
+                        raise CookieSourceRejected()
+                    from .request_policy import request_checkpoint
+                    request_checkpoint()
+                    coordinator.observe(self, url, response.set_cookie, response.sent_cookies)
+            except Exception:
+                self._verified_identity = None
+                raise
         return actual
 
     def _assert_identity(self, my_user_id: str) -> str:
@@ -1327,11 +1403,19 @@ class LivePixivReadClient:
         url=API_ORIGIN+'/ranking.php?'+urlencode(params)
         _validate_destination(url,'ranking')
         self.require_identity()
-        raw=self._get('ranking',url,deadline=time.monotonic()+MAX_OPERATION_SECONDS)
-        try:packet=json.loads(raw,object_pairs_hook=_payload_unique_keys,parse_constant=_payload_invalid_constant)
-        except (ValueError,UnicodeError):raise InvalidPayload() from None
-        if type(packet) is not dict or type(packet.get('contents')) is not list:raise InvalidPayload()
-        return packet['contents']
+        coordinator = getattr(self, '_expiry_coordinator', None)
+        with (coordinator.lock if coordinator is not None else nullcontext()):
+            response=self._get('ranking',url,deadline=time.monotonic()+MAX_OPERATION_SECONDS,capture_cookies=True)
+            try:packet=json.loads(response.body,object_pairs_hook=_payload_unique_keys,parse_constant=_payload_invalid_constant)
+            except (ValueError,UnicodeError):raise InvalidPayload() from None
+            if type(packet) is not dict or type(packet.get('contents')) is not list:raise InvalidPayload()
+            if packet.get('error'):raise ApiRejected()
+            if coordinator is not None and response.set_cookie and self._verified_identity is not None:
+                from .request_policy import request_checkpoint
+                request_checkpoint()
+                self._ensure_open()
+                coordinator.observe(self, url, response.set_cookie, response.sent_cookies)
+            return packet['contents']
 
     def get_novel_ranking(self, *, mode='daily', page=1, date=None):
         """One explicit public GET from /ajax/ranking/novel, never ranking.php.

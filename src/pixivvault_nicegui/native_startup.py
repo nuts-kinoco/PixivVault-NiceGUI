@@ -105,6 +105,8 @@ class NativeProfileBinding:
         self.cookie_store_factory = None
         self._cookie_store = None
         self._cookie_lock = Lock()
+        self._expiry_lock = Lock()
+        self._cookie_expiry_coordinator = None
         self._startup_extract_done = False
         self.last_cookie_adoption = None
         # FL-A09/A10: after a confirmed Cookie, account-switch confirmation and
@@ -291,6 +293,15 @@ class NativeProfileBinding:
                 self._cookie_store = self.cookie_store_factory()
             return self._cookie_store
 
+    def cookie_expiry_coordinator(self):
+        with self._expiry_lock:
+            if self._closed or self.cookie_store_factory is None:
+                raise RuntimeError('credential store unavailable')
+            if self._cookie_expiry_coordinator is None:
+                from .cookie_expiry_refresh import CookieExpiryCoordinator
+                self._cookie_expiry_coordinator = CookieExpiryCoordinator(self.store, self._open_cookie_store)
+            return self._cookie_expiry_coordinator
+
     async def adopt_browser_cookies(self):
         """Extract, verify through the gate, then adopt the browser Cookie.
 
@@ -345,10 +356,16 @@ class NativeProfileBinding:
     def cookie_replaced_since_launch(self):
         """True when the saved Cookie differs from the one the readers were built with."""
         try:
-            return (self.launch_snapshot is not None
-                    and self.store.snapshot().cookie_file != self.launch_snapshot.cookie_file)
+            if self.launch_snapshot is None:
+                return False
+            current = self.store.snapshot()
+            if current.cookie_file == self.launch_snapshot.cookie_file:
+                return False
+            coordinator = self._cookie_expiry_coordinator
+            return not (coordinator is not None and coordinator.recognizes_renewal(
+                current, self.launch_snapshot.cookie_file))
         except Exception:
-            return False
+            return True
 
     def _configured_cookie(self):
         try:
@@ -552,6 +569,10 @@ class NativeProfileBinding:
             if reader is not None:
                 reader.close()
         self.followup.close()
+        with self._expiry_lock:
+            expiry, self._cookie_expiry_coordinator = self._cookie_expiry_coordinator, None
+        if expiry is not None:
+            expiry.close()
         with self._cookie_lock:
             cookie_store, self._cookie_store = self._cookie_store, None
         if cookie_store is not None:

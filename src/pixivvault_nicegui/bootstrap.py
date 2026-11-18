@@ -402,7 +402,7 @@ def _build_owned_media_readers(*, pixiv_cookie_file, pixiv_download_root,
                                novel_download_root, novel_fixture_root,
                                novel_source, ugoira_root, ugoira_fixture_root,
                                live_client, managed_network_stop_scope,
-                               shared_network_stop_scope=None):
+                               shared_network_stop_scope=None, cookie_expiry_coordinator=None):
     """Construct all authenticated readers as one fail-closed ownership unit.
 
     A partial failure before ApplicationServices assumes the readers must not
@@ -432,6 +432,8 @@ def _build_owned_media_readers(*, pixiv_cookie_file, pixiv_download_root,
             else:
                 reader = shared_network_stop_scope.create_reader(pixiv_cookie_file)
             owned.callback(reader.close)
+            if cookie_expiry_coordinator is not None:
+                cookie_expiry_coordinator.register(reader)
             return reader
 
         if pixiv_cookie_file is not None:
@@ -699,7 +701,11 @@ def register_pages(learning_sandbox: Path | None = None,
         ugoira_fixture_root=ugoira_fixture_root,
         live_client=live_client,
         managed_network_stop_scope=managed_network_stop_scope,
-        shared_network_stop_scope=shared_network_stop_scope)
+        shared_network_stop_scope=shared_network_stop_scope,
+        cookie_expiry_coordinator=(native_profile.cookie_expiry_coordinator()
+            if native_profile is not None and pixiv_cookie_file is not None
+            and managed_network_stop_scope is not None
+            and getattr(native_profile, 'cookie_store_factory', None) is not None else None))
     try:
         services = get_services(app, learning_sandbox=learning_sandbox,
             library_readonly_db=library_readonly_db, library_image_root=library_image_root,

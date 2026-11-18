@@ -50,6 +50,10 @@ class CookieSyncConflict(CookieSyncError):
     message = 'Cookie同期の対象世代が変更されました。再確認が必要です。'
 
 
+class CookieSyncCapacityExceeded(CookieSyncError):
+    code = 'cookie_sync_capacity'
+
+
 class CookieSyncBusy(CookieSyncError):
     code = 'cookie_sync_busy'
     message = 'Cookie同期の保存領域は使用中です。'
@@ -210,11 +214,15 @@ def _text(value, maximum, *, empty=False):
     return value
 
 
-def _key(domain, path, name):
+def _cookie_octet_value(value):
+    return type(value) is str and len(value) <= 16384 and re.fullmatch(r'[\x21\x23-\x2b\x2d-\x3a\x3c-\x5b\x5d-\x7e]*', value) is not None
+
+
+def _key(domain, path, name, *, allow_foreign=False):
     domain = _text(domain, 253).lower()
     host = domain.removeprefix('.')
     if (not _DOMAIN.fullmatch(domain) or '..' in domain
-            or not (host == 'pixiv.net' or host.endswith('.pixiv.net'))):
+            or (not allow_foreign and not (host == 'pixiv.net' or host.endswith('.pixiv.net')))):
         raise CookieSyncError()
     path = _text(path, 2048)
     name = _text(name, 256)
@@ -239,7 +247,7 @@ def _parse_existing(raw):
         if len(parts) != 7:
             raise CookieSyncError()
         domain, sub, path, secure, expiry, name, value = parts
-        key = _key(domain, path, name)
+        key = _key(domain, path, name, allow_foreign=True)
         if (sub not in ('TRUE', 'FALSE') or secure not in ('TRUE', 'FALSE')
                 or (sub == 'TRUE') != key[0].startswith('.') or key in rows):
             raise CookieSyncError()
@@ -290,14 +298,27 @@ def _normalize(cookies, previous):
     return rows
 
 
-def _serialize(rows):
+def _http_only_keys(raw):
+    result = set()
+    for line in raw.decode('utf-8-sig').splitlines():
+        if line.startswith('#HttpOnly_'):
+            parts = line[len('#HttpOnly_'):].split('\t')
+            if len(parts) != 7:
+                raise CookieSyncError()
+            result.add(_key(parts[0], parts[2], parts[5], allow_foreign=True))
+    return result
+
+
+def _serialize(rows, http_only=()):
     result = _HEADER + ''.join(
-        f"{domain}\t{'TRUE' if domain.startswith('.') else 'FALSE'}\t{path}\t"
-        f"{'TRUE' if secure else 'FALSE'}\t{expiry}\t{name}\t{value}\n"
+        f"{'#HttpOnly_' if (domain, path, name) in http_only else ''}{domain}\t{'TRUE' if domain.startswith('.') else 'FALSE'}\t{path}\t"
+        f"{'TRUE' if secure else 'FALSE'}\t{'' if expiry is None else expiry}\t{name}\t{value}\n"
         for (domain, path, name), (value, secure, expiry) in sorted(rows.items()))
     raw = result.encode('utf-8')
-    if not 0 < len(raw) <= COOKIE_LIMIT:
+    if not raw:
         raise CookieSyncError()
+    if len(raw) > COOKIE_LIMIT:
+        raise CookieSyncCapacityExceeded()
     return raw
 
 
@@ -457,7 +478,7 @@ class ExtensionCookieStore:
         raw, proof = _read_stable(path, COOKIE_LIMIT)
         rows = _parse_existing(raw)
         if (len(raw) != packet['bytes'] or proof.sha256 != packet['sha256']
-                or len(rows) != packet['cookie_count'] or raw != _serialize(rows)):
+                or len(rows) != packet['cookie_count'] or raw != _serialize(rows, _http_only_keys(raw))):
             raise CookieSyncError()
         return raw, proof, rows, relative[1]
 
@@ -475,6 +496,94 @@ class ExtensionCookieStore:
         except (CookieSyncError, UnicodeError, ValueError):
             rows = {}  # Invalid old syntax can be replaced, never edited or adopted as valid.
         return raw, proof, rows, None
+
+    def expiry_source(self):
+        """Capture a profile revision, exact file proof and all existing rows."""
+        with self._guard:
+            self._usable()
+            snapshot = self._profile.snapshot()
+            self._boundaries(snapshot)
+            raw, proof, rows, _ = self._previous(snapshot)
+            if raw is None or proof is None or not rows:
+                raise CookieSyncConflict()
+            return snapshot, proof, rows
+
+    def prepare_expiry_extensions(self, updates, *, expected_snapshot, expected_proof, verified_identity):
+        """Preserve all rows exactly; publish only verified expiry extensions."""
+        with self._guard:
+            try:
+                self._usable()
+                if self._pending is not None:
+                    raise CookieSyncBusy()
+                previous = self._profile.snapshot()
+                if previous != expected_snapshot:
+                    raise CookieSyncConflict()
+                self._boundaries(previous)
+                old_raw, source, old_rows, _ = self._previous(previous)
+                if source != expected_proof or old_raw is None or not old_rows:
+                    raise CookieSyncConflict()
+                if (type(updates) is not dict or type(verified_identity) is not str
+                        or re.fullmatch(r'[1-9][0-9]{0,19}', verified_identity) is None):
+                    raise CookieSyncError()
+                rows = dict(old_rows)
+                http_only = _http_only_keys(old_raw)
+                for key, replacement in updates.items():
+                    if type(key) is not tuple or len(key) != 3 or _key(*key) != key:
+                        raise CookieSyncError()
+                    if (key not in old_rows or type(replacement) is not tuple or len(replacement) not in (3, 4)
+                            or type(replacement[0]) is not str or type(replacement[1]) is not bool
+                            or type(replacement[2]) is not int or replacement[2] > _MAX_EXPIRY
+                            or (len(replacement) == 4 and type(replacement[3]) is not bool)):
+                        raise CookieSyncError()
+                    old = old_rows[key]
+                    if (replacement[1] != old[1] or replacement[2] <= int(time.time())
+                            or (old[2] is not None and replacement[2] <= old[2])):
+                        raise CookieSyncError()
+                    _text(replacement[0], 16384, empty=True)
+                    if replacement[0] != old[0]:
+                        from .pixiv_read_client import _SESSION_ID
+                        if not _cookie_octet_value(replacement[0]):
+                            raise CookieSyncError()
+                        if key[2] == 'PHPSESSID':
+                            claim = _SESSION_ID.fullmatch(replacement[0])
+                            if claim is None or claim.group(1) != verified_identity:
+                                raise CookieSyncError()
+                        else:
+                            claims = (_SESSION_ID.fullmatch(value[0]) for cookie_key, value in old_rows.items()
+                                      if cookie_key[2] == 'PHPSESSID' and
+                                      (cookie_key[0].lstrip('.') == 'pixiv.net' or
+                                       cookie_key[0].lstrip('.').endswith('.pixiv.net')))
+                            if not any(claim is not None and claim.group(1) == verified_identity for claim in claims):
+                                raise CookieSyncError()
+                    rows[key] = replacement[:3]
+                    if len(replacement) == 4 and replacement[3]:
+                        http_only.add(key)
+                if rows == old_rows and http_only == _http_only_keys(old_raw):
+                    return None
+                raw = _serialize(rows, http_only)
+                generation = uuid4().hex
+                folder = self._generations / generation
+                _safe(self._generations)
+                native_io_path(folder).mkdir(mode=0o700, exist_ok=False)
+                path = folder / 'cookies.txt'
+                _write_new(path, raw)
+                _read_cookies(native_io_path(path))
+                metadata = _json({'version': 1, 'generation': generation, 'bytes': len(raw),
+                    'sha256': hashlib.sha256(raw).hexdigest(), 'cookie_count': len(rows)})
+                _write_new(folder / 'generation.json', metadata)
+                _fsync_directory(folder)
+                _fsync_directory(self._generations)
+                _raw, checked, _rows, _token = self._owned_generation(path)
+                if self._profile.snapshot() != previous:
+                    raise CookieSyncConflict()
+                candidate = PreparedCookieGeneration(True, previous.revision, len(rows), len(raw),
+                    logical_path(path), checked.sha256, generation)
+                self._pending = _Pending(candidate, previous, source)
+                return candidate
+            except CookieSyncError:
+                raise
+            except Exception:
+                raise CookieSyncError() from None
 
     def prepare(self, cookies, *, expected_revision):
         with self._guard:

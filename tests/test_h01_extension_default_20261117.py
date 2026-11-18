@@ -355,7 +355,8 @@ def test_cookie_sync_saves_to_profile_and_triggers_gated_check(monkeypatch, tmp_
     owner = _SyncOwner(binding)
     b = _start(monkeypatch, owner)
     try:
-        status, body = _call(b, 'POST', '/api/cookie/sync', {'cookies': _cookie_rows()})
+        rows = _cookie_rows()
+        status, body = _call(b, 'POST', '/api/cookie/sync', {'cookies': rows})
         assert status == 200 and body['saved'] is True and body['state'] == 'pending'
         assert SECRET not in json.dumps(body)
         saved = store.snapshot().cookie_file
@@ -363,7 +364,7 @@ def test_cookie_sync_saves_to_profile_and_triggers_gated_check(monkeypatch, tmp_
         assert SECRET in saved.read_text(encoding='utf-8')      # 保存先には保存される
         assert owner.cookie_checks == [True]                    # 保存後に認証チェック（ゲート経由）を依頼
         first = saved
-        status, body = _call(b, 'POST', '/api/cookie/sync', {'cookies': _cookie_rows()})
+        status, body = _call(b, 'POST', '/api/cookie/sync', {'cookies': rows})
         assert status == 200 and body['state'] == 'unchanged'
         assert store.snapshot().cookie_file == first
     finally:
