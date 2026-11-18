@@ -6,6 +6,8 @@ written and verified. Unindexed generation folders are harmless crash orphans.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 import hashlib
 import json
 import os
@@ -325,6 +327,35 @@ def reject_uncertain_old_v5(root):
         raise LegacyV5Uncertain()
 
 
+@contextmanager
+def _index_creation_guard(root):
+    """Keep an existing index fixed while creating managed directories on Windows."""
+    reject_uncertain_old_v5(root)
+    path = native_io_path(root / 'active-generations.json')
+    handle = None
+    if os.name == 'nt':
+        import ctypes
+        from ctypes import wintypes
+        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+        create = kernel.CreateFileW
+        create.argtypes = (wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
+                           wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE)
+        create.restype = wintypes.HANDLE
+        handle = create(str(path), 0x80000000, 0x1, None, 3, 0x80, None)
+        if handle in (None, wintypes.HANDLE(-1).value):
+            error = ctypes.get_last_error()
+            if error not in (2, 3):
+                raise ctypes.WinError(error)
+            handle = None
+    try:
+        reject_uncertain_old_v5(root)
+        yield
+    finally:
+        if handle is not None:
+            kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+            kernel.CloseHandle(handle)
+
+
 class ManagedGenerations:
     """Index is owned by one managed-root writer; all returned data is copied.
 
@@ -356,11 +387,11 @@ class ManagedGenerations:
         self.stage_dir = self.root / 'generation-incomplete'
         self.index_path = self.root / 'active-generations.json'
         self.journal_path = self.root / _JOURNAL
-        reject_uncertain_old_v5(self.root)
-        for folder in (self.output_dir, self.generation_dir, self.stage_dir):
-            _safe_path(folder)
-            native_io_path(folder).mkdir(exist_ok=True)
-            _safe_path(folder)
+        with _index_creation_guard(self.root):
+            for folder in (self.output_dir, self.generation_dir, self.stage_dir):
+                _safe_path(folder)
+                native_io_path(folder).mkdir(exist_ok=True)
+                _safe_path(folder)
         self._lock = RLock()
         self._visibility_cache = None
         self._loaded = None

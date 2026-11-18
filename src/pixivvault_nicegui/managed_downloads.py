@@ -251,20 +251,15 @@ class ManagedPixivDownloads:
                 raise ManagedDownloadError("managed marker rejected") from None
         else:
             _write(marker, json.dumps(IDENTITY, sort_keys=True).encode("utf-8"))
-        from .managed_generations import ManagedGenerations, reject_uncertain_old_v5
-        reject_uncertain_old_v5(self.root)
+        from .managed_generations import ManagedGenerations, _index_creation_guard
         self.outputs = self.root / "outputs"
-        native_io_path(self.outputs).mkdir(exist_ok=True)
-        _safe_path(self.outputs)
         self.incomplete = self.root / 'incomplete'
-        native_io_path(self.incomplete).mkdir(exist_ok=True)
-        _safe_path(self.incomplete)
-        # v1 outputs remain immutable forever. v2 generations have their own
-        # namespace, so an interrupted publication can never masquerade as a
-        # second active receipt or break old reader start-up.
         self.generation_outputs = self.root / 'generations'
-        native_io_path(self.generation_outputs).mkdir(exist_ok=True)
-        _safe_path(self.generation_outputs)
+        with _index_creation_guard(self.root):
+            for folder in (self.outputs, self.incomplete, self.generation_outputs):
+                _safe_path(folder)
+                native_io_path(folder).mkdir(exist_ok=True)
+                _safe_path(folder)
         self._generations = ManagedGenerations(self.root)
         from .managed_quarantine import ManagedQuarantine
         self.quarantine = ManagedQuarantine(self)
