@@ -9,10 +9,13 @@ from ..viewer_metadata import pixiv_url
 from .card_size_control import size_buttons, update_size_buttons
 from .grid_layout import MAX_COLUMNS
 from .recommendation_viewer import RecommendationViewer
+from .card_actions import CardActions
+from .card_context_menu import MenuEntry, build_context_menu, open_from_keyboard
 
 class RecommendView:
-    def __init__(self,services,*,on_open=None,on_enqueue=None,card_size="large",on_size_change=None,on_navigate_to_learning=None):
+    def __init__(self,services,*,on_open=None,on_enqueue=None,card_size="large",on_size_change=None,on_navigate_to_learning=None,on_search_tag=None):
         self.services=services
+        self._on_search_tag=on_search_tag
         self._on_navigate_to_learning=on_navigate_to_learning
         self.card_size=card_size;self._on_size_change=on_size_change
         self.controller=getattr(services,'recommendations',None)
@@ -27,6 +30,7 @@ class RecommendView:
         self._media=None;self._open_generation=0;self._opening=None
         self._author_browser=None
         self.client=ui.context.client
+        self._card_actions=CardActions(services,lambda text:self.notice.set_text(text),lambda:self.active and not self.closed)
         with ui.column().classes('pv-metadata-view w-full gap-3').props('data-testid=recommend-view data-busy=false') as self.root:
             with ui.row().classes('items-center w-full'):
                 ui.label('おすすめ').classes('pv-view-title')
@@ -420,17 +424,7 @@ class RecommendView:
                                         with ui.element('div').classes('pv-card-meta'):
                                             ui.label(work.title or 'ID '+work.work_id).classes('pv-card-title')
                                             ui.label(work.author_name or work.author_id).classes('pv-card-author')
-                                    target=pixiv_url(work.work_id)
-                                    if target is not None:
-                                        with ui.context_menu().props(
-                                                f'data-testid=recommend-pixiv-context-{kind}-{work.work_id}'):
-                                            link=ui.link('Pixivで作品を開く',target,new_tab=True).classes('p-3').props(
-                                                f'data-testid=recommend-pixiv-link-{kind}-{work.work_id}')
-                                            link.props['rel']='noopener noreferrer'
-                                            if work.author_id:
-                                                ui.button('作者ページを開く',on_click=lambda e,w=work.work_id,g=generation:
-                                                    self.open_author_page(w,generation=g)).props(
-                                                    f'flat data-testid=recommend-author-{kind}-{work.work_id}')
+                                    self._card_menu(kind,work,generation,preview,data)
                                     if self.on_open is not None:ui.button('保存済みを開く',
                                         on_click=lambda e,w=work.work_id,g=generation:self.open_saved_work(w,generation=g)).props('flat dense')
                                     if self.on_enqueue is not None:ui.button('キューに追加',on_click=lambda e,w=work:self.save_work(w.work_id)).props('flat')
@@ -477,11 +471,60 @@ class RecommendView:
             self._lock_rendered_buttons()
             self.update_button.disable()
 
+    def _card_menu(self,kind,work,generation,card,data):
+        """元 recommend_tab.py:815-876 の右クリック 12 項目（取り下げるは SuperLike の棚だけ）。"""
+        wid=work.work_id;aid=work.author_id;name=work.author_name
+        writable=bool(data['writable']);actions=self._card_actions
+        tag=work.tags[0] if work.tags else None
+        target=pixiv_url(wid)
+        def guard(coroutine):
+            if self.closed or not self.active or generation!=self._render_generation:
+                coroutine.close();return None
+            return coroutine
+        entries=[
+            MenuEntry('bookmark','ブックマークする','bookmark_add',lambda:guard(actions.bookmark(wid,aid,name)),
+                      enabled=actions.can_write() and bool(aid)),
+            MenuEntry('prefer','好み（保存する）','favorite_border',lambda:guard(self.save_preferred(wid,kind)),
+                      enabled=self.on_enqueue is not None),
+        ]
+        if kind=='superlike':
+            entries.append(MenuEntry('dismiss','取り下げる','undo',
+                lambda:self.dismiss_superlike(wid,generation=generation),enabled=writable,
+                testid=f'recommend-ctx-dismiss-superlike-{wid}'))
+        entries+=[
+            MenuEntry('hide','出さない','visibility_off',lambda:guard(self.hide('work',wid)),enabled=writable),
+            MenuEntry('hide-reason','出さない（理由をつける）','edit_note',lambda:self.ask_hide_reason(wid),enabled=writable),
+            MenuEntry('queue','ダウンロードキューへ積む','download_for_offline',lambda:guard(self.save_work(wid)),
+                      enabled=self.on_enqueue is not None),
+            MenuEntry('boost','この作者をもっと見る','person_add_alt',lambda:guard(self.boost(aid,name,True)),
+                      enabled=writable and bool(aid)),
+            MenuEntry('hide-author','この作者を出さない','person_off',lambda:guard(self.hide('author',aid)),
+                      enabled=writable and bool(aid)),
+            MenuEntry('tag','このタグで検索','search',lambda:self._search_tag(tag),
+                      enabled=bool(tag) and self._on_search_tag is not None),
+            MenuEntry('author','作者の作品一覧へ飛ぶ','person_outline',
+                      lambda:self.open_author_page(wid,generation=generation),enabled=bool(aid),
+                      testid=f'recommend-author-{kind}-{wid}'),
+            MenuEntry('follow','pixivでフォローする','person_add_alt_1',lambda:guard(actions.follow(aid,name)),
+                      enabled=actions.can_write() and bool(aid)),
+            MenuEntry('pixiv','pixivで作品ページを開く','open_in_new',href=target,enabled=target is not None,
+                      testid=f'recommend-pixiv-link-{kind}-{wid}'),
+        ]
+        menu,_=build_context_menu(entries,testid=f'recommend-pixiv-context-{kind}-{wid}')
+        open_from_keyboard(card,menu)
+    def _search_tag(self,tag):
+        if tag and self._on_search_tag is not None and self.active and not self.closed:self._on_search_tag(tag)
+    async def save_preferred(self,work_id,kind):
+        """元の「好み（保存する）」: 保存して、SuperLike の棚からは取り下げる（保存が受理されたときだけ）。"""
+        generation=self._render_generation
+        if not await self.save_work(work_id):return
+        if kind=='superlike' and self.data is not None and generation==self._render_generation:
+            await self.dismiss_superlike(work_id,generation=generation)
     async def save_work(self,work_id):
-        if not self.active or self.closed or self.on_enqueue is None or work_id in self._saving:return
+        if not self.active or self.closed or self.on_enqueue is None or work_id in self._saving:return False
         # A visible card is the authority, not an arbitrary event payload.
         if self.data is None or not any(w.work_id==work_id for groups in self.data['sections'].values()
-                                       for group in groups for w in group.works):return
+                                       for group in groups for w in group.works):return False
         operation=self._save_operations.setdefault(work_id,uuid4().hex)
         epoch=self.epoch;self._saving.add(work_id)
         try:
@@ -489,10 +532,12 @@ class RecommendView:
                 is_current=lambda:self.active and not self.closed and self.epoch==epoch)
             if job is not None and self.active and not self.closed and self.epoch==epoch:
                 self.notice.set_text('保存をキューに追加しました。完了・失敗・再試行はダウンロード画面で確認できます。')
+                return True
         except Exception:
             if self.active and not self.closed and self.epoch==epoch:
                 self.notice.set_text('保存受付を確認できません。同じ操作で再確認できます。キューも確認してください。')
         finally:self._saving.discard(work_id)
+        return False
     def change_card_size(self,size):
         if self.closed or not self.active:return
         if self._on_size_change is not None:self._on_size_change(size)

@@ -27,6 +27,7 @@ class MenuEntry:
     on_click: Callable[[], Awaitable | None] | None = None
     enabled: bool = True
     href: str | None = None  # 指定時は新しいタブで開くリンク項目
+    testid: str | None = None  # 既存の data-testid を保つとき（既定は <menu>-<key>）
 
 
 def build_context_menu(entries, *, testid: str) -> tuple[ui.context_menu, dict[str, ui.menu_item]]:
@@ -38,7 +39,7 @@ def build_context_menu(entries, *, testid: str) -> tuple[ui.context_menu, dict[s
     with ui.context_menu().props(f'data-testid={testid}') as menu:
         for entry in entries:
             item = ui.menu_item(entry.label, on_click=entry.on_click if entry.href is None else None)
-            item.props(f'data-testid={testid}-{entry.key}')
+            item.props(f'data-testid={entry.testid or f"{testid}-{entry.key}"}')
             if entry.href is not None:
                 item.props(f'href="{entry.href}" target=_blank rel="noopener noreferrer"')
             if entry.icon:
