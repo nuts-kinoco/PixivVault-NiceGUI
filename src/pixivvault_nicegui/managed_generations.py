@@ -621,6 +621,29 @@ class ManagedGenerations:
                         or re.fullmatch(r'[a-f0-9]{32}', journal['id']) is None):
                     raise ValueError()
                 loaded.jid = journal['id']
+            else:
+                # An older index cannot account for publications in a v5 journal. Empty
+                # journals are allowed: upgrade creates them before replacing the index.
+                for path in self.root.glob('active-generations-*.journal'):
+                    raw_journal = _read_shared(path, _MAX_JOURNAL_BYTES)
+                    header_end = raw_journal.find(b'\n')
+                    if header_end < 0 or raw_journal[header_end + 1:]:
+                        raise ValueError()
+                    header = json.loads(raw_journal, object_pairs_hook=_json_unique)
+                    jid = path.name[len('active-generations-'):-len('.journal')]
+                    if (re.fullmatch(r'[a-f0-9]{32}', jid) is None or
+                            header != {'id': jid, 'kind': _JOURNAL_KIND, 'version': 2}):
+                        raise ValueError()
+                    mark_path = self._mark_file(jid)
+                    if _identity(mark_path) is not None:
+                        mark = json.loads(_read_shared(mark_path, 4096), object_pairs_hook=_json_unique)
+                        if mark != {'id': jid, 'records': 0,
+                                    'chain': hashlib.sha256(raw_journal).hexdigest()}:
+                            raise ValueError()
+                for path in self.root.glob('active-generations-*.mark'):
+                    jid = path.name[len('active-generations-'):-len('.mark')]
+                    if _identity(self._journal_file(jid)) is None:
+                        raise ValueError()
             self._quarantine_fields(loaded.qpacket(), verify_payloads=True, tolerate_missing=False)
             loaded.indexed = self._check_entries(packet['entries'], loaded.version, folders)
             self._replay_journal(loaded, folders)
