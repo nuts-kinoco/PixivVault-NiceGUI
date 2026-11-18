@@ -284,6 +284,8 @@ class RunProgress:
         self.state = "idle"          # idle|running|paused|stopping|done|stopped|failed
         self.pause_reason = ""
         self.counts = {}
+        self.kind = "authors"        # "bookmarks": 行は公開(1)/非公開(2)。件数は作品単位
+        self.work_title = ""
         self.finished_authors = set()
         self.failed_authors = set()      # 一覧取得などで失敗した作者（元と同じく先へ進むが、「完了」とは言わない）
         self.elapsed = 0.0
@@ -299,14 +301,19 @@ class RunProgress:
         elif name == "author_start":
             self.current = str(event["author_id"])
             self.work_idx = self.work_total = 0
+            self.work_title = ""
             if self.state == "paused":
                 self.state, self.pause_reason = "running", ""
         elif name == "author_listed":
             c = event.get("counters") or {}
             self.work_total = sum(int(c.get(k, 0)) for k in ("n_new", "n_updated", "n_restored", "n_missing"))
+        elif name == "work_info":
+            self.work_title = str(event.get("title") or "")
         elif name == "work_progress":
             self.work_idx = int(event.get("done", 0)) + 1
             self.work_total = max(self.work_total, int(event.get("queued", 0)))
+            if event.get("title"):
+                self.work_title = str(event["title"])
         elif name in ("author_done", "author_failed"):
             self.done += 1
             self.finished_authors.add(str(event["author_id"]))

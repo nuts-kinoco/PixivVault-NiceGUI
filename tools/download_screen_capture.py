@@ -294,6 +294,26 @@ def drive(args, out: Path, url):
                     results[(size, theme, "run_end_status")] = page.get_by_test_id("unified-band-status").inner_text()
                     results[(size, theme, "run_end_last")] = page.evaluate(
                         "[...document.querySelectorAll('[data-testid=unified-row-last]')].slice(0,6).map(e=>e.textContent)")
+                    # the band: open with the hint row (→ 140px, record boxes), then shrink the window (→ closes by itself)
+                    page.get_by_test_id("unified-band-hint-row").click()
+                    page.wait_for_timeout(500)
+                    refused = page.get_by_test_id("unified-band").get_attribute("data-open") != "true"
+                    results[(size, theme, "band_refused")] = refused
+                    if refused:      # the window is too low for the original's rule: the body would drop under 240px
+                        page.set_viewport_size({"width": size[0], "height": size[1] + 150})
+                        page.wait_for_timeout(500)
+                        page.get_by_test_id("unified-band-hint-row").click()
+                        page.wait_for_timeout(500)
+                    page.screenshot(path=str(out / f"ours_{tag}_band_open.png"))
+                    results[(size, theme, "band_open")] = page.evaluate(
+                        "() => { const r = e => e ? e.getBoundingClientRect() : null; const b = r(document.querySelector('[data-testid=unified-band]'));"
+                        " const s = r(document.querySelector('[data-testid=unified-sumband]'));"
+                        " const boxes = [...document.querySelectorAll('.pv-ud-sumbox')].map(e => e.innerText.split(String.fromCharCode(10)).join(' '));"
+                        " return {band_h: b && b.height, sum_h: s && s.height, boxes, open: document.querySelector('[data-testid=unified-band]').dataset.open}; }")
+                    page.set_viewport_size({"width": size[0], "height": 430})
+                    page.wait_for_timeout(1200)
+                    results[(size, theme, "auto_closed")] = page.get_by_test_id("unified-band").get_attribute("data-open")
+                    page.set_viewport_size({"width": size[0], "height": size[1]})
                     results[(size, theme, "foreign")] = list(foreign)
                     ctx.close()
         finally:
@@ -434,6 +454,17 @@ def build_report(out: Path, results):
                       f"- 行数 {m['rows']}（20 人 = 1 ページ）。コンソールエラー: {results[(size, theme, 'errors')] or 'なし'}",
                       f"- 実行後の帯: 「{results[(size, theme, 'run_end_status')]}」、先頭 6 行の最後に取得した日: {results[(size, theme, 'run_end_last')]}",
                       f"- 外部リクエスト（遮断）: {len(results[(size, theme, 'foreign')])} 件", ""]
+            bo = results[(size, theme, "band_open")]
+            ok_open = bo["open"] == "true" and abs(bo["band_h"] - 140) <= 1 and abs(bo["sum_h"] - 56) <= 1
+            ok_auto = results[(size, theme, "auto_closed")] == "false"
+            total_cmp += 2
+            total_res += (not ok_open) + (not ok_auto)
+            if results[(size, theme, "band_refused")]:
+                lines += [f"- 注: この窓の高さ（{size[1]}px）では本体が低く（共通シェルが元より高いため）、元と同じ規則（開くと本体が 240px を割るなら開かない）で最初は開かない。"
+                          "窓を 150px 高くして開いた結果を下に示す。"]
+            lines += [f"- 進捗帯を開く: 高さ {bo['band_h']:.0f}px（元 140）、記録の帯 {bo['sum_h']:.0f}px（元 56）→ {'一致' if ok_open else '残差'}。"
+                      f"数値ボックス: {bo['boxes']}",
+                      f"- 窓を低くすると自動で閉じる（本体 < 240px）: {'一致' if ok_auto else '残差'}", ""]
             # colours
             png = out / f"ours_{tag}_idle.png"
             orig_png = ORIGINAL / f"{tag}_download.png"

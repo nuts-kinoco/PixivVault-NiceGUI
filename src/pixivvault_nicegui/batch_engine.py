@@ -108,8 +108,25 @@ class ServicesPort:
         return tuple(self.s.author_media_preview(author_id, target_type))
 
     def enqueue(self, candidate, operation_id):
+        record = getattr(candidate, 'record', None)
+        if record is not None:        # a bookmark: the managed illustration path, as the old screen does
+            job, created = self.s.enqueue_managed_download(record, operation_id, return_created=True)
+            return job.job_id, bool(created)
         job, created, _ = self.s.enqueue_author_media(candidate, operation_id, origin='follow')
         return job.job_id, bool(created)
+
+    def list_bookmarks(self, visibility):
+        """Candidates of the cached bookmark list for one visibility (no network: the caller refreshed it)."""
+        from .bookmark_run import classify
+        owner = self.s.managed_downloads
+
+        def saved(work_id):
+            try:
+                return owner.verified_saved_receipt(work_id, verify_pages=False) is not None
+            except Exception:
+                return False
+        records = [r for r in self.s.bookmark_download_candidates() if r.visibility == visibility]
+        return classify(records, is_saved=saved)
 
     def _owner(self, kind):
         media = getattr(self.s, 'author_media', None)
@@ -338,8 +355,14 @@ class BatchRunEngine:
         return run_id
 
     def _begin(self, author_ids, kind, origin, target_type):
-        if kind != 'authors':
-            raise NotImplementedError('only the author run is implemented here')
+        if kind not in ('authors', 'bookmarks'):
+            raise ValueError('invalid run kind')
+        if kind == 'bookmarks':
+            from .bookmark_run import ROW_VISIBILITY, VISIBILITY_ROWS
+            # The rows of a bookmarks run are its visibilities (names, or the row IDs of a continued run).
+            author_ids = tuple(VISIBILITY_ROWS.get(v, v) for v in author_ids)
+            if not author_ids or any(v not in ROW_VISIBILITY for v in author_ids):
+                raise ValueError('invalid bookmark visibility')
         with self._cond:
             if self.active:
                 raise RuntimeError('a batch run is already active')
@@ -347,7 +370,7 @@ class BatchRunEngine:
             # is idle is left over from a crash or shutdown: close it as `interrupted` first.
             self.ledger.recover_interrupted()
             self._authors = tuple(dict.fromkeys(author_ids))
-            self.run_id = self.ledger.begin_run(kind, origin, target_type or 'both' if kind == 'authors' else '',
+            self.run_id = self.ledger.begin_run(kind, origin, target_type or 'both',
                                                 self._authors, account_id=self.account_id)
             self._stop = self._paused = False
             self.state, self.pause_reason = 'running', ''
@@ -372,7 +395,10 @@ class BatchRunEngine:
                 while True:
                     self._check_state()
                     try:
-                        self._process_author(run_id, index, total, author_id)
+                        if self.kind == 'bookmarks':
+                            self._process_bookmarks(run_id, index, total, author_id)
+                        else:
+                            self._process_author(run_id, index, total, author_id)
                         break
                     except GateClosed as closed:
                         self._reset_author(run_id, author_id)
@@ -477,6 +503,40 @@ class BatchRunEngine:
         for name in COUNTERS:
             self.totals[name] += counters[name]
         self._emit('author_done', index=index, total=total, author_id=author_id, counters=dict(counters))
+
+    def _process_bookmarks(self, run_id, index, total, row_id):
+        """One visibility of the bookmark run: list, save what is new, done. Never stamps."""
+        from .bookmark_run import ROW_VISIBILITY
+        self._gate()
+        self.ledger.update_author(run_id, row_id, state='listing')
+        self._emit('author_start', index=index, total=total, author_id=row_id)
+        try:
+            rows = self.port.list_bookmarks(ROW_VISIBILITY[row_id])
+        except Exception as error:
+            if _gate_error(error):
+                raise GateClosed('network_stopped' if type(error).__name__ == 'ManagedNetworkStopped'
+                                 else 'network_gate_unavailable') from None
+            raise
+        self._check_state()
+        keys = [c.key for c in rows]
+        if len(set(keys)) != len(keys):
+            raise ValueError('bookmark listing identity changed')
+        counters = {name: 0 for name in COUNTERS}
+        names = {Difference.NEW: 'n_new', Difference.UPDATED: 'n_updated', Difference.RESTORED: 'n_restored',
+                 Difference.MISSING: 'n_missing', Difference.SKIPPED: 'n_skipped', Difference.UNKNOWN: 'n_unknown'}
+        for candidate in rows:
+            counters[names[candidate.difference]] += 1
+        self._check_saved_capacity(rows)
+        self.ledger.update_author(run_id, row_id, state='downloading', counters=counters)
+        self._emit('author_listed', index=index, total=total, author_id=row_id, counters=dict(counters))
+        queue = sorted((c for c in rows if c.eligible), key=lambda c: (-int(c.work_id), c.kind))
+        failed = self._download(run_id, index, total, row_id, queue)
+        counters['n_failed'] = failed
+        self._check_state()
+        self.ledger.complete_author(run_id, row_id, counters, following=None)     # a bookmarks run never stamps
+        for name in COUNTERS:
+            self.totals[name] += counters[name]
+        self._emit('author_done', index=index, total=total, author_id=row_id, counters=dict(counters))
 
     def _check_saved_capacity(self, rows):
         """Refuse an author whose new works cannot fit the managed store (no partial, stamped run)."""
@@ -590,6 +650,8 @@ class BatchRunEngine:
                         continue
                     pending.pop(0)
                     progressed = True
+                    self._emit('work_info', index=index, total=total, author_id=author_id,
+                               title=getattr(candidate, 'title', '') or '')
                     ref = JobRef(candidate.kind, job_id, operation_id)
                     inflight[job_id] = (ref, candidate)
                     self.ledger.record_items(run_id, author_id, (
@@ -623,7 +685,8 @@ class BatchRunEngine:
                         self.ledger.record_items(run_id, author_id, rows)
                         self.ledger.update_author(run_id, author_id, counters={'n_failed': failed})
                         self._emit('work_progress', index=index, total=total, author_id=author_id,
-                                   done=done_count, queued=len(queue), failed=failed)
+                                   done=done_count, queued=len(queue), failed=failed,
+                                   title=getattr(finished[-1][1], 'title', '') or '')
                 if not progressed and (pending or inflight):
                     self._sleep(self.poll_seconds)
         except (RunStopped, RunFailed):

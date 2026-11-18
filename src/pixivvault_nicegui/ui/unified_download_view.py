@@ -23,6 +23,9 @@ from nicegui import ui
 from .. import unified_download_state as U
 
 PAGE_SIZE = 50
+BODY_MIN_H = 240            # 元 BODY_MIN_H: 左右カラムがこれを下回ったら詳細を自動で閉じる
+SUMMARY_BAND_H = 56         # 140 - 84
+BAND_CLOSED_H, BAND_OPEN_H = 84, 140
 LEFT_W, RIGHT_W = 776, 460
 TYPE_CYCLE = ("illust", "novel", "both")
 TYPE_LABELS = {"illust": "イラスト・漫画", "novel": "小説", "both": "両方"}
@@ -37,7 +40,7 @@ CSS = """
 .pv-ud-header { flex:0 0 46px; height:46px; padding:0 4px; display:flex; flex-direction:row; align-items:center; gap:12px; flex-wrap:nowrap; }
 .pv-ud-title { font-size:19px; color:var(--pv-text); line-height:27px; }
 .pv-ud-sub { font-size:11px; color:var(--pv-muted); }
-.pv-ud-body { flex:1 1 0; min-height:240px; display:flex; flex-direction:row; gap:10px; width:100%; }
+.pv-ud-body { flex:1 1 0; min-height:120px; display:flex; flex-direction:row; gap:10px; width:100%; }
 .pv-ud-left { flex:0 0 776px; width:776px; min-width:0; min-height:0; display:flex; flex-direction:column; gap:10px; padding:16px; background:var(--pv-surface); border:1px solid var(--pv-border); border-radius:12px; }
 .pv-ud-right { flex:0 0 460px; width:460px; min-width:0; min-height:0; display:flex; flex-direction:column; gap:12px; }
 .pv-ud-pane { flex:1 1 0; min-height:0; display:flex; flex-direction:column; gap:8px; }
@@ -80,7 +83,7 @@ CSS = """
 .pv-ud-c-last { flex:1 1 0; min-width:0; text-align:right; font-size:11.5px; font-family:Consolas, monospace; color:var(--pv-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pv-ud-thead .pv-ud-c-name, .pv-ud-thead .pv-ud-c-id, .pv-ud-thead .pv-ud-c-count, .pv-ud-thead .pv-ud-c-last { font-family:inherit; font-size:11px; color:var(--pv-muted); }
 .pv-ud-empty { padding:8px 12px; font-size:11.5px; color:var(--pv-muted); }
-.pv-ud-bm { flex:1 1 0; min-height:0; display:flex; flex-direction:column; gap:10px; }
+.pv-ud-bm { flex:1 1 0; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px; }
 .pv-ud-bm p { margin:0; font-size:11px; color:var(--pv-muted); }
 .pv-ud-card { flex:1 1 0; min-height:0; display:flex; flex-direction:column; gap:10px; padding:16px; background:var(--pv-surface); border:1px solid var(--pv-border); border-radius:12px; }
 .pv-ud-cardhead { display:flex; flex-direction:row; align-items:center; gap:8px; flex:0 0 auto; }
@@ -112,7 +115,23 @@ CSS = """
 .pv-ud-run { width:100%; height:44px; border-radius:8px; border:1px solid var(--pv-border); background:#0096FA; color:#0b0b10; font:inherit; font-size:14px; display:inline-flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; padding:0; }
 .pv-ud-run .q-icon { font-size:18px; }
 .pv-ud-run:disabled { background:var(--pv-surface); color:var(--pv-muted); cursor:default; }
-.pv-ud-band { flex:0 0 84px; height:84px; width:100%; padding:10px; display:flex; flex-direction:column; gap:6px; background:var(--pv-surface); border:1px solid var(--pv-border); border-radius:12px; }
+.pv-ud-band { flex:0 0 84px; height:84px; width:100%; padding:0; display:flex; flex-direction:column; gap:0; overflow:hidden; background:var(--pv-surface); border:1px solid var(--pv-border); border-radius:12px; }
+.pv-ud-band[data-open=true] { border-color:#0096FA; }
+.pv-ud-band-main { flex:1 1 0; min-height:0; padding:10px; display:flex; flex-direction:column; gap:6px; }
+.pv-ud-sumband { flex:0 0 56px; height:56px; padding:0 16px; display:flex; flex-direction:row; align-items:center; gap:8px; background:var(--pv-raised); }
+.pv-ud-sumband .cap { font-size:11.5px; color:var(--pv-muted); white-space:nowrap; }
+.pv-ud-sumbox { flex:1 1 0; min-width:0; height:32px; display:flex; flex-direction:row; align-items:center; gap:6px; padding:0 8px; background:var(--pv-surface); border:1px solid var(--pv-border); border-radius:8px; }
+.pv-ud-sumbox .k { font-size:10.5px; color:var(--pv-muted); white-space:nowrap; }
+.pv-ud-sumbox .v { font-size:13px; font-family:Consolas, monospace; color:var(--pv-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pv-ud-sumbox .v[data-danger=true] { color:#e05555; }
+.pv-ud-hintrow { cursor:pointer; }
+.pv-ud-bmbox { display:flex; flex-direction:column; gap:10px; }
+.pv-ud-bmbox .cap { font-size:13px; color:var(--pv-text); }
+.pv-ud-bmbox .warn { font-size:11px; color:#e05555; }
+.pv-ud-bmrow { display:flex; flex-direction:row; gap:4px; }
+.pv-ud-bmrow .pv-ud-mode { height:36px; flex:1 1 0; }
+.pv-ud-hr { height:1px; background:var(--pv-border); flex:0 0 1px; }
+.pv-ud-body { position:relative; min-height:120px; }
 .pv-ud-band-top { display:flex; flex-direction:row; align-items:center; gap:8px; min-height:19px; }
 .pv-ud-band-status { font-size:13px; font-weight:700; color:var(--pv-text); line-height:19px; flex:1 1 auto; }
 .pv-ud-bar { height:6px; flex:0 0 6px; border-radius:3px; background:var(--pv-raised); overflow:hidden; }
@@ -176,6 +195,16 @@ class UnifiedDownloadView:
         self.resumable = None
         self._events: queue.SimpleQueue = queue.SimpleQueue()
         self._reload_task = None
+        self.band_open = False
+        self.band_height = 84
+        self.body_h = 0
+        self.run_ended = None
+        self.starting = False
+        self._run_task = None
+        self.bm_show, self.bm_hide = True, False
+        self.bm_hierarchical = self.bm_hardlink = False
+        self.unfollowed_view = None
+        self._read_bookmark_layout()
         self._mirrored: set[str] = set()
         self._counts_at = float("-inf")
         self._unsubscribe = None
@@ -228,6 +257,7 @@ class UnifiedDownloadView:
             ids = [row.author_id for row in rows]
             self.run_target_ids = ids
             self.progress = U.RunProgress(ids)
+            self.progress.kind = getattr(engine, "kind", "authors") or "authors"
             self.progress.state = engine.state
             self.progress.done = sum(1 for row in rows if row.state in ("done", "failed", "skipped"))
             current = next((row.author_id for row in rows if row.state in ("listing", "downloading")), None)
@@ -260,6 +290,8 @@ class UnifiedDownloadView:
             with ui.element("div").classes("pv-ud-body").props("data-testid=unified-body"):
                 self._build_left()
                 self._build_right()
+                ui.element("q-resize-observer").props("debounce=200").on(
+                    "resize", lambda e: self.on_body_size((e.args or {}).get("height")))
             self._build_band()
         self._build_details_dialog()
 
@@ -313,17 +345,52 @@ class UnifiedDownloadView:
                     ui.label("最後に取得した日").classes("pv-ud-c-last")
                 self.author_list = ui.element("div").classes("pv-ud-list").props("data-testid=unified-author-list")
             with ui.element("div").classes("pv-ud-bm").props("data-testid=unified-bookmark-pane") as self.bookmark_pane:
-                ui.label("対象の選び方はありません").classes("pv-ud-sub")
-                self.bookmark_note = ui.label(
-                    "マイブックマークの一括実行は次の段階で対応します。作品単位の選択は「作品単位で選ぶ（詳細）」から使えます。"
-                ).classes("pv-ud-sub").props("data-testid=unified-bookmark-note")
-                bookmark_open = ui.element("button").classes("pv-ud-tbtn").props(
-                    "type=button data-testid=unified-bookmark-open")
-                with bookmark_open:
-                    ui.icon("bookmarks")
-                    ui.label("ブックマークから作品を選ぶ")
-                bookmark_open.on("click", lambda _e: self.open_details("bookmark"))
+                self._build_bookmark_pane()
             self.bookmark_pane.set_visibility(False)
+
+    def _build_bookmark_pane(self):
+        """マイブックマーク面（元 bookmark_pane）: 含めるブックマーク / 保存方式 / 未フォロー作者を確認。"""
+        with ui.element("div").classes("pv-ud-bmbox"):
+            ui.label("対象の選び方はありません").classes("pv-ud-sub")
+            ui.label("含めるブックマーク").classes("cap")
+            with ui.column().classes("gap-0"):
+                self.bm_checks = {}
+                for key, label in (("show", "公開ブックマーク"), ("hide", "非公開ブックマーク")):
+                    box = ui.checkbox(label, value=(self.bm_show if key == "show" else self.bm_hide),
+                                      on_change=lambda e, key=key: self.set_bm(key, bool(e.value))).props(
+                        f"dense data-testid=unified-bm-{key}")
+                    self.bm_checks[key] = box
+            self.bm_hint = ui.label("含めるブックマークを1つ選びます").classes("warn").props("data-testid=unified-bm-hint")
+            self.bm_hint.set_visibility(False)
+            ui.element("div").classes("pv-ud-hr")
+            ui.label("保存方式").classes("cap")
+            with ui.element("div").classes("pv-ud-bmrow"):
+                self.bm_buttons = {}
+                for key, label in (("hier", "階層化（作者別フォルダ）"), ("flat", "フラット配置")):
+                    button = ui.element("button").classes("pv-ud-mode").props(
+                        f"type=button data-testid=unified-bm-{key} data-selected=false")
+                    with button:
+                        ui.label(label)
+                    button.on("click", lambda _e, key=key: self.set_bm_layout(hierarchical=key == "hier"))
+                    self.bm_buttons[key] = button
+            self.bm_hardlink_box = ui.checkbox(
+                "ハードリンクで置く（同じ画像を二重に保存しない）", value=self.bm_hardlink,
+                on_change=lambda e: self.set_bm_layout(hardlink=bool(e.value))).props(
+                "dense data-testid=unified-bm-hardlink")
+            ui.element("div").classes("pv-ud-hr")
+            self.bm_unfollowed_button = ui.element("button").classes("pv-ud-tbtn").props(
+                "type=button data-testid=unified-bm-unfollowed")
+            with self.bm_unfollowed_button:
+                ui.icon("person_search")
+                ui.label("未フォロー作者を確認")
+            self.bm_unfollowed_button.on("click", lambda _e: self.on_unfollowed_click())
+            bookmark_open = ui.element("button").classes("pv-ud-tbtn").props(
+                "type=button data-testid=unified-bookmark-open")
+            with bookmark_open:
+                ui.icon("bookmarks")
+                ui.label("ブックマークから作品を選ぶ")
+            bookmark_open.on("click", lambda _e: self.open_details("bookmark"))
+        self._render_bm_layout()
 
     def _build_tools(self):
         with ui.element("div").classes("pv-ud-tools").props("data-testid=unified-tools"):
@@ -419,8 +486,24 @@ class UnifiedDownloadView:
                 self.stop_button.on("click", lambda _e: self.stop())
 
     def _build_band(self):
-        """進捗帯の枠（閉じた 84px）。開閉・数値ボックス・ETA は WU-8。"""
-        with ui.element("div").classes("pv-ud-band").props("data-testid=unified-band") as self.band:
+        """進捗帯: 閉じた 84px ⇔ 開いた 140px（上に「この回の記録」56px）。ダブルクリックと案内行のクリックで開閉。"""
+        with ui.element("div").classes("pv-ud-band").props("data-testid=unified-band data-open=false") as self.band:
+            self.sumband = ui.element("div").classes("pv-ud-sumband").props("data-testid=unified-sumband")
+            with self.sumband:
+                ui.label("この回の記録").classes("cap")
+                self.box_values = {}
+                for key, caption in (("start", "開始"), ("now", "進捗"), ("eta", "完了見込"), ("elapsed", "経過")):
+                    with ui.element("div").classes("pv-ud-sumbox").props(f"data-testid=unified-box-{key}"):
+                        ui.label(caption).classes("k")
+                        self.box_values[key] = ui.label("").classes("v")
+            self.sumband.set_visibility(False)
+            self.band.on("dblclick", lambda _e: self.toggle_band(),
+                         js_handler="e => { if (e.target.closest('button')) return; emit(); }")
+            with ui.element("div").classes("pv-ud-band-main"):
+                self._build_band_main()
+
+    def _build_band_main(self):
+        if True:
             with ui.element("div").classes("pv-ud-band-top"):
                 self.band_status = ui.label("待機中").classes("pv-ud-band-status").props(
                     "data-testid=unified-band-status role=status")
@@ -437,10 +520,13 @@ class UnifiedDownloadView:
             self.bar = ui.element("div").classes("pv-ud-bar").props("data-testid=unified-bar data-mode=hidden")
             with self.bar:
                 self.bar_fill = ui.element("div")
-            with ui.element("div").classes("pv-ud-band-hint"):
+            self.hint_row = ui.element("div").classes("pv-ud-band-hint pv-ud-hintrow").props(
+                "data-testid=unified-band-hint-row role=button")
+            with self.hint_row:
                 self.band_summary = ui.label("").classes("sum").props("data-testid=unified-band-summary")
-                ui.icon("keyboard_arrow_up")
-                ui.label("クリックで詳細を開く").props("data-testid=unified-band-hint")
+                self.hint_caret = ui.icon("keyboard_arrow_up")
+                self.hint_text = ui.label("クリックで詳細を開く").props("data-testid=unified-band-hint")
+            self.hint_row.on("click", lambda _e: self.toggle_band())
 
     def _build_details_dialog(self):
         with ui.dialog().props("data-testid=unified-details-dialog") as self.dialog:
@@ -608,10 +694,18 @@ class UnifiedDownloadView:
 
     def run_block_reason(self):
         """実行できない理由（できるなら ""）。"""
-        if self.mode == "bookmark":
-            return "マイブックマークの一括実行は次の段階で対応します"
         if self.running:
             return "実行中です"
+        if self.starting:
+            return "開始しています"
+        if self.mode == "bookmark":
+            if not (self.bm_show or self.bm_hide):
+                return "含めるブックマークを1つ選びます"
+            if self.engine is None or not callable(getattr(self.services, "start_bookmark_run", None)):
+                return "一括実行の準備ができていません（保存先を設定してください）"
+            if self._download_busy():
+                return "いまダウンロードが走っています。終わってから実行してください"
+            return ""
         if not self.targets:
             return NEED_TARGET
         if self.engine is None:
@@ -788,6 +882,12 @@ class UnifiedDownloadView:
 
     # ------------------------------------------------------------------ actions (run)
     def run(self):
+        if self.mode == "bookmark":
+            if self.run_block_reason():
+                self.set_notice(self.run_block_reason())
+                return False
+            self._run_task = asyncio.ensure_future(self.run_bookmarks())
+            return True
         reason = self.run_block_reason()
         if reason:
             self.set_notice(reason if reason != NEED_TARGET else "")
@@ -805,10 +905,103 @@ class UnifiedDownloadView:
         self.progress = U.RunProgress(ids)
         self.progress.state = "running"
         self.run_started = datetime.now()
+        self.run_ended = None
         self.run_state = "running"
         self.band_state, self.band_error, self.notice_text = "running", "", ""
         self.resumable = None
         self.render_all()
+        return True
+
+    async def run_bookmarks(self):
+        """「マイブックマーク」の実行: 一覧を取り直し（取得停止ゲートの内側）、選んだ公開/非公開を保存する。"""
+        from ..bookmark_run import VISIBILITY_ROWS
+        reason = self.run_block_reason()
+        if reason:
+            self.set_notice(reason)
+            return False
+        chosen = [v for v, on in (("show", self.bm_show), ("hide", self.bm_hide)) if on]
+        self.starting = True
+        self.render_controls()
+        try:
+            await self.services.start_bookmark_run(tuple(chosen), origin="manual", target_type=self.target_type)
+        except Exception as exc:
+            self.starting = False
+            self.set_notice("いまダウンロードが走っています。終わってから実行してください。"
+                            if isinstance(exc, RuntimeError) and "active" in str(exc)
+                            else "開始できませんでした。設定を確認してください。")
+            self.render_controls()
+            return False
+        self.starting = False
+        ids = [VISIBILITY_ROWS[v] for v in chosen]
+        self.run_target_ids = ids
+        self.progress = U.RunProgress(ids)
+        self.progress.kind = "bookmarks"
+        self.progress.state = "running"
+        self.run_started = datetime.now()
+        self.run_ended = None
+        self.run_state = "running"
+        self.band_state, self.band_error, self.notice_text = "running", "", ""
+        self.resumable = None
+        self.render_all()
+        return True
+
+    # ---- the bookmark pane ---------------------------------------------------------------------
+    def _read_bookmark_layout(self):
+        read = getattr(self.services, "bookmark_layout", None)
+        try:
+            layout = read() if callable(read) else {}
+        except Exception:
+            layout = {}
+        self.bm_hierarchical = bool(layout.get("hierarchical", False))
+        self.bm_hardlink = bool(layout.get("hardlink", False))
+
+    def _render_bm_layout(self):
+        self.bm_buttons["hier"].props["data-selected"] = "true" if self.bm_hierarchical else "false"
+        self.bm_buttons["flat"].props["data-selected"] = "false" if self.bm_hierarchical else "true"
+        for button in self.bm_buttons.values():
+            button.update()
+        if self.bm_hardlink_box.value != self.bm_hardlink:
+            self.bm_hardlink_box.set_value(self.bm_hardlink)
+
+    def set_bm(self, which, value):
+        if which not in ("show", "hide") or self.running:
+            return False
+        if which == "show":
+            self.bm_show = bool(value)
+        else:
+            self.bm_hide = bool(value)
+        self.bm_hint.set_visibility(not (self.bm_show or self.bm_hide))
+        self.render_controls()
+        self._render_band()
+        return True
+
+    def set_bm_layout(self, *, hierarchical=None, hardlink=None):
+        """階層化/フラットは use_work_folder、ハードリンクは bookmark_download_mode（link/direct）へ書く。"""
+        setter = getattr(self.services, "set_bookmark_layout", None)
+        if not callable(setter):
+            self.set_notice("保存方式を変更できません（設定の保存先がありません）。")
+            return False
+        try:
+            setter(hierarchical=hierarchical, hardlink=hardlink)
+        except Exception:
+            self.set_notice("保存方式を保存できませんでした。")
+        self._read_bookmark_layout()
+        self._render_bm_layout()
+        self._render_band()
+        return True
+
+    def on_unfollowed_click(self):
+        self.open_unfollowed()
+
+    def open_unfollowed(self):
+        """「未フォロー作者を確認」: 従来のダイアログ（代表作つき・その場でフォロー）をそのまま開く。"""
+        if self.closed:
+            return False
+        if self.unfollowed_view is None:
+            from .unfollowed_authors_view import UnfollowedAuthorsView
+            with self.client:
+                self.unfollowed_view = UnfollowedAuthorsView(self.services)
+        self.unfollowed_view.show()
         return True
 
     def toggle_pause(self):
@@ -847,8 +1040,10 @@ class UnifiedDownloadView:
             ids = []
         self.run_target_ids = ids
         self.progress = U.RunProgress(ids)
+        self.progress.kind = getattr(self.engine, "kind", "authors") or "authors"
         self.progress.state = "running"
         self.run_started = datetime.now()
+        self.run_ended = None
         self.resumable = None
         self.band_state = "running"
         self.sync_engine()
@@ -878,12 +1073,17 @@ class UnifiedDownloadView:
             self.progress.apply(event)
             changed = True
             if event.get("event") == "run_end":
+                self.run_ended = datetime.now()
                 self.band_state = str(event.get("outcome", "done"))
                 self.band_error = str(event.get("error_code") or "")
                 self._after_run_end()
         if self.sync_engine() or changed:
             self.refresh_chip_status()
             self.render_controls()
+            if changed:
+                self._render_band()
+        if self.band_open and self.running:
+            self.render_band_boxes()
 
     def sync_engine(self):
         """エンジンの state を画面の run_state へ。変わったら True。"""
@@ -1161,6 +1361,85 @@ class UnifiedDownloadView:
         getter = getattr(self.services, "managed_save_label", None)
         return getter() if callable(getter) else "専用管理フォルダー"
 
+    # ---- the band: open / close, the record boxes ---------------------------------------------
+    def on_body_size(self, height):
+        """左右カラムの実測の高さ（q-resize-observer）。小さくなりすぎたら詳細を自動で閉じる。"""
+        try:
+            height = float(height)
+        except (TypeError, ValueError):
+            return
+        if height <= 0:
+            return
+        self.body_h = height
+        if self.band_open and height < BODY_MIN_H:
+            self._set_band_open(False)
+
+    def toggle_band(self):
+        if self.closed:
+            return False
+        if not self.band_open:
+            # 開くと本体が 56px 縮む。それで BODY_MIN_H を割るなら開かない（元 T-0190）。
+            if self.body_h and self.body_h - SUMMARY_BAND_H < BODY_MIN_H:
+                self.set_notice("ウィンドウの高さが足りないため詳細を開けません。縦に広げて再度お試しください。")
+                return False
+            self.notice_text = ""
+        self._set_band_open(not self.band_open)
+        return True
+
+    def _set_band_open(self, value):
+        self.band_open = bool(value)
+        self.band_height = BAND_OPEN_H if self.band_open else BAND_CLOSED_H
+        self.band.props["data-open"] = "true" if self.band_open else "false"
+        self.band.style(replace=f"height:{self.band_height}px;flex-basis:{self.band_height}px")
+        self.sumband.set_visibility(self.band_open)
+        self.hint_caret.props["name"] = "keyboard_arrow_down" if self.band_open else "keyboard_arrow_up"
+        self.hint_caret.update()
+        self.hint_text.set_text("クリックで詳細を閉じる" if self.band_open else "クリックで詳細を開く")
+        self.render_band_boxes()
+        self._render_band()
+
+    def render_band_boxes(self):
+        """「この回の記録」: 開始・進捗・完了見込・経過（元 _apply_detail）。閉じている間は作らない。"""
+        if not self.band_open or self.closed:
+            return
+        progress = self.progress
+        start = self.run_started
+        if start is not None:
+            end = self.run_ended or datetime.now()
+            elapsed_sec = max(0.0, (end - start).total_seconds())
+        else:
+            elapsed_sec = 0.0
+        elapsed_text, eta_text = U.estimate_completion(start, progress.done, progress.total, elapsed_sec,
+                                                       work_idx=progress.work_idx, work_total=progress.work_total)
+        failed = int((progress.counts or {}).get("n_failed", 0)) + len(progress.failed_authors)
+        if progress.kind == "bookmarks":
+            now_value = f"{progress.done}/{progress.total}件の一覧"
+            if self.band_state in ("running", "paused", "stopping") and progress.total:
+                now_value = self._bookmark_text() or now_value
+        elif progress.done <= 0 and progress.work_total > 0:
+            now_value = f"作品 {progress.work_idx}/{progress.work_total}"
+            if progress.work_title:
+                now_value += f": {progress.work_title}"
+        else:
+            now_value = f"{progress.done}/{progress.total}人"
+        if failed > 0:
+            now_value += f" ・失敗{failed}"
+        self.box_values["start"].set_text(U.format_hms(start))
+        self.box_values["now"].set_text(now_value)
+        self.box_values["now"].props["data-danger"] = "true" if failed > 0 else "false"
+        self.box_values["now"].update()
+        self.box_values["eta"].set_text(eta_text or "算出中…")
+        self.box_values["elapsed"].set_text(elapsed_text if start is not None else "")
+
+    def _bookmark_text(self):
+        """元の「公開ブックマーク: c / t 件」。"""
+        from ..bookmark_run import ROW_VISIBILITY, VISIBILITY_LABELS
+        progress = self.progress
+        name = ROW_VISIBILITY.get(str(progress.current))
+        if name is None or not progress.work_total:
+            return ""
+        return f"{VISIBILITY_LABELS[name]}: {max(0, min(progress.work_idx - 1, progress.work_total))} / {progress.work_total} 件"
+
     def _render_band(self):
         if self.closed:
             return
@@ -1171,13 +1450,19 @@ class UnifiedDownloadView:
             index = min(progress.done + (1 if progress.current else 0), progress.total) if progress.total else 0
             text = U.status_text(self.band_state, pause_reason=progress.pause_reason,
                                  index=index, total=progress.total, outcome_code=self.band_error)
+            if progress.kind == "bookmarks" and self.band_state == "running":
+                text = self._bookmark_text() or text
         interrupted = self.resumable is not None and not self.running
         if interrupted and self.band_state == "idle":
             text = U.INTERRUPTED_TEXT
         self.band_status.set_text(text)
         self.resume_button.set_visibility(interrupted)
         self.discard_button.set_visibility(interrupted)
-        summary = f"差分DL · {TYPE_LABELS[self.target_type]} · 保存先 {self._save_label()}"
+        if self.mode == "bookmark" or progress.kind == "bookmarks" and self.running:
+            summary = (f"ブックマークDL · {'階層化' if self.bm_hierarchical else 'フラット'} · "
+                       f"保存先 {self._save_label()}")
+        else:
+            summary = f"差分DL · {TYPE_LABELS[self.target_type]} · 保存先 {self._save_label()}"
         if self.band_state in ("done", "stopped", "failed") and progress.failed_authors:
             summary = f"取得に失敗した作者 {len(progress.failed_authors)} 人 · " + summary
         if self.notice_text:
@@ -1195,6 +1480,7 @@ class UnifiedDownloadView:
         self.bar.update()
         self.bar_fill.style(replace=f"width:{width}%")
         self.bar.set_visibility(mode != "hidden")
+        self.render_band_boxes()
 
     # ------------------------------------------------------------------ shell contract
     def set_active(self, active):
@@ -1206,6 +1492,8 @@ class UnifiedDownloadView:
         self.active = active
         self.root.props["data-active"] = str(active).lower()
         self.root.update()
+        if not active and self.unfollowed_view is not None:
+            self.unfollowed_view.hide()
         if not active and self.legacy_open:
             self.dialog.close()            # 他のタブへ移るとき、詳細ダイアログを開いたままにしない
             self.legacy_open = False
@@ -1226,5 +1514,7 @@ class UnifiedDownloadView:
         if self._unsubscribe is not None:
             self._unsubscribe()
             self._unsubscribe = None
+        if self.unfollowed_view is not None:
+            self.unfollowed_view.close()
         if self.legacy is not None:
             self.legacy.close()

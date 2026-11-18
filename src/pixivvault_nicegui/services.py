@@ -3006,15 +3006,48 @@ class ApplicationServices:
         return submit_author_batch(self, ledger.favourites(), cancellation=cancellation,
                                    ledger=ledger, slot=slot)
 
-    def start_batch_run(self, author_ids, *, origin='manual', target_type=None):
-        """Start one run over `author_ids`. Raises RuntimeError when a run is already active."""
+    def start_batch_run(self, author_ids, *, kind='authors', origin='manual', target_type=None):
+        """Start one run. Raises RuntimeError when a run is already active.
+
+        kind='authors': `author_ids` are the authors. kind='bookmarks': they are the chosen visibilities
+        ('show' = 公開, 'hide' = 非公開) and the run lists the cached bookmarks (see `start_bookmark_run`).
+        """
         engine = self.batch_runs
         if engine is None or self.closing:
             raise RuntimeError('author batch runs are not enabled')
         if self.following_sync is not None:
             # No network: the account of the newest completed follow sync. Without one nothing is stamped.
             engine.account_id = self.following_sync.last_synced_account()
-        return engine.start(tuple(author_ids), origin=origin, target_type=target_type)
+        return engine.start(tuple(author_ids), kind=kind, origin=origin, target_type=target_type)
+
+    async def start_bookmark_run(self, visibilities, *, origin='manual', target_type=None):
+        """「マイブックマーク」の実行 1 回: read the complete bookmark lists (Pixiv, behind the stop gate), then run.
+
+        The refresh is the same one the bookmark screen uses; a run is never started on a partial list.
+        """
+        if self.batch_runs is None or self.closing:
+            raise RuntimeError('author batch runs are not enabled')
+        if self.batch_run_active():
+            raise RuntimeError('a batch run is already active')
+        await self.refresh_bookmark_cache()
+        return self.start_batch_run(tuple(visibilities), kind='bookmarks', origin=origin, target_type=target_type)
+
+    def bookmark_layout(self):
+        """The two bookmark save choices shown on the download screen (original: use_work_folder / hardlink)."""
+        prefs = self.preferences
+        if prefs is None:
+            return dict(hierarchical=False, hardlink=False, editable=False)
+        return dict(hierarchical=prefs.get_setting('use_work_folder', '0') == '1',
+                    hardlink=prefs.get_setting('bookmark_download_mode', 'link') == 'link', editable=True)
+
+    def set_bookmark_layout(self, *, hierarchical=None, hardlink=None):
+        prefs = self.preferences
+        if prefs is None:
+            raise RuntimeError('preferences are not configured')
+        if hierarchical is not None:
+            prefs.set_setting('use_work_folder', '1' if hierarchical else '0')
+        if hardlink is not None:
+            prefs.set_setting('bookmark_download_mode', 'link' if hardlink else 'direct')
 
     def favourite_book(self, scheduler=None):
         """The single home of the ☆ authors (the following ledger), see favourites.py."""
