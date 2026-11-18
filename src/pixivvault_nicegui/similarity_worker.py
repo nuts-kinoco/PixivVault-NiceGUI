@@ -92,9 +92,9 @@ class SimilarityWorker:
             self._thread.start()
 
     def wake(self) -> None:
-        auto_retry = self._auto is not None and self._timed_rescan()
         with self._lock:
-            if not self._stop_requested and self._phase == 'failed' and auto_retry:
+            if (not self._stop_requested and self._phase == 'failed'
+                    and self._auto is not None and self._timed_rescan()):
                 self._phase = 'idle'
                 self._generation += 1
                 self._consecutive_failures = 0
@@ -215,11 +215,11 @@ class SimilarityWorker:
                         return
                     if result:
                         self._indexed += 1
+                        self._last_stopped_reason = None
                     else:
                         self._resumed += 1
                     self._consecutive_failures = 0
                     self._error_code = None
-                    self._last_stopped_reason = None
         except EgaraInferenceError:
             self._record_failure('model_error', generation)
         except Exception:

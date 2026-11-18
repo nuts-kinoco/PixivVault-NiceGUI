@@ -79,3 +79,51 @@ def test_auto_wake_retries_failed_worker():
         assert worker.status()['indexed'] == 1
     finally:
         worker.stop()
+
+
+def test_cached_page_does_not_clear_previous_stop_reason():
+    blocked, release = Event(), Event()
+    state = {'fail': True}
+    def analyze(work, page, **kwargs):
+        if work == '1':
+            return False
+        if state['fail']:
+            raise EgaraInferenceError('synthetic')
+        blocked.set()
+        assert release.wait(5)
+        return True
+    worker = SimilarityWorker(lambda: [('1', 1), ('2', 1)], analyze, auto=lambda: False)
+    try:
+        worker.start()
+        deadline = time.monotonic() + 5
+        while worker.status()['phase'] != 'failed' and time.monotonic() < deadline:
+            time.sleep(.01)
+        state['fail'] = False
+        worker.resume()
+        assert blocked.wait(5)
+        assert worker.status()['last_stopped_reason'] == 'model_error'
+    finally:
+        release.set()
+        worker.stop()
+
+
+@pytest.mark.asyncio
+async def test_settings_displays_stop_reason_and_resume_action(tmp_path):
+    from pixivvault_nicegui.preferences import PreferencesStore
+    from pixivvault_nicegui.ui.preferences_view import PreferencesView
+    store = PreferencesStore(tmp_path / 'prefs.sqlite3')
+    status = dict(phase='failed', auto=False, last_stopped_reason='model_error')
+    resumed = []
+    client = Client(ui.page('/_ae_settings_stop_reason'))
+    try:
+        with client:
+            view = PreferencesView(store, similarity_status=lambda: status,
+                                   resume_similarity=lambda: resumed.append(True))
+            view.open()
+            assert '解析モデル' in view.similarity_status_label.text
+            assert view.similarity_resume_button.text == 'いま推論する'
+            view.similarity_resume_button._event_listeners[next(iter(view.similarity_resume_button._event_listeners))].handler(None)
+            assert resumed == [True]
+            view.close()
+    finally:
+        client.delete()

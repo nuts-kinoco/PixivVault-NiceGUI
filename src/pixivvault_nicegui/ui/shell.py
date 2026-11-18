@@ -331,7 +331,9 @@ class DemoShell:
                 extension_snapshot=lambda: self.services.extension_bridge.response_snapshot() if self.services.extension_bridge is not None else ({}, {}),
                 native_profile=self.profile_view, following_sync=self.following_view,
                 vault=getattr(self.services, 'external_vault', None),
-                pixiv_actions_mode=getattr(self.services, 'pixiv_actions_mode', 'readonly'))
+                pixiv_actions_mode=getattr(self.services, 'pixiv_actions_mode', 'readonly'),
+                similarity_status=(self.services.similarity_analysis_status if self.services.similarity_analysis_enabled else None),
+                resume_similarity=(self.services.rescan_similarity_analysis if self.services.similarity_analysis_enabled else None))
         self.preferences_view.open()
 
     def _refresh_app_connection(self):

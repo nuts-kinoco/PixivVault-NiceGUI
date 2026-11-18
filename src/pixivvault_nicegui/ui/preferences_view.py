@@ -65,11 +65,14 @@ CACHE_LIMIT_FIELDS = {
 
 
 class PreferencesView:
-    def __init__(self, store, *, enabled_keys=(), unavailable_reasons=None, on_change=None, desktop=None, clear_cache=None, extension_status=None, export_legacy=None, native_profile=None, following_sync=None, pixiv_actions_mode='readonly', extension_counts=None, extension_reasons=None, extension_snapshot=None, vault=None):
+    def __init__(self, store, *, enabled_keys=(), unavailable_reasons=None, on_change=None, desktop=None, clear_cache=None, extension_status=None, export_legacy=None, native_profile=None, following_sync=None, pixiv_actions_mode='readonly', extension_counts=None, extension_reasons=None, extension_snapshot=None, vault=None, similarity_status=None, resume_similarity=None):
         if pixiv_actions_mode not in ('readonly', 'enabled', 'preferences'):
             raise ValueError('invalid Pixiv action policy')
         self.pixiv_actions_mode=pixiv_actions_mode
         self.store=store
+        self.similarity_status=similarity_status
+        self.resume_similarity=resume_similarity
+        self._similarity_timer=None
         self.vault=vault
         self.enabled_keys=frozenset(enabled_keys)
         if not self.enabled_keys.issubset(SPEC_BY_KEY):
@@ -116,6 +119,9 @@ class PreferencesView:
 
     def open(self):
         if self.closed: return
+        if self._similarity_timer is not None:
+            self._similarity_timer.cancel()
+            self._similarity_timer=None
         self.opened=True
         self._epoch+=1
         epoch=self._epoch
@@ -182,6 +188,11 @@ class PreferencesView:
                     if spec.key in DESCRIPTIONS:
                         ui.label(DESCRIPTIONS[spec.key]).classes('text-caption text-grey').props(
                             f'data-testid=preference-description-{spec.key}')
+                    if spec.key == 'embed_auto_on_download' and self.similarity_status is not None:
+                        self.similarity_status_label=ui.label('').props('role=status data-testid=preferences-similarity-status')
+                        self.similarity_resume_button=ui.button('いま推論する', on_click=self._resume_similarity).props('flat data-testid=preferences-similarity-resume')
+                        self._refresh_similarity_status()
+                        self._similarity_timer=ui.timer(1.0, self._refresh_similarity_status)
                     if spec.key == 'pixiv_actions_enabled':
                         notice=('変更は次回の通常起動から適用されます。Cookieの参照先が必要です。'
                                 if spec.key in self.enabled_keys else self.reasons[spec.key])
@@ -342,6 +353,30 @@ class PreferencesView:
         if self.opened and not self.closed and not self.export_busy and event.args == {'key': 'Escape'}:
             self.close_dialog()
 
+    def _refresh_similarity_status(self):
+        from .similar_view import SimilarView
+        try:
+            status=self.similarity_status()
+            reason=SimilarView.STOP_REASONS.get(status.get('last_stopped_reason'))
+            if reason and status.get('phase') == 'failed':
+                text=reason
+            elif reason and status.get('auto') is True:
+                text=f'前回は次の理由で止まりました: {reason}。ダウンロードのたびに再挑戦しています'
+            elif reason:
+                text=f'前回は次の理由で止まりました: {reason}。『いま推論する』で再開できます'
+            else:
+                text=''
+            self.similarity_status_label.set_text(text)
+            self.similarity_resume_button.set_enabled(self.resume_similarity is not None)
+        except Exception:
+            self.similarity_status_label.set_text('推論の状態を確認できません。')
+            self.similarity_resume_button.set_enabled(False)
+
+    def _resume_similarity(self):
+        if self.opened and not self.closed and self.resume_similarity is not None:
+            self.resume_similarity()
+            self._refresh_similarity_status()
+
     def close_dialog(self):
         if (not self.closed and self.opened and self.snapshot is not None
                 and any(self.controls[key].value != self.snapshot.values[key]
@@ -349,6 +384,9 @@ class PreferencesView:
             if not self.save():
                 return
         self.opened=False
+        if self._similarity_timer is not None:
+            self._similarity_timer.cancel()
+            self._similarity_timer=None
         self._epoch+=1
         if self.native_profile is not None:
             self.native_profile.deactivate()
