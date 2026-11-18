@@ -194,6 +194,8 @@ class DemoShell:
                     self.gallery = RankingView(services, card_size=self.card_size, on_size_change=self.change_card_size)
                 else:
                     self.gallery = GalleryView(services, card_size=self.card_size, on_size_change=self.change_card_size)
+            from .shared_log_view import SharedLogView
+            self.shared_log_view = SharedLogView(services.shared_log)
             # 閲覧履歴（元 gui.py の閲覧履歴ボタン）は学習タブを開かずに、起動時から件数を出してダイアログを開く。
             self._build_view_history()
         self._attach_auth_status()
@@ -549,6 +551,7 @@ class DemoShell:
             self.backup_view.root.set_visibility(tab=='history')
             self.backup_view.set_active(tab=='history')
         self.active_tab = tab
+        self.shared_log_view.show_tab(tab)
         self.gallery.root.set_visibility(tab == "ranking")
         self.gallery.set_viewer_active(tab == "ranking")
         if self.library is not None:
@@ -631,6 +634,7 @@ class DemoShell:
         if self.closed:
             return
         self.closed = True
+        self.shared_log_view.close()
         if self._borrow_timer is not None:self._borrow_timer.deactivate()
         if self._app_conn_timer is not None:self._app_conn_timer.deactivate()
         if self.borrow_dialog is not None:self.borrow_dialog.close()

@@ -421,6 +421,7 @@ class ApplicationServices:
         self.jobs = None
         from .queue_log import QueueLog
         self.queue_log = QueueLog()
+        self.shared_log = QueueLog()
         self.static_jobs = None
         self.download_writer = None
         self.artworks = generate_demo_artworks(count)
@@ -3057,6 +3058,8 @@ class ApplicationServices:
                     with self._scheduler_dispatch_lock:
                         submit_author_batch(self, ledger.favourites(), cancellation=cancellation,
                                             ledger=ledger, slot=slot)
+                        if not cancellation.is_set() and not self.closing:
+                            self.shared_log.append('定期チェックの受付処理を終了しました。保存完了は各ジョブで確認してください。')
 
                 runner = ManagedScheduleRunner(ledger, dispatch,
                                                reconcile=self.reconcile_managed_scheduler)

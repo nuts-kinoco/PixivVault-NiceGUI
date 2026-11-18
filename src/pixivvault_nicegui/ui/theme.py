@@ -240,6 +240,7 @@ body.body--light .pv-grid .pv-card-heart { color:var(--pv-fill); }
 .pv-jobs-view > .pv-toolbar, .pv-jobs-view > .pv-job-chips, .pv-jobs-view > .pv-subtitle { flex:0 0 auto; }
 .pv-jobs-view .q-btn { color:var(--pv-text) !important; }
 .pv-jobs-scroll { flex:1 1 0; min-height:0; width:100%; overflow-y:auto; overflow-x:hidden; }
+.pv-shared-log-host { flex:0 0 auto; min-height:0; }
 .pv-queue-log { flex:0 0 140px; height:140px; overflow-y:auto; padding:10px; border:1px solid var(--pv-border); border-radius:5px; background:var(--pv-surface); box-sizing:border-box; }
 .pv-queue-log-line { font-size:13px; color:var(--pv-text); white-space:pre-wrap; user-select:text; }
 .pv-queue-log-success { color:#00ff66; }

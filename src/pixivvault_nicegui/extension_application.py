@@ -231,12 +231,14 @@ class ExtensionApplication:
         from .extension_bridge import parse_download
         command = parse_download(json.loads(job.target_id))
         log = getattr(self.services, 'queue_log', None)
-        if log is None:
-            return
+        shared = getattr(self.services, 'shared_log', None)
         label, level = {'done': ('完了', 'success'), 'error': ('失敗', 'error'),
                         'stopped': ('停止', 'normal')}[job.state]
         with self._lock:
-            log.append(f'[拡張機能連携] ダウンロード{label}: {command.kind} (id={command.target_id})', level=level)
+            if log is not None:
+                log.append(f'[拡張機能連携] ダウンロード{label}: {command.kind} (id={command.target_id})', level=level)
+            if shared is not None:
+                shared.append(f'--- [拡張機能連携] ダウンロードが{label}しました: {command.kind} (id={command.target_id}) ---', level=level)
 
     def _run_command(self, job, context):
         from .extension_bridge import parse_download
