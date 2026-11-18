@@ -500,7 +500,7 @@ class DuplicateView:
         groups=visible_undecidable_groups(self.undecidable_groups,self.query,limit=None)
         shown=groups[:50]
         self.undecidable_notice.set_text(
-            f'{len(shown)} / {len(groups)} 組を表示（台帳全体 {len(self.undecidable_groups)} 組）')
+            f'{len(shown)} / {len(groups)} 組を表示（台帳全体 {len(self.undecidable_groups)} 組）。旧データベースは読み取り専用のため、対応付けは確定できません。')
         with self.undecidable_rows:
             if not groups:
                 if self.query:
