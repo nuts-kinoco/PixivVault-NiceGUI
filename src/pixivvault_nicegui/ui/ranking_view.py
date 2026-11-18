@@ -90,17 +90,15 @@ class RankingView(RankingCardMenus):
         self.notice.set_text('条件を変更しました。最新の一覧を取得します。' if refresh else
                              '条件が変わりました。Enterまたは取得で反映します。現在の一覧は前の条件です。')
         supported=self.mode.value in ('daily','weekly') or bool(self.tag.value)
-        vault=getattr(self.services.ranking_source,'vault',None)
-        status=vault.status() if vault is not None else {}
-        premium=bool(self.tag.value) and status.get('open') and status.get('mode')=='nana7mi'
-        self.r18.set_enabled(supported and not premium)
+        # 元 ranking_tab.py:1109-1110, 1219-1227: 借用プレミアムのタグ検索でも R-18 切替は操作でき、値も保つ
+        # （借用検索は R-18 を API にも結果の絞り込みにも使わないので、結果は変わらない）。
+        self.r18.set_enabled(supported)
         self._syncing_controls=True
         try:
-            if not supported or premium:self.r18.set_value(False)
+            if not supported:self.r18.set_value(False)
         finally:
             self._syncing_controls=False
-        if premium:self.notice.set_text('人気順の借用検索では原 API が R-18 指定を消費しないため、R-18 絞り込みを適用しません。')
-        elif not supported:self.notice.set_text('このランキングでは R-18 指定を利用できません。日間・週間またはタグ検索で指定してください。')
+        if not supported:self.notice.set_text('このランキングでは R-18 指定を利用できません。日間・週間またはタグ検索で指定してください。')
         self._sync_result_controls()
         if refresh and self.active:
             self._condition_pending=True

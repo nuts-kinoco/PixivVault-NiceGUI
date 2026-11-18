@@ -320,7 +320,8 @@ def test_external_missing_crypto_disables_actions(tmp_path):
     finally:client.delete();vault.close();service.close()
 
 
-def test_public_premium_r18_control_is_explicitly_unavailable(tmp_path):
+def test_public_premium_r18_control_stays_operable(tmp_path):
+    # FL-J05: 元（ranking_tab.py:1109-1110, 1319）は借用プレミアムのタグ検索でも R-18 切替を操作できる。結果は変わらない。
     from pixivvault_nicegui.ranking_source import RankingSource
     from pixivvault_nicegui.ui.ranking_view import RankingView
     services,vault,transport,pins=setup(tmp_path);services.ranking_source=RankingSource(object(),vault)
@@ -328,7 +329,7 @@ def test_public_premium_r18_control_is_explicitly_unavailable(tmp_path):
     try:
         with client:
             view=RankingView(services);view.tag.set_value('tag');view.changed()
-            assert not view.r18.enabled and 'R-18 絞り込みを適用しません' in view.notice.text
+            assert view.r18.enabled and view.r18.value is False
             view.tag.set_value('');view.changed();assert view.r18.enabled
     finally:client.delete();vault.close();services.close()
 
