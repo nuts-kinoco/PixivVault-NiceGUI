@@ -76,6 +76,7 @@ CSS = """
 .pv-ud-star { flex:0 0 22px; width:22px; height:22px; display:flex; align-items:center; justify-content:center; color:var(--pv-muted); cursor:pointer; }
 .pv-ud-star .q-icon { font-size:15px; }
 .pv-ud-star[data-on=true] { color:var(--pv-download-accent-text); }
+.pv-ud-check:focus-visible, .pv-ud-row:focus-visible, .pv-ud-star:focus-visible { outline:2px solid #0096FA; outline-offset:-2px; }
 .pv-ud-c-name { flex:0 0 210px; width:210px; font-size:12.5px; color:var(--pv-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pv-ud-running .pv-ud-row[data-picked=false] .pv-ud-c-name { color:var(--pv-muted); }
 .pv-ud-c-id { flex:0 0 96px; width:96px; font-size:11.5px; font-family:Consolas, monospace; color:var(--pv-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -333,9 +334,11 @@ class UnifiedDownloadView:
                     self.next_button.on("click", lambda _e: self.go_page(1))
                 with ui.element("div").classes("pv-ud-thead").props("data-testid=unified-thead") as self.thead:
                     self.header_check = ui.element("div").classes("pv-ud-check").props(
-                        "data-testid=unified-header-check data-state=empty role=checkbox aria-label=表示中の作者をまとめて選ぶ")
+                        "data-testid=unified-header-check data-state=empty role=checkbox tabindex=0 aria-checked=false aria-label=表示中の作者をまとめて選ぶ")
                     self.header_check.style("cursor:pointer")
                     self.header_check.on("click", lambda _e: self.toggle_header_check())
+                    for key in ("space", "enter"):
+                        self.header_check.on(f"keydown.{key}.prevent.stop", lambda _e: self.toggle_header_check())
                     with self.header_check:
                         self.header_check_icon = ui.icon("check")
                     ui.element("div").classes("pv-ud-star")
@@ -1223,7 +1226,8 @@ class UnifiedDownloadView:
     def _row(self, author, picked):
         uid = str(author["user_id"])
         row = ui.element("div").classes("pv-ud-row").props(
-            f"data-testid=unified-author-row data-user-id={uid} data-picked={'true' if picked else 'false'} role=row")
+            f"data-testid=unified-author-row data-user-id={uid} data-picked={'true' if picked else 'false'} "
+            f"role=checkbox tabindex=0 aria-checked={'true' if picked else 'false'}")
         with row:
             check = ui.element("div").classes("pv-ud-check").props("data-testid=unified-row-check")
             with check:
@@ -1231,16 +1235,21 @@ class UnifiedDownloadView:
             icon.set_visibility(picked)
             star = ui.element("div").classes("pv-ud-star").props(
                 f"data-testid=unified-row-star data-on={'true' if author.get('is_favorite') else 'false'} "
-                "role=button aria-label=☆自動監視の切り替え")
+                f"role=button tabindex=0 aria-pressed={'true' if author.get('is_favorite') else 'false'} "
+                "aria-label=☆自動監視の切り替え")
             with star:
                 star_icon = ui.icon("star" if author.get("is_favorite") else "star_border")
             star.on("click.stop", lambda _e, u=uid: self.toggle_favorite(u))
+            for key in ("space", "enter"):
+                star.on(f"keydown.{key}.prevent.stop", lambda _e, u=uid: self.toggle_favorite(u))
             ui.label(str(author.get("name") or uid)).classes("pv-ud-c-name")
             ui.label(uid).classes("pv-ud-c-id")
             ui.label(str(self.work_counts.get(uid, 0))).classes("pv-ud-c-count").props("data-testid=unified-row-count")
             ui.label(U.format_last_downloaded(local_stamp(author.get("last_downloaded")))).classes("pv-ud-c-last").props(
                 "data-testid=unified-row-last")
         row.on("click", lambda _e, u=uid: self.toggle_pick(u))
+        for key in ("space", "enter"):
+            row.on(f"keydown.{key}.prevent.stop", lambda _e, u=uid: self.toggle_pick(u))
         self._rows[uid] = dict(row=row, icon=icon, star=star, star_icon=star_icon)
 
     def _update_row(self, uid):
@@ -1250,6 +1259,7 @@ class UnifiedDownloadView:
             return
         on = bool(author.get("is_favorite"))
         entry["star"].props["data-on"] = "true" if on else "false"
+        entry["star"].props["aria-pressed"] = "true" if on else "false"
         entry["star"].update()
         entry["star_icon"].props["name"] = "star" if on else "star_border"
         entry["star_icon"].update()
@@ -1260,6 +1270,7 @@ class UnifiedDownloadView:
         for uid, entry in self._rows.items():
             picked = uid in chosen
             entry["row"].props["data-picked"] = "true" if picked else "false"
+            entry["row"].props["aria-checked"] = "true" if picked else "false"
             entry["row"].update()
             entry["icon"].set_visibility(picked)
         self._sync_header_check()
@@ -1267,6 +1278,7 @@ class UnifiedDownloadView:
     def _sync_header_check(self):
         state = self.header_check_state()
         self.header_check.props["data-state"] = state
+        self.header_check.props["aria-checked"] = "mixed" if state == "partial" else "true" if state == "all" else "false"
         self.header_check.update()
         self.header_check_icon.props["name"] = "remove" if state == "partial" else "check"
         self.header_check_icon.update()
