@@ -2,7 +2,7 @@
 from __future__ import annotations
 import asyncio
 from uuid import uuid4
-from nicegui import background_tasks, ui
+from nicegui import background_tasks, core, ui
 from ..recommendation_state import LABELS, ORDER
 from ..recommendation_media import RecommendationMediaSnapshot
 from ..viewer_metadata import pixiv_url
@@ -414,7 +414,7 @@ class RecommendView:
                                 b.style(f'font-size: {size}px; border: {1.5 if selected else border}px solid var(--pv-pixiv-blue)' if selected else f'font-size: {size}px; border: {border}px solid var(--pv-border-vault)')
                                 b.style('border-radius: 999px; color: var(--pv-text-main) !important; background: var(--pv-pixiv-blue-glow) !important' if selected else 'border-radius: 999px; color: var(--pv-text-main) !important; background: var(--pv-bg-card) !important')
                                 b.set_enabled(data['writable'] if tag in added else data.get('can_acquire',False))
-                        self.client.run_javascript(f"""requestAnimationFrame(() => {{
+                        if trends and core.loop is not None:self.client.run_javascript(f"""requestAnimationFrame(() => {{
                               const box=document.getElementById('{trend_box.html_id}'); if(!box) return;
                               const update=() => {{ if(!box.isConnected) {{ observer.disconnect(); return; }}
                                 const bottom=box.getBoundingClientRect().bottom;
