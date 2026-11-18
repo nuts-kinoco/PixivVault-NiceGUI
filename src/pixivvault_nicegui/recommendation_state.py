@@ -100,6 +100,7 @@ class RecommendationSnapshot:
     judged:frozenset[str]=frozenset()
     added_tags:tuple[tuple[str,str],...]=()
     search_mode:str='all'
+    certain_group_collapsed:frozenset[str]=frozenset()
 
 
 def _rows(conn,sql):
@@ -156,7 +157,7 @@ class FrozenRecommendationSource:
                 sections.append((kind,tuple(groups)))
             hidden_work=(frozenset(identifier(r[0]) for r in _rows(conn,'SELECT work_id FROM discovery_hidden_works')) if 'discovery_hidden_works' in tables else frozenset())
             hidden_author=(frozenset(identifier(r[0]) for r in _rows(conn,'SELECT author_id FROM discovery_hidden_authors')) if 'discovery_hidden_authors' in tables else frozenset())
-            settings=dict(_rows(conn,"SELECT key,value FROM settings WHERE key IN ('recommend_section_order','recommend_section_collapsed','recommend_trend_added_tags','discovery_search_mode')")) if 'settings' in tables else {}
+            settings=dict(_rows(conn,"SELECT key,value FROM settings WHERE key IN ('recommend_section_order','recommend_section_collapsed','recommend_certain_group_collapsed','recommend_trend_added_tags','discovery_search_mode')")) if 'settings' in tables else {}
             order=ORDER;collapsed=frozenset()
             try:
                 candidate=json.loads(settings.get('recommend_section_order','null'))
@@ -172,7 +173,11 @@ class FrozenRecommendationSource:
             added=tuple((text(r['tag']),text(r.get('display') or r['tag'])) for r in added if type(r) is dict and r.get('tag'))
             mode=settings.get('discovery_search_mode','all')
             if mode not in ('all','safe','r18'):mode='all'
-            result=RecommendationSnapshot(tuple(sections),hidden_work,hidden_author,order,collapsed,tuple(unavailable),boosted,judged,added,mode)
+            try:
+                raw_groups=json.loads(settings.get('recommend_certain_group_collapsed','[]'))
+                group_collapsed=frozenset(x for x in raw_groups if isinstance(x,str) and x) if isinstance(raw_groups,list) else frozenset()
+            except (ValueError,TypeError):group_collapsed=frozenset()
+            result=RecommendationSnapshot(tuple(sections),hidden_work,hidden_author,order,collapsed,tuple(unavailable),boosted,judged,added,mode,group_collapsed)
         finally:conn.close()
         if immutable_copy_signature(self.path)!=self.signature:raise RecommendationError()
         return result
@@ -261,6 +266,8 @@ class RecommendationPreferences:
             if len(value)!=len(ORDER) or set(value)!=set(ORDER):raise RecommendationError()
         elif kind=='recommend_section_collapsed':
             if not set(value)<=set(ORDER):raise RecommendationError()
+        elif kind=='recommend_certain_group_collapsed':
+            if not isinstance(value,(list,tuple)) or len(value)>MAX_RECORDS or any(type(x) is not str or not x or len(x)>65536 for x in value):raise RecommendationError()
         else:raise RecommendationError()
         with self._mutex:
             if self.closed:raise RecommendationError()
@@ -311,8 +318,9 @@ class RecommendationController:
                 values.add(target) if hidden else values.discard(target)
             order=tuple(json.loads(settings['recommend_section_order'])) if 'recommend_section_order' in settings else source.order
             collapsed=frozenset(json.loads(settings['recommend_section_collapsed'])) if 'recommend_section_collapsed' in settings else source.collapsed
+            group_collapsed=frozenset(json.loads(settings['recommend_certain_group_collapsed'])) if 'recommend_certain_group_collapsed' in settings else source.certain_group_collapsed
             groups={kind:tuple(RecommendationGroup(g.key,g.title,tuple(w for w in g.works if w.work_id not in works and w.author_id not in authors),g.page,g.total,g.exhausted) for g in rows) for kind,rows in source.sections}
-            state=dict(revision=revision,sections=groups,order=order,collapsed=collapsed,hidden_works=tuple(sorted(works)),hidden_authors=tuple(sorted(authors)),unavailable=source.unavailable,writable=self.preferences is not None)
+            state=dict(revision=revision,sections=groups,order=order,collapsed=collapsed,certain_group_collapsed=group_collapsed,hidden_works=tuple(sorted(works)),hidden_authors=tuple(sorted(authors)),unavailable=source.unavailable,writable=self.preferences is not None)
             state=self.acquisition.decorate(state,source,settings)
             # Shelf-only withdrawal is independent of both learning verdicts and
             # global work/author hiding, including cached acquired shelves.
@@ -392,4 +400,4 @@ class CombinedRecommendationSource:
         sections['superlike']=(RecommendationGroup('superlike',LABELS['superlike'],tuple(works)),)
         return RecommendationSnapshot(tuple(sections.items()),old.hidden_works,old.hidden_authors,
             old.order,old.collapsed,tuple(k for k in old.unavailable if k!='superlike'),
-            old.boosted,old.judged|new.judged,old.added_tags,new.search_mode)
+            old.boosted,old.judged|new.judged,old.added_tags,new.search_mode,old.certain_group_collapsed)

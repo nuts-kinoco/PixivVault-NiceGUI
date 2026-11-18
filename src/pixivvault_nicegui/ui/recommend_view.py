@@ -232,6 +232,12 @@ class RecommendView:
         order[index],order[target]=order[target],order[index]
         revision=self.data['revision']
         await self._change(lambda:self.controller.configure('recommend_section_order',order,revision))
+    async def collapse_certain_group(self,tag):
+        if self.data is None:return
+        values=set(self.data['certain_group_collapsed'])
+        values.remove(tag) if tag in values else values.add(tag)
+        revision=self.data['revision']
+        await self._change(lambda:self.controller.configure('recommend_certain_group_collapsed',sorted(values),revision))
     async def reset_order(self):
         """Restore the original five shelf order using the same revisioned settings."""
         if (self.data is None or not self.data.get('writable')
@@ -257,6 +263,7 @@ class RecommendView:
             if (kind=='trend' or kind in self.data['collapsed']
                     or kind in self.data['unavailable']):continue
             for group in self.data['sections'].get(kind,()):
+                if kind=='certain' and group.key in self.data.get('certain_group_collapsed',()):continue
                 count=self.visible.get((kind,group.key),self.step)
                 result.extend(group.works[:count])
         return tuple(result)
@@ -397,6 +404,11 @@ class RecommendView:
                     if not any(g.works for g in groups):ui.label('表示対象がありません。').classes('pv-subtitle')
                     for group in groups:
                         ui.label(group.title).classes('pv-subtitle')
+                        if kind=='certain':
+                            closed=group.key in data.get('certain_group_collapsed',())
+                            b=ui.button('このタグを開く' if closed else 'このタグを閉じる',on_click=lambda e,t=group.key:self.collapse_certain_group(t)).props('flat')
+                            b.set_enabled(data['writable'])
+                            if closed:continue
                         key=(kind,group.key);count=self.visible.get(key,self.step)
                         with ui.element("div").classes("pv-grid w-full").style(f"--pv-max-cols:{MAX_COLUMNS[self.card_size]}"):
                             for work in group.works[:count]:
