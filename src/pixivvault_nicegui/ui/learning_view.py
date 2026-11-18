@@ -84,6 +84,7 @@ class LearningView:
         self._managed_owner = uuid4().hex
         self._settings_epoch=0
         self._settings_busy=False
+        self._settings_loading=False
         self._settings_open=False
         self._settings_snapshot=None
         self._settings_operations={}
@@ -209,7 +210,25 @@ class LearningView:
                 self.reload_button = ui.button("保存状態を再読込", on_click=self.reload_storage).props("flat")
             ui.label("矢印キー / WASD / 1〜4 で判定。画面を選択して操作してください。").classes("pv-subtitle")
             if self.discovery is not None:
-                self.settings_button = ui.button('発掘設定',on_click=self.open_discovery_settings).props('flat data-testid=discovery-settings-open')
+                # 元 discovery_tab.py:3295-3302 の「探索の設定 ▸」引き出し。畳んだ行だけが流れに入り、開いた板は重ね置き。
+                ui.label('判定は保存され、次に出す候補の並べ替えに反映されます。').classes('pv-subtitle')
+                with ui.element('div').classes('relative w-full'):
+                    with ui.card().classes('gap-2').props('role=region aria-label=探索の設定 data-testid=discovery-settings-panel').style(
+                            'position:absolute;left:0;bottom:100%;z-index:25;width:min(320px,calc(100vw - 32px));'
+                            'background:var(--pv-overlay);border:1px solid var(--pv-border);box-sizing:border-box;'
+                            'padding:10px;') as self.settings_panel:
+                        self.settings_subject,self.settings_subject_text=self._explore_slider('知らないジャンルを見る割合','discovery-settings-subject')
+                        self.settings_style,self.settings_style_text=self._explore_slider('知らない絵柄を見る割合','discovery-settings-style')
+                        self.settings_mode=ui.select({'all':'すべて','safe':'全年齢','r18':'R-18'},value='all',label='検索対象',
+                            on_change=lambda _:self._settings_commit()).props('outlined dense data-testid=discovery-settings-mode')
+                        self.settings_status=ui.label().classes('pv-subtitle').props('role=status data-testid=discovery-settings-status')
+                    self.settings_panel.set_visibility(False)
+                    self.settings_button = ui.button(on_click=self.toggle_discovery_settings).props(
+                        'flat dense no-caps align=between aria-expanded=false data-testid=discovery-settings-open')
+                    with self.settings_button:
+                        ui.label('探索の設定').classes('pv-subtitle').style('flex:1 1 auto;text-align:left')
+                        self.settings_arrow=ui.icon('keyboard_arrow_right').style('font-size:15px;color:var(--pv-muted)')
+                        ui.tooltip('どのくらい知らないものを見るかを変えます')
                 self.fetch_button = ui.button('候補を取得', on_click=self.fetch_discovery).props('flat data-testid=discovery-fetch')
                 self.refill_status = ui.label().classes('pv-subtitle').props('role=status data-testid=discovery-refill-status')
                 self.managed_button = ui.button('作品を保存').props('flat data-testid=discovery-save')
@@ -243,20 +262,6 @@ class LearningView:
             ui.button('閉じる',on_click=self.review_dialog.close).props('flat data-testid=learning-review-close')
         self.review_dialog.on('hide',self._close_review)
         self._review_timer = ui.timer(1.0, self._poll_review_jobs)
-        if self.discovery is not None:
-            with ui.dialog().props('data-testid=discovery-settings-dialog') as self.settings_dialog,ui.card().classes('w-full').style('max-width:600px'):
-                ui.label('発掘設定').classes('pv-view-title')
-                self.settings_mode=ui.select({'all':'すべて','safe':'全年齢','r18':'R-18'},value='all',label='検索対象').props('outlined data-testid=discovery-settings-mode')
-                self.settings_subject=ui.number('題材探索の割合 (%)',value=50,min=0,max=100).props('outlined data-testid=discovery-settings-subject')
-                self.settings_style=ui.number('絵柄探索の割合 (%)',value=20,min=0,max=100).props('outlined data-testid=discovery-settings-style')
-                ui.label('確実枠は残りの割合です。探索合計が95%を超える場合は比率を保って95%へ調整します。検索対象は次の候補取得から適用します。').classes('pv-subtitle')
-                self.settings_status=ui.label().props('role=status data-testid=discovery-settings-status')
-                with ui.row():
-                    self.settings_save=ui.button('設定を保存',on_click=self.save_discovery_settings).props('data-testid=discovery-settings-save')
-                    self.settings_reload=ui.button('設定を読込',on_click=self.load_discovery_settings).props('flat')
-                    ui.button('閉じる',on_click=self.settings_dialog.close).props('flat')
-            self.settings_dialog.on('hide',self._close_settings)
-
 
         # NiceGUI 3.18: js_handler は emit(...) へ送る値を組み立てられる。
         # root 配下にフォーカスがある場合だけ拾い、入力中とIME中は除外する。
@@ -1013,7 +1018,7 @@ class LearningView:
         if not self.active and self._review_open:
             self.review_dialog.close()
         if not self.active and self.discovery is not None and self._settings_open:
-            self.settings_dialog.close()
+            self._close_settings()
         self._update_buttons()
         self._summary_buttons()
         if self.active and self.discovery is not None:
@@ -1368,22 +1373,48 @@ class LearningView:
                 self._render_review()
                 self._update_buttons()
 
+    def _explore_slider(self,label,testid):
+        """元 discovery_tab.py:3199-3250 つまみ1本。現在値は%の実数のみ。ドラッグ中は右端の数字だけを書き換え、離したときに保存する。"""
+        with ui.row().classes('w-full items-center justify-between no-wrap'):
+            ui.label(label).style('font-size:12px;color:var(--pv-text)')
+            value_text=ui.label('0%').style('font-size:11px;color:var(--pv-muted)')
+        slider=ui.slider(min=0,max=100,step=1,value=0,on_change=lambda e,t=value_text:t.set_text(f"{int(round(e.value or 0))}%")).props(
+            f'label=false data-testid={testid}').classes('w-full')
+        slider.on('change',lambda _:self._settings_commit())
+        return slider,value_text
+
     def _settings_controls(self):
         enabled=not self._settings_busy and self._settings_snapshot is not None
-        for control in (self.settings_mode,self.settings_subject,self.settings_style,self.settings_save):control.set_enabled(enabled)
-        self.settings_reload.set_enabled(not self._settings_busy)
+        for control in (self.settings_mode,self.settings_subject,self.settings_style):control.set_enabled(enabled)
         self._update_buttons()
+
+    def _settings_commit(self):
+        """離したとき／検索対象を変えたときに保存する。読み込み中の値の反映では保存しない。"""
+        if self._settings_loading or not self._settings_open or self._settings_busy or self._settings_snapshot is None:return
+        background_tasks.create(self.save_discovery_settings(),name='discovery settings save')
+
+    def _set_settings_open(self,opened):
+        self._settings_open=bool(opened)
+        self.settings_panel.set_visibility(self._settings_open)
+        self.settings_button.props(f"aria-expanded={'true' if self._settings_open else 'false'}")
+        self.settings_arrow.props(f"name={'keyboard_arrow_down' if self._settings_open else 'keyboard_arrow_right'}")
+
+    async def toggle_discovery_settings(self):
+        if self._settings_open:
+            self._close_settings()
+        else:
+            await self.open_discovery_settings()
 
     async def open_discovery_settings(self):
         if not self.active or self.state.closed or self._storage_busy or self.state.saving or self._settings_busy:return
+        self.close_summary()
         self._settings_epoch+=1
-        self._settings_open=True
-        self.settings_dialog.open()
+        self._set_settings_open(True)
         await self.load_discovery_settings()
 
     def _close_settings(self):
         self._settings_epoch+=1
-        self._settings_open=False
+        self._set_settings_open(False)
         self._settings_busy=False
         if not self.state.closed:self._update_buttons()
 
@@ -1396,12 +1427,16 @@ class LearningView:
             snapshot=await self.discovery.settings_snapshot()
             if self.state.closed or not self._settings_open or epoch!=self._settings_epoch:return
             self._settings_snapshot=snapshot
-            self.settings_mode.set_value(snapshot.values['discovery_search_mode'])
-            self.settings_subject.set_value(float(snapshot.values['discovery_ratio_subject']))
-            self.settings_style.set_value(float(snapshot.values['discovery_ratio_style']))
-            self.settings_status.set_text('設定を読み込みました。')
+            self._settings_loading=True
+            try:
+                self.settings_mode.set_value(snapshot.values['discovery_search_mode'])
+                self.settings_subject.set_value(int(round(float(snapshot.values['discovery_ratio_subject']))))
+                self.settings_style.set_value(int(round(float(snapshot.values['discovery_ratio_style']))))
+            finally:
+                self._settings_loading=False
+            self.settings_status.set_text('')
         except Exception:
-            if not self.state.closed and epoch==self._settings_epoch:self.settings_status.set_text('設定を読み込めませんでした。再読込してください。')
+            if not self.state.closed and epoch==self._settings_epoch:self.settings_status.set_text('設定を読み込めませんでした。開き直してください。')
         finally:
             if not self.state.closed and epoch==self._settings_epoch:
                 self._settings_busy=False
@@ -1410,7 +1445,7 @@ class LearningView:
     async def save_discovery_settings(self):
         if not self._settings_open or self._settings_busy or self._settings_snapshot is None:return
         epoch=self._settings_epoch
-        values={'discovery_search_mode':self.settings_mode.value,'discovery_ratio_subject':self.settings_subject.value,'discovery_ratio_style':self.settings_style.value}
+        values={'discovery_search_mode':self.settings_mode.value,'discovery_ratio_subject':int(round(self.settings_subject.value)),'discovery_ratio_style':int(round(self.settings_style.value))}
         signature=(self._settings_snapshot.revision,tuple(values.items()))
         operation=self._settings_operations.setdefault(signature,uuid4().hex)
         self._settings_busy=True
@@ -1422,11 +1457,11 @@ class LearningView:
             self._settings_snapshot=snapshot
             ratios=snapshot.effective_ratios
             self.settings_status.set_text(f"保存しました。確実枠 {ratios['sure']:.0%} / 題材探索 {ratios['subject']:.0%} / 絵柄探索 {ratios['style']:.0%}")
-            self.reload_storage(notice='発掘設定を保存し、候補の順序を読み込み直しました。')
+            # 元は設定値を書くだけで画面は作り直さない。次に並べ替える候補から新しい割合を読む。
         except Exception as error:
             if not self.state.closed and epoch==self._settings_epoch:
                 from ..learning_repository import LearningConflict
-                self.settings_status.set_text('別の画面で設定が変わりました。設定を読込してから操作してください。' if isinstance(error,LearningConflict) else '設定を保存できませんでした。値を確認して再試行してください。')
+                self.settings_status.set_text('別の画面で設定が変わりました。開き直してから操作してください。' if isinstance(error,LearningConflict) else '設定を保存できませんでした。値を確認して再試行してください。')
         finally:
             if not self.state.closed and epoch==self._settings_epoch:
                 self._settings_busy=False
@@ -1758,7 +1793,6 @@ class LearningView:
             self.services.release_managed_owner(self._managed_owner)
         if self.discovery is not None:
             self._close_settings()
-            self.settings_dialog.close()
         if self._discovery_pin is not None:
             self._discovery_pin.close()
             self._discovery_pin = None
