@@ -165,6 +165,10 @@ class ApplicationServices:
         self._owned_legacy_capacity_cache = None
         self._bookmark_cache_store = None
         self._bookmark_restore_attempted = False
+        self._bookmark_restored_identity = None
+        self._bookmark_restored_reader = None
+        self._bookmark_verified_identity = None
+        self._bookmark_verified_reader = None
         self.bookmark_cache_persist_failed = False
         self.preferences_root = preferences_root
         self.discovery_root = discovery_root
@@ -448,6 +452,11 @@ class ApplicationServices:
                     # prevent a healthy downloaded library from opening.
                     records, cached_remote, cached_local = (), None, ()
                     self.bookmark_cache_failed = True
+                if live_client is not None:
+                    # The old cache has no verified account binding; its private
+                    # rows and freshness cannot be attributed to this reader.
+                    records, cached_remote = (), None
+                    self.bookmark_cache_fetched_at = None
                 catalog = ReadonlyLocalMediaCatalog(library_image_root, snapshot)
             except BaseException:
                 if "repository" in locals():
@@ -2678,9 +2687,15 @@ class ApplicationServices:
         store = self._bookmark_cache_store
         if store is None or self.live_client is None or not self.bookmark_auto_refresh_enabled():
             return False
+        if (self._bookmark_restored_reader is self.live_client and self._bookmark_restored_identity is not None
+                and getattr(self.live_client, '_verified_identity', None) == self._bookmark_restored_identity):
+            return True
         async with self._library_refresh_lock:
-            if self.closing or self._bookmark_restore_attempted:
+            if self.closing or not self.bookmark_auto_refresh_enabled():
                 return False
+            if self._bookmark_restore_attempted:
+                return (self._bookmark_restored_reader is self.live_client and self._bookmark_restored_identity is not None
+                        and getattr(self.live_client, '_verified_identity', None) == self._bookmark_restored_identity)
             try:
                 has_snapshot = store.has_snapshot()
             except Exception:
@@ -2694,15 +2709,21 @@ class ApplicationServices:
                 return False
             reader = self.live_client
             def verify():
+                if not self.bookmark_auto_refresh_enabled():
+                    raise RuntimeError('bookmark automatic refresh disabled')
                 if self.managed_network_stop is not None:
                     self.managed_network_stop.require_allowed()
                 return reader.verify_identity()
-            account = await asyncio.to_thread(verify)
+            account = getattr(reader, '_verified_identity', None)
+            if not isinstance(account, str) or re.fullmatch(r'[1-9][0-9]{0,19}', account) is None:
+                account = await asyncio.to_thread(verify)
             if (self.closing or self.live_client is not reader or not self.bookmark_auto_refresh_enabled() or
                     getattr(reader, '_verified_identity', account) != account):
                 raise RuntimeError('bookmark reader changed')
             if (self.save_exports is not None and self.save_exports.account not in (None, account)):
                 raise RuntimeError('bookmark export account differs')
+            self._bookmark_verified_reader = reader
+            self._bookmark_verified_identity = account
             try:
                 stored = await asyncio.to_thread(store.read, account)
             except Exception:
@@ -2722,6 +2743,8 @@ class ApplicationServices:
             self._cached_remote_bookmarks = tuple(record.as_artwork() for record in records)
             self.bookmark_cache_fetched_at = stamp
             self.bookmark_cache_failed = False
+            self._bookmark_restored_reader = reader
+            self._bookmark_restored_identity = account
             return True
 
     async def refresh_bookmark_cache(self, *, automatic=False):
@@ -2731,8 +2754,14 @@ class ApplicationServices:
         async with self._library_refresh_lock:
             if self.closing:
                 raise RuntimeError("application services are closed")
-            cache_revision = (self._bookmark_cache_store.revision()
-                              if self._bookmark_cache_store is not None else None)
+            try:
+                cache_revision = (self._bookmark_cache_store.revision()
+                                  if self._bookmark_cache_store is not None else None)
+            except Exception:
+                self.bookmark_cache_persist_failed = True
+                self._bookmark_cache_store.close()
+                self._bookmark_cache_store = None
+                cache_revision = None
             if automatic:
                 from datetime import datetime
                 try:
@@ -2773,10 +2802,15 @@ class ApplicationServices:
             if reader is not None:
                 from .bookmark_remote_adapter import fetch_all_bookmarks
 
+                verified_account = (self._bookmark_verified_identity if automatic
+                    and self._bookmark_verified_reader is reader
+                    and getattr(reader, '_verified_identity', None) == self._bookmark_verified_identity
+                    else None)
+
                 def read_all():
                     if self.managed_network_stop is not None:
                         self.managed_network_stop.require_allowed()
-                    identity = reader.verify_identity()
+                    identity = verified_account or reader.verify_identity()
                     result = fetch_all_bookmarks(reader, identity)
                     if not result.ok:
                         raise RuntimeError("bookmark routes incomplete")

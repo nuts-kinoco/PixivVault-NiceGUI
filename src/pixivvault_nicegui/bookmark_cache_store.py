@@ -54,7 +54,14 @@ class BookmarkCacheStore:
         datetime.fromisoformat(stamp)
         if not isinstance(payload, str) or len(payload) > 128 * 1024 * 1024:
             raise ValueError('invalid bookmark payload')
-        rows = json.loads(payload)
+        envelope = json.loads(payload)
+        # Older snapshots did not bind account inside the payload. Keep them
+        # intact until a complete verified refresh, but never expose them.
+        if type(envelope) is list:
+            return None
+        if type(envelope) is not dict or set(envelope) != {'account', 'records'} or envelope['account'] != account:
+            raise ValueError('bookmark account binding invalid')
+        rows = envelope['records']
         if type(rows) is not list or len(rows) > 200000:
             raise ValueError('invalid bookmark rows')
         records, seen = [], set()
@@ -80,7 +87,8 @@ class BookmarkCacheStore:
         if type(account) is not str or re.fullmatch(r'[1-9][0-9]{0,19}', account) is None:
             raise ValueError('invalid bookmark account')
         datetime.fromisoformat(stamp)
-        payload = json.dumps([asdict(record) for record in records], ensure_ascii=False, separators=(',', ':'))
+        payload = json.dumps({'account': account, 'records': [asdict(record) for record in records]},
+                             ensure_ascii=False, separators=(',', ':'))
         with self._lock:
             self._db.execute('BEGIN IMMEDIATE')
             try:
