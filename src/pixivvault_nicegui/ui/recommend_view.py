@@ -157,6 +157,10 @@ class RecommendView:
             return False
         except Exception:
             if self.active and self.epoch==epoch:
+                try:
+                    self.data=await asyncio.to_thread(self.controller.snapshot)
+                    self.render()
+                except Exception:pass
                 self.notice.set_text('取得または保存に失敗しました。前の結果とページを保持しています。再読込後に再試行できます。')
             return False
         finally:
@@ -489,7 +493,8 @@ class RecommendView:
                             b=ui.button('作者の作品をさらに取得',on_click=lambda e,a=group.key,n=next_limit:self.more_author(a,n)).props('outline')
                             b.set_enabled(data.get('can_acquire',False))
                         elif kind in ('certain','trend_added') and not group.exhausted:
-                            b=ui.button('さらに取得',on_click=lambda e,k=kind,t=group.key:self.next_page(k,t)).props('outline')
+                            failed=data.get('errors',{}).get(kind+':'+group.key)=='fetch_failed_retry_same_page'
+                            b=ui.button('取得に失敗しました。再試行' if failed else 'さらに取得',on_click=lambda e,k=kind,t=group.key:self.next_page(k,t)).props('outline')
                             b.set_enabled(data.get('can_acquire',False))
             with ui.expansion('出さない一覧').classes('w-full'):
                 if not data['hidden_works'] and not data['hidden_authors']:
