@@ -17,7 +17,7 @@ async def test_rejected_concurrent_start_cannot_rebind_active_resume(tmp_path):
     first = services_with_runs(tmp_path)
     try:
         previous = first.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row,),
-                                                    account_id='55')
+                                                    account_id='55', verified_bookmark_account=True)
         first.batch_run_ledger.update_author(previous, row, state='downloading')
     finally:
         await asyncio.to_thread(first.close)

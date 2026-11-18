@@ -3084,7 +3084,7 @@ class ApplicationServices:
         if engine is None or self.closing:
             raise RuntimeError('author batch runs are not enabled')
         return engine.start(tuple(visibilities), kind='bookmarks', origin=origin, target_type=target_type,
-                            account_id=account)
+                            account_id=account, verified_bookmark_account=account is not None)
 
     def bookmark_layout(self):
         """The bookmark projection layout and optional per-work folders."""

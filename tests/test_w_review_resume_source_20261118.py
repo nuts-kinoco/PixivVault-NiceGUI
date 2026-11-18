@@ -20,7 +20,7 @@ async def test_bookmark_resume_without_source_keeps_offer(tmp_path):
     row_id = VISIBILITY_ROWS['show']
     try:
         await first.refresh_bookmark_cache()
-        old_run = first.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row_id,))
+        old_run = first.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row_id,), account_id='55', verified_bookmark_account=True)
         first.batch_run_ledger.update_author(old_run, row_id, state='downloading')
     finally:
         await asyncio.to_thread(first.close)

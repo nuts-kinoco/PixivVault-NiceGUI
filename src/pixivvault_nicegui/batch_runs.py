@@ -144,7 +144,7 @@ _ITEM_COLUMNS = ('run_id', 'author_id', 'work_key', 'media', 'operation_id', 'jo
 _SCHEMA = f'''
     BEGIN IMMEDIATE;
     PRAGMA application_id={APPLICATION_ID};
-    PRAGMA user_version=2;
+    PRAGMA user_version=3;
     CREATE TABLE runs (
         run_id TEXT PRIMARY KEY,
         kind TEXT NOT NULL CHECK(kind IN ({','.join(repr(k) for k in RUN_KINDS)})),
@@ -186,6 +186,7 @@ _SCHEMA = f'''
     CREATE TABLE run_flags (
         run_id TEXT PRIMARY KEY,
         discarded INTEGER NOT NULL DEFAULT 0 CHECK(discarded IN (0,1)),
+        verified_bookmark_account INTEGER NOT NULL DEFAULT 0 CHECK(verified_bookmark_account IN (0,1)),
         FOREIGN KEY(run_id) REFERENCES runs(run_id));
     COMMIT;
 '''
@@ -197,6 +198,15 @@ _MIGRATE_1_TO_2 = '''
         discarded INTEGER NOT NULL DEFAULT 0 CHECK(discarded IN (0,1)),
         FOREIGN KEY(run_id) REFERENCES runs(run_id));
     PRAGMA user_version=2;
+    COMMIT;
+'''
+
+
+_MIGRATE_2_TO_3 = '''
+    BEGIN IMMEDIATE;
+    ALTER TABLE run_flags ADD COLUMN verified_bookmark_account INTEGER NOT NULL DEFAULT 0
+        CHECK(verified_bookmark_account IN (0,1));
+    PRAGMA user_version=3;
     COMMIT;
 '''
 
@@ -235,7 +245,7 @@ class BatchRunLedger:
                 if self.path.stat().st_size > MAX_DB_BYTES:
                     raise BatchRunError()
                 with closing(sqlite3.connect(sqlite_readonly_uri(self.path), uri=True)) as check:
-                    self._verify_schema(check, versions=(1, 2))
+                    self._verify_schema(check, versions=(1, 2, 3))
             else:
                 descriptor = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY
                                      | getattr(os, 'O_BINARY', 0) | getattr(os, 'O_NOFOLLOW', 0), 0o600)
@@ -248,6 +258,8 @@ class BatchRunLedger:
                 self._connection.executescript(_SCHEMA)
             elif self._connection.execute('PRAGMA user_version').fetchone() == (1,):
                 self._connection.executescript(_MIGRATE_1_TO_2)  # adds the discard flag table only
+            if self._connection.execute('PRAGMA user_version').fetchone() == (2,):
+                self._connection.executescript(_MIGRATE_2_TO_3)
             self._verify_schema(self._connection)
             metadata = self.path.lstat()
             self._identity = metadata.st_dev, metadata.st_ino
@@ -272,7 +284,7 @@ class BatchRunLedger:
             _safe_path(child, file=True)
 
     @staticmethod
-    def _verify_schema(connection, versions=(2,)):
+    def _verify_schema(connection, versions=(3,)):
         version = connection.execute('PRAGMA user_version').fetchone()
         if (connection.execute('PRAGMA application_id').fetchone() != (APPLICATION_ID,)
                 or version not in [(v,) for v in versions]):
@@ -282,6 +294,10 @@ class BatchRunLedger:
         if tables != ({'runs', 'run_authors', 'run_items'} if version == (1,)
                       else {'runs', 'run_authors', 'run_items', 'run_flags'}):
             raise BatchRunError()
+        if version != (1,):
+            flags = ('run_id', 'discarded', 'verified_bookmark_account') if version == (3,) else ('run_id', 'discarded')
+            if tuple(r[1] for r in connection.execute('PRAGMA table_info(run_flags)')) != flags:
+                raise BatchRunError()
         for table, columns in (('runs', _RUN_COLUMNS), ('run_authors', _AUTHOR_COLUMNS),
                                ('run_items', _ITEM_COLUMNS)):
             if tuple(r[1] for r in connection.execute(f'PRAGMA table_info({table})')) != columns:
@@ -353,13 +369,16 @@ class BatchRunLedger:
     def _run_row(row):
         return RunRecord(*row)
 
-    def begin_run(self, kind, origin, target_type, author_ids, *, account_id=None):
+    def begin_run(self, kind, origin, target_type, author_ids, *, account_id=None, verified_bookmark_account=False):
         """Create a `running` run with every author `pending`. One active run at a time."""
         if kind not in RUN_KINDS or origin not in RUN_ORIGINS or target_type not in ('both', 'illust', 'novel', ''):
             raise BatchRunError()
         authors = tuple(dict.fromkeys(_identifier(a) for a in author_ids))
         if account_id is not None:
             account_id = _identifier(account_id)
+        if type(verified_bookmark_account) is not bool or (verified_bookmark_account and
+                (kind != 'bookmarks' or account_id is None)):
+            raise BatchRunError()
         run_id = uuid4().hex
         now = self._now()
 
@@ -379,6 +398,8 @@ class BatchRunLedger:
                                    'SELECT run_id FROM runs ORDER BY started_utc LIMIT 100)')
             connection.execute('INSERT INTO runs VALUES(?,?,?,?,?,?,NULL,?,1,?,?)',
                                (run_id, kind, origin, target_type, 'running', now, len(authors), '', account_id))
+            if verified_bookmark_account:
+                connection.execute('INSERT INTO run_flags(run_id, verified_bookmark_account) VALUES(?,1)', (run_id,))
             connection.executemany(
                 'INSERT INTO run_authors(run_id,seq,author_id,state) VALUES(?,?,?,?)',
                 [(run_id, seq, author, 'pending') for seq, author in enumerate(authors)])
@@ -472,6 +493,12 @@ class BatchRunLedger:
         row = self._read(find)
         return None if row is None else self._run_row(row)
 
+    def has_verified_bookmark_account(self, run_id):
+        _run_id(run_id)
+        return bool(self._read(lambda c: c.execute(
+            'SELECT 1 FROM run_flags WHERE run_id=? AND verified_bookmark_account=1',
+            (run_id,)).fetchone()))
+
     def unfinished_authors(self, run_id):
         """Author IDs of a run that are not `done`, in the run's order."""
         _run_id(run_id)
@@ -487,7 +514,7 @@ class BatchRunLedger:
         def flag(connection):
             if connection.execute('SELECT 1 FROM runs WHERE run_id=?', (run_id,)).fetchone() is None:
                 raise BatchRunError()
-            connection.execute('INSERT INTO run_flags VALUES(?,1) ON CONFLICT(run_id) DO UPDATE SET discarded=1',
+            connection.execute('INSERT INTO run_flags(run_id,discarded) VALUES(?,1) ON CONFLICT(run_id) DO UPDATE SET discarded=1',
                                (run_id,))
         self._transaction(flag)
 

@@ -295,13 +295,16 @@ class BatchRunEngine:
         run = self.ledger.resumable_run()
         if run is None or (run_id is not None and run.run_id != run_id):
             raise RuntimeError('no resumable run')
+        verified = run.kind == 'bookmarks' and self.ledger.has_verified_bookmark_account(run.run_id)
+        if run.kind == 'bookmarks' and (not verified or not run.account_id):
+            raise RunNeedsConfirmation('account_unknown')
         authors = self.ledger.unfinished_authors(run.run_id)
         # The stamps belong to the account that began the run, also after a restart (the engine of
         # a new process starts without one).
         account_id = run.account_id or self.account_id
         preflight = (lambda: bookmark_refresh(account_id)) if run.kind == 'bookmarks' and bookmark_refresh else None
         return self.start(authors, kind=run.kind, origin=run.origin, target_type=run.target_type or None,
-                          preflight=preflight, account_id=account_id)
+                          preflight=preflight, account_id=account_id, verified_bookmark_account=verified)
 
     def join(self, timeout=None):
         thread = self._thread
@@ -348,9 +351,10 @@ class BatchRunEngine:
 
     # -- entry points ------------------------------------------------------
     def start(self, author_ids, *, kind='authors', origin='manual', target_type=None, preflight=None,
-              account_id=_ACCOUNT_UNSET):
+              account_id=_ACCOUNT_UNSET, verified_bookmark_account=False):
         """Begin a run on its own thread and return the run id."""
-        run_id = self._begin(author_ids, kind, origin, target_type, account_id=account_id)
+        run_id = self._begin(author_ids, kind, origin, target_type, account_id=account_id,
+                             verified_bookmark_account=verified_bookmark_account)
         self._thread = Thread(target=self._execute, args=(run_id, tuple(self._authors), preflight),
                               name='pixivvault-batch', daemon=True)
         self._thread.start()
@@ -362,7 +366,8 @@ class BatchRunEngine:
         self._execute(run_id, tuple(self._authors))
         return run_id
 
-    def _begin(self, author_ids, kind, origin, target_type, *, account_id=_ACCOUNT_UNSET):
+    def _begin(self, author_ids, kind, origin, target_type, *, account_id=_ACCOUNT_UNSET,
+               verified_bookmark_account=False):
         if kind not in ('authors', 'bookmarks'):
             raise ValueError('invalid run kind')
         if kind == 'bookmarks':
@@ -381,7 +386,8 @@ class BatchRunEngine:
             self.ledger.recover_interrupted()
             self._authors = tuple(dict.fromkeys(author_ids))
             self.run_id = self.ledger.begin_run(kind, origin, target_type or 'both',
-                                                self._authors, account_id=self.account_id)
+                                                self._authors, account_id=self.account_id,
+                                                verified_bookmark_account=verified_bookmark_account)
             self._stop = self._paused = False
             self.state, self.pause_reason = 'running', ''
             self._settled, self._retire_disabled = [], False

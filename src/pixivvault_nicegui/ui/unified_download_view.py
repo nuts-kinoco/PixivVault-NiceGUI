@@ -1510,8 +1510,17 @@ class UnifiedDownloadView:
         if interrupted and self.band_state == "idle":
             code = getattr(self.resumable, "error_code", "")
             text = U.status_text("interrupted", outcome_code=code) or U.INTERRUPTED_TEXT
+        account_unknown = False
+        if interrupted and getattr(self.resumable, "kind", "") == "bookmarks":
+            try:
+                account_unknown = not (self.resumable.account_id and
+                    self.engine.ledger.has_verified_bookmark_account(self.resumable.run_id))
+            except Exception:
+                account_unknown = True
+            if account_unknown:
+                text = "要確認（アカウント不明）。破棄して新規実行してください。"
         self.band_status.set_text(text)
-        self.resume_button.set_visibility(interrupted)
+        self.resume_button.set_visibility(interrupted and not account_unknown)
         self.discard_button.set_visibility(interrupted)
         if self.mode == "bookmark" or progress.kind == "bookmarks" and self.running:
             summary = (f"ブックマークDL · {'階層化' if self.bm_hierarchical else 'フラット'} · "
