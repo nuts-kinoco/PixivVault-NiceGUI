@@ -17,7 +17,7 @@ class ViewerBackupView:
                 ui.label('直近のバックアップ').classes('pv-library-heading')
                 self.size_buttons=size_buttons(self.change_size,prefix='backup')
                 self.refresh_button=ui.button('更新',on_click=self.refresh).props('flat data-testid=backup-refresh')
-            ui.label('旧ライブラリのバックアップ日時順・最大60作者。画像を押すと保存先を開きます。'
+            ui.label('作者フォルダ単位でサムネイルを並べています。クリックで保存先を開きます。'
                      if self.legacy_mode else
                      '個別DLで保存した作品の履歴です。作者ごとに直近の保存を表示します。').classes('pv-subtitle')
             self.status=ui.label('').props('role=status data-testid=backup-status')
@@ -50,17 +50,16 @@ class ViewerBackupView:
             with self.grid:
                 for row in rows:
                     if self.legacy_mode:
-                        with ui.element('div').classes('pv-card').props(
+                        with ui.element('div').classes('pv-card pv-backup-card').props(
                                 'data-testid=backup-author-'+row.author_id):
-                            # The gallery card is a flex column. Keep the
-                            # thumbnail flexible and the caption in a fixed
-                            # metadata block so the image never hides labels.
-                            opener=ui.element('div').classes('flex flex-col w-full h-full min-h-0 gap-1 cursor-pointer').props(
+                            opener=ui.element('div').classes('pv-backup-tile').props(
                                 'role=button data-testid=backup-open-'+row.author_id)
+                            opener.props['title']=f'{row.author_name} ({row.author_id})\nクリックして開く'
                             if getattr(self.services,'desktop',None) is None:
                                 opener.props('aria-disabled=true tabindex=-1')
                             else:
-                                opener.props('tabindex=0 aria-label=作者の保存先を開く')
+                                opener.props('tabindex=0')
+                                opener.props['aria-label']=f'{row.author_name} ({row.author_id}) クリックして開く'
                                 async def open_legacy_event(_,selected=row,captured=epoch):
                                     await self.open_legacy(selected,captured)
                                 opener.on('click',open_legacy_event)
@@ -68,10 +67,7 @@ class ViewerBackupView:
                                 opener.on('keydown.space',open_legacy_event)
                             with opener:
                                 ui.image(row.thumbnail).classes('pv-thumb').props('fit=cover loading=lazy no-transition')
-                                with ui.element('div').classes('pv-card-meta'):
-                                    ui.label(row.author_name).classes('pv-card-author')
-                                    ui.label(row.title).classes('pv-card-title')
-                                    ui.label(row.last_backup).classes('pv-subtitle')
+                                ui.label(row.author_name).classes('pv-backup-name')
                             self.openers[row.author_id]=opener
                     else:
                         with ui.column().classes('pv-card').props('data-testid=backup-author-'+row['author_id']):
@@ -93,8 +89,8 @@ class ViewerBackupView:
                     if rows or errors else 'バックアップ日時が登録された作者はいません。')
             else:
                 self.status.set_text(f'{len(rows)} 作者' + (f'・確認できない履歴 {len(errors)} 件' if errors else ''))
-        except Exception:
-            if not self.closed and self.active and epoch==self.epoch:self.status.set_text('履歴を読み込めませんでした。更新で再試行してください。')
+        except Exception as exc:
+            if not self.closed and self.active and epoch==self.epoch:self.status.set_text(f'直近バックアップ履歴取得エラー: {exc}')
         finally:
             if incoming_images is not None:incoming_images.close()
             self.busy=False

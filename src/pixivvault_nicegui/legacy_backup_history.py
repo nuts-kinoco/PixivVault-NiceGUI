@@ -33,7 +33,7 @@ class LegacyBackupAuthor:
 
 
 def author_storage_target(image_root: Path, author_id: str, source: Path) -> Path | None:
-    """Only a matching author folder or the containing folder of its ZIP.
+    """Only a matching author folder or its ZIP.
 
     The source is supplied by PinnedLibraryImages.external_target, which
     validates the work/page identity and guards links and ZIP entries. The
@@ -44,7 +44,8 @@ def author_storage_target(image_root: Path, author_id: str, source: Path) -> Pat
     if not _AUTHOR_ID.fullmatch(author_id) or not source.is_relative_to(root):
         return None
     if source.is_file() and source.suffix.lower() == ".zip":
-        return source.parent
+        folder = source.with_suffix("")
+        return folder if folder.is_dir() else source
     if not source.is_file():
         return None
     for parent in source.parents:
