@@ -56,7 +56,7 @@ def serve(args):
 
         def get_author_artworks_complete(self, author_id):
             self._hit("get_author_artworks_complete")
-            return []
+            return ()
 
         def get_author_novel_ids(self, author_id):
             self._hit("get_author_novel_ids")
@@ -317,7 +317,8 @@ def judge(delta, key=None, tol_pos=2, tol_size=3):
              and abs(delta[3]) <= tol_size)
     if exact:
         return "一致"
-    if key in FONT_X and abs(delta[1]) <= tol_pos and abs(delta[3]) <= tol_size + 3:
+    # a text's rectangle is its line box in the original (Flet) and its glyph box here: compare the vertical centre
+    if key in FONT_X and abs(delta[1] + delta[3] / 2) <= tol_pos and abs(delta[3]) <= tol_size + 3:
         return "フォント幅差"
     return "残差"
 
@@ -336,6 +337,7 @@ def build_report(out: Path, results):
              "- 本人の裁定による意図した差: ライトテーマのカードは明るい面（元は暗色のまま）。フォントは sans（見出しも明朝にしない）。これらは「残差」に数えない。", ""]
     total_res = 0
     total_cmp = 0
+    total_font = 0
     for size in SIZES:
         for theme in THEMES:
             tag = f"{size[0]}x{size[1]}_{theme}"
@@ -380,6 +382,7 @@ def build_report(out: Path, results):
                 verdict = judge(d, key)
                 total_cmp += 1
                 total_res += verdict == "残差"
+                total_font += verdict == "フォント幅差"
                 rows.append(f"| {key}{'（下端基準）' if key in BOTTOM else ''} | {fmt(o_rel)} | {fmt(n_rel)} | {fmt(d)} | {verdict} |")
             for key in ("search",):
                 o = ocard[key]
@@ -454,7 +457,15 @@ def build_report(out: Path, results):
     details = results.get((SIZES[0], "dark", "details_testids"))
     lines += ["## 詳細ダイアログ（作品単位で選ぶ）", "",
               f"- 開いたときに見えた既存の data-testid（managed-download-*）: {len(details or [])} 件", f"- 一覧: {details}", ""]
-    lines += ["## 集計", "", f"- 比較した項目: {total_cmp}、残差: {total_res}", ""]
+    lines += ["## 集計", "", f"- 比較した項目: {total_cmp}、残差: {total_res}（文字の幅だけが違う「フォント幅差」: {total_font}、縦位置・高さは一致）", "",
+              "## 元との違い（意図したもの・この段階の未対応）", "",
+              "- 見出し行の右に「作品単位で選ぶ（詳細）」を追加した（移植版独自の機能の置き場。元の画面構成は動かしていない）。",
+              "- ライトテーマのカードは明るい面（本人の裁定）。フォントは sans＋アイコン（見出しは明朝にしない）。",
+              "- 絞り込み入力の枠線は他の入力欄と同じトークン色（元の暗色は黒の細線）。",
+              "- 進捗帯は枠と「待機中」・要約・実行中の見出しとバーまで。開閉（84⇔140）と数値ボックスは WU-8。",
+              "- マイブックマーク面は切り替わる枠まで（公開/非公開・階層/フラット・実行は WU-8）。",
+              "- 実行は作者全員を順に、一覧取得に失敗した作者は先へ進み「失敗」と出す（元と同じ進み方で、「完了」とは言わない）。",
+              "- 共通シェル（DB バナー・上部 2 段タブ）の違いで、カードの y・高さは元とずれる。下端基準で比べた。", ""]
     (out / "comparison.md").write_text("\n".join(lines), encoding="utf-8")
     return total_cmp, total_res
 

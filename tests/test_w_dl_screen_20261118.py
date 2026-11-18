@@ -207,7 +207,9 @@ async def test_rows_show_name_id_saved_count_and_last_downloaded(tmp_path):
         assert list(view._rows) == ['1001', '1002', '1003']
         found = by_testid(client)
         assert [e.text for e in found['unified-row-count']] == ['7', '0', '0']
-        assert [e.text for e in found['unified-row-last']] == ['－', '2026-11-17 09:30', '－']
+        from datetime import datetime
+        local = datetime.fromisoformat('2026-11-17T09:30:00+00:00').astimezone().strftime('%Y-%m-%d %H:%M')
+        assert [e.text for e in found['unified-row-last']] == ['－', local, '－']          # the ledger keeps UTC; the table shows device time
         assert view.count_label.text == '1-3 / 3 人'
     finally:
         finish(services, client)

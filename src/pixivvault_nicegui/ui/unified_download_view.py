@@ -126,6 +126,19 @@ CSS = """
 """
 
 
+def local_stamp(value):
+    """台帳の取得日は UTC で入っている。元は端末の時刻（naive）で書いていたので、表示は端末の時刻に直す。"""
+    if not value:
+        return value
+    try:
+        moment = datetime.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return value
+    if moment.tzinfo is None:
+        return value
+    return moment.astimezone().replace(tzinfo=None).isoformat()
+
+
 def _is_author_id(value) -> bool:
     return isinstance(value, str) and _AUTHOR_ID.fullmatch(value) is not None
 
@@ -1016,7 +1029,7 @@ class UnifiedDownloadView:
             ui.label(str(author.get("name") or uid)).classes("pv-ud-c-name")
             ui.label(uid).classes("pv-ud-c-id")
             ui.label(str(self.work_counts.get(uid, 0))).classes("pv-ud-c-count").props("data-testid=unified-row-count")
-            ui.label(U.format_last_downloaded(author.get("last_downloaded"))).classes("pv-ud-c-last").props(
+            ui.label(U.format_last_downloaded(local_stamp(author.get("last_downloaded")))).classes("pv-ud-c-last").props(
                 "data-testid=unified-row-last")
         row.on("click", lambda _e, u=uid: self.toggle_pick(u))
         self._rows[uid] = dict(row=row, icon=icon, star=star, star_icon=star_icon)
