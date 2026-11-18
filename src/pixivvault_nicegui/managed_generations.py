@@ -911,6 +911,8 @@ class ManagedGenerations:
                                                                 loaded.version)
         loaded.jpath = self.journal_path
         loaded.legacy_journal = True
+        loaded.journal_offset = len(header) + end
+        loaded.journal_hasher = hashlib.sha256(raw[:loaded.journal_offset])
         if meta['base'] != loaded.base_digest:
             if any(loaded.indexed.get(e['work_id']) != e for e in entries):
                 raise ValueError()
@@ -1130,6 +1132,8 @@ class ManagedGenerations:
             self._apply_entry(loaded, entry)
         loaded.journal_chain, loaded.journal_records = chain, seq
         loaded.journal_offset += end
+        if loaded.legacy_journal:
+            loaded.journal_hasher.update(data[:end])
         loaded.journal_sig = sig
         self._sync_mark(loaded)
 
@@ -1195,6 +1199,14 @@ class ManagedGenerations:
                             if _identity(self.output_dir) != loaded.out_sig:
                                 self._refresh_legacy(loaded)
                             return loaded
+                if loaded.legacy_journal and _identity(self.index_path) == loaded.base_sig:
+                    try:
+                        raw = _read_shared(loaded.jpath, _MAX_JOURNAL_BYTES)
+                        if (len(raw) < loaded.journal_offset or
+                                hashlib.sha256(raw[:loaded.journal_offset]).digest() != loaded.journal_hasher.digest()):
+                            raise ValueError()
+                    except (OSError, ValueError, TypeError):
+                        raise ManagedDownloadError('active generation index rejected') from None
                 state = self._freshness(loaded)
                 if state == 'fresh':
                     return loaded
