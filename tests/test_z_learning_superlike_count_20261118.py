@@ -97,3 +97,51 @@ async def test_undoing_a_non_superlike_keeps_the_count(view):
 async def test_label_sits_in_fixed_height_row_so_buttons_do_not_move(view):
     row = view.superlike_used_label.parent_slot.parent
     assert 'height:20px' in row._style.get('height', '') or row._style.get('height') == '20px'
+
+
+async def test_learning_reset_clears_the_count(tmp_path, monkeypatch):
+    """元 discovery_tab.py:5669 §3-3-7: リセットで回数も0へ。"""
+    view, cleanup = await make_view(monkeypatch, learning_sandbox=tmp_path / 'learning')
+    try:
+        await judge(view, 'superLike', 'a')
+        assert view.superlike_used_label.text == 'SuperLike使用: 1回'
+        reset = view.reset_view
+        await reset.refresh()
+        await reset.open()
+        reset.confirm.set_value('1')
+        await reset.execute()
+        await settled(view)
+        assert view.superlike_used_label.visible is False and view._superlike_used == 0
+    finally:
+        await cleanup()
+
+
+async def test_reset_during_slow_rerank_does_not_restore_old_count(tmp_path, monkeypatch):
+    from z_learning_support_20261118 import open_discovery_view, settled as discovery_settled
+    view, services, service, cleanup = await open_discovery_view(tmp_path, monkeypatch, count=5)
+    started, release = asyncio.Event(), asyncio.Event()
+    original = service.rank_pending
+    async def slow_rank(*args):
+        started.set()
+        await release.wait()
+        return await original(*args)
+    monkeypatch.setattr(service, 'rank_pending', slow_rank)
+    try:
+        view._on_loaded(SimpleNamespace(args=view._image_url))
+        work_id = view.state.current_artwork.work_id
+        assert view.judge('superLike', dict(work_id=work_id, generation=view.state.generation, operation_id='slow'))
+        await asyncio.wait_for(started.wait(), 5)
+        save = view._save_task
+        reset = view.reset_view
+        await reset.refresh()
+        await reset.open()
+        reset.confirm.set_value('1')
+        await reset.execute()
+        release.set()
+        await asyncio.wait_for(save, 5)
+        await discovery_settled(view)
+        assert view._superlike_used == 0
+        assert not view.superlike_used_label.visible
+    finally:
+        release.set()
+        await cleanup()

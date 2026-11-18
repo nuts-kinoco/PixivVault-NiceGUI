@@ -142,6 +142,7 @@ class LearningResetView:
             await self.refresh()
             return
         self.notice.set_text('学習状況: リセットしました')
+        parent.reset_superlike_count()
         parent.reload_storage(notice='学習状況: リセットしました')
         await self.refresh()
 
