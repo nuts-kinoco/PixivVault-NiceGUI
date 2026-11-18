@@ -91,8 +91,12 @@ def install_owned_tray_exit(token, sender=None):
         # of this contract: this name contains no "dialog", and every path
         # returns None. Restores/getters must never consume a stray response.
         if (not _valid_token(supplied_token)
-                or not hmac.compare_digest(supplied_token, token)
-                or not gate.acquire(blocking=False)):
+                or not hmac.compare_digest(supplied_token, token)):
+            return None
+        if not gate.acquire(blocking=False):
+            # The parent may hold an idle admission fence for this request.
+            # Explicit failure lets it release the fence and allow a retry.
+            send('failed')
             return None
         outcome = 'failed'
         try:
@@ -101,8 +105,9 @@ def install_owned_tray_exit(token, sender=None):
             elif any(candidate is window for candidate in webview.windows):
                 previous = window.confirm_close
                 try:
-                    window.show()
-                    window.restore()
+                    if not window_request:
+                        window.show()
+                        window.restore()
                     if window_request or needs_confirmation is not False:
                         mode = (needs_confirmation if window_request else
                                 ('active' if needs_confirmation == 'active' else
