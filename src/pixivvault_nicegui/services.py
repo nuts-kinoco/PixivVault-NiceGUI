@@ -3041,7 +3041,7 @@ class ApplicationServices:
         if prefs is None:
             return dict(hierarchical=False, hardlink=False, editable=False)
         return dict(hierarchical=prefs.get_setting('use_work_folder', '0') == '1',
-                    hardlink=prefs.get_setting('bookmark_download_mode', 'link') == 'link', editable=True)
+                    hardlink=prefs.get_setting('bookmark_download_mode', 'direct') == 'link', editable=True)
 
     def set_bookmark_layout(self, *, hierarchical=None, hardlink=None):
         prefs = self.preferences
