@@ -3,6 +3,7 @@ import asyncio
 from nicegui import ui
 from ..personal_ranking import (PersonalRankingSource,normalize_personal_filters,apply_personal_filters,
     active_filter_descriptors,_DATE_PRESETS,_SORT_PRESETS,_BOOKMARK_PRESETS)
+from ..external_vault import RANKING_CANDIDATES_OPEN_KEY
 from ..state import GalleryState
 from .ranking_view import RankingView,_ViewServices,_RankingGallery
 
@@ -39,9 +40,15 @@ class PersonalRankingView(RankingView):
                 self.ai=ui.checkbox('AI を除外',value=False).props('data-testid=personal-ai')
                 self.fetch_button=ui.button('取得・更新',on_click=self.load).props('flat data-testid=personal-fetch')
                 self._build_hide_manager()
-            with ui.expansion('よく効くタグ', value=True).classes('w-full').props(
-                    'data-testid=personal-candidates-toggle') as self.candidates:
-                self.trend_row=ui.row()
+            # 副行（元 ranking_tab.py:2142-2166）。隠すのはラベルとチップだけで、トグルは常に出す（戻す導線を残す）。
+            # 開閉は設定 ranking_personal_candidates_open へ保存する。既定は開き。
+            self._candidates_open=saved.get(RANKING_CANDIDATES_OPEN_KEY,True) is not False
+            with ui.row().classes('items-center no-wrap w-full gap-2').props('data-testid=personal-candidates-row'):
+                self.candidates_label=ui.label('よく効くタグ:').classes('pv-subtitle').props('data-testid=personal-candidates-label')
+                with ui.element('div').classes('pv-candidates-box').props('data-testid=personal-candidates-box') as self.candidates_box:
+                    self.trend_row=ui.row().classes('no-wrap items-center gap-1')
+                self.candidates_toggle=ui.button('',on_click=self.toggle_candidates).props('flat dense no-caps data-testid=personal-candidates-toggle')
+            self._apply_candidates_open()
             # 有効条件(NOW)チップ行（元 ranking_tab.py:2315-2356・filter_panel.py:350-379）。
             self.chips_row=ui.row().classes('items-center gap-2 w-full').props('data-testid=personal-chips')
             with ui.expansion('絞り込み（取得済みの結果へ適用）').classes('w-full'):
@@ -73,6 +80,20 @@ class PersonalRankingView(RankingView):
         for control in (self.bookmarks,self.sort,self.r18):control.on_value_change(lambda _:self.server_changed())
         for control in (self.date,self.include,self.exclude,self.author_max,*self.exclusions.values()):control.on_value_change(lambda _:self.local_changed())
         self.client.on_delete(self.close);self.availability();self._refresh_chips()
+    def _apply_candidates_open(self):
+        opened=self._candidates_open
+        self.candidates_label.set_visibility(opened);self.candidates_box.set_visibility(opened)
+        self.candidates_toggle.set_text('よく効くタグを隠す' if opened else 'よく効くタグを表示')
+    def toggle_candidates(self):
+        self._candidates_open=not self._candidates_open
+        # 保存は画面反映の前（元 ranking_tab.py:1861-1863）。保存に失敗しても、いまの画面は切り替える。
+        save=getattr(self.vault,'save_ranking_candidates_open',None)
+        if save is not None:
+            try:save(self._candidates_open)
+            except Exception:
+                import logging
+                logging.getLogger(__name__).warning('よく効くタグの開閉を保存できませんでした。',exc_info=True)
+        self._apply_candidates_open()
     def add_tag(self,tag):
         self.tags.set_value('\n'.join(dict.fromkeys((*self.selected_tags(),tag))))
         # set_value emits the same changed() callback as keyboard editing.
