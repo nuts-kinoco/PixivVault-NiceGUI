@@ -638,16 +638,31 @@ class LibraryView(ViewerController):
         return age >= 120
 
     def _maybe_auto_refresh_bookmarks(self):
+        self._adopt_service_bookmarks()
         if (self.services.bookmark_auto_refresh_enabled()
                 and (not self.bookmark_state.has_remote_cache
                      or self._bookmark_refresh_due(self.bookmark_state.loaded_at))):
-            self.refresh_bookmarks()
+            self.refresh_bookmarks(automatic=True)
 
-    def refresh_bookmarks(self) -> None:
+    def _adopt_service_bookmarks(self):
+        remote = self.services.bookmark_remote_snapshot()
+        fetched_at = self.services.bookmark_cache_fetched_at
+        if remote is not None and (self.bookmark_state.loaded_at != fetched_at
+                                   or not self.bookmark_state.has_remote_cache):
+            self.bookmark_state.adopt_cache(remote, self.services.bookmark_local_snapshot(), fetched_at)
+            previous = self._image_provider
+            self._image_provider = self.services.acquire_library_images()
+            previous.close()
+            self._resolved_bookmark_artwork.clear()
+            self.reload(preserve=True)
+            if self.bookmarks is not None:
+                self.bookmarks.refresh()
+
+    def refresh_bookmarks(self, *, automatic=False) -> None:
         """Keep demo refresh immediate; real DB/network work is off the UI loop."""
         if self.closed or not self.active or self.subview != "bookmarks" or self._bookmark_refreshing:
             return
-        epoch = self.bookmark_state.begin_fetch()
+        epoch = self.bookmark_state.begin_fetch(silent=automatic and self.bookmark_state.has_remote_cache)
         if epoch is None:
             return
         if self.similarity is not None:self.similarity.invalidate()
@@ -655,7 +670,7 @@ class LibraryView(ViewerController):
             from nicegui import background_tasks
             self._bookmark_refreshing = True
             self.bookmarks.refresh()
-            background_tasks.create(self._refresh_bookmarks_async(epoch))
+            background_tasks.create(self._refresh_bookmarks_async(epoch, automatic=automatic))
             return
         try:
             remote = self.services.bookmark_remote_snapshot()
@@ -666,12 +681,21 @@ class LibraryView(ViewerController):
         if self.bookmarks is not None:
             self.bookmarks.refresh()
 
-    async def _refresh_bookmarks_async(self, epoch: int) -> None:
+    async def _refresh_bookmarks_async(self, epoch: int, *, automatic=False) -> None:
         try:
-            remote, local = await self.services.refresh_bookmark_cache()
+            if automatic:
+                remote, local = await self.services.refresh_bookmark_cache(automatic=True)
+            else:
+                remote, local = await self.services.refresh_bookmark_cache()
         except Exception:
             accepted = self.bookmark_state.complete_fetch(epoch, (), ok=False)
         else:
+            if remote is None:
+                accepted = self.bookmark_state.cancel_fetch(epoch)
+                if accepted and not self.closed and self.bookmarks is not None:
+                    with self.client:
+                        self.bookmarks.refresh()
+                return
             accepted = self.bookmark_state.complete_fetch(epoch, remote, ok=True)
             if accepted:
                 self.bookmark_state.loaded_at = self.services.bookmark_cache_fetched_at
@@ -685,6 +709,9 @@ class LibraryView(ViewerController):
                 self.reload(preserve=True)
         finally:
             self._bookmark_refreshing = False
+        if not accepted and not self.closed and self.active and self.subview == 'bookmarks':
+            with self.client:
+                self._adopt_service_bookmarks()
         if accepted and not self.closed and self.bookmarks is not None:
             with self.client:
                 self.bookmarks.refresh()

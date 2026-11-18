@@ -51,6 +51,7 @@ class BookmarkState:
         self.fetch_failed = False
         self.loaded_at: str | None = None
         self.loading = False
+        self.silent_fetch = False
         self.active = True
         self.closed = False
         self.epoch = next(_epochs)
@@ -131,7 +132,7 @@ class BookmarkState:
     def status(self) -> str:
         if self.fetch_failed:
             return "fetch_failed"
-        if self.loading:
+        if self.loading and not self.silent_fetch:
             return "loading"
         if not self.items and self.has_remote_cache:
             return "empty"
@@ -161,13 +162,14 @@ class BookmarkState:
         self.selected_ids.remove(work_id)
         return True
 
-    def begin_fetch(self) -> int | None:
+    def begin_fetch(self, *, silent: bool = False) -> int | None:
         """Start or retry a fetch; the returned epoch must accompany its result."""
         if self.closed or not self.active:
             return None
         self.epoch = next(_epochs)
         self._pending = self.epoch
         self.loading = True
+        self.silent_fetch = silent
         self.fetch_failed = False
         return self.epoch
 
@@ -180,6 +182,7 @@ class BookmarkState:
             raise TypeError("ok must be bool")
         new_remote = self._unique(remote) if ok else None
         self.loading = False
+        self.silent_fetch = False
         self._pending = None
         self.fetch_failed = not ok
         if ok:
@@ -188,12 +191,28 @@ class BookmarkState:
             self.selected_ids.intersection_update(card.work_id for card in self.items)
         return True
 
+    def cancel_fetch(self, epoch: int) -> bool:
+        if self.closed or not self.active or self._pending != epoch:
+            return False
+        self.loading = False
+        self.silent_fetch = False
+        self._pending = None
+        return True
+
     def replace_local(self, local: Iterable[Artwork]) -> bool:
         if self.closed:
             return False
         self._local = self._unique(local)
         self.selected_ids.intersection_update(card.work_id for card in self.items)
         return True
+
+    def adopt_cache(self, remote: Iterable[Artwork], local: Iterable[Artwork], loaded_at: str | None) -> None:
+        """Adopt a completed service snapshot, retaining selection where possible."""
+        self._remote = self._unique(remote)
+        self._local = self._unique(local)
+        self.loaded_at = loaded_at
+        self.fetch_failed = False
+        self.selected_ids.intersection_update(card.work_id for card in self.items)
 
     def replace_known(self, known_artworks: Iterable[Artwork]) -> bool:
         if self.closed:

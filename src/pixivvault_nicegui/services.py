@@ -2623,7 +2623,7 @@ class ApplicationServices:
 
     def bookmark_auto_refresh_enabled(self):
         if self.preferences is None:
-            return True
+            return False
         try:
             return self.preferences.get_setting('bookmark_auto_refresh', '1') == '1'
         except Exception:
@@ -2635,13 +2635,22 @@ class ApplicationServices:
             raise RuntimeError("application services are closed")
         return self._cached_local_bookmarks
 
-    async def refresh_bookmark_cache(self):
+    async def refresh_bookmark_cache(self, *, automatic=False):
         """Publish complete bookmark routes and their verified export account."""
         if self.library_repository is None and self.live_client is None:
             return self.bookmark_remote_snapshot(), self.bookmark_local_snapshot()
         async with self._library_refresh_lock:
             if self.closing:
                 raise RuntimeError("application services are closed")
+            if automatic:
+                from datetime import datetime
+                try:
+                    age = (datetime.now() - datetime.fromisoformat(self.bookmark_cache_fetched_at)).total_seconds()
+                except (TypeError, ValueError):
+                    age = None
+                if (not self.bookmark_auto_refresh_enabled() or
+                        (self._cached_remote_bookmarks is not None and age is not None and age < 120)):
+                    return self.bookmark_remote_snapshot(), self.bookmark_local_snapshot()
             reader = self.live_client
             exports = self.save_exports
             account = None
