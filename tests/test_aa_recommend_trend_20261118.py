@@ -21,7 +21,8 @@ async def test_trend_tiers_and_overflow_count(tmp_path, monkeypatch):
             assert [p._style['font-size'] for p in pills[:5]] == ['16px', '13.5px', '12px', '11px', '11px']
             assert pills[0].text == 'T0'
             assert pills[0].props.get('icon-right') == 'close'
-            assert pills[0]._style['background'] == 'var(--pv-pixiv-blue-glow)'
+            assert pills[0]._style['background'] == 'var(--pv-pixiv-blue-glow) !important'
+            assert pills[0]._style['color'] == 'var(--pv-text-main) !important'
             assert any(getattr(n, 'text', None) == '+3' for n in nodes)
             section = next(n for n in nodes if n.props.get('data-testid') == 'recommend-section-trend')
             view.data['collapsed'] = frozenset({'trend'})

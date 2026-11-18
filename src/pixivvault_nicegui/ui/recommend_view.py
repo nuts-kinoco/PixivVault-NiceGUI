@@ -402,17 +402,27 @@ class RecommendView:
                     ui.label(_SECTION_DESCRIPTIONS[kind]).classes('pv-subtitle')
                     if kind=='trend':
                         trends=data.get('trends',())
-                        with ui.row().classes('gap-2 w-full').style('max-height: 74px; overflow: hidden; align-content: flex-start'):
+                        with ui.row().classes('gap-2 w-full').style('max-height: 80px; overflow: hidden; align-content: flex-start') as trend_box:
                             added={r['tag'] for r in data.get('added_tags',())}
                             for index,trend in enumerate(trends[:40]):
                                 tag=trend['tag'];display=trend.get('display') or tag
                                 size,border=_TREND_TIERS[min(index,3)]
                                 selected=tag in added
-                                b=ui.button(display,on_click=lambda e,t=tag,d=display:self.toggle_trend(t,d)).props(f'unelevated data-testid=recommend-trend-pill-{index}')
+                                b=ui.button(display,on_click=lambda e,t=tag,d=display:self.toggle_trend(t,d),color=None).props(f'unelevated data-testid=recommend-trend-pill-{index}')
                                 if selected:b.props('icon-right=close')
                                 b.style(f'font-size: {size}px; border: {1.5 if selected else border}px solid var(--pv-pixiv-blue)' if selected else f'font-size: {size}px; border: {border}px solid var(--pv-border-vault)')
-                                b.style('border-radius: 999px; background: var(--pv-pixiv-blue-glow)' if selected else 'border-radius: 999px; background: var(--pv-bg-card)')
+                                b.style('border-radius: 999px; color: var(--pv-text-main) !important; background: var(--pv-pixiv-blue-glow) !important' if selected else 'border-radius: 999px; color: var(--pv-text-main) !important; background: var(--pv-bg-card) !important')
                                 b.set_enabled(data['writable'] if tag in added else data.get('can_acquire',False))
+                        if self.client.has_socket_connection:
+                            self.client.run_javascript(f"""requestAnimationFrame(() => {{
+                              const box=document.getElementById('{trend_box.html_id}'); if(!box) return;
+                              const update=() => {{ if(!box.isConnected) {{ observer.disconnect(); return; }}
+                                const bottom=box.getBoundingClientRect().bottom;
+                                for(const b of box.querySelectorAll('button'))
+                                  b.tabIndex=b.disabled || b.getBoundingClientRect().bottom > bottom + 0.5 ? -1 : 0;
+                              }};
+                              const observer=new ResizeObserver(update); observer.observe(box); update();
+                            }});""")
                         if not data.get('trends'):ui.label('表示できる傾向がまだありません。学習済みの判定から計算します。')
                         continue
                     if kind=='trend_added':
