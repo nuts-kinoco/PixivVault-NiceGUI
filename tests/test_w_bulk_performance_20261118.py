@@ -1,4 +1,5 @@
 import time
+from html.parser import HTMLParser
 from types import SimpleNamespace
 
 import pytest
@@ -22,6 +23,50 @@ async def test_select_many_targets_has_bounded_rendering(tmp_path, count):
         assert any(f'ほか {count - len(view._chips)} 人' in str(getattr(e, 'text', ''))
                    for e in client.elements.values())
         assert elapsed < 1.0
+    finally:
+        finish(services, client)
+
+
+@pytest.mark.asyncio
+async def test_many_targets_keep_chip_element_count_bounded(tmp_path):
+    services, client, view = make(tmp_path, author_rows(5000))
+    try:
+        await view.reload()
+        before = len(client.elements)
+        view.select_all_shown()
+        assert len(view._chips) == 400
+        # Static author text does not need thousands of individually reactive elements.
+        assert len(client.elements) - before <= 2100
+    finally:
+        finish(services, client)
+
+
+@pytest.mark.asyncio
+async def test_target_chip_treats_author_name_as_text(tmp_path):
+    rows = author_rows(1)
+    rows[0]['name'] = '<img src=x onerror=alert(1)> & 作者'
+    services, client, view = make(tmp_path, rows)
+    try:
+        await view.reload()
+        view.select_all_shown()
+        chip = view._chips['1001']['row']
+        content = chip.default_slot.children[0].content
+
+        class Reader(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.tags, self.text = [], []
+
+            def handle_starttag(self, tag, attrs):
+                self.tags.append(tag)
+
+            def handle_data(self, data):
+                self.text.append(data)
+
+        reader = Reader()
+        reader.feed(content)
+        assert reader.tags == ['div', 'div']
+        assert reader.text == [rows[0]['name'], '1001']
     finally:
         finish(services, client)
 

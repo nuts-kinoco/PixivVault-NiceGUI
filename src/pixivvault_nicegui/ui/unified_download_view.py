@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import asyncio
+from html import escape
 import queue
 import re
 import time
@@ -1330,9 +1331,11 @@ class UnifiedDownloadView:
         row = ui.element("div").classes("pv-ud-chip").props(
             f"data-testid=unified-chip data-user-id={uid} data-origin={target.get('origin')} data-status={kind}")
         with row:
-            with ui.element("div").classes("who"):
-                ui.label(str(target.get("name") or uid)).classes("nm")
-                ui.label(uid).classes("id")
+            # Both strings are static for this chip; render them together instead of
+            # creating two reactive server elements per visible target.
+            name = escape(str(target.get("name") or uid))
+            ui.html(f'<div class="nm">{name}</div><div class="id">{escape(uid)}</div>',
+                    sanitize=False).classes("who")
             status = ui.label(text).classes("st").props(f"data-kind={kind}")
             drop = ui.element("button").classes("x").props(
                 "type=button data-testid=unified-chip-remove title=取り消す aria-label=取り消す")
