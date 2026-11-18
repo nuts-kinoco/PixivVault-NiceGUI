@@ -774,24 +774,36 @@ class ManagedGenerations:
 
     # -- journal ----------------------------------------------------------------------
     def _new_upgrade_staged(self, old_digest):
-        """Prove that this build stopped before installing its first upgrade journal."""
-        if any(self.root.glob('active-generations-*.journal')):
-            return False
-        for path in self.stage_dir.glob('journal-*.tmp'):
+        """Recognize this build's empty upgrade journals before the head commit."""
+        installed = tuple(self.root.glob('active-generations-*.journal'))
+        staged = tuple(self.stage_dir.glob('journal-*.tmp'))
+        found = False
+        for path in (*installed, *staged):
             try:
                 raw = _read_shared(path, 4096)
                 if not raw.endswith(b'\n') or raw.count(b'\n') != 1:
-                    continue
+                    return False
                 meta = json.loads(raw, object_pairs_hook=_json_unique)
                 if (type(meta) is dict and meta.keys() == {'id', 'kind', 'version', 'generation', 'parent'}
                         and type(meta['id']) is str and re.fullmatch(r'[a-f0-9]{32}', meta['id'])
                         and meta['kind'] == _JOURNAL_KIND and type(meta['version']) is int and meta['version'] == 3
                         and type(meta['generation']) is int and meta['generation'] == 1
                         and meta['parent'] == old_digest):
-                    return True
+                    if path in installed:
+                        if path != self._journal_file(meta['id']):
+                            return False
+                        mark_path = self._mark_file(meta['id'])
+                        if _identity(mark_path) is not None:
+                            mark = json.loads(_read_shared(mark_path, 4096), object_pairs_hook=_json_unique)
+                            if mark != {'id': meta['id'], 'generation': 1, 'records': 0,
+                                        'chain': hashlib.sha256(raw).hexdigest()}:
+                                return False
+                    found = True
+                else:
+                    return False
             except (OSError, ValueError, TypeError, KeyError, UnicodeError):
-                continue
-        return False
+                return False
+        return found
 
     def _parse_journal(self, data, start_chain, first_seq, folders, version):
         """Records in `data` (which begins at a record boundary) -> (entries, chain, seq, end)."""
