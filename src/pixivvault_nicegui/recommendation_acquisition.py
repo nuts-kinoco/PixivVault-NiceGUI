@@ -212,10 +212,8 @@ class RecommendationAcquisition:
                     except Exception:
                         self.errors['superlike:'+old.work_id]='fetch_failed'
                         fresh=replace(prior,deleted=False,unavailable=not bool(prior.thumbnail_url))
-                    if fresh.author_id not in state['hidden_authors']:
-                        values.append(fresh)
-                        if not fresh.unavailable:shown+=1
-                    else:values.append(prior)
+                    values.append(fresh)
+                    if not fresh.unavailable and fresh.author_id not in state['hidden_authors']:shown+=1
                 env['cache']['superlike']=[encode(RecommendationGroup('superlike',previous[0].title,tuple(values)))]
             return self.store(env,revision)
 
