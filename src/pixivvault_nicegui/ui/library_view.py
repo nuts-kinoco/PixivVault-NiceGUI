@@ -237,7 +237,7 @@ class LibraryView(ViewerController):
                 on_enqueue=services.save_explicit_work if services.managed_downloads is not None else None,
                 on_similar=(self.search_bookmark_similar
                             if getattr(services,'similarity_source',None) is not None else None),
-                image_url=lambda work_id: self._image_provider.url(work_id, 0, "thumb"),
+                image_url=lambda work_id: self._image_provider.bookmark_url(work_id),
                 can_open=lambda work_id: self._image_provider.can_open(work_id),
                 with_filter_toggle=True,
             )

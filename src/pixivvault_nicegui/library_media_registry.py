@@ -37,6 +37,11 @@ class PinnedLibraryImages:
             raise RuntimeError("image snapshot closed")
         return self.registry.url_for(self.token, work_id, page_no, variant)
 
+    def bookmark_url(self, work_id: str) -> str:
+        if self.closed:
+            raise RuntimeError('image snapshot closed')
+        return self.registry.bookmark_url_for(self.token, work_id)
+
     def is_animation(self,work_id):
         return not self.closed and self.registry.is_animation_versioned(self.token,work_id)
 
@@ -341,6 +346,16 @@ class LibraryImageRegistry:
                     return f"/media/{work_id}/{page_no}/{variant}.png?catalog={token}"
             return provider.url(work_id, page_no, variant) + f"?catalog={token}"
 
+    def bookmark_url_for(self, token: str, work_id: str) -> str:
+        with self._lock:
+            version = self._version(token)
+            covers = getattr(version.local, 'supports_novel_cover', None)
+            if (callable(covers) and covers(work_id) and version.remote is not None
+                    and work_id in getattr(version.remote, 'works', {})):
+                version.remote.url(work_id, 0, 'thumb')
+                return f'/media/{work_id}/0/bookmark_thumb.png?catalog={token}'
+        return self.url_for(token, work_id, 0, 'thumb')
+
     def needs_metadata(self, token: str, work_id: str) -> bool:
         with self._lock:
             provider = self._provider(self._version(token), work_id)
@@ -386,15 +401,28 @@ class LibraryImageRegistry:
         with self._lock:
             key = token
             version = self._version(key)
+            if variant == 'bookmark_thumb':
+                covers = getattr(version.local, 'supports_novel_cover', None)
+                provider = version.remote
+                if not (callable(covers) and covers(work_id) and provider is not None
+                        and work_id in getattr(provider, 'works', {}) and page_no == 0):
+                    raise ValueError('image not found')
+                actual_variant = 'thumb'
+            else:
+                provider = self._provider(version, work_id, variant)
+                actual_variant = variant
             version.refs += 1  # Own the resource while a response is decoded.
-            provider = self._provider(version, work_id, variant)
         try:
             guard = getattr(version.local, 'check_novel_preview', None)
             covers = getattr(version.local, 'supports_novel_cover', None)
-            if (variant == 'thumb' and provider in (version.remote, version.preview)
-                    and callable(guard) and callable(covers) and covers(work_id)):
+            guarded = (actual_variant == 'thumb' and provider in (version.remote, version.preview)
+                    and callable(guard) and callable(covers) and covers(work_id))
+            if guarded:
                 guard(work_id, page_no)
-            return provider.get(work_id, page_no, variant)
+            result = provider.get(work_id, page_no, actual_variant)
+            if guarded:
+                guard(work_id, page_no)
+            return result
         finally:
             self.release(key)
 
@@ -406,22 +434,34 @@ class LibraryImageRegistry:
             raise ValueError("invalid image snapshot")
         with self._lock:
             version = self._version(token)
-            provider = self._provider(version, work_id, variant)
+            if variant == 'bookmark_thumb':
+                covers = getattr(version.local, 'supports_novel_cover', None)
+                provider = version.remote
+                if not (callable(covers) and covers(work_id) and provider is not None
+                        and work_id in getattr(provider, 'works', {}) and page_no == 0):
+                    raise ValueError('image not found')
+                actual_variant = 'thumb'
+            else:
+                provider = self._provider(version, work_id, variant)
+                actual_variant = variant
             version.refs += 1
         try:
             guard = getattr(version.local, 'check_novel_preview', None)
             covers = getattr(version.local, 'supports_novel_cover', None)
-            if (variant == 'thumb' and provider in (version.remote, version.preview)
-                    and callable(guard) and callable(covers) and covers(work_id)):
+            guarded = (actual_variant == 'thumb' and provider in (version.remote, version.preview)
+                       and callable(guard) and callable(covers) and covers(work_id))
+            if guarded:
                 guard(work_id, page_no)
             if provider is self.demo:
-                return self.demo.get(work_id, page_no, variant)
+                return self.demo.get(work_id, page_no, actual_variant)
             peek = getattr(provider, "peek", None)
             if peek is None:
                 raise RuntimeError("image metadata not cached")
-            cached = peek(work_id, page_no, variant)
+            cached = peek(work_id, page_no, actual_variant)
             if cached is None:
                 raise RuntimeError("image metadata not cached")
+            if guarded:
+                guard(work_id, page_no)
             return cached
         finally:
             self.release(token)

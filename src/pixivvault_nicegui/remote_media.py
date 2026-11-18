@@ -230,6 +230,7 @@ class RemoteBookmarkImages:
                     url = pages[page_no]
                 with self._lock:
                     self._record(work_id, page_no, variant)
+                self._before_image_fetch()
                 data = self.client.get_image_bytes(thumbnail_url(url))
                 if not isinstance(data, bytes) or len(data) > 24 * 1024 * 1024:
                     raise RuntimeError("remote image exceeds limit")
@@ -260,6 +261,9 @@ class RemoteBookmarkImages:
                 self._cache[key] = blob
                 self._bytes += len(png)
             return blob
+
+    def _before_image_fetch(self):
+        pass
 
     def peek(self, work_id: str, page_no: int, variant: str):
         with self._lock:
@@ -297,6 +301,10 @@ class LegacyNovelPreviewImages(RemoteBookmarkImages):
         if variant != 'thumb' or self.client is None or not self._enabled():
             raise RuntimeError('legacy preview unavailable')
         return super().get(work_id, page_no, variant)
+
+    def _before_image_fetch(self):
+        if self.client is None or not self._enabled():
+            raise RuntimeError('legacy preview unavailable')
 
     def close(self):
         super().close()
