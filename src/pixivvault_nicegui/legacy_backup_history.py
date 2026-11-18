@@ -45,7 +45,13 @@ def author_storage_target(image_root: Path, author_id: str, source: Path) -> Pat
         return None
     if source.is_file() and source.suffix.lower() == ".zip":
         folder = source.with_suffix("")
-        return folder if folder.is_dir() else source
+        try:
+            if (folder.is_dir() and not folder.is_symlink()
+                    and not getattr(folder.lstat(), 'st_file_attributes', 0) & 0x400):
+                return folder
+        except OSError:
+            pass
+        return source
     if not source.is_file():
         return None
     for parent in source.parents:

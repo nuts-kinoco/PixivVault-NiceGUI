@@ -49,38 +49,32 @@ class ViewerBackupView:
             self.rows=rows;self.grid.clear();self.openers={}
             with self.grid:
                 for row in rows:
-                    if self.legacy_mode:
-                        with ui.element('div').classes('pv-card pv-backup-card').props(
-                                'data-testid=backup-author-'+row.author_id):
-                            opener=ui.element('div').classes('pv-backup-tile').props(
-                                'role=button data-testid=backup-open-'+row.author_id)
-                            opener.props['title']=f'{row.author_name} ({row.author_id})\nクリックして開く'
-                            if getattr(self.services,'desktop',None) is None:
-                                opener.props('aria-disabled=true tabindex=-1')
-                            else:
-                                opener.props('tabindex=0')
-                                opener.props['aria-label']=f'{row.author_name} ({row.author_id}) クリックして開く'
-                                async def open_legacy_event(_,selected=row,captured=epoch):
+                    author_id = row.author_id if self.legacy_mode else row['author_id']
+                    author_name = (row.author_name if self.legacy_mode else row['author_name']) or author_id
+                    thumbnail = row.thumbnail if self.legacy_mode else row['thumbnail']
+                    with ui.element('div').classes('pv-card pv-backup-card').props(
+                            'data-testid=backup-author-'+author_id):
+                        opener=ui.element('div').classes('pv-backup-tile').props(
+                            'role=button data-testid=backup-open-'+author_id)
+                        opener.props['title']=f'{author_name} ({author_id})\nクリックして開く'
+                        if getattr(self.services,'desktop',None) is None:
+                            opener.props('aria-disabled=true tabindex=-1')
+                        else:
+                            opener.props('tabindex=0')
+                            opener.props['aria-label']=f'{author_name} ({author_id}) クリックして開く'
+                            if self.legacy_mode:
+                                async def open_event(_,selected=row,captured=epoch):
                                     await self.open_legacy(selected,captured)
-                                opener.on('click',open_legacy_event)
-                                opener.on('keydown.enter',open_legacy_event)
-                                opener.on('keydown.space',open_legacy_event)
-                            with opener:
-                                ui.image(row.thumbnail).classes('pv-thumb').props('fit=cover loading=lazy no-transition')
-                                ui.label(row.author_name).classes('pv-backup-name')
-                            self.openers[row.author_id]=opener
-                    else:
-                        with ui.column().classes('pv-card').props('data-testid=backup-author-'+row['author_id']):
-                            ui.image(row['thumbnail']).classes('pv-thumb')
-                            ui.label(row['author_name'] or row['author_id']).classes('pv-card-author')
-                            ui.label(row['title']).classes('pv-card-title')
-                            ui.label(row['saved_at']).classes('pv-subtitle')
-                            button=ui.button('保存先を開く').props('flat dense data-testid=backup-open-'+row['author_id'])
-                            async def open_event(_,manifest=row['manifest'],captured=epoch):
-                                await self.open_saved(manifest,captured)
-                            button.on('click',open_event)
-                            button.set_enabled(getattr(self.services,'desktop',None) is not None)
-                            self.openers[row['author_id']]=button
+                            else:
+                                async def open_event(_,manifest=row['manifest'],captured=epoch):
+                                    await self.open_saved(manifest,captured)
+                            opener.on('click',open_event)
+                            opener.on('keydown.enter',open_event)
+                            opener.on('keydown.space',open_event)
+                        with opener:
+                            ui.image(thumbnail).classes('pv-thumb').props('fit=cover loading=lazy no-transition')
+                            ui.label(author_name).classes('pv-backup-name')
+                        self.openers[author_id]=opener
             if self.legacy_mode:
                 previous=self._images;self._images=incoming_images;incoming_images=None
                 if previous is not None:previous.close()
