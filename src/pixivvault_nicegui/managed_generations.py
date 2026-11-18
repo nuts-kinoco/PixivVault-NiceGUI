@@ -329,10 +329,11 @@ def reject_uncertain_old_v5(root):
 
 @contextmanager
 def _index_creation_guard(root):
-    """Keep an existing index fixed while creating managed directories on Windows."""
+    """Pin an existing index or reserve its absent name while creating folders."""
     reject_uncertain_old_v5(root)
     path = native_io_path(root / 'active-generations.json')
     handle = None
+    reserved = False
     if os.name == 'nt':
         import ctypes
         from ctypes import wintypes
@@ -341,15 +342,30 @@ def _index_creation_guard(root):
         create.argtypes = (wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
                            wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE)
         create.restype = wintypes.HANDLE
-        handle = create(str(path), 0x80000000, 0x1, None, 3, 0x80, None)
-        if handle in (None, wintypes.HANDLE(-1).value):
+        invalid = (None, wintypes.HANDLE(-1).value)
+        for _ in range(8):
+            handle = create(str(path), 0x80000000, 0x1, None, 3, 0x80, None)
+            if handle not in invalid:
+                break
             error = ctypes.get_last_error()
             if error not in (2, 3):
                 raise ctypes.WinError(error)
-            handle = None
+            # CREATE_NEW atomically reserves an absent name. DELETE_ON_CLOSE
+            # removes the empty reservation even after an interrupted process.
+            handle = create(str(path), 0x80000000 | 0x00010000, 0x1, None,
+                            1, 0x04000100, None)
+            if handle not in invalid:
+                reserved = True
+                break
+            error = ctypes.get_last_error()
+            if error not in (80, 183):
+                raise ctypes.WinError(error)
+        else:
+            raise ManagedDownloadError('active generation index rejected')
     try:
-        reject_uncertain_old_v5(root)
-        yield
+        if not reserved:
+            reject_uncertain_old_v5(root)
+        yield reserved
     finally:
         if handle is not None:
             kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
@@ -374,10 +390,9 @@ class ManagedGenerations:
     """
 
     @classmethod
-    def _verify_before_directory_creation(cls, root):
-        """Check an existing index without creating missing managed folders."""
-        if _identity(root / 'active-generations.json') is None:
-            return
+    def _verify_before_directory_creation(cls, root, *, reserved=False):
+        """Check existing evidence without creating missing managed folders."""
+        absent = reserved or _identity(root / 'active-generations.json') is None
         probe = cls.__new__(cls)
         probe.root = root
         probe.output_dir = root / 'outputs'
@@ -388,7 +403,17 @@ class ManagedGenerations:
         probe._allow_missing_dirs = True
         probe._unconfirmed_operations = set()
         probe._loaded = None
-        probe._load_full()
+        if absent:
+            probe._legacy()
+            if (probe._scan_dir(probe.generation_dir, 'generation folder structure rejected')
+                    or probe._has_quarantine_records()
+                    or any(_identity(root / name) is not None for name in
+                           (_V5_HEAD, _V5_COMMITTED, _V5_SEQUENCE_GUARD, _JOURNAL))
+                    or any(root.glob('active-generations-*.journal'))
+                    or any(root.glob('active-generations-*.mark'))):
+                raise ManagedDownloadError('active generation index missing')
+        else:
+            probe._load_full()
 
     def __init__(self, root: Path):
         self.root = Path(root)
@@ -407,8 +432,9 @@ class ManagedGenerations:
         folders = (self.output_dir, self.generation_dir, self.stage_dir)
         reject_uncertain_old_v5(self.root)
         if any(not native_io_path(folder).is_dir() for folder in folders):
-            with _index_creation_guard(self.root):
-                self._verify_before_directory_creation(self.root)
+            self._verify_before_directory_creation(self.root)
+            with _index_creation_guard(self.root) as reserved:
+                self._verify_before_directory_creation(self.root, reserved=reserved)
                 for folder in folders:
                     _safe_path(folder)
                     native_io_path(folder).mkdir(exist_ok=True)

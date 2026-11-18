@@ -250,15 +250,19 @@ class ManagedPixivDownloads:
             except (OSError, UnicodeError, ValueError, RecursionError):
                 raise ManagedDownloadError("managed marker rejected") from None
         else:
-            _write(marker, json.dumps(IDENTITY, sort_keys=True).encode("utf-8"))
-        from .managed_generations import ManagedGenerations, _index_creation_guard
+            from .managed_generations import _index_creation_guard
+            with _index_creation_guard(self.root):
+                _write(marker, json.dumps(IDENTITY, sort_keys=True).encode("utf-8"))
+        from .managed_generations import ManagedGenerations, _index_creation_guard, reject_uncertain_old_v5
+        reject_uncertain_old_v5(self.root)
         self.outputs = self.root / "outputs"
         self.incomplete = self.root / 'incomplete'
         self.generation_outputs = self.root / 'generations'
         folders = (self.outputs, self.incomplete, self.generation_outputs)
         if any(not native_io_path(folder).is_dir() for folder in folders):
-            with _index_creation_guard(self.root):
-                ManagedGenerations._verify_before_directory_creation(self.root)
+            ManagedGenerations._verify_before_directory_creation(self.root)
+            with _index_creation_guard(self.root) as reserved:
+                ManagedGenerations._verify_before_directory_creation(self.root, reserved=reserved)
                 for folder in folders:
                     _safe_path(folder)
                     native_io_path(folder).mkdir(exist_ok=True)
