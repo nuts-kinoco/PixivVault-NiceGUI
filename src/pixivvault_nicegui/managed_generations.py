@@ -351,8 +351,18 @@ class ManagedGenerations:
         self.entries()
 
     def _read_head(self):
+        guard = self.root / _V5_SEQUENCE_GUARD
+        guarded = _identity(guard) is not None
+        if guarded:
+            try:
+                if _read_shared(guard, 256) != _V5_SEQUENCE_DONE:
+                    raise ValueError()
+            except (OSError, ValueError):
+                raise ManagedDownloadError('active generation index rejected') from None
         path = self.root / _V5_HEAD
         if _identity(path) is None:
+            if guarded:
+                raise ManagedDownloadError('active generation index rejected')
             return None
         try:
             head = json.loads(_read_shared(path, 4096), object_pairs_hook=_json_unique)
@@ -368,10 +378,8 @@ class ManagedGenerations:
             if 'records' in head and (type(head['records']) is not int or head['records'] < 0
                                       or type(head['chain']) is not str or not _SHA.fullmatch(head['chain'])):
                 raise ValueError()
-            guard = self.root / _V5_SEQUENCE_GUARD
-            if _identity(guard) is not None:
-                if _read_shared(guard, 256) != _V5_SEQUENCE_DONE or 'records' not in head:
-                    raise ValueError()
+            if guarded and 'records' not in head:
+                raise ValueError()
             return head
         except (OSError, ValueError, TypeError, KeyError, UnicodeError):
             raise ManagedDownloadError('active generation index rejected') from None
