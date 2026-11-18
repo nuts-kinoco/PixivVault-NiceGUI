@@ -55,6 +55,7 @@ _ENTRY_BYTES_ESTIMATE = 400            # JSON bytes per indexed entry, rounded u
 _JOURNAL = 'active-generations.journal'            # pre-v5 name, read for upgrade only
 _JOURNAL_FILE = 'active-generations-%s.journal'
 _MARK_FILE = 'active-generations-%s.mark'
+_V5_COMMITTED = 'active-generations.v5-committed'
 _JOURNAL_NAME = re.compile(r'active-generations-([a-f0-9]{32})\.(journal|mark)\Z')
 _JOURNAL_RETAIN_SECONDS = 120.0       # how long a folded-away journal stays for readers of the old index
 _JOURNAL_RECORD_ESTIMATE = 600           # bytes one journal record takes, rounded up
@@ -625,6 +626,8 @@ class ManagedGenerations:
                     raise ValueError()
                 loaded.jid = journal['id']
             else:
+                if _identity(self.root / _V5_COMMITTED) is not None:
+                    raise ValueError()
                 # An older index cannot account for publications in a v5 journal. Empty
                 # journals are allowed: upgrade creates them before replacing the index.
                 for path in self.root.glob('active-generations-*.journal'):
@@ -650,12 +653,6 @@ class ManagedGenerations:
             self._quarantine_fields(loaded.qpacket(), verify_payloads=True, tolerate_missing=False)
             loaded.indexed = self._check_entries(packet['entries'], loaded.version, folders)
             self._replay_journal(loaded, folders)
-            if loaded.version != 5 and any(self.root.glob('active-generations-*.journal')):
-                referenced = {entry['relative_receipt'].split('/')[1] for entry in loaded.indexed.values()}
-                if generations - referenced:
-                    # A folded v5 index may have been replaced with an older index even
-                    # after all nonempty retired journals have been swept.
-                    raise ValueError()
             if (loaded.version != 5 and not loaded.indexed and generations
                     and self._legacy_journal_evidence()):
                 # An empty index of an older build with sealed generations is usually the harmless
@@ -1143,6 +1140,7 @@ class ManagedGenerations:
             return dict(target)
 
     def _append_journal(self, loaded, target):
+        self._ensure_v5_committed()
         entry = dict(target)
         if loaded.mark_records != loaded.journal_records:
             self._sync_mark(loaded)
@@ -1479,10 +1477,25 @@ class ManagedGenerations:
         wid = _id(work_id)
         return self._work_token(self.state_snapshot(), wid)
 
+    def _ensure_v5_committed(self):
+        """Keep durable evidence before a v5 publication or a journal can be folded away."""
+        marker = self.root / _V5_COMMITTED
+        if _identity(marker) is not None:
+            _safe_path(marker, file=True)
+            return
+        _safe_path(self.stage_dir)
+        temporary = self.stage_dir / ('v5-commit-' + uuid4().hex + '.tmp')
+        _write(temporary, b'pixivvault generation v5 committed\n')
+        _fsync_dir(self.stage_dir)
+        _replace_retrying(temporary, marker)
+        _fsync_dir(self.root)
+
     def _commit_packet(self, packet, patience=5.0) -> None:
         loaded = self._loaded
         journal = None
         if packet['version'] == 5 or (loaded is not None and loaded.version == 5 and packet['version'] in (3, 4)):
+            if loaded is not None and loaded.version == 5:
+                self._ensure_v5_committed()
             # Every full rewrite of a v5 root starts a new, empty journal (the entries it held are in
             # this index), and quarantine commits keep the v5 guard instead of downgrading it.
             journal = self._new_journal(patience)
