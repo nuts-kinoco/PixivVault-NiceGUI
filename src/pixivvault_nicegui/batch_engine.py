@@ -389,8 +389,22 @@ class BatchRunEngine:
         self._emit('run_start', total=total)
         try:
             if preflight is not None:
-                self._gate()
-                preflight()
+                while True:
+                    self._check_state()
+                    try:
+                        self._gate()
+                        try:
+                            preflight()
+                        except Exception:
+                            # A failed route can wrap a 429; the gate is the
+                            # authoritative record of whether it stopped traffic.
+                            self._gate()
+                            raise
+                        break
+                    except GateClosed as closed:
+                        self.pause(closed.code)
+                        self._emit('run_paused', reason=closed.code, index=0, total=total,
+                                   author_id=None)
             for index, author_id in enumerate(authors, 1):
                 self._current = None
                 if index > 1:
