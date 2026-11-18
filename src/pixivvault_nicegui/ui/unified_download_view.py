@@ -379,7 +379,8 @@ class UnifiedDownloadView:
                     self.bm_buttons[key] = button
             self.bm_work_folder_box = ui.checkbox(
                 "作品ごとのフォルダーを使う", value=self.bm_work_folder,
-                on_change=lambda e: self.set_bm_layout(work_folder=bool(e.value))).props(
+                on_change=lambda e: self.set_bm_layout(work_folder=bool(e.value))
+                if bool(e.value) != self.bm_work_folder else None).props(
                 "dense data-testid=unified-bm-work-folder")
             ui.element("div").classes("pv-ud-hr")
             self.bm_unfollowed_button = ui.element("button").classes("pv-ud-tbtn").props(
@@ -655,6 +656,7 @@ class UnifiedDownloadView:
             if self.closed:
                 return False
         self._loaded = True
+        self.refresh_bookmark_layout()
         self.render_all()
         return True
 
@@ -729,6 +731,8 @@ class UnifiedDownloadView:
     def set_mode(self, mode):
         if self.closed or mode not in ("followed", "bookmark") or self.running:
             return False
+        if mode == "bookmark":
+            self.refresh_bookmark_layout()
         if mode != self.mode:
             self.mode = mode
             self.root.props["data-mode"] = mode
@@ -970,6 +974,13 @@ class UnifiedDownloadView:
             button.update()
         if self.bm_work_folder_box.value != self.bm_work_folder:
             self.bm_work_folder_box.set_value(self.bm_work_folder)
+
+    def refresh_bookmark_layout(self):
+        if self.closed:
+            return
+        self._read_bookmark_layout()
+        self._render_bm_layout()
+        self._render_band()
 
     def set_bm(self, which, value):
         if which not in ("show", "hide") or self.running:
@@ -1536,6 +1547,7 @@ class UnifiedDownloadView:
             self.legacy_open = False
         self._set_legacy_active()
         if active:
+            self.refresh_bookmark_layout()
             self.sync_engine()
             self.refresh_resumable()
             self.render_targets()

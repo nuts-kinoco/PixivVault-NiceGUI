@@ -394,6 +394,8 @@ class DemoShell:
     def apply_preferences(self,snapshot=None):
         self.services.apply_preferences(snapshot)
         if self.learning is not None:self.learning.refresh_prefetch()
+        refresh = getattr(self.job_views.get('download'), 'refresh_bookmark_layout', None)
+        if callable(refresh):refresh()
 
     def _reflect_uid_once(self, dialog) -> None:
         # プロセス起動時に1回だけ（シェルは画面を開くたびに作られる）。
