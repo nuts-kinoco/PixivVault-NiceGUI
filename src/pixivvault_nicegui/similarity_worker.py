@@ -65,6 +65,7 @@ class SimilarityWorker:
         self._examined = 0
         self._consecutive_failures = 0
         self._error_code: str | None = None
+        self._last_stopped_reason: str | None = None
 
     def status(self) -> dict:
         """Only bounded counters and fixed status codes; no IDs or exceptions."""
@@ -76,6 +77,7 @@ class SimilarityWorker:
                 'errors': self._errors,
                 'examined': self._examined,
                 'error_code': self._error_code,
+                'last_stopped_reason': self._last_stopped_reason,
             }
 
     def start(self) -> None:
@@ -90,7 +92,12 @@ class SimilarityWorker:
             self._thread.start()
 
     def wake(self) -> None:
+        auto_retry = self._auto is not None and self._timed_rescan()
         with self._lock:
+            if not self._stop_requested and self._phase == 'failed' and auto_retry:
+                self._phase = 'idle'
+                self._generation += 1
+                self._consecutive_failures = 0
             if not self._stop_requested and self._phase not in ('stopped', 'failed'):
                 self._signal.set()
 
@@ -150,6 +157,7 @@ class SimilarityWorker:
             else:
                 self._consecutive_failures += 1
             if code == 'model_error' or (not page_error and self._consecutive_failures >= 5):
+                self._last_stopped_reason = code
                 self._phase = 'failed'
                 self._generation += 1
                 self._signal.set()
@@ -211,6 +219,7 @@ class SimilarityWorker:
                         self._resumed += 1
                     self._consecutive_failures = 0
                     self._error_code = None
+                    self._last_stopped_reason = None
         except EgaraInferenceError:
             self._record_failure('model_error', generation)
         except Exception:
