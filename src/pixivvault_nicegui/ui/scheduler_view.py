@@ -270,8 +270,8 @@ class SchedulerView:
                     author_ids=raw, interval_hours=int(form[1]),
                     startup_check=bool(form[2]),
                     expected_revision=revision,
-                    now=datetime.now(timezone.utc))
-            saved = await asyncio.to_thread(update)
+                    now=datetime.now(timezone.utc), return_ignored=True)
+            saved, ignored = await asyncio.to_thread(update)
             self.services.managed_schedule_runner.settings_changed()
             # Edits made while the worker saved the captured form still belong
             # to the user. Keep them and base the next CAS on this commit.
@@ -280,6 +280,8 @@ class SchedulerView:
             if self._settings_dirty:
                 self.revision = saved.revision
             self._load(ledger)
+            if ignored:
+                self.action_notice.set_text('フォローしていないため保存しなかったID: ' + ', '.join(ignored))
         except Exception:
             self.status.set_text('設定を保存できませんでした。別画面の更新や入力を確認してください')
         finally:

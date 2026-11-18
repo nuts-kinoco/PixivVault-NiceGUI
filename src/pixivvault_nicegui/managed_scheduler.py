@@ -601,7 +601,7 @@ class ManagedScheduler:
 
     def configure_all(self, *, author_ids: tuple[str, ...], interval_hours: int,
                       startup_check: bool, expected_revision: int,
-                      now: datetime) -> ScheduleState:
+                      now: datetime, return_ignored: bool = False) -> ScheduleState:
         """One all-or-nothing settings transaction, using the client's CAS."""
         from .pixiv_read_client import _identifier
         if (not (author_ids is None or (type(author_ids) is tuple and len(author_ids) <= MAX_FAVOURITES))
@@ -619,8 +619,9 @@ class ManagedScheduler:
                 previous = self.snapshot()
                 if previous.revision != expected_revision:
                     raise ScheduleError('schedule changed in another client')
+                applied = None
                 if ids is not None:
-                    self._store_favourites(ids)
+                    applied = self._store_favourites(ids)
                 next_due = (None if interval_hours == 0 else
                             _timestamp(current_time + timedelta(hours=interval_hours)))
                 self._db.execute('UPDATE schedule SET interval_hours=?,startup_check=?,revision=?,next_due_utc=? WHERE id=1',
@@ -629,7 +630,10 @@ class ManagedScheduler:
             except BaseException:
                 self._db.execute('ROLLBACK')
                 raise
-            return self.snapshot()
+            state = self.snapshot()
+            if return_ignored:
+                return state, (() if ids is None else tuple(uid for uid in ids if uid not in set(applied)))
+            return state
 
     def _store_favourites(self, ids):
         """Write the star set where it lives: the ledger once it is the source, else the own list."""
