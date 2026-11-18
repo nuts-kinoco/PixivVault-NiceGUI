@@ -647,6 +647,12 @@ class ManagedGenerations:
             self._quarantine_fields(loaded.qpacket(), verify_payloads=True, tolerate_missing=False)
             loaded.indexed = self._check_entries(packet['entries'], loaded.version, folders)
             self._replay_journal(loaded, folders)
+            if loaded.version != 5 and any(self.root.glob('active-generations-*.journal')):
+                referenced = {entry['relative_receipt'].split('/')[1] for entry in loaded.indexed.values()}
+                if generations - referenced:
+                    # A folded v5 index may have been replaced with an older index even
+                    # after all nonempty retired journals have been swept.
+                    raise ValueError()
             if (loaded.version != 5 and not loaded.indexed and generations
                     and self._legacy_journal_evidence()):
                 # An empty index of an older build with sealed generations is usually the harmless
