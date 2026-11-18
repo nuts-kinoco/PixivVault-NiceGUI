@@ -180,6 +180,18 @@ class RankingCardMenus:
         self._after_hidden_change()
         return True
 
+    def adopt_hidden(self, work_id: str, title: str, hidden) -> None:
+        """ビューアの右クリックで出さないにした結果を取り込み、一覧を描き直す。"""
+        if self.closed:
+            return
+        state = self._hm()
+        state.hidden, state.writable, state.loaded = frozenset(hidden), True, True
+        state.titles[work_id] = title
+        state.undo = work_id
+        self._say_action('次回から表示しません。')
+        self.undo_button.set_visibility(True)
+        self._after_hidden_change()
+
     async def undo_hide(self, work_id: str) -> bool:
         state = self._hm()
         if not self._usable() or state.busy:

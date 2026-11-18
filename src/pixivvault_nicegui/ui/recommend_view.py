@@ -58,7 +58,7 @@ class RecommendView:
         # Like ranking/library, the overlay is a sibling in the shell content;
         # it is never deleted when a shelf's body is re-rendered.
         self._recommend_viewer=RecommendationViewer(services,self.root,
-            on_close=self._invalidate_open)
+            on_close=self._invalidate_open,on_hidden=self._viewer_hidden)
         self.client.on_delete(self.close)
         self.refresh_button.set_enabled(self.controller is not None)
         self.update_button.disable()
@@ -471,6 +471,10 @@ class RecommendView:
             self._lock_rendered_buttons()
             self.update_button.disable()
 
+    def _viewer_hidden(self,work_id):
+        # ビューアの右クリックで出さないにした。保存済みの結果を読み直して棚から外す。
+        if self.active and not self.closed and not self.busy:
+            background_tasks.create(self.refresh())
     def _card_menu(self,kind,work,generation,card,data):
         """元 recommend_tab.py:815-876 の右クリック 12 項目（取り下げるは SuperLike の棚だけ）。"""
         wid=work.work_id;aid=work.author_id;name=work.author_name

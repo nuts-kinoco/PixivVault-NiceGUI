@@ -17,6 +17,11 @@ class _RankingGallery(GalleryView):
     def _card_menu(self,art,card):
         owner=getattr(self,'owner',None)
         if owner is not None:owner.build_card_menu(art,card)
+    def _after_viewer_hide(self,art,hidden):
+        owner=getattr(self,'owner',None)
+        if owner is None:return super()._after_viewer_hide(art,hidden)
+        self.close_viewer(restore_focus=False)
+        owner.adopt_hidden(art.work_id,art.title,hidden)
     def render_gallery(self):
         super().render_gallery()
         owner=getattr(self,'owner',None)
