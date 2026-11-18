@@ -255,7 +255,8 @@ class RecommendView:
         revision=self.data['revision']
         if await self._change(lambda:self.controller.configure('recommend_certain_group_collapsed',sorted(values),revision)):
             button=self._certain_buttons.get(tag)
-            if button is not None:button.run_method('focus')
+            if button is not None and self.active and not self.closed and self.client.has_socket_connection:
+                self.client.run_javascript(f"requestAnimationFrame(() => {{ const n=document.getElementById('{button.html_id}'); if(n?.isConnected && n.getClientRects().length && !n.closest('[inert], [aria-hidden=\"true\"]')) n.focus({{preventScroll:true}}); }});")
     async def reset_order(self):
         """Restore the original five shelf order using the same revisioned settings."""
         if (self.data is None or not self.data.get('writable')
