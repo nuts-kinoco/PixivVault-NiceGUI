@@ -219,3 +219,17 @@
 合計 463 件(複数の FL に結ばれた項目は、各 FL の行に 1 件ずつ数えるため、表の件数の和は合計より多い)。
 
 <!-- APPENDIX-A:END -->
+
+## 2026-11-18 wt-y ランキング実装の検証メモ
+
+下表は隔離データでの実装・自動試験の対応であり、D1 の「有」（通常起動・実プロファイルで到達）や独立した出口判定を意味しない。上の過去の弱／無の記述は調査時点の履歴として残す。
+
+| 項目 | 実装根拠 | 実行した主な試験 |
+|---|---|---|
+| FL-J12 | `ui/personal_ranking_view.py:79`, `:217`, `:231`, `:242`, `:256`, `:263`; `personal_ranking.py:85`, `:127` | `test_active_chips_row_shows_current_conditions_and_hides_when_empty`, `test_clicking_a_chip_removes_that_one_condition_only`, `test_clear_all_chip_returns_every_condition_to_its_default`, `test_r18_switch_default_on_and_operable_when_search_is_available`, `test_server_side_conditions_search_again_by_themselves`, `test_clear_conditions_and_bookmark_chip_search_again`, `test_personal_all_filter_combinations_and_original_unknown_author_limit` |
+| FL-J05 | `ui/ranking_view.py:75`, `:103`; `ranking_source.py:203` | `test_r18_switch_stays_operable_in_premium_tag_search_and_keeps_its_value`, `test_r18_switch_still_disabled_for_modes_that_cannot_use_it`, `test_ai_exclusion_does_not_change_raw_end_condition` |
+| FL-Y01 | `ui/ranking_view.py:17`, `:219`, `:289`; `ranking_preferred_tags.py:10` | `test_heart_is_shown_beside_the_rank_only_for_works_with_a_preferred_tag`, `test_preferences_are_rebuilt_on_first_fetch_and_on_refresh_only`, `test_light_ranking_heart_and_filter_chip_contrast` |
+| FL-Y02 | `ui/personal_ranking_view.py:48`, `:88`; `external_vault.py:1267` | `test_toggle_hides_only_label_and_chips_and_the_choice_survives_reopen_and_tag_edits` |
+| FL-Y04 | `services.py:1648`; `ui/personal_ranking_view.py:181` | `test_warning_when_an_enabled_exclusion_set_could_not_be_read_and_the_rest_still_applies`, `test_one_failing_loader_does_not_discard_the_sets_that_were_read` |
+
+逸脱: 元 `ranking_tab.py:452,1319` の世間 R-18 既定は OFF で、FL-J05 の旧根拠は個人の `:2135` を引用していた。今回の明示条件に従い世間側チェックを既定 ON としたため、借用タグ検索以外の初期ランキング・通常タグ検索でも R-18 選択が初期 ON になる。借用タグ検索の結果自体は元と同じく R-18 指定で変わらない。元 `:1219-1227` は非対応ランキング種別でスイッチを無効化し、タグ入力で復帰しないが、今回の指定に従いタグ検索中は操作可能とした。
