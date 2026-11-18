@@ -328,14 +328,14 @@ class LearningView:
                     for positive, label in ((True, '好意側（いいね／SuperLike）'), (False, '否定側（見送る／合わない）')):
                         with ui.column().classes('flex-1 min-w-0').style('max-height:calc(100dvh - 240px);overflow-y:auto').props('data-testid=learning-review-positive' if positive else 'data-testid=learning-review-negative') as column:
                             self.review_columns[positive] = column
-                            ui.label(label).classes('pv-card-title')
-                            with ui.row().classes('w-full items-center gap-1'):
+                            ui.label(label).classes('pv-card-title shrink-0')
+                            with ui.row().classes('w-full items-center gap-1 shrink-0'):
                                 if positive:
                                     self.review_unsaved = ui.checkbox('未保存だけ',value=True,on_change=lambda _:self._review_column_filter_changed(True))
                                     self.review_superlike = ui.checkbox('SuperLikeだけ',on_change=lambda _:self._review_column_filter_changed(True))
                                 else:
                                     self.review_hate = ui.checkbox('合わないだけ',on_change=lambda _:self._review_column_filter_changed(False))
-                            self.review_bodies[positive] = ui.column().classes('w-full gap-1')
+                            self.review_bodies[positive] = ui.column().classes('w-full gap-1 shrink-0')
         self.review_panel.set_visibility(False)
         self._review_timer = ui.timer(1.0, self._poll_review_jobs)
 
@@ -1543,9 +1543,12 @@ class LearningView:
                                           on_click=lambda _,w=wid:self._review_retry_detail(w)).props('flat no-caps')
                         if self.discovery is not None and positive:
                             saved = bool(row.get('work_meta')) and not row.get('is_deleted')
-                            save_button = ui.button('保存済み' if saved else '保存する',
-                                on_click=lambda _,wid=row['work_id']:self.save_managed(wid)).props('flat data-testid=discovery-review-save')
-                            save_button.set_enabled(not saved and not self._review_busy and not self._review_refresh_busy)
+                            if saved:
+                                ui.label('保存済み').classes('pv-subtitle').props('data-testid=discovery-review-saved')
+                            else:
+                                save_button = ui.button('保存する',
+                                    on_click=lambda _,wid=row['work_id']:self.save_managed(wid)).props('flat data-testid=discovery-review-save')
+                                save_button.set_enabled(not self._review_busy and not self._review_refresh_busy)
                         button=ui.button('取り消す',on_click=lambda _,row=row:self._review_change(row)).props(f"flat data-testid=learning-review-undo-{row['work_id']}")
                         button.set_enabled(not self._review_busy and not self._review_refresh_busy and not self._storage_busy and not self.state.saving)
                 with ui.row():

@@ -305,3 +305,36 @@ async def test_column_filter_preserves_other_column_elements(tmp_path, monkeypat
             assert tuple(view.review_bodies[False].default_slot.children) == before
     finally:
         await cleanup()
+
+
+async def test_saved_status_is_readable_text_not_disabled_button(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from z_learning_support_20261118 import open_discovery_view, settled
+    view, services, service, cleanup = await open_discovery_view(tmp_path, monkeypatch, route='/_i16_saved')
+    try:
+        view._on_loaded(SimpleNamespace(args=view._image_url))
+        item = view.state.current_artwork
+        assert view.judge('like', dict(work_id=item.work_id, generation=view.state.generation, operation_id='j'))
+        await settled(view)
+        service.saved_ids = {item.work_id}
+        with view.client:
+            await view.open_review()
+            view.review_unsaved.set_value(False)
+            view._render_review()
+            statuses = [e for e in view.review_columns[True].descendants() if getattr(e, 'text', None) == '保存済み']
+            assert len(statuses) == 1
+            assert statuses[0].__class__.__name__ == 'Label'
+    finally:
+        await cleanup()
+
+
+async def test_review_column_headings_do_not_collapse(tmp_path, monkeypatch):
+    from z_learning_support_20261118 import open_discovery_view
+    view, services, service, cleanup = await open_discovery_view(tmp_path, monkeypatch, route='/_i16_headings')
+    try:
+        for column in view.review_columns.values():
+            headings = [e for e in column.descendants() if '側（' in (getattr(e, 'text', '') or '')]
+            assert len(headings) == 1
+            assert 'shrink-0' in headings[0].classes
+    finally:
+        await cleanup()
