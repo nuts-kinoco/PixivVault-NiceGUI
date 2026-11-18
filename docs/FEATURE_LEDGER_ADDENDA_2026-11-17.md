@@ -233,3 +233,5 @@
 | FL-Y04 | `services.py:1648`; `ui/personal_ranking_view.py:181` | `test_warning_when_an_enabled_exclusion_set_could_not_be_read_and_the_rest_still_applies`, `test_one_failing_loader_does_not_discard_the_sets_that_were_read` |
 
 逸脱: 元 `ranking_tab.py:452,1319` の世間 R-18 既定は OFF で、FL-J05 の旧根拠は個人の `:2135` を引用していた。今回の明示条件に従い世間側チェックを既定 ON としたため、借用タグ検索以外の初期ランキング・通常タグ検索でも R-18 選択が初期 ON になる。借用タグ検索の結果自体は元と同じく R-18 指定で変わらない。元 `:1219-1227` は非対応ランキング種別でスイッチを無効化し、タグ入力で復帰しないが、今回の指定に従いタグ検索中は操作可能とした。
+
+P3-4a 候補（2026-11-18、wt-z）: FL-Y07・FL-Y08・FL-Y10 の実装と隔離検証の根拠、残る受入は [検証記録](evidence/p3-4a-20261118/README.md) を参照。上表は元の調査時点の履歴であり、この候補の実装状態ではない。実機受入前のため正式状態は変更しない。

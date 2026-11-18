@@ -18,6 +18,7 @@ from nicegui import background_tasks, ui
 from ..image_events import source_matches
 from ..learning import LearningState, MemoryJudgmentLedger, SaveCommand
 from ..services import ApplicationServices
+from .learning_toast import LearningToast
 from .verified_image import VerifiedImage
 
 
@@ -83,6 +84,7 @@ class LearningView:
         self._managed_owner = uuid4().hex
         self._settings_epoch=0
         self._settings_busy=False
+        self._settings_loading=False
         self._settings_open=False
         self._settings_snapshot=None
         self._settings_operations={}
@@ -94,6 +96,9 @@ class LearningView:
         self._failed_command: SaveCommand | None = None
         self._notice = ""
         self._save_task = None
+        self._reason_tasks: set = set()
+        self._refill_notice_shown = False
+        self._superlike_used = 0
         self._review_session_id = None
         self._review_epoch = 0
         self._review_busy = False
@@ -164,10 +169,16 @@ class LearningView:
                                 'flat dense round aria-label=次の頁 data-testid=learning-summary-next')
                 self.summary_board.set_visibility(False)
                 self.summary_pager.set_visibility(False)
-            self.frame_label = ui.label().classes("pv-subtitle")
-            self.frame_label.set_visibility(self.discovery is not None)
+            # 探索枠から出た候補にだけ添える小さなピル（元 discovery_tab.py:2918-2926）。確実枠・枠なし・画像失敗では出さない。
+            self.frame_label = ui.label().props("data-testid=learning-frame-badge").style(
+                "background:var(--pv-surface);border:1px solid var(--pv-border);border-radius:999px;"
+                "padding:3px 8px;font-size:10px;color:var(--pv-muted);align-self:flex-start;width:fit-content;")
+            self.frame_label.set_visibility(False)
             self.progress = ui.label().classes("pv-counter")
-            self.picture = VerifiedImage(alt="判定対象の作品画像").classes("pv-view-art")
+            # 通知帯は画像の右下に重ねる（元 discovery_tab.py:241-244）。判定ボタンの位置は動かさない。
+            with ui.element("div").classes("w-full relative").style("min-height:96px"):
+                self.picture = VerifiedImage(alt="判定対象の作品画像").classes("pv-view-art")
+                self.toast = LearningToast()
             self.picture.on('click', self._open_learning_picture, js_handler=self._click_js())
             self.status = ui.label().classes("pv-subtitle pv-learning-status").props("role=status aria-live=polite")
             # 元 discovery_tab.py:4358-4365 の空状態の案内（候補が無いとき、何をすると何が起きるか）。
@@ -186,6 +197,11 @@ class LearningView:
                     button.on("click", lambda event, c=choice: self._on_judgment(c, event),
                               js_handler=self._click_js())
                     self.buttons[choice] = button
+            # 元 discovery_tab.py:2672-2680: 判定ボタンの真下の情報行。高さを固定し、出し入れでボタンを動かさない。
+            with ui.row().classes("w-full items-center").style("height:20px"):
+                self.superlike_used_label = ui.label().classes("pv-subtitle").style("font-size:10px").props(
+                    "data-testid=learning-superlike-used")
+            self.superlike_used_label.set_visibility(False)
             with ui.row().classes("items-center gap-2"):
                 self.undo_button = ui.button("ひとつ戻す（Undo）", color=None).props("flat no-caps").classes("pv-undo")
                 self.undo_button.on("click", self._on_undo, js_handler=self._click_js())
@@ -194,7 +210,25 @@ class LearningView:
                 self.reload_button = ui.button("保存状態を再読込", on_click=self.reload_storage).props("flat")
             ui.label("矢印キー / WASD / 1〜4 で判定。画面を選択して操作してください。").classes("pv-subtitle")
             if self.discovery is not None:
-                self.settings_button = ui.button('発掘設定',on_click=self.open_discovery_settings).props('flat data-testid=discovery-settings-open')
+                # 元 discovery_tab.py:3295-3302 の「探索の設定 ▸」引き出し。畳んだ行だけが流れに入り、開いた板は重ね置き。
+                ui.label('判定は保存され、次に出す候補の並べ替えに反映されます。').classes('pv-subtitle')
+                with ui.element('div').classes('relative w-full'):
+                    with ui.card().classes('gap-2').props('role=region aria-label=探索の設定 data-testid=discovery-settings-panel').style(
+                            'position:absolute;left:0;top:100%;z-index:25;width:min(320px,calc(100vw - 32px));'
+                            'background:var(--pv-overlay);border:1px solid var(--pv-border);box-sizing:border-box;'
+                            'padding:10px;') as self.settings_panel:
+                        self.settings_subject,self.settings_subject_text=self._explore_slider('知らないジャンルを見る割合','discovery-settings-subject')
+                        self.settings_style,self.settings_style_text=self._explore_slider('知らない絵柄を見る割合','discovery-settings-style')
+                        self.settings_mode=ui.select({'all':'すべて','safe':'全年齢','r18':'R-18'},value='all',label='検索対象',
+                            on_change=lambda _:self._settings_commit()).props('outlined dense data-testid=discovery-settings-mode').classes('w-full')
+                        self.settings_status=ui.label().classes('pv-subtitle').props('role=status data-testid=discovery-settings-status')
+                    self.settings_panel.set_visibility(False)
+                    self.settings_button = ui.button(on_click=self.toggle_discovery_settings).props(
+                        'flat dense no-caps align=between aria-expanded=false data-testid=discovery-settings-open')
+                    with self.settings_button:
+                        ui.label('探索の設定').classes('pv-subtitle').style('flex:1 1 auto;text-align:left')
+                        self.settings_arrow=ui.icon('keyboard_arrow_right').style('font-size:15px;color:var(--pv-muted)')
+                        ui.tooltip('どのくらい知らないものを見るかを変えます')
                 self.fetch_button = ui.button('候補を取得', on_click=self.fetch_discovery).props('flat data-testid=discovery-fetch')
                 self.refill_status = ui.label().classes('pv-subtitle').props('role=status data-testid=discovery-refill-status')
                 self.managed_button = ui.button('作品を保存').props('flat data-testid=discovery-save')
@@ -228,20 +262,6 @@ class LearningView:
             ui.button('閉じる',on_click=self.review_dialog.close).props('flat data-testid=learning-review-close')
         self.review_dialog.on('hide',self._close_review)
         self._review_timer = ui.timer(1.0, self._poll_review_jobs)
-        if self.discovery is not None:
-            with ui.dialog().props('data-testid=discovery-settings-dialog') as self.settings_dialog,ui.card().classes('w-full').style('max-width:600px'):
-                ui.label('発掘設定').classes('pv-view-title')
-                self.settings_mode=ui.select({'all':'すべて','safe':'全年齢','r18':'R-18'},value='all',label='検索対象').props('outlined data-testid=discovery-settings-mode')
-                self.settings_subject=ui.number('題材探索の割合 (%)',value=50,min=0,max=100).props('outlined data-testid=discovery-settings-subject')
-                self.settings_style=ui.number('絵柄探索の割合 (%)',value=20,min=0,max=100).props('outlined data-testid=discovery-settings-style')
-                ui.label('確実枠は残りの割合です。探索合計が95%を超える場合は比率を保って95%へ調整します。検索対象は次の候補取得から適用します。').classes('pv-subtitle')
-                self.settings_status=ui.label().props('role=status data-testid=discovery-settings-status')
-                with ui.row():
-                    self.settings_save=ui.button('設定を保存',on_click=self.save_discovery_settings).props('data-testid=discovery-settings-save')
-                    self.settings_reload=ui.button('設定を読込',on_click=self.load_discovery_settings).props('flat')
-                    ui.button('閉じる',on_click=self.settings_dialog.close).props('flat')
-            self.settings_dialog.on('hide',self._close_settings)
-
 
         # NiceGUI 3.18: js_handler は emit(...) へ送る値を組み立てられる。
         # root 配下にフォーカスがある場合だけ拾い、入力中とIME中は除外する。
@@ -282,6 +302,8 @@ class LearningView:
                 ['input', 'textarea', 'select'].includes(tag) ||
                 event.target?.isContentEditable ||
                 event.target?.closest('[role=dialog]') ||
+                event.target?.closest('[role=slider]') ||
+                event.target?.closest('[data-testid=discovery-settings-panel]') ||
                 !event.currentTarget.getAttribute('data-active') ||
                 event.currentTarget.getAttribute('data-active') !== 'true') return;
             const key = event.key.toLowerCase();
@@ -708,6 +730,8 @@ class LearningView:
         if success:
             self.close_summary()
             self.refresh()
+            self._count_superlike(choice, undo=False)
+            self._show_judgment_toast(choice)
         elif self.state.last_error:
             self.status.set_text(self.state.last_error)
         return success
@@ -726,7 +750,11 @@ class LearningView:
             if command is not None:
                 self._start_save(command)
             return
+        last = self.state._last_judgment
         if self.state.undo(operation_id=payload.get("operation_id")):
+            if last is not None:
+                self._count_superlike(last.choice, undo=True)
+            self.toast.hide()
             self.refresh()
         elif self.state.last_error:
             self.status.set_text(self.state.last_error)
@@ -761,6 +789,9 @@ class LearningView:
             if self.services.closing:
                 self.close()
             elif self.state.complete_save(command):
+                saved_state = self.state
+                saved_generation = self.state.generation
+                self._count_superlike(command.judgment.choice, undo=command.undo)
                 if self.discovery is not None:
                     if not command.undo:self._set_trend_open(False)
                     try:
@@ -778,13 +809,81 @@ class LearningView:
                             self._discovery_frames.update(frames)
                     except Exception:
                         self._notice='判定は保存済みです。候補の並び替えを更新できませんでした。'
+                if self.state is not saved_state or self.state.generation != saved_generation or self._storage_busy:
+                    return
                 self.refresh()
+                if command.undo:
+                    self.toast.hide()
+                else:
+                    self._show_judgment_toast(command.judgment.choice, command)
                 if self.discovery is not None:
                     try:
                         trend=await self.discovery.trend_snapshot()
                         if not self.state.closed:self._render_trend(trend)
                     except Exception:
                         if not self.state.closed:self.trend_label.set_text('判定は保存済みです。傾向を読み込めませんでした。')
+
+    def reset_superlike_count(self) -> None:
+        """学習状況のリセット後は回数も0に戻す（元 discovery_tab.py:5669 §3-3-7）。"""
+        self._superlike_used = 0
+        self.superlike_used_label.set_text("")
+        self.superlike_used_label.set_visibility(False)
+
+    def _count_superlike(self, choice, *, undo: bool) -> None:
+        """この画面で使った SuperLike の回数（元 discovery_tab.py:1874-1877, 1996-1998）。再読込では戻さない。"""
+        if choice != "superLike":
+            return
+        if undo:
+            self._superlike_used = max(0, self._superlike_used - 1)
+        else:
+            self._superlike_used += 1
+        n = self._superlike_used
+        self.superlike_used_label.set_text(f"SuperLike使用: {n}回" if n else "")
+        self.superlike_used_label.set_visibility(bool(n))
+
+    def _show_judgment_toast(self, choice: str, command=None) -> None:
+        """判定直後に「判定しました／取り消す」を出す（元 discovery_tab.py:1949-1952）。"""
+        item = self.state.current_artwork
+        props = f'data-work-id="{item.work_id if item else ""}" data-generation={self.state.generation}'
+        judgment = command.judgment if command is not None else None
+        if (choice == "hate" and judgment is not None and self.storage is not None
+                and self._session_id is not None and hasattr(self.storage, "submit_hate_reason")):
+            # 「合わない」だけ理由を後追いで聞く。生きている間は「判定しました」で上書きしない（元 1949-1952）。
+            session_id = self._session_id
+            if self.toast.show_reason(lambda reason, j=judgment, s=session_id: self._pick_reason(j, s, reason)):
+                return
+        self.toast.show_undo(self._click_js(), self._on_undo, props)
+
+    def _pick_reason(self, judgment, session_id: str, reason: str) -> None:
+        self.toast.hide()
+        if (self.state.closed or self.services.closing or session_id != self._session_id
+                or self.storage is None):
+            return
+        task = background_tasks.create(self._save_reason(judgment, session_id, reason), name="learning hate reason")
+        self._reason_tasks.add(task)
+        task.add_done_callback(self._reason_tasks.discard)
+
+    async def _save_reason(self, judgment, session_id: str, reason: str) -> None:
+        """元 1717-1739。付けられなければ判定は保存済みのまま「タグだけ下げる」に倒れる。"""
+        try:
+            pending = self.storage.submit_hate_reason(session_id, judgment, reason)
+            wrapped = asyncio.wrap_future(pending)
+            wrapped.add_done_callback(lambda done: None if done.cancelled() else done.exception())
+            saved = await asyncio.shield(wrapped)
+        except Exception:
+            if not self.state.closed and not self.services.closing:
+                self.toast.show_gave_up(
+                    "「合わない」の理由を保存できませんでした",
+                    "判定は保存済みです。理由は付かず、タグだけ下げる扱いのままです。", heavy=False)
+            return
+        if not saved or self.discovery is None or self.state.closed:
+            return
+        try:
+            # 理由の後追いでもカウントは動く。傾向パネルの材料を作り直す（元 1729-1730）。
+            self._render_trend(await self.discovery.trend_snapshot())
+        except Exception:
+            if not self.state.closed:
+                self.trend_label.set_text('判定は保存済みです。傾向を読み込めませんでした。')
 
     def _save_failed(self, command: SaveCommand, exc: Exception) -> None:
         from ..learning_repository import LearningConflict
@@ -801,6 +900,14 @@ class LearningView:
         else:
             self._failed_command = command
             self.status.set_text(self._resting_message())
+            # 保存できなかった判定・取り消しは、画面に出ないまま学習が止まる重い失敗。
+            # 数秒で消えない通知枠に出す（元 discovery_tab.py:1921-1926, 2030-2035）。
+            if command.undo:
+                self.toast.show_gave_up("取り消しを保存できませんでした（判定は残っています）",
+                                        "「保存を再試行」でやり直せます。", heavy=True, key="save")
+            else:
+                self.toast.show_gave_up("判定を保存できませんでした",
+                                        "画面は進めていません。「保存を再試行」でやり直せます。", heavy=True, key="save")
             self._update_buttons()
 
     def _resting_message(self) -> str:
@@ -887,6 +994,7 @@ class LearningView:
             known = set(order)
             order.extend(item.work_id for item in remaining if item.work_id not in known)
             remaining = tuple(by_id[wid] for wid in order)
+        self.toast.hide()
         self._baseline_count = len(self._artworks) - len(remaining)
         self.state = LearningState(remaining, self.ledger)
         # A late browser event from the previous snapshot must never match again.
@@ -906,6 +1014,7 @@ class LearningView:
         self.root.props(f"data-active={'true' if self.active else 'false'}")
         self.root.set_visibility(self.active)
         if not self.active:
+            self.toast.hide()
             self.view_history.hide()
             self.view_history.dialog.close()
             self.view_history.viewer.close_viewer(restore_focus=False)
@@ -920,7 +1029,7 @@ class LearningView:
         if not self.active and self._review_open:
             self.review_dialog.close()
         if not self.active and self.discovery is not None and self._settings_open:
-            self.settings_dialog.close()
+            self._close_settings()
         self._update_buttons()
         self._summary_buttons()
         if self.active and self.discovery is not None:
@@ -961,7 +1070,7 @@ class LearningView:
     def _update_buttons(self) -> None:
         item = self.state.current_artwork
         work_id = item.work_id if item else ""
-        props = f"data-work-id={work_id} data-generation={self.state.generation}"
+        props = f'data-work-id="{work_id}" data-generation={self.state.generation}'
         available = self.active and not self.services.closing and self._storage_ready and not self._storage_busy and not self.state.saving and not self._settings_busy
         self.picture.props(props)
         self.root.props(props + f" data-saving={'true' if self.state.saving else 'false'}")
@@ -969,6 +1078,7 @@ class LearningView:
             button.props(props)
             button.set_enabled(available and self.state.ready)
         self.undo_button.props(props)
+        self.toast.set_undo_props(props)
         self.undo_button.set_enabled(available and self.state.can_undo)
         self.retry_button.set_enabled(available and item is not None)
         self.save_retry_button.set_visibility(self._failed_command is not None)
@@ -982,6 +1092,17 @@ class LearningView:
             self.managed_button.set_enabled(available and item is not None and not self._managed_busy and getattr(self.services, 'managed_downloads', None) is not None)
         self.review_button.set_enabled(available and self.storage is not None and not self._review_busy)
 
+    # 元 discovery_tab.py:2819-2828 の文言表。確実枠は添えない。
+    FRAME_NOTES = {"style": "新しい絵柄を試しています", "subject": "知らない題材を試しています"}
+
+    def _update_frame_badge(self) -> None:
+        item = self.state.current_artwork
+        note = None
+        if self.discovery is not None and item is not None and self.state.last_error != "image load failed":
+            note = self.FRAME_NOTES.get(self._discovery_frames.get(item.work_id))
+        self.frame_label.set_text(note or "")
+        self.frame_label.set_visibility(bool(note))
+
     def _empty_state_shown(self) -> bool:
         return (self.discovery is not None and self.state.current_artwork is None
                 and bool(self._refill.armed))
@@ -990,8 +1111,7 @@ class LearningView:
         item = self.state.current_artwork
         self._summary_sync()
         if self.discovery is not None:
-            frame=self._discovery_frames.get(item.work_id) if item else None
-            self.frame_label.set_text({'sure':'確実枠','subject':'題材探索枠','style':'絵柄探索枠'}.get(frame,''))
+            self._update_frame_badge()
         self.empty_card.set_visibility(self._empty_state_shown())
         self.title.set_text(item.title if item else ("現在の候補がありません" if self._refill.armed else "初回候補を読み込んでいます") if self.discovery is not None else "判定が完了しました")
         self.progress.set_text(f"{self._baseline_count + self.state.index} / {len(self._artworks)} 件判定済み")
@@ -1073,6 +1193,7 @@ class LearningView:
             return
         if self._image_token is not None and source_matches(event.args, self._image_url):
             if self.state.finish_load(self._image_token):
+                self._update_frame_badge()
                 self._start_prefetch()
                 if not self.state.saving and not self._storage_busy:
                     self.status.set_text(self._resting_message())
@@ -1083,6 +1204,7 @@ class LearningView:
             return
         if self._image_token is not None and source_matches(event.args, self._image_url):
             self.state.finish_load(self._image_token, success=False)
+            self._update_frame_badge()
             if self.state.last_error:
                 self.status.set_text("画像を読み込めませんでした。再読込してください。")
                 self._update_buttons()
@@ -1262,22 +1384,51 @@ class LearningView:
                 self._render_review()
                 self._update_buttons()
 
+    def _explore_slider(self,label,testid):
+        """元 discovery_tab.py:3199-3250 つまみ1本。現在値は%の実数のみ。ドラッグ中は右端の数字だけを書き換え、離したときに保存する。"""
+        with ui.row().classes('w-full items-center justify-between no-wrap'):
+            ui.label(label).style('font-size:12px;color:var(--pv-text)')
+            value_text=ui.label('0%').style('font-size:11px;color:var(--pv-muted)')
+        slider=ui.slider(min=0,max=100,step=1,value=0,on_change=lambda e,t=value_text:t.set_text(f"{int(round(e.value or 0))}%")).props(
+            f'data-testid={testid}').classes('w-full')
+        # 離したときの値は change イベントの値を使う（モデル更新は間引かれて最後の値が遅れることがある）。
+        slider.on('change',lambda e,s=slider:self._settings_commit(s,e.args))
+        return slider,value_text
+
     def _settings_controls(self):
         enabled=not self._settings_busy and self._settings_snapshot is not None
-        for control in (self.settings_mode,self.settings_subject,self.settings_style,self.settings_save):control.set_enabled(enabled)
-        self.settings_reload.set_enabled(not self._settings_busy)
+        for control in (self.settings_mode,self.settings_subject,self.settings_style):control.set_enabled(enabled)
         self._update_buttons()
+
+    def _settings_commit(self,slider=None,released=None):
+        """離したとき／検索対象を変えたときに保存する。読み込み中の値の反映では保存しない。"""
+        if self._settings_loading or not self._settings_open or self._settings_busy or self._settings_snapshot is None:return
+        if slider is not None and isinstance(released,(int,float)) and not isinstance(released,bool):
+            slider.set_value(int(round(min(100,max(0,released)))))
+        background_tasks.create(self.save_discovery_settings(),name='discovery settings save')
+
+    def _set_settings_open(self,opened):
+        self._settings_open=bool(opened)
+        self.settings_panel.set_visibility(self._settings_open)
+        self.settings_button.props(f"aria-expanded={'true' if self._settings_open else 'false'}")
+        self.settings_arrow.props(f"name={'keyboard_arrow_down' if self._settings_open else 'keyboard_arrow_right'}")
+
+    async def toggle_discovery_settings(self):
+        if self._settings_open:
+            self._close_settings()
+        else:
+            await self.open_discovery_settings()
 
     async def open_discovery_settings(self):
         if not self.active or self.state.closed or self._storage_busy or self.state.saving or self._settings_busy:return
+        self.close_summary()
         self._settings_epoch+=1
-        self._settings_open=True
-        self.settings_dialog.open()
+        self._set_settings_open(True)
         await self.load_discovery_settings()
 
     def _close_settings(self):
         self._settings_epoch+=1
-        self._settings_open=False
+        self._set_settings_open(False)
         self._settings_busy=False
         if not self.state.closed:self._update_buttons()
 
@@ -1290,12 +1441,16 @@ class LearningView:
             snapshot=await self.discovery.settings_snapshot()
             if self.state.closed or not self._settings_open or epoch!=self._settings_epoch:return
             self._settings_snapshot=snapshot
-            self.settings_mode.set_value(snapshot.values['discovery_search_mode'])
-            self.settings_subject.set_value(float(snapshot.values['discovery_ratio_subject']))
-            self.settings_style.set_value(float(snapshot.values['discovery_ratio_style']))
-            self.settings_status.set_text('設定を読み込みました。')
+            self._settings_loading=True
+            try:
+                self.settings_mode.set_value(snapshot.values['discovery_search_mode'])
+                self.settings_subject.set_value(int(round(float(snapshot.values['discovery_ratio_subject']))))
+                self.settings_style.set_value(int(round(float(snapshot.values['discovery_ratio_style']))))
+            finally:
+                self._settings_loading=False
+            self.settings_status.set_text('')
         except Exception:
-            if not self.state.closed and epoch==self._settings_epoch:self.settings_status.set_text('設定を読み込めませんでした。再読込してください。')
+            if not self.state.closed and epoch==self._settings_epoch:self.settings_status.set_text('設定を読み込めませんでした。開き直してください。')
         finally:
             if not self.state.closed and epoch==self._settings_epoch:
                 self._settings_busy=False
@@ -1304,7 +1459,7 @@ class LearningView:
     async def save_discovery_settings(self):
         if not self._settings_open or self._settings_busy or self._settings_snapshot is None:return
         epoch=self._settings_epoch
-        values={'discovery_search_mode':self.settings_mode.value,'discovery_ratio_subject':self.settings_subject.value,'discovery_ratio_style':self.settings_style.value}
+        values={'discovery_search_mode':self.settings_mode.value,'discovery_ratio_subject':int(round(self.settings_subject.value)),'discovery_ratio_style':int(round(self.settings_style.value))}
         signature=(self._settings_snapshot.revision,tuple(values.items()))
         operation=self._settings_operations.setdefault(signature,uuid4().hex)
         self._settings_busy=True
@@ -1316,11 +1471,11 @@ class LearningView:
             self._settings_snapshot=snapshot
             ratios=snapshot.effective_ratios
             self.settings_status.set_text(f"保存しました。確実枠 {ratios['sure']:.0%} / 題材探索 {ratios['subject']:.0%} / 絵柄探索 {ratios['style']:.0%}")
-            self.reload_storage(notice='発掘設定を保存し、候補の順序を読み込み直しました。')
+            # 元は設定値を書くだけで画面は作り直さない。次に並べ替える候補から新しい割合を読む。
         except Exception as error:
             if not self.state.closed and epoch==self._settings_epoch:
                 from ..learning_repository import LearningConflict
-                self.settings_status.set_text('別の画面で設定が変わりました。設定を読込してから操作してください。' if isinstance(error,LearningConflict) else '設定を保存できませんでした。値を確認して再試行してください。')
+                self.settings_status.set_text('別の画面で設定が変わりました。開き直してから操作してください。' if isinstance(error,LearningConflict) else '設定を保存できませんでした。値を確認して再試行してください。')
         finally:
             if not self.state.closed and epoch==self._settings_epoch:
                 self._settings_busy=False
@@ -1396,6 +1551,8 @@ class LearningView:
                 self._refill.arm(self._refill_clock())
                 self._refill.last_failed=True
                 self._notice='初回候補を取得できませんでした。'
+                self.toast.show_gave_up('初回の候補を取得できませんでした',
+                                        '「候補を取得」でもう一度探せます。', heavy=True, key='initial')
                 self.refresh()
         finally:
             if epoch==self._initial_epoch:
@@ -1453,6 +1610,19 @@ class LearningView:
         elif policy.empty_topups>=3:text='候補の補充をいったん止めています。候補が尽きると再取得します。'
         else:text=''
         self.refill_status.set_text(text)
+        self._sync_refill_notice()
+
+    def _sync_refill_notice(self):
+        """仕入れが止まったことを、消えない通知枠で一度だけ知らせる（元 discovery_tab.py:896-901, 1137-1151）。"""
+        policy=self._refill
+        stopped=policy.armed and policy.gave_up
+        if stopped and not self._refill_notice_shown:
+            self._refill_notice_shown=self.toast.show_gave_up(
+                '候補を取りにいけませんでした' if policy.failed_rounds else 'しばらく新しい候補が見つかりませんでした',
+                '通信を確かめてから、「候補を取得」で再開できます。' if policy.failed_rounds else '「候補を取得」で再開できます。',
+                heavy=True,key='refill')
+        elif not stopped and self._refill_notice_shown:
+            self._refill_notice_shown=False
 
     async def _run_candidate_refill(self,epoch):
         try:
@@ -1624,6 +1794,7 @@ class LearningView:
         self.close_summary()
         self._summary_epoch += 1
         self._review_timer.cancel()
+        self.toast.close()
         self.view_history.close()
         if self.reset_view is not None:self.reset_view.close()
         self._stop_initial_load()
@@ -1635,7 +1806,6 @@ class LearningView:
             self.services.release_managed_owner(self._managed_owner)
         if self.discovery is not None:
             self._close_settings()
-            self.settings_dialog.close()
         if self._discovery_pin is not None:
             self._discovery_pin.close()
             self._discovery_pin = None

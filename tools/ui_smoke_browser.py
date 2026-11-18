@@ -207,7 +207,7 @@ def serve(args):
                 "missing_attributes": sorted(set(fake.__dict__.get("missing", [])))}
 
     @app.post("/_smoke/shutdown", include_in_schema=False)
-    def shutdown(x_acceptance: str | None = Header(default=None)):
+    async def shutdown(x_acceptance: str | None = Header(default=None)):
         nonlocal stopping
         authorized(x_acceptance)
         stopping = True
