@@ -34,6 +34,12 @@ def text(value):
     if type(value) is not str or len(value)>65536:raise RecommendationError()
     return value
 
+def _collapsed_groups(raw):
+    try:
+        values=json.loads(raw)
+        return frozenset(x for x in values if type(x) is str and x) if type(values) is list else frozenset()
+    except (ValueError,TypeError):return frozenset()
+
 @dataclass(frozen=True)
 class RecommendationWork:
     work_id:str
@@ -173,10 +179,7 @@ class FrozenRecommendationSource:
             added=tuple((text(r['tag']),text(r.get('display') or r['tag'])) for r in added if type(r) is dict and r.get('tag'))
             mode=settings.get('discovery_search_mode','all')
             if mode not in ('all','safe','r18'):mode='all'
-            try:
-                raw_groups=json.loads(settings.get('recommend_certain_group_collapsed','[]'))
-                group_collapsed=frozenset(x for x in raw_groups if isinstance(x,str) and x) if isinstance(raw_groups,list) else frozenset()
-            except (ValueError,TypeError):group_collapsed=frozenset()
+            group_collapsed=_collapsed_groups(settings.get('recommend_certain_group_collapsed','[]'))
             result=RecommendationSnapshot(tuple(sections),hidden_work,hidden_author,order,collapsed,tuple(unavailable),boosted,judged,added,mode,group_collapsed)
         finally:conn.close()
         if immutable_copy_signature(self.path)!=self.signature:raise RecommendationError()
@@ -318,7 +321,7 @@ class RecommendationController:
                 values.add(target) if hidden else values.discard(target)
             order=tuple(json.loads(settings['recommend_section_order'])) if 'recommend_section_order' in settings else source.order
             collapsed=frozenset(json.loads(settings['recommend_section_collapsed'])) if 'recommend_section_collapsed' in settings else source.collapsed
-            group_collapsed=frozenset(json.loads(settings['recommend_certain_group_collapsed'])) if 'recommend_certain_group_collapsed' in settings else source.certain_group_collapsed
+            group_collapsed=_collapsed_groups(settings['recommend_certain_group_collapsed']) if 'recommend_certain_group_collapsed' in settings else source.certain_group_collapsed
             groups={kind:tuple(RecommendationGroup(g.key,g.title,tuple(w for w in g.works if w.work_id not in works and w.author_id not in authors),g.page,g.total,g.exhausted) for g in rows) for kind,rows in source.sections}
             state=dict(revision=revision,sections=groups,order=order,collapsed=collapsed,certain_group_collapsed=group_collapsed,hidden_works=tuple(sorted(works)),hidden_authors=tuple(sorted(authors)),unavailable=source.unavailable,writable=self.preferences is not None)
             state=self.acquisition.decorate(state,source,settings)
