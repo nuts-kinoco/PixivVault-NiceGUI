@@ -191,6 +191,8 @@ class _BorrowedPageSession:
     def __repr__(self):return '<BorrowedPageSession>'
 
 
+RANKING_CANDIDATES_OPEN_KEY='ranking_personal_candidates_open'
+
 class ExternalVaultService:
     """Owns a new sidecar, borrows transport, serializes mutation, fences lock.
 
@@ -1257,6 +1259,18 @@ class ExternalVaultService:
         from .personal_ranking import normalize_personal_filters
         if type(tags) not in (list,tuple) or any(type(t) is not str or len(t)>256 for t in tags):raise VaultError('invalid-preferences')
         value={'tags':list(dict.fromkeys(t.strip() for t in tags if t.strip())),'filters':normalize_personal_filters(filters)}
+        with self._mutex:
+            # タグ・条件の保存で、別に覚えた「よく効くタグ」副行の開閉を消さない。
+            opened=self.ranking_preferences().get(RANKING_CANDIDATES_OPEN_KEY)
+            if type(opened) is bool:value[RANKING_CANDIDATES_OPEN_KEY]=opened
+            self._write_ranking_preferences(value)
+    def save_ranking_candidates_open(self,opened):
+        """自分のランキングの「よく効くタグ」副行の開閉（元の設定キー ranking_personal_candidates_open）。"""
+        if type(opened) is not bool:raise VaultError('invalid-preferences')
+        with self._mutex:
+            value=dict(self.ranking_preferences());value[RANKING_CANDIDATES_OPEN_KEY]=opened
+            self._write_ranking_preferences(value)
+    def _write_ranking_preferences(self,value):
         raw=json.dumps(value,ensure_ascii=False,allow_nan=False).encode('utf-8')
         if len(raw)>65536:raise VaultError('invalid-preferences')
         with self._mutex:

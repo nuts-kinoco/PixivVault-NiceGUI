@@ -97,6 +97,14 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family: sys
 .pv-grid .pv-card-meta { flex:0 0 auto; min-width:0; padding:0; display:flex; flex-direction:column; gap:3px; }
 .pv-grid .pv-card-title { font-size:11px; font-weight:400; line-height:1.2; white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
 .pv-grid .pv-card-author { font-size:10px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pv-candidates-box { flex:1 1 0; min-width:0; overflow-x:auto; }
+.pv-grid .pv-card-head { flex:0 0 auto; }
+.pv-grid .pv-card-heart { color:var(--pv-pixiv-blue); }
+body.body--light .pv-grid .pv-card-heart { color:var(--pv-fill); }
+.pv-chip { display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border-radius:8px; background:var(--pv-raised); border:1px solid var(--pv-border); color:var(--pv-text); font-size:11px; cursor:pointer; }
+.pv-chip:hover { background:var(--pv-border); }
+.pv-chip:focus-visible { outline:2px solid var(--pv-primary); outline-offset:2px; }
+.pv-chip .pv-chip-x { font-size:10px; color:var(--pv-muted); }
 .pv-card:hover { background:var(--pv-border); }
 .pv-menu-icon { order:-1; margin-right:12px; align-self:center; opacity:.8; }
 .pv-thumb { display:block; width:100%; aspect-ratio:1 / 1; min-width:0; background:var(--pv-surface); border-bottom:1px solid var(--pv-border); overflow:hidden; }

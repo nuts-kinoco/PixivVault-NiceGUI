@@ -16,6 +16,14 @@ _BOOKMARK_PRESETS = ((0, "指定なし"), (500, "500+"), (1000, "1000+"),
 
 _SORT_PRESETS = (("popular_desc", "人気順"), ("date_desc", "新着順"), ("date_asc", "投稿が古い順"))
 
+# 除外4項目（元 ranking_tab.py:157-162）。(キー, 画面の文言, NOWチップの文言)
+_EXCLUDE_ITEMS = (
+    ("exclude_downloaded", "ダウンロード済みの作品", "DL済みを除外"),
+    ("exclude_hidden_authors", "「出さない」登録の作者", "出さない作者を除外"),
+    ("exclude_hidden_works", "「出さない」登録の作品", "出さない作品を除外"),
+    ("exclude_hated", "学習で「合わない」にした作品", "学習NGを除外"),
+)
+
 def default_personal_filters():
     """絞り込み条件の既定値。
 
@@ -72,6 +80,30 @@ def normalize_personal_filters(raw):
                 out[key] = tags
         else:
             out[key] = bool(value)
+    return out
+
+def active_filter_descriptors(filters):
+    """いま効いている条件を [(キー, 表示文言)] で返す（元 ranking_tab.py:225-250・NOW チップの土台）。
+
+    「効いている」＝既定値と違う、ではなく実際に結果を絞っているもの。
+    exclude_hidden_works は既定 True だが、True の間は現に絞っているので出す。並び順のチップは無い。
+    """
+    out = []
+    if filters.get("bookmark_min"):
+        out.append(("bookmark_min", f"ブクマ{filters['bookmark_min']}+"))
+    preset = filters.get("date_preset") or "all"
+    if preset != "all":
+        label = next((lbl for key, lbl, _d in _DATE_PRESETS if key == preset), preset)
+        out.append(("date_preset", f"投稿日: {label}以内"))
+    for tag in filters.get("tags_include") or []:
+        out.append((f"tags_include:{tag}", f"+{tag}"))
+    for tag in filters.get("tags_exclude") or []:
+        out.append((f"tags_exclude:{tag}", f"-{tag}"))
+    if filters.get("per_author_max"):
+        out.append(("per_author_max", f"1作者{filters['per_author_max']}件まで"))
+    for key, _panel_label, chip_label in _EXCLUDE_ITEMS:
+        if filters.get(key):
+            out.append((key, chip_label))
     return out
 
 def _parse_create_date(value):

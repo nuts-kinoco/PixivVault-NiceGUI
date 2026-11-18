@@ -83,8 +83,8 @@
     "personal": {
       "label": "自分のランキング",
       "testids": ["personal-ranking-view", "personal-fetch", "personal-tags", "personal-sort", "personal-bookmarks",
-                  "personal-ai"],
-      "texts": ["選択タグ", "取得・更新"]
+                  "personal-ai", "personal-r18", "personal-chips", "personal-candidates-toggle"],
+      "texts": ["選択タグ", "取得・更新", "出さない作品を除外"]
     },
     "scheduler": {
       "label": "定期チェック",
