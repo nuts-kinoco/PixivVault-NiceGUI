@@ -913,7 +913,9 @@ class UnifiedDownloadView:
         self.run_state = "running"
         self.band_state, self.band_error, self.notice_text = "running", "", ""
         self.resumable = None
-        self.render_all()
+        self.refresh_chip_status()
+        self.render_controls()
+        self._render_band()
         return True
 
     async def run_bookmarks(self):
@@ -946,7 +948,9 @@ class UnifiedDownloadView:
         self.run_state = "running"
         self.band_state, self.band_error, self.notice_text = "running", "", ""
         self.resumable = None
-        self.render_all()
+        self.refresh_chip_status()
+        self.render_controls()
+        self._render_band()
         return True
 
     # ---- the bookmark pane ---------------------------------------------------------------------
@@ -1363,6 +1367,8 @@ class UnifiedDownloadView:
             self.root.classes(add="pv-ud-running")
         else:
             self.root.classes(remove="pv-ud-running")
+        for button in self.mode_buttons.values():
+            self._set_disabled(button, self.running)
         reason = self.run_block_reason()
         runnable = not reason
         self._set_disabled(self.run_button, not runnable)
