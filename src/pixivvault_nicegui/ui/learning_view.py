@@ -136,6 +136,7 @@ class LearningView:
         self._review_detail_pending = set()
         self._review_detail_lock = asyncio.Lock()
         self._bookmark_busy = False
+        self._bookmark_token = uuid4().hex
         self._bookmark_confirmed = set()
         self._bookmark_new = set()
         self._bookmark_uncertain = {}
@@ -248,7 +249,7 @@ class LearningView:
                 self.reload_button = ui.button("保存状態を再読込", on_click=self.reload_storage).props("flat")
                 self.bookmark_button = ui.button('pixiv', icon='favorite_border').props(
                     'flat dense no-caps data-testid=learning-bookmark')
-                self.bookmark_button.on('click', self._on_learning_bookmark, js_handler=self._click_js())
+                self.bookmark_button.on('click', self._on_learning_bookmark, js_handler=self._bookmark_click_js())
                 self.bookmark_tip = self.bookmark_button.tooltip('絵が表示されてから押せます')
             ui.label("矢印キー / WASD / 1〜4 で判定。画面を選択して操作してください。").classes("pv-subtitle")
             if self.discovery is not None:
@@ -369,6 +370,15 @@ class LearningView:
             emit({work_id: el.getAttribute('data-work-id'),
                   generation: Number(el.getAttribute('data-generation')),
                   operation_id: crypto.randomUUID()});
+        }"""
+
+    @staticmethod
+    def _bookmark_click_js() -> str:
+        return """(event) => {
+            const el = event.currentTarget;
+            emit({work_id: el.getAttribute('data-work-id'),
+                  generation: Number(el.getAttribute('data-generation')),
+                  bookmark_token: el.getAttribute('data-bookmark-token')});
         }"""
 
     @staticmethod
@@ -1205,7 +1215,7 @@ class LearningView:
             button.props(props)
             button.set_enabled(available and self.state.ready)
         self.undo_button.props(props)
-        self.bookmark_button.props(props)
+        self.bookmark_button.props(props + f' data-bookmark-token="{self._bookmark_token}"')
         actions = getattr(self.services, 'pixiv_actions', None)
         account = getattr(actions, 'cached_verified_account_id', None) if actions is not None else None
         marked = bool(item and account and (account, item.work_id) in self._bookmark_confirmed)
@@ -1559,7 +1569,12 @@ class LearningView:
                     following.set_enabled((page+1)*PAGE_SIZE<len(rows))
 
     async def _on_learning_bookmark(self, event):
-        await self._bookmark_current(self._payload(event))
+        payload = self._payload(event)
+        if payload.get('bookmark_token') != self._bookmark_token:
+            return
+        self._bookmark_token = uuid4().hex
+        self._update_buttons()
+        await self._bookmark_current(payload)
 
     async def _bookmark_current(self, payload):
         item = self.state.current_artwork
@@ -1576,6 +1591,8 @@ class LearningView:
                     or self.state.generation != generation or self.state.current_artwork is not item)
         self._bookmark_busy = True
         self._update_buttons()
+        intent = None
+        key = None
         try:
             account = actions.cached_verified_account_id
             if account is None:
@@ -1583,38 +1600,92 @@ class LearningView:
             if cancelled():
                 return False
             key = (account, item.work_id)
-            if key in self._bookmark_confirmed:
-                return True
             prior = self._bookmark_uncertain.get(key)
+            state = getattr(actions, 'state', None)
+            result = getattr(actions, 'result', None)
+            if prior is None and callable(state) and callable(result):
+                shared = state(account, 'illust', item.work_id)
+                if shared.unknown:
+                    saved = result(shared.operation_id)
+                    prior = getattr(saved, 'intent', None)
+                    from ..pixiv_write_client import WriteIntent
+                    if (not isinstance(prior, WriteIntent) or prior.account_id != account
+                            or prior.target_id != item.work_id or prior.work_kind != 'illust'
+                            or prior.author_id != item.author_id
+                            or prior.action not in ('bookmark_add', 'bookmark_delete')):
+                        if not cancelled():
+                            self.status.set_text('ブックマークの結果を確認できません。もう一度押すと状態を確認します。')
+                        return False
+                    self._bookmark_uncertain[key] = prior
             if prior is not None:
                 reconcile = getattr(actions, 'reconcile', None)
                 if not callable(reconcile):
                     return False
                 outcome = await reconcile(prior, author_name=item.author, cancelled=cancelled)
+                intent = prior
             else:
                 from ..pixiv_write_client import WriteIntent
-                intent = WriteIntent(uuid4().hex, account, item.work_id, 'bookmark_add',
+                action = 'bookmark_delete' if key in self._bookmark_confirmed else 'bookmark_add'
+                intent = WriteIntent(uuid4().hex, account, item.work_id, action,
                                      'illust', item.author_id, 0)
                 outcome = await actions.execute(intent, author_name=item.author, cancelled=cancelled)
+                if action == 'bookmark_add' and outcome.status == 'already' and outcome.remote_state is True:
+                    self._bookmark_confirmed.add(key)
+                    if cancelled():
+                        return False
+                    intent = WriteIntent(uuid4().hex, account, item.work_id, 'bookmark_delete',
+                                         'illust', item.author_id, 0)
+                    outcome = await actions.execute(intent, author_name=item.author, cancelled=cancelled)
                 if outcome.status == 'indeterminate':
                     self._bookmark_uncertain[key] = intent
                     if not cancelled():
                         self.status.set_text('ブックマークの結果を確認できません。もう一度押すと状態を確認します。')
                     return False
-            if outcome.status in ('confirmed', 'already', 'observed') and outcome.remote_state is True:
-                self._bookmark_confirmed.add(key)
-                if outcome.status == 'confirmed':
-                    self._bookmark_new.add(key)
+            desired = intent.action == 'bookmark_add'
+            if outcome.status in ('confirmed', 'already', 'observed') and outcome.remote_state is desired:
+                if desired:
+                    self._bookmark_confirmed.add(key)
+                    if outcome.status == 'confirmed':
+                        self._bookmark_new.add(key)
+                else:
+                    self._bookmark_confirmed.discard(key)
+                    self._bookmark_new.discard(key)
                 self._bookmark_uncertain.pop(key, None)
+                if not cancelled():
+                    self.status.set_text('pixivへブックマークした' if desired else
+                                         'pixivのブックマークは既に外れている' if outcome.status == 'already' else
+                                         'pixivのブックマークを外した')
                 return True
-            if prior is not None and outcome.status == 'observed' and outcome.remote_state is False:
+            if prior is not None and outcome.status == 'observed':
                 self._bookmark_uncertain.pop(key, None)
+                if outcome.remote_state is True:
+                    self._bookmark_confirmed.add(key)
+                elif outcome.remote_state is False:
+                    self._bookmark_confirmed.discard(key)
+                    self._bookmark_new.discard(key)
             if not cancelled():
-                self.status.set_text('ブックマークできませんでした。状態を確認してください。')
+                self.status.set_text('pixivのブックマーク切替に失敗しました')
+                self.toast.show_gave_up('pixivのブックマーク切替に失敗しました', 'もう一度♥を押すとやり直せます', heavy=False)
             return False
+        except asyncio.CancelledError:
+            result = getattr(actions, 'result', None)
+            outcome = result(intent.operation_id) if intent is not None and callable(result) else None
+            if key is not None and outcome is not None:
+                if outcome.status == 'indeterminate':
+                    self._bookmark_uncertain[key] = intent
+                elif outcome.status in ('confirmed', 'already'):
+                    if outcome.remote_state is True:
+                        self._bookmark_confirmed.add(key)
+                        if intent.action == 'bookmark_add' and outcome.status == 'confirmed':
+                            self._bookmark_new.add(key)
+                    elif outcome.remote_state is False:
+                        self._bookmark_confirmed.discard(key)
+                        self._bookmark_new.discard(key)
+            raise
         except Exception:
             if not cancelled():
-                self.status.set_text('ブックマークできませんでした。状態を確認してください。')
+                self.status.set_text('pixivのブックマーク切替に失敗しました')
+                self.toast.show_gave_up('pixivのブックマーク切替に失敗しました', 'もう一度♥を押すとやり直せます', heavy=False)
             return False
         finally:
             self._bookmark_busy = False

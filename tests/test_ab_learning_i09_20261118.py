@@ -14,13 +14,15 @@ async def test_bookmark_rejects_unloaded_and_stale_work(tmp_path, monkeypatch):
     finally:
         await cleanup()
 
-async def test_bookmark_submits_once_and_does_not_repeat_registered(tmp_path, monkeypatch):
+async def test_bookmark_toggles_registered_without_duplicate_add(tmp_path, monkeypatch):
     class Actions:
         cached_verified_account_id = '7'
         def __init__(self): self.calls = []
         async def execute(self, intent, **kwargs):
             self.calls.append(intent)
-            return SimpleNamespace(status='already', remote_state=True)
+            if intent.action == 'bookmark_add':
+                return SimpleNamespace(status='confirmed', remote_state=True)
+            return SimpleNamespace(status='confirmed', remote_state=False)
     view, services, service, cleanup = await open_discovery_view(tmp_path, monkeypatch, route='/_i09_add')
     actions = Actions()
     services.pixiv_actions = actions
@@ -32,7 +34,8 @@ async def test_bookmark_submits_once_and_does_not_repeat_registered(tmp_path, mo
         assert len(actions.calls) == 1
         assert actions.calls[0].action == 'bookmark_add'
         assert await view._bookmark_current(payload)
-        assert len(actions.calls) == 1
+        assert len(actions.calls) == 2
+        assert actions.calls[1].action == 'bookmark_delete'
     finally:
         await cleanup()
 
