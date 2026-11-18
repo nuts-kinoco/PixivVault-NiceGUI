@@ -327,7 +327,9 @@ class ManagedPixivDownloads:
             required = {'version', 'source', 'work_id', 'author_id', 'author_name',
                                 'title', 'tags', 'created_at', 'saved_at', 'illustration_type',
                                 'x_restrict', 'page_count', 'files'}
-            if (not required <= set(receipt) <= required | {'bookmark_count'}
+            if (not required <= set(receipt) <= required | {'bookmark_count', 'generation'}
+                    or ('generation' in receipt and (type(receipt['generation']) is not int
+                                                     or receipt['generation'] < 1))
                     or (receipt.get('bookmark_count') is not None
                         and (type(receipt['bookmark_count']) is not int or receipt['bookmark_count'] < 0))):
                 raise ValueError()
@@ -782,7 +784,7 @@ class ManagedPixivDownloads:
             record = _record(self.resolve_record(job.target_id), job.target_id)
             # Refuse a new work the store could not record, before it is downloaded (a save with no
             # intent lands in outputs/ and used to be refused only afterwards).
-            self._generations.assert_room(record.remote_id, indexed=intent is not None)
+            self._generations.assert_room(record.remote_id, indexed=True)
             job_id=getattr(job,'job_id',None)
             if type(job_id) is not str or not 1<=len(job_id)<=128:job_id='untracked-'+uuid4().hex
             legacy_pages,legacy_token=(self.legacy_quarantine.download_state(record)
@@ -911,10 +913,8 @@ class ManagedPixivDownloads:
                        "x_restrict": record.x_restrict, "page_count": len(files), "files": files}
             if record.bookmark_count is not None:
                 receipt["bookmark_count"] = record.bookmark_count
-            _write(folder / "receipt.json", json.dumps(receipt, ensure_ascii=False, sort_keys=True).encode("utf-8"))
-            _fsync_dir(folder)
             context.checkpoint()
-            destination = native_io_path(self.generation_outputs if intent is not None else self.outputs)
+            destination = native_io_path(self.generation_outputs)
             final = destination / f"work-{record.remote_id}-{uuid4().hex}"
             # Verify the staged bytes before they enter the completed namespace.
             for entry in files:
@@ -942,19 +942,21 @@ class ManagedPixivDownloads:
                 if self._generations.work_state_token(record.remote_id) != work_state_token:
                     raise ManagedDownloadError('generation compare-and-swap rejected')
                 # Another process may have filled the store since the initial admission check.
-                self._generations.assert_room(record.remote_id, indexed=intent is not None)
-                if intent is not None:
-                    self._generations.prepare_for_publication()
+                self._generations.assert_room(record.remote_id, indexed=True)
+                self._generations.prepare_for_publication()
+                receipt['generation'] = self._generations.committed_generation()
+                _write(folder / "receipt.json", json.dumps(receipt, ensure_ascii=False, sort_keys=True).encode("utf-8"))
+                _fsync_dir(folder)
                 folder.rename(final)
                 _fsync_dir(destination)
-                relative = f"{'generations' if intent is not None else 'outputs'}/{final.name}/receipt.json"
+                relative = f"generations/{final.name}/receipt.json"
                 _, digest = self._receipt(relative)
                 context.checkpoint()
-                if intent is not None:
-                    self._generations.publish(record.remote_id, relative, digest,
-                        intent.update_date, intent.expected_receipt_sha256,
-                        intent.expected_relative_receipt, fingerprint,
-                        expected_work_state_token=work_state_token)
+                self._generations.publish(record.remote_id, relative, digest,
+                    intent.update_date if intent is not None else '',
+                    intent.expected_receipt_sha256 if intent is not None else None,
+                    intent.expected_relative_receipt if intent is not None else None, fingerprint,
+                    expected_work_state_token=work_state_token)
             self._cleanup_job_partials(job_id,record.remote_id)
             return relative
         except ManagedDownloadError:

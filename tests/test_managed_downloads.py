@@ -364,9 +364,12 @@ def test_missing_receipt_and_duplicate_completed_work_are_errors(tmp_path):
     second.rmdir()
     import shutil
     shutil.copytree(original.parent, second)
+    third = runner.outputs / ('work-123-' + 'b' * 32)
+    shutil.copytree(original.parent, third)
     with pytest.raises(ManagedDownloadError, match='duplicate completed'):
         runner.saved_receipts()
     shutil.rmtree(second)
+    shutil.rmtree(third)
     original.unlink()
     with pytest.raises(ManagedDownloadError):
         runner.saved_receipts()

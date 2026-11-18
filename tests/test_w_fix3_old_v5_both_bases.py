@@ -50,7 +50,7 @@ def test_old_v5_same_id_in_both_bases_is_refused_without_writes(tmp_path, restor
     assert snapshot(root) == before
 
 
-@pytest.mark.parametrize('revision', [None, 'f90e671'])
+@pytest.mark.parametrize('revision', [None, 'efabe62'])
 def test_sequenced_v5_latest_opens_and_rollback_is_refused(tmp_path, revision):
     module = mg if revision is None else historical_module(revision)
     root = make_root(tmp_path)

@@ -73,8 +73,14 @@ def publish(g, root, wid, previous=None, fingerprint='c' * 64):
                      fingerprint)
 
 
-def seed_index(root, count, version=2, start=100000):
-    """An index of `count` receipts written the way the old code wrote it (receipt-only)."""
+def seed_index(root, count, version=None, start=100000):
+    """Seed the current index; an explicit version constructs a rejected legacy index."""
+    current = version is None
+    if current:
+        generation = mg.ManagedGenerations(root)
+        generation.prepare_for_publication()
+        generation.entries()
+        version = 2
     entries = {}
     for number in range(count):
         wid = str(start + number)
@@ -83,8 +89,11 @@ def seed_index(root, count, version=2, start=100000):
                         'update_date': '2026-01-01T00:00:00+00:00'}
         if version >= 2:
             entries[wid]['accepted_fingerprint'] = 'b' * 64
-    (root / 'active-generations.json').write_bytes(
-        json.dumps({'version': version, 'entries': entries}, sort_keys=True, separators=(',', ':')).encode())
+    if current:
+        generation._commit_packet({'version': 5, 'entries': entries})
+    else:
+        (root / 'active-generations.json').write_bytes(
+            json.dumps({'version': version, 'entries': entries}, sort_keys=True, separators=(',', ':')).encode())
     return entries
 
 
@@ -248,7 +257,7 @@ def test_a_second_instance_picks_up_appended_records_without_a_full_reload(root,
     assert second.current('900001')['work_id'] == '900001'
     publish(first, root, '900002')
     assert second.current('900002') is not None
-    assert loads == [1]  # one full load for the first sight of the journal, then only the tail
+    assert loads == []  # the current-format journal is already known; only its tail is read
 
 
 def test_entry_ceiling_refuses_with_a_storage_capacity_code_and_changes_nothing(root, monkeypatch):
@@ -266,7 +275,7 @@ def test_entry_ceiling_refuses_with_a_storage_capacity_code_and_changes_nothing(
 
 def test_index_byte_ceiling_is_reported_by_capacity_and_refused_with_the_same_code(root, monkeypatch):
     seed_index(root, 5)
-    used = (root / 'active-generations.json').stat().st_size
+    used = (root / 'active-generations.json').stat().st_size + journal_of(root).stat().st_size
     monkeypatch.setattr(mg, '_MAX_INDEX_BYTES', used + 6 * mg._ENTRY_BYTES_ESTIMATE)
     g = mg.ManagedGenerations(root)
     assert g.capacity()['headroom'] == 6  # bytes bind before the entry count
@@ -279,14 +288,12 @@ def test_index_byte_ceiling_is_reported_by_capacity_and_refused_with_the_same_co
     assert mg.ManagedGenerations(root).entry_count() == 5 + saved
 
 
-def test_a_v1_index_is_upgraded_in_place_by_the_first_publish(root):
+def test_a_v1_index_is_rejected_without_writes(root):
     seed_index(root, 3, version=1)
-    g = mg.ManagedGenerations(root)
-    assert g.entry_count() == 3
-    publish(g, root, '900001')
-    packet = json.loads((root / 'active-generations.json').read_bytes())
-    assert packet['version'] == 5 and len(packet["entries"]) == 3 and mark_of(root).exists()
-    assert mg.ManagedGenerations(root).entry_count() == 4
+    before = {p.relative_to(root): p.read_bytes() if p.is_file() else None for p in root.rglob('*')}
+    with pytest.raises(ManagedDownloadError):
+        mg.ManagedGenerations(root)
+    assert {p.relative_to(root): p.read_bytes() if p.is_file() else None for p in root.rglob('*')} == before
 
 
 def test_replacing_a_work_updates_in_place_and_counts_once(root):

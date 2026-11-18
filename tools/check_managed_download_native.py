@@ -112,11 +112,18 @@ def verify_storage(root: Path) -> dict:
     signature = []
     receipt_paths = set()
     folders = []
-    for folder in outputs.iterdir():
-        if len(folders) >= 10000:
-            raise ValueError("completed storage limit exceeded")
-        folders.append(folder)
-    for folder in sorted(folders):
+    for storage in ("outputs", "generations"):
+        directory = root / storage
+        if not directory.exists() and storage == "generations":
+            continue
+        _safe(directory)
+        if not directory.is_dir():
+            raise ValueError("missing completed storage")
+        for folder in directory.iterdir():
+            if len(folders) >= 10000:
+                raise ValueError("completed storage limit exceeded")
+            folders.append((storage, folder))
+    for storage, folder in sorted(folders):
         _safe(folder)
         matched = FOLDER.fullmatch(folder.name)
         if not folder.is_dir() or matched is None:
@@ -125,7 +132,8 @@ def verify_storage(root: Path) -> dict:
         data = json.loads(receipt_bytes, object_pairs_hook=_unique)
         expected = {"version", "source", "work_id", "author_id", "author_name", "title",
                     "tags", "created_at", "saved_at", "illustration_type", "x_restrict", "page_count", "files"}
-        if (type(data) is not dict or not expected <= set(data) <= expected | {"bookmark_count"}
+        if (type(data) is not dict or not expected <= set(data) <= expected | {"bookmark_count", "generation"}
+                or ("generation" in data and (type(data["generation"]) is not int or data["generation"] < 1))
                 or (data.get("bookmark_count") is not None
                     and (type(data["bookmark_count"]) is not int or data["bookmark_count"] < 0))
                 or type(data["version"]) is not int or data["version"] != 1
@@ -171,8 +179,9 @@ def verify_storage(root: Path) -> dict:
         if {entry.name for entry in folder.iterdir()} != expected_files:
             raise ValueError("unexpected completed files")
         receipt_count += 1
-        receipt_paths.add(f"outputs/{folder.name}/receipt.json")
-        work_receipts[f"outputs/{folder.name}/receipt.json"] = (data["work_id"], data["page_count"])
+        relative = f"{storage}/{folder.name}/receipt.json"
+        receipt_paths.add(relative)
+        work_receipts[relative] = (data["work_id"], data["page_count"])
         signature.append(hashlib.sha256(receipt_bytes).digest())
     db = root / "jobs.sqlite3"
     if not db.is_file():

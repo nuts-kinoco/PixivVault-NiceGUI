@@ -76,20 +76,18 @@ def entry_for(root, wid, suffix, fingerprint='c' * 64):
             'update_date': '2026-03-03T00:00:00+00:00', 'accepted_fingerprint': fingerprint}
 
 
-def test_d1_a_legacy_journal_is_adopted_only_when_it_is_the_index_or_newer_than_nothing(root):
+def test_d1_a_legacy_journal_is_rejected_without_writes(root):
     entries = seed_index(root, 2)
     base_digest = hashlib.sha256((root / 'active-generations.json').read_bytes()).hexdigest()
     fresh = entry_for(root, '900001', '1' * 32)
     write_legacy_journal(root, [fresh], base_digest)
-    g = mg.ManagedGenerations(root)
-    assert g.current('900001') == fresh and g.entry_count() == 3     # bound to this index: replayed
-    publish(g, root, '900002')                                        # the next save folds it into v5
-    assert json.loads((root / 'active-generations.json').read_bytes())['version'] == 5
-    assert not (root / 'active-generations.journal').exists()
-    assert mg.ManagedGenerations(root).entry_count() == 4
+    before = {p.relative_to(root): p.read_bytes() if p.is_file() else None for p in root.rglob('*')}
+    with pytest.raises(ManagedDownloadError):
+        mg.ManagedGenerations(root)
+    assert {p.relative_to(root): p.read_bytes() if p.is_file() else None for p in root.rglob('*')} == before
 
 
-def test_d1_a_legacy_journal_older_than_the_index_must_match_it_entry_for_entry(root):
+def test_d1_a_legacy_journal_is_rejected_even_when_its_entry_matches(root):
     entries = seed_index(root, 2)
     old_entry = dict(entries['100000'])
     newer = entry_for(root, '100000', '2' * 32)                       # the index moved on to a newer version
@@ -97,11 +95,13 @@ def test_d1_a_legacy_journal_older_than_the_index_must_match_it_entry_for_entry(
     (root / 'active-generations.json').write_bytes(
         json.dumps(packet, sort_keys=True, separators=(',', ':')).encode())
     write_legacy_journal(root, [old_entry], 'f' * 64)                 # journal of an earlier index
-    with pytest.raises(ManagedDownloadError, match='index rejected'):  # never reverts 100000
+    with pytest.raises(ManagedDownloadError):
         mg.ManagedGenerations(root)
-    write_legacy_journal(root, [newer], 'f' * 64)                     # identical to the index: harmless
-    g = mg.ManagedGenerations(root)
-    assert g.current('100000')['relative_receipt'] == newer['relative_receipt']
+    write_legacy_journal(root, [newer], 'f' * 64)
+    before = {p.relative_to(root): p.read_bytes() if p.is_file() else None for p in root.rglob('*')}
+    with pytest.raises(ManagedDownloadError):
+        mg.ManagedGenerations(root)
+    assert {p.relative_to(root): p.read_bytes() if p.is_file() else None for p in root.rglob('*')} == before
 
 
 # ---- D2: a journal that vanishes, empties or is cut short is refused -------------------------------
@@ -135,14 +135,14 @@ def test_d2_a_missing_emptied_or_shortened_journal_is_refused_not_read_as_fewer_
         mg.ManagedGenerations(root)
 
 
-def test_d2_only_a_torn_last_line_is_forgiven_and_so_is_a_mark_one_save_behind(root):
+def test_d2_torn_tail_and_interrupted_mark_are_recovered(root, monkeypatch):
     seed_index(root, 3)
     g = mg.ManagedGenerations(root)
     publish(g, root, '900001')
-    behind = mark_of(root).read_bytes()
-    publish(g, root, '900002')
+    with monkeypatch.context() as patch:
+        patch.setattr(g, '_write_mark', lambda *a, **k: (_ for _ in ()).throw(OSError('interrupted mark')))
+        publish(g, root, '900002')
     journal = journal_of(root)
-    mark_of(root).write_bytes(behind)                    # crash between the append and the mark: 1 behind
     assert mg.ManagedGenerations(root).entry_count() == 5
     journal.write_bytes(journal.read_bytes() + b'{"chain":"x')          # and a torn line on top
     assert mg.ManagedGenerations(root).entry_count() == 5
@@ -156,7 +156,7 @@ def mark_records(root):
     return json.loads(mark_of(root).read_bytes())['records']
 
 
-def test_d2_a_mark_several_saves_behind_is_recoverable_and_the_next_save_catches_it_up(root):
+def test_d2_a_mark_several_saves_behind_is_rejected_without_writes(root):
     seed_index(root, 3)
     g = mg.ManagedGenerations(root)
     publish(g, root, '900001')
@@ -164,11 +164,10 @@ def test_d2_a_mark_several_saves_behind_is_recoverable_and_the_next_save_catches
     publish(g, root, '900002')
     publish(g, root, '900003')
     mark_of(root).write_bytes(behind)                     # two saves ahead of the mark (the old failure state)
-    reopened = mg.ManagedGenerations(root)
-    assert reopened.entry_count() == 6                    # nothing lost, nothing refused
-    publish(reopened, root, '900004')
-    assert mark_records(root) == journal_records(root) == 4
-    assert mg.ManagedGenerations(root).entry_count() == 7
+    before = {p.relative_to(root): p.read_bytes() if p.is_file() else None for p in root.rglob('*')}
+    with pytest.raises(ManagedDownloadError):
+        mg.ManagedGenerations(root)
+    assert {p.relative_to(root): p.read_bytes() if p.is_file() else None for p in root.rglob('*')} == before
 
 
 def test_d2_a_mark_that_is_not_on_the_journals_chain_is_still_damage(root):
@@ -230,22 +229,13 @@ def test_d3_a_reader_never_sees_a_spurious_rejection_while_a_writer_saves_and_fo
 
 # ---- (a) a store with no index (outputs/ only) is verified once, not on every call -----------------
 
-def test_a_an_outputs_only_store_is_verified_once_and_still_refuses_an_unindexed_generation(root, monkeypatch):
+def test_a_an_outputs_only_store_without_index_is_rejected_without_writes(root):
     make_legacy(root, '800001')
     make_legacy(root, '800002')
-    g = mg.ManagedGenerations(root)
-    loads = []
-    original = g._load_full
-    monkeypatch.setattr(g, '_load_full', lambda: loads.append(1) or original())
-    for _ in range(5):
-        g.entries()
-        g.current('800001')
-    make_legacy(root, '800003')
-    assert g.entry_count() == 3 and g.current('800003') is not None
-    assert loads == []                                       # no re-read at all after opening
-    make_generation(root, '900001')                         # a sealed generation without any index
-    with pytest.raises(ManagedDownloadError, match='index missing'):
-        g.entries()
+    before = {p.relative_to(root): p.read_bytes() if p.is_file() else None for p in root.rglob('*')}
+    with pytest.raises(ManagedDownloadError):
+        mg.ManagedGenerations(root)
+    assert {p.relative_to(root): p.read_bytes() if p.is_file() else None for p in root.rglob('*')} == before
 
 
 # ---- (b) silent corruption that keeps size and time ----------------------------------------------
@@ -456,13 +446,13 @@ def test_r2_4_a_reader_that_keeps_the_index_open_no_longer_blocks_the_fold(root)
     assert mg.ManagedGenerations(root).entry_count() == 4
 
 
-def test_r2_4_the_first_version_upgrade_waits_out_a_plain_holder_and_succeeds(root):
+def test_r2_4_a_fold_waits_out_a_plain_holder_and_succeeds(root):
     seed_index(root, 3)
     g = mg.ManagedGenerations(root)
     holder = open(root / 'active-generations.json', 'rb')         # an old-style reader
     threading.Timer(1.2, holder.close).start()
     started = time.monotonic()
-    publish(g, root, '900001')                                    # v2 -> v5 cannot be skipped
+    g._compact(g._loaded, 5.0)
     assert 1.0 < time.monotonic() - started < 4.5
     assert json.loads((root / 'active-generations.json').read_bytes())['version'] == 5
 
@@ -553,13 +543,12 @@ def old_code_first_save_stopped_after_the_rename(root):
     return make_generation(root, '555')
 
 
-def test_r3_r1_an_orphan_left_by_the_older_first_save_is_not_a_reason_to_refuse_the_root(root):
+def test_r3_r1_an_orphan_with_an_old_index_is_rejected_without_writes(root):
     old_code_first_save_stopped_after_the_rename(root)
-    g = mg.ManagedGenerations(root)                      # used to be refused outright
-    assert g.entry_count() == 0 and g.current('555') is None
-    publish(g, root, '556')                              # and the work can be saved (and the orphan stays inert)
-    again = mg.ManagedGenerations(root)
-    assert sorted(again.entries()) == ['556'] and json.loads((root / 'active-generations.json').read_bytes())['version'] == 5
+    before = {p.relative_to(root): p.read_bytes() if p.is_file() else None for p in root.rglob('*')}
+    with pytest.raises(ManagedDownloadError):
+        mg.ManagedGenerations(root)
+    assert {p.relative_to(root): p.read_bytes() if p.is_file() else None for p in root.rglob('*')} == before
 
 
 def test_r3_r1_an_orphan_next_to_an_update_that_the_older_code_could_not_publish(root):
@@ -573,7 +562,7 @@ def test_r3_r1_an_orphan_next_to_an_update_that_the_older_code_could_not_publish
 def test_r3_r1_evidence_of_a_lost_journal_still_refuses(root):
     old_code_first_save_stopped_after_the_rename(root)
     (root / 'active-generations.journal.deleted').write_bytes(b'x')        # a trace of the journal of the old builds
-    with pytest.raises(ManagedDownloadError, match='index rejected'):
+    with pytest.raises(ManagedDownloadError):
         mg.ManagedGenerations(root)
 
 

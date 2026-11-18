@@ -17,16 +17,15 @@ from test_w_fix3_migration import historical_module
 
 
 @pytest.mark.parametrize('stage', ['no_journal', 'torn_stage'])
-def test_upgrade_intent_is_recoverable_before_any_complete_journal(tmp_path, monkeypatch, stage):
+def test_prepared_fold_is_recoverable_before_a_complete_journal(tmp_path, monkeypatch, stage):
     root = make_root(tmp_path)
     baseline = seed_index(root, 2)
     writer = mg.ManagedGenerations(root)
-    index = writer.index_path
-    original_index = index.read_bytes()
+    original_index = writer.index_path.read_bytes()
     original = mg._write
 
     def interrupted(path, data):
-        if path.name.startswith('journal-'):
+        if path.name.startswith('prepared-') and path.name.endswith('.journal'):
             if stage == 'torn_stage':
                 original(path, data[:13])
             raise OSError('synthetic interrupted journal write')
@@ -34,13 +33,11 @@ def test_upgrade_intent_is_recoverable_before_any_complete_journal(tmp_path, mon
 
     with monkeypatch.context() as patch:
         patch.setattr(mg, '_write', interrupted)
-        with pytest.raises(ManagedDownloadError, match='publication failed'):
-            publish(writer, root, '1000')
-    assert index.read_bytes() == original_index
-    assert not list(root.glob('active-generations-*.journal'))
-    assert not (root / mg._V5_HEAD).exists()
-    assert (root / mg._V5_COMMITTED).read_bytes().startswith(b'upgrade')
+        with pytest.raises(OSError):
+            writer._compact(writer._loaded)
+    assert writer.index_path.read_bytes() == original_index
     reopened = mg.ManagedGenerations(root)
     assert set(reopened.entries()) == set(baseline)
+    reopened._compact(reopened._loaded)
     publish(reopened, root, '1000')
     assert set(mg.ManagedGenerations(root).entries()) == set(baseline) | {'1000'}

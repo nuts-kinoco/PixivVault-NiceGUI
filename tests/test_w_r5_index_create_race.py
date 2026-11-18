@@ -90,7 +90,9 @@ def test_absent_index_name_is_reserved_during_directory_creation(tmp_path, monke
     else:
         ManagedPixivDownloads(root, object(), resolve_record=lambda *_: None)
     assert attempted == ['blocked']
-    assert not (root / 'active-generations.json').exists()
+    packet = json.loads((root / 'active-generations.json').read_bytes())
+    assert packet['version'] == 5 and packet['journal']['generation'] >= 1
+    assert replacement.exists()
 
 
 @pytest.mark.skipif(os.name != 'nt', reason='Windows name reservation')

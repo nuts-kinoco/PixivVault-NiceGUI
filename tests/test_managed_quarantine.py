@@ -187,7 +187,7 @@ def test_precommit_failure_does_not_publish_exclusion(owned, monkeypatch):
 def test_missing_index_after_v1_quarantine_never_reveals_originals(owned):
     writer, source, client = owned
     source.execute(plan_for(source, '123:2'), operation_id='2' * 32)
-    assert not any(writer.generation_outputs.iterdir())
+    assert any(writer.generation_outputs.iterdir())  # direct saves now have indexed generations
     (writer.root / 'active-generations.json').unlink()
     with pytest.raises(ManagedDownloadError, match='index missing'):
         writer.saved_receipts()

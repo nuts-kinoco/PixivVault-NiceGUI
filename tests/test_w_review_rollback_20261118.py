@@ -30,6 +30,7 @@ def test_old_index_with_published_journal_is_rejected(tmp_path):
     g = mg.ManagedGenerations(root)
     g.prepare_for_publication()
     publish(g, root, '1000')
+    g._compact(g._loaded)
     index.write_bytes(old_index)
     with pytest.raises(ManagedDownloadError):
         mg.ManagedGenerations(root)

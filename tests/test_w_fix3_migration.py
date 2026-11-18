@@ -61,96 +61,43 @@ def historical_module(revision):
     return old
 
 
-def test_legacy_journal_migration_interrupted_before_append_does_not_lose_prior_commits(tmp_path, monkeypatch):
+def assert_refused_without_writes(root):
+    from pixivvault_nicegui.managed_downloads import ManagedPixivDownloads
+    def snapshot():
+        return {p.relative_to(root): p.read_bytes() if p.is_file() else None for p in root.rglob('*')}
+    before = snapshot()
+    for opener in (lambda: mg.ManagedGenerations(root),
+                   lambda: ManagedPixivDownloads(root, None, resolve_record=lambda *_: None)):
+        with pytest.raises(ManagedDownloadError):
+            opener()
+        assert snapshot() == before
+
+
+def test_legacy_journal_with_committed_entries_is_refused_without_writes(tmp_path):
     old = historical_module('d64879a')
     root = make_root(tmp_path)
-    existing = seed_index(root, 2)
-    idx = root / 'active-generations.json'
-    saved_idx = idx.read_bytes()
+    seed_index(root, 2, version=2)
     publish(old.ManagedGenerations(root), root, '1000')
-    legacy = root / 'active-generations.journal'
-    assert legacy.exists()
-    writer = mg.ManagedGenerations(root)
-    assert set(writer.entries()) == set(existing) | {'1000'}
-
-    def interruption(*_):
-        raise OSError('synthetic interruption before the first v5 append')
-
-    monkeypatch.setattr(writer, '_append_journal', interruption)
-    with pytest.raises(ManagedDownloadError, match='publication failed'):
-        publish(writer, root, '1001')
-    assert json.loads(idx.read_bytes())['version'] == 5
-    assert not legacy.exists()
-    assert (root / mg._V5_COMMITTED).read_bytes() == mg._V5_DONE
-    assert set(mg.ManagedGenerations(root).entries()) == set(existing) | {'1000'}
-    idx.write_bytes(saved_idx)
-    try:
-        observed = set(mg.ManagedGenerations(root).entries())
-    except ManagedDownloadError:
-        return
-    print(f'migrated legacy entry: before=[1000, 100000, 100001], after={sorted(observed)}')
-    assert observed == set(existing) | {'1000'}
+    assert (root / 'active-generations.journal').exists()
+    assert_refused_without_writes(root)
 
 
 @pytest.mark.parametrize('stage', ['journal_rename', 'index_replace'])
-def test_pending_upgrade_recovers_when_interrupted_before_v5_index(tmp_path, monkeypatch, stage):
+def test_pending_legacy_upgrade_is_refused_without_writes(tmp_path, stage):
     root = make_root(tmp_path)
-    old_entries = seed_index(root, 2)
-    idx = root / 'active-generations.json'
-    saved_idx = idx.read_bytes()
-    writer = mg.ManagedGenerations(root)
-    original = mg._replace_retrying
-    marker_path = root / mg._V5_COMMITTED
-
-    def interrupt_before_replace(source, target, patience=5):
-        if ((stage == 'index_replace' and target == idx)
-                or (stage == 'journal_rename' and target.name.endswith('.journal'))):
-            raise OSError('synthetic interruption during upgrade')
-        return original(source, target, patience)
-
-    with monkeypatch.context() as context:
-        context.setattr(mg, '_replace_retrying', interrupt_before_replace)
-        with pytest.raises(ManagedDownloadError, match='publication failed'):
-            publish(writer, root, '1000')
-    assert idx.read_bytes() == saved_idx
-    assert marker_path.read_bytes().startswith(b'upgrade-v3:')
-    reopened = mg.ManagedGenerations(root)
-    assert set(reopened.entries()) == set(old_entries)
-    publish(reopened, root, '1000')
-    assert set(mg.ManagedGenerations(root).entries()) == set(old_entries) | {'1000'}
-    assert marker_path.read_bytes() == mg._V5_DONE
-    idx.write_bytes(saved_idx)
-    with pytest.raises(ManagedDownloadError, match='index rejected'):
-        mg.ManagedGenerations(root)
+    seed_index(root, 2, version=2)
+    (root / 'generation-incomplete').mkdir()
+    (root / mg._V5_COMMITTED).write_bytes(b'upgrade:' + b'a' * 64 + b'\n')
+    if stage == 'journal_rename':
+        (root / 'active-generations.journal').write_bytes(b'legacy journal\n')
+    else:
+        (root / 'generation-incomplete' / ('active-' + 'a' * 32 + '.tmp')).write_bytes(b'candidate')
+    assert_refused_without_writes(root)
 
 
-def test_upgrade_marker_failure_preserves_legacy_journal(tmp_path, monkeypatch):
-    old = historical_module('d64879a')
+def test_legacy_upgrade_marker_and_journal_are_preserved(tmp_path):
     root = make_root(tmp_path)
-    baseline = seed_index(root, 2)
-    idx = root / 'active-generations.json'
-    old_index = idx.read_bytes()
-    publish(old.ManagedGenerations(root), root, '1000')
-    writer = mg.ManagedGenerations(root)
-    original = writer._write_v5_marker
-
-    def fail_finalization(data):
-        if data == mg._V5_DONE:
-            raise OSError('marker finalization interrupted')
-        return original(data)
-
-    with monkeypatch.context() as patch:
-        patch.setattr(writer, '_write_v5_marker', fail_finalization)
-        with pytest.raises(ManagedDownloadError):
-            publish(writer, root, '1001')
-    assert (root / 'active-generations.journal').exists()
-    new_index = idx.read_bytes()
-    assert set(mg.ManagedGenerations(root).entries()) == set(baseline) | {'1000'}
-    idx.write_bytes(old_index)
-    with pytest.raises(ManagedDownloadError, match='index rejected'):
-        mg.ManagedGenerations(root)
-    idx.write_bytes(new_index)
-    reopened = mg.ManagedGenerations(root)
-    assert set(reopened.entries()) == set(baseline) | {'1000'}
-    publish(reopened, root, '1001')
-    assert set(mg.ManagedGenerations(root).entries()) == set(baseline) | {'1000', '1001'}
+    seed_index(root, 2, version=2)
+    (root / 'active-generations.journal').write_bytes(b'legacy journal\n')
+    (root / mg._V5_COMMITTED).write_bytes(b'upgrade-v3:' + b'a' * 64 + b'\n')
+    assert_refused_without_writes(root)

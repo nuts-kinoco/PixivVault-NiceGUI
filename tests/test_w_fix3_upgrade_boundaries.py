@@ -17,28 +17,30 @@ from test_w_fix3_migration import historical_module
 
 
 @pytest.mark.parametrize('stage', ['new_mark_install', 'head_install'])
-def test_new_migration_recovers_before_head_commit(tmp_path, monkeypatch, stage):
+def test_prepared_fold_recovers_before_head_commit(tmp_path, monkeypatch, stage):
     root = make_root(tmp_path)
     baseline = seed_index(root, 2)
     writer = mg.ManagedGenerations(root)
-    index = writer.index_path
-    original_index = index.read_bytes()
-    replace = mg._replace_retrying
+    original_index = writer.index_path.read_bytes()
+    write = mg._write
 
-    def interrupted(source, target, patience=5):
-        if ((stage == 'new_mark_install' and target.name.endswith('.mark'))
-                or (stage == 'head_install' and target.name == mg._V5_HEAD)):
+    def interrupted_write(path, data):
+        if stage == 'new_mark_install' and path.name.startswith('prepared-') and path.name.endswith('.mark'):
             raise OSError('synthetic interruption before commit')
-        return replace(source, target, patience)
+        return write(path, data)
+
+    def interrupted_head(*args):
+        raise OSError('synthetic interruption before commit')
 
     with monkeypatch.context() as patch:
-        patch.setattr(mg, '_replace_retrying', interrupted)
-        with pytest.raises(ManagedDownloadError, match='publication failed'):
-            publish(writer, root, '1000')
-    assert index.read_bytes() == original_index
-    assert not (root / mg._V5_HEAD).exists()
-    assert list(root.glob('active-generations-*.journal'))
+        patch.setattr(mg, '_write', interrupted_write)
+        if stage == 'head_install':
+            patch.setattr(writer, '_write_head', interrupted_head)
+        with pytest.raises(OSError):
+            writer._compact(writer._loaded)
+    assert writer.index_path.read_bytes() == original_index
     reopened = mg.ManagedGenerations(root)
     assert set(reopened.entries()) == set(baseline)
+    reopened._compact(reopened._loaded)
     publish(reopened, root, '1000')
     assert set(mg.ManagedGenerations(root).entries()) == set(baseline) | {'1000'}
