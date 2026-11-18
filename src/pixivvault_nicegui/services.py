@@ -1643,8 +1643,24 @@ class ApplicationServices:
                 'ugoira-'+selection.spec['output'], digest(_json(selection.spec)))
             return self.ugoira.enqueue_selection(selection, operation_id)
 
+    def preferred_ranking_tags(self):
+        """世間ランキングの好みタグ印の集合（正規化タグ）。worker スレッドから呼ぶ。無ければ空。"""
+        if self.discovery is not None:
+            return self.discovery.preferred_tags()
+        source = getattr(self.recommendations, 'source', None)
+        provider = getattr(source, 'preferred_tags', None)
+        return provider() if callable(provider) else frozenset()
+
     def personal_ranking_context(self):
-        context = {'downloaded_ids': self.saved_discovery_ids()}
+        # 元 ranking_tab.py:1436-1456: 読めなかった集合だけ欠かし（「除外しない」側へ倒す）、読めた分は使う。
+        # 欠けた集合は画面が「⚠️一部の除外条件を適用できませんでした」と出す（FL-Y04）。
+        import logging
+        log = logging.getLogger(__name__)
+        context = {}
+        try:
+            context['downloaded_ids'] = self.saved_discovery_ids()
+        except Exception:
+            log.exception('自分のランキング: 保存済みの除外集合を読めませんでした。')
         if self.recommendations is not None:
             from .recommendation_state import RecommendationError
             try:
@@ -1653,14 +1669,23 @@ class ApplicationServices:
                 # An unavailable read-only projection does not authorize empty
                 # exclusion sets. The personal UI disables these filters.
                 pass
+            except Exception:
+                log.exception('自分のランキング: 出さない集合を読めませんでした。')
             else:
                 context.update(hidden_work_ids=set(snapshot['hidden_works']),
                                hidden_author_ids=set(snapshot['hidden_authors']))
         if self.discovery is not None:
-            snapshot = self.discovery.recommendation_snapshot()
-            if 'hated_ids' in snapshot:context['hated_ids']=snapshot['hated_ids']
-            if 'author_seed_bookmarked' in snapshot:context['author_counts']=snapshot['author_seed_bookmarked']
-            context['trend_rows']=self.discovery.trend_rows()
+            try:
+                snapshot = self.discovery.recommendation_snapshot()
+            except Exception:
+                log.exception('自分のランキング: 学習の除外集合を読めませんでした。')
+            else:
+                if 'hated_ids' in snapshot:context['hated_ids']=snapshot['hated_ids']
+                if 'author_seed_bookmarked' in snapshot:context['author_counts']=snapshot['author_seed_bookmarked']
+            try:
+                context['trend_rows']=self.discovery.trend_rows()
+            except Exception:
+                log.exception('自分のランキング: よく効くタグを読めませんでした。')
         elif self.recommendations is not None:
             source=self.recommendations.source
             provider=getattr(source,'trend_rows',None)

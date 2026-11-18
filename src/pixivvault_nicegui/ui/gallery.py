@@ -58,7 +58,7 @@ class GalleryView(ViewerController):
             ) as card:
                 card.on("click", lambda _, work_id=art.work_id: self.open(work_id))
                 card.on("keydown.enter", lambda _, work_id=art.work_id: self.open(work_id))
-                self.ranks[art.work_id] = ui.label().classes("pv-card-rank")
+                self.ranks[art.work_id] = self._rank_label(art)
                 image = ui.image(self.services.images.url(art.work_id, 0, "thumb"))
                 from .image_failure import image_failure_slot
                 image_failure_slot(image)
@@ -66,13 +66,22 @@ class GalleryView(ViewerController):
                 with ui.element("div").classes("pv-card-meta"):
                     ui.label(art.title).classes("pv-card-title")
                     ui.label(art.author).classes("pv-card-author")
-                if not hasattr(self,'owner'):
-                    with ui.context_menu() as menu:
-                        button=ui.button('作者ページを開く',on_click=lambda _,a=art,s=self.state,popup=menu:
-                            self.open_card_author(a,s,popup)).props('flat dense data-testid=gallery-author-open')
-                        button.set_enabled(bool(art.author_id and self._viewer_reader() is not None))
+                self._card_menu(art, card)
         self.cards[art.work_id] = card
         self.images[art.work_id] = image
+
+    def _rank_label(self, art: Artwork) -> ui.label:
+        """順位ラベル。ランキング側は好みタグの印を横へ並べる（_RankingGallery）。"""
+        return ui.label().classes("pv-card-rank")
+
+    def _card_menu(self, art: Artwork, card) -> None:
+        """カードの右クリックメニュー。ランキング側は項目の多い版へ差し替える（_RankingGallery）。"""
+        if hasattr(self,'owner'):
+            return
+        with ui.context_menu() as menu:
+            button=ui.button('作者ページを開く',on_click=lambda _,a=art,s=self.state,popup=menu:
+                self.open_card_author(a,s,popup)).props('flat dense data-testid=gallery-author-open')
+            button.set_enabled(bool(art.author_id and self._viewer_reader() is not None))
 
     async def open_card_author(self,art,state,menu=None):
         if (state is not self.state or self.state.closed or not self._viewer_active

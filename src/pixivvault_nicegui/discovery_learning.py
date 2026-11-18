@@ -297,6 +297,11 @@ class DiscoveryLearningService(LearningService):
                   get_setting=db.get_setting) if count >= TREND_MIN_JUDGMENTS else []
         return {'judged':count,'rows':tuple(rows),'ready':count >= TREND_MIN_JUDGMENTS}
 
+    def preferred_tags(self):
+        """世間ランキングの好みタグ印用（元 ranking_tab.py:519-530）。worker の外から呼ぶ同期 API。"""
+        from .ranking_preferred_tags import preferred_tag_set
+        return self._submit(lambda: preferred_tag_set(self._database().get_discovery_preferences())).result()
+
     def trend_rows(self):
         """Synchronous recommendation worker API, never call from this worker."""
         return self._submit(self._trend_snapshot).result()['rows']

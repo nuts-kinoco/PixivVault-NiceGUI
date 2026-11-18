@@ -7,12 +7,30 @@ from nicegui import ui
 from ..ranking_source import RankingQuery, RankingUnavailable, MODES, CONTENTS, SORTS, merge_pages, sorted_items
 from ..state import GalleryState
 from .gallery import GalleryView
+from .ranking_card_menus import RankingCardMenus
 
 class _ViewServices:
     def __init__(self,parent):self.parent=parent;self.artworks=();self.images=parent.images
     def __getattr__(self,name):return getattr(self.parent,name)
 
 class _RankingGallery(GalleryView):
+    def _rank_label(self,art):
+        owner=getattr(self,'owner',None)
+        if owner is None or not owner.preferred_tags_in(art.tags):return super()._rank_label(art)
+        # 元 ranking_tab.py:822-824: 順位の横に青ハート。印が無いカードの構造は他の一覧と同じに保つ。
+        with ui.row().classes('items-center no-wrap gap-1 pv-card-head'):
+            label=ui.label().classes('pv-card-rank')
+            heart=ui.icon('favorite').classes('pv-card-heart').props(f'size=12px aria-label=好みのタグを含む作品')
+            heart._props['data-testid']=f'ranking-heart-{art.work_id}'
+        return label
+    def _card_menu(self,art,card):
+        owner=getattr(self,'owner',None)
+        if owner is not None:owner.build_card_menu(art,card)
+    def _after_viewer_hide(self,art,hidden):
+        owner=getattr(self,'owner',None)
+        if owner is None:return super()._after_viewer_hide(art,hidden)
+        self.close_viewer(restore_focus=False)
+        owner.adopt_hidden(art.work_id,art.title,hidden)
     def render_gallery(self):
         super().render_gallery()
         owner=getattr(self,'owner',None)
@@ -34,8 +52,9 @@ class _RankingGallery(GalleryView):
             return
         super().open(work_id,page_no)
 
-class RankingView:
+class RankingView(RankingCardMenus):
     _auto_loaded=False;_auto_task=None  # first-open fetch state (see _schedule_first_load)
+    _preferred=frozenset();_preferred_built=False  # 好みタグ印の集合（元 ranking_tab.py:453, 519-544）
     def __init__(self,services,*,card_size='large',on_size_change=None):
         self.services=services;self.proxy=_ViewServices(services)
         self._auto_loaded=False;self._auto_task=None
@@ -56,9 +75,11 @@ class RankingView:
                 self.r18=ui.checkbox('R-18',value=False).props('data-testid=ranking-r18')
                 self.ai=ui.checkbox('AIを除外',value=False).props('data-testid=ranking-exclude-ai')
                 self.tag=ui.input('タグ検索').props('outlined dense data-testid=ranking-tag')
-                self.fetch_button=ui.button('取得・更新',on_click=self.load).props('flat data-testid=ranking-fetch')
+                self.fetch_button=ui.button('取得・更新',on_click=self.refresh).props('flat data-testid=ranking-fetch')
                 self.sort=ui.select(SORTS,value='rank',label='並び順',on_change=lambda _:self.render()).props('outlined dense data-testid=ranking-sort')
+                self._build_hide_manager()
             self.notice=ui.label('条件を選び、取得してください。').props('role=status data-testid=ranking-notice')
+            self._build_hide_status()
             self.gallery=_RankingGallery(self.proxy,card_size=card_size,on_size_change=on_size_change)
             self.gallery.owner=self
             # Initial no-request state is not a successful empty response.
@@ -79,17 +100,15 @@ class RankingView:
         self.notice.set_text('条件を変更しました。最新の一覧を取得します。' if refresh else
                              '条件が変わりました。Enterまたは取得で反映します。現在の一覧は前の条件です。')
         supported=self.mode.value in ('daily','weekly') or bool(self.tag.value)
-        vault=getattr(self.services.ranking_source,'vault',None)
-        status=vault.status() if vault is not None else {}
-        premium=bool(self.tag.value) and status.get('open') and status.get('mode')=='nana7mi'
-        self.r18.set_enabled(supported and not premium)
+        # 元 ranking_tab.py:1109-1110, 1219-1227: 借用プレミアムのタグ検索でも R-18 切替は操作でき、値も保つ
+        # （借用検索は R-18 を API にも結果の絞り込みにも使わないので、結果は変わらない）。
+        self.r18.set_enabled(supported)
         self._syncing_controls=True
         try:
-            if not supported or premium:self.r18.set_value(False)
+            if not supported:self.r18.set_value(False)
         finally:
             self._syncing_controls=False
-        if premium:self.notice.set_text('人気順の借用検索では原 API が R-18 指定を消費しないため、R-18 絞り込みを適用しません。')
-        elif not supported:self.notice.set_text('このランキングでは R-18 指定を利用できません。日間・週間またはタグ検索で指定してください。')
+        if not supported:self.notice.set_text('このランキングでは R-18 指定を利用できません。日間・週間またはタグ検索で指定してください。')
         self._sync_result_controls()
         if refresh and self.active:
             self._condition_pending=True
@@ -194,7 +213,15 @@ class RankingView:
         self.sort.set_enabled(matches and not self.page.query.tag)
     def _retained_notice(self,text):
         return text+(' 前の一覧を保持しています。' if self.page is not None else '')
-    async def load(self,*,append=False):
+    async def refresh(self):
+        """「取得・更新」: 好みの集合を引き直してから取得する（元 _on_refresh, ranking_tab.py:1275-1277）。"""
+        await self.load(refresh_preferences=True)
+    def preferred_tags_in(self,tags):
+        from ..library_filters import normalize_tag
+        return any(normalize_tag(t) in self._preferred for t in tags or ())
+    def preferred_work(self,work_id):
+        return False if self.page is None else any(i.record.work_id==work_id and self.preferred_tags_in(i.record.tags) for i in self.page.items)
+    async def load(self,*,append=False,refresh_preferences=False):
         if not self.active or self.closed or self.busy:return
         epoch=self.epoch
         try:query=self.query()
@@ -209,7 +236,8 @@ class RankingView:
         candidate_provider=None
         old_pin,old_page,old_images=self.pin,self.page,self.proxy.images
         try:
-            candidate=await asyncio.to_thread(self.services.ranking_source.fetch,query,self.page.page+1 if append else 1,
+            candidate=await asyncio.to_thread(self._fetch_with_hidden,query,self.page.page+1 if append else 1,
+                _rebuild=refresh_preferences or not self._preferred_built,
                 **({'previous':self.page} if append and getattr(self.page,'page_session',None) is not None else {}))
             if self.closed or not self.active or epoch!=self.epoch:return
             merged=merge_pages(self.page if append else None,candidate)
@@ -252,6 +280,20 @@ class RankingView:
             if not self.closed:
                 self.gallery.more_button.set_text('もっと見る')
                 self.fetch_button.enable();self._sync_result_controls()
+    def _fetch_with_hidden(self,*args,_rebuild=False,**kwargs):
+        # 取得と同じ作業スレッドで、保存済みの「出さない」集合も読む（通信は取得の 1 回だけ）。
+        value=self.services.ranking_source.fetch(*args,**kwargs)
+        self._load_hidden_now()
+        if _rebuild:self._rebuild_preferred()
+        return value
+    def _rebuild_preferred(self):
+        # 失敗しても印を諦めるだけで、ランキング本体は止めない（元 ranking_tab.py:519-530）。作った扱いにして取得ごとに引かない。
+        try:self._preferred=frozenset(self.services.preferred_ranking_tags())
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning('ランキング: 好みタグの集合を読めませんでした。',exc_info=True)
+            self._preferred=frozenset()
+        self._preferred_built=True
     def render(self):
         if self.closed or self.page is None:return
         if not self._result_matches_conditions():
@@ -259,6 +301,8 @@ class RankingView:
         self.gallery.close_viewer(restore_focus=False)
         old=self.gallery.state
         items=self.page.items if self.page.query.tag else sorted_items(self.page.items,self.sort.value)
+        hidden=self.hidden_work_ids()
+        if hidden:items=tuple(i for i in items if i.record.work_id not in hidden)
         state=GalleryState(tuple(i.record.as_artwork() for i in items),page_size=max(50,len(items)))
         state.set_card_size(old.card_size);state.set_query(old.query);state.generation=old.generation+1;old.close()
         self.gallery.state=self.gallery._viewer_state=state
@@ -285,7 +329,13 @@ class RankingView:
         self.active=bool(active) and not self.closed;self.gallery.set_viewer_active(self.active)
         if not self.active:
             self._condition_pending=False;self._close_calendar()
-        else:self._schedule_first_load()
+        else:
+            self._schedule_first_load()
+            self._schedule_hidden_refresh()
+    def _schedule_hidden_refresh(self):
+        # おすすめ側の「出さない」変更を、タブを開いたときに取り込む（保存済みの読み込みだけ）。
+        try:self._hm().task=asyncio.get_running_loop().create_task(self.refresh_hidden())
+        except RuntimeError:pass
     def _schedule_first_load(self):
         # Original ranking_tab.on_tab_open: the first time the tab becomes
         # visible and nothing is cached, fetch once. Only with a live reader.

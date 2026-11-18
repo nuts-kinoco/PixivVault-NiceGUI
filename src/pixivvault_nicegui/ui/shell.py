@@ -79,6 +79,7 @@ class DemoShell:
         self._banner_dismissed = False
         self._app_conn_timer = None
         self.view_history_button = None
+        self.view_history = None
         self.client.on_delete(self.close)
         ui.add_css(CSS)
         ui.colors(primary=TOKENS["accent"])
@@ -112,7 +113,9 @@ class DemoShell:
                                 # Original gui.py:859: an opened vault takes the fixed UID file at start.
                                 self._reflect_uid_once(self.borrow_dialog)
                             self.borrow_switch=ui.switch('API切り替え',on_change=self.borrow_changed).props(
-                                'dense data-testid=premium-borrow-toggle aria-label=借用プレミアム（API切り替え）')
+                                'dense data-testid=premium-borrow-toggle')
+                            # .props の文字列は全角括弧を含む値を捨てる（Props.parse）。完全な値を直接代入する。
+                            self.borrow_switch.props['aria-label'] = '借用プレミアム（API切り替え）'
                             with self.borrow_switch:ui.tooltip('借用プレミアム')
                             if self.borrow_dialog is not None:
                                 # Shown only while a Pixiv result is unconfirmed (the Shaft tab no longer exists).
@@ -122,7 +125,8 @@ class DemoShell:
                             self.sync_borrow()
                         else:
                             self.borrow_switch=ui.switch('API切り替え',value=False).props(
-                                'dense data-testid=premium-borrow-toggle aria-label=借用プレミアム（API切り替え）')
+                                'dense data-testid=premium-borrow-toggle')
+                            self.borrow_switch.props['aria-label'] = '借用プレミアム（API切り替え）'
                             self.borrow_switch.disable()
                             with self.borrow_switch:ui.tooltip('借用プレミアム: 設定でCookieと保存先を保存し、再起動するとONにできます。')
                         shared = shared_get_scope(services)
@@ -137,9 +141,11 @@ class DemoShell:
                 with ui.element("div").classes("pv-header-actions"):
                     history = ui.button(icon='history', color=None, on_click=lambda _: self.show('history')).classes(
                         'pv-hbtn').props('flat round data-testid=tab-history aria-label=直近のバックアップ')
+                    history_available = self._tab_available('history')
                     with history:
-                        ui.tooltip('直近のバックアップ')
-                    history.set_enabled(self._tab_available('history'))
+                        # 使えないときは理由を出す（タブ側と同じ文言）。
+                        ui.tooltip('直近のバックアップ' if history_available else 'この起動設定では利用できません')
+                    history.set_enabled(history_available)
                     self.buttons['history'] = history
                     self.view_history_button = ui.button(icon='visibility', color=None,
                                                          on_click=self.open_view_history).classes('pv-hbtn').props(
@@ -147,7 +153,7 @@ class DemoShell:
                     with self.view_history_button:
                         self.view_history_badge = ui.badge('').props('floating color=primary')
                         self.view_history_badge.set_visibility(False)
-                        self.view_history_tooltip = ui.tooltip('閲覧履歴')
+                        self.view_history_tooltip = ui.tooltip('閲覧履歴（学習タブ）')
                     from .saved_folder_button import SavedFolderButton
                     self.saved_folder_button = SavedFolderButton(services)
                     self.saved_folder_button.button.classes('pv-hbtn').props('round')
@@ -188,6 +194,8 @@ class DemoShell:
                     self.gallery = RankingView(services, card_size=self.card_size, on_size_change=self.change_card_size)
                 else:
                     self.gallery = GalleryView(services, card_size=self.card_size, on_size_change=self.change_card_size)
+            # 閲覧履歴（元 gui.py の閲覧履歴ボタン）は学習タブを開かずに、起動時から件数を出してダイアログを開く。
+            self._build_view_history()
         self._attach_auth_status()
         # 起動直後のタブは元 TAB_INITIAL（ダウンロード）。--tab で変えられる。
         # ランキングは開いたときに初回取得する（元 on_tab_open）ので、先に有効化しない。
@@ -205,7 +213,7 @@ class DemoShell:
         # Original gui.py cookie_banner: 青枠の情報帯。ヘッダーとタブバーの間。
         with ui.row().classes('pv-cookie-banner items-center no-wrap').props(
                 'role=status data-testid=cookie-banner') as self.cookie_banner:
-            ui.icon('info_outline').style('color:var(--pv-auth-blue)')
+            ui.icon('info_outline').classes('pv-banner-icon').style('color:var(--pv-auth-blue)')
             with ui.column().classes('gap-0').style('flex:1 1 0;min-width:0'):
                 ui.label('【Cookie未連携】').classes('pv-banner-title')
                 ui.label('PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。\n'
@@ -283,7 +291,7 @@ class DemoShell:
                 f'現在保存されているフォロー中データ（お気に入り・ダウンロード状況などを含む）を'
                 f'すべて削除し、アカウント（ID: {request.new_account}）の情報で再取得します。'
                 'この操作は元に戻せません。よろしいですか？'
-            ).style(f'font-size:13px;color:{TOKENS["muted"]}')
+            ).style(f'font-size:13px;color:var(--pv-muted)')
             with ui.row().classes('w-full justify-end'):
                 ui.button('キャンセル', on_click=self._followup.cancel_account_switch).props(
                     'flat no-caps data-testid=account-switch-cancel')
@@ -337,12 +345,19 @@ class DemoShell:
         self.app_conn_label.set_text(text)
         self.app_conn_dot.props(f'data-state={state}')
 
+    def _build_view_history(self):
+        storage = getattr(self.services, 'discovery', None) or getattr(self.services, 'learning', None)
+        if storage is None:
+            return
+        from .view_history_view import HeaderHistoryHost, ViewHistoryView
+        self.view_history = ViewHistoryView(HeaderHistoryHost(self, storage), storage)
+        self.view_history.on_count = self.set_view_history_count
+
     async def open_view_history(self):
-        # 閲覧履歴の画面は学習タブの部品（画像・ビューアー）を使う。ヘッダーのボタンから学習タブを開いて出す。
+        # 元 gui.py: ダイアログを開くだけで、タブは変えない。学習タブは作らず、通信も起こさない。
         if self.closed:
             return
-        self.show('learning')
-        view = getattr(self.learning, 'view_history', None)
+        view = self.view_history
         if view is None or view.storage is None:
             ui.notify('閲覧履歴を利用できません。', type='warning')
             return
@@ -353,7 +368,8 @@ class DemoShell:
             return
         self.view_history_badge.set_text(str(count))
         self.view_history_badge.set_visibility(count > 0)
-        self.view_history_tooltip.set_text(f'閲覧履歴 · {count}件')
+        # 元 gui.py:2466 の文言。
+        self.view_history_tooltip.set_text(f'閲覧履歴（学習タブ・{count}件）')
 
     def sync_borrow(self):
         if self.closed or self.borrow_switch is None:return
@@ -432,6 +448,8 @@ class DemoShell:
                 or (tab == 'recommend' and self.services.recommendations is None)
                 or (tab in ('personal',) and getattr(self.services, 'external_vault', None) is None)):
             return
+        if self.view_history is not None:
+            self.view_history.viewer.close_viewer(restore_focus=False)  # 履歴から開いた作品は別タブへ持ち越さない
         self.gallery.set_viewer_active(False)
         if self.library is not None:
             self.library.set_active(False)
@@ -471,6 +489,7 @@ class DemoShell:
             with self.content:
                 self.recommend_view = RecommendView(self.services, card_size=self.card_size, on_size_change=self.change_card_size, on_open=self.open_recommended,
                     on_navigate_to_learning=lambda: self.show('learning'),
+                    on_search_tag=self.open_premium_search,
                     on_enqueue=self.services.save_explicit_work if self.services.managed_downloads else None)
         if tab == 'personal' and self.personal_view is None:
             from .personal_ranking_view import PersonalRankingView
@@ -620,6 +639,7 @@ class DemoShell:
         if self.get_recovery_view is not None:self.get_recovery_view.close()
         if self.request_status_view is not None:self.request_status_view.close()
         self.gallery.close()
+        if self.view_history is not None:self.view_history.close()
         if self.backup_view is not None:self.backup_view.close()
         if self.library is not None:
             self.library.close()

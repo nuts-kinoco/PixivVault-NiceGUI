@@ -39,7 +39,10 @@ class ViewerController:
             self.close_viewer, self.toggle_details, self.request_image,
             test_id="library-viewer" if library else "gallery-viewer",
             image_test_id="library-viewer-image" if library else "viewer-image",
+            context_hide=not library,
         )
+        self.viewer.on_hide = lambda: self._viewer_hide()
+        self.viewer.on_folder = lambda: self._viewer_open_folder()
         from ..viewer_save import ViewerSave
         self._viewer_save = ViewerSave(services)
         from .pixiv_action_buttons import PixivActionButtons
@@ -115,6 +118,8 @@ class ViewerController:
         self.viewer.set_metadata(art, state.selected_page)
         from ..viewer_metadata import pixiv_url
         self.viewer.author_button.set_enabled(self._viewer_reader() is not None and pixiv_url(art.author_id,author=True) is not None)
+        self.viewer.set_context_target(art, hide_ok=getattr(self.services,'recommendations',None) is not None,
+                                       folder_ok=self._folder_choices() != ())
         page_no = state.selected_page
         self._pixiv_actions.bind(art.work_id, art.author_id, author_name=art.author,
             is_current=lambda: (self._viewer_active and self._viewer_state is state
@@ -453,6 +458,52 @@ class ViewerController:
                     and self._viewer_state.viewer_open and self.detail_open
                     and self._viewer_state.selected_artwork==art and key in self._detail_cache):
                 self._show_detail(self._detail_cache[key])
+
+    def _folder_choices(self):
+        try:return tuple(self.services.saved_folder_choices())
+        except Exception:return ()
+
+    def _viewer_say(self, message: str) -> None:
+        self.viewer.action_status.set_text(message)
+        self.viewer.action_status.set_visibility(bool(message))
+
+    async def _viewer_hide(self):
+        """右クリックの「出さない」。おすすめ・ランキングと同じ非表示データへ 1 件書く。"""
+        state = self._viewer_state
+        art = state.selected_artwork
+        if art is None or state.closed or not self._viewer_active or not state.viewer_open:return
+        from ..hidden_works import HideUnavailable, set_hidden
+        try:hidden = await asyncio.to_thread(set_hidden, self.services, art.work_id, True)
+        except HideUnavailable:
+            self._viewer_say('出さない設定の保存先が未指定のため、変更できません。');return
+        except Exception:
+            self._viewer_say('出さない設定を保存できませんでした。再読込してから再試行してください。');return
+        if state.closed or not self._viewer_active:return
+        self._viewer_say('次回から表示しません。')
+        self._after_viewer_hide(art, hidden)
+
+    def _after_viewer_hide(self, art, hidden) -> None:
+        """出さない確定後。既定ではビューアを閉じる（一覧側の再描画は持ち主が上書きする）。"""
+        self.close_viewer()
+
+    async def _viewer_open_folder(self):
+        """右クリックの「保存フォルダを開く」。保存先が 1 つのときだけ直接開く（複数はヘッダーの選択）。"""
+        from ..desktop_integration import DesktopActionRejected, DesktopUnavailable
+        state = self._viewer_state
+        art = state.selected_artwork
+        if art is None or state.closed or not self._viewer_active:return
+        choices = self._folder_choices()
+        if not choices:
+            self._viewer_say('保存先が未設定です。設定を確認してください。');return
+        if len(choices) > 1:
+            self._viewer_say('保存先が複数あります。ヘッダーの「保存フォルダを開く」から選んでください。');return
+        try:
+            await self.services.open_saved_folder(
+                choices[0], is_current=lambda: self._viewer_active and not state.closed and state.selected_artwork == art)
+        except (DesktopActionRejected, DesktopUnavailable) as error:
+            self._viewer_say(str(error))
+        except Exception:
+            self._viewer_say('保存フォルダを開けませんでした。')
 
     async def _open_author(self, event=None):
         art=self._viewer_state.selected_artwork

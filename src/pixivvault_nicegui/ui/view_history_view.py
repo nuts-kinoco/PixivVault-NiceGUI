@@ -7,6 +7,38 @@ from nicegui import ui
 
 LABELS = {'like':'いいね','superLike':'SuperLike','skip':'見送り','hate':'合わない'}
 
+class _NoticeStatus:
+    """親の status ラベルの代わり。ヘッダー側ではトーストで知らせる。"""
+
+    @staticmethod
+    def set_text(text):
+        ui.notify(text, type='warning')
+
+
+class HeaderHistoryHost:
+    """学習タブの外（ヘッダーの共通部品）から閲覧履歴を出すための親。
+
+    ViewHistoryView が親に求める面（services / root / _images / active / state / discovery / status）だけを
+    持つ。学習タブを作らないので、タブは変わらず、取得や自動通信も起きない。
+    """
+
+    def __init__(self, shell, storage):
+        self._shell = shell
+        self.services = shell.services
+        self.root = shell.content
+        self._images = shell.services.images
+        self.state = SimpleNamespace(generation=0)
+        self.discovery = getattr(shell.services, 'discovery', None)
+        self.status = _NoticeStatus()
+        self.storage = storage
+        # ダイアログ（Quasar のオーバーレイ）はビューアーより前面に出るので、作品を開くときは閉じる。
+        self.close_dialog_on_open = True
+
+    @property
+    def active(self):
+        return not self._shell.closed
+
+
 class ViewHistoryView:
     def __init__(self, parent, storage):
         self.parent, self.storage = parent, storage
@@ -15,7 +47,8 @@ class ViewHistoryView:
         self.rows = []
         self.shown = 50
         self.generation = 0
-        # 入口はヘッダー右端の VISIBILITY ボタン（shell.open_view_history）へ移した。ここは件数の保持だけ。
+        # 入口はヘッダー右端の VISIBILITY ボタン（shell.open_view_history）。ヘッダー側は HeaderHistoryHost を親に
+        # この部品を単独で持ち、学習タブは開かない。学習タブの部品は記録（record_view）と件数の更新に使う。
         self.on_count = None
         self.button = ui.button('閲覧履歴', on_click=self.open).props('flat data-testid=view-history-inner')
         self.button.set_visibility(False)
@@ -137,6 +170,7 @@ class ViewHistoryView:
         if record:
             try:await self.storage.record_view(wid)
             except Exception:self.parent.status.set_text('閲覧履歴を記録できませんでした。作品表示は続けます。')
+            else:await self.refresh()  # ヘッダーの件数へ反映する
         pin = None
         try:
             if self.parent.discovery is not None:
@@ -156,6 +190,7 @@ class ViewHistoryView:
             selection = SimpleNamespace(closed=False, artwork=artwork, images=pin,
                 close=(lambda:None) if pin is self.parent.services.images else pin.close)
             self.viewer.show(selection,card_size='large')
+            if getattr(self.parent,'close_dialog_on_open',False):self.dialog.close()
         except Exception:
             if pin is not None and pin is not self.parent.services.images:pin.close()
             self.parent.status.set_text('作品を表示できません。取得状態を確認してください。')

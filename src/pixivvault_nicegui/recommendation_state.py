@@ -177,6 +177,26 @@ class FrozenRecommendationSource:
         if immutable_copy_signature(self.path)!=self.signature:raise RecommendationError()
         return result
 
+    def preferred_tags(self):
+        """世間ランキングの好みタグ印用。読み取り専用の複製の生カウントだけを読む。"""
+        from .ranking_preferred_tags import preferred_tag_set
+        if immutable_copy_signature(self.path)!=self.signature:raise RecommendationError()
+        conn=sqlite3.connect(self.path.as_uri()+'?mode=ro&immutable=1',uri=True)
+        try:
+            conn.execute('PRAGMA query_only=ON')
+            conn.setlimit(sqlite3.SQLITE_LIMIT_LENGTH,MAX_TOTAL_UTF8_BYTES)
+            conn.execute('BEGIN')
+            tables={r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            if 'discovery_preference' not in tables:raise RecommendationError()
+            columns=('superlike_count','like_count','skip_count','hate_count','shown_count',
+                     'open_count','bookmark_count','seed_saved','seed_bookmarked')
+            prefs={}
+            for row in _rows(conn,'SELECT tag,display_tag,'+','.join(columns)+' FROM discovery_preference'):
+                prefs[row[0]]={k:(v or 0) for k,v in zip(columns,row[2:])}
+        finally:conn.close()
+        if immutable_copy_signature(self.path)!=self.signature:raise RecommendationError()
+        return preferred_tag_set(prefs)
+
     def trend_rows(self):
         """Exact original trend calculation over the immutable legacy counts only."""
         from .discovery_ranking import trend_rows, GENERIC_EXTRA_SETTING_KEY

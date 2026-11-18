@@ -21,12 +21,15 @@ CSS = """
   --pv-page:#111418; --pv-on-surface:#e1e2e8; --pv-on-surface-variant:#c3c6cf; --pv-primary:#9ec7f9; --pv-primary-rgb:158,199,249; --pv-container:#32353a; --pv-container-pill:#191c20;
   --pv-download-accent-text:#0096FA; --pv-download-danger-text:#f16c6c;
   --pv-auth-red:#ef5350; --pv-auth-green:#66bb6a; --pv-auth-yellow:#ffee58; --pv-auth-blue:#42a5f5; --pv-auth-primary:#0096FA;
+  --pv-tab-selected:#2d3844; --pv-fill:#0096FA; --pv-on-fill:#ffffff; --pv-on-fill-lib:#e8e8ef;
   --pv-bg:var(--pv-bg-vault); --pv-surface:var(--pv-bg-surface); --pv-raised:var(--pv-bg-card); --pv-border:var(--pv-border-vault); --pv-text:var(--pv-text-main); --pv-muted:var(--pv-text-muted); --pv-overlay:var(--pv-glass-bg); }
 /* ライトは元(暗色カードが残る)と違い、本人の裁定で明るいカードにする。 */
 body.body--light { --pv-page:#f8f9ff; --pv-bg-vault:#f3f5fb; --pv-bg-surface:#ffffff; --pv-bg-card:#eef1f8; --pv-border-vault:#c7cdd7; --pv-glass-bg:rgba(255,255,255,.96); --pv-text-main:#191c20; --pv-text-muted:#4b5058; --pv-text-elsewhere:#3a3f47;
   --pv-on-surface:#191c20; --pv-on-surface-variant:#43474e; --pv-primary:#2a5886; --pv-primary-rgb:42,88,134; --pv-container:#e1e2e8; --pv-container-pill:#f2f3fa;
   --pv-download-accent-text:#0065a8; --pv-download-danger-text:#ad2626;
   --pv-auth-red:#c62828; --pv-auth-green:#2e7d32; --pv-auth-yellow:#7a5c00; --pv-auth-blue:#1565c0; --pv-auth-primary:#00639b;
+  /* ライトは主色の塗り・文字を 4.5:1 以上にする。Quasar の主色（ui.colors が body に直接置く）も !important で差し替える。 */
+  --pv-tab-selected:#d3dde9; --pv-fill:#00639b; --pv-on-fill:#ffffff; --pv-on-fill-lib:#ffffff; --q-primary:var(--pv-fill) !important;
   /* var() は宣言した要素で解決されるので、別名は光側でも宣言し直す（:root の別名は暗色のまま残る）。 */
   --pv-bg:var(--pv-bg-vault); --pv-surface:var(--pv-bg-surface); --pv-raised:var(--pv-bg-card); --pv-border:var(--pv-border-vault); --pv-text:var(--pv-text-main); --pv-muted:var(--pv-text-muted); --pv-overlay:var(--pv-glass-bg); }
 
@@ -47,30 +50,41 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family: sys
 .pv-auth[data-tone=red] { color:var(--pv-auth-red); } .pv-auth[data-tone=green] { color:var(--pv-auth-green); }
 .pv-auth[data-tone=yellow] { color:var(--pv-auth-yellow); } .pv-auth[data-tone=blue] { color:var(--pv-auth-blue); }
 .pv-auth[data-tone=primary] { color:var(--pv-auth-primary); }
-.pv-conn-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px; min-height:32px; margin-top:8px; font-size:12px; color:var(--pv-on-surface-variant); }
+.pv-conn-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px; min-height:32px; margin-top:9.4px; font-size:12px; color:var(--pv-on-surface-variant); }
 .pv-conn-row .q-toggle__label, .pv-conn-row .q-toggle { font-size:12px; color:var(--pv-on-surface-variant); }
+/* 元の Flet Switch の実測 43x26（トラック）。 */
+.pv-conn-row .q-toggle__inner { width:43px; min-width:43px; height:26px; padding:0; font-size:26px; }
+.pv-conn-row .q-toggle__track { height:26px; border-radius:13px; }
+.pv-conn-row .q-toggle__thumb { top:3px; width:20px; height:20px; }
+[dir="ltr"] .pv-conn-row .q-toggle__thumb { left:3px; }
+[dir="ltr"] .pv-conn-row .q-toggle__inner--truthy .q-toggle__thumb { left:20px; }
 .pv-conn-dot { width:10px; height:10px; border-radius:50%; background:var(--pv-on-surface-variant); flex:0 0 10px; }
 .pv-conn-dot[data-state=waiting] { background:var(--pv-auth-green); } .pv-conn-dot[data-state=off] { background:var(--pv-auth-red); }
 .q-btn.pv-hbtn, .pv-hbtn { width:40px; height:40px; min-width:40px; min-height:40px; padding:0; border-radius:50%; color:var(--pv-on-surface-variant) !important; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
 .pv-hbtn .q-icon { font-size:24px; }
 .q-btn.pv-hbtn { color:var(--pv-on-surface-variant) !important; }
-.pv-hbtn.pv-tab-active, .q-btn.pv-hbtn.pv-tab-active { background:rgba(var(--pv-primary-rgb), .12) !important; color:var(--pv-primary) !important; }
-.pv-cookie-banner { width:100%; flex-shrink:0; box-sizing:border-box; background:var(--pv-container); border:1px solid #42a5f5; border-radius:12px; padding:10px 14px; gap:12px; }
+.pv-hbtn.pv-tab-active, .q-btn.pv-hbtn.pv-tab-active { background:var(--pv-tab-selected) !important; color:var(--pv-primary) !important; }
+.pv-cookie-banner { width:100%; flex-shrink:0; box-sizing:border-box; background:var(--pv-container); border:1px solid #42a5f5; border-radius:12px; padding:10px 14px; gap:12px; margin-top:2.5px; }
+.pv-banner-icon { font-size:24px; }
 .pv-cookie-banner .pv-banner-title { font-weight:700; font-size:14px; color:var(--pv-on-surface); }
 .pv-cookie-banner .pv-banner-body { font-size:14px; line-height:1.5; white-space:pre-line; color:var(--pv-on-surface-variant); }
 .pv-pill { display:inline-flex; align-items:center; gap:8px; padding:8px 18px; border-radius:20px; background:var(--pv-container-pill); color:var(--pv-primary); font-size:14px; text-decoration:none; white-space:nowrap; }
 .pv-nav { display:flex; flex-wrap:wrap; gap:6px 8px; width:100%; flex-shrink:0; overflow:visible; }
 .pv-tab { font-family:inherit; font-size:14px; font-weight:500; text-transform:none; width:162px; min-width:162px; flex:0 0 162px; height:32px; min-height:32px; padding:0 10px; border-radius:20px !important; box-sizing:border-box; }
 .pv-tab .q-btn__content { flex-wrap:nowrap; white-space:nowrap; }
+.pv-tab .q-icon { font-size:18px; }
+/* キーボードフォーカスは主色の 2px 枠。Quasar の .no-outline（レイヤ内の outline:0 !important）は outline では上書きできないので、
+   同じ見た目の box-shadow 輪も重ねる（<a> は outline が効く）。 */
+.pv-tab:focus-visible, .pv-hbtn:focus-visible { outline:2px solid var(--pv-primary); outline-offset:2px; box-shadow:0 0 0 2px var(--pv-page), 0 0 0 4px var(--pv-primary); }
 .pv-nav .q-btn.pv-tab { background:transparent !important; border:0 !important; color:var(--pv-on-surface) !important; }
-.pv-nav .q-btn.pv-tab.pv-tab-active { background:rgba(var(--pv-primary-rgb), .12) !important; color:var(--pv-primary) !important; }
+.pv-nav .q-btn.pv-tab.pv-tab-active { background:var(--pv-tab-selected) !important; color:var(--pv-primary) !important; }
 .pv-tab-disabled { opacity:.48; cursor:not-allowed; }
 .pv-toolbar { background:var(--pv-surface); padding:16px; border-radius:12px; width:100%; display:flex; flex-wrap:wrap; align-items:center; gap:12px; flex-shrink:0; }
 .pv-search { flex:1 1 240px; min-width:160px; }
 .pv-toolbar .q-btn.pv-size-button { background:transparent !important; color:var(--pv-text) !important; border:1px solid transparent !important; }
-.pv-toolbar .q-btn.pv-size-selected { background:#0096FA !important; color:#ffffff !important; border:1px solid var(--pv-border) !important; border-radius:8px; }
+.pv-toolbar .q-btn.pv-size-selected { background:var(--pv-fill) !important; color:var(--pv-on-fill) !important; border:1px solid var(--pv-border) !important; border-radius:8px; }
 .pv-learning .q-btn.pv-judgment { color:var(--pv-text) !important; border:1px solid var(--pv-border) !important; border-radius:8px; }
-.pv-learning .q-btn.pv-judgment-like { background:#0096FA !important; color:#ffffff !important; border-color:#0096FA !important; }
+.pv-learning .q-btn.pv-judgment-like { background:var(--pv-fill) !important; color:var(--pv-on-fill) !important; border-color:var(--pv-fill) !important; }
 .pv-learning .q-btn.pv-judgment-superLike { background:rgba(0,150,250,.25) !important; border-color:#0096FA !important; }
 .pv-learning .q-btn.pv-undo { background:transparent !important; color:var(--pv-muted) !important; }
 .pv-counter { color:var(--pv-muted); font-size:13px; }
@@ -85,7 +99,16 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family: sys
 .pv-grid .pv-card-meta { flex:0 0 auto; min-width:0; padding:0; display:flex; flex-direction:column; gap:3px; }
 .pv-grid .pv-card-title { font-size:11px; font-weight:400; line-height:1.2; white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
 .pv-grid .pv-card-author { font-size:10px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pv-candidates-box { flex:1 1 0; min-width:0; overflow-x:auto; }
+.pv-grid .pv-card-head { flex:0 0 auto; }
+.pv-grid .pv-card-heart { color:var(--pv-pixiv-blue); }
+body.body--light .pv-grid .pv-card-heart { color:var(--pv-fill); }
+.pv-chip { display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border-radius:8px; background:var(--pv-raised); border:1px solid var(--pv-border); color:var(--pv-text); font-size:11px; cursor:pointer; }
+.pv-chip:hover { background:var(--pv-border); }
+.pv-chip:focus-visible { outline:2px solid var(--pv-primary); outline-offset:2px; }
+.pv-chip .pv-chip-x { font-size:10px; color:var(--pv-muted); }
 .pv-card:hover { background:var(--pv-border); }
+.pv-menu-icon { order:-1; margin-right:12px; align-self:center; opacity:.8; }
 .pv-thumb { display:block; width:100%; aspect-ratio:1 / 1; min-width:0; background:var(--pv-surface); border-bottom:1px solid var(--pv-border); overflow:hidden; }
 .pv-thumb img { width:100%; height:100%; object-fit:contain !important; }
 .pv-art { aspect-ratio:var(--pv-art-ratio, 1); background:var(--pv-raised); display:flex; align-items:center; justify-content:center; color:var(--pv-muted); font-size:12px; border-bottom:1px solid var(--pv-border); }
@@ -147,7 +170,7 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family: sys
 .pv-library-heading { font-size:15px; font-weight:700; }
 .pv-library-subviews { gap:2px; flex-wrap:nowrap; }
 .pv-library .q-btn { color:var(--pv-text) !important; font-size:11px; }
-.pv-library .pv-library-subview-selected, .pv-library .pv-size-selected { background:#0096FA !important; border-radius:8px; }
+.pv-library .q-btn.pv-library-subview-selected, .pv-library .q-btn.pv-size-selected { background:var(--pv-fill) !important; color:var(--pv-on-fill-lib) !important; border-radius:8px; }
 .pv-library .pv-card-size { font-size:9px; }
 .pv-library-search { flex:1 1 180px; min-width:160px; max-width:300px; }
 .pv-library-search .q-field__control, .pv-library-search .q-field__marginal { min-height:34px; height:34px; }

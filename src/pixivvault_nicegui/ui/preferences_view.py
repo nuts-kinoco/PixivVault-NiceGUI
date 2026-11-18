@@ -231,7 +231,7 @@ class PreferencesView:
             self.export_status=ui.label(self.export_message).props('data-testid=preferences-export-status role=status')
             # 元 gui.py:2420: 閉じるボタンの上に、中央寄せの小さいバージョン表記。
             ui.label(f'ver {__version__}').props('data-testid=preferences-version').style(
-                'font-size:11px;color:#8a8a99;text-align:center;width:100%')
+                'font-size:11px;color:var(--pv-muted);text-align:center;width:100%')
             with ui.row():
                 ui.button('保存',on_click=lambda:self.save() if self._epoch==epoch and self.opened else None).props('data-testid=preferences-save').set_enabled(bool(self.enabled_keys))
                 ui.button('変更を破棄して再読込',on_click=self.open).props('data-testid=preferences-reload')
