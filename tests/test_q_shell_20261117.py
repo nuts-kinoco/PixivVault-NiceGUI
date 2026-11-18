@@ -183,8 +183,9 @@ def test_title_and_tabs_use_sans_and_the_original_title_size():
     assert re.search(r'\.pv-dialog-title\s*\{[^}]*Yu Mincho', CSS)
 
 
-def test_selected_tab_is_twelve_percent_primary_over_transparent_unselected():
-    assert re.search(r'\.pv-tab\.pv-tab-active\s*\{[^}]*rgba\(var\(--pv-primary-rgb\),\s*\.12\)', CSS)
+def test_selected_tab_ground_is_the_measured_original_color_over_transparent_unselected():
+    # 2026-11-18: 「PRIMARY の 12%」の推定をやめ、元の実測色（ダーク #2d3844 / ライト #d3dde9）に合わせた。
+    assert re.search(r'\.pv-tab\.pv-tab-active\s*\{[^}]*background:\s*var\(--pv-tab-selected\)', CSS)
     plain = re.search(r'\.pv-nav \.q-btn\.pv-tab\s*\{([^}]*)\}', CSS).group(1)
     assert 'transparent' in plain and 'var(--pv-on-surface)' in plain
 
@@ -195,7 +196,7 @@ def test_shell_text_contrast_is_at_least_4_5(theme, tokens):
     pairs = {
         'on-surface/page': (tokens['--pv-on-surface'], page),
         'on-surface-variant/page (header icons, connection label)': (tokens['--pv-on-surface-variant'], page),
-        'tab selected text/12% tint': (tokens['--pv-primary'], blend(tokens['--pv-primary'], page, .12)),
+        'tab selected text/selected ground': (tokens['--pv-primary'], tokens['--pv-tab-selected']),
         'cookie banner title/container': (tokens['--pv-on-surface'], tokens['--pv-container']),
         'cookie banner body/container': (tokens['--pv-on-surface-variant'], tokens['--pv-container']),
         'banner open button text/pill': (tokens['--pv-primary'], tokens['--pv-container-pill']),

@@ -36,7 +36,9 @@ ORIG_TABS = {"download": (10, 139), "queue": (159, 96), "failed": (265, 124), "d
 ORIG = {
     "title_x": 10, "title_y": 38, "title_h": 46, "auth_y": 94, "conn_y": 135,
     "icon_centers_x": [1025, 1070, 1115, 1160, 1205, 1250], "icon_center_y": 100, "icon_pitch": 45,
-    "banner_y": 175, "banner_h": 83, "banner_x": 10, "tab_y": 269, "tab_h": 32,
+    "banner_y": 174, "banner_h": 85, "banner_x": 10, "tab_y": 269, "tab_h": 32,  # 2026-11-18: 画素で再実測（x=600 の列: 枠 174〜258）
+    # 元の画像（1280x800 ダーク/ライト共通の位置）で、アイコン等の「描画の外接矩形」を測る範囲 (x0, y0, x1, y1)。
+    "ink_boxes": {"tab_icon": (18, 272, 46, 298), "banner_icon": (18, 200, 50, 250), "switch": (325, 126, 382, 164)},
     "bg": {"dark": "#111418", "light": "#f8f9ff"},
     "selected_tab_bg": {"dark": "#2d3844", "light": "#d3dde9"},
     "selected_tab_text": {"dark": "#9ec7f9", "light": "#3d6692"},
@@ -68,6 +70,8 @@ MEASURE_JS = r"""() => {
     banner: {...box(t('cookie-banner')), bg: css(t('cookie-banner'), 'backgroundColor'),
              border: css(t('cookie-banner'), 'borderTopColor')},
     nav: {...box(nav), scrollWidth: nav.scrollWidth, clientWidth: nav.clientWidth},
+    tab_icon: box(q('.pv-tab .q-icon')), banner_icon: box(q('.pv-cookie-banner .q-icon')),
+    toggle: box(q('.pv-conn-row .q-toggle__inner')),
     page: {bg: css(document.body, 'backgroundColor'), scrollWidth: document.documentElement.scrollWidth,
            clientWidth: document.documentElement.clientWidth},
     content_top: box(q('.pv-content')).y,
@@ -93,6 +97,22 @@ def pixel(png: Path, x: int, y: int) -> str:
     from PIL import Image
     r, g, b = Image.open(png).convert("RGB").getpixel((x, y))
     return "#%02x%02x%02x" % (r, g, b)
+
+
+def ink(png: Path, region, thr=40):
+    """region 内で、左上の画素（地）と違う画素の外接矩形 (x, y, w, h)。画素実測用。"""
+    from PIL import Image
+    im = Image.open(png).convert("RGB")
+    x0, y0, x1, y1 = (int(v) for v in region)
+    bg = im.getpixel((x0, y0))
+    xs, ys = [], []
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            p = im.getpixel((x, y))
+            if sum(abs(p[i] - bg[i]) for i in range(3)) > thr:
+                xs.append(x)
+                ys.append(y)
+    return (min(xs), min(ys), max(xs) - min(xs) + 1, max(ys) - min(ys) + 1) if xs else None
 
 
 def capture(args, out: Path):
@@ -172,9 +192,15 @@ def functional(page):
     page.get_by_test_id("backup-history").first.wait_for(state="visible", timeout=20000)
     out["バックアップ(history ボタン)で画面が開く"] = True
     out["history ボタンが選択表示(aria-current)"] = page.get_by_test_id("tab-history").get_attribute("aria-current") == "page"
+    before = page.evaluate("document.querySelector('[aria-current=page]')?.dataset.testid")
+    out["閲覧履歴: 押す前の件数バッジ（起動時に反映。0 件なら出ない）"] = page.evaluate(
+        "[...document.querySelectorAll('[data-testid=view-history-open] .q-badge')].filter(e => e.getClientRects().length).map(e => e.innerText).join(',') || 'バッジなし（履歴 0 件）'")
     page.get_by_test_id("view-history-open").click()
     page.get_by_test_id("view-history-dialog").wait_for(state="visible", timeout=20000)
-    out["閲覧履歴ボタンで学習タブ上に履歴ダイアログが開く"] = page.get_by_test_id("tab-learning").get_attribute("aria-current") == "page"
+    # 元 gui.py: ダイアログを開くだけでタブは変わらない（学習タブへ移らない）。
+    out["閲覧履歴ボタンでダイアログが開き、タブは変わらない"] = (
+        page.evaluate("document.querySelector('[aria-current=page]')?.dataset.testid") == before
+        and page.get_by_test_id("tab-learning").get_attribute("aria-current") != "page")
     page.get_by_test_id("view-history-close").click()
     page.wait_for_timeout(500)
     link = page.get_by_test_id("pixiv-home-link")
@@ -210,12 +236,25 @@ def compare(results, out: Path):
             ("ロゴ サイズ/太さ", "32 / 700", f"{d['title']['size']} / {d['title']['weight']}"),
             ("認証ラベル y(相対)", ORIG["auth_y"] - o_base, round(d["auth"]["y"] - d["base"], 1)),
             ("接続行 y(相対)", ORIG["conn_y"] - o_base - 6, round(d["conn"]["y"] - d["base"], 1)),
-            ("Cookie 帯 y(相対)", ORIG["banner_y"] - o_base, round(d["banner"]["y"] - d["base"], 1)),
+            ("Cookie 帯 y(絶対)", ORIG["banner_y"], round(d["banner"]["y"], 1)),
             ("Cookie 帯 高さ", ORIG["banner_h"], d["banner"]["h"]),
             ("Cookie 帯 x/幅", f"10 / {w - 20}", f"{d['banner']['x']} / {d['banner']['w']}"),
-            ("タブ y(相対)", ORIG["tab_y"] - o_base, round(d["tabs"][0]["y"] - d["base"], 1)),
+            ("タブ y(絶対)", ORIG["tab_y"], round(d["tabs"][0]["y"], 1)),
             ("タブ 高さ", ORIG["tab_h"], d["tabs"][0]["h"]),
         ]
+        # 画素の外接矩形（元の画像と製品の画像を同じ方法で測る）。w x h。
+        p_png, o_png = out / f"{key}.png", out / f"orig_{key}.png"
+        if o_png.exists():
+            def wh(box):
+                return f"{box[2]}x{box[3]}" if box else "測れず"
+            pad = lambda b, dx0, dy0, dx1, dy1: (int(b["x"]) + dx0, int(b["y"]) + dy0, int(b["x"] + b["w"]) + dx1, int(b["y"] + b["h"]) + dy1)
+            ti, bi, tg = d.get("tab_icon"), d.get("banner_icon"), d.get("toggle")
+            ib = ORIG["ink_boxes"]
+            rows += [
+                ("タブアイコン 描画寸法", wh(ink(o_png, ib["tab_icon"])), wh(ink(p_png, pad(ti, -3, -3, 3, 3))) if ti else "なし"),
+                ("Cookie 帯の info アイコン 描画寸法", wh(ink(o_png, ib["banner_icon"])), wh(ink(p_png, pad(bi, -3, -3, 3, 3))) if bi else "なし"),
+                ("API切り替えスイッチ 寸法", wh(ink(o_png, ib["switch"], 30)), wh(ink(p_png, pad(tg, -3, -3, 3, 3), 30)) if tg else "なし"),
+            ]
         md += [table(rows, ["項目", "元", "製品"]), ""]
         icon_rows = []
         for i, ic in enumerate(d["icons"]):
@@ -233,9 +272,11 @@ def compare(results, out: Path):
         nav = d["nav"]
         md += ["タブ（x/幅）", "", table(tab_rows, ["タブ", "アイコン", "元 x/幅", "製品 x/幅", "文字色", "地"]), "",
                f"タブバー: 幅 {nav['clientWidth']}px に対し内容 {nav['scrollWidth']}px"
-               + ("（バー内スクロール。画面外のタブ "
+               + (f"（バー内スクロール。画面外のタブ "
                   f"{sum(1 for t in d['tabs'] if t['x'] + t['w'] > nav['x'] + nav['clientWidth'] + 1)} 個）"
-                  if nav['scrollWidth'] > nav['clientWidth'] else "（1 行に収まる）"),
+                  if nav['scrollWidth'] > nav['clientWidth'] else
+                  (f"（{len({t['y'] for t in d['tabs']})} 段に折り返し。全タブが画面内）"
+                   if len({t['y'] for t in d['tabs']}) > 1 else "（1 段。折り返しなし。全タブが画面内）")),
                f"ページ横スクロール: scrollWidth {d['page']['scrollWidth']} / clientWidth {d['page']['clientWidth']}", ""]
         sel = next(t for t in d["tabs"] if t["active"])
         unsel = next(t for t in d["tabs"] if not t["active"])
