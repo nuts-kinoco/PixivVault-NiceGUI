@@ -76,7 +76,7 @@ CSS = """
 .pv-ud-star { flex:0 0 22px; width:22px; height:22px; display:flex; align-items:center; justify-content:center; color:var(--pv-muted); cursor:pointer; }
 .pv-ud-star .q-icon { font-size:15px; }
 .pv-ud-star[data-on=true] { color:var(--pv-download-accent-text); }
-.pv-ud-check:focus-visible, .pv-ud-row:focus-visible, .pv-ud-star:focus-visible { outline:2px solid #0096FA; outline-offset:-2px; }
+.pv-ud-check:focus-visible, .pv-ud-row:focus-visible, .pv-ud-star:focus-visible { outline:2px solid #0096FA; outline-offset:2px; }
 .pv-ud-c-name { flex:0 0 210px; width:210px; font-size:12.5px; color:var(--pv-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pv-ud-running .pv-ud-row[data-picked=false] .pv-ud-c-name { color:var(--pv-muted); }
 .pv-ud-c-id { flex:0 0 96px; width:96px; font-size:11.5px; font-family:Consolas, monospace; color:var(--pv-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }

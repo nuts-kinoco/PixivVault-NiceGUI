@@ -7,7 +7,7 @@ import sys
 import time
 import urllib.request
 
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import Error, expect, sync_playwright
 
 
 def serve(port, root):
@@ -56,7 +56,10 @@ def check_keyboard(tmp_path):
                         raise
                     time.sleep(.2)
             with sync_playwright() as pw:
-                browser = pw.chromium.launch(channel='msedge', headless=True)
+                try:
+                    browser = pw.chromium.launch(channel='msedge', headless=True)
+                except Error:
+                    browser = pw.chromium.launch(headless=True)
                 page = browser.new_page()
                 page.goto(url)
                 row = page.locator('[data-testid=unified-author-row]').first
@@ -84,6 +87,7 @@ def check_keyboard(tmp_path):
                 header.focus()
                 page.keyboard.press('Space')
                 expect(header).to_have_attribute('data-state', 'all')
+                assert header.evaluate("e => parseFloat(getComputedStyle(e).outlineOffset)") > 0
                 page.keyboard.press('Enter')
                 expect(header).to_have_attribute('data-state', 'empty')
                 browser.close()
