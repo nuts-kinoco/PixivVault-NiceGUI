@@ -390,6 +390,8 @@ class QueueView:
             self._log_expanded = not self._log_expanded
             self.log_heading.set_visibility(not self._log_expanded)
             self.log_container.set_visibility(not self._log_expanded)
+            if not self._log_expanded:
+                self._scroll_log_to_end()
 
     def _refresh_log(self):
         log = getattr(self.services, 'queue_log', None)
@@ -402,6 +404,9 @@ class QueueView:
             for entry in entries:
                 ui.label(f'[{entry.timestamp}] {entry.message}').classes(
                     'pv-queue-log-line pv-queue-log-' + entry.level)
+        self._scroll_log_to_end()
+
+    def _scroll_log_to_end(self):
         from nicegui import core
         if core.loop is not None:
             self.client.run_javascript(f"requestAnimationFrame(() => requestAnimationFrame(() => {{ const e=document.getElementById('{self.log_container.html_id}'); if(e) e.scrollTop=e.scrollHeight; }}))")

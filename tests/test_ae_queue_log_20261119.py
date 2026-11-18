@@ -42,26 +42,33 @@ def test_extension_enqueue_logs_only_after_acceptance():
     owner = ExtensionApplication.__new__(ExtensionApplication)
     owner.services = SimpleNamespace(closing=False, queue_log=log)
     owner._lock = RLock()
-    owner.jobs = SimpleNamespace(enqueue=lambda *args: SimpleNamespace(job_id='job'))
+    owner.jobs = SimpleNamespace(enqueue_with_status=lambda *args: (SimpleNamespace(job_id='job'), True))
     assert owner.enqueue(ExtensionDownload('work', '123')) == 'job'
     assert log.snapshot()[-1].message == '[拡張機能連携] DL命令を受信: work (id=123)'
-    owner.jobs.enqueue = lambda *args: (_ for _ in ()).throw(RuntimeError())
+    owner.jobs.enqueue_with_status = lambda *args: (_ for _ in ()).throw(RuntimeError())
     with pytest.raises(RuntimeError):
         owner.enqueue(ExtensionDownload('work', '123'))
     assert len(log.snapshot()) == 1
 
 
 def test_extension_execution_reports_real_result_without_exception_details():
+    from threading import RLock
     from pixivvault_nicegui.extension_application import ExtensionApplication
     from pixivvault_nicegui.queue_log import QueueLog
     log = QueueLog()
     owner = ExtensionApplication.__new__(ExtensionApplication)
+    owner._lock = RLock()
     owner.services = SimpleNamespace(queue_log=log)
     job = SimpleNamespace(target_id='{"type":"work","work_id":"123"}')
     owner._run_command = lambda *_: 'done'
     assert owner._run(job, object()) == 'done'
+    assert not log.snapshot()
+    job.state = 'done'
+    owner._terminal_log(job)
     assert log.snapshot()[-1].message == '[拡張機能連携] ダウンロード完了: work (id=123)'
     owner._run_command = lambda *_: (_ for _ in ()).throw(RuntimeError('private details'))
     with pytest.raises(RuntimeError):
         owner._run(job, object())
+    job.state = 'error'
+    owner._terminal_log(job)
     assert log.snapshot()[-1].message == '[拡張機能連携] ダウンロード失敗: work (id=123)'

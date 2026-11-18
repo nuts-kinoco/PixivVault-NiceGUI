@@ -53,7 +53,8 @@ class ExtensionApplication:
             db.execute("CREATE TABLE IF NOT EXISTS work_media_routes("
                        "parent TEXT PRIMARY KEY,work_id TEXT NOT NULL,"
                        "media TEXT NOT NULL CHECK(media IN ('work','novel')))")
-        self.jobs = JobService(job_request_runner(self._run), self.root / 'jobs.sqlite3')
+        self.jobs = JobService(job_request_runner(self._run), self.root / 'jobs.sqlite3',
+                               terminal_callback=self._terminal_log)
         for job in self.jobs.snapshot():
             if job.kind != 'extension-command':
                 self.jobs.close()
@@ -80,13 +81,14 @@ class ExtensionApplication:
         parse_download(payload)
         target = json.dumps(payload,sort_keys=True,separators=(',',':'))
         with self._lock:
-            job_id = self.jobs.enqueue('extension-command', target,
+            job, created = self.jobs.enqueue_with_status('extension-command', target,
                 ('小説 ' if command.is_novel else '作者 ' if command.kind=='author' else '作品 ')+command.target_id,
-                uuid4().hex).job_id
-        log = getattr(self.services, 'queue_log', None)
-        if log is not None:
-            log.append(f'[拡張機能連携] DL命令を受信: {command.kind} (id={command.target_id})', level='success')
-        return job_id
+                uuid4().hex)
+            log = getattr(self.services, 'queue_log', None)
+            if log is not None:
+                label = 'DL' if created else 'DL(既存ジョブ)'
+                log.append(f'[拡張機能連携] {label}命令を受信: {command.kind} (id={command.target_id})', level='success')
+            return job.job_id
 
     def _binding(self, parent, key, child=None):
         with self._lock:
@@ -223,22 +225,18 @@ class ExtensionApplication:
             raise RuntimeError('unknown saved media job')
 
     def _run(self, job, context):
+        return self._run_command(job, context)
+
+    def _terminal_log(self, job):
         from .extension_bridge import parse_download
         command = parse_download(json.loads(job.target_id))
         log = getattr(self.services, 'queue_log', None)
-        try:
-            result = self._run_command(job, context)
-        except JobCancelled:
-            if log is not None:
-                log.append(f'[拡張機能連携] ダウンロード停止: {command.kind} (id={command.target_id})')
-            raise
-        except Exception:
-            if log is not None:
-                log.append(f'[拡張機能連携] ダウンロード失敗: {command.kind} (id={command.target_id})', level='error')
-            raise
-        if log is not None:
-            log.append(f'[拡張機能連携] ダウンロード完了: {command.kind} (id={command.target_id})', level='success')
-        return result
+        if log is None:
+            return
+        label, level = {'done': ('完了', 'success'), 'error': ('失敗', 'error'),
+                        'stopped': ('停止', 'normal')}[job.state]
+        with self._lock:
+            log.append(f'[拡張機能連携] ダウンロード{label}: {command.kind} (id={command.target_id})', level=level)
 
     def _run_command(self, job, context):
         from .extension_bridge import parse_download
