@@ -728,6 +728,7 @@ class ManagedGenerations:
                             or not _SHA.fullmatch(journal['parent'])):
                         raise ValueError()
                     loaded.generation, loaded.parent_digest = journal['generation'], journal['parent']
+                self._check_disk_generations(loaded.generation)
                 head = self._read_head()
                 if head is not None:
                     if (head['digest'] != loaded.base_digest or head['id'] != loaded.jid
@@ -1030,6 +1031,39 @@ class ManagedGenerations:
             if any(entry['work_id'] not in base_ids for entry in entries):
                 raise ValueError()
 
+    def _check_disk_generations(self, generation):
+        """A retained newer journal or mark proves this index was rolled back."""
+        for path in self.root.glob('active-generations-*.*'):
+            match = _JOURNAL_NAME.fullmatch(path.name)
+            if match is None:
+                continue
+            if match.group(2) == 'journal':
+                _safe_path(path, file=True)
+                with _open_shared(path) as stream:
+                    header = stream.readline(4097)
+                if len(header) > 4096 or not header.endswith(b'\n'):
+                    raise ValueError()
+                record = json.loads(header, object_pairs_hook=_json_unique)
+                if (type(record) is not dict or record.get('id') != match.group(1)
+                        or record.get('kind') != _JOURNAL_KIND):
+                    raise ValueError()
+                if record.get('version') == 2 and record.keys() == {'id', 'kind', 'version'}:
+                    continue
+                if (record.keys() != {'id', 'kind', 'version', 'generation', 'parent'}
+                        or record['version'] != 3 or type(record['parent']) is not str
+                        or not _SHA.fullmatch(record['parent'])):
+                    raise ValueError()
+            else:
+                record = json.loads(_read_shared(path, 4096), object_pairs_hook=_json_unique)
+                if type(record) is not dict or record.get('id') != match.group(1):
+                    raise ValueError()
+                if record.keys() == {'id', 'records', 'chain'}:
+                    continue
+                if record.keys() != {'id', 'records', 'chain', 'generation'}:
+                    raise ValueError()
+            if type(record.get('generation')) is not int or not 1 <= record['generation'] <= generation:
+                raise ValueError()
+
     def _verify_cached_v5(self, loaded, head):
         """Validate the cached prefix and mark, then verify only genuinely new entries."""
         mark = json.loads(_read_shared(self._mark_file(loaded.jid), 4096), object_pairs_hook=_json_unique)
@@ -1145,6 +1179,7 @@ class ManagedGenerations:
                                     (head is not None and (head['digest'] != loaded.base_digest or
                                      head['generation'] != loaded.generation or head['id'] != loaded.jid))):
                                 raise ValueError()
+                            self._check_disk_generations(loaded.generation)
                             self._verify_cached_v5(loaded, head)
                         except Exception:
                             if _identity(self.index_path) != loaded.base_sig:
@@ -2033,6 +2068,11 @@ class ManagedGenerations:
 
     def _visibility_signature(self):
         head = self._read_head()
+        if head is not None:
+            try:
+                self._check_disk_generations(head['generation'])
+            except (OSError, ValueError, TypeError, KeyError, UnicodeError, RecursionError):
+                raise ManagedDownloadError('active generation index rejected') from None
         anchor = None if head is None else (head['generation'], head['id'], head['digest'])
         return self._file_identity(self.index_path), anchor
 
