@@ -217,7 +217,8 @@ class RecommendationAcquisition:
                         fresh=replace(prior,deleted=False,unavailable=not bool(prior.thumbnail_url))
                     values.append(fresh)
                     if not fresh.unavailable and fresh.author_id not in state['hidden_authors']:shown+=1
-                env['cache']['superlike']=[encode(RecommendationGroup('superlike',previous[0].title,tuple(values)))]
+                chunks=[values[i:i+MAX_RECORDS] for i in range(0,len(values),MAX_RECORDS)] or [[]]
+                env['cache']['superlike']=[encode(RecommendationGroup('superlike',previous[0].title,tuple(chunk))) for chunk in chunks]
             return self.store(env,revision)
 
     def add_trend(self,tag,display,revision):

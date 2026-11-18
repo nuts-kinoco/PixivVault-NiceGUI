@@ -117,7 +117,8 @@ def test_oversized_superlike_update_does_not_commit_unreadable_cache(tmp_path):
     c = RecommendationController(Many(), RecommendationPreferences(tmp_path / 'prefs'), acquisition=fetch)
     try:
         state = c.refresh()
-        with pytest.raises(RecommendationError): c.update(state['revision'])
-        assert c.refresh()['revision'] == state['revision']
+        updated = c.update(state['revision'])
+        assert updated['revision'] == state['revision'] + 1
+        assert c.refresh()['revision'] == updated['revision']
     finally:
         c.close()
