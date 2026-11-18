@@ -510,6 +510,7 @@ class FailedRecordsView:
         accepted_ids = []
         self._retry_batch_summary = None
         interrupted = False
+        unobserved_accept = False
         bulk = total > 1
         def current():
             return (not self.closed and self._retry_generation == generation
@@ -555,6 +556,11 @@ class FailedRecordsView:
                         try:
                             accepted_job = await asyncio.shield(task)
                             break
+                        except asyncio.CancelledError:
+                            # The shielded admission may still commit after
+                            # this caller leaves. Do not count it as rejected.
+                            unobserved_accept = True
+                            raise
                         except DownloadQueueCapacityReached:
                             # No job/intention was accepted by this exception.
                             # Keep the exact DTO and operation ID; never issue
@@ -617,7 +623,9 @@ class FailedRecordsView:
             self._retry_busy = False
             self._release_retry_owner()
             from ..shared_events import emit_shared
-            if interrupted:
+            if unobserved_accept:
+                emit_shared(self.services, f'失敗リストの再投入を中断しました（受理済み{accepted}件・受付結果未確認1件）。')
+            elif interrupted:
                 emit_shared(self.services, f'失敗リストの再投入を中断しました（受理{accepted}件）。')
             else:
                 emit_shared(self.services, f'失敗リストの再投入: 受理{accepted}件・失敗{failed}件。',

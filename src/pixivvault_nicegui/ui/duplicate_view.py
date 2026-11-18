@@ -523,8 +523,22 @@ class DuplicateView:
         self.busy=True;self.generation+=1;generation=self.generation;self.sync();self.notice.set_text('スキャンしています…')
         self.skipped_notice.set_text('');self.skipped_notice.set_visibility(False)
         self.refresh_scan_progress()
+        def perform_scan():
+            from ..shared_events import emit_shared
+            try:
+                result=self.source.scan()
+            except Exception:
+                if not self.closed:
+                    emit_shared(self.event_services, '重複整理スキャンの結果を確認できません。', level='error')
+                raise
+            unreadable=len(result.unreadable); skipped=len(result.skipped_authors)
+            if unreadable or skipped:
+                emit_shared(self.event_services,
+                            f'重複整理スキャン: 読取失敗{unreadable}件・上限超過{skipped}作者。',
+                            level='error' if unreadable else 'normal')
+            return result
         try:
-            result=await asyncio.to_thread(self.source.scan)
+            result=await asyncio.to_thread(perform_scan)
             if self.closed or not self.active or generation!=self.generation:return
             self.scan_result=result;self.selections={}
             self.skipped_notice.set_text('\n'.join(f'上限超過: 作者ID {aid} · {count}枚（上限2000枚）'

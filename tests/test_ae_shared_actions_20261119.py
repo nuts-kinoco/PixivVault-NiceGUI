@@ -133,3 +133,50 @@ async def test_recent_backup_refresh_logs_confirmed_empty_without_paths():
             assert [e.message for e in log.snapshot()]==['直近のバックアップ: 0件の履歴を表示しました。']
             view.close()
     finally:client.delete()
+
+
+@pytest.mark.asyncio
+async def test_duplicate_scan_reports_fixed_counts_without_paths():
+    from pixivvault_nicegui.ui.duplicate_view import DuplicateView
+    log=QueueLog()
+    source=NS(scan=lambda:NS(groups=(),scanned_files=2,unreadable=('synthetic-private-path',),skipped_authors=()))
+    client=Client(ui.page('/_ae_shared_duplicate_scan'))
+    try:
+        with client:
+            view=DuplicateView(source,event_services=NS(shared_log=log));view.active=True
+            await view.scan()
+            assert [e.message for e in log.snapshot()]==['重複整理スキャン: 読取失敗1件・上限超過0作者。']
+            assert 'synthetic-private-path' not in log.snapshot()[0].message
+            view.close()
+    finally:client.delete()
+
+
+@pytest.mark.asyncio
+async def test_cancelled_retry_inflight_does_not_claim_zero_accepted(tmp_path):
+    from threading import Event
+    from test_q07_novel_retry import create
+    from pixivvault_nicegui.ui.failed_records_view import FailedRecordsView
+    service,reader,_=create(tmp_path)
+    entered=Event();release=Event();original=service.enqueue_legacy_failed_original
+    def delayed(*args,**kwargs):
+        entered.set();assert release.wait(5)
+        return original(*args,**kwargs)
+    service.enqueue_legacy_failed_original=delayed
+    client=Client(ui.page('/_ae_shared_retry_cancel_pending'))
+    task=None
+    try:
+        with client:
+            view=FailedRecordsView(service)
+            await view._refresh(view.state.begin_refresh())
+            task=asyncio.create_task(view._retry_records((view.state.records[0],)))
+            assert await asyncio.to_thread(entered.wait,3)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):await task
+            messages=[e.message for e in service.shared_log.snapshot()]
+            assert messages==['失敗リストの再投入を中断しました（受理済み0件・受付結果未確認1件）。']
+            release.set()
+            await asyncio.gather(*tuple(view._pending_accepts),return_exceptions=True)
+            assert len(service.shared_log.snapshot())==1
+            view.close()
+    finally:
+        release.set();reader.release.set();client.delete();service.close()
