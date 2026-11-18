@@ -787,6 +787,7 @@ class LearningView:
             if self.services.closing:
                 self.close()
             elif self.state.complete_save(command):
+                self._count_superlike(command.judgment.choice, undo=command.undo)
                 if self.discovery is not None:
                     if not command.undo:self._set_trend_open(False)
                     try:
@@ -805,7 +806,6 @@ class LearningView:
                     except Exception:
                         self._notice='判定は保存済みです。候補の並び替えを更新できませんでした。'
                 self.refresh()
-                self._count_superlike(command.judgment.choice, undo=command.undo)
                 if command.undo:
                     self.toast.hide()
                 else:
@@ -816,6 +816,12 @@ class LearningView:
                         if not self.state.closed:self._render_trend(trend)
                     except Exception:
                         if not self.state.closed:self.trend_label.set_text('判定は保存済みです。傾向を読み込めませんでした。')
+
+    def reset_superlike_count(self) -> None:
+        """??????????????0????? discovery_tab.py:5669 ?3-3-7??"""
+        self._superlike_used = 0
+        self.superlike_used_label.set_text("")
+        self.superlike_used_label.set_visibility(False)
 
     def _count_superlike(self, choice, *, undo: bool) -> None:
         """この画面で使った SuperLike の回数（元 discovery_tab.py:1874-1877, 1996-1998）。再読込では戻さない。"""
