@@ -144,7 +144,12 @@ def test_upgrade_marker_failure_preserves_legacy_journal(tmp_path, monkeypatch):
         with pytest.raises(ManagedDownloadError):
             publish(writer, root, '1001')
     assert (root / 'active-generations.journal').exists()
+    new_index = idx.read_bytes()
+    assert set(mg.ManagedGenerations(root).entries()) == set(baseline) | {'1000'}
     idx.write_bytes(old_index)
+    with pytest.raises(ManagedDownloadError, match='index rejected'):
+        mg.ManagedGenerations(root)
+    idx.write_bytes(new_index)
     reopened = mg.ManagedGenerations(root)
     assert set(reopened.entries()) == set(baseline) | {'1000'}
     publish(reopened, root, '1001')

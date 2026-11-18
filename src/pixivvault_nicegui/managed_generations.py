@@ -21,7 +21,7 @@ from threading import RLock
 from uuid import uuid4
 
 from .fs_paths import logical_path, native_io_path
-from .managed_root_writer import fenced_writer
+from .managed_root_writer import fenced_writer, writer_fence
 from .managed_downloads import (IDENTITY, MARKER, MAX_RECEIPT_BYTES, MAX_PAGE_BYTES,
                                 MAX_PAGES, MAX_PIXELS, MAX_TOTAL, _image,
                                 ManagedDownloadError, ManagedPageQuarantined,
@@ -57,6 +57,7 @@ _JOURNAL_FILE = 'active-generations-%s.journal'
 _MARK_FILE = 'active-generations-%s.mark'
 _V5_COMMITTED = 'active-generations.v5-committed'
 _V5_DONE = b'pixivvault generation v5 committed\n'
+_V5_HEAD = 'active-generations.head'
 _JOURNAL_NAME = re.compile(r'active-generations-([a-f0-9]{32})\.(journal|mark)\Z')
 _JOURNAL_RETAIN_SECONDS = 120.0       # how long a folded-away journal stays for readers of the old index
 _JOURNAL_RECORD_ESTIMATE = 600           # bytes one journal record takes, rounded up
@@ -268,7 +269,7 @@ class _Loaded:
                  'exclusions', 'operations', 'out_sig', 'journal_sig', 'journal_offset',
                  'journal_chain', 'journal_records', 'stale_journal', 'acc', 'shared',
                  'jid', 'jpath', 'legacy_journal', 'gen_sig', 'mark_records', 'fold_failed', 'header_bytes',
-                 'journal_hasher', 'journal_chains')
+                 'journal_hasher', 'journal_chains', 'generation', 'parent_digest')
 
     def __init__(self):
         self.version = None
@@ -283,6 +284,7 @@ class _Loaded:
         self.mark_records = 0       # `records` the mark file holds (the journal may be ahead of it)
         self.journal_hasher = None
         self.journal_chains = []
+        self.generation = self.parent_digest = None
         self.fold_failed = False    # the last attempt to fold the journal into the index failed
         self.acc = 0
 
@@ -341,8 +343,60 @@ class ManagedGenerations:
         self._visibility_cache = None
         self._loaded = None
         self._unconfirmed_operations = set()
+        self._recover_if_pending()
         # A malformed existing index must block startup, never be reset.
         self.entries()
+
+    def _read_head(self):
+        path = self.root / _V5_HEAD
+        if _identity(path) is None:
+            return None
+        try:
+            head = json.loads(_read_shared(path, 4096), object_pairs_hook=_json_unique)
+            if (type(head) is not dict or head.keys() != {'generation', 'id', 'digest', 'candidate'}
+                    or type(head['generation']) is not int or head['generation'] < 1
+                    or type(head['id']) is not str or re.fullmatch(r'[a-f0-9]{32}', head['id']) is None
+                    or type(head['digest']) is not str or not _SHA.fullmatch(head['digest'])
+                    or type(head['candidate']) is not str
+                    or re.fullmatch(r'active-[a-f0-9]{32}\.tmp', head['candidate']) is None):
+                raise ValueError()
+            return head
+        except (OSError, ValueError, TypeError, KeyError, UnicodeError):
+            raise ManagedDownloadError('active generation index rejected') from None
+
+    def _recover_head(self):
+        """Finish a committed index replacement interrupted after its head was persisted."""
+        # Readers may already hold another application lock. Never wait for a
+        # writer which could be waiting for that lock in the opposite order.
+        with writer_fence(self.root, blocking=False):
+            self._recover_head_locked()
+
+    def _recover_head_locked(self):
+        head = self._read_head()
+        if head is None:
+            return
+        try:
+            if (_identity(self.index_path) is not None and
+                    hashlib.sha256(_read_shared(self.index_path, _MAX_INDEX_BYTES)).hexdigest() == head['digest']):
+                return
+            candidate = self.stage_dir / head['candidate']
+            data = _read_shared(candidate, _MAX_INDEX_BYTES)
+            if hashlib.sha256(data).hexdigest() != head['digest']:
+                raise ValueError()
+            packet = json.loads(data, object_pairs_hook=_json_unique)
+            pointer = packet['journal']
+            if (packet['version'] != 5 or pointer['id'] != head['id']
+                    or pointer['generation'] != head['generation']):
+                raise ValueError()
+            _replace_retrying(candidate, self.index_path)
+            _fsync_dir(self.root)
+        except (OSError, ValueError, TypeError, KeyError, UnicodeError):
+            raise ManagedDownloadError('active generation index rejected') from None
+
+    def _recover_if_pending(self):
+        head = self._read_head()
+        if head is not None and _identity(self.stage_dir / head['candidate']) is not None:
+            self._recover_head()
 
     @staticmethod
     def _read_receipt(path, pieces, folders):
@@ -622,11 +676,27 @@ class ManagedGenerations:
                 loaded.operations = packet['quarantine_operations']
             if loaded.version == 5:
                 journal = packet['journal']
-                if (type(journal) is not dict or journal.keys() != {'id'} or type(journal['id']) is not str
+                if (type(journal) is not dict or journal.keys() not in ({'id'}, {'id', 'generation', 'parent'})
+                        or type(journal['id']) is not str
                         or re.fullmatch(r'[a-f0-9]{32}', journal['id']) is None):
                     raise ValueError()
                 loaded.jid = journal['id']
+                if 'generation' in journal:
+                    if (type(journal['generation']) is not int or journal['generation'] < 1
+                            or type(journal['parent']) is not str
+                            or not _SHA.fullmatch(journal['parent'])):
+                        raise ValueError()
+                    loaded.generation, loaded.parent_digest = journal['generation'], journal['parent']
+                head = self._read_head()
+                if head is not None:
+                    if (head['digest'] != loaded.base_digest or head['id'] != loaded.jid
+                            or head['generation'] != loaded.generation):
+                        raise ValueError()
+                elif loaded.generation is not None:
+                    raise ValueError()
             else:
+                if self._read_head() is not None:
+                    raise ValueError()
                 pending_upgrade = False
                 marker_path = self.root / _V5_COMMITTED
                 if _identity(marker_path) is not None:
@@ -643,14 +713,21 @@ class ManagedGenerations:
                         raise ValueError()
                     header = json.loads(raw_journal, object_pairs_hook=_json_unique)
                     jid = path.name[len('active-generations-'):-len('.journal')]
-                    if (re.fullmatch(r'[a-f0-9]{32}', jid) is None or
-                            header != {'id': jid, 'kind': _JOURNAL_KIND, 'version': 2}):
+                    legacy_header = {'id': jid, 'kind': _JOURNAL_KIND, 'version': 2}
+                    newer = (type(header) is dict and header.keys() == {'id', 'kind', 'version', 'generation', 'parent'}
+                             and header['id'] == jid and header['kind'] == _JOURNAL_KIND and header['version'] == 3
+                             and type(header['generation']) is int and header['generation'] > 0
+                             and type(header['parent']) is str and _SHA.fullmatch(header['parent']))
+                    if re.fullmatch(r'[a-f0-9]{32}', jid) is None or (header != legacy_header and not newer):
                         raise ValueError()
                     mark_path = self._mark_file(jid)
                     if _identity(mark_path) is not None:
                         mark = json.loads(_read_shared(mark_path, 4096), object_pairs_hook=_json_unique)
-                        if mark != {'id': jid, 'records': 0,
-                                    'chain': hashlib.sha256(raw_journal).hexdigest()}:
+                        expected_mark = {'id': jid, 'records': 0,
+                                         'chain': hashlib.sha256(raw_journal).hexdigest()}
+                        if newer:
+                            expected_mark['generation'] = header['generation']
+                        if mark != expected_mark:
                             raise ValueError()
                 for path in self.root.glob('active-generations-*.mark'):
                     jid = path.name[len('active-generations-'):-len('.mark')]
@@ -659,6 +736,8 @@ class ManagedGenerations:
             self._quarantine_fields(loaded.qpacket(), verify_payloads=True, tolerate_missing=False)
             loaded.indexed = self._check_entries(packet['entries'], loaded.version, folders)
             self._replay_journal(loaded, folders)
+            if loaded.version == 5 and loaded.generation is None:
+                self._check_old_v5_journals(loaded, folders)
             if (loaded.version != 5 and not pending_upgrade
                     and (any(self.root.glob('active-generations-*.journal'))
                          or any(self.stage_dir.glob('journal-*.tmp')))):
@@ -777,13 +856,19 @@ class ManagedGenerations:
             raise ValueError()
         header = raw[:newline + 1]
         meta = json.loads(header, object_pairs_hook=_json_unique)
-        if (type(meta) is not dict or meta.keys() != {'id', 'kind', 'version'} or meta['id'] != jid
-                or meta['kind'] != _JOURNAL_KIND or meta['version'] != 2):
+        expected_header = ({'id': jid, 'kind': _JOURNAL_KIND, 'version': 2} if loaded.generation is None else
+                           {'id': jid, 'kind': _JOURNAL_KIND, 'version': 3,
+                            'generation': loaded.generation, 'parent': loaded.parent_digest})
+        if (meta != expected_header or type(meta.get('version')) is not int or
+                (loaded.generation is not None and type(meta.get('generation')) is not int)):
             raise ValueError()
         chain0 = hashlib.sha256(header).hexdigest()
         entries, chain, seq, end, chains = self._parse_journal(raw[len(header):], chain0, 0, folders, 5)
         mark = json.loads(mark_bytes, object_pairs_hook=_json_unique)
-        if (type(mark) is not dict or mark.keys() != {'id', 'records', 'chain'} or mark['id'] != jid
+        mark_keys = {'id', 'records', 'chain'} if loaded.generation is None else {'id', 'records', 'chain', 'generation'}
+        if (type(mark) is not dict or mark.keys() != mark_keys or mark['id'] != jid
+                or (loaded.generation is not None and (type(mark['generation']) is not int
+                                                       or mark['generation'] != loaded.generation))
                 or type(mark['records']) is not int or mark['records'] < 0):
             raise ValueError()
         recorded = mark['records']
@@ -810,6 +895,39 @@ class ManagedGenerations:
         loaded.journal_hasher = hashlib.sha256(raw[:loaded.journal_offset])
         loaded.journal_chains = [chain0, *chains]
 
+    def _check_old_v5_journals(self, loaded, folders):
+        """Refuse an old pointer that omits work committed in a surviving old journal.
+
+        Old v5 did not record fold order. Its surviving journals can prove that a
+        work is missing, but cannot prove which update to an existing work is newest.
+        """
+        for path in self.root.glob('active-generations-*.journal'):
+            jid = path.name[len('active-generations-'):-len('.journal')]
+            if jid == loaded.jid:
+                continue
+            raw = _read_shared(path, _MAX_JOURNAL_BYTES)
+            newline = raw.find(b'\n')
+            if newline < 0:
+                raise ValueError()
+            header = raw[:newline + 1]
+            meta = json.loads(header, object_pairs_hook=_json_unique)
+            if meta != {'id': jid, 'kind': _JOURNAL_KIND, 'version': 2}:
+                # A staged new-format journal is not evidence of an old publication.
+                if (type(meta) is dict and meta.get('version') == 3 and not raw[newline + 1:]):
+                    continue
+                raise ValueError()
+            if _identity(self._mark_file(jid)) is None and raw == header:
+                continue  # a sibling installed before its first mark, with no publication
+            chain0 = hashlib.sha256(header).hexdigest()
+            entries, chain, seq, _end, chains = self._parse_journal(raw[len(header):], chain0, 0, folders, 5)
+            mark = json.loads(_read_shared(self._mark_file(jid), 4096), object_pairs_hook=_json_unique)
+            if (type(mark) is not dict or mark.keys() != {'id', 'records', 'chain'} or mark['id'] != jid
+                    or type(mark['records']) is not int or not 0 <= mark['records'] <= seq
+                    or mark['chain'] != ([chain0, *chains][mark['records']])):
+                raise ValueError()
+            if any(entry['work_id'] not in loaded.indexed for entry in entries):
+                raise ValueError()
+
     def _verify_cached_v5(self, loaded):
         """Validate the cached prefix and mark, then verify only genuinely new entries."""
         mark = json.loads(_read_shared(self._mark_file(loaded.jid), 4096), object_pairs_hook=_json_unique)
@@ -826,7 +944,10 @@ class ManagedGenerations:
         else:
             entries, chain, seq, end, chains = [], loaded.journal_chain, loaded.journal_records, 0, []
         all_chains = loaded.journal_chains + chains
-        if (type(mark) is not dict or mark.keys() != {'id', 'records', 'chain'}
+        mark_keys = {'id', 'records', 'chain'} if loaded.generation is None else {'id', 'records', 'chain', 'generation'}
+        if (type(mark) is not dict or mark.keys() != mark_keys
+                or (loaded.generation is not None and (type(mark['generation']) is not int
+                                                       or mark['generation'] != loaded.generation))
                 or mark['id'] != loaded.jid or type(mark['records']) is not int
                 or not 0 <= mark['records'] <= seq or mark['chain'] != all_chains[mark['records']]):
             raise ValueError()
@@ -878,7 +999,9 @@ class ManagedGenerations:
             return
         try:
             mark = json.loads(_read_shared(self._mark_file(loaded.jid), 4096), object_pairs_hook=_json_unique)
-            if (mark.keys() == {'id', 'records', 'chain'} and mark['id'] == loaded.jid
+            mark_keys = {'id', 'records', 'chain'} if loaded.generation is None else {'id', 'records', 'chain', 'generation'}
+            if (mark.keys() == mark_keys and mark['id'] == loaded.jid
+                    and (loaded.generation is None or mark['generation'] == loaded.generation)
                     and type(mark['records']) is int and loaded.mark_records <= mark['records'] <= loaded.journal_records):
                 loaded.mark_records = mark['records']
         except Exception:
@@ -910,6 +1033,11 @@ class ManagedGenerations:
                 if loaded.version == 5 and _identity(self.index_path) == loaded.base_sig:
                     for attempt in range(8):
                         try:
+                            head = self._read_head()
+                            if ((head is None and loaded.generation is not None) or
+                                    (head is not None and (head['digest'] != loaded.base_digest or
+                                     head['generation'] != loaded.generation or head['id'] != loaded.jid))):
+                                raise ValueError()
                             self._verify_cached_v5(loaded)
                         except Exception:
                             if _identity(self.index_path) != loaded.base_sig:
@@ -976,17 +1104,20 @@ class ManagedGenerations:
         return {wid: dict(entry) for wid, entry in loaded.indexed.items()}
 
     def entries(self, *, verify_quarantine_payloads=True, tolerate_missing=False) -> dict[str, dict[str, str]]:
+        self._recover_if_pending()
         with self._lock:
             loaded, _ = self._checked(verify_quarantine_payloads=verify_quarantine_payloads,
                                       tolerate_missing=tolerate_missing)
             return {wid: dict(entry) for wid, entry in loaded.active.items()}
 
     def entry_count(self) -> int:
+        self._recover_if_pending()
         with self._lock:
             return len(self._checked()[0].active)
 
     def capacity(self) -> dict:
         """What is stored and how much more fits (entry count and index bytes, whichever binds)."""
+        self._recover_if_pending()
         with self._lock:
             loaded = self._checked()[0]
             used = loaded.base_bytes + loaded.journal_offset
@@ -1006,6 +1137,7 @@ class ManagedGenerations:
     def assert_room(self, work_id: str, *, indexed: bool = True) -> None:
         """Refuse a new work before it is downloaded when the store could not record it afterwards."""
         wid = _id(work_id)
+        self._recover_if_pending()
         with self._lock:
             loaded = self._checked()[0]
             if wid in loaded.active:
@@ -1026,6 +1158,7 @@ class ManagedGenerations:
 
     @fenced_writer
     def _fold_for_room(self) -> None:
+        self._recover_if_pending()
         with self._lock:
             loaded = self._checked()[0]
             if loaded.version == 5 and loaded.journal_offset >= _MAX_JOURNAL_BYTES - _JOURNAL_SLACK:
@@ -1036,6 +1169,7 @@ class ManagedGenerations:
 
     def current(self, work_id: str) -> dict[str, str] | None:
         wid = _id(work_id)
+        self._recover_if_pending()
         with self._lock:
             entry = self._checked()[0].active.get(wid)
             return dict(entry) if entry is not None else None
@@ -1048,6 +1182,7 @@ class ManagedGenerations:
         the rename still leaves this pointer, so missing-index corruption can
         be distinguished from a fresh v1-only managed root on restart.
         """
+        self._recover_if_pending()
         with self._lock:
             if _identity(self.index_path) is not None:
                 self._checked()  # Never trust a preexisting malformed index.
@@ -1084,6 +1219,7 @@ class ManagedGenerations:
                 raise ManagedDownloadError('generation compare-and-swap rejected')
         elif expected_previous_relative_receipt is not None:
             raise ManagedDownloadError('generation compare-and-swap rejected')
+        self._recover_if_pending()
         with self._lock:
             loaded, (exclusions, operations, enabled) = self._checked()
             before = loaded.active.get(wid)
@@ -1142,7 +1278,7 @@ class ManagedGenerations:
                     loaded.fold_failed = True
                     raise ManagedDownloadError('generation journal full', reason_code='storage_capacity') from None
             try:
-                if loaded.version != 5 or loaded.legacy_journal:
+                if loaded.version != 5 or loaded.legacy_journal or loaded.generation is None:
                     # The first save after an older index (or an older journal): one full rewrite as v5,
                     # which an older build refuses instead of misreading. It cannot be skipped, so it
                     # waits longer than the routine fold below (and holds the writer fence meanwhile).
@@ -1169,7 +1305,8 @@ class ManagedGenerations:
             # The journal is ahead of its mark (a crash, or an earlier mark write that failed). Catch
             # the mark up BEFORE adding anything, so the journal is never more than one record ahead
             # of what the mark can vouch for. If that fails nothing is appended and the save fails.
-            self._write_mark(loaded.jid, loaded.journal_records, loaded.journal_chain)
+            self._write_mark(loaded.jid, loaded.journal_records, loaded.journal_chain,
+                             generation=loaded.generation)
             loaded.mark_records = loaded.journal_records
         seq = loaded.journal_records + 1
         chain = hashlib.sha256((loaded.journal_chain + _canonical(entry).decode('ascii')).encode('ascii')).hexdigest()
@@ -1193,7 +1330,7 @@ class ManagedGenerations:
         # The save is durable now. The mark only lets the next open notice a lost journal; if it
         # cannot be written this time the save still stands, and the next save writes it first.
         try:
-            self._write_mark(loaded.jid, seq, chain)
+            self._write_mark(loaded.jid, seq, chain, generation=loaded.generation)
             loaded.mark_records = seq
         except Exception:
             pass
@@ -1213,23 +1350,27 @@ class ManagedGenerations:
                 time.sleep(delay)
                 delay = min(delay * 1.5, 0.05)
 
-    def _write_mark(self, jid, records, chain, patience=1.0):
+    def _write_mark(self, jid, records, chain, patience=1.0, *, generation=None):
         _safe_path(self.stage_dir)
         temporary = self.stage_dir / ('mark-' + uuid4().hex + '.tmp')
-        _write(temporary, _canonical({'id': jid, 'records': records, 'chain': chain}))
+        mark = {'id': jid, 'records': records, 'chain': chain}
+        if generation is not None:
+            mark['generation'] = generation
+        _write(temporary, _canonical(mark))
         _fsync_dir(self.stage_dir)
         _replace_retrying(temporary, self._mark_file(jid), patience)
 
-    def _new_journal(self, patience=5.0):
+    def _new_journal(self, patience=5.0, *, generation, parent):
         """A fresh, empty journal and its mark, durable before any index refers to them."""
         jid = uuid4().hex
-        header = _canonical({'id': jid, 'kind': _JOURNAL_KIND, 'version': 2}) + b'\n'
+        header = _canonical({'id': jid, 'kind': _JOURNAL_KIND, 'version': 3,
+                             'generation': generation, 'parent': parent}) + b'\n'
         _safe_path(self.stage_dir)
         temporary = self.stage_dir / ('journal-' + uuid4().hex + '.tmp')
         _write(temporary, header)
         _fsync_dir(self.stage_dir)
         _replace_retrying(temporary, self._journal_file(jid), patience)
-        self._write_mark(jid, 0, hashlib.sha256(header).hexdigest(), patience)
+        self._write_mark(jid, 0, hashlib.sha256(header).hexdigest(), patience, generation=generation)
         _fsync_dir(self.root)
         return jid, header
 
@@ -1447,6 +1588,7 @@ class ManagedGenerations:
 
     def state_snapshot(self, *, verify_quarantine_payloads=True, tolerate_missing=False):
         """Entries as a read-only view; the revision is an order-free digest kept incrementally."""
+        self._recover_if_pending()
         with self._lock:
             loaded, (exclusions, operations, enabled) = self._checked(
                 verify_quarantine_payloads=verify_quarantine_payloads, tolerate_missing=tolerate_missing)
@@ -1467,6 +1609,7 @@ class ManagedGenerations:
         Never use this to excuse a missing unselected page. Every returned proof
         comes from a validated manifest and immutable original receipt.
         """
+        self._recover_if_pending()
         with self._lock:
             loaded, _ = self._checked()
             if loaded.qversion != 4:
@@ -1507,6 +1650,13 @@ class ManagedGenerations:
         _replace_retrying(temporary, marker)
         _fsync_dir(self.root)
 
+    def _write_head(self, head):
+        temporary = self.stage_dir / ('head-' + uuid4().hex + '.tmp')
+        _write(temporary, _canonical(head))
+        _fsync_dir(self.stage_dir)
+        _replace_retrying(temporary, self.root / _V5_HEAD)
+        _fsync_dir(self.root)
+
     def _ensure_v5_committed(self):
         """Keep durable evidence before a v5 publication or a journal can be folded away."""
         marker = self.root / _V5_COMMITTED
@@ -1528,11 +1678,13 @@ class ManagedGenerations:
                 self._write_v5_marker(b'upgrade:' + loaded.base_digest.encode('ascii') + b'\n')
             # Every full rewrite of a v5 root starts a new, empty journal (the entries it held are in
             # this index), and quarantine commits keep the v5 guard instead of downgrading it.
-            journal = self._new_journal(patience)
+            generation = (loaded.generation or 0) + 1 if loaded is not None else 1
+            parent = loaded.base_digest if loaded is not None and loaded.base_digest is not None else '0' * 64
+            journal = self._new_journal(patience, generation=generation, parent=parent)
             packet = {'version': 5, 'entries': packet['entries'],
                       'exclusions': packet.get('exclusions', {}),
                       'quarantine_operations': packet.get('quarantine_operations', {}),
-                      'journal': {'id': journal[0]}}
+                      'journal': {'id': journal[0], 'generation': generation, 'parent': parent}}
         data = _canonical(packet)
         if len(data) > _MAX_INDEX_BYTES:
             raise ManagedDownloadError('generation index size exceeded', reason_code='storage_capacity')
@@ -1540,6 +1692,11 @@ class ManagedGenerations:
         temporary = self.stage_dir / ('active-' + uuid4().hex + '.tmp')
         _write(temporary, data)
         _fsync_dir(self.stage_dir)
+        if journal is not None:
+            # The durable head is the commit point. If index replacement is interrupted,
+            # the named, hash-checked staged index is rolled forward at the next open.
+            self._write_head({'generation': generation, 'id': journal[0],
+                              'digest': hashlib.sha256(data).hexdigest(), 'candidate': temporary.name})
         _safe_path(self.index_path, file=True)
         _replace_retrying(temporary, self.index_path, patience)
         self._visibility_cache = None
@@ -1571,6 +1728,7 @@ class ManagedGenerations:
             loaded.mark_records = 0
             if journal is not None:
                 loaded.jid = journal[0]
+                loaded.generation, loaded.parent_digest = generation, parent
                 loaded.jpath = self._journal_file(journal[0])
                 loaded.journal_chain = hashlib.sha256(journal[1]).hexdigest()
                 loaded.journal_hasher = hashlib.sha256(journal[1])
@@ -1581,11 +1739,13 @@ class ManagedGenerations:
                 loaded.journal_sig = _identity(loaded.jpath)
             else:
                 loaded.jid = loaded.jpath = loaded.journal_chain = loaded.journal_sig = None
+                loaded.generation = loaded.parent_digest = None
                 loaded.journal_records = loaded.journal_offset = 0
 
     @fenced_writer
     def prepare_for_quarantine(self) -> None:
         """Install the v3 guard before sealing any quarantine operation."""
+        self._recover_if_pending()
         with self._lock:
             state = self.state_snapshot()
             if state['quarantine_enabled']:
@@ -1605,6 +1765,7 @@ class ManagedGenerations:
         _sha(expected_revision)
         _sha(manifest_sha256)
         _sha(selection_sha256)
+        self._recover_if_pending()
         with self._lock:
             state = self.state_snapshot()
             if (not state['quarantine_enabled'] or state['revision'] != expected_revision
@@ -1647,6 +1808,7 @@ class ManagedGenerations:
     def transition_quarantine(self, operation_id: str, *, expected_revision: str, state: str):
         if type(state) is not str or state not in ('moved', 'restoring'):
             raise ManagedDownloadError('quarantine transition rejected')
+        self._recover_if_pending()
         with self._lock:
             current = self.state_snapshot()
             operation = current['operations'].get(operation_id)
@@ -1676,6 +1838,7 @@ class ManagedGenerations:
         if type(operation_id) is not str or not _OPERATION_ID.fullmatch(operation_id):
             raise ManagedDownloadError('quarantine operation rejected')
         _sha(expected_revision)
+        self._recover_if_pending()
         with self._lock:
             state = self.state_snapshot(verify_quarantine_payloads=False)
             operation = state['operations'].get(operation_id)
@@ -1698,6 +1861,7 @@ class ManagedGenerations:
         if type(operation_id) is not str or not _OPERATION_ID.fullmatch(operation_id):
             raise ManagedDownloadError('quarantine operation rejected')
         _sha(expected_revision)
+        self._recover_if_pending()
         with self._lock:
             state = self.state_snapshot()
             operation = state['operations'].get(operation_id)
@@ -1736,9 +1900,10 @@ class ManagedGenerations:
         wid = _id(work_id)
         if type(page_no) is not int or not 0 <= page_no < MAX_PAGES:
             raise ManagedDownloadError('managed page identity rejected')
+        self._recover_if_pending()
         with self._lock:
             try:
-                signature = self._file_identity(self.index_path)
+                signature = (self._file_identity(self.index_path), _identity(self.root / _V5_HEAD))
             except FileNotFoundError:
                 self._checked()
                 self._visibility_cache = None
@@ -1784,7 +1949,7 @@ class ManagedGenerations:
                             raise ManagedDownloadError('quarantine source proof changed')
                         verified_proofs[key] = proof_identity
                     paths[proof_relative] = verified_proofs[key]
-            if self._file_identity(self.index_path) != signature:
+            if (self._file_identity(self.index_path), _identity(self.root / _V5_HEAD)) != signature:
                 raise ManagedDownloadError('quarantine index changed')
             self._visibility_cache = (signature, exclusions, watched)
             if str(page_no) in exclusions.get(wid, {}):
