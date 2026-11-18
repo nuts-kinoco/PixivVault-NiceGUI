@@ -242,6 +242,8 @@ class LibraryView(ViewerController):
                 with_filter_toggle=True,
             )
             self.bookmarks.render()
+            if services.bookmark_cache_persist_failed:
+                self.bookmarks.persistence_status.set_text('キャッシュの保存先を確認できません。')
             self.bookmarks.root.set_visibility(False)
             self.bookmarks.set_active(False)
 
@@ -765,6 +767,14 @@ class LibraryView(ViewerController):
     async def _refresh_bookmarks_async(self, epoch: int, *, automatic=False) -> None:
         try:
             if automatic:
+                restored = await self.services.restore_bookmark_cache()
+                if restored and not self.closed and self.active and self.subview == 'bookmarks':
+                    self.bookmark_state.adopt_cache(self.services.bookmark_remote_snapshot(),
+                        self.services.bookmark_local_snapshot(), self.services.bookmark_cache_fetched_at)
+                    self.bookmark_state.silent_fetch = True
+                    with self.client:
+                        self._refresh_bookmark_projection()
+                        self.bookmarks.refresh(reset_controls=True)
                 remote, local = await self.services.refresh_bookmark_cache(automatic=True)
             else:
                 remote, local = await self.services.refresh_bookmark_cache()
@@ -796,6 +806,8 @@ class LibraryView(ViewerController):
         if accepted and not self.closed and self.bookmarks is not None:
             with self.client:
                 self.bookmarks.refresh()
+                self.bookmarks.persistence_status.set_text(
+                    'キャッシュの保存を確認できません。' if self.services.bookmark_cache_persist_failed else '')
 
     def _build_viewer_state(self) -> None:
         # Local data wins for downloaded works; remote-only entries must also

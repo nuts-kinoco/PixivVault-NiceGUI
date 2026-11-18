@@ -76,6 +76,8 @@ class BookmarkView:
                 self.message = ui.label().classes("pv-empty").props("data-testid=bookmark-status role=status")
                 self.download_status = ui.label("").classes("pv-subtitle").props(
                     "role=status data-testid=bookmark-download-status")
+                self.persistence_status = ui.label("").classes("pv-subtitle").props(
+                    "role=status data-testid=bookmark-cache-status")
                 with ui.element("div").classes("pv-gallery-scroll").props("data-testid=bookmark-scroll") as self.scroll:
                     self.grid = ui.element("div").classes("pv-grid").style(
                         f"--pv-max-cols:{MAX_COLUMNS[self.card_size]}")

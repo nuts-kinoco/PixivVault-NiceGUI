@@ -163,6 +163,9 @@ class ApplicationServices:
             raise ValueError("novel fixture mode requires an isolated configuration")
         self.legacy_capacity = None
         self._owned_legacy_capacity_cache = None
+        self._bookmark_cache_store = None
+        self._bookmark_restore_attempted = False
+        self.bookmark_cache_persist_failed = False
         self.preferences_root = preferences_root
         self.discovery_root = discovery_root
         self.following_sync_root = following_sync_root
@@ -704,6 +707,12 @@ class ApplicationServices:
             if preferences_root is not None:
                 from .preferences import PreferencesStore
                 self.preferences = PreferencesStore(Path(preferences_root) / 'preferences.sqlite3')
+                if self.live_client is not None:
+                    from .bookmark_cache_store import BookmarkCacheStore
+                    try:
+                        self._bookmark_cache_store = BookmarkCacheStore(Path(preferences_root))
+                    except Exception:
+                        self.bookmark_cache_persist_failed = True
                 if library_image_root is not None:
                     from .capacity_cache import CapacityCache
                     from .legacy_capacity import LegacyCapacityReader
@@ -2664,6 +2673,57 @@ class ApplicationServices:
             raise RuntimeError("application services are closed")
         return self._cached_local_bookmarks
 
+    async def restore_bookmark_cache(self):
+        """Expose durable private data only after matching a verified identity."""
+        store = self._bookmark_cache_store
+        if store is None or self.live_client is None or not self.bookmark_auto_refresh_enabled():
+            return False
+        async with self._library_refresh_lock:
+            if self.closing or self._bookmark_restore_attempted:
+                return False
+            try:
+                has_snapshot = store.has_snapshot()
+            except Exception:
+                self.bookmark_cache_persist_failed = True
+                self._bookmark_restore_attempted = True
+                store.close()
+                self._bookmark_cache_store = None
+                return False
+            if not has_snapshot:
+                self._bookmark_restore_attempted = True
+                return False
+            reader = self.live_client
+            def verify():
+                if self.managed_network_stop is not None:
+                    self.managed_network_stop.require_allowed()
+                return reader.verify_identity()
+            account = await asyncio.to_thread(verify)
+            if (self.closing or self.live_client is not reader or not self.bookmark_auto_refresh_enabled() or
+                    getattr(reader, '_verified_identity', account) != account):
+                raise RuntimeError('bookmark reader changed')
+            if (self.save_exports is not None and self.save_exports.account not in (None, account)):
+                raise RuntimeError('bookmark export account differs')
+            try:
+                stored = await asyncio.to_thread(store.read, account)
+            except Exception:
+                self.bookmark_cache_persist_failed = True
+                self._bookmark_restore_attempted = True
+                store.close()
+                self._bookmark_cache_store = None
+                return False
+            if self.closing or self.live_client is not reader or not self.bookmark_auto_refresh_enabled() or getattr(reader, '_verified_identity', account) != account:
+                raise RuntimeError('bookmark reader changed')
+            self._bookmark_restore_attempted = True
+            if stored is None:
+                return False
+            records, stamp = stored
+            self._publish_images(self.library, records, reader=reader)
+            self._remote_records = records
+            self._cached_remote_bookmarks = tuple(record.as_artwork() for record in records)
+            self.bookmark_cache_fetched_at = stamp
+            self.bookmark_cache_failed = False
+            return True
+
     async def refresh_bookmark_cache(self, *, automatic=False):
         """Publish complete bookmark routes and their verified export account."""
         if self.library_repository is None and self.live_client is None:
@@ -2671,6 +2731,8 @@ class ApplicationServices:
         async with self._library_refresh_lock:
             if self.closing:
                 raise RuntimeError("application services are closed")
+            cache_revision = (self._bookmark_cache_store.revision()
+                              if self._bookmark_cache_store is not None else None)
             if automatic:
                 from datetime import datetime
                 try:
@@ -2693,6 +2755,10 @@ class ApplicationServices:
                     raise RuntimeError('bookmark reader closed')
                 if exports is not self.save_exports:
                     raise RuntimeError('bookmark export owner changed')
+                if (account is not None and
+                        (type(account) is not str or re.fullmatch(r'[1-9][0-9]{0,19}', account) is None
+                         or getattr(reader, '_verified_identity', account) != account)):
+                    raise RuntimeError('bookmark account verification changed')
                 if exports is not None:
                     # Real LivePixivReadClient always has this cache scalar.
                     # Injected read clients may express the same verified
@@ -2767,8 +2833,17 @@ class ApplicationServices:
                         self._remote_records = records or ()
                     self.bookmark_cache_failed = False
                     if reader is not None:
+                        self._bookmark_restore_attempted = True
                         from datetime import datetime
-                        self.bookmark_cache_fetched_at = datetime.now().isoformat()
+                        stamp = datetime.now().isoformat()
+                        if self._bookmark_cache_store is not None:
+                            try:
+                                written = self._bookmark_cache_store.write(account, stamp, records,
+                                    expected_revision=cache_revision)
+                                self.bookmark_cache_persist_failed = not written
+                            except Exception:
+                                self.bookmark_cache_persist_failed = True
+                        self.bookmark_cache_fetched_at = stamp
             except BaseException:
                 if catalog is not None and not adopted:
                     catalog.close()
@@ -2836,6 +2911,9 @@ class ApplicationServices:
         if self._owned_legacy_capacity_cache is not None:
             self._owned_legacy_capacity_cache.close()
             self._owned_legacy_capacity_cache = None
+        if self._bookmark_cache_store is not None:
+            self._bookmark_cache_store.close()
+            self._bookmark_cache_store = None
         if self.save_exports is not None:self.save_exports.close()
         if self.extension_bridge is not None:self.extension_bridge.close()
         if self.extension_commands is not None:self.extension_commands.close(timeout=150.0)
