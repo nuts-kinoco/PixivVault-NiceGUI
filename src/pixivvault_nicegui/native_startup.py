@@ -389,7 +389,21 @@ class NativeProfileBinding:
                             and self._extraction_wanted(result, cookie)):
                         # Original: only the startup check tries the browser, once.
                         self._startup_extract_done = True
-                        if await self.adopt_browser_cookies() == 'adopted':
+                        from .shared_events import emit_shared
+                        event_owner = getattr(self, '_shared_event_services', None)
+                        emit_shared(event_owner, 'Cookie 有効期限チェック: ブラウザから自動抽出を試行します。', level='info')
+                        outcome = await self.adopt_browser_cookies()
+                        message, level = {
+                            'adopted': ('ブラウザからの Cookie 自動抽出・更新に成功しました。', 'success'),
+                            'unchanged': ('ブラウザの Cookie に変更はありません。', 'normal'),
+                            'not_found': ('ブラウザに有効な Cookie が見つかりませんでした。', 'normal'),
+                            'blocked': ('通信停止または状態未確認のため Cookie 自動抽出の確認を中断しました。', 'normal'),
+                            'rejected': ('自動抽出した Cookie を確認できませんでした。', 'normal'),
+                            'unavailable': ('Cookie 自動抽出を利用できません。', 'normal'),
+                            'error': ('Cookie 自動抽出に失敗しました。', 'error'),
+                        }.get(outcome, ('Cookie 自動抽出の結果を確認できません。', 'normal'))
+                        emit_shared(event_owner, message, level=level)
+                        if outcome == 'adopted':
                             identity = self._last_identity
                     if identity is not None and identity[0] is not None and not self._closed:
                         await self.followup.after_confirmed(str(identity[0]))

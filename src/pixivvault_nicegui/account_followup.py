@@ -140,6 +140,8 @@ class AccountFollowup:
         # Inline: the startup check task (which the first ranking fetch waits
         # for) finishes after this, so the two requests are not contending.
         self._running = True
+        from .shared_events import emit_shared
+        emit_shared(getattr(self, '_shared_event_services', None), '起動時フォローリスト自動同期を開始します...', level='info')
         await self._sync(account, store)
 
     def _close_dialog(self):
@@ -217,12 +219,23 @@ class AccountFollowup:
                         continue
                     raise
                 if count is not None:
+                    from .shared_events import emit_shared
+                    emit_shared(getattr(self, '_shared_event_services', None), NOTICE_SYNC_DONE.format(count=count), level='success')
                     self._notice(NOTICE_SYNC_DONE.format(count=count), 'positive')
+                elif not self.binding._closed:
+                    from .shared_events import emit_shared
+                    emit_shared(getattr(self, '_shared_event_services', None), 'フォローリスト自動同期を開始できませんでした。')
                 return
         except asyncio.CancelledError:
             raise
-        except Exception:
+        except Exception as error:
             if not self.binding._closed:
+                from .managed_network_stop_gate import ManagedNetworkStopped, ManagedNetworkGateStorageError
+                from .shared_events import emit_shared
+                if isinstance(error, (ManagedNetworkStopped, ManagedNetworkGateStorageError, FollowingSyncCancelled)):
+                    emit_shared(getattr(self, '_shared_event_services', None), 'フォローリスト自動同期は停止しました。')
+                else:
+                    emit_shared(getattr(self, '_shared_event_services', None), 'フォローリスト自動同期に失敗しました。', level='error')
                 self._notice(failed_notice, 'negative')
         finally:
             self._running = False

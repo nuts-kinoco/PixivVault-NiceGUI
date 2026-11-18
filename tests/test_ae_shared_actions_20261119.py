@@ -60,3 +60,76 @@ async def test_queue_control_failure_logs_fixed_text_once():
             assert 'synthetic-private-path' not in log.snapshot()[-1].message
             view.close()
     finally:client.delete()
+
+
+@pytest.mark.asyncio
+async def test_learning_reset_log_survives_client_wait_cancellation(tmp_path):
+    from threading import Event
+    started=Event();release=Event();services=ApplicationServices(2,learning_sandbox=tmp_path/'learning')
+    original=services.learning._reset
+    def blocked():
+        started.set();assert release.wait(5);return original()
+    services.learning._reset=blocked
+    task=asyncio.create_task(services.learning.reset_learning())
+    try:
+        assert await asyncio.to_thread(started.wait,3)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):await task
+        release.set()
+        for _ in range(100):
+            if services.shared_log.snapshot():break
+            await asyncio.sleep(.02)
+        assert [e.message for e in services.shared_log.snapshot()] == ['学習状況: リセットしました']
+    finally:
+        release.set();services.close()
+
+
+@pytest.mark.asyncio
+async def test_duplicate_actual_committed_count_and_failure_are_logged_once():
+    from pixivvault_nicegui.ui.duplicate_view import DuplicateView
+    log=QueueLog()
+    source=NS(execute=lambda *a,**k:NS(committed=('one','two'),failed=('x',)))
+    client=Client(ui.page('/_ae_shared_duplicate_action'))
+    try:
+        with client:
+            view=DuplicateView(source,event_services=NS(shared_log=log))
+            result,warning=await view._execute_accepted(object(),'operation')
+            assert len(result.committed)==2 and not warning
+            assert [e.message for e in log.snapshot()]==['重複整理: 2件を隔離しました。失敗1件。']
+            view.close()
+    finally:client.delete()
+
+
+@pytest.mark.asyncio
+async def test_failed_retry_logs_accepted_not_completed(tmp_path):
+    from test_q07_novel_retry import create
+    from pixivvault_nicegui.ui.failed_records_view import FailedRecordsView
+    service,reader,_=create(tmp_path)
+    client=Client(ui.page('/_ae_shared_failed_retry'))
+    try:
+        with client:
+            view=FailedRecordsView(service)
+            await view._refresh(view.state.begin_refresh())
+            assert await view._retry_records((view.state.records[0],))
+            rows=service.shared_log.snapshot()
+            assert len(rows)==1
+            assert rows[0].message=='失敗リストの再投入: 受理1件・失敗0件。'
+            assert '完了' not in rows[0].message
+            view.close()
+    finally:
+        reader.release.set();client.delete();service.close()
+
+
+@pytest.mark.asyncio
+async def test_recent_backup_refresh_logs_confirmed_empty_without_paths():
+    from pixivvault_nicegui.ui.viewer_backup_view import ViewerBackupView
+    async def read():return (),()
+    log=QueueLog();service=NS(shared_log=log,legacy_backup_history_available=False,recent_viewer_backups=read)
+    client=Client(ui.page('/_ae_shared_recent_backup'))
+    try:
+        with client:
+            view=ViewerBackupView(service);view.active=True
+            await view.refresh()
+            assert [e.message for e in log.snapshot()]==['直近のバックアップ: 0件の履歴を表示しました。']
+            view.close()
+    finally:client.delete()

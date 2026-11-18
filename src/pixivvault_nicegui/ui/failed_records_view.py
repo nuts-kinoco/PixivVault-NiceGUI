@@ -605,6 +605,9 @@ class FailedRecordsView:
                 if index % 16 == 0 and current():
                     self.retry_notice.set_text(
                         f'再投入中 {index}/{total} 件 · 受理 {accepted} 件 · 未追加 {failed} 件')
+        except asyncio.CancelledError:
+            interrupted = True
+            raise
         except Exception:
             # Source admission failed before the first GET or commit.
             interrupted = True
@@ -613,6 +616,12 @@ class FailedRecordsView:
                 await scope.__aexit__(None, None, None)
             self._retry_busy = False
             self._release_retry_owner()
+            from ..shared_events import emit_shared
+            if interrupted:
+                emit_shared(self.services, f'失敗リストの再投入を中断しました（受理{accepted}件）。')
+            else:
+                emit_shared(self.services, f'失敗リストの再投入: 受理{accepted}件・失敗{failed}件。',
+                            level='error' if failed else 'normal')
             if not self.closed:
                 self.render()
                 if bulk or (self._allowed() and start_epoch == self._epoch):

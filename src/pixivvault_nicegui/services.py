@@ -484,6 +484,7 @@ class ApplicationServices:
             from .learning_service import LearningService
             try:
                 self.learning = LearningService(learning_sandbox, self.artworks)
+                self.learning._event_services = self
             except Exception:
                 self.images.close()
                 if self.library_repository is not None:
@@ -764,6 +765,7 @@ class ApplicationServices:
                 self.discovery = DiscoveryLearningService(discovery_root, self.live_client,
                     following=self.discovery_following_snapshot, saved_ids=self.saved_discovery_ids,
                     seed_readonly_db=library_readonly_db)
+                self.discovery._event_services = self
             if self.discovery is not None and recommendation_preferences_root is not None:
                 from .recommendation_state import (DiscoveryRecommendationSource, CombinedRecommendationSource,
                     RecommendationPreferences, RecommendationController)
@@ -3419,6 +3421,32 @@ class ApplicationServices:
             wake.wake()
         return count
 
+    def _run_metadata_auto_logged(self, *, transport):
+        from .managed_network_stop_gate import ManagedNetworkStopped
+        from .shared_events import emit_shared
+        def shutting_down():
+            event = getattr(self, '_metadata_cancel_event', None)
+            return bool(getattr(self, 'closing', False) or (event is not None and event.is_set()))
+        try:
+            summary = self.run_managed_metadata_all(transport=transport)
+        except ManagedNetworkStopped:
+            if not shutting_down():
+                emit_shared(self, 'メタデータ自動処理は取得停止により中断しました。')
+            raise
+        except Exception:
+            if not shutting_down():
+                emit_shared(self, 'メタデータ自動処理に失敗しました。', level='error')
+            raise
+        if shutting_down():
+            return summary
+        if summary.stopped == 'network_stopped':
+            emit_shared(self, 'メタデータ自動処理は取得停止により中断しました。')
+        elif summary.stopped in ('global_failure', 'authentication_unverified',
+                                 'authentication_or_state_unavailable',
+                                 'five_consecutive_unknown_failures', 'managed_state_changed'):
+            emit_shared(self, 'メタデータ自動処理を完了できませんでした。', level='error')
+        return summary
+
     def start_metadata_auto(self, *, transport=None, initial_delay: float = 60.0, intervals=None):
         """起動時の 1 回。設定が OFF でもスレッドだけは待機で持ち、ON にしたとき起こす。"""
         from .metadata_auto import MetadataAutoRunner
@@ -3429,7 +3457,7 @@ class ApplicationServices:
             if transport is None and self.live_client is None:
                 return False
             runner = MetadataAutoRunner(
-                lambda: self.run_managed_metadata_all(transport=transport),
+                lambda: self._run_metadata_auto_logged(transport=transport),
                 self.metadata_auto_enabled, initial_delay=initial_delay, intervals=intervals)
             self._metadata_auto_seen = self.metadata_auto_enabled()
             runner.start()

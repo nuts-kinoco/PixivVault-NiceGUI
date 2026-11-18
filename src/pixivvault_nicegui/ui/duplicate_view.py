@@ -21,8 +21,9 @@ def format_trash_size(n):
     return f'{n:.1f}TB'
 
 class DuplicateView:
-    def __init__(self,source,*,open_trash=None):
+    def __init__(self,source,*,open_trash=None,event_services=None):
         self.source=source;self.active=False;self.closed=False;self.busy=False
+        self.event_services=event_services
         self.generation=0;self.selection_revision=0;self.scan_result=None;self.selections={};self.query=''
         self.thumb_size='medium';self.thumbnails=[]
         self.group_move_buttons={};self._confirmation=None;self._last_result=None
@@ -356,8 +357,18 @@ class DuplicateView:
         count=self._trash_snapshot.purgeable_count
         self.busy=True;self.sync()
         result=None
+        def perform():
+            from ..shared_events import emit_shared
+            try:
+                outcome=emptier(expected_count=count,confirmed=True)
+            except Exception:
+                emit_shared(self.event_services, 'ごみ箱を空にした結果を確認できません。', level='error')
+                raise
+            emit_shared(self.event_services, f'ごみ箱: {outcome.removed}件を完全に削除しました。失敗{outcome.failed}件。',
+                        level='error' if outcome.failed else 'success')
+            return outcome
         try:
-            result=await asyncio.to_thread(lambda:emptier(expected_count=count,confirmed=True))
+            result=await asyncio.to_thread(perform)
         except Exception:
             result=None
         finally:
@@ -692,11 +703,19 @@ class DuplicateView:
             if not self.closed:self.sync()
 
     async def _execute_accepted(self,plan,operation_id,physical_move=False):
-        if physical_move:
-            result=await asyncio.to_thread(self.source.execute,plan,operation_id=operation_id,
-                                           mode='move',confirmed_move=True)
-        else:
-            result=await asyncio.to_thread(self.source.execute,plan,operation_id=operation_id)
+        from ..shared_events import emit_shared
+        try:
+            if physical_move:
+                result=await asyncio.to_thread(self.source.execute,plan,operation_id=operation_id,
+                                               mode='move',confirmed_move=True)
+            else:
+                result=await asyncio.to_thread(self.source.execute,plan,operation_id=operation_id)
+        except Exception:
+            emit_shared(self.event_services, '重複整理の結果を確認できません。', level='error')
+            raise
+        emit_shared(self.event_services,
+                    f'重複整理: {len(result.committed)}件を隔離しました。失敗{len(result.failed)}件。',
+                    level='error' if result.failed else 'success')
         self._last_result=result
         refresh_warning=False
         if result.committed:

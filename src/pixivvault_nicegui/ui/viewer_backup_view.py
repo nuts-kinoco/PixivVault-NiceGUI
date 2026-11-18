@@ -83,8 +83,15 @@ class ViewerBackupView:
                     if rows or errors else 'バックアップ日時が登録された作者はいません。')
             else:
                 self.status.set_text(f'{len(rows)} 作者' + (f'・確認できない履歴 {len(errors)} 件' if errors else ''))
-        except Exception as exc:
-            if not self.closed and self.active and epoch==self.epoch:self.status.set_text(f'直近バックアップ履歴取得エラー: {exc}')
+            from ..shared_events import emit_shared
+            suffix = ' 確認できない履歴があります。' if errors else ''
+            emit_shared(self.services, f'直近のバックアップ: {len(rows)}件の履歴を表示しました。{suffix}',
+                        level='error' if errors else 'normal')
+        except Exception:
+            if not self.closed and self.active and epoch==self.epoch:
+                self.status.set_text('直近バックアップ履歴を確認できません。')
+                from ..shared_events import emit_shared
+                emit_shared(self.services, '直近バックアップ履歴を確認できません。', level='error')
         finally:
             if incoming_images is not None:incoming_images.close()
             self.busy=False

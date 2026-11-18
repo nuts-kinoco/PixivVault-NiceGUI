@@ -514,6 +514,7 @@ class DemoShell:
             from .duplicate_view import DuplicateView
             with self.content:
                 self.duplicate_view = DuplicateView(self.services.duplicate_inspection,
+                    event_services=self.services,
                     open_trash=(getattr(self.services,'open_duplicate_quarantine',None)
                         if getattr(self.services,'desktop',None) is not None else None))
         if tab == 'scheduler' and self.scheduler_view is None:

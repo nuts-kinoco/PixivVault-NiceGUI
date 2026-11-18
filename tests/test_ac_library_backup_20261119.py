@@ -45,7 +45,7 @@ async def test_legacy_tile_is_square_hover_and_keyboard_accessible():
 @pytest.mark.asyncio
 async def test_legacy_history_failure_reports_original_message():
     async def fail():
-        raise ValueError('読込失敗')
+        raise ValueError('synthetic-private-detail')
     services = SimpleNamespace(legacy_backup_history_available=True, recent_legacy_backup_authors=fail)
     client = Client(ui.page('/_ac_backup_error'))
     try:
@@ -53,7 +53,8 @@ async def test_legacy_history_failure_reports_original_message():
             view = ViewerBackupView(services)
             view.active = True
             await view.refresh()
-        assert view.status.text == '直近バックアップ履歴取得エラー: 読込失敗'
+        assert view.status.text == '直近バックアップ履歴を確認できません。'
+        assert 'synthetic-private-detail' not in view.status.text
         view.close()
     finally:
         client.delete()

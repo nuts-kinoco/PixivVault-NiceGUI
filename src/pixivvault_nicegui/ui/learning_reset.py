@@ -134,9 +134,6 @@ class LearningResetView:
         finally:
             self.busy = False
             parent._storage_busy = False
-        from ..shared_events import emit_shared
-        emit_shared(parent.services, '学習状況: リセットに失敗しました。' if failed else '学習状況: リセットしました',
-                    level='error' if failed else 'success')
         if self.closed or parent.state.closed:
             return
         if failed:

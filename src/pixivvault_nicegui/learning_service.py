@@ -344,7 +344,17 @@ class LearningService:
 
     def submit_reset(self) -> Future:
         """Accepted on the worker before awaiting, like review undo."""
-        return self._submit(self._reset)
+        def reset_with_log():
+            from .shared_events import emit_shared
+            owner = getattr(self, '_event_services', None)
+            try:
+                result = self._reset()
+            except Exception:
+                emit_shared(owner, '学習状況: リセットに失敗しました。', level='error')
+                raise
+            emit_shared(owner, '学習状況: リセットしました', level='success')
+            return result
+        return self._submit(reset_with_log)
 
     async def reset_learning(self):
         return await self._wait(self.submit_reset())
@@ -360,7 +370,14 @@ class LearningService:
 
     async def clear_view_history(self, expected):
         def clear():
-            if self._view_rows() != expected:
-                raise ValueError('history changed; refresh before clearing')
-            self._database().clear_discovery_view_history()
+            from .shared_events import emit_shared
+            owner = getattr(self, '_event_services', None)
+            try:
+                if self._view_rows() != expected:
+                    raise ValueError('history changed; refresh before clearing')
+                self._database().clear_discovery_view_history()
+            except Exception:
+                emit_shared(owner, '閲覧履歴: 全件削除に失敗しました。', level='error')
+                raise
+            emit_shared(owner, '閲覧履歴: 全件削除しました', level='success')
         return await self._wait(self._submit(clear))
