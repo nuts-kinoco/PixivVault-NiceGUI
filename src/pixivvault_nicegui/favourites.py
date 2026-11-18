@@ -77,13 +77,7 @@ class FavouriteBook:
         account = self.account()
         if account is None:
             return (), tuple(author_ids)
-        rows = {row.user_id: row for row in self.following.snapshot(account).authors}
-        wanted = set(author_ids)
-        for user_id, row in rows.items():
-            if row.is_favorite != (user_id in wanted):
-                self.following.set_favorite(account, user_id, user_id in wanted)
-        applied = tuple(sorted((u for u in wanted if u in rows), key=int))
-        return applied, tuple(sorted((u for u in wanted if u not in rows), key=int))
+        return self.following.replace_favorites(account, author_ids)
 
     # -- the one-time import ------------------------------------------------------------------
     def _legacy_ids(self):

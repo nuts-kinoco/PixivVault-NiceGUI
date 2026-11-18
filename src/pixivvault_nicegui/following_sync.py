@@ -464,6 +464,28 @@ class FollowingSyncStore:
             return True
         return self._commit(account_id, expected_revision, record)
 
+    def replace_favorites(self, account_id, author_ids):
+        """Replace the stars in one following-ledger transaction."""
+        account_id = _identifier(account_id)
+        wanted = {_identifier(user_id) for user_id in author_ids}
+        result = [(), ()]
+
+        def record(connection, before):
+            rows = {row.user_id: row for row in before.authors}
+            result[:] = [tuple(sorted(wanted & rows.keys(), key=int)),
+                         tuple(sorted(wanted - rows.keys(), key=int))]
+            changed = False
+            for user_id, row in rows.items():
+                favorite = user_id in wanted
+                if row.is_favorite != favorite:
+                    connection.execute('UPDATE following_authors SET is_favorite=? WHERE account_id=? AND user_id=?',
+                                       (int(favorite), account_id, user_id))
+                    changed = True
+            return changed
+
+        self._commit(account_id, None, record)
+        return tuple(result)
+
     def record_downloaded(self, account_id, user_id, at=None, *, expected_revision=None):
         """Stamp last_downloaded for one author the account already has a row for.
 
