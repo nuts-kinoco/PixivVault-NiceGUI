@@ -18,6 +18,10 @@ async def test_trend_tiers_and_overflow_count(tmp_path, monkeypatch):
             assert len(pills) == 40
             assert [p._style['font-size'] for p in pills[:5]] == ['16px', '13.5px', '12px', '11px', '11px']
             assert any(getattr(n, 'text', None) == '+3' for n in nodes)
+            section = next(n for n in nodes if n.props.get('data-testid') == 'recommend-section-trend')
+            view.data['collapsed'] = frozenset({'trend'})
+            view.render()
+            assert any(getattr(n, 'text', None) == '+3' for n in view.body.descendants())
             view.close()
     finally:
         client.delete(); services.close()

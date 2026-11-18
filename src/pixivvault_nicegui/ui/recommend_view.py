@@ -386,6 +386,8 @@ class RecommendView:
                 with ui.column().classes('w-full gap-2').props(f'data-testid=recommend-section-{kind}'):
                     with ui.row().classes('items-center'):
                         ui.label(LABELS[kind]).classes('pv-library-heading')
+                        if kind=='trend' and len(data.get('trends',()))>40:
+                            ui.label(f"+{len(data['trends'])-40}").classes('pv-subtitle')
                         button=ui.button('展開' if kind in data['collapsed'] else '折りたたむ',on_click=lambda e,k=kind:self.collapse(k)).props('flat')
                         button.set_enabled(data['writable'])
                         for label,delta in (('上へ',-1),('下へ',1)):
@@ -395,8 +397,7 @@ class RecommendView:
                     ui.label(_SECTION_DESCRIPTIONS[kind]).classes('pv-subtitle')
                     if kind=='trend':
                         trends=data.get('trends',())
-                        if len(trends)>40:ui.label(f'+{len(trends)-40}').classes('pv-subtitle')
-                        with ui.row().classes('gap-2 w-full').style('max-height: 80px; overflow: hidden; align-content: flex-start'):
+                        with ui.row().classes('gap-2 w-full').style('max-height: 74px; overflow: hidden; align-content: flex-start'):
                             added={r['tag'] for r in data.get('added_tags',())}
                             for index,trend in enumerate(trends[:40]):
                                 tag=trend['tag'];display=trend.get('display') or tag
@@ -421,8 +422,10 @@ class RecommendView:
                     groups=data['sections'].get(kind,())
                     if not any(g.works for g in groups):ui.label('表示対象がありません。').classes('pv-subtitle')
                     for group in groups:
+                        if kind in ('certain','trend_added','boosted'):
+                            ui.label(group.title+('（傾向から追加）' if kind=='trend_added' else '')).classes('pv-library-heading')
                         subtitle=(f'あなたが好んで見ている『{group.title}』の作品' if kind=='certain'
-                                  else f'『{group.title}』の作品（傾向から追加）' if kind=='trend_added'
+                                  else f'『{group.title}』の作品' if kind=='trend_added'
                                   else f'「{group.title}」の新着' if kind=='boosted' else group.title)
                         ui.label(subtitle).classes('pv-subtitle')
                         if kind=='certain':
@@ -490,11 +493,11 @@ class RecommendView:
                         elif kind=='boosted' and count < self.controller.acquisition.visible_limit*3:
                             limit=self.controller.acquisition.visible_limit
                             next_limit=limit*2 if count<limit*2 else limit*3
-                            b=ui.button('作者の作品をさらに取得',on_click=lambda e,a=group.key,n=next_limit:self.more_author(a,n)).props('outline')
+                            b=ui.button('もっと見る',on_click=lambda e,a=group.key,n=next_limit:self.more_author(a,n)).props('outline')
                             b.set_enabled(data.get('can_acquire',False))
                         elif kind in ('certain','trend_added') and not group.exhausted:
                             failed=data.get('errors',{}).get(kind+':'+group.key)=='fetch_failed_retry_same_page'
-                            b=ui.button('取得に失敗しました。再試行' if failed else 'さらに取得',on_click=lambda e,k=kind,t=group.key:self.next_page(k,t)).props('outline')
+                            b=ui.button('取得に失敗しました。再試行' if failed else 'もっと見る',on_click=lambda e,k=kind,t=group.key:self.next_page(k,t)).props('outline')
                             b.set_enabled(data.get('can_acquire',False))
             with ui.expansion('出さない一覧').classes('w-full'):
                 if not data['hidden_works'] and not data['hidden_authors']:

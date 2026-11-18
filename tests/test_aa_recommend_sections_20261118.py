@@ -20,6 +20,7 @@ async def test_section_descriptions_and_certain_subtitle(tmp_path, monkeypatch):
             assert '個別に登録した作者の新着' in texts
             assert '自分が強く反応した作品' in texts
             assert 'あなたが好んで見ている『確実』の作品' in texts
+            assert '確実' in texts
             view.close()
     finally:
         client.delete(); services.close()
