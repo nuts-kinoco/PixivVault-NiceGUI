@@ -419,6 +419,8 @@ class ApplicationServices:
         self._legacy_local_bookmarks = ()
         self._library_composition = None
         self.jobs = None
+        from .queue_log import QueueLog
+        self.queue_log = QueueLog()
         self.static_jobs = None
         self.download_writer = None
         self.artworks = generate_demo_artworks(count)
