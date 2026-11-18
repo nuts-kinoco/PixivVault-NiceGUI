@@ -8,7 +8,7 @@ from collections import OrderedDict
 from concurrent.futures import Future
 from datetime import datetime
 from uuid import uuid4
-from ..learning_review import ReviewFilter, PAGE_SIZE
+from ..learning_review import ReviewFilter, PAGE_SIZE, requeue_outcome, review_trace
 from ..discovery_refill import DiscoveryRefill
 from ..discovery_description import layout as summary_layout, is_blank as summary_is_blank, MAX_DESCRIPTION
 from ..discovery_summary_fetch import fetch_summary, SummaryFetchFailed
@@ -102,9 +102,12 @@ class LearningView:
         self._review_session_id = None
         self._review_epoch = 0
         self._review_busy = False
+        self._review_mutating = False
         self._review_open = False
         self._review_rows = ()
         self._review_undone = {}
+        self._review_outcomes = {}
+        self._review_queue_ids = set()
         self._review_operations = {}
         self._review_watched_jobs = {}
         self._review_seen_jobs = {}
@@ -713,7 +716,7 @@ class LearningView:
         return True
 
     def judge(self, choice: str, payload: dict) -> bool:
-        if not self.active or self.state.closed or self.services.closing or not self._storage_ready or self._storage_busy:
+        if not self.active or self.state.closed or self.services.closing or not self._storage_ready or self._storage_busy or self._review_mutating:
             return False
         generation = payload.get("generation")
         if type(generation) is not int:
@@ -740,7 +743,7 @@ class LearningView:
         payload = self._payload(event)
         item = self.state.current_artwork
         # Undo は直前の操作で画面が切り替わった後に届くイベントを拒否する。
-        if (not self.active or self.state.closed or self.services.closing or not self._storage_ready or self._storage_busy or
+        if (not self.active or self.state.closed or self.services.closing or not self._storage_ready or self._storage_busy or self._review_mutating or
                 payload.get("work_id") != (item.work_id if item else "") or
                 type(payload.get("generation")) is not int or
                 payload["generation"] != self.state.generation):
@@ -920,7 +923,7 @@ class LearningView:
     def retry_save(self) -> None:
         failed = self._failed_command
         if (failed is None or not self.active or self.state.closed or self.services.closing or
-                not self._storage_ready or self._storage_busy):
+                not self._storage_ready or self._storage_busy or self._review_mutating):
             return
         if failed.undo:
             command = self.state.prepare_undo(operation_id=failed.operation_id)
@@ -933,7 +936,8 @@ class LearningView:
             self._start_save(command)
 
     def reload_storage(self, *, notice: str = "", review_queue=None) -> None:
-        if self.storage is None or self.state.closed or self.services.closing or self.state.saving or self._storage_busy:
+        if (self.storage is None or self.state.closed or self.services.closing or self.state.saving or self._storage_busy
+                or (self._review_mutating and review_queue is None)):
             return
         self._stop_candidate_refill()
         self._storage_busy = True
@@ -978,14 +982,23 @@ class LearningView:
             self.storage.release_session(self._session_id)
         self._session_id = snapshot.session_id
         generation = self.state.generation + 1
+        previous_queue_ids = {item.work_id for item in self.state.artworks}
         self.state.close()
         remaining = tuple(item for item in self._artworks if item.work_id not in snapshot.judged_ids)
+        if review_queue is None:
+            self._review_queue_ids = {item.work_id for item in remaining}
+        else:
+            self._review_queue_ids.update(previous_queue_ids)
+            if self.discovery is not None:
+                remaining = tuple(item for item in remaining if item.work_id in self._review_queue_ids)
         if review_queue is not None:
             # Review cancellation returns a card immediately after the current
             # one, as in the original swipe queue. Keep pending order instead of
             # restarting at the first artwork in the database snapshot. A redo
             # is removed by judged_ids above and must not replace the current.
-            pending_ids, requeue_id = review_queue
+            pending_ids, requeue_id, outcome = review_queue
+            if requeue_id and outcome == 'absent':
+                remaining = tuple(item for item in remaining if item.work_id != requeue_id)
             by_id = {item.work_id: item for item in remaining}
             order = [wid for wid in pending_ids if wid in by_id and wid != requeue_id]
             if requeue_id in by_id:
@@ -995,7 +1008,8 @@ class LearningView:
             order.extend(item.work_id for item in remaining if item.work_id not in known)
             remaining = tuple(by_id[wid] for wid in order)
         self.toast.hide()
-        self._baseline_count = len(self._artworks) - len(remaining)
+        self._baseline_count = (sum(item.work_id in snapshot.judged_ids for item in self._artworks)
+                                if self.discovery is not None else len(self._artworks) - len(remaining))
         self.state = LearningState(remaining, self.ledger)
         # A late browser event from the previous snapshot must never match again.
         self.state.generation = generation
@@ -1071,7 +1085,7 @@ class LearningView:
         item = self.state.current_artwork
         work_id = item.work_id if item else ""
         props = f'data-work-id="{work_id}" data-generation={self.state.generation}'
-        available = self.active and not self.services.closing and self._storage_ready and not self._storage_busy and not self.state.saving and not self._settings_busy
+        available = self.active and not self.services.closing and self._storage_ready and not self._storage_busy and not self.state.saving and not self._settings_busy and not self._review_mutating
         self.picture.props(props)
         self.root.props(props + f" data-saving={'true' if self.state.saving else 'false'}")
         for button in self.buttons.values():
@@ -1084,7 +1098,7 @@ class LearningView:
         self.save_retry_button.set_visibility(self._failed_command is not None)
         self.save_retry_button.set_enabled(available and (self.state.ready or self.state.can_undo))
         self.reload_button.set_visibility(self.storage is not None)
-        self.reload_button.set_enabled(self.active and not self.state.closed and not self.services.closing and not self._storage_busy and not self.state.saving)
+        self.reload_button.set_enabled(self.active and not self.state.closed and not self.services.closing and not self._storage_busy and not self.state.saving and not self._review_mutating)
         if self.discovery is not None:
             self.settings_button.set_enabled(available and not self._managed_busy)
             self.fetch_button.set_enabled(available and not self._managed_busy and (self._initial_task is None or self._initial_task.done()))
@@ -1211,7 +1225,7 @@ class LearningView:
 
     async def open_review(self):
         if (not self.active or self.storage is None or self.state.closed or self.services.closing
-                or self.state.saving or self._storage_busy or self._review_busy or self._review_open):
+                or self.state.saving or self._storage_busy or self._review_busy or self._review_mutating or self._review_open):
             return
         self._review_epoch += 1
         epoch = self._review_epoch
@@ -1229,7 +1243,7 @@ class LearningView:
             packet = await self.storage.review_snapshot(session.session_id)
             if self._review_valid(epoch):
                 self._review_rows = tuple(packet['rows'])
-                self._review_undone.clear()
+                self._review_undone.clear(); self._review_outcomes.clear()
                 self._review_operations.clear()
                 self._review_filter_changed()
                 self.review_status.set_text('')
@@ -1292,7 +1306,7 @@ class LearningView:
         self._review_epoch += 1
         self._review_open = False
         self._review_busy = False
-        self._review_undone.clear()
+        self._review_undone.clear(); self._review_outcomes.clear()
         self._review_operations.clear()
         if self._review_session_id is not None:
             self.storage.release_session(self._review_session_id)
@@ -1314,12 +1328,24 @@ class LearningView:
         self.review_content.clear()
         with self.review_content:
             for positive,label in ((True,'好意'),(False,'否定')):
-                rows = filters.rows(self._review_rows,positive,now=datetime.now(),session_started=self._review_started)
+                visible_rows = tuple(row for row in self._review_rows if row['work_id'] not in self._review_undone) + tuple(row for row, _ in self._review_undone.values())
+                rows = filters.rows(visible_rows,positive,now=datetime.now(),session_started=self._review_started)
                 page = min(self._review_pages[positive],max(0,(len(rows)-1)//PAGE_SIZE))
                 self._review_pages[positive] = page
                 with ui.column().classes('flex-1 min-w-0').props('data-testid=learning-review-positive' if positive else 'data-testid=learning-review-negative'):
                     ui.label(f'{label} · {len(rows)} 件').classes('pv-view-title')
+                    if not rows:
+                        ui.label('今日は該当なし').classes('pv-subtitle')
                     for row in rows[page*PAGE_SIZE:(page+1)*PAGE_SIZE]:
+                        wid = row['work_id']
+                        if wid in self._review_undone:
+                            _, operation = self._review_undone[wid]
+                            outcome = self._review_outcomes.get(wid, 'absent')
+                            with ui.row().classes('w-full items-center'):
+                                ui.label(review_trace(row.get('title') or wid, outcome)).classes('flex-1')
+                                button=ui.button('元に戻す',on_click=lambda _,row=row,operation=operation:self._review_change(row,operation)).props(f'flat data-testid=learning-review-restore-{wid}')
+                                button.set_enabled(not self._review_busy and not self._review_refresh_busy and not self._storage_busy and not self.state.saving)
+                            continue
                         with ui.row().classes('w-full items-center'):
                             if self.discovery is None or row['work_id'] in self._discovery_image_ids:
                                 ui.image(self._images.url(row['work_id'],0,'thumb')).style('width:60px;height:60px')
@@ -1335,12 +1361,6 @@ class LearningView:
                                 save_button.set_enabled(not saved and not self._review_busy and not self._review_refresh_busy)
                             button=ui.button('取り消す',on_click=lambda _,row=row:self._review_change(row)).props(f"flat data-testid=learning-review-undo-{row['work_id']}")
                             button.set_enabled(not self._review_busy and not self._review_refresh_busy and not self._storage_busy and not self.state.saving)
-                    for wid,(row,operation) in self._review_undone.items():
-                        if (row['verdict'] in ('like','superLike'))!=positive:continue
-                        with ui.row().classes('w-full items-center'):
-                            ui.label(f"{row.get('title') or wid}：判定を取り消しました。学習候補を読み直しました。").classes('flex-1')
-                            button=ui.button('元に戻す',on_click=lambda _,row=row,operation=operation:self._review_change(row,operation)).props(f'flat data-testid=learning-review-restore-{wid}')
-                            button.set_enabled(not self._review_busy and not self._review_refresh_busy and not self._storage_busy and not self.state.saving)
                     with ui.row():
                         previous=ui.button('前へ',on_click=lambda _,positive=positive:self._review_page(positive,-1)).props('flat')
                         previous.set_enabled(page>0)
@@ -1352,37 +1372,45 @@ class LearningView:
         epoch=self._review_epoch
         if not self._review_valid(epoch) or self._review_busy or self._review_refresh_busy or self._storage_busy or self.state.saving or self._review_session_id is None:return
         self._review_busy=True
+        self._review_mutating=True
         action='restore' if undo_operation else 'undo'
         key=(row['work_id'],action,undo_operation or row['revision'])
         operation=self._review_operations.setdefault(key,uuid4().hex)
         self._render_review()
         self._update_buttons()
         try:
-            if self.discovery is not None and not undo_operation:
-                await self.discovery.resolve_history_candidate(row['work_id'])
-                if not self._review_valid(epoch):return
             # Acceptance happens before awaiting. Closing this view cannot cancel the queued write.
             pending=(self.storage.submit_review_restore(self._review_session_id,undo_operation,operation) if undo_operation else
                      self.storage.submit_review_undo(self._review_session_id,row['work_id'],row['revision'],operation))
             await self.storage._wait(pending)
+            queue_ids = (self._review_queue_ids | {item.work_id for item in self.state.artworks}
+                         if self.discovery is not None else {item.work_id for item in self._artworks})
+            current = self.state.current_artwork
+            outcome = requeue_outcome(queue_ids,
+                                      current.work_id if current else None, row['work_id'])
+            pending_ids = tuple(item.work_id for item in self.state.artworks[self.state.index:])
+            self.reload_storage(review_queue=(pending_ids, None if undo_operation else row['work_id'], outcome))
             if not self._review_valid(epoch):return
-            if undo_operation:self._review_undone.pop(row['work_id'],None)
-            else:self._review_undone[row['work_id']]=(row,operation)
+            if undo_operation:
+                self._review_undone.pop(row['work_id'],None)
+                self._review_outcomes.pop(row['work_id'],None)
+            else:
+                self._review_undone[row['work_id']]=(row,operation)
+                self._review_outcomes[row['work_id']]=outcome
             packet=await self.storage.review_snapshot(self._review_session_id)
             if not self._review_valid(epoch):return
             self._review_rows=tuple(packet['rows'])
             self.review_status.set_text('判定を元に戻しました。' if undo_operation else '判定を取り消しました。')
-            pending_ids = tuple(item.work_id for item in self.state.artworks[self.state.index:])
-            self.reload_storage(review_queue=(pending_ids, None if undo_operation else row['work_id']))
         except Exception as error:
             if self._review_valid(epoch):
                 from ..learning_repository import LearningConflict
                 self.review_status.set_text('別の判定に更新されています。閉じて一覧を読み直してください。' if isinstance(error,LearningConflict) else '保存できませんでした。同じ操作を再試行できます。')
         finally:
+            self._review_mutating=False
             if self._review_valid(epoch):
                 self._review_busy=False
                 self._render_review()
-                self._update_buttons()
+            if not self.state.closed:self._update_buttons()
 
     def _explore_slider(self,label,testid):
         """元 discovery_tab.py:3199-3250 つまみ1本。現在値は%の実数のみ。ドラッグ中は右端の数字だけを書き換え、離したときに保存する。"""

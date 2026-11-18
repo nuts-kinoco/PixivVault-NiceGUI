@@ -42,3 +42,16 @@ class ReviewFilter:
     def rows(self, rows, positive, *, now, session_started):
         return tuple(sorted((row for row in rows if self.matches(row,positive,now=now,session_started=session_started)),
                             key=lambda row:row.get('judged_at') or '', reverse=True))
+
+
+def requeue_outcome(queue_ids, current_id, work_id):
+    """Classify against the live swipe queue, not the persisted history."""
+    if work_id not in queue_ids:
+        return 'absent'
+    return 'current' if work_id == current_id else 'requeued'
+
+
+def review_trace(title, outcome):
+    detail = ("未判定に戻り、めくるへ戻しました" if outcome in ('requeued', 'current') else
+              "未判定に戻りました（めくるへ出るのは次に候補が届いたとき）")
+    return f"『{title}』の判定を取り消しました — {detail}"
