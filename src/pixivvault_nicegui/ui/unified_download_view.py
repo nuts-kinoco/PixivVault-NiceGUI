@@ -1046,6 +1046,7 @@ class UnifiedDownloadView:
         self.progress = U.RunProgress(ids)
         self.progress.kind = getattr(self.engine, "kind", "authors") or "authors"
         self.progress.state = "running"
+        self.refresh_chip_status()  # a resumed run has a new target set and progress
         self.run_started = datetime.now()
         self.run_ended = None
         self.resumable = None
