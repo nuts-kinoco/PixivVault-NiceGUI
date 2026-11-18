@@ -1095,6 +1095,9 @@ class ApplicationServices:
             store.discard(candidate)
             return SimpleNamespace(state='unchanged', saved=True)
         store.commit(candidate)
+        log = getattr(self, 'queue_log', None)
+        if log is not None:
+            log.cookie_sync_notice(rows)
         # 実行中の取得はこの起動時の Cookie のまま。新しい Cookie は次回の起動から使う。
         return SimpleNamespace(state='pending', saved=True)
 
