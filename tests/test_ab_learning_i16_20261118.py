@@ -164,3 +164,144 @@ async def test_absent_work_stays_out_after_other_review_undo(tmp_path, monkeypat
             assert first not in [a.work_id for a in view.state.artworks[view.state.index:]]
     finally:
         await cleanup()
+
+
+async def test_review_mode_switch_offers_return_to_swipe(tmp_path, monkeypatch):
+    from z_learning_support_20261118 import open_discovery_view
+    view, services, service, cleanup = await open_discovery_view(tmp_path, monkeypatch, route='/_i16_modes')
+    try:
+        with view.client:
+            await view.open_review()
+            assert view._review_open
+            assert view.swipe_button.visible
+            view.return_to_swipe()
+            assert not view._review_open
+            assert view.trend_main.visible
+    finally:
+        await cleanup()
+
+
+async def test_review_filters_stay_with_their_columns(tmp_path, monkeypatch):
+    from z_learning_support_20261118 import open_discovery_view
+    view, services, service, cleanup = await open_discovery_view(tmp_path, monkeypatch, route='/_i16_columns')
+    try:
+        with view.client:
+            await view.open_review()
+            assert view.review_unsaved in view.review_columns[True].descendants()
+            assert view.review_superlike in view.review_columns[True].descendants()
+            assert view.review_hate in view.review_columns[False].descendants()
+            view._render_review()
+            assert view.review_unsaved in view.review_columns[True].descendants()
+    finally:
+        await cleanup()
+
+
+async def test_review_card_uses_original_mark_and_positive_thumbnail_size(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from z_learning_support_20261118 import open_discovery_view, settled
+    view, services, service, cleanup = await open_discovery_view(tmp_path, monkeypatch, route='/_i16_card')
+    try:
+        view._on_loaded(SimpleNamespace(args=view._image_url))
+        item = view.state.current_artwork
+        assert view.judge('like', dict(work_id=item.work_id, generation=view.state.generation, operation_id='j'))
+        await settled(view)
+        with view.client:
+            await view.open_review()
+            elements = list(view.review_columns[True].descendants())
+            assert any(getattr(e, 'text', None) == '→' for e in elements)
+            assert any(getattr(e, '_style', {}).get('width') == '80px' for e in elements)
+    finally:
+        await cleanup()
+
+
+async def test_review_mode_rejects_hidden_swipe_shortcuts(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from z_learning_support_20261118 import open_discovery_view
+    view, services, service, cleanup = await open_discovery_view(tmp_path, monkeypatch, route='/_i16_keys')
+    try:
+        view._on_loaded(SimpleNamespace(args=view._image_url))
+        item = view.state.current_artwork
+        with view.client:
+            await view.open_review()
+            assert not view.judge('like', dict(work_id=item.work_id, generation=view.state.generation, operation_id='hidden'))
+            assert view.state.current_artwork is item
+    finally:
+        await cleanup()
+
+
+async def test_reselecting_review_refreshes_and_clears_undo_trace(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from z_learning_support_20261118 import open_discovery_view, settled
+    view, services, service, cleanup = await open_discovery_view(tmp_path, monkeypatch, route='/_i16_refresh')
+    try:
+        view._on_loaded(SimpleNamespace(args=view._image_url))
+        item = view.state.current_artwork
+        assert view.judge('like', dict(work_id=item.work_id, generation=view.state.generation, operation_id='j'))
+        await settled(view)
+        with view.client:
+            await view.open_review()
+            await view._review_change(view._review_rows[0])
+            await settled(view)
+            assert item.work_id in view._review_undone
+            await view.open_review()
+            assert not view._review_undone
+    finally:
+        await cleanup()
+
+
+async def test_column_filter_only_resets_its_own_page(tmp_path, monkeypatch):
+    from z_learning_support_20261118 import open_discovery_view
+    view, services, service, cleanup = await open_discovery_view(tmp_path, monkeypatch, route='/_i16_filter_pages')
+    try:
+        view._review_pages = {True:2, False:3}
+        view._review_column_filter_changed(True)
+        assert view._review_pages == {True:0, False:3}
+    finally:
+        await cleanup()
+
+
+async def test_reselect_review_rejects_stale_restore_event(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from z_learning_support_20261118 import open_discovery_view, settled
+    view, services, service, cleanup = await open_discovery_view(tmp_path, monkeypatch, route='/_i16_stale_restore')
+    try:
+        view._on_loaded(SimpleNamespace(args=view._image_url))
+        item = view.state.current_artwork
+        assert view.judge('like', dict(work_id=item.work_id, generation=view.state.generation, operation_id='j'))
+        await settled(view)
+        with view.client:
+            await view.open_review()
+            row = view._review_rows[0]
+            await view._review_change(row)
+            await settled(view)
+            operation = view._review_undone[item.work_id][1]
+            await view.open_review()
+            await view._review_change(row, operation)
+            await settled(view)
+            assert not (await service.review_snapshot(view._review_session_id))['rows']
+    finally:
+        await cleanup()
+
+
+async def test_review_columns_scroll_independently(tmp_path, monkeypatch):
+    from z_learning_support_20261118 import open_discovery_view
+    view, services, service, cleanup = await open_discovery_view(tmp_path, monkeypatch, route='/_i16_scroll')
+    try:
+        for column in view.review_columns.values():
+            assert column._style.get('overflow-y') == 'auto'
+            assert column._style.get('max-height')
+    finally:
+        await cleanup()
+
+
+async def test_column_filter_preserves_other_column_elements(tmp_path, monkeypatch):
+    from z_learning_support_20261118 import open_discovery_view
+    view, services, service, cleanup = await open_discovery_view(tmp_path, monkeypatch, route='/_i16_filter_dom')
+    try:
+        with view.client:
+            await view.open_review()
+            before = tuple(view.review_bodies[False].default_slot.children)
+            view._review_column_filter_changed(True)
+            assert tuple(view.review_bodies[False].default_slot.children) == before
+    finally:
+        await cleanup()

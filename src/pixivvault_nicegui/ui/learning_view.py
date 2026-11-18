@@ -31,6 +31,22 @@ EMPTY_BODY = ("作品を「見送る」「合わない」「いいね」「Super
               "好みの傾向を学習し、次第に精度の高いおすすめが表示されるようになります。")
 
 
+class _ReviewSection:
+    """Present review as a tab mode while retaining the existing close contract."""
+    def __init__(self, view, element):
+        self.view, self.element = view, element
+
+    def open(self):
+        self.view.swipe_area.set_visibility(False)
+        self.element.set_visibility(True)
+        self.view.root.props('data-review-open=true')
+        self.view.swipe_button.props('aria-pressed=false')
+        self.view.review_button.props('aria-pressed=true')
+
+    def close(self):
+        self.view._close_review()
+
+
 class LearningView:
     CHOICES = (
         ("見送る", "skip", "arrowleft", "a", "1"),
@@ -287,19 +303,40 @@ class LearningView:
             self.reset_view = LearningResetView(self, self.storage) if self.storage is not None else None
 
             self.review_button.set_visibility(self.storage is not None)
-        with ui.dialog().props('data-testid=learning-review-dialog') as self.review_dialog, ui.card().classes('w-full').style('max-width:1000px'):
-            ui.label('学習の振り返り').classes('pv-view-title')
-            ui.label(('専用発掘保存先' if self.discovery is not None else 'デモ専用保存先') + 'の判定です。取消した作品は学習候補へ戻り、元に戻す操作はこの画面を閉じるまで有効です。').classes('pv-subtitle')
-            with ui.row().classes('w-full'):
-                self.review_text = ui.input('題名・タグ', on_change=lambda _: self._review_filter_changed()).props('outlined dense data-testid=learning-review-query')
-                self.review_period = ui.select({'all':'全期間','today':'今日','7d':'7日','30d':'30日','session':'この学習セッション'},value='all',on_change=lambda _:self._review_filter_changed()).props('outlined dense data-testid=learning-review-period')
-                self.review_unsaved = ui.checkbox('未保存だけ',value=True,on_change=lambda _:self._review_filter_changed())
-                self.review_superlike = ui.checkbox('SuperLikeだけ',on_change=lambda _:self._review_filter_changed())
-                self.review_hate = ui.checkbox('合わないだけ',on_change=lambda _:self._review_filter_changed())
-            self.review_status = ui.label().props('role=status data-testid=learning-review-status')
-            self.review_content = ui.row().classes('w-full items-start')
-            ui.button('閉じる',on_click=self.review_dialog.close).props('flat data-testid=learning-review-close')
-        self.review_dialog.on('hide',self._close_review)
+            self.swipe_area = ui.column().classes('w-full gap-3')
+            for element in tuple(self.root.default_slot.children):
+                if element is not self.swipe_area and element is not self.review_button:
+                    element.move(self.swipe_area)
+            with ui.row().classes('w-full items-center gap-1') as self.review_modes:
+                self.swipe_button = ui.button('めくる', on_click=self.return_to_swipe).props(
+                    'flat no-caps aria-pressed=true data-testid=learning-swipe-mode')
+                self.review_button.props('aria-pressed=false')
+                self.review_button.move(self.review_modes)
+            self.review_modes.move(self.root, 0)
+            self.swipe_button.set_visibility(self.storage is not None)
+        with self.root, ui.column().classes('w-full gap-3').props('data-testid=learning-review-dialog') as self.review_panel:
+            self.review_dialog = _ReviewSection(self, self.review_panel)
+            with ui.card().classes('w-full').style('max-width:1000px'):
+                ui.label('学習の振り返り').classes('pv-view-title')
+                ui.label(('専用発掘保存先' if self.discovery is not None else 'デモ専用保存先') + 'の判定です。取消した作品は学習候補へ戻り、元に戻す操作はこの画面を閉じるまで有効です。').classes('pv-subtitle')
+                with ui.row().classes('w-full'):
+                    self.review_text = ui.input('タイトル・タグで検索', on_change=lambda _: self._review_filter_changed()).props('outlined dense data-testid=learning-review-query')
+                    self.review_period = ui.select({'today':'今日','7d':'直近7日','30d':'直近30日','all':'すべて','session':'この学習セッション'},value='all',on_change=lambda _:self._review_filter_changed()).props('outlined dense data-testid=learning-review-period')
+                self.review_status = ui.label().props('role=status data-testid=learning-review-status')
+                self.review_columns, self.review_bodies = {}, {}
+                with ui.row().classes('w-full items-start no-wrap') as self.review_content:
+                    for positive, label in ((True, '好意側（いいね／SuperLike）'), (False, '否定側（見送る／合わない）')):
+                        with ui.column().classes('flex-1 min-w-0').style('max-height:calc(100dvh - 240px);overflow-y:auto').props('data-testid=learning-review-positive' if positive else 'data-testid=learning-review-negative') as column:
+                            self.review_columns[positive] = column
+                            ui.label(label).classes('pv-card-title')
+                            with ui.row().classes('w-full items-center gap-1'):
+                                if positive:
+                                    self.review_unsaved = ui.checkbox('未保存だけ',value=True,on_change=lambda _:self._review_column_filter_changed(True))
+                                    self.review_superlike = ui.checkbox('SuperLikeだけ',on_change=lambda _:self._review_column_filter_changed(True))
+                                else:
+                                    self.review_hate = ui.checkbox('合わないだけ',on_change=lambda _:self._review_column_filter_changed(False))
+                            self.review_bodies[positive] = ui.column().classes('w-full gap-1')
+        self.review_panel.set_visibility(False)
         self._review_timer = ui.timer(1.0, self._poll_review_jobs)
 
         # NiceGUI 3.18: js_handler は emit(...) へ送る値を組み立てられる。
@@ -340,6 +377,7 @@ class LearningView:
             const tag = event.target?.tagName?.toLowerCase();
             if (event.repeat || event.isComposing || event.keyCode === 229 ||
                 event.altKey || event.metaKey ||
+                event.currentTarget.getAttribute('data-review-open') === 'true' ||
                 ['input', 'textarea', 'select'].includes(tag) ||
                 event.target?.isContentEditable ||
                 event.target?.closest('[role=dialog]') ||
@@ -754,7 +792,7 @@ class LearningView:
         return True
 
     def judge(self, choice: str, payload: dict) -> bool:
-        if not self.active or self.state.closed or self.services.closing or not self._storage_ready or self._storage_busy or self._review_mutating:
+        if not self.active or self.state.closed or self.services.closing or not self._storage_ready or self._storage_busy or self._review_mutating or self._review_open:
             return False
         generation = payload.get("generation")
         if type(generation) is not int:
@@ -783,7 +821,7 @@ class LearningView:
         payload = self._payload(event)
         item = self.state.current_artwork
         # Undo は直前の操作で画面が切り替わった後に届くイベントを拒否する。
-        if (not self.active or self.state.closed or self.services.closing or not self._storage_ready or self._storage_busy or self._review_mutating or
+        if (not self.active or self.state.closed or self.services.closing or not self._storage_ready or self._storage_busy or self._review_mutating or self._review_open or
                 payload.get("work_id") != (item.work_id if item else "") or
                 type(payload.get("generation")) is not int or
                 payload["generation"] != self.state.generation):
@@ -1113,7 +1151,7 @@ class LearningView:
                     if (root.getAttribute('data-summary-open')==='true')
                       root.dispatchEvent(new CustomEvent('summary-resize'));
                     const viewport=root.querySelector('.pv-trend-viewport');
-                    if (viewport && root.getAttribute('data-active')==='true') {{
+                    if (viewport && root.getAttribute('data-active')==='true' && root.getAttribute('data-review-open')!=='true') {{
                       const rect=root.getBoundingClientRect();
                       const layout=root.querySelector('.pv-trend-layout');
                       const side=viewport.parentElement;
@@ -1311,7 +1349,10 @@ class LearningView:
 
     async def open_review(self):
         if (not self.active or self.storage is None or self.state.closed or self.services.closing
-                or self.state.saving or self._storage_busy or self._review_busy or self._review_mutating or self._review_open):
+                or self.state.saving or self._storage_busy or self._review_busy or self._review_mutating):
+            return
+        if self._review_open:
+            await self._refresh_review()
             return
         self._review_epoch += 1
         epoch = self._review_epoch
@@ -1335,6 +1376,32 @@ class LearningView:
                 self.review_status.set_text('')
         except Exception:
             if self._review_valid(epoch):self.review_status.set_text('保存済み判定を読み込めませんでした。閉じて再度開いてください。')
+        finally:
+            if self._review_valid(epoch):
+                self._review_busy = False
+                self._render_review()
+                self._update_buttons()
+
+    async def _refresh_review(self):
+        epoch = self._review_epoch
+        session = self._review_session_id
+        if not self._review_valid(epoch) or session is None or self._review_refresh_busy:
+            return
+        self._review_busy = True
+        self._render_review()
+        try:
+            packet = await self.storage.review_snapshot(session)
+            if not self._review_valid(epoch) or self._review_session_id != session:
+                return
+            self._review_rows = tuple(packet['rows'])
+            self._review_undone.clear()
+            self._review_outcomes.clear()
+            self._review_operations.clear()
+            self._review_filter_changed()
+            self.review_status.set_text('')
+        except Exception:
+            if self._review_valid(epoch):
+                self.review_status.set_text('保存済み判定を読み込めませんでした。もう一度「振り返り」を押してください。')
         finally:
             if self._review_valid(epoch):
                 self._review_busy = False
@@ -1397,80 +1464,96 @@ class LearningView:
         if self._review_session_id is not None:
             self.storage.release_session(self._review_session_id)
             self._review_session_id = None
+        self.review_panel.set_visibility(False)
+        self.swipe_area.set_visibility(True)
+        self.root.props('data-review-open=false')
+        self.swipe_button.props('aria-pressed=true')
+        self.review_button.props('aria-pressed=false')
+        if self.active and self.client.has_socket_connection:
+            self.client.run_javascript(f"requestAnimationFrame(() => document.getElementById('{self.root.html_id}')?.__pvSummaryResize?.())")
         if not self.state.closed:self._update_buttons()
+
+    def return_to_swipe(self):
+        self.review_dialog.close()
 
     def _review_filter_changed(self):
         self._review_pages = {True:0,False:0}
         self._render_review()
 
+    def _review_column_filter_changed(self, positive):
+        self._review_pages[positive] = 0
+        self._render_review(positive)
+
     def _review_page(self,positive,delta):
         self._review_pages[positive] = max(0,self._review_pages[positive]+delta)
-        self._render_review()
+        self._render_review(positive)
 
-    def _render_review(self):
+    def _render_review(self, only=None):
         if not self._review_open:return
         filters = ReviewFilter(str(self.review_text.value or ''),self.review_period.value,
                                bool(self.review_unsaved.value),bool(self.review_superlike.value),bool(self.review_hate.value))
-        self.review_content.clear()
-        with self.review_content:
-            for positive,label in ((True,'好意'),(False,'否定')):
-                visible_rows = tuple(row for row in self._review_rows if row['work_id'] not in self._review_undone) + tuple(row for row, _ in self._review_undone.values())
-                visible_rows = tuple(dict(row, title=self._review_detail_titles[row['work_id']])
-                                     if row['work_id'] in self._review_detail_titles and row.get('title') in (None, '', row['work_id'])
-                                     else row for row in visible_rows)
-                rows = filters.rows(visible_rows,positive,now=datetime.now(),session_started=self._review_started)
-                page = min(self._review_pages[positive],max(0,(len(rows)-1)//PAGE_SIZE))
-                self._review_pages[positive] = page
-                with ui.column().classes('flex-1 min-w-0').props('data-testid=learning-review-positive' if positive else 'data-testid=learning-review-negative'):
-                    ui.label(f'{label} · {len(rows)} 件').classes('pv-view-title')
-                    if not rows:
-                        ui.label('今日は該当なし').classes('pv-subtitle')
-                    for row in rows[page*PAGE_SIZE:(page+1)*PAGE_SIZE]:
-                        wid = row['work_id']
-                        if wid in self._review_undone:
-                            _, operation = self._review_undone[wid]
-                            outcome = self._review_outcomes.get(wid, 'absent')
-                            with ui.row().classes('w-full items-center'):
-                                ui.label(review_trace(row.get('title') or wid, outcome)).classes('flex-1')
-                                button=ui.button('元に戻す',on_click=lambda _,row=row,operation=operation:self._review_change(row,operation)).props(f'flat data-testid=learning-review-restore-{wid}')
-                                button.set_enabled(not self._review_busy and not self._review_refresh_busy and not self._storage_busy and not self.state.saving)
-                            continue
+        for positive,label in ((True,'好意'),(False,'否定')):
+            if only is not None and positive != only:
+                continue
+            visible_rows = tuple(row for row in self._review_rows if row['work_id'] not in self._review_undone) + tuple(row for row, _ in self._review_undone.values())
+            visible_rows = tuple(dict(row, title=self._review_detail_titles[row['work_id']])
+                                 if row['work_id'] in self._review_detail_titles and row.get('title') in (None, '', row['work_id'])
+                                 else row for row in visible_rows)
+            rows = filters.rows(visible_rows,positive,now=datetime.now(),session_started=self._review_started)
+            page = min(self._review_pages[positive],max(0,(len(rows)-1)//PAGE_SIZE))
+            self._review_pages[positive] = page
+            self.review_bodies[positive].clear()
+            with self.review_bodies[positive]:
+                if not rows:
+                    ui.label('今日は該当なし').classes('pv-subtitle')
+                for row in rows[page*PAGE_SIZE:(page+1)*PAGE_SIZE]:
+                    wid = row['work_id']
+                    if wid in self._review_undone:
+                        _, operation = self._review_undone[wid]
+                        outcome = self._review_outcomes.get(wid, 'absent')
                         with ui.row().classes('w-full items-center'):
-                            wid = row['work_id']
-                            detail = self._review_details.get(wid)
-                            if self.discovery is None or wid in self._discovery_image_ids:
-                                ui.image(self._images.url(wid,0,'thumb')).style('width:60px;height:60px')
-                                if (self.discovery is not None and row.get('title') in (None, '', wid)
-                                        and wid not in self._review_detail_titles):
-                                    self._review_schedule_detail(wid)
-                            elif detail is not None:
-                                ui.image(detail[1].url(wid,0,'thumb')).style('width:60px;height:60px').on(
-                                    'error', lambda _,w=wid,p=detail[1]:self._review_detail_image_failed(w,p))
-                            elif wid in self._review_detail_failed:
+                            ui.label(review_trace(row.get('title') or wid, outcome)).classes('flex-1')
+                            button=ui.button('元に戻す',on_click=lambda _,row=row,operation=operation:self._review_change(row,operation)).props(f'flat data-testid=learning-review-restore-{wid}')
+                            button.set_enabled(not self._review_busy and not self._review_refresh_busy and not self._storage_busy and not self.state.saving)
+                        continue
+                    with ui.row().classes('w-full items-center').style('padding:6px;border:1px solid var(--pv-border);border-radius:8px;background:var(--pv-surface)'):
+                        wid = row['work_id']
+                        ui.label({'like':'→','superLike':'↑','skip':'↓','hate':'←'}.get(row['verdict'], '')).classes('pv-subtitle').style('width:16px')
+                        thumb_size = 80 if positive else 60
+                        detail = self._review_details.get(wid)
+                        if self.discovery is None or wid in self._discovery_image_ids:
+                            ui.image(self._images.url(wid,0,'thumb')).style(f'width:{thumb_size}px;height:{thumb_size}px')
+                            if (self.discovery is not None and row.get('title') in (None, '', wid)
+                                    and wid not in self._review_detail_titles):
+                                self._review_schedule_detail(wid)
+                        elif detail is not None:
+                            ui.image(detail[1].url(wid,0,'thumb')).style(f'width:{thumb_size}px;height:{thumb_size}px').on(
+                                'error', lambda _,w=wid,p=detail[1]:self._review_detail_image_failed(w,p))
+                        elif wid in self._review_detail_failed:
+                            ui.button('取得失敗（タップで再取得）',
+                                      on_click=lambda _,w=wid:self._review_retry_detail(w)).props('flat no-caps')
+                        else:
+                            ui.label('読み込み中…').classes('pv-subtitle')
+                            self._review_schedule_detail(wid)
+                        with ui.column().classes('flex-1 gap-0').style('min-width:100px'):
+                            ui.label(row.get('title') or wid).classes('truncate w-full')
+                            ui.label(row.get('judged_at','')).classes('pv-subtitle').style('font-size:9.5px')
+                            if wid in self._review_detail_failed and (detail is not None or wid in self._discovery_image_ids):
                                 ui.button('取得失敗（タップで再取得）',
                                           on_click=lambda _,w=wid:self._review_retry_detail(w)).props('flat no-caps')
-                            else:
-                                ui.label('読み込み中…').classes('pv-subtitle')
-                                self._review_schedule_detail(wid)
-                            with ui.column().classes('flex-1 min-w-0 gap-0'):
-                                ui.label(row.get('title') or wid).classes('break-words')
-                                ui.label(f"{row['verdict']} · {row.get('judged_at','')}").classes('pv-subtitle')
-                                if wid in self._review_detail_failed and (detail is not None or wid in self._discovery_image_ids):
-                                    ui.button('取得失敗（タップで再取得）',
-                                              on_click=lambda _,w=wid:self._review_retry_detail(w)).props('flat no-caps')
-                            if self.discovery is not None and positive:
-                                saved = bool(row.get('work_meta')) and not row.get('is_deleted')
-                                save_button = ui.button('保存済み' if saved else '作品を保存',
-                                    on_click=lambda _,wid=row['work_id']:self.save_managed(wid)).props('flat data-testid=discovery-review-save')
-                                save_button.set_enabled(not saved and not self._review_busy and not self._review_refresh_busy)
-                            button=ui.button('取り消す',on_click=lambda _,row=row:self._review_change(row)).props(f"flat data-testid=learning-review-undo-{row['work_id']}")
-                            button.set_enabled(not self._review_busy and not self._review_refresh_busy and not self._storage_busy and not self.state.saving)
-                    with ui.row():
-                        previous=ui.button('前へ',on_click=lambda _,positive=positive:self._review_page(positive,-1)).props('flat')
-                        previous.set_enabled(page>0)
-                        ui.label(f'{page+1} / {max(1,(len(rows)+PAGE_SIZE-1)//PAGE_SIZE)}')
-                        following=ui.button('次へ',on_click=lambda _,positive=positive:self._review_page(positive,1)).props('flat')
-                        following.set_enabled((page+1)*PAGE_SIZE<len(rows))
+                        if self.discovery is not None and positive:
+                            saved = bool(row.get('work_meta')) and not row.get('is_deleted')
+                            save_button = ui.button('保存済み' if saved else '保存する',
+                                on_click=lambda _,wid=row['work_id']:self.save_managed(wid)).props('flat data-testid=discovery-review-save')
+                            save_button.set_enabled(not saved and not self._review_busy and not self._review_refresh_busy)
+                        button=ui.button('取り消す',on_click=lambda _,row=row:self._review_change(row)).props(f"flat data-testid=learning-review-undo-{row['work_id']}")
+                        button.set_enabled(not self._review_busy and not self._review_refresh_busy and not self._storage_busy and not self.state.saving)
+                with ui.row():
+                    previous=ui.button('前',on_click=lambda _,positive=positive:self._review_page(positive,-1)).props('flat')
+                    previous.set_enabled(page>0)
+                    ui.label(f'{page+1} / {max(1,(len(rows)+PAGE_SIZE-1)//PAGE_SIZE)}')
+                    following=ui.button('次',on_click=lambda _,positive=positive:self._review_page(positive,1)).props('flat')
+                    following.set_enabled((page+1)*PAGE_SIZE<len(rows))
 
     async def _on_learning_bookmark(self, event):
         await self._bookmark_current(self._payload(event))
@@ -1634,6 +1717,10 @@ class LearningView:
     async def _review_change(self,row,undo_operation=None):
         epoch=self._review_epoch
         if not self._review_valid(epoch) or self._review_busy or self._review_refresh_busy or self._storage_busy or self.state.saving or self._review_session_id is None:return
+        if undo_operation is not None:
+            current = self._review_undone.get(row['work_id'])
+            if current is None or current[1] != undo_operation:
+                return
         self._review_busy=True
         self._review_mutating=True
         action='restore' if undo_operation else 'undo'
@@ -1786,7 +1873,7 @@ class LearningView:
         self._set_trend_open(not self._trend_open)
 
     def _on_trend_measure(self, event):
-        if self.discovery is None or self.state.closed:
+        if self.discovery is None or self.state.closed or self._review_open:
             return
         args = event.args if isinstance(event.args, dict) else {}
         try:
