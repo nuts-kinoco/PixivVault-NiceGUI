@@ -12,7 +12,7 @@
       "ダウンロード", "キュー", "失敗リスト", "重複整理", "学習", "ランキング",
       "自分のランキング", "ライブラリ", "おすすめ", "定期チェック", "メタデータ補完"
     ],
-    "startup_allowed_calls": ["require_identity", "get_following_users", "get_ranking"]
+    "startup_allowed_calls": []
   },
   "screens": {
     "startup": {
@@ -88,9 +88,9 @@
     },
     "scheduler": {
       "label": "定期チェック",
-      "testids": ["scheduler-open", "scheduler-interval", "scheduler-save", "scheduler-run", "scheduler-authors",
+      "testids": ["scheduler-open", "scheduler-interval", "scheduler-save", "scheduler-run",
                   "scheduler-startup", "scheduler-status"],
-      "texts": ["お気に入り作者の定期チェック", "今すぐチェック"]
+      "texts": ["お気に入り作者の定期チェック", "今すぐチェック", "☆お気に入りにした作者全員をチェックします。"]
     },
     "metadata": {
       "label": "メタデータ補完",

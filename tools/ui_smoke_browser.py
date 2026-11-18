@@ -163,6 +163,34 @@ def seed_all(base: Path) -> dict:
 
 
 # --------------------------------------------------------------------------- server
+def make_stopped_reader(base, fake):
+    """Use the product reader and durable stop with generated data only."""
+    import hashlib
+    from pixivvault_nicegui.managed_network_stop_gate import ManagedNetworkStopGate, _file_identity
+    from pixivvault_nicegui.managed_network_stop_shared_scope import (
+        ManagedUserNetworkStopScope, _OWNER_FILE, _OWNER_SCHEMA, _GATE_FILE, _file_identity_directory)
+    root = base / 'generated-shared-stop'
+    root.mkdir()
+    gate = ManagedNetworkStopGate(root / _GATE_FILE)
+    (root / _OWNER_FILE).write_text(json.dumps({
+        'schema': _OWNER_SCHEMA, 'state': 'sealed',
+        'root_identity': list(_file_identity_directory(root)),
+        'gate_identity': list(_file_identity(gate.path)),
+        'lock_identity': list(_file_identity(gate.lock_path)),
+        'history_proof': hashlib.sha256(b'generated-only-no-real-historical-proof').hexdigest(),
+    }), encoding='utf-8')
+    scope = ManagedUserNetworkStopScope(root)
+    scope.gate.trip(429)
+    cookie = base / 'generated-cookie.txt'
+    cookie.write_text('# Netscape HTTP Cookie File\n'
+                      '.pixiv.net\tTRUE\t/\tTRUE\t4102444800\tPHPSESSID\t55_generatedonly\n',
+                      encoding='utf-8')
+    def transport(*_args):
+        fake._hit('transport')
+        raise RuntimeError('unexpected synthetic transport')
+    return scope.create_reader(cookie, transport=transport), scope
+
+
 def serve(args):
     from tools.check_library_calendar_slider_owned import deny_external_connections
     network = deny_external_connections()
@@ -174,13 +202,14 @@ def serve(args):
 
     base = Path(args.root)
     fake = FakeClient()
+    reader, scope = make_stopped_reader(base, fake)
     # Isolated, Cookie-less profile: gives the header auth label + cookie banner exactly as the
     # real app shows them before a Cookie is chosen.  No Cookie reader, no browser profile, no
     # shared STOP owner is created; the auth check resolves locally to "not configured".
     store = NativeProfileStore(base / "profile")
     profile = NativeProfileBinding(store, launch_snapshot=store.snapshot())
     profile.auth_stop_required = True
-    kw = dict(live_client=fake, native_profile=profile,
+    kw = dict(live_client=reader, native_profile=profile, shared_network_stop_scope=scope,
               library_readonly_db=base / "lib" / "synthetic-legacy.sqlite",
               library_image_root=base / "lib" / "fake-images",
               pixiv_download_root=base / "managed",
