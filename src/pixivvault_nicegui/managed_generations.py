@@ -23,7 +23,7 @@ from threading import RLock
 from uuid import uuid4
 
 from .fs_paths import logical_path, native_io_path
-from .managed_root_writer import fenced_writer, writer_fence
+from .managed_root_writer import bootstrap_fenced_init, fenced_writer, writer_fence
 from .managed_downloads import (IDENTITY, MARKER, MAX_RECEIPT_BYTES, MAX_PAGE_BYTES,
                                 MAX_PAGES, MAX_PIXELS, MAX_TOTAL, _image,
                                 ManagedDownloadError, ManagedPageQuarantined, LegacyV5Uncertain,
@@ -415,6 +415,7 @@ class ManagedGenerations:
         else:
             probe._load_full()
 
+    @bootstrap_fenced_init
     def __init__(self, root: Path):
         self.root = Path(root)
         if not self.root.is_absolute() or not native_io_path(self.root).is_dir():

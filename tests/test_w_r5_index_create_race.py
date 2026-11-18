@@ -148,3 +148,16 @@ def test_missing_index_with_existing_generations_creates_no_directories(tmp_path
         else:
             ManagedPixivDownloads(root, object(), resolve_record=lambda *_: None)
     assert {p.name for p in root.iterdir()} == before
+
+
+@pytest.mark.parametrize('entry', ['generations', 'downloads'])
+def test_existing_empty_index_is_rejected_without_creating_directories(tmp_path, entry):
+    root = make_root(tmp_path)
+    (root / 'active-generations.json').write_bytes(b'')
+    before = {p.name for p in root.iterdir()}
+    with pytest.raises(ManagedDownloadError):
+        if entry == 'generations':
+            mg.ManagedGenerations(root)
+        else:
+            ManagedPixivDownloads(root, object(), resolve_record=lambda *_: None)
+    assert {p.name for p in root.iterdir()} == before

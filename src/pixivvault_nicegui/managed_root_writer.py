@@ -126,6 +126,55 @@ def writer_fence(root, *, blocking=True):
                     os.close(fd)
 
 
+@contextmanager
+def bootstrap_fence(root):
+    """Serialize managed-root initialization without blocking ordinary writes."""
+    from .managed_downloads import ManagedDownloadError
+    path = native_io_path(Path(root))
+    key = os.path.normcase(str(path.resolve())).casefold()
+    if os.name != 'nt':
+        with _REGISTRY_LOCK:
+            lock = _ROOT_LOCKS.setdefault(('bootstrap', key), RLock())
+        with lock:
+            yield
+        return
+    import ctypes
+    from ctypes import wintypes
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    create = kernel.CreateMutexW
+    create.argtypes = (wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR)
+    create.restype = wintypes.HANDLE
+    wait = kernel.WaitForSingleObject
+    wait.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+    wait.restype = wintypes.DWORD
+    release = kernel.ReleaseMutex
+    release.argtypes = (wintypes.HANDLE,)
+    close = kernel.CloseHandle
+    close.argtypes = (wintypes.HANDLE,)
+    digest = hashlib.sha256(key.encode('utf-16le')).hexdigest()
+    handle = create(None, False, 'Global\\PixivVaultBootstrap_' + digest)
+    if not handle:
+        raise ManagedDownloadError('managed root initialization unavailable')
+    acquired = False
+    try:
+        if wait(handle, 30000) not in (0, 0x80):
+            raise ManagedDownloadError('managed root initialization busy')
+        acquired = True
+        yield
+    finally:
+        if acquired:
+            release(handle)
+        close(handle)
+
+
+def bootstrap_fenced_init(method):
+    @wraps(method)
+    def call(self, root, *args, **kwargs):
+        with bootstrap_fence(root):
+            return method(self, root, *args, **kwargs)
+    return call
+
+
 def fenced_writer(method):
     """Hold the same lock for nested generations and quarantine mutations."""
     @wraps(method)

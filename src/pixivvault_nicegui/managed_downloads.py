@@ -218,7 +218,11 @@ def _image(data: bytes) -> tuple[str, str, int, int]:
     return {"PNG": ("png", "png"), "JPEG": ("jpg", "jpeg"), "WEBP": ("webp", "webp")}[kind] + (width, height)
 
 
+from .managed_root_writer import bootstrap_fenced_init
+
+
 class ManagedPixivDownloads:
+    @bootstrap_fenced_init
     def __init__(self, root: Path, client, *, resolve_record):
         self.root = Path(root)
         if not self.root.is_absolute() or self.root.parent == self.root:
