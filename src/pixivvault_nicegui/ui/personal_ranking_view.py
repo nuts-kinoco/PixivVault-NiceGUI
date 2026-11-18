@@ -32,6 +32,7 @@ class PersonalRankingView(RankingView):
                 self.r18=ui.checkbox('R-18 指定（原 API 未対応）',value=False).props('data-testid=personal-r18');self.r18.disable()
                 self.ai=ui.checkbox('AI を除外',value=False).props('data-testid=personal-ai')
                 self.fetch_button=ui.button('取得・更新',on_click=self.load).props('flat data-testid=personal-fetch')
+                self._build_hide_manager()
             ui.label('借用アカウントの原検索 API は R-18 指定を消費しないため、この検索では R-18 絞り込みを適用しません。').classes('text-caption')
             with ui.expansion('よく効くタグ', value=True).classes('w-full').props(
                     'data-testid=personal-candidates-toggle') as self.candidates:
@@ -50,6 +51,7 @@ class PersonalRankingView(RankingView):
                     ui.button('この条件を保存',on_click=self.save).props('flat data-testid=personal-save-filters')
                     ui.button('条件をクリア',on_click=self.clear_filters).props('flat data-testid=personal-clear-filters')
             self.notice=ui.label('').props('role=status data-testid=personal-notice')
+            self._build_hide_status()
             self.gallery=_RankingGallery(self.proxy,card_size=card_size,on_size_change=on_size_change);self.gallery.owner=self
             # Controls must not collapse the actual artwork viewport to zero.
             # The outer panel scrolls on short windows; the gallery retains a
@@ -105,6 +107,10 @@ class PersonalRankingView(RankingView):
             **{k:bool(v.value) for k,v in self.exclusions.items()}))
     def context(self):
         return self._context_snapshot
+    def _after_hidden_change(self):
+        # 除外集合は文脈（保存済みの読み込み）から来る。読み直してから描き直す。
+        self._refresh_hide_ui()
+        self._start_context_refresh()
     def _read_context(self):
         callback=getattr(self.services,'personal_ranking_context',None)
         if callback:return callback()

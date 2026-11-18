@@ -15,8 +15,9 @@ class _ViewerServices:
 
 
 class RecommendationViewer(ViewerController):
-    def __init__(self, services, host, *, on_close):
+    def __init__(self, services, host, *, on_close, on_hidden=None):
         self._on_selection_close = on_close
+        self._on_hidden = on_hidden
         self.selection = None
         self.closed = False
         self._init_viewer(_ViewerServices(services), GalleryState(()), host)
@@ -41,6 +42,10 @@ class RecommendationViewer(ViewerController):
         self.selection = selection
         self.set_viewer_active(True)
         super().open(selection.artwork.work_id)
+
+    def _after_viewer_hide(self, art, hidden):
+        self.close_viewer(restore_focus=False)
+        if self._on_hidden is not None:self._on_hidden(art.work_id)
 
     def close_viewer(self, *, restore_focus=True):
         self._on_selection_close()

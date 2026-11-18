@@ -7,6 +7,7 @@ from collections.abc import Callable
 from nicegui import ui
 
 from ..models import Artwork
+from .card_context_menu import MenuEntry, build_context_menu, open_from_keyboard
 from .verified_image import VerifiedImage
 
 
@@ -21,7 +22,10 @@ class ArtworkViewer:
         *,
         test_id: str = "gallery-viewer",
         image_test_id: str = "viewer-image",
+        context_hide: bool = True,
     ) -> None:
+        self.on_hide = None      # 右クリックの「出さない」「保存フォルダを開く」は持ち主（ViewerController）が結線する
+        self.on_folder = None
         self.dialog = self  # GalleryView's existing dialog.open()/close() call sites.
         self.client = ui.context.client
         self._is_open = False
@@ -50,6 +54,7 @@ class ArtworkViewer:
                         icon="close", on_click=on_close, color=None
                     ).props("flat round aria-label=閉じる")
                 with ui.element("div").classes("pv-viewer-stage") as self.stage:
+                    self._build_context_menu(context_hide)
                     self.previous_page = ui.button(
                         icon="chevron_left", on_click=on_previous, color=None
                     ).props("flat round aria-label=前のページ").classes("pv-viewer-page-prev")
@@ -121,6 +126,37 @@ class ArtworkViewer:
         self.set_zoom_ready(False)
         self.set_details_open(False)
         self.set_status("")
+
+    def _build_context_menu(self, with_hide: bool) -> None:
+        """元 artbook_viewer.py:849-870 の右クリック 4 項目。"""
+        entries = [
+            MenuEntry('pixiv', 'pixivで作品ページを開く', 'open_in_new', href='', enabled=False,
+                      testid='viewer-context-pixiv'),
+            MenuEntry('author', '作者ページを開く', 'person_outline', href='', enabled=False,
+                      testid='viewer-context-author'),
+        ]
+        if with_hide:
+            entries.append(MenuEntry('hide', '出さない', 'visibility_off',
+                                     lambda: self.on_hide() if self.on_hide else None, enabled=False,
+                                     testid='viewer-context-hide'))
+        entries.append(MenuEntry('folder', '保存フォルダを開く', 'folder_open',
+                                 lambda: self.on_folder() if self.on_folder else None, enabled=False,
+                                 testid='viewer-context-folder'))
+        self.context_menu, self.context_items = build_context_menu(entries, testid='viewer-context-menu')
+        open_from_keyboard(self.root, self.context_menu)
+
+    def set_context_target(self, artwork: Artwork, *, hide_ok: bool, folder_ok: bool) -> None:
+        """作品を開くたびに、右クリック項目の遷移先と有効・無効を現在の作品へ合わせる。"""
+        from ..viewer_metadata import pixiv_url
+        for key, url in (('pixiv', pixiv_url(artwork.work_id)),
+                         ('author', pixiv_url(artwork.author_id, author=True) if artwork.author_id else None)):
+            item = self.context_items[key]
+            item.props['href'] = url or ''
+            item.set_enabled(url is not None)
+            item.update()
+        if 'hide' in self.context_items:
+            self.context_items['hide'].set_enabled(bool(hide_ok))
+        self.context_items['folder'].set_enabled(bool(folder_ok))
 
     @staticmethod
     def _unavailable_action(icon: str, label: str, purpose: str):

@@ -7,12 +7,21 @@ from nicegui import ui
 from ..ranking_source import RankingQuery, RankingUnavailable, MODES, CONTENTS, SORTS, merge_pages, sorted_items
 from ..state import GalleryState
 from .gallery import GalleryView
+from .ranking_card_menus import RankingCardMenus
 
 class _ViewServices:
     def __init__(self,parent):self.parent=parent;self.artworks=();self.images=parent.images
     def __getattr__(self,name):return getattr(self.parent,name)
 
 class _RankingGallery(GalleryView):
+    def _card_menu(self,art,card):
+        owner=getattr(self,'owner',None)
+        if owner is not None:owner.build_card_menu(art,card)
+    def _after_viewer_hide(self,art,hidden):
+        owner=getattr(self,'owner',None)
+        if owner is None:return super()._after_viewer_hide(art,hidden)
+        self.close_viewer(restore_focus=False)
+        owner.adopt_hidden(art.work_id,art.title,hidden)
     def render_gallery(self):
         super().render_gallery()
         owner=getattr(self,'owner',None)
@@ -34,7 +43,7 @@ class _RankingGallery(GalleryView):
             return
         super().open(work_id,page_no)
 
-class RankingView:
+class RankingView(RankingCardMenus):
     _auto_loaded=False;_auto_task=None  # first-open fetch state (see _schedule_first_load)
     def __init__(self,services,*,card_size='large',on_size_change=None):
         self.services=services;self.proxy=_ViewServices(services)
@@ -58,7 +67,9 @@ class RankingView:
                 self.tag=ui.input('タグ検索').props('outlined dense data-testid=ranking-tag')
                 self.fetch_button=ui.button('取得・更新',on_click=self.load).props('flat data-testid=ranking-fetch')
                 self.sort=ui.select(SORTS,value='rank',label='並び順',on_change=lambda _:self.render()).props('outlined dense data-testid=ranking-sort')
+                self._build_hide_manager()
             self.notice=ui.label('条件を選び、取得してください。').props('role=status data-testid=ranking-notice')
+            self._build_hide_status()
             self.gallery=_RankingGallery(self.proxy,card_size=card_size,on_size_change=on_size_change)
             self.gallery.owner=self
             # Initial no-request state is not a successful empty response.
@@ -209,7 +220,7 @@ class RankingView:
         candidate_provider=None
         old_pin,old_page,old_images=self.pin,self.page,self.proxy.images
         try:
-            candidate=await asyncio.to_thread(self.services.ranking_source.fetch,query,self.page.page+1 if append else 1,
+            candidate=await asyncio.to_thread(self._fetch_with_hidden,query,self.page.page+1 if append else 1,
                 **({'previous':self.page} if append and getattr(self.page,'page_session',None) is not None else {}))
             if self.closed or not self.active or epoch!=self.epoch:return
             merged=merge_pages(self.page if append else None,candidate)
@@ -252,6 +263,11 @@ class RankingView:
             if not self.closed:
                 self.gallery.more_button.set_text('もっと見る')
                 self.fetch_button.enable();self._sync_result_controls()
+    def _fetch_with_hidden(self,*args,**kwargs):
+        # 取得と同じ作業スレッドで、保存済みの「出さない」集合も読む（通信は取得の 1 回だけ）。
+        value=self.services.ranking_source.fetch(*args,**kwargs)
+        self._load_hidden_now()
+        return value
     def render(self):
         if self.closed or self.page is None:return
         if not self._result_matches_conditions():
@@ -259,6 +275,8 @@ class RankingView:
         self.gallery.close_viewer(restore_focus=False)
         old=self.gallery.state
         items=self.page.items if self.page.query.tag else sorted_items(self.page.items,self.sort.value)
+        hidden=self.hidden_work_ids()
+        if hidden:items=tuple(i for i in items if i.record.work_id not in hidden)
         state=GalleryState(tuple(i.record.as_artwork() for i in items),page_size=max(50,len(items)))
         state.set_card_size(old.card_size);state.set_query(old.query);state.generation=old.generation+1;old.close()
         self.gallery.state=self.gallery._viewer_state=state
@@ -285,7 +303,13 @@ class RankingView:
         self.active=bool(active) and not self.closed;self.gallery.set_viewer_active(self.active)
         if not self.active:
             self._condition_pending=False;self._close_calendar()
-        else:self._schedule_first_load()
+        else:
+            self._schedule_first_load()
+            self._schedule_hidden_refresh()
+    def _schedule_hidden_refresh(self):
+        # おすすめ側の「出さない」変更を、タブを開いたときに取り込む（保存済みの読み込みだけ）。
+        try:self._hm().task=asyncio.get_running_loop().create_task(self.refresh_hidden())
+        except RuntimeError:pass
     def _schedule_first_load(self):
         # Original ranking_tab.on_tab_open: the first time the tab becomes
         # visible and nothing is cached, fetch once. Only with a live reader.
