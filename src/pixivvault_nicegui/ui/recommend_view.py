@@ -13,6 +13,13 @@ from .card_actions import CardActions
 from .card_context_menu import MenuEntry, build_context_menu, open_from_keyboard
 
 _TREND_TIERS=((16,2.0),(13.5,1.5),(12,1),(11,1))
+_SECTION_DESCRIPTIONS={
+    'trend_added':'傾向ピルをクリックして追加したタグの候補',
+    'trend':'好みの学習結果に基づく候補',
+    'certain':'あなたが好んで見ているタグの作品',
+    'boosted':'個別に登録した作者の新着',
+    'superlike':'自分が強く反応した作品',
+}
 
 class RecommendView:
     def __init__(self,services,*,on_open=None,on_enqueue=None,card_size="large",on_size_change=None,on_navigate_to_learning=None,on_search_tag=None):
@@ -381,6 +388,7 @@ class RecommendView:
                             b=ui.button(label,on_click=lambda e,k=kind,d=delta:self.move(k,d)).props('flat')
                             b.set_enabled(data['writable'] and 0<=list(data['order']).index(kind)+delta<len(data['order']))
                     if kind in data['collapsed']:continue
+                    ui.label(_SECTION_DESCRIPTIONS[kind]).classes('pv-subtitle')
                     if kind=='trend':
                         trends=data.get('trends',())
                         if len(trends)>40:ui.label(f'+{len(trends)-40}').classes('pv-subtitle')
@@ -409,7 +417,10 @@ class RecommendView:
                     groups=data['sections'].get(kind,())
                     if not any(g.works for g in groups):ui.label('表示対象がありません。').classes('pv-subtitle')
                     for group in groups:
-                        ui.label(group.title).classes('pv-subtitle')
+                        subtitle=(f'あなたが好んで見ている『{group.title}』の作品' if kind=='certain'
+                                  else f'『{group.title}』の作品（傾向から追加）' if kind=='trend_added'
+                                  else f'「{group.title}」の新着' if kind=='boosted' else group.title)
+                        ui.label(subtitle).classes('pv-subtitle')
                         if kind=='certain':
                             closed=group.key in data.get('certain_group_collapsed',())
                             b=ui.button('このタグを開く' if closed else 'このタグを閉じる',on_click=lambda e,t=group.key:self.collapse_certain_group(t)).props('flat')
