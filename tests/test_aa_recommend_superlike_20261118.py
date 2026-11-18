@@ -2,6 +2,8 @@ from pixivvault_nicegui.recommendation_state import (
     RecommendationController, RecommendationGroup, RecommendationPreferences,
     RecommendationSnapshot, RecommendationWork,
 )
+from pixivvault_nicegui.recommendation_acquisition import PixivRecommendationAdapter
+from pixivvault_nicegui.pixiv_read_client import LivePixivReadClient
 
 
 class Source:
@@ -46,5 +48,44 @@ def test_missing_uncached_superlike_is_not_displayed(tmp_path):
         state = c.refresh()
         state = c.update(state['revision'])
         assert not state['sections']['superlike'][0].works
+    finally:
+        c.close()
+
+
+def test_adapter_distinguishes_empty_body_from_reader_failure():
+    class Reader:
+        get_recommendation_work = LivePixivReadClient.get_recommendation_work
+        def require_identity(self): return '1'
+        def _json(self, kind, url, *, deadline): return None
+    assert PixivRecommendationAdapter(Reader()).detail('11') is None
+
+
+def test_missing_cached_cards_obey_display_limit(tmp_path):
+    class Many:
+        def load(self):
+            return RecommendationSnapshot(sections=(('superlike', (RecommendationGroup('superlike', 'S', tuple(
+                RecommendationWork(str(i), thumbnail_url='https://i.pximg.net/img.jpg') for i in range(1, 41)
+            )),)),))
+    fetch = Fetch(); fetch.mode = 'missing'
+    c = RecommendationController(Many(), RecommendationPreferences(tmp_path / 'prefs'), acquisition=fetch)
+    try:
+        state = c.refresh(); state = c.update(state['revision'])
+        assert len(state['sections']['superlike'][0].works) == 36
+    finally:
+        c.close()
+
+
+def test_thumbnailless_response_does_not_destroy_known_cache(tmp_path):
+    fetch = Fetch()
+    c = RecommendationController(Source(), RecommendationPreferences(tmp_path / 'prefs'), acquisition=fetch)
+    try:
+        state = c.refresh(); state = c.update(state['revision'])
+        fetch.detail = lambda wid: dict(id=wid, title='no image')
+        state = c.update(state['revision'])
+        assert not state['sections']['superlike'][0].works
+        fetch.detail = lambda wid: None
+        state = c.update(state['revision'])
+        assert all(w.deleted and w.title == 'cached' for w in state['sections']['superlike'][0].works)
+        assert len(state['sections']['superlike'][0].works) == 2
     finally:
         c.close()

@@ -44,7 +44,7 @@ class PixivRecommendationAdapter:
         rows=self.reader.get_user_works(author_id,early_exit_checker=stop,lane='interactive')
         return [r for r in rows if str(r.get('id','')) not in excluded_ids][:limit]
     def detail(self,work_id):
-        return self.reader.get_discovery_work(work_id)
+        return self.reader.get_recommendation_work(work_id)
 
 
 class RecommendationAcquisition:
@@ -191,22 +191,28 @@ class RecommendationAcquisition:
             previous=dict(self.controller._snapshot.sections).get('superlike',())
             if previous:
                 values=[]
+                shown=0
                 cached={w.work_id:w for row in env['cache'].get('superlike',()) for w in decode(row).works}
                 for old in previous[0].works:
                     if old.work_id in state['hidden_works']:continue
                     prior=cached.get(old.work_id,old)
+                    if shown>=self.visible_limit*3:
+                        values.append(replace(prior,unavailable=True))
+                        continue
                     try:
                         row=self.source.detail(old.work_id)
                         if not row:
-                            values.append(replace(prior,deleted=bool(prior.thumbnail_url),unavailable=not bool(prior.thumbnail_url)))
-                            continue
-                        fresh=work(row)
-                        if fresh.work_id!=old.work_id:raise RecommendationError()
+                            fresh=replace(prior,deleted=bool(prior.thumbnail_url),unavailable=not bool(prior.thumbnail_url))
+                        else:
+                            fresh=work(row)
+                            if fresh.work_id!=old.work_id:raise RecommendationError()
+                            if not fresh.thumbnail_url:fresh=replace(prior,unavailable=True)
                     except Exception:
                         self.errors['superlike:'+old.work_id]='fetch_failed'
-                        fresh=prior
-                    if fresh.author_id not in state['hidden_authors']:values.append(fresh)
-                    if len(values)>=self.visible_limit*3:break
+                        fresh=replace(prior,deleted=False,unavailable=not bool(prior.thumbnail_url))
+                    if fresh.author_id not in state['hidden_authors']:
+                        values.append(fresh)
+                        if not fresh.unavailable:shown+=1
                 env['cache']['superlike']=[encode(RecommendationGroup('superlike',previous[0].title,tuple(values)))]
             return self.store(env,revision)
 

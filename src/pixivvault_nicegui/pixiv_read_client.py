@@ -1451,6 +1451,16 @@ class LivePixivReadClient:
         if record['id']!=wid:raise InvalidPayload()
         return record
 
+    def get_recommendation_work(self, work_id):
+        """Allow an explicitly empty body while retaining identity and payload checks."""
+        wid=_identifier(work_id)
+        self.require_identity()
+        body=self._json('artwork',f'{API_ORIGIN}/ajax/illust/{wid}',deadline=time.monotonic()+MAX_OPERATION_SECONDS)
+        if body is None or body == {}:return None
+        record=_discovery_record(body)
+        if record['id']!=wid:raise InvalidPayload()
+        return record
+
     def get_work_info(self, work_id):
         """Selected ranking work AI classification; missing evidence fails closed."""
         wid=_identifier(work_id)

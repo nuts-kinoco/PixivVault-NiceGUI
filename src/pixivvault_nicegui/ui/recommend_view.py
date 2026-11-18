@@ -413,17 +413,14 @@ class RecommendView:
                         with ui.element("div").classes("pv-grid w-full").style(f"--pv-max-cols:{MAX_COLUMNS[self.card_size]}"):
                             for work in group.works[:count]:
                                 with ui.column().classes('w-full gap-1').style('min-width:0').props(f'data-testid=recommend-work-{kind}-{work.work_id}'):
-                                    if work.deleted:
-                                        with ui.element('div').classes('pv-card w-full').props(f'data-testid=recommend-unavailable-{work.work_id}'):
-                                            ui.label('⚠ 表示できません')
-                                            ui.label(work.title or 'ID '+work.work_id).classes('pv-card-title')
-                                        continue
                                     with ui.element('div').classes('pv-card w-full').props(
                                             f'tabindex=0 role=button data-testid=recommend-open-{kind}-{work.work_id}') as preview:
-                                        preview.props['aria-label']='画集ビューアで開く: '+(work.title or 'ID '+work.work_id)
-                                        preview.on('click',lambda e,w=work.work_id,g=generation:self.open_work(w,generation=g))
-                                        preview.on('keydown.enter',lambda e,w=work.work_id,g=generation:self.open_work(w,generation=g),
-                                            js_handler='event => {event.preventDefault();emit();}')
+                                        if not work.deleted:
+                                            preview.props['aria-label']='画集ビューアで開く: '+(work.title or 'ID '+work.work_id)
+                                            preview.on('click',lambda e,w=work.work_id,g=generation:self.open_work(w,generation=g))
+                                            preview.on('keydown.enter',lambda e,w=work.work_id,g=generation:self.open_work(w,generation=g),
+                                                js_handler='event => {event.preventDefault();emit();}')
+                                        else:preview.props['aria-label']='表示できません: '+(work.title or 'ID '+work.work_id)
                                         thumbnail=None
                                         caption='サムネイル未取得'
                                         try:
@@ -441,6 +438,7 @@ class RecommendView:
                                         with ui.element('div').classes('pv-card-meta'):
                                             ui.label(work.title or 'ID '+work.work_id).classes('pv-card-title')
                                             ui.label(work.author_name or work.author_id).classes('pv-card-author')
+                                            if work.deleted:ui.label('⚠ 表示できません').classes('pv-subtitle').props(f'data-testid=recommend-unavailable-{work.work_id}')
                                     self._card_menu(kind,work,generation,preview,data)
                                     if self.on_open is not None:ui.button('保存済みを開く',
                                         on_click=lambda e,w=work.work_id,g=generation:self.open_saved_work(w,generation=g)).props('flat dense')
