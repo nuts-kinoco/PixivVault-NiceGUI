@@ -372,6 +372,10 @@ class ApplicationServices:
         self.legacy_author_bridge = None
         self.managed_scheduler = None
         self.managed_schedule_runner = None
+        # The author batch run ("実行 1 回") engine and its ledger: provisioned by enable_batch_runs.
+        self.batch_runs = None
+        self.batch_run_ledger = None
+        self._favourite_book = None
         # Phase10: metadata settings are explicit, OFF by default and do not
         # start any HTTP/backfill worker. Owned by the app, never by a tab.
         self.managed_metadata = None
@@ -2787,6 +2791,12 @@ class ApplicationServices:
             self.recommendations.close()
         if self.discovery is not None:
             self.discovery.close()
+        if self.batch_runs is not None:
+            # Closing marks `closing`, which the engine reads as a stop; wait for its thread.
+            self.batch_runs.stop()
+            self.batch_runs.join(60.0)
+        if self.batch_run_ledger is not None:
+            self.batch_run_ledger.close()
         if self.following_sync is not None:
             self.following_sync.close()
         vault_shutdown_error = None
@@ -2851,10 +2861,18 @@ class ApplicationServices:
             if self.managed_scheduler is None:
                 from .managed_scheduler import ManagedScheduler, ManagedScheduleRunner, submit_author_batch
                 ledger = ManagedScheduler(self.managed_downloads.root)
+                ledger.attach_favourites(self.favourite_book(scheduler=ledger))
 
                 def dispatch(slot, cancellation):
                     # Queue acceptance is not a verified saved receipt.
                     with self._scheduler_dispatch_lock:
+                        if self.batch_runs is not None:
+                            # The same engine as the screen's 「実行」: every ☆ author, in turn,
+                            # stamped on completion, behind the same network stop gate.
+                            from .managed_scheduler import run_author_check
+                            run_author_check(self, ledger.favourites(), cancellation=cancellation,
+                                             ledger=ledger, slot=slot)
+                            return
                         submit_author_batch(self, ledger.favourites(), cancellation=cancellation,
                                             ledger=ledger, slot=slot)
 
@@ -2868,6 +2886,77 @@ class ApplicationServices:
                 self.managed_scheduler = ledger
                 self.managed_schedule_runner = runner
             return self.managed_scheduler
+
+    # -- author batch runs ---------------------------------------------------------------
+    def batch_run_active(self) -> bool:
+        """True while an author run is running, paused or stopping.
+
+        The job queue can be empty while a run lists an author or waits 4-6 seconds for the next
+        one, so background work (metadata backfill) must ask this too, not only for unfinished jobs.
+        """
+        engine = self.batch_runs
+        return bool(engine is not None and engine.active)
+
+    def _download_busy(self) -> bool:
+        from .job_service import UNFINISHED
+        return bool(self.batch_run_active()
+                    or (self.jobs is not None and any(j.state in UNFINISHED for j in self.jobs.snapshot())))
+
+    def enable_batch_runs(self, root=None):
+        """Provision the run ledger and engine (explicit; starts no run and makes no request).
+
+        `root` defaults to a `batch-runs` folder next to the following ledger (or the managed root).
+        A run still marked active from before a restart is closed as `interrupted`; it is only
+        offered back by `batch_runs.resumable_run()`, never restarted on its own.
+        """
+        with self._close_lock:
+            if self.closing or self.managed_downloads is None or self.author_media is None:
+                raise RuntimeError('author batch runs need isolated managed mode')
+            if self.batch_runs is None:
+                from .batch_engine import BatchRunEngine, ServicesPort
+                from .batch_runs import BatchRunLedger
+                if root is None:
+                    anchor = (Path(self.following_sync_root) if self.following_sync_root is not None
+                              else Path(self.managed_downloads.root))
+                    root = anchor.parent / 'batch-runs'
+                ledger = BatchRunLedger(Path(root))
+                try:
+                    engine = BatchRunEngine(ServicesPort(self), ledger, following=self.following_sync)
+                    engine.recover()
+                except BaseException:
+                    ledger.close()
+                    raise
+                self.batch_run_ledger, self.batch_runs = ledger, engine
+            return self.batch_runs
+
+    def start_batch_run(self, author_ids, *, origin='manual', target_type=None):
+        """Start one run over `author_ids`. Raises RuntimeError when a run is already active."""
+        engine = self.batch_runs
+        if engine is None or self.closing:
+            raise RuntimeError('author batch runs are not enabled')
+        if self.following_sync is not None:
+            # No network: the account of the newest completed follow sync. Without one nothing is stamped.
+            engine.account_id = self.following_sync.last_synced_account()
+        return engine.start(tuple(author_ids), origin=origin, target_type=target_type)
+
+    def favourite_book(self, scheduler=None):
+        """The single home of the ☆ authors (the following ledger), see favourites.py."""
+        from .favourites import FavouriteBook
+        book = self._favourite_book
+        if book is None or (scheduler is not None and book.scheduler is not scheduler):
+            book = self._favourite_book = FavouriteBook(
+                self.following_sync, scheduler=scheduler or self.managed_scheduler,
+                legacy_db=getattr(self, 'library_readonly_db', None))
+        return book
+
+    def favourite_author_ids(self):
+        return self.favourite_book().ids()
+
+    def set_favourite(self, author_id, favourite) -> bool:
+        changed = self.favourite_book().set(author_id, favourite)
+        if changed and self.managed_scheduler is not None:
+            self.managed_scheduler._star_cache = (0.0, frozenset())
+        return changed
 
     def enable_managed_metadata(self):
         """Explicit provisioning only; never opens Pixiv, starts a timer or GET.
@@ -3016,7 +3105,7 @@ class ApplicationServices:
                 if (expected_revision is not None and
                         self.managed_metadata.settings().revision != expected_revision):
                     return MetadataRunSummary(stopped='settings_changed')
-                if self.jobs is None or any(j.state in UNFINISHED for j in self.jobs.snapshot()):
+                if self.jobs is None or self._download_busy():
                     return MetadataRunSummary(stopped='download_busy')
                 receipt = self.managed_downloads.verified_saved_receipt(work_id)
                 if receipt is None:
@@ -3037,8 +3126,7 @@ class ApplicationServices:
                     self.managed_metadata,
                     transport if transport is not None else LivePixivMetadataTransport(self.live_client),
                     active_receipt_sha256=active,
-                    is_download_busy=lambda: self.closing or self.jobs is None
-                    or any(j.state in UNFINISHED for j in self.jobs.snapshot()),
+                    is_download_busy=lambda: self.closing or self.jobs is None or self._download_busy(),
                 )
                 # Phase10 blocks on the first global failure, including identity GET.
                 with request_scope(allow_retry=False):
@@ -3126,7 +3214,7 @@ class ApplicationServices:
 
             def busy():
                 return (self.closing or self.jobs is None
-                        or any(j.state in UNFINISHED for j in self.jobs.snapshot())
+                        or self._download_busy()
                         or self._metadata_network_blocked())
             if busy():
                 return MetadataRunSummary(

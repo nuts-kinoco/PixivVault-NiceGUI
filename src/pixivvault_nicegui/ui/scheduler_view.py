@@ -34,7 +34,7 @@ class SchedulerView:
                                            '24': '24時間', '48': '48時間'}, value='24',
                                           label='自動チェック間隔').style('min-width:184px').props('data-testid=scheduler-interval')
                 self.startup = ui.checkbox('起動時にもチェック').props('data-testid=scheduler-startup')
-            self.authors = ui.input(label='お気に入り作者ID（カンマ区切り、最大128件）').classes('w-full').style('max-width:640px').props('data-testid=scheduler-authors')
+            self.authors = ui.input(label='お気に入り（☆）作者ID（カンマ区切り。☆はダウンロード画面でも付け外しできます）').classes('w-full').style('max-width:640px').props('data-testid=scheduler-authors')
             self.interval.on_value_change(lambda _: self._mark_settings_dirty())
             self.startup.on_value_change(lambda _: self._mark_settings_dirty())
             self.authors.on_value_change(lambda _: self._mark_settings_dirty())
