@@ -256,6 +256,9 @@ class ManagedPixivDownloads:
         self.incomplete = self.root / 'incomplete'
         self.generation_outputs = self.root / 'generations'
         with _index_creation_guard(self.root):
+            if any(not native_io_path(folder).is_dir() for folder in
+                   (self.outputs, self.incomplete, self.generation_outputs)):
+                ManagedGenerations._verify_before_directory_creation(self.root)
             for folder in (self.outputs, self.incomplete, self.generation_outputs):
                 _safe_path(folder)
                 native_io_path(folder).mkdir(exist_ok=True)

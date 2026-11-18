@@ -373,6 +373,23 @@ class ManagedGenerations:
     docs/design/GENERATION_INDEX_JOURNAL_2026-11-18.md.
     """
 
+    @classmethod
+    def _verify_before_directory_creation(cls, root):
+        """Check an existing index without creating missing managed folders."""
+        if _identity(root / 'active-generations.json') is None:
+            return
+        probe = cls.__new__(cls)
+        probe.root = root
+        probe.output_dir = root / 'outputs'
+        probe.generation_dir = root / 'generations'
+        probe.stage_dir = root / 'generation-incomplete'
+        probe.index_path = root / 'active-generations.json'
+        probe.journal_path = root / _JOURNAL
+        probe._allow_missing_dirs = True
+        probe._unconfirmed_operations = set()
+        probe._loaded = None
+        probe._load_full()
+
     def __init__(self, root: Path):
         self.root = Path(root)
         if not self.root.is_absolute() or not native_io_path(self.root).is_dir():
@@ -388,6 +405,9 @@ class ManagedGenerations:
         self.index_path = self.root / 'active-generations.json'
         self.journal_path = self.root / _JOURNAL
         with _index_creation_guard(self.root):
+            if any(not native_io_path(folder).is_dir() for folder in
+                   (self.output_dir, self.generation_dir, self.stage_dir)):
+                self._verify_before_directory_creation(self.root)
             for folder in (self.output_dir, self.generation_dir, self.stage_dir):
                 _safe_path(folder)
                 native_io_path(folder).mkdir(exist_ok=True)
@@ -576,6 +596,8 @@ class ManagedGenerations:
         """
         _safe_path(directory)
         names = set()
+        if getattr(self, '_allow_missing_dirs', False) and _identity(directory) is None:
+            return names
         with os.scandir(native_io_path(directory)) as listing:
             for item in listing:
                 if limit is not None and len(names) >= limit:

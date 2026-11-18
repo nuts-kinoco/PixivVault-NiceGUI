@@ -44,3 +44,21 @@ def test_index_guard_blocks_replacement_during_creation(tmp_path):
         with pytest.raises(PermissionError):
             os.replace(replacement, index)
         assert json.loads(index.read_text())['journal']['generation'] == 1
+
+
+@pytest.mark.parametrize('entry', ['generations', 'downloads'])
+@pytest.mark.parametrize('packet', [
+    {'version': 5, 'journal': {'id': 'a' * 32, 'generation': 1}},
+    {'version': 5, 'entries': {}, 'exclusions': {}, 'quarantine_operations': {},
+     'journal': {'id': 'a' * 32, 'generation': 1, 'parent': '0' * 64}},
+])
+def test_invalid_existing_index_creates_no_directories(tmp_path, entry, packet):
+    root = make_root(tmp_path)
+    (root / 'active-generations.json').write_text(json.dumps(packet))
+    before = {p.name for p in root.iterdir()}
+    with pytest.raises(ManagedDownloadError):
+        if entry == 'generations':
+            mg.ManagedGenerations(root)
+        else:
+            ManagedPixivDownloads(root, object(), resolve_record=lambda *_: None)
+    assert {p.name for p in root.iterdir()} == before
