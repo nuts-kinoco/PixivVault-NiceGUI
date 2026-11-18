@@ -404,13 +404,17 @@ class ManagedGenerations:
         self.stage_dir = self.root / 'generation-incomplete'
         self.index_path = self.root / 'active-generations.json'
         self.journal_path = self.root / _JOURNAL
-        with _index_creation_guard(self.root):
-            if any(not native_io_path(folder).is_dir() for folder in
-                   (self.output_dir, self.generation_dir, self.stage_dir)):
+        folders = (self.output_dir, self.generation_dir, self.stage_dir)
+        reject_uncertain_old_v5(self.root)
+        if any(not native_io_path(folder).is_dir() for folder in folders):
+            with _index_creation_guard(self.root):
                 self._verify_before_directory_creation(self.root)
-            for folder in (self.output_dir, self.generation_dir, self.stage_dir):
-                _safe_path(folder)
-                native_io_path(folder).mkdir(exist_ok=True)
+                for folder in folders:
+                    _safe_path(folder)
+                    native_io_path(folder).mkdir(exist_ok=True)
+                    _safe_path(folder)
+        else:
+            for folder in folders:
                 _safe_path(folder)
         self._lock = RLock()
         self._visibility_cache = None
@@ -485,18 +489,26 @@ class ManagedGenerations:
 
     def _recover_if_pending(self):
         head = self._read_head()
-        if head is not None and _identity(self.stage_dir / head['candidate']) is not None:
-            try:
-                if (_identity(self.index_path) is not None and
-                        hashlib.sha256(_read_shared(self.index_path, _MAX_INDEX_BYTES)).hexdigest()
-                        == head['digest']):
-                    return
-                self._recover_head()
-            except ManagedDownloadError as error:
-                if str(error) != 'managed root writer fence busy':
-                    raise
-                # The active writer may be finishing this same fold. The read
-                # path verifies the complete index/head/journal and retries.
+        if head is None:
+            return
+        candidate = self.stage_dir / head['candidate']
+        if _identity(candidate) is None:
+            return
+        if (_identity(self.index_path) is not None and
+                hashlib.sha256(_read_shared(self.index_path, _MAX_INDEX_BYTES)).hexdigest()
+                == head['digest']):
+            return
+        try:
+            self._recover_head()
+        except ManagedDownloadError as error:
+            if str(error) != 'managed root writer fence busy':
+                raise
+            deadline = time.monotonic() + 0.25
+            while time.monotonic() < deadline:
+                if _identity(candidate) is None:
+                    return  # The caller still verifies the complete state.
+                time.sleep(0.01)
+            raise
 
     @staticmethod
     def _read_receipt(path, pieces, folders):
