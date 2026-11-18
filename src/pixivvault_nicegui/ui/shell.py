@@ -331,7 +331,7 @@ class DemoShell:
             self.preferences_view = PreferencesView(self.services.preferences,
                 enabled_keys=self.services.preference_consumers(),
                 on_change=self.apply_preferences,
-                clear_cache=self.services.shared_image_cache.clear if self.services.shared_image_cache else None,
+                clear_cache=self.services.clear_shared_image_cache if self.services.shared_image_cache else None,
                 desktop=self.services.desktop,
                 export_legacy=(self.services.export_legacy_metadata
                                if self.services.legacy_metadata_export_available() else None),

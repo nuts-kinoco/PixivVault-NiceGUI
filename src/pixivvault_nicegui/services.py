@@ -3044,6 +3044,16 @@ class ApplicationServices:
         if vault_shutdown_error is not None:
             raise vault_shutdown_error
 
+    def clear_shared_image_cache(self):
+        """Clear the owned cache and record only the confirmed outcome."""
+        from .shared_events import emit_shared
+        try:
+            self.shared_image_cache.clear()
+        except Exception:
+            emit_shared(self, '画像キャッシュを削除できませんでした。', level='error')
+            raise
+        emit_shared(self, '画像キャッシュを削除しました。', level='success')
+
     def enable_managed_scheduler(self):
         """Explicit opt-in, after managed-only application resources exist."""
         with self._close_lock, self._managed_scheduler_lock:

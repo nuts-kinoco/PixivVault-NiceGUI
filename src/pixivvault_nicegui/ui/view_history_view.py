@@ -159,6 +159,9 @@ class ViewHistoryView:
         finally:
             self.busy = False
             self.confirm.set_value('')
+        from ..shared_events import emit_shared
+        emit_shared(self.parent.services, '閲覧履歴: 全件削除に失敗しました。' if failed else '閲覧履歴: 全件削除しました',
+                    level='error' if failed else 'success')
         await self.refresh()
         self.error = '閲覧履歴が変更されたか、削除できませんでした。再読込して件数を確認してください。' if failed else ''
         if self.error:self.notice.set_text(self.error)

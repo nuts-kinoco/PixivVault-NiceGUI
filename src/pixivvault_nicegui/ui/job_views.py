@@ -613,6 +613,9 @@ class QueueView:
                     failed += 1
             return rejected == failed == 0
         finally:
+            if failed:
+                from ..shared_events import emit_shared
+                emit_shared(self.services, f'キュー一括操作で{failed}件失敗しました。', level='error')
             self.selected.difference_update(job_id for job_id, _ in candidates)
             self._bump_selection()
             self.busy.difference_update(job_id for job_id, _ in targets)
@@ -896,6 +899,8 @@ class QueueView:
                 self.notice.set_text("操作を受け付けました" if changed else "状態が変わったため操作しませんでした")
             return changed
         except Exception:
+            from ..shared_events import emit_shared
+            emit_shared(self.services, 'キュー操作に失敗しました。', level='error')
             if not self.closed:
                 self.notice.set_text("操作結果を保存できませんでした")
             return False
