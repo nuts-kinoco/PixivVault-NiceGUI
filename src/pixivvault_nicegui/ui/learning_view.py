@@ -18,6 +18,7 @@ from nicegui import background_tasks, ui
 from ..image_events import source_matches
 from ..learning import LearningState, MemoryJudgmentLedger, SaveCommand
 from ..services import ApplicationServices
+from .learning_toast import LearningToast
 from .verified_image import VerifiedImage
 
 
@@ -167,7 +168,10 @@ class LearningView:
             self.frame_label = ui.label().classes("pv-subtitle")
             self.frame_label.set_visibility(self.discovery is not None)
             self.progress = ui.label().classes("pv-counter")
-            self.picture = VerifiedImage(alt="判定対象の作品画像").classes("pv-view-art")
+            # 通知帯は画像の右下に重ねる（元 discovery_tab.py:241-244）。判定ボタンの位置は動かさない。
+            with ui.element("div").classes("w-full relative").style("min-height:96px"):
+                self.picture = VerifiedImage(alt="判定対象の作品画像").classes("pv-view-art")
+                self.toast = LearningToast()
             self.picture.on('click', self._open_learning_picture, js_handler=self._click_js())
             self.status = ui.label().classes("pv-subtitle pv-learning-status").props("role=status aria-live=polite")
             # 元 discovery_tab.py:4358-4365 の空状態の案内（候補が無いとき、何をすると何が起きるか）。
@@ -708,6 +712,7 @@ class LearningView:
         if success:
             self.close_summary()
             self.refresh()
+            self._show_judgment_toast(choice, payload.get("operation_id"))
         elif self.state.last_error:
             self.status.set_text(self.state.last_error)
         return success
@@ -727,6 +732,7 @@ class LearningView:
                 self._start_save(command)
             return
         if self.state.undo(operation_id=payload.get("operation_id")):
+            self.toast.hide()
             self.refresh()
         elif self.state.last_error:
             self.status.set_text(self.state.last_error)
@@ -779,12 +785,22 @@ class LearningView:
                     except Exception:
                         self._notice='判定は保存済みです。候補の並び替えを更新できませんでした。'
                 self.refresh()
+                if command.undo:
+                    self.toast.hide()
+                else:
+                    self._show_judgment_toast(command.judgment.choice, command.operation_id)
                 if self.discovery is not None:
                     try:
                         trend=await self.discovery.trend_snapshot()
                         if not self.state.closed:self._render_trend(trend)
                     except Exception:
                         if not self.state.closed:self.trend_label.set_text('判定は保存済みです。傾向を読み込めませんでした。')
+
+    def _show_judgment_toast(self, choice: str, operation_id) -> None:
+        """判定直後に「判定しました／取り消す」を出す（元 discovery_tab.py:1949-1952）。"""
+        item = self.state.current_artwork
+        props = f"data-work-id={item.work_id if item else ''} data-generation={self.state.generation}"
+        self.toast.show_undo(self._click_js(), self._on_undo, props)
 
     def _save_failed(self, command: SaveCommand, exc: Exception) -> None:
         from ..learning_repository import LearningConflict
@@ -887,6 +903,7 @@ class LearningView:
             known = set(order)
             order.extend(item.work_id for item in remaining if item.work_id not in known)
             remaining = tuple(by_id[wid] for wid in order)
+        self.toast.hide()
         self._baseline_count = len(self._artworks) - len(remaining)
         self.state = LearningState(remaining, self.ledger)
         # A late browser event from the previous snapshot must never match again.
@@ -906,6 +923,7 @@ class LearningView:
         self.root.props(f"data-active={'true' if self.active else 'false'}")
         self.root.set_visibility(self.active)
         if not self.active:
+            self.toast.hide()
             self.view_history.hide()
             self.view_history.dialog.close()
             self.view_history.viewer.close_viewer(restore_focus=False)
@@ -969,6 +987,7 @@ class LearningView:
             button.props(props)
             button.set_enabled(available and self.state.ready)
         self.undo_button.props(props)
+        self.toast.set_undo_props(props)
         self.undo_button.set_enabled(available and self.state.can_undo)
         self.retry_button.set_enabled(available and item is not None)
         self.save_retry_button.set_visibility(self._failed_command is not None)
@@ -1624,6 +1643,7 @@ class LearningView:
         self.close_summary()
         self._summary_epoch += 1
         self._review_timer.cancel()
+        self.toast.close()
         self.view_history.close()
         if self.reset_view is not None:self.reset_view.close()
         self._stop_initial_load()
