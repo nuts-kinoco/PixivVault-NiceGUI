@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import time
 from collections import OrderedDict
 from concurrent.futures import Future
 from datetime import datetime
 from uuid import uuid4
 from ..learning_review import ReviewFilter, PAGE_SIZE, requeue_outcome, review_trace
+from ..learning_trend_layout import PreferenceCapacity, displayed_rows, layout_mode
 from ..discovery_refill import DiscoveryRefill
 from ..discovery_description import layout as summary_layout, is_blank as summary_is_blank, MAX_DESCRIPTION
 from ..discovery_summary_fetch import fetch_summary, SummaryFetchFailed
@@ -63,6 +65,10 @@ class LearningView:
         self._discovery_frames = {}
         self._discovery_image_ids = frozenset()
         self._trend_open = False
+        self._trend_mode = 'rail'
+        self._trend_capacity = PreferenceCapacity()
+        self._trend_snapshot = None
+        self._trend_visible_rows = 0
         self._summary_open = False
         self._summary_page = 0
         self._summary_pages = []
@@ -142,6 +148,7 @@ class LearningView:
             if self.discovery is not None:
                 description = "発掘の判定は専用保存先に記録します。設定された取得元から初回候補を自動で読み込み、この画面を開いている間に候補を補充します。作品保存は明示操作で実行します。"
             ui.label(description).classes("pv-subtitle")
+            stage_start = len(self.root.default_slot.children)
             with ui.element('div').classes('w-full relative'):
                 with ui.row().classes('w-full items-center gap-2'):
                     self.title = ui.label().classes("pv-view-title")
@@ -252,14 +259,27 @@ class LearningView:
                 self.refill_status = ui.label().classes('pv-subtitle').props('role=status data-testid=discovery-refill-status')
                 self.managed_button = ui.button('作品を保存').props('flat data-testid=discovery-save')
                 self.managed_button.on('click', self._on_managed_save, js_handler=self._click_js())
-                with ui.row().classes('w-full items-center'):
+                with ui.row().classes('w-full items-center') as self.trend_header:
+                    ui.label('好みの傾向').classes('pv-card-title')
                     self.trend_label = ui.label().classes('pv-subtitle').props('data-testid=discovery-trend')
                     self.trend_button = ui.button('傾向を見る',on_click=self.toggle_trend).props(
                         'flat dense aria-expanded=false data-testid=discovery-trend-toggle')
                     self.trend_button.tooltip('判定すると自動で閉じます')
                 self.trend_content = ui.column().classes('w-full gap-1').props(
                     'data-testid=discovery-trend-panel')
-                self.trend_content.set_visibility(False)
+                stage_children = tuple(self.root.default_slot.children[stage_start:])
+                with ui.element('div').classes('pv-trend-layout w-full').props('data-mode=rail') as self.trend_layout:
+                    self.trend_main = ui.column().classes('pv-trend-main w-full gap-3')
+                    with ui.column().classes('pv-trend-side w-full gap-1') as self.trend_side:
+                        self.trend_viewport = ui.element('div').classes('pv-trend-viewport w-full')
+                for element in stage_children:
+                    if element is self.trend_header:
+                        element.move(self.trend_side, target_index=0)
+                    elif element is self.trend_content:
+                        element.move(self.trend_viewport)
+                    else:
+                        element.move(self.trend_main)
+                self.trend_button.set_visibility(False)
             self.review_button = ui.button('振り返り', on_click=self.open_review).props('flat data-testid=learning-review-open')
             from .view_history_view import ViewHistoryView
             self.view_history = ViewHistoryView(self, self.storage)
@@ -292,6 +312,8 @@ class LearningView:
             emit({width:window.innerWidth,height:window.innerHeight,
                  top:Math.ceil((anchor?.getBoundingClientRect().top ?? 0)+34)});
         }""")
+        if self.discovery is not None:
+            self.root.on('trend-measure', self._on_trend_measure, js_handler='event => emit(event.detail)')
         self.picture.on("load", self._on_loaded)
         self.picture.on("error", self._on_failed)
         self.set_summary_viewport(1280, 720)
@@ -1090,11 +1112,45 @@ class LearningView:
                     }}
                     if (root.getAttribute('data-summary-open')==='true')
                       root.dispatchEvent(new CustomEvent('summary-resize'));
+                    const viewport=root.querySelector('.pv-trend-viewport');
+                    if (viewport && root.getAttribute('data-active')==='true') {{
+                      const rect=root.getBoundingClientRect();
+                      const layout=root.querySelector('.pv-trend-layout');
+                      const side=viewport.parentElement;
+                      if (layout?.dataset.mode==='rail') {{
+                        const available=Math.max(80,Math.floor(Math.min(rect.bottom,window.innerHeight)-side.getBoundingClientRect().top));
+                        const next=available+'px';
+                        if (side.style.height!==next) side.style.height=next;
+                      }} else if (side.style.height) side.style.removeProperty('height');
+                      if (layout?.dataset.mode==='fold') {{
+                        const picture=document.getElementById('{self.picture.html_id}');
+                        const imageRect=picture?.getBoundingClientRect();
+                        if (imageRect) {{
+                          viewport.style.left=imageRect.left+'px';
+                          viewport.style.width=imageRect.width+'px';
+                          viewport.style.bottom=Math.max(0,window.innerHeight-imageRect.bottom)+'px';
+                          viewport.style.maxHeight=(imageRect.height/2)+'px';
+                        }}
+                      }} else {{
+                        for (const key of ['left','width','bottom','max-height']) viewport.style.removeProperty(key);
+                      }}
+                      const image=root.querySelector('.pv-view-art img[data-pv-displayed="true"]');
+                      const aspect=image?.naturalWidth && image?.naturalHeight ? image.naturalWidth/image.naturalHeight : 1;
+                      root.dispatchEvent(new CustomEvent('trend-measure', {{detail: {{
+                        width:rect.width,height:rect.height,viewport:viewport.getBoundingClientRect().height,aspect
+                      }}}}));
+                    }}
                   }};
                   root.__pvSummaryResize=resize;
                   window.addEventListener('resize',resize,{{passive:true}});
+                  const observer=new ResizeObserver(resize);
+                  observer.observe(root);
+                  const viewport=root.querySelector('.pv-trend-viewport');
+                  if (viewport) observer.observe(viewport);
+                  resize();
                   root.addEventListener('summary-dispose',()=>{{
                     window.removeEventListener('resize',resize);
+                    observer.disconnect();
                     delete root.__pvSummaryResize;
                   }},{{once:true}});
                 }})"""
@@ -1235,6 +1291,8 @@ class LearningView:
             return
         if self._image_token is not None and source_matches(event.args, self._image_url):
             if self.state.finish_load(self._image_token):
+                if self.client.has_socket_connection:
+                    self.client.run_javascript(f"requestAnimationFrame(() => document.getElementById('{self.root.html_id}')?.__pvSummaryResize?.())")
                 self._update_frame_badge()
                 self._start_prefetch()
                 if not self.state.saving and not self._storage_busy:
@@ -1719,7 +1777,7 @@ class LearningView:
         if opened:
             self.close_summary()
         self._trend_open=bool(opened)
-        self.trend_content.set_visibility(self._trend_open)
+        self.trend_content.set_visibility(self._trend_mode != 'fold' or self._trend_open)
         self.trend_button.set_text('傾向を閉じる' if self._trend_open else '傾向を見る')
         self.trend_button.props(f"aria-expanded={'true' if self._trend_open else 'false'}")
 
@@ -1727,20 +1785,58 @@ class LearningView:
         if self.discovery is None or self.state.closed or not self.active or self.services.closing:return
         self._set_trend_open(not self._trend_open)
 
+    def _on_trend_measure(self, event):
+        if self.discovery is None or self.state.closed:
+            return
+        args = event.args if isinstance(event.args, dict) else {}
+        try:
+            width, height, viewport = (float(args[key]) for key in ('width', 'height', 'viewport'))
+            item = self.state.current_artwork
+            aspect = float(args.get('aspect') or (item.aspect_ratio if item else 1.0) or 1.0)
+            if not all(math.isfinite(x) and x >= 0 for x in (width, height, viewport, aspect)):
+                return
+        except (ValueError, TypeError, KeyError):
+            return
+        mode = layout_mode(width, height, aspect, self._trend_mode)
+        rows = self._trend_capacity.update(viewport) if viewport else (self._trend_capacity.rows or 1)
+        changed = mode != self._trend_mode or rows != getattr(self, '_trend_rail_rows', None)
+        if mode != self._trend_mode:
+            if mode == 'fold':
+                actions = self.buttons['like'].parent_slot.parent
+                self.trend_header.move(self.trend_main, self.trend_main.default_slot.children.index(actions))
+            else:
+                self.trend_header.move(self.trend_side, 0)
+        self._trend_mode, self._trend_rail_rows = mode, rows
+        self.trend_layout.props(f'data-mode={mode}')
+        self.settings_button.set_visibility(mode != 'fold')
+        self.settings_panel.set_visibility(self._settings_open and mode != 'fold')
+        self.trend_button.set_visibility(mode == 'fold')
+        self._set_trend_open(self._trend_open)
+        if changed and self._trend_snapshot is not None:
+            self._render_trend(self._trend_snapshot)
+
     def _render_trend(self,trend):
+        self._trend_snapshot = trend
         self.trend_content.clear()
-        self.trend_label.set_text(f"これまでの判定 {trend['judged']} 件" if trend['ready'] else f"これまでの判定 {trend['judged']} 件 / 傾向表示は20件から")
+        self.trend_label.set_text(f"これまでの判定: {trend['judged']}枚")
         if not trend['ready']:
             with self.trend_content:
-                ui.label('20件の判定後に傾向を表示します。').classes('pv-subtitle')
+                ui.label('いまはあなたの保存から出しています').classes('pv-subtitle')
+            self._trend_visible_rows = 0
             return
-        peak=max((r['score'] for r in trend['rows']),default=0)
+        shown = displayed_rows(trend['rows'], self._trend_mode, getattr(self, '_trend_rail_rows', 1))
+        self._trend_visible_rows = len(shown)
         with self.trend_content:
-            for row in trend['rows']:
-                with ui.row().classes('w-full items-center'):
-                    ui.label(row['display']).classes('flex-1')
-                    ui.label(f"好き {row['like_count']} / 表示 {row['shown_count']}" + (' MAX' if row.get('at_cap') else '')).classes('pv-subtitle')
-                ui.linear_progress(value=max(0,row['score'])/peak if peak>0 else 0,show_value=False).classes('w-full')
+            if not shown:
+                ui.label('まだ傾向が出ていません').classes('pv-subtitle')
+            with ui.element('div').classes('pv-trend-rows w-full').style(
+                    f'grid-template-rows:repeat({max(1, (len(shown)+2)//3)},minmax(0,1fr));'):
+                for row, ratio in shown:
+                    with ui.row().classes('pv-trend-item w-full items-center no-wrap'):
+                        ui.label(row['display']).classes('truncate').style('width:84px')
+                        ui.label('MAX' if row.get('at_cap') else '').style('width:24px;font-size:8px')
+                        ui.linear_progress(value=ratio,show_value=False).classes('flex-1')
+                        ui.label(f"いいね{row['like_count']}・表示{row['shown_count']}").classes('pv-subtitle').style('width:96px;font-size:10.5px')
 
     def _initial_current(self,epoch):
         return (self.discovery is not None and self.active and not self.state.closed
