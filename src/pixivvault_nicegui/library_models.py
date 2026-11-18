@@ -21,6 +21,7 @@ class LibraryWork:
     capacity_bytes: int | None = None
     work_type: str = "illustration"
     author_name: str | None = None
+    has_thumbnail_url: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.artwork, Artwork):
@@ -34,6 +35,8 @@ class LibraryWork:
             raise TypeError("last_backup must be a string or None")
         if type(self.page_count_known) is not bool:
             raise TypeError("page_count_known must be bool")
+        if type(self.has_thumbnail_url) is not bool:
+            raise TypeError("has_thumbnail_url must be bool")
         if type(self.view_count) is not int or self.view_count < 0:
             raise ValueError("view_count must be a non-negative integer")
         if self.capacity_bytes is not None and (

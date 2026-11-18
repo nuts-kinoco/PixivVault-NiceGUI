@@ -44,7 +44,7 @@
       "label": "直近のバックアップ",
       "note": "元どおりタブではなく、ヘッダー右端の history ボタン（data-testid=tab-history）から開く。",
       "testids": ["backup-history", "backup-grid", "backup-refresh", "backup-size-large", "backup-author-12"],
-      "texts": ["直近のバックアップ", "旧ライブラリのバックアップ日時順", "synthetic author"]
+      "texts": ["直近のバックアップ", "作者フォルダ単位でサムネイルを並べています。クリックで保存先を開きます。", "synthetic author"]
     },
     "dedup": {
       "label": "重複整理",

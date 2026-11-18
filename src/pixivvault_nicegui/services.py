@@ -163,6 +163,13 @@ class ApplicationServices:
             raise ValueError("novel fixture mode requires an isolated configuration")
         self.legacy_capacity = None
         self._owned_legacy_capacity_cache = None
+        self._bookmark_cache_store = None
+        self._bookmark_restore_attempted = False
+        self._bookmark_restored_identity = None
+        self._bookmark_restored_reader = None
+        self._bookmark_verified_identity = None
+        self._bookmark_verified_reader = None
+        self.bookmark_cache_persist_failed = False
         self.preferences_root = preferences_root
         self.discovery_root = discovery_root
         self.following_sync_root = following_sync_root
@@ -423,6 +430,7 @@ class ApplicationServices:
         self._cached_remote_bookmarks = None if live_client is not None else self.artworks[:110]
         self._cached_local_bookmarks = () if live_client is not None else self.artworks[:40]
         self.bookmark_cache_failed = False
+        self.bookmark_cache_fetched_at = None
         self.library_readonly_db = library_readonly_db
         self.library_image_root = library_image_root
         self._library_refresh_lock = asyncio.Lock()
@@ -431,7 +439,8 @@ class ApplicationServices:
             from .local_media_adapter import ReadonlyLocalMediaCatalog
             try:
                 repository = ReadonlyLibraryRepository(library_readonly_db, immutable=True)
-                snapshot = repository.library_snapshot()
+                self.bookmark_cache_fetched_at = repository.bookmark_cache_fetched_at()
+                snapshot, preview_urls = repository.library_snapshot_with_previews()
                 self._assert_legacy_library_source()
                 self._validate_library_ids(snapshot)
                 try:
@@ -443,13 +452,19 @@ class ApplicationServices:
                     # prevent a healthy downloaded library from opening.
                     records, cached_remote, cached_local = (), None, ()
                     self.bookmark_cache_failed = True
+                if live_client is not None:
+                    # The old cache has no verified account binding; its private
+                    # rows and freshness cannot be attributed to this reader.
+                    records, cached_remote = (), None
+                    self.bookmark_cache_fetched_at = None
                 catalog = ReadonlyLocalMediaCatalog(library_image_root, snapshot)
             except BaseException:
                 if "repository" in locals():
                     repository.close()
                 self.images.close()
                 raise
-            self.images.publish(catalog, self._remote_images(records or ()))
+            self.images.publish(catalog, self._remote_images(records or ()),
+                                self._legacy_preview_images(preview_urls))
             self.library = snapshot
             self._legacy_library_snapshot = snapshot
             self._legacy_local_bookmarks = tuple(cached_local)
@@ -701,6 +716,12 @@ class ApplicationServices:
             if preferences_root is not None:
                 from .preferences import PreferencesStore
                 self.preferences = PreferencesStore(Path(preferences_root) / 'preferences.sqlite3')
+                if self.live_client is not None:
+                    from .bookmark_cache_store import BookmarkCacheStore
+                    try:
+                        self._bookmark_cache_store = BookmarkCacheStore(Path(preferences_root))
+                    except Exception:
+                        self.bookmark_cache_persist_failed = True
                 if library_image_root is not None:
                     from .capacity_cache import CapacityCache
                     from .legacy_capacity import LegacyCapacityReader
@@ -1126,6 +1147,10 @@ class ApplicationServices:
 
     def preference_consumers(self):
         enabled = set()
+        if self.preferences is not None:
+            enabled.add('bookmark_auto_refresh')
+            if self.library_repository is not None and self.live_client is not None:
+                enabled.add('legacy_novel_thumbnail_auto')
         if self.pixiv_actions_mode == 'preferences' and self.preferences is not None:
             enabled.add('pixiv_actions_enabled')
         if self.extension_setting_available():
@@ -2255,16 +2280,16 @@ class ApplicationServices:
         self._assert_legacy_library_source()
         result = getattr(self.library_repository, method)()
         self._assert_legacy_library_source()
-        if method == 'library_snapshot':
-            self._validate_library_ids(result)
+        if method in ('library_snapshot', 'library_snapshot_with_previews'):
+            self._validate_library_ids(result[0] if method == 'library_snapshot_with_previews' else result)
         return result
 
     def _publish_managed_library(self, snapshot, catalog, local, *,
                                  legacy_snapshot, legacy_local, records,
-                                 reader=_CURRENT_IMAGE_READER):
+                                 reader=_CURRENT_IMAGE_READER, preview_urls=_CURRENT_IMAGE_READER):
         """Publish one matching source selection, DTO snapshot and image owner."""
         provider = catalog
-        legacy_catalog = remote = None
+        legacy_catalog = remote = preview = None
         composition = None
         try:
             receipts = catalog.receipts
@@ -2292,7 +2317,8 @@ class ApplicationServices:
                 visible_snapshot = composition.snapshot
                 visible_local = composition.local_bookmarks
             remote = self._remote_images(records, reader=reader)
-            self.images.publish(provider, remote)
+            preview = self._legacy_preview_images(preview_urls, reader=reader)
+            self.images.publish(provider, remote, preview)
         except BaseException:
             try:
                 provider.close()
@@ -2301,6 +2327,8 @@ class ApplicationServices:
                     legacy_catalog.close()
                 if remote is not None:
                     remote.close()
+                if preview is not None:
+                    preview.close()
             raise
         self.library = visible_snapshot
         self._library_composition = composition
@@ -2320,7 +2348,24 @@ class ApplicationServices:
         from .remote_media import RemoteBookmarkImages
         return RemoteBookmarkImages(reader, tuple(records))
 
-    def _publish_images(self, snapshot, records, *, reader=_CURRENT_IMAGE_READER) -> None:
+    def _legacy_preview_images(self, urls, *, reader=_CURRENT_IMAGE_READER):
+        if reader is _CURRENT_IMAGE_READER:
+            reader = self.live_client
+        if urls is _CURRENT_IMAGE_READER:
+            return self.images.clone_legacy_preview(reader)
+        if not urls:
+            return None
+        from .remote_media import LegacyNovelPreviewImages
+        def enabled():
+            if self.closing:
+                return False
+            try:
+                return self.preferences is not None and self.preferences.get_setting('legacy_novel_thumbnail_auto', '1') == '1'
+            except Exception:
+                return False
+        return LegacyNovelPreviewImages(reader, urls, enabled)
+
+    def _publish_images(self, snapshot, records, *, reader=_CURRENT_IMAGE_READER, preview_urls=_CURRENT_IMAGE_READER) -> None:
         from .local_media_adapter import ReadonlyLocalMediaCatalog
         if self.managed_downloads is not None:
             # The immutable publication cache was prepared off-loop. Reusing
@@ -2330,19 +2375,23 @@ class ApplicationServices:
                                            snapshot=self._managed_catalog_snapshot)
             self._publish_managed_library(self._managed_library_snapshot, local,
                 self._managed_local_bookmarks, legacy_snapshot=self._legacy_library_snapshot,
-                legacy_local=self._legacy_local_bookmarks, records=records, reader=reader)
+                legacy_local=self._legacy_local_bookmarks, records=records, reader=reader, preview_urls=preview_urls)
             return
         else:
             local = (ReadonlyLocalMediaCatalog(self.library_image_root, snapshot)
                      if self.library_image_root is not None else None)
-        remote = self._remote_images(records, reader=reader)
+        remote = preview = None
         try:
-            self.images.publish(local, remote)
+            remote = self._remote_images(records, reader=reader)
+            preview = self._legacy_preview_images(preview_urls, reader=reader)
+            self.images.publish(local, remote, preview)
         except BaseException:
             if local is not None:
                 local.close()
             if remote is not None:
                 remote.close()
+            if preview is not None:
+                preview.close()
             raise
 
     def acquire_ranking_images(self, records):
@@ -2596,20 +2645,22 @@ class ApplicationServices:
                 from .managed_download_catalog import build_managed_library
                 legacy_snapshot = self._legacy_library_snapshot
                 if self.library_repository is not None:
-                    legacy_snapshot = await asyncio.to_thread(self._read_legacy_source, 'library_snapshot')
+                    legacy_snapshot, preview_urls = await asyncio.to_thread(self._read_legacy_source, 'library_snapshot_with_previews')
+                else:
+                    preview_urls = _CURRENT_IMAGE_READER
                 snapshot, catalog, local = await asyncio.to_thread(build_managed_library, self.managed_downloads)
                 if self.closing:
                     catalog.close()
                     raise RuntimeError("application services are closed")
                 self._publish_managed_library(snapshot, catalog, local,
                     legacy_snapshot=legacy_snapshot, legacy_local=self._legacy_local_bookmarks,
-                    records=self._remote_records)
+                    records=self._remote_records, preview_urls=preview_urls)
                 return self.library
-            snapshot = await asyncio.to_thread(self._read_legacy_source, 'library_snapshot')
+            snapshot, preview_urls = await asyncio.to_thread(self._read_legacy_source, 'library_snapshot_with_previews')
             if self.closing:
                 raise RuntimeError("application services are closed")
             self._validate_library_ids(snapshot)
-            self._publish_images(snapshot, self._remote_records)
+            self._publish_images(snapshot, self._remote_records, preview_urls=preview_urls)
             self.library = snapshot
             self._legacy_library_snapshot = snapshot
             return snapshot
@@ -2620,19 +2671,109 @@ class ApplicationServices:
             raise RuntimeError("application services are closed")
         return self._cached_remote_bookmarks
 
+    def bookmark_auto_refresh_enabled(self):
+        if self.preferences is None:
+            return False
+        try:
+            return self.preferences.get_setting('bookmark_auto_refresh', '1') == '1'
+        except Exception:
+            return False
+
     def bookmark_local_snapshot(self):
         """Downloaded badge fixtures are separate from remote bookmarks."""
         if self.closing:
             raise RuntimeError("application services are closed")
         return self._cached_local_bookmarks
 
-    async def refresh_bookmark_cache(self):
+    async def restore_bookmark_cache(self):
+        """Expose durable private data only after matching a verified identity."""
+        store = self._bookmark_cache_store
+        if store is None or self.live_client is None or not self.bookmark_auto_refresh_enabled():
+            return False
+        if (self._bookmark_restored_reader is self.live_client and self._bookmark_restored_identity is not None
+                and getattr(self.live_client, '_verified_identity', None) == self._bookmark_restored_identity):
+            return True
+        async with self._library_refresh_lock:
+            if self.closing or not self.bookmark_auto_refresh_enabled():
+                return False
+            if self._bookmark_restore_attempted:
+                return (self._bookmark_restored_reader is self.live_client and self._bookmark_restored_identity is not None
+                        and getattr(self.live_client, '_verified_identity', None) == self._bookmark_restored_identity)
+            try:
+                has_snapshot = store.has_snapshot()
+            except Exception:
+                self.bookmark_cache_persist_failed = True
+                self._bookmark_restore_attempted = True
+                store.close()
+                self._bookmark_cache_store = None
+                return False
+            if not has_snapshot:
+                self._bookmark_restore_attempted = True
+                return False
+            reader = self.live_client
+            def verify():
+                if not self.bookmark_auto_refresh_enabled():
+                    raise RuntimeError('bookmark automatic refresh disabled')
+                if self.managed_network_stop is not None:
+                    self.managed_network_stop.require_allowed()
+                return reader.verify_identity()
+            account = getattr(reader, '_verified_identity', None)
+            if not isinstance(account, str) or re.fullmatch(r'[1-9][0-9]{0,19}', account) is None:
+                account = await asyncio.to_thread(verify)
+            if (self.closing or self.live_client is not reader or not self.bookmark_auto_refresh_enabled() or
+                    getattr(reader, '_verified_identity', account) != account):
+                raise RuntimeError('bookmark reader changed')
+            if (self.save_exports is not None and self.save_exports.account not in (None, account)):
+                raise RuntimeError('bookmark export account differs')
+            self._bookmark_verified_reader = reader
+            self._bookmark_verified_identity = account
+            try:
+                stored = await asyncio.to_thread(store.read, account)
+            except Exception:
+                self.bookmark_cache_persist_failed = True
+                self._bookmark_restore_attempted = True
+                store.close()
+                self._bookmark_cache_store = None
+                return False
+            if self.closing or self.live_client is not reader or not self.bookmark_auto_refresh_enabled() or getattr(reader, '_verified_identity', account) != account:
+                raise RuntimeError('bookmark reader changed')
+            self._bookmark_restore_attempted = True
+            if stored is None:
+                return False
+            records, stamp = stored
+            self._publish_images(self.library, records, reader=reader)
+            self._remote_records = records
+            self._cached_remote_bookmarks = tuple(record.as_artwork() for record in records)
+            self.bookmark_cache_fetched_at = stamp
+            self.bookmark_cache_failed = False
+            self._bookmark_restored_reader = reader
+            self._bookmark_restored_identity = account
+            return True
+
+    async def refresh_bookmark_cache(self, *, automatic=False):
         """Publish complete bookmark routes and their verified export account."""
         if self.library_repository is None and self.live_client is None:
             return self.bookmark_remote_snapshot(), self.bookmark_local_snapshot()
         async with self._library_refresh_lock:
             if self.closing:
                 raise RuntimeError("application services are closed")
+            try:
+                cache_revision = (self._bookmark_cache_store.revision()
+                                  if self._bookmark_cache_store is not None else None)
+            except Exception:
+                self.bookmark_cache_persist_failed = True
+                self._bookmark_cache_store.close()
+                self._bookmark_cache_store = None
+                cache_revision = None
+            if automatic:
+                from datetime import datetime
+                try:
+                    age = (datetime.now() - datetime.fromisoformat(self.bookmark_cache_fetched_at)).total_seconds()
+                except (TypeError, ValueError):
+                    age = None
+                if (not self.bookmark_auto_refresh_enabled() or
+                        (self._cached_remote_bookmarks is not None and age is not None and age < 120)):
+                    return self.bookmark_remote_snapshot(), self.bookmark_local_snapshot()
             reader = self.live_client
             exports = self.save_exports
             account = None
@@ -2646,6 +2787,10 @@ class ApplicationServices:
                     raise RuntimeError('bookmark reader closed')
                 if exports is not self.save_exports:
                     raise RuntimeError('bookmark export owner changed')
+                if (account is not None and
+                        (type(account) is not str or re.fullmatch(r'[1-9][0-9]{0,19}', account) is None
+                         or getattr(reader, '_verified_identity', account) != account)):
+                    raise RuntimeError('bookmark account verification changed')
                 if exports is not None:
                     # Real LivePixivReadClient always has this cache scalar.
                     # Injected read clients may express the same verified
@@ -2660,8 +2805,15 @@ class ApplicationServices:
             if reader is not None:
                 from .bookmark_remote_adapter import fetch_all_bookmarks
 
+                verified_account = (self._bookmark_verified_identity if automatic
+                    and self._bookmark_verified_reader is reader
+                    and getattr(reader, '_verified_identity', None) == self._bookmark_verified_identity
+                    else None)
+
                 def read_all():
-                    identity = reader.verify_identity()
+                    if self.managed_network_stop is not None:
+                        self.managed_network_stop.require_allowed()
+                    identity = verified_account or reader.verify_identity()
                     result = fetch_all_bookmarks(reader, identity)
                     if not result.ok:
                         raise RuntimeError("bookmark routes incomplete")
@@ -2717,6 +2869,18 @@ class ApplicationServices:
                     with self._managed_target_lock:
                         self._remote_records = records or ()
                     self.bookmark_cache_failed = False
+                    if reader is not None:
+                        self._bookmark_restore_attempted = True
+                        from datetime import datetime
+                        stamp = datetime.now().isoformat()
+                        if self._bookmark_cache_store is not None:
+                            try:
+                                written = self._bookmark_cache_store.write(account, stamp, records,
+                                    expected_revision=cache_revision)
+                                self.bookmark_cache_persist_failed = not written
+                            except Exception:
+                                self.bookmark_cache_persist_failed = True
+                        self.bookmark_cache_fetched_at = stamp
             except BaseException:
                 if catalog is not None and not adopted:
                     catalog.close()
@@ -2784,6 +2948,9 @@ class ApplicationServices:
         if self._owned_legacy_capacity_cache is not None:
             self._owned_legacy_capacity_cache.close()
             self._owned_legacy_capacity_cache = None
+        if self._bookmark_cache_store is not None:
+            self._bookmark_cache_store.close()
+            self._bookmark_cache_store = None
         if self.save_exports is not None:self.save_exports.close()
         if self.extension_bridge is not None:self.extension_bridge.close()
         if self.extension_commands is not None:self.extension_commands.close(timeout=150.0)

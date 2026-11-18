@@ -92,6 +92,12 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family: sys
 .pv-gallery > .row, .pv-gallery > .pv-counter, .pv-gallery > .pv-empty { flex-shrink:0; }
 .pv-card { background:var(--pv-bg); border:1px solid var(--pv-border); border-radius:12px; overflow:hidden; cursor:pointer; min-width:0; }
 .pv-grid .pv-card { aspect-ratio:1 / 1; height:auto; padding:6px; display:flex; flex-direction:column; gap:3px; box-sizing:border-box; }
+.pv-grid .pv-backup-card { padding:0; }
+.pv-backup-tile { position:relative; width:100%; height:100%; cursor:pointer; overflow:hidden; }
+.pv-grid .pv-backup-tile .pv-thumb { position:absolute; inset:0; height:100%; border-radius:0; }
+.pv-backup-tile .pv-thumb img { object-fit:cover !important; }
+.pv-backup-name { position:absolute; bottom:0; left:0; right:0; height:34px; padding:5px; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; background:rgba(0,0,0,.6); color:white; font-size:11px; font-weight:bold; text-align:center; line-height:12px; overflow:hidden; opacity:0; transition:opacity 200ms; }
+.pv-backup-tile:hover .pv-backup-name, .pv-backup-tile:focus-visible .pv-backup-name { opacity:1; }
 .pv-grid .pv-card-rank { flex:0 0 auto; font-size:11px; font-weight:700; line-height:1.2; color:var(--pv-text); }
 .pv-grid .pv-thumb { flex:1 1 0; min-height:0; height:0; aspect-ratio:auto; border-bottom:0; border-radius:12px; }
 .pv-grid .pv-card-meta { flex:0 0 auto; min-width:0; padding:0; display:flex; flex-direction:column; gap:3px; }
@@ -180,6 +186,8 @@ body.body--light .pv-grid .pv-card-heart { color:var(--pv-fill); }
 .pv-library-subviews { gap:2px; flex-wrap:nowrap; }
 .pv-library .q-btn { color:var(--pv-text) !important; font-size:11px; }
 .pv-library .q-btn.pv-library-subview-selected, .pv-library .q-btn.pv-size-selected { background:var(--pv-fill) !important; color:var(--pv-on-fill-lib) !important; border-radius:8px; }
+.pv-library .q-btn.pv-library-scope-selected { background:var(--pv-tab-selected) !important; color:var(--pv-text) !important; }
+.pv-library .q-btn.pv-library-scope-selected .q-btn__content { color:var(--pv-text) !important; }
 .pv-library .pv-card-size { font-size:9px; }
 .pv-library-search { flex:1 1 180px; min-width:160px; max-width:300px; }
 .pv-library-search .q-field__control, .pv-library-search .q-field__marginal { min-height:34px; height:34px; }

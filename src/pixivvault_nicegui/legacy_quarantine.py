@@ -525,9 +525,13 @@ class LegacyQuarantineCatalog:
             raise MediaMissing('legacy page excluded')
         self.store.require_available(wid,original)
         return original
+    def supports_novel_cover(self,wid):
+        return wid in self.works and self.leaf.supports_novel_cover(wid)
+    def check_novel_preview(self,wid,page_no):
+        self._page(wid,page_no)
     def url(self,wid,page_no=0,variant='view'):
         self._page(wid,page_no)
-        if variant not in ('thumb','view','original'):raise MediaMissing('invalid variant')
+        if variant not in ('thumb','cover','view','original'):raise MediaMissing('invalid variant')
         return f'/media/{wid}/{page_no}/{variant}.png'
     def supports_original(self,wid):return wid in self.works and self.leaf.supports_original(wid)
     def get(self,wid,page_no=0,variant='view'):

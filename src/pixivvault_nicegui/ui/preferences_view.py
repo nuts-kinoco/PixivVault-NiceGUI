@@ -17,6 +17,7 @@ EXTENSION_STATUS_LABELS = {
 }
 
 UNAVAILABLE_REASONS = {
+    'bookmark_auto_refresh': 'この起動では自動更新の設定を保存できません。',
     'extension_bridge_enabled': 'この起動には保存先がないため、拡張機能の受信は使えません。',
     'pixiv_actions_enabled': 'この起動ではPixiv操作の設定を変更できません。',
     'api_retry_count': 'この保存経路は停止して確認後に再試行します。通信の自動再送は未対応です。',
