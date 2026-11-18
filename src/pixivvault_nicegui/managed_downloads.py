@@ -924,6 +924,8 @@ class ManagedPixivDownloads:
                     raise ManagedDownloadError('legacy quarantine changed during download')
                 if self._generations.work_state_token(record.remote_id) != work_state_token:
                     raise ManagedDownloadError('generation compare-and-swap rejected')
+                # Another process may have filled the store since the initial admission check.
+                self._generations.assert_room(record.remote_id, indexed=intent is not None)
                 if intent is not None:
                     self._generations.prepare_for_publication()
                 folder.rename(final)
