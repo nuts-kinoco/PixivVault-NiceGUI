@@ -113,7 +113,7 @@ def test_pending_upgrade_recovers_when_interrupted_before_v5_index(tmp_path, mon
         with pytest.raises(ManagedDownloadError, match='publication failed'):
             publish(writer, root, '1000')
     assert idx.read_bytes() == saved_idx
-    assert marker_path.read_bytes().startswith(b'upgrade:')
+    assert marker_path.read_bytes().startswith(b'upgrade-v3:')
     reopened = mg.ManagedGenerations(root)
     assert set(reopened.entries()) == set(old_entries)
     publish(reopened, root, '1000')

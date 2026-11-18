@@ -705,10 +705,13 @@ class ManagedGenerations:
                 if self._read_head() is not None:
                     raise ValueError()
                 pending_upgrade = False
+                new_upgrade = False
                 marker_path = self.root / _V5_COMMITTED
                 if _identity(marker_path) is not None:
-                    pending_upgrade = (_read_shared(marker_path, 256) ==
-                                       b'upgrade:' + loaded.base_digest.encode('ascii') + b'\n')
+                    marker = _read_shared(marker_path, 256)
+                    digest = loaded.base_digest.encode('ascii') + b'\n'
+                    new_upgrade = marker == b'upgrade-v3:' + digest
+                    pending_upgrade = new_upgrade or marker == b'upgrade:' + digest
                     if not pending_upgrade:
                         raise ValueError()
                 # An older index cannot account for publications in a v5 journal. Empty
@@ -748,7 +751,7 @@ class ManagedGenerations:
                 self._check_old_v5_journals(loaded, folders, base_ids)
             if loaded.version != 5 and pending_upgrade and not loaded.legacy_journal:
                 referenced = {entry['relative_receipt'].split('/')[1] for entry in loaded.indexed.values()}
-                if generations - referenced and not self._new_upgrade_staged(loaded.base_digest):
+                if generations - referenced and not (new_upgrade and self._new_upgrade_staged(loaded.base_digest)):
                     # Old releases could leave an upgrade marker after deleting the only
                     # journal containing published work. An orphan is ambiguous there.
                     raise ValueError()
@@ -784,9 +787,7 @@ class ManagedGenerations:
     def _new_upgrade_staged(self, old_digest):
         """Recognize this build's empty upgrade journals before the head commit."""
         installed = tuple(self.root.glob('active-generations-*.journal'))
-        staged = tuple(self.stage_dir.glob('journal-*.tmp'))
-        found = False
-        for path in (*installed, *staged):
+        for path in installed:
             try:
                 raw = _read_shared(path, 4096)
                 if not raw.endswith(b'\n') or raw.count(b'\n') != 1:
@@ -797,21 +798,20 @@ class ManagedGenerations:
                         and meta['kind'] == _JOURNAL_KIND and type(meta['version']) is int and meta['version'] == 3
                         and type(meta['generation']) is int and meta['generation'] == 1
                         and meta['parent'] == old_digest):
-                    if path in installed:
-                        if path != self._journal_file(meta['id']):
+                    if path != self._journal_file(meta['id']):
+                        return False
+                    mark_path = self._mark_file(meta['id'])
+                    if _identity(mark_path) is not None:
+                        mark = json.loads(_read_shared(mark_path, 4096), object_pairs_hook=_json_unique)
+                        if mark != {'id': meta['id'], 'generation': 1, 'records': 0,
+                                    'chain': hashlib.sha256(raw).hexdigest()}:
                             return False
-                        mark_path = self._mark_file(meta['id'])
-                        if _identity(mark_path) is not None:
-                            mark = json.loads(_read_shared(mark_path, 4096), object_pairs_hook=_json_unique)
-                            if mark != {'id': meta['id'], 'generation': 1, 'records': 0,
-                                        'chain': hashlib.sha256(raw).hexdigest()}:
-                                return False
-                    found = True
                 else:
                     return False
             except (OSError, ValueError, TypeError, KeyError, UnicodeError):
                 return False
-        return found
+        # Staged files may be absent or torn before the first journal rename.
+        return True
 
     def _parse_journal(self, data, start_chain, first_seq, folders, version):
         """Records in `data` (which begins at a record boundary) -> (entries, chain, seq, end)."""
@@ -1752,7 +1752,7 @@ class ManagedGenerations:
             existing = _read_shared(marker, 256)
             if existing == _V5_DONE:
                 return
-            if re.fullmatch(rb'upgrade:[a-f0-9]{64}\n', existing) is None:
+            if re.fullmatch(rb'upgrade(?:-v3)?:[a-f0-9]{64}\n', existing) is None:
                 raise ValueError()
         self._write_v5_marker(_V5_DONE)
 
@@ -1763,7 +1763,7 @@ class ManagedGenerations:
             if loaded is not None and loaded.version == 5:
                 self._ensure_v5_committed()
             elif loaded is not None and loaded.version in (1, 2, 3, 4):
-                self._write_v5_marker(b'upgrade:' + loaded.base_digest.encode('ascii') + b'\n')
+                self._write_v5_marker(b'upgrade-v3:' + loaded.base_digest.encode('ascii') + b'\n')
             # Every full rewrite of a v5 root starts a new, empty journal (the entries it held are in
             # this index), and quarantine commits keep the v5 guard instead of downgrading it.
             generation = (loaded.generation or 0) + 1 if loaded is not None else 1
