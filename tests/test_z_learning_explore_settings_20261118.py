@@ -145,3 +145,27 @@ async def test_conflicting_write_keeps_original_message(dview):
     view.settings_subject.set_value(5)
     await view.save_discovery_settings()
     assert '別の画面で設定が変わりました' in view.settings_status.text
+
+
+async def test_release_uses_the_change_event_value_not_a_stale_model_value(dview):
+    view, service = dview
+    await open_drawer(view)
+    assert view.settings_subject.value == 50                              # モデル側はまだ古い値
+    listener = next(l for l in view.settings_subject._event_listeners.values() if l.type == 'change')
+    listener.handler(SimpleNamespace(args=73))                           # 離した時点の値は change の引数
+    await asyncio.sleep(0.05)
+    await idle(view)
+    snap = await service.settings_snapshot()
+    assert float(snap.values['discovery_ratio_subject']) == 73.0
+    assert view.settings_subject_text.text == '73%'
+
+
+async def test_slider_has_no_value_bubble_prop(dview):
+    view, _ = dview
+    assert 'label' not in view.settings_subject.props and 'label-always' not in view.settings_subject.props
+
+
+async def test_keys_on_settings_slider_do_not_judge():
+    from pixivvault_nicegui.ui.learning_view import LearningView
+    js = LearningView._key_js()
+    assert "closest('[role=slider]')" in js and "discovery-settings-panel" in js

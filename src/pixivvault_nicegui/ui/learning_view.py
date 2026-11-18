@@ -214,13 +214,13 @@ class LearningView:
                 ui.label('判定は保存され、次に出す候補の並べ替えに反映されます。').classes('pv-subtitle')
                 with ui.element('div').classes('relative w-full'):
                     with ui.card().classes('gap-2').props('role=region aria-label=探索の設定 data-testid=discovery-settings-panel').style(
-                            'position:absolute;left:0;bottom:100%;z-index:25;width:min(320px,calc(100vw - 32px));'
+                            'position:absolute;left:0;top:100%;z-index:25;width:min(320px,calc(100vw - 32px));'
                             'background:var(--pv-overlay);border:1px solid var(--pv-border);box-sizing:border-box;'
                             'padding:10px;') as self.settings_panel:
                         self.settings_subject,self.settings_subject_text=self._explore_slider('知らないジャンルを見る割合','discovery-settings-subject')
                         self.settings_style,self.settings_style_text=self._explore_slider('知らない絵柄を見る割合','discovery-settings-style')
                         self.settings_mode=ui.select({'all':'すべて','safe':'全年齢','r18':'R-18'},value='all',label='検索対象',
-                            on_change=lambda _:self._settings_commit()).props('outlined dense data-testid=discovery-settings-mode')
+                            on_change=lambda _:self._settings_commit()).props('outlined dense data-testid=discovery-settings-mode').classes('w-full')
                         self.settings_status=ui.label().classes('pv-subtitle').props('role=status data-testid=discovery-settings-status')
                     self.settings_panel.set_visibility(False)
                     self.settings_button = ui.button(on_click=self.toggle_discovery_settings).props(
@@ -302,6 +302,8 @@ class LearningView:
                 ['input', 'textarea', 'select'].includes(tag) ||
                 event.target?.isContentEditable ||
                 event.target?.closest('[role=dialog]') ||
+                event.target?.closest('[role=slider]') ||
+                event.target?.closest('[data-testid=discovery-settings-panel]') ||
                 !event.currentTarget.getAttribute('data-active') ||
                 event.currentTarget.getAttribute('data-active') !== 'true') return;
             const key = event.key.toLowerCase();
@@ -818,7 +820,7 @@ class LearningView:
                         if not self.state.closed:self.trend_label.set_text('判定は保存済みです。傾向を読み込めませんでした。')
 
     def reset_superlike_count(self) -> None:
-        """??????????????0????? discovery_tab.py:5669 ?3-3-7??"""
+        """学習状況のリセット後は回数も0に戻す（元 discovery_tab.py:5669 §3-3-7）。"""
         self._superlike_used = 0
         self.superlike_used_label.set_text("")
         self.superlike_used_label.set_visibility(False)
@@ -1384,8 +1386,9 @@ class LearningView:
             ui.label(label).style('font-size:12px;color:var(--pv-text)')
             value_text=ui.label('0%').style('font-size:11px;color:var(--pv-muted)')
         slider=ui.slider(min=0,max=100,step=1,value=0,on_change=lambda e,t=value_text:t.set_text(f"{int(round(e.value or 0))}%")).props(
-            f'label=false data-testid={testid}').classes('w-full')
-        slider.on('change',lambda _:self._settings_commit())
+            f'data-testid={testid}').classes('w-full')
+        # 離したときの値は change イベントの値を使う（モデル更新は間引かれて最後の値が遅れることがある）。
+        slider.on('change',lambda e,s=slider:self._settings_commit(s,e.args))
         return slider,value_text
 
     def _settings_controls(self):
@@ -1393,9 +1396,11 @@ class LearningView:
         for control in (self.settings_mode,self.settings_subject,self.settings_style):control.set_enabled(enabled)
         self._update_buttons()
 
-    def _settings_commit(self):
+    def _settings_commit(self,slider=None,released=None):
         """離したとき／検索対象を変えたときに保存する。読み込み中の値の反映では保存しない。"""
         if self._settings_loading or not self._settings_open or self._settings_busy or self._settings_snapshot is None:return
+        if slider is not None and isinstance(released,(int,float)) and not isinstance(released,bool):
+            slider.set_value(int(round(min(100,max(0,released)))))
         background_tasks.create(self.save_discovery_settings(),name='discovery settings save')
 
     def _set_settings_open(self,opened):
