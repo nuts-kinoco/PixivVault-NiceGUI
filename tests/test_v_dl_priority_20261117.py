@@ -389,9 +389,8 @@ def test_d6_an_unattached_or_unsynced_store_never_prunes_the_pending_work(world)
     scheduler.mark_favourites_seeded(imported=1, dropped=0)       # a profile that was seeded earlier
     scheduler.attach_favourites(FavouriteBook(None, scheduler=scheduler))   # no follow store at all
     assert scheduler.has_deferred()                               # nothing was deleted
-    assert scheduler.favourites() == ('1001',)                    # unknown is not "no stars"
     scheduler.attach_favourites(FavouriteBook(following, scheduler=scheduler))   # a store, never synced
-    assert scheduler.has_deferred() and scheduler.favourites() == ('1001',)
+    assert scheduler.has_deferred()
 
 
 def test_d6_reopening_the_scheduler_keeps_the_pending_work_of_ledger_stars(world):
@@ -407,9 +406,87 @@ def test_d6_reopening_the_scheduler_keeps_the_pending_work_of_ledger_stars(world
     try:
         assert reopened.has_deferred()
         reopened.attach_favourites(FavouriteBook(None, scheduler=reopened))
-        assert reopened.has_deferred() and reopened.favourites() == ()
+        assert reopened.has_deferred()
         reopened.attach_favourites(FavouriteBook(following, scheduler=reopened))
         assert reopened.favourites() == ('1001',) and reopened.has_deferred()
     finally:
         reopened.close()
         scheduler._closed = True
+
+
+# ---- checker round 2, item 2: imported stars whose ledger cannot be read are "unknown" ----------------
+
+def seeded_world(world):
+    _, following, scheduler = world
+    sync(following, 5)
+    book = FavouriteBook(following, scheduler=scheduler)
+    scheduler.attach_favourites(book)
+    book.set('1001', True)
+    scheduler.defer_work(author_id='1001', work=dict(id='5', update_date='d', page_count=1, type=0),
+                         now=datetime.now(timezone.utc))
+    return following, scheduler, book
+
+
+def test_r2_2_an_unreadable_ledger_is_unknown_not_none_and_not_the_old_list(world):
+    following, scheduler, book = seeded_world(world)
+    assert scheduler.favourites_seeded()
+    scheduler.attach_favourites(FavouriteBook(None, scheduler=scheduler))
+    with pytest.raises(Exception, match='unavailable'):
+        scheduler.favourites()                                   # neither () nor the stale own list
+    with pytest.raises(Exception, match='unavailable'):
+        scheduler.set_favourites((), expected_revision=now_state(scheduler).revision)   # a save is refused
+    assert scheduler.deferred_count() == 1
+
+
+def test_r2_2_a_transient_error_reading_the_ledger_is_unknown_too(world):
+    following, scheduler, book = seeded_world(world)
+
+    def boom():
+        raise RuntimeError('database is locked')
+    book.account = boom
+    with pytest.raises(Exception, match='unavailable'):
+        scheduler.favourites()
+    scheduler.set_favourites  # (refused, as above)
+    with pytest.raises(Exception, match='unavailable'):
+        scheduler.set_favourites((), expected_revision=now_state(scheduler).revision)
+    del book.account                                             # the ledger is back
+    assert scheduler.favourites() == ('1001',) and scheduler.deferred_count() == 1
+
+
+def test_r2_2_a_deferral_for_a_star_is_kept_while_the_ledger_cannot_be_read(world):
+    following, scheduler, book = seeded_world(world)
+    scheduler.attach_favourites(FavouriteBook(None, scheduler=scheduler))
+    scheduler.defer_work(author_id='1001', work=dict(id='6', update_date='d', page_count=1, type=0),
+                         now=datetime.now(timezone.utc))
+    assert scheduler.deferred_count() == 2
+
+
+# ---- item 3: a legacy copy that stays unreadable ----------------------------------------------------
+
+def test_r2_3_stars_set_on_the_screen_reach_the_check_while_the_import_cannot_finish(world):
+    tmp_path, following, scheduler = world
+    sync(following, 5)
+    legacy = tmp_path / 'legacy.db'
+    legacy.write_bytes(b'this is not a database' * 50)
+    book = FavouriteBook(following, scheduler=scheduler, legacy_db=legacy)
+    scheduler.attach_favourites(book)
+    assert scheduler.favourite_import_state() == 'unreadable'
+    assert book.set('1001', True)
+    assert scheduler.favourites() == ('1001',)                   # the screen's star is checked
+    scheduler.set_favourites(('1003',), expected_revision=now_state(scheduler).revision)   # the old text box
+    assert scheduler.favourites() == ('1001', '1003')            # both live; nothing drops silently
+
+
+def test_r2_3_the_view_says_the_import_is_unfinished():
+    from pixivvault_nicegui.ui.scheduler_view import SchedulerView
+    labels = []
+    view = SchedulerView.__new__(SchedulerView)
+    view.star_notice = NS(set_text=labels.append)
+    ledger = NS(favourite_import_state=lambda: 'unreadable', favourites=lambda: ('1',))
+    view._show_star_state(ledger)
+    assert '取り込みが未完了' in labels[-1]
+    view._show_star_state(NS(favourite_import_state=lambda: 'done', favourites=lambda: ()))
+    assert labels[-1] == ''
+    broken = NS(favourite_import_state=lambda: 'done', favourites=lambda: (_ for _ in ()).throw(RuntimeError('x')))
+    view._show_star_state(broken)
+    assert '読み込めません' in labels[-1]

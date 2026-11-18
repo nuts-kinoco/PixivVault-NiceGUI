@@ -19,6 +19,8 @@ from .fs_paths import native_io_path, sqlite_readonly_uri
 
 
 class FavouriteBook:
+    legacy_unreadable = False   # the last import attempt could not read the legacy DB
+
     def __init__(self, following, *, scheduler=None, legacy_db=None):
         self.following = following
         self.scheduler = scheduler            # ManagedScheduler: legacy list + the seeded marker
@@ -119,6 +121,7 @@ class FavouriteBook:
         if account is None:
             return None
         legacy = self._legacy_ids()
+        self.legacy_unreadable = legacy is None
         if legacy is None:
             return None  # unreadable now: not seeded, tried again next time
         sources = set(legacy) | set(self.scheduler.legacy_favourites())

@@ -391,7 +391,12 @@ class ManagedPixivDownloads:
                 cache[relative] = (signature, raw, digest, bool(verify_pages), time.monotonic())
             return receipt, digest
         except (OSError, KeyError, TypeError, ValueError, OverflowError, RecursionError):
-            raise ManagedDownloadError("saved receipt verification failed") from None
+            failure = ManagedDownloadError("saved receipt verification failed")
+            # The text stays fixed; these name the work so one damaged work can be found and
+            # repaired instead of the whole catalog simply failing.
+            failure.work_id = pieces[1].split("-")[1]
+            failure.relative_receipt = relative
+            raise failure from None
 
     @staticmethod
     def _receipt_signature(folder):

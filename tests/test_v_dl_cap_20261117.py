@@ -220,6 +220,7 @@ def test_compaction_folds_the_journal_into_the_index(root, monkeypatch):
 
 
 def test_leftovers_of_an_older_journal_are_ignored_and_swept(root, monkeypatch):
+    monkeypatch.setattr(mg, '_JOURNAL_RETAIN_SECONDS', 0.0)
     seed_index(root, 3)
     g = mg.ManagedGenerations(root)
     publish(g, root, '900001')

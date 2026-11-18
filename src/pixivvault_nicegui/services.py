@@ -2040,7 +2040,10 @@ class ApplicationServices:
             # public Pixiv following response. With no configured local ledger
             # retain None (unknown), rather than falsely reporting known zero.
             scheduler = getattr(self, 'managed_scheduler', None)
-            favourite_ids = None if scheduler is None else frozenset(scheduler.favourites())
+            try:
+                favourite_ids = None if scheduler is None else frozenset(scheduler.favourites())
+            except Exception:
+                favourite_ids = None  # the star list cannot be read now: unknown, not "no stars"
             seen = {}
             for visibility in ('show', 'hide'):
                 checkpoint(uid)

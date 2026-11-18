@@ -48,6 +48,7 @@ class SchedulerView:
                 self.ack_button = ui.button('中断状態を確認して解除', on_click=self.acknowledge).props('data-testid=scheduler-ack')
             self.status = ui.label('定期状態: 未起動').props('data-testid=scheduler-status')
             self.history_label = ui.label('実行履歴はありません').classes('text-caption').props('data-testid=scheduler-history')
+            self.star_notice = ui.label('').classes('text-caption').props('data-testid=scheduler-star-import role=status')
             self.action_notice = ui.label('').props('data-testid=scheduler-action-notice role=status')
         self._set_controls(False)
         self._refreshing = False
@@ -94,12 +95,32 @@ class SchedulerView:
             try:
                 self.interval.set_value(str(state.interval_hours))
                 self.startup.set_value(state.startup_check)
-                self.authors.set_value(','.join(ledger.favourites()))
+                try:
+                    self.authors.set_value(','.join(ledger.favourites()))
+                except Exception:
+                    self.authors.set_value('')
             finally:
                 self._loading_settings = False
+        self._show_star_state(ledger)
         status_label = STATUS_LABELS.get(state.last_status, '状態不明')
         self.status.set_text(f'定期状態: {status_label} / 次回UTC: {state.next_due_utc or "未設定"}')
         self.ack_button.set_enabled(state.last_status == 'interrupted')
+
+    def _show_star_state(self, ledger):
+        """Say so when the ☆ list is not in the state the user expects (import pending, unreadable)."""
+        try:
+            state = ledger.favourite_import_state()
+            ledger.favourites()
+            unavailable = False
+        except Exception:
+            state, unavailable = 'done', True
+        if unavailable:
+            text = '☆の一覧を読み込めません。読み込めるまで、☆の設定は保存できません（保留中の取得は消しません）。'
+        elif state == 'unreadable':
+            text = '旧DBを読めないため、☆の取り込みが未完了です。画面で付けた☆は自動チェックに使われます。'
+        else:
+            text = ''
+        self.star_notice.set_text(text)
 
     def discard_changes(self):
         """Explicitly abandon stale edits and adopt the newest CAS revision."""

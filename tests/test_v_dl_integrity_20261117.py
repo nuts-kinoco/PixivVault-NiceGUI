@@ -5,6 +5,7 @@ import importlib.util
 import json
 import os
 import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -147,19 +148,43 @@ def test_d2_only_a_torn_last_line_is_forgiven_and_so_is_a_mark_one_save_behind(r
     assert mg.ManagedGenerations(root).entry_count() == 5
 
 
-def test_d2_a_mark_two_saves_behind_is_damage(root):
+def journal_records(root):
+    return max(0, journal_of(root).read_bytes().count(b"\n") - 1)
+
+
+def mark_records(root):
+    return json.loads(mark_of(root).read_bytes())['records']
+
+
+def test_d2_a_mark_several_saves_behind_is_recoverable_and_the_next_save_catches_it_up(root):
     seed_index(root, 3)
     g = mg.ManagedGenerations(root)
     publish(g, root, '900001')
     behind = mark_of(root).read_bytes()
     publish(g, root, '900002')
     publish(g, root, '900003')
-    mark_of(root).write_bytes(behind)
+    mark_of(root).write_bytes(behind)                     # two saves ahead of the mark (the old failure state)
+    reopened = mg.ManagedGenerations(root)
+    assert reopened.entry_count() == 6                    # nothing lost, nothing refused
+    publish(reopened, root, '900004')
+    assert mark_records(root) == journal_records(root) == 4
+    assert mg.ManagedGenerations(root).entry_count() == 7
+
+
+def test_d2_a_mark_that_is_not_on_the_journals_chain_is_still_damage(root):
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    publish(g, root, '900002')
+    mark = json.loads(mark_of(root).read_bytes())
+    mark.update(records=1, chain='0' * 64)
+    mark_of(root).write_bytes(json.dumps(mark, sort_keys=True, separators=(',', ':')).encode())
     with pytest.raises(ManagedDownloadError, match='index rejected'):
         mg.ManagedGenerations(root)
 
 
 def test_d2_every_fold_gets_a_new_journal_and_the_expectation_follows_the_index(root, monkeypatch):
+    monkeypatch.setattr(mg, '_JOURNAL_RETAIN_SECONDS', 0.0)
     monkeypatch.setattr(mg, '_COMPACT_RECORDS', 2)
     seed_index(root, 2)
     g = mg.ManagedGenerations(root)
@@ -351,3 +376,177 @@ def test_d3_a_fold_waits_for_another_process_that_has_the_index_open_for_a_momen
     threading.Timer(0.4, holder.close).start()
     g._compact(g._loaded)                                            # used to fail with PermissionError
     assert mg.ManagedGenerations(root).entry_count() == 4
+
+
+# ---- checker round 2 ------------------------------------------------------------------------------
+
+def test_r2_1_failing_mark_writes_never_leave_the_journal_two_ahead(root, monkeypatch):
+    """Fault injection: the mark cannot be written N times in a row. Every state stays openable."""
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    real = g._write_mark
+    broken = {'on': False}
+
+    def write_mark(*args, **kwargs):
+        if broken['on']:
+            raise OSError('mark held by another process')
+        return real(*args, **kwargs)
+    monkeypatch.setattr(g, '_write_mark', write_mark)
+    broken['on'] = True
+    publish(g, root, '900002')                            # the save itself commits; only the mark lags
+    for number in range(3, 7):                            # further saves are refused, not appended
+        with pytest.raises(ManagedDownloadError):
+            publish(g, root, str(900000 + number))
+        assert journal_records(root) - mark_records(root) <= 1
+        assert mg.ManagedGenerations(root).entry_count() == 5      # still opens, nothing lost
+    broken['on'] = False
+    publish(g, root, '900010')                            # the mark is caught up first, then appended
+    assert journal_records(root) == mark_records(root) == 3
+    assert mg.ManagedGenerations(root).entry_count() == 6
+
+
+def test_r2_1_a_crash_after_the_append_before_the_mark_is_recovered_by_the_next_save(root, monkeypatch):
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    monkeypatch.setattr(g, '_write_mark', lambda *a, **k: (_ for _ in ()).throw(KeyboardInterrupt()))
+    with pytest.raises(KeyboardInterrupt):                # the process dies between the two writes
+        publish(g, root, '900002')
+    assert journal_records(root) == 2 and mark_records(root) == 1
+    survivor = mg.ManagedGenerations(root)
+    assert survivor.entry_count() == 5 and survivor.current('900002') is not None
+    publish(survivor, root, '900003')
+    assert journal_records(root) == mark_records(root) == 3
+
+
+def test_r2_1_a_mark_held_open_by_another_process_for_a_while_does_not_wedge_the_root(root):
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    holder = open(mark_of(root), 'rb')                    # plain open: Windows cannot replace it
+    threading.Timer(2.5, holder.close).start()
+    publish(g, root, '900002')                            # the mark lags, the save stands
+    for number in range(3, 6):
+        try:
+            publish(g, root, str(900000 + number))
+        except ManagedDownloadError:
+            pass
+    assert mg.ManagedGenerations(root).entry_count() >= 5        # never a rejected root
+    holder.close()
+    publish(g, root, '900099')
+    assert journal_records(root) == mark_records(root)
+    assert mg.ManagedGenerations(root).current('900099') is not None
+
+
+# ---- item 4: the first version upgrade and routine folds ---------------------------------------------
+
+def test_r2_4_a_reader_that_keeps_the_index_open_no_longer_blocks_the_fold(root):
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    reader = mg._open_shared(root / 'active-generations.json')    # a reader mid-read, shared-delete
+    try:
+        started = time.monotonic()
+        g._compact(g._loaded, 0.2)                                # replaces the index at once
+        assert time.monotonic() - started < 0.5
+        assert reader.read(1) == b'{'                             # and the reader still has its snapshot
+    finally:
+        reader.close()
+    assert mg.ManagedGenerations(root).entry_count() == 4
+
+
+def test_r2_4_the_first_version_upgrade_waits_out_a_plain_holder_and_succeeds(root):
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    holder = open(root / 'active-generations.json', 'rb')         # an old-style reader
+    threading.Timer(1.2, holder.close).start()
+    started = time.monotonic()
+    publish(g, root, '900001')                                    # v2 -> v5 cannot be skipped
+    assert 1.0 < time.monotonic() - started < 4.5
+    assert json.loads((root / 'active-generations.json').read_bytes())['version'] == 5
+
+
+def test_r2_4_a_routine_fold_that_is_blocked_gives_up_quickly_and_keeps_the_fence_short(root, monkeypatch):
+    monkeypatch.setattr(mg, '_COMPACT_RECORDS', 1)
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    holder = open(root / 'active-generations.json', 'rb')
+    try:
+        started = time.monotonic()
+        publish(g, root, '900002')                                # the fold is optional: the save wins
+        assert time.monotonic() - started < 1.5
+        assert g._loaded.fold_failed is True
+    finally:
+        holder.close()
+    publish(g, root, '900003')
+    assert g._loaded.fold_failed is False
+    assert mg.ManagedGenerations(root).entry_count() == 6
+
+
+# ---- item 5: a journal that cannot be folded is a capacity fact the download must hear about ------------
+
+def test_r2_5_assert_room_and_capacity_see_a_journal_that_cannot_be_folded(root, monkeypatch):
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    monkeypatch.setattr(mg, '_COMPACT_RECORDS', 10 ** 9)
+    monkeypatch.setattr(mg, '_COMPACT_BYTES', 10 ** 12)
+    monkeypatch.setattr(mg, '_MAX_JOURNAL_BYTES', journal_of(root).stat().st_size + mg._JOURNAL_SLACK + 1500)
+    monkeypatch.setattr(g, '_compact', lambda loaded, patience=5.0: (_ for _ in ()).throw(OSError('disk')))
+    before = g.capacity()['headroom']
+    for number in range(2, 20):
+        try:
+            publish(g, root, str(900000 + number))
+        except ManagedDownloadError as error:
+            assert error.reason_code == 'storage_capacity'
+            break
+    assert g.capacity()['headroom'] == 0 < before
+    with pytest.raises(ManagedDownloadError, match='journal full') as caught:
+        g.assert_room('999999')                                   # said before the download, not after
+    assert caught.value.reason_code == 'storage_capacity'
+    g.assert_room('100001')                                       # an update of a saved work is not blocked here
+
+
+# ---- item 6: an emptied pointer with sealed works, and the pointer a cancelled first save leaves --------------
+
+def test_r2_6_an_index_naming_no_work_while_sealed_generations_exist_is_refused(root):
+    make_generation(root, '7001')
+    (root / 'active-generations.json').write_bytes(b'{"entries":{},"version":2}')    # journal (or entries) gone
+    with pytest.raises(ManagedDownloadError, match='index rejected'):
+        mg.ManagedGenerations(root)
+
+
+def test_r2_6_a_cancelled_first_save_leaves_a_root_that_still_opens(root):
+    g = mg.ManagedGenerations(root)
+    g.prepare_for_publication()
+    assert json.loads((root / 'active-generations.json').read_bytes())['version'] == 5
+    make_generation(root, '7001')                                 # sealed, never published: a harmless orphan
+    assert mg.ManagedGenerations(root).entry_count() == 0
+    with pytest.raises(ManagedDownloadError):
+        old_reader().ManagedGenerations(root)                     # and an older build is refused
+
+
+def test_r2_6_an_older_index_with_entries_still_tolerates_unindexed_orphans(root):
+    seed_index(root, 2)
+    make_generation(root, '7001')
+    assert mg.ManagedGenerations(root).entry_count() == 2
+
+
+# ---- (d) a damaged work is named ---------------------------------------------------------------------------
+
+def test_r2_d_the_failure_names_the_damaged_work(tmp_path, monkeypatch):
+    from pixivvault_nicegui import managed_downloads as downloads
+    writer = writer_with_works(tmp_path, 2)
+    try:
+        monkeypatch.setattr(downloads, '_RECEIPT_RECHECK_SECONDS', 0.0)
+        first = writer.catalog_snapshot()
+        relative, receipt, _ = first.receipts[1]
+        page = (writer.root / relative).parent / receipt['files'][0]['name']
+        page.write_bytes(page.read_bytes() + b'\0')
+        with pytest.raises(ManagedDownloadError) as caught:
+            writer.catalog_snapshot()
+        assert caught.value.work_id == receipt['work_id'] and caught.value.relative_receipt == relative
+    finally:
+        writer.close()
