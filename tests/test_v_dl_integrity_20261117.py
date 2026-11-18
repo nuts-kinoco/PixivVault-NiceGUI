@@ -1,0 +1,343 @@
+"""Checker findings D1-D3 and improvements (a)(b)(c)(e): the journalled generation index must never
+lose or revert a saved work, whichever build opens the root next."""
+import hashlib
+import importlib.util
+import json
+import os
+import threading
+from pathlib import Path
+
+import pytest
+
+from pixivvault_nicegui import managed_generations as mg
+from pixivvault_nicegui.managed_downloads import ManagedDownloadError
+from test_v_dl_cap_20261117 import (journal_of, make_generation, make_legacy, make_root, mark_of, png,
+                                    publish, receipt_bytes, root, seed_index)  # noqa: F401
+
+FIXTURE = Path(__file__).parent / 'fixtures' / 'managed_generations_v4_reader.py'
+
+
+def old_reader():
+    """The generation index code as it was before journals (what 'rolling the app back' runs)."""
+    spec = importlib.util.spec_from_file_location('pixivvault_nicegui.managed_generations_v4_reader', FIXTURE)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def update_work(g, root, wid, suffix):
+    old = g.current(wid)
+    relative, digest = make_generation(root, wid, suffix=suffix)
+    g.publish(wid, relative, digest, '2026-03-03T00:00:00+00:00', old['sha256'], old['relative_receipt'], 'e' * 64)
+    return relative
+
+
+# ---- D1: a build that does not know the journal must refuse the root -------------------------------
+
+def test_d1_the_index_is_version_5_as_soon_as_a_journal_exists_and_the_old_code_refuses_it(root):
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    packet = json.loads((root / 'active-generations.json').read_bytes())
+    assert packet['version'] == 5 and packet['version'] not in (1, 2, 3, 4)
+    with pytest.raises(ManagedDownloadError):
+        old_reader().ManagedGenerations(root)          # fails closed; it cannot see "no 900001"
+
+
+def test_d1_new_old_new_round_trip_never_reverts_an_updated_work(root):
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    updated = update_work(g, root, '100001', 'a' * 32)
+    with pytest.raises(ManagedDownloadError):
+        old_reader().ManagedGenerations(root)          # the rolled-back build is refused, writes nothing
+    again = mg.ManagedGenerations(root)
+    assert again.current('100001')['relative_receipt'] == updated and again.current('900001') is not None
+    assert again.entry_count() == 4
+
+
+def write_legacy_journal(root, records, base_digest):
+    """A journal as the first builds wrote it (index still v2): header bound to the index digest."""
+    header = json.dumps({'base': base_digest, 'kind': mg._JOURNAL_KIND, 'version': 1}, sort_keys=True,
+                        separators=(',', ':')).encode() + b'\n'
+    chain, lines = hashlib.sha256(header).hexdigest(), []
+    for seq, entry in enumerate(records, 1):
+        canonical = json.dumps(entry, sort_keys=True, ensure_ascii=True, separators=(',', ':'))
+        chain = hashlib.sha256((chain + canonical).encode()).hexdigest()
+        lines.append(json.dumps({'chain': chain, 'entry': entry, 'seq': seq}, sort_keys=True,
+                                ensure_ascii=True, separators=(',', ':')).encode() + b'\n')
+    (root / 'active-generations.journal').write_bytes(header + b''.join(lines))
+
+
+def entry_for(root, wid, suffix, fingerprint='c' * 64):
+    relative, digest = make_generation(root, wid, suffix=suffix)
+    return {'work_id': wid, 'relative_receipt': relative, 'sha256': digest,
+            'update_date': '2026-03-03T00:00:00+00:00', 'accepted_fingerprint': fingerprint}
+
+
+def test_d1_a_legacy_journal_is_adopted_only_when_it_is_the_index_or_newer_than_nothing(root):
+    entries = seed_index(root, 2)
+    base_digest = hashlib.sha256((root / 'active-generations.json').read_bytes()).hexdigest()
+    fresh = entry_for(root, '900001', '1' * 32)
+    write_legacy_journal(root, [fresh], base_digest)
+    g = mg.ManagedGenerations(root)
+    assert g.current('900001') == fresh and g.entry_count() == 3     # bound to this index: replayed
+    publish(g, root, '900002')                                        # the next save folds it into v5
+    assert json.loads((root / 'active-generations.json').read_bytes())['version'] == 5
+    assert not (root / 'active-generations.journal').exists()
+    assert mg.ManagedGenerations(root).entry_count() == 4
+
+
+def test_d1_a_legacy_journal_older_than_the_index_must_match_it_entry_for_entry(root):
+    entries = seed_index(root, 2)
+    old_entry = dict(entries['100000'])
+    newer = entry_for(root, '100000', '2' * 32)                       # the index moved on to a newer version
+    packet = {'version': 2, 'entries': {**entries, '100000': newer}}
+    (root / 'active-generations.json').write_bytes(
+        json.dumps(packet, sort_keys=True, separators=(',', ':')).encode())
+    write_legacy_journal(root, [old_entry], 'f' * 64)                 # journal of an earlier index
+    with pytest.raises(ManagedDownloadError, match='index rejected'):  # never reverts 100000
+        mg.ManagedGenerations(root)
+    write_legacy_journal(root, [newer], 'f' * 64)                     # identical to the index: harmless
+    g = mg.ManagedGenerations(root)
+    assert g.current('100000')['relative_receipt'] == newer['relative_receipt']
+
+
+# ---- D2: a journal that vanishes, empties or is cut short is refused -------------------------------
+
+def damaged(root, how):
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    for number in range(3):
+        publish(g, root, str(900001 + number))
+    journal, mark = journal_of(root), mark_of(root)
+    lines = journal.read_bytes().split(b'\n')
+    if how == 'delete_journal':
+        journal.unlink()
+    elif how == 'delete_mark':
+        mark.unlink()
+    elif how == 'empty_to_header':
+        journal.write_bytes(lines[0] + b'\n')
+    elif how == 'drop_last_record':
+        journal.write_bytes(b'\n'.join(lines[:-2]) + b'\n')
+    elif how == 'cut_in_the_middle':
+        journal.write_bytes(b'\n'.join([lines[0], lines[2], lines[3]]) + b'\n')
+    elif how == 'zero_length':
+        journal.write_bytes(b'')
+
+
+@pytest.mark.parametrize('how', ['delete_journal', 'delete_mark', 'empty_to_header', 'drop_last_record',
+                                 'cut_in_the_middle', 'zero_length'])
+def test_d2_a_missing_emptied_or_shortened_journal_is_refused_not_read_as_fewer_works(root, how):
+    damaged(root, how)
+    with pytest.raises(ManagedDownloadError, match='index rejected'):
+        mg.ManagedGenerations(root)
+
+
+def test_d2_only_a_torn_last_line_is_forgiven_and_so_is_a_mark_one_save_behind(root):
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    behind = mark_of(root).read_bytes()
+    publish(g, root, '900002')
+    journal = journal_of(root)
+    mark_of(root).write_bytes(behind)                    # crash between the append and the mark: 1 behind
+    assert mg.ManagedGenerations(root).entry_count() == 5
+    journal.write_bytes(journal.read_bytes() + b'{"chain":"x')          # and a torn line on top
+    assert mg.ManagedGenerations(root).entry_count() == 5
+
+
+def test_d2_a_mark_two_saves_behind_is_damage(root):
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    behind = mark_of(root).read_bytes()
+    publish(g, root, '900002')
+    publish(g, root, '900003')
+    mark_of(root).write_bytes(behind)
+    with pytest.raises(ManagedDownloadError, match='index rejected'):
+        mg.ManagedGenerations(root)
+
+
+def test_d2_every_fold_gets_a_new_journal_and_the_expectation_follows_the_index(root, monkeypatch):
+    monkeypatch.setattr(mg, '_COMPACT_RECORDS', 2)
+    seed_index(root, 2)
+    g = mg.ManagedGenerations(root)
+    seen = set()
+    for number in range(7):
+        publish(g, root, str(900001 + number))
+        seen.add(json.loads((root / 'active-generations.json').read_bytes())['journal']['id'])
+    assert len(seen) >= 3
+    assert len(list(root.glob('active-generations-*.journal'))) <= 2          # older ones are swept
+    assert mg.ManagedGenerations(root).entry_count() == 9
+
+
+# ---- D3: opening while another instance folds the journal ------------------------------------------
+
+def test_d3_a_reader_never_sees_a_spurious_rejection_while_a_writer_saves_and_folds(root, monkeypatch):
+    monkeypatch.setattr(mg, '_COMPACT_RECORDS', 4)
+    seed_index(root, 5)
+    writer = mg.ManagedGenerations(root)
+    publish(writer, root, '900000')
+    errors, stop, reads = [], threading.Event(), [0]
+
+    def read():
+        while not stop.is_set():
+            try:
+                reader = mg.ManagedGenerations(root)       # a fresh open, as a second process would
+                reader.entry_count()
+                other = mg.ManagedGenerations(root)
+                other.current('900000')
+                reads[0] += 1
+            except Exception as error:                     # noqa: BLE001
+                errors.append(repr(error))
+    thread = threading.Thread(target=read)
+    thread.start()
+    try:
+        for number in range(1, 60):
+            publish(writer, root, str(900000 + number))
+    finally:
+        stop.set()
+        thread.join(30)
+    assert errors == [] and reads[0] > 0
+    assert mg.ManagedGenerations(root).entry_count() == 5 + 60
+
+
+# ---- (a) a store with no index (outputs/ only) is verified once, not on every call -----------------
+
+def test_a_an_outputs_only_store_is_verified_once_and_still_refuses_an_unindexed_generation(root, monkeypatch):
+    make_legacy(root, '800001')
+    make_legacy(root, '800002')
+    g = mg.ManagedGenerations(root)
+    loads = []
+    original = g._load_full
+    monkeypatch.setattr(g, '_load_full', lambda: loads.append(1) or original())
+    for _ in range(5):
+        g.entries()
+        g.current('800001')
+    make_legacy(root, '800003')
+    assert g.entry_count() == 3 and g.current('800003') is not None
+    assert loads == []                                       # no re-read at all after opening
+    make_generation(root, '900001')                         # a sealed generation without any index
+    with pytest.raises(ManagedDownloadError, match='index missing'):
+        g.entries()
+
+
+# ---- (b) silent corruption that keeps size and time ----------------------------------------------
+
+def writer_with_works(tmp_path, count):
+    from test_v_dl_cap_20261117 import _writer_with_works
+    return _writer_with_works(tmp_path, count)
+
+
+def test_b_same_size_same_time_rewrite_is_caught_when_the_bytes_are_read_and_after_the_recheck_interval(
+        tmp_path, monkeypatch):
+    from pixivvault_nicegui import managed_downloads as downloads
+    writer = writer_with_works(tmp_path, 2)
+    try:
+        first = writer.catalog_snapshot()
+        relative, receipt, digest = first.receipts[0]
+        page = (writer.root / relative).parent / receipt['files'][0]['name']
+        stat = page.stat()
+        data = bytearray(page.read_bytes())
+        data[-5] ^= 0xFF                                    # same length, flipped byte
+        page.write_bytes(bytes(data))
+        os.utime(page, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+        with pytest.raises(ManagedDownloadError):
+            writer.read_saved_page(relative, 0, digest)     # reading always hashes the bytes
+        monkeypatch.setattr(downloads, '_RECEIPT_RECHECK_SECONDS', 0.0)
+        with pytest.raises(ManagedDownloadError):
+            writer.catalog_snapshot()                       # and the periodic full re-verification
+    finally:
+        writer.close()
+
+
+def test_b_a_reopened_store_verifies_in_full_again(tmp_path):
+    from pixivvault_nicegui.managed_downloads import ManagedPixivDownloads
+    writer = writer_with_works(tmp_path, 1)
+    client, resolver = writer.client, writer.resolve_record
+    first = writer.catalog_snapshot()
+    relative, receipt, _ = first.receipts[0]
+    page = (writer.root / relative).parent / receipt['files'][0]['name']
+    stat = page.stat()
+    writer.close()
+    data = bytearray(page.read_bytes())
+    data[-5] ^= 0xFF
+    page.write_bytes(bytes(data))
+    os.utime(page, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+    reopened = ManagedPixivDownloads(tmp_path / 'managed', client, resolve_record=resolver)
+    try:
+        with pytest.raises(ManagedDownloadError):
+            reopened.catalog_snapshot()
+    finally:
+        reopened.close()
+
+
+# ---- (c) the journal never grows past what the next open reads ----------------------------------
+
+def test_c_a_journal_at_its_ceiling_with_a_failing_fold_stops_saving_with_a_capacity_code(root, monkeypatch):
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    size = journal_of(root).stat().st_size
+    monkeypatch.setattr(mg, '_COMPACT_RECORDS', 10 ** 9)
+    monkeypatch.setattr(mg, '_COMPACT_BYTES', 10 ** 12)
+    monkeypatch.setattr(mg, '_MAX_JOURNAL_BYTES', size + mg._JOURNAL_SLACK + 700)
+    monkeypatch.setattr(g, '_compact', lambda loaded: (_ for _ in ()).throw(OSError('disk')))
+    saved = 0
+    with pytest.raises(ManagedDownloadError, match='journal full') as caught:
+        for number in range(2, 50):
+            publish(g, root, str(900000 + number))
+            saved += 1
+    assert caught.value.reason_code == 'storage_capacity' and saved >= 1
+    assert journal_of(root).stat().st_size <= mg._MAX_JOURNAL_BYTES
+    assert mg.ManagedGenerations(root).entry_count() == 3 + 1 + saved     # nothing saved is lost
+
+
+def test_c_a_journal_at_its_ceiling_is_folded_and_saving_goes_on(root, monkeypatch):
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    monkeypatch.setattr(mg, '_COMPACT_RECORDS', 10 ** 9)
+    monkeypatch.setattr(mg, '_COMPACT_BYTES', 10 ** 12)
+    monkeypatch.setattr(mg, '_MAX_JOURNAL_BYTES', journal_of(root).stat().st_size + mg._JOURNAL_SLACK + 700)
+    for number in range(2, 12):
+        publish(g, root, str(900000 + number))
+    assert g.entry_count() == 14 and mg.ManagedGenerations(root).entry_count() == 14
+
+
+# ---- (e) an ID / bookmark save (no intent, lands in outputs/) is refused before it is downloaded ----
+
+def test_e_a_save_without_intent_is_refused_up_front_when_the_store_is_full(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from pixivvault_nicegui.bookmark_remote_adapter import RemoteBookmark
+    from pixivvault_nicegui.managed_downloads import ManagedPixivDownloads
+    monkeypatch.setattr(mg, '_MAX_ENTRIES', 2)
+    downloaded = []
+
+    class Context:
+        def checkpoint(self): pass
+        def progress(self, *_): pass
+
+    class Client:
+        def verify_identity(self): return '99'
+        def get_artwork_original_pages(self, wid): return (f'https://i.pximg.net/synthetic/{wid}/1.png',)
+        def get_image_bytes(self, url):
+            downloaded.append(url)
+            return png()
+
+    def record(wid):
+        return RemoteBookmark(wid, 'illustration', 'show', 'T' + wid, '25', 'A', (), '', '2026-10-29T00:00:00Z', 1, 0, 0)
+    writer = ManagedPixivDownloads(tmp_path / 'managed', Client(), resolve_record=record)
+    try:
+        def save(wid):
+            return writer.run(SimpleNamespace(kind='pixiv-illust', target_id=wid, job_id='%032x' % int(wid)), Context())
+        save('501'), save('502')
+        downloaded.clear()
+        with pytest.raises(ManagedDownloadError) as caught:
+            save('503')
+        assert caught.value.reason_code == 'storage_capacity' and downloaded == []   # nothing was fetched
+        assert writer._generations.entry_count() == 2
+        save('501')                                       # an update of a saved work is still allowed
+    finally:
+        writer.close()
