@@ -702,9 +702,7 @@ def register_pages(learning_sandbox: Path | None = None,
         if bridge_wanted:
             app.on_startup(services.start_extension_bridge)
         if desktop_enabled:
-            from .native_layout import bind_restore_size
             from .native_lifecycle import bind_native_tray
-            bind_restore_size(app.native)
             services.tray=bind_native_tray(app,services.preferences,services=services)
         if native_profile is not None:
             services.native_profile = native_profile

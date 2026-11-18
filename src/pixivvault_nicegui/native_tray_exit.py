@@ -60,6 +60,8 @@ def install_owned_tray_exit(token, sender=None):
     gate = Lock()
     from .native_webview_visibility import install_owned_visibility
     install_owned_visibility(window)
+    from .native_restore_size import install_window_restore_size
+    install_window_restore_size(window)
 
     def _close_owned_for_tray(supplied_token, needs_confirmation=True):
         # The native executor puts a response only when a method returns a

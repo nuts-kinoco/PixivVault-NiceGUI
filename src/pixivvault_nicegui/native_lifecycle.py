@@ -171,6 +171,9 @@ def bind_native_tray(app,preferences,*,factory=None,services=None):
     if preferences is None:
         preferences = _DefaultTrayPreferences()
     if factory is None:
-        if find_spec('pystray') is None:return None
+        if find_spec('pystray') is None:
+            from .native_restore_size import configure_owned_restore_size
+            configure_owned_restore_size(app.native)
+            return None
         factory=PystrayFactory()
     return NativeTrayBridge(app,preferences,factory,services)
