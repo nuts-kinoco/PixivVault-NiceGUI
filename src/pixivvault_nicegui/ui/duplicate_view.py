@@ -727,9 +727,15 @@ class DuplicateView:
         except Exception:
             emit_shared(self.event_services, '重複整理の結果を確認できません。', level='error')
             raise
-        emit_shared(self.event_services,
-                    f'重複整理: {len(result.committed)}件を隔離しました。失敗{len(result.failed)}件。',
-                    level='error' if result.failed else 'success')
+        unprocessed = len(getattr(result, 'unprocessed', ()))
+        recovery_required = bool(getattr(result, 'recovery_required', False))
+        message = f'重複整理: {len(result.committed)}件を隔離しました。失敗{len(result.failed)}件。'
+        if unprocessed:
+            message += f'未処理{unprocessed}件。'
+        if recovery_required:
+            message += '保存状態の再確認が必要です。'
+        emit_shared(self.event_services, message,
+                    level='error' if result.failed or unprocessed or recovery_required else 'success')
         self._last_result=result
         refresh_warning=False
         if result.committed:
