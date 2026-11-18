@@ -40,18 +40,31 @@ def test_cookie_notice_only_after_saved_changes_with_original_throttle(monkeypat
     assert all('synthetic' not in e.message for e in log.snapshot())
 
 
-def test_cookie_notice_is_connected_to_isolated_profile_store(tmp_path):
+def test_cookie_notice_is_connected_to_isolated_profile_store(tmp_path, monkeypatch):
     from pixivvault_nicegui.queue_log import QueueLog
     from pixivvault_nicegui.services import ApplicationServices
+    import test_h01_extension_default_20261117 as fixtures
+    original_rows = fixtures._cookie_rows
+    generated = [0]
+    def changing_clock_rows():
+        rows = original_rows()
+        generated[0] += 1
+        rows[0]['expirationDate'] += generated[0]
+        return rows
+    monkeypatch.setattr(fixtures, '_cookie_rows', changing_clock_rows)
     from test_h01_extension_default_20261117 import _binding, _cookie_rows
     binding, _ = _binding(tmp_path)
     log = QueueLog()
     owner = SimpleNamespace(native_profile=binding, closing=False, queue_log=log)
     try:
-        result = ApplicationServices._extension_cookie_sync(owner, _cookie_rows())
+        rows = _cookie_rows()
+        result = ApplicationServices._extension_cookie_sync(owner, rows)
         assert result.state == 'pending'
         assert log.snapshot()[-1].message == '[Cookie Auto-Sync] 拡張機能から最新のCookieを自動同期しました'
-        assert ApplicationServices._extension_cookie_sync(owner, _cookie_rows()).state == 'unchanged'
+        assert ApplicationServices._extension_cookie_sync(owner, rows).state == 'unchanged'
+        # A separately generated expiry is a real change, even when the
+        # session value is the same; notification throttling still applies.
+        assert ApplicationServices._extension_cookie_sync(owner, _cookie_rows()).state == 'pending'
         assert len(log.snapshot()) == 1
     finally:
         binding.close()
