@@ -17,7 +17,8 @@ import re
 import stat
 from threading import Lock
 from uuid import uuid4
-from zipfile import ZipFile, ZIP_DEFLATED, LargeZipFile
+from zipfile import BadZipFile, ZipFile, ZIP_DEFLATED, LargeZipFile
+from zlib import error as ZlibError
 
 from .fs_paths import native_io_path, logical_path
 from .managed_downloads import (ManagedPixivDownloads, ManagedDownloadError,
@@ -93,7 +94,8 @@ def _export_path(root: Path) -> Path:
 
 
 class LegacyZipExporter:
-    def __init__(self, root: Path, managed: ManagedPixivDownloads, *, preserve_incomplete=False):
+    def __init__(self, root: Path, managed: ManagedPixivDownloads, *, preserve_incomplete=False, notify_corrupt=None):
+        self.notify_corrupt = notify_corrupt
         if not isinstance(managed, ManagedPixivDownloads) or managed.closed:
             raise LegacyZipExportError('managed originals unavailable')
         path = _export_path(logical_path(root))
@@ -149,6 +151,20 @@ class LegacyZipExporter:
         self._closing = True
         with self._writer:
             self.closed = True
+
+    def _verify_archive(self, path, members, label):
+        try:
+            with ZipFile(path, 'r') as archive:
+                if set(archive.namelist()) != members or archive.testzip() is not None:
+                    raise LegacyZipExportError('legacy ZIP verification failed')
+        except (LegacyZipExportError, BadZipFile, OSError, RuntimeError, ZlibError) as error:
+            if self.notify_corrupt is not None:
+                try:
+                    self.notify_corrupt('PixivVault - ZIP破損検出',
+                                        f'{label} のアーカイブに問題があります: ZIPの検証に失敗しました')
+                except Exception:
+                    pass  # Notification failure does not hide verification failure.
+            raise LegacyZipExportError('legacy ZIP verification failed') from error
 
     def export_author(self, author_id: str, *, expected_proofs=None, before_publish=None,
                       expected_source_pages=None, replace_existing_sha256=None) -> Path:
@@ -244,9 +260,7 @@ class LegacyZipExporter:
                         archive.writestr(name, data)
                 output.flush()
                 os.fsync(output.fileno())
-            with ZipFile(staging, 'r') as archive:
-                if set(archive.namelist()) != members or archive.testzip() is not None:
-                    raise LegacyZipExportError('legacy ZIP verification failed')
+            self._verify_archive(staging, members, zip_name[:-4])
             if self._closing:
                 raise LegacyZipExportError('ZIP export interrupted by shutdown')
             # Prevent exporting an outdated author generation after a

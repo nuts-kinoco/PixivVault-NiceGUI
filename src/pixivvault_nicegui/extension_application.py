@@ -225,13 +225,31 @@ class ExtensionApplication:
             raise RuntimeError('unknown saved media job')
 
     def _run(self, job, context):
+        from .extension_bridge import parse_download
+        command = parse_download(json.loads(job.target_id))
+        self._notify('PixivVault ダウンロード開始',
+                     f'{command.kind} (id={command.target_id}) の保存を開始します。')
         return self._run_command(job, context)
+
+    def _notify(self, title, body):
+        notifier = getattr(self.services, 'notifications', None)
+        if notifier is not None:
+            try:
+                notifier.notify(title, body)
+            except Exception:
+                pass  # A notification must not alter a job outcome.
 
     def _terminal_log(self, job):
         from .extension_bridge import parse_download
         command = parse_download(json.loads(job.target_id))
         log = getattr(self.services, 'queue_log', None)
         shared = getattr(self.services, 'shared_log', None)
+        if job.state == 'done':
+            self._notify('PixivVault ダウンロード完了',
+                         f'{command.kind} (id={command.target_id}) の保存が完了しました！')
+        elif job.state == 'error':
+            self._notify('PixivVault エラー',
+                         f'ダウンロードに失敗しました: {getattr(job, "error_code", "")}')
         label, level = {'done': ('完了', 'success'), 'error': ('失敗', 'error'),
                         'stopped': ('停止', 'normal')}[job.state]
         with self._lock:

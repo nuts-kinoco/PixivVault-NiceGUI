@@ -582,7 +582,9 @@ class ApplicationServices:
                 if legacy_zip_export_root is not None:
                     from .legacy_zip_export import LegacyZipExporter
                     self.legacy_zip_exporter = LegacyZipExporter(
-                        Path(legacy_zip_export_root), self.managed_downloads)
+                        Path(legacy_zip_export_root), self.managed_downloads,
+                        notify_corrupt=lambda title, body: (self.notifications.notify(title, body)
+                                                             if self.notifications is not None else None))
                 self.static_jobs = JobService(
                     job_request_runner(self._run_managed_job), self.managed_downloads.storage_path,
                     dispatch_admission=(self.managed_network_stop.admit_job
