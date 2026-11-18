@@ -550,7 +550,7 @@ class NativeProfileBinding:
 
 def register_profile_recovery(binding, *, cookie_rejected=False,
                               stop_migration_required=False, stop_gate_busy=False,
-                              stop_get_uncertain=False):
+                              stop_get_uncertain=False, legacy_v5_uncertain=False):
     """Show editable configuration only; no media/service fallback is started."""
     from nicegui import app, ui
     from .ui.theme import CSS, TOKENS
@@ -563,7 +563,9 @@ def register_profile_recovery(binding, *, cookie_rejected=False,
             ui.label('PixivVault — 起動設定の確認').classes('text-h5')
             from .native_auth_result import NativeAuthResult
             startup_result = getattr(binding, 'auth_startup_result', None)
-            ui.label(startup_result.message if type(startup_result) is NativeAuthResult else
+            ui.label('保管領域の状態を確認できません（旧形式の判別不能）。バックアップから復元してください。'
+                     if legacy_v5_uncertain else
+                     startup_result.message if type(startup_result) is NativeAuthResult else
                      '前の取得結果が不確かなため通信を停止しています。取得停止の確認・回復を開いて手順を確認してください。'
                      if stop_get_uncertain else
                      '通信記録が使用中のため確認できません。ほかの処理が終わってからアプリを再起動してください。確認できるまで通信は停止しています。'
@@ -583,7 +585,7 @@ def register_profile_recovery(binding, *, cookie_rejected=False,
                 from .ui.shared_get_recovery_view import SharedGetRecoveryView
                 recovery = SharedGetRecoveryView(binding.shared_network_stop_scope)
                 ui.context.client.on_delete(recovery.close)
-            view = binding.create_view(allow_auth=not (stop_migration_required or stop_gate_busy or stop_get_uncertain))
+            view = binding.create_view(allow_auth=not (stop_migration_required or stop_gate_busy or stop_get_uncertain or legacy_v5_uncertain))
             view.build()
             ui.context.client.on_delete(view.close)
 

@@ -22,6 +22,13 @@ def test_same_work_update_is_never_silently_rolled_back(tmp_path, writer_format,
     relative, digest = make_generation(root, '1000', suffix='f' * 32)
     writer.publish('1000', relative, digest, '2026-01-03T00:00:00+00:00',
                    base['sha256'], base['relative_receipt'], 'e' * 64)
+    if writer_format == 'old-v5':
+        with pytest.raises(ManagedDownloadError, match='旧形式'):
+            mg.ManagedGenerations(root)
+        index.write_bytes(old_index)
+        with pytest.raises(ManagedDownloadError, match='旧形式'):
+            mg.ManagedGenerations(root)
+        return
     observer = mg.ManagedGenerations(root)
     assert observer.current('1000')['relative_receipt'] == relative
     index.write_bytes(old_index)

@@ -133,7 +133,7 @@ def test_fold_without_head_is_rejected(tmp_path):
         mg.ManagedGenerations(root)
 
 
-def test_old_v5_is_anchored_before_next_publication(tmp_path):
+def test_old_v5_is_refused_before_next_publication(tmp_path):
     from test_w_fix3_migration import historical_module
     old = historical_module('823871e')
     root = make_root(tmp_path)
@@ -144,20 +144,19 @@ def test_old_v5_is_anchored_before_next_publication(tmp_path):
     stale = index.read_bytes()
     prior._compact(prior._loaded)
     publish(prior, root, '1001')
-    current = mg.ManagedGenerations(root)
-    publish(current, root, '1002')
-    assert set(current.entries()) == {'1000', '1001', '1002'}
+    before = {str(p.relative_to(root)): p.read_bytes() for p in root.rglob('*') if p.is_file()}
+    with pytest.raises(ManagedDownloadError, match='旧形式'):
+        mg.ManagedGenerations(root)
+    assert {str(p.relative_to(root)): p.read_bytes() for p in root.rglob('*') if p.is_file()} == before
     index.write_bytes(stale)
-    with pytest.raises(ManagedDownloadError, match='index rejected'):
+    with pytest.raises(ManagedDownloadError, match='旧形式'):
         mg.ManagedGenerations(root)
 
 
 @pytest.mark.parametrize('reader_mode', ['cold', 'warm'])
-def test_already_rolled_back_old_v5_rejects_missing_published_work(tmp_path, reader_mode):
-    from test_w_fix3_migration import historical_module
-    old = historical_module('823871e')
+def test_already_rolled_back_sequenced_v5_rejects_missing_published_work(tmp_path, reader_mode):
     root = make_root(tmp_path)
-    writer = old.ManagedGenerations(root)
+    writer = mg.ManagedGenerations(root)
     writer.prepare_for_publication()
     publish(writer, root, '1000')
     index = root / 'active-generations.json'
@@ -190,7 +189,7 @@ def test_warm_reader_recovers_pending_head(tmp_path, monkeypatch):
     assert observer.capacity()['entries'] == 1
 
 
-def test_old_v5_ignores_uncommitted_empty_journal_without_mark(tmp_path):
+def test_old_v5_with_uncommitted_empty_journal_is_refused(tmp_path):
     from test_w_fix3_migration import historical_module
     old = historical_module('823871e')
     root = make_root(tmp_path)
@@ -200,7 +199,8 @@ def test_old_v5_ignores_uncommitted_empty_journal_without_mark(tmp_path):
     jid = 'a' * 32
     header = mg._canonical({'id': jid, 'kind': mg._JOURNAL_KIND, 'version': 2}) + b'\n'
     (root / (mg._JOURNAL_FILE % jid)).write_bytes(header)
-    assert set(mg.ManagedGenerations(root).entries()) == {'1000'}
+    with pytest.raises(ManagedDownloadError, match='旧形式'):
+        mg.ManagedGenerations(root)
 
 
 def test_visibility_cache_tracks_head_and_still_serves_visible_pages(tmp_path):

@@ -5,6 +5,7 @@ from pixivvault_nicegui.managed_downloads import ManagedDownloadError
 from pathlib import Path
 import os
 from unittest.mock import patch
+import pytest
 
 def test_legacy_migration_is_safe_for_existing_interrupted_roots(tmp_path):
     legacy_writer = historical_module('d64879a')
@@ -25,7 +26,8 @@ def test_legacy_migration_is_safe_for_existing_interrupted_roots(tmp_path):
             raise AssertionError('expected interruption')
     assert not (root / 'active-generations.journal').exists()
     assert (root / mg._V5_COMMITTED).read_bytes().startswith(b'upgrade:')
-    assert set(mg.ManagedGenerations(root).entries()) == {'1000','100000','100001'}
+    with pytest.raises(ManagedDownloadError, match='旧形式'):
+        mg.ManagedGenerations(root)
     idx.write_bytes(old)
     try:
         now = set(mg.ManagedGenerations(root).entries())

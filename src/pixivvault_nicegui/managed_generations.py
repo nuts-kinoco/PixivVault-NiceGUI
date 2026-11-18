@@ -24,7 +24,7 @@ from .fs_paths import logical_path, native_io_path
 from .managed_root_writer import fenced_writer, writer_fence
 from .managed_downloads import (IDENTITY, MARKER, MAX_RECEIPT_BYTES, MAX_PAGE_BYTES,
                                 MAX_PAGES, MAX_PIXELS, MAX_TOTAL, _image,
-                                ManagedDownloadError, ManagedPageQuarantined,
+                                ManagedDownloadError, ManagedPageQuarantined, LegacyV5Uncertain,
                                 _fsync_dir, _json_unique,
                                 _read_bounded, _safe_path, _write)
 
@@ -307,6 +307,24 @@ class _Loaded:
                 'quarantine_operations': self.operations}
 
 
+def reject_uncertain_old_v5(root):
+    """Refuse an unsequenced v5 before creating directories or recovering anything.
+
+    Old folds could prune their journals, so even a single surviving index and
+    journal cannot prove that an older base has not been restored.
+    """
+    index = root / 'active-generations.json'
+    if _identity(index) is None:
+        return
+    try:
+        packet = json.loads(_read_shared(index, _MAX_INDEX_BYTES), object_pairs_hook=_json_unique)
+    except (OSError, ValueError, TypeError, UnicodeError, RecursionError):
+        return  # the normal index validator reports malformed input
+    if (type(packet) is dict and type(packet.get('version')) is int and packet['version'] == 5
+            and type(packet.get('journal')) is dict and 'generation' not in packet['journal']):
+        raise LegacyV5Uncertain()
+
+
 class ManagedGenerations:
     """Index is owned by one managed-root writer; all returned data is copied.
 
@@ -338,6 +356,7 @@ class ManagedGenerations:
         self.stage_dir = self.root / 'generation-incomplete'
         self.index_path = self.root / 'active-generations.json'
         self.journal_path = self.root / _JOURNAL
+        reject_uncertain_old_v5(self.root)
         for folder in (self.output_dir, self.generation_dir, self.stage_dir):
             _safe_path(folder)
             native_io_path(folder).mkdir(exist_ok=True)
@@ -701,6 +720,8 @@ class ManagedGenerations:
                         or re.fullmatch(r'[a-f0-9]{32}', journal['id']) is None):
                     raise ValueError()
                 loaded.jid = journal['id']
+                if 'generation' not in journal:
+                    raise LegacyV5Uncertain()
                 if 'generation' in journal:
                     if (type(journal['generation']) is not int or journal['generation'] < 1
                             or type(journal['parent']) is not str
@@ -792,6 +813,8 @@ class ManagedGenerations:
             loaded.acc = sum(_entry_hash(e) for e in active.values()) % _MOD
             return loaded
         except (OSError, ValueError, TypeError, KeyError, UnicodeError, RecursionError) as error:
+            if isinstance(error, LegacyV5Uncertain):
+                raise
             if isinstance(error, ManagedDownloadError) and str(error) in (
                     'generation limit exceeded', 'active generation index missing'):
                 raise

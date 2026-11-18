@@ -48,6 +48,13 @@ class ManagedDownloadError(JobFailure, ValueError):
     """Fixed public error text; never includes URLs or downloaded metadata."""
 
 
+class LegacyV5Uncertain(ManagedDownloadError):
+    """A generationless index has no reliable witness of its latest state."""
+
+    def __init__(self):
+        super().__init__('保管領域の状態を確認できません（旧形式の判別不能）。バックアップから復元してください。')
+
+
 class ManagedPageSelectionChanged(ManagedDownloadError):
     """The pinned selection no longer belongs to the current visible state."""
 
@@ -244,6 +251,8 @@ class ManagedPixivDownloads:
                 raise ManagedDownloadError("managed marker rejected") from None
         else:
             _write(marker, json.dumps(IDENTITY, sort_keys=True).encode("utf-8"))
+        from .managed_generations import ManagedGenerations, reject_uncertain_old_v5
+        reject_uncertain_old_v5(self.root)
         self.outputs = self.root / "outputs"
         native_io_path(self.outputs).mkdir(exist_ok=True)
         _safe_path(self.outputs)
@@ -256,7 +265,6 @@ class ManagedPixivDownloads:
         self.generation_outputs = self.root / 'generations'
         native_io_path(self.generation_outputs).mkdir(exist_ok=True)
         _safe_path(self.generation_outputs)
-        from .managed_generations import ManagedGenerations
         self._generations = ManagedGenerations(self.root)
         from .managed_quarantine import ManagedQuarantine
         self.quarantine = ManagedQuarantine(self)
