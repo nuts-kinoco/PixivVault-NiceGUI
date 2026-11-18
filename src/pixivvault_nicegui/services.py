@@ -1637,6 +1637,14 @@ class ApplicationServices:
                 'ugoira-'+selection.spec['output'], digest(_json(selection.spec)))
             return self.ugoira.enqueue_selection(selection, operation_id)
 
+    def preferred_ranking_tags(self):
+        """世間ランキングの好みタグ印の集合（正規化タグ）。worker スレッドから呼ぶ。無ければ空。"""
+        if self.discovery is not None:
+            return self.discovery.preferred_tags()
+        source = getattr(self.recommendations, 'source', None)
+        provider = getattr(source, 'preferred_tags', None)
+        return provider() if callable(provider) else frozenset()
+
     def personal_ranking_context(self):
         # 元 ranking_tab.py:1436-1456: 読めなかった集合だけ欠かし（「除外しない」側へ倒す）、読めた分は使う。
         # 欠けた集合は画面が「⚠️一部の除外条件を適用できませんでした」と出す（FL-Y04）。

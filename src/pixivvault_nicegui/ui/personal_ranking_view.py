@@ -12,6 +12,7 @@ EXCLUSION_CONTEXT=(('exclude_hated','hated_ids'),('exclude_downloaded','download
 EXCLUSION_WARNING='　⚠️一部の除外条件を適用できませんでした'
 
 class PersonalRankingView(RankingView):
+    def preferred_tags_in(self,tags):return False  # 青ハート印は世間ランキングだけ（元 ranking_tab.py:822）
     def _schedule_first_load(self):pass  # original auto-fetch is only the public ranking tab
     def __init__(self,services,*,card_size='large',on_size_change=None):
         self.services=services;self.proxy=_ViewServices(services);self.vault=getattr(services,'external_vault',None)
