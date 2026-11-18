@@ -357,3 +357,200 @@ def test_services_port_headroom_is_the_smaller_of_count_and_index_bytes():
 def test_novel_ledger_refusal_carries_the_capacity_code():
     from pixivvault_nicegui.job_failure import job_failure_code
     assert job_failure_code(ManagedNovelError(reason_code='storage_capacity')) == 'storage_capacity'
+
+
+# ---- saves without an intent (ID / bookmark downloads) land in outputs/ -----------------------
+
+def make_legacy(root, wid):
+    folder = root / 'outputs' / ('work-%s-%032x' % (wid, int(wid)))
+    folder.mkdir(parents=True)
+    (folder / 'page-1.png').write_bytes(png())
+    (folder / 'receipt.json').write_bytes(receipt_bytes(wid))
+    return folder
+
+
+def test_an_outputs_save_verifies_only_the_new_folder_not_the_whole_index(root, monkeypatch):
+    seed_index(root, 30)
+    make_legacy(root, '800001')
+    g = mg.ManagedGenerations(root)
+    assert g.entry_count() == 31 and g.current('800001')['relative_receipt'].startswith('outputs/')
+    loads = []
+    original = g._load_full
+    monkeypatch.setattr(g, '_load_full', lambda: loads.append(1) or original())
+    revision = g.state_snapshot()['revision']
+    make_legacy(root, '800002')
+    assert g.current('800002') is not None and g.entry_count() == 32
+    assert g.state_snapshot()['revision'] != revision
+    assert loads == []                                       # no full re-verification
+
+
+def test_a_vanished_outputs_folder_leaves_the_index_and_the_revision_matches_a_fresh_open(root):
+    seed_index(root, 5)
+    keep = make_legacy(root, '800001')
+    gone = make_legacy(root, '800002')
+    g = mg.ManagedGenerations(root)
+    import shutil
+    shutil.rmtree(gone)
+    assert g.current('800002') is None and g.current('800001') is not None and g.entry_count() == 6
+    assert g.state_snapshot()['revision'] == mg.ManagedGenerations(root).state_snapshot()['revision']
+    assert keep.exists()
+
+
+def test_an_indexed_generation_still_wins_over_a_legacy_output_of_the_same_work(root):
+    seed_index(root, 2)
+    g = mg.ManagedGenerations(root)
+    make_legacy(root, '100001')  # same work as an indexed one
+    assert g.current('100001')['relative_receipt'].startswith('generations/')
+    assert g.state_snapshot()['revision'] == mg.ManagedGenerations(root).state_snapshot()['revision']
+
+
+def test_a_second_outputs_folder_for_the_same_work_is_rejected(root):
+    seed_index(root, 2)
+    g = mg.ManagedGenerations(root)
+    make_legacy(root, '800001')
+    assert g.current('800001') is not None
+    twin = root / 'outputs' / ('work-800001-' + 'f' * 32)
+    twin.mkdir()
+    (twin / 'receipt.json').write_bytes(receipt_bytes('800001'))
+    with pytest.raises(ManagedDownloadError, match='duplicate'):
+        g.entry_count()
+
+
+# ---- the intent store no longer reads every saved intent for every accepted work ----------------
+
+def test_storing_an_intent_reads_the_folder_once_not_once_per_store(tmp_path, monkeypatch):
+    from pixivvault_nicegui.managed_download_requests import ManagedDownloadRequests
+    from pixivvault_nicegui.bookmark_remote_adapter import RemoteBookmark
+    store_root = tmp_path / 'intents'
+    store_root.mkdir()
+    (store_root / MARKER).write_text(json.dumps(IDENTITY))
+
+    def bookmark(n):
+        return RemoteBookmark(str(n), 'illustration', 'show', 't', '1', 'a', (), '', '2026-01-01T00:00:00Z', 1, 0, 0)
+    first = ManagedDownloadRequests(store_root)
+    for n in range(1, 41):
+        first.store('%032x' % n, bookmark(n))
+    second = ManagedDownloadRequests(store_root)                 # a restart: 40 intents on disk
+    reads = []
+    original = second._read
+    monkeypatch.setattr(second, '_read', lambda item: reads.append(item) or original(item))
+    for n in range(41, 91):
+        second.store('%032x' % n, bookmark(n))
+    assert len(reads) == 40                                      # the one full pass, then counted
+    assert second.load('%032x' % 90).remote_id == '90'
+
+
+def test_the_intent_ceiling_is_far_above_10000():
+    from pixivvault_nicegui import managed_download_requests as requests_module
+    assert requests_module.MAX_INTENTS >= 100_000
+
+
+# ---- a full store reaches the job as one named code through the real writer ---------------------
+
+def test_the_real_writer_reports_storage_capacity_when_the_ceiling_is_reached(tmp_path, monkeypatch):
+    from io import BytesIO
+    from types import SimpleNamespace
+    from pixivvault_nicegui.bookmark_remote_adapter import RemoteBookmark
+    from pixivvault_nicegui.job_failure import job_failure_code
+    from pixivvault_nicegui.managed_download_requests import ManagedAuthorIntent
+    from pixivvault_nicegui.managed_downloads import ManagedPixivDownloads
+    monkeypatch.setattr(mg, '_MAX_ENTRIES', 2)
+
+    class Context:
+        def checkpoint(self): pass
+        def progress(self, *_): pass
+
+    class Client:
+        def verify_identity(self): return '99'
+        def get_artwork_original_pages(self, wid): return (f'https://i.pximg.net/synthetic/{wid}/1.png',)
+        def get_artwork_update_revision(self, wid, aid):
+            return dict(author_id=aid, page_count=1, illustration_type=0, update_date='2026-10-29T00:00:00Z')
+        def get_image_bytes(self, url): return png()
+
+    def record(wid):
+        return RemoteBookmark(wid, 'illustration', 'show', 'T' + wid, '25', 'A', (), '', '2026-10-29T00:00:00Z', 1, 0, 0)
+    writer = ManagedPixivDownloads(tmp_path / 'managed', Client(), resolve_record=record)
+    try:
+        def save(wid):
+            return writer.run(SimpleNamespace(kind='pixiv-illust', target_id=wid, job_id='%032x' % int(wid)),
+                              Context(), intent=ManagedAuthorIntent(record(wid), 'follow', '2026-10-29T00:00:00Z',
+                                                                    None, 'new', None))
+        save('301'), save('302')
+        with pytest.raises(ManagedDownloadError) as caught:
+            save('303')
+        assert caught.value.reason_code == 'storage_capacity' == job_failure_code(caught.value)
+        assert writer._generations.entry_count() == 2
+    finally:
+        writer.close()
+
+
+# ---- the catalog no longer re-verifies every page of every work on every pass --------------------
+
+def _writer_with_works(tmp_path, count):
+    from types import SimpleNamespace
+    from pixivvault_nicegui.bookmark_remote_adapter import RemoteBookmark
+    from pixivvault_nicegui.managed_download_requests import ManagedAuthorIntent
+    from pixivvault_nicegui.managed_downloads import ManagedPixivDownloads
+
+    class Context:
+        def checkpoint(self): pass
+        def progress(self, *_): pass
+
+    class Client:
+        def verify_identity(self): return '99'
+        def get_artwork_original_pages(self, wid): return (f'https://i.pximg.net/synthetic/{wid}/1.png',)
+        def get_artwork_update_revision(self, wid, aid):
+            return dict(author_id=aid, page_count=1, illustration_type=0, update_date='2026-10-29T00:00:00Z')
+        def get_image_bytes(self, url): return png()
+
+    def record(wid):
+        return RemoteBookmark(wid, 'illustration', 'show', 'T' + wid, '25', 'A', (), '', '2026-10-29T00:00:00Z', 1, 0, 0)
+    writer = ManagedPixivDownloads(tmp_path / 'managed', Client(), resolve_record=record)
+    for number in range(count):
+        wid = str(400 + number)
+        writer.run(SimpleNamespace(kind='pixiv-illust', target_id=wid, job_id='%032x' % int(wid)), Context(),
+                   intent=ManagedAuthorIntent(record(wid), 'follow', '2026-10-29T00:00:00Z', None, 'new', None))
+    return writer
+
+
+def test_an_unchanged_work_is_not_decoded_again_but_a_changed_page_is_caught(tmp_path, monkeypatch):
+    from pixivvault_nicegui import managed_downloads as downloads
+    writer = _writer_with_works(tmp_path, 3)
+    try:
+        calls = []
+        original = downloads._image
+        monkeypatch.setattr(downloads, '_image', lambda data: calls.append(1) or original(data))
+        writer._receipt_cache.clear()                              # (the save itself had verified and cached them)
+        first = writer.catalog_snapshot()
+        assert len(first.receipts) == 3 and calls                 # verified in full once
+        calls.clear()
+        again = writer.catalog_snapshot()
+        assert calls == [] and again.receipts == first.receipts    # same result, no page read
+        relative, receipt, _ = first.receipts[0]
+        page = (writer.root / relative).parent / receipt['files'][0]['name']
+        page.write_bytes(page.read_bytes() + b'\0')                # corruption changes the size
+        with pytest.raises(ManagedDownloadError):
+            writer.catalog_snapshot()
+    finally:
+        writer.close()
+
+
+def test_a_changed_receipt_or_an_extra_file_is_caught_after_it_was_cached(tmp_path):
+    writer = _writer_with_works(tmp_path, 2)
+    try:
+        first = writer.saved_receipts()
+        relative = first[0][0]
+        folder = (writer.root / relative).parent
+        (folder / 'stray.txt').write_bytes(b'x')
+        with pytest.raises(ManagedDownloadError):
+            writer.saved_receipts()
+        (folder / 'stray.txt').unlink()
+        assert writer.saved_receipts() == first                    # and it recovers
+        receipt = folder / 'receipt.json'
+        data = json.loads(receipt.read_bytes())
+        data['title'] = 'T4xx'
+        receipt.write_bytes(json.dumps(data, ensure_ascii=False, sort_keys=True).encode('utf-8'))
+        with pytest.raises(ManagedDownloadError):
+            writer.saved_receipts()                                 # no longer matches the index digest
+    finally:
+        writer.close()

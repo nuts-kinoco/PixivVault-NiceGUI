@@ -166,3 +166,47 @@ def test_the_final_event_of_a_stop_maps_to_the_stopped_message(env):
     for event in events:
         progress.apply(event)
     assert progress.state == 'stopped' and ui.end_message(progress.state) == '停止しました。'
+
+
+def test_resume_after_a_restart_stamps_with_the_account_that_began_the_run(env):
+    from pixivvault_nicegui.batch_engine import BatchRunEngine
+    port = FakePort({'41': (cand('41', 1),), '42': (cand('42', 2),), '43': ()})
+    ledger, following = env
+    first_engine, first = run_and_stop_after_first(port, env)
+    assert ledger.run(first).account_id == ACCOUNT
+    # a new process: its engine starts without any account
+    fresh = BatchRunEngine(port, ledger, following=following, account_id=None,
+                           poll_seconds=0.001, wait=lambda s: None)
+    second = fresh.start_unfinished(first)
+    assert fresh.join(5) and ledger.run(second).state == 'done'
+    assert all(stamps(following)[u] for u in ('41', '42', '43'))
+
+
+def test_real_jobservice_pause_and_resume_through_the_services_port(tmp_path):
+    """pause_jobs / resume_jobs swallow errors, so only a real JobService proves the action names."""
+    from types import SimpleNamespace as NS
+    from pixivvault_nicegui.batch_engine import JobRef, ServicesPort
+    from pixivvault_nicegui.job_service import JobService
+    release = threading.Event()
+    started = threading.Event()
+
+    def runner(job, context):
+        started.set()
+        release.wait(10)
+        return 'ok'
+    jobs = JobService(runner, tmp_path / 'jobs.sqlite3')
+    try:
+        port = ServicesPort(NS(jobs=jobs, closing=False))
+        running = jobs.enqueue('pixiv-illust', '1', 't', operation_id='%032x' % 1)
+        queued = jobs.enqueue('pixiv-illust', '2', 't', operation_id='%032x' % 2)
+        assert started.wait(5)
+        refs = [JobRef('illustration', running.job_id, '%032x' % 1), JobRef('illustration', queued.job_id, '%032x' % 2)]
+        port.pause_jobs(refs)
+        assert wait_for(lambda: {j.job_id: j.state for j in jobs.snapshot()}.get(queued.job_id) == 'paused')
+        port.resume_jobs(refs)
+        assert wait_for(lambda: {j.job_id: j.state for j in jobs.snapshot()}.get(queued.job_id) in ('queued', 'running'))
+        release.set()
+        assert wait_for(lambda: all(j.state == 'done' for j in jobs.snapshot()), 10)
+    finally:
+        release.set()
+        jobs.close()

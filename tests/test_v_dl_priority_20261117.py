@@ -185,15 +185,52 @@ def test_periodic_check_never_joins_a_run_the_user_started(auto):
     assert auto.engine.join(5)
 
 
-def test_a_closed_gate_leaves_the_run_paused_and_ends_the_slot_without_failing(auto):
+def test_a_gate_paused_automatic_run_is_ended_so_it_cannot_block_every_later_slot(auto):
     auto.port.gate_closed = True
     auto.port.inventories['1000'] = (cand('1000', 1),)
-    run_author_check(auto.services, ('1000',), cancellation=threading.Event(),
-                     ledger=auto.scheduler, slot='s3', poll=0.01)
-    assert auto.engine.state == 'paused' and auto.engine.pause_reason == 'network_stopped'
+    result = run_author_check(auto.services, ('1000',), cancellation=threading.Event(),
+                              ledger=auto.scheduler, slot='s3', poll=0.01)
     assert auto.port.enqueued == []                               # no traffic while the gate is closed
-    auto.engine.stop()
-    assert auto.engine.join(5)
+    assert auto.engine.active is False and auto.ledger.runs(1)[0].state == 'stopped'
+    assert result['accepted'] == 0
+    auto.port.gate_closed = False                                 # the next slot is differential and runs
+    run_author_check(auto.services, ('1000',), cancellation=threading.Event(),
+                     ledger=auto.scheduler, slot='s3b', poll=0.01)
+    assert auto.ledger.runs(1)[0].state == 'done' and len(auto.port.enqueued) == 1
+
+
+def test_the_manual_check_returns_at_once_and_the_run_goes_on(auto):
+    gate = threading.Event()
+    auto.engine._external_wait = lambda s: gate.wait(5)
+    result = run_author_check(auto.services, ('1000', '1001'), cancellation=threading.Event(),
+                              ledger=auto.scheduler, slot='s5', poll=0.01, wait=False)
+    assert result['started'] is True and auto.engine.active
+    gate.set()
+    assert auto.engine.join(5) and auto.ledger.runs(1)[0].state == 'done'
+
+
+def test_a_late_first_sync_imports_the_stars_on_the_next_read_and_stales_an_open_editor(world):
+    _, following, scheduler = world
+    scheduler.set_favourites(('1001',), expected_revision=now_state(scheduler).revision)
+    book = FavouriteBook(following, scheduler=scheduler)
+    scheduler.attach_favourites(book)                             # nothing synced yet
+    assert scheduler.favourites() == ('1001',)
+    editor_revision = now_state(scheduler).revision               # a settings form is opened here
+    sync(following, 4)
+    assert scheduler.favourites() == ('1001',) and scheduler.favourites_seeded()   # seeded lazily
+    with pytest.raises(Exception):                                # the stale form cannot wipe the stars
+        scheduler.set_favourites((), expected_revision=editor_revision)
+    assert scheduler.favourites() == ('1001',)
+
+
+def test_dispatch_author_check_uses_the_engine_when_provisioned(auto):
+    ledger = auto.scheduler
+    auto.following.set_favorite(ACCOUNT, '1001', True)
+    ledger.attach_favourites(FavouriteBook(auto.following, scheduler=ledger))
+    services = NS(batch_runs=auto.engine, closing=False, start_batch_run=auto.services.start_batch_run)
+    result = ApplicationServices.dispatch_author_check(services, ledger, 'd1', threading.Event())
+    assert result['authors'] == 1 and auto.ledger.runs(1)[0].origin == 'auto'
+    assert any(a.last_downloaded for a in auto.following.snapshot(ACCOUNT).authors if a.user_id == '1001')
 
 
 def test_a_cancelled_slot_stops_the_run(auto):
@@ -231,12 +268,25 @@ def test_background_work_waits_while_the_engine_lists_or_waits_between_authors(a
     assert ApplicationServices._download_busy(services) is False
 
 
-def test_metadata_backfill_paths_use_the_download_busy_predicate():
-    import inspect
-    source = inspect.getsource(ApplicationServices)
-    assert source.count('self._download_busy()') >= 3
-    assert 'any(j.state in UNFINISHED for j in self.jobs.snapshot())' not in source.split('def _download_busy')[0].split(
-        'def run_managed_metadata_once')[-1] if 'def run_managed_metadata_once' in source else True
+@pytest.mark.asyncio
+async def test_metadata_backfill_waits_while_an_author_run_is_active_even_with_an_empty_queue(tmp_path):
+    import asyncio
+    from test_i_metadata_auto_20261117 import Transport, make_services
+    services = await make_services(tmp_path)
+    try:
+        services.batch_runs = NS(active=True)                  # no job at all, but a run is listing
+        transport = Transport()
+        summary = await asyncio.to_thread(services.run_managed_metadata_all, transport=transport)
+        assert summary.stopped == 'download_busy' and transport.calls == []
+        one = await asyncio.to_thread(services.run_managed_metadata_one, '202', transport=Transport())
+        assert one.stopped == 'download_busy'
+        services.batch_runs = NS(active=False)
+        again = Transport()
+        assert (await asyncio.to_thread(services.run_managed_metadata_all, transport=again)).stopped == ''
+        assert again.calls                                      # it runs once the run is over
+    finally:
+        services.batch_runs = None
+        await asyncio.to_thread(services.close)
 
 
 # ---- the real services: provisioning, restart, close ------------------------------------------
@@ -258,6 +308,9 @@ async def test_real_services_provision_the_engine_recover_after_a_restart_and_cl
         engine = services.enable_batch_runs(runs)
         assert services.enable_batch_runs(runs) is engine and services.batch_run_active() is False
         assert services._download_busy() is False
+        # the periodic check is provisioned together with the schedule and reaches the same engine
+        assert services.enable_managed_scheduler() is services.managed_scheduler
+        assert services.batch_runs is engine and services.managed_scheduler.favourites_seeded() is False
         run_id = services.batch_run_ledger.begin_run('authors', 'manual', 'both', ('41', '42'))
     finally:
         await asyncio.to_thread(services.close)

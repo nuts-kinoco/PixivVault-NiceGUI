@@ -15,7 +15,11 @@ from .managed_downloads import (MARKER, IDENTITY, ManagedDownloadError,
                                 _safe_path, _read_bounded, _write, _json_unique, _fsync_dir)
 
 LIMIT = 128 * 1024
-MAX_INTENTS = 10000
+MAX_INTENTS = 100_000
+# Every store used to read every saved intent (O(N) file reads per accepted work). The whole folder is
+# read once; afterwards stores count entries from a cached number, re-listing names only every
+# RESCAN_EVERY stores. Intents are read, and so verified, whenever a job loads one.
+RESCAN_EVERY = 500
 ID = re.compile(r'[1-9][0-9]{0,19}\Z')
 SHA = re.compile(r'[a-f0-9]{64}\Z')
 _GEN_REL = re.compile(r'generations/work-[1-9][0-9]{0,19}-[a-f0-9]{32}/receipt\.json\Z')
@@ -173,6 +177,9 @@ def _decode(data: bytes) -> dict:
 
 
 class ManagedDownloadRequests:
+    _counted = None       # entries in the folder after the first full pass; None until then
+    _since_scan = 0
+
     def __init__(self, root: Path):
         # Public paths and operation identities stay logical; only filesystem
         # boundaries receive the native spelling (including ownership checks).
@@ -255,6 +262,7 @@ class ManagedDownloadRequests:
                         target.unlink()
                         removed += 1
                 if removed:
+                    self._counted = None if self._counted is None else max(0, self._counted - removed)
                     _fsync_dir(folder_io)
             except ManagedRequestError:
                 raise
@@ -277,12 +285,18 @@ class ManagedDownloadRequests:
                     if self._read(target) != spec:
                         raise ManagedRequestError('operation intent collision')
                     return
-                count = 0
-                for item in folder_io.iterdir():
-                    count += 1
-                    if count >= MAX_INTENTS or not re.fullmatch(r'[0-9a-f]{64}\.json', item.name):
-                        raise ManagedRequestError('managed intent directory rejected')
-                    self._read(item)
+                count = self._counted
+                if count is None or self._since_scan >= RESCAN_EVERY:
+                    count = 0
+                    for item in folder_io.iterdir():
+                        count += 1
+                        if count >= MAX_INTENTS or not re.fullmatch(r'[0-9a-f]{64}\.json', item.name):
+                            raise ManagedRequestError('managed intent directory rejected')
+                        if self._counted is None:
+                            self._read(item)  # the first pass proves every file; later ones only list
+                    self._since_scan = 0
+                elif count >= MAX_INTENTS:
+                    raise ManagedRequestError('managed intent directory rejected')
                 incomplete_io = native_io_path(self.incomplete)
                 _safe_path(incomplete_io)
                 temporary = incomplete_io / ('staging-' + uuid4().hex)
@@ -294,6 +308,8 @@ class ManagedDownloadRequests:
                 if target.exists() or target.is_symlink():
                     raise ManagedRequestError('operation intent collision')
                 temporary.rename(target)
+                self._counted = count + 1
+                self._since_scan += 1
                 operation = 'requests_fsync'
                 _fsync_dir(folder_io)
                 # Successful publication consumes only this operation's temp.

@@ -266,13 +266,19 @@ class SchedulerView:
             slot = f'manual-{uuid4().hex}'
             def submit():
                 with self.services._scheduler_dispatch_lock:
+                    dispatch = getattr(self.services, 'dispatch_author_check', None)
+                    if dispatch is not None:
+                        return dispatch(ledger, slot, self.services._scheduler_cancel_event, wait=False)
                     return submit_author_batch(self.services, ledger.favourites(),
                                                cancellation=self.services._scheduler_cancel_event,
                                                ledger=ledger, slot=slot)
             result = await asyncio.to_thread(submit)
-            if not self.closed:
+            if not self.closed and result.get('started'):
+                self.action_notice.set_text(f'☆作者 {result["authors"]}人のチェックを始めました。進捗はダウンロード画面で確認できます')
+            elif not self.closed:
                 self.action_notice.set_text(
                     f'受付 {result["accepted"]}件、保留 {result["deferred"]}件。保存結果はキューで確認してください')
+            if not self.closed and not result.get('started'):
                 self.history_label.set_text(
                     f'今回のチェック: 受付 {result["accepted"]}件 / 保留 {result["deferred"]}件 / 保存結果を確認中')
                 # Show admission immediately and release the form. Receipt

@@ -279,6 +279,18 @@ class ManagedPixivDownloads:
                 or not re.fullmatch(r"work-[1-9][0-9]{0,19}-[0-9a-f]{32}", pieces[1])):
             raise ManagedDownloadError("receipt location rejected")
         folder = native_io_path(self.root / pieces[0] / pieces[1])
+        # A work whose folder (listing, sizes, times) is unchanged since it was last verified in full
+        # is not read, hashed and decoded again: the catalog was re-verifying every page of every work
+        # on each pass (about 9 ms per work, 9 s at 1,000 works). Any change to the folder, its
+        # receipt or a page forces a full verification. Pages relocated to quarantine are never cached.
+        cache = self.__dict__.setdefault('_receipt_cache', {})
+        signature = self._receipt_signature(folder)
+        cached = cache.get(relative)
+        if (signature is not None and cached is not None and cached[0] == signature
+                and (cached[3] or not verify_pages)):
+            if verify_pages and progress is not None:
+                progress(len(json.loads(cached[1])['files']), len(json.loads(cached[1])['files']))
+            return json.loads(cached[1], object_pairs_hook=_json_unique), cached[2]
         _safe_path(folder)
         path = folder / "receipt.json"
         _safe_path(path, file=True)
@@ -364,9 +376,32 @@ class ManagedPixivDownloads:
                 # This also catches an unexpected vanished page even when
                 # another page has a valid relocation proof.
                 raise ValueError()
-            return receipt, hashlib.sha256(raw).hexdigest()
+            digest = hashlib.sha256(raw).hexdigest()
+            if signature is not None and relocated is None:
+                if len(cache) >= 250_000:
+                    cache.clear()
+                cache[relative] = (signature, raw, digest, bool(verify_pages))
+            return receipt, digest
         except (OSError, KeyError, TypeError, ValueError, OverflowError, RecursionError):
             raise ManagedDownloadError("saved receipt verification failed") from None
+
+    @staticmethod
+    def _receipt_signature(folder):
+        """Cheap identity of one work folder: its own times plus every child's name, size and time."""
+        try:
+            info = os.lstat(folder)
+            if stat.S_ISLNK(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
+                return None
+            items = []
+            with os.scandir(folder) as listing:
+                for entry in listing:
+                    child = entry.stat(follow_symlinks=False)
+                    if entry.is_symlink() or getattr(child, 'st_file_attributes', 0) & 0x400:
+                        return None
+                    items.append((entry.name, child.st_size, child.st_mtime_ns))
+            return (info.st_mtime_ns, tuple(sorted(items)))
+        except OSError:
+            return None
 
     def _legacy_receipts(self) -> tuple[tuple[str, dict, str], ...]:
         if self.closed:

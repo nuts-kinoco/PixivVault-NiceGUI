@@ -2862,19 +2862,18 @@ class ApplicationServices:
                 from .managed_scheduler import ManagedScheduler, ManagedScheduleRunner, submit_author_batch
                 ledger = ManagedScheduler(self.managed_downloads.root)
                 ledger.attach_favourites(self.favourite_book(scheduler=ledger))
+                if self.author_media is not None and self.batch_runs is None:
+                    try:
+                        # The timer and 「今すぐチェック」 run on the same engine as the screen.
+                        self._provision_batch_runs()
+                    except Exception:
+                        pass  # keep the queue handoff below rather than refuse the schedule
 
                 def dispatch(slot, cancellation):
-                    # Queue acceptance is not a verified saved receipt.
+                    # Engine run: every ☆ author, in turn, stamped on completion, behind the same
+                    # network stop gate. Otherwise queue acceptance (not a verified saved receipt).
                     with self._scheduler_dispatch_lock:
-                        if self.batch_runs is not None:
-                            # The same engine as the screen's 「実行」: every ☆ author, in turn,
-                            # stamped on completion, behind the same network stop gate.
-                            from .managed_scheduler import run_author_check
-                            run_author_check(self, ledger.favourites(), cancellation=cancellation,
-                                             ledger=ledger, slot=slot)
-                            return
-                        submit_author_batch(self, ledger.favourites(), cancellation=cancellation,
-                                            ledger=ledger, slot=slot)
+                        self.dispatch_author_check(ledger, slot, cancellation)
 
                 runner = ManagedScheduleRunner(ledger, dispatch,
                                                reconcile=self.reconcile_managed_scheduler)
@@ -2910,24 +2909,47 @@ class ApplicationServices:
         offered back by `batch_runs.resumable_run()`, never restarted on its own.
         """
         with self._close_lock:
-            if self.closing or self.managed_downloads is None or self.author_media is None:
-                raise RuntimeError('author batch runs need isolated managed mode')
-            if self.batch_runs is None:
-                from .batch_engine import BatchRunEngine, ServicesPort
-                from .batch_runs import BatchRunLedger
-                if root is None:
-                    anchor = (Path(self.following_sync_root) if self.following_sync_root is not None
-                              else Path(self.managed_downloads.root))
-                    root = anchor.parent / 'batch-runs'
-                ledger = BatchRunLedger(Path(root))
-                try:
-                    engine = BatchRunEngine(ServicesPort(self), ledger, following=self.following_sync)
-                    engine.recover()
-                except BaseException:
-                    ledger.close()
-                    raise
-                self.batch_run_ledger, self.batch_runs = ledger, engine
-            return self.batch_runs
+            return self._provision_batch_runs(root)
+
+    def _provision_batch_runs(self, root=None):
+        """The body of enable_batch_runs; the caller holds `_close_lock` (it is not re-entrant)."""
+        if self.closing or self.managed_downloads is None or self.author_media is None:
+            raise RuntimeError('author batch runs need isolated managed mode')
+        if self.batch_runs is None:
+            from .batch_engine import BatchRunEngine, ServicesPort
+            from .batch_runs import BatchRunLedger
+            if root is None:
+                anchor = (Path(self.following_sync_root) if self.following_sync_root is not None
+                          else Path(self.managed_downloads.root))
+                root = anchor.parent / 'batch-runs'
+            ledger = BatchRunLedger(Path(root))
+            try:
+                engine = BatchRunEngine(ServicesPort(self), ledger, following=self.following_sync)
+                engine.recover()
+            except BaseException:
+                ledger.close()
+                raise
+            self.batch_run_ledger, self.batch_runs = ledger, engine
+        return self.batch_runs
+
+    def resume_batch_run(self, run_id=None):
+        """Continue the offered run (`batch_runs.resumable_run()`) over its unfinished authors."""
+        engine = self.batch_runs
+        if engine is None or self.closing:
+            raise RuntimeError('author batch runs are not enabled')
+        return engine.start_unfinished(run_id)
+
+    def dispatch_author_check(self, ledger, slot, cancellation, *, wait=True):
+        """One periodic / manual ☆ check: on the engine when provisioned, else the old queue handoff.
+
+        The caller holds `_scheduler_dispatch_lock`."""
+        if self.batch_runs is not None:
+            from .managed_scheduler import run_author_check
+            return run_author_check(self, ledger.favourites(), cancellation=cancellation,
+                                    ledger=ledger, slot=slot, wait=wait)
+        from .managed_scheduler import submit_author_batch
+        return submit_author_batch(self, ledger.favourites(), cancellation=cancellation,
+                                   ledger=ledger, slot=slot)
 
     def start_batch_run(self, author_ids, *, origin='manual', target_type=None):
         """Start one run over `author_ids`. Raises RuntimeError when a run is already active."""

@@ -105,6 +105,9 @@ class ManagedScheduler:
             self._ensure_open()
             self._db.execute('CREATE TABLE IF NOT EXISTS favourite_seed (id INTEGER PRIMARY KEY CHECK(id=1), imported INTEGER NOT NULL, dropped INTEGER NOT NULL)')
             self._db.execute('INSERT OR IGNORE INTO favourite_seed VALUES (1,?,?)', (imported, dropped))
+            # A settings editor opened before the import holds the old star list; its save must fail
+            # the revision check instead of replacing the imported stars.
+            self._db.execute('UPDATE schedule SET revision=revision+1 WHERE id=1')
 
     def favourite_seed_result(self):
         """(imported, dropped) of the one-time import, or None when it has not run."""
@@ -603,6 +606,12 @@ class ManagedScheduler:
     def favourites(self) -> tuple[str, ...]:
         with self._lock:
             ledger = self._ledger_is_source()
+            book = self._favourites_source
+        if not ledger and book is not None:
+            try:
+                ledger = book.seed() is not None or self.favourites_seeded()  # the first sync may have happened since
+            except Exception:
+                ledger = False
         if ledger:
             return self._favourites_source.ids()  # read live: a star change reaches the next check at once
         return self.legacy_favourites()
@@ -1138,7 +1147,7 @@ class ManagedScheduleRunner:
 
 
 def run_author_check(services, author_ids, *, cancellation: Event, ledger: ManagedScheduler | None = None,
-                     slot: str | None = None, poll: float = 0.5) -> dict[str, int]:
+                     slot: str | None = None, poll: float = 0.5, wait: bool = True) -> dict[str, int]:
     """The periodic check on the author batch engine (original scheduler.py:182 `_run_check`).
 
     Every star author (no 128 limit), differential, both media, stamped on completion, behind the
@@ -1167,12 +1176,21 @@ def run_author_check(services, author_ids, *, cancellation: Event, ledger: Manag
         if ledger is not None:
             ledger.finish_dispatch(slot, status='failed', accepted=0, deferred=0, error_code=type(error).__name__)
         raise
+    if not wait:
+        # 「今すぐチェック」: the run goes on in the background; progress is on the download screen.
+        if ledger is not None:
+            ledger.finish_dispatch(slot, status='queued', accepted=0, deferred=0)
+        return {'accepted': 0, 'deferred': 0, 'authors': len(ids), 'started': True}
     paused = ''
     while not engine.join(poll):
         if cancellation.is_set() or services.closing:
             engine.stop()
         elif engine.state == 'paused' and engine.pause_reason not in ('', 'user'):
+            # The gate closed under an automatic run. Do not leave it active for ever (it would block
+            # every later slot and the background work): end it; the next slot is differential.
             paused = engine.pause_reason
+            engine.stop()
+            engine.join(30.0)
             break
     totals = engine.totals
     accepted = sum(totals[name] for name in ('n_new', 'n_updated', 'n_restored', 'n_missing'))

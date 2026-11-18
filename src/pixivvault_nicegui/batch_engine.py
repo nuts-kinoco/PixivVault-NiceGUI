@@ -274,6 +274,9 @@ class BatchRunEngine:
         if run is None or (run_id is not None and run.run_id != run_id):
             raise RuntimeError('no resumable run')
         authors = self.ledger.unfinished_authors(run.run_id)
+        # The stamps belong to the account that began the run, also after a restart (the engine of
+        # a new process starts without one).
+        self.account_id = run.account_id or self.account_id
         return self.start(authors, kind=run.kind, origin=run.origin, target_type=run.target_type or None)
 
     def join(self, timeout=None):

@@ -133,7 +133,7 @@ class _EntriesView(Mapping):
 
 class _Loaded:
     """Verified in-memory copy of the index (+ journal) and the file identities it came from."""
-    __slots__ = ('version', 'base_sig', 'base_digest', 'base_bytes', 'indexed', 'legacy', 'active',
+    __slots__ = ('version', 'base_sig', 'base_digest', 'base_bytes', 'indexed', 'legacy', 'legacy_names', 'active',
                  'exclusions', 'operations', 'out_sig', 'journal_sig', 'journal_offset',
                  'journal_chain', 'journal_records', 'stale_journal', 'acc', 'shared')
 
@@ -142,6 +142,7 @@ class _Loaded:
         self.base_sig = self.base_digest = self.journal_sig = self.journal_chain = self.out_sig = None
         self.base_bytes = self.journal_offset = self.journal_records = 0
         self.indexed, self.legacy, self.active = {}, {}, {}
+        self.legacy_names = {}
         self.exclusions, self.operations = {}, {}
         self.stale_journal = self.shared = False
         self.acc = 0
@@ -311,17 +312,66 @@ class ManagedGenerations:
                 names.add(item.name)
         return names
 
-    def _legacy(self, folders=None) -> dict[str, dict[str, str]]:
+    def _legacy(self, loaded=None) -> dict[str, dict[str, str]]:
         names = self._scan_dir(self.output_dir, 'legacy output structure rejected', _MAX_ENTRIES)
         known = {'outputs': names}
         result: dict[str, dict[str, str]] = {}
+        by_name: dict[str, str] = {}
         for name in names:
             wid = _FOLDER.fullmatch(name).group(1)
             if wid in result:
                 raise ManagedDownloadError('duplicate completed artwork rejected')
             result[wid] = self._receipt_entry(f'outputs/{name}/receipt.json', wid, update_date='',
                                               folders=known)
+            by_name[name] = wid
+        if loaded is not None:
+            loaded.legacy_names = by_name
         return result
+
+    def _set_active(self, loaded, wid):
+        """Recompute one work's active entry (an indexed generation beats a legacy output)."""
+        if loaded.shared:
+            loaded.active = dict(loaded.active)
+            loaded.shared = False
+        old = loaded.active.get(wid)
+        new = loaded.indexed.get(wid) or loaded.legacy.get(wid)
+        if old is not None:
+            loaded.acc = (loaded.acc - _entry_hash(old)) % _MOD
+        if new is None:
+            loaded.active.pop(wid, None)
+        else:
+            loaded.acc = (loaded.acc + _entry_hash(new)) % _MOD
+            loaded.active[wid] = new
+
+    def _refresh_legacy(self, loaded):
+        """`outputs/` changed (an ID / bookmark save has no intent and lands there): verify only
+        the folders that appeared and drop the ones that vanished, not the whole index."""
+        signature = _identity(self.output_dir)
+        names = self._scan_dir(self.output_dir, 'legacy output structure rejected', _MAX_ENTRIES)
+        known = loaded.legacy_names
+        gone = [name for name in known if name not in names]
+        kept = {wid for name, wid in known.items() if name in names}
+        fresh = {}
+        for name in sorted(name for name in names if name not in known):
+            wid = _FOLDER.fullmatch(name).group(1)
+            if wid in kept or wid in fresh:
+                raise ManagedDownloadError('duplicate completed artwork rejected')
+            fresh[wid] = (name, self._receipt_entry(f'outputs/{name}/receipt.json', wid, update_date='',
+                                                    folders={'outputs': names}))
+        touched = []
+        for name in gone:
+            wid = known.pop(name)
+            loaded.legacy.pop(wid, None)
+            touched.append(wid)
+        for wid, (name, entry) in fresh.items():
+            known[name] = wid
+            loaded.legacy[wid] = entry
+            touched.append(wid)
+        for wid in touched:
+            self._set_active(loaded, wid)
+        if len(loaded.active) > _MAX_ENTRIES:
+            raise ManagedDownloadError('generation limit exceeded', reason_code='storage_capacity')
+        loaded.out_sig = signature
 
     # -- verified state ---------------------------------------------------------------
     def _check_entry(self, wid, entry, version, folders):
@@ -369,7 +419,7 @@ class ManagedGenerations:
             raise ManagedDownloadError('generation index link rejected')
         loaded = _Loaded()
         loaded.out_sig = _identity(self.output_dir)
-        legacy = self._legacy()
+        legacy = self._legacy(loaded)
         loaded.legacy = legacy
         if _identity(self.index_path) is None:
             # Once any immutable generation was sealed, dropping the only
@@ -518,11 +568,11 @@ class ManagedGenerations:
 
     def _freshness(self, loaded):
         base = _identity(self.index_path)
-        if base is None or base != loaded.base_sig or _identity(self.output_dir) != loaded.out_sig:
+        if base is None or base != loaded.base_sig:
             return 'stale'
         journal = _identity(self.journal_path)
         if journal == loaded.journal_sig:
-            return 'fresh'
+            return 'fresh' if _identity(self.output_dir) == loaded.out_sig else 'legacy'
         if (journal is not None and loaded.journal_sig is not None and loaded.journal_chain is not None
                 and not loaded.stale_journal and journal[0] == loaded.journal_sig[0]
                 and journal[1] > loaded.journal_offset):
@@ -536,9 +586,12 @@ class ManagedGenerations:
                 state = self._freshness(loaded)
                 if state == 'fresh':
                     return loaded
-                if state == 'tail':
+                if state in ('tail', 'legacy'):
                     try:
-                        self._apply_tail(loaded)
+                        if state == 'tail':
+                            self._apply_tail(loaded)
+                        if _identity(self.output_dir) != loaded.out_sig:
+                            self._refresh_legacy(loaded)
                         return loaded
                     except Exception:
                         self._loaded = None
