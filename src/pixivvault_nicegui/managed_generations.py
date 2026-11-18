@@ -103,6 +103,21 @@ def _identity(path):
     return (info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns, stat.S_IFMT(info.st_mode))
 
 
+def _replace_retrying(source, target):
+    """os.replace that waits out another process holding the target open for a moment (Windows
+    refuses to replace an open file); a reader keeps the index open only while it reads it."""
+    delay = 0.005
+    for attempt in range(80):
+        try:
+            native_io_path(source).replace(native_io_path(target))
+            return
+        except PermissionError:
+            if attempt == 79:
+                raise
+            time.sleep(delay)
+            delay = min(delay * 1.5, 0.1)
+
+
 def _canonical(value) -> bytes:
     return json.dumps(value, sort_keys=True, ensure_ascii=True, separators=(',', ':')).encode('ascii')
 
@@ -691,9 +706,11 @@ class ManagedGenerations:
                 start = _identity(self.index_path)
                 try:
                     fresh = self._load_full()
-                except ManagedDownloadError:
-                    if attempt < 7 and _identity(self.index_path) != start:
-                        time.sleep(0.005 * (attempt + 1))
+                except ManagedDownloadError as error:
+                    # A file opened while another process replaces it, or a pair read across a fold,
+                    # looks like damage for a moment. Real damage is still damage after the retries.
+                    if attempt < 7 and str(error).endswith('rejected'):
+                        time.sleep(0.01 * (attempt + 1))
                         continue
                     raise
                 unchanged = (fresh.base_sig == _identity(self.index_path)
@@ -779,7 +796,7 @@ class ManagedGenerations:
                 _write(temporary, b'{"entries":{},"version":2}')
                 _fsync_dir(self.stage_dir)
                 _safe_path(self.index_path, file=True)
-                native_io_path(temporary).replace(native_io_path(self.index_path))
+                _replace_retrying(temporary, self.index_path)
                 _fsync_dir(self.root)
                 self._loaded = None
             except Exception:
@@ -910,7 +927,7 @@ class ManagedGenerations:
         temporary = self.stage_dir / ('mark-' + uuid4().hex + '.tmp')
         _write(temporary, _canonical({'id': jid, 'records': records, 'chain': chain}))
         _fsync_dir(self.stage_dir)
-        native_io_path(temporary).replace(native_io_path(self._mark_file(jid)))
+        _replace_retrying(temporary, self._mark_file(jid))
 
     def _new_journal(self):
         """A fresh, empty journal and its mark, durable before any index refers to them."""
@@ -920,7 +937,7 @@ class ManagedGenerations:
         temporary = self.stage_dir / ('journal-' + uuid4().hex + '.tmp')
         _write(temporary, header)
         _fsync_dir(self.stage_dir)
-        native_io_path(temporary).replace(native_io_path(self._journal_file(jid)))
+        _replace_retrying(temporary, self._journal_file(jid))
         self._write_mark(jid, 0, hashlib.sha256(header).hexdigest())
         _fsync_dir(self.root)
         return jid, header
@@ -1206,7 +1223,7 @@ class ManagedGenerations:
         _write(temporary, data)
         _fsync_dir(self.stage_dir)
         _safe_path(self.index_path, file=True)
-        native_io_path(temporary).replace(native_io_path(self.index_path))
+        _replace_retrying(temporary, self.index_path)
         self._visibility_cache = None
         _fsync_dir(self.root)
         previous = loaded.jid if loaded is not None else None

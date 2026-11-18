@@ -341,3 +341,13 @@ def test_e_a_save_without_intent_is_refused_up_front_when_the_store_is_full(tmp_
         save('501')                                       # an update of a saved work is still allowed
     finally:
         writer.close()
+
+
+def test_d3_a_fold_waits_for_another_process_that_has_the_index_open_for_a_moment(root):
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    holder = open(root / 'active-generations.json', 'rb')           # a reader mid-read (Windows: no replace)
+    threading.Timer(0.4, holder.close).start()
+    g._compact(g._loaded)                                            # used to fail with PermissionError
+    assert mg.ManagedGenerations(root).entry_count() == 4

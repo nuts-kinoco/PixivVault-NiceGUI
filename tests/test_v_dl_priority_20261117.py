@@ -392,3 +392,24 @@ def test_d6_an_unattached_or_unsynced_store_never_prunes_the_pending_work(world)
     assert scheduler.favourites() == ('1001',)                    # unknown is not "no stars"
     scheduler.attach_favourites(FavouriteBook(following, scheduler=scheduler))   # a store, never synced
     assert scheduler.has_deferred() and scheduler.favourites() == ('1001',)
+
+
+def test_d6_reopening_the_scheduler_keeps_the_pending_work_of_ledger_stars(world):
+    tmp_path, following, scheduler = world
+    sync(following, 5)
+    book = FavouriteBook(following, scheduler=scheduler)
+    scheduler.attach_favourites(book)
+    book.set('1001', True)
+    scheduler.defer_work(author_id='1001', work=dict(id='5', update_date='d', page_count=1, type=0),
+                         now=datetime.now(timezone.utc))
+    scheduler.close()
+    reopened = ManagedScheduler(tmp_path / 'managed')       # its own list is empty: it is only the import source
+    try:
+        assert reopened.has_deferred()
+        reopened.attach_favourites(FavouriteBook(None, scheduler=reopened))
+        assert reopened.has_deferred() and reopened.favourites() == ()
+        reopened.attach_favourites(FavouriteBook(following, scheduler=reopened))
+        assert reopened.favourites() == ('1001',) and reopened.has_deferred()
+    finally:
+        reopened.close()
+        scheduler._closed = True

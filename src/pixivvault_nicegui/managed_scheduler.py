@@ -186,7 +186,12 @@ class ManagedScheduler:
             self._db.execute('CREATE TABLE IF NOT EXISTS favourite_authors (author_id TEXT PRIMARY KEY)')
             # Older ledgers could contain deferred rows for authors removed
             # during a live dispatch. They must not wake a runner forever.
-            self._db.execute('DELETE FROM deferred_work WHERE author_id NOT IN (SELECT author_id FROM favourite_authors)')
+            # Once the stars live in the following ledger this own list is only the import source and
+            # says nothing about who is a star: pruning by it would erase the pending work.
+            seeded = (self._db.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='favourite_seed'").fetchone()[0]
+                      and self._db.execute('SELECT 1 FROM favourite_seed WHERE id=1').fetchone() is not None)
+            if not seeded:
+                self._db.execute('DELETE FROM deferred_work WHERE author_id NOT IN (SELECT author_id FROM favourite_authors)')
             row = self._db.execute('SELECT interval_hours,startup_check,revision,last_due_utc,next_due_utc,last_status FROM schedule WHERE id=1').fetchone()
             if row is None or row[0] not in VALID_INTERVALS or row[1] not in (0,1) or row[2] < 1:
                 raise ScheduleError('invalid managed schedule ledger')
