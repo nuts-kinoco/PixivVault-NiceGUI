@@ -375,6 +375,8 @@ class ApplicationServices:
         # The author batch run ("実行 1 回") engine and its ledger: provisioned by enable_batch_runs.
         self.batch_runs = None
         self.batch_run_ledger = None
+        self._batch_listeners = []
+        self._batch_listener_lock = Lock()
         self._favourite_book = None
         # Phase10: metadata settings are explicit, OFF by default and do not
         # start any HTTP/backfill worker. Owned by the app, never by a tab.
@@ -2929,8 +2931,61 @@ class ApplicationServices:
             except BaseException:
                 ledger.close()
                 raise
+            engine.on_progress = self._fan_out_batch_event
             self.batch_run_ledger, self.batch_runs = ledger, engine
         return self.batch_runs
+
+    def _fan_out_batch_event(self, event):
+        with self._batch_listener_lock:
+            listeners = tuple(self._batch_listeners)
+        for listener in listeners:
+            try:
+                listener(event)
+            except Exception:
+                pass
+
+    def subscribe_batch_events(self, listener):
+        """Receive the engine's progress events (`run_start`, `author_start`, ... `run_end`).
+
+        `listener(event: dict)` is called on the engine's own thread: hand the event to the UI
+        loop (a queue), never touch an element from it. Returns the function that unsubscribes.
+        """
+        with self._batch_listener_lock:
+            self._batch_listeners.append(listener)
+
+        def unsubscribe():
+            with self._batch_listener_lock:
+                if listener in self._batch_listeners:
+                    self._batch_listeners.remove(listener)
+        return unsubscribe
+
+    def unified_download_authors(self):
+        """The rows of the download screen's author table, from the local following ledger only.
+
+        No network and no identity check: the newest completed follow sync's authors, as dicts shaped
+        like the original `following_users` rows. () until a sync has completed.
+        """
+        store = self.following_sync
+        if store is None:
+            return ()
+        account = store.last_synced_account()
+        if account is None:
+            return ()
+        return tuple(dict(user_id=row.user_id, name=row.name, follow_order=row.follow_order,
+                          is_favorite=row.is_favorite, is_zipped=row.is_zipped,
+                          last_downloaded=row.last_downloaded)
+                     for row in store.snapshot(account).following)
+
+    def saved_author_counts(self):
+        """The table's 保存済み column: saved works per author (managed receipts, pages not re-read)."""
+        from .batch_runs import saved_counts_by_author
+        owner = self.managed_downloads
+        if owner is None or self.closing:
+            return {}
+        with_dates = getattr(owner, 'saved_receipts_with_dates', None)
+        if not callable(with_dates):
+            return {}
+        return saved_counts_by_author(with_dates(verify_pages=False))
 
     def resume_batch_run(self, run_id=None):
         """Continue the offered run (`batch_runs.resumable_run()`) over its unfinished authors."""

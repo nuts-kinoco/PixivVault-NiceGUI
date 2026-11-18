@@ -17,17 +17,24 @@
   "screens": {
     "startup": {
       "label": "起動直後", "kind": "startup",
-      "testids": ["managed-download-view", "managed-download-mode-bookmark", "managed-download-submit"],
+      "testids": ["unified-download-view", "unified-mode-followed", "unified-mode-bookmark", "unified-run"],
       "texts": ["マイブックマーク", "フォロー中の作者"],
       "absent_testids": ["library-view", "queue-view", "ranking-view", "recommend-view", "failed-records-view",
                          "duplicate-view", "metadata-view", "backup-history", "personal-ranking-view", "scheduler-open"]
     },
     "download": {
       "label": "ダウンロード",
-      "testids": ["managed-download-view", "managed-download-mode-bookmark", "managed-download-mode-author",
-                  "managed-download-submit", "managed-download-refresh", "managed-download-direct-lookup",
-                  "managed-download-author-panel"],
-      "texts": ["マイブックマーク", "フォロー中の作者", "IDから作品を確認", "ブックマーク更新"]
+      "note": "元の統合ダウンロード画面（左: モード切替・絞り込み・道具行・作者表 / 右: この回の対象・☆自動監視・実行行 / 下: 進捗帯）。作品単位の確認などは『作品単位で選ぶ（詳細）』のダイアログの中（開くまで見えない）。",
+      "testids": ["unified-download-view", "unified-mode-followed", "unified-mode-bookmark", "unified-search",
+                  "unified-select-all", "unified-deselect-all", "unified-star-only", "unified-sort",
+                  "unified-count", "unified-thead", "unified-target-card", "unified-favorite-card",
+                  "unified-type", "unified-run", "unified-pause", "unified-stop", "unified-band",
+                  "unified-details-open"],
+      "texts": ["ダウンロード", "作者を選ぶか、IDを入れて実行します", "フォロー中の作者", "マイブックマーク",
+                "絞り込み", "表示中を全部選ぶ", "選択を全部外す", "☆のみ", "フォロー登録順", "作者名", "保存済み",
+                "最後に取得した日", "この回の対象", "自動監視", "☆を対象にする", "待機中", "クリックで詳細を開く",
+                "作品単位で選ぶ（詳細）"],
+      "absent_testids": ["managed-download-view"]
     },
     "queue": {
       "label": "キュー",
