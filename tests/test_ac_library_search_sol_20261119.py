@@ -253,3 +253,37 @@ async def test_separate_views_preserve_independent_results(app_view):
     finally:
         if second is not None:second.close()
         other.delete()
+
+
+@pytest.mark.asyncio
+async def test_scope_change_while_author_detail_open_returns_to_author_list(app_view):
+    make,views=app_view
+    svc,client,reader=await make()
+    svc.library=LibrarySnapshot((LibraryWork(Artwork('203','alpha local','author',author_id='23'),'23'),))
+    with client:
+        view=LibraryView(svc)
+        views[-1]=(svc,client,view,reader)
+        view.search('alpha')
+        view.open_author('23')
+        assert view.state.selected_author_id=='23'
+        view.set_search_scope('pixiv')
+        await until(lambda:view.pixiv_query=='alpha')
+        assert view.state.selected_author_id is None
+
+
+@pytest.mark.asyncio
+async def test_queued_retry_event_cannot_search_while_bookmarks_open(app_view):
+    make,views=app_view
+    svc,client,reader=await make()
+    with client:
+        view=LibraryView(svc)
+        views[-1]=(svc,client,view,reader)
+        svc.external_vault.fail=True
+        view.set_search_scope('pixiv')
+        view.search('alpha')
+        await until(lambda:view.pixiv_error)
+        listener=next(item for item in view.pixiv_retry._event_listeners.values() if item.type=='click')
+        view.show_subview('bookmarks')
+        listener.handler(None)
+        await asyncio.sleep(.3)
+        assert len(svc.external_vault.calls)==1

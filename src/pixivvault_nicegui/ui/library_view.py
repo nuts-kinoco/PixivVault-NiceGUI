@@ -144,9 +144,9 @@ class LibraryView(ViewerController):
                 ).props("outlined dense clearable debounce=200 data-testid=library-search").classes(
                     "pv-library-search")
                 self.search_input.on("keydown.enter", lambda _: self.search(self.search_input.value))
-                self.scope_library = ui.button('ライブラリのみ', on_click=lambda: self.set_search_scope('library')).props(
+                self.scope_library = ui.button('ライブラリのみ', color=None, on_click=lambda: self.set_search_scope('library')).props(
                     'flat dense no-caps data-testid=library-scope-local')
-                self.scope_pixiv = ui.button('pixiv本体も含む', on_click=lambda: self.set_search_scope('pixiv')).props(
+                self.scope_pixiv = ui.button('pixiv本体も含む', color=None, on_click=lambda: self.set_search_scope('pixiv')).props(
                     'flat dense no-caps data-testid=library-scope-pixiv')
                 self.scope_pending = ui.label('準備中').classes('pv-subtitle').props('data-testid=library-scope-pending')
                 if on_premium_search is not None:
@@ -339,6 +339,10 @@ class LibraryView(ViewerController):
                                    remove='' if self.search_scope == 'library' else 'pv-library-subview-selected')
         self.scope_pixiv.classes(add='pv-library-subview-selected' if self.search_scope == 'pixiv' else '',
                                  remove='' if self.search_scope == 'pixiv' else 'pv-library-subview-selected')
+        self.scope_library.classes(add='pv-library-scope-selected' if self.search_scope == 'library' else '',
+                                   remove='' if self.search_scope == 'library' else 'pv-library-scope-selected')
+        self.scope_pixiv.classes(add='pv-library-scope-selected' if self.search_scope == 'pixiv' else '',
+                                 remove='' if self.search_scope == 'pixiv' else 'pv-library-scope-selected')
         self.pixiv_error_row.set_visibility(downloaded and self.pixiv_error)
         self.downloaded_button.classes(
             add="pv-library-subview-selected" if downloaded else "",
@@ -1211,6 +1215,8 @@ class LibraryView(ViewerController):
             return
         if scope == self.search_scope:
             return
+        if self.state.selected_author_id is not None:
+            self.state.close_author()
         self.search_scope = scope
         self._pixiv_epoch += 1
         self._pixiv_works = ()
@@ -1243,10 +1249,12 @@ class LibraryView(ViewerController):
             self.set_search_scope('library')
 
     def retry_pixiv_search(self):
-        if self.search_scope == 'pixiv':
+        if not self.closed and self.active and self.subview == 'downloaded' and self.search_scope == 'pixiv':
             self._schedule_pixiv_search()
 
     def _schedule_pixiv_search(self):
+        if self.closed or not self.active or self.subview != 'downloaded' or self.search_scope != 'pixiv':
+            return
         from nicegui import background_tasks
         self._pixiv_epoch += 1
         self._pixiv_ai_dirty = False
@@ -1268,10 +1276,12 @@ class LibraryView(ViewerController):
         from ..premium_read import borrowed_ready
         from ..personal_ranking import normalize_item
         from ..bookmark_remote_adapter import optional_bookmark_count
-        await asyncio.sleep(.2)
-        if self.closed or not self.active or self.search_scope != 'pixiv' or epoch != self._pixiv_epoch:
+        await asyncio.sleep(0)
+        if self.closed or not self.active or self.subview != 'downloaded' or self.search_scope != 'pixiv' or epoch != self._pixiv_epoch:
             return
         def read():
+            if self.closed or not self.active or self.subview != 'downloaded' or self.search_scope != 'pixiv' or epoch != self._pixiv_epoch:
+                raise RuntimeError('stale search')
             vault = self.services.external_vault
             if not borrowed_ready(vault):
                 raise RuntimeError('borrow unavailable')
@@ -1292,14 +1302,14 @@ class LibraryView(ViewerController):
                     page_count_known=record.page_count_known,
                     work_type='ugoira' if record.illustration_type == 2 else 'illustration'))
         except Exception:
-            if not self.closed and self.active and self.search_scope == 'pixiv' and epoch == self._pixiv_epoch:
+            if not self.closed and self.active and self.subview == 'downloaded' and self.search_scope == 'pixiv' and epoch == self._pixiv_epoch:
                 self.pixiv_loading = False
                 self.pixiv_error = True
                 with self.client:
                     self.pixiv_error_row.set_visibility(True)
                     self.render_authors()
             return
-        if self.closed or not self.active or self.search_scope != 'pixiv' or epoch != self._pixiv_epoch:
+        if self.closed or not self.active or self.subview != 'downloaded' or self.search_scope != 'pixiv' or epoch != self._pixiv_epoch:
             return
         try:
             still_ready = borrowed_ready(self.services.external_vault)

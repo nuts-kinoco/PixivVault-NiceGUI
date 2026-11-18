@@ -175,6 +175,8 @@ body.body--light .pv-grid .pv-card-heart { color:var(--pv-fill); }
 .pv-library-subviews { gap:2px; flex-wrap:nowrap; }
 .pv-library .q-btn { color:var(--pv-text) !important; font-size:11px; }
 .pv-library .q-btn.pv-library-subview-selected, .pv-library .q-btn.pv-size-selected { background:var(--pv-fill) !important; color:var(--pv-on-fill-lib) !important; border-radius:8px; }
+.pv-library .q-btn.pv-library-scope-selected { background:var(--pv-tab-selected) !important; color:var(--pv-text) !important; }
+.pv-library .q-btn.pv-library-scope-selected .q-btn__content { color:var(--pv-text) !important; }
 .pv-library .pv-card-size { font-size:9px; }
 .pv-library-search { flex:1 1 180px; min-width:160px; max-width:300px; }
 .pv-library-search .q-field__control, .pv-library-search .q-field__marginal { min-height:34px; height:34px; }
