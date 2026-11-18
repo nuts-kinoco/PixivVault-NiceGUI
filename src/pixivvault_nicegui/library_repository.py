@@ -110,6 +110,19 @@ class ReadonlyLibraryRepository:
         return bool(meta.get('url'))
 
     @staticmethod
+    def _thumbnail_url(raw: object):
+        try:
+            meta = json.loads(raw or 'null') or {}
+            if not isinstance(meta, dict):
+                return None
+            urls = meta.get('urls')
+            value = (urls.get('small') or urls.get('thumb')) if isinstance(urls, dict) and urls else meta.get('url')
+            from .bookmark_remote_adapter import thumbnail_url
+            return thumbnail_url(value)
+        except (TypeError, ValueError, UnicodeError):
+            return None
+
+    @staticmethod
     def _metadata(row, *, viewed=None):
         keys=set(row.keys())
         return dict(author_id=str(row["user_id"] or "") if "user_id" in keys else None,
@@ -198,7 +211,7 @@ class ReadonlyLibraryRepository:
                                     page_count=pages, tags=tags))
         return tuple(artworks)
 
-    def library_snapshot(self) -> LibrarySnapshot:
+    def library_snapshot(self, *, include_novel_previews=False):
         """Read an entire legacy library in a single consistent read transaction.
 
         Never synthesize remote entries or silently interpret a failed read as empty.
@@ -250,6 +263,7 @@ class ReadonlyLibraryRepository:
                 self._conn.rollback()
                 raise
         works = []
+        previews = {}
         for row in rows:
             if row["work_id"] is None:
                 raise ValueError("legacy work without ID")
@@ -270,7 +284,15 @@ class ReadonlyLibraryRepository:
                                      work_type=str(row["content_type"] or "illust"),
                                      has_thumbnail_url=self._has_thumbnail_url(row["work_meta"]),
                                      author_name=author_name))
-        return LibrarySnapshot(tuple(works), author_capacities=capacity_by_author,author_names=author_names)
+            if include_novel_previews and row['content_type'] == 'novel':
+                url = self._thumbnail_url(row['work_meta'])
+                if url is not None:
+                    previews[artwork.work_id] = url
+        snapshot = LibrarySnapshot(tuple(works), author_capacities=capacity_by_author,author_names=author_names)
+        return (snapshot, previews) if include_novel_previews else snapshot
+
+    def library_snapshot_with_previews(self):
+        return self.library_snapshot(include_novel_previews=True)
 
     def _bookmark_rows(self, *, include_local: bool = True, include_remote: bool = True
                        ) -> tuple[list[sqlite3.Row] | None, list[sqlite3.Row]]:

@@ -286,6 +286,12 @@ class CompositeLocalCatalog:
             method = getattr(self._providers['legacy'], 'supports_novel_cover', None)
             return bool(callable(method) and method(work_id))
 
+    def check_novel_preview(self, work_id, page_no):
+        provider = self._select(work_id, page_no, 'thumb')
+        method = getattr(provider, 'check_novel_preview', None)
+        if callable(method):
+            method(work_id, page_no)
+
     def supports_original(self, work_id):
         with self._lock:
             if self._closed or work_id not in self.works:

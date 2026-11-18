@@ -433,7 +433,7 @@ class ApplicationServices:
             try:
                 repository = ReadonlyLibraryRepository(library_readonly_db, immutable=True)
                 self.bookmark_cache_fetched_at = repository.bookmark_cache_fetched_at()
-                snapshot = repository.library_snapshot()
+                snapshot, preview_urls = repository.library_snapshot_with_previews()
                 self._assert_legacy_library_source()
                 self._validate_library_ids(snapshot)
                 try:
@@ -451,7 +451,8 @@ class ApplicationServices:
                     repository.close()
                 self.images.close()
                 raise
-            self.images.publish(catalog, self._remote_images(records or ()))
+            self.images.publish(catalog, self._remote_images(records or ()),
+                                self._legacy_preview_images(preview_urls))
             self.library = snapshot
             self._legacy_library_snapshot = snapshot
             self._legacy_local_bookmarks = tuple(cached_local)
@@ -1127,6 +1128,8 @@ class ApplicationServices:
         enabled = set()
         if self.preferences is not None:
             enabled.add('bookmark_auto_refresh')
+            if self.library_repository is not None and self.live_client is not None:
+                enabled.add('legacy_novel_thumbnail_auto')
         if self.pixiv_actions_mode == 'preferences' and self.preferences is not None:
             enabled.add('pixiv_actions_enabled')
         if self.extension_setting_available():
@@ -2256,16 +2259,16 @@ class ApplicationServices:
         self._assert_legacy_library_source()
         result = getattr(self.library_repository, method)()
         self._assert_legacy_library_source()
-        if method == 'library_snapshot':
-            self._validate_library_ids(result)
+        if method in ('library_snapshot', 'library_snapshot_with_previews'):
+            self._validate_library_ids(result[0] if method == 'library_snapshot_with_previews' else result)
         return result
 
     def _publish_managed_library(self, snapshot, catalog, local, *,
                                  legacy_snapshot, legacy_local, records,
-                                 reader=_CURRENT_IMAGE_READER):
+                                 reader=_CURRENT_IMAGE_READER, preview_urls=_CURRENT_IMAGE_READER):
         """Publish one matching source selection, DTO snapshot and image owner."""
         provider = catalog
-        legacy_catalog = remote = None
+        legacy_catalog = remote = preview = None
         composition = None
         try:
             receipts = catalog.receipts
@@ -2293,7 +2296,8 @@ class ApplicationServices:
                 visible_snapshot = composition.snapshot
                 visible_local = composition.local_bookmarks
             remote = self._remote_images(records, reader=reader)
-            self.images.publish(provider, remote)
+            preview = self._legacy_preview_images(preview_urls, reader=reader)
+            self.images.publish(provider, remote, preview)
         except BaseException:
             try:
                 provider.close()
@@ -2302,6 +2306,8 @@ class ApplicationServices:
                     legacy_catalog.close()
                 if remote is not None:
                     remote.close()
+                if preview is not None:
+                    preview.close()
             raise
         self.library = visible_snapshot
         self._library_composition = composition
@@ -2321,7 +2327,24 @@ class ApplicationServices:
         from .remote_media import RemoteBookmarkImages
         return RemoteBookmarkImages(reader, tuple(records))
 
-    def _publish_images(self, snapshot, records, *, reader=_CURRENT_IMAGE_READER) -> None:
+    def _legacy_preview_images(self, urls, *, reader=_CURRENT_IMAGE_READER):
+        if reader is _CURRENT_IMAGE_READER:
+            reader = self.live_client
+        if urls is _CURRENT_IMAGE_READER:
+            return self.images.clone_legacy_preview(reader)
+        if not urls:
+            return None
+        from .remote_media import LegacyNovelPreviewImages
+        def enabled():
+            if self.closing:
+                return False
+            try:
+                return self.preferences is None or self.preferences.get_setting('legacy_novel_thumbnail_auto', '1') == '1'
+            except Exception:
+                return False
+        return LegacyNovelPreviewImages(reader, urls, enabled)
+
+    def _publish_images(self, snapshot, records, *, reader=_CURRENT_IMAGE_READER, preview_urls=_CURRENT_IMAGE_READER) -> None:
         from .local_media_adapter import ReadonlyLocalMediaCatalog
         if self.managed_downloads is not None:
             # The immutable publication cache was prepared off-loop. Reusing
@@ -2331,19 +2354,23 @@ class ApplicationServices:
                                            snapshot=self._managed_catalog_snapshot)
             self._publish_managed_library(self._managed_library_snapshot, local,
                 self._managed_local_bookmarks, legacy_snapshot=self._legacy_library_snapshot,
-                legacy_local=self._legacy_local_bookmarks, records=records, reader=reader)
+                legacy_local=self._legacy_local_bookmarks, records=records, reader=reader, preview_urls=preview_urls)
             return
         else:
             local = (ReadonlyLocalMediaCatalog(self.library_image_root, snapshot)
                      if self.library_image_root is not None else None)
-        remote = self._remote_images(records, reader=reader)
+        remote = preview = None
         try:
-            self.images.publish(local, remote)
+            remote = self._remote_images(records, reader=reader)
+            preview = self._legacy_preview_images(preview_urls, reader=reader)
+            self.images.publish(local, remote, preview)
         except BaseException:
             if local is not None:
                 local.close()
             if remote is not None:
                 remote.close()
+            if preview is not None:
+                preview.close()
             raise
 
     def acquire_ranking_images(self, records):
@@ -2597,20 +2624,22 @@ class ApplicationServices:
                 from .managed_download_catalog import build_managed_library
                 legacy_snapshot = self._legacy_library_snapshot
                 if self.library_repository is not None:
-                    legacy_snapshot = await asyncio.to_thread(self._read_legacy_source, 'library_snapshot')
+                    legacy_snapshot, preview_urls = await asyncio.to_thread(self._read_legacy_source, 'library_snapshot_with_previews')
+                else:
+                    preview_urls = _CURRENT_IMAGE_READER
                 snapshot, catalog, local = await asyncio.to_thread(build_managed_library, self.managed_downloads)
                 if self.closing:
                     catalog.close()
                     raise RuntimeError("application services are closed")
                 self._publish_managed_library(snapshot, catalog, local,
                     legacy_snapshot=legacy_snapshot, legacy_local=self._legacy_local_bookmarks,
-                    records=self._remote_records)
+                    records=self._remote_records, preview_urls=preview_urls)
                 return self.library
-            snapshot = await asyncio.to_thread(self._read_legacy_source, 'library_snapshot')
+            snapshot, preview_urls = await asyncio.to_thread(self._read_legacy_source, 'library_snapshot_with_previews')
             if self.closing:
                 raise RuntimeError("application services are closed")
             self._validate_library_ids(snapshot)
-            self._publish_images(snapshot, self._remote_records)
+            self._publish_images(snapshot, self._remote_records, preview_urls=preview_urls)
             self.library = snapshot
             self._legacy_library_snapshot = snapshot
             return snapshot

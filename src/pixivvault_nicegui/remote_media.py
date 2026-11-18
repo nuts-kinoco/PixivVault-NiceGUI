@@ -273,3 +273,32 @@ class RemoteBookmarkImages:
             if self._shared_cache is not None:self._shared_cache.close()
             self._pages.clear()
             self._bytes = 0
+
+
+class LegacyNovelPreviewImages(RemoteBookmarkImages):
+    """Version-owned legacy metadata URLs, used only for author thumbnails."""
+
+    def __init__(self, client, urls, enabled):
+        from types import SimpleNamespace
+        self._urls = dict(urls)
+        self._enabled = enabled
+        records = tuple(SimpleNamespace(work_id=wid, remote_id=wid.removeprefix('novel:'),
+                         thumbnail=url, page_count=1, kind='novel', illustration_type=None)
+                        for wid, url in self._urls.items())
+        super().__init__(client, records)
+
+    def clone(self, client):
+        with self._lock:
+            if self._closed:
+                raise RuntimeError('image catalog closed')
+            return LegacyNovelPreviewImages(client, self._urls, self._enabled)
+
+    def get(self, work_id, page_no=0, variant='view'):
+        if variant != 'thumb' or self.client is None or not self._enabled():
+            raise RuntimeError('legacy preview unavailable')
+        return super().get(work_id, page_no, variant)
+
+    def close(self):
+        super().close()
+        self._urls.clear()
+        self.works.clear()

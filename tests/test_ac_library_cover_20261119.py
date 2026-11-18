@@ -274,3 +274,141 @@ def test_detail_cover_http_uses_pinned_catalog(tmp_path):
     finally:
         pin.close()
         registry.close()
+
+
+def test_legacy_preview_disabled_or_stopped_never_calls_transport(tmp_path):
+    import json
+    import sqlite3
+    from pixivvault_nicegui.services import ApplicationServices
+    from test_managed_download_services import FakeSource
+    images = tmp_path / 'images'
+    source(images)
+    db = tmp_path / 'old.sqlite'
+    with sqlite3.connect(db) as conn:
+        conn.execute('CREATE TABLE works (work_id TEXT, title TEXT, page_count INTEGER, tags TEXT, user_id TEXT, is_deleted INTEGER, content_type TEXT, work_meta TEXT)')
+        conn.execute('CREATE TABLE following_users (user_id TEXT, name TEXT)')
+        conn.execute('INSERT INTO works VALUES (?, ?, 1, ?, ?, 0, ?, ?)',
+                     ('101', 'Novel', '[]', '12', 'novel', json.dumps({'url': 'https://i.pximg.net/synthetic/101.png'})))
+    reader = FakeSource()
+    svc = ApplicationServices(live_client=reader, library_image_root=images, library_readonly_db=db)
+    class Prefs:
+        enabled = '0'
+        def get_setting(self, key, default):
+            return self.enabled if key == 'legacy_novel_thumbnail_auto' else default
+    prefs = Prefs()
+    svc.preferences = prefs
+    pin = svc.acquire_library_images()
+    try:
+        with pytest.raises(RuntimeError):
+            pin.get('novel:101', 0, 'thumb')
+        assert reader.calls == []
+        prefs.enabled = '1'
+        def stopped(_):
+            raise RuntimeError('stopped')
+        reader.get_image_bytes = stopped
+        with pytest.raises(RuntimeError):
+            pin.get('novel:101', 0, 'thumb')
+        assert reader.calls == []
+    finally:
+        pin.close()
+        svc.preferences = None
+        svc.close()
+
+
+def test_preview_uses_production_stop_gate_before_any_http(tmp_path):
+    from pixivvault_nicegui.managed_network_stop_gate import ManagedNetworkStopGate
+    from pixivvault_nicegui.remote_media import LegacyNovelPreviewImages
+    from test_managed_network_stop_transport import _client
+    gate = ManagedNetworkStopGate(tmp_path / 'gate.sqlite')
+    requests = []
+    def transport(*_args):
+        requests.append('called')
+        return png('red')
+    reader = _client(gate, transport)
+    reader._cookies = SimpleNamespace(clear=lambda: None)
+    preview = LegacyNovelPreviewImages(reader, {'novel:101': 'https://i.pximg.net/synthetic/101.png'}, lambda: True)
+    try:
+        gate.trip(403)
+        with pytest.raises(RuntimeError):
+            preview.get('novel:101', 0, 'thumb')
+        assert requests == []
+    finally:
+        preview.close()
+        reader.close()
+
+
+def test_quarantined_preview_rechecks_exclusion_before_remote_get(tmp_path):
+    from dataclasses import replace
+    from pixivvault_nicegui.legacy_quarantine import LegacyQuarantineCatalog
+    source(tmp_path)
+    snapshot = LibrarySnapshot((replace(snap().works[0], has_thumbnail_url=True),))
+    state = {'exclusions': {}}
+    store = SimpleNamespace(catalog=SimpleNamespace(root=tmp_path),
+        state=lambda **kw: state, require_available=lambda *_: None)
+    leaf = LegacyQuarantineCatalog(store, snapshot, snapshot, {'novel:101': (0,)}, state)
+    composition = compose_library(snapshot, LibrarySnapshot(()), (), (),
+        managed_source_pages={}, managed_original_page_counts={})
+    registry = LibraryImageRegistry(Demo())
+    registry.publish(CompositeLocalCatalog(composition, legacy_catalog=leaf), Remote('synthetic'))
+    pin = registry.acquire()
+    try:
+        assert pin.get('novel:101', 0, 'thumb') == 'remote-preview'
+        state['exclusions']['novel:101:1'] = True
+        with pytest.raises(MediaMissing):
+            pin.get('novel:101', 0, 'thumb')
+        with pytest.raises(MediaMissing):
+            pin.get('novel:101', 0, 'cover')
+    finally:
+        pin.close()
+        registry.close()
+
+
+def test_legacy_preview_pins_original_url_across_republication(tmp_path):
+    from dataclasses import replace
+    from pixivvault_nicegui.remote_media import LegacyNovelPreviewImages
+    source(tmp_path)
+    snapshot = LibrarySnapshot((replace(snap().works[0], has_thumbnail_url=True),))
+    calls = []
+    class Reader:
+        def get_image_bytes(self, url):
+            calls.append(url)
+            return png('red')
+    reader = Reader()
+    original = 'https://i.pximg.net/synthetic/original.png'
+    registry = LibraryImageRegistry(Demo())
+    first = LegacyNovelPreviewImages(reader, {'novel:101': original}, lambda: True)
+    registry.publish(ReadonlyLocalMediaCatalog(tmp_path, snapshot), Remote('other'), first)
+    old = registry.acquire()
+    cloned = registry.clone_legacy_preview(reader)
+    registry.publish(ReadonlyLocalMediaCatalog(tmp_path, snapshot), Remote('other'), cloned)
+    new = registry.acquire()
+    try:
+        assert rgb(old.get('novel:101', 0, 'thumb')) == (255, 0, 0)
+        assert rgb(new.get('novel:101', 0, 'thumb')) == (255, 0, 0)
+        assert calls == [original, original]
+        assert original not in repr(snapshot)
+        assert original not in repr(registry)
+    finally:
+        old.close()
+        new.close()
+        registry.close()
+    assert first._urls == {} and cloned._urls == {}
+
+
+def test_rejected_preview_url_never_enters_image_snapshot(tmp_path):
+    import json
+    import sqlite3
+    from pixivvault_nicegui.library_repository import ReadonlyLibraryRepository
+    db = tmp_path / 'old.sqlite'
+    with sqlite3.connect(db) as conn:
+        conn.execute('CREATE TABLE works (work_id TEXT, title TEXT, page_count INTEGER, tags TEXT, user_id TEXT, is_deleted INTEGER, content_type TEXT, work_meta TEXT)')
+        conn.execute('CREATE TABLE following_users (user_id TEXT, name TEXT)')
+        conn.execute('INSERT INTO works VALUES (?, ?, 1, ?, ?, 0, ?, ?)',
+                     ('101', 'Novel', '[]', '12', 'novel', json.dumps({'url': 'https://example.invalid/secret'})))
+    repo = ReadonlyLibraryRepository(db)
+    try:
+        snapshot, previews = repo.library_snapshot_with_previews()
+        assert snapshot.works[0].has_thumbnail_url
+        assert previews == {}
+    finally:
+        repo.close()
