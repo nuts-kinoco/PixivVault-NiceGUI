@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 from uuid import uuid4
 from nicegui import ui
 
 from ..bookmark_state import BookmarkState
 from ..library_filters import LibraryFilters
-from ..library_models import AuthorSummary, LibrarySnapshot, PageRef
+from ..library_models import AuthorSummary, LibrarySnapshot, LibraryWork, PageRef
 from ..library_state import LibraryState
 from ..services import ApplicationServices
 from ..state import GalleryState
@@ -31,6 +32,27 @@ def _library_thumbnail(source: str):
     return image
 
 
+class _SearchImages:
+    """Client-owned remote pin, while local IDs keep their local provider."""
+    def __init__(self, local, remote, remote_ids):
+        self.local, self.remote, self.remote_ids = local, remote, frozenset(remote_ids)
+        self.token = local.token
+
+    def __getattr__(self, name):
+        local_method = getattr(self.local, name)
+        remote_method = getattr(self.remote, name)
+        if not callable(local_method):
+            return local_method
+        def call(work_id, *args, **kwargs):
+            method = remote_method if work_id in self.remote_ids else local_method
+            return method(work_id, *args, **kwargs)
+        return call
+
+    def close(self):
+        self.local.close()
+        self.remote.close()
+
+
 def format_capacity(value: int | None) -> str:
     if value is None:
         return "容量未計測"
@@ -50,6 +72,13 @@ class LibraryView(ViewerController):
         self.active = True
         self.closed = False
         self.subview = "downloaded"
+        self.search_scope = 'library'
+        self.pixiv_query = None
+        self.pixiv_error = False
+        self.pixiv_loading = False
+        self._pixiv_epoch = 0
+        self._pixiv_records = ()
+        self._pixiv_works = ()
         self.card_size = card_size
         self._on_size_change = on_size_change
         self.filters = LibraryFilters()
@@ -109,12 +138,16 @@ class LibraryView(ViewerController):
                         "マイブックマーク", color=None, on_click=lambda: self.show_subview("bookmarks")
                     ).props("flat dense no-caps data-testid=library-subview-bookmarks")
                 self.search_input = ui.input(
-                    placeholder="作品名・作者・タグで検索",
+                    placeholder="タイトル・作者・タグを検索",
                     on_change=lambda event: self.search(event.value),
                 ).props("outlined dense clearable debounce=200 data-testid=library-search").classes(
                     "pv-library-search")
                 self.search_input.on("keydown.enter", lambda _: self.search(self.search_input.value))
-                ui.label("ライブラリ内").classes("pv-subtitle pv-library-scope")
+                self.scope_library = ui.button('ライブラリのみ', on_click=lambda: self.set_search_scope('library')).props(
+                    'flat dense no-caps data-testid=library-scope-local')
+                self.scope_pixiv = ui.button('pixiv本体も含む', on_click=lambda: self.set_search_scope('pixiv')).props(
+                    'flat dense no-caps data-testid=library-scope-pixiv')
+                self.scope_pending = ui.label('準備中').classes('pv-subtitle').props('data-testid=library-scope-pending')
                 if on_premium_search is not None:
                     ui.button('人気順で探す',on_click=lambda:on_premium_search(str(self.search_input.value or ''))).props(
                         'flat dense data-testid=library-premium-search')
@@ -143,6 +176,11 @@ class LibraryView(ViewerController):
                     "flat data-testid=library-reload")
 
             self.recovery_notice=ui.label('').props('role=status data-testid=library-recovery-status')
+            with ui.row().classes('pv-library-error') as self.pixiv_error_row:
+                ui.label('pixiv本体の検索に失敗しました').props('role=alert')
+                self.pixiv_retry = ui.button('再検索', on_click=self.retry_pixiv_search).props(
+                    'flat dense data-testid=library-pixiv-retry')
+            self.pixiv_error_row.set_visibility(False)
             with ui.column().classes("pv-library-panel w-full") as self.authors_panel:
                 with ui.row().classes("pv-library-summary w-full"):
                     self.filter_toggle = ui.button("絞り込み ›").props(
@@ -285,6 +323,18 @@ class LibraryView(ViewerController):
         self.error_row.set_visibility(downloaded and (self.load_error or self.refresh_error))
         self.filter_panel.set_subview(self.subview)
         self.search_input.set_visibility(downloaded)
+        from ..premium_read import borrowed_ready
+        try:
+            ready = borrowed_ready(self.services.external_vault)
+        except Exception:
+            ready = False
+        self.scope_library.set_visibility(downloaded)
+        self.scope_pixiv.set_visibility(downloaded)
+        self.scope_pixiv.set_enabled(ready)
+        self.scope_pending.set_visibility(downloaded and not ready)
+        self.scope_library.props(f"aria-pressed={'true' if self.search_scope == 'library' else 'false'}")
+        self.scope_pixiv.props(f"aria-pressed={'true' if self.search_scope == 'pixiv' else 'false'}")
+        self.pixiv_error_row.set_visibility(downloaded and self.pixiv_error)
         self.downloaded_button.classes(
             add="pv-library-subview-selected" if downloaded else "",
             remove="" if downloaded else "pv-library-subview-selected",
@@ -591,6 +641,8 @@ class LibraryView(ViewerController):
         self.filters = filters
         self._bookmark_open_epoch += 1
         self.state.set_filters(filters)
+        if self.search_scope == 'pixiv':
+            self._schedule_pixiv_search()
         self.bookmark_state.set_filters(filters)
         self.close_viewer(restore_focus=False)
         self._clear_pages()
@@ -617,6 +669,8 @@ class LibraryView(ViewerController):
             return
         if subview == self.subview:
             return
+        if self.subview == 'downloaded':
+            self._pixiv_epoch += 1
         if self.similarity is not None:self.similarity.invalidate()
         self.close_viewer(restore_focus=False)
         self._bookmark_open_epoch += 1
@@ -627,6 +681,8 @@ class LibraryView(ViewerController):
         self._schedule_legacy_capacity_restore()
         if subview == "bookmarks":
             self._maybe_auto_refresh_bookmarks()
+        elif self.search_scope == 'pixiv' and self.state.query and self.pixiv_query is None:
+            self._schedule_pixiv_search()
 
     @staticmethod
     def _bookmark_refresh_due(value, now=None):
@@ -800,6 +856,11 @@ class LibraryView(ViewerController):
         self._viewer_state = GalleryState(())
         try:
             snapshot = self.services.library_snapshot()
+            if self.search_scope == 'pixiv' and self._pixiv_works:
+                existing = {work.work_id for work in snapshot.works}
+                snapshot = LibrarySnapshot(snapshot.works + tuple(
+                    work for work in self._pixiv_works if work.work_id not in existing),
+                    author_capacities=snapshot.author_capacities, author_names=snapshot.author_names)
             self.bookmark_state.replace_known(work.artwork for work in snapshot.works)
             state = LibraryState(snapshot)
             state.set_filters(self.filters)
@@ -824,8 +885,21 @@ class LibraryView(ViewerController):
         self.state = state
         self._viewer_state = viewer_state
         previous = self._image_provider
-        self._image_provider = self.services.acquire_library_images()
+        local = self.services.acquire_library_images()
+        if self.search_scope == 'pixiv' and self._pixiv_records:
+            local_ids = {w.work_id for w in self.services.library_snapshot().works}
+            remote_ids = {r.work_id for r in self._pixiv_records} - local_ids
+            try:
+                remote = self.services.acquire_ranking_images(self._pixiv_records)
+            except Exception:
+                local.close()
+                raise
+            self._image_provider = _SearchImages(local, remote, remote_ids)
+        else:
+            self._image_provider = local
         previous.close()
+        if self.bookmarks is not None:
+            self.bookmarks.refresh(reset_controls=True)
         self._build_viewer_state()
         self.load_error = False
         self.refresh_error = False
@@ -1104,6 +1178,8 @@ class LibraryView(ViewerController):
         if self.closed or not self.active or self.load_error or self.subview != "downloaded":
             return
         if self.state.set_query(value or ""):
+            if self.search_scope == 'pixiv':
+                self._schedule_pixiv_search()
             self._invalidate_capacity()
             self.close_viewer(restore_focus=False)
             self._clear_pages()
@@ -1111,6 +1187,111 @@ class LibraryView(ViewerController):
             self._sync_panels()
             self._restore_scroll(self.authors_scroll, reset=True)
             self._schedule_legacy_capacity_restore()
+
+    def set_search_scope(self, scope):
+        from ..premium_read import borrowed_ready
+        if self.closed or not self.active or scope not in ('library', 'pixiv'):
+            return
+        if scope == 'pixiv' and not borrowed_ready(self.services.external_vault):
+            return
+        if scope == self.search_scope:
+            return
+        self.search_scope = scope
+        self._pixiv_epoch += 1
+        self._pixiv_works = ()
+        self._pixiv_records = ()
+        self.pixiv_query = None
+        self.pixiv_error = False
+        self.pixiv_loading = False
+        self.pixiv_error_row.set_visibility(False)
+        self.reload(preserve=True)
+        if scope == 'pixiv':
+            self._schedule_pixiv_search()
+
+    def refresh_search_scope(self):
+        from ..premium_read import borrowed_ready
+        if self.closed:
+            return
+        try:
+            ready = borrowed_ready(self.services.external_vault)
+        except Exception:
+            ready = False
+        if self.scope_pixiv.enabled != ready:
+            self.scope_pixiv.set_enabled(ready)
+        self.scope_pending.set_visibility(self.subview == 'downloaded' and not ready)
+        if not ready and self.search_scope == 'pixiv':
+            self.set_search_scope('library')
+
+    def retry_pixiv_search(self):
+        if self.search_scope == 'pixiv':
+            self._schedule_pixiv_search()
+
+    def _schedule_pixiv_search(self):
+        from nicegui import background_tasks
+        self._pixiv_epoch += 1
+        epoch = self._pixiv_epoch
+        self.pixiv_error = False
+        self.pixiv_error_row.set_visibility(False)
+        self.pixiv_query = None
+        self._pixiv_works = ()
+        self._pixiv_records = ()
+        query = self.state.query.strip()
+        self.pixiv_loading = bool(query)
+        self.reload(preserve=True)
+        if not query:
+            return
+        filters = self.filters
+        background_tasks.create(self._search_pixiv_async(epoch, query, filters))
+
+    async def _search_pixiv_async(self, epoch, query, filters):
+        from ..premium_read import borrowed_ready
+        from ..personal_ranking import normalize_item
+        from ..bookmark_remote_adapter import optional_bookmark_count
+        await asyncio.sleep(.2)
+        if self.closed or not self.active or self.search_scope != 'pixiv' or epoch != self._pixiv_epoch:
+            return
+        def read():
+            vault = self.services.external_vault
+            if not borrowed_ready(vault):
+                raise RuntimeError('borrow unavailable')
+            if self.services.managed_network_stop is not None:
+                self.services.managed_network_stop.require_allowed()
+            return vault.search(query, filters.bookmark_min, r18=filters.include_r18, exclude_ai=filters.exclude_ai)
+        try:
+            packet = await asyncio.to_thread(read)
+            works, records = {}, {}
+            for raw in packet['illusts']:
+                row = normalize_item(raw)
+                item = row['item']
+                record = replace(item.record, created_at=row['create_date'],
+                    bookmark_count=optional_bookmark_count(raw.get('total_bookmarks')))
+                artwork = replace(record.as_artwork(), ai_type=item.ai_type)
+                records.setdefault(record.work_id, record)
+                works.setdefault(record.work_id, LibraryWork(artwork, record.author_id,
+                    page_count_known=record.page_count_known,
+                    work_type='ugoira' if record.illustration_type == 2 else 'illustration'))
+        except Exception:
+            if not self.closed and self.active and self.search_scope == 'pixiv' and epoch == self._pixiv_epoch:
+                self.pixiv_loading = False
+                self.pixiv_error = True
+                with self.client:
+                    self.pixiv_error_row.set_visibility(True)
+            return
+        if self.closed or not self.active or self.search_scope != 'pixiv' or epoch != self._pixiv_epoch:
+            return
+        try:
+            still_ready = borrowed_ready(self.services.external_vault)
+        except Exception:
+            still_ready = False
+        if not still_ready:
+            with self.client:
+                self.set_search_scope('library')
+            return
+        self.pixiv_loading = False
+        self.pixiv_query = query
+        self._pixiv_works, self._pixiv_records = tuple(works.values()), tuple(records.values())
+        with self.client:
+            self.reload(preserve=True)
 
     def sort(self, key: str) -> None:
         if self.closed or not self.active or self.load_error or self.subview != "downloaded":
@@ -1199,6 +1380,7 @@ class LibraryView(ViewerController):
 
     def set_active(self, active: bool) -> None:
         if self.active != bool(active):
+            self._pixiv_epoch += 1
             self._invalidate_capacity()
             self.filter_panel.invalidate()
             self._bookmark_open_epoch += 1
@@ -1226,6 +1408,8 @@ class LibraryView(ViewerController):
                 self._refresh_bookmark_projection()
             if self.subview == 'bookmarks':
                 self._maybe_auto_refresh_bookmarks()
+            elif self.search_scope == 'pixiv' and self.state.query and self.pixiv_query is None:
+                self._schedule_pixiv_search()
             self._restore_scroll(self.pages_scroll if self.state.selected_author else self.authors_scroll)
             self._schedule_legacy_capacity_restore()
 
@@ -1234,6 +1418,7 @@ class LibraryView(ViewerController):
             return
         self._invalidate_capacity()
         self.closed = True
+        self._pixiv_epoch += 1
         self.filter_panel.retire()
         if self.similarity is not None:self.similarity.close()
         self._bookmark_open_epoch += 1

@@ -381,6 +381,12 @@ class DemoShell:
         finally:self._syncing_borrow=False
         if self.borrow_recovery_button is not None and self.borrow_dialog is not None:
             self.borrow_recovery_button.set_visibility(self.borrow_dialog.recovery_visible())
+        library = self.library
+        if library is not None:
+            library = getattr(library, 'views', {}).get('illustration', library)
+            update = getattr(library, 'refresh_search_scope', None)
+            if callable(update):
+                update()
     async def borrow_changed(self,event):
         if self._syncing_borrow or self.closed:return
         vault=self.services.external_vault
