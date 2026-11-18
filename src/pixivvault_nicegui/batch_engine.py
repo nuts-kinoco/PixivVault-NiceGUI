@@ -53,6 +53,10 @@ class RunFailed(Exception):
         self.code = code
 
 
+class RunNeedsConfirmation(Exception):
+    """Stop a resumable run until its identity can be confirmed."""
+
+
 def capacity_code(error):
     """Name a hard storage-capacity refusal; None for any other error."""
     text = str(error)
@@ -431,6 +435,9 @@ class BatchRunEngine:
         except RunStopped:
             outcome = 'stopped'
             self._close_author(run_id, 'stopped', '')
+        except RunNeedsConfirmation:
+            outcome, code = 'interrupted', 'bookmark_account_mismatch'
+            self._close_author(run_id, 'stopped', code)
         except RunFailed as failed:
             outcome, code = 'failed', failed.code
             self._close_author(run_id, 'failed', failed.code)

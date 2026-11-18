@@ -2632,8 +2632,11 @@ class ApplicationServices:
             raise RuntimeError("application services are closed")
         return self._cached_local_bookmarks
 
-    async def refresh_bookmark_cache(self):
+    async def refresh_bookmark_cache(self, *, expected_account=None):
         """Publish complete bookmark routes and their verified export account."""
+        if expected_account is not None and self.live_client is None:
+            from .batch_engine import RunNeedsConfirmation
+            raise RunNeedsConfirmation()
         if self.library_repository is None and self.live_client is None:
             return self.bookmark_remote_snapshot(), self.bookmark_local_snapshot()
         async with self._library_refresh_lock:
@@ -2668,6 +2671,9 @@ class ApplicationServices:
 
                 def read_all():
                     identity = reader.verify_identity()
+                    if expected_account is not None and identity != expected_account:
+                        from .batch_engine import RunNeedsConfirmation
+                        raise RunNeedsConfirmation()
                     result = fetch_all_bookmarks(reader, identity)
                     if not result.ok:
                         raise RuntimeError("bookmark routes incomplete")
@@ -3029,9 +3035,9 @@ class ApplicationServices:
             if self.live_client is None and self.library_repository is None:
                 raise RuntimeError('bookmark source unavailable')
             if loop is not None and loop.is_running():
-                asyncio.run_coroutine_threadsafe(self.refresh_bookmark_cache(), loop).result()
+                asyncio.run_coroutine_threadsafe(self.refresh_bookmark_cache(expected_account=engine.account_id), loop).result()
             else:
-                asyncio.run(self.refresh_bookmark_cache())
+                asyncio.run(self.refresh_bookmark_cache(expected_account=engine.account_id))
 
         return engine.start_unfinished(run_id, bookmark_refresh=refresh_bookmarks)
 
