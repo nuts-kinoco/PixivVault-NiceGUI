@@ -78,6 +78,7 @@ def test_scheduler_logs_only_accepted_dispatch_without_extra_network(monkeypatch
     class Ledger:
         def __init__(self,root):pass
         def favourites(self):return ('1',)
+        def sync_favourites(self, authors):pass
         def close(self):pass
     class Runner:
         def __init__(self,ledger,dispatch,*,reconcile):self.dispatch=dispatch
@@ -88,7 +89,7 @@ def test_scheduler_logs_only_accepted_dispatch_without_extra_network(monkeypatch
     services=SimpleNamespace(_close_lock=RLock(),_managed_scheduler_lock=Lock(),
         _scheduler_dispatch_lock=Lock(),closing=False,managed_downloads=SimpleNamespace(root=tmp_path),
         live_client=object(),managed_scheduler=None,managed_schedule_runner=None,shared_log=QueueLog(),
-        reconcile_managed_scheduler=lambda:None)
+        reconcile_managed_scheduler=lambda:None,scheduler_favourite_authors=lambda:('1',))
     ApplicationServices.enable_managed_scheduler(services)
     cancel=Event();services.managed_schedule_runner.dispatch('slot',cancel)
     assert seen == ['dispatch'] and len(services.shared_log.snapshot())==2

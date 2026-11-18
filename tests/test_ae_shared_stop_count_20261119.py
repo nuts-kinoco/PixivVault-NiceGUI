@@ -15,7 +15,8 @@ def build(monkeypatch,tmp_path):
         closing=False,managed_downloads=NS(root=tmp_path),live_client=object(),
         jobs=NS(snapshot=lambda:(),operation_ids=lambda _:()),managed_scheduler=None,
         managed_schedule_runner=None,shared_log=QueueLog(),_managed_job_records={},
-        _scheduler_unfinished_count=None,notifications=None,reconcile_managed_scheduler=lambda:None)
+        _scheduler_unfinished_count=None,notifications=None,reconcile_managed_scheduler=lambda:None,
+        scheduler_favourite_authors=lambda:('1',))
     monkeypatch.setattr(ManagedScheduleRunner,'start',lambda self:True)
     ledger=ApplicationServices.enable_managed_scheduler(owner)
     return owner,ledger
@@ -24,7 +25,8 @@ def build(monkeypatch,tmp_path):
 def test_prefenced_scheduler_reports_stop_not_error_and_propagates(monkeypatch,tmp_path):
     owner,ledger=build(monkeypatch,tmp_path)
     try:
-        ledger.set_favourites(('1',),expected_revision=ledger.snapshot().revision)
+        ledger.bind_account('42')
+        ledger.sync_favourites(('1',))
         def stopped():raise ManagedNetworkStopped(429)
         owner.managed_network_stop=NS(require_allowed=stopped)
         with pytest.raises(ManagedNetworkStopped):

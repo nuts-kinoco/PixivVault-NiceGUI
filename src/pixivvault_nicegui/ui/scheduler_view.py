@@ -34,10 +34,9 @@ class SchedulerView:
                                            '24': '24時間', '48': '48時間'}, value='24',
                                           label='自動チェック間隔').style('min-width:184px').props('data-testid=scheduler-interval')
                 self.startup = ui.checkbox('起動時にもチェック').props('data-testid=scheduler-startup')
-            self.authors = ui.input(label='お気に入り作者ID（カンマ区切り、最大128件）').classes('w-full').style('max-width:640px').props('data-testid=scheduler-authors')
+            ui.label('☆お気に入りにした作者全員をチェックします。').classes('pv-subtitle')
             self.interval.on_value_change(lambda _: self._mark_settings_dirty())
             self.startup.on_value_change(lambda _: self._mark_settings_dirty())
-            self.authors.on_value_change(lambda _: self._mark_settings_dirty())
             with ui.row().classes('items-center gap-2 flex-wrap'):
                 self.save_button = ui.button('設定を保存', on_click=self.save).props('data-testid=scheduler-save')
                 self.discard_button = ui.button('編集を破棄して再読込', on_click=self.discard_changes).props('data-testid=scheduler-discard')
@@ -55,7 +54,7 @@ class SchedulerView:
         self._timer = ui.timer(5.0, self.refresh)
 
     def _set_controls(self, enabled):
-        for widget in (self.interval, self.startup, self.authors, self.save_button, self.discard_button,
+        for widget in (self.interval, self.startup, self.save_button, self.discard_button,
                        self.run_button, self.refresh_button, self.ack_button):
             widget.set_enabled(enabled)
 
@@ -94,7 +93,6 @@ class SchedulerView:
             try:
                 self.interval.set_value(str(state.interval_hours))
                 self.startup.set_value(state.startup_check)
-                self.authors.set_value(','.join(ledger.favourites()))
             finally:
                 self._loading_settings = False
         status_label = STATUS_LABELS.get(state.last_status, '状態不明')
@@ -221,21 +219,19 @@ class SchedulerView:
         self.run_button.set_enabled(False)
         try:
             ledger = self.services.managed_scheduler
-            form = (self.authors.value or '', self.interval.value, self.startup.value)
+            form = (self.interval.value, self.startup.value)
             revision = self.revision
-            raw = tuple(part.strip() for part in form[0].split(',') if part.strip())
             def update():
-                return ledger.configure_all(
-                    author_ids=raw, interval_hours=int(form[1]),
-                    startup_check=bool(form[2]),
+                return ledger.configure(
+                    interval_hours=int(form[0]),
+                    startup_check=bool(form[1]),
                     expected_revision=revision,
                     now=datetime.now(timezone.utc))
             saved = await asyncio.to_thread(update)
             self.services.managed_schedule_runner.settings_changed()
             # Edits made while the worker saved the captured form still belong
             # to the user. Keep them and base the next CAS on this commit.
-            self._settings_dirty = (self.authors.value or '', self.interval.value,
-                                    self.startup.value) != form
+            self._settings_dirty = (self.interval.value, self.startup.value) != form
             if self._settings_dirty:
                 self.revision = saved.revision
             self._load(ledger)
@@ -266,7 +262,9 @@ class SchedulerView:
             slot = f'manual-{uuid4().hex}'
             def submit():
                 with self.services._scheduler_dispatch_lock:
-                    return submit_author_batch(self.services, ledger.favourites(),
+                    authors = self.services.scheduler_favourite_authors()
+                    ledger.sync_favourites(authors)
+                    return submit_author_batch(self.services, authors,
                                                cancellation=self.services._scheduler_cancel_event,
                                                ledger=ledger, slot=slot)
             result = await asyncio.to_thread(submit)
@@ -299,6 +297,11 @@ def check_failure_message(error):
     # Never display raw exception text: it may contain paths or credentials.
     from ..managed_network_stop_gate import ManagedNetworkStopped, ManagedNetworkGateBusy, ManagedNetworkGateStorageError
     from ..pixiv_read_client import HTTPStatusRejected, AuthenticationMissing
+    from ..managed_scheduler import ScheduleAccountError
+    if isinstance(error, ScheduleAccountError):
+        if error.reason == 'unknown':
+            return '定期チェックの既存データの出所を確認できません。データを保持して停止しました。'
+        return '定期チェックの台帳は別のアカウントに紐付いています。既存データを保持して停止しました。'
     if isinstance(error, ManagedNetworkStopped):
         return f'HTTP {error.status_code}による取得停止が記録されています。取得停止の確認・回復で状態を確認してください。'
     if isinstance(error, ManagedNetworkGateBusy):

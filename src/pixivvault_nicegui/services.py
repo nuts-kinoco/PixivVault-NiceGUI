@@ -409,6 +409,7 @@ class ApplicationServices:
         # listing after a newer scan and invent a fresh deletion streak.
         self._legacy_inventory_lock = Lock()
         self._direct_download_candidates: dict[str, OrderedDict] = {}
+        self._follow_account_by_owner = {}
         self._author_owned_pins: dict[str, frozenset[str]] = {}
         self._managed_receipts = ()
         self._managed_catalog_snapshot = None
@@ -823,12 +824,13 @@ class ApplicationServices:
         except BaseException:
             self.close()
             raise
-        if self.managed_downloads is not None:
-            from .managed_scheduler import ManagedScheduler
-            if ManagedScheduler.configured(self.managed_downloads.root):
-                # Start dispatch only after every configured media owner and
-                # its durable history have been recovered.
+        if self.managed_downloads is not None and self.live_client is not None and self.following_sync is not None:
+            # Start after all configured media owners and histories recover.
+            try:
                 self.enable_managed_scheduler()
+            except BaseException:
+                self.close()
+                raise
 
     def novel_catalog(self,author_id=None,rest='show'):
         rows=self.novel_fixture_source.catalog(author_id,rest)
@@ -1852,6 +1854,7 @@ class ApplicationServices:
         with self._managed_target_lock:
             self._direct_download_candidates.pop(token, None)
             self._author_owned_pins.pop(token, None)
+            self._follow_account_by_owner.pop(token, None)
 
     def forget_accepted_managed_author_batch(self, owner, work_ids):
         """Unpin accepted author items so a single view can stage the next 128.
@@ -2071,7 +2074,7 @@ class ApplicationServices:
     async def followed_download_authors(self, *, owner: str):
         """Use a completed account-scoped sync, or explicitly GET an unsynced list."""
         from .author_download import AuthorTarget
-        self._direct_owner(owner)
+        owner = self._direct_owner(owner)
         if self.closing or self.managed_downloads is None or self.live_client is None:
             raise RuntimeError('managed downloads unavailable')
         reader = self.live_client
@@ -2094,12 +2097,10 @@ class ApplicationServices:
                 if synced.last_synced_at is not None:
                     return uid, tuple(AuthorTarget(row.user_id, row.name, 'follow',
                                       is_favorite=row.is_favorite, follow_order=row.follow_order)
-                                      for row in synced.following)
+                                      for row in synced.following), True
             # Favorites are local application choices, not inferred from a
             # public Pixiv following response. With no configured local ledger
             # retain None (unknown), rather than falsely reporting known zero.
-            scheduler = getattr(self, 'managed_scheduler', None)
-            favourite_ids = None if scheduler is None else frozenset(scheduler.favourites())
             seen = {}
             for visibility in ('show', 'hide'):
                 checkpoint(uid)
@@ -2108,13 +2109,39 @@ class ApplicationServices:
                     if entry['user_id'] not in seen:
                         seen[entry['user_id']] = AuthorTarget(
                             entry['user_id'], entry['name'], 'follow',
-                            is_favorite=(None if favourite_ids is None else entry['user_id'] in favourite_ids),
+                            is_favorite=None,
                             follow_order=len(seen))
-            return uid, tuple(seen.values())
+            return uid, tuple(seen.values()), False
 
-        account, result = await asyncio.to_thread(fetch)
+        account, result, owned = await asyncio.to_thread(fetch)
         checkpoint(account)
+        with self._managed_target_lock:
+            if owned:
+                self._follow_account_by_owner[owner] = account
+            else:
+                self._follow_account_by_owner.pop(owner, None)
         return result
+
+    async def set_followed_author_favorite(self, user_id, *, owner, expected, favorite):
+        """Change only the verified account and author list shown to this view."""
+        token = self._direct_owner(owner)
+        if type(expected) is not bool or type(favorite) is not bool or favorite == expected:
+            raise ValueError('invalid favorite transition')
+        def update():
+            with self._managed_target_lock:
+                account = self._follow_account_by_owner.get(token)
+                reader, store = self.live_client, self.following_sync
+                if (self.closing or account is None or reader is None or store is None
+                        or getattr(reader, '_verified_identity', None) != account):
+                    raise RuntimeError('author account changed')
+                snapshot = store.snapshot(account)
+                row = next((row for row in snapshot.authors if row.user_id == user_id), None)
+                if snapshot.account_id != account or row is None or row.is_favorite != expected:
+                    raise RuntimeError('author favorite changed')
+                if self.closing or self.live_client is not reader or getattr(reader, '_verified_identity', None) != account:
+                    raise RuntimeError('author account changed')
+                store.set_favorite(account, user_id, favorite, expected_revision=snapshot.revision)
+        await asyncio.to_thread(update)
 
     def _resolve_managed_record(self, work_id):
         # The serial runner installs exactly one accepted job's frozen record.
@@ -3058,13 +3085,32 @@ class ApplicationServices:
             raise
         emit_shared(self, '画像キャッシュを削除しました。', level='success')
 
+    def scheduler_favourite_authors(self):
+        """Read all local stars for the currently verified account."""
+        from .managed_scheduler import _require_managed_network_allowed
+        store = self.following_sync
+        reader = self.live_client
+        if self.closing or store is None or reader is None:
+            raise RuntimeError('favourite author source unavailable')
+        _require_managed_network_allowed(self)
+        account = reader.verify_identity()
+        snapshot = store.snapshot(account)
+        if self.closing or self.live_client is not reader or snapshot.account_id != account:
+            raise RuntimeError('favourite author account changed')
+        if getattr(reader, '_verified_identity', account) != account:
+            raise RuntimeError('favourite author account changed')
+        ledger = getattr(self, 'managed_scheduler', None)
+        if ledger is not None:
+            ledger.bind_account(account)
+        return tuple(row.user_id for row in snapshot.authors if row.is_favorite)
+
     def enable_managed_scheduler(self):
         """Explicit opt-in, after managed-only application resources exist."""
         with self._close_lock, self._managed_scheduler_lock:
             if self.closing or self.managed_downloads is None or self.live_client is None:
                 raise RuntimeError('isolated managed Pixiv mode is required')
             if self.managed_scheduler is None:
-                from .managed_scheduler import ManagedScheduler, ManagedScheduleRunner, submit_author_batch
+                from .managed_scheduler import ManagedScheduler, ManagedScheduleRunner, ScheduleAccountError, submit_author_batch
                 from .managed_network_stop_gate import ManagedNetworkStopped
                 ledger = ManagedScheduler(self.managed_downloads.root)
 
@@ -3072,7 +3118,8 @@ class ApplicationServices:
                     # Queue acceptance is not a verified saved receipt.
                     with self._scheduler_dispatch_lock:
                         try:
-                            authors = ledger.favourites()
+                            authors = self.scheduler_favourite_authors()
+                            ledger.sync_favourites(authors)
                             if authors and not cancellation.is_set() and not self.closing:
                                 self.shared_log.append(f'☆ お気に入り自動チェックを開始します ({len(authors)}人の作者)')
                             submit_author_batch(self, authors, cancellation=cancellation,
@@ -3080,6 +3127,13 @@ class ApplicationServices:
                         except ManagedNetworkStopped:
                             if not cancellation.is_set() and not self.closing:
                                 self.shared_log.append('☆ お気に入り自動チェックは取得停止により中断しました。')
+                            raise
+                        except ScheduleAccountError as error:
+                            if not cancellation.is_set() and not self.closing:
+                                message = ('定期チェックの既存データの出所を確認できません。データを保持して停止しました。'
+                                           if error.reason == 'unknown' else
+                                           '定期チェックの台帳は別のアカウントに紐付いています。既存データを保持して停止しました。')
+                                self.shared_log.append(message, level='error')
                             raise
                         except Exception:
                             if not cancellation.is_set() and not self.closing:

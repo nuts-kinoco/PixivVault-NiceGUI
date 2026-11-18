@@ -26,6 +26,14 @@ class ScheduleError(RuntimeError):
     pass
 
 
+class ScheduleAccountError(ScheduleError):
+    def __init__(self, reason):
+        if reason not in ('unknown', 'mismatch'):
+            raise ValueError('invalid scheduler account failure')
+        self.reason = reason
+        super().__init__(reason)
+
+
 @dataclass(frozen=True, slots=True)
 class ScheduleState:
     interval_hours: int
@@ -106,7 +114,10 @@ class ManagedScheduler:
             self._db.execute('PRAGMA synchronous=FULL')
             self._db.execute('BEGIN IMMEDIATE')
             self._db.execute('CREATE TABLE IF NOT EXISTS schedule (id INTEGER PRIMARY KEY CHECK(id=1), interval_hours INTEGER NOT NULL, startup_check INTEGER NOT NULL, revision INTEGER NOT NULL, last_due_utc TEXT, next_due_utc TEXT, last_status TEXT NOT NULL)')
-            self._db.execute('INSERT OR IGNORE INTO schedule VALUES (1,24,0,1,NULL,NULL,\'never\')')
+            self._db.execute('INSERT OR IGNORE INTO schedule VALUES (1,24,0,1,NULL,?,\'never\')',
+                             (_timestamp(datetime.now(timezone.utc) + timedelta(hours=24)),))
+            self._db.execute("UPDATE schedule SET next_due_utc=? WHERE id=1 AND interval_hours=24 AND last_due_utc IS NULL AND next_due_utc IS NULL AND last_status='never'",
+                             (_timestamp(datetime.now(timezone.utc) + timedelta(hours=24)),))
             self._db.execute('CREATE TABLE IF NOT EXISTS dispatch_history (slot TEXT PRIMARY KEY, status TEXT NOT NULL, started_utc TEXT NOT NULL, finished_utc TEXT, authors INTEGER NOT NULL DEFAULT 0, accepted INTEGER NOT NULL DEFAULT 0, deferred INTEGER NOT NULL DEFAULT 0, error_code TEXT)')
             self._db.execute('CREATE TABLE IF NOT EXISTS dispatch_items (slot TEXT NOT NULL, work_id TEXT NOT NULL, author_id TEXT NOT NULL, operation_id TEXT NOT NULL UNIQUE, job_id TEXT, accepted_fingerprint TEXT, state TEXT NOT NULL, notified INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(slot,work_id))')
             item_columns = {row[1] for row in self._db.execute('PRAGMA table_info(dispatch_items)')}
@@ -114,9 +125,7 @@ class ManagedScheduler:
                 self._db.execute('ALTER TABLE dispatch_items ADD COLUMN accepted_fingerprint TEXT')
             self._db.execute('CREATE TABLE IF NOT EXISTS deferred_work (author_id TEXT NOT NULL, work_id TEXT NOT NULL, update_date TEXT NOT NULL, page_count INTEGER NOT NULL, work_type INTEGER NOT NULL, created_utc TEXT NOT NULL, PRIMARY KEY(author_id,work_id))')
             self._db.execute('CREATE TABLE IF NOT EXISTS favourite_authors (author_id TEXT PRIMARY KEY)')
-            # Older ledgers could contain deferred rows for authors removed
-            # during a live dispatch. They must not wake a runner forever.
-            self._db.execute('DELETE FROM deferred_work WHERE author_id NOT IN (SELECT author_id FROM favourite_authors)')
+            self._db.execute('CREATE TABLE IF NOT EXISTS scheduler_account (id INTEGER PRIMARY KEY CHECK(id=1), account_id TEXT NOT NULL)')
             row = self._db.execute('SELECT interval_hours,startup_check,revision,last_due_utc,next_due_utc,last_status FROM schedule WHERE id=1').fetchone()
             if row is None or row[0] not in VALID_INTERVALS or row[1] not in (0,1) or row[2] < 1:
                 raise ScheduleError('invalid managed schedule ledger')
@@ -298,7 +307,7 @@ class ManagedScheduler:
     def has_deferred(self) -> bool:
         with self._lock:
             self._ensure_open()
-            return self._db.execute('SELECT 1 FROM deferred_work LIMIT 1').fetchone() is not None
+            return self._db.execute('SELECT 1 FROM deferred_work d JOIN favourite_authors f ON f.author_id=d.author_id LIMIT 1').fetchone() is not None
 
     def deferred_count(self) -> int:
         with self._lock:
@@ -535,6 +544,44 @@ class ManagedScheduler:
             return (tuple(row[0] for row in self._db.execute('SELECT author_id FROM favourite_authors ORDER BY author_id'))
                     if exists else ())
 
+    def bind_account(self, account_id: str) -> None:
+        """Bind only an empty unowned history; never adopt unknown old state."""
+        from .pixiv_read_client import _identifier
+        account_id = _identifier(account_id)
+        with self._lock:
+            self._ensure_open()
+            self._db.execute('BEGIN IMMEDIATE')
+            try:
+                row = self._db.execute('SELECT account_id FROM scheduler_account WHERE id=1').fetchone()
+                if row is None:
+                    for table in ('favourite_authors', 'deferred_work', 'dispatch_history', 'dispatch_items'):
+                        if self._db.execute(f'SELECT 1 FROM {table} LIMIT 1').fetchone() is not None:
+                            raise ScheduleAccountError('unknown')
+                    self._db.execute('INSERT INTO scheduler_account VALUES (1,?)', (account_id,))
+                elif row[0] != account_id:
+                    raise ScheduleAccountError('mismatch')
+                self._db.execute('COMMIT')
+            except BaseException:
+                self._db.execute('ROLLBACK')
+                raise
+
+    def sync_favourites(self, author_ids: tuple[str, ...]) -> None:
+        """Cache the current account's stars for deferred-work membership."""
+        from .pixiv_read_client import _identifier
+        ids = tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
+        with self._lock:
+            self._ensure_open()
+            self._db.execute('BEGIN IMMEDIATE')
+            try:
+                if self._db.execute('SELECT 1 FROM scheduler_account WHERE id=1').fetchone() is None:
+                    raise ScheduleAccountError('unknown')
+                self._db.execute('DELETE FROM favourite_authors')
+                self._db.executemany('INSERT INTO favourite_authors(author_id) VALUES (?)', ((uid,) for uid in ids))
+                self._db.execute('COMMIT')
+            except BaseException:
+                self._db.execute('ROLLBACK')
+                raise
+
     @staticmethod
     def configured(root: Path) -> bool:
         """Only open a scheduler automatically when the user already opted in.
@@ -578,7 +625,7 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
     if (services.managed_downloads is None or services.jobs is None
             or services.live_client is None or services.closing):
         raise ScheduleError('managed scheduler dispatch not available')
-    if type(author_ids) not in (tuple, list) or len(author_ids) > 128:
+    if type(author_ids) not in (tuple, list):
         raise ValueError('invalid configured favourite authors')
     if type(max_items) is not int or not 1 <= max_items <= 50:
         raise ValueError('invalid scheduler queue capacity')
@@ -812,7 +859,7 @@ def submit_author_media_batch(services, author_ids, *, cancellation, max_items=5
     from .job_service import UNFINISHED
     if services.closing or services.jobs is None:
         raise ScheduleError('author media unavailable')
-    if type(author_ids) not in (tuple,list) or len(author_ids)>128:
+    if type(author_ids) not in (tuple,list):
         raise ValueError('invalid configured favourite authors')
     if type(max_items) is not int or not 1<=max_items<=50:
         raise ValueError('invalid scheduler queue capacity')
@@ -1023,7 +1070,7 @@ class ManagedScheduleRunner:
                 # Recovery acknowledgement is an explicit user action. The
                 # backlog path must obey the same interrupted-state barrier as
                 # scheduled claims, even when the next due time is in future.
-                if (state.last_status != 'interrupted'
+                if (state.interval_hours > 0 and state.last_status != 'interrupted'
                         and capacity_available and self.ledger.has_deferred()
                         and not self.stop_event.is_set()):
                     with self._state_lock:

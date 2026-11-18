@@ -13,6 +13,7 @@ def scheduler_fixture(monkeypatch,tmp_path,authors,dispatch):
     class Ledger:
         def __init__(self,root):pass
         def favourites(self):return authors
+        def sync_favourites(self, authors):pass
         def close(self):pass
     class Runner:
         def __init__(self,ledger,dispatch,*,reconcile):self.dispatch=dispatch
@@ -22,7 +23,8 @@ def scheduler_fixture(monkeypatch,tmp_path,authors,dispatch):
     monkeypatch.setattr(managed_scheduler,'submit_author_batch',dispatch)
     service=NS(_close_lock=RLock(),_managed_scheduler_lock=Lock(),_scheduler_dispatch_lock=Lock(),
         closing=False,managed_downloads=NS(root=tmp_path),live_client=object(),managed_scheduler=None,
-        managed_schedule_runner=None,shared_log=QueueLog(),reconcile_managed_scheduler=lambda:None)
+        managed_schedule_runner=None,shared_log=QueueLog(),reconcile_managed_scheduler=lambda:None,
+        scheduler_favourite_authors=lambda:authors)
     ApplicationServices.enable_managed_scheduler(service)
     return service
 
