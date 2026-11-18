@@ -120,7 +120,7 @@ def test_a_stopped_bookmark_run_can_be_continued_over_the_unfinished_visibility(
     port = BookmarkPort([remote(11), remote(13, 'hide')], hold=True)
     engine, ledger, following, _ = engine_for(tmp_path, port)
     try:
-        engine.start(('show', 'hide'), kind='bookmarks')
+        engine.start(('show', 'hide'), kind='bookmarks', account_id='55', verified_bookmark_account=True)
         for _ in range(500):
             if port.enqueued:
                 break
