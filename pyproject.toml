@@ -28,7 +28,7 @@ native = [
 build = ["pyinstaller==6.22.3"]
 
 [project.scripts]
-pixivvault-nicegui = "pixivvault_nicegui.bootstrap:main"
+pixivvault-nicegui = "pixivvault_nicegui.crash_entry:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
