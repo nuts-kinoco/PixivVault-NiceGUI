@@ -218,3 +218,23 @@ async def test_reason_failure_shows_light_band_and_keeps_judgment(learning_view,
     assert '「合わない」の理由を保存できませんでした' in texts
     history, tag_hate, _ = await counts(services, work)
     assert history[0]['verdict'] == 'hate' and history[0]['reason'] is None and tag_hate > 0
+
+
+def test_reason_update_recomputes_consecutive_skips_after_history_reorders(tmp_path):
+    from pixivvault_nicegui.learning import Judgment
+    from pixivvault_nicegui.learning_repository import LearningRepository
+    from pixivvault_nicegui.legacy.database import Database
+
+    db = Database(tmp_path / 'learning.db', sandbox_root=tmp_path)
+    try:
+        repo = LearningRepository(db, {wid: {'tags': ['tag'], 'author_id': '42'} for wid in ('1', '2')})
+        hated = Judgment('1', 'hate', 'old')
+        repo.record(hated)
+        repo.record(Judgment('2', 'skip', 'new'))
+        def skips():
+            return db.conn.execute("SELECT consecutive_skip_count FROM discovery_author_preference WHERE author_id='42'").fetchone()[0]
+        assert skips() == 1
+        assert repo.set_hate_reason(hated, 'style')
+        assert skips() == 0
+    finally:
+        db.close()

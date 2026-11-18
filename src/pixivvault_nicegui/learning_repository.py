@@ -156,6 +156,7 @@ class LearningRepository:
                 self.db.conn.execute(
                     "UPDATE discovery_swipe_history SET reason=?, judged_at=? WHERE work_id=?",
                     (reason, datetime.now().isoformat(), work_id))
+                self.db._recompute_consecutive_skips(row["author_id"])
                 self._versions[judgment.operation_id] = self._revision(work_id)
             return True
 
