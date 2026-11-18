@@ -259,7 +259,7 @@ class CompositeLocalCatalog:
             item = self.works.get(work_id) if isinstance(work_id, str) else None
             if (item is None or type(page_no) is not int or
                     not 0 <= page_no < item.page_count or
-                    variant not in {"thumb", "view", "original"}):
+                    variant not in {"thumb", "cover", "view", "original"}):
                 raise MediaMissing("image not found")
             selection = self.composition.selections[work_id]
             return self._providers[selection.source]
@@ -277,6 +277,14 @@ class CompositeLocalCatalog:
         with self._lock:
             item = self.works.get(work_id) if isinstance(work_id, str) else None
             return item.artwork if item is not None and not self._closed else None
+
+    def supports_novel_cover(self, work_id):
+        with self._lock:
+            selection = self.composition.selections.get(work_id)
+            if self._closed or selection is None or selection.source != 'legacy':
+                return False
+            method = getattr(self._providers['legacy'], 'supports_novel_cover', None)
+            return bool(callable(method) and method(work_id))
 
     def supports_original(self, work_id):
         with self._lock:

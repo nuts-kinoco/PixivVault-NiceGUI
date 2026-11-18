@@ -1041,7 +1041,9 @@ class LibraryView(ViewerController):
                     wid, number, epoch, session)
                 card.on("click", callback)
                 card.on("keydown.enter", callback)
-                _library_thumbnail(self._image_provider.url(work.work_id, page.page_no, "thumb"))
+                cover = getattr(self._image_provider, 'supports_novel_cover', None)
+                variant = 'cover' if work.work_type == 'novel' and callable(cover) and cover(work.work_id) else 'thumb'
+                _library_thumbnail(self._image_provider.url(work.work_id, page.page_no, variant))
                 ui.label(work.artwork.title).classes("pv-library-card-title")
                 saved = work.last_backup[:10] if work.last_backup else "保存日 不明"
                 ui.label(f"p.{page.page_no + 1} ／ {saved}").classes("pv-library-card-info")

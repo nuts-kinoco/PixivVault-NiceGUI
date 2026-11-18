@@ -120,7 +120,7 @@ def test_registry_composite_uses_local_cover_but_keeps_remote_preview(tmp_path):
     registry.publish(ReadonlyLocalMediaCatalog(tmp_path, old), Remote('https://example.invalid/thumb'))
     pin = registry.acquire()
     try:
-        assert pin.get('novel:101', 0, 'thumb') == 'remote-preview'
+        assert rgb(pin.get('novel:101', 0, 'thumb')) == (255, 0, 0)
         assert pin.get('novel:101', 0, 'view') == 'remote-preview'
     finally:
         pin.close()
@@ -148,15 +148,14 @@ def test_repository_detects_original_thumbnail_metadata_without_retaining_url(tm
         repo.close()
 
 
-def test_local_cover_is_not_selected_if_legacy_metadata_has_thumbnail(tmp_path):
+def test_local_cover_is_available_for_detail_even_with_legacy_thumbnail(tmp_path):
     from dataclasses import replace
     source(tmp_path)
     with_url = LibrarySnapshot((replace(snap().works[0], has_thumbnail_url=True),))
     catalog = ReadonlyLocalMediaCatalog(tmp_path, with_url)
     try:
-        assert not catalog.supports_novel_cover('novel:101')
-        with pytest.raises(MediaMissing):
-            catalog.get('novel:101', 0, 'thumb')
+        assert catalog.supports_novel_cover('novel:101')
+        assert rgb(catalog.get('novel:101', 0, 'cover')) == (255, 0, 0)
     finally:
         catalog.close()
 
@@ -184,7 +183,7 @@ async def test_author_list_and_detail_render_same_pinned_cover(tmp_path):
             detail = view.page_cards[('novel:101', 0)]
             detail_sources = [e.props.get('src') for e in walk(detail) if e.props.get('src')]
             assert len(author_sources) == len(detail_sources) == 1
-            assert author_sources == detail_sources
+            assert '/cover.png?catalog=' in detail_sources[0]
             assert '/media/novel:101/0/thumb.png?catalog=' in author_sources[0]
             assert rgb(view._image_provider.get('novel:101', 0, 'thumb')) == (255, 0, 0)
             view.close()
@@ -227,6 +226,51 @@ def test_quarantine_catalog_keeps_cover_subject_to_exclusion_checks(tmp_path):
     pin = registry.acquire()
     try:
         assert rgb(pin.get('novel:101', 0, 'thumb')) == (255, 0, 0)
+    finally:
+        pin.close()
+        registry.close()
+
+
+@pytest.mark.parametrize('composite', [False, True])
+@pytest.mark.parametrize('has_url', [False, True])
+def test_cover_and_author_thumbnail_resolve_different_sources_when_needed(tmp_path, composite, has_url):
+    from dataclasses import replace
+    source(tmp_path)
+    snapshot = LibrarySnapshot((replace(snap().works[0], has_thumbnail_url=has_url),))
+    local = ReadonlyLocalMediaCatalog(tmp_path, snapshot)
+    if composite:
+        composition = compose_library(snapshot, LibrarySnapshot(()), (), (),
+            managed_source_pages={}, managed_original_page_counts={})
+        local = CompositeLocalCatalog(composition, legacy_catalog=local)
+    registry = LibraryImageRegistry(Demo())
+    registry.publish(local, Remote('synthetic'))
+    pin = registry.acquire()
+    try:
+        summary = pin.get('novel:101', 0, 'thumb')
+        assert (summary == 'remote-preview') == has_url
+        if not has_url:
+            assert rgb(summary) == (255, 0, 0)
+        assert rgb(pin.get('novel:101', 0, 'cover')) == (255, 0, 0)
+    finally:
+        pin.close()
+        registry.close()
+
+
+def test_detail_cover_http_uses_pinned_catalog(tmp_path):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from pixivvault_nicegui.media_routes import register_media_routes
+    source(tmp_path)
+    registry = LibraryImageRegistry(Demo())
+    registry.publish(ReadonlyLocalMediaCatalog(tmp_path, snap()), None)
+    pin = registry.acquire()
+    try:
+        app = FastAPI()
+        register_media_routes(app, registry)
+        with TestClient(app) as client:
+            response = client.get(pin.url('novel:101', 0, 'cover'))
+        assert response.status_code == 200
+        assert Image.open(BytesIO(response.content)).convert('RGB').getpixel((0, 0)) == (255, 0, 0)
     finally:
         pin.close()
         registry.close()

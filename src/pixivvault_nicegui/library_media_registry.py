@@ -40,6 +40,9 @@ class PinnedLibraryImages:
     def supports_original(self,work_id):
         return not self.closed and self.registry.supports_original_versioned(self.token,work_id)
 
+    def supports_novel_cover(self,work_id):
+        return not self.closed and self.registry.supports_novel_cover_versioned(self.token,work_id)
+
     def display_animation(self,work_id):
         if self.closed:raise RuntimeError('image snapshot closed')
         return self.registry.display_animation_versioned(self.token,work_id)
@@ -189,15 +192,20 @@ class LibraryImageRegistry:
         return version
 
     def _provider(self, version: _Version, work_id: str, variant=None):
-        if version.local is not None and work_id in getattr(version.local, 'source_pages', {}):
-            # Empty page maps are managed tombstones, not permission to use
-            # another local/remote copy of the same work.
-            return version.local
         cover = getattr(version.local, 'supports_novel_cover', None)
-        if variant == 'thumb' and callable(cover) and cover(work_id):
+        if variant in {'thumb', 'cover'} and callable(cover) and cover(work_id):
+            if variant == 'cover':
+                return version.local
+            work = version.local.works[work_id]
+            if not work.has_thumbnail_url:
+                return version.local
             remote_record = getattr(version.remote, 'works', {}).get(work_id)
             if remote_record is not None and getattr(remote_record, 'thumbnail', None):
                 return version.remote
+            return self.demo
+        if version.local is not None and work_id in getattr(version.local, 'source_pages', {}):
+            # Empty page maps are managed tombstones, not permission to use
+            # another local/remote copy of the same work.
             return version.local
         if version.local is not None and work_id in version.local.works:
             # Local still-image catalogs cannot decode novel text/animation.
@@ -214,6 +222,12 @@ class LibraryImageRegistry:
             provider=self._provider(self._version(token),work_id)
             predicate=getattr(provider,'is_animation',None)
             return bool(predicate and predicate(work_id))
+
+    def supports_novel_cover_versioned(self, token, work_id):
+        with self._lock:
+            local = self._version(token).local
+            method = getattr(local, 'supports_novel_cover', None)
+            return bool(callable(method) and method(work_id))
 
     def supports_original_versioned(self,token,work_id):
         with self._lock:
@@ -303,7 +317,7 @@ class LibraryImageRegistry:
     def url_for(self, token: str, work_id: str, page_no: int, variant: str) -> str:
         if (not isinstance(work_id, str) or not _ID.fullmatch(work_id) or
                 type(page_no) is not int or not 0 <= page_no < 10000 or
-                variant not in {"thumb", "view", "original"}):
+                variant not in {"thumb", "cover", "view", "original"}):
             raise ValueError("invalid image identity")
         with self._lock:
             version = self._version(token)
