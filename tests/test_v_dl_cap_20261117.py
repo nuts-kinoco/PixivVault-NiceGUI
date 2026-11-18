@@ -9,6 +9,7 @@ import hashlib
 import io
 import json
 import time
+from pathlib import Path
 
 import pytest
 from PIL import Image
@@ -53,6 +54,17 @@ def make_generation(root, wid, suffix=None):
     raw = receipt_bytes(wid)
     (folder / 'receipt.json').write_bytes(raw)
     return f'generations/{name}/receipt.json', hashlib.sha256(raw).hexdigest()
+
+
+def journal_of(root):
+    found = sorted(root.glob('active-generations-*.journal'))
+    assert len(found) >= 1
+    current = json.loads((root / 'active-generations.json').read_bytes())['journal']['id']
+    return root / ('active-generations-%s.journal' % current)
+
+
+def mark_of(root):
+    return Path(str(journal_of(root))[:-len('.journal')] + '.mark')
 
 
 def publish(g, root, wid, previous=None, fingerprint='c' * 64):
@@ -109,12 +121,14 @@ def test_calls_do_not_reverify_every_receipt(root):
 
 def test_publish_appends_to_a_journal_and_leaves_the_index_untouched(root):
     seed_index(root, 50)
-    base = (root / 'active-generations.json').read_bytes()
     g = mg.ManagedGenerations(root)
-    for number in range(5):
+    publish(g, root, '900000')  # the first save upgrades the index to v5 (one rewrite)
+    base = (root / 'active-generations.json').read_bytes()
+    assert json.loads(base)['version'] == 5
+    for number in range(1, 5):
         publish(g, root, str(900000 + number))
     assert (root / 'active-generations.json').read_bytes() == base
-    assert (root / mg._JOURNAL).stat().st_size > 0
+    assert journal_of(root).stat().st_size > 0
     reopened = mg.ManagedGenerations(root)
     assert reopened.entries() == g.entries() and len(g.entries()) == 55
     assert reopened.state_snapshot()['revision'] == g.state_snapshot()['revision']
@@ -159,7 +173,7 @@ def test_a_torn_final_append_is_ignored_and_repaired_by_the_next_publish(root):
     seed_index(root, 5)
     g = mg.ManagedGenerations(root)
     publish(g, root, '900001')
-    journal = root / mg._JOURNAL
+    journal = journal_of(root)
     committed = journal.read_bytes()
     journal.write_bytes(committed + b'{"chain":"deadbeef","entry":{"work_i')  # crash mid-append
     reopened = mg.ManagedGenerations(root)
@@ -176,7 +190,7 @@ def test_a_damaged_journal_is_rejected_never_skipped(root, damage):
     g = mg.ManagedGenerations(root)
     publish(g, root, '900001')
     publish(g, root, '900002')
-    journal = root / mg._JOURNAL
+    journal = journal_of(root)
     lines = journal.read_bytes().split(b'\n')
     if damage == 'edit_entry':
         lines[1] = lines[1].replace(b'900001', b'900009')
@@ -193,40 +207,34 @@ def test_compaction_folds_the_journal_into_the_index(root, monkeypatch):
     monkeypatch.setattr(mg, '_COMPACT_RECORDS', 3)
     seed_index(root, 4)
     g = mg.ManagedGenerations(root)
-    before = (root / 'active-generations.json').read_bytes()
-    for number in range(3):
-        publish(g, root, str(900000 + number))
-    assert not (root / mg._JOURNAL).exists()
-    assert (root / 'active-generations.json').read_bytes() != before
-    assert json.loads((root / 'active-generations.json').read_bytes())['version'] == 2
-    publish(g, root, '900010')  # a new journal starts on the new base
+    publish(g, root, '900000')
+    before_id = json.loads((root / 'active-generations.json').read_bytes())['journal']['id']
+    publish(g, root, '900001')
+    publish(g, root, '900002')                                   # the third record folds
+    packet = json.loads((root / 'active-generations.json').read_bytes())
+    assert packet['version'] == 5 and packet['journal']['id'] != before_id and len(packet['entries']) == 7
+    assert journal_of(root).read_bytes().count(b"\n") == 1       # the new journal holds only its header
+    publish(g, root, '900010')                                   # and starts filling on the new base
     reopened = mg.ManagedGenerations(root)
     assert reopened.entry_count() == 8 and reopened.entries() == g.entries()
 
 
-def test_a_crash_between_compaction_and_journal_removal_is_safe(root, monkeypatch):
+def test_leftovers_of_an_older_journal_are_ignored_and_swept(root, monkeypatch):
+    monkeypatch.setattr(mg, '_JOURNAL_RETAIN_SECONDS', 0.0)
     seed_index(root, 3)
     g = mg.ManagedGenerations(root)
     publish(g, root, '900001')
-    publish(g, root, '900002')
-    stale = (root / mg._JOURNAL).read_bytes()
-    g._compact(g._loaded)  # the new index now contains both
-    (root / mg._JOURNAL).write_bytes(stale)  # the unlink never happened
+    stale_journal, stale_mark = journal_of(root).read_bytes(), mark_of(root).read_bytes()
+    old_names = (journal_of(root).name, mark_of(root).name)
+    g._compact(g._loaded)
+    (root / old_names[0]).write_bytes(stale_journal)             # a file that is no longer referenced
+    (root / old_names[1]).write_bytes(stale_mark)
     reopened = mg.ManagedGenerations(root)
-    assert reopened.entry_count() == 5
-    publish(reopened, root, '900003')  # replaces the stale journal with a fresh one
-    assert mg.ManagedGenerations(root).entry_count() == 6
-
-
-def test_a_journal_with_entries_missing_from_its_base_is_rejected(root):
-    seed_index(root, 3)
-    g = mg.ManagedGenerations(root)
-    publish(g, root, '900001')
-    journal = (root / mg._JOURNAL).read_bytes()
-    (root / 'active-generations.json').write_bytes((root / 'active-generations.json').read_bytes() + b'\n')
-    (root / mg._JOURNAL).write_bytes(journal)
-    with pytest.raises(ManagedDownloadError, match='index rejected'):
-        mg.ManagedGenerations(root)
+    assert reopened.entry_count() == 4
+    for number in range(3):                                      # several folds later the leftovers are gone
+        publish(reopened, root, str(900100 + number))
+        reopened._compact(reopened._loaded)
+    assert not (root / old_names[0]).exists() and mg.ManagedGenerations(root).entry_count() == 7
 
 
 def test_a_second_instance_picks_up_appended_records_without_a_full_reload(root, monkeypatch):
@@ -277,7 +285,7 @@ def test_a_v1_index_is_upgraded_in_place_by_the_first_publish(root):
     assert g.entry_count() == 3
     publish(g, root, '900001')
     packet = json.loads((root / 'active-generations.json').read_bytes())
-    assert packet['version'] == 2 and len(packet['entries']) == 4 and not (root / mg._JOURNAL).exists()
+    assert packet['version'] == 5 and len(packet["entries"]) == 3 and mark_of(root).exists()
     assert mg.ManagedGenerations(root).entry_count() == 4
 
 

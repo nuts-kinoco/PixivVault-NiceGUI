@@ -90,7 +90,8 @@ class ManagedScheduler:
         self._star_cache = (0.0, frozenset())
         try:
             book.seed()
-            self._prune_deferred(self.favourites())
+            if self._ledger_is_source():          # only a real, readable star list may prune anything
+                self._prune_deferred(self.favourites())
         except Exception:
             pass  # not synced yet: the next call tries again
 
@@ -116,8 +117,51 @@ class ManagedScheduler:
             self._db.execute('CREATE TABLE IF NOT EXISTS favourite_seed (id INTEGER PRIMARY KEY CHECK(id=1), imported INTEGER NOT NULL, dropped INTEGER NOT NULL)')
             return self._db.execute('SELECT imported,dropped FROM favourite_seed WHERE id=1').fetchone()
 
+    def favourite_import_state(self) -> str:
+        """'done', 'unreadable' (the legacy DB cannot be read, import pending) or 'pending'."""
+        if self.favourites_seeded():
+            return 'done'
+        book = self._favourites_source
+        return 'unreadable' if book is not None and book.legacy_unreadable else 'pending'
+
+    def _stars_unknown(self) -> bool:
+        """The stars live in the following ledger (imported) but it cannot be read right now.
+
+        That is "unknown", never "no stars" and never "the old own list": nothing may be saved
+        over it, pruned by it or dropped because of it."""
+        book = self._favourites_source
+        return self.favourites_seeded() and not (book is not None and book.readable())
+
+    def _is_star(self, author_id: str) -> bool:
+        """The same answer as favourites(): the ledger once imported, else the own list plus the
+        stars set on the screen (the ledger's), so a pending work is never judged by half of them."""
+        book = self._favourites_source
+        readable = book is not None and book.readable()
+        if readable:
+            import time
+            stamp, cached = self._star_cache
+            if time.monotonic() - stamp > 5.0:
+                try:
+                    cached = frozenset(book.ids())
+                except Exception:
+                    cached = frozenset()
+                self._star_cache = (time.monotonic(), cached)
+            if author_id in cached:
+                return True
+            if self._ledger_is_source():
+                return False
+        return self._db.execute('SELECT 1 FROM favourite_authors WHERE author_id=?', (author_id,)).fetchone() is not None
+
     def _ledger_is_source(self) -> bool:
-        return self._favourites_source is not None and self.favourites_seeded()
+        book = self._favourites_source
+        # An unreadable ledger (no store attached, not synced) is "unknown", not an empty star list.
+        return book is not None and book.readable() and self.favourites_seeded()
+
+    def touch_revision(self) -> None:
+        """A star changed outside the settings form: stale forms must fail their revision check."""
+        with self._lock:
+            self._ensure_open()
+            self._db.execute('UPDATE schedule SET revision=revision+1 WHERE id=1')
 
     def _prune_deferred(self, ids) -> None:
         keep = set(ids)
@@ -177,7 +221,12 @@ class ManagedScheduler:
             self._db.execute('CREATE TABLE IF NOT EXISTS favourite_authors (author_id TEXT PRIMARY KEY)')
             # Older ledgers could contain deferred rows for authors removed
             # during a live dispatch. They must not wake a runner forever.
-            self._db.execute('DELETE FROM deferred_work WHERE author_id NOT IN (SELECT author_id FROM favourite_authors)')
+            # Once the stars live in the following ledger this own list is only the import source and
+            # says nothing about who is a star: pruning by it would erase the pending work.
+            seeded = (self._db.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='favourite_seed'").fetchone()[0]
+                      and self._db.execute('SELECT 1 FROM favourite_seed WHERE id=1').fetchone() is not None)
+            if not seeded:
+                self._db.execute('DELETE FROM deferred_work WHERE author_id NOT IN (SELECT author_id FROM favourite_authors)')
             row = self._db.execute('SELECT interval_hours,startup_check,revision,last_due_utc,next_due_utc,last_status FROM schedule WHERE id=1').fetchone()
             if row is None or row[0] not in VALID_INTERVALS or row[1] not in (0,1) or row[2] < 1:
                 raise ScheduleError('invalid managed schedule ledger')
@@ -346,15 +395,9 @@ class ManagedScheduler:
             # The favourite list may have changed while an author's complete
             # inventory was being fetched. Do not recreate a row pruned by a
             # concurrent settings transaction.
-            if self._ledger_is_source():
-                import time
-                stamp, cached = self._star_cache
-                if time.monotonic() - stamp > 5.0:
-                    cached = frozenset(self._favourites_source.ids())
-                    self._star_cache = (time.monotonic(), cached)
-                if author_id not in cached:
-                    return
-            elif self._db.execute('SELECT 1 FROM favourite_authors WHERE author_id=?', (author_id,)).fetchone() is None:
+            if self._stars_unknown():
+                pass  # keep the pending work; it is judged again when the ledger can be read
+            elif not self._is_star(author_id):
                 return
             self._db.execute('INSERT INTO deferred_work(author_id,work_id,update_date,page_count,work_type,created_utc) VALUES(?,?,?,?,?,?) ON CONFLICT(author_id,work_id) DO UPDATE SET update_date=excluded.update_date,page_count=excluded.page_count,work_type=excluded.work_type',
                              (author_id, work['id'], work['update_date'], work['page_count'], work['type'], _timestamp(now)))
@@ -565,12 +608,13 @@ class ManagedScheduler:
                       now: datetime) -> ScheduleState:
         """One all-or-nothing settings transaction, using the client's CAS."""
         from .pixiv_read_client import _identifier
-        if (type(author_ids) is not tuple or len(author_ids) > MAX_FAVOURITES
+        if (not (author_ids is None or (type(author_ids) is tuple and len(author_ids) <= MAX_FAVOURITES))
                 or type(interval_hours) is not int or interval_hours not in VALID_INTERVALS
                 or type(startup_check) is not bool or type(expected_revision) is not int
                 or expected_revision < 1):
             raise ValueError('invalid managed schedule settings')
-        ids = tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
+        # author_ids=None leaves the stars exactly as they are (a form that never saw them must not save them).
+        ids = None if author_ids is None else tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
         current_time = _utc(now)
         with self._lock:
             self._ensure_open()
@@ -579,7 +623,8 @@ class ManagedScheduler:
                 previous = self.snapshot()
                 if previous.revision != expected_revision:
                     raise ScheduleError('schedule changed in another client')
-                self._store_favourites(ids)
+                if ids is not None:
+                    self._store_favourites(ids)
                 next_due = (None if interval_hours == 0 else
                             _timestamp(current_time + timedelta(hours=interval_hours)))
                 self._db.execute('UPDATE schedule SET interval_hours=?,startup_check=?,revision=?,next_due_utc=? WHERE id=1',
@@ -592,11 +637,19 @@ class ManagedScheduler:
 
     def _store_favourites(self, ids):
         """Write the star set where it lives: the ledger once it is the source, else the own list."""
+        if self._stars_unknown():
+            raise ScheduleError('favourite authors unavailable')
         if self._ledger_is_source():
             applied, _ignored = self._favourites_source.replace(ids)
             self._star_cache = (0.0, frozenset())
             self._prune_deferred(applied)
             return applied
+        book = self._favourites_source
+        if book is not None and book.readable():
+            # Not imported yet, but the screen's stars live in the ledger and are part of favourites():
+            # a star taken out of the form must leave the ledger as well or it comes straight back.
+            book.replace(ids)
+            self._star_cache = (0.0, frozenset())
         self._db.execute('CREATE TABLE IF NOT EXISTS favourite_authors(author_id TEXT PRIMARY KEY)')
         self._db.execute('DELETE FROM favourite_authors')
         self._db.executemany('INSERT INTO favourite_authors(author_id) VALUES (?)', ((uid,) for uid in ids))
@@ -604,17 +657,25 @@ class ManagedScheduler:
         return ids
 
     def favourites(self) -> tuple[str, ...]:
-        with self._lock:
-            ledger = self._ledger_is_source()
-            book = self._favourites_source
-        if not ledger and book is not None:
+        book = self._favourites_source
+        if book is not None and not self.favourites_seeded():
             try:
-                ledger = book.seed() is not None or self.favourites_seeded()  # the first sync may have happened since
+                book.seed()  # the first sync may have happened since
             except Exception:
-                ledger = False
-        if ledger:
-            return self._favourites_source.ids()  # read live: a star change reaches the next check at once
-        return self.legacy_favourites()
+                pass
+        if self.favourites_seeded():
+            if book is not None and book.readable():
+                return book.ids()  # read live: a star change reaches the next check at once
+            raise ScheduleError('favourite authors unavailable')  # unknown: not "none", not the old list
+        legacy = self.legacy_favourites()
+        if book is not None and book.readable():
+            # Not imported yet (for example the legacy DB cannot be read): the stars set on the screen
+            # live in the ledger and must not silently fall out of the automatic check.
+            try:
+                return tuple(sorted(set(legacy) | set(book.ids()), key=int))
+            except Exception:
+                return legacy
+        return legacy
 
     @staticmethod
     def configured(root: Path) -> bool:

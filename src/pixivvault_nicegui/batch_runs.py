@@ -450,15 +450,16 @@ class BatchRunLedger:
     RESUMABLE_STATES = ('stopped', 'interrupted', 'failed')
 
     def resumable_run(self):
-        """The newest run, when it ended early with authors left and was not discarded.
+        """The newest manual run, when it ended early with authors left and was not discarded.
 
         Terminal states are final, so "resume" is a new run seeded from `unfinished_authors`.
-        Any newer run (even a finished one) ends the offer.
+        A newer manual run (even a finished one) ends the offer. An automatic ☆ check does not: it
+        runs unattended on a timer and must not make the user's interrupted run disappear.
         """
         def find(connection):
             row = connection.execute(
-                'SELECT ' + ','.join(_RUN_COLUMNS) + ' FROM runs ORDER BY started_utc DESC,rowid DESC LIMIT 1'
-            ).fetchone()
+                'SELECT ' + ','.join(_RUN_COLUMNS) + " FROM runs WHERE origin='manual' "
+                'ORDER BY started_utc DESC,rowid DESC LIMIT 1').fetchone()
             if row is None or row[4] not in self.RESUMABLE_STATES:
                 return None
             if connection.execute('SELECT 1 FROM run_flags WHERE run_id=? AND discarded=1',

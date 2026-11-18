@@ -12,6 +12,8 @@ import os
 from pathlib import Path
 import re
 import stat
+import time
+import zlib
 from threading import Lock, RLock
 from types import MappingProxyType
 from uuid import uuid4
@@ -32,6 +34,11 @@ MAX_TOTAL = 2 * 1024 * 1024 * 1024
 MAX_PAGES = 1000
 MAX_RECEIPT_BYTES = 512 * 1024
 _MAX_SAVED_RECEIPTS = 1_000_000  # same ceiling as managed_generations._MAX_ENTRIES
+# A work verified in full is trusted again for this long while its folder (listing, sizes, times) is
+# unchanged. A rewrite that keeps size and time is not seen by that check, so every entry is verified
+# in full again after this many seconds (spread +-25% per work so a big library does not expire at
+# once), when the store is reopened, and always when the bytes are read (read_saved_page hashes them).
+_RECEIPT_RECHECK_SECONDS = 1800.0
 _ID = re.compile(r"[1-9][0-9]{0,19}\Z")
 _SHA = re.compile(r"[0-9a-f]{64}\Z")
 _FILE = re.compile(r"page-([1-9][0-9]{0,3})\.(png|jpg|webp)\Z")
@@ -287,7 +294,8 @@ class ManagedPixivDownloads:
         signature = self._receipt_signature(folder)
         cached = cache.get(relative)
         if (signature is not None and cached is not None and cached[0] == signature
-                and (cached[3] or not verify_pages)):
+                and (cached[3] or not verify_pages)
+                and time.monotonic() - cached[4] < _RECEIPT_RECHECK_SECONDS * (0.75 + zlib.crc32(relative.encode()) % 500 / 1000)):
             if verify_pages and progress is not None:
                 progress(len(json.loads(cached[1])['files']), len(json.loads(cached[1])['files']))
             return json.loads(cached[1], object_pairs_hook=_json_unique), cached[2]
@@ -380,10 +388,15 @@ class ManagedPixivDownloads:
             if signature is not None and relocated is None:
                 if len(cache) >= 250_000:
                     cache.clear()
-                cache[relative] = (signature, raw, digest, bool(verify_pages))
+                cache[relative] = (signature, raw, digest, bool(verify_pages), time.monotonic())
             return receipt, digest
         except (OSError, KeyError, TypeError, ValueError, OverflowError, RecursionError):
-            raise ManagedDownloadError("saved receipt verification failed") from None
+            failure = ManagedDownloadError("saved receipt verification failed")
+            # The text stays fixed; these name the work so one damaged work can be found and
+            # repaired instead of the whole catalog simply failing.
+            failure.work_id = pieces[1].split("-")[1]
+            failure.relative_receipt = relative
+            raise failure from None
 
     @staticmethod
     def _receipt_signature(folder):
@@ -750,6 +763,9 @@ class ManagedPixivDownloads:
                 raise ManagedDownloadError("managed job rejected")
             context.checkpoint()
             record = _record(self.resolve_record(job.target_id), job.target_id)
+            # Refuse a new work the store could not record, before it is downloaded (a save with no
+            # intent lands in outputs/ and used to be refused only afterwards).
+            self._generations.assert_room(record.remote_id, indexed=intent is not None)
             job_id=getattr(job,'job_id',None)
             if type(job_id) is not str or not 1<=len(job_id)<=128:job_id='untracked-'+uuid4().hex
             legacy_pages,legacy_token=(self.legacy_quarantine.download_state(record)
