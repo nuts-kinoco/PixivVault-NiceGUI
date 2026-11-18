@@ -844,7 +844,7 @@ class LearningView:
     def _show_judgment_toast(self, choice: str, command=None) -> None:
         """判定直後に「判定しました／取り消す」を出す（元 discovery_tab.py:1949-1952）。"""
         item = self.state.current_artwork
-        props = f"data-work-id={item.work_id if item else ''} data-generation={self.state.generation}"
+        props = f'data-work-id="{item.work_id if item else ""}" data-generation={self.state.generation}'
         judgment = command.judgment if command is not None else None
         if (choice == "hate" and judgment is not None and self.storage is not None
                 and self._session_id is not None and hasattr(self.storage, "submit_hate_reason")):
@@ -1070,7 +1070,7 @@ class LearningView:
     def _update_buttons(self) -> None:
         item = self.state.current_artwork
         work_id = item.work_id if item else ""
-        props = f"data-work-id={work_id} data-generation={self.state.generation}"
+        props = f'data-work-id="{work_id}" data-generation={self.state.generation}'
         available = self.active and not self.services.closing and self._storage_ready and not self._storage_busy and not self.state.saving and not self._settings_busy
         self.picture.props(props)
         self.root.props(props + f" data-saving={'true' if self.state.saving else 'false'}")

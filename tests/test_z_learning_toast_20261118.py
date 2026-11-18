@@ -185,3 +185,23 @@ def test_reason_band_blocks_undo_band_until_replaced_or_hidden():
         assert toast.show_undo('', lambda e: None, '') is True
     finally:
         client.delete()
+
+
+async def test_last_candidate_undo_buttons_target_empty_current_card(tmp_path, monkeypatch):
+    from z_learning_support_20261118 import open_discovery_view, settled as discovery_settled
+    view, services, service, cleanup = await open_discovery_view(tmp_path, monkeypatch, count=1)
+    try:
+        view._on_loaded(SimpleNamespace(args=view._image_url))
+        work_id = view.state.current_artwork.work_id
+        assert view.judge('like', dict(work_id=work_id, generation=view.state.generation, operation_id='last'))
+        await discovery_settled(view)
+        if view._save_task:
+            await view._save_task
+        assert view.state.current_artwork is None and view.state.can_undo
+        assert view.undo_button.props.get('data-work-id') == ''
+        assert view.toast.undo_button.props.get('data-work-id') == ''
+        click(view.toast.undo_button, dict(work_id='', generation=view.state.generation, operation_id='undo-last'))
+        await discovery_settled(view)
+        assert view.state.current_artwork.work_id == work_id
+    finally:
+        await cleanup()
