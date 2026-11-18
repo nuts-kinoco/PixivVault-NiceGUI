@@ -168,8 +168,11 @@ class LearningView:
                                 'flat dense round aria-label=次の頁 data-testid=learning-summary-next')
                 self.summary_board.set_visibility(False)
                 self.summary_pager.set_visibility(False)
-            self.frame_label = ui.label().classes("pv-subtitle")
-            self.frame_label.set_visibility(self.discovery is not None)
+            # 探索枠から出た候補にだけ添える小さなピル（元 discovery_tab.py:2918-2926）。確実枠・枠なし・画像失敗では出さない。
+            self.frame_label = ui.label().props("data-testid=learning-frame-badge").style(
+                "background:var(--pv-surface);border:1px solid var(--pv-border);border-radius:999px;"
+                "padding:3px 8px;font-size:10px;color:var(--pv-muted);align-self:flex-start;width:fit-content;")
+            self.frame_label.set_visibility(False)
             self.progress = ui.label().classes("pv-counter")
             # 通知帯は画像の右下に重ねる（元 discovery_tab.py:241-244）。判定ボタンの位置は動かさない。
             with ui.element("div").classes("w-full relative").style("min-height:96px"):
@@ -1073,6 +1076,17 @@ class LearningView:
             self.managed_button.set_enabled(available and item is not None and not self._managed_busy and getattr(self.services, 'managed_downloads', None) is not None)
         self.review_button.set_enabled(available and self.storage is not None and not self._review_busy)
 
+    # 元 discovery_tab.py:2819-2828 の文言表。確実枠は添えない。
+    FRAME_NOTES = {"style": "新しい絵柄を試しています", "subject": "知らない題材を試しています"}
+
+    def _update_frame_badge(self) -> None:
+        item = self.state.current_artwork
+        note = None
+        if self.discovery is not None and item is not None and self.state.last_error != "image load failed":
+            note = self.FRAME_NOTES.get(self._discovery_frames.get(item.work_id))
+        self.frame_label.set_text(note or "")
+        self.frame_label.set_visibility(bool(note))
+
     def _empty_state_shown(self) -> bool:
         return (self.discovery is not None and self.state.current_artwork is None
                 and bool(self._refill.armed))
@@ -1081,8 +1095,7 @@ class LearningView:
         item = self.state.current_artwork
         self._summary_sync()
         if self.discovery is not None:
-            frame=self._discovery_frames.get(item.work_id) if item else None
-            self.frame_label.set_text({'sure':'確実枠','subject':'題材探索枠','style':'絵柄探索枠'}.get(frame,''))
+            self._update_frame_badge()
         self.empty_card.set_visibility(self._empty_state_shown())
         self.title.set_text(item.title if item else ("現在の候補がありません" if self._refill.armed else "初回候補を読み込んでいます") if self.discovery is not None else "判定が完了しました")
         self.progress.set_text(f"{self._baseline_count + self.state.index} / {len(self._artworks)} 件判定済み")
@@ -1164,6 +1177,7 @@ class LearningView:
             return
         if self._image_token is not None and source_matches(event.args, self._image_url):
             if self.state.finish_load(self._image_token):
+                self._update_frame_badge()
                 self._start_prefetch()
                 if not self.state.saving and not self._storage_busy:
                     self.status.set_text(self._resting_message())
@@ -1174,6 +1188,7 @@ class LearningView:
             return
         if self._image_token is not None and source_matches(event.args, self._image_url):
             self.state.finish_load(self._image_token, success=False)
+            self._update_frame_badge()
             if self.state.last_error:
                 self.status.set_text("画像を読み込めませんでした。再読込してください。")
                 self._update_buttons()
