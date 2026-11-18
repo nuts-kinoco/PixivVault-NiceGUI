@@ -6,6 +6,10 @@ from ..personal_ranking import (PersonalRankingSource,normalize_personal_filters
 from ..state import GalleryState
 from .ranking_view import RankingView,_ViewServices,_RankingGallery
 
+# 除外条件のキーと、文脈（読み込んだ集合）のキー。集合が無い条件は適用できない（元 ranking_tab.py:1436-1456）。
+EXCLUSION_CONTEXT=(('exclude_hated','hated_ids'),('exclude_downloaded','downloaded_ids'),('exclude_hidden_authors','hidden_author_ids'),('exclude_hidden_works','hidden_work_ids'))
+EXCLUSION_WARNING='　⚠️一部の除外条件を適用できませんでした'
+
 class PersonalRankingView(RankingView):
     def _schedule_first_load(self):pass  # original auto-fetch is only the public ranking tab
     def __init__(self,services,*,card_size='large',on_size_change=None):
@@ -151,6 +155,9 @@ class PersonalRankingView(RankingView):
         self.availability()
         if self.page is not None:self.render()
         return context
+    @staticmethod
+    def _missing_exclusions(filters,context):
+        return any(filters.get(key) and context_key not in context for key,context_key in EXCLUSION_CONTEXT)
     def availability(self,*,update_notice=True):
         try:status=self.vault.status() if self.vault else {}
         except Exception:status={}
@@ -175,7 +182,7 @@ class PersonalRankingView(RankingView):
             elif self.page is None:
                 self.notice.set_text('取得で検索します。まだ結果はありません。')
         context=self.context()
-        for key,context_key in (('exclude_hated','hated_ids'),('exclude_downloaded','downloaded_ids'),('exclude_hidden_authors','hidden_author_ids'),('exclude_hidden_works','hidden_work_ids')):
+        for key,context_key in EXCLUSION_CONTEXT:
             self.exclusions[key].set_enabled(context_key in context)
     def changed(self):
         self.epoch+=1;self._refresh_chips()
@@ -318,6 +325,8 @@ class PersonalRankingView(RankingView):
                 +' pixiv側は0件として扱います。ローカルライブラリは引き続き利用できます。')
         if self.page.source_warning:
             self.notice.set_text(unavailable_message(self.page.source_warning)+' '+self.notice.text)
+        # 元 ranking_tab.py:1640-1642: ON の除外条件の集合が読めていないときは、読めた分だけ適用して警告を添える。
+        if self._missing_exclusions(filters,context):self.notice.set_text(self.notice.text+EXCLUSION_WARNING)
         self.availability(update_notice=False)
     def set_active(self,active):
         super().set_active(active)
