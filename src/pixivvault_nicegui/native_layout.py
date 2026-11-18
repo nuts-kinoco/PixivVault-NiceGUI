@@ -14,6 +14,16 @@ class NativeLayoutError(RuntimeError):
     """Startup geometry could not be established safely."""
 
 
+def bind_restore_size(native):
+    """Match the original's restore/unmaximize size on the owned window."""
+    def restore_size(*_):
+        window = native.main_window
+        if window is not None:
+            window.resize(1280, 720)
+
+    native.on('restored', restore_size)
+
+
 @dataclass(frozen=True, slots=True)
 class StartupLayout:
     width: int
