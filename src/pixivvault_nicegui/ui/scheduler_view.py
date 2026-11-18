@@ -260,6 +260,10 @@ class SchedulerView:
                     self.action_notice.set_text(
                         '☆の一覧を読めるようになりました。「編集を破棄して再読込」してから保存してください')
                     return
+                if form[0].strip():
+                    self.action_notice.set_text(
+                        '☆の一覧を読めないため入力したIDは保存できません。復旧後に再読込してください')
+                    return
                 raw = None   # still unknown: save only the interval / startup, never the stars
             def update():
                 return ledger.configure_all(
