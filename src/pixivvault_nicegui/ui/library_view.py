@@ -59,6 +59,7 @@ class LibraryView(ViewerController):
             known_artworks=(work.artwork for work in services.library_snapshot().works),
         )
         self.bookmark_state.fetch_failed = services.bookmark_cache_failed
+        self.bookmark_state.loaded_at = services.bookmark_cache_fetched_at
         self.bookmarks = None
         self.state = LibraryState(LibrarySnapshot(()))
         self.author_cards = {}
@@ -623,7 +624,23 @@ class LibraryView(ViewerController):
         if subview == 'downloaded':self._legacy_auto_attempted=set()
         self._sync_panels()
         self._schedule_legacy_capacity_restore()
-        if subview == "bookmarks" and not self.bookmark_state.has_remote_cache:
+        if subview == "bookmarks":
+            self._maybe_auto_refresh_bookmarks()
+
+    @staticmethod
+    def _bookmark_refresh_due(value, now=None):
+        from datetime import datetime
+        now = now or datetime.now()
+        try:
+            age = (now - datetime.fromisoformat(value)).total_seconds()
+        except (TypeError, ValueError):
+            return True
+        return age >= 120
+
+    def _maybe_auto_refresh_bookmarks(self):
+        if (self.services.bookmark_auto_refresh_enabled()
+                and (not self.bookmark_state.has_remote_cache
+                     or self._bookmark_refresh_due(self.bookmark_state.loaded_at))):
             self.refresh_bookmarks()
 
     def refresh_bookmarks(self) -> None:
@@ -657,6 +674,7 @@ class LibraryView(ViewerController):
         else:
             accepted = self.bookmark_state.complete_fetch(epoch, remote, ok=True)
             if accepted:
+                self.bookmark_state.loaded_at = self.services.bookmark_cache_fetched_at
                 self.bookmark_state.replace_local(local)
                 self.close_viewer(restore_focus=False)
                 self._bookmark_open_epoch += 1
@@ -1163,6 +1181,8 @@ class LibraryView(ViewerController):
         if self.bookmarks is not None:
             self.bookmarks.set_active(self.active and self.subview == "bookmarks")
         if active:
+            if self.subview == 'bookmarks':
+                self._maybe_auto_refresh_bookmarks()
             self._restore_scroll(self.pages_scroll if self.state.selected_author else self.authors_scroll)
             self._schedule_legacy_capacity_restore()
 

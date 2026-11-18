@@ -423,6 +423,7 @@ class ApplicationServices:
         self._cached_remote_bookmarks = None if live_client is not None else self.artworks[:110]
         self._cached_local_bookmarks = () if live_client is not None else self.artworks[:40]
         self.bookmark_cache_failed = False
+        self.bookmark_cache_fetched_at = None
         self.library_readonly_db = library_readonly_db
         self.library_image_root = library_image_root
         self._library_refresh_lock = asyncio.Lock()
@@ -431,6 +432,7 @@ class ApplicationServices:
             from .local_media_adapter import ReadonlyLocalMediaCatalog
             try:
                 repository = ReadonlyLibraryRepository(library_readonly_db, immutable=True)
+                self.bookmark_cache_fetched_at = repository.bookmark_cache_fetched_at()
                 snapshot = repository.library_snapshot()
                 self._assert_legacy_library_source()
                 self._validate_library_ids(snapshot)
@@ -1123,6 +1125,8 @@ class ApplicationServices:
 
     def preference_consumers(self):
         enabled = set()
+        if self.preferences is not None:
+            enabled.add('bookmark_auto_refresh')
         if self.pixiv_actions_mode == 'preferences' and self.preferences is not None:
             enabled.add('pixiv_actions_enabled')
         if self.extension_setting_available():
@@ -2617,6 +2621,14 @@ class ApplicationServices:
             raise RuntimeError("application services are closed")
         return self._cached_remote_bookmarks
 
+    def bookmark_auto_refresh_enabled(self):
+        if self.preferences is None:
+            return True
+        try:
+            return self.preferences.get_setting('bookmark_auto_refresh', '1') == '1'
+        except Exception:
+            return False
+
     def bookmark_local_snapshot(self):
         """Downloaded badge fixtures are separate from remote bookmarks."""
         if self.closing:
@@ -2658,6 +2670,8 @@ class ApplicationServices:
                 from .bookmark_remote_adapter import fetch_all_bookmarks
 
                 def read_all():
+                    if self.managed_network_stop is not None:
+                        self.managed_network_stop.require_allowed()
                     identity = reader.verify_identity()
                     result = fetch_all_bookmarks(reader, identity)
                     if not result.ok:
@@ -2714,6 +2728,9 @@ class ApplicationServices:
                     with self._managed_target_lock:
                         self._remote_records = records or ()
                     self.bookmark_cache_failed = False
+                    if reader is not None:
+                        from datetime import datetime
+                        self.bookmark_cache_fetched_at = datetime.now().isoformat()
             except BaseException:
                 if catalog is not None and not adopted:
                     catalog.close()

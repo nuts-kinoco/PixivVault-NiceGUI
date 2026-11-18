@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime
 import inspect
 from uuid import uuid4
 
@@ -60,14 +61,15 @@ class BookmarkView:
                     self.counter = ui.label().classes("pv-counter").props("data-testid=bookmark-count")
                     self.selected_count = ui.label().classes("pv-counter").props(
                         "data-testid=bookmark-selection")
-                    self.download_button = ui.button("選択した作品をDL", color=None,
+                    self.download_button = ui.button("選択をダウンロード", color=None,
                         on_click=self.download_selected).props(
                         "flat dense data-testid=bookmark-download")
                     self.download_button.disable()
                     if self.on_enqueue is None:
                         self.download_button.tooltip("この起動では作品の保存先が未接続です")
-                    self.retry = ui.button("再読込", on_click=self.request_refresh).props(
+                    self.retry = ui.button("更新", on_click=self.request_refresh).props(
                         "flat dense data-testid=bookmark-refresh")
+                    self.freshness = ui.label().classes("pv-counter").props("data-testid=bookmark-freshness")
                 self.search_input = ui.input("ブックマーク内を検索", value=self.state.query,
                     on_change=lambda event: self.search(event.value or "")).props(
                     "outlined dense clearable debounce=200 data-testid=bookmark-search")
@@ -176,7 +178,15 @@ class BookmarkView:
         self.message.set_text(messages.get(status, ""))
         self.message.set_visibility(status != "ready")
         self.retry.set_visibility(status != "loading")
-        self.counter.set_text(f"表示 {len(visible)} 件 / 条件一致 {len(self.state.matched_items)} 件 / 読込済み {len(self.state.items)} 件" if self.state.has_remote_cache else "ブックマークは未読込です")
+        matched, total = len(self.state.matched_items), len(self.state.items)
+        count = (f"{matched} 件中 {len(visible)} 件を表示 / 全 {total} 件"
+                 if self.state.has_more else f"{matched} 件 / 全 {total} 件")
+        self.counter.set_text(count if self.state.has_remote_cache else "ブックマークは未読込です")
+        try:
+            freshness = datetime.fromisoformat(self.state.loaded_at).strftime('%Y-%m-%d %H:%M')
+        except (TypeError, ValueError):
+            freshness = None
+        self.freshness.set_text(f"最終更新: {freshness}" if freshness else "")
         self.selected_count.set_text(f"選択中: {len(self.state.selected_ids)}件")
         self.download_button.set_enabled(bool(self.state.active and not self.state.closed
             and self.state.selected_ids and self.on_enqueue is not None and not self._download_busy))

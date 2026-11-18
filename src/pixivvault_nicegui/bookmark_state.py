@@ -49,6 +49,7 @@ class BookmarkState:
         self.query = ""
         self.filters = LibraryFilters()
         self.fetch_failed = False
+        self.loaded_at: str | None = None
         self.loading = False
         self.active = True
         self.closed = False

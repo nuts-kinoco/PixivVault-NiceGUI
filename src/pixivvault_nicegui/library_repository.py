@@ -76,6 +76,18 @@ class ReadonlyLibraryRepository:
         if self._closed:
             raise RuntimeError("repository closed")
 
+    def bookmark_cache_fetched_at(self):
+        """Read the timestamp belonging to the legacy cache, without writing it."""
+        with self._lock:
+            self._ensure_open()
+            try:
+                row = self._conn.execute(
+                    "SELECT value FROM settings WHERE key=?", ('bookmark_cache_fetched_at',)
+                ).fetchone()
+            except sqlite3.OperationalError:
+                return None
+            return row[0] if row and isinstance(row[0], str) else None
+
     @staticmethod
     def _tags(raw: object) -> tuple[str, ...]:
         try:
