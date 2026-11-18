@@ -99,7 +99,7 @@ class LearningRepository:
                     )
                 self.db._apply_judgment(
                     judgment.choice, reason, tags, author_id, source,
-                    False, False, sign=+1,
+                    False, judgment.bookmarked, sign=+1,
                     display_tags=display_tags, display_name=metadata.get("author_name"),
                 )
                 self.db.conn.execute("""
@@ -113,7 +113,7 @@ class LearningRepository:
                         opened=excluded.opened, bookmarked=excluded.bookmarked,
                         thumbnail_url=COALESCE(excluded.thumbnail_url, discovery_swipe_history.thumbnail_url)
                 """, (work_id, judgment.choice, datetime.now().isoformat(), source,
-                      reason, json.dumps(tags, ensure_ascii=False), author_id, 0, 0, metadata.get("thumbnail_url")))
+                      reason, json.dumps(tags, ensure_ascii=False), author_id, 0, int(judgment.bookmarked), metadata.get("thumbnail_url")))
                 targets = {author_id}
                 if prev and prev["author_id"]:
                     targets.add(prev["author_id"])

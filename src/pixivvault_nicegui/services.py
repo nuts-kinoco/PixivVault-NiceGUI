@@ -732,6 +732,9 @@ class ApplicationServices:
                         log_root = self.managed_downloads.root
                     self.pixiv_actions = PixivActions(self.live_client, following_store=self.following_sync,
                                                      response_log_root=log_root)
+                    from .managed_network_stop_write import write_admission
+                    self.pixiv_actions._writer._post_admission = lambda: write_admission(
+                        self.live_client, managed_network_stop_scope, shared_network_stop_scope)
             if discovery_root is not None:
                 from .discovery_learning import DiscoveryLearningService
                 self.discovery = DiscoveryLearningService(discovery_root, self.live_client,

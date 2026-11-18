@@ -113,6 +113,10 @@ class LearningView:
         self._review_detail_failed = set()
         self._review_detail_pending = set()
         self._review_detail_lock = asyncio.Lock()
+        self._bookmark_busy = False
+        self._bookmark_confirmed = set()
+        self._bookmark_new = set()
+        self._bookmark_uncertain = {}
         self._review_undone = {}
         self._review_outcomes = {}
         self._review_queue_ids = set()
@@ -219,6 +223,10 @@ class LearningView:
                 self.retry_button = ui.button("画像を再読込", on_click=self.request_image).props("flat")
                 self.save_retry_button = ui.button("保存を再試行", on_click=self.retry_save).props("flat")
                 self.reload_button = ui.button("保存状態を再読込", on_click=self.reload_storage).props("flat")
+                self.bookmark_button = ui.button('pixiv', icon='favorite_border').props(
+                    'flat dense no-caps data-testid=learning-bookmark')
+                self.bookmark_button.on('click', self._on_learning_bookmark, js_handler=self._click_js())
+                self.bookmark_tip = self.bookmark_button.tooltip('絵が表示されてから押せます')
             ui.label("矢印キー / WASD / 1〜4 で判定。画面を選択して操作してください。").classes("pv-subtitle")
             if self.discovery is not None:
                 # 元 discovery_tab.py:3295-3302 の「探索の設定 ▸」引き出し。畳んだ行だけが流れに入り、開いた板は重ね置き。
@@ -732,7 +740,9 @@ class LearningView:
         options = dict(expected_work_id=payload.get("work_id"),
                        expected_generation=generation, operation_id=payload.get("operation_id"))
         if self.storage is not None:
-            command = self.state.prepare_judgment(choice, **options)
+            actions = getattr(self.services, 'pixiv_actions', None)
+            account = getattr(actions, 'cached_verified_account_id', None) if actions is not None else None
+            command = self.state.prepare_judgment(choice, bookmarked=(account, payload.get('work_id')) in self._bookmark_new, **options)
             if command is None:
                 return False
             self.close_summary()
@@ -939,6 +949,7 @@ class LearningView:
             command = self.state.prepare_judgment(
                 failed.judgment.choice, expected_work_id=failed.judgment.work_id,
                 expected_generation=self.state.generation, operation_id=failed.operation_id,
+                bookmarked=failed.judgment.bookmarked,
             )
         if command is not None:
             self._start_save(command)
@@ -1100,6 +1111,15 @@ class LearningView:
             button.props(props)
             button.set_enabled(available and self.state.ready)
         self.undo_button.props(props)
+        self.bookmark_button.props(props)
+        actions = getattr(self.services, 'pixiv_actions', None)
+        account = getattr(actions, 'cached_verified_account_id', None) if actions is not None else None
+        marked = bool(item and account and (account, item.work_id) in self._bookmark_confirmed)
+        self.bookmark_button.props('icon=favorite' if marked else 'icon=favorite_border')
+        self.bookmark_button.set_enabled(bool(available and self.state.ready and item is not None
+                                               and actions is not None and not self._bookmark_busy))
+        self.bookmark_tip.set_text('pixivでブックマーク（pixiv側に書き込みます）' if self.state.ready
+                                   else '絵が表示されてから押せます')
         self.toast.set_undo_props(props)
         self.undo_button.set_enabled(available and self.state.can_undo)
         self.retry_button.set_enabled(available and item is not None)
@@ -1393,6 +1413,69 @@ class LearningView:
                         ui.label(f'{page+1} / {max(1,(len(rows)+PAGE_SIZE-1)//PAGE_SIZE)}')
                         following=ui.button('次へ',on_click=lambda _,positive=positive:self._review_page(positive,1)).props('flat')
                         following.set_enabled((page+1)*PAGE_SIZE<len(rows))
+
+    async def _on_learning_bookmark(self, event):
+        await self._bookmark_current(self._payload(event))
+
+    async def _bookmark_current(self, payload):
+        item = self.state.current_artwork
+        actions = getattr(self.services, 'pixiv_actions', None)
+        if (not self.active or self.state.closed or self.services.closing or self._storage_busy
+                or self.state.saving or self._review_open or self._review_mutating
+                or self._bookmark_busy or not self.state.ready or item is None
+                or actions is None or payload.get('work_id') != item.work_id
+                or type(payload.get('generation')) is not int or payload['generation'] != self.state.generation):
+            return False
+        generation = self.state.generation
+        def cancelled():
+            return (self.state.closed or self.services.closing or not self.active
+                    or self.state.generation != generation or self.state.current_artwork is not item)
+        self._bookmark_busy = True
+        self._update_buttons()
+        try:
+            account = actions.cached_verified_account_id
+            if account is None:
+                account = await actions.verify_account(cancelled=cancelled)
+            if cancelled():
+                return False
+            key = (account, item.work_id)
+            if key in self._bookmark_confirmed:
+                return True
+            prior = self._bookmark_uncertain.get(key)
+            if prior is not None:
+                reconcile = getattr(actions, 'reconcile', None)
+                if not callable(reconcile):
+                    return False
+                outcome = await reconcile(prior, author_name=item.author, cancelled=cancelled)
+            else:
+                from ..pixiv_write_client import WriteIntent
+                intent = WriteIntent(uuid4().hex, account, item.work_id, 'bookmark_add',
+                                     'illust', item.author_id, 0)
+                outcome = await actions.execute(intent, author_name=item.author, cancelled=cancelled)
+                if outcome.status == 'indeterminate':
+                    self._bookmark_uncertain[key] = intent
+                    if not cancelled():
+                        self.status.set_text('ブックマークの結果を確認できません。もう一度押すと状態を確認します。')
+                    return False
+            if outcome.status in ('confirmed', 'already', 'observed') and outcome.remote_state is True:
+                self._bookmark_confirmed.add(key)
+                if outcome.status == 'confirmed':
+                    self._bookmark_new.add(key)
+                self._bookmark_uncertain.pop(key, None)
+                return True
+            if prior is not None and outcome.status == 'observed' and outcome.remote_state is False:
+                self._bookmark_uncertain.pop(key, None)
+            if not cancelled():
+                self.status.set_text('ブックマークできませんでした。状態を確認してください。')
+            return False
+        except Exception:
+            if not cancelled():
+                self.status.set_text('ブックマークできませんでした。状態を確認してください。')
+            return False
+        finally:
+            self._bookmark_busy = False
+            if not self.state.closed:
+                self._update_buttons()
 
     def _review_schedule_detail(self, wid):
         if (wid not in self._review_detail_pending and wid not in self._review_detail_failed
