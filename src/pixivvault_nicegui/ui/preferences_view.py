@@ -343,6 +343,11 @@ class PreferencesView:
             self.close_dialog()
 
     def close_dialog(self):
+        if (not self.closed and self.opened and self.snapshot is not None
+                and any(self.controls[key].value != self.snapshot.values[key]
+                        for key in self.enabled_keys)):
+            if not self.save():
+                return
         self.opened=False
         self._epoch+=1
         if self.native_profile is not None:
