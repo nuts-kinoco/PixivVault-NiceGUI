@@ -404,9 +404,11 @@ class RecommendView:
                             for index,trend in enumerate(trends[:40]):
                                 tag=trend['tag'];display=trend.get('display') or tag
                                 size,border=_TREND_TIERS[min(index,3)]
-                                b=ui.button(('追加済み: ' if tag in added else '')+display,
-                                    on_click=lambda e,t=tag,d=display:self.toggle_trend(t,d)).props(f'outline data-testid=recommend-trend-pill-{index}')
-                                b.style(f'font-size: {size}px; border-width: {1.5 if tag in added else border}px; border-radius: 999px')
+                                selected=tag in added
+                                b=ui.button(display,on_click=lambda e,t=tag,d=display:self.toggle_trend(t,d)).props(f'unelevated data-testid=recommend-trend-pill-{index}')
+                                if selected:b.props('icon-right=close')
+                                b.style(f'font-size: {size}px; border: {1.5 if selected else border}px solid var(--pv-pixiv-blue)' if selected else f'font-size: {size}px; border: {border}px solid var(--pv-border-vault)')
+                                b.style('border-radius: 999px; background: var(--pv-pixiv-blue-glow)' if selected else 'border-radius: 999px; background: var(--pv-bg-card)')
                                 b.set_enabled(data['writable'] if tag in added else data.get('can_acquire',False))
                         if not data.get('trends'):ui.label('表示できる傾向がまだありません。学習済みの判定から計算します。')
                         continue
