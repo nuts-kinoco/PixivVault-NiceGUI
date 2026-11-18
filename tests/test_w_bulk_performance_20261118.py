@@ -63,3 +63,26 @@ async def test_resuming_reconciles_chips_outside_new_run(tmp_path, monkeypatch):
         assert view._chips['1002']['status'].text == '待機'
     finally:
         finish(services, client)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('count', [5000, 20000])
+async def test_large_run_start_and_active_tick(tmp_path, count):
+    services, client, view = make(tmp_path, author_rows(count), hold=True)
+    try:
+        await view.reload()
+        view.select_all_shown()
+        started = time.perf_counter()
+        assert view.run()
+        elapsed = time.perf_counter() - started
+        view._events.put({'event': 'author_start', 'author_id': '1001'})
+        view._events.put({'event': 'work_progress', 'author_id': '1001', 'done': 0, 'queued': 2})
+        started = time.perf_counter()
+        view.tick()
+        tick = time.perf_counter() - started
+        assert view.progress.current == '1001'
+        print(f'count={count} run={elapsed:.3f}s tick={tick:.3f}s')
+        assert elapsed < 1.0
+        assert tick < 1.0
+    finally:
+        finish(services, client)
