@@ -194,8 +194,10 @@ class RecommendationAcquisition:
                 shown=0
                 cached={w.work_id:w for row in env['cache'].get('superlike',()) for w in decode(row).works}
                 for old in previous[0].works:
-                    if old.work_id in state['hidden_works']:continue
                     prior=cached.get(old.work_id,old)
+                    if old.work_id in state['hidden_works'] or prior.author_id in state['hidden_authors']:
+                        values.append(prior)
+                        continue
                     if shown>=self.visible_limit*3:
                         values.append(replace(prior,unavailable=True))
                         continue
@@ -213,6 +215,7 @@ class RecommendationAcquisition:
                     if fresh.author_id not in state['hidden_authors']:
                         values.append(fresh)
                         if not fresh.unavailable:shown+=1
+                    else:values.append(prior)
                 env['cache']['superlike']=[encode(RecommendationGroup('superlike',previous[0].title,tuple(values)))]
             return self.store(env,revision)
 

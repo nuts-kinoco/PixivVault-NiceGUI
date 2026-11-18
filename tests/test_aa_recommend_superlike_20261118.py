@@ -89,3 +89,18 @@ def test_thumbnailless_response_does_not_destroy_known_cache(tmp_path):
         assert len(state['sections']['superlike'][0].works) == 2
     finally:
         c.close()
+
+
+def test_hidden_work_keeps_cache_for_later_missing_response(tmp_path):
+    fetch = Fetch()
+    c = RecommendationController(Source(), RecommendationPreferences(tmp_path / 'prefs'), acquisition=fetch)
+    try:
+        state = c.refresh(); state = c.update(state['revision'])
+        state = c.hide('work', '11', True, state['revision'])
+        state = c.update(state['revision'])
+        state = c.hide('work', '11', False, state['revision'])
+        fetch.mode = 'missing'; state = c.update(state['revision'])
+        item = next(w for w in state['sections']['superlike'][0].works if w.work_id == '11')
+        assert item.deleted and item.title == 'cached'
+    finally:
+        c.close()
