@@ -285,7 +285,7 @@ class BatchRunEngine:
             self.ledger.discard_run(run.run_id)
         return run
 
-    def start_unfinished(self, run_id=None):
+    def start_unfinished(self, run_id=None, *, bookmark_refresh=None):
         """Resume = a new run over the authors the earlier run did not finish (done ones are skipped)."""
         run = self.ledger.resumable_run()
         if run is None or (run_id is not None and run.run_id != run_id):
@@ -294,7 +294,8 @@ class BatchRunEngine:
         # The stamps belong to the account that began the run, also after a restart (the engine of
         # a new process starts without one).
         self.account_id = run.account_id or self.account_id
-        return self.start(authors, kind=run.kind, origin=run.origin, target_type=run.target_type or None)
+        return self.start(authors, kind=run.kind, origin=run.origin, target_type=run.target_type or None,
+                          preflight=bookmark_refresh if run.kind == 'bookmarks' else None)
 
     def join(self, timeout=None):
         thread = self._thread
@@ -340,10 +341,10 @@ class BatchRunEngine:
                 pass
 
     # -- entry points ------------------------------------------------------
-    def start(self, author_ids, *, kind='authors', origin='manual', target_type=None):
+    def start(self, author_ids, *, kind='authors', origin='manual', target_type=None, preflight=None):
         """Begin a run on its own thread and return the run id."""
         run_id = self._begin(author_ids, kind, origin, target_type)
-        self._thread = Thread(target=self._execute, args=(run_id, tuple(self._authors)),
+        self._thread = Thread(target=self._execute, args=(run_id, tuple(self._authors), preflight),
                               name='pixivvault-batch', daemon=True)
         self._thread.start()
         return run_id
@@ -382,11 +383,14 @@ class BatchRunEngine:
             return self.run_id
 
     # -- the run -----------------------------------------------------------
-    def _execute(self, run_id, authors):
+    def _execute(self, run_id, authors, preflight=None):
         total = len(authors)
         outcome, code = 'done', ''
         self._emit('run_start', total=total)
         try:
+            if preflight is not None:
+                self._gate()
+                preflight()
             for index, author_id in enumerate(authors, 1):
                 self._current = None
                 if index > 1:

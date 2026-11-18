@@ -3020,7 +3020,18 @@ class ApplicationServices:
         engine = self.batch_runs
         if engine is None or self.closing:
             raise RuntimeError('author batch runs are not enabled')
-        return engine.start_unfinished(run_id)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        def refresh_bookmarks():
+            if loop is not None and loop.is_running():
+                asyncio.run_coroutine_threadsafe(self.refresh_bookmark_cache(), loop).result()
+            else:
+                asyncio.run(self.refresh_bookmark_cache())
+
+        return engine.start_unfinished(run_id, bookmark_refresh=refresh_bookmarks)
 
     def dispatch_author_check(self, ledger, slot, cancellation, *, wait=True):
         """One periodic / manual ☆ check: on the engine when provisioned, else the old queue handoff.
