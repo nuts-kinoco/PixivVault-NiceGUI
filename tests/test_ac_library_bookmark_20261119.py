@@ -176,3 +176,50 @@ async def test_silent_auto_refresh_revisit_and_shared_coalescing(monkeypatch):
         for client in clients:
             client.delete()
         services.close()
+
+
+@pytest.mark.asyncio
+async def test_auto_refresh_preserves_open_viewer_and_image_provider(tmp_path, monkeypatch):
+    monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
+    class DelayedSource(FakeSource):
+        def __init__(self):
+            super().__init__()
+            self.entered, self.release, self.wait = Event(), Event(), False
+        def verify_identity(self):
+            if self.wait:
+                self.entered.set()
+                assert self.release.wait(5)
+            return super().verify_identity()
+    async def wait_for(condition):
+        async def poll():
+            while not condition():
+                await asyncio.sleep(.01)
+        await asyncio.wait_for(poll(), 5)
+    source = DelayedSource()
+    services = ApplicationServices(live_client=source, preferences_root=tmp_path/'preferences')
+    client = Client(ui.page('/_ac_bookmark_open_refresh'))
+    view = None
+    try:
+        await services.refresh_bookmark_cache()
+        services.bookmark_cache_fetched_at = '2020-01-01T00:00:00'
+        source.wait = True
+        with client:
+            view = LibraryView(services)
+            view.show_subview('bookmarks')
+            await wait_for(source.entered.is_set)
+            view.open_bookmark('202')
+            assert view._viewer_state.viewer_open
+            provider = view._image_provider
+            viewer_state = view._viewer_state
+            source.release.set()
+            await wait_for(lambda: not view._bookmark_refreshing)
+            assert view._viewer_state is viewer_state and viewer_state.viewer_open
+            assert view._image_provider is provider
+            view.close_viewer()
+            assert view._image_provider is not provider
+    finally:
+        source.release.set()
+        if view is not None:
+            view.close()
+        client.delete()
+        services.close()

@@ -88,6 +88,7 @@ class LibraryView(ViewerController):
         self._legacy_auto_task = None
         self._managed_capacities = {}
         self._bookmark_refreshing = False
+        self._bookmark_projection_pending = False
         self._bookmark_open_epoch = 0
         self._resolved_bookmark_artwork = {}
         self._zip_export_busy = False
@@ -650,13 +651,23 @@ class LibraryView(ViewerController):
         if remote is not None and (self.bookmark_state.loaded_at != fetched_at
                                    or not self.bookmark_state.has_remote_cache):
             self.bookmark_state.adopt_cache(remote, self.services.bookmark_local_snapshot(), fetched_at)
-            previous = self._image_provider
-            self._image_provider = self.services.acquire_library_images()
-            previous.close()
-            self._resolved_bookmark_artwork.clear()
-            self.reload(preserve=True)
+            self._refresh_bookmark_projection()
             if self.bookmarks is not None:
                 self.bookmarks.refresh()
+
+    def _refresh_bookmark_projection(self):
+        if self._viewer_state.viewer_open:
+            self._bookmark_projection_pending = True
+            return
+        self._bookmark_open_epoch += 1
+        self._resolved_bookmark_artwork.clear()
+        self.reload(preserve=True)
+
+    def close_viewer(self, *, restore_focus=True):
+        super().close_viewer(restore_focus=restore_focus)
+        if self._bookmark_projection_pending and not self.closed and self.active:
+            self._bookmark_projection_pending = False
+            self._refresh_bookmark_projection()
 
     def refresh_bookmarks(self, *, automatic=False) -> None:
         """Keep demo refresh immediate; real DB/network work is off the UI loop."""
@@ -700,13 +711,13 @@ class LibraryView(ViewerController):
             if accepted:
                 self.bookmark_state.loaded_at = self.services.bookmark_cache_fetched_at
                 self.bookmark_state.replace_local(local)
-                self.close_viewer(restore_focus=False)
-                self._bookmark_open_epoch += 1
-                self._resolved_bookmark_artwork.clear()
-                previous = self._image_provider
-                self._image_provider = self.services.acquire_library_images()
-                previous.close()
-                self.reload(preserve=True)
+                if automatic:
+                    self._refresh_bookmark_projection()
+                else:
+                    self.close_viewer(restore_focus=False)
+                    self._bookmark_open_epoch += 1
+                    self._resolved_bookmark_artwork.clear()
+                    self.reload(preserve=True)
         finally:
             self._bookmark_refreshing = False
         if not accepted and not self.closed and self.active and self.subview == 'bookmarks':
