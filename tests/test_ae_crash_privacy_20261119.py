@@ -21,3 +21,23 @@ def test_delegated_hooks_never_receive_exception_value_or_traceback(tmp_path, mo
         assert all('synthetic-sensitive-body' not in str(item[1]) and item[2] is None for item in seen)
     finally:
         guard.close()
+
+
+def test_raising_previous_hooks_cannot_escape_and_reveal_original(tmp_path, monkeypatch):
+    from pixivvault_nicegui import crash_evidence
+    monkeypatch.setattr(crash_evidence.faulthandler, 'enable', lambda **_: None)
+    monkeypatch.setattr(crash_evidence.faulthandler, 'disable', lambda: None)
+    monkeypatch.setattr(crash_evidence.faulthandler, 'cancel_dump_traceback_later', lambda: None)
+    def broken(*args):
+        raise RuntimeError('hook failure')
+    monkeypatch.setattr(sys, 'excepthook', broken)
+    monkeypatch.setattr(threading, 'excepthook', broken)
+    guard = crash_evidence.install(tmp_path / 'crash_log.txt')
+    try:
+        try:
+            raise ValueError('synthetic-sensitive-body')
+        except ValueError as error:
+            sys.excepthook(type(error), error, error.__traceback__)
+            threading.excepthook(threading.ExceptHookArgs((type(error), error, error.__traceback__, None)))
+    finally:
+        guard.close()

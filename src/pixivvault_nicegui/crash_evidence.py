@@ -32,15 +32,21 @@ class _Capture:
         try:
             self._write('main')
         finally:
-            safe_type = exc_type if exc_type in (ValueError, TypeError, RuntimeError, OSError) else RuntimeError
-            self.previous_sys(safe_type, safe_type('詳細は非表示'), None)
+            safe_type = next((t for t in (ValueError, TypeError, RuntimeError, OSError) if exc_type is t), RuntimeError)
+            try:
+                self.previous_sys(safe_type, safe_type('詳細は非表示'), None)
+            except BaseException:
+                pass
 
     def thread_hook(self, args):
         try:
             self._write('thread')
         finally:
-            safe_type = args.exc_type if args.exc_type in (ValueError, TypeError, RuntimeError, OSError) else RuntimeError
-            self.previous_thread(threading.ExceptHookArgs((safe_type, safe_type('詳細は非表示'), None, None)))
+            safe_type = next((t for t in (ValueError, TypeError, RuntimeError, OSError) if args.exc_type is t), RuntimeError)
+            try:
+                self.previous_thread(threading.ExceptHookArgs((safe_type, safe_type('詳細は非表示'), None, None)))
+            except BaseException:
+                pass
 
     def close(self):
         global _active
