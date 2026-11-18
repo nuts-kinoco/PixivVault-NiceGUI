@@ -238,7 +238,8 @@ class ExtensionApplication:
             if log is not None:
                 log.append(f'[拡張機能連携] ダウンロード{label}: {command.kind} (id={command.target_id})', level=level)
             if shared is not None:
-                shared.append(f'--- [拡張機能連携] ダウンロードが{label}しました: {command.kind} (id={command.target_id}) ---', level=level)
+                action = {'done': 'が完了', 'error': 'に失敗', 'stopped': 'を停止'}[job.state]
+                shared.append(f'--- [拡張機能連携] ダウンロード{action}しました: {command.kind} (id={command.target_id}) ---', level=level)
 
     def _run_command(self, job, context):
         from .extension_bridge import parse_download

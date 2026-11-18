@@ -245,8 +245,10 @@ body.body--light .pv-grid .pv-card-heart { color:var(--pv-fill); }
 .pv-queue-log-line { font-size:13px; color:var(--pv-text); white-space:pre-wrap; user-select:text; }
 .pv-queue-log-success { color:#00ff66; }
 .pv-queue-log-error { color:#ff7777; }
+.pv-queue-log-info { color:#9ec7f9; }
 body.body--light .pv-queue-log-success { color:#006b31; }
 body.body--light .pv-queue-log-error { color:#ad2020; }
+body.body--light .pv-queue-log-info { color:#23578a; }
 .pv-download-body { flex:0 0 auto; min-height:180px; flex-wrap:nowrap; overflow:visible; align-items:stretch; gap:16px; }
 .pv-download-candidates { flex:2 1 0; min-width:0; gap:0; }
 .pv-download-targets { flex:1 1 0; min-width:220px; max-width:380px; min-height:0; max-height:260px; overflow-y:auto; padding:16px; border:1px solid var(--pv-border); border-radius:12px; background:var(--pv-surface); }

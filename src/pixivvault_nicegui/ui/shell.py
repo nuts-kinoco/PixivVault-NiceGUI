@@ -163,6 +163,7 @@ class DemoShell:
                         self.theme_tooltip = ui.tooltip('ライトモードへ切り替え')
                     self.pixiv_home = ui.link('', 'https://www.pixiv.net/', new_tab=True).classes('pv-hbtn').props(
                         'data-testid=pixiv-home-link aria-label=ブラウザでPixivを開く')
+                    self.pixiv_home.on('click', self._log_pixiv_open)
                     with self.pixiv_home:
                         ui.icon('public')
                         ui.tooltip('ブラウザで Pixiv を開く (ログイン状態確認・自動連携)')
@@ -210,6 +211,11 @@ class DemoShell:
         else:
             self.gallery.set_viewer_active(True)
             self._update_tabs()
+
+    def _log_pixiv_open(self, *_):
+        if not self.closed:
+            self.services.shared_log.append(
+                'ブラウザで Pixiv を開きました。PV拡張機能をお使いの場合、ページを開くと自動で Cookie が連携・更新されます。', level='info')
 
     def _build_cookie_banner(self):
         # Original gui.py cookie_banner: 青枠の情報帯。ヘッダーとタブバーの間。

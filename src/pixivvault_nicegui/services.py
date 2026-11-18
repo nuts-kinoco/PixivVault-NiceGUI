@@ -3056,10 +3056,21 @@ class ApplicationServices:
                 def dispatch(slot, cancellation):
                     # Queue acceptance is not a verified saved receipt.
                     with self._scheduler_dispatch_lock:
-                        submit_author_batch(self, ledger.favourites(), cancellation=cancellation,
-                                            ledger=ledger, slot=slot)
+                        try:
+                            authors = ledger.favourites()
+                            if authors and not cancellation.is_set() and not self.closing:
+                                self.shared_log.append(f'☆ お気に入り自動チェックを開始します ({len(authors)}人の作者)')
+                            submit_author_batch(self, authors, cancellation=cancellation,
+                                                ledger=ledger, slot=slot)
+                        except Exception:
+                            if not cancellation.is_set() and not self.closing:
+                                self.shared_log.append('☆ お気に入り自動チェック中にエラーが発生しました。', level='error')
+                            raise
                         if not cancellation.is_set() and not self.closing:
-                            self.shared_log.append('定期チェックの受付処理を終了しました。保存完了は各ジョブで確認してください。')
+                            if authors:
+                                self.shared_log.append('定期チェックの受付処理を終了しました。保存完了は各ジョブで確認してください。')
+                            else:
+                                self.shared_log.append('☆ お気に入り自動チェック: 対象の作者（☆お気に入り）が登録されていません。')
 
                 runner = ManagedScheduleRunner(ledger, dispatch,
                                                reconcile=self.reconcile_managed_scheduler)
@@ -3466,6 +3477,8 @@ class ApplicationServices:
             receipt_fingerprints.update(extra_receipts)
         newly_saved = self.managed_scheduler.reconcile_jobs(
             jobs, receipt_fingerprints, operation_to_job, operation_to_fingerprint)
+        if newly_saved:
+            self.shared_log.append(f'☆ お気に入り自動チェック: {len(newly_saved)}件の作品の保存を確認しました。', level='success')
         notifier=getattr(self,'notifications',None)
         if newly_saved and notifier is not None:
             # Reconciliation changes accepted -> saved once in the durable ledger.

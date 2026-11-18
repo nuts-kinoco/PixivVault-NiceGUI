@@ -74,7 +74,7 @@ def test_scheduler_logs_only_accepted_dispatch_without_extra_network(monkeypatch
     seen=[]
     class Ledger:
         def __init__(self,root):pass
-        def favourites(self):return ()
+        def favourites(self):return ('1',)
         def close(self):pass
     class Runner:
         def __init__(self,ledger,dispatch,*,reconcile):self.dispatch=dispatch
@@ -88,10 +88,10 @@ def test_scheduler_logs_only_accepted_dispatch_without_extra_network(monkeypatch
         reconcile_managed_scheduler=lambda:None)
     ApplicationServices.enable_managed_scheduler(services)
     cancel=Event();services.managed_schedule_runner.dispatch('slot',cancel)
-    assert seen == ['dispatch'] and len(services.shared_log.snapshot())==1
-    assert '保存完了は各ジョブで確認' in services.shared_log.snapshot()[0].message
+    assert seen == ['dispatch'] and len(services.shared_log.snapshot())==2
+    assert '保存完了は各ジョブで確認' in services.shared_log.snapshot()[1].message
     cancel.set();services.managed_schedule_runner.dispatch('slot',cancel)
-    assert len(services.shared_log.snapshot())==1
+    assert len(services.shared_log.snapshot())==2
 
 
 def test_real_committed_extension_job_emits_common_log_once(tmp_path):
