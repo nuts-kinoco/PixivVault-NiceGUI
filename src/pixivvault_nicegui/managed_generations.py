@@ -894,16 +894,23 @@ class ManagedGenerations:
             loaded = self._loaded
             if loaded is not None:
                 if loaded.version == 5 and _identity(self.index_path) == loaded.base_sig:
-                    try:
-                        self._verify_cached_v5(loaded)
-                        if _identity(self.output_dir) != loaded.out_sig:
-                            self._refresh_legacy(loaded)
-                        return loaded
-                    except Exception:
-                        self._loaded = None
-                        loaded = None
-                if loaded is None:
-                    return self._refresh()
+                    for attempt in range(8):
+                        try:
+                            self._verify_cached_v5(loaded)
+                        except Exception:
+                            if _identity(self.index_path) != loaded.base_sig:
+                                # A legitimate fold moved the base to a new journal.
+                                self._loaded = None
+                                return self._refresh()
+                            if attempt == 7:
+                                # Do not discard our witness and accept a valid-looking
+                                # older journal/mark pair against the same base.
+                                raise ManagedDownloadError('active generation index rejected') from None
+                            time.sleep(0.01 * (attempt + 1))
+                        else:
+                            if _identity(self.output_dir) != loaded.out_sig:
+                                self._refresh_legacy(loaded)
+                            return loaded
                 state = self._freshness(loaded)
                 if state == 'fresh':
                     return loaded

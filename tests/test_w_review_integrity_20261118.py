@@ -53,3 +53,21 @@ def test_live_reader_rejects_corrupted_prefix_after_append(tmp_path):
         stream.write(b'!')
     with pytest.raises(ManagedDownloadError):
         cached.entries()
+
+def test_live_reader_rejects_a_previously_seen_journal_rollback(tmp_path):
+    root = make_root(tmp_path)
+    writer = mg.ManagedGenerations(root)
+    writer.prepare_for_publication()
+    publish(writer, root, '1000')
+    journal, mark = journal_of(root), mark_of(root)
+    early_journal, early_mark = journal.read_bytes(), mark.read_bytes()
+    publish(writer, root, '1001')
+    assert set(writer.entries()) == {'1000', '1001'}
+    journal.write_bytes(early_journal)
+    mark.write_bytes(early_mark)
+    with pytest.raises(ManagedDownloadError):
+        writer.entries()
+    with pytest.raises(ManagedDownloadError):
+        publish(writer, root, '1002')
+
+
