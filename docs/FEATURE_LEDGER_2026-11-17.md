@@ -452,3 +452,5 @@ wt-j（A08〜A10）・wt-h（A02・A03・B11・C24・N01〜N03・F05・E07・H02
 | ranking_personal_candidates_open | FL-Y02 | 自分のランキングの「よく効くタグ」副行の開閉（`filter_panel.load_json_setting`/`save_json_setting` 経由。元 ranking_tab.py:130, 1844-1866, 2146-2166） |
 | recommend_section_order / _collapsed / recommend_certain_group_collapsed / recommend_trend_added_tags | FL-L02 | recommendation_state.py:160-166 |
 | grid_card_size_mode | FL-C25 | |
+
+P3-4a 候補（2026-11-18、wt-z）: FL-I05・FL-I06・FL-I12 の実装と隔離検証の根拠、残る受入は [検証記録](evidence/p3-4a-20261118/README.md) を参照。上の再ステータスは work dbece97 時点の履歴であり、この候補の実装状態ではない。実機受入前のため正式状態は変更しない。
