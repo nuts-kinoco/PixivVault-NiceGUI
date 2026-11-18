@@ -10,7 +10,7 @@ import time
 
 from nicegui import ui
 
-UNDO_SECONDS = 5.0     # acceptance: 5s; 元 discovery_tab.py:1540 _TOAST_SECONDS_UNDO
+UNDO_SECONDS = 4.0     # original discovery_tab.py:1540 _TOAST_SECONDS_UNDO (the original is correct)
 REASON_SECONDS = 6.0   # 元 discovery_tab.py:1539 _TOAST_SECONDS_REASON
 TICK_SECONDS = 0.25    # 元 discovery_tab.py:1537 _TOAST_TICK
 
