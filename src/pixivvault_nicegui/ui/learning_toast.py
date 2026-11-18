@@ -10,7 +10,7 @@ import time
 
 from nicegui import ui
 
-UNDO_SECONDS = 4.0     # 元 discovery_tab.py:1540 _TOAST_SECONDS_UNDO
+UNDO_SECONDS = 5.0     # acceptance: 5s; 元 discovery_tab.py:1540 _TOAST_SECONDS_UNDO
 REASON_SECONDS = 6.0   # 元 discovery_tab.py:1539 _TOAST_SECONDS_REASON
 TICK_SECONDS = 0.25    # 元 discovery_tab.py:1537 _TOAST_TICK
 
@@ -102,7 +102,7 @@ class LearningToast:
                 ui.icon('info_outline').style('font-size:15px;color:var(--pv-muted);')
                 ui.label(message).style('font-size:11.5px;color:var(--pv-text);')
                 ui.label(recovery).style('font-size:11.5px;color:var(--pv-muted);')
-            return self._show(build_light, timeout=UNDO_SECONDS, kind='light')
+            return self._show(build_light, timeout=4.0, kind='light')
 
         def build_heavy():
             with ui.element('div').style('display:flex;flex-direction:column;gap:6px;width:100%;'):

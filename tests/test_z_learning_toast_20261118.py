@@ -80,8 +80,8 @@ def undo_payload(view, button):
                 operation_id='undo-' + button.props['data-generation'])
 
 
-def test_toast_seconds_follow_original():
-    assert UNDO_SECONDS == 4.0 and REASON_SECONDS == 6.0
+def test_toast_seconds_follow_acceptance():
+    assert UNDO_SECONDS == 5.0 and REASON_SECONDS == 6.0
 
 
 async def test_band_hidden_before_any_judgment(learning_view):
@@ -98,7 +98,7 @@ async def test_like_shows_judged_band_with_undo_chip(learning_view):
     assert len(undo) == 1 and undo[0].text == '取り消す'
 
 
-async def test_band_disappears_after_four_seconds_not_before(learning_view):
+async def test_band_disappears_after_five_seconds_not_before(learning_view):
     view, _ = learning_view
     await judge(view, 'like', 'op-1')
     view.clock.now += UNDO_SECONDS - 0.5
