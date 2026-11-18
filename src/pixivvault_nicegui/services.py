@@ -3026,6 +3026,8 @@ class ApplicationServices:
             loop = None
 
         def refresh_bookmarks():
+            if self.live_client is None and self.library_repository is None:
+                raise RuntimeError('bookmark source unavailable')
             if loop is not None and loop.is_running():
                 asyncio.run_coroutine_threadsafe(self.refresh_bookmark_cache(), loop).result()
             else:
