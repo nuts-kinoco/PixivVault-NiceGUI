@@ -96,6 +96,7 @@ class LearningView:
         self._notice = ""
         self._save_task = None
         self._reason_tasks: set = set()
+        self._refill_notice_shown = False
         self._review_session_id = None
         self._review_epoch = 0
         self._review_busy = False
@@ -786,6 +787,7 @@ class LearningView:
                     except Exception:
                         self._notice='判定は保存済みです。候補の並び替えを更新できませんでした。'
                 self.refresh()
+                self.toast.clear_heavy("save")          # 再試行が通ったので「保存できません」を残さない
                 if command.undo:
                     self.toast.hide()
                 else:
@@ -856,6 +858,14 @@ class LearningView:
         else:
             self._failed_command = command
             self.status.set_text(self._resting_message())
+            # 保存できなかった判定・取り消しは、画面に出ないまま学習が止まる重い失敗。
+            # 数秒で消えない通知枠に出す（元 discovery_tab.py:1921-1926, 2030-2035）。
+            if command.undo:
+                self.toast.show_gave_up("取り消しを保存できませんでした（判定は残っています）",
+                                        "「保存を再試行」でやり直せます。", heavy=True, key="save")
+            else:
+                self.toast.show_gave_up("判定を保存できませんでした",
+                                        "画面は進めていません。「保存を再試行」でやり直せます。", heavy=True, key="save")
             self._update_buttons()
 
     def _resting_message(self) -> str:
@@ -1454,6 +1464,8 @@ class LearningView:
                 self._refill.arm(self._refill_clock())
                 self._refill.last_failed=True
                 self._notice='初回候補を取得できませんでした。'
+                self.toast.show_gave_up('初回の候補を取得できませんでした',
+                                        '「候補を取得」でもう一度探せます。', heavy=True, key='initial')
                 self.refresh()
         finally:
             if epoch==self._initial_epoch:
@@ -1511,6 +1523,20 @@ class LearningView:
         elif policy.empty_topups>=3:text='候補の補充をいったん止めています。候補が尽きると再取得します。'
         else:text=''
         self.refill_status.set_text(text)
+        self._sync_refill_notice()
+
+    def _sync_refill_notice(self):
+        """仕入れが止まったことを、消えない通知枠で一度だけ知らせる（元 discovery_tab.py:896-901, 1137-1151）。"""
+        policy=self._refill
+        stopped=policy.armed and policy.gave_up
+        if stopped and not self._refill_notice_shown:
+            self._refill_notice_shown=self.toast.show_gave_up(
+                '候補を取りにいけませんでした' if policy.failed_rounds else 'しばらく新しい候補が見つかりませんでした',
+                '通信を確かめてから、「候補を取得」で再開できます。' if policy.failed_rounds else '「候補を取得」で再開できます。',
+                heavy=True,key='refill')
+        elif not stopped and self._refill_notice_shown:
+            self._refill_notice_shown=False
+            self.toast.clear_heavy('refill')
 
     async def _run_candidate_refill(self,epoch):
         try:
