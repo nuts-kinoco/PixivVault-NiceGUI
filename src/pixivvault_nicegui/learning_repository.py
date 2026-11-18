@@ -127,6 +127,38 @@ class LearningRepository:
             self._used.add(judgment.operation_id)
             self._stack.append(judgment)
 
+    def set_hate_reason(self, judgment: Judgment, reason: str) -> bool:
+        """「合わない」の理由（元 discovery_tab.py:1717-1739）を後追いで付ける。
+
+        元は同じ作品を hate+reason で再記録する（旧判定を逆再生してから新判定を適用）。ここも同じ
+        `_apply_judgment` の -1/+1 で行う。判定が取り消し・上書きされていたら何も書かない（False）。
+        履歴の更新でも版が進むため、同じ判定の Undo が衝突しないよう版の記録を取り直す。
+        """
+        if reason not in VALID_HATE_REASONS:
+            raise ValueError(f"unknown hate reason: {reason}")
+        with self._lock:
+            work_id = str(judgment.work_id)
+            metadata = self.artwork_metadata.get(judgment.work_id, {})
+            with self.db._transaction():
+                expected = self._versions.get(judgment.operation_id)
+                row = self.db.conn.execute(
+                    "SELECT verdict, reason, tags, author_id, source, opened, bookmarked "
+                    "FROM discovery_swipe_history WHERE work_id=?", (work_id,)).fetchone()
+                if (row is None or row["verdict"] != "hate" or expected is None
+                        or self._revision(work_id) != expected):
+                    return False
+                tags = json.loads(row["tags"] or "[]")
+                self.db._apply_judgment(row["verdict"], row["reason"], tags, row["author_id"], row["source"],
+                                        bool(row["opened"]), bool(row["bookmarked"]), sign=-1)
+                self.db._apply_judgment("hate", reason, tags, row["author_id"], row["source"],
+                                        bool(row["opened"]), bool(row["bookmarked"]), sign=+1,
+                                        display_name=metadata.get("author_name"))
+                self.db.conn.execute(
+                    "UPDATE discovery_swipe_history SET reason=?, judged_at=? WHERE work_id=?",
+                    (reason, datetime.now().isoformat(), work_id))
+                self._versions[judgment.operation_id] = self._revision(work_id)
+            return True
+
     def revert(self, judgment: Judgment, operation_id: str) -> None:
         with self._lock:
             if not operation_id or operation_id in self._used:

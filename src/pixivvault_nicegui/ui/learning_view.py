@@ -95,6 +95,7 @@ class LearningView:
         self._failed_command: SaveCommand | None = None
         self._notice = ""
         self._save_task = None
+        self._reason_tasks: set = set()
         self._review_session_id = None
         self._review_epoch = 0
         self._review_busy = False
@@ -712,7 +713,7 @@ class LearningView:
         if success:
             self.close_summary()
             self.refresh()
-            self._show_judgment_toast(choice, payload.get("operation_id"))
+            self._show_judgment_toast(choice)
         elif self.state.last_error:
             self.status.set_text(self.state.last_error)
         return success
@@ -788,7 +789,7 @@ class LearningView:
                 if command.undo:
                     self.toast.hide()
                 else:
-                    self._show_judgment_toast(command.judgment.choice, command.operation_id)
+                    self._show_judgment_toast(command.judgment.choice, command)
                 if self.discovery is not None:
                     try:
                         trend=await self.discovery.trend_snapshot()
@@ -796,11 +797,49 @@ class LearningView:
                     except Exception:
                         if not self.state.closed:self.trend_label.set_text('判定は保存済みです。傾向を読み込めませんでした。')
 
-    def _show_judgment_toast(self, choice: str, operation_id) -> None:
+    def _show_judgment_toast(self, choice: str, command=None) -> None:
         """判定直後に「判定しました／取り消す」を出す（元 discovery_tab.py:1949-1952）。"""
         item = self.state.current_artwork
         props = f"data-work-id={item.work_id if item else ''} data-generation={self.state.generation}"
+        judgment = command.judgment if command is not None else None
+        if (choice == "hate" and judgment is not None and self.storage is not None
+                and self._session_id is not None and hasattr(self.storage, "submit_hate_reason")):
+            # 「合わない」だけ理由を後追いで聞く。生きている間は「判定しました」で上書きしない（元 1949-1952）。
+            session_id = self._session_id
+            if self.toast.show_reason(lambda reason, j=judgment, s=session_id: self._pick_reason(j, s, reason)):
+                return
         self.toast.show_undo(self._click_js(), self._on_undo, props)
+
+    def _pick_reason(self, judgment, session_id: str, reason: str) -> None:
+        self.toast.hide()
+        if (self.state.closed or self.services.closing or session_id != self._session_id
+                or self.storage is None):
+            return
+        task = background_tasks.create(self._save_reason(judgment, session_id, reason), name="learning hate reason")
+        self._reason_tasks.add(task)
+        task.add_done_callback(self._reason_tasks.discard)
+
+    async def _save_reason(self, judgment, session_id: str, reason: str) -> None:
+        """元 1717-1739。付けられなければ判定は保存済みのまま「タグだけ下げる」に倒れる。"""
+        try:
+            pending = self.storage.submit_hate_reason(session_id, judgment, reason)
+            wrapped = asyncio.wrap_future(pending)
+            wrapped.add_done_callback(lambda done: None if done.cancelled() else done.exception())
+            saved = await asyncio.shield(wrapped)
+        except Exception:
+            if not self.state.closed and not self.services.closing:
+                self.toast.show_gave_up(
+                    "「合わない」の理由を保存できませんでした",
+                    "判定は保存済みです。理由は付かず、タグだけ下げる扱いのままです。", heavy=False)
+            return
+        if not saved or self.discovery is None or self.state.closed:
+            return
+        try:
+            # 理由の後追いでもカウントは動く。傾向パネルの材料を作り直す（元 1729-1730）。
+            self._render_trend(await self.discovery.trend_snapshot())
+        except Exception:
+            if not self.state.closed:
+                self.trend_label.set_text('判定は保存済みです。傾向を読み込めませんでした。')
 
     def _save_failed(self, command: SaveCommand, exc: Exception) -> None:
         from ..learning_repository import LearningConflict

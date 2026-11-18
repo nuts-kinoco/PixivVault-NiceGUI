@@ -231,6 +231,16 @@ class LearningService:
         session.repository.record(judgment)
         session.receipts[judgment.operation_id] = signature
 
+    def submit_hate_reason(self, session_id: str, judgment: Judgment, reason: str) -> Future:
+        """「合わない」の理由の後追い。保存済みの同じ判定にだけ付き、Futureは付けたかどうかを返す。"""
+        return self._submit(self._hate_reason, session_id, judgment, reason)
+
+    def _hate_reason(self, session_id: str, judgment: Judgment, reason: str) -> bool:
+        session = self._session(session_id)
+        if not isinstance(judgment, Judgment) or judgment.work_id not in self._metadata:
+            raise ValueError("judgment must refer to a known work")
+        return session.repository.set_hate_reason(judgment, reason)
+
     def submit_revert(self, session_id: str, judgment: Judgment, operation_id: str) -> Future:
         return self._submit(self._revert, session_id, judgment, operation_id)
 
