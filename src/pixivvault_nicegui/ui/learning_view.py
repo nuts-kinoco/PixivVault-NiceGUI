@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from collections import OrderedDict
 from concurrent.futures import Future
@@ -105,6 +106,13 @@ class LearningView:
         self._review_mutating = False
         self._review_open = False
         self._review_rows = ()
+        self._review_details = {}
+        self._review_records = {}
+        self._review_image_pin = None
+        self._review_detail_titles = {}
+        self._review_detail_failed = set()
+        self._review_detail_pending = set()
+        self._review_detail_lock = asyncio.Lock()
         self._review_undone = {}
         self._review_outcomes = {}
         self._review_queue_ids = set()
@@ -1329,6 +1337,9 @@ class LearningView:
         with self.review_content:
             for positive,label in ((True,'好意'),(False,'否定')):
                 visible_rows = tuple(row for row in self._review_rows if row['work_id'] not in self._review_undone) + tuple(row for row, _ in self._review_undone.values())
+                visible_rows = tuple(dict(row, title=self._review_detail_titles[row['work_id']])
+                                     if row['work_id'] in self._review_detail_titles and row.get('title') in (None, '', row['work_id'])
+                                     else row for row in visible_rows)
                 rows = filters.rows(visible_rows,positive,now=datetime.now(),session_started=self._review_started)
                 page = min(self._review_pages[positive],max(0,(len(rows)-1)//PAGE_SIZE))
                 self._review_pages[positive] = page
@@ -1347,13 +1358,28 @@ class LearningView:
                                 button.set_enabled(not self._review_busy and not self._review_refresh_busy and not self._storage_busy and not self.state.saving)
                             continue
                         with ui.row().classes('w-full items-center'):
-                            if self.discovery is None or row['work_id'] in self._discovery_image_ids:
-                                ui.image(self._images.url(row['work_id'],0,'thumb')).style('width:60px;height:60px')
+                            wid = row['work_id']
+                            detail = self._review_details.get(wid)
+                            if self.discovery is None or wid in self._discovery_image_ids:
+                                ui.image(self._images.url(wid,0,'thumb')).style('width:60px;height:60px')
+                                if (self.discovery is not None and row.get('title') in (None, '', wid)
+                                        and wid not in self._review_detail_titles):
+                                    self._review_schedule_detail(wid)
+                            elif detail is not None:
+                                ui.image(detail[1].url(wid,0,'thumb')).style('width:60px;height:60px').on(
+                                    'error', lambda _,w=wid,p=detail[1]:self._review_detail_image_failed(w,p))
+                            elif wid in self._review_detail_failed:
+                                ui.button('取得失敗（タップで再取得）',
+                                          on_click=lambda _,w=wid:self._review_retry_detail(w)).props('flat no-caps')
                             else:
-                                ui.label('画像未取得').classes('pv-subtitle')
+                                ui.label('読み込み中…').classes('pv-subtitle')
+                                self._review_schedule_detail(wid)
                             with ui.column().classes('flex-1 min-w-0 gap-0'):
-                                ui.label(row.get('title') or row['work_id']).classes('break-words')
+                                ui.label(row.get('title') or wid).classes('break-words')
                                 ui.label(f"{row['verdict']} · {row.get('judged_at','')}").classes('pv-subtitle')
+                                if wid in self._review_detail_failed and (detail is not None or wid in self._discovery_image_ids):
+                                    ui.button('取得失敗（タップで再取得）',
+                                              on_click=lambda _,w=wid:self._review_retry_detail(w)).props('flat no-caps')
                             if self.discovery is not None and positive:
                                 saved = bool(row.get('work_meta')) and not row.get('is_deleted')
                                 save_button = ui.button('保存済み' if saved else '作品を保存',
@@ -1367,6 +1393,102 @@ class LearningView:
                         ui.label(f'{page+1} / {max(1,(len(rows)+PAGE_SIZE-1)//PAGE_SIZE)}')
                         following=ui.button('次へ',on_click=lambda _,positive=positive:self._review_page(positive,1)).props('flat')
                         following.set_enabled((page+1)*PAGE_SIZE<len(rows))
+
+    def _review_schedule_detail(self, wid):
+        if (wid not in self._review_detail_pending and wid not in self._review_detail_failed
+                and wid not in self._review_details):
+            self._review_detail_pending.add(wid)
+            background_tasks.create(self._review_fetch_detail(wid), name='review detail')
+
+    def _review_retry_detail(self, wid):
+        if wid in self._review_detail_pending:
+            return
+        self._review_detail_failed.discard(wid)
+        self._review_detail_pending.add(wid)
+        background_tasks.create(self._review_fetch_detail(wid), name='review detail retry')
+        self._render_review()
+
+    def _review_detail_image_failed(self, wid, pin):
+        detail = self._review_details.get(wid)
+        if detail is None or detail[1] is not pin:
+            return
+        self._review_details.pop(wid, None)
+        self._review_records.pop(wid, None)
+        self._review_detail_failed.add(wid)
+        self._render_review()
+
+    async def _review_fetch_detail(self, wid, *, retry=False):
+        if self.discovery is None or not self._review_valid(self._review_epoch):
+            self._review_detail_pending.discard(wid)
+            return
+        epoch = self._review_epoch
+        if retry:
+            self._review_detail_failed.discard(wid)
+            self._review_detail_pending.add(wid)
+        pin = None
+        try:
+            row = next(r for r in self._review_rows if r['work_id'] == wid)
+            meta = row.get('work_meta')
+            if isinstance(meta, str):
+                try: meta = json.loads(meta)
+                except (ValueError, TypeError): meta = None
+            if not isinstance(meta, dict): meta = {}
+            urls = meta.get('urls') if isinstance(meta.get('urls'), dict) else {}
+            known_thumb = urls.get('small') or urls.get('thumb') or meta.get('url') or row.get('thumbnail_url')
+            title = row.get('title') if row.get('title') not in (None, '', wid) else None
+            raw = {}
+            if not title or not known_thumb:
+                async with self._review_detail_lock:
+                    if not self._review_valid(epoch):
+                        return
+                    raw = await asyncio.to_thread(self.discovery.reader.get_discovery_work, wid)
+                if str(raw.get('id')) != wid:
+                    raise ValueError('wrong work identity')
+            title = title or raw.get('title')
+            if type(title) is str and title and len(title) <= 512 and self._review_valid(epoch):
+                self._review_detail_titles[wid] = title
+            if wid in self._discovery_image_ids:
+                if title:
+                    self._review_detail_failed.discard(wid)
+                else:
+                    self._review_detail_failed.add(wid)
+                return
+            tags = row.get('tags') or []
+            if isinstance(tags, str):
+                try: tags = json.loads(tags)
+                except (ValueError, TypeError): tags = []
+            candidate = dict(work_id=wid, title=title, author_id=raw.get('user_id') or row.get('author_id'),
+                             author_name=raw.get('user_name') or '', tags=raw.get('tags') or tags,
+                             thumbnail_url=known_thumb or raw.get('thumbnail_url'), source='history')
+            record = self.discovery._record_for(candidate)
+            records = dict(self._review_records)
+            records[wid] = record
+            pin = self.services.acquire_ranking_images(tuple(records.values()))
+            if not self._review_valid(epoch):
+                pin.close()
+                return
+            old_pin = self._review_image_pin
+            self._review_records = records
+            self._review_image_pin = pin
+            self._review_details = {key:(item.as_artwork(), pin) for key, item in records.items()}
+            if old_pin is not None:
+                old_pin.close()
+            if record.title:
+                self._review_detail_titles[wid] = record.title
+            pin = None
+            if title:
+                self._review_detail_failed.discard(wid)
+            else:
+                self._review_detail_failed.add(wid)
+        except Exception:
+            if pin is not None:
+                pin.close()
+            if self._review_valid(epoch):
+                self._review_detail_failed.add(wid)
+        finally:
+            self._review_detail_pending.discard(wid)
+            if self._review_valid(self._review_epoch):
+                self._render_review()
 
     async def _review_change(self,row,undo_operation=None):
         epoch=self._review_epoch
@@ -1830,6 +1952,11 @@ class LearningView:
         self._stop_prefetch(close=True)
         self._release_refill_pins(close=True)
         self._close_review()
+        if self._review_image_pin is not None:
+            self._review_image_pin.close()
+            self._review_image_pin = None
+        self._review_details.clear()
+        self._review_records.clear()
         if self.discovery is not None and not self._managed_busy:
             self.services.release_managed_owner(self._managed_owner)
         if self.discovery is not None:
