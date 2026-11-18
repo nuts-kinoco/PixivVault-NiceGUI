@@ -58,6 +58,8 @@ _MARK_FILE = 'active-generations-%s.mark'
 _V5_COMMITTED = 'active-generations.v5-committed'
 _V5_DONE = b'pixivvault generation v5 committed\n'
 _V5_HEAD = 'active-generations.head'
+_V5_SEQUENCE_GUARD = 'active-generations.sequence-required'
+_V5_SEQUENCE_DONE = b'pixivvault generation sequence required\n'
 _JOURNAL_NAME = re.compile(r'active-generations-([a-f0-9]{32})\.(journal|mark)\Z')
 _JOURNAL_RETAIN_SECONDS = 120.0       # how long a folded-away journal stays for readers of the old index
 _JOURNAL_RECORD_ESTIMATE = 600           # bytes one journal record takes, rounded up
@@ -366,6 +368,10 @@ class ManagedGenerations:
             if 'records' in head and (type(head['records']) is not int or head['records'] < 0
                                       or type(head['chain']) is not str or not _SHA.fullmatch(head['chain'])):
                 raise ValueError()
+            guard = self.root / _V5_SEQUENCE_GUARD
+            if _identity(guard) is not None:
+                if _read_shared(guard, 256) != _V5_SEQUENCE_DONE or 'records' not in head:
+                    raise ValueError()
             return head
         except (OSError, ValueError, TypeError, KeyError, UnicodeError):
             raise ManagedDownloadError('active generation index rejected') from None
@@ -1294,6 +1300,7 @@ class ManagedGenerations:
             loaded, (exclusions, operations, enabled) = self._checked()
             if loaded.version == 5 and loaded.generation is not None:
                 self._advance_head_sequence(loaded)
+                self._ensure_sequence_guard()
             before = loaded.active.get(wid)
             before = dict(before) if before is not None else None
             # Safe idempotent replay after index commit but before job DB commit.
@@ -1370,6 +1377,8 @@ class ManagedGenerations:
 
     def _append_journal(self, loaded, target):
         self._ensure_v5_committed()
+        self._advance_head_sequence(loaded)
+        self._ensure_sequence_guard()
         entry = dict(target)
         if loaded.mark_records != loaded.journal_records:
             self._sync_mark(loaded)
@@ -1728,6 +1737,18 @@ class ManagedGenerations:
         _write(temporary, _canonical(head))
         _fsync_dir(self.stage_dir)
         _replace_retrying(temporary, self.root / _V5_HEAD)
+        _fsync_dir(self.root)
+
+    def _ensure_sequence_guard(self):
+        guard = self.root / _V5_SEQUENCE_GUARD
+        if _identity(guard) is not None:
+            if _read_shared(guard, 256) != _V5_SEQUENCE_DONE:
+                raise ManagedDownloadError('active generation index rejected')
+            return
+        temporary = self.stage_dir / ('sequence-' + uuid4().hex + '.tmp')
+        _write(temporary, _V5_SEQUENCE_DONE)
+        _fsync_dir(self.stage_dir)
+        _replace_retrying(temporary, guard)
         _fsync_dir(self.root)
 
     def _advance_head_sequence(self, loaded):
