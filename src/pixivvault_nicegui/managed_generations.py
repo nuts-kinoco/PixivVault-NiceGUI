@@ -486,7 +486,17 @@ class ManagedGenerations:
     def _recover_if_pending(self):
         head = self._read_head()
         if head is not None and _identity(self.stage_dir / head['candidate']) is not None:
-            self._recover_head()
+            try:
+                if (_identity(self.index_path) is not None and
+                        hashlib.sha256(_read_shared(self.index_path, _MAX_INDEX_BYTES)).hexdigest()
+                        == head['digest']):
+                    return
+                self._recover_head()
+            except ManagedDownloadError as error:
+                if str(error) != 'managed root writer fence busy':
+                    raise
+                # The active writer may be finishing this same fold. The read
+                # path verifies the complete index/head/journal and retries.
 
     @staticmethod
     def _read_receipt(path, pieces, folders):

@@ -37,3 +37,28 @@ def test_cached_page_rejects_newer_mark(tmp_path):
         {'id': jid, 'generation': generation + 1, 'records': 0, 'chain': 'a' * 64}))
     with pytest.raises(ManagedDownloadError):
         writer.assert_page_visible('1000', 0)
+
+
+def test_reader_does_not_recover_when_candidate_already_committed(tmp_path):
+    import json
+    import threading
+    from pixivvault_nicegui.managed_root_writer import writer_fence
+    root = make_root(tmp_path)
+    writer = mg.ManagedGenerations(root)
+    writer.prepare_for_publication()
+    publish(writer, root, '1000')
+    head = json.loads((root / mg._V5_HEAD).read_bytes())
+    (writer.stage_dir / head['candidate']).write_bytes(writer.index_path.read_bytes())
+    entered, release = threading.Event(), threading.Event()
+    def hold():
+        with writer_fence(root):
+            entered.set()
+            assert release.wait(10)
+    thread = threading.Thread(target=hold)
+    thread.start()
+    try:
+        assert entered.wait(5)
+        assert '1000' in mg.ManagedGenerations(root).entries()
+    finally:
+        release.set()
+        thread.join(10)
