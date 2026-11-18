@@ -789,6 +789,8 @@ class LearningView:
             if self.services.closing:
                 self.close()
             elif self.state.complete_save(command):
+                saved_state = self.state
+                saved_generation = self.state.generation
                 self._count_superlike(command.judgment.choice, undo=command.undo)
                 if self.discovery is not None:
                     if not command.undo:self._set_trend_open(False)
@@ -807,6 +809,8 @@ class LearningView:
                             self._discovery_frames.update(frames)
                     except Exception:
                         self._notice='判定は保存済みです。候補の並び替えを更新できませんでした。'
+                if self.state is not saved_state or self.state.generation != saved_generation or self._storage_busy:
+                    return
                 self.refresh()
                 if command.undo:
                     self.toast.hide()

@@ -137,11 +137,14 @@ async def test_reset_during_slow_rerank_does_not_restore_old_count(tmp_path, mon
         await reset.open()
         reset.confirm.set_value('1')
         await reset.execute()
+        await discovery_settled(view)
+        assert not view.state.can_undo and view.toast.kind is None
         release.set()
         await asyncio.wait_for(save, 5)
         await discovery_settled(view)
         assert view._superlike_used == 0
         assert not view.superlike_used_label.visible
+        assert view.toast.kind is None and not view.state.can_undo
     finally:
         release.set()
         await cleanup()
