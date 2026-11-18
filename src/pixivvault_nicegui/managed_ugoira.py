@@ -521,7 +521,9 @@ class ManagedUgoiraJobs:
                 source = self._find_source(job, inspection, checkpoint)
             return None if source is None else 'media/' + source.relative_receipt
         if output == 'mp4':
-            return self._verified_mp4(job, inspection, checkpoint)
+            result = self._verified_mp4(job, inspection, checkpoint)
+            if result is not None:
+                return result
         folder = self.gifs / token
         _safe_path(folder)
         if not folder.exists():
@@ -697,7 +699,16 @@ class ManagedUgoiraJobs:
                     self._save_gif(job, source, rendered, context)
                 if output == 'mp4':
                     operation='save_mp4_generation'
-                    self._save_mp4(job, raw, inspection, source, context)
+                    from .ugoira_mp4 import UgoiraMp4Error
+                    try:
+                        self._save_mp4(job, raw, inspection, source, context)
+                    except UgoiraMp4Error as error:
+                        if error.reason_code != 'ugoira_mp4_failed':
+                            raise
+                        operation='render_ugoira_gif'
+                        rendered = render_ugoira_gif(raw, manifest, checkpoint=context.checkpoint)
+                        operation='save_gif_generation'
+                        self._save_gif(job, source, rendered, context)
                 result = self._verified_result(job, loaded, context.checkpoint)
                 if result is None:
                     raise ManagedUgoiraError()

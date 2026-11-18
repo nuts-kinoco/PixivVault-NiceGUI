@@ -68,12 +68,16 @@ def test_actual_ugoira_run_keeps_safe_reason(tmp_path, monkeypatch, case, expect
         owner.enqueue("synthetic-operation", *archive(), output="mp4")
         with owner.jobs._condition:
             assert owner.jobs._condition.wait_for(
-                lambda: owner.jobs.snapshot() and owner.jobs.snapshot()[0].state in {"error", "stopped"},
+                lambda: owner.jobs.snapshot() and owner.jobs.snapshot()[0].state in {"done", "error", "stopped"},
                 timeout=5)
         failed = owner.jobs.snapshot()[0]
         assert calls == [True]
-        assert failed.state == ("stopped" if case == "cancel" else "error")
-        assert failed.error_code == expected and failed.result is None
+        if case == "mp4":
+            assert failed.state == "done" and failed.result.startswith("gifs/")
+            assert (root / failed.result).is_file()
+        else:
+            assert failed.state == ("stopped" if case == "cancel" else "error")
+            assert failed.error_code == expected and failed.result is None
         assert not tuple(owner.mp4s.iterdir())
         for path in owner.diagnostics.rglob("*.json"):
             assert PRIVATE not in path.read_text()
@@ -85,7 +89,7 @@ def test_actual_ugoira_run_keeps_safe_reason(tmp_path, monkeypatch, case, expect
     try:
         assert reopened.jobs.snapshot()[0] == failed
         assert calls == [True]
-        if case in {"mp4", "permission"}:
+        if case == "permission":
             from nicegui import ui
             from pixivvault_nicegui.ui.job_views import QueueView
             with ui.column() as holder:
