@@ -3051,6 +3051,7 @@ class ApplicationServices:
                 raise RuntimeError('isolated managed Pixiv mode is required')
             if self.managed_scheduler is None:
                 from .managed_scheduler import ManagedScheduler, ManagedScheduleRunner, submit_author_batch
+                from .managed_network_stop_gate import ManagedNetworkStopped
                 ledger = ManagedScheduler(self.managed_downloads.root)
 
                 def dispatch(slot, cancellation):
@@ -3062,6 +3063,10 @@ class ApplicationServices:
                                 self.shared_log.append(f'☆ お気に入り自動チェックを開始します ({len(authors)}人の作者)')
                             submit_author_batch(self, authors, cancellation=cancellation,
                                                 ledger=ledger, slot=slot)
+                        except ManagedNetworkStopped:
+                            if not cancellation.is_set() and not self.closing:
+                                self.shared_log.append('☆ お気に入り自動チェックは取得停止により中断しました。')
+                            raise
                         except Exception:
                             if not cancellation.is_set() and not self.closing:
                                 self.shared_log.append('☆ お気に入り自動チェック中にエラーが発生しました。', level='error')
@@ -3477,13 +3482,14 @@ class ApplicationServices:
             receipt_fingerprints.update(extra_receipts)
         newly_saved = self.managed_scheduler.reconcile_jobs(
             jobs, receipt_fingerprints, operation_to_job, operation_to_fingerprint)
-        if newly_saved:
-            self.shared_log.append(f'☆ お気に入り自動チェック: {len(newly_saved)}件の作品の保存を確認しました。', level='success')
+        confirmed_count = len(set(newly_saved))
+        if confirmed_count:
+            self.shared_log.append(f'☆ お気に入り自動チェック: {confirmed_count}件の作品の保存を確認しました。', level='success')
         notifier=getattr(self,'notifications',None)
-        if newly_saved and notifier is not None:
+        if confirmed_count and notifier is not None:
             # Reconciliation changes accepted -> saved once in the durable ledger.
             # OS toast is best effort; existing durable history/UI notice remains.
-            notifier.notify('PixivVault',f'作者更新チェック: {len(newly_saved)}件の保存が完了しました。')
+            notifier.notify('PixivVault',f'作者更新チェック: {confirmed_count}件の保存が完了しました。')
         unfinished_count = sum(1 for job in jobs if job.state in UNFINISHED)
         previous_count = self._scheduler_unfinished_count
         self._scheduler_unfinished_count = unfinished_count
