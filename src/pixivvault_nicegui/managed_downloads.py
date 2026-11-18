@@ -31,6 +31,7 @@ MAX_PIXELS = 28_000_000
 MAX_TOTAL = 2 * 1024 * 1024 * 1024
 MAX_PAGES = 1000
 MAX_RECEIPT_BYTES = 512 * 1024
+_MAX_SAVED_RECEIPTS = 1_000_000  # same ceiling as managed_generations._MAX_ENTRIES
 _ID = re.compile(r"[1-9][0-9]{0,19}\Z")
 _SHA = re.compile(r"[0-9a-f]{64}\Z")
 _FILE = re.compile(r"page-([1-9][0-9]{0,3})\.(png|jpg|webp)\Z")
@@ -375,7 +376,7 @@ class ManagedPixivDownloads:
         seen = set()
         folders = []
         for folder in native_io_path(self.outputs).iterdir():
-            if len(folders) >= 10000:
+            if len(folders) >= _MAX_SAVED_RECEIPTS:
                 raise ManagedDownloadError('saved receipt limit exceeded')
             folders.append(folder)
         for folder in sorted(folders):
@@ -400,7 +401,7 @@ class ManagedPixivDownloads:
         if self.closed:
             raise ManagedDownloadError('managed download is closed')
         active = self._generations.entries()
-        if len(active) > 10000:
+        if len(active) > _MAX_SAVED_RECEIPTS:
             raise ManagedDownloadError('saved receipt limit exceeded')
         result = []
         for wid, entry in sorted(active.items()):

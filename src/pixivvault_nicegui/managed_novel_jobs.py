@@ -318,8 +318,8 @@ class ManagedNovelJobs:
     def _write(self, value):
         _require(not self._faulted)
         data = _canonical(value)
-        _require(len(data) <= _MAX_LEDGER and all(len(value[k]) <= _MAX_ENTRIES
-                                                for k in ("intents", "jobs", "active")))
+        if len(data) > _MAX_LEDGER or any(len(value[k]) > _MAX_ENTRIES for k in ("intents", "jobs", "active")):
+            raise ManagedNovelError(reason_code="storage_capacity")
         _safe(self.root)
         _safe(self._journal_path, file=True)
         # Preserve failed journal stages, but keep their storage use finite.
@@ -492,6 +492,9 @@ class ManagedNovelJobs:
                 if previous is not None:
                     _require(previous == spec)
                 else:
+                    if len(self._journal["intents"]) >= _MAX_ENTRIES - 1:
+                        # A loud, named refusal: never an ordinary per-work failure.
+                        raise ManagedNovelError(reason_code="storage_capacity")
                     _require(self._matches_predecessor(intent))
                     for job in self.jobs.snapshot():
                         if job.kind == KIND and job.target_id == intent.target and job.state in UNFINISHED:

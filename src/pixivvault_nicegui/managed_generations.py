@@ -8,6 +8,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import stat
+from collections.abc import Mapping
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
@@ -35,8 +38,21 @@ _RECEIPT_KEYS = frozenset({'version', 'source', 'work_id', 'author_id',
                            'author_name', 'title', 'tags', 'created_at', 'saved_at',
                            'illustration_type', 'x_restrict', 'page_count', 'files'})
 _FILE_KEYS = frozenset({'name', 'bytes', 'sha256', 'format', 'width', 'height'})
-_MAX_INDEX_BYTES = 2 * 1024 * 1024
-_MAX_ENTRIES = 10000
+# Capacity. The old limits (10,000 entries, a 2 MiB index file) stopped a first full
+# download of a large library, and the file limit bound first: ~340 bytes per entry meant
+# the store failed at about 6,000 works while `_MAX_ENTRIES` still read 10,000.
+_MAX_ENTRIES = 1_000_000
+_MAX_INDEX_BYTES = 1024 * 1024 * 1024
+_ENTRY_BYTES_ESTIMATE = 400            # JSON bytes per indexed entry, rounded up
+# Appends go to a journal instead of rewriting the whole index for every saved work. The
+# journal is folded into the index (one atomic rewrite) when either bound is reached.
+_JOURNAL = 'active-generations.journal'
+_JOURNAL_KIND = 'pixivvault-generation-journal'
+_COMPACT_RECORDS = 2048
+_COMPACT_BYTES = 2 * 1024 * 1024
+_MAX_JOURNAL_BYTES = 64 * 1024 * 1024
+_PARALLEL_FROM = 2000                  # entries from which the open-time verification is threaded
+_VERIFY_THREADS = 8
 _QUARANTINE_KEYS = _INDEX_KEYS | {'exclusions', 'quarantine_operations'}
 _OPERATION_KEYS = frozenset({'manifest', 'manifest_sha256', 'selection_sha256', 'state'})
 _MOVE_OPERATION_KEYS = _OPERATION_KEYS | {'mode'}
@@ -67,8 +83,87 @@ def _date(value: object, *, allow_empty: bool = False) -> str:
     return value
 
 
+def _identity(path):
+    """Cheap file identity; None when absent. A different value forces a full re-read."""
+    try:
+        info = os.lstat(native_io_path(path))
+    except FileNotFoundError:
+        return None
+    return (info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns, stat.S_IFMT(info.st_mode))
+
+
+def _canonical(value) -> bytes:
+    return json.dumps(value, sort_keys=True, ensure_ascii=True, separators=(',', ':')).encode('ascii')
+
+
+def _entry_hash(entry) -> int:
+    return int.from_bytes(hashlib.sha256(_canonical(entry)).digest(), 'big')
+
+
+_MOD = 1 << 256
+
+
+class _EntriesView(Mapping):
+    """Read-only snapshot of the active entries. Every value read is a fresh copy.
+
+    The underlying dict is replaced (copy on write) before any later change, so a view
+    taken earlier never moves under its holder.
+    """
+    __slots__ = ('_data',)
+
+    def __init__(self, data):
+        self._data = data
+
+    def __getitem__(self, key):
+        return dict(self._data[key])
+
+    def __iter__(self):
+        return iter(self._data)
+
+    def __len__(self):
+        return len(self._data)
+
+    def __contains__(self, key):
+        return key in self._data
+
+    def get(self, key, default=None):
+        value = self._data.get(key)
+        return default if value is None else dict(value)
+
+
+class _Loaded:
+    """Verified in-memory copy of the index (+ journal) and the file identities it came from."""
+    __slots__ = ('version', 'base_sig', 'base_digest', 'base_bytes', 'indexed', 'legacy', 'active',
+                 'exclusions', 'operations', 'out_sig', 'journal_sig', 'journal_offset',
+                 'journal_chain', 'journal_records', 'stale_journal', 'acc', 'shared')
+
+    def __init__(self):
+        self.version = None
+        self.base_sig = self.base_digest = self.journal_sig = self.journal_chain = self.out_sig = None
+        self.base_bytes = self.journal_offset = self.journal_records = 0
+        self.indexed, self.legacy, self.active = {}, {}, {}
+        self.exclusions, self.operations = {}, {}
+        self.stale_journal = self.shared = False
+        self.acc = 0
+
+    def qpacket(self):
+        if self.version is None:
+            return None
+        if self.version in (1, 2):
+            return {'version': self.version, 'entries': {}}
+        return {'version': self.version, 'entries': {}, 'exclusions': self.exclusions,
+                'quarantine_operations': self.operations}
+
+
 class ManagedGenerations:
-    """Index is owned by one managed-root writer; all returned data is copied."""
+    """Index is owned by one managed-root writer; all returned data is copied.
+
+    The index file is the verified base; `active-generations.journal` carries the entries
+    published since (one fsynced line each, hash-chained to the base). The whole thing is
+    verified once at open and kept in memory; later calls only compare file identities, so
+    a call costs O(quarantine operations), not O(works). Receipts are immutable and are
+    re-verified wherever their bytes are actually used.
+    """
 
     def __init__(self, root: Path):
         self.root = Path(root)
@@ -83,17 +178,36 @@ class ManagedGenerations:
         self.generation_dir = self.root / 'generations'
         self.stage_dir = self.root / 'generation-incomplete'
         self.index_path = self.root / 'active-generations.json'
+        self.journal_path = self.root / _JOURNAL
         for folder in (self.output_dir, self.generation_dir, self.stage_dir):
             _safe_path(folder)
             native_io_path(folder).mkdir(exist_ok=True)
             _safe_path(folder)
         self._lock = RLock()
         self._visibility_cache = None
+        self._loaded = None
+        self._unconfirmed_operations = set()
         # A malformed existing index must block startup, never be reset.
         self.entries()
 
+    @staticmethod
+    def _read_receipt(path, pieces, folders):
+        if folders is not None and pieces[1] in folders.get(pieces[0], ()):
+            # The shared ancestor chain and the folder itself were checked once for the pass.
+            io_path = native_io_path(path)
+            info = io_path.lstat()
+            if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > MAX_RECEIPT_BYTES
+                    or getattr(info, 'st_file_attributes', 0) & 0x400):
+                raise ManagedDownloadError('managed file rejected')
+            with io_path.open('rb') as stream:
+                data = stream.read(MAX_RECEIPT_BYTES + 1)
+            if len(data) > MAX_RECEIPT_BYTES:
+                raise ManagedDownloadError('managed file rejected')
+            return data
+        return _read_bounded(path, MAX_RECEIPT_BYTES)
+
     def _receipt_entry(self, relative: str, wid: str, *, update_date: str,
-                       verify_complete: bool = False) -> dict[str, str]:
+                       verify_complete: bool = False, folders=None) -> dict[str, str]:
         if (type(relative) is not str or len(relative) > 160
                 or not relative.endswith('/receipt.json')):
             raise ManagedDownloadError('generation path rejected')
@@ -106,7 +220,7 @@ class ManagedGenerations:
         _date(update_date, allow_empty=True)
         path = self.root / pieces[0] / pieces[1] / pieces[2]
         try:
-            raw = _read_bounded(path, MAX_RECEIPT_BYTES)
+            raw = self._read_receipt(path, pieces, folders)
         except (OSError, ValueError):
             raise ManagedDownloadError('generation receipt rejected') from None
         digest = hashlib.sha256(raw).hexdigest()
@@ -176,95 +290,306 @@ class ManagedGenerations:
         return {'work_id': wid, 'relative_receipt': relative,
                 'sha256': digest, 'update_date': update_date}
 
-    def _legacy(self) -> dict[str, dict[str, str]]:
-        _safe_path(self.output_dir)
+    def _scan_dir(self, directory, message, limit=None):
+        """One pass over a folder of work folders: names only, no link, no stray entry.
+
+        `generations/` is not limited: superseded and orphaned generations stay for recovery and
+        pinned viewers, so it can legitimately hold more folders than there are active works.
+        """
+        _safe_path(directory)
+        names = set()
+        with os.scandir(native_io_path(directory)) as listing:
+            for item in listing:
+                if limit is not None and len(names) >= limit:
+                    raise ManagedDownloadError('generation limit exceeded', reason_code='storage_capacity')
+                if _FOLDER.fullmatch(item.name) is None:
+                    raise ManagedDownloadError(message)
+                info = item.stat(follow_symlinks=False)
+                if (item.is_symlink() or not stat.S_ISDIR(info.st_mode)
+                        or getattr(info, 'st_file_attributes', 0) & 0x400):
+                    raise ManagedDownloadError('managed storage link rejected')
+                names.add(item.name)
+        return names
+
+    def _legacy(self, folders=None) -> dict[str, dict[str, str]]:
+        names = self._scan_dir(self.output_dir, 'legacy output structure rejected', _MAX_ENTRIES)
+        known = {'outputs': names}
         result: dict[str, dict[str, str]] = {}
-        for item in native_io_path(self.output_dir).iterdir():
-            if len(result) >= _MAX_ENTRIES:
-                raise ManagedDownloadError('generation limit exceeded')
-            match = _FOLDER.fullmatch(item.name)
-            if match is None:
-                raise ManagedDownloadError('legacy output structure rejected')
-            _safe_path(item)
-            wid = match.group(1)
+        for name in names:
+            wid = _FOLDER.fullmatch(name).group(1)
             if wid in result:
                 raise ManagedDownloadError('duplicate completed artwork rejected')
-            relative = f'outputs/{item.name}/receipt.json'
-            result[wid] = self._receipt_entry(relative, wid, update_date='')
+            result[wid] = self._receipt_entry(f'outputs/{name}/receipt.json', wid, update_date='',
+                                              folders=known)
         return result
 
-    def _index(self, *, verify_quarantine_payloads=True, tolerate_missing=False) -> dict[str, dict[str, str]]:
+    # -- verified state ---------------------------------------------------------------
+    def _check_entry(self, wid, entry, version, folders):
+        _id(wid)
+        if (type(entry) is not dict or
+                (entry.keys() != _ENTRY_KEYS and
+                 (version not in (2, 3, 4) or entry.keys() != _ENTRY_WITH_JOB))):
+            raise ValueError()
+        if 'accepted_fingerprint' in entry:
+            _sha(entry['accepted_fingerprint'])
+        if entry['work_id'] != wid or type(entry['work_id']) is not str:
+            raise ValueError()
+        if (type(entry['relative_receipt']) is not str
+                or not _GEN_REL.fullmatch(entry['relative_receipt'])
+                or _GEN_REL.fullmatch(entry['relative_receipt']).group(1) != wid):
+            raise ValueError()
+        digest = _sha(entry['sha256'])
+        date = _date(entry['update_date'], allow_empty=True)
+        actual = self._receipt_entry(entry['relative_receipt'], wid, update_date=date, folders=folders)
+        if actual['sha256'] != digest:
+            raise ValueError()
+        return dict(entry)
+
+    def _check_entries(self, entries, version, folders):
+        """Verify every indexed receipt. The time is file-open latency (antivirus, directory
+        lookups in a folder of 100,000 works), so a large index is verified on several threads."""
+        items = list(entries.items())
+        if len(items) < _PARALLEL_FROM:
+            return {wid: self._check_entry(wid, entry, version, folders) for wid, entry in items}
+        from concurrent.futures import ThreadPoolExecutor
+        chunk = 512
+        parts = [items[i:i + chunk] for i in range(0, len(items), chunk)]
+
+        def verify(part):
+            return [(wid, self._check_entry(wid, entry, version, folders)) for wid, entry in part]
+        result = {}
+        with ThreadPoolExecutor(max_workers=_VERIFY_THREADS) as pool:
+            for done in pool.map(verify, parts):
+                result.update(done)
+        return result
+
+    def _load_full(self) -> _Loaded:
+        """Verify everything once: index, journal, every receipt, every work folder."""
         if native_io_path(self.index_path).is_symlink():
             raise ManagedDownloadError('generation index link rejected')
-        if not native_io_path(self.index_path).exists():
+        loaded = _Loaded()
+        loaded.out_sig = _identity(self.output_dir)
+        legacy = self._legacy()
+        loaded.legacy = legacy
+        if _identity(self.index_path) is None:
             # Once any immutable generation was sealed, dropping the only
             # active pointer must NEVER silently expose old images or an
             # empty library. An empty pointer is installed before the first
             # generation is sealed, even if the subsequent save is cancelled.
             _safe_path(self.generation_dir)
-            if any(native_io_path(self.generation_dir).iterdir()) or self._has_quarantine_records():
+            with os.scandir(native_io_path(self.generation_dir)) as listing:
+                occupied = next(listing, None) is not None
+            if occupied or self._has_quarantine_records():
                 raise ManagedDownloadError('active generation index missing')
-            return {}
+            loaded.active = dict(legacy)
+            loaded.acc = sum(_entry_hash(e) for e in legacy.values()) % _MOD
+            return loaded
+        generations = self._scan_dir(self.generation_dir, 'generation folder structure rejected')
+        folders = {'outputs': set(), 'generations': generations}
         try:
+            loaded.base_sig = _identity(self.index_path)
             raw = _read_bounded(self.index_path, _MAX_INDEX_BYTES)
+            if _identity(self.index_path) != loaded.base_sig:
+                raise ValueError()
+            loaded.base_digest = hashlib.sha256(raw).hexdigest()
+            loaded.base_bytes = len(raw)
             packet = json.loads(raw, object_pairs_hook=_json_unique)
             if (type(packet) is not dict or type(packet.get('version')) is not int
                     or packet['version'] not in (1, 2, 3, 4)):
                 raise ValueError()
-            expected_keys = _QUARANTINE_KEYS if packet['version'] in (3, 4) else _INDEX_KEYS
+            loaded.version = packet['version']
+            expected_keys = _QUARANTINE_KEYS if loaded.version in (3, 4) else _INDEX_KEYS
             if (packet.keys() != expected_keys or type(packet.get('entries')) is not dict
                     or len(packet['entries']) > _MAX_ENTRIES):
                 raise ValueError()
-            if packet['version'] not in (3, 4) and self._has_quarantine_records():
+            if loaded.version not in (3, 4) and self._has_quarantine_records():
                 raise ValueError()
-            self._quarantine_fields(packet, verify_payloads=verify_quarantine_payloads,
-                                    tolerate_missing=tolerate_missing)
-            result = {}
-            for wid, entry in packet['entries'].items():
-                _id(wid)
-                if (type(entry) is not dict or
-                        (entry.keys() != _ENTRY_KEYS and
-                         (packet['version'] not in (2, 3, 4) or entry.keys() != _ENTRY_WITH_JOB))):
-                    raise ValueError()
-                if 'accepted_fingerprint' in entry:
-                    _sha(entry['accepted_fingerprint'])
-                if entry['work_id'] != wid or type(entry['work_id']) is not str:
-                    raise ValueError()
-                if (type(entry['relative_receipt']) is not str
-                        or not _GEN_REL.fullmatch(entry['relative_receipt'])
-                        or _GEN_REL.fullmatch(entry['relative_receipt']).group(1) != wid):
-                    raise ValueError()
-                digest = _sha(entry['sha256'])
-                date = _date(entry['update_date'], allow_empty=True)
-                actual = self._receipt_entry(entry['relative_receipt'], wid, update_date=date)
-                if actual['sha256'] != digest:
-                    raise ValueError()
-                result[wid] = dict(entry)
-            return result
-        except (OSError, ValueError, TypeError, KeyError, UnicodeError, RecursionError):
+            if loaded.version in (3, 4):
+                loaded.exclusions = packet['exclusions']
+                loaded.operations = packet['quarantine_operations']
+            self._quarantine_fields(loaded.qpacket(), verify_payloads=True, tolerate_missing=False)
+            loaded.indexed = self._check_entries(packet['entries'], loaded.version, folders)
+            self._replay_journal(loaded, folders)
+            active = dict(legacy)
+            active.update(loaded.indexed)
+            if len(active) > _MAX_ENTRIES:
+                raise ManagedDownloadError('generation limit exceeded', reason_code='storage_capacity')
+            loaded.active = active
+            loaded.acc = sum(_entry_hash(e) for e in active.values()) % _MOD
+            return loaded
+        except (OSError, ValueError, TypeError, KeyError, UnicodeError, RecursionError) as error:
+            if isinstance(error, ManagedDownloadError) and str(error) in (
+                    'generation limit exceeded', 'active generation index missing'):
+                raise
             raise ManagedDownloadError('active generation index rejected') from None
+
+    # -- journal ----------------------------------------------------------------------
+    def _parse_journal(self, data, start_chain, first_seq, folders, version):
+        """Records in `data` (which begins at a record boundary) -> (entries, chain, seq, end)."""
+        entries, chain, seq, end = [], start_chain, first_seq, 0
+        position = 0
+        while position < len(data):
+            newline = data.find(b'\n', position)
+            if newline < 0:
+                break  # torn final append: never committed, ignored
+            line = data[position:newline]
+            record = json.loads(line, object_pairs_hook=_json_unique)
+            if (type(record) is not dict or record.keys() != {'chain', 'entry', 'seq'}
+                    or type(record['seq']) is not int or record['seq'] != seq + 1
+                    or type(record['entry']) is not dict):
+                raise ValueError()
+            chain = hashlib.sha256((chain + _canonical(record['entry']).decode('ascii')).encode('ascii')).hexdigest()
+            if record['chain'] != chain:
+                raise ValueError()
+            wid = record['entry'].get('work_id')
+            entries.append(self._check_entry(wid, record['entry'], version, folders))
+            seq += 1
+            position = end = newline + 1
+        return entries, chain, seq, end
+
+    def _replay_journal(self, loaded, folders):
+        loaded.journal_sig = None
+        loaded.journal_chain = None
+        loaded.journal_records = loaded.journal_offset = 0
+        loaded.stale_journal = False
+        if _identity(self.journal_path) is None:
+            return
+        sig = _identity(self.journal_path)
+        raw = _read_bounded(self.journal_path, _MAX_JOURNAL_BYTES)
+        newline = raw.find(b'\n')
+        if newline < 0:
+            return  # only a torn header: the first append never committed
+        header = raw[:newline + 1]
+        meta = json.loads(header, object_pairs_hook=_json_unique)
+        if (type(meta) is not dict or meta.keys() != {'base', 'kind', 'version'}
+                or meta['kind'] != _JOURNAL_KIND or meta['version'] != 1):
+            raise ValueError()
+        chain0 = hashlib.sha256(header).hexdigest()
+        if loaded.version == 1:
+            raise ValueError()  # a v1 index has no journal
+        entries, chain, seq, end = self._parse_journal(raw[len(header):], chain0, 0, folders, loaded.version)
+        if meta['base'] != loaded.base_digest:
+            # A compaction replaced the index and crashed before removing the journal: the
+            # journal is only trusted away when everything in it is already in the index.
+            if any(e['work_id'] not in loaded.indexed for e in entries):
+                raise ValueError()
+            loaded.stale_journal = True
+            loaded.journal_sig = sig
+            return
+        for entry in entries:
+            loaded.indexed[entry['work_id']] = entry
+        loaded.journal_sig = sig
+        loaded.journal_chain = chain
+        loaded.journal_records = seq
+        loaded.journal_offset = len(header) + end
+
+    def _apply_entry(self, loaded, entry):
+        wid = entry['work_id']
+        if loaded.shared:
+            loaded.active = dict(loaded.active)
+            loaded.shared = False
+        old = loaded.active.get(wid)
+        if old is not None:
+            loaded.acc = (loaded.acc - _entry_hash(old)) % _MOD
+        loaded.acc = (loaded.acc + _entry_hash(entry)) % _MOD
+        loaded.active[wid] = dict(entry)
+        loaded.indexed[wid] = dict(entry)
+
+    def _apply_tail(self, loaded):
+        """Another instance appended to the journal: verify and apply only the new records."""
+        sig = _identity(self.journal_path)
+        io_path = native_io_path(self.journal_path)
+        _safe_path(self.journal_path, file=True)
+        with io_path.open('rb') as stream:
+            stream.seek(loaded.journal_offset)
+            data = stream.read(_MAX_JOURNAL_BYTES)
+        folders = {'outputs': set(), 'generations': self._scan_dir(
+            self.generation_dir, 'generation folder structure rejected')}
+        try:
+            entries, chain, seq, end = self._parse_journal(
+                data, loaded.journal_chain, loaded.journal_records, folders, loaded.version)
+        except (ValueError, TypeError, KeyError, UnicodeError, RecursionError):
+            raise ManagedDownloadError('active generation index rejected') from None
+        for entry in entries:
+            self._apply_entry(loaded, entry)
+        loaded.journal_chain, loaded.journal_records = chain, seq
+        loaded.journal_offset += end
+        loaded.journal_sig = sig
+
+    def _freshness(self, loaded):
+        base = _identity(self.index_path)
+        if base is None or base != loaded.base_sig or _identity(self.output_dir) != loaded.out_sig:
+            return 'stale'
+        journal = _identity(self.journal_path)
+        if journal == loaded.journal_sig:
+            return 'fresh'
+        if (journal is not None and loaded.journal_sig is not None and loaded.journal_chain is not None
+                and not loaded.stale_journal and journal[0] == loaded.journal_sig[0]
+                and journal[1] > loaded.journal_offset):
+            return 'tail'
+        return 'stale'
+
+    def _refresh(self) -> _Loaded:
+        with self._lock:
+            loaded = self._loaded
+            if loaded is not None:
+                state = self._freshness(loaded)
+                if state == 'fresh':
+                    return loaded
+                if state == 'tail':
+                    try:
+                        self._apply_tail(loaded)
+                        return loaded
+                    except Exception:
+                        self._loaded = None
+                        raise
+            self._loaded = None
+            self._loaded = self._load_full()
+            return self._loaded
+
+    def _checked(self, *, verify_quarantine_payloads=True, tolerate_missing=False):
+        """Fresh state plus the quarantine check the old per-call `_index()` did."""
+        with self._lock:
+            loaded = self._refresh()
+            packet = loaded.qpacket()
+            if packet is None:
+                self._unconfirmed_operations = set()
+                return loaded, ({}, {}, False)
+            if loaded.version in (1, 2) and self._has_quarantine_records():
+                raise ManagedDownloadError('active generation index rejected')
+            return loaded, self._quarantine_fields(packet, verify_payloads=verify_quarantine_payloads,
+                                                   tolerate_missing=tolerate_missing)
+
+    def _index(self, *, verify_quarantine_payloads=True, tolerate_missing=False) -> dict[str, dict[str, str]]:
+        loaded, _ = self._checked(verify_quarantine_payloads=verify_quarantine_payloads,
+                                  tolerate_missing=tolerate_missing)
+        return {wid: dict(entry) for wid, entry in loaded.indexed.items()}
 
     def entries(self, *, verify_quarantine_payloads=True, tolerate_missing=False) -> dict[str, dict[str, str]]:
         with self._lock:
-            indexed = self._index(verify_quarantine_payloads=verify_quarantine_payloads,
-                                  tolerate_missing=tolerate_missing)
-            active = self._legacy()
-            active.update(indexed)
-            if len(active) > _MAX_ENTRIES:
-                raise ManagedDownloadError('generation limit exceeded')
-            # Nonactive directories are retained for recovery and pinned viewers;
-            # reject link injection even for orphans rather than traversing it.
-            _safe_path(self.generation_dir)
-            for folder in native_io_path(self.generation_dir).iterdir():
-                if not _FOLDER.fullmatch(folder.name):
-                    raise ManagedDownloadError('generation folder structure rejected')
-                _safe_path(folder)
-            return {wid: dict(entry) for wid, entry in active.items()}
+            loaded, _ = self._checked(verify_quarantine_payloads=verify_quarantine_payloads,
+                                      tolerate_missing=tolerate_missing)
+            return {wid: dict(entry) for wid, entry in loaded.active.items()}
+
+    def entry_count(self) -> int:
+        with self._lock:
+            return len(self._checked()[0].active)
+
+    def capacity(self) -> dict:
+        """What is stored and how much more fits (entry count and index bytes, whichever binds)."""
+        with self._lock:
+            loaded = self._checked()[0]
+            used = loaded.base_bytes + loaded.journal_offset
+            by_count = max(0, _MAX_ENTRIES - len(loaded.active))
+            by_bytes = max(0, (_MAX_INDEX_BYTES - used) // _ENTRY_BYTES_ESTIMATE)
+            return {'entries': len(loaded.active), 'max_entries': _MAX_ENTRIES, 'index_bytes': used,
+                    'max_index_bytes': _MAX_INDEX_BYTES, 'headroom': min(by_count, by_bytes)}
 
     def current(self, work_id: str) -> dict[str, str] | None:
         wid = _id(work_id)
-        current = self.entries().get(wid)
-        return dict(current) if current is not None else None
+        with self._lock:
+            entry = self._checked()[0].active.get(wid)
+            return dict(entry) if entry is not None else None
 
     @fenced_writer
     def prepare_for_publication(self) -> None:
@@ -275,10 +600,10 @@ class ManagedGenerations:
         be distinguished from a fresh v1-only managed root on restart.
         """
         with self._lock:
-            if native_io_path(self.index_path).exists():
-                self._index()  # Never trust a preexisting malformed index.
+            if _identity(self.index_path) is not None:
+                self._checked()  # Never trust a preexisting malformed index.
                 return
-            self._index()  # Reject an already-missing index with generations.
+            self._checked()  # Reject an already-missing index with generations.
             _safe_path(self.stage_dir)
             temporary = self.stage_dir / ('prepare-' + uuid4().hex + '.tmp')
             try:
@@ -287,6 +612,7 @@ class ManagedGenerations:
                 _safe_path(self.index_path, file=True)
                 native_io_path(temporary).replace(native_io_path(self.index_path))
                 _fsync_dir(self.root)
+                self._loaded = None
             except Exception:
                 raise ManagedDownloadError('generation index preparation failed') from None
 
@@ -314,9 +640,9 @@ class ManagedGenerations:
         elif expected_previous_relative_receipt is not None:
             raise ManagedDownloadError('generation compare-and-swap rejected')
         with self._lock:
-            active = self.entries()
-            before = active.get(wid)
-            state = self.state_snapshot()
+            loaded, (exclusions, operations, enabled) = self._checked()
+            before = loaded.active.get(wid)
+            before = dict(before) if before is not None else None
             # Safe idempotent replay after index commit but before job DB commit.
             if (before is not None and before['relative_receipt'] == relative_receipt
                     and before['sha256'] == digest and before['update_date'] == date
@@ -329,12 +655,12 @@ class ManagedGenerations:
                 if verified['sha256'] != digest:
                     raise ManagedDownloadError('active generation checksum mismatch')
                 return dict(before)
-            actual_token = self._work_token(state, wid)
+            actual_token = self._work_token({'entries': loaded.active, 'exclusions': exclusions}, wid)
             if expected_work_state_token is not None:
                 _sha(expected_work_state_token)
                 if actual_token != expected_work_state_token:
                     raise ManagedDownloadError('generation compare-and-swap rejected')
-            elif state['exclusions'].get(wid):
+            elif exclusions.get(wid):
                 # A matching completed operation above only verifies its old
                 # result; it cannot clear exclusions. A new publication must
                 # also compare the page-exclusion state.
@@ -349,14 +675,12 @@ class ManagedGenerations:
                 raise ManagedDownloadError('new generation checksum mismatch')
             if accepted_fingerprint is not None:
                 target['accepted_fingerprint'] = accepted_fingerprint
-            indexed = self._index()
-            indexed[wid] = target
-            if len(indexed) > _MAX_ENTRIES:
-                raise ManagedDownloadError('generation limit exceeded')
-            packet = {'version': 2, 'entries': indexed}
-            if state['quarantine_enabled']:
-                version = 4 if any('mode' in op for op in state['operations'].values()) else 3
-                if version == 4:
+            if len(loaded.active) + (0 if wid in loaded.active else 1) > _MAX_ENTRIES:
+                raise ManagedDownloadError('generation limit exceeded', reason_code='storage_capacity')
+            if (loaded.base_bytes + loaded.journal_offset + _ENTRY_BYTES_ESTIMATE > _MAX_INDEX_BYTES):
+                raise ManagedDownloadError('generation index size exceeded', reason_code='storage_capacity')
+            if enabled:
+                if loaded.version == 4:
                     # A relocation pins its own work's immutable receipt. An
                     # unrelated work may still publish a new generation.
                     # A purged backup can never be restored, so a newer
@@ -364,15 +688,70 @@ class ManagedGenerations:
                     if any(proof['item']['work_id'] == wid and proof['state'] != 'purged'
                            for proof in self.relocation_proofs().values()):
                         raise ManagedDownloadError('relocation blocks generation publication')
-                packet.update(version=version, exclusions=state['exclusions'],
-                              quarantine_operations=state['operations'])
             try:
-                self._commit_packet(packet)
+                if loaded.version in (2, 3, 4):
+                    self._append_journal(loaded, target)
+                else:
+                    # First publication into a v1 / absent index: one full rewrite as v2.
+                    indexed = {key: dict(value) for key, value in loaded.indexed.items()}
+                    indexed[wid] = dict(target)
+                    self._commit_packet({'version': 2, 'entries': indexed})
+                    self._apply_entry(loaded, target)
             except Exception:
-                # If the replace already happened, the durable pointer remains
+                # If the append/replace already happened, the durable pointer remains
                 # authoritative; the next retry verifies/reuses the generation.
+                self._loaded = None
                 raise ManagedDownloadError('generation index publication failed') from None
+            if (loaded.journal_records >= _COMPACT_RECORDS or loaded.journal_offset >= _COMPACT_BYTES):
+                try:
+                    self._compact(loaded)
+                except Exception:
+                    pass  # the journal stays valid; compaction is retried on the next publish
             return dict(target)
+
+    def _append_journal(self, loaded, target):
+        entry = dict(target)
+        if loaded.journal_chain is None:
+            header = _canonical({'base': loaded.base_digest, 'kind': _JOURNAL_KIND, 'version': 1}) + b'\n'
+            chain = hashlib.sha256(header).hexdigest()
+            seq = 1
+            chain = hashlib.sha256((chain + _canonical(entry).decode('ascii')).encode('ascii')).hexdigest()
+            line = _canonical({'chain': chain, 'entry': entry, 'seq': seq}) + b'\n'
+            _safe_path(self.stage_dir)
+            temporary = self.stage_dir / ('journal-' + uuid4().hex + '.tmp')
+            _write(temporary, header + line)
+            _fsync_dir(self.stage_dir)
+            _safe_path(self.journal_path, file=True) if _identity(self.journal_path) is not None else None
+            native_io_path(temporary).replace(native_io_path(self.journal_path))  # also drops a stale journal
+            _fsync_dir(self.root)
+            loaded.journal_offset = len(header) + len(line)
+        else:
+            seq = loaded.journal_records + 1
+            chain = hashlib.sha256((loaded.journal_chain + _canonical(entry).decode('ascii')).encode('ascii')).hexdigest()
+            line = _canonical({'chain': chain, 'entry': entry, 'seq': seq}) + b'\n'
+            _safe_path(self.journal_path, file=True)
+            with native_io_path(self.journal_path).open('r+b') as stream:
+                size = os.fstat(stream.fileno()).st_size
+                if size < loaded.journal_offset:
+                    raise ManagedDownloadError('generation journal rejected')
+                stream.truncate(loaded.journal_offset)  # a torn, never-committed tail
+                stream.seek(loaded.journal_offset)
+                stream.write(line)
+                stream.flush()
+                os.fsync(stream.fileno())
+            loaded.journal_offset += len(line)
+        loaded.journal_chain, loaded.journal_records = chain, seq
+        loaded.journal_sig = _identity(self.journal_path)
+        loaded.stale_journal = False
+        self._apply_entry(loaded, entry)
+
+    def _compact(self, loaded):
+        packet = {'version': loaded.version,
+                  'entries': {wid: dict(value) for wid, value in loaded.indexed.items()}}
+        if loaded.version in (3, 4):
+            packet.update(exclusions=deepcopy(loaded.exclusions),
+                          quarantine_operations=deepcopy(loaded.operations))
+        self._commit_packet(packet)
 
     def _has_quarantine_records(self) -> bool:
         """Completed quarantine files require their authoritative v3 pointer.
@@ -393,10 +772,9 @@ class ManagedGenerations:
         self._unconfirmed_operations = set()
         try:
             if packet is None:
-                if not native_io_path(self.index_path).exists():
+                packet = self._refresh().qpacket()
+                if packet is None:
                     return {}, {}, False
-                packet = json.loads(_read_bounded(self.index_path, _MAX_INDEX_BYTES),
-                                    object_pairs_hook=_json_unique)
             if type(packet) is not dict or type(packet.get('version')) is not int:
                 raise ValueError()
             if packet['version'] in (1, 2):
@@ -563,17 +941,20 @@ class ManagedGenerations:
         return hashlib.sha256(raw).hexdigest()
 
     def state_snapshot(self, *, verify_quarantine_payloads=True, tolerate_missing=False):
+        """Entries as a read-only view; the revision is an order-free digest kept incrementally."""
         with self._lock:
-            active = self.entries(verify_quarantine_payloads=verify_quarantine_payloads,
-                                  tolerate_missing=tolerate_missing)
-            exclusions, operations, enabled = self._quarantine_fields(
-                verify_payloads=verify_quarantine_payloads, tolerate_missing=tolerate_missing)
+            loaded, (exclusions, operations, enabled) = self._checked(
+                verify_quarantine_payloads=verify_quarantine_payloads, tolerate_missing=tolerate_missing)
             unconfirmed = frozenset(self._unconfirmed_operations)
+            active = loaded.active
             if any(wid not in active for wid in exclusions):
                 raise ManagedDownloadError('quarantine source receipt missing')
-            value = {'entries': active, 'exclusions': exclusions, 'operations': operations}
-            return {**value, 'revision': self._state_digest(value),
-                    'quarantine_enabled': enabled, 'unconfirmed_operations': unconfirmed}
+            loaded.shared = True
+            revision = self._state_digest({'n': len(active), 'acc': '%064x' % loaded.acc,
+                                           'exclusions': exclusions, 'operations': operations})
+            return {'entries': _EntriesView(active), 'exclusions': exclusions, 'operations': operations,
+                    'revision': revision, 'quarantine_enabled': enabled,
+                    'unconfirmed_operations': unconfirmed}
 
     def relocation_proofs(self):
         """Exact source receipt/page -> verified managed backup for v4 moves.
@@ -582,15 +963,11 @@ class ManagedGenerations:
         comes from a validated manifest and immutable original receipt.
         """
         with self._lock:
-            self._quarantine_fields()
-            if not native_io_path(self.index_path).exists():
-                return {}
-            packet = json.loads(_read_bounded(self.index_path, _MAX_INDEX_BYTES),
-                                object_pairs_hook=_json_unique)
-            if packet['version'] != 4:
+            loaded, _ = self._checked()
+            if loaded.version != 4:
                 return {}
             result = {}
-            for operation_id, operation in packet['quarantine_operations'].items():
+            for operation_id, operation in loaded.operations.items():
                 if operation['mode'] != 'move' or operation['state'] == 'restored':
                     continue
                 manifest = json.loads(_read_bounded(
@@ -617,8 +994,7 @@ class ManagedGenerations:
         return self._work_token(self.state_snapshot(), wid)
 
     def _commit_packet(self, packet) -> None:
-        data = json.dumps(packet, sort_keys=True, ensure_ascii=True,
-                          separators=(',', ':')).encode('ascii')
+        data = _canonical(packet)
         if len(data) > _MAX_INDEX_BYTES:
             raise ManagedDownloadError('generation index size exceeded')
         _safe_path(self.stage_dir)
@@ -629,6 +1005,26 @@ class ManagedGenerations:
         native_io_path(temporary).replace(native_io_path(self.index_path))
         self._visibility_cache = None
         _fsync_dir(self.root)
+        loaded = self._loaded
+        try:
+            # The new base already contains every journalled entry.
+            if _identity(self.journal_path) is not None:
+                native_io_path(self.journal_path).unlink()
+                _fsync_dir(self.root)
+        except OSError:
+            pass  # a stale journal is recognised by its base digest and ignored
+        if loaded is not None:
+            loaded.version = packet['version']
+            loaded.indexed = {wid: dict(value) for wid, value in packet['entries'].items()}
+            loaded.exclusions = deepcopy(packet.get('exclusions', {}))
+            loaded.operations = deepcopy(packet.get('quarantine_operations', {}))
+            loaded.base_sig = _identity(self.index_path)
+            loaded.base_digest = hashlib.sha256(data).hexdigest()
+            loaded.base_bytes = len(data)
+            loaded.journal_sig = _identity(self.journal_path)
+            loaded.journal_chain = None
+            loaded.journal_records = loaded.journal_offset = 0
+            loaded.stale_journal = loaded.journal_sig is not None
 
     @fenced_writer
     def prepare_for_quarantine(self) -> None:
@@ -787,7 +1183,7 @@ class ManagedGenerations:
             try:
                 signature = self._file_identity(self.index_path)
             except FileNotFoundError:
-                self._index()
+                self._checked()
                 self._visibility_cache = None
                 return
             cached = self._visibility_cache
@@ -802,7 +1198,7 @@ class ManagedGenerations:
                         raise ManagedPageQuarantined('managed page is quarantined')
                     return
             self._visibility_cache = None
-            self._index()
+            self._checked()
             exclusions, operations, _ = self._quarantine_fields()
             watched = {}
             verified_proofs = {}

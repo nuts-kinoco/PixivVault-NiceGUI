@@ -56,6 +56,8 @@ class RunFailed(Exception):
 def capacity_code(error):
     """Name a hard storage-capacity refusal; None for any other error."""
     text = str(error)
+    if getattr(error, 'reason_code', None) == 'storage_capacity':
+        return 'storage_capacity'  # saved-works ceiling or a novel ledger that is full
     if 'job operation history is full' in text:
         return 'job_operation_history_full'
     if type(error).__name__ == 'ManagedRequestError' and 'directory rejected' in text:
@@ -132,6 +134,25 @@ class ServicesPort:
             except Exception:
                 pass
 
+    def pause_jobs(self, refs):
+        """Hold the run's queued / running jobs while the run is paused by the user."""
+        for ref in refs:
+            try:
+                self._owner(ref.kind).control(ref.job_id, 'pause')
+            except Exception:
+                pass
+
+    def resume_jobs(self, refs):
+        """Release only jobs this run paused. A job the network gate paused stays for recovery."""
+        for ref in refs:
+            try:
+                owner = self._owner(ref.kind)
+                job = next((j for j in owner.snapshot() if j.job_id == ref.job_id), None)
+                if job is not None and job.state == 'paused' and job.error_code not in _ADMISSION_PAUSES:
+                    owner.control(ref.job_id, 'resume')
+            except Exception:
+                pass
+
     def observe_deletion(self, author_id, remote, scan_id):
         """(pending, confirmed) from one recorded complete crawl; None without a legacy bridge."""
         bridge = getattr(self.s, 'legacy_author_bridge', None)
@@ -142,17 +163,16 @@ class ServicesPort:
         return scan.remote_missing_pending, scan.remote_missing_confirmed
 
     def saved_headroom(self):
-        """How many more works the managed store can hold (hard cap 10,000), None if unknown.
+        """How many more works the managed store can hold, None if unknown.
 
-        Past the cap every later save fails inside its job with only a generic code, so the
-        engine must refuse before queueing rather than discover it one work at a time.
+        The smaller of the entry-count ceiling and what still fits in the index file. The
+        engine refuses before queueing instead of discovering the wall one work at a time.
         """
         generations = getattr(getattr(self.s, 'managed_downloads', None), '_generations', None)
         if generations is None:
             return None
-        from .managed_generations import _MAX_ENTRIES
         try:
-            return max(0, _MAX_ENTRIES - len(generations.entries()))
+            return generations.capacity()['headroom']
         except Exception as error:
             return 0 if 'limit exceeded' in str(error) else None
 
@@ -224,6 +244,37 @@ class BatchRunEngine:
                 self._stop, self._paused, self.state = True, False, 'stopping'
                 self._set_run('stopping')
                 self._cond.notify_all()
+
+    # -- after a stop or a restart ------------------------------------------
+    def recover(self):
+        """At application start: a run still marked active can no longer be running.
+
+        Marks it `interrupted` (its mid-step author `stopped`, never stamped). Starts nothing and
+        talks to nobody: whether to continue is the user's call (`resumable_run`).
+        """
+        with self._cond:
+            if self.active:
+                return ()
+            return self.ledger.recover_interrupted()
+
+    def resumable_run(self):
+        """The run the screen offers as 「前回は途中で止まりました。再開／破棄」, or None."""
+        with self._cond:
+            return None if self.active else self.ledger.resumable_run()
+
+    def discard_resumable(self):
+        run = self.resumable_run()
+        if run is not None:
+            self.ledger.discard_run(run.run_id)
+        return run
+
+    def start_unfinished(self, run_id=None):
+        """Resume = a new run over the authors the earlier run did not finish (done ones are skipped)."""
+        run = self.ledger.resumable_run()
+        if run is None or (run_id is not None and run.run_id != run_id):
+            raise RuntimeError('no resumable run')
+        authors = self.ledger.unfinished_authors(run.run_id)
+        return self.start(authors, kind=run.kind, origin=run.origin, target_type=run.target_type or None)
 
     def join(self, timeout=None):
         thread = self._thread
@@ -459,6 +510,16 @@ class BatchRunEngine:
                 counters['n_absent_pending'], counters['n_absent_confirmed'] = result
         self.ledger.update_author(run_id, author_id, deletion_check=check)
 
+    def _hold_jobs(self, refs):
+        hook = getattr(self.port, 'pause_jobs', None)
+        if hook is not None and refs and self.pause_reason in ('', 'user'):
+            hook(refs)
+
+    def _release_jobs(self, refs):
+        hook = getattr(self.port, 'resume_jobs', None)
+        if hook is not None and refs:
+            hook(refs)
+
     def _retire(self):
         """Ask the port to free finished jobs; True when done (or never going to be possible)."""
         if not self._settled or self._retire_disabled:
@@ -484,8 +545,15 @@ class BatchRunEngine:
         pending = list(queue)
         drain_since = None
         try:
+            jobs_held = False
             while pending or inflight:
+                if self._paused and inflight and not jobs_held:
+                    self._hold_jobs([ref for ref, _ in inflight.values()])
+                    jobs_held = True
                 self._check_state()
+                if jobs_held:
+                    self._release_jobs([ref for ref, _ in inflight.values()])
+                    jobs_held = False
                 progressed = False
                 draining = len(self._settled) >= self._next_drain_at and not self._retire_disabled
                 if draining and drain_since is None:
@@ -530,6 +598,8 @@ class BatchRunEngine:
                         state, error_code = states.get(job_id, ('lost', ''))
                         if state == 'paused' and error_code in _ADMISSION_PAUSES:
                             raise GateClosed(_ADMISSION_PAUSES[error_code])
+                        if state == 'error' and error_code == 'storage_capacity':
+                            raise RunFailed('saved_works_limit')  # the store is full: never a per-work failure
                         if state in _TERMINAL_JOBS or state == 'lost':
                             finished.append((ref, candidate, state))
                             del inflight[job_id]

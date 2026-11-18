@@ -491,11 +491,10 @@ def test_updates_do_not_count_against_the_store_cap_and_unknown_headroom_is_allo
         assert ledger.run(run_id).state == 'done' and port.n == 5
 
 
-def test_services_port_saved_headroom_reads_the_generation_count():
-    from pixivvault_nicegui.managed_generations import _MAX_ENTRIES
-    def port(entries):
-        return ServicesPort(NS(managed_downloads=NS(_generations=NS(entries=entries))))
-    assert port(lambda: {str(i): {} for i in range(30)}).saved_headroom() == _MAX_ENTRIES - 30
+def test_services_port_saved_headroom_reads_the_generation_capacity():
+    def port(capacity):
+        return ServicesPort(NS(managed_downloads=NS(_generations=NS(capacity=capacity))))
+    assert port(lambda: {'headroom': 970}).saved_headroom() == 970
     assert port(lambda: (_ for _ in ()).throw(ValueError('generation limit exceeded'))).saved_headroom() == 0
     assert port(lambda: (_ for _ in ()).throw(OSError('x'))).saved_headroom() is None
     assert ServicesPort(NS()).saved_headroom() is None
