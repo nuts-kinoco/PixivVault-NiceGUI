@@ -33,6 +33,7 @@ class RecommendView:
         # Original section expansion uses 6 -> 12 -> 18, independently of
         # explicit subsequent remote page acquisition.
         self.data=None;self.undo=None;self.visible={};self.step=6
+        self._certain_buttons={}
         self._pending_hide=None
         self._save_operations={};self._saving=set();self._busy_buttons=[];self._refresh_pending=False
         self._action_bindings=[];self._render_generation=0
@@ -252,7 +253,9 @@ class RecommendView:
         values=set(self.data['certain_group_collapsed'])
         values.remove(tag) if tag in values else values.add(tag)
         revision=self.data['revision']
-        await self._change(lambda:self.controller.configure('recommend_certain_group_collapsed',sorted(values),revision))
+        if await self._change(lambda:self.controller.configure('recommend_certain_group_collapsed',sorted(values),revision)):
+            button=self._certain_buttons.get(tag)
+            if button is not None:button.run_method('focus')
     async def reset_order(self):
         """Restore the original five shelf order using the same revisioned settings."""
         if (self.data is None or not self.data.get('writable')
@@ -369,7 +372,7 @@ class RecommendView:
         self._action_bindings.clear()
         self._render_generation+=1
         generation=self._render_generation
-        data=self.data;self.body.clear()
+        data=self.data;self.body.clear();self._certain_buttons={}
         self.update_button.set_enabled(data.get('can_acquire',False))
         self.reset_button.set_enabled(bool(data.get('writable') and tuple(data['order'])!=ORDER and not self.busy))
         with self.body:
@@ -435,6 +438,7 @@ class RecommendView:
                         if kind=='certain':
                             closed=group.key in data.get('certain_group_collapsed',())
                             b=ui.button('このタグを開く' if closed else 'このタグを閉じる',on_click=lambda e,t=group.key:self.collapse_certain_group(t)).props('flat')
+                            self._certain_buttons[group.key]=b
                             b.set_enabled(data['writable'])
                             if closed:continue
                         key=(kind,group.key);count=self.visible.get(key,self.step)
