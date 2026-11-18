@@ -71,7 +71,6 @@ class PracticalUgoiraJobs(ManagedUgoiraJobs):
         return obj
     def preview(self,wid,aid,output):
         if output not in FORMATS: raise ManagedUgoiraError()
-        if output=='mp4' and self.codec_python is None: raise ManagedUgoiraError('mp4_environment_unverified')
         packet,_=self.source.describe(wid,aid)
         saved=self.current(wid,output)
         spec=dict(version=2,**packet,output=output,predecessor=None if saved is None else saved['proof'])
@@ -170,7 +169,8 @@ class PracticalUgoiraJobs(ManagedUgoiraJobs):
         receipt=self._verified_result(job,loaded)
         if receipt is None or receipt!=job.result: raise ManagedUgoiraError()
         proof=dict(job_id=job.job_id,receipt=receipt,sha256=digest(_read_bounded(self.root/receipt,storage.MAX_RECEIPT_BYTES)))
-        return dict(spec=spec,proof=proof,job_id=job.job_id)
+        actual_output = 'gif' if receipt.startswith('gifs/') else spec['output']
+        return dict(spec=spec,proof=proof,job_id=job.job_id,actual_output=actual_output)
     def _completed_jobs(self):
         # Durable accepted operation order identifies jobs after the display
         # window has retired them; the receipt is still verified by entry().
@@ -208,7 +208,7 @@ class PracticalUgoiraJobs(ManagedUgoiraJobs):
         def add(data,delay,mime='image/png'):
             images.append(dict(src='data:'+mime+';base64,'+base64.b64encode(data).decode(),delay=delay))
         result_folder=(self.root/entry['proof']['receipt']).parent
-        if output=='gif':
+        if entry['actual_output']=='gif':
             with Image.open(BytesIO(_read_bounded(result_folder/'animation.gif',MAX_ARCHIVE_BYTES))) as gif:
                 for index in range(gif.n_frames):
                     gif.seek(index)

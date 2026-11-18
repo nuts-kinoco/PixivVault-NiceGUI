@@ -416,8 +416,6 @@ class ManagedUgoiraJobs:
                 or any(ord(char) < 32 or ord(char) == 127 for char in operation_id)
                 or type(output) is not str):
             raise ManagedUgoiraError()
-        if output == 'mp4' and self.codec_python is None:
-            raise ManagedUgoiraError('mp4_environment_unverified')
         if output not in {'frames', 'gif', 'mp4'} or self._closed:
             raise ManagedUgoiraError()
         try:

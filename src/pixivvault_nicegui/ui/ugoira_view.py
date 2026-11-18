@@ -111,8 +111,10 @@ class UgoiraLibraryView:
             with self.rows:
                 for entry in entries:
                     spec=entry['spec']
+                    actual=entry['actual_output']
+                    format_label = FORMATS[actual] if actual == spec['output'] else FORMATS[spec['output']] + ' → ' + FORMATS[actual]
                     with ui.row().classes('pv-job-row w-full items-center'):
-                        ui.label(f"{spec['title']} · {FORMATS[spec['output']]} · ID {spec['work_id']}").classes('pv-job-title grow')
+                        ui.label(f"{spec['title']} · {format_label} · ID {spec['work_id']}").classes('pv-job-title grow')
                         button=ui.button('再生').props(f"flat data-testid=ugoira-read-{spec['work_id']}-{spec['output']}")
                         button.on_click(lambda e,entry=entry,button=button:self.read(entry,button.html_id))
             self.notice.set_text(f'保存済み {len(entries)} 件')
@@ -129,7 +131,7 @@ class UgoiraLibraryView:
         try:
             playback=await asyncio.to_thread(self.services.ugoira.playback,entry)
             if not self.active or self.epoch!=epoch:return
-            self.title.set_text(entry['spec']['title']+' · '+FORMATS[entry['spec']['output']])
+            self.title.set_text(entry['spec']['title']+' · '+FORMATS[entry['actual_output']])
             # Retire any prior frame-decode task. A browser may complete its
             # Promise.all after the player closed or another medium opened.
             self.playback_generation+=1
