@@ -865,7 +865,7 @@ class UnifiedDownloadView:
         """added / removed: 1 件だけ増減したときはチップを 1 つだけ足す・消す（数百人でも重くしない）。"""
         self._sync_marks()
         self._render_id_row()
-        if added is None and removed is None:
+        if (added is None and removed is None) or len(self.targets) > 400 or getattr(self, "_chip_overflow", False):
             self.render_targets()
         else:
             if removed is not None:
@@ -1065,12 +1065,21 @@ class UnifiedDownloadView:
         if self.closed or not self.active:
             return
         changed = False
+        dirty_chips = set()
         while True:
             try:
                 event = self._events.get_nowait()
             except queue.Empty:
                 break
+            before_current = self.progress.current
+            before_done = self.progress.done
+            before_completed = self.progress.completed
             self.progress.apply(event)
+            dirty_chips.update(uid for uid in (before_current, self.progress.current,
+                                                event.get("author_id")) if uid is not None)
+            dirty_chips.update(self.progress.target_ids[before_done:self.progress.done])
+            if self.progress.completed != before_completed:
+                dirty_chips.update(self._chips)
             changed = True
             if event.get("event") == "run_end":
                 self.run_ended = datetime.now()
@@ -1078,7 +1087,7 @@ class UnifiedDownloadView:
                 self.band_error = str(event.get("error_code") or "")
                 self._after_run_end()
         if self.sync_engine() or changed:
-            self.refresh_chip_status()
+            self.refresh_chip_status(dirty_chips)
             self.render_controls()
             if changed:
                 self._render_band()
@@ -1269,10 +1278,14 @@ class UnifiedDownloadView:
             return
         self.chip_list.clear()
         self._chips = {}
+        self._chip_overflow = self.mode == "followed" and len(self.targets) > 400
         if self.mode == "followed":
             with self.chip_list:
-                for target in self.targets:
+                for target in self.targets[:400]:
                     self._chip(target)
+                remaining = len(self.targets) - len(self._chips)
+                if remaining:
+                    ui.label(f"ほか {remaining} 人").classes("pv-ud-sub").props("data-testid=unified-chip-overflow")
         self._sync_target_header()
 
     def _chip_status(self, uid):
@@ -1309,9 +1322,13 @@ class UnifiedDownloadView:
         else:
             self.target_count.set_text("全体")
 
-    def refresh_chip_status(self):
+    def refresh_chip_status(self, user_ids=None):
         """チップの状態（待機/取得中/完了/失敗）だけを書き換える。チップは作り直さない。"""
-        for uid, entry in self._chips.items():
+        ids = self._chips if user_ids is None else user_ids
+        for uid in ids:
+            entry = self._chips.get(str(uid))
+            if entry is None:
+                continue
             kind, text = self._chip_status(uid)
             if entry["status"].text != text:
                 entry["status"].set_text(text)

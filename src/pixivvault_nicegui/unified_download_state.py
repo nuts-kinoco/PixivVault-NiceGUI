@@ -94,10 +94,14 @@ def format_last_downloaded(value) -> str:
 
 
 def add_targets_bulk(targets, authors):
-    """複数の作者をまとめて対象へ積む（重複はスキップ・`add_target` を1件ずつ通す）。"""
+    """複数の作者を順序と先着の由来を保って追加する。"""
     out = list(targets)
+    seen = {str(t.get("user_id")) for t in out}
     for a in authors:
-        out, _ = add_target(out, a, "follow")
+        uid = str(a.get("user_id") or "")
+        if uid and uid not in seen:
+            out.append({"user_id": uid, "name": a.get("name") or uid, "origin": "follow"})
+            seen.add(uid)
     return out
 
 
