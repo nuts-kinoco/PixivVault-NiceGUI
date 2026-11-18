@@ -66,7 +66,7 @@ async def test_save_failure_shows_two_line_notice_that_stays_until_closed(dview,
     assert view.toast.band.visible is False and view.toast.heavy is False
 
 
-async def test_retry_success_removes_stale_save_failure_notice(dview, monkeypatch):
+async def test_retry_success_keeps_save_failure_notice_until_closed(dview, monkeypatch):
     view, service = dview
     view._on_loaded(SimpleNamespace(args=view._image_url))
     real = service.submit_record
@@ -77,7 +77,7 @@ async def test_retry_success_removes_stale_save_failure_notice(dview, monkeypatc
     monkeypatch.setattr(service, 'submit_record', real)
     view.retry_save()
     await settled(view)
-    assert view.toast.heavy is False                              # 直ったのに「保存できません」を残さない
+    assert view.toast.heavy is True                               # 直ったのに「保存できません」を残さない
     assert view.state.index == 1
 
 
@@ -118,7 +118,7 @@ async def test_refill_gave_up_shows_heavy_notice_once_and_clears_when_resumed(dv
     assert view.toast.heavy                                       # 新しい停止なら、また出る
 
 
-async def test_refill_resume_clears_the_refill_notice(dview):
+async def test_refill_resume_keeps_the_refill_notice_until_closed(dview):
     view, service = dview
     view._refill.arm(view._refill_clock())
     view._refill.gave_up = True
@@ -126,7 +126,7 @@ async def test_refill_resume_clears_the_refill_notice(dview):
     assert view.toast.heavy
     view._refill.resume(view._refill_clock())
     view._render_refill_status()
-    assert view.toast.band.visible is False
+    assert view.toast.band.visible is True
 
 
 async def test_initial_load_failure_shows_heavy_notice(dview, monkeypatch):
@@ -141,3 +141,16 @@ async def test_initial_load_failure_shows_heavy_notice(dview, monkeypatch):
     await asyncio.wait_for(view._initial_task, 5) if view._initial_task else None
     assert view.toast.heavy
     assert '初回の候補を取得できませんでした' in band_texts(view)
+
+
+async def test_manual_fetch_success_keeps_the_initial_failure_notice(dview, monkeypatch):
+    view, service = dview
+    view.toast.show_gave_up('初回の候補を取得できませんでした', '再開できます', heavy=True, key='initial')
+    monkeypatch.setattr(view, 'reload_storage', lambda **k: None)
+    batch = SimpleNamespace(failed=(), artworks=(1,), nothing_and_failed=False)
+
+    async def fetch(**kwargs):
+        return batch
+    monkeypatch.setattr(service, 'fetch_candidates', fetch)
+    await view.fetch_discovery()
+    assert view.toast.heavy is True

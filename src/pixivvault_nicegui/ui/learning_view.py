@@ -805,7 +805,6 @@ class LearningView:
                     except Exception:
                         self._notice='判定は保存済みです。候補の並び替えを更新できませんでした。'
                 self.refresh()
-                self.toast.clear_heavy("save")          # 再試行が通ったので「保存できません」を残さない
                 self._count_superlike(command.judgment.choice, undo=command.undo)
                 if command.undo:
                     self.toast.hide()
@@ -1609,7 +1608,6 @@ class LearningView:
                 heavy=True,key='refill')
         elif not stopped and self._refill_notice_shown:
             self._refill_notice_shown=False
-            self.toast.clear_heavy('refill')
 
     async def _run_candidate_refill(self,epoch):
         try:
