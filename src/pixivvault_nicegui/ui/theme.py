@@ -100,6 +100,7 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family: sys
 .pv-candidates-box { flex:1 1 0; min-width:0; overflow-x:auto; }
 .pv-grid .pv-card-head { flex:0 0 auto; }
 .pv-grid .pv-card-heart { color:var(--pv-pixiv-blue); }
+body.body--light .pv-grid .pv-card-heart { color:var(--pv-fill); }
 .pv-chip { display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border-radius:8px; background:var(--pv-raised); border:1px solid var(--pv-border); color:var(--pv-text); font-size:11px; cursor:pointer; }
 .pv-chip:hover { background:var(--pv-border); }
 .pv-chip:focus-visible { outline:2px solid var(--pv-primary); outline-offset:2px; }

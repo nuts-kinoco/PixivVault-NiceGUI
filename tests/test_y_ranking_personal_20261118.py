@@ -240,6 +240,9 @@ async def test_server_side_conditions_search_again_by_themselves(monkeypatch):
             view.r18.set_value(False)
             await settle(view)
             assert len(vault.calls) == 3 and vault.calls[-1]['r18'] is False
+            view.ai.set_value(True)
+            await settle(view)
+            assert len(vault.calls) == 4 and vault.calls[-1]['exclude_ai'] is True
             view.close()
     finally:
         client.delete()

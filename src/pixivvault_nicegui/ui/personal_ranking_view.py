@@ -76,9 +76,9 @@ class PersonalRankingView(RankingView):
             # an empty search result or leave its unrelated placeholder visible.
             self.gallery.empty.set_visibility(False)
             self.gallery.counter.set_text('未取得')
-        for control in (self.tags,self.ai,self.start_date,self.end_date):control.on_value_change(lambda _:self.changed())
+        for control in (self.tags,self.start_date,self.end_date):control.on_value_change(lambda _:self.changed())
         # 元 ranking_tab.py:1935-1947, 2012-2022, 2036-2038: サーバー側条件（ブクマ数下限・並び順・R-18）と条件クリアは再検索する。
-        for control in (self.bookmarks,self.sort,self.r18):control.on_value_change(lambda _:self.server_changed())
+        for control in (self.bookmarks,self.sort,self.r18,self.ai):control.on_value_change(lambda _:self.server_changed())
         for control in (self.date,self.include,self.exclude,self.author_max,*self.exclusions.values()):control.on_value_change(lambda _:self.local_changed())
         self.client.on_delete(self.close);self.availability();self._refresh_chips()
     def _apply_candidates_open(self):
