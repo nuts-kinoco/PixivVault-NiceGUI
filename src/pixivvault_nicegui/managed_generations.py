@@ -1546,6 +1546,9 @@ class ManagedGenerations:
         _fsync_dir(self.root)
         previous = loaded.jid if loaded is not None else None
         if journal is not None:
+            # An upgrade is committed only after its new index is durable.
+            # Preserve the legacy journal if this marker cannot be finalized.
+            self._ensure_v5_committed()
             if previous is not None:
                 # Retention counts from THIS fold (the journal's last write may be long ago).
                 for retired in (self._journal_file(previous), self._mark_file(previous)):
