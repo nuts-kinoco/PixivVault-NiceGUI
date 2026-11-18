@@ -238,3 +238,27 @@ def test_reason_update_recomputes_consecutive_skips_after_history_reorders(tmp_p
         assert skips() == 0
     finally:
         db.close()
+
+
+def test_failed_reason_commit_leaves_undo_usable(tmp_path):
+    import sqlite3
+    from pixivvault_nicegui.learning import Judgment
+    from pixivvault_nicegui.learning_repository import LearningRepository
+    from pixivvault_nicegui.legacy.database import Database
+
+    db = Database(tmp_path / 'learning.db', sandbox_root=tmp_path)
+    try:
+        repo = LearningRepository(db, {'1': {'tags': ['tag'], 'author_id': '42'}})
+        hated = Judgment('1', 'hate', 'old')
+        repo.record(hated)
+        db.conn.set_authorizer(lambda op, action, *_: sqlite3.SQLITE_DENY
+                               if op == sqlite3.SQLITE_TRANSACTION and action == 'COMMIT' else sqlite3.SQLITE_OK)
+        with pytest.raises(sqlite3.DatabaseError):
+            repo.set_hate_reason(hated, 'style')
+        db.conn.set_authorizer(None)
+        assert db.conn.execute("SELECT reason FROM discovery_swipe_history WHERE work_id='1'").fetchone()[0] is None
+        repo.revert(hated, 'undo')
+        assert db.conn.execute("SELECT COUNT(*) FROM discovery_swipe_history").fetchone()[0] == 0
+    finally:
+        db.conn.set_authorizer(None)
+        db.close()
