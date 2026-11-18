@@ -158,10 +158,12 @@ class RecommendView:
         except Exception:
             if self.active and self.epoch==epoch:
                 try:
-                    self.data=await asyncio.to_thread(self.controller.snapshot)
-                    self.render()
+                    data=await asyncio.to_thread(self.controller.snapshot)
+                    if self.active and not self.closed and self.epoch==epoch:
+                        self.data=data;self.render()
                 except Exception:pass
-                self.notice.set_text('取得または保存に失敗しました。前の結果とページを保持しています。再読込後に再試行できます。')
+                if self.active and not self.closed and self.epoch==epoch:
+                    self.notice.set_text('取得または保存に失敗しました。前の結果とページを保持しています。再読込後に再試行できます。')
             return False
         finally:
             self._finish_operation()
