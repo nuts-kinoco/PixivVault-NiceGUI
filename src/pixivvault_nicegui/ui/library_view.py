@@ -662,6 +662,8 @@ class LibraryView(ViewerController):
         self._bookmark_open_epoch += 1
         self._resolved_bookmark_artwork.clear()
         self.reload(preserve=True)
+        if self.bookmarks is not None:
+            self.bookmarks.refresh(reset_controls=True)
 
     def close_viewer(self, *, restore_focus=True):
         super().close_viewer(restore_focus=restore_focus)
@@ -1219,6 +1221,9 @@ class LibraryView(ViewerController):
         if self.bookmarks is not None:
             self.bookmarks.set_active(self.active and self.subview == "bookmarks")
         if active:
+            if self._bookmark_projection_pending and not self._viewer_state.viewer_open:
+                self._bookmark_projection_pending = False
+                self._refresh_bookmark_projection()
             if self.subview == 'bookmarks':
                 self._maybe_auto_refresh_bookmarks()
             self._restore_scroll(self.pages_scroll if self.state.selected_author else self.authors_scroll)
