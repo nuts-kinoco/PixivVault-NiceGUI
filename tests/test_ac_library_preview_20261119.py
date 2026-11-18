@@ -42,6 +42,13 @@ async def test_legacy_thumbnail_setting_off_does_not_block_existing_bookmark_ima
         def get_image_bytes(self,url):
             self.calls.append(url)
             return png('blue' if url==bookmark_url else 'red')
+        def get_bookmarked_works(self, identity, rest_type):
+            return ()
+        def get_bookmarked_novels(self, identity, rest_type):
+            if rest_type == 'show':
+                return ({'id': '101', 'title': 'Bookmark', 'user_id': '12',
+                         'user_name': 'Author', 'tags': [], 'thumb_url': bookmark_url},)
+            return ()
     img=tmp_path/'images'
     source(img)
     db_dir=tmp_path/'readonly'
@@ -66,7 +73,9 @@ async def test_legacy_thumbnail_setting_off_does_not_block_existing_bookmark_ima
     try:
         assert svc.preferences.get_setting('legacy_novel_thumbnail_auto')=='1'
         assert 'legacy_novel_thumbnail_auto' in svc.preference_consumers()
+        await svc.refresh_bookmark_cache()
         assert svc.bookmark_remote_snapshot()[0].work_id=='novel:101'
+        reader.calls.clear()
         svc.preferences.set_setting('legacy_novel_thumbnail_auto','0')
         svc.preferences.set_setting('bookmark_auto_refresh','0')
         with client, TestClient(app) as http:

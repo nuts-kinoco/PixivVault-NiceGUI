@@ -412,3 +412,44 @@ def test_rejected_preview_url_never_enters_image_snapshot(tmp_path):
         assert previews == {}
     finally:
         repo.close()
+
+
+def test_no_preference_store_disables_legacy_auto_thumbnail_but_configured_default_enables_it(tmp_path):
+    import json
+    import sqlite3
+    from pixivvault_nicegui.services import ApplicationServices
+    from test_managed_download_services import FakeSource
+    images = tmp_path / 'images'
+    source(images)
+    db_dir = tmp_path / 'readonly'
+    db_dir.mkdir()
+    db = db_dir / 'old.sqlite'
+    with sqlite3.connect(db) as conn:
+        conn.execute('CREATE TABLE works (work_id TEXT, title TEXT, page_count INTEGER, tags TEXT, user_id TEXT, is_deleted INTEGER, content_type TEXT, work_meta TEXT)')
+        conn.execute('CREATE TABLE following_users (user_id TEXT, name TEXT)')
+        conn.execute('INSERT INTO works VALUES (?, ?, 1, ?, ?, 0, ?, ?)',
+                     ('101', 'Novel', '[]', '12', 'novel', json.dumps({'url': 'https://i.pximg.net/synthetic/101.png'})))
+    reader = FakeSource()
+    service = ApplicationServices(live_client=reader, library_image_root=images, library_readonly_db=db)
+    pin = service.acquire_library_images()
+    try:
+        assert service.preferences is None
+        with pytest.raises(RuntimeError):
+            pin.get('novel:101', 0, 'thumb')
+        assert reader.calls == []
+        assert rgb(pin.get('novel:101', 0, 'cover')) == (255, 0, 0)
+    finally:
+        pin.close()
+        service.close()
+
+    reader = FakeSource()
+    service = ApplicationServices(live_client=reader, library_image_root=images,
+                                  library_readonly_db=db, preferences_root=tmp_path / 'prefs')
+    pin = service.acquire_library_images()
+    try:
+        assert service.preferences.get_setting('legacy_novel_thumbnail_auto') == '1'
+        assert rgb(pin.get('novel:101', 0, 'thumb')) == (255, 0, 0)
+        assert reader.calls == ['image']
+    finally:
+        pin.close()
+        service.close()

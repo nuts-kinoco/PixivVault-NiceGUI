@@ -2357,7 +2357,7 @@ class ApplicationServices:
             if self.closing:
                 return False
             try:
-                return self.preferences is None or self.preferences.get_setting('legacy_novel_thumbnail_auto', '1') == '1'
+                return self.preferences is not None and self.preferences.get_setting('legacy_novel_thumbnail_auto', '1') == '1'
             except Exception:
                 return False
         return LegacyNovelPreviewImages(reader, urls, enabled)
