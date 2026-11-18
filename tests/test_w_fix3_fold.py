@@ -250,3 +250,22 @@ def test_pending_recovery_does_not_wait_behind_writer_fence(tmp_path, monkeypatc
             release.set()
         holder.result(timeout=8)
     assert set(observer.entries()) == {'1000'}
+
+
+def test_unrelated_append_does_not_invalidate_page_visibility_mid_check(tmp_path, monkeypatch):
+    root = make_root(tmp_path)
+    writer = mg.ManagedGenerations(root)
+    writer.prepare_for_publication()
+    publish(writer, root, '1000')
+    original = writer._file_identity
+    calls = 0
+    def append_between_checks(path):
+        nonlocal calls
+        if path == writer.index_path:
+            calls += 1
+            if calls == 2:
+                publish(writer, root, '1001')
+        return original(path)
+    monkeypatch.setattr(writer, '_file_identity', append_between_checks)
+    writer.assert_page_visible('1000', 0)
+    assert calls >= 2

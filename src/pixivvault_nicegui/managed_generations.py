@@ -269,7 +269,7 @@ class _Loaded:
                  'exclusions', 'operations', 'out_sig', 'journal_sig', 'journal_offset',
                  'journal_chain', 'journal_records', 'stale_journal', 'acc', 'shared',
                  'jid', 'jpath', 'legacy_journal', 'gen_sig', 'mark_records', 'fold_failed', 'header_bytes',
-                 'journal_hasher', 'journal_chains', 'generation', 'parent_digest')
+                 'journal_hasher', 'journal_chains', 'generation', 'parent_digest', 'head_records', 'head_chain')
 
     def __init__(self):
         self.version = None
@@ -285,6 +285,7 @@ class _Loaded:
         self.journal_hasher = None
         self.journal_chains = []
         self.generation = self.parent_digest = None
+        self.head_records = self.head_chain = None
         self.fold_failed = False    # the last attempt to fold the journal into the index failed
         self.acc = 0
 
@@ -353,12 +354,17 @@ class ManagedGenerations:
             return None
         try:
             head = json.loads(_read_shared(path, 4096), object_pairs_hook=_json_unique)
-            if (type(head) is not dict or head.keys() != {'generation', 'id', 'digest', 'candidate'}
+            if (type(head) is not dict or head.keys() not in (
+                    {'generation', 'id', 'digest', 'candidate'},
+                    {'generation', 'id', 'digest', 'candidate', 'records', 'chain'})
                     or type(head['generation']) is not int or head['generation'] < 1
                     or type(head['id']) is not str or re.fullmatch(r'[a-f0-9]{32}', head['id']) is None
                     or type(head['digest']) is not str or not _SHA.fullmatch(head['digest'])
                     or type(head['candidate']) is not str
                     or re.fullmatch(r'active-[a-f0-9]{32}\.tmp', head['candidate']) is None):
+                raise ValueError()
+            if 'records' in head and (type(head['records']) is not int or head['records'] < 0
+                                      or type(head['chain']) is not str or not _SHA.fullmatch(head['chain'])):
                 raise ValueError()
             return head
         except (OSError, ValueError, TypeError, KeyError, UnicodeError):
@@ -692,6 +698,7 @@ class ManagedGenerations:
                     if (head['digest'] != loaded.base_digest or head['id'] != loaded.jid
                             or head['generation'] != loaded.generation):
                         raise ValueError()
+                    loaded.head_records, loaded.head_chain = head.get('records'), head.get('chain')
                 elif loaded.generation is not None:
                     raise ValueError()
             else:
@@ -735,9 +742,10 @@ class ManagedGenerations:
                         raise ValueError()
             self._quarantine_fields(loaded.qpacket(), verify_payloads=True, tolerate_missing=False)
             loaded.indexed = self._check_entries(packet['entries'], loaded.version, folders)
+            base_ids = frozenset(loaded.indexed) if loaded.version == 5 and loaded.generation is None else None
             self._replay_journal(loaded, folders)
             if loaded.version == 5 and loaded.generation is None:
-                self._check_old_v5_journals(loaded, folders)
+                self._check_old_v5_journals(loaded, folders, base_ids)
             if loaded.version != 5 and pending_upgrade and not loaded.legacy_journal:
                 referenced = {entry['relative_receipt'].split('/')[1] for entry in loaded.indexed.values()}
                 if generations - referenced and not self._new_upgrade_staged(loaded.base_digest):
@@ -910,6 +918,8 @@ class ManagedGenerations:
                 or type(mark['records']) is not int or mark['records'] < 0):
             raise ValueError()
         recorded = mark['records']
+        records, head_chain = self._head_after_mark(loaded, recorded, loaded.head_records, loaded.head_chain)
+        self._validate_head_sequence(records, head_chain, seq, [chain0, *chains])
         # The mark follows each append, so after a crash (or a failed mark write) the journal may be
         # AHEAD of it: those saves did commit, and the next save brings the mark up to date first.
         # The mark itself must be a point on this journal's hash chain, and the journal can never be
@@ -933,7 +943,24 @@ class ManagedGenerations:
         loaded.journal_hasher = hashlib.sha256(raw[:loaded.journal_offset])
         loaded.journal_chains = [chain0, *chains]
 
-    def _check_old_v5_journals(self, loaded, folders):
+    @staticmethod
+    def _validate_head_sequence(records, chain, seq, chains):
+        if records is not None and (records > seq or chains[records] != chain):
+            raise ValueError()
+
+    def _head_after_mark(self, loaded, mark_records, records, chain):
+        if records is not None and mark_records > records:
+            # A concurrent append may have advanced the mark since the first
+            # head read. Re-read before declaring a stable contradiction.
+            head = self._read_head()
+            if (head is None or head['id'] != loaded.jid or head['generation'] != loaded.generation
+                    or head['digest'] != loaded.base_digest or head.get('records') is None
+                    or mark_records > head['records']):
+                raise ValueError()
+            return head['records'], head['chain']
+        return records, chain
+
+    def _check_old_v5_journals(self, loaded, folders, base_ids):
         """Refuse an old pointer that omits work committed in a surviving old journal.
 
         Old v5 did not record fold order. Its surviving journals can prove that a
@@ -963,10 +990,10 @@ class ManagedGenerations:
                     or type(mark['records']) is not int or not 0 <= mark['records'] <= seq
                     or mark['chain'] != ([chain0, *chains][mark['records']])):
                 raise ValueError()
-            if any(entry['work_id'] not in loaded.indexed for entry in entries):
+            if any(entry['work_id'] not in base_ids for entry in entries):
                 raise ValueError()
 
-    def _verify_cached_v5(self, loaded):
+    def _verify_cached_v5(self, loaded, head):
         """Validate the cached prefix and mark, then verify only genuinely new entries."""
         mark = json.loads(_read_shared(self._mark_file(loaded.jid), 4096), object_pairs_hook=_json_unique)
         raw, sig = _read_shared_identity(loaded.jpath, _MAX_JOURNAL_BYTES)
@@ -987,8 +1014,13 @@ class ManagedGenerations:
                 or (loaded.generation is not None and (type(mark['generation']) is not int
                                                        or mark['generation'] != loaded.generation))
                 or mark['id'] != loaded.jid or type(mark['records']) is not int
-                or not 0 <= mark['records'] <= seq or mark['chain'] != all_chains[mark['records']]):
+                or not loaded.mark_records <= mark['records'] <= seq
+                or mark['chain'] != all_chains[mark['records']]):
             raise ValueError()
+        records, head_chain = self._head_after_mark(loaded, mark['records'],
+                                                     None if head is None else head.get('records'),
+                                                     None if head is None else head.get('chain'))
+        self._validate_head_sequence(records, head_chain, seq, all_chains)
         for entry in entries:
             self._apply_entry(loaded, entry)
         loaded.journal_hasher.update(tail[:end])
@@ -1076,7 +1108,7 @@ class ManagedGenerations:
                                     (head is not None and (head['digest'] != loaded.base_digest or
                                      head['generation'] != loaded.generation or head['id'] != loaded.jid))):
                                 raise ValueError()
-                            self._verify_cached_v5(loaded)
+                            self._verify_cached_v5(loaded, head)
                         except Exception:
                             if _identity(self.index_path) != loaded.base_sig:
                                 # A legitimate fold moved the base to a new journal.
@@ -1260,6 +1292,8 @@ class ManagedGenerations:
         self._recover_if_pending()
         with self._lock:
             loaded, (exclusions, operations, enabled) = self._checked()
+            if loaded.version == 5 and loaded.generation is not None:
+                self._advance_head_sequence(loaded)
             before = loaded.active.get(wid)
             before = dict(before) if before is not None else None
             # Safe idempotent replay after index commit but before job DB commit.
@@ -1365,6 +1399,7 @@ class ManagedGenerations:
         loaded.journal_chain, loaded.journal_records = chain, seq
         loaded.journal_sig = _identity(loaded.jpath)
         self._apply_entry(loaded, entry)
+        self._advance_head_sequence(loaded)
         # The save is durable now. The mark only lets the next open notice a lost journal; if it
         # cannot be written this time the save still stands, and the next save writes it first.
         try:
@@ -1695,6 +1730,21 @@ class ManagedGenerations:
         _replace_retrying(temporary, self.root / _V5_HEAD)
         _fsync_dir(self.root)
 
+    def _advance_head_sequence(self, loaded):
+        """Anchor every durable append independently of its journal and mark."""
+        head = self._read_head()
+        if (head is None or head['id'] != loaded.jid or head['generation'] != loaded.generation
+                or head['digest'] != loaded.base_digest):
+            raise ManagedDownloadError('active generation index rejected')
+        records = head.get('records')
+        try:
+            self._validate_head_sequence(records, head.get('chain'), loaded.journal_records,
+                                         loaded.journal_chains)
+        except (ValueError, IndexError):
+            raise ManagedDownloadError('active generation index rejected') from None
+        if records != loaded.journal_records:
+            self._write_head({**head, 'records': loaded.journal_records, 'chain': loaded.journal_chain})
+
     def _ensure_v5_committed(self):
         """Keep durable evidence before a v5 publication or a journal can be folded away."""
         marker = self.root / _V5_COMMITTED
@@ -1734,7 +1784,8 @@ class ManagedGenerations:
             # The durable head is the commit point. If index replacement is interrupted,
             # the named, hash-checked staged index is rolled forward at the next open.
             self._write_head({'generation': generation, 'id': journal[0],
-                              'digest': hashlib.sha256(data).hexdigest(), 'candidate': temporary.name})
+                              'digest': hashlib.sha256(data).hexdigest(), 'candidate': temporary.name,
+                              'records': 0, 'chain': hashlib.sha256(journal[1]).hexdigest()})
         _safe_path(self.index_path, file=True)
         _replace_retrying(temporary, self.index_path, patience)
         self._visibility_cache = None
@@ -1928,6 +1979,11 @@ class ManagedGenerations:
         return (value.st_dev, value.st_ino, value.st_size,
                 value.st_mtime_ns, value.st_ctime_ns)
 
+    def _visibility_signature(self):
+        head = self._read_head()
+        anchor = None if head is None else (head['generation'], head['id'], head['digest'])
+        return self._file_identity(self.index_path), anchor
+
     def assert_page_visible(self, work_id: str, page_no: int) -> None:
         """Check exclusions without rescanning all artwork for every image.
 
@@ -1941,7 +1997,7 @@ class ManagedGenerations:
         self._recover_if_pending()
         with self._lock:
             try:
-                signature = (self._file_identity(self.index_path), _identity(self.root / _V5_HEAD))
+                signature = self._visibility_signature()
             except FileNotFoundError:
                 self._checked()
                 self._visibility_cache = None
@@ -1987,7 +2043,7 @@ class ManagedGenerations:
                             raise ManagedDownloadError('quarantine source proof changed')
                         verified_proofs[key] = proof_identity
                     paths[proof_relative] = verified_proofs[key]
-            if (self._file_identity(self.index_path), _identity(self.root / _V5_HEAD)) != signature:
+            if self._visibility_signature() != signature:
                 raise ManagedDownloadError('quarantine index changed')
             self._visibility_cache = (signature, exclusions, watched)
             if str(page_no) in exclusions.get(wid, {}):
