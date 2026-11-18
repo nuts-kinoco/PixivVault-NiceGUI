@@ -402,7 +402,7 @@ def run(args):
     env.pop("PYTEST_CURRENT_TEST", None)
     log = (base / "server.log").open("wb")
     proc = subprocess.Popen([sys.executable, "-B", str(Path(__file__).resolve()), "--serve",
-                             "--root", str(base), "--port", str(args.port), "--nonce", nonce],
+                             "--root", str(base), "--port", str(args.port), f"--nonce={nonce}"],
                             cwd=str(base), env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT)
     url = f"http://{HOST}:{args.port}"
     harness_errors: list[str] = []
