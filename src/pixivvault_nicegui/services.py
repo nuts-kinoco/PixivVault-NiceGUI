@@ -2632,13 +2632,14 @@ class ApplicationServices:
             raise RuntimeError("application services are closed")
         return self._cached_local_bookmarks
 
-    async def refresh_bookmark_cache(self, *, expected_account=None):
+    async def refresh_bookmark_cache(self, *, expected_account=None, return_account=False):
         """Publish complete bookmark routes and their verified export account."""
         if expected_account is not None and self.live_client is None:
             from .batch_engine import RunNeedsConfirmation
             raise RunNeedsConfirmation()
         if self.library_repository is None and self.live_client is None:
-            return self.bookmark_remote_snapshot(), self.bookmark_local_snapshot()
+            snapshots = self.bookmark_remote_snapshot(), self.bookmark_local_snapshot()
+            return (*snapshots, None) if return_account else snapshots
         async with self._library_refresh_lock:
             if self.closing:
                 raise RuntimeError("application services are closed")
@@ -2733,7 +2734,7 @@ class ApplicationServices:
                 if catalog is not None and not adopted:
                     catalog.close()
                 raise
-            return remote, local
+            return (remote, local, account) if return_account else (remote, local)
 
     def close(self) -> None:
         with self._close_lock:
@@ -3076,8 +3077,12 @@ class ApplicationServices:
             raise RuntimeError('author batch runs are not enabled')
         if self.batch_run_active():
             raise RuntimeError('a batch run is already active')
-        await self.refresh_bookmark_cache()
-        return self.start_batch_run(tuple(visibilities), kind='bookmarks', origin=origin, target_type=target_type)
+        _, _, account = await self.refresh_bookmark_cache(return_account=True)
+        engine = self.batch_runs
+        if engine is None or self.closing:
+            raise RuntimeError('author batch runs are not enabled')
+        engine.account_id = account
+        return engine.start(tuple(visibilities), kind='bookmarks', origin=origin, target_type=target_type)
 
     def bookmark_layout(self):
         """The bookmark projection layout and optional per-work folders."""

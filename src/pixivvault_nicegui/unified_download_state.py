@@ -347,6 +347,8 @@ END_MESSAGES = {
 
 def end_message(outcome, error_code=""):
     """実行の終わりに出す 1 行。元は停止を「失敗しました: …中止」と出していたが、移植版は「停止しました。」。"""
+    if outcome == "interrupted" and error_code == "bookmark_account_mismatch":
+        return "前回の実行とアカウントが異なるため、再開を保留しました。ログイン中のアカウントを確認してください。"
     if outcome == "failed" and error_code:
         return f"失敗しました: {error_code}"
     return END_MESSAGES.get(outcome, "")

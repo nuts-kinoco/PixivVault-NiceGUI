@@ -1140,6 +1140,9 @@ class UnifiedDownloadView:
         try:
             engine = self.engine
             run = engine.ledger.run(engine.run_id)
+            if run.state == "interrupted" and run.error_code == "bookmark_account_mismatch":
+                self.band_error = run.error_code
+                return "interrupted"
             return {"interrupted": "stopped"}.get(run.state, run.state if run.state in ("done", "stopped", "failed") else None)
         except Exception:
             return None
@@ -1505,7 +1508,8 @@ class UnifiedDownloadView:
                 text = self._bookmark_text() or text
         interrupted = self.resumable is not None and not self.running
         if interrupted and self.band_state == "idle":
-            text = U.INTERRUPTED_TEXT
+            code = getattr(self.resumable, "error_code", "")
+            text = U.status_text("interrupted", outcome_code=code) or U.INTERRUPTED_TEXT
         self.band_status.set_text(text)
         self.resume_button.set_visibility(interrupted)
         self.discard_button.set_visibility(interrupted)
