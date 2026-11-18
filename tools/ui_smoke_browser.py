@@ -203,9 +203,8 @@ def serve(args):
     base = Path(args.root)
     fake = FakeClient()
     reader, scope = make_stopped_reader(base, fake)
-    # Isolated, Cookie-less profile: gives the header auth label + cookie banner exactly as the
-    # real app shows them before a Cookie is chosen.  No Cookie reader, no browser profile, no
-    # shared STOP owner is created; the auth check resolves locally to "not configured".
+    # The profile has no selected Cookie; the separate synthetic reader uses the
+    # isolated shared STOP owner and generated Cookie created above.
     store = NativeProfileStore(base / "profile")
     profile = NativeProfileBinding(store, launch_snapshot=store.snapshot())
     profile.auth_stop_required = True
