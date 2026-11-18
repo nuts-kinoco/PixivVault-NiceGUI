@@ -319,7 +319,7 @@ def reject_uncertain_old_v5(root):
     try:
         packet = json.loads(_read_shared(index, _MAX_INDEX_BYTES), object_pairs_hook=_json_unique)
     except (OSError, ValueError, TypeError, UnicodeError, RecursionError):
-        return  # the normal index validator reports malformed input
+        raise ManagedDownloadError('active generation index rejected') from None
     if (type(packet) is dict and type(packet.get('version')) is int and packet['version'] == 5
             and type(packet.get('journal')) is dict and 'generation' not in packet['journal']):
         raise LegacyV5Uncertain()

@@ -85,6 +85,23 @@ def test_warm_reader_refuses_replacement_with_generationless_index(tmp_path):
     assert snapshot(root) == before
 
 
+def test_unreadable_index_is_refused_before_any_directory_creation(tmp_path, monkeypatch):
+    root = make_root(tmp_path)
+    old = historical_module('823871e').ManagedGenerations(root)
+    old.prepare_for_publication()
+    (root / 'generation-incomplete').rmdir()
+    before = snapshot(root)
+    read = mg._read_shared
+    def unreadable(path, limit):
+        if path.name == 'active-generations.json':
+            raise OSError('synthetic read failure')
+        return read(path, limit)
+    monkeypatch.setattr(mg, '_read_shared', unreadable)
+    with pytest.raises(ManagedDownloadError):
+        mg.ManagedGenerations(root)
+    assert snapshot(root) == before
+
+
 def test_native_startup_routes_old_v5_to_offline_recovery(tmp_path, monkeypatch):
     from pixivvault_nicegui import bootstrap
     from pixivvault_nicegui.managed_downloads import LegacyV5Uncertain
