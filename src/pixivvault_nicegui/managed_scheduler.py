@@ -132,6 +132,26 @@ class ManagedScheduler:
         book = self._favourites_source
         return self.favourites_seeded() and not (book is not None and book.readable())
 
+    def _is_star(self, author_id: str) -> bool:
+        """The same answer as favourites(): the ledger once imported, else the own list plus the
+        stars set on the screen (the ledger's), so a pending work is never judged by half of them."""
+        book = self._favourites_source
+        readable = book is not None and book.readable()
+        if readable:
+            import time
+            stamp, cached = self._star_cache
+            if time.monotonic() - stamp > 5.0:
+                try:
+                    cached = frozenset(book.ids())
+                except Exception:
+                    cached = frozenset()
+                self._star_cache = (time.monotonic(), cached)
+            if author_id in cached:
+                return True
+            if self._ledger_is_source():
+                return False
+        return self._db.execute('SELECT 1 FROM favourite_authors WHERE author_id=?', (author_id,)).fetchone() is not None
+
     def _ledger_is_source(self) -> bool:
         book = self._favourites_source
         # An unreadable ledger (no store attached, not synced) is "unknown", not an empty star list.
@@ -377,15 +397,7 @@ class ManagedScheduler:
             # concurrent settings transaction.
             if self._stars_unknown():
                 pass  # keep the pending work; it is judged again when the ledger can be read
-            elif self._ledger_is_source():
-                import time
-                stamp, cached = self._star_cache
-                if time.monotonic() - stamp > 5.0:
-                    cached = frozenset(self._favourites_source.ids())
-                    self._star_cache = (time.monotonic(), cached)
-                if author_id not in cached:
-                    return
-            elif self._db.execute('SELECT 1 FROM favourite_authors WHERE author_id=?', (author_id,)).fetchone() is None:
+            elif not self._is_star(author_id):
                 return
             self._db.execute('INSERT INTO deferred_work(author_id,work_id,update_date,page_count,work_type,created_utc) VALUES(?,?,?,?,?,?) ON CONFLICT(author_id,work_id) DO UPDATE SET update_date=excluded.update_date,page_count=excluded.page_count,work_type=excluded.work_type',
                              (author_id, work['id'], work['update_date'], work['page_count'], work['type'], _timestamp(now)))
@@ -596,12 +608,13 @@ class ManagedScheduler:
                       now: datetime) -> ScheduleState:
         """One all-or-nothing settings transaction, using the client's CAS."""
         from .pixiv_read_client import _identifier
-        if (type(author_ids) is not tuple or len(author_ids) > MAX_FAVOURITES
+        if (not (author_ids is None or (type(author_ids) is tuple and len(author_ids) <= MAX_FAVOURITES))
                 or type(interval_hours) is not int or interval_hours not in VALID_INTERVALS
                 or type(startup_check) is not bool or type(expected_revision) is not int
                 or expected_revision < 1):
             raise ValueError('invalid managed schedule settings')
-        ids = tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
+        # author_ids=None leaves the stars exactly as they are (a form that never saw them must not save them).
+        ids = None if author_ids is None else tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
         current_time = _utc(now)
         with self._lock:
             self._ensure_open()
@@ -610,7 +623,8 @@ class ManagedScheduler:
                 previous = self.snapshot()
                 if previous.revision != expected_revision:
                     raise ScheduleError('schedule changed in another client')
-                self._store_favourites(ids)
+                if ids is not None:
+                    self._store_favourites(ids)
                 next_due = (None if interval_hours == 0 else
                             _timestamp(current_time + timedelta(hours=interval_hours)))
                 self._db.execute('UPDATE schedule SET interval_hours=?,startup_check=?,revision=?,next_due_utc=? WHERE id=1',
@@ -630,6 +644,12 @@ class ManagedScheduler:
             self._star_cache = (0.0, frozenset())
             self._prune_deferred(applied)
             return applied
+        book = self._favourites_source
+        if book is not None and book.readable():
+            # Not imported yet, but the screen's stars live in the ledger and are part of favourites():
+            # a star taken out of the form must leave the ledger as well or it comes straight back.
+            book.replace(ids)
+            self._star_cache = (0.0, frozenset())
         self._db.execute('CREATE TABLE IF NOT EXISTS favourite_authors(author_id TEXT PRIMARY KEY)')
         self._db.execute('DELETE FROM favourite_authors')
         self._db.executemany('INSERT INTO favourite_authors(author_id) VALUES (?)', ((uid,) for uid in ids))

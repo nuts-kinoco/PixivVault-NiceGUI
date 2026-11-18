@@ -199,7 +199,10 @@ def _read_shared_identity(path, limit):
     _safe_path(path, file=True)
     with _open_shared(path) as stream:
         info = os.fstat(stream.fileno())
-        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > limit:
+        # `_safe_path(file=True)` above already required a single link on the NAME. A handle opened a
+        # moment before a writer replaced the file reports 0 links (delete-pending): that is a normal
+        # replace in progress, not a hard link, so 0 and 1 are both fine here.
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink not in (0, 1) or info.st_size > limit:
             raise ManagedDownloadError('managed file rejected')
         data = stream.read(limit + 1)
     if len(data) > limit:
@@ -262,7 +265,7 @@ class _Loaded:
     __slots__ = ('version', 'base_sig', 'base_digest', 'base_bytes', 'indexed', 'legacy', 'legacy_names', 'active',
                  'exclusions', 'operations', 'out_sig', 'journal_sig', 'journal_offset',
                  'journal_chain', 'journal_records', 'stale_journal', 'acc', 'shared',
-                 'jid', 'jpath', 'legacy_journal', 'gen_sig', 'mark_records', 'fold_failed')
+                 'jid', 'jpath', 'legacy_journal', 'gen_sig', 'mark_records', 'fold_failed', 'header_bytes')
 
     def __init__(self):
         self.version = None
@@ -273,6 +276,7 @@ class _Loaded:
         self.exclusions, self.operations = {}, {}
         self.stale_journal = self.shared = self.legacy_journal = False
         self.jid = self.jpath = self.gen_sig = None
+        self.header_bytes = 0
         self.mark_records = 0       # `records` the mark file holds (the journal may be ahead of it)
         self.fold_failed = False    # the last attempt to fold the journal into the index failed
         self.acc = 0
@@ -557,6 +561,18 @@ class ManagedGenerations:
                 result.update(done)
         return result
 
+    def _legacy_journal_evidence(self) -> bool:
+        """Leftovers that say a pre-v5 journal existed: a file named like it (a backup, a rename, a
+        deleted-but-kept copy) or an unfinished temporary of one."""
+        try:
+            with os.scandir(native_io_path(self.root)) as listing:
+                if any(item.name.startswith('active-generations.journal') for item in listing):
+                    return True
+            with os.scandir(native_io_path(self.stage_dir)) as listing:
+                return any(item.name.startswith('journal-') and item.name.endswith('.tmp') for item in listing)
+        except OSError:
+            return False
+
     def _load_full(self) -> _Loaded:
         """Verify everything once: index, journal, every receipt, every work folder."""
         if native_io_path(self.index_path).is_symlink():
@@ -612,9 +628,12 @@ class ManagedGenerations:
             self._quarantine_fields(loaded.qpacket(), verify_payloads=True, tolerate_missing=False)
             loaded.indexed = self._check_entries(packet['entries'], loaded.version, folders)
             self._replay_journal(loaded, folders)
-            if loaded.version != 5 and not loaded.indexed and generations:
-                # An index of an older build that names no work while sealed generations exist: its
-                # journal (or the entries it carried) is gone. Never shown as an empty library.
+            if (loaded.version != 5 and not loaded.indexed and generations
+                    and self._legacy_journal_evidence()):
+                # An empty index of an older build with sealed generations is usually the harmless
+                # leftover of a first save that stopped after the folder was moved in (the older code
+                # prepared the pointer, then renamed, then published). It is refused only when something
+                # shows a journal of the first journalled builds existed and is now gone.
                 raise ValueError()
             active = dict(legacy)
             active.update(loaded.indexed)
@@ -748,6 +767,7 @@ class ManagedGenerations:
         loaded.journal_chain = chain
         loaded.journal_records = seq
         loaded.journal_offset = len(header) + end
+        loaded.header_bytes = len(header)
 
     def _apply_entry(self, loaded, entry):
         wid = entry['work_id']
@@ -780,6 +800,20 @@ class ManagedGenerations:
         loaded.journal_chain, loaded.journal_records = chain, seq
         loaded.journal_offset += end
         loaded.journal_sig = sig
+        self._sync_mark(loaded)
+
+    def _sync_mark(self, loaded):
+        """Learn what the mark on disk says: after taking in another instance's saves it is usually
+        already current, and then it must not be written again (or the save fails when it cannot be)."""
+        if loaded.jid is None or loaded.mark_records == loaded.journal_records:
+            return
+        try:
+            mark = json.loads(_read_shared(self._mark_file(loaded.jid), 4096), object_pairs_hook=_json_unique)
+            if (mark.keys() == {'id', 'records', 'chain'} and mark['id'] == loaded.jid
+                    and type(mark['records']) is int and loaded.mark_records <= mark['records'] <= loaded.journal_records):
+                loaded.mark_records = mark['records']
+        except Exception:
+            pass
 
     def _freshness(self, loaded):
         base = _identity(self.index_path)
@@ -874,8 +908,11 @@ class ManagedGenerations:
             room = min(by_count, by_bytes)
             if loaded.version == 5 and loaded.fold_failed:
                 # Folds keep failing, so the journal cannot be emptied: what still fits in it is the limit.
-                room = min(room, max(0, (_MAX_JOURNAL_BYTES - _JOURNAL_SLACK - loaded.journal_offset)
-                                     // _JOURNAL_RECORD_ESTIMATE))
+                remaining = _MAX_JOURNAL_BYTES - _JOURNAL_SLACK - loaded.journal_offset
+                average = ((loaded.journal_offset - loaded.header_bytes) // loaded.journal_records
+                           if loaded.journal_records else _JOURNAL_RECORD_ESTIMATE)
+                # publish refuses once the offset reaches the limit, so a save fits while it is below it
+                room = min(room, 0 if remaining <= 0 else -(-remaining // max(1, average)))
             return {'entries': len(loaded.active), 'max_entries': _MAX_ENTRIES, 'index_bytes': used,
                     'max_index_bytes': _MAX_INDEX_BYTES, 'headroom': room}
 
@@ -1039,6 +1076,8 @@ class ManagedGenerations:
     def _append_journal(self, loaded, target):
         entry = dict(target)
         if loaded.mark_records != loaded.journal_records:
+            self._sync_mark(loaded)
+        if loaded.mark_records != loaded.journal_records:
             # The journal is ahead of its mark (a crash, or an earlier mark write that failed). Catch
             # the mark up BEFORE adding anything, so the journal is never more than one record ahead
             # of what the mark can vouch for. If that fails nothing is appended and the save fails.
@@ -1048,7 +1087,7 @@ class ManagedGenerations:
         chain = hashlib.sha256((loaded.journal_chain + _canonical(entry).decode('ascii')).encode('ascii')).hexdigest()
         line = _canonical({'chain': chain, 'entry': entry, 'seq': seq}) + b'\n'
         _safe_path(loaded.jpath, file=True)
-        with native_io_path(loaded.jpath).open('r+b') as stream:
+        with self._open_for_append(loaded.jpath) as stream:
             size = os.fstat(stream.fileno()).st_size
             if size < loaded.journal_offset:
                 raise ManagedDownloadError('generation journal rejected')
@@ -1068,6 +1107,21 @@ class ManagedGenerations:
             loaded.mark_records = seq
         except Exception:
             pass
+
+    @staticmethod
+    def _open_for_append(path, patience=0.5):
+        """Open the journal for writing, waiting briefly out a reader that holds it without sharing
+        write access (an unusual tool; our own readers share)."""
+        deadline = time.monotonic() + patience
+        delay = 0.005
+        while True:
+            try:
+                return native_io_path(path).open('r+b')
+            except PermissionError:
+                if time.monotonic() + delay > deadline:
+                    raise
+                time.sleep(delay)
+                delay = min(delay * 1.5, 0.05)
 
     def _write_mark(self, jid, records, chain, patience=1.0):
         _safe_path(self.stage_dir)
@@ -1378,6 +1432,13 @@ class ManagedGenerations:
         _fsync_dir(self.root)
         previous = loaded.jid if loaded is not None else None
         if journal is not None:
+            if previous is not None:
+                # Retention counts from THIS fold (the journal's last write may be long ago).
+                for retired in (self._journal_file(previous), self._mark_file(previous)):
+                    try:
+                        os.utime(native_io_path(retired))
+                    except OSError:
+                        pass
             self._prune_journals({journal[0], previous})
         else:
             self._prune_journals(set())
@@ -1397,6 +1458,7 @@ class ManagedGenerations:
                 loaded.journal_chain = hashlib.sha256(journal[1]).hexdigest()
                 loaded.journal_records = 0
                 loaded.journal_offset = len(journal[1])
+                loaded.header_bytes = len(journal[1])
                 loaded.journal_sig = _identity(loaded.jpath)
             else:
                 loaded.jid = loaded.jpath = loaded.journal_chain = loaded.journal_sig = None

@@ -511,13 +511,6 @@ def test_r2_5_assert_room_and_capacity_see_a_journal_that_cannot_be_folded(root,
 
 # ---- item 6: an emptied pointer with sealed works, and the pointer a cancelled first save leaves --------------
 
-def test_r2_6_an_index_naming_no_work_while_sealed_generations_exist_is_refused(root):
-    make_generation(root, '7001')
-    (root / 'active-generations.json').write_bytes(b'{"entries":{},"version":2}')    # journal (or entries) gone
-    with pytest.raises(ManagedDownloadError, match='index rejected'):
-        mg.ManagedGenerations(root)
-
-
 def test_r2_6_a_cancelled_first_save_leaves_a_root_that_still_opens(root):
     g = mg.ManagedGenerations(root)
     g.prepare_for_publication()
@@ -550,3 +543,122 @@ def test_r2_d_the_failure_names_the_damaged_work(tmp_path, monkeypatch):
         assert caught.value.work_id == receipt['work_id'] and caught.value.relative_receipt == relative
     finally:
         writer.close()
+
+
+# ---- checker round 3 -------------------------------------------------------------------------------
+
+def old_code_first_save_stopped_after_the_rename(root):
+    """What the pre-journal code left when the first save stopped: prepare, rename, no publish."""
+    (root / 'active-generations.json').write_bytes(b'{"entries":{},"version":2}')
+    return make_generation(root, '555')
+
+
+def test_r3_r1_an_orphan_left_by_the_older_first_save_is_not_a_reason_to_refuse_the_root(root):
+    old_code_first_save_stopped_after_the_rename(root)
+    g = mg.ManagedGenerations(root)                      # used to be refused outright
+    assert g.entry_count() == 0 and g.current('555') is None
+    publish(g, root, '556')                              # and the work can be saved (and the orphan stays inert)
+    again = mg.ManagedGenerations(root)
+    assert sorted(again.entries()) == ['556'] and json.loads((root / 'active-generations.json').read_bytes())['version'] == 5
+
+
+def test_r3_r1_an_orphan_next_to_an_update_that_the_older_code_could_not_publish(root):
+    entries = seed_index(root, 2)
+    g = mg.ManagedGenerations(root)
+    relative, digest = make_generation(root, '100000', suffix='9' * 32)    # the update's new folder, never published
+    assert g.current('100000')['relative_receipt'] == entries['100000']['relative_receipt']
+    assert mg.ManagedGenerations(root).entry_count() == 2
+
+
+def test_r3_r1_evidence_of_a_lost_journal_still_refuses(root):
+    old_code_first_save_stopped_after_the_rename(root)
+    (root / 'active-generations.journal.deleted').write_bytes(b'x')        # a trace of the journal of the old builds
+    with pytest.raises(ManagedDownloadError, match='index rejected'):
+        mg.ManagedGenerations(root)
+
+
+def test_r3_d4_a_mark_that_is_already_current_on_disk_is_not_written_again(root, monkeypatch):
+    seed_index(root, 3)
+    first = mg.ManagedGenerations(root)
+    second = mg.ManagedGenerations(root)
+    publish(first, root, '900001')
+    assert second.current('900001') is not None                           # second's full read (after the upgrade)
+    publish(first, root, '900002')
+    assert second.current('900002') is not None                           # now it takes in just the tail
+    assert second._loaded.mark_records == second._loaded.journal_records
+    calls = []
+    real = second._write_mark
+    monkeypatch.setattr(second, '_write_mark', lambda *a, **k: calls.append(a) or real(*a, **k))
+    publish(second, root, '900003')
+    assert len(calls) == 1                                                # only the one after its own append
+    assert journal_records(root) == mark_records(root) == 3
+
+
+def test_r3_d4_a_save_does_not_fail_for_a_mark_it_never_needed_to_write(root, monkeypatch):
+    seed_index(root, 3)
+    first = mg.ManagedGenerations(root)
+    second = mg.ManagedGenerations(root)
+    publish(first, root, '900001')
+    assert second.current('900001') is not None
+    publish(first, root, '900002')
+    assert second.current('900002') is not None                           # the tail path
+    broken = {'on': True}
+    real = second._write_mark
+    monkeypatch.setattr(second, '_write_mark',
+                        lambda *a, **k: (_ for _ in ()).throw(OSError('held')) if broken['on'] else real(*a, **k))
+    publish(second, root, '900003')                                       # nothing to catch up: it succeeds
+    assert second.current('900003') is not None
+
+
+def test_r3_obs_a_retired_journal_is_kept_from_the_fold_not_from_its_last_append(root):
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    old_journal, old_mark = journal_of(root), mark_of(root)
+    long_ago = time.time() - 3600
+    os.utime(old_journal, (long_ago, long_ago))
+    os.utime(old_mark, (long_ago, long_ago))                              # idle for an hour before the fold
+    g._compact(g._loaded)
+    g._compact(g._loaded)                                                 # a second fold right after
+    assert old_journal.exists() and old_mark.exists()                     # not swept at once
+
+
+def test_r3_obs_headroom_matches_what_assert_room_and_publish_allow(root, monkeypatch):
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    monkeypatch.setattr(mg, '_COMPACT_RECORDS', 10 ** 9)
+    monkeypatch.setattr(mg, '_COMPACT_BYTES', 10 ** 12)
+    monkeypatch.setattr(mg, '_MAX_JOURNAL_BYTES', journal_of(root).stat().st_size + mg._JOURNAL_SLACK + 2000)
+    monkeypatch.setattr(g, '_compact', lambda loaded, patience=5.0: (_ for _ in ()).throw(OSError('disk')))
+    g._loaded.fold_failed = True
+    promised = g.capacity()['headroom']
+    saved = 0
+    for number in range(2, 40):
+        try:
+            g.assert_room(str(900000 + number))
+            publish(g, root, str(900000 + number))
+        except ManagedDownloadError:
+            break
+        saved += 1
+    assert saved == promised and g.capacity()['headroom'] == 0
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='share modes are a Windows matter')
+def test_r3_obs_an_append_waits_out_a_reader_that_holds_the_journal_without_sharing_write(root):
+    import ctypes
+    from ctypes import wintypes
+    seed_index(root, 3)
+    g = mg.ManagedGenerations(root)
+    publish(g, root, '900001')
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.CreateFileW.argtypes = (wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
+                                   wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE)
+    kernel.CreateFileW.restype = wintypes.HANDLE
+    handle = kernel.CreateFileW(str(journal_of(root)), 0x80000000, 0x1, None, 3, 0x80, None)   # share READ only
+    assert handle not in (None, wintypes.HANDLE(-1).value)
+    threading.Timer(0.25, lambda: kernel.CloseHandle(handle)).start()
+    started = time.monotonic()
+    publish(g, root, '900002')
+    assert 0.15 < time.monotonic() - started < 2.0
+    assert mg.ManagedGenerations(root).entry_count() == 5

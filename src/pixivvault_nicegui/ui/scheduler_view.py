@@ -17,6 +17,7 @@ STATUS_LABELS = {
 
 
 class SchedulerView:
+    _stars_unknown_in_form = False   # the form was filled while the ☆ list could not be read
     def __init__(self, services):
         self.services = services
         self.closed = False
@@ -97,8 +98,10 @@ class SchedulerView:
                 self.startup.set_value(state.startup_check)
                 try:
                     self.authors.set_value(','.join(ledger.favourites()))
+                    self._stars_unknown_in_form = False
                 except Exception:
                     self.authors.set_value('')
+                    self._stars_unknown_in_form = True   # the empty box is "unknown", not "no stars"
             finally:
                 self._loading_settings = False
         self._show_star_state(ledger)
@@ -245,6 +248,19 @@ class SchedulerView:
             form = (self.authors.value or '', self.interval.value, self.startup.value)
             revision = self.revision
             raw = tuple(part.strip() for part in form[0].split(',') if part.strip())
+            if self._stars_unknown_in_form:
+                try:
+                    ledger.favourites()
+                    readable = True
+                except Exception:
+                    readable = False
+                if readable:
+                    # The list can be read now, but this form was filled while it could not: saving it
+                    # would replace every star with an empty box. Make the user reload first.
+                    self.action_notice.set_text(
+                        '☆の一覧を読めるようになりました。「編集を破棄して再読込」してから保存してください')
+                    return
+                raw = None   # still unknown: save only the interval / startup, never the stars
             def update():
                 return ledger.configure_all(
                     author_ids=raw, interval_hours=int(form[1]),
