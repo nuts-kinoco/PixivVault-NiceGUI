@@ -6,7 +6,7 @@ managed JobService enqueue. This module does not perform network requests.
 """
 from __future__ import annotations
 
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import os
@@ -584,20 +584,42 @@ class ManagedScheduler:
         if type(author_ids) is not tuple or len(author_ids) > MAX_FAVOURITES:
             raise ValueError('invalid favourite author selection')
         ids = tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
+        with self._settings_transaction(ids) as account:
+            state = self.snapshot()
+            if state.revision != expected_revision:
+                raise ScheduleError('schedule changed in another client')
+            ids = self._store_favourites(ids, attached_account=account)
+            self._db.execute('UPDATE schedule SET revision=? WHERE id=1', (state.revision + 1,))
+        return ids
+
+    @contextmanager
+    def _settings_transaction(self, ids):
+        """Commit the scheduler and following ledgers together when stars are edited."""
         with self._lock:
             self._ensure_open()
-            self._db.execute('BEGIN IMMEDIATE')
-            try:
-                state = self.snapshot()
-                if state.revision != expected_revision:
-                    raise ScheduleError('schedule changed in another client')
-                ids = self._store_favourites(ids)
-                self._db.execute('UPDATE schedule SET revision=? WHERE id=1', (state.revision + 1,))
-                self._db.execute('COMMIT')
-            except BaseException:
-                self._db.execute('ROLLBACK')
-                raise
-        return ids
+            book = self._favourites_source
+            following = None if book is None else book.following
+            lock = following._lock if ids is not None and following is not None else nullcontext()
+            with lock:
+                account = None
+                attached = False
+                if ids is not None and book is not None and book.readable():
+                    following._ensure_open()
+                    account = book.account()
+                    self._db.execute('ATTACH DATABASE ? AS following_settings', (str(following.path),))
+                    attached = True
+                try:
+                    self._db.execute('BEGIN IMMEDIATE')
+                    try:
+                        yield account
+                        self._db.execute('COMMIT')
+                    except BaseException:
+                        if self._db.in_transaction:
+                            self._db.execute('ROLLBACK')
+                        raise
+                finally:
+                    if attached:
+                        self._db.execute('DETACH DATABASE following_settings')
 
     def configure_all(self, *, author_ids: tuple[str, ...], interval_hours: int,
                       startup_check: bool, expected_revision: int,
@@ -612,33 +634,52 @@ class ManagedScheduler:
         # author_ids=None leaves the stars exactly as they are (a form that never saw them must not save them).
         ids = None if author_ids is None else tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
         current_time = _utc(now)
-        with self._lock:
-            self._ensure_open()
-            self._db.execute('BEGIN IMMEDIATE')
-            try:
-                previous = self.snapshot()
-                if previous.revision != expected_revision:
-                    raise ScheduleError('schedule changed in another client')
-                applied = None
-                if ids is not None:
-                    applied = self._store_favourites(ids)
-                next_due = (None if interval_hours == 0 else
-                            _timestamp(current_time + timedelta(hours=interval_hours)))
-                self._db.execute('UPDATE schedule SET interval_hours=?,startup_check=?,revision=?,next_due_utc=? WHERE id=1',
-                                 (interval_hours, int(startup_check), expected_revision + 1, next_due))
-                self._db.execute('COMMIT')
-            except BaseException:
-                self._db.execute('ROLLBACK')
-                raise
+        with self._settings_transaction(ids) as account:
+            previous = self.snapshot()
+            if previous.revision != expected_revision:
+                raise ScheduleError('schedule changed in another client')
+            applied = None
+            if ids is not None:
+                applied = self._store_favourites(ids, attached_account=account)
+            next_due = (None if interval_hours == 0 else
+                        _timestamp(current_time + timedelta(hours=interval_hours)))
+            self._db.execute('UPDATE schedule SET interval_hours=?,startup_check=?,revision=?,next_due_utc=? WHERE id=1',
+                             (interval_hours, int(startup_check), expected_revision + 1, next_due))
             state = self.snapshot()
-            if return_ignored:
-                return state, (() if ids is None else tuple(uid for uid in ids if uid not in set(applied)))
-            return state
+        if return_ignored:
+            return state, (() if ids is None else tuple(uid for uid in ids if uid not in set(applied)))
+        return state
 
-    def _store_favourites(self, ids):
+    def _store_favourites(self, ids, *, attached_account=None):
         """Write the star set where it lives: the ledger once it is the source, else the own list."""
         if self._stars_unknown():
             raise ScheduleError('favourite authors unavailable')
+        if attached_account is not None:
+            rows = self._db.execute(
+                'SELECT user_id,is_following,is_favorite FROM following_settings.following_authors WHERE account_id=?',
+                (attached_account,)).fetchall()
+            wanted = set(ids)
+            followed = {uid for uid, active, _ in rows if active}
+            applied = tuple(uid for uid in ids if uid in followed)
+            changed = False
+            for uid, active, favorite in rows:
+                new = bool(active and uid in wanted)
+                if bool(favorite) != new:
+                    self._db.execute('UPDATE following_settings.following_authors SET is_favorite=? '
+                                     'WHERE account_id=? AND user_id=?', (int(new), attached_account, uid))
+                    changed = True
+            if changed:
+                self._db.execute('UPDATE following_settings.following_accounts SET revision=revision+1 '
+                                 'WHERE account_id=?', (attached_account,))
+            self._star_cache = (0.0, frozenset())
+            if self.favourites_seeded():
+                self._prune_deferred(applied)
+                return applied
+            self._db.execute('CREATE TABLE IF NOT EXISTS favourite_authors(author_id TEXT PRIMARY KEY)')
+            self._db.execute('DELETE FROM favourite_authors')
+            self._db.executemany('INSERT INTO favourite_authors(author_id) VALUES (?)', ((uid,) for uid in ids))
+            self._db.execute('DELETE FROM deferred_work WHERE author_id NOT IN (SELECT author_id FROM favourite_authors)')
+            return ids
         if self._ledger_is_source():
             applied, _ignored = self._favourites_source.replace(ids)
             self._star_cache = (0.0, frozenset())

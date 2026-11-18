@@ -472,11 +472,12 @@ class FollowingSyncStore:
 
         def record(connection, before):
             rows = {row.user_id: row for row in before.authors}
-            result[:] = [tuple(sorted(wanted & rows.keys(), key=int)),
-                         tuple(sorted(wanted - rows.keys(), key=int))]
+            followed = {uid for uid, row in rows.items() if row.is_following}
+            result[:] = [tuple(sorted(wanted & followed, key=int)),
+                         tuple(sorted(wanted - followed, key=int))]
             changed = False
             for user_id, row in rows.items():
-                favorite = user_id in wanted
+                favorite = row.is_following and user_id in wanted
                 if row.is_favorite != favorite:
                     connection.execute('UPDATE following_authors SET is_favorite=? WHERE account_id=? AND user_id=?',
                                        (int(favorite), account_id, user_id))
