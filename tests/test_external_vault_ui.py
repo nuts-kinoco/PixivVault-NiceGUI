@@ -52,7 +52,7 @@ async def test_personal_actual_controls_append_filter_and_persistence(tmp_path,m
             view=PersonalRankingView(services);view.set_active(True);assert transport.calls==[]
             initial_task=view._context_task
             assert initial_task in background_tasks.running_tasks and initial_task.get_loop() is asyncio.get_running_loop()
-            assert not view.r18.enabled
+            assert view.r18.enabled and view.r18.value is True  # FL-J12: 元は既定 ON・借用検索が使えるときは操作できる
             view.add_tag('tag');assert view.selected_tags()==('tag',)
             view.tags.set_value('tag');await view.load();first=view.gallery.cards['123'];assert view.page.offset==1
             transport.response={'illusts':[raw(124)],'next_url':'next'};await view.load(append=True)

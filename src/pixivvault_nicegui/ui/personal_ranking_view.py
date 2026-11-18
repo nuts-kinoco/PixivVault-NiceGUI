@@ -2,7 +2,7 @@
 import asyncio
 from nicegui import ui
 from ..personal_ranking import (PersonalRankingSource,normalize_personal_filters,apply_personal_filters,
-    _DATE_PRESETS,_SORT_PRESETS,_BOOKMARK_PRESETS)
+    active_filter_descriptors,_DATE_PRESETS,_SORT_PRESETS,_BOOKMARK_PRESETS)
 from ..state import GalleryState
 from .ranking_view import RankingView,_ViewServices,_RankingGallery
 
@@ -29,21 +29,24 @@ class PersonalRankingView(RankingView):
                 self.sort=ui.select(dict(_SORT_PRESETS),value=self.filters['sort'],label='並び順').props('outlined dense data-testid=personal-sort')
                 self.start_date=ui.input('検索開始日 YYYY-MM-DD').props('outlined dense data-testid=personal-start-date')
                 self.end_date=ui.input('検索終了日 YYYY-MM-DD').props('outlined dense data-testid=personal-end-date')
-                self.r18=ui.checkbox('R-18 指定（原 API 未対応）',value=False).props('data-testid=personal-r18');self.r18.disable()
+                # 元 ranking_tab.py:2135: 既定 ON。借用検索が使えるときだけ操作できる（availability）。
+                # 元の借用検索は R-18 を API にも結果の絞り込みにも使わないので、切替で結果は変わらない。
+                self.r18=ui.checkbox('R-18',value=True).props('data-testid=personal-r18');self.r18.tooltip('R-18を含める')
                 self.ai=ui.checkbox('AI を除外',value=False).props('data-testid=personal-ai')
                 self.fetch_button=ui.button('取得・更新',on_click=self.load).props('flat data-testid=personal-fetch')
                 self._build_hide_manager()
-            ui.label('借用アカウントの原検索 API は R-18 指定を消費しないため、この検索では R-18 絞り込みを適用しません。').classes('text-caption')
             with ui.expansion('よく効くタグ', value=True).classes('w-full').props(
                     'data-testid=personal-candidates-toggle') as self.candidates:
                 self.trend_row=ui.row()
+            # 有効条件(NOW)チップ行（元 ranking_tab.py:2315-2356・filter_panel.py:350-379）。
+            self.chips_row=ui.row().classes('items-center gap-2 w-full').props('data-testid=personal-chips')
             with ui.expansion('絞り込み（取得済みの結果へ適用）').classes('w-full'):
                 with ui.row():
                     self.date=ui.select({k:label for k,label,_ in _DATE_PRESETS},value=self.filters['date_preset'],label='投稿日').props('outlined dense data-testid=personal-date-preset')
                     self.include=ui.textarea('含むタグ（1 件ずつ改行）',value='\n'.join(self.filters['tags_include'])).props('outlined dense data-testid=personal-tags-include')
                     self.exclude=ui.textarea('除外タグ（1 件ずつ改行）',value='\n'.join(self.filters['tags_exclude'])).props('outlined dense data-testid=personal-tags-exclude')
                     self.author_max=ui.number('1 作者の上限（0 は無制限）',value=self.filters['per_author_max'],min=0,precision=0).props('outlined dense data-testid=personal-author-max')
-                ui.label('含む・除外タグ、投稿日、作者上限は取得済み結果に即時反映します。ブクマ数と並び順の変更は「取得・更新」で再検索します。').classes('pv-subtitle')
+                ui.label('含む・除外タグ、投稿日、作者上限は取得済み結果に即時反映します。ブクマ数と並び順の変更は自動で再検索します。').classes('pv-subtitle')
                 self.exclusions={}
                 with ui.row():
                     for key,label in (('exclude_downloaded','保存済みを除外'),('exclude_hidden_authors','非表示作者を除外'),('exclude_hidden_works','非表示作品を除外'),('exclude_hated','嫌いな作品を除外')):
@@ -61,9 +64,11 @@ class PersonalRankingView(RankingView):
             # an empty search result or leave its unrelated placeholder visible.
             self.gallery.empty.set_visibility(False)
             self.gallery.counter.set_text('未取得')
-        for control in (self.tags,self.bookmarks,self.sort,self.r18,self.ai,self.start_date,self.end_date):control.on_value_change(lambda _:self.changed())
+        for control in (self.tags,self.ai,self.start_date,self.end_date):control.on_value_change(lambda _:self.changed())
+        # 元 ranking_tab.py:1935-1947, 2012-2022, 2036-2038: サーバー側条件（ブクマ数下限・並び順・R-18）と条件クリアは再検索する。
+        for control in (self.bookmarks,self.sort,self.r18):control.on_value_change(lambda _:self.server_changed())
         for control in (self.date,self.include,self.exclude,self.author_max,*self.exclusions.values()):control.on_value_change(lambda _:self.local_changed())
-        self.client.on_delete(self.close);self.availability()
+        self.client.on_delete(self.close);self.availability();self._refresh_chips()
     def add_tag(self,tag):
         self.tags.set_value('\n'.join(dict.fromkeys((*self.selected_tags(),tag))))
         # set_value emits the same changed() callback as keyboard editing.
@@ -154,6 +159,7 @@ class PersonalRankingView(RankingView):
         enabled=bool(status.get('open') and status.get('mode')=='nana7mi'
                      and status.get('transport_available') and self._failed_vault_epoch is None)
         self.tags.set_enabled(self._failed_vault_epoch is None)
+        self.r18.set_enabled(enabled)  # 元 ranking_tab.py:2062: 借用検索が使えるときだけ操作できる
         has_tags=bool(self.selected_tags())
         usable=enabled and has_tags and self.active and not self.closed and not self.busy
         self.fetch_button.set_enabled(usable)
@@ -172,14 +178,50 @@ class PersonalRankingView(RankingView):
         for key,context_key in (('exclude_hated','hated_ids'),('exclude_downloaded','downloaded_ids'),('exclude_hidden_authors','hidden_author_ids'),('exclude_hidden_works','hidden_work_ids')):
             self.exclusions[key].set_enabled(context_key in context)
     def changed(self):
-        self.epoch+=1
+        self.epoch+=1;self._refresh_chips()
         if self.page is not None and not self._current_page():self._show_unfetched()
         self.availability(update_notice=False)
         if self.vault is not None:
             try:self.vault.save_ranking_preferences(self.selected_tags(),self.saved_filters)
             except Exception:self.notice.set_text('タグ選択を保存できませんでした。');return
         self.notice.set_text('検索条件が変わりました。「取得・更新」で新しい条件を反映します。' if self.selected_tags() else 'タグを選択してください。')
+    def server_changed(self):
+        self.changed();self._research()
+    def _research(self):
+        """サーバー側条件が変わったら、取得ボタンと同じ load() で検索し直す（元 _ensure_personal_loaded）。
+
+        タグが無い・借用検索が使えない（取得停止中など）ときは通信しない。連続した変更は
+        継承した _load_changed_conditions が 1 本にまとめる。load() の中で取得停止ゲートを通る。
+        """
+        if self.closed or not self.active or not self.selected_tags() or not self._search_available():return
+        self._condition_pending=True
+        self.notice.set_text('条件が変わりました。最新の一覧を取得します。')
+        if self._condition_task is None or self._condition_task.done():
+            try:self._condition_task=asyncio.get_running_loop().create_task(self._load_changed_conditions())
+            except RuntimeError:self._condition_pending=False
+    def _refresh_chips(self):
+        row=self.chips_row;row.clear()
+        found=active_filter_descriptors(self.current_filters())
+        with row:
+            for key,label in found:
+                with ui.element('div').classes('pv-chip').props('role=button tabindex=0') as chip:
+                    ui.label(label);ui.label('✕').classes('pv-chip-x')
+                chip._props['data-chip-key']=key;chip._props['aria-label']=f'{label} を解除'
+                chip.on('click',lambda _,k=key:self.remove_condition(k));chip.on('keydown.enter',lambda _,k=key:self.remove_condition(k))
+            if found:ui.button('すべて解除',on_click=self.clear_filters).props('flat dense no-caps data-testid=personal-chips-clear')
+        row.set_visibility(bool(found))
+    def remove_condition(self,key):
+        """チップ 1 つぶんの条件だけを既定へ戻す（元 ranking_tab.py:2323-2354）。"""
+        if self.closed:return
+        if key=='bookmark_min':self.bookmarks.set_value(0)
+        elif key=='date_preset':self.date.set_value('all')
+        elif key=='per_author_max':self.author_max.set_value(0)
+        elif key.startswith(('tags_include:','tags_exclude:')):
+            which,tag=key.split(':',1);control=self.include if which=='tags_include' else self.exclude
+            control.set_value('\n'.join(t for t in str(control.value or '').splitlines() if t.strip() and t.strip()!=tag))
+        elif key in self.exclusions:self.exclusions[key].set_value(False)
     def local_changed(self):
+        self._refresh_chips()
         if self.page is not None:self.render()
         elif not self.closed:self.notice.set_text('取得済み結果がありません。タグを選んで取得してください。')
     def clear_filters(self):
@@ -188,6 +230,7 @@ class PersonalRankingView(RankingView):
         self.date.set_value(defaults['date_preset']);self.include.set_value('');self.exclude.set_value('');self.author_max.set_value(0)
         for key,control in self.exclusions.items():control.set_value(defaults[key])
         self.local_changed()
+        self._research()  # 元 ranking_tab.py:2022: ブクマ数下限も既定へ戻るので再検索が要る
     def save(self):
         if self.vault is None:return
         try:
