@@ -153,6 +153,9 @@ class RecommendationAcquisition:
             not values or len(values)+len(existing)>=total)
 
     def store(self,env,revision):
+        # Never commit a cache that the normal reader will reject.
+        for rows in env['cache'].values():
+            for row in rows:decode(row)
         self.controller.preferences.store_acquisition(env,revision)
         return self.controller.snapshot()
 

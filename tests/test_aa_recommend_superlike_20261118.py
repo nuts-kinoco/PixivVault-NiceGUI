@@ -1,7 +1,8 @@
 from pixivvault_nicegui.recommendation_state import (
     RecommendationController, RecommendationGroup, RecommendationPreferences,
-    RecommendationSnapshot, RecommendationWork,
+    RecommendationSnapshot, RecommendationWork, RecommendationError,
 )
+import pytest
 from pixivvault_nicegui.recommendation_acquisition import PixivRecommendationAdapter
 from pixivvault_nicegui.pixiv_read_client import LivePixivReadClient
 
@@ -102,5 +103,21 @@ def test_hidden_work_keeps_cache_for_later_missing_response(tmp_path):
         fetch.mode = 'missing'; state = c.update(state['revision'])
         item = next(w for w in state['sections']['superlike'][0].works if w.work_id == '11')
         assert item.deleted and item.title == 'cached'
+    finally:
+        c.close()
+
+
+def test_oversized_superlike_update_does_not_commit_unreadable_cache(tmp_path):
+    class Many:
+        def load(self):
+            return RecommendationSnapshot(sections=(('superlike', (RecommendationGroup('superlike', 'S', tuple(
+                RecommendationWork(str(i)) for i in range(1, 10002)
+            )),)),))
+    fetch = Fetch(); fetch.mode = 'missing'
+    c = RecommendationController(Many(), RecommendationPreferences(tmp_path / 'prefs'), acquisition=fetch)
+    try:
+        state = c.refresh()
+        with pytest.raises(RecommendationError): c.update(state['revision'])
+        assert c.refresh()['revision'] == state['revision']
     finally:
         c.close()
