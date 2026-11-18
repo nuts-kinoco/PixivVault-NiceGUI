@@ -147,7 +147,11 @@ def test_single_pinned_page_does_not_decode_the_whole_artwork_again(tmp_path, mo
         monkeypatch.setattr(module, "_image", observed)
         assert runner.read_saved_page(relative, 0, saved[2]) == png()
         assert decoded == [], "one thumbnail request must not decode all saved pages"
-        # Complete-save / duplicate validation still checks every stored page.
+        # Complete-save / duplicate validation still checks every stored page ...
+        runner._receipt_cache.clear()
+        runner.saved_receipts()
+        assert len(decoded) == 2
+        # ... and a work whose folder has not changed since is then not decoded a second time.
         runner.saved_receipts()
         assert len(decoded) == 2
     finally:
