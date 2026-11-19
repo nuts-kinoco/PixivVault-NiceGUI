@@ -1154,8 +1154,10 @@ class ManagedGenerations:
 
     def _refresh(self) -> _Loaded:
         with self._lock:
-            deadline = time.monotonic() + 2.0
+            deadline = None
             for attempt in range(8):
+                if deadline is not None and time.monotonic() >= deadline:
+                    raise ManagedDownloadError('active generation index rejected')
                 loaded = self._loaded
                 if loaded is not None and loaded.version == 5 and _identity(self.index_path) == loaded.base_sig:
                     try:
@@ -1163,24 +1165,22 @@ class ManagedGenerations:
                     except Exception:
                         if _identity(self.index_path) != loaded.base_sig:
                             self._loaded = None
-                        if attempt == 7 or time.monotonic() >= deadline:
+                        if attempt == 7:
                             raise ManagedDownloadError('active generation index rejected') from None
                     else:
                         if _identity(self.output_dir) != loaded.out_sig:
                             self._refresh_legacy(loaded)
                         return loaded
-                elif loaded is not None:
-                    if (loaded.version is None and _identity(self.index_path) is None
-                            and _identity(self.generation_dir) == loaded.gen_sig
-                            and _identity(self.output_dir) == loaded.out_sig):
-                        return loaded
+                elif (loaded is not None and loaded.version is None and _identity(self.index_path) is None
+                      and _identity(self.generation_dir) == loaded.gen_sig
+                      and _identity(self.output_dir) == loaded.out_sig):
+                    return loaded
+                else:
                     self._loaded = None
-                if self._loaded is None:
                     try:
                         fresh = self._load_full()
                     except ManagedDownloadError as error:
-                        if (attempt == 7 or time.monotonic() >= deadline
-                                or not str(error).endswith('rejected')):
+                        if attempt == 7 or not str(error).endswith('rejected'):
                             raise
                     else:
                         self._loaded = fresh
@@ -1188,6 +1188,8 @@ class ManagedGenerations:
                 # A fold may have committed after the caller's precheck. Refresh
                 # its head/floor and recovery state before validating again.
                 # Keep a cached reader's journal witness until its index moves.
+                if deadline is None:
+                    deadline = time.monotonic() + 2.0
                 self._recover_if_pending()
                 time.sleep(0.01 * (attempt + 1))
             raise ManagedDownloadError('active generation index rejected')

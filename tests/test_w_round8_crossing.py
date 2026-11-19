@@ -18,6 +18,37 @@ from w_round7_fixtures import (
 )
 
 
+def test_changed_index_is_rechecked_after_recovery_state(tmp_path, monkeypatch):
+    gen = make_store(tmp_path / 'root')._generations
+    expected = state(open_downloads(gen.root))
+    events = []
+    real_assert = gen.assert_consistent
+    real_load = gen._load_full
+    real_recover = gen._recover_if_pending
+
+    def cross(loaded, **kwargs):
+        if not events:
+            events.append('cross')
+            replacement = gen.stage_dir / 'crossing-test.tmp'
+            replacement.write_bytes(gen.index_path.read_bytes())
+            os.replace(replacement, gen.index_path)
+            raise ValueError('index changed while checking')
+        return real_assert(loaded, **kwargs)
+
+    def recover():
+        events.append('recover')
+        return real_recover()
+
+    def load():
+        assert events == ['cross', 'recover']
+        return real_load()
+
+    monkeypatch.setattr(gen, 'assert_consistent', cross)
+    monkeypatch.setattr(gen, '_recover_if_pending', recover)
+    monkeypatch.setattr(gen, '_load_full', load)
+    assert set(gen._refresh().active) == set(expected)
+
+
 @pytest.mark.parametrize('mode', ['cold', 'warm'])
 @pytest.mark.parametrize('limit', ['deadline', 'attempts'])
 def test_crossing_retry_has_a_deadline_and_attempt_limit(tmp_path, monkeypatch, mode, limit):
