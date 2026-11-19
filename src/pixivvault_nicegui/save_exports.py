@@ -1036,7 +1036,8 @@ class SaveExports:
             if not native_io_path(manifest).exists() and not pending.exists():
                 rows,source_pages,_=self._auto_page_state(identity)
                 self._io_operation='export_author_zip'
-                previous=self._previous_auto_zip(aid)
+                publication=self._previous_auto_zip(aid,with_source=True)
+                previous,previous_source=publication if publication is not None else (None,None)
                 def record_stage(stage,archive):
                     context.checkpoint()
                     h=sha256()
@@ -1046,7 +1047,8 @@ class SaveExports:
                     if previous is not None:note['previous_sha256']=previous
                     _publish_owned(pending,packet(note))
                 self.zip.export_author(aid,expected_proofs=identity['proofs'],before_publish=record_stage,
-                                       expected_source_pages=source_pages,replace_existing_sha256=previous)
+                                       expected_source_pages=source_pages,replace_existing_sha256=previous,
+                                       previous_source=previous_source)
             with self._mutation_lock:
                 self._recover_zip_mutations_locked()
                 self._finish_zip_pending(job,identity,manifest,context)

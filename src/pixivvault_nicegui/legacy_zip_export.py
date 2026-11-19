@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import copy
 from contextlib import ExitStack
-from collections import Counter
+from collections import defaultdict
 import json
 import os
 from pathlib import Path
@@ -104,14 +104,16 @@ def legacy_filename(title: str, work_id: str, page_no: int, page_count: int,
     safe_title = _INVALID_FILENAME.sub('_', title)
     legacy = (f'{safe_title}.{ext}' if page_count == 1
               else f'{safe_title}_{page_no + 1}.{ext}')
-    stem, suffix = os.path.splitext(legacy)
-    if f'({work_id})' in legacy:
-        filename = legacy  # Original core.py work_id_arcname is idempotent.
-    else:
-        match = _PAGE_SUFFIX.match(stem)
-        filename = (f'{match.group(1)}({work_id})_{match.group(2)}{suffix}'
-                    if match else f'{stem}({work_id}){suffix}')
-    return filename
+    return _work_id_arcname(legacy, work_id)
+
+
+def _work_id_arcname(arcname, work_id):
+    if not work_id or '/' in arcname or f'({work_id})' in arcname:
+        return arcname
+    stem, ext = os.path.splitext(arcname)
+    match = _PAGE_SUFFIX.match(stem)
+    return (f'{match.group(1)}({work_id})_{match.group(2)}{ext}'
+            if match else f'{stem}({work_id}){ext}')
 
 
 def zip_arcname_candidates(arcname: str, safe_title: str, work_id: str) -> list[str]:
@@ -122,12 +124,7 @@ def zip_arcname_candidates(arcname: str, safe_title: str, work_id: str) -> list[
     candidates = []
     if stem == safe_title:
         candidates.append(f'{safe_title}({work_id}){ext}')
-        if f'({work_id})' in arcname:
-            structural = arcname
-        else:
-            match = _PAGE_SUFFIX.match(stem)
-            structural = (f'{match.group(1)}({work_id})_{match.group(2)}{ext}'
-                          if match else f'{stem}({work_id}){ext}')
+        structural = _work_id_arcname(arcname, work_id)
         if structural not in candidates:
             candidates.append(structural)
     else:
@@ -142,6 +139,16 @@ def _safe_page_candidates(canonical, candidates, work_id):
     # A weak old name containing a different work ID cannot identify this work.
     return [candidate for candidate in candidates if candidate == canonical
             or not any(marker != work_id for marker in re.findall(r'\(([1-9][0-9]*)\)', candidate))]
+
+
+def _page_names(receipt, index):
+    work_id = receipt['work_id']
+    title = _INVALID_FILENAME.sub('_', receipt['title'])
+    ext = {'png': 'png', 'jpeg': 'jpg', 'webp': 'webp'}[receipt['files'][index]['format']]
+    legacy = (f'{title}.{ext}' if receipt['page_count'] == 1
+              else f'{title}_{index + 1}.{ext}')
+    canonical = _work_id_arcname(legacy, work_id)
+    return canonical, zip_arcname_candidates(legacy, title, work_id)
 
 def _export_path(root: Path) -> Path:
     if not isinstance(root, Path) or not root.is_absolute() or root == root.parent:
@@ -342,8 +349,105 @@ class LegacyZipExporter:
             finally:
                 self._writer.release()
 
+    def _prior_member_proofs(self, author_id, author_rows, previous_source):
+        """Resolve immutable receipts from the last published ZIP's source."""
+        wanted = dict(previous_source['proofs'])
+        rows = {}
+        for _, receipt, proof in author_rows:
+            wid = receipt['work_id']
+            if wanted.get(wid) == proof:
+                rows[wid] = receipt
+                del wanted[wid]
+        if wanted:
+            for root in ('outputs', 'generations'):
+                folder = native_io_path(self.managed.root / root)
+                _safe_path(folder)
+                for path in folder.iterdir():
+                    match = re.fullmatch(r'work-([1-9][0-9]{0,19})-[0-9a-f]{32}', path.name)
+                    if match is None or match[1] not in wanted:
+                        continue
+                    relative = f'{root}/{path.name}/receipt.json'
+                    try:
+                        receipt, proof = self.managed._receipt(relative, verify_pages=False)
+                    except ManagedDownloadError:
+                        continue  # Missing prior proof leaves members untouched.
+                    if receipt['author_id'] == author_id and wanted[match[1]] == proof:
+                        rows[match[1]] = receipt
+                        del wanted[match[1]]
+                        if not wanted:
+                            break
+                if not wanted:
+                    break
+        owners = defaultdict(set)
+        filters = previous_source.get('page_filters', {})
+        for wid, receipt in rows.items():
+            for index in filters.get(wid, range(receipt['page_count'])):
+                name, _ = _page_names(receipt, index)
+                owners[name, receipt['files'][index]['sha256']].add((wid, index))
+        return owners
+
+    def _zip_member_plan(self, author_id, author_rows, source_pages, old_hashes, previous_source):
+        owners = (self._prior_member_proofs(author_id, author_rows, previous_source)
+                  if previous_source is not None else {})
+        old_owners = {name: owners.get((name, proof), set()) for name, proof in old_hashes.items()}
+        canonical = {}
+        weak = defaultdict(set)
+        pages = []
+        for relative, receipt, digest in author_rows:
+            wid = receipt['work_id']
+            for index, file in enumerate(receipt['files']):
+                name, candidates = _page_names(receipt, index)
+                active = index in source_pages[wid]
+                page = wid, index
+                if name in canonical:
+                    raise LegacyZipAmbiguousError()
+                canonical[name] = page
+                candidates = _safe_page_candidates(name, candidates, wid)
+                for alias in {candidate for candidate in candidates if candidate != name}:
+                    weak[alias].add(page)
+                pages.append((page, relative, digest, file, name, candidates, active))
+
+        drop = set()
+        write = []
+        existing = set(old_hashes)
+        for page, relative, digest, file, name, candidates, active in pages:
+            wid, index = page
+            usable_slot = (name in old_hashes
+                           and set(re.findall(r'\(([1-9][0-9]*)\)', name)) == {wid}
+                           and (old_owners[name] == {page} or previous_source is None))
+            if not active:
+                if usable_slot:
+                    drop.add(name)
+                continue
+            if name in old_hashes:
+                # Flet skips exact names. A managed generation may replace the
+                # exact slot only when the prior publication proves its owner.
+                if usable_slot and old_hashes[name] != file['sha256']:
+                    drop.add(name)
+                    write.append((relative, digest, index, name, file['bytes']))
+                continue
+
+            # Flet append_to_zip checks both directions with the ID from the
+            # incoming filename map. A name used by another current canonical
+            # page cannot be a replacement target for this page.
+            same_work = _work_id_arcname(name, wid)
+            legacy = name.replace(f'({wid})', '', 1)
+            aliases = {same_work, legacy, *candidates} - {name}
+            if previous_source is None:
+                aliases = set(_safe_page_candidates(name, aliases, wid))
+            matched = {alias for alias in aliases & existing
+                       if alias not in canonical or canonical[alias] == page}
+            if matched:
+                if previous_source is None and any(len(weak[alias]) > 1 for alias in matched):
+                    raise LegacyZipAmbiguousError()
+                continue
+            write.append((relative, digest, index, name, file['bytes']))
+            existing.add(name)
+        return drop, write
+
     def export_author(self, author_id: str, *, expected_proofs=None, before_publish=None,
-                      expected_source_pages=None, replace_existing_sha256=None) -> Path:
+                      expected_source_pages=None, replace_existing_sha256=None,
+                      previous_source=None) -> Path:
         """Export all active still-image works of one author as a new ZIP.
 
         Does not overwrite, append to, rename, delete or hardlink any original
@@ -416,129 +520,44 @@ class LegacyZipExporter:
                         raise LegacyZipExportError('legacy ZIP verification failed')
                 destination = previous_path
 
-            members = set()
-            entries = []
-            page_candidates = []
-            for _, receipt, _ in author_rows:
-                safe_title = _INVALID_FILENAME.sub('_', receipt['title'])
-                for index, file in enumerate(receipt['files']):
-                    if index in source_pages[receipt['work_id']]:
-                        continue
-                    ext = {'png': 'png', 'jpeg': 'jpg', 'webp': 'webp'}[file['format']]
-                    legacy = (f'{safe_title}.{ext}' if receipt['page_count'] == 1
-                              else f'{safe_title}_{index + 1}.{ext}')
-                    candidates = zip_arcname_candidates(legacy, safe_title, receipt['work_id'])
-                    canonical = legacy_filename(receipt['title'], receipt['work_id'], index, receipt['page_count'], ext)
-                    candidates = _safe_page_candidates(canonical, candidates, receipt['work_id'])
-                    page_candidates.append((canonical, candidates, False))
-            for relative, receipt, digest in receipts:
-                for page_index in source_pages[receipt['work_id']]:
-                    entry = receipt['files'][page_index]
-                    ext = {'png': 'png', 'jpeg': 'jpg', 'webp': 'webp'}[entry['format']]
-                    name = legacy_filename(receipt['title'], receipt['work_id'],
-                                           page_index, receipt['page_count'], ext)
-                    if name in members:
-                        raise LegacyZipExportError('duplicate legacy ZIP member rejected')
-                    members.add(name)
-                    safe_title = _INVALID_FILENAME.sub('_', receipt['title'])
-                    legacy = (f'{safe_title}.{ext}' if receipt['page_count'] == 1
-                              else f'{safe_title}_{page_index + 1}.{ext}')
-                    candidates = zip_arcname_candidates(legacy, safe_title, receipt['work_id'])
-                    candidates = _safe_page_candidates(name, candidates, receipt['work_id'])
-                    entries.append((relative, digest, page_index, name, candidates))
-                    page_candidates.append((name, candidates, True))
-
-            _safe_path(native_io_path(self.incomplete))
-            staging = native_io_path(self.incomplete) / ('zip-' + uuid4().hex + '.tmp')
-            previous_size = 0
             previous_infos = {}
+            old_hashes = {}
             if replace_existing_sha256 is not None:
-                with ZipFile(destination, 'r') as inspect:
-                    for info in inspect.infolist():
+                with ZipFile(destination, 'r') as previous:
+                    for info in previous.infolist():
                         name = info.filename.replace('\\', '/')
                         if name in previous_infos:
                             raise LegacyZipExportError('duplicate previous ZIP member')
                         previous_infos[name] = info
-                        previous_size += (info.file_size + 2 * len(name.encode('utf-8'))
-                                          + 2 * len(info.extra) + len(info.comment) + 256)
-            page_sizes = {(relative, index): receipt['files'][index]['bytes']
-                          for relative, receipt, _ in receipts
-                          for index in source_pages[receipt['work_id']]}
-            estimate = previous_size
-            count = len(previous_infos)
-            for relative, _, index, name, candidates in entries:
-                matched = ([name] if name in previous_infos else
-                           [candidate for candidate in candidates if candidate in previous_infos])
-                size = page_sizes[(relative, index)]
-                if matched:
-                    old = previous_infos[matched[0]]
-                    estimate += max(0, size - old.file_size) + 2 * max(0, len(name.encode('utf-8')) - len(matched[0].encode('utf-8')))
-                else:
-                    estimate += size + 2 * len(name.encode('utf-8')) + 256
-                    count += 1
+                        hasher = hashlib.sha256()
+                        with previous.open(info) as source:
+                            for block in iter(lambda: source.read(1024 * 1024), b''):
+                                hasher.update(block)
+                        old_hashes[name] = hasher.hexdigest()
+            drop, entries = self._zip_member_plan(
+                author_id, author_rows, source_pages, old_hashes, previous_source)
+            old_names = previous_infos.keys() - drop
+            members = old_names | {entry[3] for entry in entries}
+            estimate = sum(previous_infos[name].file_size + 2 * len(name.encode('utf-8'))
+                           + 2 * len(previous_infos[name].extra) + len(previous_infos[name].comment) + 256
+                           for name in old_names)
+            estimate += sum(size + 2 * len(name.encode('utf-8')) + 256
+                            for _, _, _, name, size in entries)
             use_zip64 = (estimate >= min(ZIP64_THRESHOLD, ZIP32_SAFE_LIMIT)
-                         or count >= ZIP32_ENTRY_LIMIT)
-            # Create before ZipFile with xb: an earlier failed staging archive
-            # may never be silently overwritten or mistaken for a final ZIP.
+                         or len(members) >= ZIP32_ENTRY_LIMIT)
+
+            _safe_path(native_io_path(self.incomplete))
+            staging = native_io_path(self.incomplete) / ('zip-' + uuid4().hex + '.tmp')
+            # Never overwrite a retained archive from an earlier attempt.
             with staging.open('xb') as output:
                 with ZipFile(output, 'w', compression=ZIP_DEFLATED,
                              compresslevel=6, allowZip64=use_zip64) as archive:
                     if replace_existing_sha256 is not None:
-                        # Read every old member, including entries no longer in
-                        # the managed catalog, before publishing a replacement.
                         with ZipFile(destination, 'r') as previous:
                             archive.comment = previous.comment
-                            old_infos = {}
-                            old_hashes = {}
-                            for info in previous.infolist():
-                                name = info.filename.replace('\\', '/')
-                                if name in old_infos:
-                                    raise LegacyZipExportError('duplicate previous ZIP member')
-                                old_infos[name] = info
-                                hasher = hashlib.sha256()
-                                with previous.open(info) as source:
-                                    for block in iter(lambda: source.read(1024 * 1024), b''):
-                                        hasher.update(block)
-                                old_hashes[name] = hasher.hexdigest()
-                            old_names = set(old_infos)
-                            canonical_claims = {}
-                            candidate_claims = {}
-                            for canonical, candidates, active in page_candidates:
-                                canonical_claims.setdefault(canonical, []).append((canonical, active))
-                                for candidate in set(candidates):
-                                    candidate_claims.setdefault(candidate, []).append((canonical, active))
-                            claim_counts = Counter(name for canonical, candidates, active in page_candidates
-                                                   for name in ({canonical} if canonical in old_names
-                                                                else set(candidates) & old_names))
-                            if any(count > 1 for count in claim_counts.values()):
-                                raise LegacyZipAmbiguousError()
-                            claims = {}
-                            for old_name in old_names:
-                                matched = canonical_claims.get(old_name) or candidate_claims.get(old_name, [])
-                                if len(matched) > 1:
-                                    raise LegacyZipAmbiguousError()
-                                if matched:
-                                    claims.setdefault(matched[0], []).append(old_name)
-                            drop = set()
-                            for (canonical, active), matched in claims.items():
-                                if not active:
-                                    drop.update(matched)
-                            pending_entries = []
-                            for relative, digest, index, name, candidates in entries:
-                                matched = claims.get((name, True), [])
-                                if not matched:
-                                    pending_entries.append((relative, digest, index, name, candidates))
-                                    continue
-                                current = hashlib.sha256(self.managed.read_saved_page(relative, index, digest)).hexdigest()
-                                if any(old_hashes[candidate] != current for candidate in matched):
-                                    drop.update(matched)
-                                    pending_entries.append((relative, digest, index, name, candidates))
-                            entries = pending_entries
-                            old_names.difference_update(drop)
-                            for name in old_infos:
+                            for name, info in previous_infos.items():
                                 if name not in old_names:
                                     continue
-                                info = old_infos[name]
                                 new_info = copy.copy(info)
                                 new_info.filename = name
                                 new_info.extra = _without_zip64_extra(info.extra)
@@ -547,8 +566,7 @@ class LegacyZipExporter:
                                     new_info.create_version = min(info.create_version, 20)
                                 with previous.open(info) as source, archive.open(new_info, 'w', force_zip64=use_zip64) as target:
                                     shutil.copyfileobj(source, target, 1024 * 1024)
-                    members = old_names | {entry[3] for entry in entries} if replace_existing_sha256 is not None else members
-                    for relative, digest, index, name, _legacy in entries:
+                    for relative, digest, index, name, _ in entries:
                         if self._closing:
                             raise LegacyZipExportError('ZIP export interrupted by shutdown')
                         data = self.managed.read_saved_page(relative, index, digest)
