@@ -449,6 +449,15 @@ class SaveExports:
         with self.lock:
             if kind in ('bookmark-projection','author-projection','auto-zip'):
                 accepted=self._accepted_projection(kind,identity)
+                if (accepted is not None and kind=='auto-zip' and
+                        (accepted.state=='done' or accepted.state=='retained' and self._publication_completed(accepted))):
+                    previous=self._previous_auto_zip(identity['author_id'],with_source=True)
+                    if previous is not None:
+                        proof,source=previous
+                        prior={k:v for k,v in source.items() if k!='rebuild_from'}
+                        if self._logical(prior)!=self._logical(identity):
+                            identity=dict(identity,rebuild_from=proof)
+                            accepted=self._accepted_projection(kind,identity)
                 if accepted is not None:return accepted
         if kind=='bookmark-projection':
             aid=identity.get('author_id')
@@ -825,7 +834,7 @@ class SaveExports:
                 continue
             self._finish_zip_mutation(path,note)
 
-    def _previous_auto_zip(self, author_id):
+    def _previous_auto_zip(self, author_id, *, with_source=False):
         self._recover_zip_mutations()
         archives=list(native_io_path(self.zip.root).glob('*('+author_id+').zip'))
         if not archives:return None
@@ -844,7 +853,7 @@ class SaveExports:
                     try:
                         if verified_zip_digest(archive)!=expected:continue
                     except ValueError:continue
-                    return expected
+                    return (expected,value['source']) if with_source else expected
         raise ValueError('previous ZIP has no matching completed receipt')
 
     def _finish_zip_pending(self,job,identity,manifest,context):

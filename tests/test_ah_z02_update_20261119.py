@@ -62,3 +62,19 @@ def test_auto_zip_applies_real_partial_quarantine(tmp_path):
                 assert z.namelist() == ['synthetic title(123)_2.png']
                 assert z.testzip() is None
         finally: source.close()
+
+
+def test_restore_republishes_complete_author_zip(tmp_path):
+    with generated_exports(tmp_path,True,None) as q:
+        q.exports.scan(); assert all(j.state=='done' for j in settled(q.exports))
+        source=ManagedDuplicateInspection(q.managed)
+        try:
+            result=source.execute(plan_for(source,'123:1'),operation_id='b'*32)
+            q.exports.scan(); assert all(j.state=='done' for j in settled(q.exports))
+            with ZipFile(archive(q)) as z: assert len(z.namelist())==1
+            q.managed.quarantine.restore(result.operation_id,expected_revision=result.state_revision)
+            assert q.managed.visible_source_pages('123')==(0,1)
+            q.exports.scan(); assert all(j.state=='done' for j in settled(q.exports))
+            with ZipFile(archive(q)) as z: assert len(z.namelist())==2
+            jobs=settled(q.exports); q.exports.scan(); assert len(settled(q.exports))==len(jobs)
+        finally:source.close()
