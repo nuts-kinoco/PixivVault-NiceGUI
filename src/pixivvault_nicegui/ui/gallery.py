@@ -76,8 +76,6 @@ class GalleryView(ViewerController):
 
     def _card_menu(self, art: Artwork, card) -> None:
         """カードの右クリックメニュー。ランキング側は項目の多い版へ差し替える（_RankingGallery）。"""
-        if hasattr(self,'owner'):
-            return
         with ui.context_menu() as menu:
             button=ui.button('作者ページを開く',on_click=lambda _,a=art,s=self.state,popup=menu:
                 self.open_card_author(a,s,popup)).props('flat dense data-testid=gallery-author-open')

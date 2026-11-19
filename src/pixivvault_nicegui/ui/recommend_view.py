@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from uuid import uuid4
 from nicegui import background_tasks, core, ui
-from ..recommendation_state import LABELS, ORDER
+from ..recommendation_state import LABELS, ORDER, RecommendationWork
 from ..recommendation_media import RecommendationMediaSnapshot
 from ..viewer_metadata import pixiv_url
 from .card_size_control import size_buttons, update_size_buttons
@@ -68,7 +68,7 @@ class RecommendView:
         # Like ranking/library, the overlay is a sibling in the shell content;
         # it is never deleted when a shelf's body is re-rendered.
         self._recommend_viewer=RecommendationViewer(services,self.root,
-            on_close=self._invalidate_open,on_hidden=self._viewer_hidden)
+            on_close=self._invalidate_open,on_hidden=self._viewer_hidden,on_author=self._show_author_page)
         self.client.on_delete(self.close)
         self.refresh_button.set_enabled(self.controller is not None)
         self.update_button.disable()
@@ -209,16 +209,16 @@ class RecommendView:
         if self.data is None:return
         revision=self.data['revision']
         await self._change(lambda:self.controller.boost(author_id,name,enabled,revision))
-    def ask_hide_reason(self,work_id):
+    def ask_hide_reason(self,work_id,*,card_current=None):
         if not self.active or self.closed or self.busy or self.data is None:return
-        if not any(w.work_id==work_id for groups in self.data['sections'].values()
-                   for group in groups for w in group.works):return
-        self._pending_hide=(work_id,self.epoch)
+        if not self._has_action_card(work_id,card_current):return
+        self._pending_hide=(work_id,self.epoch,card_current)
         self.hide_dialog.open()
     async def choose_hide_reason(self,reason):
         pending=self._pending_hide;self._pending_hide=None
         self.hide_dialog.close()
         if pending is None or not self.active or self.closed or self.epoch!=pending[1]:return
+        if pending[2] is not None and not pending[2]():return
         await self.hide('work',pending[0],True,reason=reason)
     async def hide(self,kind,target,hidden=True,*,reason=None):
         if self.data is None:return
@@ -297,15 +297,28 @@ class RecommendView:
         if (self.closed or not self.active or self.busy
                 or generation!=self._render_generation):return
         work=next((w for w in self._visible_works() if w.work_id==work_id),None)
-        reader=self._recommend_viewer._viewer_reader()
         if work is None or not work.author_id:return
+        await self._show_author_page(work.author_id,work.author_name)
+
+    async def _show_author_page(self,author_id,author_name):
+        reader=self._recommend_viewer._viewer_reader()
         if reader is None:
             self.notice.set_text('作者ページには読取接続の設定が必要です。');return
+        if self._author_browser is not None and self._author_browser.reader is not reader:
+            self._author_browser.close();self._author_browser=None
         if self._author_browser is None:
             from .author_browse_view import AuthorBrowseView
             with self.client:
-                self._author_browser=AuthorBrowseView(self.services,reader,card_size=self.card_size)
-        await self._author_browser.show(work.author_id,work.author_name)
+                self._author_browser=AuthorBrowseView(self.services,reader,card_size=self.card_size,
+                    build_card_menu=self._author_card_menu)
+        await self._author_browser.show(author_id,author_name)
+
+    def _author_card_menu(self,art,card,browser):
+        def current():
+            return (browser.visible and not browser.closed and browser.reader is self._recommend_viewer._viewer_reader()
+                    and browser.gallery._viewer_active and browser.gallery.cards.get(art.work_id) is card)
+        work=RecommendationWork(art.work_id,art.title,art.author_id,art.author,tags=art.tags)
+        self._card_menu('author-overlay',work,None,card,self.data,card_current=current)
 
     async def open_work(self,work_id,*,generation):
         if (self.closed or not self.active or self.busy
@@ -533,20 +546,27 @@ class RecommendView:
         # ビューアの右クリックで出さないにした。保存済みの結果を読み直して棚から外す。
         if self.active and not self.closed and not self.busy:
             background_tasks.create(self.refresh())
-    def _card_menu(self,kind,work,generation,card,data):
+    def _card_menu(self,kind,work,generation,card,data,*,card_current=None):
         """元 recommend_tab.py:815-876 の右クリック 12 項目（取り下げるは SuperLike の棚だけ）。"""
         wid=work.work_id;aid=work.author_id;name=work.author_name
         writable=bool(data['writable']);actions=self._card_actions
         tag=work.tags[0] if work.tags else None
         target=pixiv_url(wid)
-        def guard(coroutine):
-            if self.closed or not self.active or generation!=self._render_generation:
-                coroutine.close();return None
-            return coroutine
+        def guard(action):
+            def invoke():
+                if self.closed or not self.active:return None
+                if card_current is not None:
+                    if not card_current():return None
+                elif generation!=self._render_generation:return None
+                return action()
+            return invoke
+        def open_author():
+            if card_current is not None:return self._show_author_page(aid,name)
+            return self.open_author_page(wid,generation=generation)
         entries=[
-            MenuEntry('bookmark','ブックマークする','bookmark_add',lambda:guard(actions.bookmark(wid,aid,name)),
+            MenuEntry('bookmark','ブックマークする','bookmark_add',guard(lambda:actions.bookmark(wid,aid,name)),
                       enabled=actions.can_write() and bool(aid)),
-            MenuEntry('prefer','好み（保存する）','favorite_border',lambda:guard(self.save_preferred(wid,kind)),
+            MenuEntry('prefer','好み（保存する）','favorite_border',guard(lambda:self.save_preferred(wid,kind,card_current=card_current)),
                       enabled=self.on_enqueue is not None),
         ]
         if kind=='superlike':
@@ -554,20 +574,20 @@ class RecommendView:
                 lambda:self.dismiss_superlike(wid,generation=generation),enabled=writable,
                 testid=f'recommend-ctx-dismiss-superlike-{wid}'))
         entries+=[
-            MenuEntry('hide','出さない','visibility_off',lambda:guard(self.hide('work',wid)),enabled=writable),
-            MenuEntry('hide-reason','出さない（理由をつける）','edit_note',lambda:self.ask_hide_reason(wid),enabled=writable),
-            MenuEntry('queue','ダウンロードキューへ積む','download_for_offline',lambda:guard(self.save_work(wid)),
+            MenuEntry('hide','出さない','visibility_off',guard(lambda:self.hide('work',wid)),enabled=writable),
+            MenuEntry('hide-reason','出さない（理由をつける）','edit_note',guard(lambda:self.ask_hide_reason(wid,card_current=card_current)),enabled=writable),
+            MenuEntry('queue','ダウンロードキューへ積む','download_for_offline',guard(lambda:self.save_work(wid,card_current=card_current)),
                       enabled=self.on_enqueue is not None),
-            MenuEntry('boost','この作者をもっと見る','person_add_alt',lambda:guard(self.boost(aid,name,True)),
+            MenuEntry('boost','この作者をもっと見る','person_add_alt',guard(lambda:self.boost(aid,name,True)),
                       enabled=writable and bool(aid)),
-            MenuEntry('hide-author','この作者を出さない','person_off',lambda:guard(self.hide('author',aid)),
+            MenuEntry('hide-author','この作者を出さない','person_off',guard(lambda:self.hide('author',aid)),
                       enabled=writable and bool(aid)),
-            MenuEntry('tag','このタグで検索','search',lambda:self._search_tag(tag),
+            MenuEntry('tag','このタグで検索','search',guard(lambda:self._search_tag(tag)),
                       enabled=bool(tag) and self._on_search_tag is not None),
             MenuEntry('author','作者の作品一覧へ飛ぶ','person_outline',
-                      lambda:self.open_author_page(wid,generation=generation),enabled=bool(aid),
+                      guard(open_author),enabled=bool(aid),
                       testid=f'recommend-author-{kind}-{wid}'),
-            MenuEntry('follow','pixivでフォローする','person_add_alt_1',lambda:guard(actions.follow(aid,name)),
+            MenuEntry('follow','pixivでフォローする','person_add_alt_1',guard(lambda:actions.follow(aid,name)),
                       enabled=actions.can_write() and bool(aid)),
             MenuEntry('pixiv','pixivで作品ページを開く','open_in_new',href=target,enabled=target is not None,
                       testid=f'recommend-pixiv-link-{kind}-{wid}'),
@@ -576,22 +596,26 @@ class RecommendView:
         open_from_keyboard(card,menu)
     def _search_tag(self,tag):
         if tag and self._on_search_tag is not None and self.active and not self.closed:self._on_search_tag(tag)
-    async def save_preferred(self,work_id,kind):
+    async def save_preferred(self,work_id,kind,*,card_current=None):
         """元の「好み（保存する）」: 保存して、SuperLike の棚からは取り下げる（保存が受理されたときだけ）。"""
         generation=self._render_generation
-        if not await self.save_work(work_id):return
+        if not await self.save_work(work_id,card_current=card_current):return
         if kind=='superlike' and self.data is not None and generation==self._render_generation:
             await self.dismiss_superlike(work_id,generation=generation)
-    async def save_work(self,work_id):
+    def _has_action_card(self,work_id,card_current):
+        if card_current is not None:return card_current()
+        return self.data is not None and any(w.work_id==work_id for groups in self.data['sections'].values()
+                                            for group in groups for w in group.works)
+
+    async def save_work(self,work_id,*,card_current=None):
         if not self.active or self.closed or self.on_enqueue is None or work_id in self._saving:return False
-        # A visible card is the authority, not an arbitrary event payload.
-        if self.data is None or not any(w.work_id==work_id for groups in self.data['sections'].values()
-                                       for group in groups for w in group.works):return False
+        if not self._has_action_card(work_id,card_current):return False
         operation=self._save_operations.setdefault(work_id,uuid4().hex)
         epoch=self.epoch;self._saving.add(work_id)
         try:
             job=await self.on_enqueue(work_id,operation,
-                is_current=lambda:self.active and not self.closed and self.epoch==epoch)
+                is_current=lambda:self.active and not self.closed and self.epoch==epoch
+                    and (card_current is None or card_current()))
             if job is not None and self.active and not self.closed and self.epoch==epoch:
                 self.notice.set_text('保存をキューに追加しました。完了・失敗・再試行はダウンロード画面で確認できます。')
                 return True
