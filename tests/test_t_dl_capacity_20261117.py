@@ -21,6 +21,7 @@ from pixivvault_nicegui.job_service import JobService, JobServiceError
 from pixivvault_nicegui.managed_download_requests import ManagedDownloadRequests, ManagedRequestError
 from pixivvault_nicegui.managed_downloads import IDENTITY, MARKER
 from pixivvault_nicegui.services import ApplicationServices
+from test_t_dl_engine_20261117 import OwnedInventoryPort
 
 import json
 
@@ -256,7 +257,7 @@ def test_services_port_retire_distinguishes_unsupported_not_ready_and_done():
 
 # ---- the engine over the capped ledger (fake port; the cap is the real 10,000) ----
 
-class CappedPort:
+class CappedPort(OwnedInventoryPort):
     """Enqueue costs one ledger slot until retire(); job state needs `latency` polls."""
     closing = False
     CAP = 10_000
@@ -275,7 +276,7 @@ class CappedPort:
 
     def require_allowed(self): pass
     def author_target(self, aid): return None
-    def list_author(self, aid, target): return self.inventory[aid]
+    def list_author(self, aid, target, *, expected_account): return self.owned(aid, target, self.inventory[aid], expected_account)
     def settle(self, aid): pass
     def stop_jobs(self, refs): pass
     def observe_deletion(self, aid, remote, scan_id): return None

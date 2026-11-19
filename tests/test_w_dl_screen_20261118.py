@@ -15,6 +15,7 @@ from pixivvault_nicegui.following_sync import FollowingSyncStore
 from pixivvault_nicegui.managed_network_stop_gate import ManagedNetworkStopped
 from pixivvault_nicegui.services import ApplicationServices
 from pixivvault_nicegui.ui.unified_download_view import NEED_TARGET, PAGE_SIZE, UnifiedDownloadView
+from test_t_dl_engine_20261117 import OwnedInventoryPort
 
 ACCOUNT = '55'
 
@@ -24,7 +25,7 @@ def cand(author, wid):
                                 Difference.NEW, work_type=0)
 
 
-class FakePort:
+class FakePort(OwnedInventoryPort):
     closing = False
 
     def __init__(self, hold=False):
@@ -40,10 +41,11 @@ class FakePort:
     def author_target(self, aid):
         return None
 
-    def list_author(self, aid, target):
+    def list_author(self, aid, target, *, expected_account):
         if aid in self.failing:
             raise RuntimeError('listing failed')
-        return (cand(aid, int(aid) * 10 + 1), cand(aid, int(aid) * 10 + 2))
+        rows = (cand(aid, int(aid) * 10 + 1), cand(aid, int(aid) * 10 + 2))
+        return self.owned(aid, target, rows, expected_account)
 
     def enqueue(self, candidate, operation_id):
         self.enqueued.append(candidate.work_id)

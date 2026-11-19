@@ -24,7 +24,7 @@ from threading import RLock
 import time
 from uuid import uuid4
 
-from .account_scope import AccountMismatch, require_same_account
+from .account_scope import AccountMismatch, OwnedListing, require_same_account
 from .fs_paths import native_io_path, sqlite_readonly_uri
 from .managed_downloads import _safe_path, _read_bounded, _write, _fsync_dir
 from .ugoira_storage import _owner_lock, _OWNER
@@ -593,13 +593,15 @@ class BatchRunLedger:
             connection.execute('UPDATE run_authors SET ' + ','.join(sets) + ' WHERE run_id=? AND author_id=?',
                                (*values, run_id, author_id))
 
-    def complete_author(self, run_id, author_id, counters=None, *, following=None, account_id=None):
-        """The author's step returned normally: mark it `done` and stamp last_downloaded.
+    def complete_author(self, run_id, author_id, counters=None, *, listing: OwnedListing, following=None):
+        """Complete a verified author listing and stamp its persisted run account."""
+        return self._complete_row(run_id, author_id, counters, kind='authors', listing=listing, following=following)
 
-        The stamp goes to following_sync only for an `authors` run, only when
-        the run is still running or paused (not stopping), and only when the
-        account already has a row for the author. Returns the stamp or None.
-        """
+    def complete_bookmark_row(self, run_id, row_id, counters=None):
+        """Complete a bookmark visibility row without an author download stamp."""
+        self._complete_row(run_id, row_id, counters, kind='bookmarks', listing=None, following=None)
+
+    def _complete_row(self, run_id, author_id, counters, *, kind, listing, following):
         _run_id(run_id)
         _identifier(author_id)
         counters = {} if counters is None else dict(counters)
@@ -614,14 +616,20 @@ class BatchRunLedger:
                                      (run_id,)).fetchone()
             if run is None:
                 raise BatchRunError()
-            kind, run_state, run_account = run
-            if account_id is not None:
-                require_same_account(run_account, account_id)
+            run_kind, run_state, run_account = run
+            if run_kind != kind:
+                raise BatchRunError()
+            if kind == 'authors':
+                if type(listing) is not OwnedListing or listing.author_id != author_id:
+                    raise AccountMismatch()
+                listing.scope.verify_observed()
+                if run_account is not None:
+                    require_same_account(run_account, listing.account_id)
             row = connection.execute('SELECT state FROM run_authors WHERE run_id=? AND author_id=?',
                                      (run_id, author_id)).fetchone()
             if row is None or row[0] in AUTHOR_TERMINAL:
                 raise BatchRunConflict()
-            stamping = kind == 'authors' and run_state in ('running', 'paused')
+            stamping = kind == 'authors' and run_account is not None and run_state in ('running', 'paused')
             sets = ['state=?', 'finished_utc=?'] + [name + '=?' for name in counters]
             values = ['done', stamp, *counters.values()]
             if stamping:
@@ -634,8 +642,6 @@ class BatchRunLedger:
             return stamping, run_account
         stamping, run_account = self._transaction(complete)
         if not stamping or following is None:
-            return None
-        if run_account is None:
             return None
         try:
             following.record_downloaded(run_account, author_id, stamp)

@@ -230,10 +230,9 @@ class AuthorMediaService:
         return None
 
     def preview(self, author_id, target_type=None, *, novel_format='EPUB', ugoira_format='gif',
-                new_only=False, expected_account=None):
+                new_only=False):
         return self.preview_owned(author_id, target_type, novel_format=novel_format,
-                                  ugoira_format=ugoira_format, new_only=new_only,
-                                  expected_account=expected_account).rows
+                                  ugoira_format=ugoira_format, new_only=new_only).rows
 
     def preview_owned(self, author_id, target_type=None, *, expected_account=None,
                       novel_format='EPUB', ugoira_format='gif', new_only=False) -> OwnedListing:

@@ -4,6 +4,7 @@ from threading import Event
 
 import pytest
 
+from pixivvault_nicegui.account_scope import AccountScope, OwnedListing, require_same_account
 from pixivvault_nicegui.author_download import Difference
 from pixivvault_nicegui.author_media import AuthorMediaCandidate
 from pixivvault_nicegui.batch_engine import BatchRunEngine
@@ -20,7 +21,24 @@ def cand(author, wid, difference=D.NEW, kind='illustration', date='2026-01-01T00
                                 work_type=2 if kind == 'ugoira' else 0)
 
 
-class FakePort:
+class OwnedInventoryPort:
+    """Synthetic port with its own observed account and the real listing contract."""
+
+    def verified_author_account(self):
+        self._verified_identity = ACCOUNT
+        return self._verified_identity
+
+    def owned(self, aid, target, rows, expected_account):
+        observed = self.verified_author_account()
+        require_same_account(expected_account, observed)
+        return OwnedListing(AccountScope(observed, self), aid, target or 'both', tuple(rows))
+
+    def verify_author_scope(self, scope):
+        require_same_account(self, scope.reader)
+        scope.verify_observed()
+
+
+class FakePort(OwnedInventoryPort):
     closing = False
 
     def __init__(self, inventories, *, targets=None):
@@ -44,12 +62,12 @@ class FakePort:
     def author_target(self, aid):
         return self.targets.get(aid)
 
-    def list_author(self, aid, target):
+    def list_author(self, aid, target, *, expected_account):
         self.calls.append(('list', aid, target))
         value = self.inventories[aid]
         if isinstance(value, Exception):
             raise value
-        return value
+        return self.owned(aid, target, value, expected_account)
 
     def enqueue(self, candidate, operation_id):
         self.calls.append(('enqueue', candidate.author_id, candidate.work_id))
@@ -406,11 +424,12 @@ def test_services_port_maps_services_onto_the_engine_port():
     media = NS(author_target=lambda aid: NS(target_type='novel'), owner_jobs=lambda kind: owner,
                reconcile=lambda author_id: calls.append(('reconcile', author_id)))
     services = NS(closing=False, managed_network_stop=gate, author_media=media,
-                  author_media_preview=lambda aid, target: calls.append(('preview', aid, target)) or (),
+                  author_media_preview_owned=lambda aid, target, expected_account:
+                      calls.append(('preview', aid, target)) or OwnedInventoryPort().owned(aid, target, (), expected_account),
                   enqueue_author_media=lambda c, op, origin: (job, True, 'fp'), legacy_author_bridge=None)
     port = ServicesPort(services)
     port.require_allowed()
-    assert port.author_target('41') == 'novel' and port.list_author('41', 'both') == ()
+    assert port.author_target('41') == 'novel' and port.list_author('41', 'both', expected_account=ACCOUNT).rows == ()
     assert port.enqueue(object(), 'c' * 32) == ('a' * 32, True)
     refs = [JobRef('illustration', 'a' * 32, 'x'), JobRef('illustration', 'b' * 32, 'y'),
             JobRef('illustration', 'c' * 32, 'z')]

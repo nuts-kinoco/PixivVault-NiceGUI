@@ -4,11 +4,19 @@ from datetime import datetime, timezone
 
 import pytest
 
+from types import SimpleNamespace
+
+from pixivvault_nicegui.account_scope import AccountScope, OwnedListing
 from pixivvault_nicegui.batch_runs import (
     BatchRunConflict, BatchRunError, BatchRunLedger, saved_counts_by_author)
 from pixivvault_nicegui.following_sync import FollowingSyncError, FollowingSyncStore
 
 ACCOUNT = '55'
+
+def listing(author_id):
+    reader = SimpleNamespace(_verified_identity=ACCOUNT)
+    return OwnedListing(AccountScope(ACCOUNT, reader), author_id, 'both', ())
+
 
 
 class Reader:
@@ -125,7 +133,7 @@ def test_run_lifecycle_and_reopen(tmp_path):
     ledger.update_author(run_id, '41', state='downloading', counters={'n_new': 3, 'n_updated': 1})
     ledger.record_item(run_id, '41', '100', 'illustration', 'a' * 32, job_id='b' * 32)
     ledger.record_item(run_id, '41', '100', 'illustration', 'a' * 32, state='done')
-    ledger.complete_author(run_id, '41', {'n_new': 3, 'n_updated': 1, 'n_failed': 1})
+    ledger.complete_author(run_id, '41', {'n_new': 3, 'n_updated': 1, 'n_failed': 1}, listing=listing('41'))
     ledger.set_run_state(run_id, 'done')
     ledger.close()
     ledger = BatchRunLedger(root)  # reopen: everything is still there
@@ -195,7 +203,7 @@ def test_recover_interrupted_marks_active_runs_and_midflight_authors(ledger):
 
 def test_done_author_stamps_last_downloaded(ledger, store):
     run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=ACCOUNT)
-    stamp = ledger.complete_author(run_id, '41', {'n_new': 2}, following=store)
+    stamp = ledger.complete_author(run_id, '41', {'n_new': 2}, following=store, listing=listing('41'))
     assert row(store.snapshot(ACCOUNT), '41').last_downloaded == stamp
     assert row(store.snapshot(ACCOUNT), '42').last_downloaded is None
     author = ledger.authors(run_id)[0]
@@ -209,35 +217,35 @@ def test_failed_stopped_or_skipped_author_never_stamps(ledger, store, outcome):
     ledger.finish_author(run_id, '41', outcome, error_code='boom')
     assert row(store.snapshot(ACCOUNT), '41').last_downloaded is None
     with pytest.raises(BatchRunConflict):  # a settled author cannot be completed afterwards
-        ledger.complete_author(run_id, '41', following=store)
+        ledger.complete_author(run_id, '41', following=store, listing=listing('41'))
     assert row(store.snapshot(ACCOUNT), '41').last_downloaded is None
 
 
 def test_stopping_run_never_stamps_even_if_the_step_returned(ledger, store):
     run_id = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=ACCOUNT)
     ledger.set_run_state(run_id, 'stopping')
-    assert ledger.complete_author(run_id, '41', following=store) is None
+    assert ledger.complete_author(run_id, '41', following=store, listing=listing('41')) is None
     assert row(store.snapshot(ACCOUNT), '41').last_downloaded is None
     assert ledger.authors(run_id)[0].state == 'done'  # the work is recorded, the stamp is not
 
 
 def test_bookmarks_run_never_stamps(ledger, store):
     run_id = ledger.begin_run('bookmarks', 'manual', '', ('41',), account_id=ACCOUNT)
-    assert ledger.complete_author(run_id, '41', following=store) is None
+    assert ledger.complete_bookmark_row(run_id, '41') is None
     assert row(store.snapshot(ACCOUNT), '41').last_downloaded is None
 
 
 def test_author_that_is_not_followed_is_recorded_without_stamping(ledger, store):
     run_id = ledger.begin_run('authors', 'manual', 'both', ('999',), account_id=ACCOUNT)
-    ledger.complete_author(run_id, '999', {'n_new': 1}, following=store)
+    ledger.complete_author(run_id, '999', {'n_new': 1}, following=store, listing=listing('999'))
     assert ledger.authors(run_id)[0].state == 'done'
     assert store.snapshot(ACCOUNT).revision == 1 and all(a.last_downloaded is None for a in store.snapshot(ACCOUNT).authors)
 
 
 def test_no_account_or_no_store_does_not_stamp(ledger, store):
     run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'))
-    assert ledger.complete_author(run_id, '41', following=store) is None
-    assert ledger.complete_author(run_id, '42') is None
+    assert ledger.complete_author(run_id, '41', following=store, listing=listing('41')) is None
+    assert ledger.complete_author(run_id, '42', listing=listing('42')) is None
     assert all(a.last_downloaded is None for a in store.snapshot(ACCOUNT).authors)
 
 

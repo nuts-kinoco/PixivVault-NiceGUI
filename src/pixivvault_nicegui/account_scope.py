@@ -34,6 +34,9 @@ class AccountScope:
         if type(self.account_id) is not str or re.fullmatch(r'[1-9][0-9]{0,19}', self.account_id) is None:
             raise AccountMismatch()
 
+    def verify_observed(self) -> None:
+        require_same_account(self.account_id, getattr(self.reader, '_verified_identity', None))
+
     def verify_current(self, services, *, error=None) -> str:
         require_current_account(services, self.reader, self.account_id, error=error)
         return self.account_id

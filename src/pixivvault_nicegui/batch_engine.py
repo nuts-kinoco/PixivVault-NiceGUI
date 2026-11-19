@@ -19,7 +19,7 @@ import random
 import time
 from uuid import uuid4
 
-from .account_scope import AccountMismatch, require_current_account
+from .account_scope import AccountMismatch, AccountScope, OwnedListing, require_same_account
 from .author_download import Difference
 from .batch_runs import COUNTERS, BatchRunError
 
@@ -110,14 +110,18 @@ class ServicesPort:
         media = getattr(self.s, 'author_media', None)
         return None if media is None else media.author_target(author_id).target_type
 
-    def list_author(self, author_id, target_type, *, account_id=None):
-        self._author_reader = getattr(self.s, 'live_client', None)
-        claimed = {} if account_id is None else {'expected_account': account_id}
-        return tuple(self.s.author_media_preview(author_id, target_type, **claimed))
+    def verified_author_account(self) -> str:
+        reader = self.s.live_client
+        if reader is None:
+            raise AccountMismatch()
+        return AccountScope(reader.verify_identity(), reader).verify_current(self.s)
 
-    def require_author_account(self, account_id):
-        if account_id is not None:
-            require_current_account(self.s, self._author_reader, account_id)
+    def list_author(self, author_id, target_type, *, expected_account: str) -> OwnedListing:
+        AccountScope(expected_account)
+        return self.s.author_media_preview_owned(author_id, target_type, expected_account=expected_account)
+
+    def verify_author_scope(self, scope: AccountScope) -> None:
+        scope.verify_current(self.s)
 
     def enqueue(self, candidate, operation_id):
         record = getattr(candidate, 'record', None)
@@ -308,7 +312,7 @@ class BatchRunEngine:
         authors = self.ledger.unfinished_authors(run.run_id)
         # The stamps belong to the account that began the run, also after a restart (the engine of
         # a new process starts without one).
-        account_id = run.account_id or self.account_id
+        account_id = run.account_id
         preflight = (lambda: bookmark_refresh(account_id)) if run.kind == 'bookmarks' and bookmark_refresh else None
         return self.start(authors, kind=run.kind, origin=run.origin, target_type=run.target_type or None,
                           preflight=preflight, account_id=account_id, verified_bookmark_account=verified)
@@ -408,6 +412,7 @@ class BatchRunEngine:
     def _execute(self, run_id, authors, preflight=None):
         total = len(authors)
         outcome, code = 'done', ''
+        author_account = self.account_id
         self._emit('run_start', total=total)
         try:
             if preflight is not None:
@@ -438,7 +443,14 @@ class BatchRunEngine:
                         if self.kind == 'bookmarks':
                             self._process_bookmarks(run_id, index, total, author_id)
                         else:
-                            self._process_author(run_id, index, total, author_id)
+                            if author_account is None:
+                                self._gate()
+                                try:
+                                    author_account = self.port.verified_author_account()
+                                except Exception:
+                                    self._gate()
+                                    raise
+                            self._process_author(run_id, index, total, author_id, author_account)
                         break
                     except GateClosed as closed:
                         self._reset_author(run_id, author_id)
@@ -517,27 +529,24 @@ class BatchRunEngine:
         own = self.port.author_target(author_id)
         return own or self.target_type
 
-    def _check_author_account(self):
-        if self.kind == 'authors':
-            check = getattr(self.port, 'require_author_account', None)
-            if check is not None:
-                check(self.account_id)
-
-    def _process_author(self, run_id, index, total, author_id):
+    def _process_author(self, run_id, index, total, author_id, expected_account):
         self._gate()
         self.ledger.update_author(run_id, author_id, state='listing')
         self._emit('author_start', index=index, total=total, author_id=author_id)
         target = self._target_for(author_id)
         try:
-            claimed = {'account_id': self.account_id} if hasattr(self.port, 'require_author_account') else {}
-            rows = self.port.list_author(author_id, target, **claimed)
+            listing = self.port.list_author(author_id, target, expected_account=expected_account)
         except Exception as error:
             if _gate_error(error):
                 raise GateClosed('network_stopped' if type(error).__name__ == 'ManagedNetworkStopped'
                                  else 'network_gate_unavailable') from None
             raise
         self._check_state()
-        self._check_author_account()
+        if type(listing) is not OwnedListing or listing.author_id != author_id:
+            raise AccountMismatch()
+        require_same_account(expected_account, listing.account_id)
+        self.port.verify_author_scope(listing.scope)
+        rows = listing.rows
         keys = [(c.kind, c.work_id) for c in rows]
         if any(c.author_id != author_id for c in rows) or len(set(keys)) != len(keys):
             raise ValueError('author inventory identity changed')
@@ -546,18 +555,17 @@ class BatchRunEngine:
                  Difference.MISSING: 'n_missing', Difference.SKIPPED: 'n_skipped', Difference.UNKNOWN: 'n_unknown'}
         for candidate in rows:
             counters[names[candidate.difference]] += 1
-        self._check_author_account()
+        self.port.verify_author_scope(listing.scope)
         self._observe_deletion(run_id, author_id, target, rows, counters)
         self._check_saved_capacity(rows)
         self.ledger.update_author(run_id, author_id, state='downloading', counters=counters)
         self._emit('author_listed', index=index, total=total, author_id=author_id, counters=dict(counters))
         queue = sorted((c for c in rows if c.eligible), key=lambda c: (-int(c.work_id), c.kind))
-        failed = self._download(run_id, index, total, author_id, queue)
+        failed = self._download(run_id, index, total, author_id, queue, listing=listing)
         counters['n_failed'] = failed
         self._check_state()
-        self._check_author_account()
-        self.ledger.complete_author(run_id, author_id, counters, following=self.following,
-                                    account_id=self.account_id)
+        self.port.verify_author_scope(listing.scope)
+        self.ledger.complete_author(run_id, author_id, counters, listing=listing, following=self.following)
         for name in COUNTERS:
             self.totals[name] += counters[name]
         self._emit('author_done', index=index, total=total, author_id=author_id, counters=dict(counters))
@@ -588,10 +596,10 @@ class BatchRunEngine:
         self.ledger.update_author(run_id, row_id, state='downloading', counters=counters)
         self._emit('author_listed', index=index, total=total, author_id=row_id, counters=dict(counters))
         queue = sorted((c for c in rows if c.eligible), key=lambda c: (-int(c.work_id), c.kind))
-        failed = self._download(run_id, index, total, row_id, queue)
+        failed = self._download(run_id, index, total, row_id, queue, listing=None)
         counters['n_failed'] = failed
         self._check_state()
-        self.ledger.complete_author(run_id, row_id, counters, following=None)     # a bookmarks run never stamps
+        self.ledger.complete_bookmark_row(run_id, row_id, counters)
         for name in COUNTERS:
             self.totals[name] += counters[name]
         self._emit('author_done', index=index, total=total, author_id=row_id, counters=dict(counters))
@@ -656,7 +664,7 @@ class BatchRunEngine:
         self._next_drain_at = self.retire_every
         return True
 
-    def _download(self, run_id, index, total, author_id, queue):
+    def _download(self, run_id, index, total, author_id, queue, *, listing):
         """Hand work to the durable jobs a few at a time; return how many did not save.
 
         The job ledger caps at 10,000 operations (job_service.MAX_OPERATION_IDS), so after
@@ -672,7 +680,8 @@ class BatchRunEngine:
                     self._hold_jobs([ref for ref, _ in inflight.values()])
                     jobs_held = True
                 self._check_state()
-                self._check_author_account()
+                if listing is not None:
+                    self.port.verify_author_scope(listing.scope)
                 if jobs_held:
                     self._release_jobs([ref for ref, _ in inflight.values()])
                     jobs_held = False
@@ -689,7 +698,8 @@ class BatchRunEngine:
                     self._next_drain_at = len(self._settled) + self.retire_every
                 while pending and not holding and len(inflight) < self.max_in_flight:
                     self._gate()
-                    self._check_author_account()
+                    if listing is not None:
+                        self.port.verify_author_scope(listing.scope)
                     candidate = pending[0]
                     operation_id = uuid4().hex
                     try:
@@ -720,7 +730,8 @@ class BatchRunEngine:
                         (candidate.key, candidate.kind, operation_id, job_id, 'queued'),))
                 if inflight:
                     states = self.port.job_states([ref for ref, _ in inflight.values()])
-                    self._check_author_account()
+                    if listing is not None:
+                        self.port.verify_author_scope(listing.scope)
                     finished = []
                     for job_id, (ref, candidate) in tuple(inflight.items()):
                         state, error_code = states.get(job_id, ('lost', ''))

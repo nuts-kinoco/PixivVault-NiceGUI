@@ -6,6 +6,7 @@ from types import SimpleNamespace as NS
 import pytest
 from nicegui import Client, ui
 
+from pixivvault_nicegui.account_scope import AccountScope, OwnedListing
 from pixivvault_nicegui.managed_scheduler import ScheduleAccountError
 from pixivvault_nicegui.services import ApplicationServices
 from pixivvault_nicegui.ui.scheduler_view import SchedulerView
@@ -89,14 +90,14 @@ def test_batch_engine_does_not_finish_author_after_account_change(tmp_path, swit
         assert svc.scheduler_favourite_authors(ledger=ledger) == (X,)
         calls = use_media_dispatch(root, reader, svc, switch_at=switch_at)
         if switch_at == "after_preview":
-            preview = svc.author_media_preview
+            preview = svc.author_media_preview_owned
 
             def switch_after_preview(*args, **kwargs):
                 rows = preview(*args, **kwargs)
                 reader._verified_identity = B
                 return rows
 
-            svc.author_media_preview = switch_after_preview
+            svc.author_media_preview_owned = switch_after_preview
         batch_ledger = BatchRunLedger(tmp_path / "batch")
         svc.batch_runs = BatchRunEngine(ServicesPort(svc), batch_ledger, following=store)
         engine = svc.batch_runs
@@ -210,7 +211,8 @@ def test_completion_ledger_rejects_account_other_than_run_owner(tmp_path):
         try:
             run_id = batch.begin_run("authors", "manual", "both", (X,), account_id=A)
             with pytest.raises(RuntimeError, match="account changed"):
-                batch.complete_author(run_id, X, following=store, account_id=B)
+                listing = OwnedListing(AccountScope(B, NS(_verified_identity=B)), X, "both", ())
+                batch.complete_author(run_id, X, following=store, listing=listing)
             author = batch.authors(run_id)[0]
             assert author.finished_utc is None and author.last_downloaded_utc is None
         finally:
@@ -272,7 +274,7 @@ def test_media_admission_rejects_candidate_from_previous_account(tmp_path):
         svc.managed_downloads.verified_saved_receipt = lambda wid: None
         reader.get_author_artworks_complete = lambda aid: (
             dict(id="200", user_id=aid, type=0, page_count=1, title="work", update_date="2020"),)
-        (candidate,) = svc.author_media_preview(X, "illust", expected_account=A)
+        (candidate,) = svc.author_media_preview_owned(X, "illust", expected_account=A).rows
         reader._verified_identity = B
         with pytest.raises(RuntimeError, match="account changed"):
             svc.author_media.enqueue(candidate, "1" * 32)

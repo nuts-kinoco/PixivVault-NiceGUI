@@ -1563,10 +1563,9 @@ class ApplicationServices:
             self.release_managed_owner(owner)
 
     def author_media_preview(self, author_id, target_type=None, *, novel_format=None, ugoira_format=None,
-                             new_only=False, expected_account=None):
+                             new_only=False):
         return self.author_media_preview_owned(author_id, target_type, novel_format=novel_format,
-                                              ugoira_format=ugoira_format, new_only=new_only,
-                                              expected_account=expected_account).rows
+                                              ugoira_format=ugoira_format, new_only=new_only).rows
 
     def author_media_preview_owned(self, author_id, target_type=None, *, novel_format=None, ugoira_format=None,
                                    new_only=False, expected_account=None):
