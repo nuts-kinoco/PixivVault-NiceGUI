@@ -15,9 +15,15 @@ async def test_settings_metadata_export_skips_image_tree_and_publishes_exactly_t
     source = tmp_path / 'source'
     source.mkdir()
     db = source / 'old.db'
+    settings = [('web_api_token', 'generated-fixture-1'),
+                ('nana7mi_pw_hash', 'generated-fixture-2'),
+                ('nana7mi_pw_salt', 'generated-fixture-3'),
+                ('theme', 'dark')]
     with sqlite3.connect(db) as conn:
         conn.execute('CREATE TABLE works(work_id TEXT, title TEXT)')
         conn.execute('INSERT INTO works VALUES (?, ?)', ('1', 'Generated title'))
+        conn.execute('CREATE TABLE settings(key TEXT PRIMARY KEY, value TEXT)')
+        conn.executemany('INSERT INTO settings VALUES (?, ?)', settings)
     before = db.read_bytes()
     images = source / 'images'
     images.mkdir()
@@ -38,21 +44,24 @@ async def test_settings_metadata_export_skips_image_tree_and_publishes_exactly_t
             first, = (Path(services.preferences_root) / 'exports').glob('*.zip')
             with zipfile.ZipFile(first) as archive:
                 assert archive.namelist() == ['pixiv_vault.db', 'metadata.json']
-                assert archive.testzip() is None
-                assert json.loads(archive.read('metadata.json')) == [{'work_id': '1', 'title': 'Generated title'}]
-                copied_db = archive.read('pixiv_vault.db')
-            check = sqlite3.connect(':memory:')
-            try:
-                check.deserialize(copied_db)
-                assert check.execute('PRAGMA integrity_check').fetchone() == ('ok',)
-                assert check.execute('SELECT * FROM works').fetchall() == [('1', 'Generated title')]
-            finally:
-                check.close()
             await view.run_legacy_export()
             archive_paths = set((Path(services.preferences_root) / 'exports').glob('*.zip'))
             full, = archive_paths - {first}
             with zipfile.ZipFile(full) as archive:
                 assert archive.read('images/sample.png') == b'generated image'
+            for path in (first, full):
+                with zipfile.ZipFile(path) as archive:
+                    assert archive.testzip() is None
+                    assert json.loads(archive.read('metadata.json')) == [{'work_id': '1', 'title': 'Generated title'}]
+                    copied_db = archive.read('pixiv_vault.db')
+                check = sqlite3.connect(':memory:')
+                try:
+                    check.deserialize(copied_db)
+                    assert check.execute('PRAGMA integrity_check').fetchone() == ('ok',)
+                    assert check.execute('SELECT * FROM works').fetchall() == [('1', 'Generated title')]
+                    assert dict(check.execute('SELECT key, value FROM settings')) == dict(settings)
+                finally:
+                    check.close()
             assert db.read_bytes() == before
     finally:
         client.delete()
