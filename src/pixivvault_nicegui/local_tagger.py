@@ -289,7 +289,10 @@ class TaggerManager:
                 return None
             snapshot = self.preferences.snapshot()
             path = snapshot.values['local_tagger_path']
-            if snapshot.values['local_tagger_enabled'] != '1' or not _local_folder(path):
+            if snapshot.values['local_tagger_enabled'] != '1':
+                return None
+            if not _local_folder(path):
+                self.status = '利用不可（ローカルのフォルダを指定）'
                 return None
             receipt = self.preferences.read_tagger_verification().get('receipt')
             if not isinstance(receipt, dict) or receipt.get('verified') is not True:
@@ -309,7 +312,11 @@ class TaggerManager:
         except NonLocalModelPath:
             self.status = '利用不可（ローカルのフォルダを指定）'
             return None
+        except FileNotFoundError:
+            self.status = '未検出'
+            return None
         except (OSError, ValueError, TypeError, RuntimeError):
+            self.status = '読込失敗'
             return None
 
     def close(self):

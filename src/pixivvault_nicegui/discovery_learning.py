@@ -225,7 +225,7 @@ class DiscoveryLearningService(LearningService):
         # Multiple active views share one accepted source acquisition. Cancelling
         # a waiter cannot cancel the FIFO worker or start another concurrent GET.
         import asyncio
-        snapshot = await asyncio.to_thread(self.local_tag_view.snapshot) if self.local_tag_view else None
+        snapshot = await asyncio.wrap_future(self.local_tag_view.snapshot_async()) if self.local_tag_view else None
         claim=is_current if is_current is not None else lambda:True
         with self._lifecycle_lock:
             if self._close_future is not None:raise RuntimeError('learning service is closed')
@@ -254,7 +254,7 @@ class DiscoveryLearningService(LearningService):
     async def refill_snapshot(self):
         """Local, fresh candidate/history snapshot; never opens a new UI session."""
         import asyncio
-        snapshot = await asyncio.to_thread(self.local_tag_view.snapshot) if self.local_tag_view else None
+        snapshot = await asyncio.wrap_future(self.local_tag_view.snapshot_async()) if self.local_tag_view else None
         def read():
             db=self._database()
             saved=self.saved_ids() if callable(self.saved_ids) else self.saved_ids
@@ -324,7 +324,7 @@ class DiscoveryLearningService(LearningService):
 
     async def trend_snapshot(self):
         import asyncio
-        snapshot = await asyncio.to_thread(self.local_tag_view.snapshot) if self.local_tag_view else None
+        snapshot = await asyncio.wrap_future(self.local_tag_view.snapshot_async()) if self.local_tag_view else None
         return await self._wait(self._submit(self._trend_snapshot, snapshot))
 
     def _trend_snapshot(self, snapshot=None):
@@ -345,7 +345,7 @@ class DiscoveryLearningService(LearningService):
     def preferred_tags(self):
         """世間ランキングの好みタグ印用（元 ranking_tab.py:519-530）。worker の外から呼ぶ同期 API。"""
         from .ranking_preferred_tags import preferred_tag_set
-        snapshot = self.local_tag_view.snapshot() if self.local_tag_view else None
+        snapshot = self.local_tag_view.checked_snapshot() if self.local_tag_view else None
         return self._submit(lambda: preferred_tag_set(self._effective_preferences(self._database(), snapshot))).result()
 
     def trend_rows_base(self):
@@ -353,14 +353,14 @@ class DiscoveryLearningService(LearningService):
 
     def trend_rows(self):
         """Synchronous recommendation worker API, never call from this worker."""
-        snapshot = self.local_tag_view.snapshot() if self.local_tag_view else None
+        snapshot = self.local_tag_view.checked_snapshot() if self.local_tag_view else None
         return self._submit(self._trend_snapshot, snapshot).result()['rows']
 
     async def open_session(self):
         import asyncio
         if self.local_tag_view is not None:
             self.refresh_saved_seeds()
-        snapshot = await asyncio.to_thread(self.local_tag_view.snapshot) if self.local_tag_view else None
+        snapshot = await asyncio.wrap_future(self.local_tag_view.snapshot_async()) if self.local_tag_view else None
         return await self._wait(self._submit(self._open_session, snapshot))
 
     def _open_session(self, local_snapshot=None):
@@ -408,7 +408,7 @@ class DiscoveryLearningService(LearningService):
 
     async def rank_pending(self, work_ids, recent_author_ids=()):
         import asyncio
-        snapshot = await asyncio.to_thread(self.local_tag_view.snapshot) if self.local_tag_view else None
+        snapshot = await asyncio.wrap_future(self.local_tag_view.snapshot_async()) if self.local_tag_view else None
         def rank():
             db=self._database()
             saved=self.saved_ids() if callable(self.saved_ids) else self.saved_ids

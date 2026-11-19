@@ -47,12 +47,20 @@ class LocalTagView:
             return self._epoch
 
     def revision(self):
+        try:
+            snapshot = self.checked_snapshot()
+            return snapshot.epoch, snapshot.fingerprint
+        except RuntimeError:
+            return self.epoch(), None
+
+    def snapshot_async(self):
         with self._lock:
             if self._closed:
-                return self._epoch, None
-            future = self._validation_executor.submit(self.snapshot)
-        snapshot = future.result()
-        return snapshot.epoch, snapshot.fingerprint
+                raise RuntimeError('local seed unavailable')
+            return self._validation_executor.submit(self.snapshot)
+
+    def checked_snapshot(self):
+        return self.snapshot_async().result()
 
     def _eligible(self):
         saved = {str(value) for value in self.saved_ids()}
