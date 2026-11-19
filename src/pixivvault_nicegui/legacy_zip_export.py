@@ -410,7 +410,7 @@ class LegacyZipExporter:
 
             members = set()
             entries = []
-            excluded_candidates = set()
+            page_candidates = []
             for _, receipt, _ in author_rows:
                 safe_title = _INVALID_FILENAME.sub('_', receipt['title'])
                 for index, file in enumerate(receipt['files']):
@@ -419,7 +419,9 @@ class LegacyZipExporter:
                     ext = {'png': 'png', 'jpeg': 'jpg', 'webp': 'webp'}[file['format']]
                     legacy = (f'{safe_title}.{ext}' if receipt['page_count'] == 1
                               else f'{safe_title}_{index + 1}.{ext}')
-                    excluded_candidates.update(zip_arcname_candidates(legacy, safe_title, receipt['work_id']))
+                    candidates = zip_arcname_candidates(legacy, safe_title, receipt['work_id'])
+                    canonical = legacy_filename(receipt['title'], receipt['work_id'], index, receipt['page_count'], ext)
+                    page_candidates.append((canonical, candidates, False))
             for relative, receipt, digest in receipts:
                 for page_index in source_pages[receipt['work_id']]:
                     entry = receipt['files'][page_index]
@@ -432,8 +434,9 @@ class LegacyZipExporter:
                     safe_title = _INVALID_FILENAME.sub('_', receipt['title'])
                     legacy = (f'{safe_title}.{ext}' if receipt['page_count'] == 1
                               else f'{safe_title}_{page_index + 1}.{ext}')
-                    entries.append((relative, digest, page_index, name,
-                                    zip_arcname_candidates(legacy, safe_title, receipt['work_id'])))
+                    candidates = zip_arcname_candidates(legacy, safe_title, receipt['work_id'])
+                    entries.append((relative, digest, page_index, name, candidates))
+                    page_candidates.append((name, candidates, True))
 
             _safe_path(native_io_path(self.incomplete))
             staging = native_io_path(self.incomplete) / ('zip-' + uuid4().hex + '.tmp')
@@ -471,29 +474,38 @@ class LegacyZipExporter:
                                         hasher.update(block)
                                 old_hashes[name] = hasher.hexdigest()
                             old_names = set(old_infos)
-                            known_candidates = excluded_candidates | {name for entry in entries for name in entry[4]}
-                            for name in old_names - known_candidates:
-                                if any(f'({wid})' in name for wid in source_pages):
-                                    raise LegacyZipExportError('older ZIP member requires attribution')
-                            if excluded_candidates.intersection(old_names):
-                                raise LegacyZipExportError('excluded ZIP member requires attribution')
-                            drop = set()
-                            legacy_counts = Counter(name for entry in entries
-                                                    for name in ({entry[3]} if entry[3] in old_names
-                                                                 else set(entry[4]) & old_names))
-                            if any(count > 1 for count in legacy_counts.values()):
+                            canonical_claims = {}
+                            candidate_claims = {}
+                            for canonical, candidates, active in page_candidates:
+                                canonical_claims.setdefault(canonical, []).append((canonical, active))
+                                for candidate in set(candidates):
+                                    candidate_claims.setdefault(candidate, []).append((canonical, active))
+                            claim_counts = Counter(name for canonical, candidates, active in page_candidates
+                                                   for name in ({canonical} if canonical in old_names
+                                                                else set(candidates) & old_names))
+                            if any(count > 1 for count in claim_counts.values()):
                                 raise LegacyZipExportError('ambiguous legacy ZIP member')
+                            claims = {}
+                            for old_name in old_names:
+                                matched = canonical_claims.get(old_name) or candidate_claims.get(old_name, [])
+                                if len(matched) > 1:
+                                    raise LegacyZipExportError('ambiguous legacy ZIP member')
+                                if matched:
+                                    claims.setdefault(matched[0], []).append(old_name)
+                            drop = set()
+                            for (canonical, active), matched in claims.items():
+                                if not active:
+                                    drop.update(matched)
                             pending_entries = []
                             for relative, digest, index, name, candidates in entries:
-                                matched = ([name] if name in old_names and name not in drop else
-                                           [candidate for candidate in candidates if candidate in old_names and candidate not in drop])
+                                matched = claims.get((name, True), [])
                                 if not matched:
                                     pending_entries.append((relative, digest, index, name, candidates))
                                     continue
                                 current = hashlib.sha256(self.managed.read_saved_page(relative, index, digest)).hexdigest()
-                                changed = [candidate for candidate in matched if old_hashes[candidate] != current]
-                                if changed:
-                                    raise LegacyZipExportError('changed ZIP member requires attribution')
+                                if any(old_hashes[candidate] != current for candidate in matched):
+                                    drop.update(matched)
+                                    pending_entries.append((relative, digest, index, name, candidates))
                             entries = pending_entries
                             old_names.difference_update(drop)
                             for name in old_infos:
