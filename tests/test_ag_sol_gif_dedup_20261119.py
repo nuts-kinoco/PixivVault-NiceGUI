@@ -110,3 +110,31 @@ def test_corrupt_matching_gif_is_not_reused(tmp_path, monkeypatch):
         assert len(list(root.glob('gifs/*/animation.gif'))) == 2
     finally:
         owner.close()
+
+
+def test_corrupt_completion_is_preserved_and_new_fallback_saved(tmp_path, monkeypatch):
+    from pixivvault_nicegui import ugoira_storage as storage
+    def fail(*args, **kwargs):
+        raise UgoiraMp4Error()
+    monkeypatch.setattr('pixivvault_nicegui.ugoira_mp4.render_mp4', fail)
+    root = tmp_path / 'ugoira'
+    owner = PracticalUgoiraJobs(root, build_ugoira_fixture(), codec_python=sys.executable)
+    try:
+        first = owner.enqueue_selection(owner.preview('123', '91', 'gif'), 'damaged-completion')
+        with owner.jobs._condition:
+            assert owner.jobs._condition.wait_for(lambda: owner.jobs.retained_job(first.job_id).state == 'done', timeout=15)
+        original = next(root.glob('gifs/*/animation.gif'))
+        marker = original.parent / storage.COMPLETION
+        marker.write_bytes(b'{}')
+        second = owner.enqueue_selection(owner.preview('123', '91', 'mp4'), 'fallback-after-damage')
+        with owner.jobs._condition:
+            assert owner.jobs._condition.wait_for(
+                lambda: owner.jobs.retained_job(second.job_id).state in {'done', 'error'}, timeout=15)
+        job = owner.jobs.retained_job(second.job_id)
+        assert job.state == 'done'
+        assert marker.read_bytes() == b'{}'
+        assert original.is_file()
+        assert len(list(root.glob('gifs/*/animation.gif'))) == 2
+        assert owner.fallback_message(job)
+    finally:
+        owner.close()

@@ -655,13 +655,20 @@ class ManagedUgoiraJobs:
                 continue
             receipt_path = f'gifs/{folder.name}/receipt.json'
             try:
-                packet = json.loads(_read_bounded(folder / 'receipt.json', MAX_INTENT_BYTES), object_pairs_hook=_json_unique)
+                receipt = _read_bounded(folder / 'receipt.json', MAX_INTENT_BYTES)
+                packet = json.loads(receipt, object_pairs_hook=_json_unique)
             except (FileNotFoundError, UnicodeDecodeError, json.JSONDecodeError):
                 continue  # Preserve an unrelated incomplete/corrupt generation.
             if type(packet) is not dict:
                 continue
             if packet.get('source_sha256') != source.receipt_sha256 or packet.get('gif_sha256') != rendered.sha256:
                 continue
+            try:
+                completion = _read_bounded(folder / storage.COMPLETION, 1024)
+            except FileNotFoundError:
+                continue
+            if completion != _gif_completion(folder.name, receipt):
+                continue  # A damaged seal is not reusable; retain it unchanged.
             from .ugoira_gif import UgoiraGifError
             try:
                 receipt, verified = self._reference_gif(receipt_path, source, inspection, checkpoint)
