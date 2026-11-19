@@ -199,6 +199,7 @@ def serve(args):
     from pixivvault_nicegui.bootstrap import register_pages
     from pixivvault_nicegui.native_profile import NativeProfileStore
     from pixivvault_nicegui.native_startup import NativeProfileBinding
+    from pixivvault_nicegui.preferences import PreferencesStore
 
     base = Path(args.root)
     fake = FakeClient()
@@ -221,6 +222,12 @@ def serve(args):
     for v in kw.values():
         if isinstance(v, Path) and not v.resolve().is_relative_to(base.resolve()):
             raise SystemExit("path outside isolated run folder")
+    preferences = PreferencesStore(kw['preferences_root'] / 'preferences.sqlite3')
+    try:
+        # Never probe the product default model folder in a synthetic smoke.
+        preferences.set_setting('local_tagger_path', str(base / 'synthetic-model'))
+    finally:
+        preferences.close()
     register_pages(**kw)
     stopping = False
 
