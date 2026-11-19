@@ -234,6 +234,37 @@ class TaggerManager:
                 return []
             return result
 
+    def current_fingerprint(self):
+        with self._lock:
+            if self._closed:
+                return None
+            snapshot = self._current()
+            if snapshot.values['local_tagger_enabled'] != '1':
+                return None
+            status = self.tagger.verify()
+            if status not in ('利用可能', 'onnxruntime なし') or not self.tagger.receipt:
+                return None
+            identity = json.dumps(self.tagger.receipt, sort_keys=True, separators=(',', ':')).encode('utf-8')
+            return hashlib.sha256(identity).hexdigest()
+
+    def predict_with_fingerprint(self, data):
+        with self._lock:
+            before = self.current_fingerprint()
+            if before is None:
+                return None
+            tags = self.predict(data)
+            if self.status != '利用可能' or self.current_fingerprint() != before:
+                return None
+            return before, tags
+
+    def try_current_fingerprint(self):
+        if not self._lock.acquire(blocking=False):
+            return None
+        try:
+            return self.current_fingerprint()
+        finally:
+            self._lock.release()
+
     def close(self):
         with self._lock:
             self._closed = True

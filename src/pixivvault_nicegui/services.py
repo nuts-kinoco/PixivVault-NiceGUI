@@ -770,7 +770,8 @@ class ApplicationServices:
                 from .discovery_learning import DiscoveryLearningService
                 self.discovery = DiscoveryLearningService(discovery_root, self.live_client,
                     following=self.discovery_following_snapshot, saved_ids=self.saved_discovery_ids,
-                    seed_readonly_db=library_readonly_db, tagger=self.local_tagger, local_image=self.images.local_bytes)
+                    seed_readonly_db=library_readonly_db, tagger=self.local_tagger, local_image=self.images.local_bytes,
+                    saved_works=lambda: tuple(self.library.works))
                 self.discovery._event_services = self
             if self.discovery is not None and recommendation_preferences_root is not None:
                 from .recommendation_state import (DiscoveryRecommendationSource, CombinedRecommendationSource,
@@ -1208,6 +1209,8 @@ class ApplicationServices:
             return
         self._sync_metadata_auto()
         self._sync_similarity_auto()
+        if self.discovery is not None and self.local_tagger is not None:
+            self.discovery.refresh_saved_seeds()
         if self.shared_image_cache is not None:
             self.shared_image_cache.configure(int(self.preferences.get_setting('pixiv_shared_image_cache_size_mb','1024'))*1024**2)
             if self.shared_image_cache.disk is not None:
