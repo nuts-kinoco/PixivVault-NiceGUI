@@ -82,6 +82,7 @@ class LocalTagger:
         self.cache = {}
         self._lock = RLock()
         self._closed = False
+        self._load_failed = False
 
     def _runtime_available(self):
         return (self.session_factory is not None and self.tensor_factory is not None) or (
@@ -98,7 +99,10 @@ class LocalTagger:
             if old_receipt != receipt:
                 self.session = self.tags = None
                 self.cache.clear()
+                self._load_failed = False
             self.status = status if status != '利用可能' or self._runtime_available() else 'onnxruntime なし'
+            if self.status == '利用可能' and self._load_failed:
+                self.status = '読込失敗'
             return self.status
 
     def predict(self, data):
@@ -109,6 +113,10 @@ class LocalTagger:
             if key in self.cache:
                 return list(self.cache[key])
             try:
+                image = prepare_image(data)
+            except Exception:
+                return []
+            try:
                 if self.session is None:
                     with (self.folder / 'selected_tags.csv').open(encoding='utf-8-sig', newline='') as stream:
                         tags = list(csv.DictReader(stream))
@@ -116,11 +124,17 @@ class LocalTagger:
                         raise ValueError('invalid tags')
                     if self.session_factory is None:
                         import onnxruntime as ort
-                        session = ort.InferenceSession(str(self.folder / 'model.onnx'), providers=self.providers)
+                        available = ort.get_available_providers()
+                        providers = self.providers or (['CUDAExecutionProvider', 'CPUExecutionProvider']
+                            if 'CUDAExecutionProvider' in available else ['CPUExecutionProvider'])
+                        if providers[0] not in available:
+                            raise RuntimeError('requested inference provider unavailable')
+                        session = ort.InferenceSession(str(self.folder / 'model.onnx'), providers=providers)
+                        if providers[0] not in session.get_providers():
+                            raise RuntimeError('requested inference provider not active')
                     else:
                         session = self.session_factory(self.folder / 'model.onnx')
                     self.tags, self.session = tags, session
-                image = prepare_image(data)
                 if self.tensor_factory is None:
                     import numpy as np
                     tensor = np.asarray(image, dtype=np.float32)[None, ...]
@@ -136,6 +150,7 @@ class LocalTagger:
                 return result
             except Exception:
                 self.session = self.tags = None
+                self._load_failed = True
                 self.status = '読込失敗'
                 return []
 

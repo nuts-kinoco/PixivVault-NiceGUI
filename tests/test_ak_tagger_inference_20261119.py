@@ -51,3 +51,23 @@ def test_missing_runtime_status(tmp_path, monkeypatch):
     monkeypatch.setattr(tagger, '_runtime_available', lambda: False)
     assert tagger.verify() == 'onnxruntime なし'
     assert tagger.predict(png()) == []
+
+
+def test_load_failure_remains_visible(tmp_path):
+    make_model(tmp_path)
+    def fail(_):
+        raise RuntimeError('bad model')
+    tagger = LocalTagger(tmp_path, session_factory=fail, tensor_factory=lambda image: image)
+    assert tagger.predict(png()) == []
+    assert tagger.status == '読込失敗'
+    assert tagger.verify() == '読込失敗'
+
+
+def test_explicit_cuda_does_not_silently_fall_back(tmp_path, monkeypatch):
+    import sys
+    make_model(tmp_path)
+    monkeypatch.setitem(sys.modules, 'onnxruntime', SimpleNamespace(get_available_providers=lambda: ['CPUExecutionProvider']))
+    tagger = LocalTagger(tmp_path, providers=['CUDAExecutionProvider', 'CPUExecutionProvider'], tensor_factory=lambda image: image)
+    monkeypatch.setattr(tagger, '_runtime_available', lambda: True)
+    assert tagger.predict(png()) == []
+    assert tagger.status == '読込失敗'
