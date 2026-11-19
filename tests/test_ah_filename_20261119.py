@@ -10,3 +10,9 @@ from pixivvault_nicegui.legacy_zip_export import legacy_filename
 ])
 def test_original_filename_rules(title, expected):
     assert legacy_filename(title, '123', 0, 1, 'jpg') == expected
+
+
+def test_single_page_suffix_candidate_prevents_duplicate(tmp_path):
+    from pixivvault_nicegui.legacy_zip_export import zip_arcname_candidates
+    assert zip_arcname_candidates('work_2.jpg', 'work_2', '123') == [
+        'work_2(123).jpg', 'work(123)_2.jpg', 'work_2.jpg']

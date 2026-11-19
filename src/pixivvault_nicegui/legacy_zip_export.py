@@ -84,6 +84,30 @@ def legacy_filename(title: str, work_id: str, page_no: int, page_count: int,
     return filename
 
 
+def zip_arcname_candidates(arcname: str, safe_title: str, work_id: str) -> list[str]:
+    """Legacy lookup order, including the title ending in a page-like suffix."""
+    if '/' in arcname:
+        return [arcname]
+    stem, ext = os.path.splitext(arcname)
+    candidates = []
+    if stem == safe_title:
+        candidates.append(f'{safe_title}({work_id}){ext}')
+        if f'({work_id})' in arcname:
+            structural = arcname
+        else:
+            match = _PAGE_SUFFIX.match(stem)
+            structural = (f'{match.group(1)}({work_id})_{match.group(2)}{ext}'
+                          if match else f'{stem}({work_id}){ext}')
+        if structural not in candidates:
+            candidates.append(structural)
+    else:
+        prefix = f'{safe_title}_'
+        page = stem[len(prefix):] if stem.startswith(prefix) else ''
+        if page and page.isdigit():
+            candidates.append(f'{safe_title}({work_id})_{page}{ext}')
+    candidates.append(arcname)
+    return candidates
+
 def _export_path(root: Path) -> Path:
     if not isinstance(root, Path) or not root.is_absolute() or root == root.parent:
         raise LegacyZipExportError('dedicated absolute legacy export root required')
@@ -245,7 +269,8 @@ class LegacyZipExporter:
                     safe_title = _INVALID_FILENAME.sub('_', receipt['title'])
                     legacy = (f'{safe_title}.{ext}' if receipt['page_count'] == 1
                               else f'{safe_title}_{page_index + 1}.{ext}')
-                    entries.append((relative, digest, page_index, name, legacy))
+                    entries.append((relative, digest, page_index, name,
+                                    zip_arcname_candidates(legacy, safe_title, receipt['work_id'])))
 
             _safe_path(native_io_path(self.incomplete))
             staging = native_io_path(self.incomplete) / ('zip-' + uuid4().hex + '.tmp')
@@ -269,7 +294,7 @@ class LegacyZipExporter:
                                     shutil.copyfileobj(source, target, 1024 * 1024)
                             members.update(old_names)
                         entries = [entry for entry in entries
-                                   if entry[3] not in old_names and entry[4] not in old_names]
+                                   if not any(candidate in old_names for candidate in entry[4])]
                     members = old_names | {entry[3] for entry in entries} if replace_existing_sha256 is not None else members
                     for relative, digest, index, name, _legacy in entries:
                         if self._closing:
