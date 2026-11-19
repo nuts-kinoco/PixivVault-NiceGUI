@@ -30,6 +30,9 @@ CLIENT_WRITES = {'_refresh_oauth', '_request_unfenced', 'fetch_account', 'online
                  'search_recommendation_illusts', 'search_illusts', 'resolve_novel_author',
                  'verify_identity', 'require_identity', 'reconcile_from_reader'}
 JS_SINKS = re.compile(r'\b(fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon)\s*\(')
+HREF = re.compile(r'\bhref\s*=(?!=|>)')
+JS_IMAGE = re.compile(r'\bnew\s+Image\s*\(')
+JS_SOURCE = re.compile(r'\.\s*src\s*=(?!=|>)')
 ASSET_SINK = re.compile(r'''(?ix)\b(?:src|srcset)\s*=\s*["']?https?://|'''
                         r'''\burl\(\s*["']?https?://|@import\s+["']https?://''')
 BOUND_ASSET = re.compile(r'\b(?:v-bind:src|:src|srcset)\s*=|\s:src\s*=')
@@ -145,20 +148,37 @@ class Visitor(ast.NodeVisitor):
             if isinstance(attr, str) and (attr in self.methods | NETWORK_NAMES or
                                          owner.split('.', 1)[0] in NETWORK_MODULES):
                 self.add(node, f'getattr.{attr}')
+        has_href = any(keyword.arg == 'href' for keyword in node.keywords)
         if method in JS_DELEGATORS | BROWSER_DELEGATORS:
             fragments = [part for arg in [*node.args, *(kw.value for kw in node.keywords)] for part in strings(arg)]
+            has_href = has_href or any(HREF.search(part) for part in fragments)
             if method in JS_DELEGATORS:
                 for hit in sorted({hit for part in fragments for hit in JS_SINKS.findall(part)}):
                     self.add(node, f'browser.{hit}')
+                for pattern, target in ((JS_IMAGE, 'browser.image.construct'), (JS_SOURCE, 'browser.image.src')):
+                    for part in fragments:
+                        for _ in pattern.finditer(part):
+                            self.add(node, target)
             if any(ASSET_SINK.search(part) or part.lower().startswith(('https://', 'http://'))
                    for part in fragments):
                 self.add(node, f'browser.{method}.external-url')
             elif ((name.startswith('nicegui.ui.') and method in {'image', 'link'})
                   or method == 'set_source') and node.args:
                 self.add(node, f'browser.{method}.source')
+        if has_href:
+            self.add(node, 'browser.href')
+        self.generic_visit(node)
+
+    def visit_Subscript(self, node):
+        if (isinstance(node.ctx, ast.Store) and isinstance(node.value, ast.Attribute)
+                and node.value.attr in {'props', '_props'} and isinstance(node.slice, ast.Constant)
+                and node.slice.value == 'href'):
+            self.add(node, 'browser.href')
         self.generic_visit(node)
 
     def visit_Attribute(self, node):
+        if node.attr == 'href' and isinstance(node.ctx, ast.Store):
+            self.add(node, 'browser.href')
         explicit_write = node.attr == 'execute' and re.search(
             r'(?:client|writer|write|pixiv)', qualified(node.value, self.aliases[-1]), re.I)
         borrowed = node.attr in {'search', 'ranking'} and re.search(
@@ -187,6 +207,12 @@ def inventory(root):
             source_hash = hashlib.sha256(source.replace(b'\r\n', b'\n')).hexdigest()[:16]
             for line, value in enumerate(source.decode('utf-8').splitlines(), 1):
                 targets = {f'browser.{target}' for target in JS_SINKS.findall(value)}
+                if HREF.search(value):
+                    targets.add('browser.href')
+                if JS_IMAGE.search(value):
+                    targets.add('browser.image.construct')
+                if JS_SOURCE.search(value):
+                    targets.add('browser.image.src')
                 if ASSET_SINK.search(value):
                     targets.add('browser.asset.external-url')
                 elif BOUND_ASSET.search(value):

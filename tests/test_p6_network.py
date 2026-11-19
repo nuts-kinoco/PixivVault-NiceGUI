@@ -56,6 +56,23 @@ def test_manual_exclusion_requires_original_code_location(tmp_path):
     assert not p6_network.check([site], {site.key: dict(approval, evidence='original/gui.py:2825')})
 
 
+def test_network_inventory_finds_dynamic_href_and_image_sources(tmp_path):
+    (tmp_path / 'sample.py').write_text('''from nicegui import ui
+def add_link(item, target):
+    item.props['href'] = target
+    item.props(f'href="{target}" target=_blank')
+    MenuEntry(href=target)
+    ui.run_javascript('const i = new Image(); i.src = next.url;')
+''')
+    (tmp_path / 'sample.js').write_text('const image = new Image();\nimage.src = target;\nimage.src === other;\n')
+    sites = p6_network.inventory(tmp_path)
+    assert [(s.path, s.target) for s in sites].count(('sample.py', 'browser.href')) == 3
+    for path in ('sample.py', 'sample.js'):
+        assert [(s.path, s.target) for s in sites].count((path, 'browser.image.construct')) == 1
+        assert [(s.path, s.target) for s in sites].count((path, 'browser.image.src')) == 1
+    assert len(p6_network.check(sites, {})) == 7
+
+
 def test_candidate_network_routes():
     root = Path(__file__).resolve().parents[1]
     review = json.loads((root / 'tools' / 'p6_network_review.json').read_text(encoding='utf-8'))
