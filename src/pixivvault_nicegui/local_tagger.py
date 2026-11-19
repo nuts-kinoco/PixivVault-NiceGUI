@@ -6,12 +6,29 @@ import json
 import csv
 import io
 import importlib.util
+import ntpath
+import os
 from pathlib import Path
 from threading import RLock
 
 
 DEFAULT_MODEL = r'S:\EMAKINOCO-Models\tagger\wd-swinv2-tagger-v3'
 FILES = ('model.onnx', 'selected_tags.csv')
+
+
+def _drive_type(root):
+    if os.name != 'nt':
+        return 3
+    import ctypes
+    return ctypes.windll.kernel32.GetDriveTypeW(root)
+
+
+def _local_folder(folder):
+    text = os.fspath(folder)
+    if not text or text.startswith(('\\', '/')):
+        return False
+    drive, _ = ntpath.splitdrive(ntpath.abspath(text))
+    return bool(drive) and _drive_type(drive + '\\') != 4
 
 
 def _sha256(path):
@@ -29,6 +46,8 @@ def _identity(path):
 
 def verify_model(folder, receipt=None):
     """Return a status and reusable receipt, never write to the model folder."""
+    if not _local_folder(folder):
+        return '利用不可（ローカルのフォルダを指定）', None
     root = Path(folder)
     manifest = root / 'MODEL_SOURCE.json'
     try:
