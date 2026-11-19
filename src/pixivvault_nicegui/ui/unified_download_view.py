@@ -270,6 +270,9 @@ class UnifiedDownloadView:
         account = self._run_view_account()
         try:
             self.resumable = None if engine is None or account is None else engine.resumable_run(account)
+            if (self.resumable is not None and self.resumable.kind == "bookmarks"
+                    and self.resumable.account_id != self._verified_bookmark_account()):
+                self.resumable = None
         except Exception:
             self.resumable = None
         self._render_band()
@@ -652,7 +655,7 @@ class UnifiedDownloadView:
         self.author_snapshot_account = account
         self.authors = [dict(row) for row in rows]
         identify = getattr(self.services, "_confirm_bookmark_run_account", None)
-        if account is None and callable(identify):
+        if callable(identify):
             try:
                 await identify()
             except Exception:
@@ -750,6 +753,9 @@ class UnifiedDownloadView:
             return False
         if mode == "bookmark":
             self.refresh_bookmark_layout()
+            if (self._verified_bookmark_account() is None
+                    and (self._reload_task is None or self._reload_task.done())):
+                self._schedule_reload()
         if mode != self.mode:
             self.mode = mode
             self.root.props["data-mode"] = mode
@@ -1092,9 +1098,12 @@ class UnifiedDownloadView:
             return getattr(self, "author_snapshot_account", None)
         return next(iter(accounts)) if len(accounts) == 1 else None
 
-    def _run_view_account(self):
+    def _verified_bookmark_account(self):
         reader = getattr(self.services, "live_client", None)
-        observed = getattr(reader, "_verified_identity", None)
+        return getattr(reader, "_verified_identity", None)
+
+    def _run_view_account(self):
+        observed = self._verified_bookmark_account()
         if self.mode == "bookmark":
             return observed
         return self._history_account() or observed

@@ -3326,19 +3326,20 @@ class ApplicationServices:
 
     async def _confirm_bookmark_run_account(self):
         """Identify a reopened bookmark view when it has a durable resume offer."""
-        engine, reader = self.batch_runs, self.live_client
-        if (engine is None or reader is None or self.closing
-                or getattr(reader, '_verified_identity', None) is not None):
-            return
-        if not await asyncio.to_thread(engine.ledger._has_verified_bookmark_resume):
-            return
+        async with self._library_refresh_lock:
+            engine, reader = self.batch_runs, self.live_client
+            if (engine is None or reader is None or self.closing
+                    or getattr(reader, '_verified_identity', None) is not None):
+                return
+            if not await asyncio.to_thread(engine.ledger._has_verified_bookmark_resume):
+                return
 
-        def verify():
-            engine.port.require_allowed()
-            return reader.verify_identity()
+            def verify():
+                engine.port.require_allowed()
+                return reader.verify_identity()
 
-        account = await asyncio.to_thread(verify)
-        AccountScope(account, reader).verify_current(self)
+            account = await asyncio.to_thread(verify)
+            AccountScope(account, reader).verify_current(self)
 
     async def resume_batch_run(self, handle):
         """Verify the current reader before continuing the displayed execution."""
