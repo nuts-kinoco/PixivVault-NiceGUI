@@ -199,7 +199,7 @@ def test_protected_overlap_is_rejected_before_any_marker_or_lock(tmp_path):
     assert list(root.iterdir()) == []
 
 
-def test_only_known_owned_stages_are_recovered(tmp_path):
+def test_unverified_stage_names_are_preserved_and_reported(tmp_path):
     source, root = _fixture_paths(tmp_path)
     copies = LegacyLibraryCopies(root, source=source)
     copies.close()
@@ -213,9 +213,25 @@ def test_only_known_owned_stages_are_recovered(tmp_path):
         LegacyLibraryCopies(root, source=source)
     assert all(path.is_file() for path in (raw, ready, sidecar, unknown))
     unknown.unlink()
+    with pytest.raises(LegacyCopyError):
+        LegacyLibraryCopies(root, source=source)
+    assert all(path.read_bytes() == b'keep' for path in (raw, ready, sidecar))
+
+
+def test_marked_stages_are_recovered(tmp_path):
+    source, root = _fixture_paths(tmp_path)
+    copies = LegacyLibraryCopies(root, source=source)
+    copies.close()
+    raw = root / ('.raw-' + 'c' * 32)
+    ready = root / ('.ready-' + 'd' * 32 + '.sqlite')
+    for path in (raw, ready):
+        with sqlite3.connect(path) as connection:
+            connection.execute('CREATE TABLE synthetic (value TEXT)')
+            connection.execute('PRAGMA application_id=1347830604')
+        connection.close()
     copies = LegacyLibraryCopies(root, source=source)
     try:
-        assert all(not path.exists() for path in (raw, ready, sidecar))
+        assert not raw.exists() and not ready.exists()
     finally:
         copies.close()
 
@@ -738,8 +754,8 @@ def test_post_publication_error_is_reconciled_without_losing_snapshot(tmp_path, 
     copies = LegacyLibraryCopies(root, source=source, max_generations=1, max_bytes=1048576)
     from pixivvault_nicegui import legacy_library_copies as module
     original_replace = module._publish_copy
-    def replace_then_error(src, dst):
-        original_replace(src, dst)
+    def replace_then_error(src, dst, expected):
+        original_replace(src, dst, expected)
         raise OSError('synthetic after commit')
     monkeypatch.setattr(module, '_publish_copy', replace_then_error)
     try:

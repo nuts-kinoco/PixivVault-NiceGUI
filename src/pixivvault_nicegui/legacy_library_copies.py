@@ -66,11 +66,9 @@ def _sidecars_absent(path):
         raise LegacyCopyError('legacy database is in use')
 
 
-def _require_owned_copy(path):
-    """Only marked SQLite generations may be rotated or removed."""
+def _require_marked_sqlite(path):
+    """Read and verify the application marker without writing the file."""
     try:
-        if _NAME.fullmatch(path.name) is None:
-            raise LegacyCopyError('legacy snapshot ownership unavailable')
         _safe_path(path, file=True)
         before = _identity(path.stat())
         _sidecars_absent(path)
@@ -83,6 +81,13 @@ def _require_owned_copy(path):
         return before
     except (OSError, sqlite3.Error, ValueError):
         raise LegacyCopyError('legacy snapshot ownership unavailable') from None
+
+
+def _require_owned_copy(path):
+    """Only marked SQLite generations may be rotated or removed."""
+    if _NAME.fullmatch(path.name) is None:
+        raise LegacyCopyError('legacy snapshot ownership unavailable')
+    return _require_marked_sqlite(path)
 
 
 def _open_source(path):
@@ -103,7 +108,7 @@ def _open_source(path):
         raise
 
 
-def _mutate_owned_copy(path, expected, destination=None):
+def _mutate_file(path, expected, destination=None, *, require_marker=True):
     """Move or delete the verified file by the same exclusive Windows handle."""
     if os.name != 'nt':
         raise LegacyCopyError('legacy snapshot ownership unavailable')
@@ -123,9 +128,10 @@ def _mutate_owned_copy(path, expected, destination=None):
         info = os.fstat(fd)
         if _identity(info) != expected or not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
             raise LegacyCopyError('legacy snapshot ownership changed')
-        header = os.read(fd, 72)
-        if len(header) < 72 or header[:16] != b'SQLite format 3\x00' or int.from_bytes(header[68:72], 'big') != _APPLICATION_ID:
-            raise LegacyCopyError('legacy snapshot ownership unavailable')
+        if require_marker:
+            header = os.read(fd, 72)
+            if len(header) < 72 or header[:16] != b'SQLite format 3\x00' or int.from_bytes(header[68:72], 'big') != _APPLICATION_ID:
+                raise LegacyCopyError('legacy snapshot ownership unavailable')
         kernel = ctypes.WinDLL('kernel32', use_last_error=True)
         operation = kernel.SetFileInformationByHandle
         operation.argtypes = (wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD)
@@ -155,9 +161,13 @@ def _mutate_owned_copy(path, expected, destination=None):
             close(handle)
 
 
-def _publish_copy(source, target):
-    # Windows rename is no-replace; never overwrite a newly appeared file.
-    os.rename(source, target)
+def _mutate_owned_copy(path, expected, destination=None):
+    return _mutate_file(path, expected, destination)
+
+
+def _publish_copy(source, target, expected):
+    # Move the same verified handle without replacing an existing destination.
+    _mutate_owned_copy(source, expected, target)
 
 
 class LegacyLibraryCopies:
@@ -178,6 +188,7 @@ class LegacyLibraryCopies:
         self.max_bytes = max_bytes
         self._guard = RLock()
         self._active = set()
+        self._session_stages = {}
         self._owner = None
         self._root_identity = None
         if (not self.root.is_dir() or logical_root.drive.upper() != 'S:'
@@ -207,6 +218,9 @@ class LegacyLibraryCopies:
             self._owner.__enter__()
             self._usable()
             self._recover_stages()
+        except LegacyCopyError:
+            self.close()
+            raise
         except Exception:
             self.close()
             raise LegacyCopyError('legacy snapshot destination unavailable') from None
@@ -238,10 +252,16 @@ class LegacyLibraryCopies:
 
     def _recover_stages(self):
         _retained, stages = self._entries()  # Unknown names prevent all cleanup.
+        checked = []
         for stage in stages:
             self._usable()
-            _safe_path(stage, file=True)
-            stage.unlink()
+            try:
+                checked.append((stage, _require_marked_sqlite(stage)))
+            except LegacyCopyError:
+                raise LegacyCopyError('legacy snapshot stage is unverified and preserved') from None
+        for stage, identity in checked:
+            self._usable()
+            _mutate_owned_copy(stage, identity)
 
     def _read_source(self, raw, expected):
         _sidecars_absent(self.source)
@@ -262,6 +282,8 @@ class LegacyLibraryCopies:
         digest = hashlib.sha256()
         total = 0
         with raw.open('xb') as target:
+            info = os.fstat(target.fileno())
+            self._session_stages[raw] = (info.st_dev, info.st_ino)
             while True:
                 block = read_at(total, min(_CHUNK, expected[4] + 1 - total))
                 if not block:
@@ -297,6 +319,7 @@ class LegacyLibraryCopies:
             token = uuid4().hex
             raw = self.root / ('.raw-' + token)
             ready = self.root / ('.ready-' + token + '.sqlite')
+            published = False
             try:
                 _safe_path(self.source, file=True)
                 _sidecars_absent(self.source)
@@ -320,15 +343,20 @@ class LegacyLibraryCopies:
                         raise LegacyCopyError('legacy snapshot generation limit reached')
                 source_digest = self._read_source(raw, _identity(initial))
                 self._usable()
-                with closing(sqlite3.connect(sqlite_readonly_uri(raw, immutable=True), uri=True)) as origin:
-                    with closing(sqlite3.connect(ready)) as destination:
-                        destination.execute('PRAGMA journal_mode=OFF')
-                        destination.execute('PRAGMA temp_store=MEMORY')
-                        page_size = origin.execute('PRAGMA page_size').fetchone()[0]
-                        def progress(_status, _remaining, pages):
-                            if pages * page_size > initial.st_size:
-                                raise LegacyCopyError('legacy snapshot exceeds capacity')
-                        origin.backup(destination, pages=128, progress=progress)
+                with ready.open('xb') as ready_guard:
+                    info = os.fstat(ready_guard.fileno())
+                    self._session_stages[ready] = (info.st_dev, info.st_ino)
+                    with closing(sqlite3.connect(sqlite_readonly_uri(raw, immutable=True), uri=True)) as origin:
+                        with closing(sqlite3.connect(ready)) as destination:
+                            destination.execute('PRAGMA journal_mode=OFF')
+                            destination.execute('PRAGMA temp_store=MEMORY')
+                            page_size = origin.execute('PRAGMA page_size').fetchone()[0]
+                            def progress(_status, _remaining, pages):
+                                if pages * page_size > initial.st_size:
+                                    raise LegacyCopyError('legacy snapshot exceeds capacity')
+                            origin.backup(destination, pages=128, progress=progress)
+                    if (os.fstat(ready_guard.fileno()).st_dev, os.fstat(ready_guard.fileno()).st_ino) != self._session_stages[ready]:
+                        raise LegacyCopyError('legacy snapshot stage changed')
                 for checked_path in (raw, ready):
                     with closing(sqlite3.connect(sqlite_readonly_uri(checked_path, immutable=True), uri=True)) as checked:
                         if checked.execute('PRAGMA quick_check').fetchone() != ('ok',):
@@ -347,11 +375,15 @@ class LegacyLibraryCopies:
                 if (raw_before != _identity(raw.stat()) or raw_before[4] != initial.st_size
                         or digest.digest() != source_digest):
                     raise LegacyCopyError('legacy snapshot content changed')
-                with closing(sqlite3.connect(raw)) as marked:
-                    marked.execute('PRAGMA journal_mode=OFF')
-                    marked.execute(f'PRAGMA application_id={_APPLICATION_ID}')
-                    marked.execute('PRAGMA user_version=1')
-                    marked.commit()
+                with raw.open('rb') as raw_guard:
+                    info = os.fstat(raw_guard.fileno())
+                    if (info.st_dev, info.st_ino) != self._session_stages.get(raw):
+                        raise LegacyCopyError('legacy snapshot stage changed')
+                    with closing(sqlite3.connect(raw)) as marked:
+                        marked.execute('PRAGMA journal_mode=OFF')
+                        marked.execute(f'PRAGMA application_id={_APPLICATION_ID}')
+                        marked.execute('PRAGMA user_version=1')
+                        marked.commit()
                 _sidecars_absent(raw)
                 with closing(sqlite3.connect(sqlite_readonly_uri(raw, immutable=True), uri=True)) as marked:
                     if (marked.execute('PRAGMA application_id').fetchone() != (_APPLICATION_ID,)
@@ -363,6 +395,10 @@ class LegacyLibraryCopies:
                 with raw.open('rb') as stream:
                     while block := stream.read(_CHUNK):
                         marked_digest.update(block)
+                raw_identity = _identity(raw.stat())
+                if ((raw_identity[0], raw_identity[1]) != self._session_stages.get(raw)
+                        or not _matches_published(raw, marked_size, marked_digest.digest())):
+                    raise LegacyCopyError('legacy snapshot stage changed')
                 if total + raw.stat().st_size + ready.stat().st_size > self.max_bytes:
                     raise LegacyCopyError('legacy snapshot exceeds capacity')
                 with raw.open('r+b') as stream:
@@ -379,8 +415,8 @@ class LegacyLibraryCopies:
                     backup = self.root / (uuid4().hex + '.sqlite')
                     _mutate_owned_copy(victim, victim_identity, backup)
                 try:
-                    _publish_copy(raw, target)
-                except OSError:
+                    _publish_copy(raw, target, raw_identity)
+                except (OSError, LegacyCopyError):
                     if raw.exists():
                         if backup is not None:
                             try:
@@ -390,6 +426,7 @@ class LegacyLibraryCopies:
                         raise
                     if not _matches_published(target, marked_size, marked_digest.digest()):
                         raise LegacyCopyCommitUnconfirmed('legacy snapshot publication is unconfirmed') from None
+                published = True
                 self._active.add(target)
                 # Keep room for a later snapshot when older unused copies can
                 # be retired; the newly published and active copies stay safe.
@@ -429,13 +466,27 @@ class LegacyLibraryCopies:
             except Exception:
                 raise LegacyCopyError('legacy snapshot unavailable') from None
             finally:
+                import sys
+                cleanup_failed = False
                 for stage in (raw, ready):
                     try:
-                        if stage.exists():
+                        recorded = self._session_stages.pop(stage, None)
+                        if recorded is not None and stage.exists():
                             _safe_path(stage, file=True)
-                            stage.unlink()
-                    except OSError:
-                        pass  # A later owner recovers only recognized stages.
+                            info = stage.stat()
+                            if (info.st_dev, info.st_ino) != recorded:
+                                raise LegacyCopyError('legacy snapshot stage changed')
+                            _mutate_file(stage, _identity(info), require_marker=False)
+                    except (OSError, ValueError):
+                        cleanup_failed = True
+                if cleanup_failed:
+                    active = sys.exc_info()[1]
+                    if active is not None and not isinstance(active, Exception):
+                        active.add_note('legacy snapshot stage is unverified and preserved')
+                    elif published:
+                        raise LegacyCopyCommitUnconfirmed('legacy snapshot stage is unverified and preserved') from None
+                    else:
+                        raise LegacyCopyError('legacy snapshot stage is unverified and preserved') from None
 
     def close(self):
         with self._guard:

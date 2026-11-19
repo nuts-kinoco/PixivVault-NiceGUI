@@ -177,3 +177,124 @@ def test_rotation_handles_supplementary_unicode_in_destination(tmp_path, long_pa
             owner.close()
     assert len(list(native_io_path(root).glob('*.sqlite'))) == 3
     assert source.read_bytes() == before
+
+
+def test_unmarked_ready_database_is_preserved_and_reported_on_reopen(tmp_path):
+    old = tmp_path / 'old'
+    old.mkdir()
+    source = old / 'source.sqlite'
+    with sqlite3.connect(source) as connection:
+        connection.execute('CREATE TABLE works (work_id TEXT, title TEXT, page_count INTEGER, user_id TEXT, tags TEXT, is_deleted INTEGER)')
+        connection.execute('CREATE TABLE following_users (user_id TEXT, name TEXT)')
+    connection.close()
+    root = tmp_path / 'copies'
+    root.mkdir()
+    owner = LegacyLibraryCopies(root, source=source)
+    owner.close()
+    foreign = root / ('.ready-' + 'd' * 32 + '.sqlite')
+    with sqlite3.connect(foreign) as connection:
+        connection.execute('CREATE TABLE foreign_data (value TEXT)')
+        connection.execute("INSERT INTO foreign_data VALUES ('retain')")
+    connection.close()
+    before = foreign.read_bytes()
+    source_before = source.read_bytes()
+    with pytest.raises(LegacyCopyError, match='stage.*preserved'):
+        LegacyLibraryCopies(root, source=source)
+    assert foreign.read_bytes() == before
+    assert source.read_bytes() == source_before
+
+
+def test_foreign_ready_appearing_mid_snapshot_is_not_opened_or_removed(tmp_path, monkeypatch):
+    old = tmp_path / 'old'
+    old.mkdir()
+    source = old / 'source.sqlite'
+    with sqlite3.connect(source) as connection:
+        connection.execute('CREATE TABLE works (work_id TEXT, title TEXT, page_count INTEGER, user_id TEXT, tags TEXT, is_deleted INTEGER)')
+        connection.execute('CREATE TABLE following_users (user_id TEXT, name TEXT)')
+    connection.close()
+    root = tmp_path / 'copies'
+    root.mkdir()
+    owner = LegacyLibraryCopies(root, source=source, max_bytes=1048576)
+    original = owner._read_source
+    foreign = []
+    def appear(raw, expected):
+        result = original(raw, expected)
+        path = root / ('.ready-' + raw.name[len('.raw-'):] + '.sqlite')
+        with sqlite3.connect(path) as connection:
+            connection.execute('CREATE TABLE foreign_data (value TEXT)')
+        connection.close()
+        foreign.append((path, path.read_bytes()))
+        return result
+    monkeypatch.setattr(owner, '_read_source', appear)
+    try:
+        with pytest.raises(LegacyCopyError):
+            owner.snapshot()
+        assert len(foreign) == 1
+        assert foreign[0][0].read_bytes() == foreign[0][1]
+    finally:
+        owner.close()
+
+
+def test_foreign_raw_swap_before_publish_is_preserved(tmp_path, monkeypatch):
+    import os
+    from pixivvault_nicegui import legacy_library_copies as module
+    old = tmp_path / 'old'
+    old.mkdir()
+    source = old / 'source.sqlite'
+    with sqlite3.connect(source) as connection:
+        connection.execute('CREATE TABLE works (work_id TEXT, title TEXT, page_count INTEGER, user_id TEXT, tags TEXT, is_deleted INTEGER)')
+        connection.execute('CREATE TABLE following_users (user_id TEXT, name TEXT)')
+    connection.close()
+    root = tmp_path / 'copies'
+    root.mkdir()
+    foreign = tmp_path / 'foreign.sqlite'
+    with sqlite3.connect(foreign) as connection:
+        connection.execute('CREATE TABLE foreign_data (value TEXT)')
+    connection.close()
+    before = foreign.read_bytes()
+    owner = LegacyLibraryCopies(root, source=source, max_bytes=1048576)
+    original = module._publish_copy
+    placed = []
+    def swap(raw, target, expected):
+        os.replace(foreign, raw)
+        placed.append(raw)
+        return original(raw, target, expected)
+    monkeypatch.setattr(module, '_publish_copy', swap)
+    try:
+        with pytest.raises(LegacyCopyError):
+            owner.snapshot()
+        assert len(placed) == 1 and placed[0].read_bytes() == before
+        assert not tuple(root.glob('*.sqlite'))
+    finally:
+        owner.close()
+
+
+def test_stage_cleanup_failure_is_reported_even_when_snapshot_fails(tmp_path, monkeypatch):
+    from pixivvault_nicegui import legacy_library_copies as module
+    old = tmp_path / 'old'
+    old.mkdir()
+    source = old / 'source.sqlite'
+    with sqlite3.connect(source) as connection:
+        connection.execute('CREATE TABLE works (work_id TEXT, title TEXT, page_count INTEGER, user_id TEXT, tags TEXT, is_deleted INTEGER)')
+        connection.execute('CREATE TABLE following_users (user_id TEXT, name TEXT)')
+    connection.close()
+    root = tmp_path / 'copies'
+    root.mkdir()
+    owner = LegacyLibraryCopies(root, source=source, max_bytes=1048576)
+    original_read = owner._read_source
+    original_mutate = module._mutate_file
+    def fail_read(raw, expected):
+        original_read(raw, expected)
+        raise LegacyCopyError('synthetic read failure')
+    def fail_cleanup(path, expected, destination=None, *, require_marker=True):
+        if not require_marker and path.name.startswith('.raw-'):
+            raise OSError('synthetic cleanup failure')
+        return original_mutate(path, expected, destination, require_marker=require_marker)
+    monkeypatch.setattr(owner, '_read_source', fail_read)
+    monkeypatch.setattr(module, '_mutate_file', fail_cleanup)
+    try:
+        with pytest.raises(LegacyCopyError, match='stage.*preserved'):
+            owner.snapshot()
+        assert len(list(root.glob('.raw-*'))) == 1
+    finally:
+        owner.close()
