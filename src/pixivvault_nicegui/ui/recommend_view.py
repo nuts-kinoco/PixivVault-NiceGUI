@@ -123,14 +123,14 @@ class RecommendView:
             if self.busy:self._refresh_pending=True
             else:background_tasks.create(self.refresh())
 
-    async def refresh(self):
+    async def refresh(self, *, preserve_viewer=False):
         if not self.active or self.busy or self.controller is None:return
         epoch=self.epoch
         try:
             self._set_busy(True, text='保存済み結果を読み込んでいます…')
             data=await asyncio.to_thread(self.controller.refresh)
             if self.active and self.epoch==epoch:
-                self.data=data;self.render()
+                self.data=data;self.render(preserve_viewer=preserve_viewer)
                 unavailable=data.get('unavailable', ())
                 self.notice.set_text(
                     '保存結果の取得元が未接続または利用できない項目があります：'
@@ -369,9 +369,9 @@ class RecommendView:
         return (not data.get('unavailable') and not data.get('trends') and not data.get('added_tags') and not data.get('boosted')
                 and not any(g.works for groups in data['sections'].values() for g in groups))
 
-    def render(self):
+    def render(self, *, preserve_viewer=False):
         if self.data is None or self.closed:return
-        self._recommend_viewer.close_viewer(restore_focus=False)
+        if not preserve_viewer:self._recommend_viewer.close_viewer(restore_focus=False)
         old_media=self._media
         try:
             visible=self._visible_works()
@@ -545,7 +545,7 @@ class RecommendView:
     def _viewer_hidden(self,work_id):
         # ビューアの右クリックで出さないにした。保存済みの結果を読み直して棚から外す。
         if self.active and not self.closed and not self.busy:
-            background_tasks.create(self.refresh())
+            background_tasks.create(self.refresh(preserve_viewer=True))
     def _card_menu(self,kind,work,generation,card,data,*,card_current=None):
         """元 recommend_tab.py:815-876 の右クリック 12 項目（取り下げるは SuperLike の棚だけ）。"""
         wid=work.work_id;aid=work.author_id;name=work.author_name

@@ -56,7 +56,6 @@ class RecommendationViewer(ViewerController):
         await self._on_author(art.author_id, art.author)
 
     def _after_viewer_hide(self, art, hidden):
-        self.close_viewer(restore_focus=False)
         if self._on_hidden is not None:self._on_hidden(art.work_id)
 
     def close_viewer(self, *, restore_focus=True):

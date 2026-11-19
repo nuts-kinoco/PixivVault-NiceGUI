@@ -31,6 +31,7 @@ class ViewerController:
         self._request_serial = 0
         self.detail_open = False
         self._viewer_host = host
+        self._folder_request = self._folder_target = None
         self._author_browser = None
         self._detail_cache = {}
         self._detail_pending = set()
@@ -39,7 +40,6 @@ class ViewerController:
             self.close_viewer, self.toggle_details, self.request_image,
             test_id="library-viewer" if library else "gallery-viewer",
             image_test_id="library-viewer-image" if library else "viewer-image",
-            context_hide=not library,
         )
         self.viewer.on_hide = lambda: self._viewer_hide()
         self.viewer.on_folder = lambda: self._viewer_open_folder()
@@ -119,8 +119,9 @@ class ViewerController:
         from ..viewer_metadata import pixiv_url
         self.viewer.author_button.set_enabled(self._viewer_reader() is not None and pixiv_url(art.author_id,author=True) is not None)
         self.viewer.set_context_target(art, hide_ok=getattr(self.services,'recommendations',None) is not None,
-                                       folder_ok=self._folder_choices() != ())
+                                       folder_ok=False)
         page_no = state.selected_page
+        self._prepare_viewer_folder(state, art, page_no)
         self._pixiv_actions.bind(art.work_id, art.author_id, author_name=art.author,
             is_current=lambda: (self._viewer_active and self._viewer_state is state
                 and not state.closed and state.viewer_open
@@ -459,9 +460,34 @@ class ViewerController:
                     and self._viewer_state.selected_artwork==art and key in self._detail_cache):
                 self._show_detail(self._detail_cache[key])
 
-    def _folder_choices(self):
-        try:return tuple(self.services.saved_folder_choices())
-        except Exception:return ()
+    def _prepare_viewer_folder(self, state, art, page_no):
+        self._folder_request = request = object()
+        self._folder_target = None
+        desktop = getattr(self.services, 'desktop', None)
+        if getattr(desktop, 'launcher', None) is None:
+            return
+
+        def current():
+            return (self._folder_request is request and self._viewer_active
+                    and self._viewer_state is state and state.viewer_open and not state.closed
+                    and getattr(self.services, 'desktop', None) is desktop
+                    and not getattr(self.services, 'closing', False))
+
+        async def resolve():
+            from ..viewer_folders import viewer_work_folder
+            try:
+                folder = await asyncio.to_thread(viewer_work_folder, self.services, art, page_no)
+            except Exception:
+                return
+            if folder is not None and current():
+                self._folder_target = (folder, art, page_no, desktop, current)
+                self.viewer.context_items['folder'].enable()
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        loop.create_task(resolve())
 
     def _viewer_say(self, message: str) -> None:
         self.viewer.action_status.set_text(message)
@@ -483,27 +509,30 @@ class ViewerController:
         self._after_viewer_hide(art, hidden)
 
     def _after_viewer_hide(self, art, hidden) -> None:
-        """出さない確定後。既定ではビューアを閉じる（一覧側の再描画は持ち主が上書きする）。"""
-        self.close_viewer()
+        """一覧を持つビューアで、出さない結果を反映するためのフック。"""
 
     async def _viewer_open_folder(self):
-        """右クリックの「保存フォルダを開く」。保存先が 1 つのときだけ直接開く（複数はヘッダーの選択）。"""
-        from ..desktop_integration import DesktopActionRejected, DesktopUnavailable
-        state = self._viewer_state
-        art = state.selected_artwork
-        if art is None or state.closed or not self._viewer_active:return
-        choices = self._folder_choices()
-        if not choices:
-            self._viewer_say('保存先が未設定です。設定を確認してください。');return
-        if len(choices) > 1:
-            self._viewer_say('保存先が複数あります。ヘッダーの「保存フォルダを開く」から選んでください。');return
+        """Recheck the selected saved work before launching its folder."""
+        from ..viewer_folders import viewer_work_folder
+        if self._folder_target is None:
+            return
+        folder, art, page_no, desktop, current = self._folder_target
+
+        def open_folder():
+            if not current():
+                return
+            if viewer_work_folder(self.services, art, page_no) != folder:
+                raise ValueError('saved folder changed')
+            if current():
+                desktop.open_saved(folder)
+
         try:
-            await self.services.open_saved_folder(
-                choices[0], is_current=lambda: self._viewer_active and not state.closed and state.selected_artwork == art)
-        except (DesktopActionRejected, DesktopUnavailable) as error:
-            self._viewer_say(str(error))
+            await asyncio.to_thread(open_folder)
         except Exception:
-            self._viewer_say('保存フォルダを開けませんでした。')
+            if current():
+                self.viewer.context_items['folder'].disable()
+                self._folder_target = None
+                self._viewer_say('保存フォルダを開けませんでした。')
 
     async def _open_author(self, event=None):
         art=self._viewer_state.selected_artwork
@@ -538,6 +567,8 @@ class ViewerController:
                 self.close_viewer()
 
     def close_viewer(self, *, restore_focus: bool = True) -> None:
+        self._folder_request = self._folder_target = None
+        self.viewer.context_items['folder'].disable()
         self._pixiv_actions.clear()
         self._displayed_gif = None
         self._quality='view'
