@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from threading import Event
 from uuid import uuid4
 from ..legacy_author_sync import LegacyAuthorSourceError
+from ..managed_scheduler import ScheduleAccountError
 
 from nicegui import ui
 
@@ -22,6 +23,7 @@ class SchedulerView:
         self.services = services
         self.closed = False
         self.revision = None
+        self._settings_account = None
         self._busy = False
         self._settings_dirty = False
         self._loading_settings = False
@@ -97,35 +99,23 @@ class SchedulerView:
             try:
                 self.interval.set_value(str(state.interval_hours))
                 self.startup.set_value(state.startup_check)
+                self._settings_account = None
                 try:
-                    self.authors.set_value(','.join(ledger.favourites()))
+                    self._settings_account = ledger.favourite_account()
+                    self.authors.set_value(','.join(ledger.favourites(self._settings_account)))
                     self._stars_unknown_in_form = False
                     self._loaded_authors = self.authors.value or ''
                 except Exception:
                     self.authors.set_value('')
-                    self._stars_unknown_in_form = True   # the empty box is "unknown", not "no stars"
+                    self._stars_unknown_in_form = True
             finally:
                 self._loading_settings = False
-        self._show_star_state(ledger)
+        self.star_notice.set_text(
+            '☆の一覧を読み込めません。読み込めるまで、☆の設定は保存できません（保留中の取得は消しません）。'
+            if self._stars_unknown_in_form else '')
         status_label = STATUS_LABELS.get(state.last_status, '状態不明')
         self.status.set_text(f'定期状態: {status_label} / 次回UTC: {state.next_due_utc or "未設定"}')
         self.ack_button.set_enabled(state.last_status == 'interrupted')
-
-    def _show_star_state(self, ledger):
-        """Say so when the ☆ list is not in the state the user expects (import pending, unreadable)."""
-        try:
-            state = ledger.favourite_import_state()
-            ledger.favourites()
-            unavailable = False
-        except Exception:
-            state, unavailable = 'done', True
-        if unavailable:
-            text = '☆の一覧を読み込めません。読み込めるまで、☆の設定は保存できません（保留中の取得は消しません）。'
-        elif state == 'unreadable':
-            text = '旧DBを読めないため、☆の取り込みが未完了です。画面で付けた☆は自動チェックに使われます。'
-        else:
-            text = ''
-        self.star_notice.set_text(text)
 
     def discard_changes(self):
         """Explicitly abandon stale edits and adopt the newest CAS revision."""
@@ -249,10 +239,13 @@ class SchedulerView:
             ledger = self.services.managed_scheduler
             form = (self.authors.value or '', self.interval.value, self.startup.value)
             revision = self.revision
+            account_id = self._settings_account
+            if ledger.favourite_account() != account_id:
+                raise ScheduleAccountError('mismatch')
             raw = tuple(part.strip() for part in form[0].split(',') if part.strip())
             if self._stars_unknown_in_form:
                 try:
-                    ledger.favourites()
+                    ledger.favourites(account_id)
                     readable = True
                 except Exception:
                     readable = False
@@ -267,16 +260,17 @@ class SchedulerView:
                         '☆の一覧を読めないため入力したIDは保存できません。復旧後に再読込してください')
                     return
                 raw = None   # still unknown: save only the interval / startup, never the stars
+            loaded_authors = self._loaded_authors if raw is not None else None
+
             def update():
-                if raw is None or form[0] == getattr(self, '_loaded_authors', ''):
+                if raw is None or form[0] == loaded_authors:
                     return ledger.configure(interval_hours=int(form[1]), startup_check=bool(form[2]),
-                                            expected_revision=revision, now=datetime.now(timezone.utc)), ()
-                verify = getattr(self.services, 'scheduler_favourite_authors', None)
-                if verify is not None:
-                    verify(ledger=ledger, seed=False)
+                                            expected_revision=revision, now=datetime.now(timezone.utc),
+                                            account_id=account_id), ()
                 return ledger.configure_all(author_ids=raw, interval_hours=int(form[1]),
                                             startup_check=bool(form[2]), expected_revision=revision,
-                                            now=datetime.now(timezone.utc), return_ignored=True)
+                                            now=datetime.now(timezone.utc), return_ignored=True,
+                                            account_id=account_id)
             saved, ignored = await asyncio.to_thread(update)
             runner = getattr(self.services, 'managed_schedule_runner', None)
             if runner is not None:
@@ -289,6 +283,9 @@ class SchedulerView:
             self._load(ledger)
             if ignored:
                 self.action_notice.set_text('フォローしていないため保存しなかったID: ' + ', '.join(ignored))
+        except ScheduleAccountError:
+            self.action_notice.set_text(
+                '同期先アカウントが変わりました。「編集を破棄して再読込」してから保存してください')
         except Exception:
             self.status.set_text('設定を保存できませんでした。別画面の更新や入力を確認してください')
         finally:
@@ -359,7 +356,6 @@ def check_failure_message(error):
     # Never display raw exception text: it may contain paths or credentials.
     from ..managed_network_stop_gate import ManagedNetworkStopped, ManagedNetworkGateBusy, ManagedNetworkGateStorageError
     from ..pixiv_read_client import HTTPStatusRejected, AuthenticationMissing
-    from ..managed_scheduler import ScheduleAccountError
     if isinstance(error, ScheduleAccountError):
         if error.reason == 'unknown':
             return '定期チェックの既存データの出所を確認できません。データを保持して停止しました。'

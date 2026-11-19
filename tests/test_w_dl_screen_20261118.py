@@ -124,7 +124,7 @@ class FakeServices:
     def saved_author_counts(self):
         return dict(self.counts)
 
-    def set_favourite(self, uid, value):
+    def set_favourite(self, uid, value, *, account_id, expected):
         if self.fail_favourite:
             raise RuntimeError('no book')
         self.favourites[uid] = value

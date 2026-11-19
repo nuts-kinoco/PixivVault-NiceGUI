@@ -6,7 +6,7 @@ from pixivvault_nicegui.favourites import FavouriteBook
 from pixivvault_nicegui.following_sync import FollowingSyncStore
 from pixivvault_nicegui.managed_scheduler import ManagedScheduler, ScheduleAccountError
 from pixivvault_nicegui.services import ApplicationServices
-from test_v_dl_priority_20261117 import sync
+from test_v_dl_priority_20261117 import ACCOUNT, sync
 
 
 def test_unbound_legacy_settings_and_pending_are_not_imported_or_deleted(tmp_path):
@@ -21,20 +21,20 @@ def test_unbound_legacy_settings_and_pending_are_not_imported_or_deleted(tmp_pat
     ledger = ManagedScheduler(root)
     try:
         book = FavouriteBook(following, scheduler=ledger)
-        ledger.attach_favourites(book, seed=False)
-        assert ledger.favourites() == ('1001',)
-        assert not ledger.favourites_seeded()
-        assert book.ids() == ()
+        ledger.attach_favourites(book)
+        assert ledger.favourites(ACCOUNT) == ()
+        assert ledger.legacy_favourites() == ('1001',)
+        assert book.ids(ACCOUNT) == ()
         assert ledger.deferred_count() == 1
         with pytest.raises(ScheduleAccountError):
             ledger.bind_account(book.account())
-        assert book.ids() == () and ledger.deferred_count() == 1
+        assert book.ids(ACCOUNT) == () and ledger.deferred_count() == 1
     finally:
         ledger.close()
         following.close()
 
 
-def test_attached_account_mismatch_cannot_overwrite_stars(tmp_path):
+def test_star_selection_rejects_the_wrong_displayed_account(tmp_path):
     root = tmp_path / 'managed'
     root.mkdir()
     following = FollowingSyncStore(tmp_path / 'following')
@@ -43,10 +43,10 @@ def test_attached_account_mismatch_cannot_overwrite_stars(tmp_path):
     try:
         ledger.bind_account('999')
         book = FavouriteBook(following, scheduler=ledger)
-        ledger.attach_favourites(book, seed=False)
+        ledger.attach_favourites(book)
         with pytest.raises(ScheduleAccountError):
-            ledger.set_favourites(('1001',), expected_revision=ledger.snapshot().revision)
-        assert book.ids() == ()
+            ledger.set_favourites(('1001',), expected_revision=ledger.snapshot().revision, account_id='999')
+        assert book.ids(ACCOUNT) == ()
     finally:
         ledger.close()
         following.close()
@@ -132,16 +132,16 @@ def test_current_account_stars_are_visible_and_bound_before_dispatch(tmp_path):
     following.set_favorite('55', '1001', True)
     ledger = ManagedScheduler(root)
     book = FavouriteBook(following, scheduler=ledger)
-    ledger.attach_favourites(book, seed=False)
+    ledger.attach_favourites(book)
     reader = SimpleNamespace(_verified_identity='55', verify_identity=lambda: '55')
     service = SimpleNamespace(closing=False, following_sync=following, live_client=reader,
                               managed_network_stop=None, managed_scheduler=ledger)
     try:
-        assert ledger.favourites() == ('1001',)
+        assert ledger.favourites(ACCOUNT) == ('1001',)
         assert ApplicationServices.scheduler_favourite_authors(service, ledger=ledger) == ('1001',)
-        assert ledger._bound_account() == '55' and ledger.favourites_seeded()
-        ledger.set_favourites(('1002',), expected_revision=ledger.snapshot().revision)
-        assert book.ids() == ('1002',)
+        assert ledger._bound_account() == '55'
+        ledger.set_favourites(('1002',), expected_revision=ledger.snapshot().revision, account_id=ACCOUNT)
+        assert book.ids(ACCOUNT) == ('1002',)
     finally:
         ledger.close()
         following.close()
@@ -158,7 +158,7 @@ async def test_first_scheduler_form_save_updates_verified_account_stars(tmp_path
     following.set_favorite('55', '1001', True)
     ledger = ManagedScheduler(root)
     book = FavouriteBook(following, scheduler=ledger)
-    ledger.attach_favourites(book, seed=False)
+    ledger.attach_favourites(book)
     reader = SimpleNamespace(_verified_identity='55', verify_identity=lambda: '55')
     service = SimpleNamespace(closing=False, following_sync=following, live_client=reader,
                               managed_network_stop=None, managed_scheduler=ledger,
@@ -172,7 +172,8 @@ async def test_first_scheduler_form_save_updates_verified_account_stars(tmp_path
         assert view.authors.value == '1001'
         view.authors.set_value('1002,9999')
         await view.save()
-        assert book.ids() == ('1002',)
+        assert book.ids(ACCOUNT) == ('1002',)
+        assert ledger._bound_account() is None
         assert '9999' in view.action_notice.text
     finally:
         client.delete()
@@ -189,7 +190,7 @@ def test_first_due_check_binds_account_after_claim_without_losing_stars(tmp_path
     following.set_favorite('55', '1001', True)
     ledger = ManagedScheduler(root)
     book = FavouriteBook(following, scheduler=ledger)
-    ledger.attach_favourites(book, seed=False)
+    ledger.attach_favourites(book)
     reader = SimpleNamespace(_verified_identity='55', verify_identity=lambda: '55')
     service = SimpleNamespace(closing=False, following_sync=following, live_client=reader,
                               managed_network_stop=None, managed_scheduler=ledger)
@@ -197,7 +198,7 @@ def test_first_due_check_binds_account_after_claim_without_losing_stars(tmp_path
         assert ledger.snapshot().interval_hours == 24
         assert ledger.claim_due(datetime.now(timezone.utc) + timedelta(hours=25)) is not None
         assert ApplicationServices.scheduler_favourite_authors(service, ledger=ledger) == ('1001',)
-        assert ledger._bound_account() == '55' and book.ids() == ('1001',)
+        assert ledger._bound_account() == '55' and book.ids(ACCOUNT) == ('1001',)
     finally:
         ledger.close()
         following.close()
@@ -212,14 +213,14 @@ def test_verified_account_star_save_failure_rolls_back_following_ledger(tmp_path
     following.set_favorite('55', '1001', True)
     ledger = ManagedScheduler(root)
     book = FavouriteBook(following, scheduler=ledger)
-    ledger.attach_favourites(book, seed=False)
+    ledger.attach_favourites(book)
     ledger.bind_account('55')
     ledger._db.execute("CREATE TRIGGER reject_schedule BEFORE UPDATE ON schedule BEGIN SELECT RAISE(ABORT, 'test'); END")
     try:
         with pytest.raises(Exception):
             ledger.configure_all(author_ids=('1002',), interval_hours=6, startup_check=False,
-                                 expected_revision=ledger.snapshot().revision, now=datetime.now(timezone.utc))
-        assert book.ids() == ('1001',)
+                                 expected_revision=ledger.snapshot().revision, now=datetime.now(timezone.utc), account_id=ACCOUNT)
+        assert book.ids(ACCOUNT) == ('1001',)
     finally:
         ledger.close()
         following.close()

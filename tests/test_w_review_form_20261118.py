@@ -18,17 +18,17 @@ from pixivvault_nicegui.managed_downloads import ManagedDownloadError
 from pixivvault_nicegui.managed_scheduler import ManagedScheduler
 from pixivvault_nicegui.ui.scheduler_view import SchedulerView
 from test_v_dl_cap_20261117 import make_root, journal_of, mark_of, publish, seed_index
-from test_v_dl_priority_20261117 import sync
+from test_v_dl_priority_20261117 import ACCOUNT, sync
 from test_t_dl_engine_20261117 import env
 
 
-def create_stars(tmp_path, legacy=None):
+def create_stars(tmp_path):
     root = tmp_path / 'managed'
     root.mkdir()
     following = FollowingSyncStore(tmp_path / 'follow')
     ledger = ManagedScheduler(root)
     sync(following, 3)
-    book = FavouriteBook(following, scheduler=ledger, legacy_db=legacy)
+    book = FavouriteBook(following, scheduler=ledger)
     ledger.attach_favourites(book)
     return following, ledger, book
 
@@ -36,7 +36,7 @@ def create_stars(tmp_path, legacy=None):
 @pytest.mark.asyncio
 async def test_nonfollowed_manual_star_is_not_silently_discarded(tmp_path):
     following, ledger, book = create_stars(tmp_path)
-    book.set('1000', True)
+    book.set('1000', True, account_id=ACCOUNT)
     services = SimpleNamespace(managed_scheduler=ledger,
                                managed_schedule_runner=SimpleNamespace(settings_changed=lambda: None))
     client = Client(ui.page('/sol-form-unknown-id'))

@@ -2102,7 +2102,7 @@ class ApplicationServices:
                     raise RuntimeError('managed author snapshot account mismatch')
                 if synced.last_synced_at is not None:
                     return uid, tuple(AuthorTarget(row.user_id, row.name, 'follow',
-                                      is_favorite=row.is_favorite, follow_order=row.follow_order)
+                                      is_favorite=row.is_favorite, follow_order=row.follow_order, account_id=uid)
                                       for row in synced.following), True
             # Favorites are local application choices, not inferred from a
             # public Pixiv following response. With no configured local ledger
@@ -2128,26 +2128,19 @@ class ApplicationServices:
                 self._follow_account_by_owner.pop(owner, None)
         return result
 
-    async def set_followed_author_favorite(self, user_id, *, owner, expected, favorite):
+    async def set_followed_author_favorite(self, user_id, *, owner, account_id, expected, favorite):
         """Change only the verified account and author list shown to this view."""
         token = self._direct_owner(owner)
         if type(expected) is not bool or type(favorite) is not bool or favorite == expected:
             raise ValueError('invalid favorite transition')
         def update():
             with self._managed_target_lock:
-                account = self._follow_account_by_owner.get(token)
-                reader, store = self.live_client, self.following_sync
-                if (self.closing or account is None or reader is None or store is None
-                        or getattr(reader, '_verified_identity', None) != account):
+                if (self.closing or account_id is None
+                        or self._follow_account_by_owner.get(token) != account_id
+                        or getattr(self.live_client, '_verified_identity', None) != account_id):
                     raise RuntimeError('author account changed')
-                snapshot = store.snapshot(account)
-                row = next((row for row in snapshot.authors if row.user_id == user_id), None)
-                if snapshot.account_id != account or row is None or row.is_favorite != expected:
-                    raise RuntimeError('author favorite changed')
-                if self.closing or self.live_client is not reader or getattr(reader, '_verified_identity', None) != account:
-                    raise RuntimeError('author account changed')
-                store.set_favorite(account, user_id, favorite, expected_revision=snapshot.revision)
-        await asyncio.to_thread(update)
+                return self.set_favourite(user_id, favorite, account_id=account_id, expected=expected)
+        return await asyncio.to_thread(update)
 
     def _resolve_managed_record(self, work_id):
         # The serial runner installs exactly one accepted job's frozen record.
@@ -3104,7 +3097,7 @@ class ApplicationServices:
             raise
         emit_shared(self, '画像キャッシュを削除しました。', level='success')
 
-    def scheduler_favourite_authors(self, *, ledger=None, seed=True):
+    def scheduler_favourite_authors(self, *, ledger=None):
         """Read all local stars for the currently verified account."""
         from .managed_scheduler import _require_managed_network_allowed
         store = self.following_sync
@@ -3121,13 +3114,6 @@ class ApplicationServices:
         ledger = ledger if ledger is not None else getattr(self, 'managed_scheduler', None)
         if ledger is not None:
             ledger.bind_account(account)
-            book = getattr(ledger, '_favourites_source', None)
-            if seed and book is not None and book.account() == account:
-                ledger.attach_favourites(book)
-                snapshot = store.snapshot(account)
-                if (self.closing or self.live_client is not reader or snapshot.account_id != account
-                        or getattr(reader, '_verified_identity', account) != account):
-                    raise RuntimeError('favourite author account changed')
         return tuple(row.user_id for row in snapshot.authors if row.is_favorite)
 
     def enable_managed_scheduler(self):
@@ -3142,7 +3128,7 @@ class ApplicationServices:
                 attach = getattr(ledger, 'attach_favourites', None)
                 book_factory = getattr(self, 'favourite_book', None)
                 if attach is not None and book_factory is not None:
-                    attach(book_factory(scheduler=ledger), seed=False)
+                    attach(book_factory(scheduler=ledger))
                 if getattr(self, 'author_media', None) is not None and getattr(self, 'batch_runs', None) is None:
                     try:
                         # The timer and 「今すぐチェック」 run on the same engine as the screen.
@@ -3283,7 +3269,7 @@ class ApplicationServices:
         account = store.last_synced_account()
         if account is None:
             return ()
-        return tuple(dict(user_id=row.user_id, name=row.name, follow_order=row.follow_order,
+        return tuple(dict(account_id=account, user_id=row.user_id, name=row.name, follow_order=row.follow_order,
                           is_favorite=row.is_favorite, is_zipped=row.is_zipped,
                           last_downloaded=row.last_downloaded)
                      for row in store.snapshot(account).following)
@@ -3396,20 +3382,16 @@ class ApplicationServices:
         """The single home of the ☆ authors (the following ledger), see favourites.py."""
         from .favourites import FavouriteBook
         book = self._favourite_book
-        if book is None or (scheduler is not None and book.scheduler is not scheduler):
-            book = self._favourite_book = FavouriteBook(
-                self.following_sync, scheduler=scheduler or self.managed_scheduler,
-                legacy_db=getattr(self, 'library_readonly_db', None))
+        scheduler = scheduler or self.managed_scheduler
+        if book is None or book.scheduler is not scheduler or book.following is not self.following_sync:
+            book = self._favourite_book = FavouriteBook(self.following_sync, scheduler=scheduler)
         return book
 
-    def favourite_author_ids(self):
-        return self.favourite_book().ids()
+    def favourite_author_ids(self, account_id):
+        return self.favourite_book().ids(account_id)
 
-    def set_favourite(self, author_id, favourite) -> bool:
-        changed = self.favourite_book().set(author_id, favourite)
-        if changed and self.managed_scheduler is not None:
-            self.managed_scheduler._star_cache = (0.0, frozenset())
-        return changed
+    def set_favourite(self, author_id, favourite, *, account_id, expected=None) -> bool:
+        return self.favourite_book().set(author_id, favourite, account_id=account_id, expected=expected)
 
     def enable_managed_metadata(self):
         """Explicit provisioning only; never opens Pixiv, starts a timer or GET.

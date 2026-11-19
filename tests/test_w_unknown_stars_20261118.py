@@ -5,7 +5,7 @@ from nicegui import Client, ui
 
 from pixivvault_nicegui.favourites import FavouriteBook
 from pixivvault_nicegui.ui.scheduler_view import SchedulerView
-from test_v_dl_priority_20261117 import world, sync  # noqa: F401
+from test_v_dl_priority_20261117 import ACCOUNT, world, sync  # noqa: F401
 
 
 @pytest.mark.asyncio
@@ -14,7 +14,7 @@ async def test_unreadable_stars_input_is_not_silently_discarded(world):
     sync(following, 5)
     book = FavouriteBook(following, scheduler=ledger)
     ledger.attach_favourites(book)
-    book.set('1001', True)
+    book.set('1001', True, account_id=ACCOUNT)
     ledger.attach_favourites(FavouriteBook(None, scheduler=ledger))
     services = SimpleNamespace(managed_scheduler=ledger,
                                managed_schedule_runner=SimpleNamespace(settings_changed=lambda: None))
@@ -28,6 +28,6 @@ async def test_unreadable_stars_input_is_not_silently_discarded(world):
         await view.save()
         assert '☆' in view.action_notice.text and '保存' in view.action_notice.text
         ledger.attach_favourites(FavouriteBook(following, scheduler=ledger))
-        assert ledger.favourites() == ('1001',)
+        assert ledger.favourites(ACCOUNT) == ('1001',)
     finally:
         client.delete()

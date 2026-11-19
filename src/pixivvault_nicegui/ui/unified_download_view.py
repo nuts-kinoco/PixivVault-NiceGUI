@@ -832,19 +832,23 @@ class UnifiedDownloadView:
         self.after_targets_changed()
         return True
 
-    def toggle_favorite(self, user_id):
+    def toggle_favorite(self, user_id, *, displayed_author=None):
         uid = str(user_id)
         author = U.find_author(self.authors, uid)
+        if displayed_author is not None and displayed_author is not author:
+            self.set_notice("作者一覧が更新されました。表示中の行でもう一度操作してください。")
+            return False
         if author is None:
             return False
-        want = not bool(author.get("is_favorite"))
-        setter = getattr(self.services, "set_favourite", None)
+        expected = bool(author.get("is_favorite"))
+        want = not expected
         try:
-            if not callable(setter):
-                raise RuntimeError("no favourite book")
-            setter(uid, want)
+            changed = self.services.set_favourite(uid, want, account_id=author.get("account_id"),
+                                                  expected=expected)
         except Exception:
-            self.set_notice("☆を保存できませんでした。")
+            changed = False
+        if not changed:
+            self.set_notice("☆を保存できませんでした。ダウンロード画面を再読込してください。")
             return False
         author["is_favorite"] = want
         self.render_list() if self.favorite_only else self._update_row(uid)
@@ -1260,9 +1264,10 @@ class UnifiedDownloadView:
                 "aria-label=☆自動監視の切り替え")
             with star:
                 star_icon = ui.icon("star" if author.get("is_favorite") else "star_border")
-            star.on("click.stop", lambda _e, u=uid: self.toggle_favorite(u))
+            toggle_star = lambda _e: self.toggle_favorite(uid, displayed_author=author)
+            star.on("click.stop", toggle_star)
             for key in ("space", "enter"):
-                star.on(f"keydown.{key}.prevent.stop", lambda _e, u=uid: self.toggle_favorite(u))
+                star.on(f"keydown.{key}.prevent.stop", toggle_star)
             ui.label(str(author.get("name") or uid)).classes("pv-ud-c-name")
             ui.label(uid).classes("pv-ud-c-id")
             ui.label(str(self.work_counts.get(uid, 0))).classes("pv-ud-c-count").props("data-testid=unified-row-count")

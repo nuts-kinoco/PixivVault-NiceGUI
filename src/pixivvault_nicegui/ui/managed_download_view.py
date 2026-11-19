@@ -734,8 +734,11 @@ class ManagedDownloadView:
         self.author_loading = True
         self._render_follow_list()
         try:
-            await self.services.set_followed_author_favorite(
-                uid, owner=self._owner, expected=author.is_favorite, favorite=not author.is_favorite)
+            changed = await self.services.set_followed_author_favorite(
+                uid, owner=self._owner, account_id=author.account_id, expected=author.is_favorite,
+                favorite=not author.is_favorite)
+            if not changed:
+                raise RuntimeError('author favorite changed')
             if self._valid(epoch):
                 self.follow_authors = tuple(replace(item, is_favorite=not author.is_favorite)
                                             if item.user_id == uid else item for item in self.follow_authors)
