@@ -119,3 +119,62 @@ def test_selected_older_generation_does_not_adopt_newer_branch(tmp_path):
         assert all(p.exists() and p.read_bytes() == content for p, content in before.items())
     finally:
         client.close(); coordinator.close(); store.close(); profile.close()
+
+
+def test_cyclic_legacy_links_are_not_adopted(tmp_path):
+    expiry, cookie, profile, store, coordinator = setup(tmp_path)
+    client, _ = reader(cookie, coordinator, [])
+    try:
+        for index in range(4):
+            header = 'PHPSESSID=777_old; Domain=.pixiv.net; Path=/; Secure; Expires=' + formatdate(expiry + 3600 + index, usegmt=True)
+            client._transport = lambda *args: _ReadResponse(b'{"error":false,"body":{}}', (header,))
+            fetch(client)
+        cursor = profile.snapshot().cookie_file
+        paths = []
+        while cursor is not None:
+            paths.append(cursor)
+            previous = json.loads((cursor.parent / 'generation.json').read_text(encoding='utf-8'))['previous']
+            cursor = cursor.parent.parent / previous / 'cookies.txt' if previous else None
+        client.close(); coordinator.close(); store.close()
+        meta_file = paths[-1].parent / 'generation.json'
+        packet = json.loads(meta_file.read_text(encoding='utf-8'))
+        packet['previous'] = paths[-2].parent.name
+        meta_file.write_text(json.dumps(packet), encoding='utf-8')
+        with sqlite3.connect(profile.path) as db:
+            db.execute('DROP TABLE native_cookie_adoptions')
+        store = ExtensionCookieStore(tmp_path / 'generations', profile=profile)
+        with sqlite3.connect(profile.path) as db:
+            adopted = {row[0] for row in db.execute('SELECT cookie_path FROM native_cookie_adoptions')}
+        assert str(paths[0]) in adopted
+        assert all(str(path) not in adopted and path.exists() for path in paths[-2:])
+        assert store.take_legacy_migration_notice() is True
+    finally:
+        client.close(); coordinator.close(); store.close(); profile.close()
+
+
+def test_interrupted_migration_rolls_back_and_can_retry(tmp_path):
+    expiry, cookie, profile, store, coordinator = setup(tmp_path)
+    client, _ = reader(cookie, coordinator, [])
+    try:
+        for index in range(3):
+            header = 'PHPSESSID=777_old; Domain=.pixiv.net; Path=/; Secure; Expires=' + formatdate(expiry + 3600 + index, usegmt=True)
+            client._transport = lambda *args: _ReadResponse(b'{"error":false,"body":{}}', (header,))
+            fetch(client)
+        selected = profile.snapshot()
+        original = {p: p.read_bytes() for p in (store.root / 'generations').rglob('*') if p.is_file()}
+        client.close(); coordinator.close(); store.close()
+        with sqlite3.connect(profile.path) as db:
+            db.execute('DELETE FROM native_cookie_adoptions')
+            db.execute("CREATE TRIGGER fail_migration BEFORE INSERT ON native_cookie_adoptions BEGIN SELECT RAISE(ABORT, 'test interruption'); END")
+        with pytest.raises(Exception):
+            ExtensionCookieStore(tmp_path / 'generations', profile=profile)
+        assert profile.snapshot() == selected
+        assert all(p.exists() and p.read_bytes() == content for p, content in original.items())
+        with sqlite3.connect(profile.path) as db:
+            assert db.execute('SELECT COUNT(*) FROM native_cookie_adoptions').fetchone()[0] == 0
+            db.execute('DROP TRIGGER fail_migration')
+        store = ExtensionCookieStore(tmp_path / 'generations', profile=profile)
+        with sqlite3.connect(profile.path) as db:
+            assert db.execute('SELECT COUNT(*) FROM native_cookie_adoptions').fetchone()[0] == 3
+    finally:
+        client.close(); coordinator.close(); store.close(); profile.close()

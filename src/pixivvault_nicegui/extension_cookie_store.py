@@ -533,7 +533,14 @@ class ExtensionCookieStore:
             path = selected if managed else None
             while path is not None:
                 token = path.parent.name
-                if token in visited or len(visited) >= 64:
+                if token in visited:
+                    # A cycle cannot prove adoption for any member of the loop.
+                    cycle_start = next(i for i, record in enumerate(records)
+                                       if record[0].parent.name == token)
+                    del records[cycle_start:]
+                    uncertain = True
+                    break
+                if len(visited) >= 64:
                     uncertain = True
                     break
                 try:
