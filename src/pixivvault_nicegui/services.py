@@ -770,7 +770,7 @@ class ApplicationServices:
                 from .discovery_learning import DiscoveryLearningService
                 self.discovery = DiscoveryLearningService(discovery_root, self.live_client,
                     following=self.discovery_following_snapshot, saved_ids=self.saved_discovery_ids,
-                    seed_readonly_db=library_readonly_db)
+                    seed_readonly_db=library_readonly_db, tagger=self.local_tagger, local_image=self.images.local_bytes)
                 self.discovery._event_services = self
             if self.discovery is not None and recommendation_preferences_root is not None:
                 from .recommendation_state import (DiscoveryRecommendationSource, CombinedRecommendationSource,

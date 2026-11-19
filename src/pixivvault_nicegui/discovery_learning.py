@@ -53,11 +53,12 @@ class _Reader:
 
 class DiscoveryLearningService(LearningService):
     marker_name = '.pixivvault-managed-discovery.json'
-    def __init__(self, root, reader, *, following=None, saved_ids=(), seed_readonly_db=None):
+    def __init__(self, root, reader, *, following=None, saved_ids=(), seed_readonly_db=None, tagger=None, local_image=None):
         super().__init__(root, ())
         if reader is None: raise ValueError('explicit discovery reader required')
         self._marker = {'format':'pixivvault-nicegui-managed-discovery-v1', 'database':'learning.sqlite3'}
         self.reader = reader
+        self.tagger, self.local_image = tagger, local_image
         self.following = following
         self.saved_ids = saved_ids
         self.seed_readonly_db = seed_readonly_db
@@ -139,6 +140,20 @@ class DiscoveryLearningService(LearningService):
         self.artworks = tuple(self._artwork_for(c) for c in self._candidates.values())
         for session in self._sessions.values():
             session.repository.artwork_metadata[record.work_id] = deepcopy(self._metadata[record.work_id])
+
+    def _record(self, session_id, judgment):
+        session = self._session(session_id)
+        metadata = session.repository.artwork_metadata.get(judgment.work_id)
+        if (metadata is not None and not metadata.get('tags') and self.tagger is not None
+                and self.local_image is not None and judgment.operation_id not in session.receipts):
+            try:
+                data = self.local_image(judgment.work_id)
+                tags = self.tagger.predict(data) if data else ()
+                if tags:
+                    metadata['tags'] = tuple(name for name, _ in tags)
+            except Exception:
+                pass  # Optional inference must not prevent an ordinary judgment.
+        return super()._record(session_id, judgment)
 
     async def initialize_once(self, refresh_context_callback=None, *, is_current=None):
         """Configured app startup and first tab share original initial_load.
