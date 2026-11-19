@@ -33,14 +33,20 @@ def terminal(owner):
 
 
 def queue_result(owner, job):
-    with ui.column() as holder:
-        view = QueueView(SimpleNamespace(jobs=owner.jobs, ugoira=owner, artworks=()))
+    from nicegui import Client
+    client = Client(ui.page('/_z12_queue_' + str(id(owner))))
     try:
-        view.refresh()
-        return view.rows[job.job_id]['result'].text
+        with client:
+            with ui.column() as holder:
+                view = QueueView(SimpleNamespace(jobs=owner.jobs, ugoira=owner, artworks=()))
+            try:
+                view.refresh()
+                return view.rows[job.job_id]['result'].text
+            finally:
+                view.close()
+                holder.delete()
     finally:
-        view.close()
-        holder.delete()
+        client.delete()
 
 
 def test_absent_codec_bypasses_mp4_reservation_before_gif(tmp_path, monkeypatch):
@@ -347,6 +353,7 @@ def test_normal_entry_still_uses_bootstrap(monkeypatch):
 
 
 def test_backend_reasons_survive_receipt_restart_and_user_notifications(tmp_path, monkeypatch):
+    from nicegui import Client
     from pixivvault_nicegui.ui.shell import DemoShell
     import json
     calls = []
@@ -363,12 +370,17 @@ def test_backend_reasons_survive_receipt_restart_and_user_notifications(tmp_path
         assert packet['mp4_fallback'] == {'opencv': 'unavailable', 'imageio': 'failed'}
         message = queue_result(owner, job)
         assert 'OpenCV: 利用できません' in message and 'imageio: 変換に失敗' in message
-        shell = DemoShell.__new__(DemoShell)
-        shell.closed = False
-        shell.services = SimpleNamespace(ugoira=owner)
-        shell.client = ui.context.client
-        shell._ugoira_notified = set()
-        shell._notify_ugoira_fallback()
+        client = Client(ui.page('/_z12_reasons_notice'))
+        try:
+            with client:
+                shell = DemoShell.__new__(DemoShell)
+                shell.closed = False
+                shell.services = SimpleNamespace(ugoira=owner)
+                shell.client = client
+                shell._ugoira_notified = set()
+                shell._notify_ugoira_fallback()
+        finally:
+            client.delete()
         assert calls == [message]
     finally:
         owner.close()
