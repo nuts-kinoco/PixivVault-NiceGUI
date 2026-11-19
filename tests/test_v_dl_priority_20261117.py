@@ -343,7 +343,7 @@ def test_d4_the_services_entry_point_bumps_it_too(world):
 def test_d6_an_unattached_or_unsynced_store_never_prunes_the_pending_work(world):
     _, following, scheduler = world
     scheduler.bind_account(ACCOUNT, scope=observed_scope(ACCOUNT))
-    scheduler.set_favourites(('1001',), expected_revision=now_state(scheduler).revision, account_id=None)
+    scheduler._sync_favourites(('1001',))
     scheduler.defer_work(author_id='1001', work=dict(id='5', update_date='d', page_count=1, type=0),
                          now=datetime.now(timezone.utc), account_id=ACCOUNT)
     scheduler.attach_favourites(FavouriteBook(None, scheduler=scheduler))   # no follow store at all

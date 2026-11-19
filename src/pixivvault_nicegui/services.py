@@ -3111,15 +3111,19 @@ class ApplicationServices:
             raise
         emit_shared(self, '画像キャッシュを削除しました。', level='success')
 
-    def scheduler_favourite_authors(self, *, ledger=None):
+    def scheduler_favourite_authors(self, *, ledger=None, displayed_account=None):
         """Read all local stars for the currently verified account."""
         from .managed_scheduler import ScheduleAccountError, _require_managed_network_allowed
         store = self.following_sync
         reader = self.live_client
         if self.closing or store is None or reader is None:
             raise RuntimeError('favourite author source unavailable')
+        if displayed_account is not None:
+            require_same_account(displayed_account, store.last_synced_account())
         _require_managed_network_allowed(self)
         account = reader.verify_identity()
+        if displayed_account is not None:
+            require_same_account(displayed_account, account)
         ledger = ledger if ledger is not None else getattr(self, 'managed_scheduler', None)
         bound = getattr(ledger, '_bound_account', lambda: None)()
         mismatch = ScheduleAccountError('mismatch')
@@ -3131,6 +3135,8 @@ class ApplicationServices:
         require_current_account(self, reader, account, error=mismatch)
         if self.closing or self.following_sync is not store:
             raise RuntimeError('favourite author source unavailable')
+        if displayed_account is not None:
+            require_same_account(displayed_account, store.last_synced_account())
         if ledger is not None:
             ledger.bind_account(account, scope=AccountScope(account, reader))
         return tuple(row.user_id for row in snapshot.authors if row.is_favorite)
@@ -3245,7 +3251,7 @@ class ApplicationServices:
             ledger = BatchRunLedger(Path(root))
             try:
                 engine = BatchRunEngine(ServicesPort(self), ledger, following=self.following_sync)
-                engine.recover()
+                engine._recover_on_startup()
             except BaseException:
                 ledger.close()
                 raise
@@ -3283,18 +3289,22 @@ class ApplicationServices:
         No network and no identity check: the newest completed follow sync's authors, as dicts shaped
         like the original `following_users` rows. () until a sync has completed.
         """
+        return ApplicationServices.unified_download_author_snapshot(self)[1]
+
+    def unified_download_author_snapshot(self):
+        """Return the displayed account together with its rows, including an empty list."""
         store = self.following_sync
         if store is None:
-            return ()
+            return None, ()
         account = store.last_synced_account()
         if account is None:
-            return ()
+            return None, ()
         snapshot = store.snapshot(account)
         require_same_account(account, snapshot.account_id)
-        return tuple(dict(account_id=account, user_id=row.user_id, name=row.name, follow_order=row.follow_order,
-                          is_favorite=row.is_favorite, is_zipped=row.is_zipped,
-                          last_downloaded=row.last_downloaded)
-                     for row in snapshot.following)
+        return account, tuple(dict(account_id=account, user_id=row.user_id, name=row.name, follow_order=row.follow_order,
+                                   is_favorite=row.is_favorite, is_zipped=row.is_zipped,
+                                   last_downloaded=row.last_downloaded)
+                              for row in snapshot.following)
 
     def saved_author_counts(self):
         """The table's 保存済み column: saved works per author (managed receipts, pages not re-read)."""
@@ -3351,7 +3361,7 @@ class ApplicationServices:
             scope.verify_current(self)
             yield scope
 
-    def dispatch_author_check(self, ledger, slot, cancellation, *, wait=True, authors=None):
+    def dispatch_author_check(self, ledger, slot, cancellation, *, wait=True, authors=None, displayed_account=None):
         """One periodic / manual ☆ check: on the engine when provisioned, else the old queue handoff.
 
         The caller holds `_scheduler_dispatch_lock`."""
@@ -3360,7 +3370,8 @@ class ApplicationServices:
             if source is None:
                 authors = ledger.favourites()  # injected service without the live account source
             else:
-                authors = source(ledger=ledger)
+                display = {} if displayed_account is None else {'displayed_account': displayed_account}
+                authors = source(ledger=ledger, **display)
                 ledger._sync_favourites(authors)
         if self.batch_runs is not None:
             from .managed_scheduler import _dispatch_account, run_author_check

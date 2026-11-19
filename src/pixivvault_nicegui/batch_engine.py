@@ -279,7 +279,7 @@ class BatchRunEngine:
                 self._cond.notify_all()
 
     # -- after a stop or a restart ------------------------------------------
-    def recover(self):
+    def _recover_on_startup(self):
         """At application start: a run still marked active can no longer be running.
 
         Marks it `interrupted` (its mid-step author `stopped`, never stamped). Starts nothing and
@@ -401,10 +401,8 @@ class BatchRunEngine:
             if self.active:
                 raise RuntimeError('a batch run is already active')
             owner = self.account_id if account_id is _ACCOUNT_UNSET else account_id
-            # The ledger has one process owner, so a run still marked active while this engine
-            # is idle is left over from a crash or shutdown: close it as `interrupted` first.
             if resume_from is None:
-                self.ledger._recover_interrupted()
+                self.ledger._recover_interrupted(account_id=owner)
             authors = tuple(dict.fromkeys(author_ids))
             run_id = self.ledger.begin_run(kind, origin, target_type or 'both', authors, account_id=owner,
                                            verified_bookmark_account=verified_bookmark_account, resume_from=resume_from)
@@ -490,16 +488,18 @@ class BatchRunEngine:
             outcome, code = 'failed', type(error).__name__
             self._close_author(run_id, 'failed', code)
         finally:
-            with self._cond:
-                self._set_run(outcome, code)
-                try:
-                    if on_finish is not None:
-                        on_finish(outcome, code, dict(self.totals))
-                finally:
+            try:
+                # The scheduler owns its own lock. Keep the run active until it records
+                # the outcome, but never call back with the engine condition held.
+                if on_finish is not None:
+                    on_finish(outcome, code, dict(self.totals))
+            finally:
+                with self._cond:
+                    self._set_run(outcome, code)
                     self.state = outcome
                     self._paused = False
-            self._emit('run_end', outcome=outcome, error_code=code, total=total,
-                       elapsed=self._monotonic() - self._started)
+                self._emit('run_end', outcome=outcome, error_code=code, total=total,
+                           elapsed=self._monotonic() - self._started)
 
     def _close_author(self, run_id, state, code):
         """The author that was mid-step when the run ended: never `done`, never stamped."""

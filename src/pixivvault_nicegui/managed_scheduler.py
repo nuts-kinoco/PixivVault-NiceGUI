@@ -214,14 +214,14 @@ class ManagedScheduler:
                                   startup_check=startup_check, expected_revision=expected_revision,
                                   now=now, account_id=account_id)
 
-    def _disable(self) -> ScheduleState:
-        """Store only the global stop command, even before an account is known."""
+    def _disable(self) -> tuple[ScheduleState, int]:
+        """Save only the global stop and return the previous revision for concurrent editors."""
         with self._lock:
-            self._ensure_open()
+            before = self.snapshot()
             self._db.execute('UPDATE schedule SET interval_hours=0,startup_check=0,next_due_utc=NULL,'
                              'revision=revision+1 WHERE id=1 AND (interval_hours!=0 OR startup_check!=0 '
                              'OR next_due_utc IS NOT NULL)')
-            return self.snapshot()
+            return self.snapshot(), before.revision
 
     # Timer-only lifecycle. These transitions reserve/settle a slot before first binding.
     def _claim_due(self, now: datetime, *, startup: bool = False) -> str | None:
@@ -348,10 +348,11 @@ class ManagedScheduler:
                              (slot, work_id, operation_id))
 
     def _require_owner(self, account_id):
-        if self._account_guard:
+        bound = self._bound_account()
+        if self._account_guard or bound is not None:
             if account_id is None:
                 raise ScheduleAccountError('mismatch')
-            require_same_account(self._bound_account(), account_id, error=ScheduleAccountError('mismatch'))
+            require_same_account(bound, account_id, error=ScheduleAccountError('mismatch'))
 
     @contextmanager
     def _deferred_transaction(self, account_id):
@@ -580,6 +581,8 @@ class ManagedScheduler:
         with self._lock:
             self._ensure_open()
             book = book_override if book_override is not None else self._favourites_source
+            if book is None and self._bound_account() is not None:
+                raise ScheduleAccountError('mismatch')
             following = None if book is None else book.following
             with following._lock if following is not None else nullcontext():
                 attached = False

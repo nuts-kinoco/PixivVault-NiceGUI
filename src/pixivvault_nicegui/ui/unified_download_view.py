@@ -639,13 +639,19 @@ class UnifiedDownloadView:
         """
         if self.closed:
             return False
+        snapshot = getattr(self.services, "unified_download_author_snapshot", None)
         read = getattr(self.services, "unified_download_authors", None)
+        account = None
         try:
-            rows = await asyncio.to_thread(read) if callable(read) else ()
+            if callable(snapshot):
+                account, rows = await asyncio.to_thread(snapshot)
+            else:
+                rows = await asyncio.to_thread(read) if callable(read) else ()
         except Exception:
-            rows = ()
+            account, rows = None, ()
         if self.closed:
             return False
+        self.author_snapshot_account = account
         self.authors = [dict(row) for row in rows]
         counts = getattr(self.services, "saved_author_counts", None)
         now = time.monotonic()
@@ -663,6 +669,7 @@ class UnifiedDownloadView:
         return True
 
     def apply_authors(self, rows):
+        self.author_snapshot_account = None
         self.authors = [dict(row) for row in rows]
         self._loaded = True
         self.page = 0
@@ -1064,6 +1071,8 @@ class UnifiedDownloadView:
 
     def _history_account(self):
         accounts = {row.get("account_id") for row in self.authors}
+        if not accounts:
+            return getattr(self, "author_snapshot_account", None)
         return next(iter(accounts)) if len(accounts) == 1 else None
 
     def resume_interrupted(self):

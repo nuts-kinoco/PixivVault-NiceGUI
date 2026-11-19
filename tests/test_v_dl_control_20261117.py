@@ -59,7 +59,7 @@ def test_a_run_left_active_by_a_crash_becomes_interrupted_without_any_traffic(en
     run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=ACCOUNT)
     ledger.update_author(run_id, '41', state='listing', account_id=ledger.run(run_id).account_id)
     engine = engine_for(port, env)
-    assert engine.recover() == (run_id,)
+    assert engine._recover_on_startup() == (run_id,)
     assert port.calls == [] and port.enqueued == []             # nothing talks to Pixiv at start-up
     assert ledger.run(run_id).state == 'interrupted'
     assert [a.state for a in ledger.authors(run_id)] == ['stopped', 'pending']

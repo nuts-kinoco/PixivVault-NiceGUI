@@ -263,6 +263,7 @@ class SchedulerView:
         # guard would silently discard (or run under the previous settings).
         self.save_button.set_enabled(False)
         self.run_button.set_enabled(False)
+        stop_saved = False
         try:
             ledger = self.services.managed_scheduler
             form = (self.authors.value or '', self.interval.value, self.startup.value)
@@ -270,16 +271,21 @@ class SchedulerView:
             account_id = self._settings_account
             if str(form[1]) == '0' and not form[2]:
                 authors_edited = form[0] != getattr(self, '_loaded_authors', '')
-                saved = await asyncio.to_thread(ledger._disable)
+                saved, previous_revision = await asyncio.to_thread(ledger._disable)
+                stop_saved = True
                 runner = getattr(self.services, 'managed_schedule_runner', None)
                 if runner is not None:
                     runner.settings_changed()
-                self._settings_dirty = authors_edited or (self.authors.value or '', self.interval.value, self.startup.value) != form
-                self.revision = saved.revision
-                self._load(ledger)
-                if authors_edited:
-                    self.action_notice.set_text('停止を保存しました。☆の変更は再読込後に個別に保存してください。')
-                return
+                if not authors_edited:
+                    self._settings_dirty = (self.authors.value or '', self.interval.value, self.startup.value) != form
+                    if self._settings_dirty and previous_revision == revision:
+                        self.revision = saved.revision
+                    self._load(ledger)
+                    return
+                if self._stars_unknown_in_form or previous_revision != revision:
+                    self.action_notice.set_text('停止を保存しました。☆を変更するには再読込してください。')
+                    return
+                revision = saved.revision
             require_same_account(account_id, ledger.favourite_account(),
                                  error=ScheduleAccountError('mismatch'))
             raw = tuple(part.strip() for part in form[0].split(',') if part.strip())
@@ -329,8 +335,8 @@ class SchedulerView:
             if notices:
                 self.action_notice.set_text(' / '.join(notices))
         except ScheduleAccountError:
-            self.action_notice.set_text(
-                '同期先アカウントが変わりました。「編集を破棄して再読込」してから保存してください')
+            notice = '同期先アカウントが変わりました。「編集を破棄して再読込」してから保存してください'
+            self.action_notice.set_text(('停止を保存しました。' if stop_saved else '') + notice)
         except Exception:
             self.status.set_text('設定を保存できませんでした。別画面の更新や入力を確認してください')
         finally:
@@ -356,11 +362,16 @@ class SchedulerView:
             from ..managed_scheduler import submit_author_batch
             ledger = self.services.managed_scheduler
             slot = f'manual-{uuid4().hex}'
+            expected = self._settings_account
+
             def submit():
                 with self.services._scheduler_dispatch_lock:
                     dispatch = getattr(self.services, 'dispatch_author_check', None)
                     if dispatch is not None:
-                        return dispatch(ledger, slot, self.services._scheduler_cancel_event, wait=False)
+                        displayed = {}
+                        if getattr(ledger, '_account_guard', False):
+                            displayed['displayed_account'] = AccountScope(expected).account_id
+                        return dispatch(ledger, slot, self.services._scheduler_cancel_event, wait=False, **displayed)
                     source = getattr(self.services, 'scheduler_favourite_authors', None)
                     authors = source() if source is not None else ledger.favourites()
                     if source is not None:
@@ -404,7 +415,7 @@ def check_failure_message(error):
     if isinstance(error, (ScheduleAccountError, AccountMismatch)):
         if getattr(error, 'reason', None) == 'unknown':
             return '定期チェックの既存データの出所を確認できません。データを保持して停止しました。'
-        return '定期チェックの台帳は別のアカウントに紐付いています。既存データを保持して停止しました。'
+        return '定期チェックの同期先または台帳が別のアカウントです。既存データを保持して停止しました。画面を再読込してください。'
     if isinstance(error, ManagedNetworkStopped):
         return f'HTTP {error.status_code}による取得停止が記録されています。取得停止の確認・回復で状態を確認してください。'
     if isinstance(error, ManagedNetworkGateBusy):

@@ -35,6 +35,7 @@ DATABASE = 'batch-runs.sqlite3'
 APPLICATION_ID = 0x50564230
 MAX_DB_BYTES = 256 * 1024 * 1024
 MAX_RUNS = 5000
+_ALL_RUN_OWNERS = object()
 
 RUN_KINDS = ('authors', 'bookmarks')
 RUN_ORIGINS = ('manual', 'auto')
@@ -473,16 +474,17 @@ class BatchRunLedger:
         self._transaction(move)
 
     # Startup-only recovery under the process-owned database lock.
-    def _recover_interrupted(self):
-        """After a restart no run can still be active: mark each one `interrupted`.
-
-        Authors that were mid-step become `stopped`; they were never stamped.
-        """
+    def _recover_interrupted(self, *, account_id=_ALL_RUN_OWNERS):
+        """Recover orphaned runs at startup, or only one owner's history before a new run."""
         now = self._now()
+        query = 'SELECT run_id FROM runs WHERE state IN (?,?,?)'
+        params = RUN_ACTIVE
+        if account_id is not _ALL_RUN_OWNERS:
+            query += ' AND account_id IS ?'
+            params += (account_id,)
 
         def recover(connection):
-            ids = [r[0] for r in connection.execute(
-                'SELECT run_id FROM runs WHERE state IN (?,?,?)', RUN_ACTIVE)]
+            ids = [row[0] for row in connection.execute(query, params)]
             for run_id in ids:
                 connection.execute(
                     "UPDATE run_authors SET state='stopped',finished_utc=? WHERE run_id=? "

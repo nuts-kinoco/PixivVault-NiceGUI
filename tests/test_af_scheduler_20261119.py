@@ -95,7 +95,7 @@ def test_bound_account_rejects_other_account_without_changing_work(tmp_path):
     try:
         ledger.bind_account('42', scope=observed_scope('42'))
         ledger._sync_favourites(('9',))
-        ledger.defer_work(author_id='9', work={'id':'100','update_date':'2020','page_count':1,'type':0}, now=__import__('datetime').datetime.now(__import__('datetime').timezone.utc))
+        ledger.defer_work(author_id='9', work={'id':'100','update_date':'2020','page_count':1,'type':0}, now=__import__('datetime').datetime.now(__import__('datetime').timezone.utc), account_id='42')
         with pytest.raises(ScheduleError):
             ledger.bind_account('43', scope=observed_scope('43'))
         ledger._sync_favourites(())
@@ -109,9 +109,9 @@ def test_off_schedule_does_not_dispatch_deferred_backlog(tmp_path):
     ledger = ManagedScheduler(tmp_path)
     ledger.bind_account('42', scope=observed_scope('42'))
     ledger._sync_favourites(('9',))
-    ledger.defer_work(author_id='9', work={'id':'100','update_date':'2020','page_count':1,'type':0}, now=datetime.now(timezone.utc))
-    state = ledger.snapshot()
-    ledger.configure(interval_hours=0, startup_check=False, expected_revision=state.revision, now=datetime.now(timezone.utc))
+    ledger.defer_work(author_id='9', work={'id':'100','update_date':'2020','page_count':1,'type':0},
+                      now=datetime.now(timezone.utc), account_id='42')
+    ledger._disable()
     fired = Event()
     runner = ManagedScheduleRunner(ledger, lambda *_: fired.set())
     try:
