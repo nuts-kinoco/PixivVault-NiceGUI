@@ -471,8 +471,13 @@ class ExtensionCookieStore:
             raise CookieSyncError()
         metadata, _ = _read_stable(path.parent / 'generation.json', 2048)
         packet = json.loads(metadata, object_pairs_hook=_unique)
-        if (type(packet) is not dict or set(packet) != {'version', 'generation', 'bytes', 'sha256', 'cookie_count'}
-                or type(packet['version']) is not int or packet['version'] != 1
+        base = {'version', 'generation', 'bytes', 'sha256', 'cookie_count'}
+        if (type(packet) is not dict or set(packet) not in (base, base | {'previous'})
+                or type(packet['version']) is not int or packet['version'] not in (1, 2)
+                or (packet['version'] == 1 and set(packet) != base)
+                or (packet['version'] == 2 and (set(packet) != base | {'previous'}
+                    or (packet['previous'] is not None and
+                        (type(packet['previous']) is not str or not _TOKEN.fullmatch(packet['previous'])))))
                 or packet['generation'] != relative[1]
                 or type(packet['bytes']) is not int or not 0 < packet['bytes'] <= COOKIE_LIMIT
                 or type(packet['cookie_count']) is not int or not 1 <= packet['cookie_count'] <= MAX_COOKIES
@@ -511,25 +516,185 @@ class ExtensionCookieStore:
                 raise CookieSyncConflict()
             return snapshot, proof, rows
 
-    def _reserve_generation(self, raw):
-        """Bound retained data without deleting uncertain credential generations."""
+    def _retention_state(self):
         count = 0
         total = 0
+        folders = []
         for folder in self._generations.iterdir():
+            if folder.name.startswith('.retired-') and _TOKEN.fullmatch(folder.name[9:]):
+                info = _safe(folder, file=True)
+                if info.st_nlink != 1:
+                    raise CookieSyncCapacityExceeded()
+                total += info.st_size
+                continue
             if not _TOKEN.fullmatch(folder.name):
                 raise CookieSyncCapacityExceeded()
             _safe(folder)
             count += 1
             for item in folder.iterdir():
-                if item.name not in {'cookies.txt', 'generation.json'}:
+                if item.name not in {'cookies.txt', 'generation.json', '.retiring'}:
                     raise CookieSyncCapacityExceeded()
                 info = _safe(item, file=True)
                 if info.st_nlink != 1:
                     raise CookieSyncCapacityExceeded()
                 total += info.st_size
-        if (count >= MAX_RETAINED_COOKIE_GENERATIONS or
-                total + len(raw) + 2048 > MAX_RETAINED_COOKIE_BYTES):
-            raise CookieSyncCapacityExceeded()
+            folders.append(folder)
+        return count, total, folders
+
+    def _delete_retired_file(self, path, proof, limit):
+        """Verify and delete the same Windows handle, respecting reader shares."""
+        if os.name != 'nt':
+            raise CookieSyncError()
+        import ctypes
+        import msvcrt
+        from ctypes import wintypes
+        from .frozen_source_pin import _kernel
+        create, close, invalid = _kernel()
+        handle = create(str(native_io_path(path)), 0x80000000 | 0x00010000, 0x1,
+                        None, 3, 0x00200000, None)
+        if handle is None or handle == invalid:
+            raise CookieSyncError()
+        fd = None
+        try:
+            fd = msvcrt.open_osfhandle(handle, os.O_RDONLY | os.O_BINARY | os.O_NOINHERIT)
+            handle = None
+            info = os.fstat(fd)
+            if _identity(info) != proof.identity or info.st_size > limit:
+                raise CookieSyncError()
+            digest = hashlib.sha256()
+            while block := os.read(fd, min(65536, limit + 1)):
+                digest.update(block)
+            if _identity(os.fstat(fd)) != proof.identity or digest.hexdigest() != proof.sha256:
+                raise CookieSyncError()
+            kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+            dispose = kernel.SetFileInformationByHandle
+            dispose.argtypes = (wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD)
+            dispose.restype = wintypes.BOOL
+            class Disposition(ctypes.Structure):
+                _fields_ = [('delete_file', ctypes.c_ubyte)]
+            request = Disposition(True)
+            if not dispose(msvcrt.get_osfhandle(fd), 4, ctypes.byref(request), ctypes.sizeof(request)):
+                raise CookieSyncError()
+        finally:
+            if fd is not None:
+                os.close(fd)
+            if handle is not None:
+                close(handle)
+
+    def _remove_retired(self, folder):
+        """Remove a validated generation; a marker makes partial removal retryable."""
+        marker = folder / '.retiring'
+        outer_marker = self._generations / ('.retired-' + folder.name)
+        if outer_marker.exists():
+            marker = outer_marker
+        elif not marker.exists():
+            self._owned_generation(folder / 'cookies.txt')
+            meta, meta_proof = _read_stable(folder / 'generation.json', 2048)
+            cookie, cookie_proof = _read_stable(folder / 'cookies.txt', COOKIE_LIMIT)
+            _write_new(marker, _json({'generation': folder.name,
+                'cookie_sha256': cookie_proof.sha256, 'metadata_sha256': meta_proof.sha256}))
+            _fsync_directory(folder)
+        saved, _ = _read_stable(marker, 1024)
+        proof = json.loads(saved, object_pairs_hook=_unique)
+        if (type(proof) is not dict or set(proof) != {'generation', 'cookie_sha256', 'metadata_sha256'}
+                or proof['generation'] != folder.name
+                or any(type(proof[key]) is not str or not _SHA.fullmatch(proof[key])
+                       for key in ('cookie_sha256', 'metadata_sha256'))):
+            raise CookieSyncError()
+        for name, key, limit in (('cookies.txt', 'cookie_sha256', COOKIE_LIMIT),
+                                 ('generation.json', 'metadata_sha256', 2048)):
+            path = folder / name
+            if path.exists():
+                _data, actual = _read_stable(path, limit)
+                if actual.sha256 != proof[key]:
+                    raise CookieSyncError()
+                self._delete_retired_file(path, actual, limit)
+        if marker != outer_marker:
+            os.rename(marker, outer_marker)
+            marker = outer_marker
+        folder.rmdir()
+        marker.unlink()
+        _fsync_directory(self._generations)
+
+    def _cleanup_generations(self, expected, *, previous=None, reserve_bytes=0, recovery_only=False):
+        """Keep current/previous and retry only validated old generations."""
+        with self._profile.pinned_snapshot() as current:
+            if current != expected:
+                return
+            self._usable()
+            count, total, folders = self._retention_state()
+            selected = current.cookie_file
+            protected = set()
+            lineage = []
+            if selected is not None and selected.parent.parent == self._generations:
+                self._owned_generation(selected)
+                token = selected.parent.name
+                while token is not None and token not in lineage:
+                    if type(token) is not str or not _TOKEN.fullmatch(token):
+                        return
+                    lineage.append(token)
+                    try:
+                        metadata, _ = _read_stable(self._generations / token / 'generation.json', 2048)
+                        packet = json.loads(metadata, object_pairs_hook=_unique)
+                    except (OSError, ValueError, CookieSyncError):
+                        break
+                    if type(packet) is not dict or packet.get('generation') != token:
+                        break
+                    if packet.get('version') != 2:
+                        break  # Older generations do not establish their predecessor.
+                    token = packet.get('previous')
+                protected.update(lineage[:2])
+            if previous is not None and previous.parent.parent == self._generations:
+                protected.add(previous.parent.name)
+            if not lineage:
+                return
+            for item in self._generations.iterdir():
+                if (item.name.startswith('.retired-') and _TOKEN.fullmatch(item.name[9:])
+                        and not (self._generations / item.name[9:]).exists()):
+                    data, _ = _read_stable(item, 1024)
+                    packet = json.loads(data, object_pairs_hook=_unique)
+                    if type(packet) is dict and packet.get('generation') == item.name[9:]:
+                        item.unlink()
+            count, total, folders = self._retention_state()
+            folders.sort(key=lambda path: (
+                not ((path / '.retiring').exists() or
+                     (self._generations / ('.retired-' + path.name)).exists()),
+                -lineage.index(path.name) if path.name in lineage else 0, path.name))
+            for folder in folders:
+                retry = ((folder / '.retiring').exists() or
+                         (self._generations / ('.retired-' + folder.name)).exists())
+                if recovery_only and not retry:
+                    break
+                if (count <= MAX_RETAINED_COOKIE_GENERATIONS and
+                        total + reserve_bytes <= MAX_RETAINED_COOKIE_BYTES and not retry):
+                    break
+                if folder.name in protected or folder.name not in lineage:
+                    continue
+                try:
+                    self._remove_retired(folder)
+                except (OSError, ValueError, CookieSyncError):
+                    break  # Preserve the ancestry chain for the next retry.
+                count, total, _ = self._retention_state()
+
+    def _reserve_generation(self, raw, snapshot):
+        """Leave room for one candidate and retry interrupted cleanup."""
+        try:
+            count, total, _ = self._retention_state()
+            if count > MAX_RETAINED_COOKIE_GENERATIONS or total + len(raw) + 2048 > MAX_RETAINED_COOKIE_BYTES:
+                try:
+                    self._cleanup_generations(snapshot, reserve_bytes=len(raw) + 2048, recovery_only=True)
+                except (OSError, ValueError, CookieSyncError):
+                    pass
+                count, total, _ = self._retention_state()
+            if (count > MAX_RETAINED_COOKIE_GENERATIONS or
+                    total + len(raw) + 2048 > MAX_RETAINED_COOKIE_BYTES):
+                raise CookieSyncCapacityExceeded()
+        except CookieSyncCapacityExceeded:
+            raise
+        except Exception:
+            # An inaccessible cleanup namespace cannot justify disabling a
+            # still-valid reader or creating an unaccounted generation.
+            raise CookieSyncCapacityExceeded() from None
 
     def prepare_expiry_extensions(self, updates, *, expected_snapshot, expected_proof, verified_identity):
         """Preserve all rows exactly; publish only verified expiry extensions."""
@@ -542,7 +707,7 @@ class ExtensionCookieStore:
                 if previous != expected_snapshot:
                     raise CookieSyncConflict()
                 self._boundaries(previous)
-                old_raw, source, old_rows, _ = self._previous(previous)
+                old_raw, source, old_rows, previous_generation = self._previous(previous)
                 if source != expected_proof or old_raw is None or not old_rows:
                     raise CookieSyncConflict()
                 if (type(updates) is not dict or type(verified_identity) is not str
@@ -584,7 +749,7 @@ class ExtensionCookieStore:
                 if rows == old_rows and http_only == _http_only_keys(old_raw):
                     return None
                 raw = _serialize(rows, http_only)
-                self._reserve_generation(raw)
+                self._reserve_generation(raw, previous)
                 generation = uuid4().hex
                 folder = self._generations / generation
                 _safe(self._generations)
@@ -592,8 +757,9 @@ class ExtensionCookieStore:
                 path = folder / 'cookies.txt'
                 _write_new(path, raw)
                 _read_cookies(native_io_path(path))
-                metadata = _json({'version': 1, 'generation': generation, 'bytes': len(raw),
-                    'sha256': hashlib.sha256(raw).hexdigest(), 'cookie_count': len(rows)})
+                metadata = _json({'version': 2, 'generation': generation, 'bytes': len(raw),
+                    'sha256': hashlib.sha256(raw).hexdigest(), 'cookie_count': len(rows),
+                    'previous': previous_generation})
                 _write_new(folder / 'generation.json', metadata)
                 _fsync_directory(folder)
                 _fsync_directory(self._generations)
@@ -628,7 +794,8 @@ class ExtensionCookieStore:
                     candidate = PreparedCookieGeneration(False, expected_revision, len(rows), len(old_raw),
                         previous.cookie_file, source.sha256, generation)
                 else:
-                    self._reserve_generation(raw)
+                    self._reserve_generation(raw, previous)
+                    previous_generation = generation
                     generation = uuid4().hex
                     folder = self._generations / generation
                     _safe(self._generations)
@@ -637,8 +804,9 @@ class ExtensionCookieStore:
                     _write_new(path, raw)
                     # Parser only: existing reader contract, no GET and no account claim.
                     _read_cookies(native_io_path(path))
-                    metadata = _json({'version': 1, 'generation': generation, 'bytes': len(raw),
-                        'sha256': hashlib.sha256(raw).hexdigest(), 'cookie_count': len(rows)})
+                    metadata = _json({'version': 2, 'generation': generation, 'bytes': len(raw),
+                        'sha256': hashlib.sha256(raw).hexdigest(), 'cookie_count': len(rows),
+                        'previous': previous_generation})
                     _write_new(folder / 'generation.json', metadata)
                     _fsync_directory(folder)
                     _fsync_directory(self._generations)
@@ -714,6 +882,11 @@ class ExtensionCookieStore:
                     # Do not reread/undo/delete here; an explicit later prepare
                     # observes the profile and can recover a pending publication.
                     raise CookieSyncCommitUnconfirmed() from None
+                if candidate.changed:
+                    try:
+                        self._cleanup_generations(saved, previous=pending.previous.cookie_file)
+                    except Exception:
+                        pass  # Publication succeeded; retry cleanup later.
                 return CookieCommit(candidate.changed, saved.revision,
                     candidate.cookie_count, candidate.byte_count, candidate.cookie_file,
                     candidate.sha256, candidate.generation)
