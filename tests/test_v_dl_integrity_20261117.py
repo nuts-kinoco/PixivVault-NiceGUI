@@ -227,11 +227,13 @@ def test_d3_a_reader_never_sees_a_spurious_rejection_while_a_writer_saves_and_fo
     assert mg.ManagedGenerations(root).entry_count() == 5 + 60
 
 
-# ---- (a) a store with no index (outputs/ only) is verified once, not on every call -----------------
+# ---- (a) an outputs-only store must not reopen after losing its committed index -------------------
 
-def test_a_an_outputs_only_store_without_index_is_rejected_without_writes(root):
+def test_a_an_outputs_only_store_with_a_lost_index_is_rejected_without_writes(root):
+    mg.ManagedGenerations(root)
     make_legacy(root, '800001')
     make_legacy(root, '800002')
+    (root / 'active-generations.json').unlink()
     before = {p.relative_to(root): p.read_bytes() if p.is_file() else None for p in root.rglob('*')}
     with pytest.raises(ManagedDownloadError):
         mg.ManagedGenerations(root)

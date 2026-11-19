@@ -84,6 +84,27 @@ _QUARANTINE_FILE_KEYS = frozenset({
 })
 _MAX_QUARANTINE_ITEMS = 250
 
+# The artwork root also hosts independently owned stores. Match exact names
+# only and leave their contents to their respective owners.
+_SHARED_ROOT_FILES = frozenset({
+    '.pixivvault-managed-metadata.sqlite3', '.pixivvault-managed-metadata.sqlite3-journal',
+    '.pixivvault-managed-metadata.lock',
+    'author-media.sqlite3', 'author-media.sqlite3-journal',
+    'author-media.sqlite3-wal', 'author-media.sqlite3-shm',
+    'jobs.sqlite3', 'jobs.sqlite3-journal', 'jobs.sqlite3.lock',
+    '.pixivvault-managed-scheduler.sqlite3', '.pixivvault-managed-scheduler.sqlite3-journal',
+    '.pixivvault-managed-scheduler.lock',
+    '.pixivvault-network-stop.sqlite3', '.pixivvault-network-stop.sqlite3-journal',
+    '.pixivvault-network-stop.sqlite3-wal', '.pixivvault-network-stop.sqlite3-shm',
+    '.pixivvault-network-stop.sqlite3.lock',
+    '.pixivvault-legacy-author-sync.sqlite3', '.pixivvault-legacy-author-sync.sqlite3-journal',
+    'pixiv-follow-response-log.jsonl',
+})
+_SHARED_ROOT_DIRS = frozenset({
+    'extension-commands', 'requests', 'request-incomplete', 'viewer-pages',
+    'failure-dismissals', 'legacy-quarantine',
+})
+
 
 def _id(value: object) -> str:
     if type(value) is not str or not _ID.fullmatch(value):
@@ -416,22 +437,30 @@ class ManagedGenerations:
         probe._unconfirmed_operations = set()
         probe._loaded = None
         if absent:
-            allowed = {MARKER, 'outputs', 'generations', 'generation-incomplete', 'incomplete'}
+            managed_dirs = {'outputs', 'generations', 'generation-incomplete', 'incomplete'}
             for child in native_io_path(root).iterdir():
                 if child.name == 'active-generations.json' and reserved:
                     continue
                 if child.name == MARKER:
                     continue
-                if child.name not in allowed or not child.is_dir():
+                if child.name in _SHARED_ROOT_FILES:
+                    _safe_path(child, file=True)
+                    continue
+                if child.name in _SHARED_ROOT_DIRS:
+                    _safe_path(child)
+                    continue
+                if child.name not in managed_dirs or not child.is_dir():
                     raise ManagedDownloadError('active generation index missing')
                 _safe_path(child)
+                if child.name == 'outputs':
+                    continue  # The legacy receipt scan below checks this namespace.
                 for item in child.iterdir():
                     if (child.name != 'generation-incomplete'
                             or re.fullmatch(r'(?:prepared-[a-f0-9]{32}\.(?:journal|mark)|'
                                             r'(?:active|floor|head)-[a-f0-9]{32}\.tmp)', item.name) is None):
                         raise ManagedDownloadError('active generation index missing')
                     _safe_path(item, file=True)
-            probe._legacy()
+            probe._legacy(pre_index=True)
             if (probe._scan_dir(probe.generation_dir, 'generation folder structure rejected')
                     or probe._has_quarantine_records()
                     or any(_identity(root / name) is not None for name in
@@ -461,10 +490,6 @@ class ManagedGenerations:
         if _identity(self.index_path) is None:
             folders += (self.root / 'incomplete',)
         reject_uncertain_old_v5(self.root)
-        if (_identity(self.index_path) is None
-                and _identity(self.root / _V5_HEAD) is None
-                and _identity(self.root / _GENERATION_FLOOR) is None):
-            self._verify_before_directory_creation(self.root)
         if any(not native_io_path(folder).is_dir() for folder in folders):
             self._verify_before_directory_creation(self.root)
             with _index_creation_guard(self.root) as reserved:
@@ -481,10 +506,10 @@ class ManagedGenerations:
         self._loaded = None
         self._unconfirmed_operations = set()
         self._recover_if_pending()
+        if _identity(self.index_path) is None:
+            self.prepare_for_publication(_initializing=True)
         # A malformed existing index must block startup, never be reset.
         self.entries()
-        if _identity(self.index_path) is None:
-            self.prepare_for_publication()
 
     def _read_head(self):
         guard = self.root / _V5_SEQUENCE_GUARD
@@ -624,7 +649,7 @@ class ManagedGenerations:
         return _read_bounded(path, MAX_RECEIPT_BYTES)
 
     def _receipt_entry(self, relative: str, wid: str, *, update_date: str,
-                       verify_complete: bool = False, folders=None) -> dict[str, str]:
+                       verify_complete: bool = False, folders=None, pre_index=False) -> dict[str, str]:
         if (type(relative) is not str or len(relative) > 160
                 or not relative.endswith('/receipt.json')):
             raise ManagedDownloadError('generation path rejected')
@@ -706,6 +731,8 @@ class ManagedGenerations:
                 raise ValueError()
         except (ValueError, TypeError, UnicodeError, RecursionError):
             raise ManagedDownloadError('generation receipt rejected') from None
+        if pre_index and 'generation' in receipt:
+            raise ManagedDownloadError('active generation index missing')
         return {'work_id': wid, 'relative_receipt': relative,
                 'sha256': digest, 'update_date': update_date}
 
@@ -732,7 +759,7 @@ class ManagedGenerations:
                 names.add(item.name)
         return names
 
-    def _legacy(self, loaded=None) -> dict[str, dict[str, str]]:
+    def _legacy(self, loaded=None, *, pre_index=False) -> dict[str, dict[str, str]]:
         names = self._scan_dir(self.output_dir, 'legacy output structure rejected', _MAX_ENTRIES)
         known = {'outputs': names}
         result: dict[str, dict[str, str]] = {}
@@ -742,7 +769,7 @@ class ManagedGenerations:
             if wid in result:
                 raise ManagedDownloadError('duplicate completed artwork rejected')
             result[wid] = self._receipt_entry(f'outputs/{name}/receipt.json', wid, update_date='',
-                                              folders=known)
+                                              folders=known, pre_index=pre_index)
             by_name[name] = wid
         if loaded is not None:
             loaded.legacy_names = by_name
@@ -1296,7 +1323,7 @@ class ManagedGenerations:
             return dict(entry) if entry is not None else None
 
     @fenced_writer
-    def prepare_for_publication(self) -> None:
+    def prepare_for_publication(self, *, _initializing=False) -> None:
         """Persist a zero-entry pointer before exposing any new generation.
 
         A crash before the rename leaves no visible generation. A crash after
@@ -1308,10 +1335,14 @@ class ManagedGenerations:
             if _identity(self.index_path) is not None:
                 self._checked()  # Never trust a preexisting malformed index.
                 return
-            self._checked()  # Reject an already-missing index with generations.
+            if _initializing:
+                self._verify_before_directory_creation(self.root)
+            else:
+                self._checked()  # Reject an already-missing index with generations.
             try:
                 # A v5 pointer from the start: an older build refuses it, and a journal can never be
                 # lost from a root that was only ever written by this one.
+                # Legacy outputs are read alongside the index by _legacy, at their original paths.
                 self._commit_packet({'version': 5, 'entries': {}})
                 self._loaded = None
             except Exception:
