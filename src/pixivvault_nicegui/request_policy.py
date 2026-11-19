@@ -37,10 +37,10 @@ def interactive(function):
 
 @contextmanager
 def lane_scope(lane):
-    """Run requests inside the named lane ('interactive' or the default 'background')."""
-    if lane == 'interactive':
-        with interactive_lane():yield
-    else:yield
+    """Run requests inside the named lane; an explicit lane overrides an enclosing one."""
+    token=_LANE.set('interactive' if lane == 'interactive' else 'background')
+    try:yield
+    finally:_LANE.reset(token)
 
 
 def current_lane():
@@ -131,26 +131,28 @@ class RequestAdmission:
         if interactive:
             if self._interactive[0] is not ticket:return False
             head=self._background[0] if self._background else None
-            # a background request that already yielded the full cap goes before more interactive ones
-            return head is None or now-head[1]<MAX_BACKGROUND_DEFER_SECONDS
+            # a background head that already yielded the full cap goes before more interactive ones
+            return head is None or head[2] is None or now-head[2]<MAX_BACKGROUND_DEFER_SECONDS
         if self._background[0] is not ticket:return False
-        return not self._interactive or now-ticket[1]>=MAX_BACKGROUND_DEFER_SECONDS
+        if ticket[2] is None:ticket[2]=now          # the yield starts when it becomes the head, not while queued behind others
+        return not self._interactive or now-ticket[2]>=MAX_BACKGROUND_DEFER_SECONDS
     def __call__(self,deadline):
         request_checkpoint();_check_deadline(deadline,self.clock)
         interactive=_LANE.get()=='interactive'
-        ticket=(object(),self.clock())
+        ticket=[object(),self.clock(),None]
         queue=self._interactive if interactive else self._background
         with self._lock:queue.append(ticket)
         try:
             while True:
                 request_checkpoint();_check_deadline(deadline,self.clock)
+                seconds=float(self.interval())            # read outside the lock and before the decision
+                if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
                 with self._lock:
                     now=self.clock()
                     if self._my_turn(ticket,interactive,now):
-                        seconds=float(self.interval())
-                        if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
                         remaining=0 if self._last is None else self._last+seconds-now
                         if remaining<=0:
+                            request_checkpoint();_check_deadline(deadline,self.clock)   # cancel/deadline during the read: issue nothing
                             self._last=now
                             return
                         if now+remaining>=deadline:

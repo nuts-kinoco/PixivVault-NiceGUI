@@ -159,7 +159,8 @@ class RemoteBookmarkImages:
         # Resolve that metadata before entering the decode semaphore, otherwise
         # a multi-page work would be rejected against the placeholder count=1.
         if variant in ('view','original') and record.kind == 'illustration' and record.illustration_type != 2 and not record.page_count_known:
-            self.prepare_artwork(work_id)
+            from .request_policy import interactive_lane
+            with interactive_lane():self.prepare_artwork(work_id)   # screen-driven page info (original interactive detail)
             with self._lock:record=self._record(work_id,page_no,variant)
         if variant == 'original':
             # Fetch one original only when the user requests it. No default

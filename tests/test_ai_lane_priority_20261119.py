@@ -21,7 +21,7 @@ class _Clock:
 
 def _queued_interactive(gate):
     """Put a queued (not yet issued) interactive ticket in front, as another thread would."""
-    ticket = (object(), 0.0)
+    ticket = [object(), 0.0, None]
     with gate._lock:
         gate._interactive.append(ticket)
     return ticket
@@ -174,3 +174,60 @@ def test_discovery_reader_wrapper_honours_lane_kwarg():
     reader.get_user_works('1', lane='background')
     assert seen[0] == ({'mode': 'day'}, 'interactive')
     assert seen[1][1] == 'background' and 'lane' not in seen[1][0]
+
+
+def test_cancel_during_interval_read_issues_nothing():
+    from pixivvault_nicegui.request_policy import request_scope
+    clock = _Clock()
+    cancelled = []
+
+    def interval():
+        cancelled.append(True)             # the operation is cancelled while settings are read
+        return 0.6
+    gate = RequestAdmission(interval, clock=clock, sleep=clock.sleep)
+
+    def checkpoint():
+        if len(cancelled) >= 1:
+            raise RuntimeError('cancelled')
+    with request_scope(checkpoint=checkpoint):
+        with pytest.raises(RuntimeError):
+            gate(1000.0)
+    assert gate._last is None              # no slot consumed, nothing issued
+
+
+def test_deadline_during_interval_read_does_not_consume_the_slot():
+    clock = _Clock()
+
+    def interval():
+        clock.now += 0.15                  # settings read is slow
+        return 0.6
+    gate = RequestAdmission(interval, clock=clock, sleep=clock.sleep)
+    with pytest.raises(ReadDeadlineExceeded):
+        gate(clock.now + 0.07)
+    assert gate._last is None
+    gate(clock.now + 5.0)                  # a later request is not blocked by the failed one
+
+
+def test_background_queued_behind_others_does_not_count_that_wait_as_yielding():
+    gate, clock = _gate(1.5)
+    gate(1000.0)
+    heads = []
+    for _ in range(3):
+        heads.append([object(), clock.now, None])
+    with gate._lock:
+        gate._background.extend(heads)
+    clock.now += 2.5                       # they waited a long time in the background queue
+    _queued_interactive(gate)              # an interactive request arrives now
+    with gate._lock:
+        assert gate._my_turn(heads[0], False, clock.now) is False   # yields starts at its own head time
+    assert heads[0][2] == clock.now
+
+
+def test_explicit_background_lane_overrides_enclosing_interactive_lane():
+    from pixivvault_nicegui.request_policy import lane_scope
+    seen = []
+    with interactive_lane():
+        with lane_scope('background'):
+            seen.append(current_lane())
+        seen.append(current_lane())
+    assert seen == ['background', 'interactive']
