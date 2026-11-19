@@ -714,6 +714,20 @@ class ReadonlyLocalMediaCatalog:
                 self._cache_bytes += len(png)
             return blob
 
+    def image_token(self, work_id, page_no=0, variant='view'):
+        self._ensure_index()
+        with self._lock:
+            path, member = self._source(work_id, page_no, variant)
+        return self._image_path_token(path, member)
+
+    def _image_path_token(self, path, member):
+        # Check readability and identity without reading image or ZIP data.
+        with self._checked_open(path) as source:
+            info = os.fstat(source.fileno())
+            if not stat.S_ISREG(info.st_mode) or not info.st_size:
+                raise MediaUnavailable("media source unavailable")
+            return (str(path), member, info.st_dev, info.st_ino, info.st_mtime_ns, info.st_size)
+
     def get_fresh(self, work_id, page_no=0, variant='view'):
         return self.get(work_id, page_no, variant, _fresh=True)
 

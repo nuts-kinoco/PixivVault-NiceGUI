@@ -158,6 +158,7 @@ async def test_readability_change_during_fetch_result_uses_fresh_order(tmp_path,
         assert await asyncio.to_thread(started.wait, 3)
         # Ordinary I/O failure can happen without a library publish notification.
         image[0] = None
+        await asyncio.to_thread(service.local_tag_view.refresh_now)
         release.set()
         batch = await fetching
         fresh = (await service.rank_pending(ids))[0]
@@ -232,6 +233,10 @@ async def test_open_learning_trend_removes_stale_projection(tmp_path, fixture, m
             service.local_tag_view.invalidate()
             service.refresh_saved_seeds()
 
+        if transition in ('digest', 'nonlocal'):
+            assert await asyncio.to_thread(tagger.current_fingerprint) is None
+        if transition in ('unsaved', 'unreadable', 'api'):
+            await asyncio.to_thread(service.local_tag_view.refresh_now)
         current = await service.trend_snapshot()
         assert not current['local_seed_rows']
         expected, _ = await service.rank_pending(('1000', '1001'))
@@ -295,11 +300,14 @@ async def test_visible_judgment_waits_for_unrelated_image_after_db_commit(tmp_pa
             assert work.work_id in await asyncio.wrap_future(service._submit(judged))
             elapsed_commit = time.perf_counter()-start
             if enabled == '1':
+                service.refresh_saved_seeds()
                 assert await asyncio.to_thread(blocked.wait, 2)
             else:
                 await asyncio.wait_for(asyncio.shield(view._save_task), 2)
             print('enabled', enabled, 'database committed before release', True,
-                  'commit ms', round(elapsed_commit*1000, 3), 'title updated', title_before != view.title.text,
+                  'commit ms', round(elapsed_commit*1000, 3),
+                  'next title observation ms', round((time.perf_counter()-start)*1000, 3),
+                  'title updated', title_before != view.title.text,
                   'save task done', view._save_task.done())
             return title_before != view.title.text
 

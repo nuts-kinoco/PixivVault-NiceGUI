@@ -25,6 +25,7 @@ def test_saved_local_seed_affects_ranking_only_while_enabled(tmp_path):
         on = asyncio.run(service.rank_pending(('1000', '1001')))
         assert on[0] != off[0]
         tagger.enabled = False
+        service.local_tag_view.invalidate()
         assert asyncio.run(service.rank_pending(('1000', '1001'))) == off
         assert service._submit(lambda: service._candidates).result() == before
         assert service._submit(lambda: service._database().get_judged_work_ids()).result() == set()

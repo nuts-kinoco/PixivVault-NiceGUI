@@ -49,6 +49,7 @@ def test_ranking_check_revalidates_image_without_another_query():
             _preferred=frozenset(('local_tag',)), _preferred_base=frozenset(), _preferred_revision=revision)
         assert RankingView.preferred_tags_in(ranking, ('local_tag',))
         image[0] = None
+        view.refresh_now()
         assert not RankingView.preferred_tags_in(ranking, ('local_tag',))
     finally:
         view.close()

@@ -1,11 +1,17 @@
-"""Ephemeral projection of locally inferred tags; never owns a database."""
+"""Ephemeral projection of locally inferred tags; never owns a database.
+
+Settings and detected model failures invalidate the published epoch synchronously.
+External model changes are detected at verification events and on the periodic scan.
+Image availability, saved state and API tags reflect the last background validation
+(default interval: 10 seconds). Readers use that immutable snapshot without file I/O.
+"""
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import dataclass
 from hashlib import sha256
-from threading import RLock
+from threading import Event, RLock, Thread
 from types import MappingProxyType
 
 from .legacy.database import normalize_tag
@@ -19,19 +25,78 @@ class LocalTagSnapshot:
     seed_counts: object
 
 
+REFRESH_INTERVAL_SECONDS = 10
+_EMPTY = MappingProxyType({})
+
+
 class LocalTagView:
-    def __init__(self, tagger, local_image, saved_works, saved_ids):
+    def __init__(self, tagger, local_image, saved_works, saved_ids, *, image_token=None):
         self.tagger, self.local_image = tagger, local_image
         self.saved_works, self.saved_ids = saved_works, saved_ids
+        self.image_token = image_token
         self._lock = RLock()
         self._entries = {}
-        self._projection = None
+        self._retired = []
         self._epoch = 0
         self._closed = False
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='pv-local-tag-view')
-        self._validation_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='pv-local-tag-check')
         self._future = None
+        self._running = False
         self._rescan = False
+        self._snapshot = LocalTagSnapshot(0, None, _EMPTY, _EMPTY)
+        subscribe = getattr(tagger, 'subscribe_invalidation', None)
+        self._unsubscribe = subscribe(self.invalidate) if subscribe is not None else None
+        self._stop = Event()
+        self._timer = Thread(target=self._periodic, name='pv-local-tag-timer', daemon=True)
+        self._timer.start()
+
+    def _periodic(self):
+        while not self._stop.wait(REFRESH_INTERVAL_SECONDS):
+            try:
+                with self._lock:
+                    running = self._running
+                if running:
+                    self._revalidate_published()
+                else:
+                    self.refresh_async()
+            except (OSError, ValueError, RuntimeError):
+                if self._stop.is_set():
+                    return
+
+    def _revalidate_published(self):
+        # A slow image read or inference cannot postpone expiry of published
+        # entries. This timer pass checks metadata and never runs inference.
+        check_model = getattr(self.tagger, 'try_current_fingerprint', None)
+        if check_model is not None:
+            check_model()
+        if self.image_token is None:
+            return
+        with self._lock:
+            previous, old = self._snapshot, self._entries
+        if not old:
+            return
+        eligible = self._eligible()
+        retained = {}
+        for wid, entry in old.items():
+            if wid not in eligible:
+                continue
+            try:
+                if self.image_token(wid) == entry[1]:
+                    retained[wid] = entry
+            except (OSError, ValueError, RuntimeError):
+                continue
+        if retained == old:
+            return
+        works, counts = self._project(retained)
+        with self._lock:
+            if self._closed or old is not self._entries:
+                return
+            self._publish(retained, previous.fingerprint, works, counts, True)
+            self._rescan = self._running
+
+    def refresh_now(self):
+        """Wait for the same background validation used by production scans."""
+        self.refresh_async().result()
 
     def epoch(self):
         with self._lock:
@@ -40,27 +105,17 @@ class LocalTagView:
     def invalidate(self):
         with self._lock:
             self._epoch += 1
+            if self._entries:
+                # Drop references to the old projection on the worker, not here.
+                self._retired.append((self._entries, self._snapshot))
             self._entries = {}
-            self._projection = None
-            if self._future is not None and not self._future.done():
-                self._rescan = True
+            self._snapshot = LocalTagSnapshot(self._epoch, None, _EMPTY, _EMPTY)
+            self._rescan = self._running
             return self._epoch
 
     def revision(self):
-        try:
-            snapshot = self.checked_snapshot()
-            return snapshot.epoch, snapshot.fingerprint
-        except RuntimeError:
-            return self.epoch(), None
-
-    def snapshot_async(self):
-        with self._lock:
-            if self._closed:
-                raise RuntimeError('local seed unavailable')
-            return self._validation_executor.submit(self.snapshot)
-
-    def checked_snapshot(self):
-        return self.snapshot_async().result()
+        snapshot = self.snapshot()
+        return snapshot.epoch, snapshot.fingerprint
 
     def _eligible(self):
         saved = {str(value) for value in self.saved_ids()}
@@ -71,107 +126,109 @@ class LocalTagView:
         with self._lock:
             if self._closed:
                 raise RuntimeError('local seed unavailable')
-            if self._future is None or self._future.done():
-                self._future = self._executor.submit(self._refresh_loop)
-            else:
+            if self._running and not self._future.cancelled():
                 self._rescan = True
+            else:
+                self._running = True
+                self._future = self._executor.submit(self._refresh_loop)
             return self._future
 
     def _refresh_loop(self):
-        while True:
-            with self._lock:
-                if self._closed:
-                    return
-                self._rescan = False
-                start_epoch = self._epoch
-                old = dict(self._entries)
-            fingerprint = self.tagger.current_fingerprint()
-            updated = {}
-            if fingerprint is not None:
-                for wid in self._eligible():
-                    with self._lock:
-                        if self._closed:
-                            return
-                        if self._epoch != start_epoch:
+        try:
+            while True:
+                with self._lock:
+                    if self._closed:
+                        self._running = False
+                        return
+                    self._rescan = False
+                    previous, old = self._snapshot, self._entries
+                    retired, self._retired = self._retired, []
+                    epoch = previous.epoch
+                retired.clear()
+                fingerprint = self.tagger.current_fingerprint()
+                updated = {}
+                if fingerprint is not None:
+                    for wid in sorted(self._eligible()):
+                        if self.epoch() != epoch:
                             break
-                    try:
-                        data = self.local_image(wid)
-                        if not data:
+                        try:
+                            entry = self._refresh_entry(wid, fingerprint, old.get(wid))
+                        except (OSError, ValueError, RuntimeError):
                             continue
-                        image_hash = sha256(data).hexdigest()
-                        entry = old.get(wid)
-                        if entry is None or entry[:2] != (fingerprint, image_hash):
-                            predicted = self.tagger.predict_with_fingerprint(data)
-                            if predicted is None or predicted[0] != fingerprint:
-                                continue
-                            current = self.local_image(wid)
-                            if not current or sha256(current).hexdigest() != image_hash:
-                                continue
-                            entry = (fingerprint, image_hash, tuple(name for name, _ in predicted[1]))
-                        updated[wid] = entry
-                    except (OSError, ValueError, RuntimeError):
-                        continue
+                        if entry is not None:
+                            updated[wid] = entry
+                changed = fingerprint != previous.fingerprint or updated != old
+                if changed:
+                    works, counts = self._project(updated)
+                    visible_changed = fingerprint != previous.fingerprint or works != previous.by_work
+                with self._lock:
+                    if changed and not self._closed and old is self._entries:
+                        self._publish(updated, fingerprint, works, counts, visible_changed)
+                    if not self._rescan or self._closed:
+                        self._running = False
+                        return
+        except BaseException:
             with self._lock:
-                if self._closed:
-                    return
-                if self._epoch != start_epoch:
-                    if self._rescan:
-                        continue
-                    return
-                if updated != self._entries:
-                    self._entries = updated
-                    self._epoch += 1
-                if not self._rescan:
-                    return
+                self._running = False
+            raise
+
+    def _publish(self, entries, fingerprint, works, counts, visible_changed):
+        self._entries = entries
+        if visible_changed:
+            self._epoch += 1
+            self._snapshot = LocalTagSnapshot(self._epoch, fingerprint,
+                MappingProxyType(works), MappingProxyType(counts))
+
+    def _refresh_entry(self, wid, fingerprint, old):
+        if self.image_token is None:
+            # Byte-only providers (such as isolated callers) have no metadata
+            # API. The application's library registry always supplies a token.
+            data = self.local_image(wid)
+            token = sha256(data).digest() if data else None
+        else:
+            token = self.image_token(wid)
+            data = None
+        if token is None:
+            return None
+        if old is not None and old[:2] == (fingerprint, token):
+            return old
+        if self.image_token is not None:
+            data = self.local_image(wid)
+        if not data:
+            return None
+        predicted = self.tagger.predict_with_fingerprint(data)
+        if predicted is None or predicted[0] != fingerprint:
+            return None
+        if self.image_token is None:
+            current = self.local_image(wid)
+            current_token = sha256(current).digest() if current else None
+        else:
+            current_token = self.image_token(wid)
+        if current_token == token:
+            return fingerprint, token, tuple(name for name, _ in predicted[1])
+        return None
+
+    @staticmethod
+    def _project(entries):
+        works, counts = {}, {}
+        for wid, (_, _, names) in entries.items():
+            works[wid] = names
+            unique = {}
+            for name in names:
+                normalized = normalize_tag(name)
+                if normalized:
+                    unique.setdefault(normalized, name)
+            for tag, name in unique.items():
+                display, count = counts.get(tag, (name, 0))
+                counts[tag] = display, count + 1
+        return works, counts
 
     def snapshot(self):
         with self._lock:
-            epoch, entries = self._epoch, dict(self._entries)
-            closed = self._closed
-        fingerprint = None if closed else self.tagger.try_current_fingerprint()
-        if fingerprint is None and not closed and getattr(self.tagger, 'status', None) == '検証中':
-            try:
-                self.refresh_async()
-            except RuntimeError:
-                pass
-        works, counts = {}, {}
-        if fingerprint is not None:
-            try:
-                for wid in self._eligible():
-                    entry = entries.get(wid)
-                    if entry is None or entry[0] != fingerprint:
-                        continue
-                    try:
-                        data = self.local_image(wid)
-                    except (OSError, ValueError, RuntimeError):
-                        continue
-                    if not data or sha256(data).hexdigest() != entry[1]:
-                        continue
-                    works[wid] = entry[2]
-                    unique = {}
-                    for name in entry[2]:
-                        normalized = normalize_tag(name)
-                        if normalized:
-                            unique.setdefault(normalized, name)
-                    for tag, name in unique.items():
-                        display, count = counts.get(tag, (name, 0))
-                        counts[tag] = display, count + 1
-            except (OSError, ValueError, RuntimeError):
-                works, counts = {}, {}
-        if self.epoch() != epoch or self.tagger.try_current_fingerprint() != fingerprint:
-            fingerprint, works, counts = None, {}, {}
-        else:
-            projection = (fingerprint, tuple(sorted(works.items())))
-            with self._lock:
-                if self._epoch != epoch:
-                    fingerprint, works, counts = None, {}, {}
-                elif self._projection is None:
-                    self._projection = projection
-                elif projection != self._projection:
-                    self._projection = projection
-                    self._epoch += 1
-                    epoch = self._epoch
-        return LocalTagSnapshot(epoch, fingerprint, MappingProxyType(works), MappingProxyType(counts))
+            return self._snapshot
+
+    def seed_counts(self):
+        return self.snapshot().seed_counts
 
     def current_tags(self, work_id):
         return self.snapshot().by_work.get(str(work_id), ())
@@ -180,17 +237,19 @@ class LocalTagView:
         result = deepcopy(base)
         if snapshot is None or snapshot.epoch != self.epoch() or snapshot.fingerprint is None:
             return result
-        if self.tagger.try_current_fingerprint() != snapshot.fingerprint:
-            return result
         for tag, (display, amount) in snapshot.seed_counts.items():
             counts = result.setdefault(tag, {'display_tag': display})
             counts['seed_saved'] = counts.get('seed_saved', 0) + amount
-        return result
+        return result if snapshot.epoch == self.epoch() else deepcopy(base)
 
     def close(self):
+        self._stop.set()
+        self._timer.join()
+        if self._unsubscribe is not None:
+            self._unsubscribe()
         with self._lock:
-            self._closed = True
-            self._epoch += 1
-            self._entries = {}
+            if not self._closed:
+                self._closed = True
+                self.invalidate()
         self._executor.shutdown(wait=True, cancel_futures=False)
-        self._validation_executor.shutdown(wait=True, cancel_futures=False)
+        self._retired.clear()

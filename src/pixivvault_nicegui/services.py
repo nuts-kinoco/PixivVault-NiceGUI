@@ -772,7 +772,8 @@ class ApplicationServices:
                 self.discovery = DiscoveryLearningService(discovery_root, self.live_client,
                     following=self.discovery_following_snapshot, saved_ids=self.saved_discovery_ids,
                     seed_readonly_db=library_readonly_db, tagger=self.local_tagger, local_image=self.images.local_bytes,
-                    saved_works=lambda: tuple(self.library.works))
+                    saved_works=lambda: self.library.works, image_token=self.images.local_image_token,
+                    local_saved_ids=lambda: (work.work_id for work in self.library.works))
                 self.discovery._event_services = self
                 self.local_tag_view = self.discovery.local_tag_view
             if self.discovery is not None and recommendation_preferences_root is not None:
@@ -893,7 +894,10 @@ class ApplicationServices:
             self.similarity_source = combined
             self._similarity_legacy_inputs = legacy
             self._egara_model_path = Path(model_file) if model_file is not None else None
+            provider_changed = self._egara_provider != provider
             self._egara_provider = provider
+            if self.local_tagger is not None and provider_changed:
+                self.local_tagger.invalidate()
 
     @property
     def similarity_analysis_enabled(self):
@@ -1212,7 +1216,6 @@ class ApplicationServices:
         self._sync_metadata_auto()
         self._sync_similarity_auto()
         if self.discovery is not None and self.local_tag_view is not None:
-            self.local_tag_view.invalidate()
             self.discovery.refresh_saved_seeds()
         if self.shared_image_cache is not None:
             self.shared_image_cache.configure(int(self.preferences.get_setting('pixiv_shared_image_cache_size_mb','1024'))*1024**2)
@@ -2395,7 +2398,6 @@ class ApplicationServices:
         self._cached_local_bookmarks = visible_local
         discovery = getattr(self, 'discovery', None)
         if discovery is not None and self.local_tag_view is not None and not self.closing:
-            self.local_tag_view.invalidate()
             discovery.refresh_saved_seeds()
 
     def _remote_images(self, records, *, reader=_CURRENT_IMAGE_READER):

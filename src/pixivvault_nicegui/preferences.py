@@ -97,6 +97,7 @@ class PreferencesStore:
         existed = self.path.exists()
         self._lock = RLock()
         self._closed = False
+        self._local_tagger_listeners = set()
         self._conn = sqlite3.connect(str(self.path), check_same_thread=False, isolation_level=None)
         try:
             self._conn.execute('PRAGMA busy_timeout=5000')
@@ -149,6 +150,8 @@ class PreferencesStore:
         with self._lock:
             if self._closed:
                 raise PreferencesError('設定は閉じられています。')
+            tagger_keys = changes.keys() & {'local_tagger_enabled', 'local_tagger_path'}
+            before = self.snapshot().values if tagger_keys and self._local_tagger_listeners else None
             self._conn.execute('BEGIN IMMEDIATE')
             try:
                 revision = self._conn.execute('SELECT value FROM preferences_revision').fetchone()[0]
@@ -162,7 +165,20 @@ class PreferencesStore:
             except Exception:
                 self._conn.execute('ROLLBACK')
                 raise
+            if before is not None and any(changes[key] != before[key] for key in tagger_keys):
+                for invalidate in self._local_tagger_listeners:
+                    invalidate()
             return self.snapshot()
+
+    def subscribe_local_tagger_settings(self, invalidate):
+        # Listeners only invalidate in-memory state. They run before update
+        # releases the preferences lock, including for a direct set_setting.
+        with self._lock:
+            self._local_tagger_listeners.add(invalidate)
+        def unsubscribe():
+            with self._lock:
+                self._local_tagger_listeners.discard(invalidate)
+        return unsubscribe
 
     def get_setting(self,key,default=None):
         return self.snapshot().get_setting(key,default)

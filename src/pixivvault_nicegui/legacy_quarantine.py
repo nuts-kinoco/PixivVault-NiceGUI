@@ -549,6 +549,31 @@ class LegacyQuarantineCatalog:
             out=BytesIO();image.convert('RGB').save(out,format='PNG')
         data=out.getvalue()
         return ImageBlob(data,'image/png','"'+sha256(data).hexdigest()+'"')
+    def image_token(self,wid,page_no=0,variant='view'):
+        if wid not in self.works or type(page_no) is not int or not 0<=page_no<len(self.source_pages[wid]):
+            raise MediaMissing('legacy page excluded')
+        page=self.source_pages[wid][page_no]
+        state=self.store.state(verify_outputs=False,recover=False)
+        if f'{wid}:{page+1}' in state['exclusions']:
+            raise MediaMissing('legacy page excluded')
+        self.leaf._ensure_index()
+        with self.leaf._lock:
+            path,member=self.leaf._source(wid,page,variant)
+        relative=path.relative_to(self.leaf.root).as_posix()
+        physical=self.store._physical
+        if physical is not None and relative in physical.blocked_sources:
+            raise MediaUnavailable('legacy source recovery required')
+        source=self.leaf._image_path_token(path,member)
+        if member is None:
+            return source
+        entry=self.state['archives'].get(relative)
+        if entry is None:
+            return source
+        active=self.store._path(entry['path'])
+        with active.open('rb') as stream:
+            info=os.fstat(stream.fileno())
+        return source,str(active),entry['sha256'],info.st_dev,info.st_ino,info.st_mtime_ns,info.st_size
+
     def get_fresh(self,wid,page_no=0,variant='view'):
         page=self._page(wid,page_no);self.leaf._ensure_index()
         path,member=self.leaf._source(wid,page,variant)

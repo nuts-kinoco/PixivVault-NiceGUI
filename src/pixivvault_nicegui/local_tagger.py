@@ -68,9 +68,11 @@ class NonLocalModelPath(ValueError):
     pass
 
 
-def verify_model(folder, receipt=None):
+def verify_model(folder, receipt=None, *, on_identity_change=None):
     """Return a status and reusable receipt, never write to the model folder."""
     if not _local_folder(folder):
+        if on_identity_change is not None:
+            on_identity_change()
         return '利用不可（ローカルのフォルダを指定）', None
     root = Path(folder)
     manifest = root / 'MODEL_SOURCE.json'
@@ -79,6 +81,8 @@ def verify_model(folder, receipt=None):
         identities = [_identity(path) for path in paths]
         if isinstance(receipt, dict) and receipt.get('identities') == identities and receipt.get('verified') is True:
             return '利用可能', receipt
+        if on_identity_change is not None:
+            on_identity_change()
         source = json.loads(manifest.read_text(encoding='utf-8'))
         entries = {item['path']: item['sha256'] for item in source['files']}
         for name in FILES:
@@ -128,6 +132,7 @@ class LocalTagger:
         self._lock = RLock()
         self._closed = False
         self._load_failed = False
+        self.on_identity_change = None
 
     def _runtime_available(self):
         return (self.session_factory is not None and self.tensor_factory is not None) or (
@@ -139,7 +144,7 @@ class LocalTagger:
                 return '読込失敗'
             old_receipt = self.receipt
             self.status = '検証中'
-            status, receipt = verify_model(self.folder, self.receipt)
+            status, receipt = verify_model(self.folder, self.receipt, on_identity_change=self.on_identity_change)
             self.receipt = receipt
             if old_receipt != receipt:
                 self.session = self.tags = None
@@ -215,6 +220,46 @@ class TaggerManager:
         self.status = '未検出'
         self._lock = RLock()
         self._closed = False
+        # Invalidation can arrive while the inference lock is held.
+        self._fingerprint_lock = RLock()
+        self._verification_epoch = 0
+        self._fingerprint = None
+        self._listeners = set()
+        self._unsubscribe = preferences.subscribe_local_tagger_settings(self.invalidate)
+
+    def subscribe_invalidation(self, invalidate):
+        with self._fingerprint_lock:
+            self._listeners.add(invalidate)
+        def unsubscribe():
+            with self._fingerprint_lock:
+                self._listeners.discard(invalidate)
+        return unsubscribe
+
+    def invalidate(self):
+        self._invalidate_fingerprint(force=True)
+
+    def _invalidate_fingerprint(self, *, force=False):
+        with self._fingerprint_lock:
+            if self._fingerprint is None and not force:
+                return
+            self._fingerprint = None
+            self._verification_epoch += 1
+            for invalidate in self._listeners:
+                invalidate()
+
+    def _verified_fingerprint(self, epoch, receipt):
+        if not receipt:
+            self._invalidate_fingerprint()
+            return None
+        identity = json.dumps(receipt, sort_keys=True, separators=(',', ':')).encode('utf-8')
+        fingerprint = hashlib.sha256(identity).hexdigest()
+        with self._fingerprint_lock:
+            if epoch != self._verification_epoch:
+                return None
+            if self._fingerprint is not None and self._fingerprint != fingerprint:
+                self._invalidate_fingerprint()
+            self._fingerprint = fingerprint
+            return fingerprint
 
     def _current(self):
         snapshot = self.preferences.snapshot()
@@ -222,68 +267,67 @@ class TaggerManager:
         provider = self.provider()
         if self.tagger is None or _path_key(self.tagger.folder) != _path_key(path) or self._provider != provider:
             if self.tagger is not None:
+                self._invalidate_fingerprint()
                 self.tagger.close()
             receipt = self.preferences.read_tagger_verification().get('receipt')
             providers = {'cpu': ['CPUExecutionProvider'], 'cuda': ['CUDAExecutionProvider', 'CPUExecutionProvider']}.get(provider)
             self.tagger = LocalTagger(path, providers=providers, receipt=receipt)
             self._provider = provider
+        self.tagger.on_identity_change = self._invalidate_fingerprint
         return snapshot
+
+    def _verify(self, snapshot, epoch):
+        self.status = '検証中'
+        self.status = self.tagger.verify()
+        valid = (snapshot.values['local_tagger_enabled'] == '1'
+                 and self.status in ('利用可能', 'onnxruntime なし'))
+        return self._verified_fingerprint(epoch, self.tagger.receipt if valid else None)
 
     def verify(self):
         with self._lock:
             if self._closed:
                 return '読込失敗'
+            epoch = self._verification_epoch
             snapshot = self._current()
-            self.status = '検証中'
-            self.status = self.tagger.verify()
+            self._verify(snapshot, epoch)
             self.preferences.write_tagger_verification({'receipt': self.tagger.receipt,
                 'verified_at': datetime.now(timezone.utc).isoformat()})
             return self.status
 
     def predict(self, data):
-        with self._lock:
-            if self._closed:
-                return []
-            snapshot = self._current()
-            if snapshot.values['local_tagger_enabled'] != '1' or self.verify() != '利用可能':
-                return []
-            receipt = self.tagger.receipt
-            path = snapshot.values['local_tagger_path']
-            result = self.tagger.predict(data)
-            self.status = self.tagger.status
-            current = self.preferences.snapshot()
-            if current.values['local_tagger_enabled'] != '1' or _path_key(current.values['local_tagger_path']) != _path_key(path):
-                return []
-            status, current_receipt = verify_model(path, receipt)
-            if status != '利用可能' or current_receipt != receipt:
-                return []
-            return result
+        result = self.predict_with_fingerprint(data)
+        return result[1] if result is not None else []
 
     def current_fingerprint(self):
+        # Explicit verification event. LocalTagView readers use its published
+        # snapshot, while the worker uses this method for periodic revalidation.
         with self._lock:
             if self._closed:
                 return None
+            epoch = self._verification_epoch
             snapshot = self._current()
             if snapshot.values['local_tagger_enabled'] != '1':
                 return None
-            status = self.tagger.verify()
-            self.status = status
-            if status not in ('利用可能', 'onnxruntime なし') or not self.tagger.receipt:
-                return None
-            identity = json.dumps(self.tagger.receipt, sort_keys=True, separators=(',', ':')).encode('utf-8')
-            return hashlib.sha256(identity).hexdigest()
+            return self._verify(snapshot, epoch)
 
     def predict_with_fingerprint(self, data):
         with self._lock:
             before = self.current_fingerprint()
-            if before is None:
+            if before is None or self.status != '利用可能':
                 return None
-            tags = self.predict(data)
-            if self.status != '利用可能' or self.current_fingerprint() != before:
+            epoch = self._verification_epoch
+            tags = self.tagger.predict(data)
+            self.status = self.tagger.status
+            if self.status != '利用可能':
+                self._invalidate_fingerprint()
+                return None
+            if self.current_fingerprint() != before or self._verification_epoch != epoch:
                 return None
             return before, tags
 
     def try_current_fingerprint(self):
+        """Explicit lightweight model check that never waits for inference."""
+        epoch = self._verification_epoch
         try:
             if self._closed:
                 return None
@@ -296,34 +340,33 @@ class TaggerManager:
             if not _local_folder(path):
                 self.status = '利用不可（ローカルのフォルダを指定）'
                 return None
-            receipt = self.preferences.read_tagger_verification().get('receipt')
+            receipt = self.tagger.receipt if self.tagger is not None else self.preferences.read_tagger_verification().get('receipt')
             if not isinstance(receipt, dict) or receipt.get('verified') is not True:
                 return None
             folder = Path(path)
             paths = [folder / 'MODEL_SOURCE.json', *(folder / name for name in FILES)]
             if receipt.get('identities') != [_identity(item) for item in paths]:
-                # A caller may be the learning FIFO. Hashing is deferred to the
-                # local view's background verification instead of blocking it.
+                self._invalidate_fingerprint()
                 self.status = '検証中'
                 return None
             current = self.preferences.snapshot()
             if current.values['local_tagger_enabled'] != '1' or _path_key(current.values['local_tagger_path']) != _path_key(path):
                 return None
-            identity = json.dumps(receipt, sort_keys=True, separators=(',', ':')).encode('utf-8')
-            return hashlib.sha256(identity).hexdigest()
+            return self._verified_fingerprint(epoch, receipt)
         except NonLocalModelPath:
             self.status = '利用不可（ローカルのフォルダを指定）'
-            return None
         except FileNotFoundError:
             self.status = '未検出'
-            return None
         except (OSError, ValueError, TypeError, RuntimeError):
             self.status = '読込失敗'
-            return None
+        self._invalidate_fingerprint()
+        return None
 
     def close(self):
+        self._unsubscribe()
         with self._lock:
             self._closed = True
+            self._invalidate_fingerprint()
             if self.tagger is not None:
                 self.tagger.close()
                 self.tagger = None

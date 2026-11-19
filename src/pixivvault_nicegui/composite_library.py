@@ -315,6 +315,12 @@ class CompositeLocalCatalog:
         self._still_open()
         return value
 
+    def image_token(self, work_id, page_no=0, variant="view"):
+        provider = self._select(work_id, page_no, variant)
+        token = provider.image_token(work_id, page_no, variant)
+        self._still_open()
+        return token
+
     def peek(self, work_id, page_no=0, variant="view"):
         provider = self._select(work_id, page_no, variant)
         method = getattr(provider, "peek", None)

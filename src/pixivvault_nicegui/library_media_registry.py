@@ -388,6 +388,12 @@ class LibraryImageRegistry:
 
     def local_bytes(self, work_id):
         """Read only the current local catalog, never a remote or demo fallback."""
+        return self._local_image(work_id, 'get_fresh', lambda blob: blob.data)
+
+    def local_image_token(self, work_id):
+        return self._local_image(work_id, 'image_token', lambda token: token)
+
+    def _local_image(self, work_id, method, project):
         with self._lock:
             token = self._current
             version = self._version(token)
@@ -396,8 +402,8 @@ class LibraryImageRegistry:
                 return None
             version.refs += 1
         try:
-            fresh = getattr(local, 'get_fresh', None)
-            return fresh(work_id, 0, 'view').data if callable(fresh) else None
+            lookup = getattr(local, method, None)
+            return project(lookup(work_id, 0, 'view')) if callable(lookup) else None
         except (ValueError, OSError, RuntimeError, KeyError):
             return None
         finally:

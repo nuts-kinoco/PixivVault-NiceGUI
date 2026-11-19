@@ -88,7 +88,7 @@ class ManagedGenerations:
             native_io_path(folder).mkdir(exist_ok=True)
             _safe_path(folder)
         self._lock = RLock()
-        self._visibility_cache = None
+        self._visibility_cache = {}
         # A malformed existing index must block startup, never be reset.
         self.entries()
 
@@ -627,7 +627,7 @@ class ManagedGenerations:
         _fsync_dir(self.stage_dir)
         _safe_path(self.index_path, file=True)
         native_io_path(temporary).replace(native_io_path(self.index_path))
-        self._visibility_cache = None
+        self._visibility_cache.clear()
         _fsync_dir(self.root)
 
     @fenced_writer
@@ -773,7 +773,7 @@ class ManagedGenerations:
         return (value.st_dev, value.st_ino, value.st_size,
                 value.st_mtime_ns, value.st_ctime_ns)
 
-    def assert_page_visible(self, work_id: str, page_no: int) -> None:
+    def assert_page_visible(self, work_id: str, page_no: int, *, verify_payloads=True) -> None:
         """Check exclusions without rescanning all artwork for every image.
 
         Only a previously validated index can be cached. Relevant quarantine
@@ -787,10 +787,10 @@ class ManagedGenerations:
             try:
                 signature = self._file_identity(self.index_path)
             except FileNotFoundError:
-                self._index()
-                self._visibility_cache = None
+                self._index(verify_quarantine_payloads=verify_payloads)
+                self._visibility_cache.pop(verify_payloads, None)
                 return
-            cached = self._visibility_cache
+            cached = self._visibility_cache.get(verify_payloads)
             if cached is not None and cached[0] == signature:
                 try:
                     unchanged = all(self._file_identity(self.root / relative) == identity
@@ -801,9 +801,9 @@ class ManagedGenerations:
                     if str(page_no) in cached[1].get(wid, {}):
                         raise ManagedPageQuarantined('managed page is quarantined')
                     return
-            self._visibility_cache = None
-            self._index()
-            exclusions, operations, _ = self._quarantine_fields()
+            self._visibility_cache.pop(verify_payloads, None)
+            self._index(verify_quarantine_payloads=verify_payloads)
+            exclusions, operations, _ = self._quarantine_fields(verify_payloads=verify_payloads)
             watched = {}
             verified_proofs = {}
             for operation_id, operation in operations.items():
@@ -833,6 +833,6 @@ class ManagedGenerations:
                     paths[proof_relative] = verified_proofs[key]
             if self._file_identity(self.index_path) != signature:
                 raise ManagedDownloadError('quarantine index changed')
-            self._visibility_cache = (signature, exclusions, watched)
+            self._visibility_cache[verify_payloads] = (signature, exclusions, watched)
             if str(page_no) in exclusions.get(wid, {}):
                 raise ManagedPageQuarantined('managed page is quarantined')

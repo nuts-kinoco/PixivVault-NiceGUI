@@ -22,6 +22,8 @@ async def test_service_snapshot_reads_images_on_owned_validation_worker(tmp_path
         await asyncio.wrap_future(service.refresh_saved_seeds())
         threads.clear()
         await service.trend_snapshot()
-        assert threads and all(name.startswith('pv-local-tag-check') for name in threads)
+        assert not threads  # Cached trend access performs no image reads.
+        await asyncio.wrap_future(service.refresh_saved_seeds())
+        assert threads and all(name.startswith('pv-local-tag-view') for name in threads)
     finally:
         service.close()

@@ -16,6 +16,7 @@ def test_seed_is_checked_against_current_readable_image_on_every_query(tmp_path)
         def rows(): return service.local_tag_view.snapshot().seed_counts
         assert 'first' in rows()
         current[0] = None
+        service.local_tag_view.refresh_now()
         assert rows() == {}
         service.refresh_saved_seeds().result(10)
         assert rows() == {}
