@@ -11,7 +11,7 @@ import stat
 from threading import RLock
 from uuid import uuid4
 
-from .fs_paths import sqlite_readonly_uri
+from .fs_paths import native_io_path, sqlite_readonly_uri
 from .managed_downloads import _read_bounded, _safe_path, _write
 from .media_jobs import validate_readonly_boundaries
 from .ugoira_storage import _owner_lock
@@ -63,6 +63,24 @@ def _sidecars_absent(path):
         except FileNotFoundError:
             continue
         raise LegacyCopyError('legacy database is in use')
+
+
+def _open_source(path):
+    """Use a short read handle that permits ordinary delete/rename sharing."""
+    if os.name != 'nt':
+        return os.open(path, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0))
+    import msvcrt
+    from .frozen_source_pin import _kernel
+    create, close, invalid = _kernel()
+    handle = create(str(native_io_path(path)), 0x80000000, 0x1 | 0x2 | 0x4,
+                    None, 3, 0x00200000, None)
+    if handle is None or handle == invalid:
+        raise LegacyCopyError('legacy database source unavailable')
+    try:
+        return msvcrt.open_osfhandle(handle, os.O_RDONLY | os.O_BINARY | os.O_NOINHERIT)
+    except BaseException:
+        close(handle)
+        raise
 
 
 class LegacyLibraryCopies:
@@ -145,48 +163,50 @@ class LegacyLibraryCopies:
     def _read_source(self, raw, expected):
         _sidecars_absent(self.source)
         _safe_path(self.source, file=True)
-        flags = os.O_RDONLY | getattr(os, 'O_BINARY', 0) | getattr(os, 'O_NOFOLLOW', 0)
-        fd = os.open(self.source, flags)
-        try:
-            opened = os.fstat(fd)
-            if _identity(opened) != expected or not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1:
-                raise LegacyCopyError('legacy database changed during snapshot')
-            digest = hashlib.sha256()
-            total = 0
-            with raw.open('xb') as target:
-                while True:
-                    block = os.read(fd, min(_CHUNK, expected[4] + 1 - total))
-                    if not block:
-                        break
-                    total += len(block)
-                    if total > expected[4]:
-                        raise LegacyCopyError('legacy database changed during snapshot')
-                    digest.update(block)
-                    target.write(block)
-                target.flush()
-                os.fsync(target.fileno())
-            if total != expected[4] or _identity(os.fstat(fd)) != expected:
-                raise LegacyCopyError('legacy database changed during snapshot')
-            os.lseek(fd, 0, os.SEEK_SET)
-            second = hashlib.sha256()
-            remaining = expected[4]
-            while remaining:
-                block = os.read(fd, min(_CHUNK, remaining))
-                if not block:
+        def read_at(offset, count):
+            fd = _open_source(self.source)
+            try:
+                opened = os.fstat(fd)
+                if _identity(opened) != expected or not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1:
                     raise LegacyCopyError('legacy database changed during snapshot')
-                second.update(block)
-                remaining -= len(block)
-            if os.read(fd, 1) or second.digest() != digest.digest():
+                os.lseek(fd, offset, os.SEEK_SET)
+                data = os.read(fd, count)
+                if _identity(os.fstat(fd)) != expected:
+                    raise LegacyCopyError('legacy database changed during snapshot')
+                return data
+            finally:
+                os.close(fd)
+        digest = hashlib.sha256()
+        total = 0
+        with raw.open('xb') as target:
+            while True:
+                block = read_at(total, min(_CHUNK, expected[4] + 1 - total))
+                if not block:
+                    break
+                total += len(block)
+                if total > expected[4]:
+                    raise LegacyCopyError('legacy database changed during snapshot')
+                digest.update(block)
+                target.write(block)
+            target.flush()
+            os.fsync(target.fileno())
+        if total != expected[4]:
+            raise LegacyCopyError('legacy database changed during snapshot')
+        second = hashlib.sha256()
+        remaining = expected[4]
+        while remaining:
+            block = read_at(expected[4] - remaining, min(_CHUNK, remaining))
+            if not block:
                 raise LegacyCopyError('legacy database changed during snapshot')
-            if _identity(os.fstat(fd)) != expected:
-                raise LegacyCopyError('legacy database changed during snapshot')
-            _safe_path(self.source, file=True)
-            if _identity(self.source.stat()) != expected:
-                raise LegacyCopyError('legacy database changed during snapshot')
-            _sidecars_absent(self.source)
-            return digest.digest()
-        finally:
-            os.close(fd)
+            second.update(block)
+            remaining -= len(block)
+        if read_at(expected[4], 1) or second.digest() != digest.digest():
+            raise LegacyCopyError('legacy database changed during snapshot')
+        _safe_path(self.source, file=True)
+        if _identity(self.source.stat()) != expected:
+            raise LegacyCopyError('legacy database changed during snapshot')
+        _sidecars_absent(self.source)
+        return digest.digest()
 
     def snapshot(self):
         with self._guard:
