@@ -22,7 +22,7 @@ import time
 from uuid import uuid4
 
 from .job_service import JobCancelled, JobService
-from .managed_downloads import _fsync_dir, _json_unique, _read_bounded, _safe_path, _write
+from .managed_downloads import ManagedDownloadError, _fsync_dir, _json_unique, _read_bounded, _safe_path, _write
 from .media_parity_policy import parse_ugoira_manifest
 from .ugoira_archive import MAX_ARCHIVE_BYTES, inspect_ugoira_archive
 from . import ugoira_storage as storage
@@ -667,6 +667,12 @@ class ManagedUgoiraJobs:
                 completion = _read_bounded(folder / storage.COMPLETION, 1024)
             except FileNotFoundError:
                 continue
+            except ManagedDownloadError:
+                # An oversized ordinary seal is corrupt, not a reason to lose the fallback.
+                info = os.lstat(native_io_path(folder / storage.COMPLETION))
+                if stat.S_ISREG(info.st_mode) and info.st_nlink == 1 and info.st_size > 1024:
+                    continue
+                raise
             if completion != _gif_completion(folder.name, receipt):
                 continue  # A damaged seal is not reusable; retain it unchanged.
             from .ugoira_gif import UgoiraGifError
