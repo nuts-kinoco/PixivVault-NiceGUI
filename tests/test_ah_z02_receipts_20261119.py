@@ -100,3 +100,24 @@ def test_partial_temp_write_cannot_publish_journal(tmp_path, monkeypatch):
         q.exports.close(); reopened=SaveExports(q.exports.s,q.exports.root)
         try: assert reopened._previous_auto_zip('456')==sha256(before).hexdigest()
         finally: reopened.close()
+
+
+def test_direct_normalize_waits_for_other_pending_auto_zip(tmp_path,monkeypatch):
+    import os
+    from test_fail7_batch1 import add_second
+    from test_managed_downloads import Context
+    with generated_exports(tmp_path,True,None) as q:
+        q.exports.scan();assert all(j.state=='done' for j in settled(q.exports))
+        path=q.exports.zip.root/'tester(456).zip';before=path.read_bytes()
+        add_second(q);original=os.replace
+        def fail(src,dst):
+            if str(dst).endswith('.zip'):raise OSError('injected')
+            return original(src,dst)
+        monkeypatch.setattr(os,'replace',fail)
+        q.exports.scan();failed=next(j for j in settled(q.exports) if j.state=='error')
+        monkeypatch.setattr(os,'replace',original)
+        with pytest.raises(ValueError):
+            q.exports.zip.normalize_archive(path,sha256(before).hexdigest(),zip64_threshold=1)
+        assert path.read_bytes()==before
+        assert q.exports.run(failed,Context()).endswith('.export.json')
+        with ZipFile(path) as z:assert len(z.namelist())==4

@@ -742,6 +742,14 @@ class SaveExports:
             matches=[]; owned=False
             author=re.search(r'\(([1-9][0-9]*)\)\.zip$', archive.name)
             if author is None:raise ValueError('ZIP author rejected')
+            for pending in native_io_path(self.root).glob('*.zip-pending.json'):
+                pending_note=json.loads(_read_bounded(pending,2_000_000),object_pairs_hook=_json_unique)
+                source=pending_note.get('source'); pending_stage=pending_note.get('stage')
+                if type(source) is not dict or type(pending_stage) is not str or re.fullmatch(r'zip-[a-f0-9]{32}\.tmp',pending_stage) is None:
+                    raise ValueError('ZIP pending publication rejected')
+                stage_path=native_io_path(self.zip.incomplete)/pending_stage
+                if source.get('author_id')==author.group(1) and (stage_path.exists() or stage_path.is_symlink()):
+                    raise ValueError('ZIP pending publication unresolved')
             for path in native_io_path(self.root).glob('*.export.json'):
                 value=json.loads(_read_bounded(path,2_000_000),object_pairs_hook=_json_unique)
                 if (isinstance(value.get('archive'),str)
