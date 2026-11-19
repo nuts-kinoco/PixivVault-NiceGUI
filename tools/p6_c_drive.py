@@ -27,7 +27,7 @@ def open_snapshot(path):
     connection = sqlite3.connect(path)
     try:
         for name in ('before', 'after'):
-            connection.execute(f'CREATE TABLE {name} (path TEXT PRIMARY KEY COLLATE NOCASE) WITHOUT ROWID')
+            connection.execute(f'CREATE TABLE {name} (path_key BLOB PRIMARY KEY, path BLOB NOT NULL) WITHOUT ROWID')
         yield connection
     finally:
         connection.close()
@@ -51,15 +51,17 @@ def snapshot(root, connection, table):
                         elif stat.S_ISDIR(item_stat.st_mode):
                             pending.append(item.path)
                         elif stat.S_ISREG(item_stat.st_mode):
-                            batch.append((item.path,))
+                            # NTFS can return lone UTF-16 code units; SQLite TEXT cannot store them.
+                            name = item.path.encode('utf-8', errors='surrogatepass')
+                            batch.append((name.lower(), name))
                     except OSError as exc:
                         errors.append({'path': safe_location(item.path), 'errno': exc.errno})
         except OSError as exc:
             errors.append({'path': safe_location(str(folder)), 'errno': exc.errno})
         if len(batch) >= 4096:
-            connection.executemany(f'INSERT OR IGNORE INTO {table} VALUES (?)', batch)
+            connection.executemany(f'INSERT OR IGNORE INTO {table} VALUES (?, ?)', batch)
             batch.clear()
-    connection.executemany(f'INSERT OR IGNORE INTO {table} VALUES (?)', batch)
+    connection.executemany(f'INSERT OR IGNORE INTO {table} VALUES (?, ?)', batch)
     connection.commit()
     if skipped_reparse:
         connection.execute('CREATE TABLE IF NOT EXISTS reparse (phase TEXT, entries INTEGER)')
@@ -69,8 +71,8 @@ def snapshot(root, connection, table):
 
 
 def new_files(connection):
-    for (path,) in connection.execute('SELECT path FROM after EXCEPT SELECT path FROM before'):
-        yield path
+    for (path,) in connection.execute('SELECT path FROM after WHERE path_key NOT IN (SELECT path_key FROM before)'):
+        yield path.decode('utf-8', errors='surrogatepass')
 
 
 def main():
@@ -89,7 +91,12 @@ def main():
     def now():
         return datetime.now(timezone.utc).isoformat()
 
+    def phase(state):
+        (output / 'run-status.json').write_text(json.dumps({'wrapper_pid': os.getpid(), 'phase': state,
+                                                            'utc': now()}), encoding='utf-8')
+
     with open_snapshot(output / 'snapshot.sqlite3') as db:
+        phase('before')
         clock = {'before_start': now()}
         errors = {'before': snapshot(Path('C:/'), db, 'before')}
         clock['command_start'] = now()
@@ -97,6 +104,7 @@ def main():
         with (output / 'pytest.log').open('wb') as log, subprocess.Popen(
             args.command[1:], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env
         ) as child:
+            phase('command')
             (output / 'owned-test.json').write_text(json.dumps({'wrapper_pid': os.getpid(), 'test_pid': child.pid}),
                                                    encoding='utf-8')
             for number, line in enumerate(child.stdout, 1):
@@ -107,6 +115,7 @@ def main():
                     log.write(line)
             exit_code = child.wait()
         clock['after_start'] = now()
+        phase('after')
         errors['after'] = snapshot(Path('C:/'), db, 'after')
         clock['after_end'] = now()
         files, excluded = [], []
@@ -122,6 +131,7 @@ def main():
               'enumeration_errors': errors, 'reparse_entries_not_followed': reparse,
               'test_output_pattern_matches': matches}
     (output / 'drive-diff.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
+    phase('finished')
     print(f'pytest exit={exit_code}, new files={len(files)}, OS exclusions={len(excluded)}, '
           f'enumeration errors={sum(map(len, errors.values()))}, redacted test lines={len(matches)}')
     return bool(exit_code or files or matches or any(errors.values()))

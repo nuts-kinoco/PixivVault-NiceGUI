@@ -18,3 +18,14 @@ def test_drive_diff_includes_profile_and_does_not_follow_links(tmp_path):
             pass
         assert p6_c_drive.snapshot(tmp_path / 'Users', db, 'after') == []
         assert [Path(path).name for path in p6_c_drive.new_files(db)] == ['new']
+
+
+def test_drive_diff_keeps_unpaired_ntfs_filename_code_units(tmp_path):
+    root = tmp_path / 'root'
+    root.mkdir()
+    name = 'old-windows-name-\udc4c'
+    with p6_c_drive.open_snapshot(tmp_path / 'snapshot.db') as db:
+        assert p6_c_drive.snapshot(root, db, 'before') == []
+        (root / name).touch()
+        assert p6_c_drive.snapshot(root, db, 'after') == []
+        assert [Path(path).name for path in p6_c_drive.new_files(db)] == [name]
