@@ -1,6 +1,7 @@
 """Account-scoped stars in the following ledger."""
 from __future__ import annotations
 
+from .account_scope import require_same_account
 from .managed_scheduler import ScheduleAccountError, ScheduleError
 
 
@@ -18,6 +19,7 @@ class FavouriteBook:
         if self.following is None or account_id is None:
             raise ScheduleError('favourite authors unavailable')
         snapshot = self.following.snapshot(account_id)
+        require_same_account(account_id, snapshot.account_id)
         if snapshot.last_synced_at is None:
             raise ScheduleError('favourite authors unavailable')
         return tuple(sorted((row.user_id for row in snapshot.authors if row.is_favorite), key=int))
@@ -30,9 +32,9 @@ class FavouriteBook:
             return self.scheduler.set_star(self, user_id, favourite,
                                            account_id=account_id, expected=expected)
         with self.following._lock:
-            if self.account() != account_id:
-                raise ScheduleAccountError('mismatch')
+            require_same_account(account_id, self.account(), error=ScheduleAccountError('mismatch'))
             before = self.following.snapshot(account_id)
+            require_same_account(account_id, before.account_id)
             if expected is not None:
                 row = next((r for r in before.authors if r.user_id == user_id), None)
                 if row is None or row.is_favorite != expected:

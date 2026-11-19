@@ -24,6 +24,7 @@ from threading import RLock
 import time
 from uuid import uuid4
 
+from .account_scope import AccountMismatch, require_same_account
 from .fs_paths import native_io_path, sqlite_readonly_uri
 from .managed_downloads import _safe_path, _read_bounded, _write, _fsync_dir
 from .ugoira_storage import _owner_lock, _OWNER
@@ -344,7 +345,7 @@ class BatchRunLedger:
                     except Exception:
                         pass
                     raise BatchRunError() from None
-                if isinstance(error, BatchRunError):
+                if isinstance(error, (BatchRunError, AccountMismatch)):
                     raise error from None
                 if isinstance(error, Exception):
                     raise BatchRunError() from None
@@ -427,7 +428,7 @@ class BatchRunLedger:
         return None if row is None else self._run_row(row)
 
     def set_run_state(self, run_id, state, error_code=''):
-        """Move a run between states; terminal states stamp finished_utc and stay final."""
+        """Finish terminal runs; a mismatched account leaves the completion date unset."""
         _run_id(run_id)
         _code(error_code)
         if state not in RUN_STATES:
@@ -442,7 +443,7 @@ class BatchRunLedger:
                 if row[0] == state:
                     return
                 raise BatchRunConflict()
-            finished = now if state not in RUN_ACTIVE else None
+            finished = now if state not in RUN_ACTIVE and error_code != AccountMismatch.code else None
             connection.execute(
                 'UPDATE runs SET state=?,error_code=?,finished_utc=?,revision=revision+1 WHERE run_id=?',
                 (state, error_code, finished, run_id))
@@ -614,6 +615,8 @@ class BatchRunLedger:
             if run is None:
                 raise BatchRunError()
             kind, run_state, run_account = run
+            if account_id is not None:
+                require_same_account(run_account, account_id)
             row = connection.execute('SELECT state FROM run_authors WHERE run_id=? AND author_id=?',
                                      (run_id, author_id)).fetchone()
             if row is None or row[0] in AUTHOR_TERMINAL:
@@ -632,11 +635,10 @@ class BatchRunLedger:
         stamping, run_account = self._transaction(complete)
         if not stamping or following is None:
             return None
-        account = account_id if account_id is not None else run_account
-        if account is None:
+        if run_account is None:
             return None
         try:
-            following.record_downloaded(account, author_id, stamp)
+            following.record_downloaded(run_account, author_id, stamp)
         except Exception:
             return None  # the author is recorded done; stamp_written stays 0 and shows it
         self._transaction(lambda c: c.execute(

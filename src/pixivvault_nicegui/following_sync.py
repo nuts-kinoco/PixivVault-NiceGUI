@@ -16,6 +16,7 @@ import sqlite3
 from threading import RLock
 import time
 
+from .account_scope import require_same_account
 from .bookmark_remote_adapter import profile_image_url
 from .fs_paths import native_io_path, sqlite_readonly_uri
 from .managed_downloads import _safe_path, _read_bounded, _write, _fsync_dir
@@ -360,8 +361,7 @@ class FollowingSyncStore:
                         if len(candidate) > MAX_AUTHORS:
                             raise FollowingSyncError()
                 checkpoint()
-                if _identifier(reader.require_identity()) != account_id:
-                    raise FollowingSyncError()
+                require_same_account(account_id, _identifier(reader.require_identity()), error=FollowingSyncError())
                 checkpoint()
 
                 def publish(connection, previous):
@@ -472,12 +472,12 @@ class FollowingSyncStore:
 
         def record(connection, before):
             rows = {row.user_id: row for row in before.authors}
-            followed = {uid for uid, row in rows.items() if row.is_following}
-            result[:] = [tuple(sorted(wanted & followed, key=int)),
-                         tuple(sorted(wanted - followed, key=int))]
+            eligible = {uid for uid, row in rows.items() if row.is_following or row.is_favorite}
+            result[:] = [tuple(sorted(wanted & eligible, key=int)),
+                         tuple(sorted(wanted - eligible, key=int))]
             changed = False
             for user_id, row in rows.items():
-                favorite = row.is_following and user_id in wanted
+                favorite = user_id in eligible and user_id in wanted
                 if row.is_favorite != favorite:
                     connection.execute('UPDATE following_authors SET is_favorite=? WHERE account_id=? AND user_id=?',
                                        (int(favorite), account_id, user_id))

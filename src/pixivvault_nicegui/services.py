@@ -13,6 +13,7 @@ from .media import DemoImageCatalog
 from .library_fixtures import build_library_fixture
 from .library_models import LibrarySnapshot
 from .library_media_registry import LibraryImageRegistry
+from .account_scope import AccountMismatch, require_current_account, require_same_account
 from .request_policy import job_request_runner, request_scope
 
 _CURRENT_IMAGE_READER = object()
@@ -1237,14 +1238,14 @@ class ApplicationServices:
         value = None
         if self.following_sync is not None:
             synced = self.following_sync.snapshot(account)
+            require_same_account(account, getattr(synced, 'account_id', account))
             if synced.last_synced_at is not None:
                 # () is verified zero, including a sync committed by another
                 # client. It must not revive the one-time legacy seed.
                 value = tuple(dict(user_id=row.user_id, name=row.name) for row in synced.following)
         if value is None and cached is not None and cached[0] is reader and cached[1] == account:
             value = cached[2]
-        if self.live_client is not reader or getattr(reader, '_verified_identity', account) != account:
-            raise RuntimeError('discovery account changed while reading following snapshot')
+        require_current_account(self, reader, account)
         return value
 
     def start_discovery_initial_load(self):
@@ -1285,6 +1286,7 @@ class ApplicationServices:
             if self.following_sync is not None:
                 synced = self.following_sync.snapshot(uid)
                 checkpoint()
+                require_same_account(uid, getattr(synced, 'account_id', uid))
                 if synced.last_synced_at is not None:
                     return uid, tuple(dict(user_id=row.user_id, name=row.name) for row in synced.following)
             found = {}
@@ -1295,8 +1297,7 @@ class ApplicationServices:
             return uid, tuple(found.values())
         account, value = await asyncio.to_thread(fetch_scoped)
         checkpoint()
-        if getattr(reader, '_verified_identity', account) != account:
-            raise RuntimeError('discovery account changed while acquiring following snapshot')
+        require_current_account(self, reader, account)
         self._following_snapshot = (reader, account, value)
 
     def saved_discovery_ids(self):
@@ -1566,14 +1567,16 @@ class ApplicationServices:
         finally:
             self.release_managed_owner(owner)
 
-    def author_media_preview(self, author_id, target_type=None, *, novel_format=None, ugoira_format=None, new_only=False):
+    def author_media_preview(self, author_id, target_type=None, *, novel_format=None, ugoira_format=None,
+                             new_only=False, expected_account=None):
         if self.closing or self.author_media is None:
             raise RuntimeError('all-media author download unavailable')
         novel = self.preferences.get_setting('novel_save_format', 'epub') if self.preferences else 'epub'
         ugoira = self.preferences.get_setting('ugoira_save_format', 'gif') if self.preferences else 'gif'
         return self.author_media.preview(author_id, target_type,
             novel_format=novel_format or novel.upper(),
-            ugoira_format=ugoira_format or ('frames' if ugoira=='folder' else ugoira), new_only=new_only)
+            ugoira_format=ugoira_format or ('frames' if ugoira=='folder' else ugoira),
+            new_only=new_only, expected_account=expected_account)
 
     def enqueue_author_media(self, candidate, operation_id, *, origin='follow'):
         if self.closing or self.author_media is None:
@@ -1968,16 +1971,16 @@ class ApplicationServices:
         if self.closing or self.managed_downloads is None or self.live_client is None:
             raise RuntimeError('managed downloads unavailable')
 
+        reader = self.live_client
+
         def fetch():
-            require = getattr(self.live_client, 'require_identity', None)
-            if callable(require):
-                require()
-            else:
-                self.live_client.verify_identity()
+            require = getattr(reader, 'require_identity', None)
+            account = require() if callable(require) else reader.verify_identity()
+            require_current_account(self, reader, account)
             bridge = getattr(self, 'legacy_author_bridge', None)
             complete = True
             if bridge is not None:
-                full_reader = getattr(self.live_client, 'get_author_artworks_complete', None)
+                full_reader = getattr(reader, 'get_author_artworks_complete', None)
                 if not callable(full_reader):
                     raise RuntimeError('full author inventory proof is unavailable')
                 from .pixiv_read_client import InvalidPayload
@@ -1987,8 +1990,10 @@ class ApplicationServices:
                     # A masked work or a partially visible bucket must NEVER
                     # advance remote deletion streaks. Retain the preexisting
                     # managed-only preview, with legacy-only works UNKNOWN.
-                    works = self.live_client.get_author_artworks(uid)
+                    require_current_account(self, reader, account)
+                    works = reader.get_author_artworks(uid)
                     complete = False
+                require_current_account(self, reader, account)
                 if complete:
                     # Merely opening a preview does not increment old missing
                     # streaks. Only an explicit complete-crawl action may do so.
@@ -1996,7 +2001,7 @@ class ApplicationServices:
                 else:
                     legacy_scan = None
             else:
-                works = self.live_client.get_author_artworks(uid)
+                works = reader.get_author_artworks(uid)
                 legacy_scan = None
             saved = saved_snapshot
             if saved is None:
@@ -2035,9 +2040,10 @@ class ApplicationServices:
                                 'legacy_failed': bool(legacy is not None and legacy.failed),
                                 'legacy_diff_source': bool(legacy is not None and prior is None)},
                                difference))
-            return tuple(output), legacy_scan, complete
+            return tuple(output), legacy_scan, complete, account
 
-        items, scan, complete = await asyncio.to_thread(fetch)
+        items, scan, complete, account = await asyncio.to_thread(fetch)
+        require_current_account(self, reader, account)
         if self.closing:
             raise RuntimeError('managed downloads unavailable')
         from .author_download import AuthorPreview
@@ -2059,15 +2065,19 @@ class ApplicationServices:
         if self.closing or bridge is None or self.live_client is None:
             raise RuntimeError('legacy diff observation is not configured')
 
+        reader = self.live_client
+
         def confirm():
             with self._legacy_inventory_lock:
                 if self.closing:
                     raise RuntimeError('managed downloads unavailable')
-                full_reader = getattr(self.live_client, 'get_author_artworks_complete', None)
+                full_reader = getattr(reader, 'get_author_artworks_complete', None)
                 if not callable(full_reader):
                     raise RuntimeError('complete author inventory proof unavailable')
-                self.live_client.verify_identity()
+                account = reader.verify_identity()
+                require_current_account(self, reader, account)
                 works = full_reader(uid)
+                require_current_account(self, reader, account)
                 if self.closing:
                     raise RuntimeError('managed downloads unavailable')
                 return bridge.observe_author(uid, works, scan_id=scan_id)
@@ -2088,8 +2098,8 @@ class ApplicationServices:
         def checkpoint(account=None):
             if self.closing or self.live_client is not reader:
                 raise RuntimeError('managed author source changed')
-            if account is not None and getattr(reader, '_verified_identity', account) != account:
-                raise RuntimeError('managed author account changed')
+            if account is not None:
+                require_current_account(self, reader, account)
 
         def fetch():
             checkpoint()
@@ -2098,8 +2108,7 @@ class ApplicationServices:
             if self.following_sync is not None:
                 synced = self.following_sync.snapshot(uid)
                 checkpoint(uid)
-                if getattr(synced, 'account_id', uid) != uid:
-                    raise RuntimeError('managed author snapshot account mismatch')
+                require_same_account(uid, getattr(synced, 'account_id', uid))
                 if synced.last_synced_at is not None:
                     return uid, tuple(AuthorTarget(row.user_id, row.name, 'follow',
                                       is_favorite=row.is_favorite, follow_order=row.follow_order, account_id=uid)
@@ -2135,10 +2144,10 @@ class ApplicationServices:
             raise ValueError('invalid favorite transition')
         def update():
             with self._managed_target_lock:
-                if (self.closing or account_id is None
-                        or self._follow_account_by_owner.get(token) != account_id
-                        or getattr(self.live_client, '_verified_identity', None) != account_id):
-                    raise RuntimeError('author account changed')
+                if self.closing or account_id is None:
+                    raise AccountMismatch()
+                require_same_account(account_id, self._follow_account_by_owner.get(token))
+                require_same_account(account_id, getattr(self.live_client, '_verified_identity', None))
                 return self.set_favourite(user_id, favorite, account_id=account_id, expected=expected)
         return await asyncio.to_thread(update)
 
@@ -2817,6 +2826,10 @@ class ApplicationServices:
             reader = self.live_client
             exports = self.save_exports
             account = None
+            mismatch = None
+            if expected_account is not None:
+                from .batch_engine import RunNeedsConfirmation
+                mismatch = RunNeedsConfirmation()
 
             def check_current_read():
                 if self.closing or self.live_client is not reader:
@@ -2827,20 +2840,19 @@ class ApplicationServices:
                     raise RuntimeError('bookmark reader closed')
                 if exports is not self.save_exports:
                     raise RuntimeError('bookmark export owner changed')
-                if (account is not None and
-                        (type(account) is not str or re.fullmatch(r'[1-9][0-9]{0,19}', account) is None
-                         or getattr(reader, '_verified_identity', account) != account)):
-                    raise RuntimeError('bookmark account verification changed')
+                if account is not None:
+                    if type(account) is not str or re.fullmatch(r'[1-9][0-9]{0,19}', account) is None:
+                        raise RuntimeError('bookmark account verification changed')
+                    require_current_account(self, reader, account, error=mismatch)
                 if exports is not None:
                     # Real LivePixivReadClient always has this cache scalar.
                     # Injected read clients may express the same verified
                     # contract only through verify_identity's return value.
                     if (type(account) is not str or
-                            re.fullmatch(r'[1-9][0-9]{0,19}', account) is None or
-                            getattr(reader, '_verified_identity', account) != account):
+                            re.fullmatch(r'[1-9][0-9]{0,19}', account) is None):
                         raise RuntimeError('bookmark account verification changed')
-                    if exports.account not in (None, account):
-                        raise RuntimeError('bookmark export account differs')
+                    if exports.account is not None:
+                        require_same_account(exports.account, account)
 
             if reader is not None:
                 from .bookmark_remote_adapter import fetch_all_bookmarks
@@ -2854,9 +2866,9 @@ class ApplicationServices:
                     if self.managed_network_stop is not None:
                         self.managed_network_stop.require_allowed()
                     identity = verified_account or reader.verify_identity()
-                    if expected_account is not None and identity != expected_account:
-                        from .batch_engine import RunNeedsConfirmation
-                        raise RunNeedsConfirmation()
+                    if expected_account is not None:
+                        require_same_account(expected_account, identity, error=mismatch)
+                    require_current_account(self, reader, identity, error=mismatch)
                     result = fetch_all_bookmarks(reader, identity)
                     if not result.ok:
                         raise RuntimeError("bookmark routes incomplete")
@@ -3099,19 +3111,24 @@ class ApplicationServices:
 
     def scheduler_favourite_authors(self, *, ledger=None):
         """Read all local stars for the currently verified account."""
-        from .managed_scheduler import _require_managed_network_allowed
+        from .managed_scheduler import ScheduleAccountError, _require_managed_network_allowed
         store = self.following_sync
         reader = self.live_client
         if self.closing or store is None or reader is None:
             raise RuntimeError('favourite author source unavailable')
         _require_managed_network_allowed(self)
         account = reader.verify_identity()
-        snapshot = store.snapshot(account)
-        if self.closing or self.live_client is not reader or snapshot.account_id != account:
-            raise RuntimeError('favourite author account changed')
-        if getattr(reader, '_verified_identity', account) != account:
-            raise RuntimeError('favourite author account changed')
         ledger = ledger if ledger is not None else getattr(self, 'managed_scheduler', None)
+        bound = getattr(ledger, '_bound_account', lambda: None)()
+        mismatch = ScheduleAccountError('mismatch')
+        if bound is not None:
+            require_same_account(bound, account, error=mismatch)
+        require_current_account(self, reader, account, error=mismatch)
+        snapshot = store.snapshot(account)
+        require_same_account(account, snapshot.account_id, error=mismatch)
+        require_current_account(self, reader, account, error=mismatch)
+        if self.closing or self.following_sync is not store:
+            raise RuntimeError('favourite author source unavailable')
         if ledger is not None:
             ledger.bind_account(account)
         return tuple(row.user_id for row in snapshot.authors if row.is_favorite)
@@ -3158,10 +3175,10 @@ class ApplicationServices:
                             if not cancellation.is_set() and not self.closing:
                                 self.shared_log.append('☆ お気に入り自動チェックは取得停止により中断しました。')
                             raise
-                        except ScheduleAccountError as error:
+                        except (ScheduleAccountError, AccountMismatch) as error:
                             if not cancellation.is_set() and not self.closing:
                                 message = ('定期チェックの既存データの出所を確認できません。データを保持して停止しました。'
-                                           if error.reason == 'unknown' else
+                                           if getattr(error, 'reason', None) == 'unknown' else
                                            '定期チェックの台帳は別のアカウントに紐付いています。既存データを保持して停止しました。')
                                 self.shared_log.append(message, level='error')
                             raise
@@ -3269,10 +3286,12 @@ class ApplicationServices:
         account = store.last_synced_account()
         if account is None:
             return ()
+        snapshot = store.snapshot(account)
+        require_same_account(account, snapshot.account_id)
         return tuple(dict(account_id=account, user_id=row.user_id, name=row.name, follow_order=row.follow_order,
                           is_favorite=row.is_favorite, is_zipped=row.is_zipped,
                           last_downloaded=row.last_downloaded)
-                     for row in store.snapshot(account).following)
+                     for row in snapshot.following)
 
     def saved_author_counts(self):
         """The table's 保存済み column: saved works per author (managed receipts, pages not re-read)."""
@@ -3339,9 +3358,9 @@ class ApplicationServices:
             if self.following_sync is not None:
                 # Manual runs use the newest completed follow sync.
                 account_id = self.following_sync.last_synced_account()
-        elif (self.live_client is None or
-              getattr(self.live_client, '_verified_identity', account_id) != account_id):
-            raise RuntimeError('author account changed')
+        else:
+            reader = self.live_client
+            require_same_account(account_id, getattr(reader, '_verified_identity', account_id) if reader is not None else None)
         return engine.start(tuple(author_ids), kind=kind, origin=origin, target_type=target_type,
                             account_id=account_id)
 
@@ -3776,11 +3795,21 @@ class ApplicationServices:
                 or self.managed_downloads is None):
             return False
         ledger = self.managed_scheduler
-        if getattr(ledger, '_account_guard', False):
-            account = ledger._bound_account()
-            if (account is None or self.live_client is None
-                    or getattr(self.live_client, '_verified_identity', None) != account):
-                return False
+        guarded = getattr(ledger, '_account_guard', False)
+        reader = self.live_client if guarded else None
+        account = ledger._bound_account() if guarded else None
+
+        def check_account():
+            if guarded:
+                if account is None or reader is None:
+                    raise AccountMismatch()
+                require_same_account(account, getattr(reader, '_verified_identity', None))
+                require_current_account(self, reader, account)
+
+        try:
+            check_account()
+        except AccountMismatch:
+            return False
         from .job_service import UNFINISHED
         jobs = self.jobs.snapshot()
         operation_to_job = {}
@@ -3795,7 +3824,7 @@ class ApplicationServices:
                 if fingerprint is not None:
                     operation_to_fingerprint[operation_id] = fingerprint
         receipt_fingerprints = {}
-        for work_id, expected in self.managed_scheduler.reconcile_expected_fingerprints(
+        for work_id, expected in ledger.reconcile_expected_fingerprints(
                 operation_to_fingerprint).items():
             if not expected or not work_id.isdecimal():
                 continue
@@ -3813,10 +3842,16 @@ class ApplicationServices:
             _, extra_jobs, extra_fingerprints = self.author_media.reconcile()
             operation_to_job.update(extra_jobs)
             operation_to_fingerprint.update(extra_fingerprints)
-            expected = self.managed_scheduler.reconcile_expected_fingerprints(operation_to_fingerprint)
+            expected = ledger.reconcile_expected_fingerprints(operation_to_fingerprint)
             extra_receipts, _, _ = self.author_media.reconcile(expected)
             receipt_fingerprints.update(extra_receipts)
-        newly_saved = self.managed_scheduler.reconcile_jobs(
+        try:
+            check_account()
+        except AccountMismatch:
+            return False
+        if self.managed_scheduler is not ledger or self.closing:
+            return False
+        newly_saved = ledger.reconcile_jobs(
             jobs, receipt_fingerprints, operation_to_job, operation_to_fingerprint)
         confirmed_count = len(set(newly_saved))
         if confirmed_count:

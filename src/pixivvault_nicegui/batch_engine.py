@@ -19,6 +19,7 @@ import random
 import time
 from uuid import uuid4
 
+from .account_scope import AccountMismatch, require_current_account
 from .author_download import Difference
 from .batch_runs import COUNTERS, BatchRunError
 
@@ -109,8 +110,14 @@ class ServicesPort:
         media = getattr(self.s, 'author_media', None)
         return None if media is None else media.author_target(author_id).target_type
 
-    def list_author(self, author_id, target_type):
-        return tuple(self.s.author_media_preview(author_id, target_type))
+    def list_author(self, author_id, target_type, *, account_id=None):
+        self._author_reader = getattr(self.s, 'live_client', None)
+        claimed = {} if account_id is None else {'expected_account': account_id}
+        return tuple(self.s.author_media_preview(author_id, target_type, **claimed))
+
+    def require_author_account(self, account_id):
+        if account_id is not None:
+            require_current_account(self.s, self._author_reader, account_id)
 
     def enqueue(self, candidate, operation_id):
         record = getattr(candidate, 'record', None)
@@ -438,7 +445,7 @@ class BatchRunEngine:
                         self.pause(closed.code)
                         self._emit('run_paused', reason=closed.code, index=index, total=total,
                                    author_id=author_id)
-                    except (RunStopped, RunFailed):
+                    except (RunStopped, RunFailed, AccountMismatch):
                         raise
                     except Exception as error:
                         self._author_failed(run_id, index, total, author_id, error)
@@ -446,6 +453,11 @@ class BatchRunEngine:
         except RunStopped:
             outcome = 'stopped'
             self._close_author(run_id, 'stopped', '')
+        except AccountMismatch as error:
+            outcome, code = 'failed', error.code
+            if self._current is not None:
+                self._reset_author(run_id, self._current)
+                self._current = None
         except RunNeedsConfirmation:
             outcome, code = 'interrupted', 'bookmark_account_mismatch'
             self._close_author(run_id, 'stopped', code)
@@ -505,19 +517,27 @@ class BatchRunEngine:
         own = self.port.author_target(author_id)
         return own or self.target_type
 
+    def _check_author_account(self):
+        if self.kind == 'authors':
+            check = getattr(self.port, 'require_author_account', None)
+            if check is not None:
+                check(self.account_id)
+
     def _process_author(self, run_id, index, total, author_id):
         self._gate()
         self.ledger.update_author(run_id, author_id, state='listing')
         self._emit('author_start', index=index, total=total, author_id=author_id)
         target = self._target_for(author_id)
         try:
-            rows = self.port.list_author(author_id, target)
+            claimed = {'account_id': self.account_id} if hasattr(self.port, 'require_author_account') else {}
+            rows = self.port.list_author(author_id, target, **claimed)
         except Exception as error:
             if _gate_error(error):
                 raise GateClosed('network_stopped' if type(error).__name__ == 'ManagedNetworkStopped'
                                  else 'network_gate_unavailable') from None
             raise
         self._check_state()
+        self._check_author_account()
         keys = [(c.kind, c.work_id) for c in rows]
         if any(c.author_id != author_id for c in rows) or len(set(keys)) != len(keys):
             raise ValueError('author inventory identity changed')
@@ -526,6 +546,7 @@ class BatchRunEngine:
                  Difference.MISSING: 'n_missing', Difference.SKIPPED: 'n_skipped', Difference.UNKNOWN: 'n_unknown'}
         for candidate in rows:
             counters[names[candidate.difference]] += 1
+        self._check_author_account()
         self._observe_deletion(run_id, author_id, target, rows, counters)
         self._check_saved_capacity(rows)
         self.ledger.update_author(run_id, author_id, state='downloading', counters=counters)
@@ -534,6 +555,7 @@ class BatchRunEngine:
         failed = self._download(run_id, index, total, author_id, queue)
         counters['n_failed'] = failed
         self._check_state()
+        self._check_author_account()
         self.ledger.complete_author(run_id, author_id, counters, following=self.following,
                                     account_id=self.account_id)
         for name in COUNTERS:
@@ -650,6 +672,7 @@ class BatchRunEngine:
                     self._hold_jobs([ref for ref, _ in inflight.values()])
                     jobs_held = True
                 self._check_state()
+                self._check_author_account()
                 if jobs_held:
                     self._release_jobs([ref for ref, _ in inflight.values()])
                     jobs_held = False
@@ -666,10 +689,13 @@ class BatchRunEngine:
                     self._next_drain_at = len(self._settled) + self.retire_every
                 while pending and not holding and len(inflight) < self.max_in_flight:
                     self._gate()
+                    self._check_author_account()
                     candidate = pending[0]
                     operation_id = uuid4().hex
                     try:
                         job_id, _created = self.port.enqueue(candidate, operation_id)
+                    except AccountMismatch:
+                        raise
                     except Exception as error:
                         if _gate_error(error):
                             raise GateClosed('network_stopped' if type(error).__name__ == 'ManagedNetworkStopped'
@@ -694,6 +720,7 @@ class BatchRunEngine:
                         (candidate.key, candidate.kind, operation_id, job_id, 'queued'),))
                 if inflight:
                     states = self.port.job_states([ref for ref, _ in inflight.values()])
+                    self._check_author_account()
                     finished = []
                     for job_id, (ref, candidate) in tuple(inflight.items()):
                         state, error_code = states.get(job_id, ('lost', ''))
@@ -725,7 +752,7 @@ class BatchRunEngine:
                                    title=getattr(finished[-1][1], 'title', '') or '')
                 if not progressed and (pending or inflight):
                     self._sleep(self.poll_seconds)
-        except (RunStopped, RunFailed):
+        except (RunStopped, RunFailed, AccountMismatch):
             if inflight:
                 self.port.stop_jobs([ref for ref, _ in inflight.values()])
             raise

@@ -5,6 +5,7 @@ import asyncio
 from datetime import datetime, timezone
 from threading import Event
 from uuid import uuid4
+from ..account_scope import AccountMismatch, require_same_account
 from ..legacy_author_sync import LegacyAuthorSourceError
 from ..managed_scheduler import ScheduleAccountError
 
@@ -240,8 +241,8 @@ class SchedulerView:
             form = (self.authors.value or '', self.interval.value, self.startup.value)
             revision = self.revision
             account_id = self._settings_account
-            if ledger.favourite_account() != account_id:
-                raise ScheduleAccountError('mismatch')
+            require_same_account(account_id, ledger.favourite_account(),
+                                 error=ScheduleAccountError('mismatch'))
             raw = tuple(part.strip() for part in form[0].split(',') if part.strip())
             if self._stars_unknown_in_form:
                 try:
@@ -266,12 +267,12 @@ class SchedulerView:
                 if raw is None or form[0] == loaded_authors:
                     return ledger.configure(interval_hours=int(form[1]), startup_check=bool(form[2]),
                                             expected_revision=revision, now=datetime.now(timezone.utc),
-                                            account_id=account_id), ()
+                                            account_id=account_id), (), ()
                 return ledger.configure_all(author_ids=raw, interval_hours=int(form[1]),
                                             startup_check=bool(form[2]), expected_revision=revision,
                                             now=datetime.now(timezone.utc), return_ignored=True,
-                                            account_id=account_id)
-            saved, ignored = await asyncio.to_thread(update)
+                                            account_id=account_id, report_retained=True)
+            saved, ignored, retained = await asyncio.to_thread(update)
             runner = getattr(self.services, 'managed_schedule_runner', None)
             if runner is not None:
                 runner.settings_changed()
@@ -281,8 +282,13 @@ class SchedulerView:
             if self._settings_dirty:
                 self.revision = saved.revision
             self._load(ledger)
+            notices = []
             if ignored:
-                self.action_notice.set_text('フォローしていないため保存しなかったID: ' + ', '.join(ignored))
+                notices.append('フォローしていないため保存しなかったID: ' + ', '.join(ignored))
+            if retained:
+                notices.append('フォローが解除された作者の☆と保留を保持しました。ID ' + ', '.join(retained))
+            if notices:
+                self.action_notice.set_text(' / '.join(notices))
         except ScheduleAccountError:
             self.action_notice.set_text(
                 '同期先アカウントが変わりました。「編集を破棄して再読込」してから保存してください')
@@ -356,8 +362,8 @@ def check_failure_message(error):
     # Never display raw exception text: it may contain paths or credentials.
     from ..managed_network_stop_gate import ManagedNetworkStopped, ManagedNetworkGateBusy, ManagedNetworkGateStorageError
     from ..pixiv_read_client import HTTPStatusRejected, AuthenticationMissing
-    if isinstance(error, ScheduleAccountError):
-        if error.reason == 'unknown':
+    if isinstance(error, (ScheduleAccountError, AccountMismatch)):
+        if getattr(error, 'reason', None) == 'unknown':
             return '定期チェックの既存データの出所を確認できません。データを保持して停止しました。'
         return '定期チェックの台帳は別のアカウントに紐付いています。既存データを保持して停止しました。'
     if isinstance(error, ManagedNetworkStopped):
