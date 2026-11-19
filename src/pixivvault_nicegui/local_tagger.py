@@ -258,12 +258,27 @@ class TaggerManager:
             return before, tags
 
     def try_current_fingerprint(self):
-        if not self._lock.acquire(blocking=False):
-            return None
         try:
-            return self.current_fingerprint()
-        finally:
-            self._lock.release()
+            if self._closed:
+                return None
+            snapshot = self.preferences.snapshot()
+            path = snapshot.values['local_tagger_path']
+            if snapshot.values['local_tagger_enabled'] != '1' or not _local_folder(path):
+                return None
+            receipt = self.preferences.read_tagger_verification().get('receipt')
+            if not isinstance(receipt, dict) or receipt.get('verified') is not True:
+                return None
+            folder = Path(path)
+            paths = [folder / 'MODEL_SOURCE.json', *(folder / name for name in FILES)]
+            if receipt.get('identities') != [_identity(item) for item in paths]:
+                return None
+            current = self.preferences.snapshot()
+            if current.values['local_tagger_enabled'] != '1' or current.values['local_tagger_path'] != path:
+                return None
+            identity = json.dumps(receipt, sort_keys=True, separators=(',', ':')).encode('utf-8')
+            return hashlib.sha256(identity).hexdigest()
+        except (OSError, ValueError, TypeError, RuntimeError):
+            return None
 
     def close(self):
         with self._lock:

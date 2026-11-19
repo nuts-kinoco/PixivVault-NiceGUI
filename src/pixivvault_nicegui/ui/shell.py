@@ -426,7 +426,9 @@ class DemoShell:
         if self.personal_view is not None and word.strip():self.personal_view.tags.set_value(word.strip())
     def apply_preferences(self,snapshot=None):
         self.services.apply_preferences(snapshot)
-        if self.learning is not None:self.learning.refresh_prefetch()
+        if self.learning is not None:
+            self.learning.refresh_prefetch()
+            self.learning.watch_local_seeds()
 
     def _reflect_uid_once(self, dialog) -> None:
         # プロセス起動時に1回だけ（シェルは画面を開くたびに作られる）。

@@ -29,9 +29,11 @@ def test_inflight_result_discarded_if_configuration_changes(tmp_path, change):
     try:
         thread.start()
         assert started.wait(10)
+        assert manager.try_current_fingerprint() is not None
         if change == 'disabled': store.set_setting('local_tagger_enabled', '0')
         elif change == 'path': store.set_setting('local_tagger_path', str(tmp_path / 'other'))
         else: (model / 'model.onnx').write_bytes(b'changed')
+        assert manager.try_current_fingerprint() is None
     finally:
         release.set()
         thread.join(15)

@@ -67,6 +67,7 @@ class DiscoveryLearningService(LearningService):
         self._seed_lock = Lock()
         self._seed_future = None
         self._seed_stop = Event()
+        self._seed_rescan = Event()
         self.following = following
         self.saved_ids = saved_ids
         self.seed_readonly_db = seed_readonly_db
@@ -115,8 +116,19 @@ class DiscoveryLearningService(LearningService):
             raise RuntimeError('local seed unavailable')
         with self._seed_lock:
             if self._seed_future is None or self._seed_future.done():
-                self._seed_future = self._seed_executor.submit(self._scan_saved_seeds)
+                self._seed_future = self._seed_executor.submit(self._scan_until_stable)
+            else:
+                self._seed_rescan.set()
             return self._seed_future
+
+    def _scan_until_stable(self):
+        while not self._seed_stop.is_set():
+            self._seed_rescan.clear()
+            self._scan_saved_seeds()
+            with self._seed_lock:
+                if not self._seed_rescan.is_set():
+                    self._seed_future = None
+                    return
 
     def _scan_saved_seeds(self):
         fingerprint = self.tagger.current_fingerprint()
@@ -159,13 +171,13 @@ class DiscoveryLearningService(LearningService):
         with db._transaction() as conn:
             conn.execute("INSERT INTO managed_local_seed VALUES (?, 'local', ?, ?, ?) ON CONFLICT(work_id) DO UPDATE SET source=excluded.source, model_fingerprint=excluded.model_fingerprint, image_sha256=excluded.image_sha256, tags=excluded.tags", (wid, fingerprint, image_sha, json.dumps(tags, ensure_ascii=False)))
 
-    def _effective_preferences(self, db):
-        preferences = db.get_discovery_preferences()
+    def _local_seed_counts(self, db):
+        result = {}
         if self.tagger is None or self.saved_works is None:
-            return preferences
+            return result
         fingerprint = self.tagger.try_current_fingerprint()
         if fingerprint is None:
-            return preferences
+            return result
         saved = set(str(x) for x in (self.saved_ids() if callable(self.saved_ids) else self.saved_ids))
         eligible = {str(w.work_id) for w in self.saved_works() if not w.tags} & saved
         for row in db.conn.execute("SELECT work_id,tags FROM managed_local_seed WHERE source='local' AND model_fingerprint=?", (fingerprint,)):
@@ -175,14 +187,24 @@ class DiscoveryLearningService(LearningService):
                 tags = json.loads(row['tags'])
                 if not isinstance(tags, list):
                     continue
-                for tag in set(t for t in tags if isinstance(t, str)):
-                    normalized = normalize_tag(tag)
-                    if not normalized:
-                        continue
-                    counts = preferences.setdefault(normalized, {'display_tag':tag})
-                    counts['seed_saved'] = counts.get('seed_saved', 0) + 1
+                unique = {}
+                for tag in tags:
+                    if isinstance(tag, str):
+                        normalized = normalize_tag(tag)
+                        if normalized:
+                            unique.setdefault(normalized, tag)
+                for normalized, tag in unique.items():
+                    item = result.setdefault(normalized, {'display':tag, 'count':0})
+                    item['count'] += 1
             except (TypeError, ValueError):
                 continue
+        return result
+
+    def _effective_preferences(self, db):
+        preferences = db.get_discovery_preferences()
+        for tag, item in self._local_seed_counts(db).items():
+            counts = preferences.setdefault(tag, {'display_tag':item['display']})
+            counts['seed_saved'] = counts.get('seed_saved', 0) + item['count']
         return preferences
 
     def close(self):
@@ -388,7 +410,9 @@ class DiscoveryLearningService(LearningService):
         saved = self.saved_ids() if callable(self.saved_ids) else self.saved_ids
         rows = discovery_ranking.trend_rows(self._effective_preferences(db),total_works=self._population_size(saved),
                   get_setting=db.get_setting) if count >= TREND_MIN_JUDGMENTS else []
-        return {'judged':count,'rows':tuple(rows),'ready':count >= TREND_MIN_JUDGMENTS}
+        local = self._local_seed_counts(db)
+        local_rows = tuple({'tag':tag, **item} for tag,item in sorted(local.items(), key=lambda pair:(-pair[1]['count'], pair[0])))
+        return {'judged':count,'rows':tuple(rows),'ready':count >= TREND_MIN_JUDGMENTS, 'local_seed_rows':local_rows}
 
     def preferred_tags(self):
         """世間ランキングの好みタグ印用（元 ranking_tab.py:519-530）。worker の外から呼ぶ同期 API。"""

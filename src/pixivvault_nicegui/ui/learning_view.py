@@ -84,6 +84,7 @@ class LearningView:
         self._trend_mode = 'rail'
         self._trend_capacity = PreferenceCapacity()
         self._trend_snapshot = None
+        self._seed_watch_task = None
         self._trend_visible_rows = 0
         self._summary_open = False
         self._summary_page = 0
@@ -1059,6 +1060,7 @@ class LearningView:
                 trend = await self.discovery.trend_snapshot()
                 if not self.state.closed:
                     self._render_trend(trend)
+                    self.watch_local_seeds()
         except Exception:
             if self.services.closing:
                 self.close()
@@ -1981,6 +1983,45 @@ class LearningView:
         if changed and self._trend_snapshot is not None:
             self._render_trend(self._trend_snapshot)
 
+    def watch_local_seeds(self):
+        if self.state.closed or getattr(self.discovery, '_seed_executor', None) is None:
+            return
+        future = getattr(self.discovery, '_seed_future', None)
+        if self._seed_watch_task is not None and not self._seed_watch_task.done():
+            self._seed_watch_task.cancel()
+        if future is None:
+            self._seed_watch_task = background_tasks.create(self._refresh_local_trend(), name='learning local seed refresh')
+        else:
+            self._seed_watch_task = background_tasks.create(self._watch_local_seeds(future), name='learning local seeds')
+
+    async def _refresh_local_trend(self):
+        if self.state.closed or self.services.closing:
+            return
+        try:
+            trend = await self.discovery.trend_snapshot()
+            if not self.state.closed and not self.services.closing:
+                self._render_trend(trend)
+        except Exception:
+            return
+
+    async def _watch_local_seeds(self, future):
+        wrapped = asyncio.wrap_future(future)
+        while not self.state.closed and not self.services.closing:
+            try:
+                await asyncio.wait_for(asyncio.shield(wrapped), timeout=3.0)
+            except asyncio.TimeoutError:
+                pass
+            except Exception:
+                return
+            if self.state.closed or self.services.closing:
+                return
+            try:
+                self._render_trend(await self.discovery.trend_snapshot())
+            except Exception:
+                return
+            if future.done():
+                return
+
     def _render_trend(self,trend):
         self._trend_snapshot = trend
         self.trend_content.clear()
@@ -1988,7 +2029,11 @@ class LearningView:
         if not trend['ready']:
             with self.trend_content:
                 ui.label('いまはあなたの保存から出しています').classes('pv-subtitle')
-            self._trend_visible_rows = 0
+                for row in trend.get('local_seed_rows', ())[:6]:
+                    with ui.row().classes('w-full items-center justify-between'):
+                        ui.label(row['display']).classes('truncate')
+                        ui.label(f'保存 {row["count"]} 件').classes('pv-subtitle')
+            self._trend_visible_rows = len(trend.get('local_seed_rows', ())[:6])
             return
         shown = displayed_rows(trend['rows'], self._trend_mode, getattr(self, '_trend_rail_rows', 1))
         self._trend_visible_rows = len(shown)

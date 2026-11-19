@@ -20,3 +20,17 @@ def test_empty_card_opens_preferences():
     finally:
         client.delete()
         services.close()
+
+
+def test_saved_local_seed_is_visible_in_trend():
+    client = Client(ui.page('/ak-saved-seed'))
+    try:
+        with client:
+            view = SimpleNamespace(trend_content=ui.column(), trend_label=ui.label())
+            LearningView._render_trend(view, {'judged': 0, 'ready': False, 'rows': (),
+                                'local_seed_rows': ({'tag': 'cat', 'display': 'cat', 'count': 3},)})
+            texts = [getattr(item, 'text', None) for item in view.trend_content.descendants()]
+            assert 'cat' in texts
+            assert '保存 3 件' in texts
+    finally:
+        client.delete()

@@ -2382,6 +2382,9 @@ class ApplicationServices:
         self._managed_receipts = receipts
         self._managed_catalog_snapshot = managed_version
         self._cached_local_bookmarks = visible_local
+        discovery = getattr(self, 'discovery', None)
+        if discovery is not None and self.local_tagger is not None and not self.closing:
+            discovery.refresh_saved_seeds()
 
     def _remote_images(self, records, *, reader=_CURRENT_IMAGE_READER):
         if reader is _CURRENT_IMAGE_READER:
