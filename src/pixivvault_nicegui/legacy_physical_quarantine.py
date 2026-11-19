@@ -327,6 +327,21 @@ class PhysicalLegacyQuarantine:
             if intent['kind']!='zip' or current!=intent['after_sha256']:
                 raise ValueError('physical recovery source conflict')
         if intent['kind']=='zip':
+            donor=unit/'retained'
+            moved=unit/'retained-next'
+            if donor.exists() and moved.exists():raise ValueError('physical recovery source conflict')
+            if not donor.exists() and moved.exists():donor=moved
+            if donor.exists() and _same_filesystem(unit,source.parent):
+                _legacy_input(donor)
+                if _digest(donor)!=intent['before_sha256']:raise ValueError('physical recovery source conflict')
+                if source.exists():
+                    if _digest(source)!=intent['after_sha256']:raise ValueError('physical recovery source conflict')
+                    self.store._checkpoint('physical-rollback-displaced:'+intent['key'])
+                if donor!=moved:os.rename(donor,moved)
+                os.replace(moved,source);_fsync_dir(source.parent);_fsync_dir(unit)
+                self.store._checkpoint('physical-rollback-restored:'+intent['key'])
+                if _digest(source)!=intent['before_sha256']:raise ValueError('physical recovery verification failed')
+                self._cleanup_scratch(intent);return
             before=unit/'before'
             if _digest(before)!=intent['before_sha256']:raise ValueError('physical before-generation changed')
             _require_space(source.parent,before.stat().st_size+_SPACE_MARGIN)
@@ -499,8 +514,15 @@ class PhysicalLegacyQuarantine:
         else:
             ready=self._copy_scratch(intent,'ready',unit/'after')
             if _digest(source)!=intent['before_sha256']:raise ValueError('physical source changed')
-            # The verified before copy is durable; keep the source name present
-            # until the atomic replacement, including across interruption.
+            # A same-volume hard link preserves the original inode without
+            # removing the public source name before the atomic replacement.
+            retained=unit/'retained'
+            if _same_filesystem(unit,source.parent):
+                try:os.link(source,retained)
+                except OSError:pass  # The durable before-copy remains the fallback.
+                if retained.exists() and (_digest(retained)!=intent['before_sha256']
+                                          or not os.path.samefile(source,retained)):
+                    raise ValueError('physical source changed')
             self.store._checkpoint('physical-source-retained:'+intent['key'])
             if _digest(source)!=intent['before_sha256']:
                 raise ValueError('physical source changed')
