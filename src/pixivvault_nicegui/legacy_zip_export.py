@@ -243,17 +243,40 @@ class LegacyZipExporter:
             destination = native_io_path(self.root / zip_name)
             _safe_path(native_io_path(self.root))
             _safe_path(destination, file=True)
-            # The old app reconciles an author rename to a single ZIP. Our
-            # non-destructive export cannot rename an earlier archive, so
-            # refuse a second ZIP whose author ID matches an older name.
-            for existing in native_io_path(self.root).iterdir():
-                if existing.name.endswith(f'({author_id}).zip') and (replace_existing_sha256 is None or existing != destination):
+            existing_archives = [p for p in native_io_path(self.root).iterdir()
+                                 if p.name.endswith(f'({author_id}).zip')]
+            if len(existing_archives) > 1:
+                raise LegacyZipExportError('ambiguous previous author ZIP')
+            if replace_existing_sha256 is None:
+                if existing_archives or destination.exists():
                     raise LegacyZipExportError('legacy author ZIP already exported')
-            if destination.exists() and replace_existing_sha256 is None:
-                raise LegacyZipExportError('legacy ZIP already exists; refusing overwrite')
-            if replace_existing_sha256 is not None:
-                if verified_zip_digest(destination)!=replace_existing_sha256:
+            else:
+                if len(existing_archives) != 1:
+                    raise LegacyZipExportError('previous ZIP missing')
+                previous_path = existing_archives[0]
+                if verified_zip_digest(previous_path) != replace_existing_sha256:
                     raise LegacyZipExportError('previous ZIP changed')
+                # Validate all bytes before changing even the archive name.
+                with ZipFile(previous_path, 'r') as previous:
+                    if previous.testzip() is not None:
+                        raise LegacyZipExportError('legacy ZIP verification failed')
+                old_alias = previous_path.name[:-len(f'({author_id}).zip')]
+                if previous_path != destination:
+                    if old_alias.startswith(f'{author_name}(') and old_alias.endswith(')'):
+                        destination = previous_path
+                    else:
+                        candidate = f'{author_name}({old_alias})({author_id}).zip'
+                        if len(candidate) > 150:
+                            candidate = zip_name
+                        target = native_io_path(self.root / candidate)
+                        _safe_path(target, file=True)
+                        if target.exists():
+                            raise LegacyZipExportError('author ZIP rename collision')
+                        if verified_zip_digest(previous_path) != replace_existing_sha256:
+                            raise LegacyZipExportError('previous ZIP changed')
+                        os.rename(previous_path, target)
+                        _fsync_dir(native_io_path(self.root))
+                        destination = target
 
             members = set()
             entries = []

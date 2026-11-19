@@ -729,7 +729,8 @@ class SaveExports:
         # Only a completed export receipt can authorize replacing this owned ZIP.
         for path in native_io_path(self.root).glob('*.export.json'):
             value=json.loads(_read_bounded(path,2_000_000),object_pairs_hook=_json_unique)
-            if (value.get('archive')==archive.name
+            if (isinstance(value.get('archive'),str)
+                    and value['archive'].endswith('('+author_id+').zip')
                     and value.get('source',{}).get('author_id')==author_id):
                 expected=value.get('sha256')
                 if isinstance(expected,str) and re.fullmatch(r'[a-f0-9]{64}',expected):
