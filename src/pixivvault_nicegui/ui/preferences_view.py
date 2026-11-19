@@ -74,6 +74,9 @@ class PreferencesView:
         self.similarity_status=similarity_status
         self.resume_similarity=resume_similarity
         self._similarity_timer=None
+        self._tagger_timer=None
+        self._tagger_verifying=0
+        self._tagger_pending=False
         self.vault=vault
         self.enabled_keys=frozenset(enabled_keys)
         if not self.enabled_keys.issubset(SPEC_BY_KEY):
@@ -123,6 +126,11 @@ class PreferencesView:
         if self._similarity_timer is not None:
             self._similarity_timer.cancel()
             self._similarity_timer=None
+        if self._tagger_timer is not None:
+            self._tagger_timer.cancel()
+            self._tagger_timer=None
+        self._tagger_verifying=0
+        self._tagger_pending=False
         self.opened=True
         self._epoch+=1
         epoch=self._epoch
@@ -174,6 +182,13 @@ class PreferencesView:
                 self.tagger_path=ui.input('モデルフォルダ', value=self.snapshot.values['local_tagger_path']).classes('w-full').props('data-testid=tagger-path')
                 self.tagger_enabled=ui.switch('有効', value=self.snapshot.values['local_tagger_enabled']=='1').props('data-testid=tagger-enabled')
                 self.tagger_status=ui.label(self.tagger.status).props('role=status data-testid=tagger-status')
+                self._tagger_pending=True
+                try:
+                    loop=asyncio.get_running_loop()
+                except RuntimeError:
+                    self._tagger_timer=ui.timer(0.1, lambda: self._sync_tagger_status(epoch))
+                else:
+                    self._tagger_timer=loop.create_task(self._watch_tagger_status(epoch))
                 ui.timer(0.1, lambda: self._verify_tagger(epoch), once=True)
             for group in dict.fromkeys(spec.group for spec in SPECS if spec.key != 'grid_card_size_mode' and spec.group != 'local_tagger_internal'):
                 ui.label(group).classes('text-subtitle1')
@@ -260,6 +275,8 @@ class PreferencesView:
     async def _verify_tagger(self, epoch):
         if self.closed or not self.opened or epoch != self._epoch or self.tagger is None:
             return
+        self._tagger_pending=False
+        self._tagger_verifying+=1
         self.tagger_status.set_text('検証中')
         try:
             result = await asyncio.to_thread(self.tagger.verify)
@@ -268,8 +285,20 @@ class PreferencesView:
                 self.snapshot = latest
         except Exception:
             result = '読込失敗'
+        finally:
+            if epoch == self._epoch:
+                self._tagger_verifying-=1
         if not self.closed and self.opened and epoch == self._epoch:
             self.tagger_status.set_text(result)
+
+    async def _watch_tagger_status(self, epoch):
+        while not self.closed and self.opened and epoch == self._epoch:
+            await asyncio.sleep(0.1)
+            self._sync_tagger_status(epoch)
+
+    def _sync_tagger_status(self, epoch):
+        if not self.closed and self.opened and epoch == self._epoch and not self._tagger_verifying and not self._tagger_pending:
+            self.tagger_status.set_text(self.tagger.status)
 
     def _sync_cache_limit_visibility(self):
         # Keep both draft values and consumer capabilities. Only the selected
@@ -336,6 +365,7 @@ class PreferencesView:
             return False
         self.snapshot=snapshot
         if self.tagger is not None and any(key.startswith('local_tagger_') for key in changes):
+            self._tagger_pending=True
             self.tagger_status.set_text('検証中')
             ui.timer(0.1, lambda: self._verify_tagger(self._epoch), once=True)
         try:
@@ -412,6 +442,9 @@ class PreferencesView:
             if not self.save():
                 return
         self.opened=False
+        if self._tagger_timer is not None:
+            self._tagger_timer.cancel()
+            self._tagger_timer=None
         if self._similarity_timer is not None:
             self._similarity_timer.cancel()
             self._similarity_timer=None
