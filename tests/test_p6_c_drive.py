@@ -1,8 +1,13 @@
 import sys
+import json
+import os
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from tools import p6_c_drive
+from p6_c_write_audit import write_destinations
 
 
 def test_drive_diff_includes_profile_and_does_not_follow_links(tmp_path):
@@ -29,3 +34,22 @@ def test_drive_diff_keeps_unpaired_ntfs_filename_code_units(tmp_path):
         (root / name).touch()
         assert p6_c_drive.snapshot(root, db, 'after') == []
         assert [Path(path).name for path in p6_c_drive.new_files(db)] == [name]
+
+
+def test_drive_exclusion_needs_evidence_and_narrow_directory(tmp_path):
+    path = tmp_path / 'rules.json'
+    entry = {'prefix': 'C:\\Windows\\Logs\\CBS\\', 'reason': 'Windows servicing', 'evidence': 'fixture observation'}
+    path.write_text(json.dumps([entry]), encoding='utf-8')
+    assert p6_c_drive.exclusions(path) == [entry]
+    for changed in (dict(entry, prefix='C:\\'), dict(entry, evidence='')):
+        path.write_text(json.dumps([changed]), encoding='utf-8')
+        with pytest.raises(ValueError):
+            p6_c_drive.exclusions(path)
+
+
+def test_python_audit_targets_writes_without_exposing_arguments():
+    assert write_destinations('open', ('C:/fixture', 'r', os.O_RDONLY)) == ()
+    assert write_destinations('open', ('C:/fixture', 'w', os.O_CREAT)) == ('C:/fixture',)
+    assert write_destinations('os.rename', ('source', 'C:/fixture', -1, -1)) == ('C:/fixture',)
+    assert write_destinations('sqlite3.connect', ('file:///C:/generated.sqlite?mode=ro',)) == ()
+    assert write_destinations('sqlite3.connect', ('file:///C:/generated.sqlite?mode=rwc',)) == ('C:/generated.sqlite',)
