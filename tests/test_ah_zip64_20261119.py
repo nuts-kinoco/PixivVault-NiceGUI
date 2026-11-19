@@ -69,3 +69,12 @@ def test_zip64_switches_on_member_count(tmp_path, monkeypatch):
         monkeypatch.setattr(module, 'ZIP32_ENTRY_LIMIT', 1)
         q.exports.zip.normalize_archive(path, sha256(path.read_bytes()).hexdigest())
         assert local_version(path) >= 45
+
+
+def test_existing_pages_are_not_counted_twice_for_zip64(tmp_path, monkeypatch):
+    import pixivvault_nicegui.legacy_zip_export as module
+    with generated_exports(tmp_path, True, None) as q:
+        path=q.exports.zip.export_author('456')
+        monkeypatch.setattr(module,'ZIP64_THRESHOLD',1000)
+        q.exports.zip.export_author('456', replace_existing_sha256=sha256(path.read_bytes()).hexdigest())
+        assert local_version(path) < 45

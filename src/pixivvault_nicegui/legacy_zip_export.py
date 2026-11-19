@@ -42,6 +42,8 @@ MAX_EXPORT_PAGES = 5000
 MAX_EXPORT_INPUT_BYTES = 1700 * 1024 * 1024
 MAX_ZIP_NAME_BYTES = 240
 ZIP64_THRESHOLD = 4000 * 1024 * 1024
+# CPython uses a 2 GiB ZIP32 guard; switch early to avoid partial writes.
+# ZIP64 is selected consistently for all members and remains ZIP-readable.
 ZIP32_SAFE_LIMIT = int(ZIP64_LIMIT / 1.05) - 1024 * 1024
 ZIP32_ENTRY_LIMIT = ZIP_FILECOUNT_LIMIT
 
@@ -458,16 +460,33 @@ class LegacyZipExporter:
             _safe_path(native_io_path(self.incomplete))
             staging = native_io_path(self.incomplete) / ('zip-' + uuid4().hex + '.tmp')
             previous_size = 0
-            previous_count = 0
+            previous_infos = {}
             if replace_existing_sha256 is not None:
                 with ZipFile(destination, 'r') as inspect:
-                    infos = inspect.infolist()
-                    previous_count = len(infos)
-                    previous_size = sum(info.file_size + len(info.filename.encode('utf-8'))
-                                        + len(info.extra) + len(info.comment) + 256 for info in infos)
-            estimate = previous_size + total_bytes + sum(len(entry[3].encode('utf-8')) + 256 for entry in entries)
+                    for info in inspect.infolist():
+                        name = info.filename.replace('\\', '/')
+                        if name in previous_infos:
+                            raise LegacyZipExportError('duplicate previous ZIP member')
+                        previous_infos[name] = info
+                        previous_size += (info.file_size + 2 * len(name.encode('utf-8'))
+                                          + 2 * len(info.extra) + len(info.comment) + 256)
+            page_sizes = {(relative, index): receipt['files'][index]['bytes']
+                          for relative, receipt, _ in receipts
+                          for index in source_pages[receipt['work_id']]}
+            estimate = previous_size
+            count = len(previous_infos)
+            for relative, _, index, name, candidates in entries:
+                matched = ([name] if name in previous_infos else
+                           [candidate for candidate in candidates if candidate in previous_infos])
+                size = page_sizes[(relative, index)]
+                if matched:
+                    old = previous_infos[matched[0]]
+                    estimate += max(0, size - old.file_size) + 2 * max(0, len(name.encode('utf-8')) - len(matched[0].encode('utf-8')))
+                else:
+                    estimate += size + 2 * len(name.encode('utf-8')) + 256
+                    count += 1
             use_zip64 = (estimate >= min(ZIP64_THRESHOLD, ZIP32_SAFE_LIMIT)
-                         or previous_count + len(entries) >= ZIP32_ENTRY_LIMIT)
+                         or count >= ZIP32_ENTRY_LIMIT)
             # Create before ZipFile with xb: an earlier failed staging archive
             # may never be silently overwritten or mistaken for a final ZIP.
             with staging.open('xb') as output:
