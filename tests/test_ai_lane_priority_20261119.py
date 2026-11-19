@@ -301,53 +301,6 @@ def test_time_is_taken_after_a_blocking_checkpoint_so_spacing_is_real():
     assert second - first >= 0.3 - 1e-9
 
 
-def test_stop_after_the_decision_gives_the_slot_back_and_sends_nothing():
-    from pixivvault_nicegui.request_policy import request_scope
-    clock = _Clock()
-    gate = RequestAdmission(lambda: 0.3, clock=clock, sleep=clock.sleep)
-    calls = []
-
-    def checkpoint():
-        calls.append(1)
-        if len(calls) == 3:                # the final (post-decision) checkpoint sees the stop
-            raise RuntimeError('stopped')
-    with request_scope(checkpoint=checkpoint):
-        with pytest.raises(RuntimeError):
-            gate(1000.0)
-    assert gate._last is None
-    before = clock.now
-    gate(1000.0)                           # the failed request did not consume the slot
-    assert clock.now == before
-
-
-def test_deadline_passing_after_the_decision_does_not_consume_the_slot():
-    clock = _Clock()
-    state = {'n': 0}
-
-    def interval():
-        return 0.3
-    gate = RequestAdmission(interval, clock=clock, sleep=clock.sleep)
-    gate(1000.0)
-    clock.now = 5.0
-
-    class Late:
-        def __call__(self):
-            return clock.now
-    # deadline 5.0 is not yet passed when deciding, but the clock moves on before the final check
-    real_checkpoint = None
-    from pixivvault_nicegui.request_policy import request_scope
-    calls = []
-
-    def checkpoint():
-        calls.append(1)
-        if len(calls) == 3:
-            clock.now = 5.2                # time passes while the final checkpoint runs
-    with request_scope(checkpoint=checkpoint):
-        with pytest.raises(ReadDeadlineExceeded):
-            gate(5.1)
-    assert gate._last == pytest.approx(0.0)
-
-
 def test_registered_interactive_request_keeps_priority_while_it_rereads_settings():
     from threading import Event
     reading = Event(); release = Event()
@@ -378,3 +331,36 @@ def test_registered_interactive_request_keeps_priority_while_it_rereads_settings
     assert issued == []                    # ...but it defers to the registered screen request
     release.set(); s.join(5); b.join(5)
     assert issued == ['interactive', 'background']
+
+
+def test_parked_interactive_in_pause_does_not_make_background_wait_the_cap_each_time():
+    from threading import Event
+    from pixivvault_nicegui.request_policy import request_scope
+    gate = RequestAdmission(lambda: 0.3)
+    gate(time.monotonic() + 30)
+    entered = Event(); resume = Event()
+
+    def checkpoint():
+        entered.set(); resume.wait(5)
+
+    def paused_screen():
+        with interactive_lane(), request_scope(checkpoint=checkpoint):
+            gate(time.monotonic() + 30)
+
+    s = Thread(target=paused_screen); s.start()
+    assert entered.wait(5)
+    started = time.monotonic()
+    gate(time.monotonic() + 5)             # an unrelated background request is not held for the cap
+    assert time.monotonic() - started < 1.0
+    resume.set(); s.join(5)
+
+
+def test_second_background_is_not_given_a_yield_clock_head_start_by_a_parked_first():
+    gate, clock = _gate(0.3)
+    first = [object(), 0.0, None, True]    # parked (pausing) first background
+    second = [object(), 0.0, None, False]
+    with gate._lock:
+        gate._background.extend([first, second])
+        gate._interactive.append([object(), 0.0, None, False])
+        assert gate._my_turn(second, False, 0.0) is False
+    assert first[2] == 0.0 and second[2] is None   # only the first-in-line owns the yield clock

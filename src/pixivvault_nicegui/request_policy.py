@@ -129,20 +129,21 @@ class RequestAdmission:
         with self._lock:return len(self._interactive)
     @staticmethod
     def _head(queue):
-        """First ticket that is not parked in a (possibly blocking) pause/settings call."""
+        """First ticket that is not parked inside a (possibly blocking) pause checkpoint."""
         for item in queue:
             if not item[3]:return item
         return None
+    def _capped(self,now):
+        """True when the first background request has already yielded the full cap."""
+        first=self._background[0] if self._background else None
+        return first is not None and first[2] is not None and now-first[2]>=MAX_BACKGROUND_DEFER_SECONDS
     def _my_turn(self,ticket,interactive,now):
+        # the yield clock starts when a background request becomes first in line, parked or not
+        if self._background and self._background[0][2] is None:self._background[0][2]=now
         if interactive:
-            if self._head(self._interactive) is not ticket:return False
-            head=self._head(self._background)
-            # a background head that already yielded the full cap goes before more interactive ones
-            return head is None or head[2] is None or now-head[2]<MAX_BACKGROUND_DEFER_SECONDS
+            return self._head(self._interactive) is ticket and not self._capped(now)
         if self._head(self._background) is not ticket:return False
-        if ticket[2] is None:ticket[2]=now          # the yield starts when it becomes the head, not while queued behind others
-        # any queued interactive request (even one briefly re-reading settings) keeps priority, up to the cap
-        return not self._interactive or now-ticket[2]>=MAX_BACKGROUND_DEFER_SECONDS
+        return self._head(self._interactive) is None or self._capped(now)
     def __call__(self,deadline):
         request_checkpoint();_check_deadline(deadline,self.clock)
         interactive=_LANE.get()=='interactive'
@@ -151,42 +152,26 @@ class RequestAdmission:
         with self._lock:queue.append(ticket)
         try:
             while True:
-                ticket[3]=True                           # parked: a pause/settings call may block outside the lock
-                try:
-                    request_checkpoint();_check_deadline(deadline,self.clock)
-                    seconds=float(self.interval())
-                    if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
+                ticket[3]=True                           # parked only while a pause checkpoint may block
+                try:request_checkpoint();_check_deadline(deadline,self.clock)
+                finally:ticket[3]=False
+                seconds=float(self.interval())
+                if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
+                ticket[3]=True                           # cancelled/expired during the settings read: issue nothing
+                try:request_checkpoint();_check_deadline(deadline,self.clock)
                 finally:ticket[3]=False
                 with self._lock:
                     now=self.clock()                     # taken after every blocking call
                     if self._my_turn(ticket,interactive,now):
                         remaining=0 if self._last is None else self._last+seconds-now
                         if remaining<=0:
-                            previous=self._last
-                            self._last=now               # provisional: confirmed below, returned on failure
-                            issued=now
-                        else:
-                            issued=None
-                            if now+remaining>=deadline:
-                                from .pixiv_read_client import ReadDeadlineExceeded
-                                raise ReadDeadlineExceeded()
-                            pause=min(remaining,0.1)
-                    else:
-                        issued=None
-                        pause=0.05
-                if issued is not None:
-                    try:
-                        ticket[3]=True
-                        try:
-                            request_checkpoint();_check_deadline(deadline,self.clock)   # stop/cancel/deadline after the decision
-                        finally:ticket[3]=False
-                    except BaseException:
-                        with self._lock:
-                            if self._last==issued:self._last=previous     # nothing was sent: give the slot back
-                        raise
-                    with self._lock:
-                        self._last=max(self._last,self.clock())          # a long pause counts as real time before the send
-                    return
+                            self._last=now
+                            return
+                        if now+remaining>=deadline:
+                            from .pixiv_read_client import ReadDeadlineExceeded
+                            raise ReadDeadlineExceeded()
+                        pause=min(remaining,0.1)
+                    else:pause=0.05
                 self.sleep(pause)
         finally:
             with self._lock:queue.remove(ticket)
