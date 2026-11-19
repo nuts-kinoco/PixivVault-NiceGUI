@@ -141,7 +141,8 @@ class RequestAdmission:
             return head is None or head[2] is None or now-head[2]<MAX_BACKGROUND_DEFER_SECONDS
         if self._head(self._background) is not ticket:return False
         if ticket[2] is None:ticket[2]=now          # the yield starts when it becomes the head, not while queued behind others
-        return self._head(self._interactive) is None or now-ticket[2]>=MAX_BACKGROUND_DEFER_SECONDS
+        # any queued interactive request (even one briefly re-reading settings) keeps priority, up to the cap
+        return not self._interactive or now-ticket[2]>=MAX_BACKGROUND_DEFER_SECONDS
     def __call__(self,deadline):
         request_checkpoint();_check_deadline(deadline,self.clock)
         interactive=_LANE.get()=='interactive'
@@ -155,20 +156,37 @@ class RequestAdmission:
                     request_checkpoint();_check_deadline(deadline,self.clock)
                     seconds=float(self.interval())
                     if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
-                    request_checkpoint();_check_deadline(deadline,self.clock)   # cancelled during the settings read: issue nothing
                 finally:ticket[3]=False
                 with self._lock:
                     now=self.clock()                     # taken after every blocking call
                     if self._my_turn(ticket,interactive,now):
                         remaining=0 if self._last is None else self._last+seconds-now
                         if remaining<=0:
-                            self._last=now
-                            return
-                        if now+remaining>=deadline:
-                            from .pixiv_read_client import ReadDeadlineExceeded
-                            raise ReadDeadlineExceeded()
-                        pause=min(remaining,0.1)
-                    else:pause=0.05
+                            previous=self._last
+                            self._last=now               # provisional: confirmed below, returned on failure
+                            issued=now
+                        else:
+                            issued=None
+                            if now+remaining>=deadline:
+                                from .pixiv_read_client import ReadDeadlineExceeded
+                                raise ReadDeadlineExceeded()
+                            pause=min(remaining,0.1)
+                    else:
+                        issued=None
+                        pause=0.05
+                if issued is not None:
+                    try:
+                        ticket[3]=True
+                        try:
+                            request_checkpoint();_check_deadline(deadline,self.clock)   # stop/cancel/deadline after the decision
+                        finally:ticket[3]=False
+                    except BaseException:
+                        with self._lock:
+                            if self._last==issued:self._last=previous     # nothing was sent: give the slot back
+                        raise
+                    with self._lock:
+                        self._last=max(self._last,self.clock())          # a long pause counts as real time before the send
+                    return
                 self.sleep(pause)
         finally:
             with self._lock:queue.remove(ticket)

@@ -299,3 +299,82 @@ def test_time_is_taken_after_a_blocking_checkpoint_so_spacing_is_real():
         gate(1000.0)
         second = clock.now
     assert second - first >= 0.3 - 1e-9
+
+
+def test_stop_after_the_decision_gives_the_slot_back_and_sends_nothing():
+    from pixivvault_nicegui.request_policy import request_scope
+    clock = _Clock()
+    gate = RequestAdmission(lambda: 0.3, clock=clock, sleep=clock.sleep)
+    calls = []
+
+    def checkpoint():
+        calls.append(1)
+        if len(calls) == 3:                # the final (post-decision) checkpoint sees the stop
+            raise RuntimeError('stopped')
+    with request_scope(checkpoint=checkpoint):
+        with pytest.raises(RuntimeError):
+            gate(1000.0)
+    assert gate._last is None
+    before = clock.now
+    gate(1000.0)                           # the failed request did not consume the slot
+    assert clock.now == before
+
+
+def test_deadline_passing_after_the_decision_does_not_consume_the_slot():
+    clock = _Clock()
+    state = {'n': 0}
+
+    def interval():
+        return 0.3
+    gate = RequestAdmission(interval, clock=clock, sleep=clock.sleep)
+    gate(1000.0)
+    clock.now = 5.0
+
+    class Late:
+        def __call__(self):
+            return clock.now
+    # deadline 5.0 is not yet passed when deciding, but the clock moves on before the final check
+    real_checkpoint = None
+    from pixivvault_nicegui.request_policy import request_scope
+    calls = []
+
+    def checkpoint():
+        calls.append(1)
+        if len(calls) == 3:
+            clock.now = 5.2                # time passes while the final checkpoint runs
+    with request_scope(checkpoint=checkpoint):
+        with pytest.raises(ReadDeadlineExceeded):
+            gate(5.1)
+    assert gate._last == pytest.approx(0.0)
+
+
+def test_registered_interactive_request_keeps_priority_while_it_rereads_settings():
+    from threading import Event
+    reading = Event(); release = Event()
+    gate = RequestAdmission(lambda: 0.3)
+    gate(time.monotonic() + 30)
+    reads = []
+
+    def interval():
+        if len(reads) == 1 and current_lane() == 'interactive':   # the second read of the screen request
+            reading.set(); release.wait(5)
+        reads.append(1)
+        return 0.3
+    gate.interval = interval
+    issued = []
+
+    def screen():
+        with interactive_lane():
+            gate(time.monotonic() + 30)
+        issued.append('interactive')
+
+    def background():
+        gate(time.monotonic() + 30)
+        issued.append('background')
+    s = Thread(target=screen); s.start()
+    assert reading.wait(5)
+    b = Thread(target=background); b.start()
+    time.sleep(0.4)                        # the background request would be free to go (interval elapsed)
+    assert issued == []                    # ...but it defers to the registered screen request
+    release.set(); s.join(5); b.join(5)
+    assert issued == ['interactive', 'background']
