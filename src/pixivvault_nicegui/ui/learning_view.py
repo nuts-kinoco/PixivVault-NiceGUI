@@ -55,7 +55,7 @@ class LearningView:
         ("SuperLike", "superLike", "arrowup", "w", "4"),
     )
 
-    def __init__(self, services: ApplicationServices) -> None:
+    def __init__(self, services: ApplicationServices, *, on_open_preferences=None) -> None:
         self.services = services
         self.ledger = MemoryJudgmentLedger()
         self.discovery = getattr(services, "discovery", None)
@@ -221,11 +221,15 @@ class LearningView:
             self.picture.on('click', self._open_learning_picture, js_handler=self._click_js())
             self.status = ui.label().classes("pv-subtitle pv-learning-status").props("role=status aria-live=polite")
             # 元 discovery_tab.py:4358-4365 の空状態の案内（候補が無いとき、何をすると何が起きるか）。
-            # 画像タグ補完のローカルモデル案内は、移植版に該当機能が無いので載せない。
             with ui.column().classes("items-center gap-1").props("data-testid=learning-empty") as self.empty_card:
                 ui.icon("explore").classes("text-4xl")
                 ui.label(EMPTY_TITLE).classes("pv-view-title")
                 ui.label(EMPTY_BODY).classes("pv-subtitle").style("white-space:pre-line;text-align:center")
+                ui.separator().classes('w-full')
+                with ui.row().classes('items-center justify-center flex-wrap'):
+                    ui.label('画像からのタグ補完にはローカルモデルの導入（任意）が利用できます。').style('font-size:11px;color:var(--pv-muted)')
+                    self.tagger_settings_button=ui.button('設定を開く', on_click=on_open_preferences).props('flat dense data-testid=learning-tagger-settings')
+                    self.tagger_settings_button.set_enabled(on_open_preferences is not None)
             self.empty_card.set_visibility(False)
             with ui.row().classes("items-center gap-2"):
                 self.buttons = {}

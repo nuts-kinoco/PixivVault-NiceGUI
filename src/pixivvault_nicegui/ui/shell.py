@@ -479,7 +479,7 @@ class DemoShell:
         if tab == "learning" and self.learning is None:
             from .learning_view import LearningView
             with self.content:
-                self.learning = LearningView(self.services)
+                self.learning = LearningView(self.services, on_open_preferences=self.open_preferences)
             history_view = getattr(self.learning, 'view_history', None)
             if history_view is not None:
                 history_view.on_count = self.set_view_history_count

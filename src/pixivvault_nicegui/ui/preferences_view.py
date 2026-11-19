@@ -170,9 +170,9 @@ class PreferencesView:
                 return
             self.controls={}
             if self.tagger is not None:
-                ui.label('???????????????').classes('text-subtitle1')
-                self.tagger_path=ui.input('???????', value=self.snapshot.values['local_tagger_path']).classes('w-full').props('data-testid=tagger-path')
-                self.tagger_enabled=ui.switch('??', value=self.snapshot.values['local_tagger_enabled']=='1').props('data-testid=tagger-enabled')
+                ui.label('ローカルタグ補完モデル（任意）').classes('text-subtitle1')
+                self.tagger_path=ui.input('モデルフォルダ', value=self.snapshot.values['local_tagger_path']).classes('w-full').props('data-testid=tagger-path')
+                self.tagger_enabled=ui.switch('有効', value=self.snapshot.values['local_tagger_enabled']=='1').props('data-testid=tagger-enabled')
                 self.tagger_status=ui.label(self.tagger.status).props('role=status data-testid=tagger-status')
                 ui.timer(0.1, lambda: self._verify_tagger(epoch), once=True)
             for group in dict.fromkeys(spec.group for spec in SPECS if spec.key != 'grid_card_size_mode' and spec.group != 'local_tagger_internal'):
@@ -260,14 +260,14 @@ class PreferencesView:
     async def _verify_tagger(self, epoch):
         if self.closed or not self.opened or epoch != self._epoch or self.tagger is None:
             return
-        self.tagger_status.set_text('???')
+        self.tagger_status.set_text('検証中')
         try:
             result = await asyncio.to_thread(self.tagger.verify)
             latest = self.store.snapshot()
             if self.snapshot is not None and all(latest.values[k] == v for k, v in self.snapshot.values.items() if k != 'local_tagger_receipt'):
                 self.snapshot = latest
         except Exception:
-            result = '????'
+            result = '読込失敗'
         if not self.closed and self.opened and epoch == self._epoch:
             self.tagger_status.set_text(result)
 
@@ -336,7 +336,7 @@ class PreferencesView:
             return False
         self.snapshot=snapshot
         if self.tagger is not None and any(key.startswith('local_tagger_') for key in changes):
-            self.tagger_status.set_text('???')
+            self.tagger_status.set_text('検証中')
             ui.timer(0.1, lambda: self._verify_tagger(self._epoch), once=True)
         try:
             if self.on_change and changes: self.on_change(snapshot)
