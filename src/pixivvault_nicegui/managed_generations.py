@@ -102,7 +102,7 @@ _SHARED_ROOT_FILES = frozenset({
 })
 _SHARED_ROOT_DIRS = frozenset({
     'extension-commands', 'requests', 'request-incomplete', 'viewer-pages',
-    'failure-dismissals', 'legacy-quarantine',
+    'failure-dismissals', 'legacy-quarantine', 'legacy-ledger',
 })
 
 

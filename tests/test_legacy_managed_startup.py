@@ -5,6 +5,7 @@ import json
 import pytest
 
 from pixivvault_nicegui.author_media import AuthorMediaService
+from pixivvault_nicegui.legacy_ledger_rebuild import publish_rebuilt_ledger, rebuild_undecidable_ledger
 from pixivvault_nicegui.managed_downloads import ManagedDownloadError, ManagedPixivDownloads
 from pixivvault_nicegui.managed_generations import ManagedGenerations
 from pixivvault_nicegui.managed_network_stop_integration import ManagedNetworkStopIntegration
@@ -13,6 +14,7 @@ from pixivvault_nicegui.managed_viewer_page import _prepare as prepare_viewer_pa
 from pixivvault_nicegui.services import ApplicationServices
 from test_managed_download_services import FakeSource
 from test_managed_downloads import Client, record
+from test_original_ledger_rebuild import fixture as legacy_ledger_fixture
 from test_v_dl_cap_20261117 import make_generation, make_legacy, make_root, png
 from test_w_round6_contract import snapshot
 
@@ -96,6 +98,22 @@ def test_indexless_artwork_root_with_real_sibling_owners(tmp_path):
     assert ManagedGenerations(root).entries() == {}
     assert {name: value for name, value in snapshot(root).items() if name in before} == before
     assert source.calls == []
+
+
+def test_indexless_artwork_root_preserves_rebuilt_legacy_ledger(tmp_path):
+    db, images, root = legacy_ledger_fixture(tmp_path)
+    args = dict(undecidable_db=db, images_root=images, managed_root=root)
+    rebuilt = rebuild_undecidable_ledger(**args)
+    publish_rebuilt_ledger(rebuilt, **args)
+    make_legacy(root, '123')
+    before = snapshot(root)
+
+    owner = ManagedPixivDownloads(root, None, resolve_record=lambda _: record())
+    try:
+        assert owner.saved_receipts()[0][1]['work_id'] == '123'
+    finally:
+        owner.close()
+    assert {name: value for name, value in snapshot(root).items() if name in before} == before
 
 
 @pytest.mark.parametrize('unexpected', ['jobs.sqlite3.unrecognized', 'generations',
