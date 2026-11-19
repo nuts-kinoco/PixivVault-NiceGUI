@@ -1427,14 +1427,22 @@ class ApplicationServices:
             raise RuntimeError('external viewer unavailable')
 
         def open_target():
-            from .local_media_adapter import MediaMissing
+            from .fs_paths import logical_path
+            from .local_media_adapter import MediaAmbiguous, MediaMissing
             from .saved_folders import legacy_author_destination
+
+            legacy_root = self.library_image_root
             try:
                 target = self.images.external_target(catalog_token, work_id, page-1)
-            except MediaMissing:
-                target = legacy_author_destination(self.library_image_root, author_id)
+            except (MediaAmbiguous, MediaMissing) as error:
+                target = legacy_author_destination(legacy_root, author_id,
+                    archive_only=isinstance(error, MediaAmbiguous))
                 if target is None:
                     raise
+            else:
+                if (author_id is not None and legacy_root is not None
+                        and logical_path(target).is_relative_to(logical_path(legacy_root))):
+                    target = legacy_author_destination(legacy_root, author_id, archive_only=True) or target
             if self.closing or self.desktop is not desktop or (is_current is not None and not is_current()):
                 raise RuntimeError('saved selection changed')
             return desktop.open_saved(target)

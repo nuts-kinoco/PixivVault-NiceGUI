@@ -327,7 +327,8 @@ async def test_legacy_capacity_update_reuses_cards_until_order_changes(library):
 
 
 @pytest.mark.asyncio
-async def test_author_context_opens_pinned_saved_image(tmp_path, monkeypatch):
+@pytest.mark.parametrize('with_archive', [False, True])
+async def test_author_context_opens_pinned_saved_image(tmp_path, monkeypatch, with_archive):
     import asyncio
     from nicegui import core
     from pixivvault_nicegui.desktop_integration import DesktopIntegration
@@ -343,6 +344,11 @@ async def test_author_context_opens_pinned_saved_image(tmp_path, monkeypatch):
     folder.mkdir(parents=True)
     target = folder / 'Title(101).png'
     target.write_bytes(png('red'))
+    if with_archive:
+        from zipfile import ZipFile
+        target = root / 'Author(42).zip'
+        with ZipFile(target, 'w') as archive:
+            archive.writestr('Title(101).png', png('blue'))
     opened = []
     desktop = DesktopIntegration(allowed_roots=(root,),
                                  launcher=SimpleNamespace(open_default=opened.append))

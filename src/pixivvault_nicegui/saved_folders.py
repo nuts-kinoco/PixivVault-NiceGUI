@@ -85,7 +85,7 @@ def saved_folder_choices(services):
     return result
 
 
-def legacy_author_destination(root, author_id):
+def legacy_author_destination(root, author_id, *, archive_only=False):
     if root is None or not isinstance(author_id, str) or not author_id.isascii() or not author_id.isdecimal():
         return None
     from .bookmark_projection import author_folder
@@ -94,6 +94,8 @@ def legacy_author_destination(root, author_id):
     archives = [path for path in author_zip_candidates(root, author_id) if path.is_file()]
     if archives:
         return largest_author_zip(archives)
+    if archive_only:
+        return None
     folder = author_folder(root, author_id)
     return root / folder if folder is not None else None
 
