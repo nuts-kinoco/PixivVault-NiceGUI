@@ -7,7 +7,7 @@ module unless their launcher explicitly opts in.
 """
 from __future__ import annotations
 
-from contextlib import closing
+from contextlib import closing, contextmanager
 from dataclasses import dataclass
 import os
 from pathlib import Path
@@ -465,14 +465,52 @@ class NativeProfileStore:
                     candidate.save_parent, candidate.library_readonly_db,candidate.library_image_root,
                     candidate.similarity_model_file,candidate.similarity_provider,candidate.similarity_auto)
             except NativeProfileConflict:
-                self._connection.execute('ROLLBACK')
+                if self._connection.in_transaction:
+                    self._connection.execute('ROLLBACK')
                 raise
             except NativeProfileError:
-                self._connection.execute('ROLLBACK')
+                if self._connection.in_transaction:
+                    self._connection.execute('ROLLBACK')
                 raise  # This module's bounded diagnostics never include secrets.
             except Exception:
-                self._connection.execute('ROLLBACK')
+                if self._connection.in_transaction:
+                    self._connection.execute('ROLLBACK')
                 raise NativeProfileError('保存できませんでした。旧設定は変更していません。') from None
+
+    @contextmanager
+    def pinned_snapshot(self):
+        """Reserve the profile with an independent connection; allow reads."""
+        with self._lock:
+            if self._closed:
+                raise NativeProfileError('profile unavailable')
+        connection = None
+        try:
+            _assert_chain(self.path, kind='file')
+            uri = sqlite_readonly_uri(self.path, immutable=False).replace('?mode=ro', '?mode=rw')
+            connection = sqlite3.connect(uri, uri=True, timeout=4, isolation_level=None)
+            connection.execute('BEGIN IMMEDIATE')
+            snapshot = self._read_row(connection, self.root)
+        except Exception:
+            if connection is not None:
+                connection.close()
+            raise NativeProfileError('profile unavailable') from None
+        try:
+            yield snapshot
+        finally:
+            import sys
+            from .pixiv_read_client import HTTPStatusRejected
+            active = sys.exc_info()[1]
+            cleanup_error = None
+            for action in (lambda: connection.execute('ROLLBACK'), connection.close):
+                try:
+                    action()
+                except Exception as error:
+                    if isinstance(active, HTTPStatusRejected):
+                        active.cleanup_failed = True
+                    elif cleanup_error is None:
+                        cleanup_error = error
+            if cleanup_error is not None:
+                raise cleanup_error
 
     def native_kwargs(self, snapshot: NativeProfileSnapshot | None = None) -> dict:
         """Opt-in launcher input; no implicit config/CLI overrides or I/O."""

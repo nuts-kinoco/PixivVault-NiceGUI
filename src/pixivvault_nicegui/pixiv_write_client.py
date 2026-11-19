@@ -667,21 +667,30 @@ class PixivWriteClient:
                                 raise WriteValidationError()
                         if coordinator is not None and coordinator.generation_token(self._reader) != generation:
                             raise WriteValidationError()
-                        if mark_dispatch is not None:
-                            mark_dispatch()
-                        if coordinator is not None and coordinator.generation_token(self._reader) != generation:
-                            raise WriteValidationError()
-                        deadline=time.monotonic()+MAX_MUTATION_SECONDS
-                        dispatched = True
-                        response=self._transport(request,MAX_MUTATION_SECONDS,MAX_POST_BYTES,deadline)
-                        if (self._post_admission is not None and isinstance(response, WriteHTTPResponse)
-                                and response.status in (401,403,429)):
-                            raise HTTPStatusRejected(response.status)
-                        self._reader._ensure_open()
-                        if (time.monotonic()>deadline or not isinstance(response,WriteHTTPResponse)
-                                or type(response.status) is not int):
-                            raise TimeoutError()
+                        with (coordinator.post_fence(self._reader, generation) if coordinator is not None else nullcontext()):
+                            with (getattr(self._reader, '_expiry_cancel_lock', None) or nullcontext()):
+                                self._reader._ensure_open()
+                                if mark_dispatch is not None:
+                                    mark_dispatch()
+                                self._reader._ensure_open()
+                                if coordinator is not None:
+                                    coordinator.ensure_post_owner(self._reader)
+                                with self._lock:
+                                    if self._closed or self._epoch != epoch:
+                                        raise WriteValidationError()
+                                deadline=time.monotonic()+MAX_MUTATION_SECONDS
+                                dispatched = True
+                                response=self._transport(request,MAX_MUTATION_SECONDS,MAX_POST_BYTES,deadline)
+                                if (self._post_admission is not None and isinstance(response, WriteHTTPResponse)
+                                        and response.status in (401,403,429)):
+                                    raise HTTPStatusRejected(response.status)
+                                self._reader._ensure_open()
+                                if (time.monotonic()>deadline or not isinstance(response,WriteHTTPResponse)
+                                        or type(response.status) is not int):
+                                    raise TimeoutError()
             except HTTPStatusRejected as error:
+                if getattr(error, 'cleanup_failed', False):
+                    return self._finish(intent,target_key,'indeterminate','transport_unknown',None,epoch)
                 if response is None or response.status != error.status_code:
                     return self._finish(intent,target_key,'indeterminate','transport_unknown',None,epoch)
             except Exception:

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager, ExitStack
 from email.utils import mktime_tz, parsedate_tz
+import os
 from http.cookies import CookieError, SimpleCookie
 import re
 import time
@@ -12,7 +13,7 @@ from urllib.request import Request
 
 from .extension_cookie_store import (
     COOKIE_LIMIT, CookieSyncError, CookieSyncBusy, CookieSyncCapacityExceeded, CookieSyncCommitUnconfirmed,
-    _MAX_EXPIRY, _canonical, _cookie_octet_value, _key, _parse_existing, _read_stable,
+    _MAX_EXPIRY, _canonical, _cookie_octet_value, _identity, _key, _parse_existing, _read_stable,
 )
 from .pixiv_read_client import CookieSourceRejected, _SESSION_ID, _read_cookies
 
@@ -85,6 +86,51 @@ class CookieExpiryCoordinator:
         self._check()
         if reader not in self._readers or reader._closed:
             raise CookieSourceRejected()
+
+    def ensure_post_owner(self, reader):
+        """Recheck ownership after a reentrant dispatch callback."""
+        if (self._closed or reader._closed or reader not in self._readers
+                or reader._expiry_coordinator is not self):
+            raise CookieSourceRejected()
+
+    @contextmanager
+    def post_fence(self, reader, generation):
+        """Keep the selected profile and Cookie pinned throughout one POST."""
+        from .frozen_source_pin import _open_held
+        if os.name != 'nt':
+            raise CookieSourceRejected()
+        if self._closed or reader not in self._readers or reader._closed:
+            raise CookieSourceRejected()
+        descriptor = None
+        with self._profile.pinned_snapshot() as snapshot:
+            try:
+                if snapshot != self._snapshot or generation != (self._snapshot, self._proof):
+                    raise CookieSourceRejected()
+                path = _canonical(snapshot.cookie_file, file=True)
+                descriptor = _open_held(path)
+                if _identity(os.fstat(descriptor)) != self._proof.identity:
+                    raise CookieSourceRejected()
+                _, proof = _read_stable(path, COOKIE_LIMIT)
+                if proof != self._proof or _identity(os.fstat(descriptor)) != proof.identity:
+                    raise CookieSourceRejected()
+            except Exception:
+                if descriptor is not None:
+                    os.close(descriptor)
+                raise CookieSourceRejected() from None
+            try:
+                yield
+            finally:
+                import sys
+                from .pixiv_read_client import HTTPStatusRejected
+                active = sys.exc_info()[1]
+                try:
+                    os.close(descriptor)
+                except Exception:
+                    self._closed = True
+                    if isinstance(active, HTTPStatusRejected):
+                        active.cleanup_failed = True
+                    else:
+                        raise
 
     @contextmanager
     def _commit_admission(self, reader):
