@@ -170,7 +170,12 @@ class PracticalUgoiraJobs(ManagedUgoiraJobs):
         if receipt is None or receipt!=job.result: raise ManagedUgoiraError()
         proof=dict(job_id=job.job_id,receipt=receipt,sha256=digest(_read_bounded(self.root/receipt,storage.MAX_RECEIPT_BYTES)))
         actual_output = 'gif' if receipt.startswith('gifs/') else spec['output']
-        return dict(spec=spec,proof=proof,job_id=job.job_id,actual_output=actual_output)
+        result = dict(spec=spec,proof=proof,job_id=job.job_id,actual_output=actual_output)
+        if actual_output == 'gif':
+            packet = json.loads(_read_bounded(self.root / receipt, MAX_INTENT_BYTES), object_pairs_hook=_json_unique)
+            if packet.get('version') == 4:
+                result['gif_receipt'] = packet['gif_receipt']
+        return result
     def _completed_jobs(self):
         # Durable accepted operation order identifies jobs after the display
         # window has retired them; the receipt is still verified by entry().
@@ -194,7 +199,11 @@ class PracticalUgoiraJobs(ManagedUgoiraJobs):
             spec=self._spec(job.target_id)
             key=(spec['work_id'],spec['output'])
             if key not in entries: entries[key]=self.entry(job)
-        return tuple(entries[k] for k in sorted(entries))
+        distinct = {}
+        for key, entry in entries.items():
+            identity = (key[0], entry.get('gif_receipt', entry['proof']['receipt']))
+            distinct.setdefault(identity, (key, entry))
+        return tuple(entry for key, entry in sorted(distinct.values(), key=lambda pair: pair[0]))
     def playback(self,entry):
         spec=entry['spec']
         if self.current(spec['work_id'],spec['output'])!=entry: raise ManagedUgoiraError()
@@ -207,7 +216,7 @@ class PracticalUgoiraJobs(ManagedUgoiraJobs):
         images=[]
         def add(data,delay,mime='image/png'):
             images.append(dict(src='data:'+mime+';base64,'+base64.b64encode(data).decode(),delay=delay))
-        result_folder=(self.root/entry['proof']['receipt']).parent
+        result_folder=(self.root/entry.get('gif_receipt',entry['proof']['receipt'])).parent
         if entry['actual_output']=='gif':
             with Image.open(BytesIO(_read_bounded(result_folder/'animation.gif',MAX_ARCHIVE_BYTES))) as gif:
                 for index in range(gif.n_frames):
