@@ -138,6 +138,11 @@ def zip_arcname_candidates(arcname: str, safe_title: str, work_id: str) -> list[
     candidates.append(arcname)
     return candidates
 
+def _safe_page_candidates(canonical, candidates, work_id):
+    # A weak old name containing a different work ID cannot identify this work.
+    return [candidate for candidate in candidates if candidate == canonical
+            or not any(marker != work_id for marker in re.findall(r'\(([1-9][0-9]*)\)', candidate))]
+
 def _export_path(root: Path) -> Path:
     if not isinstance(root, Path) or not root.is_absolute() or root == root.parent:
         raise LegacyZipExportError('dedicated absolute legacy export root required')
@@ -440,6 +445,7 @@ class LegacyZipExporter:
                               else f'{safe_title}_{index + 1}.{ext}')
                     candidates = zip_arcname_candidates(legacy, safe_title, receipt['work_id'])
                     canonical = legacy_filename(receipt['title'], receipt['work_id'], index, receipt['page_count'], ext)
+                    candidates = _safe_page_candidates(canonical, candidates, receipt['work_id'])
                     page_candidates.append((canonical, candidates, False))
             for relative, receipt, digest in receipts:
                 for page_index in source_pages[receipt['work_id']]:
@@ -454,6 +460,7 @@ class LegacyZipExporter:
                     legacy = (f'{safe_title}.{ext}' if receipt['page_count'] == 1
                               else f'{safe_title}_{page_index + 1}.{ext}')
                     candidates = zip_arcname_candidates(legacy, safe_title, receipt['work_id'])
+                    candidates = _safe_page_candidates(name, candidates, receipt['work_id'])
                     entries.append((relative, digest, page_index, name, candidates))
                     page_candidates.append((name, candidates, True))
 

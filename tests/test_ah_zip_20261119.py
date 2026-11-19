@@ -135,10 +135,10 @@ def test_two_works_cannot_claim_same_legacy_member(tmp_path):
         q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
         q.exports.scan()
         jobs=settled(q.exports)
-        assert any(j.state == 'error' and j.error_code == 'zip_member_ambiguous' for j in jobs)
-        from pixivvault_nicegui.job_failure import job_failure_text
-        assert '\u66d6\u6627' in job_failure_text('zip_member_ambiguous')
-        assert path.read_bytes() == before
+        assert all(j.state == 'done' for j in jobs)
+        with ZipFile(path) as z:
+            assert z.read('synthetic title(123)_2.png')
+            assert any('(124)' in name for name in z.namelist())
 
 
 def test_canonical_members_take_precedence_over_weak_alias(tmp_path):
@@ -158,3 +158,28 @@ def test_canonical_members_take_precedence_over_weak_alias(tmp_path):
         assert all(j.state == 'done' for j in settled(q.exports))
         with ZipFile(q.exports.zip.root / 'tester(456).zip') as z:
             assert len(z.namelist()) == 4
+
+
+def test_legacy_alias_cannot_claim_another_work_id(tmp_path,monkeypatch):
+    from dataclasses import replace
+    from types import SimpleNamespace
+    from test_managed_downloads import Context, record
+    from io import BytesIO
+    from PIL import Image
+    with generated_exports(tmp_path,True,None) as q:
+        exporter=q.exports.zip; path=exporter.export_author('456')
+        with ZipFile(path) as z: original=z.read('synthetic title(123)_1.png')
+        stream=BytesIO();Image.new('RGB',(9,7),(220,30,10)).save(stream,format='PNG')
+        q.reader.payload=stream.getvalue();q.reader.get_artwork_original_pages=lambda wid:('https://i.pximg.net/a',)
+        q.managed.resolve_record=lambda wid:replace(record(),remote_id=wid,title='synthetic title(123)_1',page_count=1)
+        q.managed.run(SimpleNamespace(kind='pixiv-illust',target_id='124'),Context())
+        snapshot=q.managed.catalog_snapshot
+        def renamed(*args,**kwargs):
+            old=snapshot(*args,**kwargs)
+            rows=tuple((rel,dict(row,title='renamed') if row['work_id']=='123' else row,proof) for rel,row,proof in old.receipts)
+            return replace(old,receipts=rows)
+        monkeypatch.setattr(q.managed,'catalog_snapshot',renamed)
+        exporter.export_author('456',replace_existing_sha256=sha256(path.read_bytes()).hexdigest())
+        with ZipFile(path) as z:
+            assert z.read('synthetic title(123)_1.png')==original
+            assert q.reader.payload in [z.read(name) for name in z.namelist()]
