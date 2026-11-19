@@ -528,6 +528,8 @@ def test_proof_binding_runs_every_16_finished_jobs_and_at_the_author_end(ledger)
     port = CappedPort()
     port.inventory = {'41': works('41', 100)}
     settles = []
-    port.settle = lambda aid: settles.append(aid)
-    run_engine(port, ledger, ('41',))
+    port.settle = lambda aid, *, scope: settles.append((aid, scope.account_id))
+    run_id = run_engine(port, ledger, ('41',))
+    assert ledger.run(run_id).state == 'done'
     assert 6 <= len(settles) <= 9
+    assert set(settles) == {('41', '55')}
