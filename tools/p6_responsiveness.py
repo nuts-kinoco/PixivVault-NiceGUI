@@ -217,6 +217,9 @@ def browser_run(base, url, name, env, probe_only, repetitions, cases):
             context.close()
             (base / f'{name}-browser-network.json').write_text(
                 json.dumps({'nonlocal_requests_blocked': len(out_of_origin)}), encoding='utf-8')
+            if name == 'nice':
+                with urllib.request.urlopen(url + '__p6_network', timeout=5) as response:
+                    (base / 'nice-server-network.json').write_bytes(response.read())
 
 
 def probe(page, base, name):
@@ -281,12 +284,12 @@ def measure(page, base, name, repetitions, cases):
         label = f'Bench Author {number:03d}'
         if original:
             return page.locator(f'flt-semantics[aria-label^="{label}"]')
-        return page.get_by_text(label, exact=True)
+        return page.get_by_test_id('library-authors-scroll').get_by_role('button', name=label, exact=True)
 
     def ready_library():
-        author(0).first.wait_for(state='visible')
+        author(0).first.wait_for(state='visible', timeout=30000)
         page.get_by_text('200 人の作者中 50 人を表示 / 全 200 人' if original else
-                         '50 / 200 作者表示（全200作者）', exact=True).first.wait_for()
+                         '50 / 200 作者表示（全200作者）', exact=True).first.wait_for(timeout=30000)
 
     def first_author():
         return page.evaluate('''({original}) => {
