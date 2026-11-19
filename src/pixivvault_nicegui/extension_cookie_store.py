@@ -7,6 +7,7 @@ The caller owns runtime reader replacement after a successful ``commit``.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from contextlib import contextmanager
 import hashlib
 import json
 import math
@@ -631,8 +632,32 @@ class ExtensionCookieStore:
             except Exception:
                 raise CookieSyncError() from None
 
+    @contextmanager
+    def _pin_commit_source(self, candidate):
+        if self._pending is None or candidate is not self._pending.candidate:
+            raise CookieSyncConflict()
+        source = self._pending.source
+        descriptor = None
+        try:
+            if source is not None and source.identity is not None:
+                if os.name != 'nt':
+                    raise CookieSyncConflict()
+                from .frozen_source_pin import _open_held
+                try:
+                    descriptor = _open_held(source.path)
+                except Exception:
+                    raise CookieSyncConflict() from None
+                if _identity(os.fstat(descriptor)) != source.identity:
+                    raise CookieSyncConflict()
+            elif source is not None:
+                raise CookieSyncConflict()
+            yield
+        finally:
+            if descriptor is not None:
+                os.close(descriptor)
+
     def commit(self, candidate):
-        with self._guard:
+        with self._guard, self._pin_commit_source(candidate):
             try:
                 if self._pending is None or candidate is not self._pending.candidate:
                     raise CookieSyncConflict()

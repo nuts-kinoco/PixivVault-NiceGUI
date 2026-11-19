@@ -1,8 +1,37 @@
 """Regression tests for independent Sol findings, using synthetic data."""
 import sqlite3
+import os
 from email.utils import formatdate
 
 from test_ag_z04_20261119 import setup, reader, fetch
+
+
+def test_cookie_source_cannot_change_after_final_proof(tmp_path, monkeypatch):
+    from pixivvault_nicegui.extension_cookie_store import CookieSyncError
+    expiry, cookie, profile, store, coordinator = setup(tmp_path)
+    header = 'PHPSESSID=777_old; Domain=.pixiv.net; Path=/; Secure; Expires=' + formatdate(expiry + 3600, usegmt=True)
+    client, _ = reader(cookie, coordinator, [header])
+    original_update = profile.update
+    replacement = cookie.read_bytes().replace(b'777_old', b'777_new')
+    modified = []
+    def concurrent_update(**kwargs):
+        try:
+            cookie.write_bytes(replacement)
+            modified.append(True)
+        except PermissionError:
+            modified.append(False)
+        return original_update(**kwargs)
+    monkeypatch.setattr(profile, 'update', concurrent_update)
+    try:
+        try:
+            fetch(client)
+        except CookieSyncError:
+            pass
+        assert modified == [False] or profile.snapshot().cookie_file == cookie
+        if modified == [True]:
+            assert cookie.read_bytes() == replacement
+    finally:
+        client.close(); coordinator.close(); store.close(); profile.close()
 
 
 def test_cookie_renewal_ignores_later_legacy_wal(tmp_path):
