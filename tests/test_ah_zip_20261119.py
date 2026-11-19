@@ -134,3 +134,22 @@ def test_two_works_cannot_claim_same_legacy_member(tmp_path):
         q.exports.scan()
         assert any(j.state == 'error' for j in settled(q.exports))
         assert path.read_bytes() == before
+
+
+def test_canonical_members_take_precedence_over_weak_alias(tmp_path):
+    from dataclasses import replace
+    from types import SimpleNamespace
+    from test_managed_downloads import Context, record
+    with generated_exports(tmp_path, True, None) as q:
+        q.reader.get_artwork_original_pages = lambda wid: ('https://i.pximg.net/a',)
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid,
+                                                        title='synthetic title(123)_2', page_count=1)
+        q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
+        q.exports.scan()
+        assert all(j.state == 'done' for j in settled(q.exports))
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title='another', page_count=1)
+        q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='125'), Context())
+        q.exports.scan()
+        assert all(j.state == 'done' for j in settled(q.exports))
+        with ZipFile(q.exports.zip.root / 'tester(456).zip') as z:
+            assert len(z.namelist()) == 4

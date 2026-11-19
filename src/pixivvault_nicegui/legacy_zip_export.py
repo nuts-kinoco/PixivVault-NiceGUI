@@ -479,12 +479,14 @@ class LegacyZipExporter:
                                 raise LegacyZipExportError('excluded ZIP member requires attribution')
                             drop = set()
                             legacy_counts = Counter(name for entry in entries
-                                                    for name in set(entry[4]) if name in old_names)
+                                                    for name in ({entry[3]} if entry[3] in old_names
+                                                                 else set(entry[4]) & old_names))
                             if any(count > 1 for count in legacy_counts.values()):
                                 raise LegacyZipExportError('ambiguous legacy ZIP member')
                             pending_entries = []
                             for relative, digest, index, name, candidates in entries:
-                                matched = [candidate for candidate in candidates if candidate in old_names and candidate not in drop]
+                                matched = ([name] if name in old_names and name not in drop else
+                                           [candidate for candidate in candidates if candidate in old_names and candidate not in drop])
                                 if not matched:
                                     pending_entries.append((relative, digest, index, name, candidates))
                                     continue
