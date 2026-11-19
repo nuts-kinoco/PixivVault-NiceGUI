@@ -1,0 +1,256 @@
+[
+ {
+  "workstream": "wt-w-acct",
+  "round": 1,
+  "high": 4,
+  "medium": 3,
+  "classes": [
+   "ACCT-HANDOFF",
+   "FAV-STATE",
+   "ORIGIN-MARK"
+  ],
+  "note": "統合の第8回検証（概数は記録どおり）"
+ },
+ {
+  "workstream": "wt-w-acct",
+  "round": 2,
+  "high": 3,
+  "medium": 0,
+  "classes": [
+   "ACCT-HANDOFF",
+   "FAV-PRESERVE"
+  ],
+  "note": "第9回検証"
+ },
+ {
+  "workstream": "wt-ak",
+  "round": 1,
+  "high": 4,
+  "medium": 1,
+  "classes": [
+   "STALE-DERIVED",
+   "NETWORK-BOUNDARY",
+   "REACHABILITY",
+   "SETTINGS-REV"
+  ],
+  "note": "FL-I15 第1回検証"
+ },
+ {
+  "workstream": "wt-ah",
+  "round": 1,
+  "high": 4,
+  "medium": 3,
+  "classes": [
+   "ZIP-ATTRIB",
+   "ZIP-JOURNAL",
+   "PHYS-QUARANTINE"
+  ],
+  "note": "概数"
+ },
+ {
+  "workstream": "wt-ah",
+  "round": 2,
+  "high": 3,
+  "medium": 0,
+  "classes": [
+   "ZIP-ATTRIB",
+   "ZIP-JOURNAL",
+   "PHYS-QUARANTINE"
+  ],
+  "note": "概数"
+ },
+ {
+  "workstream": "wt-ah",
+  "round": 3,
+  "high": 1,
+  "medium": 1,
+  "classes": [
+   "ZIP-JOURNAL",
+   "ZIP-ATTRIB"
+  ],
+  "note": "概数"
+ },
+ {
+  "workstream": "wt-ah",
+  "round": 4,
+  "high": 0,
+  "medium": 2,
+  "classes": [
+   "ZIP-ATTRIB"
+  ],
+  "note": "概数"
+ },
+ {
+  "workstream": "wt-ah",
+  "round": 5,
+  "high": 1,
+  "medium": 0,
+  "classes": [
+   "ZIP-ATTRIB"
+  ],
+  "note": "受入（限界）"
+ },
+ {
+  "workstream": "wt-ag",
+  "round": 1,
+  "high": 1,
+  "medium": 4,
+  "classes": [
+   "COOKIE-GEN",
+   "COPY-OWNERSHIP",
+   "WINPATH"
+  ],
+  "note": "概数"
+ },
+ {
+  "workstream": "wt-ag",
+  "round": 2,
+  "high": 1,
+  "medium": 4,
+  "classes": [
+   "COPY-OWNERSHIP",
+   "COOKIE-GEN",
+   "WINPATH"
+  ],
+  "note": "概数"
+ },
+ {
+  "workstream": "wt-ag",
+  "round": 3,
+  "high": 2,
+  "medium": 3,
+  "classes": [
+   "COOKIE-GEN",
+   "COPY-OWNERSHIP",
+   "WINPATH",
+   "UGOIRA"
+  ],
+  "note": "概数"
+ },
+ {
+  "workstream": "wt-ag",
+  "round": 4,
+  "high": 1,
+  "medium": 0,
+  "classes": [
+   "COOKIE-GEN"
+  ],
+  "note": "受入（所見）"
+ },
+ {
+  "workstream": "wt-ak",
+  "round": 2,
+  "high": 2,
+  "medium": 3,
+  "classes": [
+   "SPEC-CONFLICT",
+   "STALE-DERIVED",
+   "CACHE-KEY",
+   "UI-STATE"
+  ],
+  "note": "第2回検証。high 2 件は私の仕様の矛盾（好みに数える vs 学習キューの挙動を変えない）"
+ },
+ {
+  "workstream": "wt-ak",
+  "round": 3,
+  "high": 3,
+  "medium": 6,
+  "classes": [
+   "STALE-DERIVED",
+   "LOCAL-PATH-BOUNDARY",
+   "CACHE-KEY",
+   "UI-STATE"
+  ],
+  "note": "第3回検証。STALE-DERIVED が 3 ラウンド連続、補完語だけで得た候補が永続化される設計上の汚染"
+ },
+ {
+  "workstream": "wt-ak",
+  "round": 4,
+  "high": 1,
+  "medium": 6,
+  "classes": [
+   "STALE-DERIVED",
+   "SYNC-IO-PERF",
+   "FIRST-SCAN-RACE"
+  ],
+  "note": "第4回検証（再設計後）。high 1 は旧開発版の汚染（出荷実績なし＝限界）。中 6 は画面の失効表示・同期画像読取による性能退行・初回走査の競合"
+ },
+ {
+  "workstream": "wt-w-acct",
+  "round": 3,
+  "high": 3,
+  "medium": 3,
+  "classes": [
+   "ACCT-HANDOFF",
+   "ACCT-FINISH",
+   "SETTINGS-OFF"
+  ],
+  "note": "再設計後の独立検証（網羅先行）。契約試験の出口の一覧から漏れた出口 5 件（begin_run・discard_run・acknowledge_interrupted・claim_pending_notifications・待機なし finish_dispatch）"
+ },
+ {
+  "workstream": "wt-ak",
+  "round": 5,
+  "high": 0,
+  "medium": 5,
+  "classes": [
+   "STALE-DERIVED"
+  ],
+  "note": "受入（限界）: 無効化の瞬間に計算中だった順位・表示が 1 回だけ古いまま返る一時的な状態"
+ },
+ {
+  "workstream": "wt-w",
+  "round": 11,
+  "high": 3,
+  "medium": 3,
+  "classes": [
+   "ACCT-HANDOFF",
+   "ACCT-FINISH",
+   "RUN-RESUME"
+  ],
+  "note": "実行中操作/ブックマーク再開/待機あり集計"
+ },
+ {
+  "workstream": "wt-w",
+  "round": 12,
+  "high": 0,
+  "medium": 3,
+  "classes": [
+   "SCHED-NOTIFY",
+   "RUN-OFFER",
+   "SETTINGS-CAS"
+  ],
+  "note": "High0。FL-O01通知欠落/再起動後の再開表示/設定CAS画面リビジョン"
+ },
+ {
+  "workstream": "wt-w",
+  "round": 13,
+  "high": 0,
+  "medium": 1,
+  "classes": [
+   "SCHED-NOTIFY"
+  ],
+  "note": "受入（限界）: 実行中にプロセス強制終了→復旧後の定期履歴の受付件数が 0 と表示"
+ },
+ {
+  "workstream": "wt-rs",
+  "round": 2,
+  "high": 3,
+  "medium": 1,
+  "classes": [
+   "REAL-LAYOUT",
+   "STORE-ROLLBACK"
+  ],
+  "note": "旧版の中断跡3種と定期設定のmj一時ファイルで起動拒否（安全側の失敗＝起動しないだけでデータ変更なし）"
+ },
+ {
+  "workstream": "wt-p6",
+  "round": 1,
+  "high": 0,
+  "medium": 3,
+  "classes": [
+   "GATE-COVERAGE",
+   "GATE-RACE"
+  ],
+  "note": "D7: 列挙漏れ(動的href/画像代入)、共有ゲート一時競合で借用の失敗数・INVALID報告が進む/失われる"
+ }
+]

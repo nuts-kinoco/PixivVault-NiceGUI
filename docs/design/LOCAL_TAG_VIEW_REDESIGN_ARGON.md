@@ -1,0 +1,65 @@
+ご主人様、FL-I15（ローカルタグ補完）が3ラウンド連続で `STALE-DERIVED` 欠陥を再発させた構造的要因をコードと独立検証記録から完全に解き明かしましたわ✨ 製品コード・テストは一切変更せず、派生データが永続領域を1ビットも汚染しない再設計書（全102行）をご提案いたします。
+
+# FL-I15 ローカルタグ補完：永続領域非汚染アーキテクチャ設計書
+
+## 1. 根本原因：なぜ派生データの残留・使用が経路を変えて再発するのか
+1. **入口での無印合流と永続領域への書き戻し（Write-back Contamination）**: [discovery_learning.py:214-219](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_learning.py#L214-L219) の `_effective_preferences` が、永続DBの `discovery_preference`（APIタグ・判定由来）に補完タグ集計 `_local_seed_counts` ([discovery_learning.py:181-212](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_learning.py#L181-L212)) を `seed_saved` として無印で加算している。この合流辞書を検索エンジンへ渡すため（[discovery_learning.py:41](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_learning.py#L41), [discovery_learning.py:373](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_learning.py#L373)）、①補完語検索で得た未判定候補が [discovery_learning.py:388-393](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_learning.py#L388-L393) で永続表 `managed_discovery_candidate` と `self._candidates` に無印で保存され（High 1）、②検索巡回位置 `discovery_search_cursor` が [discovery_engine.py:480-486](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_engine.py#L480-L486) で補完語込みの母集団長 `len(rows)` で永続更新される（Medium）。
+2. **複数箇所でのスナップショット固定**: 検索バッチ開始時に確定した `targets` ([discovery_engine.py:484-511](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_engine.py#L484-L511)) を各リクエスト前に再評価しない（High 2）。またUI側も世間ランキングの `self._preferred` ([ranking_view.py:219-224](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/ui/ranking_view.py#L219-L224), [ranking_view.py:289-296](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/ui/ranking_view.py#L289-L296)) や個人ランキングの `self._context_snapshot` ([personal_ranking_view.py:139-179](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/ui/personal_ranking_view.py#L139-L179)) で派生集合を保持し、学習画面では補充 `_append_refill` の `_refill_merge_revision` 更新 ([learning_view.py:2292](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/ui/learning_view.py#L2292)) が無効化後の並べ直し `_rerank_tagger_order` ([learning_view.py:2018-2020](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/ui/learning_view.py#L2018-L2020)) を破棄する（Medium）。
+3. **検証I/Oによる学習FIFO占有**: 読み取り時の現在性確認として `_local_seed_counts` ([discovery_learning.py:191-196](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_learning.py#L191-L196)) が単一FIFOワーカー `self._executor` 上で毎回画像を同期再読込するため、本来の判定保存 [learning_repository.py:68-129](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/learning_repository.py#L68-L129) をブロックする（Medium: `FIFO-BLOCKING`）。
+
+## 2. 設計の選択肢と推奨（最重要）
+
+| 選択肢 | 概要 | リスク（STALE-DERIVED耐性） | 機能価値 | 実装量 | 判定 |
+|---|---|---|---|---|---|
+| **A** | **表示と順位付け（読取時再評価）のみ**に使い、**検索語には使わず**、永続領域（候補キャッシュ・巡回位置）に一切書かない。 | **極小**：候補取得・巡回位置・永続DBが補完から完全独立し、汚染が原理的に発生しない。 | **高**：4ソース取得候補の順位付け・傾向表示・ランキング好み印に効く。 | **小** | **推奨（Dと統合）** |
+| **B** | 検索語にも使い、候補・巡回位置に出所印（`source='local-tag'`・指紋）を付け問い合わせ時に除外。 | **極大**：設定OFFだけでなく「画像1枚の削除・APIタグ後付け」でも該当作品由来の候補と剰余カーソル [discovery_engine.py:480](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_engine.py#L480) の巻き戻しが必要となり、混合タグで依存追跡が破綻する。 | 高（検索語にも寄与） | 大 | 却下（再発必至） |
+| **C** | 検索語・順位付けへの寄与を外し、傾向パネル（「あなたの保存から」[learning_view.py:2076](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/ui/learning_view.py#L2076)）の表示のみに反映。 | 極小 | **低**：「学習で使う（候補の精度向上）」の本人意図を満たせない。 | 小 | 却下 |
+| **D** | 派生データを単一の読み取り専用「補完ビュー（`LocalTagView`）」に閉じ、参照側はそれ以外から読めない構造。 | **極小**：スナップショット散在と学習FIFO上の同期画像I/O [discovery_learning.py:195](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_learning.py#L195) を一元排除できる。 | Aと結合して最大化 | 中 | **推奨（Aの実装構造）** |
+
+- **決定（推奨：A＋D 統合設計）**: **方針 A** により「候補取得の検索語（`_source_tag_search`）と永続領域（`managed_discovery_candidate`・`discovery_search_cursor`・`learning.sqlite3`）には補完タグを一切入れない」境界を引き、**構造 D** により「順位付け・傾向パネル・ランキング印への寄与はすべて単一の読み取り専用ビュー `LocalTagView` を通じて読み取り時に合成する」。
+
+## 3. 推奨設計の型・API と既存参照箇所の置換
+
+### 型・API定義（`local_tagger.py` または `local_tag_view.py`）
+- `class LocalTagView`: 永続DBを持たず、専用スレッド `_seed_executor` で検証済みメモリ索引 `_entries: dict[str, _SeedEntry]`（`work_id -> (fingerprint, image_sha256, tuple[str, ...])`）を更新し、読み取り側はロックフリーまたは短時間ロックで現在条件と照合して射影する。
+  - `refresh_async() -> Future[None]`: 専用スレッドで `saved_works()` のうち `wid in saved_ids and not artwork.tags` ([discovery_learning.py:145](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_learning.py#L145)) の画像を `local_image(wid)` で読み、`tagger.predict_with_fingerprint(data)` ([local_tagger.py:265](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/local_tagger.py#L265)) の前後に指紋と画像SHAを再確認して `_entries` をアトミック置換し、`generation` を進める。閉鎖・無効時は `RuntimeError('local seed unavailable')`。
+  - `current_tags(work_id: str) -> tuple[str, ...]`: ①`fp = tagger.try_current_fingerprint()` が非`None`、②`work_id` が現在の `saved_ids` に含まれかつ現在の `saved_works()` で `not artwork.tags`、③`_entries.get(work_id)` の `fingerprint == fp`、④軽量な現在性確認（プロバイダの現在トークン/ファイル属性または非FIFO読取）が一致するときのみ正規化前タグタプルを返し、それ以外は `()` を返す（例外は送出せず `()` に倒す）。
+  - `seed_counts() -> dict[str, dict[str, int | str]]`: 全対象 `work_id` に `current_tags(wid)` を適用し、`{normalized_tag: {'display': raw_tag, 'count': n}}` を返す。学習FIFOワーカー上で重い画像再読込やSQLを実行しない。
+  - `overlay_preferences(base_prefs: dict[str, dict]) -> dict[str, dict]`: `deepcopy(base_prefs)` に `seed_counts()` を `seed_saved` として合成した新辞書を返す（`base_prefs` 自体は変更しない）。
+  - `revision() -> tuple[int, str | None]`: `(self._generation, self.tagger.try_current_fingerprint())` を返し、UI側がキャッシュの失効を即座に判定できるようにする。
+
+### 既存の参照箇所（Terra / Sol 網羅一覧）ごとの置換
+
+| 既存箇所（`file:line`） | 推奨設計での置換内容 |
+|---|---|
+| [local_tagger.py:58-88](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/local_tagger.py#L58-L88) `_identity` / `verify_model` | `_identity(path)` で `key = _path_key(str(path.resolve()))` が `None`（解決先がUNC等の非ローカル）なら即 `raise ValueError('non-local resolved path')` とし、`verify_model` でハッシュ計算前に `'利用不可（ローカルのフォルダを指定）', None` を返す（**High 3 解消**）。 |
+| [local_tagger.py:252-296](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/local_tagger.py#L252-L296) / [preferences_view.py:295-303](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/ui/preferences_view.py#L295-L303) | `current_fingerprint` と `try_current_fingerprint` で検証失敗・属性不一致を検出した際も `self.status` を更新（`'SHA 不一致'` 等）し、開いている設定画面の `_watch_tagger_status` に即反映する（**Medium 5 解消**）。 |
+| [composite_library.py:309-316](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/composite_library.py#L309-L316) / [legacy_quarantine.py:537-551](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/legacy_quarantine.py#L537-L551) | `LegacyQuarantineCatalog.get_fresh(self, wid, page_no=0, variant='view')` を実装（`active == path` なら `self.leaf.get_fresh(...)`、隔離ZIPならキャッシュを介さず直接読取）。併用時の旧保存作品も `library_media_registry.local_bytes` ([library_media_registry.py:389-404](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/library_media_registry.py#L389-L404)) から取得可能にする（**Medium 4 解消**）。 |
+| [discovery_learning.py:93, 133-219](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_learning.py#L133-L219) 種走査・保存・集計 | `managed_local_seed` 表と `_local_seed_index` / `_store_local_seed` / `_local_seed_counts` を削除し `self.local_tag_view = LocalTagView(...)` に委譲。`_effective_preferences(db)` は `self.local_tag_view.overlay_preferences(db.get_discovery_preferences())` を呼び、学習FIFOを画像I/Oで止めない（**Medium 6 解消**）。 |
+| [discovery_learning.py:373-393](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_learning.py#L373-L393) / [discovery_engine.py:463-511](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_engine.py#L463-L511) | `_fetch_candidates` の `_SourceDatabase` には基底の `db.get_discovery_preferences` をそのまま渡す（`_effective_preferences` を渡さない）。検索語・候補永続表 `managed_discovery_candidate`・巡回位置 `discovery_search_cursor` への補完混入をゼロにする（**High 1, High 2, Medium 1 解消**）。 |
+| [discovery_learning.py:353-356, 395-398, 446-449, 486-490](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_learning.py#L353-L356) | `refill_snapshot`、`_fetch_candidates` 末尾の順位付け、`_open_session`、`rank_pending` は `self.local_tag_view.overlay_preferences(db.get_discovery_preferences())` で読み取り時のみ候補を順位付けする。 |
+| [discovery_learning.py:418-436](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_learning.py#L418-L436) `_trend_snapshot` / `preferred_tags` / `trend_rows` | `LocalTagView.overlay_preferences` と `LocalTagView.seed_counts` から毎回再計算する。 |
+| [learning_view.py:1997-2029, 2292](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/ui/learning_view.py#L1997-L2029) / [shell.py:428-436](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/ui/shell.py#L428-L436) | `_rerank_tagger_order` で `self._refill_merge_revision != revision` 競合時は破棄して終わらず、同一 `epoch` のまま最新 `state.artworks` で再ループして並べ直しを完遂させる（**Medium 2 解消**）。 |
+| [ranking_view.py:219-224, 289-296](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/ui/ranking_view.py#L219-L224) / [personal_ranking_view.py:139-179](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/ui/personal_ranking_view.py#L139-L179) / [services.py:1686-1736, 2385-2387](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/services.py#L1686-L1736) | `RankingView` は基底タグ集合 `_preferred_base` と取得時の `local_tag_view.revision()` を保持し、`preferred_tags_in` 判定時に `revision()` が変化または無効化されていれば補完分を即座に除外（設定変更・種更新時に `shell` から再同期、個人ランキングも `_start_context_refresh()` を呼ぶ）（**Medium 3・所見解消**）。 |
+
+## 4. 永続領域の扱い（移行・破棄方針）
+- **方針**: 出荷実績のない開発ブランチのため後方互換は持たず、永続DB（`learning.sqlite3`）から補完由来データを完全撤去する。
+- **具体的処置**: [discovery_learning.py:91-93](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_learning.py#L91-L93) の初期化トランザクションで `managed_local_seed` 表が存在した場合（旧開発版からの起動時）、`DROP TABLE managed_local_seed` を実行すると同時に、旧設計で汚染された可能性がある未判定候補 `DELETE FROM managed_discovery_candidate WHERE work_id NOT IN (SELECT work_id FROM discovery_swipe_history)` と巡回位置 `DELETE FROM settings WHERE key = 'discovery_search_cursor'` を1回だけ初期化する。以後は永続領域に補完データを一切書き込まない。
+
+## 5. 移行手順（最小のコミット順）
+1. **Commit 1（モデル境界と旧保管庫画像経路）**: [local_tagger.py:58-88, 252-296](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/local_tagger.py#L58-L88) の非ローカル解決先拒否・`status` 同期と、[legacy_quarantine.py:537](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/legacy_quarantine.py#L537) の `get_fresh` 追加（失敗テスト確認→実装）。
+2. **Commit 2（`LocalTagView` 導入と永続領域・検索語の非汚染化）**: `LocalTagView` を実装し、[discovery_learning.py:88-225, 346-452, 482-491](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_learning.py#L88-L225) を置換。`_SourceDatabase` への補完タグ注入を止め、`managed_local_seed` を廃止し、学習FIFOブロックを解消。
+3. **Commit 3（UI世代競合とランキング再評価の統一）**: [learning_view.py:2003-2029](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/ui/learning_view.py#L2003-L2029) の補充競合リトライ、[ranking_view.py:219-296](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/ui/ranking_view.py#L219-L296)・[personal_ranking_view.py:165-179](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/ui/personal_ranking_view.py#L165-L179)・[shell.py:428-436](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/ui/shell.py#L428-L436) の `LocalTagView.revision()` 連動を実装。
+4. **Commit 4（構造的契約試験の追加）**: 第6節の表駆動契約試験を追加し、全スイート通過を確認。
+
+## 6. 契約試験の観点（構造的・表駆動検証）
+個別経路のモグラ叩きではなく、以下の不変条件を1つの表駆動試験（`pytest.mark.parametrize`）で構造的に検証する：
+- **対照群（Control: 常時OFF）** と **試験群（Treatment: ONで種走査・候補取得・補充・画面描画を実行後に失効条件へ遷移）** を同じ初期DB・偽クライアントで走らせる。
+- **失効条件の表（5条件）**: ①設定を `local_tagger_enabled='0'` に切替、②モデルファイルを別内容に書き換え（指紋不一致）、③モデルの `resolve()` 先が非ローカル（UNC）に変化、④保存作品が未保存（unsave）または画像読取不能に変化、⑤保存作品にAPIタグが到着。
+- **構造アサーション**: 上記①〜⑤のいずれに遷移した直後（およびサービス再起動後）においても、(a) `learning.sqlite3` の全テーブルダンプ（`managed_discovery_candidate`, `settings` の `discovery_search_cursor`, `discovery_preference`, `discovery_swipe_history`）、(b) 偽クライアントが受け取った検索語履歴 `reader.words`、(c) `refill_snapshot` / `rank_pending` の候補ID集合と順序、(d) `trend_snapshot` / `preferred_tags` / `RankingView.preferred_tags_in` の結果が、**対照群（常時OFF）と完全一致（かつ補完タグ文字列がどこにも0件）** であること。
+
+## 7. 本人意図との整合とリスク
+- **本人意図（「補完タグを学習で使う」）の充足度**: 候補取得の4ソース（`following`, `ranking`, `related_author`, `tag_search` [discovery_learning.py:22](file:///S:/Projects/PV-DEV-20261117/wt-ak/src/pixivvault_nicegui/discovery_learning.py#L22)）で仕入れた候補群に対し、補完タグが `rank_candidates` の優先順位・枠配分・傾向パネル（「あなたの保存から」および傾向スコア）・ランキングの好みタグ印のすべてにリアルタイムで寄与するため、好みの傾向の精度向上という意図の核を満たしつつ、不変条件 (b)「設定で止めれば完全に元の挙動に戻る」を100%保証できる。
+- **弱点（トレードオフ）**: APIタグ付き保存作品も判定履歴も0件の完全初期状態では、`tag_search` ソース自体は検索語を持たず空振りし、他3ソース（フォロー新着・ランキング・関連作者）で取得された候補の順位付けと傾向表示から学習が始まる（※総監督の現裁定から「検索語への寄与」のみを外す再裁定が必要）。
+- **やらないこと**: 補完タグによる外部検索リクエスト（`search_illusts`）の発行、`learning.sqlite3` への補完タグや補完専用候補の永続化、解決先が非ローカルとなるモデルパスの許可。
+exit=0
