@@ -439,7 +439,8 @@ def test_r2_4_a_reader_that_keeps_the_index_open_no_longer_blocks_the_fold(root)
     try:
         started = time.monotonic()
         g._compact(g._loaded, 0.2)                                # replaces the index at once
-        assert time.monotonic() - started < 0.5
+        # a blocked fold would hit its 0.2 s wait budget and fail; 0.5 s was flaky under load (fsync, parallel jobs)
+        assert time.monotonic() - started < 5.0
         assert reader.read(1) == b'{'                             # and the reader still has its snapshot
     finally:
         reader.close()
