@@ -158,7 +158,8 @@ class LearningView:
         self.client.on_delete(self.close)
 
         with ui.column().classes("pv-learning w-full gap-3") as self.root:
-            ui.label("学習（デモ）").classes("pv-view-title")
+            if self.discovery is None:
+                ui.label("学習（デモ）").classes("pv-view-title")
             description = (
                 "判定はデモ専用フォルダーに保存します。Undoはこの画面での直前の判定だけが対象です。"
                 if self.storage is not None else
@@ -166,7 +167,8 @@ class LearningView:
             )
             if self.discovery is not None:
                 description = "発掘の判定は専用保存先に記録します。設定された取得元から初回候補を自動で読み込み、この画面を開いている間に候補を補充します。作品保存は明示操作で実行します。"
-            ui.label(description).classes("pv-subtitle")
+            if self.discovery is None:
+                ui.label(description).classes("pv-subtitle")
             stage_start = len(self.root.default_slot.children)
             with ui.element('div').classes('w-full relative'):
                 with ui.row().classes('w-full items-center gap-2'):
