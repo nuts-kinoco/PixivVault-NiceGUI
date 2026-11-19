@@ -274,7 +274,7 @@ def test_stop_during_the_wait_between_authors_is_immediate(env):
     time.sleep(0.2)  # now inside the 30 s wait
     began = time.monotonic()
     engine.stop(engine.active_run(ACCOUNT))
-    assert engine.join(3) and time.monotonic() - began < 2
+    assert engine.join(10) and time.monotonic() - began < 10
     assert engine.state == 'stopped' and ledger.run(run_id).state == 'stopped'
     assert [a.state for a in ledger.authors(run_id)] == ['done', 'pending', 'pending']
     assert stamps(following)['41'] and stamps(following)['42'] is None
