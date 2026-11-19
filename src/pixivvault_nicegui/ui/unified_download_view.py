@@ -300,7 +300,7 @@ class UnifiedDownloadView:
                 "resize", lambda e: self.on_body_size(e.args),
                 js_handler=f"""() => {{
                     const root = document.getElementById('{self.root.html_id}');
-                    if (!root?.clientHeight) return;
+                    if (!root) return;
                     const header = root.querySelector('.pv-ud-header');
                     const band = root.querySelector('.pv-ud-band');
                     const gaps = 2 * parseFloat(getComputedStyle(root).rowGap);

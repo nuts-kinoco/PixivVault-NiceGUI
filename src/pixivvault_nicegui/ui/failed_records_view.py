@@ -28,8 +28,8 @@ CSS = """
 .pv-failure-search {width:360px;max-width:100%;}
 .pv-failure-chips {gap:8px;flex-wrap:wrap;}
 .pv-failure-chip {border:1px solid var(--pv-border);border-radius:8px;min-height:34px;min-width:112px;padding:0 10px;font-size:12px;}
-.pv-failure-chip .q-btn__content {justify-content:space-between;gap:6px;flex-wrap:nowrap;}
-.pv-failure-chip-count {border-radius:4px;min-width:26px;padding:1px 4px;text-align:center;background:var(--pv-raised);color:var(--pv-text);}
+.pv-failure-chip-text {width:100%;text-align:left;white-space:nowrap;}
+.pv-failure-chip-count {display:inline-block;margin-left:6px;border-radius:4px;min-width:26px;padding:1px 4px;text-align:center;background:var(--pv-raised);color:var(--pv-text);}
 .pv-failure-chip[aria-pressed=true] .pv-failure-chip-count {background:var(--pv-surface);color:var(--pv-text);}
 .pv-failure-chip[aria-pressed=true] {background:var(--pv-fill) !important;color:var(--pv-on-fill) !important;}
 .pv-failure-rows {width:100%;gap:0;}
@@ -97,10 +97,11 @@ class FailedRecordsView:
                     self.category_buttons = {}
                     self.category_counts = {}
                     for key, label in [("all", "すべて"), *self._category_labels.items()]:
-                        button = ui.button(label, color=None).props(
+                        button = ui.button(color=None).props(
                             f"flat dense no-caps data-testid=failed-category-{key}").classes("pv-failure-chip")
                         self.category_buttons[key] = button
-                        with button:
+                        with button, ui.element("div").classes("pv-failure-chip-text"):
+                            ui.label(f"{label} ").classes("inline")
                             self.category_counts[key] = ui.label().classes("pv-failure-chip-count")
                         self._wire(button, "click", lambda value=key: self.select_category(value))
                 self.retry_all = ui.button("再試行", color=None).props(
