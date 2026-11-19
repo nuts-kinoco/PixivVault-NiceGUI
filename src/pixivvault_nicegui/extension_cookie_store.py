@@ -28,6 +28,8 @@ MARKER = '.pixivvault-extension-credentials.json'
 LOCK = '.writer.lock'
 MAX_COOKIE_PAYLOAD_BYTES = 2 * 1024 * 1024
 MAX_COOKIES = 1024
+MAX_RETAINED_COOKIE_GENERATIONS = 8
+MAX_RETAINED_COOKIE_BYTES = 16 * 1024 * 1024
 _MAX_EXPIRY = 253402300799
 _TOKEN = re.compile(r'[0-9a-f]{32}\Z')
 _SHA = re.compile(r'[0-9a-f]{64}\Z')
@@ -509,6 +511,26 @@ class ExtensionCookieStore:
                 raise CookieSyncConflict()
             return snapshot, proof, rows
 
+    def _reserve_generation(self, raw):
+        """Bound retained data without deleting uncertain credential generations."""
+        count = 0
+        total = 0
+        for folder in self._generations.iterdir():
+            if not _TOKEN.fullmatch(folder.name):
+                raise CookieSyncCapacityExceeded()
+            _safe(folder)
+            count += 1
+            for item in folder.iterdir():
+                if item.name not in {'cookies.txt', 'generation.json'}:
+                    raise CookieSyncCapacityExceeded()
+                info = _safe(item, file=True)
+                if info.st_nlink != 1:
+                    raise CookieSyncCapacityExceeded()
+                total += info.st_size
+        if (count >= MAX_RETAINED_COOKIE_GENERATIONS or
+                total + len(raw) + 2048 > MAX_RETAINED_COOKIE_BYTES):
+            raise CookieSyncCapacityExceeded()
+
     def prepare_expiry_extensions(self, updates, *, expected_snapshot, expected_proof, verified_identity):
         """Preserve all rows exactly; publish only verified expiry extensions."""
         with self._guard:
@@ -562,6 +584,7 @@ class ExtensionCookieStore:
                 if rows == old_rows and http_only == _http_only_keys(old_raw):
                     return None
                 raw = _serialize(rows, http_only)
+                self._reserve_generation(raw)
                 generation = uuid4().hex
                 folder = self._generations / generation
                 _safe(self._generations)
@@ -605,6 +628,7 @@ class ExtensionCookieStore:
                     candidate = PreparedCookieGeneration(False, expected_revision, len(rows), len(old_raw),
                         previous.cookie_file, source.sha256, generation)
                 else:
+                    self._reserve_generation(raw)
                     generation = uuid4().hex
                     folder = self._generations / generation
                     _safe(self._generations)
