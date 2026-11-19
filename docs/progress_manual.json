@@ -161,7 +161,7 @@
     {
      "t": "統合後の全体テスト失敗 0・画面スモーク PASS・checker 指摘ゼロ・実機（COS）確認",
      "ok": false,
-     "ev": "work 全体テスト 3,649 passed（8c3c4fd）、wt-rs 候補 3,675、wt-p6 候補 3,683。最終候補の全体試験・UI スモークは統合後に 1 回。COS R3 プロンプト作成済み（docs/cos/COS_REALAPP_PROMPT_R3.md）、返信待ち"
+     "ev": "work 20a1f0c（P3〜P6・実機保存先の起動修正を統合）: 全体テスト 3,717 passed / 3 skipped / 失敗 0、UI スモーク 56 条件 PASS（外部接続 0）。COS R3 は返信待ち（docs/cos/COS_REALAPP_PROMPT_R3.md、実機 22386 起動済み）"
     }
    ]
   },
@@ -203,7 +203,7 @@
     {
      "t": "D6・D7 を満たす",
      "ok": false,
-     "ev": "wt-p6 65dd74e（独立検証中）: D7 通信 287 箇所を分類、未解決 0。D6 は docs/P6_RESPONSIVENESS_2026-11-19.md。C ドライブ差分は判定保留（未分類 1 件）"
+     "ev": "wt-p6 統合 20a1f0c: D7 通信 300 箇所を分類・指摘 0、Sol 検証 High0 の Medium3 を修正し Neon 再検証（既知の限界: 再起動で保留中 INVALID 報告が失われる・C ドライブ差分は Temp 1 件の作成元不明）。D6 は docs/P6_RESPONSIVENESS_2026-11-19.md"
     }
    ]
   },
