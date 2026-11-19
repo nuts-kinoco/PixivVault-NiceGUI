@@ -75,3 +75,80 @@ def test_marked_generation_rotates_even_when_user_version_differs(tmp_path):
         connection.close()
     finally:
         owner.close()
+
+
+def test_swap_after_ownership_check_preserves_foreign_file(tmp_path, monkeypatch):
+    import os
+    from pixivvault_nicegui import legacy_library_copies as module
+    old = tmp_path / 'old'
+    old.mkdir()
+    source = old / 'source.sqlite'
+    with sqlite3.connect(source) as connection:
+        connection.execute('CREATE TABLE works (work_id TEXT, title TEXT, page_count INTEGER, user_id TEXT, tags TEXT, is_deleted INTEGER)')
+        connection.execute('CREATE TABLE following_users (user_id TEXT, name TEXT)')
+    connection.close()
+    root = tmp_path / 'copies'
+    root.mkdir()
+    owner = LegacyLibraryCopies(root, source=source, max_generations=1, max_bytes=1048576)
+    victim = owner.snapshot()
+    owner.close()
+    foreign = tmp_path / 'foreign.sqlite'
+    with sqlite3.connect(foreign) as connection:
+        connection.execute('CREATE TABLE external_data (value TEXT)')
+        connection.execute("INSERT INTO external_data VALUES ('retain')")
+    connection.close()
+    foreign_bytes = foreign.read_bytes()
+    owner = LegacyLibraryCopies(root, source=source, max_generations=1, max_bytes=1048576)
+    original = module._require_owned_copy
+    calls = []
+    def swap_after_check(path):
+        result = original(path)
+        if path == victim:
+            calls.append(1)
+            if len(calls) == 2:
+                os.replace(foreign, victim)
+        return result
+    monkeypatch.setattr(module, '_require_owned_copy', swap_after_check)
+    try:
+        with pytest.raises(LegacyCopyError):
+            owner.snapshot()
+        assert len(calls) == 2
+        assert victim.read_bytes() == foreign_bytes
+    finally:
+        owner.close()
+
+
+def test_interrupted_publication_keeps_marked_previous_copy(tmp_path, monkeypatch):
+    from pixivvault_nicegui import legacy_library_copies as module
+    old = tmp_path / 'old'
+    old.mkdir()
+    source = old / 'source.sqlite'
+    with sqlite3.connect(source) as connection:
+        connection.execute('CREATE TABLE works (work_id TEXT, title TEXT, page_count INTEGER, user_id TEXT, tags TEXT, is_deleted INTEGER)')
+        connection.execute('CREATE TABLE following_users (user_id TEXT, name TEXT)')
+        connection.execute("INSERT INTO works (work_id) VALUES ('original')")
+    connection.close()
+    root = tmp_path / 'copies'
+    root.mkdir()
+    owner = LegacyLibraryCopies(root, source=source, max_generations=1, max_bytes=1048576)
+    first = owner.snapshot()
+    before = first.read_bytes()
+    owner.close()
+    owner = LegacyLibraryCopies(root, source=source, max_generations=1, max_bytes=1048576)
+    with monkeypatch.context() as patch:
+        def interrupt(*_args):
+            raise SystemExit('synthetic interruption')
+        patch.setattr(module, '_publish_copy', interrupt)
+        try:
+            with pytest.raises(SystemExit):
+                owner.snapshot()
+        finally:
+            owner.close()
+    preserved = list(root.glob('*.sqlite'))
+    assert len(preserved) == 1
+    assert preserved[0].read_bytes() == before
+    owner = LegacyLibraryCopies(root, source=source, max_generations=1, max_bytes=1048576)
+    try:
+        assert owner.snapshot().is_file()
+    finally:
+        owner.close()

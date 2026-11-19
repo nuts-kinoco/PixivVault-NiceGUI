@@ -103,6 +103,61 @@ def _open_source(path):
         raise
 
 
+def _mutate_owned_copy(path, expected, destination=None):
+    """Move or delete the verified file by the same exclusive Windows handle."""
+    if os.name != 'nt':
+        raise LegacyCopyError('legacy snapshot ownership unavailable')
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+    from .frozen_source_pin import _kernel
+    create, close, invalid = _kernel()
+    handle = create(str(native_io_path(path)), 0x80000000 | 0x00010000, 0x1,
+                    None, 3, 0x00200000, None)
+    if handle is None or handle == invalid:
+        raise LegacyCopyError('legacy snapshot ownership unavailable')
+    fd = None
+    try:
+        fd = msvcrt.open_osfhandle(handle, os.O_RDONLY | os.O_BINARY | os.O_NOINHERIT)
+        handle = None
+        info = os.fstat(fd)
+        if _identity(info) != expected or not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+            raise LegacyCopyError('legacy snapshot ownership changed')
+        header = os.read(fd, 72)
+        if len(header) < 72 or header[:16] != b'SQLite format 3\x00' or int.from_bytes(header[68:72], 'big') != _APPLICATION_ID:
+            raise LegacyCopyError('legacy snapshot ownership unavailable')
+        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+        operation = kernel.SetFileInformationByHandle
+        operation.argtypes = (wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD)
+        operation.restype = wintypes.BOOL
+        if destination is None:
+            class Disposition(ctypes.Structure):
+                _fields_ = [('delete_file', ctypes.c_ubyte)]
+            data = Disposition(True)
+            kind = 4
+        else:
+            name = str(destination)
+            class RenameInfo(ctypes.Structure):
+                _fields_ = [('replace', ctypes.c_ubyte), ('root', wintypes.HANDLE),
+                            ('length', wintypes.DWORD), ('name', ctypes.c_wchar * (len(name) + 1))]
+            data = RenameInfo()
+            data.replace, data.root = 0, None
+            data.length, data.name = len(name) * ctypes.sizeof(ctypes.c_wchar), name
+            kind = 3
+        if not operation(msvcrt.get_osfhandle(fd), kind, ctypes.byref(data), ctypes.sizeof(data)):
+            raise LegacyCopyError('legacy snapshot move or cleanup failed')
+    finally:
+        if fd is not None:
+            os.close(fd)
+        if handle is not None:
+            close(handle)
+
+
+def _publish_copy(source, target):
+    # Windows rename is no-replace; never overwrite a newly appeared file.
+    os.rename(source, target)
+
+
 class LegacyLibraryCopies:
     """Own a dedicated existing root until every issued snapshot is closed.
 
@@ -312,15 +367,20 @@ class LegacyLibraryCopies:
                     raise LegacyCopyError('legacy database changed during snapshot')
                 _sidecars_absent(self.source)
                 target = victim if victim is not None else self.root / (uuid4().hex + '.sqlite')
+                backup = None
                 if victim is not None:
-                    _require_owned_copy(victim)
+                    victim_identity = _require_owned_copy(victim)
+                    backup = self.root / (uuid4().hex + '.sqlite')
+                    _mutate_owned_copy(victim, victim_identity, backup)
                 try:
-                    if victim is not None:
-                        os.replace(raw, victim)
-                    else:
-                        os.rename(raw, target)
+                    _publish_copy(raw, target)
                 except OSError:
                     if raw.exists():
+                        if backup is not None:
+                            try:
+                                _mutate_owned_copy(backup, _require_owned_copy(backup), victim)
+                            except (OSError, ValueError):
+                                raise LegacyCopyCommitUnconfirmed('legacy snapshot publication is unconfirmed') from None
                         raise
                     if not _matches_published(target, marked_size, marked_digest.digest()):
                         raise LegacyCopyCommitUnconfirmed('legacy snapshot publication is unconfirmed') from None
@@ -341,9 +401,9 @@ class LegacyLibraryCopies:
                         if old in self._active:
                             continue
                         self._usable()
-                        _require_owned_copy(old)
+                        old_identity = _require_owned_copy(old)
                         length = old.stat().st_size
-                        old.unlink()
+                        _mutate_owned_copy(old, old_identity)
                         remaining -= 1
                         used -= length
                 except (OSError, ValueError):

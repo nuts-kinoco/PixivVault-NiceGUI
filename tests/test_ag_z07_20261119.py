@@ -229,7 +229,7 @@ def test_publication_failure_preserves_previous_generation(tmp_path, monkeypatch
     copies = LegacyLibraryCopies(root, source=source, max_generations=1, max_bytes=1048576)
     def fail(*args):
         raise OSError('synthetic publication failure')
-    monkeypatch.setattr('pixivvault_nicegui.legacy_library_copies.os.replace', fail)
+    monkeypatch.setattr('pixivvault_nicegui.legacy_library_copies._publish_copy', fail)
     try:
         with pytest.raises(LegacyCopyError):
             copies.snapshot()
@@ -736,11 +736,12 @@ def test_post_publication_error_is_reconciled_without_losing_snapshot(tmp_path, 
         conn.execute("INSERT INTO works (work_id) VALUES ('8')")
     expected = source.read_bytes()
     copies = LegacyLibraryCopies(root, source=source, max_generations=1, max_bytes=1048576)
-    original_replace = os.replace
+    from pixivvault_nicegui import legacy_library_copies as module
+    original_replace = module._publish_copy
     def replace_then_error(src, dst):
         original_replace(src, dst)
         raise OSError('synthetic after commit')
-    monkeypatch.setattr('pixivvault_nicegui.legacy_library_copies.os.replace', replace_then_error)
+    monkeypatch.setattr(module, '_publish_copy', replace_then_error)
     try:
         result = copies.snapshot()
         assert result == old
@@ -827,12 +828,13 @@ def test_failed_generation_cleanup_does_not_report_success(tmp_path, monkeypatch
         finally:
             owner.close()
     owner = LegacyLibraryCopies(root, source=source, max_generations=1, max_bytes=1048576)
-    original_unlink = type(root).unlink
-    def deny_old(path, *args, **kwargs):
-        if path.parent == root and path.name.endswith('.sqlite') and not path.name.startswith('.'):
+    from pixivvault_nicegui import legacy_library_copies as module
+    original_unlink = module._mutate_owned_copy
+    def deny_old(path, expected, destination=None):
+        if destination is None and path.parent == root and path.name.endswith('.sqlite') and not path.name.startswith('.'):
             raise OSError('synthetic cleanup failure')
-        return original_unlink(path, *args, **kwargs)
-    monkeypatch.setattr(type(root), 'unlink', deny_old)
+        return original_unlink(path, expected, destination)
+    monkeypatch.setattr(module, '_mutate_owned_copy', deny_old)
     try:
         with pytest.raises(LegacyCopyCommitUnconfirmed):
             owner.snapshot()
