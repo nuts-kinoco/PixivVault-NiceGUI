@@ -1268,7 +1268,7 @@ class ManagedScheduleRunner:
 
 def run_author_check(services, author_ids, *, cancellation: Event, ledger: ManagedScheduler | None = None,
                      slot: str | None = None, poll: float = 0.5, wait: bool = True,
-                     account_id: str | None = None) -> dict[str, int]:
+                     account_id: str) -> dict[str, int]:
     """The periodic check on the author batch engine (original scheduler.py:182 `_run_check`).
 
     Every star author (no 128 limit), differential, both media, stamped on completion, behind the
@@ -1282,18 +1282,21 @@ def run_author_check(services, author_ids, *, cancellation: Event, ledger: Manag
     if ledger is not None:
         ledger.begin_dispatch(slot, now, len(ids))
     engine = services.batch_runs
-    if not ids:
-        if ledger is not None:
-            ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0)
-        return {'accepted': 0, 'deferred': 0, 'authors': 0}
-    if engine.active:
-        if ledger is not None:
-            ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0, error_code='run_active')
-        return {'accepted': 0, 'deferred': 0, 'authors': 0}
     try:
+        account = AccountScope(account_id).account_id
+        bound = _dispatch_account(ledger)
+        if bound is not None:
+            require_same_account(bound, account)
+        if not ids:
+            if ledger is not None:
+                ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0)
+            return {'accepted': 0, 'deferred': 0, 'authors': 0}
+        if engine.active:
+            if ledger is not None:
+                ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0, error_code='run_active')
+            return {'accepted': 0, 'deferred': 0, 'authors': 0}
         _require_managed_network_allowed(services)
-        account = {} if account_id is None else {'account_id': account_id}
-        run_id = services.start_batch_run(ids, origin='auto', target_type='both', **account)
+        run_id = services.start_batch_run(ids, origin='auto', target_type='both', account_id=account)
     except Exception as error:
         if ledger is not None:
             code = AccountMismatch.code if isinstance(error, AccountMismatch) else type(error).__name__

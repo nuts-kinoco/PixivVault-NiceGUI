@@ -48,8 +48,9 @@ async def test_rejected_concurrent_start_cannot_rebind_active_resume(tmp_path):
         current = owner.resume_batch_run(previous)
         assert await asyncio.to_thread(before_preflight.wait, 8)
         assert owner.batch_run_ledger.run(current).account_id == '55'
+        reader.verify_identity()
         with pytest.raises(RuntimeError, match='already active'):
-            owner.start_batch_run(('1000',), origin='auto')
+            owner.start_batch_run(('1000',), origin='auto', account_id='77')
         finish.set()
         assert await asyncio.to_thread(owner.batch_runs.join, 12)
         run = owner.batch_run_ledger.run(current)

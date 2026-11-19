@@ -1,3 +1,4 @@
+from threading import RLock
 from types import SimpleNamespace
 
 import pytest
@@ -83,7 +84,7 @@ def test_unbound_existing_schedule_settings_are_not_adopted(tmp_path):
         ledger.close()
 
 
-def test_scheduler_batch_uses_verified_account_not_latest_other_sync():
+def test_scheduler_batch_refuses_when_verified_account_differs_from_latest_sync():
     class Engine:
         account_id = None
         def start(self, authors, **kwargs):
@@ -91,10 +92,11 @@ def test_scheduler_batch_uses_verified_account_not_latest_other_sync():
             assert kwargs['account_id'] == '55'
             return 'run'
     service = SimpleNamespace(batch_runs=Engine(), closing=False,
-        following_sync=SimpleNamespace(last_synced_account=lambda: '99'),
+        following_sync=SimpleNamespace(last_synced_account=lambda: '99', _lock=RLock()),
         live_client=SimpleNamespace(_verified_identity='55'))
-    assert ApplicationServices.start_batch_run(service, ('7',), origin='auto',
-                                               target_type='both', account_id='55') == 'run'
+    with pytest.raises(RuntimeError, match='account changed'):
+        ApplicationServices.start_batch_run(service, ('7',), origin='auto',
+                                            target_type='both', account_id='55')
 
 
 def test_scheduler_passes_bound_account_to_batch_engine(monkeypatch):

@@ -100,7 +100,8 @@ def add_targets_bulk(targets, authors):
     for a in authors:
         uid = str(a.get("user_id") or "")
         if uid and uid not in seen:
-            out.append({"user_id": uid, "name": a.get("name") or uid, "origin": "follow"})
+            out.append({"user_id": uid, "name": a.get("name") or uid, "origin": "follow",
+                        "account_id": a.get("account_id")})
             seen.add(uid)
     return out
 
@@ -145,7 +146,10 @@ def add_target(targets, author, origin):
         if str(t.get("user_id")) == uid:
             return list(targets), False
     out = list(targets)
-    out.append({"user_id": uid, "name": author.get("name") or uid, "origin": origin})
+    target = {"user_id": uid, "name": author.get("name") or uid, "origin": origin}
+    if origin == "follow":
+        target["account_id"] = author.get("account_id")
+    out.append(target)
     return out, True
 
 

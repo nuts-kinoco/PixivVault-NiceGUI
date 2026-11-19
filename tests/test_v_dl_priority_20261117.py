@@ -127,10 +127,9 @@ class Services:
         self.batch_runs = engine
         self.following = following
 
-    def start_batch_run(self, ids, origin='manual', target_type=None):
-        self.engine_account = ACCOUNT
-        self.batch_runs.account_id = ACCOUNT
-        return self.batch_runs.start(ids, origin=origin, target_type=target_type)
+    def start_batch_run(self, ids, *, account_id, origin='manual', target_type=None):
+        self.engine_account = account_id
+        return self.batch_runs.start(ids, origin=origin, target_type=target_type, account_id=account_id)
 
 
 @pytest.fixture
@@ -152,7 +151,7 @@ def test_periodic_check_runs_every_star_author_in_turn_and_stamps_them(auto):
     for uid in ids:
         auto.following.set_favorite(ACCOUNT, uid, True)
     result = run_author_check(auto.services, auto.scheduler.favourites(ACCOUNT) or ids,
-                              cancellation=threading.Event(), ledger=auto.scheduler, slot='s1', poll=0.01)
+                              cancellation=threading.Event(), ledger=auto.scheduler, slot='s1', poll=0.01, account_id=ACCOUNT)
     assert result['authors'] == 200
     run = auto.ledger.runs(1)[0]
     assert run.origin == 'auto' and run.state == 'done' and run.target_type == 'both'
@@ -167,7 +166,7 @@ def test_periodic_check_never_joins_a_run_the_user_started(auto):
     auto.engine.start(('1000', '1001'))
     assert wait_for(lambda: auto.engine.active)
     result = run_author_check(auto.services, ('1002',), cancellation=threading.Event(),
-                              ledger=auto.scheduler, slot='s2', poll=0.01)
+                              ledger=auto.scheduler, slot='s2', poll=0.01, account_id=ACCOUNT)
     assert result['accepted'] == 0 and len(auto.ledger.runs(5)) == 1
     gate.set()
     assert auto.engine.join(5)
@@ -177,13 +176,13 @@ def test_a_gate_paused_automatic_run_is_ended_so_it_cannot_block_every_later_slo
     auto.port.gate_closed = True
     auto.port.inventories['1000'] = (cand('1000', 1),)
     result = run_author_check(auto.services, ('1000',), cancellation=threading.Event(),
-                              ledger=auto.scheduler, slot='s3', poll=0.01)
+                              ledger=auto.scheduler, slot='s3', poll=0.01, account_id=ACCOUNT)
     assert auto.port.enqueued == []                               # no traffic while the gate is closed
     assert auto.engine.active is False and auto.ledger.runs(1)[0].state == 'stopped'
     assert result['accepted'] == 0
     auto.port.gate_closed = False                                 # the next slot is differential and runs
     run_author_check(auto.services, ('1000',), cancellation=threading.Event(),
-                     ledger=auto.scheduler, slot='s3b', poll=0.01)
+                     ledger=auto.scheduler, slot='s3b', poll=0.01, account_id=ACCOUNT)
     assert auto.ledger.runs(1)[0].state == 'done' and len(auto.port.enqueued) == 1
 
 
@@ -191,7 +190,7 @@ def test_the_manual_check_returns_at_once_and_the_run_goes_on(auto):
     gate = threading.Event()
     auto.engine._external_wait = lambda s: gate.wait(5)
     result = run_author_check(auto.services, ('1000', '1001'), cancellation=threading.Event(),
-                              ledger=auto.scheduler, slot='s5', poll=0.01, wait=False)
+                              ledger=auto.scheduler, slot='s5', poll=0.01, wait=False, account_id=ACCOUNT)
     assert result['started'] is True and auto.engine.active
     gate.set()
     assert auto.engine.join(5) and auto.ledger.runs(1)[0].state == 'done'
@@ -228,7 +227,7 @@ def test_a_cancelled_slot_stops_the_run(auto):
     auto.engine._external_wait = lambda s: gate.wait(5)
     threading.Timer(0.2, lambda: (cancel.set(), gate.set())).start()
     run_author_check(auto.services, ('1000', '1001', '1002'), cancellation=cancel,
-                     ledger=auto.scheduler, slot='s4', poll=0.01)
+                     ledger=auto.scheduler, slot='s4', poll=0.01, account_id=ACCOUNT)
     assert auto.ledger.runs(1)[0].state == 'stopped'
 
 

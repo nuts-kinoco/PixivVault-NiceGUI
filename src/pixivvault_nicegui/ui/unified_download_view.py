@@ -21,6 +21,7 @@ from datetime import datetime
 
 from nicegui import ui
 
+from ..account_scope import AccountMismatch
 from .. import unified_download_state as U
 
 PAGE_SIZE = 50
@@ -909,7 +910,19 @@ class UnifiedDownloadView:
         if not ids:
             return False
         try:
-            self.services.start_batch_run(tuple(ids), origin="manual", target_type=self.target_type)
+            eligible_ids = set(ids)
+            chosen = [target for target in self.targets if str(target["user_id"]) in eligible_ids]
+            accounts = {target.get("account_id") for target in chosen if target["origin"] == "follow"}
+            if len(accounts) > 1 or None in accounts:
+                raise AccountMismatch()
+            account_id = next(iter(accounts), None)
+            if account_id is None and any(target["origin"] != "id" for target in chosen):
+                raise AccountMismatch()
+            self.services.start_batch_run(tuple(ids), origin="id" if account_id is None else "manual",
+                                          target_type=self.target_type, account_id=account_id)
+        except AccountMismatch:
+            self.set_notice("同期先アカウントを確認できません。ダウンロード画面を再読込してください。")
+            return False
         except Exception as exc:
             self.set_notice("開始できませんでした。設定を確認してください。"
                             if not isinstance(exc, RuntimeError) else "いまダウンロードが走っています。終わってから実行してください。")

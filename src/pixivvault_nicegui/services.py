@@ -13,7 +13,7 @@ from .media import DemoImageCatalog
 from .library_fixtures import build_library_fixture
 from .library_models import LibrarySnapshot
 from .library_media_registry import LibraryImageRegistry
-from .account_scope import AccountMismatch, require_current_account, require_same_account
+from .account_scope import AccountMismatch, AccountScope, require_current_account, require_same_account
 from .request_policy import job_request_runner, request_scope
 
 _CURRENT_IMAGE_READER = object()
@@ -3336,33 +3336,35 @@ class ApplicationServices:
                 authors = source(ledger=ledger)
                 ledger.sync_favourites(authors)
         if self.batch_runs is not None:
-            from .managed_scheduler import run_author_check
-            account = getattr(ledger, '_bound_account', lambda: None)()
+            from .managed_scheduler import _dispatch_account, run_author_check
+            account = _dispatch_account(ledger)
             return run_author_check(self, authors, cancellation=cancellation,
                                     ledger=ledger, slot=slot, wait=wait, account_id=account)
         from .managed_scheduler import submit_author_batch
         return submit_author_batch(self, authors, cancellation=cancellation,
                                    ledger=ledger, slot=slot)
 
-    def start_batch_run(self, author_ids, *, kind='authors', origin='manual', target_type=None, account_id=None):
-        """Start one run. Raises RuntimeError when a run is already active.
-
-        kind='authors': `author_ids` are the authors. kind='bookmarks': they are the chosen visibilities
-        ('show' = 公開, 'hide' = 非公開) and the run lists the cached bookmarks (see `start_bookmark_run`).
-        """
+    def start_batch_run(self, author_ids, *, account_id: str | None, kind='authors',
+                        origin='manual', target_type=None):
+        """Start an author run for the displayed account or an explicit ID-only selection."""
+        from contextlib import nullcontext
         engine = self.batch_runs
         if engine is None or self.closing:
             raise RuntimeError('author batch runs are not enabled')
-        if account_id is None:
-            account_id = engine.account_id
-            if self.following_sync is not None:
-                # Manual runs use the newest completed follow sync.
-                account_id = self.following_sync.last_synced_account()
-        else:
-            reader = self.live_client
-            require_same_account(account_id, getattr(reader, '_verified_identity', None) if reader is not None else None)
-        return engine.start(tuple(author_ids), kind=kind, origin=origin, target_type=target_type,
-                            account_id=account_id)
+        if kind != 'authors':
+            raise ValueError('invalid author batch kind')
+        if origin == 'id':
+            require_same_account(None, account_id)
+            return engine.start(tuple(author_ids), kind=kind, origin='manual', target_type=target_type,
+                                account_id=None)
+        scope = AccountScope(account_id, self.live_client)
+        following = self.following_sync
+        with following._lock if following is not None else nullcontext():
+            if following is not None:
+                require_same_account(scope.account_id, following.last_synced_account())
+            scope.verify_current(self)
+            return engine.start(tuple(author_ids), kind=kind, origin=origin, target_type=target_type,
+                                account_id=scope.account_id)
 
     async def start_bookmark_run(self, visibilities, *, origin='manual', target_type=None):
         """「マイブックマーク」の実行 1 回: read the complete bookmark lists (Pixiv, behind the stop gate), then run.
@@ -3795,19 +3797,10 @@ class ApplicationServices:
                 or self.managed_downloads is None):
             return False
         ledger = self.managed_scheduler
-        guarded = getattr(ledger, '_account_guard', False)
-        reader = self.live_client if guarded else None
-        account = ledger._bound_account() if guarded else None
-
-        def check_account():
-            if guarded:
-                if account is None or reader is None:
-                    raise AccountMismatch()
-                require_same_account(account, getattr(reader, '_verified_identity', None))
-                require_current_account(self, reader, account)
-
         try:
-            check_account()
+            scope = AccountScope(ledger._bound_account(), self.live_client) if getattr(ledger, '_account_guard', False) else None
+            if scope is not None:
+                scope.verify_current(self)
         except AccountMismatch:
             return False
         from .job_service import UNFINISHED
@@ -3846,7 +3839,8 @@ class ApplicationServices:
             extra_receipts, _, _ = self.author_media.reconcile(expected)
             receipt_fingerprints.update(extra_receipts)
         try:
-            check_account()
+            if scope is not None:
+                scope.verify_current(self)
         except AccountMismatch:
             return False
         if self.managed_scheduler is not ledger or self.closing:

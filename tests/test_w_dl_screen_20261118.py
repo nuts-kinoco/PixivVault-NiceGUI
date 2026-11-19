@@ -111,16 +111,16 @@ class FakeServices:
     def batch_run_active(self):
         return self.batch_runs.active
 
-    def start_batch_run(self, author_ids, *, origin='manual', target_type=None):
-        self.batch_runs.account_id = self.following_sync.last_synced_account()
-        return self.batch_runs.start(tuple(author_ids), origin=origin, target_type=target_type)
+    def start_batch_run(self, author_ids, *, account_id, origin='manual', target_type=None):
+        return self.batch_runs.start(tuple(author_ids), origin='manual' if origin == 'id' else origin,
+                                     target_type=target_type, account_id=account_id)
 
     def resume_batch_run(self, run_id=None):
         return self.batch_runs.start_unfinished(run_id)
 
     def unified_download_authors(self):
         if self.rows:
-            return tuple(self.rows)
+            return tuple(dict(row, account_id=ACCOUNT) for row in self.rows)
         return ApplicationServices.unified_download_authors(self)
 
     def saved_author_counts(self):
