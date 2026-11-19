@@ -1,7 +1,7 @@
 from hashlib import sha256
 from zipfile import ZipFile
 import pytest
-from test_u11_zip_contract import generated_exports
+from test_u11_zip_contract import generated_exports, settled
 from pixivvault_nicegui.legacy_zip_export import LegacyZipExportError
 
 
@@ -115,4 +115,22 @@ def test_old_title_for_same_work_is_not_silently_accepted(tmp_path):
         before = path.read_bytes()
         with pytest.raises(LegacyZipExportError):
             q.exports.zip.export_author('456', replace_existing_sha256=sha256(before).hexdigest())
+        assert path.read_bytes() == before
+
+
+def test_two_works_cannot_claim_same_legacy_member(tmp_path):
+    from dataclasses import replace
+    from types import SimpleNamespace
+    from test_managed_downloads import Context, record
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan()
+        assert all(j.state == 'done' for j in settled(q.exports))
+        path = q.exports.zip.root / 'tester(456).zip'
+        before = path.read_bytes()
+        q.reader.get_artwork_original_pages = lambda wid: ('https://i.pximg.net/a',)
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid,
+                                                        title='synthetic title(123)_2', page_count=1)
+        q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
+        q.exports.scan()
+        assert any(j.state == 'error' for j in settled(q.exports))
         assert path.read_bytes() == before
