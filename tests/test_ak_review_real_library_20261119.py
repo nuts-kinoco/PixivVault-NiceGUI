@@ -20,7 +20,8 @@ def test_seed_accepts_real_library_work_and_preserves_api_tags(tmp_path):
     try:
         service.refresh_saved_seeds().result(10)
         prefs = service._submit(lambda: service._effective_preferences(service._database())).result(10)
-        assert looked_up == ['1000']
+        # Scan, commit-time recheck, and query-time recheck all use only the untagged work.
+        assert looked_up == ['1000', '1000', '1000']
         assert prefs['local_tag']['seed_saved'] == 1
         assert works[1].artwork.tags == ('api',)
     finally:

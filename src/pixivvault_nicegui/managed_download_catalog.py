@@ -262,6 +262,18 @@ class ManagedDownloadCatalog:
             if self._shared_cache is not None and disk_key is not None:self._shared_cache.put(key,blob,disk_key=disk_key)
             return blob
 
+    def get_fresh(self, work_id, page_no=0, variant='view'):
+        with self._lock:
+            relative, receipt, digest = self._check(work_id, page_no, variant)
+        try:
+            blob = self._decode(relative, receipt, digest, page_no, variant)
+        except (OSError, ValueError, KeyError) as exc:
+            raise MediaUnavailable('saved image read failed') from exc
+        with self._lock:
+            if self._closed:
+                raise MediaUnavailable('catalog closed')
+        return blob
+
     def get(self, work_id: str, page_no: int = 0, variant: str = "view") -> ImageBlob:
         with self._lock:
             relative, receipt, digest = self._check(work_id, page_no, variant)

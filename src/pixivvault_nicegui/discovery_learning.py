@@ -169,6 +169,12 @@ class DiscoveryLearningService(LearningService):
         db = self._database()
         if self.tagger.current_fingerprint() != fingerprint:
             return
+        try:
+            data = self.local_image(wid)
+            if not data or hashlib.sha256(data).hexdigest() != image_sha:
+                return
+        except (ValueError, OSError, RuntimeError):
+            return
         with db._transaction() as conn:
             conn.execute("INSERT INTO managed_local_seed VALUES (?, 'local', ?, ?, ?) ON CONFLICT(work_id) DO UPDATE SET source=excluded.source, model_fingerprint=excluded.model_fingerprint, image_sha256=excluded.image_sha256, tags=excluded.tags", (wid, fingerprint, image_sha, json.dumps(tags, ensure_ascii=False)))
 
@@ -182,10 +188,13 @@ class DiscoveryLearningService(LearningService):
         saved = set(str(x) for x in (self.saved_ids() if callable(self.saved_ids) else self.saved_ids))
         artworks = (getattr(work, 'artwork', work) for work in self.saved_works())
         eligible = {str(artwork.work_id) for artwork in artworks if not artwork.tags} & saved
-        for row in db.conn.execute("SELECT work_id,tags FROM managed_local_seed WHERE source='local' AND model_fingerprint=?", (fingerprint,)):
+        for row in db.conn.execute("SELECT work_id,image_sha256,tags FROM managed_local_seed WHERE source='local' AND model_fingerprint=?", (fingerprint,)):
             if row['work_id'] not in eligible:
                 continue
             try:
+                image = self.local_image(row['work_id'])
+                if not image or hashlib.sha256(image).hexdigest() != row['image_sha256']:
+                    continue
                 tags = json.loads(row['tags'])
                 if not isinstance(tags, list):
                     continue
@@ -198,9 +207,9 @@ class DiscoveryLearningService(LearningService):
                 for normalized, tag in unique.items():
                     item = result.setdefault(normalized, {'display':tag, 'count':0})
                     item['count'] += 1
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OSError, RuntimeError):
                 continue
-        return result
+        return result if self.tagger.try_current_fingerprint() == fingerprint else {}
 
     def _effective_preferences(self, db):
         preferences = db.get_discovery_preferences()

@@ -610,7 +610,7 @@ class ReadonlyLocalMediaCatalog:
             return (not self._closed and work is not None and
                     work.work_type not in {'novel','ugoira'})
 
-    def get(self, work_id: str, page_no: int = 0, variant: str = "view") -> ImageBlob:
+    def get(self, work_id: str, page_no: int = 0, variant: str = "view", *, _fresh=False) -> ImageBlob:
         # Reject invalid requests before any expensive filesystem scan.
         with self._lock:
             if self._closed:
@@ -628,10 +628,10 @@ class ReadonlyLocalMediaCatalog:
             key = (work_id, page_no, variant)
             if self._closed:
                 raise MediaUnavailable("catalog closed")
-            if self._shared_cache is not None:
+            if not _fresh and self._shared_cache is not None:
                 cached=self._shared_cache.get(key)
                 if cached is not None:return cached
-            elif key in self._cache:
+            elif not _fresh and key in self._cache:
                 self._cache.move_to_end(key)
                 return self._cache[key]
             path, member = self._source(work_id, page_no, variant)
@@ -693,6 +693,8 @@ class ReadonlyLocalMediaCatalog:
         with self._lock:
             if self._closed or generation != self._generation:
                 raise MediaUnavailable("obsolete image request")
+            if _fresh:
+                return blob
             # Two requests may have decoded the same key while the lock was
             # released. Reuse the winner and account for its bytes only once.
             if self._shared_cache is not None:
@@ -711,6 +713,9 @@ class ReadonlyLocalMediaCatalog:
                 self._cache[key] = blob
                 self._cache_bytes += len(png)
             return blob
+
+    def get_fresh(self, work_id, page_no=0, variant='view'):
+        return self.get(work_id, page_no, variant, _fresh=True)
 
     def peek(self, work_id: str, page_no: int, variant: str):
         """Cached HTTP metadata only; never scan or open files for HEAD."""

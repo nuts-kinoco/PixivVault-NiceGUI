@@ -396,7 +396,8 @@ class LibraryImageRegistry:
                 return None
             version.refs += 1
         try:
-            return local.get(work_id, 0, 'view').data
+            fresh = getattr(local, 'get_fresh', None)
+            return fresh(work_id, 0, 'view').data if callable(fresh) else None
         except (ValueError, OSError, RuntimeError, KeyError):
             return None
         finally:

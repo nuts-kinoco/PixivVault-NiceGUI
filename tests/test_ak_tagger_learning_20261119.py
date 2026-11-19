@@ -11,6 +11,7 @@ def test_local_image_reader_never_calls_remote():
     class Catalog:
         works = {'1000': SimpleNamespace(work_type='illustration')}
         def get(self, *args): return ImageBlob(b'local', 'image/png', 'x')
+        def get_fresh(self, *args): return self.get(*args)
         def close(self): pass
     class Remote(Catalog):
         def get(self, *args): raise AssertionError('remote must not be read')
