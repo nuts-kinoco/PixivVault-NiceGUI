@@ -51,3 +51,21 @@ def test_normalize_failed_replace_preserves_archive(tmp_path, monkeypatch):
         with pytest.raises(LegacyZipExportError):
             q.exports.zip.normalize_archive(path, sha256(before).hexdigest(), zip64_threshold=1)
         assert path.read_bytes() == before
+
+
+def test_auto_zip_switches_before_python_zip32_limit(tmp_path, monkeypatch):
+    import pixivvault_nicegui.legacy_zip_export as module
+    with generated_exports(tmp_path, True, None) as q:
+        path = q.exports.zip.export_author('456')
+        monkeypatch.setattr(module, 'ZIP32_SAFE_LIMIT', 1)
+        q.exports.zip.export_author('456', replace_existing_sha256=sha256(path.read_bytes()).hexdigest())
+        assert local_version(path) >= 45
+
+
+def test_zip64_switches_on_member_count(tmp_path, monkeypatch):
+    import pixivvault_nicegui.legacy_zip_export as module
+    with generated_exports(tmp_path, True, None) as q:
+        path = q.exports.zip.export_author('456')
+        monkeypatch.setattr(module, 'ZIP32_ENTRY_LIMIT', 1)
+        q.exports.zip.normalize_archive(path, sha256(path.read_bytes()).hexdigest())
+        assert local_version(path) >= 45

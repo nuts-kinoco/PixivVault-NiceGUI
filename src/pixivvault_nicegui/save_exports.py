@@ -777,7 +777,9 @@ class SaveExports:
             if not os.path.samestat(info,opened) or opened.st_nlink not in (1,2):raise ValueError('ZIP recovery stage changed')
             for part in iter(lambda:stream.read(1024*1024),b''):hasher.update(part)
         if hasher.hexdigest()!=note['sha256']:raise ValueError('ZIP recovery bytes changed')
-        if previous is not None and archive.exists() and not os.path.samestat(info,archive.lstat()):
+        if previous is not None and not archive.exists():
+            raise ValueError('previous ZIP missing during recovery')
+        if previous is not None and not os.path.samestat(info,archive.lstat()):
             with self._zip_publication_scope(identity):
                 from .legacy_zip_export import verified_zip_digest
                 context.checkpoint();self._auto_page_state(identity)

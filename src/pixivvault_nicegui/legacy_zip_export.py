@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import copy
 from contextlib import ExitStack
+from collections import Counter
 import json
 import os
 from pathlib import Path
@@ -19,7 +20,7 @@ import shutil
 import stat
 from threading import Lock
 from uuid import uuid4
-from zipfile import BadZipFile, ZipFile, ZIP_DEFLATED, LargeZipFile
+from zipfile import BadZipFile, ZipFile, ZIP_DEFLATED, LargeZipFile, ZIP64_LIMIT, ZIP_FILECOUNT_LIMIT
 from zlib import error as ZlibError
 
 from .fs_paths import native_io_path, logical_path
@@ -40,6 +41,8 @@ MAX_EXPORT_PAGES = 5000
 MAX_EXPORT_INPUT_BYTES = 1700 * 1024 * 1024
 MAX_ZIP_NAME_BYTES = 240
 ZIP64_THRESHOLD = 4000 * 1024 * 1024
+ZIP32_SAFE_LIMIT = int(ZIP64_LIMIT / 1.05) - 1024 * 1024
+ZIP32_ENTRY_LIMIT = ZIP_FILECOUNT_LIMIT
 
 
 
@@ -222,7 +225,12 @@ class LegacyZipExporter:
         try:
             if self.closed or self._closing or verified_zip_digest(path) != expected_sha256:
                 raise LegacyZipExportError('previous ZIP changed')
-            use_zip64 = path.stat().st_size >= zip64_threshold
+            with ZipFile(path, 'r') as inspect:
+                infos = inspect.infolist()
+                expanded = sum(info.file_size + len(info.filename.encode('utf-8'))
+                               + len(info.extra) + len(info.comment) + 256 for info in infos)
+            use_zip64 = (path.stat().st_size >= zip64_threshold
+                         or expanded >= ZIP32_SAFE_LIMIT or len(infos) >= ZIP32_ENTRY_LIMIT)
             _safe_path(native_io_path(self.incomplete))
             staging = native_io_path(self.incomplete) / ('zip-' + uuid4().hex + '.tmp')
             names = set()
@@ -251,9 +259,11 @@ class LegacyZipExporter:
         except (OSError, BadZipFile, RuntimeError, ZlibError, LargeZipFile) as error:
             raise LegacyZipExportError('ZIP normalization failed') from error
         finally:
-            if staging is not None:
-                staging.unlink(missing_ok=True)
-            self._writer.release()
+            try:
+                if staging is not None:
+                    staging.unlink(missing_ok=True)
+            finally:
+                self._writer.release()
 
     def remove_entry(self, path: Path, entry_name: str, expected_sha256: str) -> bytes:
         """Remove one entry from an owned archive after verifying every member."""
@@ -278,6 +288,7 @@ class LegacyZipExporter:
             names = set()
             with ZipFile(path, 'r') as source, staging.open('xb') as output:
                 with ZipFile(output, 'w', allowZip64=True) as target:
+                    target.comment = source.comment
                     for info in source.infolist():
                         if info.filename in names:
                             raise LegacyZipExportError('duplicate previous ZIP member')
@@ -301,9 +312,11 @@ class LegacyZipExporter:
         except (OSError, BadZipFile, RuntimeError, ZlibError, LargeZipFile) as error:
             raise LegacyZipExportError('ZIP removal failed') from error
         finally:
-            if staging is not None:
-                staging.unlink(missing_ok=True)
-            self._writer.release()
+            try:
+                if staging is not None:
+                    staging.unlink(missing_ok=True)
+            finally:
+                self._writer.release()
 
     def export_author(self, author_id: str, *, expected_proofs=None, before_publish=None,
                       expected_source_pages=None, replace_existing_sha256=None) -> Path:
@@ -397,6 +410,16 @@ class LegacyZipExporter:
 
             members = set()
             entries = []
+            excluded_candidates = set()
+            for _, receipt, _ in author_rows:
+                safe_title = _INVALID_FILENAME.sub('_', receipt['title'])
+                for index, file in enumerate(receipt['files']):
+                    if index in source_pages[receipt['work_id']]:
+                        continue
+                    ext = {'png': 'png', 'jpeg': 'jpg', 'webp': 'webp'}[file['format']]
+                    legacy = (f'{safe_title}.{ext}' if receipt['page_count'] == 1
+                              else f'{safe_title}_{index + 1}.{ext}')
+                    excluded_candidates.update(zip_arcname_candidates(legacy, safe_title, receipt['work_id']))
             for relative, receipt, digest in receipts:
                 for page_index in source_pages[receipt['work_id']]:
                     entry = receipt['files'][page_index]
@@ -414,8 +437,17 @@ class LegacyZipExporter:
 
             _safe_path(native_io_path(self.incomplete))
             staging = native_io_path(self.incomplete) / ('zip-' + uuid4().hex + '.tmp')
-            use_zip64 = ((destination.stat().st_size if replace_existing_sha256 is not None else 0)
-                         + total_bytes >= ZIP64_THRESHOLD)
+            previous_size = 0
+            previous_count = 0
+            if replace_existing_sha256 is not None:
+                with ZipFile(destination, 'r') as inspect:
+                    infos = inspect.infolist()
+                    previous_count = len(infos)
+                    previous_size = sum(info.file_size + len(info.filename.encode('utf-8'))
+                                        + len(info.extra) + len(info.comment) + 256 for info in infos)
+            estimate = previous_size + total_bytes + sum(len(entry[3].encode('utf-8')) + 256 for entry in entries)
+            use_zip64 = (estimate >= min(ZIP64_THRESHOLD, ZIP32_SAFE_LIMIT)
+                         or previous_count + len(entries) >= ZIP32_ENTRY_LIMIT)
             # Create before ZipFile with xb: an earlier failed staging archive
             # may never be silently overwritten or mistaken for a final ZIP.
             with staging.open('xb') as output:
@@ -425,12 +457,46 @@ class LegacyZipExporter:
                         # Read every old member, including entries no longer in
                         # the managed catalog, before publishing a replacement.
                         with ZipFile(destination, 'r') as previous:
-                            old_names = set()
+                            archive.comment = previous.comment
+                            old_infos = {}
+                            old_hashes = {}
                             for info in previous.infolist():
                                 name = info.filename.replace('\\', '/')
-                                if name in old_names:
+                                if name in old_infos:
                                     raise LegacyZipExportError('duplicate previous ZIP member')
-                                old_names.add(name)
+                                old_infos[name] = info
+                                hasher = hashlib.sha256()
+                                with previous.open(info) as source:
+                                    for block in iter(lambda: source.read(1024 * 1024), b''):
+                                        hasher.update(block)
+                                old_hashes[name] = hasher.hexdigest()
+                            old_names = set(old_infos)
+                            known_candidates = excluded_candidates | {name for entry in entries for name in entry[4]}
+                            for name in old_names - known_candidates:
+                                if any(f'({wid})' in name for wid in source_pages):
+                                    raise LegacyZipExportError('older ZIP member requires attribution')
+                            if excluded_candidates.intersection(old_names):
+                                raise LegacyZipExportError('excluded ZIP member requires attribution')
+                            drop = set()
+                            legacy_counts = Counter(entry[4][-1] for entry in entries)
+                            if any(count > 1 and name in old_names for name, count in legacy_counts.items()):
+                                raise LegacyZipExportError('ambiguous legacy ZIP member')
+                            pending_entries = []
+                            for relative, digest, index, name, candidates in entries:
+                                matched = [candidate for candidate in candidates if candidate in old_names and candidate not in drop]
+                                if not matched:
+                                    pending_entries.append((relative, digest, index, name, candidates))
+                                    continue
+                                current = hashlib.sha256(self.managed.read_saved_page(relative, index, digest)).hexdigest()
+                                changed = [candidate for candidate in matched if old_hashes[candidate] != current]
+                                if changed:
+                                    raise LegacyZipExportError('changed ZIP member requires attribution')
+                            entries = pending_entries
+                            old_names.difference_update(drop)
+                            for name in old_infos:
+                                if name not in old_names:
+                                    continue
+                                info = old_infos[name]
                                 new_info = copy.copy(info)
                                 new_info.filename = name
                                 new_info.extra = _without_zip64_extra(info.extra)
@@ -439,9 +505,6 @@ class LegacyZipExporter:
                                     new_info.create_version = min(info.create_version, 20)
                                 with previous.open(info) as source, archive.open(new_info, 'w', force_zip64=use_zip64) as target:
                                     shutil.copyfileobj(source, target, 1024 * 1024)
-                            members.update(old_names)
-                        entries = [entry for entry in entries
-                                   if not any(candidate in old_names for candidate in entry[4])]
                     members = old_names | {entry[3] for entry in entries} if replace_existing_sha256 is not None else members
                     for relative, digest, index, name, _legacy in entries:
                         if self._closing:

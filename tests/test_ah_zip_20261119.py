@@ -1,4 +1,4 @@
-﻿from hashlib import sha256
+from hashlib import sha256
 from zipfile import ZipFile
 import pytest
 from test_u11_zip_contract import generated_exports
@@ -34,8 +34,10 @@ def test_legacy_names_and_backslash_are_preserved_without_duplicates(tmp_path):
     with generated_exports(tmp_path, True, None) as f:
         exporter = f.exports.zip
         archive = exporter.export_author('456')
+        relative, _, digest = f.managed.saved_receipts()[0]
+        original_page = f.managed.read_saved_page(relative, 0, digest)
         with ZipFile(archive, 'w') as z:
-            z.writestr('synthetic title_1.png', b'old page')
+            z.writestr('synthetic title_1.png', original_page)
             z.writestr('folder\\old.txt', b'old')
         exporter.export_author('456', replace_existing_sha256=sha256(archive.read_bytes()).hexdigest())
         with ZipFile(archive) as z:
@@ -55,3 +57,62 @@ def test_replace_failure_keeps_old_bytes(tmp_path, monkeypatch):
         with pytest.raises(LegacyZipExportError):
             exporter.export_author('456', replace_existing_sha256=sha256(original).hexdigest())
         assert archive.read_bytes() == original
+
+
+def test_ambiguous_old_name_with_two_same_title_works_fails_closed(tmp_path):
+    from dataclasses import replace
+    from types import SimpleNamespace
+    from test_managed_downloads import Context, record
+    with generated_exports(tmp_path, True, None) as q:
+        exporter = q.exports.zip
+        path = exporter.export_author('456')
+        with ZipFile(path, 'w') as z:
+            z.writestr('synthetic title_1.png', b'old')
+        before = path.read_bytes()
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid)
+        q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
+        with pytest.raises(LegacyZipExportError):
+            exporter.export_author('456', replace_existing_sha256=sha256(before).hexdigest())
+        assert path.read_bytes() == before
+
+
+def test_changed_managed_page_is_not_silently_reported_current(tmp_path):
+    with generated_exports(tmp_path, True, None) as q:
+        exporter = q.exports.zip
+        path = exporter.export_author('456')
+        with ZipFile(path) as z:
+            names = z.namelist()
+            second = z.read(names[1])
+        with ZipFile(path, 'w') as z:
+            z.writestr(names[0], b'different')
+            z.writestr(names[1], second)
+        before = path.read_bytes()
+        with pytest.raises(LegacyZipExportError):
+            exporter.export_author('456', replace_existing_sha256=sha256(before).hexdigest())
+        assert path.read_bytes() == before
+
+
+def test_excluded_page_does_not_remain_in_successful_zip(tmp_path, monkeypatch):
+    from dataclasses import replace
+    with generated_exports(tmp_path, True, None) as q:
+        exporter = q.exports.zip
+        path = exporter.export_author('456')
+        before = path.read_bytes()
+        original = q.managed.catalog_snapshot
+        def filtered(*args, **kwargs):
+            snapshot = original(*args, **kwargs)
+            return replace(snapshot, source_pages={'123': (1,)})
+        monkeypatch.setattr(q.managed, 'catalog_snapshot', filtered)
+        with pytest.raises(LegacyZipExportError):
+            exporter.export_author('456', replace_existing_sha256=sha256(before).hexdigest())
+        assert path.read_bytes() == before
+
+
+def test_old_title_for_same_work_is_not_silently_accepted(tmp_path):
+    with generated_exports(tmp_path, True, None) as q:
+        path = q.exports.zip.export_author('456')
+        with ZipFile(path, 'a') as z: z.writestr('old title(123)_1.png', b'old')
+        before = path.read_bytes()
+        with pytest.raises(LegacyZipExportError):
+            q.exports.zip.export_author('456', replace_existing_sha256=sha256(before).hexdigest())
+        assert path.read_bytes() == before

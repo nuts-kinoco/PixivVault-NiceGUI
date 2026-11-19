@@ -40,3 +40,26 @@ def test_renamed_archive_keeps_receipt_after_interrupted_export(tmp_path, monkey
         q.exports.run(failed, Context())
         assert renamed.exists()
         assert len(list(q.exports.zip.root.glob('*.zip'))) == 1
+
+
+def test_recovery_does_not_publish_when_previous_archive_is_missing(tmp_path, monkeypatch):
+    import os
+    import pytest
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan()
+        assert all(j.state == 'done' for j in settled(q.exports))
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title='second', author_name='new')
+        q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
+        original_replace = os.replace
+        def fail(src, dst):
+            if str(dst).endswith('.zip'): raise OSError('injected')
+            return original_replace(src, dst)
+        monkeypatch.setattr(os, 'replace', fail)
+        q.exports.scan()
+        failed = next(j for j in settled(q.exports) if j.state == 'error')
+        renamed = q.exports.zip.root / 'new(tester)(456).zip'
+        original = q.exports.zip.root / 'tester(456).zip'
+        renamed.rename(original)
+        monkeypatch.setattr(os, 'replace', original_replace)
+        with pytest.raises(ValueError): q.exports.run(failed, Context())
+        assert original.exists() and not renamed.exists()
