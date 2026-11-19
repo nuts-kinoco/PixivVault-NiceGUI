@@ -12,7 +12,7 @@ from pathlib import Path, PurePosixPath
 import shutil
 import stat
 from uuid import uuid4
-from zipfile import ZipFile
+from zipfile import ZipFile, ZIP_FILECOUNT_LIMIT
 
 from .fs_paths import native_io_path
 from .local_media_adapter import _safe_entry
@@ -476,8 +476,9 @@ class PhysicalLegacyQuarantine:
                 if len(infos)>100000 or len({i.filename for i in infos})!=len(infos):
                     raise ValueError('physical archive members rejected')
                 use_zip64=source.stat().st_size >= 4000 * 1024 * 1024
+                allow_zip64=use_zip64 or len(infos)-1 > ZIP_FILECOUNT_LIMIT
                 with (unit/'after').open('xb') as output:
-                    with ZipFile(output,'w',allowZip64=use_zip64) as rebuilt:
+                    with ZipFile(output,'w',allowZip64=allow_zip64) as rebuilt:
                         rebuilt.comment=original.comment
                         for info in infos:
                             if (not _safe_entry(info.filename) or info.flag_bits&1
