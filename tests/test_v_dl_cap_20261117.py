@@ -125,7 +125,9 @@ def test_calls_do_not_reverify_every_receipt(root):
     for _ in range(200):
         g.current('100010')
         g.state_snapshot()
-    assert time.perf_counter() - started < 3.0  # was seconds per call before
+    # Re-verifying every receipt on each call cost seconds per call (hundreds of seconds for 400 calls).
+    # The bound only has to separate that from a cached read; 3 s sat at the real cost (2.3-3.3 s under load) and was flaky.
+    assert time.perf_counter() - started < 30.0
 
 
 def test_publish_appends_to_a_journal_and_leaves_the_index_untouched(root):
