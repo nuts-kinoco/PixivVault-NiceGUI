@@ -208,7 +208,10 @@ def serve(args):
     store = NativeProfileStore(base / "profile")
     profile = NativeProfileBinding(store, launch_snapshot=store.snapshot())
     profile.auth_stop_required = True
+    copy_root = base / "legacy-snapshots"
+    copy_root.mkdir()
     kw = dict(live_client=reader, native_profile=profile, shared_network_stop_scope=scope,
+              legacy_copy_root=copy_root,
               library_readonly_db=base / "lib" / "synthetic-legacy.sqlite",
               library_image_root=base / "lib" / "fake-images",
               pixiv_download_root=base / "managed",

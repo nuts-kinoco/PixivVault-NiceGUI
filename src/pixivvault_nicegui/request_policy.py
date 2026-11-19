@@ -124,9 +124,9 @@ class RequestAdmission:
     never starved. Pause/cancel checkpoints and the deadline are honoured outside the lock.
     A request that fails before issuing gives its slot back when nothing was queued behind it.
     """
-    def __init__(self,interval,*,clock=time.monotonic,sleep=time.sleep):
-        self.interval=interval;self.clock=clock;self.sleep=sleep
-        self._lock=Lock();self._next=None;self._issued=None;self._interactive_waiting=0
+    def __init__(self,interval,*,clock=time.monotonic,sleep=time.sleep,jitter=random.uniform):
+        self.interval=interval;self.clock=clock;self.sleep=sleep;self.jitter=jitter
+        self._lock=Lock();self._next=None;self._issued=None;self._spacing=0;self._interactive_waiting=0
     def _defer_for_interactive(self,deadline,start):
         while True:
             with self._lock:
@@ -146,8 +146,12 @@ class RequestAdmission:
             if start>=deadline:
                 from .pixiv_read_client import ReadDeadlineExceeded
                 raise ReadDeadlineExceeded()                           # the slot cannot be used before the deadline: do not take it
-            self._next=start+seconds
-            return start,start+seconds,seconds
+            spacing=self.jitter(seconds*0.8,seconds*1.2)                # original: wait interval +-20% random (Z05)
+            if not math.isfinite(spacing) or not seconds*0.8<=spacing<=seconds*1.2:raise ValueError('invalid interval jitter')
+            gap=self._spacing                                          # the spacing the previous request assigned: the real distance it must keep from that issue
+            self._spacing=spacing
+            self._next=start+spacing
+            return start,start+spacing,gap
     def _release(self,start,end):
         with self._lock:
             if self._next==end:self._next=start

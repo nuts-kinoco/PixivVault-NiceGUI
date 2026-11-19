@@ -207,7 +207,9 @@ def validate_selection(scan,selections,query=''):
     return tuple(selected),tuple(remaining)
 
 class ManagedDuplicateInspection:
-    def __init__(self,owner,*,undecidable_db=None,legacy=None):
+    def __init__(self,owner,*,undecidable_db=None,legacy=None,source_db_path_sha256=None):
+        if source_db_path_sha256 is not None and (type(source_db_path_sha256) is not str or len(source_db_path_sha256)!=64 or any(c not in "0123456789abcdef" for c in source_db_path_sha256)):raise DuplicateInspectionError()
+        self.source_db_path_sha256=source_db_path_sha256
         if not isinstance(owner,ManagedPixivDownloads) and not (owner is None and legacy is not None):raise DuplicateInspectionError()
         self.legacy=legacy
         self.owner=owner;self._lock=RLock();self._closed=False;self._latest=None;self._closing=Event()
@@ -237,11 +239,11 @@ class ManagedDuplicateInspection:
             from .legacy_ledger_rebuild import resolve_rebuilt_group
             result=resolve_rebuilt_group(managed_root=self.owner.root, undecidable_db=self.undecidable_db,
                                          images_root=self.legacy.catalog.root, group=group, work_id=work_id,
-                                         expected_current=self._rebuilt_token)
+                                         expected_current=self._rebuilt_token,source_db_path_sha256=self.source_db_path_sha256)
             from .legacy_ledger_rebuild import load_rebuilt_ledger
             self._rebuilt_undecidable,self._rebuilt_token,self._rebuilt_has_proofs=load_rebuilt_ledger(
                 managed_root=self.owner.root,undecidable_db=self.undecidable_db,
-                images_root=self.legacy.catalog.root,with_token=True)
+                images_root=self.legacy.catalog.root,with_token=True,source_db_path_sha256=self.source_db_path_sha256)
             return self._rebuilt_undecidable
     def undecidable_groups(self):
         with self._lock:
@@ -251,7 +253,7 @@ class ManagedDuplicateInspection:
             if self.owner is not None and self.legacy is not None:
                 from .legacy_ledger_rebuild import load_rebuilt_ledger
                 current,token,has_proofs=load_rebuilt_ledger(managed_root=self.owner.root,
-                    undecidable_db=self.undecidable_db,images_root=self.legacy.catalog.root,with_token=True)
+                    undecidable_db=self.undecidable_db,images_root=self.legacy.catalog.root,with_token=True,source_db_path_sha256=self.source_db_path_sha256)
                 if current is not None:
                     self._rebuilt_undecidable=current
                     self._rebuilt_token=token
@@ -295,7 +297,7 @@ class ManagedDuplicateInspection:
             if self.undecidable_db is not None and self.owner is not None and self.legacy is not None:
                 from .legacy_ledger_rebuild import rebuild_undecidable_ledger
                 rebuilt=rebuild_undecidable_ledger(undecidable_db=self.undecidable_db,
-                    images_root=self.legacy.catalog.root,managed_root=self.owner.root,check_cancelled=self._check)
+                    images_root=self.legacy.catalog.root,managed_root=self.owner.root,check_cancelled=self._check,source_db_path_sha256=self.source_db_path_sha256)
             rows,signature=self._catalog(progress=True);authors=defaultdict(list);unreadable=[];seen=set()
             exclusions=self._state()['exclusions']
             for relative,receipt,digest in rows:
@@ -356,11 +358,11 @@ class ManagedDuplicateInspection:
             if rebuilt is not None:
                 from .legacy_ledger_rebuild import publish_rebuilt_ledger
                 publish_rebuilt_ledger(rebuilt,managed_root=self.owner.root,
-                    undecidable_db=self.undecidable_db,images_root=self.legacy.catalog.root)
+                    undecidable_db=self.undecidable_db,images_root=self.legacy.catalog.root,source_db_path_sha256=self.source_db_path_sha256)
                 from .legacy_ledger_rebuild import load_rebuilt_ledger
                 self._rebuilt_undecidable,self._rebuilt_token,self._rebuilt_has_proofs=load_rebuilt_ledger(
                     managed_root=self.owner.root,undecidable_db=self.undecidable_db,
-                    images_root=self.legacy.catalog.root,with_token=True)
+                    images_root=self.legacy.catalog.root,with_token=True,source_db_path_sha256=self.source_db_path_sha256)
             self._latest=result
             self._planned=None
             self._scan_proofs=tuple((relative,digest) for relative,_,digest in rows)

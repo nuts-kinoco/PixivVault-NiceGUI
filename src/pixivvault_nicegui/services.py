@@ -16,6 +16,7 @@ from .library_media_registry import LibraryImageRegistry
 from .request_policy import job_request_runner, request_scope
 
 _CURRENT_IMAGE_READER = object()
+_FAILED_LEGACY_COPY_OWNERS = []
 
 
 def _frozen_library_stat(path):
@@ -70,7 +71,40 @@ def _legacy_managed_capabilities(path):
 
 
 class ApplicationServices:
-    def __init__(self, count: int = 120, *, learning_sandbox: Path | None = None,
+    def __init__(self, *args, **kwargs):
+        self._legacy_copy_owner = None
+        try:
+            self._initialize(*args, **kwargs)
+        except BaseException:
+            owner = self._legacy_copy_owner
+            if owner is not None and getattr(self, 'closing', False) and not getattr(self, 'closed', False):
+                # A failed shutdown has not proved that workers released the snapshot.
+                _FAILED_LEGACY_COPY_OWNERS.append(self)
+            elif owner is not None and hasattr(self, '_close_lock'):
+                try:
+                    self.close()
+                except Exception:
+                    _FAILED_LEGACY_COPY_OWNERS.append(self)
+            elif owner is not None:
+                clean = True
+                seen = set()
+                for name in ('similarity_source', 'recommendations', 'discovery',
+                             'legacy_author_bridge', 'duplicate_inspection',
+                             'legacy_quarantine', 'library_repository'):
+                    resource = getattr(self, name, None)
+                    if resource is not None and id(resource) not in seen:
+                        seen.add(id(resource))
+                        try:
+                            resource.close()
+                        except Exception:
+                            clean = False
+                if clean:
+                    owner.close()
+                else:
+                    _FAILED_LEGACY_COPY_OWNERS.append(owner)
+            raise
+
+    def _initialize(self, count: int = 120, *, learning_sandbox: Path | None = None,
                  library_readonly_db: Path | None = None,
                  library_image_root: Path | None = None,
                  live_client=None, download_sandbox: Path | None = None,
@@ -85,7 +119,8 @@ class ApplicationServices:
                  external_vault_root=None, image_cache_root=None, discovery_following=None,
                  external_vault_transport=None, external_vault_crypto=None, desktop=None, notification_backend=None,
                  following_sync_root=None, pixiv_actions_mode='readonly',
-                 managed_network_stop_scope=None, shared_network_stop_scope=None) -> None:
+                 managed_network_stop_scope=None, shared_network_stop_scope=None, legacy_copy_root=None) -> None:
+        failed_queue_source_db = failed_queue_readonly_db
         if (type(pixiv_actions_mode) is not str or
                 pixiv_actions_mode not in ('readonly', 'enabled', 'preferences')):
             raise ValueError('invalid Pixiv action policy')
@@ -312,7 +347,28 @@ class ApplicationServices:
             # Reject an active/live WAL source before *any* service/cache can
             # open it, and use an immutable URI for this frozen snapshot.
             from .library_repository import require_frozen_library_copy
-            library_readonly_db=require_frozen_library_copy(library_readonly_db)
+            source_db = require_frozen_library_copy(library_readonly_db)
+            if legacy_copy_root is None:
+                raise ValueError('legacy database snapshot destination is required')
+            from .legacy_library_copies import LegacyLibraryCopies
+            protected = (library_image_root, legacy_diff_image_root,
+                         Path(failed_queue_readonly_db).parent if failed_queue_readonly_db else None,
+                         pixiv_download_root, novel_fixture_root, ugoira_root,
+                         preferences_root, discovery_root, external_vault_root, image_cache_root,
+                         recommendation_preferences_root, following_sync_root, legacy_zip_export_root,
+                         learning_sandbox, download_sandbox)
+            self._legacy_copy_owner = LegacyLibraryCopies(
+                legacy_copy_root, source=source_db, protected_roots=protected)
+            library_readonly_db = self._legacy_copy_owner.snapshot()
+            if failed_queue_readonly_db is not None:
+                failure_path = Path(failed_queue_readonly_db)
+                if failure_path.is_absolute():
+                    failure_path = require_frozen_library_copy(failure_path)
+                    if failure_path.samefile(source_db):
+                        failed_queue_readonly_db = library_readonly_db
+        else:
+            source_db = None
+        self.library_source_db = source_db
         if pixiv_download_root is not None and (
                 live_client is None or download_sandbox is not None or
                 learning_sandbox is not None):
@@ -364,6 +420,7 @@ class ApplicationServices:
             self.legacy_source_warnings = warnings
             if failed_queue_readonly_db is None and 'failed' in capabilities:
                 failed_queue_readonly_db = library_readonly_db
+                failed_queue_source_db = source_db
                 failure_signature = old_signature
             if legacy_diff_image_root is None and 'author_diff' in capabilities:
                 legacy_diff_image_root = library_image_root
@@ -395,6 +452,7 @@ class ApplicationServices:
         self._scheduler_cancel_event = Event()
         self._scheduler_unfinished_count = None
         self.failed_queue_readonly_db = failed_queue_readonly_db
+        self.failed_queue_source_db = failed_queue_source_db
         self._failed_copy_signature = failure_signature
         self.managed_downloads = None
         self.managed_network_stop = managed_network_stop_scope or shared_network_stop_scope
@@ -623,8 +681,13 @@ class ApplicationServices:
             # The explicit, standalone legacy failed-queue copy is also the
             # only safe source for original file_ledger ambiguous groups.
             # Never infer unresolved legacy works from managed receipts.
+            source_db_path_sha256 = None
+            if undecidable_db is not None and undecidable_db == library_readonly_db and source_db is not None:
+                from .legacy_ledger_rebuild import _path_digest
+                source_db_path_sha256 = _path_digest(source_db.resolve(strict=True))
             self.duplicate_inspection = ManagedDuplicateInspection(
-                self.managed_downloads, undecidable_db=undecidable_db,legacy=self.legacy_quarantine)
+                self.managed_downloads, undecidable_db=undecidable_db, legacy=self.legacy_quarantine,
+                source_db_path_sha256=source_db_path_sha256)
             self.duplicate_inspection.on_changed = self.refresh_library_snapshot
 
         if self.live_client is not None and all(callable(getattr(self.live_client, name, None)) for name in ('get_ranking','search_illusts','get_work_info')):
@@ -858,6 +921,7 @@ class ApplicationServices:
                 raise ValueError('similarity model unavailable')
         readonly = (self.library_image_root, self.legacy_diff_image_root,
                     Path(self.library_readonly_db).parent if self.library_readonly_db else None,
+                    Path(self.library_source_db).parent if self.library_source_db else None,
                     Path(self.failed_queue_readonly_db).parent if self.failed_queue_readonly_db else None,
                     Path(model_file).parent if model_file is not None else None)
         validate_readonly_boundaries((root,), readonly)
@@ -1055,6 +1119,7 @@ class ApplicationServices:
         validate_readonly_boundaries((root,),
             (self.library_image_root, self.legacy_diff_image_root,
              Path(self.library_readonly_db).parent if self.library_readonly_db else None,
+             Path(self.library_source_db).parent if self.library_source_db else None,
              Path(self.failed_queue_readonly_db).parent if self.failed_queue_readonly_db else None))
         validate_media_roots(root,self.managed_downloads.root,self.novel_fixture_root,self.ugoira_root,
             self.preferences_root,self.discovery_root,self.external_vault_root,self.image_cache_root,
@@ -3071,6 +3136,9 @@ class ApplicationServices:
                 self.preferences.close()
             if self.shared_image_cache is not None:
                 self.shared_image_cache.close()
+            if self._legacy_copy_owner is not None:
+                self._legacy_copy_owner.close()
+                self._legacy_copy_owner = None
             self.closed = True
         if vault_shutdown_error is not None:
             raise vault_shutdown_error
@@ -3614,7 +3682,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                  external_vault_root=None, image_cache_root=None, discovery_following=None,
                  external_vault_transport=None, external_vault_crypto=None, desktop=None, notification_backend=None,
                  following_sync_root=None, pixiv_actions_mode=None,
-                 managed_network_stop_scope=None, shared_network_stop_scope=None) -> ApplicationServices:
+                 managed_network_stop_scope=None, shared_network_stop_scope=None,
+                 legacy_copy_root=None) -> ApplicationServices:
     """Return resources scoped to the ASGI app; no-argument access is legacy."""
     global _services
     with _lock:
@@ -3638,7 +3707,7 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                     following_sync_root=following_sync_root,
                     pixiv_actions_mode='readonly' if pixiv_actions_mode is None else pixiv_actions_mode,
                     managed_network_stop_scope=managed_network_stop_scope,
-                    shared_network_stop_scope=shared_network_stop_scope)
+                    shared_network_stop_scope=shared_network_stop_scope, legacy_copy_root=legacy_copy_root)
             services = _services
         else:
             services = getattr(app.state, _APP_KEY, None)
@@ -3661,7 +3730,7 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                     following_sync_root=following_sync_root,
                     pixiv_actions_mode='readonly' if pixiv_actions_mode is None else pixiv_actions_mode,
                     managed_network_stop_scope=managed_network_stop_scope,
-                    shared_network_stop_scope=shared_network_stop_scope)
+                    shared_network_stop_scope=shared_network_stop_scope, legacy_copy_root=legacy_copy_root)
                 setattr(app.state, _APP_KEY, services)
         if services.closing:
             raise RuntimeError("application services are closed")
@@ -3676,8 +3745,16 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
             raise RuntimeError('application services already use a different Pixiv action policy')
         if learning_sandbox is not None and services.learning_sandbox != learning_sandbox:
             raise RuntimeError("application services already use a different learning storage")
-        if library_readonly_db is not None and services.library_readonly_db != library_readonly_db:
+        if library_readonly_db is not None and services.library_source_db != library_readonly_db:
             raise RuntimeError("application services already use a different library DB")
+        if legacy_copy_root is not None:
+            import os
+            from .fs_paths import logical_path
+            def comparable_root(path):
+                return os.path.normcase(os.path.normpath(str(logical_path(path).absolute())))
+            if (services._legacy_copy_owner is None or
+                    comparable_root(services._legacy_copy_owner.root) != comparable_root(legacy_copy_root)):
+                raise RuntimeError('application services already use a different legacy snapshot root')
         if library_image_root is not None and services.library_image_root != library_image_root:
             raise RuntimeError("application services already use a different image root")
         if live_client is not None and services.live_client is not live_client:
@@ -3686,7 +3763,7 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
             raise RuntimeError("application services already use different download storage")
         if pixiv_download_root is not None and services.pixiv_download_root != pixiv_download_root:
             raise RuntimeError("application services already use different managed download storage")
-        if failed_queue_readonly_db is not None and services.failed_queue_readonly_db != failed_queue_readonly_db:
+        if failed_queue_readonly_db is not None and services.failed_queue_source_db != failed_queue_readonly_db:
             raise RuntimeError('application services already use a different failure source')
         if legacy_zip_export_root is not None and services.legacy_zip_export_root != legacy_zip_export_root:
             raise RuntimeError('application services already use a different ZIP export root')

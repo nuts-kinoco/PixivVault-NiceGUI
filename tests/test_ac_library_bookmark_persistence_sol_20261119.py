@@ -132,7 +132,7 @@ async def test_old_private_cache_is_not_a_verified_live_account_cache(tmp_path):
     before=db.read_bytes()
     source=AccountSource('13')
     svc=ApplicationServices(live_client=source,preferences_root=tmp_path/'prefs',
-        library_readonly_db=db,library_image_root=images)
+        library_readonly_db=db,library_image_root=images,legacy_copy_root=_legacy_copy_root(tmp_path))
     try:
         immediate=svc.bookmark_remote_snapshot()
         remote,_=await svc.refresh_bookmark_cache(automatic=True)
@@ -270,3 +270,9 @@ async def test_each_view_adopts_verified_stale_cache_while_one_listing_is_pendin
             view.close()
             client.delete()
         svc.close()
+
+
+def _legacy_copy_root(tmp_path):
+    root = tmp_path.parent / (tmp_path.name + '-legacy-copies')
+    root.mkdir(exist_ok=True)
+    return root

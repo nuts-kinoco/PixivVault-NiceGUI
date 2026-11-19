@@ -12,6 +12,7 @@ from .request_policy import job_request_runner
 
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -21,7 +22,7 @@ import time
 from uuid import uuid4
 
 from .job_service import JobCancelled, JobService
-from .managed_downloads import _fsync_dir, _json_unique, _read_bounded, _safe_path, _write
+from .managed_downloads import ManagedDownloadError, _fsync_dir, _json_unique, _read_bounded, _safe_path, _write
 from .media_parity_policy import parse_ugoira_manifest
 from .ugoira_archive import MAX_ARCHIVE_BYTES, inspect_ugoira_archive
 from . import ugoira_storage as storage
@@ -52,6 +53,10 @@ class _DiagnosticRejected(ManagedUgoiraError):
         super().__init__();self.diagnostic_reason=reason
 
 
+class _CapacityExceeded(ManagedUgoiraError):
+    """A bounded storage reservation does not fit."""
+
+
 def _json(payload):
     return (json.dumps(payload, ensure_ascii=True, separators=(',', ':')) + '\n').encode('ascii')
 
@@ -76,18 +81,41 @@ def _candidate(job):
     return hashlib.sha256(f'{job.job_id}\0{job.target_id}\0{job.attempt}\0{job.kind}'.encode('ascii')).hexdigest()[:32]
 
 
-def _gif_receipt(request, source, rendered):
-    return _json({'version': 1, 'kind': 'ugoira-gif', 'request': request,
+def _gif_receipt(request, source, rendered, fallback=None):
+    packet = {'version': 1, 'kind': 'ugoira-gif', 'request': request,
                   'source_receipt': source.relative_receipt, 'source_sha256': source.receipt_sha256,
                   'gif_sha256': rendered.sha256, 'bytes': len(rendered.data),
                   'width': rendered.width, 'height': rendered.height, 'frame_count': rendered.frame_count,
                   'source_duration_ms': rendered.source_duration_ms,
-                  'encoded_delays_ms': list(rendered.encoded_delays_ms), 'timing': 'gif-centiseconds-floor'})
+                  'encoded_delays_ms': list(rendered.encoded_delays_ms), 'timing': 'gif-centiseconds-floor'}
+    if fallback is not None:
+        if isinstance(fallback, dict):
+            if (set(fallback) != {'opencv', 'imageio'} or
+                    any(value not in ('unavailable', 'failed', 'unsupported', 'budget', 'not_attempted')
+                        for value in fallback.values())):
+                raise ManagedUgoiraError()
+            packet.update(version=3, mp4_fallback=fallback)
+        else:
+            if fallback not in ('unavailable', 'failed', 'unsupported'):
+                raise ManagedUgoiraError()
+            packet.update(version=2, mp4_fallback=fallback)
+    return _json(packet)
 
 
 def _gif_completion(token, receipt):
     return _json({'version': 1, 'kind': 'ugoira-gif-complete', 'token': token,
                   'receipt_sha256': hashlib.sha256(receipt).hexdigest()})
+
+
+def _gif_reference_receipt(request, source, rendered, fallback, gif_receipt, receipt):
+    # Reuse the existing strict validation of the fallback reasons.
+    if type(fallback) is not dict:
+        raise ManagedUgoiraError()
+    _gif_receipt(request, source, rendered, fallback)
+    return _json({'version': 4, 'kind': 'ugoira-gif-reference', 'request': request,
+                  'source_receipt': source.relative_receipt, 'source_sha256': source.receipt_sha256,
+                  'gif_receipt': gif_receipt, 'gif_receipt_sha256': hashlib.sha256(receipt).hexdigest(),
+                  'gif_sha256': rendered.sha256, 'mp4_fallback': fallback})
 
 
 def _mp4_completion(token, receipt):
@@ -115,6 +143,7 @@ class ManagedUgoiraJobs:
         self._accept = Lock()
         self._artifact = Lock()
         self._reservations = {}
+        self._fallback_refs = {}
         self.diagnostic_errors = {}
         self._close_lock = Lock()
         try:
@@ -272,25 +301,27 @@ class ManagedUgoiraJobs:
             with os.scandir(parent) as children:
                 for child in children:
                     generations += 1
-                    if generations + 1 > MAX_CONTROL_GENERATIONS or re.fullmatch(r'[a-f0-9]{32,64}', child.name) is None:
+                    if re.fullmatch(r'[a-f0-9]{32,64}', child.name) is None:
                         raise ManagedUgoiraError()
                     folder = parent / child.name
                     storage._directory_identity(folder)
+                    if generations + 1 > MAX_CONTROL_GENERATIONS:
+                        raise _CapacityExceeded()
                     count = length = 0
                     with os.scandir(folder) as contents:
                         for item in contents:
                             count += 1
                             files += 1
-                            if files + incoming_files > MAX_CONTROL_FILES:
-                                raise ManagedUgoiraError()
                             info = os.stat(item.path, follow_symlinks=False)
                             if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size < 0
                                     or getattr(info, 'st_file_attributes', 0) & 0x400):
                                 raise ManagedUgoiraError()
+                            if files + incoming_files > MAX_CONTROL_FILES:
+                                raise _CapacityExceeded()
                             length += info.st_size
                             size += info.st_size
                             if size + incoming_bytes > MAX_CONTROL_BYTES:
-                                raise ManagedUgoiraError()
+                                raise _CapacityExceeded()
                     actual[folder] = (count, length)
         for folder, (planned_files, planned_bytes) in self._reservations.items():
             if folder not in actual:
@@ -300,7 +331,7 @@ class ManagedUgoiraJobs:
             size += max(0, planned_bytes - length)
         if (generations + 1 > MAX_CONTROL_GENERATIONS or files + incoming_files > MAX_CONTROL_FILES
                 or size + incoming_bytes > MAX_CONTROL_BYTES):
-            raise ManagedUgoiraError()
+            raise _CapacityExceeded()
 
     def _legacy_diagnostic(self, path, digest):
         """Only the old writer's exact record bound to this accepted input.
@@ -416,8 +447,6 @@ class ManagedUgoiraJobs:
                 or any(ord(char) < 32 or ord(char) == 127 for char in operation_id)
                 or type(output) is not str):
             raise ManagedUgoiraError()
-        if output == 'mp4' and self.codec_python is None:
-            raise ManagedUgoiraError('mp4_environment_unverified')
         if output not in {'frames', 'gif', 'mp4'} or self._closed:
             raise ManagedUgoiraError()
         try:
@@ -521,7 +550,9 @@ class ManagedUgoiraJobs:
                 source = self._find_source(job, inspection, checkpoint)
             return None if source is None else 'media/' + source.relative_receipt
         if output == 'mp4':
-            return self._verified_mp4(job, inspection, checkpoint)
+            result = self._verified_mp4(job, inspection, checkpoint)
+            if result is not None:
+                return result
         folder = self.gifs / token
         _safe_path(folder)
         if not folder.exists():
@@ -539,9 +570,24 @@ class ManagedUgoiraJobs:
         completion = _read_bounded(folder / storage.COMPLETION, 1024)
         if completion != _gif_completion(token, receipt_on_disk):
             raise ManagedUgoiraError()
+        if packet.get('version') == 4:
+            if output != 'mp4' or set(packet) != {'version', 'kind', 'request', 'source_receipt',
+                    'source_sha256', 'gif_receipt', 'gif_receipt_sha256', 'gif_sha256', 'mp4_fallback'}:
+                raise ManagedUgoiraError()
+            stamp = self._reference_stamp(folder, packet)
+            reference_bytes, rendered = self._reference_gif(packet['gif_receipt'], source, inspection, checkpoint)
+            expected = _gif_reference_receipt(job.target_id, source, rendered, packet['mp4_fallback'],
+                                              packet['gif_receipt'], reference_bytes)
+            if receipt_on_disk != expected or {child.name for child in folder.iterdir()} != {'receipt.json', storage.COMPLETION}:
+                raise ManagedUgoiraError()
+            if self._reference_stamp(folder, packet) != stamp:
+                raise ManagedUgoiraError()
+            self._fallback_refs[token] = stamp
+            return f'gifs/{token}/receipt.json'
         data = _read_bounded(folder / 'animation.gif', MAX_GIF_BYTES)
         rendered = _verify_gif(data, inspection, checkpoint, time.monotonic() + MAX_GIF_SECONDS)
-        receipt = _gif_receipt(job.target_id, source, rendered)
+        fallback = packet.get('mp4_fallback') if packet.get('version') in (2, 3) and output == 'mp4' else None
+        receipt = _gif_receipt(job.target_id, source, rendered, fallback)
         expected_names = {'animation.gif', 'receipt.json', storage.COMPLETION}
         with os.scandir(folder) as children:
             names = set()
@@ -556,10 +602,95 @@ class ManagedUgoiraJobs:
             raise ManagedUgoiraError()
         return f'gifs/{token}/receipt.json'
 
-    def _save_gif(self, job, source, rendered, context):
+    def _reference_stamp(self, folder, packet):
+        gif = packet.get('gif_receipt')
+        source = packet.get('source_receipt')
+        if (type(gif) is not str or re.fullmatch(r'gifs/[a-f0-9]{32}/receipt\.json', gif) is None
+                or type(source) is not str or re.fullmatch(r'frames/[a-f0-9]{32}/receipt\.json', source) is None):
+            raise ManagedUgoiraError()
+        gif_folder = (self.root / gif).parent
+        source_folder = (self.frames.root / source).parent
+        paths = (folder / 'receipt.json', folder / storage.COMPLETION,
+                 gif_folder / 'receipt.json', gif_folder / storage.COMPLETION,
+                 gif_folder / 'animation.gif', source_folder / 'receipt.json', source_folder / storage.COMPLETION)
+        result = []
+        for path in paths:
+            _safe_path(path, file=True)
+            info = path.stat()
+            result.append((info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns))
+        return tuple(result)
+
+    def _reference_gif(self, receipt_path, source, inspection, checkpoint):
+        match = re.fullmatch(r'gifs/([a-f0-9]{32})/receipt\.json', receipt_path) if type(receipt_path) is str else None
+        if match is None:
+            raise ManagedUgoiraError()
+        folder = self.gifs / match.group(1)
+        _safe_path(folder)
+        receipt = _read_bounded(folder / 'receipt.json', MAX_INTENT_BYTES)
+        packet = json.loads(receipt, object_pairs_hook=_json_unique)
+        if (type(packet) is not dict or packet.get('version') not in (1, 2, 3)
+                or type(packet.get('request')) is not str or _SHA.fullmatch(packet['request']) is None):
+            raise ManagedUgoiraError()
+        match_source = re.fullmatch(r'frames/([a-f0-9]{32})/receipt\.json', packet.get('source_receipt', ''))
+        if match_source is None:
+            raise ManagedUgoiraError()
+        original = self._source(match_source.group(1), inspection, checkpoint)
+        if original is None or original.receipt_sha256 != source.receipt_sha256:
+            raise ManagedUgoiraError()
+        data = _read_bounded(folder / 'animation.gif', MAX_GIF_BYTES)
+        rendered = _verify_gif(data, inspection, checkpoint, time.monotonic() + MAX_GIF_SECONDS)
+        fallback = packet.get('mp4_fallback') if packet.get('version') in (2, 3) else None
+        if (receipt != _gif_receipt(packet.get('request'), original, rendered, fallback)
+                or _read_bounded(folder / storage.COMPLETION, 1024) != _gif_completion(match.group(1), receipt)
+                or {child.name for child in folder.iterdir()} != {'animation.gif', 'receipt.json', storage.COMPLETION}):
+            raise ManagedUgoiraError()
+        return receipt, rendered
+
+    def _find_matching_gif(self, rendered, source, inspection, checkpoint):
+        for folder in self.gifs.iterdir():
+            checkpoint()
+            if _JOB.fullmatch(folder.name) is None:
+                raise ManagedUgoiraError()
+            if not (folder / 'animation.gif').exists():
+                continue
+            receipt_path = f'gifs/{folder.name}/receipt.json'
+            try:
+                receipt = _read_bounded(folder / 'receipt.json', MAX_INTENT_BYTES)
+                packet = json.loads(receipt, object_pairs_hook=_json_unique)
+            except (FileNotFoundError, UnicodeDecodeError, json.JSONDecodeError):
+                continue  # Preserve an unrelated incomplete/corrupt generation.
+            if type(packet) is not dict:
+                continue
+            if packet.get('source_sha256') != source.receipt_sha256 or packet.get('gif_sha256') != rendered.sha256:
+                continue
+            try:
+                completion = _read_bounded(folder / storage.COMPLETION, 1024)
+            except FileNotFoundError:
+                continue
+            except ManagedDownloadError:
+                # An oversized ordinary seal is corrupt, not a reason to lose the fallback.
+                info = os.lstat(native_io_path(folder / storage.COMPLETION))
+                if stat.S_ISREG(info.st_mode) and info.st_nlink == 1 and info.st_size > 1024:
+                    continue
+                raise
+            if completion != _gif_completion(folder.name, receipt):
+                continue  # A damaged seal is not reusable; retain it unchanged.
+            from .ugoira_gif import UgoiraGifError
+            try:
+                receipt, verified = self._reference_gif(receipt_path, source, inspection, checkpoint)
+            except (FileNotFoundError, UgoiraGifError):
+                continue  # Incomplete or damaged content is never reused.
+            if verified.sha256 == rendered.sha256:
+                return receipt_path, receipt
+        return None
+
+    def _save_gif(self, job, source, rendered, context, fallback=None, reference=None):
         token = _candidate(job)
-        receipt = _gif_receipt(job.target_id, source, rendered)
+        receipt = (_gif_receipt(job.target_id, source, rendered, fallback) if reference is None else
+                   _gif_reference_receipt(job.target_id, source, rendered, fallback, reference[0], reference[1]))
         completion = _gif_completion(token, receipt)
+        data_size = len(rendered.data) if reference is None else 0
+        file_count = 3 if reference is None else 2
         stage, target = self.gif_incomplete / uuid4().hex, self.gifs / token
         reserved = stage
         context.checkpoint()
@@ -567,14 +698,15 @@ class ManagedUgoiraJobs:
         with self._artifact:
             if self._closing:
                 raise JobCancelled('managed owner is closing')
-            self._budget(3, len(rendered.data) + len(receipt) + len(completion))
+            self._budget(file_count, data_size + len(receipt) + len(completion))
             stage.mkdir(mode=0o700)
-            self._reservations[stage] = (3, len(rendered.data) + len(receipt) + len(completion))
+            self._reservations[stage] = (file_count, data_size + len(receipt) + len(completion))
         try:
             context.checkpoint()
-            _write(stage / 'animation.gif', rendered.data)
+            if reference is None:
+                _write(stage / 'animation.gif', rendered.data)
             _write(stage / 'receipt.json', receipt)
-            if (_read_bounded(stage / 'animation.gif', MAX_GIF_BYTES) != rendered.data
+            if ((reference is None and _read_bounded(stage / 'animation.gif', MAX_GIF_BYTES) != rendered.data)
                     or _read_bounded(stage / 'receipt.json', MAX_INTENT_BYTES) != receipt):
                 raise ManagedUgoiraError()
             _fsync_dir(stage)
@@ -594,20 +726,70 @@ class ManagedUgoiraJobs:
                 # Physical remnants continue counting after cancellation/fault.
                 self._reservations.pop(reserved, None)
 
-    def _save_mp4(self, job, raw, inspection, source, context):
-        from .ugoira_mp4 import render_mp4
-        codec = self.codec_incomplete / uuid4().hex
-        # Existing finite control budget includes retained codec intermediates.
-        planned = len(raw) + MAX_GIF_BYTES * 2 + MAX_INTENT_BYTES * 2
-        with self._artifact:
-            self._budget(6, planned)
-            codec.mkdir()
-            self._reservations[codec] = (6, planned)
+    def fallback_message(self, job):
+        """Show a fallback only after the durable generation and job are done."""
+        if job.kind != 'ugoira-mp4' or job.state != 'done':
+            return ''
+        match = re.fullmatch(r'gifs/([a-f0-9]{32})/receipt\.json', job.result or '')
+        if match is None or match.group(1) != _candidate(job):
+            return ''
         try:
-            data, report, decoded = render_mp4(raw, inspection, codec, self.codec_python, context.checkpoint)
-        finally:
+            folder = self.gifs / match.group(1)
+            receipt = _read_bounded(folder / 'receipt.json', MAX_INTENT_BYTES)
+            if _read_bounded(folder / storage.COMPLETION, 1024) != _gif_completion(match.group(1), receipt):
+                return ''
+            packet = json.loads(receipt, object_pairs_hook=_json_unique)
+            if packet.get('version') == 4:
+                if self._fallback_refs.get(match.group(1)) != self._reference_stamp(folder, packet):
+                    return ''
+            reason = packet.get('mp4_fallback') if packet.get('version') in (2, 3, 4) else 'failed'
+            if type(reason) is str:
+                reason = {'opencv': reason, 'imageio': reason}
+            if type(reason) is not dict or set(reason) != {'opencv', 'imageio'}:
+                return ''
+            labels = {'unavailable': '利用できません', 'failed': '変換に失敗しました',
+                      'unsupported': '画像サイズが対応外です', 'budget': '保存容量が不足しています',
+                      'not_attempted': '実行していません'}
+            if any(value not in labels for value in reason.values()):
+                return ''
+            return (f'MP4 を GIF に切り替えて保存しました'
+                    f'（OpenCV: {labels[reason["opencv"]]} / imageio: {labels[reason["imageio"]]}）。')
+        except (OSError, ValueError, TypeError, KeyError, AttributeError):
+            return ''
+
+    def _save_mp4(self, job, raw, inspection, source, context):
+        from .ugoira_mp4 import render_mp4, UgoiraMp4Error, mp4_plan
+        if self.codec_python is None:
+            raise UgoiraMp4Error(failures={'opencv': 'unavailable', 'imageio': 'unavailable'})
+        try:
+            mp4_plan(inspection)
+        except UgoiraMp4Error as error:
+            raise UgoiraMp4Error(failures={'opencv': error.failure, 'imageio': error.failure}) from None
+        failures = {'opencv': 'not_attempted', 'imageio': 'not_attempted'}
+        for backend in ('opencv', 'imageio'):
+            codec = self.codec_incomplete / uuid4().hex
+            planned = len(raw) + MAX_GIF_BYTES * 2 + MAX_INTENT_BYTES * 2
             with self._artifact:
-                self._reservations.pop(codec, None)
+                try:
+                    self._budget(6, planned)
+                except _CapacityExceeded:
+                    failures[backend] = 'budget'
+                    raise UgoiraMp4Error(failures=failures) from None
+                codec.mkdir()
+                self._reservations[codec] = (6, planned)
+            try:
+                try:
+                    data, report, decoded = render_mp4(raw, inspection, codec, self.codec_python, context.checkpoint, backend=backend)
+                    break
+                except UgoiraMp4Error as error:
+                    if error.reason_code != 'ugoira_mp4_failed':
+                        raise
+                    failures[backend] = error.failure
+                    if backend == 'imageio':
+                        raise UgoiraMp4Error(failures=failures) from None
+            finally:
+                with self._artifact:
+                    self._reservations.pop(codec, None)
         token = _candidate(job)
         packet = {'version':2,'kind':'ugoira-mp4','request':job.target_id,
                   'source_receipt':source.relative_receipt,'source_sha256':source.receipt_sha256,
@@ -617,7 +799,11 @@ class ManagedUgoiraJobs:
         completion = _mp4_completion(token,receipt)
         stage, target = self.mp4_incomplete / uuid4().hex, self.mp4s / token
         with self._artifact:
-            self._budget(4,len(data)+len(decoded)+len(receipt)+len(completion))
+            try:
+                self._budget(4,len(data)+len(decoded)+len(receipt)+len(completion))
+            except _CapacityExceeded:
+                failures[backend] = 'budget'
+                raise UgoiraMp4Error(failures=failures) from None
             stage.mkdir()
             self._reservations[stage]=(4,len(data)+len(decoded)+len(receipt)+len(completion))
         reserved=stage
@@ -665,8 +851,9 @@ class ManagedUgoiraJobs:
                 or packet['bytes']!=len(data) or packet['mp4_sha256']!=hashlib.sha256(data).hexdigest()
                 or report['width']!=plan['width'] or report['height']!=plan['height']
                 or report['frame_count']!=len(inspection.frames) or report['source_duration_ms']!=inspection.duration_ms
+                or type(report['fps']) not in (int, float) or not math.isfinite(report['fps'])
                 or abs(report['fps']-plan['fps'])>max(.001,plan['fps']*.001)
-                or report['codec']!='mp4v' or report['timing']!='legacy-average-delay-cfr-clamped-1-60'
+                or report['codec'] not in ('mp4v', 'libx264') or report['timing']!='legacy-average-delay-cfr-clamped-1-60'
                 or _read_bounded(folder/storage.COMPLETION,1024)!=_mp4_completion(token,receipt)
                 or {p.name for p in folder.iterdir()}!={'animation.mp4','decoded_frames.zip','receipt.json',storage.COMPLETION}):
             raise ManagedUgoiraError()
@@ -697,7 +884,19 @@ class ManagedUgoiraJobs:
                     self._save_gif(job, source, rendered, context)
                 if output == 'mp4':
                     operation='save_mp4_generation'
-                    self._save_mp4(job, raw, inspection, source, context)
+                    from .ugoira_mp4 import UgoiraMp4Error
+                    try:
+                        self._save_mp4(job, raw, inspection, source, context)
+                    except UgoiraMp4Error as error:
+                        if error.reason_code != 'ugoira_mp4_failed':
+                            raise
+                        operation='render_ugoira_gif'
+                        rendered = render_ugoira_gif(raw, manifest, checkpoint=context.checkpoint)
+                        operation='save_gif_generation'
+                        reference = self._find_matching_gif(rendered, source, inspection, context.checkpoint)
+                        self._save_gif(job, source, rendered, context,
+                                       fallback=error.failures or {'opencv': error.failure, 'imageio': 'not_attempted'},
+                                       reference=reference)
                 result = self._verified_result(job, loaded, context.checkpoint)
                 if result is None:
                     raise ManagedUgoiraError()

@@ -77,7 +77,11 @@ class FailureRecordActions:
             with FrozenSourcePin(path, expected, cancelled=lambda: service.closing) as pin:
                 records = tuple(read_failed_records(path, immutable=True))
                 pin.check()
-                yield source_namespace(path), records
+                if service.failed_queue_readonly_db is not None:
+                    origin = getattr(service, 'failed_queue_source_db', None) or path
+                else:
+                    origin = getattr(service, 'library_source_db', None) or path
+                yield source_namespace(origin), records
         except (FrozenSourceError, OSError, ValueError) as error:
             if isinstance(error, FailureDismissalError):
                 raise
