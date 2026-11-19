@@ -1,5 +1,7 @@
 """UI tokenとNiceGUI用の独立スタイル定義。Fletに依存しない。"""
 
+UI_FONT = '"Noto Sans JP", system-ui, -apple-system, "Segoe UI", sans-serif'
+
 TOKENS = {
     "background": "#0b0b10",
     "surface": "#15161c",
@@ -12,12 +14,12 @@ TOKENS = {
     "gap": 12,
     "radius_card": 12,
     "radius_control": 8,
-    "heading_font": '"Yu Mincho", "YuMincho", serif',
-    "body_font": 'system-ui, -apple-system, "Segoe UI", sans-serif',
+    "heading_font": UI_FONT,
+    "body_font": UI_FONT,
 }
 
 CSS = """
-:root { --pv-bg-vault:#0b0b10; --pv-bg-surface:#15161c; --pv-bg-card:#1e202d; --pv-border-vault:#2a2b38; --pv-pixiv-blue:#0096FA; --pv-pixiv-blue-hover:#0080d6; --pv-pixiv-blue-glow:rgba(0,150,250,.25); --pv-glass-bg:rgba(21,22,28,.94); --pv-text-main:#e8e8ef; --pv-text-muted:#8a8a99; --pv-text-elsewhere:#b9b9c4;
+:root { --pv-ui-font:__PV_UI_FONT__; --pv-bg-vault:#0b0b10; --pv-bg-surface:#15161c; --pv-bg-card:#1e202d; --pv-border-vault:#2a2b38; --pv-pixiv-blue:#0096FA; --pv-pixiv-blue-hover:#0080d6; --pv-pixiv-blue-glow:rgba(0,150,250,.25); --pv-glass-bg:rgba(21,22,28,.94); --pv-text-main:#e8e8ef; --pv-text-muted:#8a8a99; --pv-text-elsewhere:#b9b9c4;
   --pv-page:#111418; --pv-on-surface:#e1e2e8; --pv-on-surface-variant:#c3c6cf; --pv-primary:#9ec7f9; --pv-primary-rgb:158,199,249; --pv-container:#32353a; --pv-container-pill:#191c20;
   --pv-download-accent-text:#0096FA; --pv-download-danger-text:#f16c6c;
   --pv-auth-red:#ef5350; --pv-auth-green:#66bb6a; --pv-auth-yellow:#ffee58; --pv-auth-blue:#42a5f5; --pv-auth-primary:#0096FA;
@@ -34,18 +36,20 @@ body.body--light { --pv-page:#f8f9ff; --pv-bg-vault:#f3f5fb; --pv-bg-surface:#ff
   --pv-bg:var(--pv-bg-vault); --pv-surface:var(--pv-bg-surface); --pv-raised:var(--pv-bg-card); --pv-border:var(--pv-border-vault); --pv-text:var(--pv-text-main); --pv-muted:var(--pv-text-muted); --pv-overlay:var(--pv-glass-bg); }
 
 html, body { width:100%; height:100%; overflow:hidden; }
-body { background: var(--pv-page); color: var(--pv-on-surface); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+body { background: var(--pv-page); color: var(--pv-on-surface); font-family:var(--pv-ui-font); }
 .nicegui-content { height:100dvh; min-height:0; padding:0 !important; overflow:hidden; }
 .pv-shell { height:100dvh; min-height:0; width:100%; max-width:100%; padding:10px; gap:10px; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
 .pv-content { position:relative; width:100%; min-width:0; min-height:0; flex:1 1 0; display:flex; flex-direction:column; overflow:hidden; }
-.pv-metadata-view { flex:1 1 0; min-height:0; min-width:0; max-width:100%; overflow-y:auto; overflow-x:hidden; padding-right:8px; box-sizing:border-box; }
+.pv-metadata-view, .pv-scheduler-view { flex:1 1 0; min-height:0; min-width:0; max-width:100%; overflow-y:auto; overflow-x:hidden; padding-right:8px; box-sizing:border-box; }
 .pv-gallery { flex:1 1 0; min-height:0; min-width:0; overflow:hidden; display:flex; flex-direction:column; }
+.pv-ranking-view { overflow-y:auto; overflow-x:hidden; }
+.pv-ranking-view > .pv-gallery { min-height:190px; }
 .pv-header { display:flex; flex-wrap:nowrap; align-items:flex-start; justify-content:space-between; gap:12px; width:100%; flex-shrink:0; }
 .pv-header-main { display:flex; flex-direction:column; align-items:flex-start; gap:10px; flex:1 1 0; min-width:0; }
 .pv-header-actions { display:flex; flex-wrap:nowrap; align-items:center; gap:5px; flex:0 0 auto; align-self:center; }
 .pv-title { font-family:inherit; font-size:32px; font-weight:700; line-height:46px; }
 .pv-subtitle { color:var(--pv-muted); font-size:13px; }
-.pv-dialog-title { font-family:"Yu Mincho", "YuMincho", serif; color:var(--pv-text-main); }
+.pv-dialog-title { font-family:inherit; color:var(--pv-text-main); }
 .pv-auth { font-size:13px; font-weight:500; line-height:1.2; }
 .pv-auth[data-tone=red] { color:var(--pv-auth-red); } .pv-auth[data-tone=green] { color:var(--pv-auth-green); }
 .pv-auth[data-tone=yellow] { color:var(--pv-auth-yellow); } .pv-auth[data-tone=blue] { color:var(--pv-auth-blue); }
@@ -132,7 +136,7 @@ body.body--light .pv-grid .pv-card-heart { color:var(--pv-fill); }
 .pv-viewer-stage .pv-viewer-retry { margin-top:36px; }
 .pv-viewer-header { flex:0 0 auto; min-width:0; display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:13px; font-weight:700; }
 .pv-viewer-bottom { flex:0 0 48px; height:48px; min-height:48px; min-width:0; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:0 8px 0 12px; background:var(--pv-surface); border-top:1px solid var(--pv-border); box-sizing:border-box; }
-.pv-viewer-bottom .pv-view-title { font-family:system-ui, -apple-system, "Segoe UI", sans-serif; font-size:13.5px; font-weight:400; }
+.pv-viewer-bottom .pv-view-title { font-family:inherit; font-size:13.5px; font-weight:400; }
 .pv-viewer-bottom .pv-subtitle { font-size:12.5px; color:var(--pv-muted); }
 .pv-viewer-bottom .q-btn { color:var(--pv-muted) !important; font-size:12px; }
 .pv-viewer-bottom .q-btn.pv-subtitle { font-size:12.5px; }
@@ -308,7 +312,7 @@ body.body--light .pv-queue-log-info { color:#23578a; }
 @media(max-width:1280px) { .pv-shell { padding:10px; gap:10px; } .pv-toolbar { padding:12px; } .pv-view-art { max-height:48dvh; } }
 @media(max-width:1280px) { .pv-viewer .pv-view-art, .pv-viewer .pv-view-art img { max-height:none; } }
 @media(max-width:600px) { .pv-shell { padding:10px; } .pv-title { font-size:24px; } .pv-toolbar { padding:12px; } }
-"""
+""".replace("__PV_UI_FONT__", UI_FONT, 1)
 
 __all__ = ["TOKENS", "CSS"]
 

@@ -23,7 +23,7 @@ from .job_views import _accepted_call
 
 CSS = """
 .pv-failure-records {flex:1 1 0;min-height:0;min-width:0;width:100%;overflow:auto;gap:12px;}
-.pv-failure-heading {font-family:'Yu Mincho',serif;font-size:15px;font-weight:700;}
+.pv-failure-heading {font-size:15px;font-weight:700;}
 .pv-failure-toolbar {display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;width:100%;}
 .pv-failure-search {width:360px;max-width:100%;}
 .pv-failure-chips {gap:8px;flex-wrap:wrap;}

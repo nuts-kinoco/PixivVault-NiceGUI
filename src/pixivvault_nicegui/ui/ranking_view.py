@@ -63,7 +63,7 @@ class RankingView(RankingCardMenus):
         self._condition_task=None;self._condition_pending=False;self._syncing_controls=False
         self._calendar_token=None;self.calendar_dialog=None;self.calendar_picker=None
         self.client=ui.context.client
-        with ui.column().classes('pv-gallery w-full').props('data-testid=ranking-view') as self.root:
+        with ui.column().classes('pv-gallery pv-ranking-view w-full').props('data-testid=ranking-view') as self.root:
             with ui.row().classes('pv-toolbar'):
                 self.mode=ui.select(MODES,value='daily',label='ランキング').props(
                     'outlined dense data-testid=ranking-mode').style('min-width:145px')
