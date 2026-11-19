@@ -54,11 +54,13 @@ def _request(folder):
     plan = json.loads(_read_regular(root / 'plan.json', 512 * 1024))
     fields = {'width', 'height', 'fps', 'max_frame_bytes', 'max_archive_bytes',
               'frames', 'protocol', 'request_token', 'source_sha256'}
-    if (type(plan) is not dict or set(plan) != fields
+    if (type(plan) is not dict or set(plan) not in (fields, fields | {'backend'})
             or type(plan['protocol']) is not int or plan['protocol'] != 1
             or type(plan['request_token']) is not str
             or not hmac.compare_digest(plan['request_token'], token)):
         raise ValueError('codec request token mismatch')
+    if plan.get('backend', 'opencv') not in ('opencv', 'imageio'):
+        raise ValueError('invalid codec backend')
     if any(type(plan[key]) is not int or plan[key] <= 0
            for key in ('width', 'height', 'max_frame_bytes', 'max_archive_bytes')):
         raise ValueError('invalid codec dimensions or budget')
@@ -94,6 +96,57 @@ def _request(folder):
     return root, plan, raw
 
 
+def _imageio_encode_decode(root, plan, raw, target):
+    # Explicit PyAV plugin: no imageio ffmpeg executable discovery or download.
+    import imageio.v3 as iio
+    import av
+    import numpy as np
+    from PIL import Image
+    width, height, fps = plan['width'], plan['height'], plan['fps']
+    with iio.imopen(str(target), 'w', plugin='pyav') as writer:
+        writer.init_video_stream('libx264', fps=fps)
+        with zipfile.ZipFile(BytesIO(raw)) as archive:
+            for frame in plan['frames']:
+                info = archive.getinfo(frame['file'])
+                if not 0 < info.file_size <= plan['max_frame_bytes']:
+                    raise ValueError('source frame budget')
+                with Image.open(BytesIO(archive.read(info))) as image:
+                    if image.size != (width, height):
+                        raise ValueError('frame dimensions differ')
+                    image.load()
+                    writer.write_frame(np.asarray(image.convert('RGB')))
+    count, samples = 0, []
+    with av.open(str(target), mode='r', format='mp4') as container:
+        if len(container.streams.video) != 1:
+            raise ValueError('invalid video stream count')
+        stream = container.streams.video[0]
+        if stream.codec_context.name != 'h264':
+            raise ValueError('invalid video codec')
+        actual_fps = float(stream.average_rate)
+        with zipfile.ZipFile(root / 'decoded_frames.zip', 'x', compression=zipfile.ZIP_STORED) as decoded:
+            for frame in container.decode(stream):
+                rgb = frame.to_ndarray(format='rgb24')
+                if rgb.shape != (height, width, 3):
+                    raise ValueError('MP4 dimensions changed')
+                samples.append([float(value) for value in rgb.mean(axis=(0, 1))])
+                png = BytesIO()
+                Image.fromarray(rgb).save(png, format='PNG')
+                if len(png.getvalue()) > plan['max_frame_bytes']:
+                    raise ValueError('decoded frame budget')
+                decoded.writestr(f'{count:06d}.png', png.getvalue())
+                if decoded.fp.tell() > plan['max_archive_bytes']:
+                    raise ValueError('decoded archive budget')
+                count += 1
+                if count > len(plan['frames']):
+                    raise ValueError('extra encoded frame')
+    if count != len(plan['frames']) or not math.isfinite(actual_fps) or abs(actual_fps - fps) > max(.001, fps * .001):
+        raise ValueError('MP4 timing mismatch')
+    return dict(codec='libx264', width=width, height=height, frame_count=count, fps=actual_fps,
+        source_duration_ms=sum(row['delay'] for row in plan['frames']),
+        encoded_duration_ms=1000 * count / actual_fps, mean_rgb=samples,
+        timing='legacy-average-delay-cfr-clamped-1-60', alpha='discarded-as-original')
+
+
 def main(folder):
     root, plan, raw = _request(folder)
     # Exclusive creation also prevents another child from adopting this job.
@@ -102,6 +155,9 @@ def main(folder):
         with target.open('xb'):
             pass
         _reject_links(target)
+        if plan.get('backend', 'opencv') == 'imageio':
+            verification.write(json.dumps(_imageio_encode_decode(root, plan, raw, target), sort_keys=True))
+            return
         import cv2
         import numpy as np
         from PIL import Image
@@ -152,7 +208,8 @@ def main(folder):
                         raise ValueError('extra encoded frame')
         finally:
             capture.release()
-        if count != len(plan['frames']) or abs(actual_fps - fps) > max(0.001, fps * 0.001):
+        if (count != len(plan['frames']) or type(actual_fps) not in (int, float)
+                or not math.isfinite(actual_fps) or abs(actual_fps - fps) > max(0.001, fps * 0.001)):
             raise ValueError('MP4 timing mismatch')
         result = dict(codec='mp4v', width=width, height=height, frame_count=count, fps=actual_fps,
             source_duration_ms=sum(row['delay'] for row in plan['frames']),
@@ -160,8 +217,17 @@ def main(folder):
             timing='legacy-average-delay-cfr-clamped-1-60', alpha='discarded-as-original')
         verification.write(json.dumps(result, sort_keys=True))
 
-if __name__=='__main__':
-    try: main(sys.argv[1])
+def run(folder):
+    try:
+        main(folder)
+        return 0
+    except PermissionError:
+        return 77
+    except ImportError:
+        return 78
     except Exception:
-        print('MP4 encode/verification failed',file=sys.stderr)
-        sys.exit(1)
+        return 1
+
+
+if __name__=='__main__':
+    sys.exit(run(sys.argv[1]) if len(sys.argv) == 2 else 1)

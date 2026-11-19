@@ -17,11 +17,13 @@ from .media_parity_policy import parse_ugoira_manifest
 
 
 class UgoiraMp4Error(JobFailure, ValueError):
-    def __init__(self, *, reason_code='ugoira_mp4_failed'):
+    def __init__(self, *, reason_code='ugoira_mp4_failed', failure='failed', failures=None):
         # Only these two explicit outcomes belong to the codec boundary.
         reason = ('permission_denied' if type(reason_code) is str
                   and reason_code == 'permission_denied' else 'ugoira_mp4_failed')
         super().__init__('mp4_environment_or_conversion_failed', reason_code=reason)
+        self.failure = failure if failure in ('failed', 'unsupported', 'unavailable', 'budget') else 'failed'
+        self.failures = failures
 
 
 CODEC_TOKEN_ENV = 'PIXIVVAULT_UGOIRA_CODEC_TOKEN'
@@ -37,7 +39,9 @@ def default_codec_python(explicit=None):
         executable = Path(sys.executable)
         if (executable.is_absolute() and executable.is_file()
                 and all(importlib.util.find_spec(name) is not None
-                        for name in ('cv2', 'numpy', 'PIL'))):
+                        for name in ('numpy', 'PIL'))
+                and (importlib.util.find_spec('cv2') is not None or
+                     all(importlib.util.find_spec(name) is not None for name in ('imageio', 'av')))):
             return executable
     except (ImportError, OSError, ValueError):
         pass
@@ -56,14 +60,14 @@ def codec_command(codec_python, stage):
 def mp4_plan(inspection):
     first=inspection.frames[0]
     if (first.width%2 or first.height%2 or any((f.width,f.height)!=(first.width,first.height) for f in inspection.frames)):
-        raise UgoiraMp4Error()
+        raise UgoiraMp4Error(failure='unsupported')
     fps=max(1.0,min(60.0,1000.0/max(inspection.duration_ms/len(inspection.frames),10)))
     return dict(width=first.width,height=first.height,fps=fps,
                 max_frame_bytes=MAX_SINGLE_FRAME_BYTES,max_archive_bytes=MAX_ARCHIVE_BYTES,
                 frames=[dict(file=f.filename,delay=f.delay_ms) for f in inspection.frames])
 
 
-def render_mp4(raw,inspection,stage,codec_python,checkpoint):
+def render_mp4(raw,inspection,stage,codec_python,checkpoint, *, backend='opencv'):
     """Retain incomplete evidence; never delete or overwrite codec output."""
     if codec_python is None or not Path(codec_python).is_absolute() or not Path(codec_python).is_file():
         raise UgoiraMp4Error()
@@ -81,7 +85,9 @@ def render_mp4(raw,inspection,stage,codec_python,checkpoint):
     plan=mp4_plan(inspection)
     token = secrets.token_hex(16)
     # Reuse the existing input file and keep the owner's six-file reservation.
-    plan.update(protocol=1, request_token=token,
+    if backend not in ('opencv', 'imageio'):
+        raise UgoiraMp4Error()
+    plan.update(protocol=1, backend=backend, request_token=token,
                 source_sha256=hashlib.sha256(raw).hexdigest())
     _write(stage/'source.zip',raw)
     _write(stage/'plan.json',json.dumps(plan).encode())
@@ -103,15 +109,20 @@ def render_mp4(raw,inspection,stage,codec_python,checkpoint):
                     raise UgoiraMp4Error()
                 time.sleep(0.02)
             checkpoint()
+            if process.returncode == 77:
+                raise UgoiraMp4Error(reason_code='permission_denied')
+            if process.returncode == 78:
+                raise UgoiraMp4Error(failure='unavailable')
             if process.returncode: raise UgoiraMp4Error()
         data=_read_bounded(stage/'animation.mp4',MAX_GIF_BYTES)
         report=json.loads(_read_bounded(stage/'verification.json',512*1024))
-        if not data or report['frame_count']!=len(inspection.frames) or report['codec']!='mp4v':
+        if not data or report['frame_count']!=len(inspection.frames) or report['codec']!=('mp4v' if backend == 'opencv' else 'libx264'):
             raise UgoiraMp4Error()
         decoded=_read_bounded(stage/'decoded_frames.zip',MAX_ARCHIVE_BYTES)
         verify_decoded(decoded,inspection)
         return data,report,decoded
     except JobCancelled: raise
+    except UgoiraMp4Error: raise
     except PermissionError:
         raise UgoiraMp4Error(reason_code='permission_denied') from None
     except Exception: raise UgoiraMp4Error() from None

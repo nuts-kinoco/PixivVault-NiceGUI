@@ -78,6 +78,10 @@ class DemoShell:
         self.account_switch_dialog = None
         self._banner_dismissed = False
         self._app_conn_timer = None
+        owner = getattr(services, 'ugoira', None)
+        self._ugoira_notified = {(job.job_id, job.attempt) for job in owner.jobs.snapshot()
+                                  if job.state in ('done', 'stopped', 'error')} if owner is not None else set()
+        self._ugoira_timer = ui.timer(2, self._notify_ugoira_fallback) if owner is not None else None
         self.view_history_button = None
         self.view_history = None
         self.client.on_delete(self.close)
@@ -631,6 +635,20 @@ class DemoShell:
         if getattr(self, 'personal_view', None) is not None:
             self.personal_view.apply_card_size(size)
 
+    def _notify_ugoira_fallback(self):
+        owner = getattr(self.services, 'ugoira', None)
+        if self.closed or owner is None:
+            return
+        for job in owner.jobs.snapshot():
+            key = (job.job_id, job.attempt)
+            if job.state not in ('done', 'stopped', 'error') or key in self._ugoira_notified:
+                continue
+            self._ugoira_notified.add(key)
+            message = owner.fallback_message(job)
+            if message:
+                with self.client:
+                    ui.notify(message, type='warning')
+
     def close(self) -> None:
         if self._auth_unsubscribe is not None:
             self._auth_unsubscribe()
@@ -644,6 +662,7 @@ class DemoShell:
         self.shared_log_view.close()
         if self._borrow_timer is not None:self._borrow_timer.deactivate()
         if self._app_conn_timer is not None:self._app_conn_timer.deactivate()
+        if self._ugoira_timer is not None:self._ugoira_timer.deactivate()
         if self.borrow_dialog is not None:self.borrow_dialog.close()
         self.saved_folder_button.close()
         if self.get_recovery_view is not None:self.get_recovery_view.close()

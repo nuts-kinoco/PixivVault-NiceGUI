@@ -787,12 +787,16 @@ class QueueView:
                 tooltip_text += f' {job.total}ページ中{job.done}ページ保存済み（途中データ・保存未完了）。'
                 row['tooltip'].set_text(tooltip_text)
             row["tooltip"].set_visibility(bool(tooltip_text))
+            fallback_message = ''
+            owner = getattr(self.services, 'ugoira', None)
+            if owner is not None and callable(getattr(owner, 'fallback_message', None)):
+                fallback_message = owner.fallback_message(job)
             row["result"].set_text(
                 (tooltip_text or "処理に失敗しました。状態を確認してから再試行してください。")
                 if job.state == "error" else
                 (tooltip_text or "停止しました。保存結果を確認してください。")
                 if job.state == "stopped" else
-                "保存済み · ライブラリで確認できます"
+                (fallback_message or "保存済み · ライブラリで確認できます")
                 if job.state == "done" and (job.kind == "novel-export" or job.kind.startswith("ugoira-"))
                 else "")
             row["result"].set_visibility(bool(row["result"].text))
