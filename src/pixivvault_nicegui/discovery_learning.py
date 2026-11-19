@@ -89,6 +89,7 @@ class DiscoveryLearningService(LearningService):
             with db._transaction() as conn:
                 conn.execute('CREATE TABLE IF NOT EXISTS managed_discovery_candidate (work_id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
                 if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='managed_local_seed'").fetchone():
+                    # Pre-release histories may already contain indistinguishable inferred tags; these are retained.
                     conn.execute('DROP TABLE managed_local_seed')
                     conn.execute('DELETE FROM managed_discovery_candidate WHERE work_id NOT IN (SELECT work_id FROM discovery_swipe_history)')
                     conn.execute("DELETE FROM settings WHERE key='discovery_search_cursor'")
@@ -236,7 +237,14 @@ class DiscoveryLearningService(LearningService):
                 self._candidate_fetch_claims.append(claim)
             future=self._candidate_fetch_future
         future.add_done_callback(self._release_fetch_claims)
-        return await self._wait(future)
+        batch = await self._wait(future)
+        if batch is None or not batch.artworks:
+            return batch
+        order, frames = await self.rank_pending(tuple(a.work_id for a in batch.artworks), recent_author_ids)
+        artworks = {a.work_id: a for a in batch.artworks}
+        records = {r.work_id: r for r in batch.records}
+        return replace(batch, artworks=tuple(artworks[wid] for wid in order),
+                       records=tuple(records[wid] for wid in order), frames=frames)
 
     def _release_fetch_claims(self,future):
         with self._lifecycle_lock:

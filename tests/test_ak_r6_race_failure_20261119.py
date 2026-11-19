@@ -124,3 +124,53 @@ async def test_first_session_snapshot_does_not_abort_seed_scan(tmp_path, fixture
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
+async def test_readability_change_during_fetch_result_uses_fresh_order(tmp_path, fixture):
+    _, store, tagger, _ = fixture
+    started, release = Event(), Event()
+
+    class Reader(FakeReader):
+        def __init__(self):
+            super().__init__()
+            self.words = []
+
+        def search_recommendation_illusts(self, word, **kwargs):
+            self.words.append(word)
+            started.set()
+            assert release.wait(6)
+            return {'works': [], 'total': 0}
+
+    reader = Reader()
+    works = [SimpleNamespace(work_id=str(i), tags=()) for i in range(1, 9)]
+    image = [png()]
+    service = create(tmp_path / 'learning', tagger, works, lambda _: image[0], reader=reader)
+    try:
+        seed_candidates(service, [candidate(0, tags=('different',)), candidate(1, tags=('cat',))])
+        def seed_api():
+            db = service._database()
+            with db._transaction():
+                db._bump_tag('api_only', 'seed_saved', 5)
+        await asyncio.wrap_future(service._submit(seed_api))
+        await asyncio.wrap_future(service.refresh_saved_seeds())
+        ids = ('1000', '1001')
+        baseline = (await service.rank_pending(ids))[0]
+        assert baseline == ('1001', '1000')
+        fetching = asyncio.create_task(service.fetch_candidates())
+        assert await asyncio.to_thread(started.wait, 3)
+        # Ordinary I/O failure can happen without a library publish notification.
+        image[0] = None
+        release.set()
+        batch = await fetching
+        fresh = (await service.rank_pending(ids))[0]
+        store.set_setting('local_tagger_enabled', '0')
+        disabled = (await service.rank_pending(ids))[0]
+        actual = tuple(a.work_id for a in batch.artworks)
+        print('search words', reader.words, 'fetch result', actual,
+              'fresh rank', fresh, 'disabled rank', disabled)
+        assert fresh == disabled and actual == disabled
+    finally:
+        release.set()
+        service.close()
+
+
+@pytest.mark.asyncio
