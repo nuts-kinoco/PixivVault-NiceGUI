@@ -9,6 +9,28 @@ from pixivvault_nicegui.ui.duplicate_view import DuplicateView
 from test_required_legacy_duplicates import select, setup
 
 
+@pytest.mark.parametrize('relative', [False, True])
+def test_original_trash_open_normalizes_configured_image_root(tmp_path, monkeypatch, relative):
+    images = tmp_path / 'images'
+    (images / 'nested').mkdir(parents=True)
+    quarantine = tmp_path / 'quarantine'
+    nested = quarantine / 'nested'
+    nested.mkdir(parents=True)
+    outside = tmp_path / 'outside'
+    outside.mkdir()
+    monkeypatch.chdir(tmp_path)
+    configured = images.relative_to(tmp_path) if relative else images / 'nested' / '..'
+    opened = []
+    desktop = DesktopIntegration(legacy_image_root=configured,
+                                 launcher=SimpleNamespace(open_default=opened.append))
+
+    desktop.open_saved(quarantine, original_quarantine=True)
+    for wrong in (nested, outside):
+        with pytest.raises(DesktopActionRejected):
+            desktop.open_saved(wrong, original_quarantine=True)
+    assert opened == [quarantine]
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize('original', [False, True])
 async def test_healthy_trash_shows_open_location_failure(tmp_path, original):

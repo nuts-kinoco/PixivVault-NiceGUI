@@ -411,12 +411,14 @@ class DesktopIntegration:
     def __init__(self, *, allowed_roots=(), launcher=None, protocol=None, environment=None, exists=None,
                  legacy_image_root=None):
         roots=tuple(native_io_path(p) for p in allowed_roots)
+        legacy_root = native_io_path(legacy_image_root) if legacy_image_root is not None else None
+        checked_roots = roots if legacy_root is None or legacy_root in roots else (*roots, legacy_root)
         if any(node.is_symlink() or (node.exists() and getattr(node.lstat(),'st_file_attributes',0)&0x400)
-               for root in roots for node in (root,*root.parents)):
+               for root in checked_roots for node in (root,*root.parents)):
             raise DesktopActionRejected('保存先にリンクは使用できません。')
         self.allowed_roots=tuple(logical_path(root.resolve()) for root in roots)
-        self._original_quarantine = (logical_path(legacy_image_root).parent / 'quarantine'
-                                     if legacy_image_root is not None else None)
+        self._original_quarantine = (logical_path(legacy_root.resolve()).parent / 'quarantine'
+                                     if legacy_root is not None else None)
         self.launcher=launcher
         self.protocol=protocol
         self.environment=dict(os.environ if environment is None else environment)
