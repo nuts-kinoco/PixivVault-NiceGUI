@@ -24,11 +24,13 @@ def test_local_image_reader_never_calls_remote():
 def test_only_missing_api_tags_are_used_in_real_judgment(tmp_path):
     calls = []
     class Tagger:
+        enabled = True
         def predict(self, data):
             calls.append(data)
-            return [('cat', .9)]
+            return [('cat', .9)] if self.enabled else []
+    tagger = Tagger()
     service = DiscoveryLearningService(tmp_path / 'discovery', FakeReader(), following=(), saved_ids=(),
-                                       tagger=Tagger(), local_image=lambda wid: b'image' if wid != '1002' else None)
+                                       tagger=tagger, local_image=lambda wid: b'image' if wid != '1002' else None)
     try:
         seed_candidates(service, [candidate(0, tags=()), candidate(1, tags=('api_tag',)), candidate(2, tags=())])
         session = service._submit(service._open_session).result()
@@ -41,5 +43,8 @@ def test_only_missing_api_tags_are_used_in_real_judgment(tmp_path):
         assert rows['1001'] == ['api_tag']
         assert rows['1002'] == []
         assert calls == [b'image']
+        tagger.enabled = False
+        service.submit_record(session.session_id, Judgment('1000', 'hate', 'op-new')).result()
+        assert service._submit(read).result()['1000'] == []
     finally:
         service.close()
