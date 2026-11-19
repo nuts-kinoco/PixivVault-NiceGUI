@@ -1,26 +1,98 @@
 """Reopen indexless artwork storage with its real sibling owners."""
+import ast
 import hashlib
 import json
 import os
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from pixivvault_nicegui.author_media import AuthorMediaService
+from pixivvault_nicegui.duplicate_inspection import ManagedDuplicateInspection
+from pixivvault_nicegui.legacy_author_sync import LegacyAuthorBridge
 from pixivvault_nicegui.legacy_ledger_rebuild import publish_rebuilt_ledger, rebuild_undecidable_ledger
 from pixivvault_nicegui import legacy_quarantine
 from pixivvault_nicegui.library_models import LibrarySnapshot
 from pixivvault_nicegui.managed_downloads import ManagedDownloadError, ManagedPixivDownloads
+from pixivvault_nicegui import managed_generations as generations
 from pixivvault_nicegui.managed_generations import ManagedGenerations
 from pixivvault_nicegui.managed_network_stop_integration import ManagedNetworkStopIntegration
 from pixivvault_nicegui.managed_scheduler import ManagedScheduler
 from pixivvault_nicegui.managed_viewer_page import _prepare as prepare_viewer_pages
+from pixivvault_nicegui.pixiv_write_client import _append_follow_response
 from pixivvault_nicegui.services import ApplicationServices
+from test_fixloop2_library_nullable_title import make_bridge
 from test_managed_download_services import FakeSource
 from test_managed_downloads import Client, record
 from test_original_ledger_rebuild import fixture as legacy_ledger_fixture
 from test_v_dl_cap_20261117 import make_generation, make_legacy, make_root, png, publish
 from test_w_round6_contract import snapshot
+
+
+_ARTWORK_ROOTS = {'owner.root', 'self.owner.root', 'self.managed_downloads.root',
+                  'services.managed_downloads.root', 'self.managed_root', 'managed_root', 'pixiv_download_root'}
+_ROOT_ALIASES = {
+    'legacy_ledger_rebuild.py': {'managed'},
+    'managed_download_requests.py': {'self.root'},
+    'managed_downloads.py': {'self.root'},
+    'managed_network_stop_integration.py': {'root'},
+    'managed_scheduler.py': {'root'},
+    'managed_viewer_page.py': {'root'},
+    'metadata_ledger.py': {'root'},
+    'pixiv_write_client.py': {'root'},
+    'services.py': {'parent'},  # _failure_actions chooses the artwork root if preferences are absent.
+}
+_ROOT_CONSUMERS = {
+    # Constructors, source reads and plumbing reached via the artwork root.
+    'ApplicationServices', 'LegacyAuthorBridge', 'ManagedDownloadRequests', 'ManagedMetadataLedger',
+    'ManagedNetworkStopIntegration', 'ManagedScheduler', 'Path', 'StopMigrationService._verify_archive',
+    '_build_owned_media_readers', '_nonoverlap', '_publication_inputs', '_safe_path', '_validate_managed_paths',
+    'desktop_saved_roots', 'get_services', 'load_rebuilt_ledger', 'logical_path', 'maintenance.allows',
+    'native_io_path', 'publish_rebuilt_ledger', 'rebuild_undecidable_ledger', 'replace',
+    'require_no_unmigrated_root_stop', 'resolve_rebuilt_group', 'validate_media_roots', 'writer_fence',
+}
+_SQLITE_TRANSIENTS = {
+    '.pixivvault-legacy-author-sync.sqlite3-journal',
+    '.pixivvault-managed-metadata.sqlite3-journal', '.pixivvault-managed-scheduler.sqlite3-journal',
+    '.pixivvault-network-stop.sqlite3-journal', '.pixivvault-network-stop.sqlite3-shm',
+    '.pixivvault-network-stop.sqlite3-wal',
+    'author-media.sqlite3-journal', 'author-media.sqlite3-shm', 'author-media.sqlite3-wal', 'jobs.sqlite3-journal',
+}
+
+
+def _source_artwork_layout():
+    """Check concrete children and calls directly receiving the artwork root."""
+    sources = Path(__file__).resolve().parents[1] / 'src' / 'pixivvault_nicegui'
+    children = {}
+    consumers = {}
+    for path in sources.rglob('*.py'):
+        source = path.read_text(encoding='utf-8')
+        if path.name not in _ROOT_ALIASES and not any(root in source for root in _ARTWORK_ROOTS):
+            continue
+        tree = ast.parse(source, filename=str(path))
+        constants = {statement.targets[0].id: statement.value.value
+                     for statement in tree.body if isinstance(statement, ast.Assign)
+                     and len(statement.targets) == 1 and isinstance(statement.targets[0], ast.Name)
+                     and isinstance(statement.value, ast.Constant)}
+        roots = _ARTWORK_ROOTS | _ROOT_ALIASES.get(path.name, set())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                args = [*node.args, *(kw.value for kw in node.keywords)]
+                if any(ast.unparse(arg) in _ARTWORK_ROOTS for arg in args):
+                    consumers[ast.unparse(node.func)] = f'{path.name}:{node.lineno}'
+            if not isinstance(node, ast.BinOp) or not isinstance(node.op, ast.Div):
+                continue
+            base = node.left
+            if isinstance(base, ast.Call) and base.args and ast.unparse(base.func) in {'Path', 'native_io_path'}:
+                base = base.args[0]
+            if ast.unparse(base) not in roots:
+                continue
+            name = (node.right.value if isinstance(node.right, ast.Constant)
+                    else constants.get(node.right.id) if isinstance(node.right, ast.Name) else None)
+            if isinstance(name, str):
+                children[name] = f'{path.name}:{node.lineno}'
+    return children, consumers
 
 
 @pytest.fixture
@@ -72,13 +144,18 @@ def test_indexless_artwork_root_preserves_existing_outputs_on_both_opens(old_art
 
 
 def test_indexless_artwork_root_with_real_sibling_owners(tmp_path):
-    root = make_root(tmp_path)
+    db, images, root = legacy_ledger_fixture(tmp_path)
+    author_fixture = tmp_path / 'author-fixture'
+    author_fixture.mkdir()
+    source_bridge, author_db = make_bridge(author_fixture, 'example')
+    source_bridge.close()
     # Separate the generation bootstrap from the real service graph so every
     # ledger it creates remains present for the indexless open below.
     ManagedGenerations(root)
     generation_files = [path for path in root.glob('active-generations*') if path.is_file()]
     source = FakeSource()
-    services = ApplicationServices(count=0, pixiv_download_root=root, live_client=source)
+    services = ApplicationServices(count=0, pixiv_download_root=root, live_client=source,
+                                   failed_queue_readonly_db=author_db)
     try:
         author = AuthorMediaService(services)
         try:
@@ -94,6 +171,21 @@ def test_indexless_artwork_root_with_real_sibling_owners(tmp_path):
         scheduler = ManagedScheduler(root)
         scheduler.close()
         ManagedNetworkStopIntegration(root)
+        services._failure_actions().snapshot()
+        sync = LegacyAuthorBridge(author_db, source_bridge.readonly_media_root, root)
+        try:
+            sync.observe_author('11', (), scan_id='a' * 32)
+        finally:
+            sync.close()
+        _append_follow_response(root, 'follow', 200, {})
+        quarantine = legacy_quarantine.LegacyQuarantine(images, LibrarySnapshot(()), owner=services.managed_downloads)
+        inspection = ManagedDuplicateInspection(services.managed_downloads, legacy=quarantine, undecidable_db=db)
+        try:
+            with quarantine._lock:
+                quarantine._ensure()
+            inspection.scan()
+        finally:
+            inspection.close()
     finally:
         services.close()
 
@@ -101,8 +193,17 @@ def test_indexless_artwork_root_with_real_sibling_owners(tmp_path):
         path.unlink()
     assert not (root / 'active-generations.json').exists()
     before = snapshot(root)
-    assert {'.pixivvault-managed-metadata.sqlite3', 'author-media.sqlite3', 'jobs.sqlite3',
-            'extension-commands', 'requests', 'viewer-pages'} <= before.keys()
+    generated = {path.name for path in root.iterdir()}
+    # These names refer to other owners or to the separately tested managed quarantine.
+    source_only = {'.pixivvault-novel-jobs.json', 'migration-record.json', 'quarantine'}
+    children, consumers = _source_artwork_layout()
+    missing = {name: site for name, site in children.items()
+               if name not in generated and name not in source_only}
+    assert missing == {}
+    assert {name: site for name, site in consumers.items() if name not in _ROOT_CONSUMERS} == {}
+    assert set(consumers) == _ROOT_CONSUMERS
+    allowed = generations._SHARED_ROOT_FILES | generations._SHARED_ROOT_DIRS
+    assert allowed - _SQLITE_TRANSIENTS <= generated
     assert ManagedGenerations(root).entries() == {}
     assert {name: value for name, value in snapshot(root).items() if name in before} == before
     assert source.calls == []
