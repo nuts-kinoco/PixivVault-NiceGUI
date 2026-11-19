@@ -299,6 +299,10 @@ class ArtworkViewer:
                     viewport.releasePointerCapture(event.pointerId);
                 paint();
             };
+            // A browser image drag cancels the pointer stream while panning.
+            viewport.addEventListener('dragstart', event => {
+                if (pointer) event.preventDefault();
+            });
             viewport.addEventListener('pointerup', endDrag);
             viewport.addEventListener('pointercancel', endDrag);
             viewport.addEventListener('lostpointercapture', endDrag);
