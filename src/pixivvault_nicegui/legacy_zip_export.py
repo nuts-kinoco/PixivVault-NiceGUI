@@ -9,6 +9,7 @@ Cookie and the NiceGUI managed store remain untouched.
 from __future__ import annotations
 
 import hashlib
+import copy
 from contextlib import ExitStack
 import json
 import os
@@ -38,7 +39,25 @@ MAX_EXPORT_WORKS = 3000
 MAX_EXPORT_PAGES = 5000
 MAX_EXPORT_INPUT_BYTES = 1700 * 1024 * 1024
 MAX_ZIP_NAME_BYTES = 240
+ZIP64_THRESHOLD = 4000 * 1024 * 1024
 
+
+
+def _without_zip64_extra(extra):
+    clean = bytearray()
+    pos = 0
+    while pos < len(extra):
+        if pos + 4 > len(extra):
+            raise LegacyZipExportError('invalid ZIP extra field')
+        kind = int.from_bytes(extra[pos:pos+2], 'little')
+        size = int.from_bytes(extra[pos+2:pos+4], 'little')
+        end = pos + 4 + size
+        if end > len(extra):
+            raise LegacyZipExportError('invalid ZIP extra field')
+        if kind != 1:
+            clean.extend(extra[pos:end])
+        pos = end
+    return bytes(clean)
 
 def verified_zip_digest(path):
     """Stream an existing regular owned ZIP without buffering the archive."""
@@ -187,6 +206,54 @@ class LegacyZipExporter:
                 except Exception:
                     pass  # Notification failure does not hide verification failure.
             raise LegacyZipExportError('legacy ZIP verification failed') from error
+
+    def normalize_archive(self, path: Path, expected_sha256: str, *,
+                          zip64_threshold: int = 4000 * 1024 * 1024) -> None:
+        """Rewrite an owned ZIP with normalized paths and one ZIP64 policy."""
+        path = native_io_path(logical_path(path))
+        if path.parent != native_io_path(self.root) or not path.name.endswith('.zip'):
+            raise LegacyZipExportError('ZIP path rejected')
+        if (not isinstance(expected_sha256, str) or not re.fullmatch(r'[a-f0-9]{64}', expected_sha256)
+                or type(zip64_threshold) is not int or zip64_threshold < 1):
+            raise LegacyZipExportError('ZIP normalization input rejected')
+        if not self._writer.acquire(blocking=False):
+            raise LegacyZipExportError('ZIP writer already active')
+        staging = None
+        try:
+            if self.closed or self._closing or verified_zip_digest(path) != expected_sha256:
+                raise LegacyZipExportError('previous ZIP changed')
+            use_zip64 = path.stat().st_size >= zip64_threshold
+            _safe_path(native_io_path(self.incomplete))
+            staging = native_io_path(self.incomplete) / ('zip-' + uuid4().hex + '.tmp')
+            names = set()
+            with ZipFile(path, 'r') as source, staging.open('xb') as output:
+                with ZipFile(output, 'w', allowZip64=use_zip64) as target:
+                    target.comment = source.comment
+                    for original in source.infolist():
+                        info = copy.copy(original)
+                        info.filename = info.filename.replace('\\', '/')
+                        if info.filename in names:
+                            raise LegacyZipExportError('duplicate previous ZIP member')
+                        names.add(info.filename)
+                        info.extra = _without_zip64_extra(info.extra)
+                        if not use_zip64 and info.compress_type in (0, 8):
+                            info.extract_version = min(info.extract_version, 20)
+                            info.create_version = min(info.create_version, 20)
+                        with source.open(original) as src, target.open(info, 'w', force_zip64=use_zip64) as dst:
+                            shutil.copyfileobj(src, dst, 1024 * 1024)
+                output.flush()
+                os.fsync(output.fileno())
+            self._verify_archive(staging, names, 'ZIP')
+            if self._closing or verified_zip_digest(path) != expected_sha256:
+                raise LegacyZipExportError('previous ZIP changed')
+            os.replace(staging, path)
+            _fsync_dir(path.parent)
+        except (OSError, BadZipFile, RuntimeError, ZlibError, LargeZipFile) as error:
+            raise LegacyZipExportError('ZIP normalization failed') from error
+        finally:
+            if staging is not None:
+                staging.unlink(missing_ok=True)
+            self._writer.release()
 
     def remove_entry(self, path: Path, entry_name: str, expected_sha256: str) -> bytes:
         """Remove one entry from an owned archive after verifying every member."""
@@ -347,11 +414,13 @@ class LegacyZipExporter:
 
             _safe_path(native_io_path(self.incomplete))
             staging = native_io_path(self.incomplete) / ('zip-' + uuid4().hex + '.tmp')
+            use_zip64 = ((destination.stat().st_size if replace_existing_sha256 is not None else 0)
+                         + total_bytes >= ZIP64_THRESHOLD)
             # Create before ZipFile with xb: an earlier failed staging archive
             # may never be silently overwritten or mistaken for a final ZIP.
             with staging.open('xb') as output:
                 with ZipFile(output, 'w', compression=ZIP_DEFLATED,
-                             compresslevel=6, allowZip64=False) as archive:
+                             compresslevel=6, allowZip64=use_zip64) as archive:
                     if replace_existing_sha256 is not None:
                         # Read every old member, including entries no longer in
                         # the managed catalog, before publishing a replacement.
@@ -362,8 +431,13 @@ class LegacyZipExporter:
                                 if name in old_names:
                                     raise LegacyZipExportError('duplicate previous ZIP member')
                                 old_names.add(name)
-                                info.filename = name
-                                with previous.open(info) as source, archive.open(info, 'w') as target:
+                                new_info = copy.copy(info)
+                                new_info.filename = name
+                                new_info.extra = _without_zip64_extra(info.extra)
+                                if not use_zip64 and info.compress_type in (0, 8):
+                                    new_info.extract_version = min(info.extract_version, 20)
+                                    new_info.create_version = min(info.create_version, 20)
+                                with previous.open(info) as source, archive.open(new_info, 'w', force_zip64=use_zip64) as target:
                                     shutil.copyfileobj(source, target, 1024 * 1024)
                             members.update(old_names)
                         entries = [entry for entry in entries
@@ -373,7 +447,8 @@ class LegacyZipExporter:
                         if self._closing:
                             raise LegacyZipExportError('ZIP export interrupted by shutdown')
                         data = self.managed.read_saved_page(relative, index, digest)
-                        archive.writestr(name, data)
+                        with archive.open(name, 'w', force_zip64=use_zip64) as target:
+                            target.write(data)
                 output.flush()
                 os.fsync(output.fileno())
             self._verify_archive(staging, members, zip_name[:-4])
