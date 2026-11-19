@@ -42,6 +42,7 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family:var(
 .pv-content { position:relative; width:100%; min-width:0; min-height:0; flex:1 1 0; display:flex; flex-direction:column; overflow:hidden; }
 .pv-metadata-view, .pv-scheduler-view { flex:1 1 0; min-height:0; min-width:0; max-width:100%; overflow-y:auto; overflow-x:hidden; padding-right:8px; box-sizing:border-box; }
 .pv-gallery { flex:1 1 0; min-height:0; min-width:0; overflow:hidden; display:flex; flex-direction:column; }
+.q-btn { text-transform:none; }
 .pv-ranking-view { overflow-y:auto; overflow-x:hidden; }
 .pv-ranking-view > .pv-gallery { min-height:190px; }
 .pv-header { display:flex; flex-wrap:nowrap; align-items:flex-start; justify-content:space-between; gap:12px; width:100%; flex-shrink:0; }
