@@ -116,12 +116,24 @@ def quota_retry_at(body,now,default=None):
     return max(values) if values else now+2100 if default is None else default
 
 
+class _SharedGateStopped(VaultError):
+    def __init__(self):
+        super().__init__('pixiv-network-stopped')
+
+
+@dataclass(repr=False)
+class _PendingInvalid:
+    secret: str
+    sending: bool = False
+
+
 class ShaftTransport:
     def __init__(self,request,*,oauth_profiles,shaft_user_agent='PixivVault',clock=None):
         from .vault_socket_fence import SocketFence
         self._socket_fence=SocketFence()
         self.request=request;self.profiles=tuple(oauth_profiles);self.shaft_user_agent=shaft_user_agent
         self.clock=clock or (lambda:datetime.now().astimezone());self._online=[];self._online_lock=threading.RLock();self._online_generation=0;self._session=threading.local()
+        self._pending_invalid={}
         # A rejected app-client pair is not a rejected borrowed account. Keep
         # this ordering hint in this transport/process only, never in the vault.
         self._oauth_profile_lock=threading.RLock();self._oauth_rejected_profiles=set()
@@ -336,7 +348,9 @@ class ShaftTransport:
             # A different reader owns the short-lived process/thread GET lock.
             # This is not a latched 401/403/429 and must not be reported as one.
             raise _SharedGateBusy() from None
-        except (ManagedNetworkGateStorageError,ManagedNetworkStopped,HTTPStatusRejected):
+        except ManagedNetworkStopped:
+            raise _SharedGateStopped() from None
+        except (ManagedNetworkGateStorageError,HTTPStatusRejected):
             raise VaultError('pixiv-network-stopped') from None
 
     def _request_unfenced(self,method,url,headers,body=None,*,observe_status=None,observe_send=None):
@@ -418,6 +432,8 @@ class ShaftTransport:
         # Match the original product: request a Shaft payout first. Only
         # refresh the credential returned by an expired/short payout below.
         # The service's durable unknown-send fence remains authoritative.
+        try:self._flush_invalid_reports()
+        except _SharedGateBusy:raise _FirstPayoutGateBusy() from None
         for attempt in range(2):
             if slot.get('payout_not_before',0)>now:raise RateLimited(slot['payout_not_before'])
             reserve=(lambda:self._budget('payout',request_uid)) if self._budget is not None else None
@@ -465,11 +481,52 @@ class ShaftTransport:
         if _uid(account_uid) is None:return
         digest=hashlib.sha256(refresh.encode('utf-8')).hexdigest()
         if digest==slot.get('reported_refresh_hash') or slot.get('backoff_until',0)>now:return
+        key=account_uid,digest
+        with self._online_lock:
+            if key in self._pending_invalid:return
+            generation=self._online_generation
         try:self._signed(INVALID,{'uid':account_uid,'refreshTokenHash':digest},secret)
+        except _SharedGateBusy:
+            with self._online_lock:
+                if generation==self._online_generation:
+                    self._pending_invalid.setdefault(key,_PendingInvalid(secret))
+            raise
         except VaultError as error:
             if error.code in ('stale-session','pixiv-outcome-uncertain','pixiv-network-stopped',
                               'pixiv-network-busy','shared-stop-migration-required'):raise
         slot['reported_refresh_hash']=digest
+
+    def _flush_invalid_reports(self):
+        with self._online_lock:
+            pending=list(self._pending_invalid.items())
+        for key,task in pending:
+            with self._online_lock:
+                if self._pending_invalid.get(key) is not task or task.sending:continue
+                task.sending=True
+            previous=getattr(self._session,'valid',None)
+
+            def current_task():
+                if previous is not None and not previous():return False
+                with self._online_lock:return self._pending_invalid.get(key) is task
+
+            retry=False
+            try:
+                account_uid,digest=key
+                with self.session_guard(current_task):
+                    self._signed(INVALID,{'uid':account_uid,'refreshTokenHash':digest},task.secret)
+            except (_SharedGateBusy,_SharedGateStopped):
+                retry=True
+                raise
+            except VaultError as error:
+                if error.code in ('stale-session','pixiv-outcome-uncertain','pixiv-network-stopped',
+                                  'shared-stop-migration-required','socket-shutdown-unverified'):raise
+            finally:
+                # Only a proven admission refusal is safe to retry.
+                with self._online_lock:
+                    if self._pending_invalid.get(key) is task:
+                        if retry:task.sending=False
+                        else:del self._pending_invalid[key]
+
     def queue_online(self,secret,uid,account,now):
         with self._online_lock:generation=self._online_generation
         self._check_session()
@@ -481,7 +538,7 @@ class ShaftTransport:
             self._online.append({'secret':secret,'payload':payload,'due':now,'attempt':0,'waited':0,'generation':generation})
     def clear_pending(self):
         with self._online_lock:
-            self._online_generation+=1;self._online.clear()
+            self._online_generation+=1;self._online.clear();self._pending_invalid.clear()
         from .vault_socket_fence import SocketFenceError
         try:self._socket_fence.invalidate()
         except SocketFenceError:raise VaultError('socket-shutdown-unverified') from None
@@ -490,8 +547,13 @@ class ShaftTransport:
         # Lock/close invalidates the generation and suppresses late retries.
         with self._online_lock:
             if self.revocation_unverified:
-                self._online_generation+=1;self._online.clear()
+                self._online_generation+=1;self._online.clear();self._pending_invalid.clear()
                 return 900
+        invalid_wait=900
+        try:self._flush_invalid_reports()
+        except _SharedGateBusy:invalid_wait=1
+        except _SharedGateStopped:pass
+        with self._online_lock:
             pending=self._online;self._online=[]
         for task in pending:
             with self._online_lock:
@@ -540,7 +602,7 @@ class ShaftTransport:
                     if task['generation']==self._online_generation and not self.revocation_unverified:
                         self._online.append(task)
         with self._online_lock:
-            return min((max(0,t['due']-now) for t in self._online),default=900)
+            return min(invalid_wait,min((max(0,t['due']-now) for t in self._online),default=900))
     def search(self,access_token,params):
         return self._app_read(SEARCH,access_token,params)
     def ranking(self,access_token,*,mode='day',date=None,offset=0):
