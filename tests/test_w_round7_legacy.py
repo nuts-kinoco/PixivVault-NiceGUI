@@ -1,0 +1,1 @@
+from w_round7_fixtures import test_interrupted_fold_recovery_respects_legacy_rejection_without_writes

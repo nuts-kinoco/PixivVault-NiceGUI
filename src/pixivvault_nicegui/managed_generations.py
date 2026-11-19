@@ -529,6 +529,9 @@ class ManagedGenerations:
             self._recover_head_locked()
 
     def _recover_head_locked(self):
+        # A cached reader can encounter a replaced legacy index or journal.
+        # Refuse it before recovery installs or replaces any files.
+        reject_uncertain_old_v5(self.root)
         head = self._read_head()
         floor = self._read_floor()
         if floor is not None and (head is None or floor['generation'] > head['generation']):
