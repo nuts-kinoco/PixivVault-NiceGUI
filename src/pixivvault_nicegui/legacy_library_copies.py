@@ -22,6 +22,7 @@ _NAME = re.compile(r'[0-9a-f]{32}\.sqlite\Z')
 _STAGE = re.compile(r'\.(?:raw-[0-9a-f]{32}|ready-[0-9a-f]{32}\.sqlite(?:-(?:journal|wal|shm))?)\Z')
 _AUXILIARY_RESERVE = 65536
 _CHUNK = 1024 * 1024
+_APPLICATION_ID = 0x5056434C
 
 
 class LegacyCopyError(ValueError):
@@ -63,6 +64,25 @@ def _sidecars_absent(path):
         except FileNotFoundError:
             continue
         raise LegacyCopyError('legacy database is in use')
+
+
+def _require_owned_copy(path):
+    """Only marked SQLite generations may be rotated or removed."""
+    try:
+        if _NAME.fullmatch(path.name) is None:
+            raise LegacyCopyError('legacy snapshot ownership unavailable')
+        _safe_path(path, file=True)
+        before = _identity(path.stat())
+        _sidecars_absent(path)
+        with closing(sqlite3.connect(sqlite_readonly_uri(path, immutable=True), uri=True)) as connection:
+            if connection.execute('PRAGMA application_id').fetchone() != (_APPLICATION_ID,):
+                raise LegacyCopyError('legacy snapshot ownership unavailable')
+        if _identity(path.stat()) != before:
+            raise LegacyCopyError('legacy snapshot ownership changed')
+        _sidecars_absent(path)
+        return before
+    except (OSError, sqlite3.Error, ValueError):
+        raise LegacyCopyError('legacy snapshot ownership unavailable') from None
 
 
 def _open_source(path):
@@ -150,6 +170,8 @@ class LegacyLibraryCopies:
             info = item.lstat()
             if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
                 raise LegacyCopyError('legacy snapshot destination contains unsafe files')
+            if _NAME.fullmatch(item.name):
+                _require_owned_copy(item)
             (retained if _NAME.fullmatch(item.name) else stages).append(item)
         return retained, stages
 
@@ -264,6 +286,22 @@ class LegacyLibraryCopies:
                 if (raw_before != _identity(raw.stat()) or raw_before[4] != initial.st_size
                         or digest.digest() != source_digest):
                     raise LegacyCopyError('legacy snapshot content changed')
+                with closing(sqlite3.connect(raw)) as marked:
+                    marked.execute('PRAGMA journal_mode=OFF')
+                    marked.execute(f'PRAGMA application_id={_APPLICATION_ID}')
+                    marked.execute('PRAGMA user_version=1')
+                    marked.commit()
+                _sidecars_absent(raw)
+                with closing(sqlite3.connect(sqlite_readonly_uri(raw, immutable=True), uri=True)) as marked:
+                    if (marked.execute('PRAGMA application_id').fetchone() != (_APPLICATION_ID,)
+                            or marked.execute('PRAGMA user_version').fetchone() != (1,)
+                            or marked.execute('PRAGMA quick_check').fetchone() != ('ok',)):
+                        raise LegacyCopyError('legacy snapshot ownership unavailable')
+                marked_size = raw.stat().st_size
+                marked_digest = hashlib.sha256()
+                with raw.open('rb') as stream:
+                    while block := stream.read(_CHUNK):
+                        marked_digest.update(block)
                 if total + raw.stat().st_size + ready.stat().st_size > self.max_bytes:
                     raise LegacyCopyError('legacy snapshot exceeds capacity')
                 with raw.open('r+b') as stream:
@@ -275,7 +313,7 @@ class LegacyLibraryCopies:
                 _sidecars_absent(self.source)
                 target = victim if victim is not None else self.root / (uuid4().hex + '.sqlite')
                 if victim is not None:
-                    _safe_path(victim, file=True)
+                    _require_owned_copy(victim)
                 try:
                     if victim is not None:
                         os.replace(raw, victim)
@@ -284,7 +322,7 @@ class LegacyLibraryCopies:
                 except OSError:
                     if raw.exists():
                         raise
-                    if not _matches_published(target, initial.st_size, source_digest):
+                    if not _matches_published(target, marked_size, marked_digest.digest()):
                         raise LegacyCopyCommitUnconfirmed('legacy snapshot publication is unconfirmed') from None
                 self._active.add(target)
                 # Keep room for a later snapshot when older unused copies can
@@ -303,7 +341,7 @@ class LegacyLibraryCopies:
                         if old in self._active:
                             continue
                         self._usable()
-                        _safe_path(old, file=True)
+                        _require_owned_copy(old)
                         length = old.stat().st_size
                         old.unlink()
                         remaining -= 1

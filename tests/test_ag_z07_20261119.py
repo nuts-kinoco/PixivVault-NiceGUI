@@ -21,7 +21,10 @@ def test_copies_are_frozen_and_source_never_changes(tmp_path):
     try:
         frozen = copies.snapshot()
         assert frozen != source and root in frozen.parents
-        assert frozen.read_bytes() == before[source.name]
+        with sqlite3.connect(frozen) as conn:
+            assert conn.execute('PRAGMA application_id').fetchone() == (0x5056434C,)
+            assert conn.execute('PRAGMA user_version').fetchone() == (1,)
+            assert conn.execute('SELECT work_id FROM works').fetchall() == [('1',)]
         assert {p.name: p.read_bytes() for p in old.iterdir()} == before
         with sqlite3.connect(source) as conn:
             conn.execute("INSERT INTO works (work_id) VALUES ('2')")
@@ -317,7 +320,7 @@ def test_sqlite_never_connects_to_original_database(tmp_path, monkeypatch):
     monkeypatch.setattr(sqlite3, 'connect', connect)
     try:
         assert copies.snapshot().is_file()
-        assert len(destinations) == 4
+        assert len(destinations) == 8
     finally:
         copies.close()
 
@@ -741,7 +744,11 @@ def test_post_publication_error_is_reconciled_without_losing_snapshot(tmp_path, 
     try:
         result = copies.snapshot()
         assert result == old
-        assert result.read_bytes() == expected
+        assert source.read_bytes() == expected
+        with sqlite3.connect(result) as connection:
+            assert connection.execute('PRAGMA application_id').fetchone() == (0x5056434C,)
+            assert connection.execute('PRAGMA user_version').fetchone() == (1,)
+            assert ('8',) in connection.execute('SELECT work_id FROM works').fetchall()
     finally:
         copies.close()
 
