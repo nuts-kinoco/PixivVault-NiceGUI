@@ -222,8 +222,16 @@ class TaggerManager:
             snapshot = self._current()
             if snapshot.values['local_tagger_enabled'] != '1' or self.verify() != '利用可能':
                 return []
+            receipt = self.tagger.receipt
+            path = snapshot.values['local_tagger_path']
             result = self.tagger.predict(data)
             self.status = self.tagger.status
+            current = self.preferences.snapshot()
+            if current.values['local_tagger_enabled'] != '1' or current.values['local_tagger_path'] != path:
+                return []
+            status, current_receipt = verify_model(path, receipt)
+            if status != '利用可能' or current_receipt != receipt:
+                return []
             return result
 
     def close(self):
