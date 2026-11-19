@@ -21,6 +21,7 @@ from nicegui import background_tasks, ui
 from ..image_events import source_matches
 from ..learning import LearningState, MemoryJudgmentLedger, SaveCommand
 from ..services import ApplicationServices
+from ..viewer_metadata import pixiv_url
 from .learning_toast import LearningToast
 from .verified_image import VerifiedImage
 
@@ -220,7 +221,17 @@ class LearningView:
             self.progress = ui.label().classes("pv-counter")
             # 通知帯は画像の右下に重ねる（元 discovery_tab.py:241-244）。判定ボタンの位置は動かさない。
             with ui.element("div").classes("w-full relative").style("min-height:96px"):
-                self.picture = VerifiedImage(alt="判定対象の作品画像").classes("pv-view-art")
+                with ui.element('div').classes('w-full relative').style('max-width:560px'):
+                    self.picture = VerifiedImage(alt="判定対象の作品画像").classes("pv-view-art")
+                    if self.discovery is not None:
+                        self.open_pixiv_button = ui.button(icon='open_in_new', color=None).props(
+                            'flat dense round target=_blank rel="noopener noreferrer" '
+                            'aria-label="pixivで作品ページを開く" data-testid=learning-open-pixiv'
+                        ).style('position:absolute;top:4px;right:4px;min-width:21px;min-height:21px;'
+                                'width:21px;height:21px;font-size:8px;'
+                                'background:var(--pv-raised);color:var(--pv-muted)')
+                        self.open_pixiv_button.tooltip('クリックでpixivの作品ページを開く')
+                        self.open_pixiv_button.set_visibility(False)
                 self.toast = LearningToast()
             self.picture.on('click', self._open_learning_picture, js_handler=self._click_js())
             self.status = ui.label().classes("pv-subtitle pv-learning-status").props("role=status aria-live=polite")
@@ -1267,11 +1278,17 @@ class LearningView:
         return (self.discovery is not None and self.state.current_artwork is None
                 and bool(self._refill.armed))
 
+    def _sync_pixiv_link(self, item) -> None:
+        target = pixiv_url(item.work_id) if item is not None else None
+        self.open_pixiv_button.props['href'] = target or ''
+        self.open_pixiv_button.set_visibility(target is not None)
+
     def refresh(self) -> None:
         item = self.state.current_artwork
         self._summary_sync()
         if self.discovery is not None:
             self._update_frame_badge()
+            self._sync_pixiv_link(item)
         self.empty_card.set_visibility(self._empty_state_shown())
         self.title.set_text(item.title if item else ("現在の候補がありません" if self._refill.armed else "初回候補を読み込んでいます") if self.discovery is not None else "判定が完了しました")
         self.progress.set_text(f"{self._baseline_count + self.state.index} / {len(self._artworks)} 件判定済み")
