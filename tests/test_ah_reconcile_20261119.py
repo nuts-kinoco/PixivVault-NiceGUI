@@ -1,8 +1,42 @@
 from dataclasses import replace
 from types import SimpleNamespace
 from zipfile import ZipFile
+from hashlib import sha256
+import json
+import os
 from test_u11_zip_contract import generated_exports, settled
 from test_managed_downloads import Context, record
+
+
+def test_author_zip_rename_denied_keeps_completed_old_path(tmp_path, monkeypatch, caplog):
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan()
+        original = settled(q.exports)[0]
+        assert original.state == 'done'
+        old = q.exports.zip.root / 'tester(456).zip'
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title='second', author_name='new')
+        q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
+        rename = os.rename
+
+        def deny_alias(src, dst):
+            if str(dst).endswith('new(tester)(456).zip'):
+                raise PermissionError('synthetic rename denial')
+            return rename(src, dst)
+
+        monkeypatch.setattr(os, 'rename', deny_alias)
+        q.exports.scan()
+        jobs = settled(q.exports)
+        assert len(jobs) == 2 and all(job.state == 'done' for job in jobs)
+        assert not (old.parent / 'new(tester)(456).zip').exists()
+        assert not list(q.exports.root.glob('zip-mutation-*.json'))
+        assert 'ZIPの改名に失敗' in caplog.text
+        with ZipFile(old) as z:
+            assert len(z.namelist()) == 4 and z.testzip() is None
+        actual = sha256(old.read_bytes()).hexdigest()
+        for job in jobs:
+            manifest = json.loads((q.exports.root / job.result).read_bytes())
+            assert (manifest['archive'], manifest['sha256']) == (old.name, actual)
+            assert q.exports.run(job, Context()) == job.result
 
 
 def test_auto_zip_reconciles_author_rename(tmp_path):

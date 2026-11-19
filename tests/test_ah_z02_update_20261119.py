@@ -56,6 +56,7 @@ def test_auto_zip_does_not_reassign_old_title(tmp_path, legacy):
             value = json.loads(manifest.read_bytes())
             value['sha256'] = sha256(path.read_bytes()).hexdigest()
             manifest.write_text(json.dumps(value), encoding='utf-8')
+            (q.exports.root / (job.target_id + '.zip-pending.json')).unlink()
 
         q.reader.date = '2026-11-19'
         stream = BytesIO()
