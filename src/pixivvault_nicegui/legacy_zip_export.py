@@ -68,8 +68,7 @@ def legacy_filename(title: str, work_id: str, page_no: int, page_count: int,
     """
     if (type(title) is not str or type(work_id) is not str or not _ID.fullmatch(work_id)
             or type(page_no) is not int or type(page_count) is not int
-            or not 0 <= page_no < page_count <= 1000 or ext not in ('png', 'jpg', 'webp')
-            or len(title) > 256):
+            or not 0 <= page_no < page_count <= 1000 or ext not in ('png', 'jpg', 'webp')):
         raise LegacyZipExportError('legacy filename source rejected')
     safe_title = _INVALID_FILENAME.sub('_', title)
     legacy = (f'{safe_title}.{ext}' if page_count == 1
@@ -81,8 +80,6 @@ def legacy_filename(title: str, work_id: str, page_no: int, page_count: int,
         match = _PAGE_SUFFIX.match(stem)
         filename = (f'{match.group(1)}({work_id})_{match.group(2)}.{suffix}'
                     if match else f'{stem}({work_id}).{suffix}')
-    if len(filename.encode('utf-8')) > MAX_ZIP_NAME_BYTES:
-        raise LegacyZipExportError('legacy ZIP filename too long')
     return filename
 
 
