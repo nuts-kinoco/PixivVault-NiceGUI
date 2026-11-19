@@ -11,6 +11,7 @@ import pytest
 import pixivvault_nicegui.external_vault_transport as transport_module
 from pixivvault_nicegui.external_vault import ExternalVaultService,VaultError
 from pixivvault_nicegui.external_vault_transport import ShaftTransport,UrlopenVaultRequest
+from stage5_generated_shared_owner import generated_shared_scope
 from test_external_vault import FixtureCrypto,profile
 from vault_tls_loopback_fixture import LoopbackTLS,CA
 
@@ -67,6 +68,7 @@ class Session:
             # Explicit synthetic permission for this localhost-only transport
             # fixture. Socket/DNS/certificate fences below remain unchanged.
             self.transport.bind_premium_authorization(lambda:None)
+            self.transport.bind_shared_pixiv_stop(generated_shared_scope(tmp_path))
             original=self.transport._socket_fence.register
             @contextmanager
             def register(sock,epoch):

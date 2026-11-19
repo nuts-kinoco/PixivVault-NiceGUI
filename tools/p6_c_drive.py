@@ -107,8 +107,13 @@ def main():
     output.mkdir(parents=True)
     temp = output / 'temp'
     temp.mkdir()
+    profile = output / 'test-profile'
+    local, roaming = profile / 'AppData' / 'Local', profile / 'AppData' / 'Roaming'
+    local.mkdir(parents=True)
+    roaming.mkdir(parents=True)
     env = dict(os.environ, TEMP=str(temp), TMP=str(temp), TMPDIR=str(temp),
                PYTHONUTF8='1', PYTHONDONTWRITEBYTECODE='1',
+               HOME=str(profile), USERPROFILE=str(profile), LOCALAPPDATA=str(local), APPDATA=str(roaming),
                P6_C_AUDIT_OUT=str(output / 'python-write-audit.json'))
     def now():
         return datetime.now(timezone.utc).isoformat()
