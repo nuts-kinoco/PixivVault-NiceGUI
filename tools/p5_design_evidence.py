@@ -9,6 +9,7 @@ from io import BytesIO
 import json
 import os
 from pathlib import Path, PurePosixPath
+import re
 import secrets
 import shutil
 import sqlite3
@@ -40,6 +41,8 @@ SCREENS = {
 }
 SENTINEL = "P5合成データ"
 LONG = "長文の表示と折り返しを検証する合成文字列" * 20
+SYNTHETIC_ACCOUNT = "12"
+LEARNING_FIXTURE_URL = "https://i.pximg.net/p5-synthetic/301_p0.png"
 RANKING_FIXTURE_URL = "https://i.pximg.net/p5-synthetic/101_p0.png"
 TAB_ICONS = {
     "download": "download", "queue": "queue", "failed": "report_problem", "dedup": "content_copy",
@@ -101,6 +104,37 @@ def copy_original(revision, destination):
                        cwd=destination, input=data, check=True)
 
 
+def download_authors(profile):
+    if profile == "empty":
+        return ()
+    first = SENTINEL + (" " + LONG[:160] if profile == "long" else "")
+    return (("2001", first, False), ("12", "synthetic author", True),
+            ("2003", "synthetic author C", False), ("2004", "synthetic author D", False))
+
+
+def seed_download_following(base, authors):
+    from pixivvault_nicegui.following_sync import FollowingSyncStore
+
+    class FollowingFixture:
+        def require_identity(self):
+            return SYNTHETIC_ACCOUNT
+
+        def get_following_users_detailed(self, account_id, visibility):
+            if visibility == "hide":
+                return ()
+            return tuple(dict(user_id=uid, name=name, account="", profile_img="")
+                         for uid, name, _ in authors)
+
+    store = FollowingSyncStore(base / "following")
+    try:
+        store.sync(FollowingFixture())
+        for uid, _, starred in authors:
+            if starred:
+                store.set_favorite(SYNTHETIC_ACCOUNT, uid, True)
+    finally:
+        store.close()
+
+
 def seed_profile(base, copy, profile):
     paths = smoke.seed_all(base)
     label = SENTINEL + (" " + LONG if profile == "long" else "")
@@ -131,20 +165,42 @@ def seed_profile(base, copy, profile):
     if profile == "empty":
         for image in paths["images"].rglob("*.png"):
             image.unlink()
+    else:
+        # Distinct files with closely matching image content for each real scanner.
+        folder = paths["images"] / "dedup author(2001)"
+        folder.mkdir()
+        for work_id, colour in ((201, "#557ce3"), (202, "#567de4")):
+            name = f"{label} {work_id}" if profile == "normal" else f"{label[:140]} {work_id}"
+            Image.new("RGB", (96, 72), colour).save(folder / f"synthetic pair({work_id})_1.png")
+            with sqlite3.connect(paths["db"]) as con:
+                con.execute("INSERT INTO works "
+                            "(work_id,title,page_count,tags,user_id,is_deleted,last_backup,content_type,work_meta) "
+                            "VALUES (?,?,1,'[]','2001',0,'2026-10-21','illust','{}')",
+                            (str(work_id), name))
     original_db = copy / "p5-synthetic.sqlite"
     shutil.copy2(paths["db"], original_db)
     shutil.copytree(paths["images"], copy / "Images")
+    authors = download_authors(profile)
+    seed_download_following(base, authors)
     for folder in (base, copy):
-        write_json(folder / "fixture.json", {"profile": profile, "title": label})
+        write_json(folder / "fixture.json", {
+            "profile": profile, "title": label, "account_id": SYNTHETIC_ACCOUNT,
+            "download_authors": authors,
+        })
     with sqlite3.connect(original_db) as con:
+        con.execute("DELETE FROM following_users")
+        con.executemany(
+            "INSERT INTO following_users (user_id,name,follow_order,is_favorite) VALUES (?,?,?,?)",
+            ((uid, name, index, starred) for index, (uid, name, starred) in enumerate(authors)),
+        )
         con.executemany("INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)", [
             ("save_path", str(copy / "Images")), ("check_on_startup", "0"),
             ("meta_backfill_enabled", "0"), ("web_bridge_enabled", "0"),
         ])
 
 
-class RankingFixture:
-    """Return the same isolated ranking rows to the two real ranking views."""
+class P5Fixture:
+    """Supply the same synthetic inputs to the original and port views."""
     def __init__(self, folder):
         self.data = json.loads((folder / "fixture.json").read_text(encoding="utf-8"))
         bitmap = BytesIO()
@@ -152,7 +208,23 @@ class RankingFixture:
         self.image = bitmap.getvalue()
 
     def require_identity(self):
-        return "12"
+        return SYNTHETIC_ACCOUNT
+
+    def learning_candidates(self):
+        if self.data["profile"] == "empty":
+            return []
+        return [dict(work_id="301", title=self.data["title"], author_id="2001",
+                     author_name=self.data["download_authors"][0][1], tags=["a"], source="following",
+                     thumbnail_url=LEARNING_FIXTURE_URL, description=self.data["title"])]
+
+    def queue_rows(self):
+        if self.data["profile"] == "empty":
+            return ()
+        return (dict(jobId="p5job1", kind="illustration", id="401", state="done",
+                     author_name=self.data["title"][:220], author_id="2001", done=1, total=1, message=""),
+                dict(jobId="p5job2", kind="illustration", id="402", state="error",
+                     author_name="P5 synthetic failure", author_id="2001", done=0, total=2,
+                     message="P5 synthetic failure"))
 
     def get_ranking(self, mode, content, page, date=None, lane=None):
         if self.data["profile"] == "empty" or page != 1:
@@ -165,7 +237,7 @@ class RankingFixture:
         }]
 
     def get_image_bytes(self, url):
-        if url != RANKING_FIXTURE_URL:
+        if url not in {RANKING_FIXTURE_URL, LEARNING_FIXTURE_URL}:
             raise ValueError("unexpected fixture image")
         return self.image
 
@@ -183,13 +255,26 @@ def serve_original(port):
     if os.environ.get("PV_NO_BROWSER_COOKIES") != "1":
         raise RuntimeError("original browser cookie extraction must be disabled")
     sys.argv = ["main.py", "--tab", "queue"]
+    import discovery_engine
     import flet
     import main
     import server
     from pixiv_client import PixivClient
 
     server.start_server = lambda *_: None  # no URI/extension/web token service in a visual fixture
-    ranking = RankingFixture(Path.cwd())
+    ranking = P5Fixture(Path.cwd())
+    server.list_web_jobs_snapshot = ranking.queue_rows
+    discovery_engine.get_next_batch = lambda *, exclude_ids, **_: SimpleNamespace(
+        items=[row for row in ranking.learning_candidates() if row["work_id"] not in exclude_ids],
+        nothing_and_failed=False)
+    original_detail = PixivClient.get_discovery_detail
+    PixivClient.get_discovery_detail = lambda self, wid, *args, **kw: (
+        {"image_url": LEARNING_FIXTURE_URL, "description": ranking.data["title"]} if str(wid) == "301"
+        else original_detail(self, wid, *args, **kw))
+    original_memory_image = PixivClient.download_thumbnail_to_memory
+    PixivClient.download_thumbnail_to_memory = lambda self, url, *args, **kw: (
+        ranking.get_image_bytes(url) if url == LEARNING_FIXTURE_URL
+        else original_memory_image(self, url, *args, **kw))
     PixivClient.get_ranking = lambda _, *args, **kw: ranking.get_ranking(*args, **kw)
     original_thumbnail = PixivClient.download_thumbnail_as_data_uri
     PixivClient.download_thumbnail_as_data_uri = lambda self, url, *args, **kw: (
@@ -205,12 +290,13 @@ def serve_port(port, nonce):
     from pixivvault_nicegui import services
     from pixivvault_nicegui.bookmark_cache_store import BookmarkCacheStore
     from pixivvault_nicegui.bookmark_remote_adapter import RemoteBookmark
+    from pixivvault_nicegui.job_service import JobSnapshot
     from pixivvault_nicegui.ranking_source import RankingSource
     from pixivvault_nicegui.remote_media import RemoteBookmarkImages
 
     register_pages = bootstrap.register_pages
     get_services = services.get_services
-    ranking = RankingFixture(Path.cwd())
+    ranking = P5Fixture(Path.cwd())
     stopped_reader = smoke.make_stopped_reader
     record = RemoteBookmark("101", "illustration", "show", ranking.data["title"], "12",
                             "synthetic author", ("a",), RANKING_FIXTURE_URL, "2026-10-22", 1, 0, 0)
@@ -235,6 +321,28 @@ def serve_port(port, nonce):
 
     def get_fixture_services(*args, **kw):
         instance = get_services(*args, **kw)
+        if getattr(instance, "_p5_visual_fixture", False):
+            return instance
+        instance._p5_visual_fixture = True
+        instance.jobs.snapshot = lambda: tuple(
+            JobSnapshot(row["jobId"], "pixiv-illust", row["id"], row["author_name"],
+                        state=row["state"], done=row["done"], total=row["total"])
+            for row in ranking.queue_rows())
+        discovery = instance.discovery
+        if discovery is not None:
+            def seed_candidates():
+                db = discovery._database()
+                with db._transaction() as conn:
+                    for candidate in ranking.learning_candidates():
+                        conn.execute(
+                            "INSERT OR IGNORE INTO managed_discovery_candidate VALUES (?,?)",
+                            (candidate["work_id"], json.dumps(candidate, ensure_ascii=False)))
+                        discovery._accept_metadata(candidate)
+
+            discovery._submit(seed_candidates).result(timeout=10)
+        # The archive reads saved counts from its isolated legacy DB. The port
+        # reads managed receipts. Present the same synthetic count in both views.
+        instance.saved_author_counts = lambda: {SYNTHETIC_ACCOUNT: len(records), "2001": 2 * len(records)}
         if instance.ranking_source is not None:
             instance.ranking_source = RankingSource(ranking)
             instance.acquire_ranking_images = lambda records: instance.images.acquire_catalog(
@@ -386,6 +494,31 @@ DOM_AUDIT = r"""() => {
 def audit_port(page):
     data = page.evaluate(DOM_AUDIT)
     data["shell"] = page.evaluate(shell_measure.MEASURE_JS)
+    data["display_contract"] = page.evaluate("""() => {
+      const rect = selector => document.querySelector(selector)?.getBoundingClientRect();
+      const search = rect('[data-testid=failed-search]');
+      const category = rect('[data-testid=failed-category-all]');
+      const empty = rect('[data-testid=queue-view] .pv-empty');
+      const download = rect('[data-testid=unified-author-list]');
+      const heading = rect('[data-testid=unified-thead]');
+      const band = rect('[data-testid=unified-band]');
+      const jobList = rect('[data-testid=queue-list]');
+      const cards = [...document.querySelectorAll(
+        '.pv-bookmarks .pv-card-title, [data-testid=recommend-view] .pv-card-title'
+      )].filter(el => el.getClientRects().length);
+      return {
+        failure_categories_below_search: search?.height && category?.height ? search.bottom <= category.top : null,
+        single_line_cards: cards.length ? cards.every(el => getComputedStyle(el).whiteSpace === 'nowrap'
+          || getComputedStyle(el).webkitLineClamp === '1') : null,
+        download_table_clear_of_band: band?.height && heading?.height
+          ? heading.bottom <= band.top && download.height >= 34 : null,
+        download_list_height: download?.height || 0,
+        download_header_to_band: band && heading ? band.top - heading.bottom : null,
+        queue_list_height: jobList?.height || 0,
+        queue_empty_alignment: empty?.height
+          ? getComputedStyle(document.querySelector('[data-testid=queue-view] .pv-empty')).textAlign : null,
+      };
+    }""")
     # CDP exposes the glyph families used by the browser, including Japanese fallbacks.
     cdp = page.context.new_cdp_session(page)
     try:
@@ -443,13 +576,34 @@ def new_page(browser, url, size, theme, foreign, japanese_font):
     return page
 
 
-def capture_view(page, target, kind, path, specs):
+def capture_view(page, target, kind, path, specs, profile):
     if kind == "original":
         original.open_screen(page, target)
     else:
         navigate_port(page, target, specs)
+    if target == "dedup" and profile != "empty":
+        if kind == "original":
+            original.click_label(page, "スキャンして更新")
+            page.wait_for_function(
+                f"() => ({original.OUTLINE_JS})().some(e => e.text.startsWith('\u5b8c\u4e86:'))",
+                timeout=8000)
+            choices = page.evaluate(original.OUTLINE_JS)
+            label = "近似重複の候補"
+            boxes = [row["rect"] for row in choices
+                     if row["text"].startswith(label) and 0 < row["rect"][2] <= 190]
+            if not boxes:
+                raise ValueError("original near-duplicate filter unavailable after scan")
+            x, y, w, h = boxes[0]
+            page.mouse.click(x + w / 2, y + h / 2)
+        else:
+            page.get_by_test_id("duplicate-scan").click(timeout=5000)
+            page.wait_for_function(
+                "() => document.querySelector('[data-testid=duplicate-status]')"
+                "?.textContent.includes('\u679a\u3092\u78ba\u8a8d')",
+                timeout=8000)
+            page.get_by_test_id("duplicate-mode-near").click(timeout=5000)
     page.mouse.move(0, 0)
-    page.wait_for_timeout(1000 if target == "ranking" else 500)
+    page.wait_for_timeout(1400 if target in {"ranking", "learning"} else 500)
     page.evaluate("document.fonts.ready")
     audit = audit_original(page) if kind == "original" else audit_port(page)
     page.screenshot(path=path, timeout=10000)
@@ -474,6 +628,17 @@ def mechanics(audits, theme, key):
             flags.append(f"--pv-{name}")
     if port["width"][1] - port["width"][0] > 1:
         flags.append("document overflow")
+    contract = port["display_contract"]
+    if key == "failed" and contract["failure_categories_below_search"] is False:
+        flags.append("failure search and categories share a row")
+    if key in {"bookmarks", "recommend"} and contract["single_line_cards"] is False:
+        flags.append("card title exceeds original one-line limit")
+    if key == "queue" and contract["queue_list_height"] < 36:
+        flags.append("queue list shorter than one row")
+    if key == "queue" and contract["queue_empty_alignment"] not in {None, "start", "left"}:
+        flags.append("queue empty message not left-aligned")
+    if key == "download" and contract["download_table_clear_of_band"] is False:
+        flags.append("download table hidden or overlapping the progress band")
     if port["clipped"]:
         flags.append("clipped text")
     for tab in port["shell"]["tabs"]:
@@ -482,7 +647,10 @@ def mechanics(audits, theme, key):
     for style in port["styles"]:
         if style["id"].startswith("failed-category-") and style["radius"] != "8px":
             flags.append(f"filter radius {style['id']}")
-    if any("Noto Sans JP" not in e["font"] for e in port["text"]):
+    if any("Noto Sans JP" not in e["font"] and not (
+        key == "download" and e["font"] == "Consolas, monospace"
+        and re.fullmatch(r"[\d /,\u4eba\u2014\uff0d:-]+", e["text"])
+    ) for e in port["text"]):
         flags.append("text font")
     for selector, fonts in port["rendered_fonts"].items():
         if any("Mincho" in font["familyName"] for font in fonts):
@@ -496,7 +664,7 @@ def mechanics(audits, theme, key):
     return sorted(set(flags))
 
 
-def tour(browser, urls, output, specs, size, theme, screens, foreign, japanese_font):
+def tour(browser, urls, output, specs, size, theme, screens, foreign, japanese_font, profile):
     from playwright.sync_api import Error
 
     pages = {}
@@ -531,15 +699,19 @@ def tour(browser, urls, output, specs, size, theme, screens, foreign, japanese_f
                     continue
                 page = pages[kind]
                 try:
-                    audit = capture_view(page, target, kind, folder / f"{kind}.png", specs)
+                    audit = capture_view(page, target, kind, folder / f"{kind}.png", specs, profile)
                     audits[kind] = audit
                     rows = audit["semantics"] if kind == "original" else audit["text"]
                     shown = "\n".join(e["text"] for e in rows)
+                    displayed = shown
+                    if kind == "port":
+                        displayed += "\n" + "\n".join(e["text"] for e in audit["ellipses"])
                     cell[kind] = {
                         "image": f"{key}/{kind}.png", "audit": f"{key}/{kind}.json",
                         "background_pixel": audit["background_pixel"],
                         "fixture_text_visible": SENTINEL in shown,
                         "long_text_visible": LONG[:20] in shown,
+                        "fixture_text_in_visible_or_ellipsized_element": SENTINEL in displayed,
                     }
                     if kind == "port":
                         cell[kind].update(clipped=len(audit["clipped"]), ellipses=len(audit["ellipses"]),
@@ -548,6 +720,8 @@ def tour(browser, urls, output, specs, size, theme, screens, foreign, japanese_f
                                           text_fonts=sorted({e["font"] for e in audit["text"]}))
                 except (Error, ValueError) as exc:
                     cell["errors"][kind] = f"{type(exc).__name__}: {str(exc).splitlines()[0]}"
+                    if kind == "original":
+                        write_json(folder / "original-incomplete.json", audit_original(page))
                 finally:
                     if key == "settings":
                         # Close via the UI for subsequent tab navigation in this session.
@@ -612,7 +786,7 @@ def capture(args):
                                 key = f"{profile}/{size[0]}x{size[1]}_{theme}"
                                 folder = out / key
                                 folder.mkdir()
-                                cells = tour(browser, urls, folder, specs, size, theme, screens, foreign, japanese_font)
+                                cells = tour(browser, urls, folder, specs, size, theme, screens, foreign, japanese_font, profile)
                                 summary["matrix"][key] = cells
                                 summary["foreign_blocked"] = {k: sorted(v) for k, v in foreign.items()}
                                 write_json(out / "summary.json", summary)

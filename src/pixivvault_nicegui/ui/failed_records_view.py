@@ -27,7 +27,10 @@ CSS = """
 .pv-failure-toolbar {display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;width:100%;}
 .pv-failure-search {width:360px;max-width:100%;}
 .pv-failure-chips {gap:8px;flex-wrap:wrap;}
-.pv-failure-chip {border:1px solid #2a2b38;border-radius:8px;min-height:34px;font-size:12px;}
+.pv-failure-chip {border:1px solid var(--pv-border);border-radius:8px;min-height:34px;min-width:112px;padding:0 10px;font-size:12px;}
+.pv-failure-chip .q-btn__content {justify-content:space-between;gap:6px;flex-wrap:nowrap;}
+.pv-failure-chip-count {border-radius:4px;min-width:26px;padding:1px 4px;text-align:center;background:var(--pv-raised);color:var(--pv-text);}
+.pv-failure-chip[aria-pressed=true] .pv-failure-chip-count {background:var(--pv-surface);color:var(--pv-text);}
 .pv-failure-chip[aria-pressed=true] {background:var(--pv-fill) !important;color:var(--pv-on-fill) !important;}
 .pv-failure-rows {width:100%;gap:0;}
 .pv-failure-row {width:100%;padding:4px 14px;border-bottom:1px solid #15161c;gap:2px;min-width:0;}
@@ -86,16 +89,19 @@ class FailedRecordsView:
                      if getattr(services, 'legacy_failed_retry_available', False) else
                      "読取専用 · 再試行・記録削除は未接続です"))
             ui.label(subtitle).classes('pv-subtitle')
+            self.search_input = ui.input(placeholder="タイトル・IDで検索").props(
+                "outlined dense clearable maxlength=4096 data-testid=failed-search"
+            ).classes("pv-failure-search")
             with ui.element("div").classes("pv-failure-toolbar"):
-                self.search_input = ui.input(placeholder="タイトル・IDで検索").props(
-                    "outlined dense clearable maxlength=4096 data-testid=failed-search"
-                ).classes("pv-failure-search")
                 with ui.row().classes("pv-failure-chips"):
                     self.category_buttons = {}
+                    self.category_counts = {}
                     for key, label in [("all", "すべて"), *self._category_labels.items()]:
                         button = ui.button(label, color=None).props(
                             f"flat dense no-caps data-testid=failed-category-{key}").classes("pv-failure-chip")
                         self.category_buttons[key] = button
+                        with button:
+                            self.category_counts[key] = ui.label().classes("pv-failure-chip-count")
                         self._wire(button, "click", lambda value=key: self.select_category(value))
                 self.retry_all = ui.button("再試行", color=None).props(
                     "flat dense data-testid=failed-retry-all")
@@ -214,8 +220,7 @@ class FailedRecordsView:
         self.search_input.set_enabled(self._loaded)
         self.search_input.set_value(state.query)
         for key, button in self.category_buttons.items():
-            button.set_text(f"{'すべて' if key == 'all' else self._category_labels[key]} "
-                            f"{counts[key] if self._loaded else '?'}")
+            self.category_counts[key].set_text(str(counts[key]) if self._loaded else "?")
             button.props["aria-pressed"] = str(state.category == key).lower()
             button.set_enabled(self._loaded)
         if self._loaded:
