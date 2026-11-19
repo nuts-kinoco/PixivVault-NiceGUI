@@ -136,5 +136,9 @@ def test_corrupt_completion_is_preserved_and_new_fallback_saved(tmp_path, monkey
         assert original.is_file()
         assert len(list(root.glob('gifs/*/animation.gif'))) == 2
         assert owner.fallback_message(job)
+        entries = owner.library()
+        assert len(entries) == 1
+        assert entries[0]['job_id'] == job.job_id
+        assert len(owner.playback(entries[0])['frames']) == 3
     finally:
         owner.close()

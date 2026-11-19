@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 from threading import local
 from uuid import uuid4
-from .managed_ugoira import ManagedUgoiraJobs, ManagedUgoiraError, _json, MAX_INTENT_BYTES
+from .managed_ugoira import ManagedUgoiraJobs, ManagedUgoiraError, _candidate, _gif_completion, _json, MAX_INTENT_BYTES
 from .managed_downloads import _read_bounded, _safe_path, _write, _fsync_dir, _json_unique
 from .media_parity_policy import parse_ugoira_manifest
 from .ugoira_archive import inspect_ugoira_archive, MAX_ARCHIVE_BYTES
@@ -192,13 +192,29 @@ class PracticalUgoiraJobs(ManagedUgoiraJobs):
             spec=self._spec(job.target_id)
             if (spec['work_id'],spec['output'])==(wid,output): return self.entry(job)
         return None
+    def _damaged_gif_completion(self, job):
+        match = re.fullmatch(r'gifs/([a-f0-9]{32})/receipt\.json', job.result or '')
+        if match is None or match.group(1) != _candidate(job):
+            return False
+        folder = self.root / 'gifs' / match.group(1)
+        receipt = _read_bounded(folder / 'receipt.json', MAX_INTENT_BYTES)
+        try:
+            completion = _read_bounded(folder / storage.COMPLETION, 1024)
+        except FileNotFoundError:
+            return True
+        return completion != _gif_completion(match.group(1), receipt)
     def library(self):
         entries={}
         for job in self._completed_jobs():
             if job.state!='done': continue
             spec=self._spec(job.target_id)
             key=(spec['work_id'],spec['output'])
-            if key not in entries: entries[key]=self.entry(job)
+            if key not in entries:
+                try:
+                    entries[key]=self.entry(job)
+                except ManagedUgoiraError:
+                    if not self._damaged_gif_completion(job):
+                        raise
         distinct = {}
         for key, entry in entries.items():
             identity = (key[0], entry.get('gif_receipt', entry['proof']['receipt']))
