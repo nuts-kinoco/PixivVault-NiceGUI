@@ -134,7 +134,10 @@ def test_two_works_cannot_claim_same_legacy_member(tmp_path):
                                                         title='synthetic title(123)_2', page_count=1)
         q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
         q.exports.scan()
-        assert any(j.state == 'error' for j in settled(q.exports))
+        jobs=settled(q.exports)
+        assert any(j.state == 'error' and j.error_code == 'zip_member_ambiguous' for j in jobs)
+        from pixivvault_nicegui.job_failure import job_failure_text
+        assert '\u66d6\u6627' in job_failure_text('zip_member_ambiguous')
         assert path.read_bytes() == before
 
 

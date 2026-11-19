@@ -24,6 +24,7 @@ from zipfile import BadZipFile, ZipFile, ZIP_DEFLATED, LargeZipFile, ZIP64_LIMIT
 from zlib import error as ZlibError
 
 from .fs_paths import native_io_path, logical_path
+from .job_failure import JobFailure
 from .managed_downloads import (ManagedPixivDownloads, ManagedDownloadError,
                                 _safe_path, _read_bounded, _write, _fsync_dir,
                                 _json_unique)
@@ -80,6 +81,11 @@ def verified_zip_digest(path):
 
 class LegacyZipExportError(ValueError):
     """Fixed public error strings: no original titles, IDs or paths."""
+
+
+class LegacyZipAmbiguousError(JobFailure, LegacyZipExportError):
+    def __init__(self):
+        super().__init__('ambiguous legacy ZIP member', reason_code='zip_member_ambiguous')
 
 
 def legacy_filename(title: str, work_id: str, page_no: int, page_count: int,
@@ -140,6 +146,7 @@ def _export_path(root: Path) -> Path:
 class LegacyZipExporter:
     def __init__(self, root: Path, managed: ManagedPixivDownloads, *, preserve_incomplete=False, notify_corrupt=None):
         self.notify_corrupt = notify_corrupt
+        self.mutation_guard = None
         if not isinstance(managed, ManagedPixivDownloads) or managed.closed:
             raise LegacyZipExportError('managed originals unavailable')
         path = _export_path(logical_path(root))
@@ -254,8 +261,13 @@ class LegacyZipExporter:
             self._verify_archive(staging, names, 'ZIP')
             if self._closing or verified_zip_digest(path) != expected_sha256:
                 raise LegacyZipExportError('previous ZIP changed')
-            os.replace(staging, path)
-            _fsync_dir(path.parent)
+            finish = self.mutation_guard(staging, path, expected_sha256) if self.mutation_guard else None
+            try:
+                os.replace(staging, path)
+                _fsync_dir(path.parent)
+            finally:
+                if finish is not None:
+                    finish()
         except (OSError, BadZipFile, RuntimeError, ZlibError, LargeZipFile) as error:
             raise LegacyZipExportError('ZIP normalization failed') from error
         finally:
@@ -306,8 +318,13 @@ class LegacyZipExporter:
             self._verify_archive(staging, names, 'ZIP')
             if self._closing or verified_zip_digest(path) != expected_sha256:
                 raise LegacyZipExportError('previous ZIP changed')
-            os.replace(staging, path)
-            _fsync_dir(path.parent)
+            finish = self.mutation_guard(staging, path, expected_sha256) if self.mutation_guard else None
+            try:
+                os.replace(staging, path)
+                _fsync_dir(path.parent)
+            finally:
+                if finish is not None:
+                    finish()
             return removed
         except (OSError, BadZipFile, RuntimeError, ZlibError, LargeZipFile) as error:
             raise LegacyZipExportError('ZIP removal failed') from error
@@ -484,12 +501,12 @@ class LegacyZipExporter:
                                                    for name in ({canonical} if canonical in old_names
                                                                 else set(candidates) & old_names))
                             if any(count > 1 for count in claim_counts.values()):
-                                raise LegacyZipExportError('ambiguous legacy ZIP member')
+                                raise LegacyZipAmbiguousError()
                             claims = {}
                             for old_name in old_names:
                                 matched = canonical_claims.get(old_name) or candidate_claims.get(old_name, [])
                                 if len(matched) > 1:
-                                    raise LegacyZipExportError('ambiguous legacy ZIP member')
+                                    raise LegacyZipAmbiguousError()
                                 if matched:
                                     claims.setdefault(matched[0], []).append(old_name)
                             drop = set()
