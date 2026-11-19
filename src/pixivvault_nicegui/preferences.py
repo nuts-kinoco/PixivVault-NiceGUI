@@ -11,6 +11,7 @@ from pathlib import Path
 from types import MappingProxyType
 from threading import RLock
 import sqlite3
+import json
 
 
 @dataclass(frozen=True)
@@ -165,6 +166,28 @@ class PreferencesStore:
 
     def get_setting(self,key,default=None):
         return self.snapshot().get_setting(key,default)
+
+    def read_tagger_verification(self):
+        with self._lock:
+            if self._closed:
+                raise PreferencesError('設定は閉じられています。')
+            self._conn.execute('CREATE TABLE IF NOT EXISTS local_tagger_verification (id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL)')
+            row = self._conn.execute('SELECT payload FROM local_tagger_verification WHERE id=1').fetchone()
+            if row is None:
+                return {}
+            try:
+                result = json.loads(row[0])
+                return result if isinstance(result, dict) else {}
+            except (ValueError, TypeError):
+                return {}
+
+    def write_tagger_verification(self, state):
+        payload = json.dumps(state, ensure_ascii=False, separators=(',', ':'))
+        with self._lock:
+            if self._closed:
+                raise PreferencesError('設定は閉じられています。')
+            self._conn.execute('CREATE TABLE IF NOT EXISTS local_tagger_verification (id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL)')
+            self._conn.execute('INSERT INTO local_tagger_verification VALUES (1,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload', (payload,))
 
     def set_setting(self,key,value,*,expected_revision=None):
         if expected_revision is None:

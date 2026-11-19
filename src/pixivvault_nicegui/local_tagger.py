@@ -10,6 +10,7 @@ import ntpath
 import os
 from pathlib import Path
 from threading import RLock
+from datetime import datetime, timezone
 
 
 DEFAULT_MODEL = r'S:\EMAKINOCO-Models\tagger\wd-swinv2-tagger-v3'
@@ -197,10 +198,7 @@ class TaggerManager:
         if self.tagger is None or str(self.tagger.folder) != path or self._provider != provider:
             if self.tagger is not None:
                 self.tagger.close()
-            try:
-                receipt = json.loads(snapshot.values['local_tagger_receipt'])
-            except (ValueError, TypeError):
-                receipt = None
+            receipt = self.preferences.read_tagger_verification().get('receipt')
             providers = {'cpu': ['CPUExecutionProvider'], 'cuda': ['CUDAExecutionProvider', 'CPUExecutionProvider']}.get(provider)
             self.tagger = LocalTagger(path, providers=providers, receipt=receipt)
             self._provider = provider
@@ -213,12 +211,8 @@ class TaggerManager:
             snapshot = self._current()
             self.status = '検証中'
             self.status = self.tagger.verify()
-            value = json.dumps(self.tagger.receipt, ensure_ascii=False, separators=(',', ':')) if self.tagger.receipt else ''
-            if value != snapshot.values['local_tagger_receipt']:
-                try:
-                    self.preferences.update({'local_tagger_receipt': value}, expected_revision=snapshot.revision)
-                except Exception:
-                    pass  # Another settings edit wins; verification will be repeated later.
+            self.preferences.write_tagger_verification({'receipt': self.tagger.receipt,
+                'verified_at': datetime.now(timezone.utc).isoformat()})
             return self.status
 
     def predict(self, data):
