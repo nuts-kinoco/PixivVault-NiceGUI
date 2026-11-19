@@ -11,7 +11,7 @@ import stat
 from threading import RLock
 from uuid import uuid4
 
-from .fs_paths import native_io_path, sqlite_readonly_uri
+from .fs_paths import logical_path, native_io_path, sqlite_readonly_uri
 from .managed_downloads import _read_bounded, _safe_path, _write
 from .media_jobs import validate_readonly_boundaries
 from .ugoira_storage import _owner_lock
@@ -136,13 +136,15 @@ def _mutate_owned_copy(path, expected, destination=None):
             data = Disposition(True)
             kind = 4
         else:
-            name = str(destination)
+            name = str(native_io_path(destination))
+            encoded = name.encode('utf-16-le')
             class RenameInfo(ctypes.Structure):
                 _fields_ = [('replace', ctypes.c_ubyte), ('root', wintypes.HANDLE),
-                            ('length', wintypes.DWORD), ('name', ctypes.c_wchar * (len(name) + 1))]
+                            ('length', wintypes.DWORD), ('name', ctypes.c_ubyte * (len(encoded) + 2))]
             data = RenameInfo()
             data.replace, data.root = 0, None
-            data.length, data.name = len(name) * ctypes.sizeof(ctypes.c_wchar), name
+            data.length = len(encoded)
+            ctypes.memmove(ctypes.addressof(data) + RenameInfo.name.offset, encoded, len(encoded))
             kind = 3
         if not operation(msvcrt.get_osfhandle(fd), kind, ctypes.byref(data), ctypes.sizeof(data)):
             raise LegacyCopyError('legacy snapshot move or cleanup failed')
@@ -166,15 +168,19 @@ class LegacyLibraryCopies:
     """
     def __init__(self, root, *, source, protected_roots=(), max_generations=3,
                  max_bytes=4 * 1024**3):
-        self.root = Path(root).absolute()
-        self.source = Path(source).absolute()
+        logical_root = logical_path(Path(root)).absolute()
+        logical_source = logical_path(Path(source)).absolute()
+        # Keep normal public paths unchanged while ensuring descendant stages
+        # and generation names remain usable beyond the Windows path limit.
+        self.root = native_io_path(logical_root) if os.name == 'nt' and len(str(logical_root).encode('utf-16-le')) // 2 >= 180 else logical_root
+        self.source = native_io_path(logical_source) if os.name == 'nt' and len(str(logical_source).encode('utf-16-le')) // 2 >= 180 else logical_source
         self.max_generations = max_generations
         self.max_bytes = max_bytes
         self._guard = RLock()
         self._active = set()
         self._owner = None
         self._root_identity = None
-        if (not self.root.is_dir() or self.root.drive.upper() != 'S:'
+        if (not self.root.is_dir() or logical_root.drive.upper() != 'S:'
                 or type(max_generations) is not int or max_generations < 1
                 or type(max_bytes) is not int or max_bytes < 1):
             raise LegacyCopyError('legacy snapshot destination unavailable')

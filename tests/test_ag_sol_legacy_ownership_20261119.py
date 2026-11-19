@@ -152,3 +152,28 @@ def test_interrupted_publication_keeps_marked_previous_copy(tmp_path, monkeypatc
         assert owner.snapshot().is_file()
     finally:
         owner.close()
+
+
+@pytest.mark.parametrize('long_path', [False, True])
+def test_rotation_handles_supplementary_unicode_in_destination(tmp_path, long_path):
+    from pixivvault_nicegui.fs_paths import native_io_path
+    old = tmp_path / 'old'
+    old.mkdir()
+    source = old / 'source.sqlite'
+    with sqlite3.connect(source) as connection:
+        connection.execute('CREATE TABLE works (work_id TEXT, title TEXT, page_count INTEGER, user_id TEXT, tags TEXT, is_deleted INTEGER)')
+        connection.execute('CREATE TABLE following_users (user_id TEXT, name TEXT)')
+    connection.close()
+    before = source.read_bytes()
+    root = tmp_path / '保存先🌱📚' / 'copies'
+    if long_path:
+        root = tmp_path / ('a' * 90) / ('b' * 90) / (('c' * 60) + '🌱📚') / 'copies'
+    native_io_path(root).mkdir(parents=True)
+    for _ in range(4):
+        owner = LegacyLibraryCopies(root, source=source, max_generations=3, max_bytes=1048576)
+        try:
+            assert owner.snapshot().is_file()
+        finally:
+            owner.close()
+    assert len(list(native_io_path(root).glob('*.sqlite'))) == 3
+    assert source.read_bytes() == before
