@@ -18,7 +18,7 @@ from threading import Event, Thread, current_thread
 from typing import Callable
 from uuid import uuid4
 
-from .account_scope import AccountMismatch, require_current_account, require_same_account
+from .account_scope import AccountMismatch, AccountScope, BoundSchedulerLedger, OwnedListing, require_same_account
 
 
 VALID_INTERVALS = frozenset({0, 6, 12, 24, 48})
@@ -330,9 +330,25 @@ class ManagedScheduler:
             self._db.execute("UPDATE dispatch_items SET state='failed' WHERE slot=? AND work_id=? AND operation_id=? AND job_id IS NULL",
                              (slot, work_id, operation_id))
 
-    def defer_work(self, *, author_id: str, work: dict, now: datetime) -> None:
+    @contextmanager
+    def _deferred_transaction(self, account_id):
         with self._lock:
             self._ensure_open()
+            self._db.execute('BEGIN IMMEDIATE')
+            try:
+                if self._account_guard:
+                    if account_id is None:
+                        raise ScheduleAccountError('mismatch')
+                    require_same_account(self._bound_account(), account_id, error=ScheduleAccountError('mismatch'))
+                yield
+                self._db.execute('COMMIT')
+            except BaseException:
+                if self._db.in_transaction:
+                    self._db.execute('ROLLBACK')
+                raise
+
+    def defer_work(self, *, author_id: str, work: dict, now: datetime, account_id=None) -> None:
+        with self._deferred_transaction(account_id):
             # The favourite list may have changed while an author's complete
             # inventory was being fetched. Do not recreate a row pruned by a
             # concurrent settings transaction.
@@ -367,9 +383,8 @@ class ManagedScheduler:
             self._ensure_open()
             return self._db.execute('SELECT COUNT(*) FROM deferred_work').fetchone()[0]
 
-    def resolve_deferred(self, author_id: str, work_id: str) -> None:
-        with self._lock:
-            self._ensure_open()
+    def resolve_deferred(self, author_id: str, work_id: str, *, account_id=None) -> None:
+        with self._deferred_transaction(account_id):
             self._db.execute('DELETE FROM deferred_work WHERE author_id=? AND work_id=?', (author_id, work_id))
 
     def history(self) -> tuple[dict, ...]:
@@ -522,7 +537,7 @@ class ManagedScheduler:
                 if self._file_owner is not None:
                     self._file_owner.close()
 
-    def set_favourites(self, author_ids: tuple[str, ...], *, expected_revision: int, account_id=None) -> tuple[str, ...]:
+    def set_favourites(self, author_ids: tuple[str, ...], *, expected_revision: int, account_id) -> tuple[str, ...]:
         """Persist the explicitly selected star authors, never legacy DB favourites."""
         from .pixiv_read_client import _identifier
         if type(author_ids) is not tuple:
@@ -546,10 +561,10 @@ class ManagedScheduler:
             with following._lock if following is not None else nullcontext():
                 attached = False
                 if book is not None:
+                    if account_id is None:
+                        raise ScheduleAccountError('mismatch')
                     require_same_account(account_id, book.account(), error=ScheduleAccountError('mismatch'))
                     if ids is not None:
-                        if account_id is None:
-                            raise ScheduleError('favourite authors unavailable')
                         following._ensure_open()
                         self._db.execute('ATTACH DATABASE ? AS following_settings', (str(following.path),))
                         attached = True
@@ -713,6 +728,13 @@ def _require_managed_network_allowed(services):
         integration.require_allowed()
 
 
+def _dispatch_account(ledger):
+    bound = ledger._bound_account() if ledger is not None else None
+    if bound is None and ledger is not None and ledger._account_guard:
+        raise ScheduleAccountError('mismatch')
+    return bound
+
+
 def submit_author_batch(services, author_ids, *, cancellation: Event,
                         max_items: int = 50, ledger: ManagedScheduler | None = None,
                         slot: str | None = None) -> dict[str, int]:
@@ -739,6 +761,7 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
     if type(max_items) is not int or not 1 <= max_items <= 50:
         raise ValueError('invalid scheduler queue capacity')
     verified_authors = tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
+    bound = _dispatch_account(ledger)
     if not verified_authors:
         if ledger is not None:
             now = datetime.now(timezone.utc)
@@ -761,26 +784,21 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
         full_reader = getattr(reader, 'get_author_artworks_complete', None)
         if not callable(full_reader):
             raise ScheduleError('complete author inventory is required')
-        bound = getattr(ledger, '_bound_account', lambda: None)()
-
-        mismatch = ScheduleAccountError('mismatch')
         _require_managed_network_allowed(services)
-        verified = reader.verify_identity()
+        scope = AccountScope(reader.verify_identity(), reader)
         if bound is not None:
-            require_same_account(bound, verified, error=mismatch)
-
-        def check_account():
-            require_current_account(services, reader, verified, error=mismatch)
-
-        check_account()
+            require_same_account(bound, scope.account_id)
+        scope.verify_current(services)
+        deferred_writer = BoundSchedulerLedger(ledger, scope, services) if ledger is not None else None
         for author_id in verified_authors:
             if cancellation.is_set() or services.closing:
                 break
             _require_managed_network_allowed(services)
-            check_account()
+            scope.verify_current(services)
             # No fallback to partial/masked inventories: fail closed.
-            works = full_reader(author_id)
-            check_account()
+            listing = OwnedListing(scope, author_id, 'illust', tuple(full_reader(author_id)))
+            listing.scope.verify_current(services)
+            works = listing.rows
             bridge = getattr(services, 'legacy_author_bridge', None)
             legacy_saved = {}
             if bridge is not None:
@@ -793,7 +811,7 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
             ordered_works = sorted(works, key=lambda work: (work['id'] not in deferred_ids, -int(work['id'])))
             for work_index, work in enumerate(ordered_works):
                 _require_managed_network_allowed(services)
-                check_account()
+                scope.verify_current(services)
                 if cancellation.is_set() or services.closing:
                     if ledger is not None:
                         for remaining in ordered_works[work_index:]:
@@ -802,7 +820,7 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                                     and isinstance(remaining.get('id'), str)
                                     and isinstance(remaining.get('update_date'), str)
                                     and type(remaining.get('page_count')) is int):
-                                ledger.defer_work(author_id=author_id, work=remaining,
+                                deferred_writer.defer_work(author_id=author_id, work=remaining,
                                                   now=datetime.now(timezone.utc))
                                 deferred += 1
                     break
@@ -822,7 +840,7 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                     # that GET runs; recheck any missing or stale-date pointer
                     # before making a new operation, not just NEW candidates.
                     latest = services.managed_downloads.verified_saved_receipt(wid, verify_pages=False)
-                    check_account()
+                    scope.verify_current(services)
                     if latest is not None:
                         relative, receipt, digest, latest_date, _ = latest
                         if (receipt['author_id'] != author_id
@@ -834,7 +852,7 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                             if receipt['page_count'] != work['page_count']:
                                 raise ScheduleError('managed receipt page count changed without remote revision')
                             if ledger is not None:
-                                ledger.resolve_deferred(author_id, wid)
+                                deferred_writer.resolve_deferred(author_id, wid)
                             continue
                     else:
                         prior = None
@@ -864,12 +882,12 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                     else:
                         deferred += 1
                         if ledger is not None:
-                            ledger.resolve_deferred(author_id, wid)
+                            deferred_writer.resolve_deferred(author_id, wid)
                         continue
                 if accepted >= max_items or len(pending) >= max_items:
                     deferred += 1
                     if ledger is not None:
-                        ledger.defer_work(author_id=author_id, work=work, now=datetime.now(timezone.utc))
+                        deferred_writer.defer_work(author_id=author_id, work=work, now=datetime.now(timezone.utc))
                     continue
                 # Serialize the final active-receipt/pending check, the detail
                 # GET and enqueue against both manual acceptance and the worker
@@ -880,17 +898,17 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                     if sum(j.state in UNFINISHED for j in services.jobs.snapshot()) >= max_items:
                         deferred += 1
                         if ledger is not None:
-                            ledger.defer_work(author_id=author_id, work=work, now=datetime.now(timezone.utc))
+                            deferred_writer.defer_work(author_id=author_id, work=work, now=datetime.now(timezone.utc))
                         continue
                     current_pending = any(
                         j.kind == 'pixiv-illust' and j.target_id == wid and j.state in UNFINISHED
                         for j in services.jobs.snapshot())
-                    check_account()
+                    scope.verify_current(services)
                     if current_pending:
                         deferred += 1
                         continue
                     latest = services.managed_downloads.verified_saved_receipt(wid, verify_pages=False)
-                    check_account()
+                    scope.verify_current(services)
                     if latest is None:
                         if prior is not None:
                             raise ScheduleError('active managed receipt disappeared during scheduler dispatch')
@@ -905,14 +923,14 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                                 raise ScheduleError('managed receipt page count changed without remote revision')
                             saved[wid] = latest_prior
                             if ledger is not None:
-                                ledger.resolve_deferred(author_id, wid)
+                                deferred_writer.resolve_deferred(author_id, wid)
                             continue
                         if prior != latest_prior:
                             raise ScheduleError('active managed receipt changed during scheduler dispatch')
                     # Reuse the same verified detail/DTO adapter as manual
                     # selection; masked metadata cannot become a job intent.
                     record = reader.get_artwork_download_record(wid)
-                    check_account()
+                    scope.verify_current(services)
                     if (record.author_id != author_id or record.kind != 'illustration'
                             or record.illustration_type not in (0, 1)
                             or not record.page_count_known
@@ -934,7 +952,7 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                         _require_managed_network_allowed(services)
                         job, created = services.enqueue_managed_download(
                             intent, operation_id, owner=owner, return_created=True)
-                        check_account()
+                        scope.verify_current(services)
                     except Exception:
                         if ledger is not None:
                             ledger.fail_dispatch_item(slot=slot, work_id=wid, operation_id=operation_id)
@@ -952,7 +970,7 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                     ledger.bind_dispatch_job(slot=slot, work_id=wid,
                                              operation_id=operation_id, job_id=job.job_id,
                                              accepted_fingerprint=fingerprint)
-                    ledger.resolve_deferred(author_id, wid)
+                    deferred_writer.resolve_deferred(author_id, wid)
                     ledger.update_dispatch_progress(slot, accepted=accepted, deferred=deferred)
         result = {'accepted': accepted, 'deferred': deferred, 'authors': len(verified_authors)}
         if ledger is not None:
@@ -961,9 +979,11 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
         return result
     except Exception as exc:
         if ledger is not None:
-            mismatch = isinstance(exc, ScheduleAccountError) and exc.reason == 'mismatch'
+            mismatch = isinstance(exc, AccountMismatch)
             ledger.finish_dispatch(slot, status='failed', accepted=accepted, deferred=deferred,
                                    error_code=AccountMismatch.code if mismatch else type(exc).__name__)
+        if isinstance(exc, AccountMismatch):
+            raise ScheduleAccountError('mismatch') from exc
         raise
     finally:
         services.release_managed_owner(owner)
@@ -988,22 +1008,21 @@ def submit_author_media_batch(services, author_ids, *, cancellation, max_items=5
     authors=tuple(dict.fromkeys(identifier(uid) for uid in author_ids))
     slot=slot or _timestamp(datetime.now(timezone.utc))
     accepted=deferred=0
+    bound = _dispatch_account(ledger)
     if ledger is not None:
         ledger.begin_dispatch(slot,datetime.now(timezone.utc),len(authors))
-    bound = getattr(ledger, '_bound_account', lambda: None)()
-    reader = services.live_client if bound is not None else None
-
-    def check_account():
-        if bound is not None:
-            require_current_account(services, reader, bound)
-
     try:
         for aid in authors:
             if cancellation.is_set() or services.closing: break
             _require_managed_network_allowed(services)
-            account = {} if bound is None else {'expected_account': bound}
-            rows=tuple(services.author_media_preview(aid, **account))
-            check_account()
+            listing = services.author_media_preview_owned(aid, expected_account=bound)
+            if type(listing) is not OwnedListing or listing.author_id != aid:
+                raise AccountMismatch()
+            if bound is not None:
+                require_same_account(bound, listing.account_id)
+            listing.scope.verify_current(services)
+            deferred_writer = BoundSchedulerLedger(ledger, listing.scope, services) if ledger is not None else None
+            rows = listing.rows
             if any(type(c) is not AuthorMediaCandidate or c.author_id!=aid for c in rows):
                 raise ScheduleError('complete author media identity changed')
             if len({c.key for c in rows})!=len(rows):
@@ -1012,24 +1031,24 @@ def submit_author_media_batch(services, author_ids, *, cancellation, max_items=5
             rows=sorted(rows,key=lambda c:(c.key not in backlog,-int(c.work_id),c.kind))
             for c in rows:
                 _require_managed_network_allowed(services)
-                check_account()
+                listing.scope.verify_current(services)
                 if not c.eligible:
                     deferred+=1
                     if ledger is not None and c.difference == Difference.SKIPPED:
-                        ledger.resolve_deferred(aid,c.key)
+                        deferred_writer.resolve_deferred(aid,c.key)
                     continue
                 if (cancellation.is_set() or services.closing or accepted>=max_items
                         or sum(j.state in UNFINISHED for j in services.jobs.snapshot())>=max_items):
                     deferred+=1
                     if ledger is not None:
-                        ledger.defer_work(author_id=aid,work=c.deferred_work(),now=datetime.now(timezone.utc))
+                        deferred_writer.defer_work(author_id=aid,work=c.deferred_work(),now=datetime.now(timezone.utc))
                     continue
                 with getattr(services, '_media_admission_lock', nullcontext()):
                     _require_managed_network_allowed(services)
                     if sum(j.state in UNFINISHED for j in services.jobs.snapshot())>=max_items:
                         deferred+=1
                         if ledger is not None:
-                            ledger.defer_work(author_id=aid,work=c.deferred_work(),now=datetime.now(timezone.utc))
+                            deferred_writer.defer_work(author_id=aid,work=c.deferred_work(),now=datetime.now(timezone.utc))
                         continue
                     existing=ledger.dispatch_operation(slot,c.key) if ledger else None
                     operation=existing[0] if existing else uuid4().hex
@@ -1037,14 +1056,14 @@ def submit_author_media_batch(services, author_ids, *, cancellation, max_items=5
                         # Previously accepted in this slot; reconcile will decide
                         # saved/failed, never an automatic new operation/retry.
                         deferred+=1
-                        if ledger is not None: ledger.resolve_deferred(aid,c.key)
+                        if ledger is not None: deferred_writer.resolve_deferred(aid,c.key)
                         continue
                     if ledger is not None:
                         ledger.prepare_dispatch_item(slot=slot,work_id=c.key,author_id=aid,operation_id=operation)
                     try:
                         _require_managed_network_allowed(services)
                         job,created,fingerprint=services.enqueue_author_media(c,operation,origin='follow')
-                        check_account()
+                        listing.scope.verify_current(services)
                     except Exception:
                         if ledger is not None:
                             ledger.fail_dispatch_item(slot=slot,work_id=c.key,operation_id=operation)
@@ -1053,7 +1072,7 @@ def submit_author_media_batch(services, author_ids, *, cancellation, max_items=5
                     if ledger is not None:
                         ledger.bind_dispatch_job(slot=slot,work_id=c.key,operation_id=operation,
                                                  job_id=job.job_id,accepted_fingerprint=fingerprint)
-                        ledger.resolve_deferred(aid,c.key)
+                        deferred_writer.resolve_deferred(aid,c.key)
                         ledger.update_dispatch_progress(slot,accepted=accepted,deferred=deferred)
         if ledger is not None:
             ledger.finish_dispatch(slot,status='queued' if accepted or deferred else 'empty',

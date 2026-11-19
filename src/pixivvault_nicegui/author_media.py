@@ -16,7 +16,7 @@ import sqlite3
 from threading import RLock
 from uuid import uuid4
 
-from .account_scope import require_current_account, require_same_account
+from .account_scope import AccountScope, OwnedListing, require_same_account
 from .author_download import Difference, decide_difference
 from .job_service import UNFINISHED
 from .fs_paths import native_io_path
@@ -231,6 +231,12 @@ class AuthorMediaService:
 
     def preview(self, author_id, target_type=None, *, novel_format='EPUB', ugoira_format='gif',
                 new_only=False, expected_account=None):
+        return self.preview_owned(author_id, target_type, novel_format=novel_format,
+                                  ugoira_format=ugoira_format, new_only=new_only,
+                                  expected_account=expected_account).rows
+
+    def preview_owned(self, author_id, target_type=None, *, expected_account=None,
+                      novel_format='EPUB', ugoira_format='gif', new_only=False) -> OwnedListing:
         self._open()
         identifier(author_id)
         setting = None
@@ -242,12 +248,13 @@ class AuthorMediaService:
         if type(new_only) is not bool:raise ValueError('invalid new-only selection')
         s = self.services
         reader = s.live_client
-        account = reader.verify_identity()
+        scope = AccountScope(reader.verify_identity(), reader)
+        account = scope.account_id
         if expected_account is not None:
             require_same_account(expected_account, account)
-        require_current_account(s, reader, account)
+        scope.verify_current(s)
         self.reconcile()
-        require_current_account(s, reader, account)
+        scope.verify_current(s)
         output = []
         bridge = getattr(s,'legacy_author_bridge',None)
         legacy_known = bridge.observe_author(author_id, ()).saved if new_only and bridge is not None else {}
@@ -266,9 +273,10 @@ class AuthorMediaService:
             return ((current is not None and current[3] == date) or
                     (current is None and old is not None and not old.deleted and old.files_present is True and old.update_date == date))
         if target_type in ('both','illust'):
+            scope.verify_current(s)
             works = (reader.get_user_works(author_id,early_exit_checker=known) if new_only
                      else reader.get_author_artworks_complete(author_id))
-            require_current_account(s, reader, account)
+            scope.verify_current(s)
             bridge = getattr(s,'legacy_author_bridge',None)
             legacy = {}
             if bridge is not None:
@@ -308,10 +316,10 @@ class AuthorMediaService:
         if target_type in ('both','novel'):
             # Complete profile listing is required even when novel storage is
             # disabled: a missing owner is explicit UNKNOWN, not silent loss.
-            require_current_account(s, reader, account)
+            scope.verify_current(s)
             ids = (tuple(row['id'] for row in reader.get_user_novels(author_id,early_exit_checker=known))
                    if new_only else reader.get_author_novel_ids(author_id))
-            require_current_account(s, reader, account)
+            scope.verify_current(s)
             for wid in ids:
                 identifier(wid)
                 if getattr(s,'novel_jobs',None) is None:
@@ -346,8 +354,8 @@ class AuthorMediaService:
                 raise AuthorTargetChanged('author settings changed; preview again')
             output = [replace(candidate, author_setting_revision=setting.revision,
                               author_setting_target=setting.target_type) for candidate in output]
-        require_current_account(s, reader, account)
-        return tuple(output)
+        scope.verify_current(s)
+        return OwnedListing(scope, author_id, target_type, tuple(output))
 
     def _refresh_candidate(self, candidate):
         """Revalidate one frozen item, never repeat a full author crawl per item."""
@@ -390,14 +398,12 @@ class AuthorMediaService:
         spec = canonical(candidate.admission())
         s = self.services
         reader = s.live_client if candidate.account_id is not None else None
-
-        def check_account():
-            if candidate.account_id is not None:
-                require_current_account(s, reader, candidate.account_id)
+        scope = AccountScope(candidate.account_id, reader) if candidate.account_id is not None else None
 
         with self.lock:
             self._open()
-            check_account()
+            if scope is not None:
+                scope.verify_current(s)
             with self._db() as db:
                 row = db.execute('SELECT spec,job_id,fingerprint FROM admissions WHERE operation_id=?',(operation_id,)).fetchone()
             if row is not None and row[0] != spec:
@@ -405,7 +411,8 @@ class AuthorMediaService:
             jobs = self._owner_jobs(candidate.kind)
             existing = next((j for j in jobs.snapshot() if operation_id in jobs.operation_ids(j.job_id)),None)
             if existing is not None:
-                check_account()
+                if scope is not None:
+                    scope.verify_current(s)
                 fingerprint = self._bind(candidate,operation_id,existing)
                 return existing,False,fingerprint
             # This check shares the same RLock as configure_author_target/zip,
@@ -426,14 +433,16 @@ class AuthorMediaService:
             # Source proof and predecessor are revalidated. Never silently
             # rebase a frozen UI selection onto another client's generation.
             match = self._refresh_candidate(candidate)
-            check_account()
+            if scope is not None:
+                scope.verify_current(s)
             if match is None or not match.eligible or canonical(match.admission()) != spec:
                 raise ValueError('author selection revision changed')
             with self._db() as db:
                 db.execute('INSERT OR IGNORE INTO admissions(operation_id,media_key,spec) VALUES(?,?,?)',
                            (operation_id,candidate.key,spec))
             before={j.job_id for j in jobs.snapshot()}
-            check_account()
+            if scope is not None:
+                scope.verify_current(s)
             if candidate.kind=='illustration':
                 owner=uuid4().hex
                 work=match.payload
@@ -442,7 +451,8 @@ class AuthorMediaService:
                     if (current[2] if current else None)!=candidate.prior_token:
                         raise ValueError('author receipt changed')
                     record=(reader or s.live_client).get_artwork_download_record(candidate.work_id)
-                    check_account()
+                    if scope is not None:
+                        scope.verify_current(s)
                     if (record.author_id!=candidate.author_id or record.illustration_type!=candidate.work_type
                             or record.page_count!=candidate.page_count or not record.page_count_known):
                         raise ValueError('author detail changed')

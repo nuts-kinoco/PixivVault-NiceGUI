@@ -1564,13 +1564,19 @@ class ApplicationServices:
 
     def author_media_preview(self, author_id, target_type=None, *, novel_format=None, ugoira_format=None,
                              new_only=False, expected_account=None):
+        return self.author_media_preview_owned(author_id, target_type, novel_format=novel_format,
+                                              ugoira_format=ugoira_format, new_only=new_only,
+                                              expected_account=expected_account).rows
+
+    def author_media_preview_owned(self, author_id, target_type=None, *, novel_format=None, ugoira_format=None,
+                                   new_only=False, expected_account=None):
         if self.closing or self.author_media is None:
             raise RuntimeError('all-media author download unavailable')
         novel = self.preferences.get_setting('novel_save_format', 'epub') if self.preferences else 'epub'
         ugoira = self.preferences.get_setting('ugoira_save_format', 'gif') if self.preferences else 'gif'
-        return self.author_media.preview(author_id, target_type,
+        return self.author_media.preview_owned(author_id, target_type,
             novel_format=novel_format or novel.upper(),
-            ugoira_format=ugoira_format or ('frames' if ugoira=='folder' else ugoira),
+            ugoira_format=ugoira_format or ('frames' if ugoira == 'folder' else ugoira),
             new_only=new_only, expected_account=expected_account)
 
     def enqueue_author_media(self, candidate, operation_id, *, origin='follow'):

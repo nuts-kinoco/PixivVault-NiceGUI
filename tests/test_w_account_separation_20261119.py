@@ -177,7 +177,8 @@ def test_unknown_legacy_stars_are_not_imported_into_verified_b(tmp_path, legacy_
 
 def test_unknown_old_schedule_and_backlog_are_kept_without_running(tmp_path):
     with resources(tmp_path) as (root, store, ledger, reader, svc):
-        ledger.configure(interval_hours=6, startup_check=False, expected_revision=1,
+        store.sync(reader)
+        ledger.configure(interval_hours=6, startup_check=False, expected_revision=1, account_id=A,
                          now=datetime.now(timezone.utc) - timedelta(hours=7))
         ledger._db.execute('ALTER TABLE schedule DROP COLUMN settings_origin')
         ledger._db.execute("INSERT INTO deferred_work VALUES ('1001','100','2020',1,0,'2020')")
@@ -206,7 +207,7 @@ def test_none_and_invalid_id_preserve_account_and_notify(tmp_path):
         store.set_favorite(A, X, True)
         assert svc.scheduler_favourite_authors(ledger=ledger) == (X,)
         now = datetime.now(timezone.utc)
-        ledger.defer_work(author_id=X, work=dict(id="200", update_date="2020", page_count=1, type=0), now=now)
+        ledger.defer_work(author_id=X, work=dict(id="200", update_date="2020", page_count=1, type=0), now=now, account_id=A)
         ledger.configure_all(author_ids=None, interval_hours=6, startup_check=False,
                              expected_revision=ledger.snapshot().revision, now=now, account_id=A)
         assert stars(store, A) == (X,) and ledger.deferred_count() == 1
@@ -273,7 +274,7 @@ def test_queue_fallback_preserves_a_backlog_when_account_changes(tmp_path, switc
         store.set_favorite(A, X, True)
         assert svc.scheduler_favourite_authors(ledger=ledger) == (X,)
         ledger.defer_work(author_id=X, work=dict(id="200", update_date="2020", page_count=1, type=0),
-                          now=datetime.now(timezone.utc))
+                          now=datetime.now(timezone.utc), account_id=A)
         svc.batch_runs = None
         svc.author_media = None
         svc.jobs = NS(snapshot=lambda: ())
@@ -306,7 +307,7 @@ async def test_account_b_form_cannot_prune_account_a_backlog(tmp_path):
         store.set_favorite(A, X, True)
         assert svc.scheduler_favourite_authors(ledger=ledger) == (X,)
         ledger.defer_work(author_id=X, work=dict(id="200", update_date="2020", page_count=1, type=0),
-                          now=datetime.now(timezone.utc))
+                          now=datetime.now(timezone.utc), account_id=A)
         switch(store, reader)
         client = Client(ui.page("/independent-current-b"))
         try:

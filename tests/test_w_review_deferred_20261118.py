@@ -29,7 +29,7 @@ def test_star_lookup_error_preserves_new_deferred(tmp_path):
         assert book.account() == ACCOUNT
         with pytest.raises((sqlite3.OperationalError, FollowingSyncError)):
             ledger.favourites(ACCOUNT)
-        ledger.defer_work(author_id='1000', work=work, now=datetime.now(timezone.utc))
+        ledger.defer_work(author_id='1000', work=work, now=datetime.now(timezone.utc), account_id=ACCOUNT)
         following._connection.execute('ALTER TABLE temporarily_unreadable RENAME TO following_authors')
         assert ledger.favourites(ACCOUNT) == ('1000',)
         ids = ledger.deferred_ids('1000')

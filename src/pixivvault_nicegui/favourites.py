@@ -1,7 +1,7 @@
 """Account-scoped stars in the following ledger."""
 from __future__ import annotations
 
-from .account_scope import require_same_account
+from .account_scope import AccountScope, require_same_account
 from .managed_scheduler import ScheduleAccountError, ScheduleError
 
 
@@ -16,7 +16,10 @@ class FavouriteBook:
 
     def ids(self, account_id):
         """Read only the requested account's stars."""
-        if self.following is None or account_id is None:
+        if account_id is None:
+            raise ScheduleAccountError('mismatch')
+        AccountScope(account_id)
+        if self.following is None:
             raise ScheduleError('favourite authors unavailable')
         snapshot = self.following.snapshot(account_id)
         require_same_account(account_id, snapshot.account_id)
@@ -26,7 +29,10 @@ class FavouriteBook:
 
     def set(self, user_id, favourite, *, account_id, expected=None):
         """Change a star only while the displayed account is still current."""
-        if account_id is None or self.following is None:
+        if account_id is None:
+            raise ScheduleAccountError('mismatch')
+        AccountScope(account_id)
+        if self.following is None:
             return False
         if self.scheduler is not None:
             return self.scheduler.set_star(self, user_id, favourite,

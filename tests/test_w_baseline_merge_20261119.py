@@ -13,7 +13,7 @@ def test_unbound_legacy_settings_and_pending_are_not_imported_or_deleted(tmp_pat
     root = tmp_path / 'managed'
     root.mkdir()
     ledger = ManagedScheduler(root)
-    ledger.set_favourites(('1001',), expected_revision=ledger.snapshot().revision)
+    ledger.set_favourites(('1001',), expected_revision=ledger.snapshot().revision, account_id=None)
     ledger._db.execute("INSERT INTO deferred_work VALUES ('9999','100','2020',1,0,'2020')")
     ledger.close()
     following = FollowingSyncStore(tmp_path / 'following')

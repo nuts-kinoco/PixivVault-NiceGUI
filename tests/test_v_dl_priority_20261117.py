@@ -55,7 +55,8 @@ def test_stars_are_unavailable_until_a_follow_sync_and_flip_in_the_ledger(world)
     book = FavouriteBook(following, scheduler=scheduler)
     with pytest.raises(ScheduleError, match='unavailable'):
         book.ids(ACCOUNT)
-    assert book.set('1000', True, account_id=None) is False
+    with pytest.raises(ScheduleAccountError):
+        book.set('1000', True, account_id=None)
     sync(following, 5)
     assert book.set('1002', True, account_id=ACCOUNT) and book.set('1000', True, account_id=ACCOUNT)
     assert book.ids(ACCOUNT) == ('1000', '1002')
@@ -66,7 +67,7 @@ def test_stars_are_unavailable_until_a_follow_sync_and_flip_in_the_ledger(world)
 def test_the_unowned_scheduler_list_is_preserved_and_never_used_as_follow_stars(world):
     _, following, scheduler = world
     ids = ('1001', '1003')
-    scheduler.set_favourites(ids, expected_revision=now_state(scheduler).revision)
+    scheduler.set_favourites(ids, expected_revision=now_state(scheduler).revision, account_id=None)
     scheduler.attach_favourites(FavouriteBook(following, scheduler=scheduler))
     with pytest.raises(ScheduleError, match='unavailable'):
         scheduler.favourites(ACCOUNT)
@@ -101,7 +102,7 @@ def test_more_than_128_stars_are_kept_and_all_returned(world):
 def test_the_old_128_limit_is_gone_in_the_standalone_scheduler(world):
     _, _, scheduler = world
     ids = tuple(str(100 + i) for i in range(300))
-    assert len(scheduler.set_favourites(ids, expected_revision=now_state(scheduler).revision)) == 300
+    assert len(scheduler.set_favourites(ids, expected_revision=now_state(scheduler).revision, account_id=None)) == 300
 
 
 def test_replacing_the_stars_through_the_scheduler_writes_the_ledger_and_prunes_deferred_work(world):
@@ -111,7 +112,7 @@ def test_replacing_the_stars_through_the_scheduler_writes_the_ledger_and_prunes_
     scheduler.bind_account(ACCOUNT)
     scheduler.set_favourites(('1001', '1002'), expected_revision=now_state(scheduler).revision, account_id=ACCOUNT)
     scheduler.defer_work(author_id='1001', work=dict(id='5', update_date='d', page_count=1, type=0),
-                         now=datetime.now(timezone.utc))
+                         now=datetime.now(timezone.utc), account_id=ACCOUNT)
     assert scheduler.has_deferred()
     scheduler.set_favourites(('1002',), expected_revision=now_state(scheduler).revision, account_id=ACCOUNT)
     assert scheduler.favourites(ACCOUNT) == ('1002',) and not scheduler.has_deferred()
@@ -341,9 +342,9 @@ def test_d4_the_services_entry_point_bumps_it_too(world):
 def test_d6_an_unattached_or_unsynced_store_never_prunes_the_pending_work(world):
     _, following, scheduler = world
     scheduler.bind_account(ACCOUNT)
-    scheduler.set_favourites(('1001',), expected_revision=now_state(scheduler).revision)
+    scheduler.set_favourites(('1001',), expected_revision=now_state(scheduler).revision, account_id=None)
     scheduler.defer_work(author_id='1001', work=dict(id='5', update_date='d', page_count=1, type=0),
-                         now=datetime.now(timezone.utc))
+                         now=datetime.now(timezone.utc), account_id=ACCOUNT)
     scheduler.attach_favourites(FavouriteBook(None, scheduler=scheduler))   # no follow store at all
     assert scheduler.has_deferred()                               # nothing was deleted
     scheduler.attach_favourites(FavouriteBook(following, scheduler=scheduler))   # a store, never synced
@@ -358,7 +359,7 @@ def test_d6_reopening_the_scheduler_keeps_the_pending_work_of_ledger_stars(world
     scheduler.bind_account(ACCOUNT)
     book.set('1001', True, account_id=ACCOUNT)
     scheduler.defer_work(author_id='1001', work=dict(id='5', update_date='d', page_count=1, type=0),
-                         now=datetime.now(timezone.utc))
+                         now=datetime.now(timezone.utc), account_id=ACCOUNT)
     scheduler.close()
     reopened = ManagedScheduler(tmp_path / 'managed')
     try:
@@ -382,7 +383,7 @@ def bound_world(world):
     scheduler.bind_account(ACCOUNT)
     book.set('1001', True, account_id=ACCOUNT)
     scheduler.defer_work(author_id='1001', work=dict(id='5', update_date='d', page_count=1, type=0),
-                         now=datetime.now(timezone.utc))
+                         now=datetime.now(timezone.utc), account_id=ACCOUNT)
     return following, scheduler, book
 
 
@@ -416,7 +417,7 @@ def test_r2_2_a_deferral_for_a_star_is_kept_while_the_ledger_cannot_be_read(worl
     following, scheduler, book = bound_world(world)
     scheduler.attach_favourites(FavouriteBook(None, scheduler=scheduler))
     scheduler.defer_work(author_id='1001', work=dict(id='6', update_date='d', page_count=1, type=0),
-                         now=datetime.now(timezone.utc))
+                         now=datetime.now(timezone.utc), account_id=ACCOUNT)
     assert scheduler.deferred_count() == 2
 
 
@@ -452,8 +453,10 @@ async def test_r3_d1_a_form_filled_while_the_stars_were_unknown_never_saves_them
     assert '読み込めません' in view.star_notice.text
     view.interval.set_value('12')
     view._mark_settings_dirty()
-    await view.save()                                                         # still unknown: interval only
-    assert ledger.snapshot().interval_hours == 12
+    before = ledger.snapshot()
+    await view.save()
+    assert ledger.snapshot() == before
+    assert '再読込' in view.action_notice.text
     ledger.attach_favourites(FavouriteBook(following, scheduler=ledger))
     assert ledger.favourites(ACCOUNT) == ('1001', '1002')                            # nothing was touched
 
@@ -490,9 +493,9 @@ def test_r3_d1_configure_all_without_stars_leaves_them_alone(world):
 def test_r3_d2_only_star_authors_are_added_to_a_readable_backlog(world):
     _, scheduler, _ = bound_world(world)
     scheduler.defer_work(author_id='1001', work=dict(id='7', update_date='d', page_count=1, type=0),
-                         now=datetime.now(timezone.utc))
+                         now=datetime.now(timezone.utc), account_id=ACCOUNT)
     scheduler.defer_work(author_id='1003', work=dict(id='8', update_date='d', page_count=1, type=0),
-                         now=datetime.now(timezone.utc))
+                         now=datetime.now(timezone.utc), account_id=ACCOUNT)
     assert scheduler.deferred_count() == 2 and scheduler.deferred_ids('1001') == {'5', '7'}
 
 

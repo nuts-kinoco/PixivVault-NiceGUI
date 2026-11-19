@@ -75,7 +75,7 @@ def test_scheduler_refreshes_star_cache_without_losing_settings_revision(tmp_pat
 
 def test_unbound_existing_state_is_preserved_and_cannot_be_adopted(tmp_path):
     ledger = ManagedScheduler(tmp_path)
-    ledger.set_favourites(('9',), expected_revision=ledger.snapshot().revision)
+    ledger.set_favourites(('9',), expected_revision=ledger.snapshot().revision, account_id=None)
     ledger._db.execute("INSERT INTO deferred_work VALUES ('99','100','2020',1,0,'2020')")
     ledger.close()
     ledger = ManagedScheduler(tmp_path)

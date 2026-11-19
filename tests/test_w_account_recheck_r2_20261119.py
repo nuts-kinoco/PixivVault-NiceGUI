@@ -20,6 +20,7 @@ def use_media_dispatch(root, reader, svc, *, switch_at="verify"):
     svc.preferences = None
     svc.jobs = NS(snapshot=lambda: ())
     svc.author_media = AuthorMediaService(svc)
+    svc.author_media_preview_owned = ApplicationServices.author_media_preview_owned.__get__(svc)
     svc.author_media_preview = ApplicationServices.author_media_preview.__get__(svc)
     svc.start_batch_run = ApplicationServices.start_batch_run.__get__(svc)
     calls = []
@@ -61,7 +62,7 @@ def test_all_media_queue_does_not_adopt_b_inventory(tmp_path, switch_at):
         assert svc.scheduler_favourite_authors(ledger=ledger) == (X,)
         key = "illustration:200"
         ledger.defer_work(author_id=X, work=dict(id=key, update_date="2020", page_count=1, type=0),
-                          now=datetime.now(timezone.utc))
+                          now=datetime.now(timezone.utc), account_id=A)
         assert ledger.deferred_ids(X) == {key}
         svc.batch_runs = None
         calls = use_media_dispatch(root, reader, svc, switch_at=switch_at)
@@ -132,7 +133,7 @@ async def test_existing_star_and_backlog_survive_concurrent_unfollow_when_star_i
         store.set_favorite(A, X, True)
         assert svc.scheduler_favourite_authors(ledger=ledger) == (X,)
         ledger.defer_work(author_id=X, work=dict(id="200", update_date="2020", page_count=1, type=0),
-                          now=datetime.now(timezone.utc))
+                          now=datetime.now(timezone.utc), account_id=A)
         client = Client(ui.page("/independent-unfollow-form"))
         with client:
             view = SchedulerView(svc)
@@ -184,7 +185,7 @@ def test_scheduler_reconcile_rechecks_before_ledger_adoption(tmp_path):
         store.set_favorite(A, X, True)
         assert svc.scheduler_favourite_authors(ledger=ledger) == (X,)
         ledger.defer_work(author_id=X, work=dict(id="200", update_date="2020", page_count=1, type=0),
-                          now=datetime.now(timezone.utc))
+                          now=datetime.now(timezone.utc), account_id=A)
 
         def snapshot_jobs():
             reader._verified_identity = B
@@ -222,7 +223,7 @@ def test_verified_empty_inventory_leaves_existing_backlog(tmp_path):
         store.set_favorite(A, X, True)
         assert svc.scheduler_favourite_authors(ledger=ledger) == (X,)
         ledger.defer_work(author_id=X, work=dict(id="200", update_date="2020", page_count=1, type=0),
-                          now=datetime.now(timezone.utc))
+                          now=datetime.now(timezone.utc), account_id=A)
         svc.batch_runs = None
         calls = use_media_dispatch(root, reader, svc, switch_at=None)
         ApplicationServices.dispatch_author_check(svc, ledger, "manual-check", Event())
