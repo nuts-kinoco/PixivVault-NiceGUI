@@ -188,3 +188,33 @@ def test_auto_zip_does_not_reuse_completion_after_member_removal(tmp_path):
         with ZipFile(path) as z:
             assert {name: z.read(name) for name in z.namelist()} == pages
         assert len(jobs) == 2 and all(j.state == 'done' for j in jobs)
+
+
+def test_author_zip_republishes_when_all_pages_of_one_work_are_isolated(tmp_path):
+    with generated_exports(tmp_path, True, None) as q:
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title='second')
+        q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
+        q.exports.scan()
+        assert settled(q.exports)[0].state == 'done'
+        path = archive(q)
+        with ZipFile(path) as z:
+            pages = {name: z.read(name) for name in z.namelist()}
+        source = ManagedDuplicateInspection(q.managed)
+        try:
+            result = source.execute(plan_for(source, '123:1', '123:2'), operation_id='b'*32)
+            assert not result.failed and q.managed.visible_source_pages('123') == ()
+            q.exports.scan()
+            jobs = settled(q.exports)
+            with ZipFile(path) as z:
+                assert z.namelist() == ['second(124)_1.png', 'second(124)_2.png']
+                assert z.testzip() is None
+            assert len(jobs) == 2 and all(j.state == 'done' for j in jobs)
+
+            q.managed.quarantine.restore(result.operation_id, expected_revision=result.state_revision)
+            q.exports.scan()
+            jobs = settled(q.exports)
+            with ZipFile(path) as z:
+                assert {name: z.read(name) for name in z.namelist()} == pages
+            assert len(jobs) == 3 and all(j.state == 'done' for j in jobs)
+        finally:
+            source.close()

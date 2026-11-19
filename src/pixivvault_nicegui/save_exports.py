@@ -559,7 +559,6 @@ class SaveExports:
         inherited_error = None
         for rel,row,sha in receipts:
             with self._item('static:'+row['work_id']):
-                if not source_snapshot.source_pages[row['work_id']]:continue
                 if row['work_id'] not in done:continue
                 matching=[(job,record) for job,record in completed[row['work_id']] if not hasattr(job,'result') or job.result==rel]
                 if not matching:continue
@@ -585,7 +584,8 @@ class SaveExports:
                 if enabled and zip_ready and row['author_id'] not in zipped_authors:
                     zipped_authors.add(row['author_id'])
                     proofs=[(r[1]['work_id'],r[2]) for r in self.author_snapshot(row['author_id'])]
-                    self.enqueue('auto-zip',dict(author_id=row['author_id'],proofs=proofs))
+                    if proofs:self.enqueue('auto-zip',dict(author_id=row['author_id'],proofs=proofs))
+                if not source_snapshot.source_pages[row['work_id']]:continue
                 accepted=[record for job,record in matching]
                 from .bookmark_remote_adapter import RemoteBookmark
                 if dependencies is None or row['author_id'] in dependencies:continue
