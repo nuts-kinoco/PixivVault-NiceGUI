@@ -298,3 +298,29 @@ async def test_two_clients_keep_private_library_state_and_share_sizes_only_insid
             if client.id in Client.instances:
                 client.delete()
         services.close()
+
+
+@pytest.mark.asyncio
+async def test_legacy_capacity_update_reuses_cards_until_order_changes(library):
+    view, _, _ = library
+    original = dict(view.author_cards)
+    last_id = next(reversed(original))
+    generation = view.state.generation
+
+    view._apply_legacy_capacities(view.state, {last_id: 1024})
+
+    assert view.author_cards == original
+    assert view.state.generation > generation
+    assert view.author_capacity_labels[last_id].text == "1.0 KiB"
+
+    view.state.select_sort("capacity")
+    view.render_authors()
+    ordered = dict(view.author_cards)
+    assert next(iter(ordered)) == last_id
+    first_id = next(iter(original))
+
+    view._apply_legacy_capacities(view.state, {first_id: 2048})
+
+    assert next(iter(view.author_cards)) == first_id
+    assert view.author_cards[first_id] is not ordered[first_id]
+    assert view.author_capacity_labels[first_id].text == "2.0 KiB"

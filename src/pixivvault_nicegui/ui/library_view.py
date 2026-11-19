@@ -94,6 +94,7 @@ class LibraryView(ViewerController):
         self.state = LibraryState(LibrarySnapshot(()))
         self.author_cards = {}
         self.author_openers = {}
+        self.author_capacity_labels = {}
         self.page_cards = {}
         self._rendered_authors = ()
         self._rendered_pages = ()
@@ -429,14 +430,24 @@ class LibraryView(ViewerController):
         if clear_values:self._managed_capacities.clear()
 
     def _apply_legacy_capacities(self, state, values):
-        if not values:return
-        capacities=dict(state.snapshot.author_capacities);capacities.update(values)
-        state.snapshot=LibrarySnapshot(state.snapshot.works,capacities,state.snapshot.author_names)
-        state._all_authors=state.snapshot.authors
-        state._by_author={author.author_id:author for author in state._all_authors}
-        state._refresh_matches();state._invalidate()
-        self.author_grid.clear();self.author_cards.clear();self.author_openers.clear()
-        self._rendered_authors=();self._author_session=object();self.render_authors();self._sync_panels()
+        capacities = dict(state.snapshot.author_capacities)
+        changed = {aid: value for aid, value in values.items()
+                   if aid not in capacities or capacities[aid] != value}
+        if not changed:
+            return
+        capacities.update(changed)
+        state.snapshot = LibrarySnapshot(state.snapshot.works, capacities, state.snapshot.author_names)
+        state._all_authors = state.snapshot.authors
+        state._by_author = {author.author_id: author for author in state._all_authors}
+        state._refresh_matches()
+        state._invalidate()
+        # Capacity sort may move cards. Otherwise update the existing labels.
+        self.render_authors()
+        for aid, value in changed.items():
+            label = self.author_capacity_labels.get(aid)
+            if label is not None:
+                label.set_text(format_capacity(value))
+        self._sync_panels()
 
     def _legacy_current(self,state,generation,epoch):
         return (not self.closed and not getattr(self.services,'closing',False)
@@ -616,6 +627,7 @@ class LibraryView(ViewerController):
                 return
             self._managed_capacities.update(values)
             self.author_grid.clear();self.author_cards.clear();self.author_openers.clear()
+            self.author_capacity_labels.clear()
             self._rendered_authors=();self._author_session=object();self.render_authors();self._sync_panels()
             self.capacity_status.set_text(f'管理保存 {len(values)}作者を再計測。未計測 {len(targets)-len(values)}作者。')
         except Exception:
@@ -666,6 +678,7 @@ class LibraryView(ViewerController):
         self.author_grid.clear()
         self.author_cards.clear()
         self.author_openers.clear()
+        self.author_capacity_labels.clear()
         self._rendered_authors = ()
         self.render_authors()
         self.bookmarks.refresh(reset_controls=True)
@@ -872,6 +885,7 @@ class LibraryView(ViewerController):
         self.author_grid.clear()
         self.author_cards.clear()
         self.author_openers.clear()
+        self.author_capacity_labels.clear()
         self._rendered_authors = ()
         self._clear_pages()
         self._page_session = object()
@@ -995,7 +1009,7 @@ class LibraryView(ViewerController):
                 with ui.row().classes("pv-library-card-info"):
                     ui.label(f"{author.work_count}点")
                     ui.label(f"閲覧 {author.view_count}回")
-                    ui.label(format_capacity(author.capacity_bytes))
+                    self.author_capacity_labels[author.author_id] = ui.label(format_capacity(author.capacity_bytes))
                 if author.author_id in self._managed_capacities:
                     ui.label('管理保存 '+format_capacity(self._managed_capacities[author.author_id])).props(
                         'data-testid=library-managed-capacity').classes('pv-library-card-info')
@@ -1025,6 +1039,7 @@ class LibraryView(ViewerController):
             self.author_grid.clear()
             self.author_cards.clear()
             self.author_openers.clear()
+            self.author_capacity_labels.clear()
             self._rendered_authors = ()
             self._author_session = object()
         for author in visible[len(self._rendered_authors):]:
