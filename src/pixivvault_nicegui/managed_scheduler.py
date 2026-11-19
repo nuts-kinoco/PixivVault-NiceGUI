@@ -229,8 +229,13 @@ class ManagedScheduler:
             self._db.execute('PRAGMA synchronous=FULL')
             self._db.execute('BEGIN IMMEDIATE')
             self._db.execute('CREATE TABLE IF NOT EXISTS schedule (id INTEGER PRIMARY KEY CHECK(id=1), interval_hours INTEGER NOT NULL, startup_check INTEGER NOT NULL, revision INTEGER NOT NULL, last_due_utc TEXT, next_due_utc TEXT, last_status TEXT NOT NULL)')
-            self._db.execute('INSERT OR IGNORE INTO schedule VALUES (1,24,0,1,NULL,?,\'never\')',
-                             (_timestamp(datetime.now(timezone.utc) + timedelta(hours=24)),))
+            schedule_columns = {row[1] for row in self._db.execute('PRAGMA table_info(schedule)')}
+            if 'settings_origin' not in schedule_columns:
+                self._db.execute('ALTER TABLE schedule ADD COLUMN settings_origin TEXT')
+            self._db.execute(
+                "INSERT OR IGNORE INTO schedule VALUES (1,24,0,1,NULL,?,'never',?)",
+                (_timestamp(datetime.now(timezone.utc) + timedelta(hours=24)),
+                 None if existing_database else 'app'))
             self._db.execute("UPDATE schedule SET next_due_utc=? WHERE id=1 AND interval_hours=24 AND last_due_utc IS NULL AND next_due_utc IS NULL AND last_status='never'",
                              (_timestamp(datetime.now(timezone.utc) + timedelta(hours=24)),))
             self._db.execute('CREATE TABLE IF NOT EXISTS dispatch_history (slot TEXT PRIMARY KEY, status TEXT NOT NULL, started_utc TEXT NOT NULL, finished_utc TEXT, authors INTEGER NOT NULL DEFAULT 0, accepted INTEGER NOT NULL DEFAULT 0, deferred INTEGER NOT NULL DEFAULT 0, error_code TEXT)')
@@ -241,13 +246,10 @@ class ManagedScheduler:
             self._db.execute('CREATE TABLE IF NOT EXISTS deferred_work (author_id TEXT NOT NULL, work_id TEXT NOT NULL, update_date TEXT NOT NULL, page_count INTEGER NOT NULL, work_type INTEGER NOT NULL, created_utc TEXT NOT NULL, PRIMARY KEY(author_id,work_id))')
             self._db.execute('CREATE TABLE IF NOT EXISTS favourite_authors (author_id TEXT PRIMARY KEY)')
             self._db.execute('CREATE TABLE IF NOT EXISTS scheduler_account (id INTEGER PRIMARY KEY CHECK(id=1), account_id TEXT NOT NULL)')
-            row = self._db.execute('SELECT interval_hours,startup_check,revision,last_due_utc,next_due_utc,last_status FROM schedule WHERE id=1').fetchone()
+            row = self._db.execute('SELECT interval_hours,startup_check,revision,last_due_utc,next_due_utc,last_status,settings_origin FROM schedule WHERE id=1').fetchone()
             if row is None or row[0] not in VALID_INTERVALS or row[1] not in (0,1) or row[2] < 1:
                 raise ScheduleError('invalid managed schedule ledger')
-            self._unbound_unknown_schedule = (existing_database
-                and self._db.execute('SELECT 1 FROM scheduler_account WHERE id=1').fetchone() is None
-                and (row[0] != 24 or row[1] != 0 or row[2] != 1
-                     or row[3] is not None or row[5] != 'never'))
+            self._unbound_unknown_schedule = row[6] != 'app'
             self._db.execute('COMMIT')
         except BaseException:
             if hasattr(self, '_db'):
