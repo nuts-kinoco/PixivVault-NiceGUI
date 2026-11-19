@@ -214,6 +214,8 @@ class ApplicationServices:
         self.external_vault_root = external_vault_root
         self.image_cache_root = image_cache_root
         self.preferences = None
+        self.local_tagger = None
+        self.local_tag_view = None
         self._failure_actions_lock = RLock()
         self._failure_record_actions = None
         self.discovery = None
@@ -786,6 +788,8 @@ class ApplicationServices:
             if preferences_root is not None:
                 from .preferences import PreferencesStore
                 self.preferences = PreferencesStore(Path(preferences_root) / 'preferences.sqlite3')
+                from .local_tagger import TaggerManager
+                self.local_tagger = TaggerManager(self.preferences, provider=lambda: self._egara_provider)
                 if self.live_client is not None:
                     from .bookmark_cache_store import BookmarkCacheStore
                     try:
@@ -830,8 +834,11 @@ class ApplicationServices:
                 from .discovery_learning import DiscoveryLearningService
                 self.discovery = DiscoveryLearningService(discovery_root, self.live_client,
                     following=self.discovery_following_snapshot, saved_ids=self.saved_discovery_ids,
-                    seed_readonly_db=library_readonly_db)
+                    seed_readonly_db=library_readonly_db, tagger=self.local_tagger, local_image=self.images.local_bytes,
+                    saved_works=lambda: self.library.works, image_token=self.images.local_image_token,
+                    local_saved_ids=lambda: (work.work_id for work in self.library.works))
                 self.discovery._event_services = self
+                self.local_tag_view = self.discovery.local_tag_view
             if self.discovery is not None and recommendation_preferences_root is not None:
                 from .recommendation_state import (DiscoveryRecommendationSource, CombinedRecommendationSource,
                     RecommendationPreferences, RecommendationController)
@@ -951,7 +958,10 @@ class ApplicationServices:
             self.similarity_source = combined
             self._similarity_legacy_inputs = legacy
             self._egara_model_path = Path(model_file) if model_file is not None else None
+            provider_changed = self._egara_provider != provider
             self._egara_provider = provider
+            if self.local_tagger is not None and provider_changed:
+                self.local_tagger.invalidate()
 
     @property
     def similarity_analysis_enabled(self):
@@ -1270,6 +1280,8 @@ class ApplicationServices:
             return
         self._sync_metadata_auto()
         self._sync_similarity_auto()
+        if self.discovery is not None and self.local_tag_view is not None:
+            self.discovery.refresh_saved_seeds()
         if self.shared_image_cache is not None:
             self.shared_image_cache.configure(int(self.preferences.get_setting('pixiv_shared_image_cache_size_mb','1024'))*1024**2)
             if self.shared_image_cache.disk is not None:
@@ -1742,6 +1754,11 @@ class ApplicationServices:
                 'ugoira-'+selection.spec['output'], digest(_json(selection.spec)))
             return self.ugoira.enqueue_selection(selection, operation_id)
 
+    def preferred_ranking_tags_base(self):
+        if self.discovery is not None:
+            return self.discovery.base_preferred_tags()
+        return self.preferred_ranking_tags()
+
     def preferred_ranking_tags(self):
         """世間ランキングの好みタグ印の集合（正規化タグ）。worker スレッドから呼ぶ。無ければ空。"""
         if self.discovery is not None:
@@ -1750,7 +1767,10 @@ class ApplicationServices:
         provider = getattr(source, 'preferred_tags', None)
         return provider() if callable(provider) else frozenset()
 
-    def personal_ranking_context(self):
+    def personal_ranking_context_base(self):
+        return self.personal_ranking_context(include_local=False)
+
+    def personal_ranking_context(self, *, include_local=True):
         # 元 ranking_tab.py:1436-1456: 読めなかった集合だけ欠かし（「除外しない」側へ倒す）、読めた分は使う。
         # 欠けた集合は画面が「⚠️一部の除外条件を適用できませんでした」と出す（FL-Y04）。
         import logging
@@ -1782,7 +1802,7 @@ class ApplicationServices:
                 if 'hated_ids' in snapshot:context['hated_ids']=snapshot['hated_ids']
                 if 'author_seed_bookmarked' in snapshot:context['author_counts']=snapshot['author_seed_bookmarked']
             try:
-                context['trend_rows']=self.discovery.trend_rows()
+                context['trend_rows']=(self.discovery.trend_rows() if include_local else self.discovery.trend_rows_base())
             except Exception:
                 log.exception('自分のランキング: よく効くタグを読めませんでした。')
         elif self.recommendations is not None:
@@ -2441,6 +2461,9 @@ class ApplicationServices:
         self._managed_receipts = receipts
         self._managed_catalog_snapshot = managed_version
         self._cached_local_bookmarks = visible_local
+        discovery = getattr(self, 'discovery', None)
+        if discovery is not None and self.local_tag_view is not None and not self.closing:
+            discovery.refresh_saved_seeds()
 
     def _remote_images(self, records, *, reader=_CURRENT_IMAGE_READER):
         if reader is _CURRENT_IMAGE_READER:
@@ -3084,6 +3107,8 @@ class ApplicationServices:
             self.recommendations.close()
         if self.discovery is not None:
             self.discovery.close()
+        if self.local_tagger is not None:
+            self.local_tagger.close()
         if self.following_sync is not None:
             self.following_sync.close()
         vault_shutdown_error = None

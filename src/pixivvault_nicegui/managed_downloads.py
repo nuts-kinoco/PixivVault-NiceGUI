@@ -670,6 +670,28 @@ class ManagedPixivDownloads:
             raise ManagedDownloadError("saved page changed")
         return data
 
+    def saved_page_token(self, relative_receipt, page_no, expected_receipt_sha256):
+        if self.closed:
+            raise ManagedDownloadError('managed download is closed')
+        receipt, digest = self._receipt(relative_receipt, verify_pages=False)
+        if (digest != expected_receipt_sha256 or not 0 <= page_no < receipt['page_count']
+                or page_no in _stand_in_pages(receipt)):
+            raise ManagedDownloadError('saved page snapshot changed')
+        wid = receipt['work_id']
+        self._generations.assert_page_visible(wid, page_no, verify_payloads=False)
+        if self.legacy_quarantine is not None:
+            state = self.legacy_quarantine.state(verify_outputs=False, recover=False)
+            if f'{wid}:{page_no+1}' in state['exclusions']:
+                raise ManagedPageQuarantined('managed page is quarantined')
+        entry = receipt['files'][page_no]
+        path = native_io_path(self.root / relative_receipt).parent / entry['name']
+        _safe_path(path, file=True)
+        with path.open('rb') as stream:
+            info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size != entry['bytes']:
+            raise ManagedDownloadError('saved page attributes changed')
+        return (digest, str(path), info.st_dev, info.st_ino, info.st_mtime_ns, info.st_size)
+
     def save_viewer_page(self, work_id, page_no, page_count, author_id, load_record):
         from .managed_viewer_page import save_page
         try:

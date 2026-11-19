@@ -306,6 +306,21 @@ class CompositeLocalCatalog:
         self._still_open()
         return value
 
+    def get_fresh(self, work_id, page_no=0, variant="view"):
+        provider = self._select(work_id, page_no, variant)
+        method = getattr(provider, 'get_fresh', None)
+        if not callable(method):
+            raise ValueError('fresh local image unavailable')
+        value = method(work_id, page_no, variant)
+        self._still_open()
+        return value
+
+    def image_token(self, work_id, page_no=0, variant="view"):
+        provider = self._select(work_id, page_no, variant)
+        token = provider.image_token(work_id, page_no, variant)
+        self._still_open()
+        return token
+
     def peek(self, work_id, page_no=0, variant="view"):
         provider = self._select(work_id, page_no, variant)
         method = getattr(provider, "peek", None)

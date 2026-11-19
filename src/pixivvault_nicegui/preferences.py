@@ -11,6 +11,7 @@ from pathlib import Path
 from types import MappingProxyType
 from threading import RLock
 import sqlite3
+import json
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,9 @@ class PreferenceSpec:
 
 
 SPECS = (
+    PreferenceSpec('local_tagger_path', 'model path', r'S:\EMAKINOCO-Models\tagger\wd-swinv2-tagger-v3', (), 'local_tagger_internal'),
+    PreferenceSpec('local_tagger_enabled', 'enabled', '1', ('0','1'), 'local_tagger_internal'),
+    PreferenceSpec('local_tagger_receipt', 'receipt', '', (), 'local_tagger_internal'),
     PreferenceSpec('grid_card_size_mode', 'カードサイズ', 'large', ('large','medium','small'), '表示'),
     PreferenceSpec('use_work_folder','作品ごとのフォルダーを使う','0',('0','1'),'保存'),
     PreferenceSpec('nana7mi_shaft_refresh_interval_hours', 'Nana7mi借用アカウント自動更新間隔', '24', ('1','6','12','24','48'), '保存'),
@@ -93,6 +97,7 @@ class PreferencesStore:
         existed = self.path.exists()
         self._lock = RLock()
         self._closed = False
+        self._local_tagger_listeners = set()
         self._conn = sqlite3.connect(str(self.path), check_same_thread=False, isolation_level=None)
         try:
             self._conn.execute('PRAGMA busy_timeout=5000')
@@ -131,6 +136,8 @@ class PreferencesStore:
 
     @staticmethod
     def _validate(key,value):
+        if key in ('local_tagger_path', 'local_tagger_receipt') and type(value) is str and len(value) <= 32767 and '\x00' not in value:
+            return
         if key not in SPEC_BY_KEY or type(value) is not str or value not in SPEC_BY_KEY[key].choices:
             raise PreferencesError('設定値が選択肢と一致しません。')
 
@@ -143,6 +150,8 @@ class PreferencesStore:
         with self._lock:
             if self._closed:
                 raise PreferencesError('設定は閉じられています。')
+            tagger_keys = changes.keys() & {'local_tagger_enabled', 'local_tagger_path'}
+            before = self.snapshot().values if tagger_keys and self._local_tagger_listeners else None
             self._conn.execute('BEGIN IMMEDIATE')
             try:
                 revision = self._conn.execute('SELECT value FROM preferences_revision').fetchone()[0]
@@ -156,10 +165,45 @@ class PreferencesStore:
             except Exception:
                 self._conn.execute('ROLLBACK')
                 raise
+            if before is not None and any(changes[key] != before[key] for key in tagger_keys):
+                for invalidate in self._local_tagger_listeners:
+                    invalidate()
             return self.snapshot()
+
+    def subscribe_local_tagger_settings(self, invalidate):
+        # Listeners only invalidate in-memory state. They run before update
+        # releases the preferences lock, including for a direct set_setting.
+        with self._lock:
+            self._local_tagger_listeners.add(invalidate)
+        def unsubscribe():
+            with self._lock:
+                self._local_tagger_listeners.discard(invalidate)
+        return unsubscribe
 
     def get_setting(self,key,default=None):
         return self.snapshot().get_setting(key,default)
+
+    def read_tagger_verification(self):
+        with self._lock:
+            if self._closed:
+                raise PreferencesError('設定は閉じられています。')
+            self._conn.execute('CREATE TABLE IF NOT EXISTS local_tagger_verification (id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL)')
+            row = self._conn.execute('SELECT payload FROM local_tagger_verification WHERE id=1').fetchone()
+            if row is None:
+                return {}
+            try:
+                result = json.loads(row[0])
+                return result if isinstance(result, dict) else {}
+            except (ValueError, TypeError):
+                return {}
+
+    def write_tagger_verification(self, state):
+        payload = json.dumps(state, ensure_ascii=False, separators=(',', ':'))
+        with self._lock:
+            if self._closed:
+                raise PreferencesError('設定は閉じられています。')
+            self._conn.execute('CREATE TABLE IF NOT EXISTS local_tagger_verification (id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL)')
+            self._conn.execute('INSERT INTO local_tagger_verification VALUES (1,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload', (payload,))
 
     def set_setting(self,key,value,*,expected_revision=None):
         if expected_revision is None:

@@ -343,6 +343,8 @@ class DemoShell:
                 extension_snapshot=lambda: self.services.extension_bridge.response_snapshot() if self.services.extension_bridge is not None else ({}, {}),
                 native_profile=self.profile_view, following_sync=self.following_view,
                 vault=getattr(self.services, 'external_vault', None),
+                tagger=getattr(self.services, 'local_tagger', None),
+                on_tagger_change=self._tagger_settings_changed,
                 pixiv_actions_mode=getattr(self.services, 'pixiv_actions_mode', 'readonly'),
                 similarity_status=(self.services.similarity_analysis_status if self.services.similarity_analysis_enabled else None),
                 resume_similarity=(self.services.rescan_similarity_analysis if self.services.similarity_analysis_enabled else None))
@@ -429,7 +431,16 @@ class DemoShell:
         if self.personal_view is not None and word.strip():self.personal_view.tags.set_value(word.strip())
     def apply_preferences(self,snapshot=None):
         self.services.apply_preferences(snapshot)
-        if self.learning is not None:self.learning.refresh_prefetch()
+        if self.learning is not None:
+            self.learning.refresh_prefetch()
+            self.learning.watch_local_seeds()
+
+    def _tagger_settings_changed(self):
+        if self.learning is not None:
+            self.learning.refresh_tagger_order()
+        for view in (self.gallery, self.personal_view):
+            changed=getattr(view, 'local_tags_changed', None)
+            if callable(changed):changed()
 
     def _reflect_uid_once(self, dialog) -> None:
         # プロセス起動時に1回だけ（シェルは画面を開くたびに作られる）。
@@ -482,7 +493,7 @@ class DemoShell:
         if tab == "learning" and self.learning is None:
             from .learning_view import LearningView
             with self.content:
-                self.learning = LearningView(self.services)
+                self.learning = LearningView(self.services, on_open_preferences=self.open_preferences)
             history_view = getattr(self.learning, 'view_history', None)
             if history_view is not None:
                 history_view.on_count = self.set_view_history_count

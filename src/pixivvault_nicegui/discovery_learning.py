@@ -31,10 +31,11 @@ class DiscoveryBatch:
     def nothing_and_failed(self): return not self.artworks and bool(self.failed)
 
 class _SourceDatabase:
-    def __init__(self, db, following, saved):
-        self.db, self.following, self.saved = db, following, saved
+    def __init__(self, db, following, saved, preferences):
+        self.db, self.following, self.saved, self.preferences = db, following, saved, preferences
     def __getattr__(self, name): return getattr(self.db, name)
     def get_following_users(self, **kwargs): return deepcopy(self.following)
+    def get_discovery_preferences(self): return self.preferences()
     def get_work(self, work_id):
         return {'work_id': work_id} if str(work_id) in self.saved else self.db.get_work(work_id)
 
@@ -53,11 +54,19 @@ class _Reader:
 
 class DiscoveryLearningService(LearningService):
     marker_name = '.pixivvault-managed-discovery.json'
-    def __init__(self, root, reader, *, following=None, saved_ids=(), seed_readonly_db=None):
+    def __init__(self, root, reader, *, following=None, saved_ids=(), seed_readonly_db=None, tagger=None, local_image=None, saved_works=None, image_token=None, local_saved_ids=None):
         super().__init__(root, ())
         if reader is None: raise ValueError('explicit discovery reader required')
         self._marker = {'format':'pixivvault-nicegui-managed-discovery-v1', 'database':'learning.sqlite3'}
         self.reader = reader
+        self.tagger, self.local_image, self.saved_works = tagger, local_image, saved_works
+        self.local_tag_view = None
+        if tagger is not None and local_image is not None and saved_works is not None:
+            from .local_tag_view import LocalTagView
+            self.local_tag_view = LocalTagView(tagger, local_image, saved_works,
+                local_saved_ids or (lambda: self.saved_ids() if callable(self.saved_ids) else self.saved_ids),
+                image_token=image_token)
+        self._seed_executor = self.local_tag_view._executor if self.local_tag_view else None
         self.following = following
         self.saved_ids = saved_ids
         self.seed_readonly_db = seed_readonly_db
@@ -80,6 +89,11 @@ class DiscoveryLearningService(LearningService):
         if not self._loaded:
             with db._transaction() as conn:
                 conn.execute('CREATE TABLE IF NOT EXISTS managed_discovery_candidate (work_id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
+                if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='managed_local_seed'").fetchone():
+                    # Pre-release histories may already contain indistinguishable inferred tags; these are retained.
+                    conn.execute('DROP TABLE managed_local_seed')
+                    conn.execute('DELETE FROM managed_discovery_candidate WHERE work_id NOT IN (SELECT work_id FROM discovery_swipe_history)')
+                    conn.execute("DELETE FROM settings WHERE key='discovery_search_cursor'")
             from .discovery_seed import seed_once
             seed=seed_once(db,self.seed_readonly_db)
             self._seed_saved=frozenset(seed['saved_ids']) if seed else frozenset()
@@ -99,6 +113,24 @@ class DiscoveryLearningService(LearningService):
                 self._accept_metadata(candidate)
             self._loaded = True
         return db
+
+    @property
+    def _seed_future(self):
+        return self.local_tag_view._future if self.local_tag_view is not None else None
+
+    def refresh_saved_seeds(self):
+        if self.local_tag_view is None:
+            raise RuntimeError('local seed unavailable')
+        return self.local_tag_view.refresh_async()
+
+    def _effective_preferences(self, db, snapshot=None):
+        base = db.get_discovery_preferences()
+        return self.local_tag_view.merge_preferences(base, snapshot) if self.local_tag_view else base
+
+    def close(self):
+        if self.local_tag_view is not None:
+            self.local_tag_view.close()
+        super().close()
 
     @staticmethod
     def _record_for(candidate):
@@ -194,26 +226,34 @@ class DiscoveryLearningService(LearningService):
     async def fetch_candidates(self, *, exclude_ids=(), recent_author_ids=(), is_current=None):
         # Multiple active views share one accepted source acquisition. Cancelling
         # a waiter cannot cancel the FIFO worker or start another concurrent GET.
+        snapshot = self.local_tag_view.snapshot() if self.local_tag_view else None
         claim=is_current if is_current is not None else lambda:True
         with self._lifecycle_lock:
             if self._close_future is not None:raise RuntimeError('learning service is closed')
             if self._candidate_fetch_future is None or self._candidate_fetch_future.done():
                 self._candidate_fetch_claims=[claim]
-                self._candidate_fetch_future=self._executor.submit(self._fetch_claimed,tuple(exclude_ids),tuple(recent_author_ids))
+                self._candidate_fetch_future=self._executor.submit(self._fetch_claimed,tuple(exclude_ids),tuple(recent_author_ids),snapshot)
             else:
                 self._candidate_fetch_claims.append(claim)
             future=self._candidate_fetch_future
         future.add_done_callback(self._release_fetch_claims)
-        return await self._wait(future)
+        batch = await self._wait(future)
+        if batch is None or not batch.artworks:
+            return batch
+        order, frames = await self.rank_pending(tuple(a.work_id for a in batch.artworks), recent_author_ids)
+        artworks = {a.work_id: a for a in batch.artworks}
+        records = {r.work_id: r for r in batch.records}
+        return replace(batch, artworks=tuple(artworks[wid] for wid in order),
+                       records=tuple(records[wid] for wid in order), frames=frames)
 
     def _release_fetch_claims(self,future):
         with self._lifecycle_lock:
             if self._candidate_fetch_future is future:
                 self._candidate_fetch_claims=[]
 
-    def _fetch_claimed(self,exclude_ids,recent_author_ids):
+    def _fetch_claimed(self,exclude_ids,recent_author_ids,snapshot):
         if not self._fetch_has_claim():return None
-        return self._fetch_candidates(exclude_ids,recent_author_ids,is_current=self._fetch_has_claim)
+        return self._fetch_candidates(exclude_ids,recent_author_ids,is_current=self._fetch_has_claim,snapshot=snapshot)
 
     def _fetch_has_claim(self):
         with self._lifecycle_lock:claims=tuple(self._candidate_fetch_claims)
@@ -221,6 +261,7 @@ class DiscoveryLearningService(LearningService):
 
     async def refill_snapshot(self):
         """Local, fresh candidate/history snapshot; never opens a new UI session."""
+        snapshot = self.local_tag_view.snapshot() if self.local_tag_view else None
         def read():
             db=self._database()
             saved=self.saved_ids() if callable(self.saved_ids) else self.saved_ids
@@ -228,7 +269,7 @@ class DiscoveryLearningService(LearningService):
             hidden=set(db.get_hidden_author_ids())
             ordered,frames=discovery_ranking.rank_candidates(
                 [c for wid,c in self._candidates.items() if wid not in excluded and c.get('author_id') not in hidden],
-                db.get_discovery_preferences(),db.get_discovery_author_preferences(),
+                self._effective_preferences(db, snapshot),db.get_discovery_author_preferences(),
                 get_setting=db.get_setting,normalize=normalize_tag,total_works=self._population_size(saved))
             records=tuple(self._record_for(c) for c in ordered)
             all_records=tuple(self._record_for(c) for c in self._candidates.values())
@@ -236,7 +277,7 @@ class DiscoveryLearningService(LearningService):
                 {c['work_id']:self._description_for(c) for c in ordered}),all_records
         return await self._wait(self._submit(read))
 
-    def _fetch_candidates(self, exclude_ids, recent_author_ids, *, is_current=None):
+    def _fetch_candidates(self, exclude_ids, recent_author_ids, *, is_current=None, snapshot=None):
         db = self._database()
         self.reader.require_identity()
         following = self.following() if callable(self.following) else self.following
@@ -246,7 +287,7 @@ class DiscoveryLearningService(LearningService):
         # acquired empty snapshot is authoritative and stays empty.
         following = (tuple(db.get_following_users(sort_by="follow_order", sort_order="asc"))
                      if following is None else tuple(following))
-        facade = _SourceDatabase(db, following, saved | self._seed_known)
+        facade = _SourceDatabase(db, following, saved | self._seed_known, db.get_discovery_preferences)
         judged = db.get_judged_work_ids()
         hidden_authors = set(db.get_hidden_author_ids())
         excluded = set(exclude_ids) | saved | self._seed_known | set(judged) | set(db.get_hidden_work_ids())
@@ -269,7 +310,7 @@ class DiscoveryLearningService(LearningService):
             if candidate['work_id'] not in self._candidates: self._accept_metadata(candidate)
         unique = {c['work_id']:c for c in pending+valid}
         ordered, frames = discovery_ranking.rank_candidates(list(unique.values()),
-             db.get_discovery_preferences(), db.get_discovery_author_preferences(),
+             self._effective_preferences(db, snapshot), db.get_discovery_author_preferences(),
              get_setting=db.get_setting, normalize=normalize_tag, total_works=self._population_size(saved),
              recent_author_ids=recent_author_ids)
         records = tuple(self._record_for(c) for c in ordered)
@@ -289,26 +330,45 @@ class DiscoveryLearningService(LearningService):
         return self._submit(lambda: tuple(self._record_for(c) for c in self._candidates.values())).result()
 
     async def trend_snapshot(self):
-        return await self._wait(self._submit(self._trend_snapshot))
+        snapshot = self.local_tag_view.snapshot() if self.local_tag_view else None
+        return await self._wait(self._submit(self._trend_snapshot, snapshot))
 
-    def _trend_snapshot(self):
+    def _trend_snapshot(self, snapshot=None):
         db = self._database()
         count = len(db.get_judged_work_ids())
         saved = self.saved_ids() if callable(self.saved_ids) else self.saved_ids
-        rows = discovery_ranking.trend_rows(db.get_discovery_preferences(),total_works=self._population_size(saved),
+        rows = discovery_ranking.trend_rows(self._effective_preferences(db, snapshot),total_works=self._population_size(saved),
                   get_setting=db.get_setting) if count >= TREND_MIN_JUDGMENTS else []
-        return {'judged':count,'rows':tuple(rows),'ready':count >= TREND_MIN_JUDGMENTS}
+        merged = self.local_tag_view.merge_preferences({}, snapshot) if self.local_tag_view and snapshot else {}
+        local_rows = tuple({'tag':tag, 'display':value['display_tag'], 'count':value['seed_saved']} for tag,value in sorted(merged.items(), key=lambda pair:(-pair[1]['seed_saved'], pair[0])))
+        revision = (snapshot.epoch, snapshot.fingerprint) if snapshot and local_rows else None
+        return {'judged':count,'rows':tuple(rows),'ready':count >= TREND_MIN_JUDGMENTS, 'local_seed_rows':local_rows, 'local_revision':revision}
+
+    def base_preferred_tags(self):
+        from .ranking_preferred_tags import preferred_tag_set
+        return self._submit(lambda: preferred_tag_set(self._database().get_discovery_preferences())).result()
 
     def preferred_tags(self):
         """世間ランキングの好みタグ印用（元 ranking_tab.py:519-530）。worker の外から呼ぶ同期 API。"""
         from .ranking_preferred_tags import preferred_tag_set
-        return self._submit(lambda: preferred_tag_set(self._database().get_discovery_preferences())).result()
+        snapshot = self.local_tag_view.snapshot() if self.local_tag_view else None
+        return self._submit(lambda: preferred_tag_set(self._effective_preferences(self._database(), snapshot))).result()
+
+    def trend_rows_base(self):
+        return self._submit(self._trend_snapshot, None).result()['rows']
 
     def trend_rows(self):
         """Synchronous recommendation worker API, never call from this worker."""
-        return self._submit(self._trend_snapshot).result()['rows']
+        snapshot = self.local_tag_view.snapshot() if self.local_tag_view else None
+        return self._submit(self._trend_snapshot, snapshot).result()['rows']
 
-    def _open_session(self):
+    async def open_session(self):
+        if self.local_tag_view is not None:
+            self.refresh_saved_seeds()
+        snapshot = self.local_tag_view.snapshot() if self.local_tag_view else None
+        return await self._wait(self._submit(self._open_session, snapshot))
+
+    def _open_session(self, local_snapshot=None):
         snapshot = super()._open_session()
         db = self._database()
         saved = self.saved_ids() if callable(self.saved_ids) else self.saved_ids
@@ -317,7 +377,7 @@ class DiscoveryLearningService(LearningService):
         hidden_works = set(db.get_hidden_work_ids())
         ordered, self.frames = discovery_ranking.rank_candidates(
             [c for wid,c in self._candidates.items() if wid not in snapshot.judged_ids and wid not in saved and wid not in hidden_works and c.get('author_id') not in hidden_authors],
-            db.get_discovery_preferences(), db.get_discovery_author_preferences(),
+            self._effective_preferences(db, local_snapshot), db.get_discovery_author_preferences(),
             get_setting=db.get_setting, normalize=normalize_tag, total_works=self._population_size(saved))
         remainder = [c for c in self._candidates.values() if c['work_id'] in snapshot.judged_ids]
         self.artworks = tuple(self._record_for(c).as_artwork() for c in ordered + remainder)
@@ -352,11 +412,12 @@ class DiscoveryLearningService(LearningService):
         return self._submit(read).result()
 
     async def rank_pending(self, work_ids, recent_author_ids=()):
+        snapshot = self.local_tag_view.snapshot() if self.local_tag_view else None
         def rank():
             db=self._database()
             saved=self.saved_ids() if callable(self.saved_ids) else self.saved_ids
             ordered,frames=discovery_ranking.rank_candidates(
-                [self._candidates[wid] for wid in work_ids],db.get_discovery_preferences(),
+                [self._candidates[wid] for wid in work_ids],self._effective_preferences(db, snapshot),
                 db.get_discovery_author_preferences(),get_setting=db.get_setting,
                 normalize=normalize_tag,total_works=self._population_size(saved),recent_author_ids=tuple(recent_author_ids))
             return tuple(c['work_id'] for c in ordered),frames
