@@ -1514,7 +1514,10 @@ class ApplicationServices:
                 and self.library_image_root is not None
                 and self.preferences is not None and self.preferences_root is not None)
 
-    def export_legacy_metadata(self):
+    def export_legacy_metadata_only(self):
+        return self.export_legacy_metadata(include_images=False)
+
+    def export_legacy_metadata(self, *, include_images=True):
         """Explicit E01 action, with output inside the dedicated settings root."""
         with self._legacy_export_lock:
             if self._legacy_export_stop.is_set() or not self.legacy_metadata_export_available():
@@ -1522,7 +1525,7 @@ class ApplicationServices:
             from .legacy_metadata_export import export_frozen_legacy_metadata
             return export_frozen_legacy_metadata(
                 Path(self.library_readonly_db), Path(self.preferences_root) / 'exports',
-                image_root=self.library_image_root,
+                image_root=self.library_image_root if include_images else None,
                 cancelled=self._legacy_export_stop.is_set)
 
     async def recent_legacy_backup_authors(self):

@@ -339,6 +339,8 @@ class DemoShell:
                 desktop=self.services.desktop,
                 export_legacy=(self.services.export_legacy_metadata
                                if self.services.legacy_metadata_export_available() else None),
+                export_metadata=(self.services.export_legacy_metadata_only
+                                 if self.services.legacy_metadata_export_available() else None),
                 extension_status=lambda:getattr(self.services,"extension_bridge_status","disabled"),
                 extension_snapshot=lambda: self.services.extension_bridge.response_snapshot() if self.services.extension_bridge is not None else ({}, {}),
                 native_profile=self.profile_view, following_sync=self.following_view,
