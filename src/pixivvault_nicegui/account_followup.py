@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from threading import Event
 
+from .account_scope import AccountScope, ConfirmedFollowingSwitch, require_same_account
 from .following_sync import FollowingSyncCancelled, FollowingSyncError
 
 NOTICE_SWITCH_CONFIRMED = '別アカウント(ID: {uid})のCookieを読み込みました。旧フォロー中データを削除・再取得します。'
@@ -173,14 +174,19 @@ class AccountFollowup:
             self._running = False
             self._notice(NOTICE_SWITCH_NOT_STARTED, 'warning')
             return
-        self._notice(NOTICE_SWITCH_CONFIRMED.format(uid=request.new_account), 'warning')
+        def clear_confirmed_account():
+            require_same_account(request.new_account, reader.require_identity())
+            scope = ConfirmedFollowingSwitch(request.old_account, AccountScope(request.new_account, reader))
+            store.clear_account(request.old_account, scope=scope)
+
         try:
-            await asyncio.to_thread(store.clear_account, request.old_account)
+            await asyncio.to_thread(clear_confirmed_account)
         except Exception:
             self._running = False
             self._close_reader(reader)
-            self._notice(NOTICE_SYNC_FAILED, 'negative')
+            self._notice(NOTICE_SWITCH_NOT_STARTED, 'warning')
             return
+        self._notice(NOTICE_SWITCH_CONFIRMED.format(uid=request.new_account), 'warning')
         await self._sync(request.new_account, store, failed_notice=NOTICE_SWITCH_FETCH_FAILED,
                          first_reader=reader)
 

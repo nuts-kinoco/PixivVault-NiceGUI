@@ -212,7 +212,8 @@ async def test_open_learning_trend_removes_stale_projection(tmp_path, fixture, m
             app._sync_similarity_auto = lambda: None
             app.shared_image_cache = None
             app.apply_preferences = lambda snapshot: ApplicationServices.apply_preferences(app, snapshot)
-            shell = SimpleNamespace(services=app, learning=view, gallery=None, personal_view=None)
+            shell = SimpleNamespace(services=app, learning=view, gallery=None,
+                                    personal_view=None, job_views={})
             DemoShell.apply_preferences(shell)
             DemoShell._tagger_settings_changed(shell)
         elif transition == 'digest':

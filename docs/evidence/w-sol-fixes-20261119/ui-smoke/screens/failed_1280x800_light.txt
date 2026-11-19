@@ -1,0 +1,105 @@
+⚠️⚠️ 本番DBを使用中: S:\Projects\PV-DEV-20261117\wt-w\.tmp-review\ui-smoke-bulk-fixed\run\managed
+PixivVault
+× [未認証/期限切れ] Cookieファイルが設定されていません。設定から選んでください。
+アプリ: 未接続
+API切り替え
+history
+visibility
+folder_open
+dark_mode
+public
+settings
+info_outline
+【Cookie未連携】
+PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。
+拡張機能の受信が動いていません。自動連携は使えません。設定からcookies.txtを選んでください。
+open_in_browser
+Pixivを開く
+close
+download
+ダウンロード
+queue
+キュー
+report_problem
+失敗リスト
+content_copy
+重複整理
+explore
+学習
+leaderboard
+ランキング
+military_tech
+自分のランキング
+photo_library
+ライブラリ
+recommend
+おすすめ
+schedule
+定期チェック
+edit_note
+メタデータ補完
+ダウンロード失敗キュー・保存品質異常リスト
+refresh
+一覧の削除は専用台帳に保存します。元DB・画像・ZIPは変更しません。 再試行は対応作品だけ管理キューへ明示再投入します。
+すべて 17
+通信 3
+見つからない 3
+権限・年齢制限 3
+保存先 3
+形式 3
+その他 2
+再試行できる対応作品がありません
+more_vert
+17 / 17 件
+架空の失敗作品 001（ID: failure-0001）
+通信 ・ リトライ回数: 0
+refresh
+再試行
+close
+Connection: 合成の接続失敗
+二行目の診断は省略せず表示します。
+架空の失敗作品 002（ID: failure-0002）
+見つからない ・ リトライ回数: 1
+refresh
+再試行
+close
+404: 合成作品が見つかりません
+架空の失敗作品 003（ID: failure-0003）
+権限・年齢制限 ・ リトライ回数: 2
+refresh
+再試行
+close
+403: 合成の権限エラー
+架空の失敗作品 004（ID: failure-0004）
+保存先 ・ リトライ回数: 0
+refresh
+再試行
+close
+No space: 合成の保存先エラー
+架空の失敗作品 005（ID: failure-0005）
+形式 ・ リトライ回数: 1
+refresh
+再試行
+close
+ページ不足: 合成の品質検査
+架空の失敗作品 006（ID: failure-0006）
+その他 ・ リトライ回数: 2
+refresh
+再試行
+close
+分類されていない合成エラー
+架空の失敗作品 007（ID: failure-0007）
+通信 ・ リトライ回数: 0
+refresh
+再試行
+close
+Connection: 合成の接続失敗
+架空の失敗作品 008（ID: failure-0008）
+見つからない ・ リトライ回数: 1
+refresh
+再試行
+close
+404: 合成作品が見つかりません
+1 / 3
+chevron_left
+chevron_right

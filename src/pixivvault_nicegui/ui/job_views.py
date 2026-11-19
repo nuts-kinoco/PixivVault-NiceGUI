@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import math
 import re
+from .shared_log_view import render_log_entries
+
 from uuid import uuid4
 
 from nicegui import ui
@@ -399,11 +401,7 @@ class QueueView:
         if entries == self._log_signature:
             return
         self._log_signature = entries
-        self.log_container.clear()
-        with self.log_container:
-            for entry in entries:
-                ui.label(f'[{entry.timestamp}] {entry.message}').classes(
-                    'pv-queue-log-line pv-queue-log-' + entry.level)
+        render_log_entries(self.log_container, entries)
         self._scroll_log_to_end()
 
     def _scroll_log_to_end(self):

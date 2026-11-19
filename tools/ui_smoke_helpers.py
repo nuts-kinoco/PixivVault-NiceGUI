@@ -41,6 +41,10 @@ def validate_expectations(data) -> dict:
             values = spec.get(field, [])
             if not isinstance(values, list) or not all(isinstance(v, str) and v for v in values):
                 raise ExpectationError(f"{name}.{field}: must be a list of non-empty strings")
+        fonts = spec.get("text_fonts", {})
+        if not isinstance(fonts, dict) or not all(
+                isinstance(s, str) and s and isinstance(f, str) and f for s, f in fonts.items()):
+            raise ExpectationError(f"{name}.text_fonts: must map selectors to font families")
     for name, spec in data["screens"].items():
         if not isinstance(spec.get("label"), str) or not spec["label"]:
             raise ExpectationError(f"{name}: label is required")
@@ -81,6 +85,10 @@ def check_snapshot(snapshot: dict, global_spec: dict, screen_spec: dict) -> list
     testids = snapshot.get("testids", [])
     text = snapshot.get("text", "")
     for spec in (global_spec, screen_spec):
+        for selector, expected in spec.get("text_fonts", {}).items():
+            fonts = snapshot.get("text_fonts", {}).get(selector, [])
+            if not fonts or any(font != expected for font in fonts):
+                failures.append(f"font {selector}: expected {expected}, got {fonts}")
         for pattern in spec.get("testids", []):
             if not testid_present(pattern, testids):
                 failures.append(f"要素なし: data-testid={pattern}")

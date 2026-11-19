@@ -18,7 +18,8 @@ class AccountSource(FakeSource):
     def verify_identity(self):
         self.calls.append('identity')
         self._verified_identity=self.user_id
-        return self.user_id
+        self._verified_identity = self.user_id
+        return self._verified_identity
     def get_bookmarked_works(self,identity,rest_type):
         assert identity==self.user_id
         self.calls.append(('bookmarks',rest_type))

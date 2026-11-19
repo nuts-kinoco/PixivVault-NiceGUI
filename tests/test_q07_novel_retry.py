@@ -19,8 +19,8 @@ class Reader:
         self.release.set()
         self.fail=False
         self.wrong=False
-    def require_identity(self): return '12'
-    def verify_identity(self): return '12'
+    def require_identity(self): self._verified_identity = '12'; return self._verified_identity
+    def verify_identity(self): self._verified_identity = '12'; return self._verified_identity
     def get_novel_payload(self,wid,aid):
         self.calls.append(wid)
         self.entered.set()

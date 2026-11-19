@@ -1,46 +1,99 @@
-﻿"""元 PixivVault (Flet) を隔離起動した Web 表示 (127.0.0.1:28550) の全タブを撮る。
-使い方: S:\\Projects\\PixivVault-NiceGUI\\.venv\\Scripts\\python capture_original.py <出力ディレクトリ> [url]
-セマンティクス有効化後の DOM からテキストも .txt に保存する。"""
-import sys, os, json
-from playwright.sync_api import sync_playwright
-out = sys.argv[1]; url = sys.argv[2] if len(sys.argv) > 2 else "http://127.0.0.1:28550/"
-os.makedirs(out, exist_ok=True)
-TABS = [("download","ダウンロード"),("queue","キュー"),("failed","失敗リスト"),("dedup","重複整理"),
-        ("learn","学習"),("ranking","ランキング"),("library","ライブラリ"),("recommend","おすすめ")]
-JS_TREE = """()=>[...document.querySelectorAll('flt-semantics')].map(e=>{const r=e.getBoundingClientRect();
- return [e.getAttribute('role')||'',(e.getAttribute('aria-label')||e.textContent||'').replace(/\\s+/g,' ').slice(0,60),
- Math.round(r.x),Math.round(r.y),Math.round(r.width),Math.round(r.height)].join('|')}).join('\\n')"""
-def is_dark(png):
-    from PIL import Image; import io
-    im = Image.open(io.BytesIO(png)).convert("RGB"); r,g,b = im.getpixel((4, im.height//2)); return (r+g+b)/3 < 128
-def header_icons(pg):
-    xs = pg.evaluate("""()=>[...document.querySelectorAll('flt-semantics[role=button]')].map(e=>{const r=e.getBoundingClientRect();
-      return [r.x,r.y,r.width,r.height]}).filter(a=>a[1]<130&&a[0]>window.innerWidth*0.6)""")
-    return sorted(xs, key=lambda a: a[0])
-def click_tab(pg, label):
-    pg.locator("flt-semantics[role=button]").filter(has_text=label).first.click()
-    pg.wait_for_timeout(1800)
-with sync_playwright() as p:
-    br = p.chromium.launch(channel="msedge")
-    for (w,h) in [(1280,800),(1920,1080)]:
-        pg = br.new_page(viewport={"width":w,"height":h}); pg.goto(url); pg.wait_for_timeout(7000)
-        pg.locator("flt-semantics-placeholder").first.evaluate("e=>e.click()"); pg.wait_for_timeout(1500)
-        for want_dark in (True, False):
-            if is_dark(pg.screenshot()) != want_dark:
-                ic = header_icons(pg); a = ic[3]   # 4番目=テーマ切替
-                pg.mouse.click(a[0]+a[2]/2, a[1]+a[3]/2); pg.wait_for_timeout(1500)
-            theme = "dark" if want_dark else "light"
-            for key, label in TABS:
-                click_tab(pg, label)
-                base = f"{out}/{w}x{h}_{theme}_{key}"
-                pg.screenshot(path=base+".png")
-                open(base+".txt","w",encoding="utf-8").write(pg.evaluate(JS_TREE))
-            click_tab(pg, "ダウンロード")
-            ic = header_icons(pg); a = ic[-1]   # 末尾=設定
-            pg.mouse.click(a[0]+a[2]/2, a[1]+a[3]/2); pg.wait_for_timeout(2000)
-            base = f"{out}/{w}x{h}_{theme}_settings"
-            pg.screenshot(path=base+".png"); open(base+".txt","w",encoding="utf-8").write(pg.evaluate(JS_TREE))
-            pg.keyboard.press("Escape"); pg.wait_for_timeout(800)
-        pg.close()
-    br.close()
+"""Playwright navigation for the original Flet app's accessibility tree."""
+from __future__ import annotations
 
+import argparse
+from pathlib import Path
+
+TABS = {
+    "download": "ダウンロード", "queue": "キュー", "failed": "失敗リスト",
+    "dedup": "重複整理", "learning": "学習", "ranking": "ランキング",
+    "library": "ライブラリ", "recommend": "おすすめ",
+}
+BUTTON = "flt-semantics[role=button]"
+OUTLINE_JS = """() => [...document.querySelectorAll('flt-semantics')].map(e => {
+  const r = e.getBoundingClientRect();
+  const label = e.getAttribute('aria-label') || e.textContent || '';
+  return {role:e.getAttribute('role'), text:label.replace(/\\s+/g, ' ').trim().slice(0, 250),
+          rect:[r.x,r.y,r.width,r.height].map(Math.round)};
+})"""
+
+
+def enable_semantics(page):
+    page.locator("flt-semantics-placeholder").first.evaluate("e => e.click()", timeout=30000)
+    page.locator(BUTTON).get_by_text(TABS["library"], exact=True).first.wait_for(timeout=30000)
+
+
+def text_control(page, label):
+    return page.locator("flt-semantics").get_by_text(label, exact=True).last
+
+
+def click_label(page, label):
+    text_control(page, label).click(timeout=5000)
+
+
+def click_header(page, label):
+    # Flet exposes the tooltip in a sibling semantics node laid over its button.
+    rows = page.evaluate(OUTLINE_JS)
+    box = next((row["rect"] for row in rows if row["text"] == label and 0 < row["rect"][2] <= 48), None)
+    if not box:
+        raise ValueError(f"header control has no bounds: {label}")
+    x, y, width, height = box
+    page.mouse.click(x + width / 2, y + height / 2)
+
+
+def set_theme(page, theme):
+    label = "ライトモードへ切り替え" if theme == "light" else "ダークモードへ切り替え"
+    if any(row["text"] == label for row in page.evaluate(OUTLINE_JS)):
+        click_header(page, label)
+        page.wait_for_timeout(400)
+    inverse = "ダークモードへ切り替え" if theme == "light" else "ライトモードへ切り替え"
+    if not any(row["text"] == inverse for row in page.evaluate(OUTLINE_JS)):
+        raise ValueError(f"original theme not confirmed: {theme}")
+
+
+def open_screen(page, key):
+    tab, _, subview = key.partition("/")
+    if tab in TABS:
+        page.locator(BUTTON).get_by_text(TABS[tab], exact=True).first.click(timeout=5000)
+    elif tab == "history":
+        click_header(page, "直近のバックアップ")
+    elif tab == "settings":
+        click_header(page, "設定")
+        page.locator("flt-semantics[role=alertdialog]").first.wait_for(timeout=5000)
+    else:
+        raise ValueError(f"unknown original screen: {key}")
+    if subview:
+        click_label(page, subview)
+
+
+def main():
+    from playwright.sync_api import sync_playwright
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("out", type=Path)
+    parser.add_argument("url", nargs="?", default="http://127.0.0.1:28550/")
+    args = parser.parse_args()
+    args.out.mkdir(parents=True, exist_ok=True)
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(channel="msedge", headless=True)
+        for width, height in ((1280, 800), (1920, 1080)):
+            for theme in ("dark", "light"):
+                page = browser.new_page(viewport={"width": width, "height": height})
+                page.goto(args.url)
+                enable_semantics(page)
+                set_theme(page, theme)
+                for key in (*TABS, "history", "settings"):
+                    open_screen(page, key)
+                    page.wait_for_timeout(350)
+                    stem = args.out / f"{width}x{height}_{theme}_{'learn' if key == 'learning' else key}"
+                    outline = page.evaluate(OUTLINE_JS)
+                    page.screenshot(path=stem.with_suffix(".png"))
+                    stem.with_suffix(".txt").write_text(
+                        "\n".join("|".join(map(str, (e["role"] or "", e["text"], *e["rect"])))
+                                  for e in outline), encoding="utf-8")
+                page.close()
+        browser.close()
+
+
+if __name__ == "__main__":
+    main()

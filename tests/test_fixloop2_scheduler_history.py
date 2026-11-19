@@ -11,7 +11,7 @@ async def test_open_renders_existing_history_without_waiting_for_timer():
             return SimpleNamespace(revision=1,interval_hours=24,startup_check=False,
                 last_status='never',next_due_utc=None)
         def favourites(self):return ()
-        def claim_pending_notifications(self):return ()
+        def claim_pending_notifications(self, *, account_id):return ()
         def history(self):
             return [{'status':'saved','accepted':2,'deferred':0,'finished_utc':'generated'}]
     ledger=Ledger()

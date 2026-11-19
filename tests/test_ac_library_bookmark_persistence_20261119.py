@@ -43,7 +43,8 @@ async def test_other_account_and_stopped_gate_never_publish_old_cache(tmp_path):
     class Other(FakeSource):
         def verify_identity(self):
             self.calls.append('identity')
-            return '13'
+            self._verified_identity = '13'
+            return self._verified_identity
     source = Other()
     other = ApplicationServices(live_client=source, preferences_root=root)
     try:

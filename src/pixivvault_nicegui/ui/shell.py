@@ -339,6 +339,8 @@ class DemoShell:
                 desktop=self.services.desktop,
                 export_legacy=(self.services.export_legacy_metadata
                                if self.services.legacy_metadata_export_available() else None),
+                export_metadata=(self.services.export_legacy_metadata_only
+                                 if self.services.legacy_metadata_export_available() else None),
                 extension_status=lambda:getattr(self.services,"extension_bridge_status","disabled"),
                 extension_snapshot=lambda: self.services.extension_bridge.response_snapshot() if self.services.extension_bridge is not None else ({}, {}),
                 native_profile=self.profile_view, following_sync=self.following_view,
@@ -434,6 +436,8 @@ class DemoShell:
         if self.learning is not None:
             self.learning.refresh_prefetch()
             self.learning.watch_local_seeds()
+        refresh = getattr(self.job_views.get('download'), 'refresh_bookmark_layout', None)
+        if callable(refresh):refresh()
 
     def _tagger_settings_changed(self):
         if self.learning is not None:
@@ -550,7 +554,17 @@ class DemoShell:
                 (tab == "failed" and not use_legacy_failed)) and tab not in self.job_views:
             from .job_views import DownloadView, QueueView
             with self.content:
-                if tab == "download" and self.multiple_media:
+                if tab == "download" and self.services.managed_downloads is not None:
+                    # 元の統合ダウンロード画面。作品単位の確認・小説・うごイラは「詳細」の中の従来画面に残す。
+                    from .unified_download_view import UnifiedDownloadView
+                    if self.multiple_media:
+                        from .media_views import MediaDownloadView
+                        legacy = lambda: MediaDownloadView(self.services, navigate=self.show)
+                    else:
+                        legacy = None
+                    self.job_views[tab] = UnifiedDownloadView(self.services, navigate=self.show,
+                                                              legacy_factory=legacy)
+                elif tab == "download" and self.multiple_media:
                     from .media_views import MediaDownloadView
                     self.job_views[tab] = MediaDownloadView(self.services, navigate=self.show)
                 elif tab == "download" and self.services.ugoira is not None:
@@ -559,9 +573,6 @@ class DemoShell:
                 elif tab == "download" and self.services.novel_jobs is not None:
                     from .novel_save_view import NovelDownloadView
                     self.job_views[tab] = NovelDownloadView(self.services, navigate=self.show)
-                elif tab == "download" and self.services.managed_downloads is not None:
-                    from .managed_download_view import ManagedDownloadView
-                    self.job_views[tab] = ManagedDownloadView(self.services)
                 else:
                     self.job_views[tab] = (DownloadView(self.services) if tab == "download" else
                                           QueueView(self.services, failed_only=tab == "failed"))

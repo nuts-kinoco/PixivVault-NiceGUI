@@ -12,18 +12,19 @@ from pixivvault_nicegui.services import ApplicationServices
 async def test_star_toggles_independently_of_download_selection_and_filter():
     services = Services()
     calls = []
-    async def update(uid, *, owner, expected, favorite):
-        calls.append((uid, expected, favorite))
+    async def update(uid, *, owner, account_id, expected, favorite):
+        calls.append((uid, account_id, expected, favorite))
+        return True
     services.set_followed_author_favorite = update
     client = Client(ui.page('/_af_favorite'))
     try:
         with client:
             view = ManagedDownloadView(services)
-            view.follow_authors = (AuthorTarget('91', 'artist', 'follow', False),)
+            view.follow_authors = (AuthorTarget('91', 'artist', 'follow', False, account_id='1'),)
             view._render_follow_list()
             assert any(x._props.get('data-testid') == 'managed-download-follow-star' for x in view.follow_list.descendants())
             await view._toggle_author_favorite('91', view.epoch, view.follow_render_generation)
-            assert calls == [('91', False, True)]
+            assert calls == [('91', '1', False, True)]
             assert view.follow_authors[0].is_favorite is True
             assert not view.author_targets
             view.follow_favorites_only = True
@@ -43,7 +44,7 @@ async def test_star_failure_keeps_displayed_state():
     try:
         with client:
             view = ManagedDownloadView(services)
-            view.follow_authors = (AuthorTarget('91', 'artist', 'follow', False),)
+            view.follow_authors = (AuthorTarget('91', 'artist', 'follow', False, account_id='1'),)
             view._render_follow_list()
             await view._toggle_author_favorite('91', view.epoch, view.follow_render_generation)
             assert view.follow_authors[0].is_favorite is False
@@ -56,19 +57,39 @@ async def test_star_failure_keeps_displayed_state():
 async def test_star_service_rejects_changed_account_and_stale_value():
     owner = 'a' * 32
     class Store:
-        def __init__(self): self.writes = []
+        def __init__(self):
+            self._lock = RLock()
+            self.writes = []
+            self.revision = 4
+            self.favorite = False
+
+        def last_synced_account(self):
+            return '1'
+
         def snapshot(self, account):
-            return SimpleNamespace(account_id=account, revision=4,
-                                   authors=(SimpleNamespace(user_id='91', is_favorite=False),))
-        def set_favorite(self, *args, **kwargs): self.writes.append((args, kwargs))
+            return SimpleNamespace(account_id=account, revision=self.revision,
+                                   authors=(SimpleNamespace(user_id='91', is_favorite=self.favorite),))
+
+        def set_favorite(self, *args, **kwargs):
+            self.writes.append((args, kwargs))
+            self.favorite = args[2]
+            self.revision += 1
+            return self.snapshot(args[0])
+
+    from pixivvault_nicegui.favourites import FavouriteBook
     store = Store()
+    book = FavouriteBook(store)
     reader = SimpleNamespace(_verified_identity='1')
     service = SimpleNamespace(_direct_owner=ApplicationServices._direct_owner,
         _managed_target_lock=RLock(), _follow_account_by_owner={owner: '1'},
-        closing=False, live_client=reader, following_sync=store)
-    await ApplicationServices.set_followed_author_favorite(service, '91', owner=owner, expected=False, favorite=True)
+        closing=False, live_client=reader, set_favourite=book.set)
+    update = ApplicationServices.set_followed_author_favorite
+    assert await update(service, '91', owner=owner, account_id='1', expected=False, favorite=True)
     assert store.writes == [(('1', '91', True), {'expected_revision': 4})]
+    assert await update(service, '91', owner=owner, account_id='1', expected=False, favorite=True) is False
+    with pytest.raises(RuntimeError):
+        await update(service, '91', owner=owner, account_id='2', expected=False, favorite=True)
     reader._verified_identity = '2'
     with pytest.raises(RuntimeError):
-        await ApplicationServices.set_followed_author_favorite(service, '91', owner=owner, expected=False, favorite=True)
+        await update(service, '91', owner=owner, account_id='1', expected=True, favorite=False)
     assert len(store.writes) == 1

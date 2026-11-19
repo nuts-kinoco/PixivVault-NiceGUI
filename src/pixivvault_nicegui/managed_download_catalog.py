@@ -36,7 +36,9 @@ def _receipt(relative, receipt, digest):
     required = {"version", "source", "work_id", "author_id", "author_name", "title",
                 "tags", "created_at", "saved_at", "illustration_type", "x_restrict",
                 "page_count", "files"}
-    if (not required <= set(receipt) <= required | {"bookmark_count"}
+    if (not required <= set(receipt) <= required | {"bookmark_count", "generation"}
+            or ("generation" in receipt and (type(receipt["generation"]) is not int
+                                              or receipt["generation"] < 1))
             or type(receipt["version"]) is not int or receipt["version"] != 1 or receipt["source"] != "pixiv-original"):
         raise ValueError("unsupported receipt")
     if (receipt.get("bookmark_count") is not None

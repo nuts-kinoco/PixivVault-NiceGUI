@@ -21,6 +21,7 @@ class AuthorTarget:
     origin: str
     is_favorite: bool | None = None
     follow_order: int | None = None
+    account_id: str | None = None
 
     def __post_init__(self):
         if not isinstance(self.user_id, str) or not _AUTHOR_ID.fullmatch(self.user_id):

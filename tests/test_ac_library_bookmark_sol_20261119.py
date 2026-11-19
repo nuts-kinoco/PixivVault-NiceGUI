@@ -216,4 +216,3 @@ async def test_new_bookmark_card_has_current_source_after_dismissal(tmp_path, mo
             view.close()
         client.delete()
         services.close()
-

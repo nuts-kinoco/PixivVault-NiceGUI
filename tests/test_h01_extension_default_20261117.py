@@ -355,7 +355,7 @@ def test_cookie_sync_saves_to_profile_and_triggers_gated_check(monkeypatch, tmp_
     owner = _SyncOwner(binding)
     b = _start(monkeypatch, owner)
     try:
-        rows = _cookie_rows()
+        rows = _cookie_rows()  # repeat the exact input, including its expiration second
         status, body = _call(b, 'POST', '/api/cookie/sync', {'cookies': rows})
         assert status == 200 and body['saved'] is True and body['state'] == 'pending'
         assert SECRET not in json.dumps(body)

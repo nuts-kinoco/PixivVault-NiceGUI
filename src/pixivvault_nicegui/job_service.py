@@ -25,7 +25,9 @@ STATES = frozenset({"queued", "running", "paused", "stopping", "done", "error", 
 UNFINISHED = frozenset({"queued", "running", "paused", "stopping"})
 APPLICATION_ID = 0x50564A31
 SCHEMA_VERSION = 2
-MAX_OPERATION_IDS = 10000
+# Per ledger. Was 10,000; the static-illustration ledger is also freed by retire_jobs() during bulk
+# runs, the others (exports, novels, ugoira) only grow. Each commit costs O(ledger), so keep it bounded.
+MAX_OPERATION_IDS = 100_000
 # A normal remote GET has a ten-second per-request deadline. An abnormally
 # persistent gate owner must not leave accepted jobs invisibly queued forever.
 _ADMISSION_DEFER_MAX_SECONDS = 20.0

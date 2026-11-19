@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from pixivvault_nicegui.account_scope import AccountScope, OwnedListing
 from pixivvault_nicegui.managed_downloads import ManagedPixivDownloads
 from pixivvault_nicegui.managed_network_stop_gate import ManagedNetworkStopped
 from pixivvault_nicegui.managed_network_stop_integration import ManagedNetworkStopIntegration
@@ -46,7 +47,7 @@ def test_fatal_swallowed_in_first_author_stops_second_before_remote_inventory(
             return ()
 
         live_client = SimpleNamespace(
-            verify_identity=lambda: "generated-only",
+            _verified_identity="42", verify_identity=lambda: "42",
             get_author_artworks_complete=generated_remote_inventory,
         )
         services = SimpleNamespace(
@@ -56,7 +57,8 @@ def test_fatal_swallowed_in_first_author_stops_second_before_remote_inventory(
             jobs=SimpleNamespace(snapshot=lambda: ()),
             live_client=live_client,
             author_media=(object() if route == "author_media" else None),
-            author_media_preview=generated_remote_inventory,
+            author_media_preview_owned=lambda aid, **kw: OwnedListing(
+                AccountScope("42", live_client), aid, "both", generated_remote_inventory(aid)),
             release_managed_owner=lambda _owner: None,
         )
 

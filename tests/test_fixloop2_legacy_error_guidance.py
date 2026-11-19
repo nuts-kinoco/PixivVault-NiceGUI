@@ -12,7 +12,7 @@ async def test_legacy_source_failure_gives_local_guidance(monkeypatch):
     error_type=getattr(legacy,'LegacyAuthorSourceError',ValueError)
     def fail(*args,**kwargs):raise error_type('synthetic-private-path')
     monkeypatch.setattr(scheduler,'submit_author_batch',fail)
-    ledger=SimpleNamespace(sync_favourites=lambda authors:None)
+    ledger=SimpleNamespace(_sync_favourites=lambda authors:None)
     service=SimpleNamespace(closing=False,managed_scheduler=ledger,
         scheduler_favourite_authors=lambda:('11',),_scheduler_dispatch_lock=Lock(),_scheduler_cancel_event=Event())
     client=Client(ui.page('/generated-legacy-scheduler-error'))

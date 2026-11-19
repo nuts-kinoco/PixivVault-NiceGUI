@@ -24,6 +24,7 @@ from threading import RLock
 import time
 from uuid import uuid4
 
+from .account_scope import AccountMismatch, AccountScope, OwnedListing, require_same_account
 from .fs_paths import native_io_path, sqlite_readonly_uri
 from .managed_downloads import _safe_path, _read_bounded, _write, _fsync_dir
 from .ugoira_storage import _owner_lock, _OWNER
@@ -34,6 +35,7 @@ DATABASE = 'batch-runs.sqlite3'
 APPLICATION_ID = 0x50564230
 MAX_DB_BYTES = 256 * 1024 * 1024
 MAX_RUNS = 5000
+_ALL_RUN_OWNERS = object()
 
 RUN_KINDS = ('authors', 'bookmarks')
 RUN_ORIGINS = ('manual', 'auto')
@@ -61,6 +63,19 @@ class BatchRunConflict(BatchRunError):
 
 
 @dataclass(frozen=True, slots=True)
+class RunHandle:
+    """The identity and owner of one persisted execution."""
+
+    run_id: str
+    account_id: str | None
+
+    def __post_init__(self):
+        _run_id(self.run_id)
+        if self.account_id is not None:
+            AccountScope(self.account_id)
+
+
+@dataclass(frozen=True, slots=True)
 class RunRecord:
     run_id: str
     kind: str
@@ -74,6 +89,10 @@ class RunRecord:
     error_code: str
     account_id: str | None
 
+
+    @property
+    def handle(self):
+        return RunHandle(self.run_id, self.account_id)
 
 @dataclass(frozen=True, slots=True)
 class RunAuthor:
@@ -144,7 +163,7 @@ _ITEM_COLUMNS = ('run_id', 'author_id', 'work_key', 'media', 'operation_id', 'jo
 _SCHEMA = f'''
     BEGIN IMMEDIATE;
     PRAGMA application_id={APPLICATION_ID};
-    PRAGMA user_version=1;
+    PRAGMA user_version=4;
     CREATE TABLE runs (
         run_id TEXT PRIMARY KEY,
         kind TEXT NOT NULL CHECK(kind IN ({','.join(repr(k) for k in RUN_KINDS)})),
@@ -183,6 +202,40 @@ _SCHEMA = f'''
         state TEXT NOT NULL CHECK(state IN ({','.join(repr(k) for k in ITEM_STATES)})),
         PRIMARY KEY(run_id,author_id,work_key),
         FOREIGN KEY(run_id) REFERENCES runs(run_id));
+    CREATE TABLE run_flags (
+        run_id TEXT PRIMARY KEY,
+        discarded INTEGER NOT NULL DEFAULT 0 CHECK(discarded IN (0,1)),
+        verified_bookmark_account INTEGER NOT NULL DEFAULT 0 CHECK(verified_bookmark_account IN (0,1)),
+        stamp_following INTEGER NOT NULL DEFAULT 1 CHECK(stamp_following IN (0,1)),
+        FOREIGN KEY(run_id) REFERENCES runs(run_id));
+    COMMIT;
+'''
+
+_MIGRATE_1_TO_2 = '''
+    BEGIN IMMEDIATE;
+    CREATE TABLE run_flags (
+        run_id TEXT PRIMARY KEY,
+        discarded INTEGER NOT NULL DEFAULT 0 CHECK(discarded IN (0,1)),
+        FOREIGN KEY(run_id) REFERENCES runs(run_id));
+    PRAGMA user_version=2;
+    COMMIT;
+'''
+
+
+_MIGRATE_2_TO_3 = '''
+    BEGIN IMMEDIATE;
+    ALTER TABLE run_flags ADD COLUMN verified_bookmark_account INTEGER NOT NULL DEFAULT 0
+        CHECK(verified_bookmark_account IN (0,1));
+    PRAGMA user_version=3;
+    COMMIT;
+'''
+
+
+_MIGRATE_3_TO_4 = '''
+    BEGIN IMMEDIATE;
+    ALTER TABLE run_flags ADD COLUMN stamp_following INTEGER NOT NULL DEFAULT 1
+        CHECK(stamp_following IN (0,1));
+    PRAGMA user_version=4;
     COMMIT;
 '''
 
@@ -221,7 +274,7 @@ class BatchRunLedger:
                 if self.path.stat().st_size > MAX_DB_BYTES:
                     raise BatchRunError()
                 with closing(sqlite3.connect(sqlite_readonly_uri(self.path), uri=True)) as check:
-                    self._verify_schema(check)
+                    self._verify_schema(check, versions=(1, 2, 3, 4))
             else:
                 descriptor = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY
                                      | getattr(os, 'O_BINARY', 0) | getattr(os, 'O_NOFOLLOW', 0), 0o600)
@@ -232,6 +285,13 @@ class BatchRunLedger:
             self._connection.execute('PRAGMA synchronous=' + synchronous)
             if not existed:
                 self._connection.executescript(_SCHEMA)
+            elif self._connection.execute('PRAGMA user_version').fetchone() == (1,):
+                self._connection.executescript(_MIGRATE_1_TO_2)  # adds the discard flag table only
+            if self._connection.execute('PRAGMA user_version').fetchone() == (2,):
+                self._connection.executescript(_MIGRATE_2_TO_3)
+            if self._connection.execute('PRAGMA user_version').fetchone() == (3,):
+                self._verify_schema(self._connection, versions=(3,))
+                self._connection.executescript(_MIGRATE_3_TO_4)
             self._verify_schema(self._connection)
             metadata = self.path.lstat()
             self._identity = metadata.st_dev, metadata.st_ino
@@ -256,14 +316,24 @@ class BatchRunLedger:
             _safe_path(child, file=True)
 
     @staticmethod
-    def _verify_schema(connection):
+    def _verify_schema(connection, versions=(4,)):
+        version = connection.execute('PRAGMA user_version').fetchone()
         if (connection.execute('PRAGMA application_id').fetchone() != (APPLICATION_ID,)
-                or connection.execute('PRAGMA user_version').fetchone() != (1,)):
+                or version not in [(v,) for v in versions]):
             raise BatchRunError()
         tables = {r[0] for r in connection.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")}
-        if tables != {'runs', 'run_authors', 'run_items'}:
+        if tables != ({'runs', 'run_authors', 'run_items'} if version == (1,)
+                      else {'runs', 'run_authors', 'run_items', 'run_flags'}):
             raise BatchRunError()
+        if version != (1,):
+            flags = ('run_id', 'discarded')
+            if version >= (3,):
+                flags += ('verified_bookmark_account',)
+            if version >= (4,):
+                flags += ('stamp_following',)
+            if tuple(r[1] for r in connection.execute('PRAGMA table_info(run_flags)')) != flags:
+                raise BatchRunError()
         for table, columns in (('runs', _RUN_COLUMNS), ('run_authors', _AUTHOR_COLUMNS),
                                ('run_items', _ITEM_COLUMNS)):
             if tuple(r[1] for r in connection.execute(f'PRAGMA table_info({table})')) != columns:
@@ -310,7 +380,7 @@ class BatchRunLedger:
                     except Exception:
                         pass
                     raise BatchRunError() from None
-                if isinstance(error, BatchRunError):
+                if isinstance(error, (BatchRunError, AccountMismatch)):
                     raise error from None
                 if isinstance(error, Exception):
                     raise BatchRunError() from None
@@ -335,34 +405,63 @@ class BatchRunLedger:
     def _run_row(row):
         return RunRecord(*row)
 
-    def begin_run(self, kind, origin, target_type, author_ids, *, account_id=None):
+    def begin_run(self, kind, origin, target_type, author_ids, *, account_id, verified_bookmark_account=False,
+                  resume_from=None, stamp_following=True):
         """Create a `running` run with every author `pending`. One active run at a time."""
         if kind not in RUN_KINDS or origin not in RUN_ORIGINS or target_type not in ('both', 'illust', 'novel', ''):
             raise BatchRunError()
         authors = tuple(dict.fromkeys(_identifier(a) for a in author_ids))
-        if account_id is not None:
+        if resume_from is not None:
+            if type(resume_from) is not RunHandle:
+                raise AccountMismatch()
+            require_same_account(resume_from.account_id, AccountScope(account_id).account_id)
+        elif account_id is not None:
             account_id = _identifier(account_id)
+        if type(stamp_following) is not bool:
+            raise BatchRunError()
+        if type(verified_bookmark_account) is not bool or (verified_bookmark_account and
+                (kind != 'bookmarks' or account_id is None)):
+            raise BatchRunError()
         run_id = uuid4().hex
         now = self._now()
 
         def create(connection):
+            stamp = stamp_following
+            if resume_from is not None:
+                source_id = resume_from.run_id
+                self._require_run_owner(connection, source_id, account_id)
+                source = self._resumable_row(connection, account_id)
+                if (source is None or source[0] != source_id or source[1] != kind or source[2] != origin
+                        or (source[3] or 'both') != (target_type or 'both')):
+                    raise BatchRunConflict()
+                flag = connection.execute('SELECT stamp_following FROM run_flags WHERE run_id=?',
+                                          (source_id,)).fetchone()
+                stamp = bool(flag[0]) if flag is not None else True
+                pending = tuple(row[0] for row in connection.execute(
+                    "SELECT author_id FROM run_authors WHERE run_id=? AND state!='done' ORDER BY seq", (source_id,)))
+                if pending != authors:
+                    raise BatchRunConflict()
             if connection.execute(
                     'SELECT 1 FROM runs WHERE state IN (?,?,?) LIMIT 1', RUN_ACTIVE).fetchone():
                 raise BatchRunConflict()
             if connection.execute('SELECT COUNT(*) FROM runs').fetchone()[0] >= MAX_RUNS:
-                # Oldest finished runs make room; an active run never gets here.
-                connection.execute('''DELETE FROM run_items WHERE run_id IN (
-                    SELECT run_id FROM runs ORDER BY started_utc LIMIT 100)''')
-                connection.execute('''DELETE FROM run_authors WHERE run_id IN (
-                    SELECT run_id FROM runs ORDER BY started_utc LIMIT 100)''')
-                connection.execute('DELETE FROM runs WHERE run_id IN ('
-                                   'SELECT run_id FROM runs ORDER BY started_utc LIMIT 100)')
+                # Keep the global cap, retiring only history this owner can change.
+                stale = tuple((row[0],) for row in connection.execute(
+                    'SELECT run_id FROM runs WHERE account_id IS ? ORDER BY started_utc LIMIT 100',
+                    (account_id,)) if resume_from is None or row[0] != resume_from.run_id)
+                if not stale:
+                    raise BatchRunConflict()
+                for table in ('run_items', 'run_authors', 'run_flags', 'runs'):
+                    connection.executemany(f'DELETE FROM {table} WHERE run_id=?', stale)
             connection.execute('INSERT INTO runs VALUES(?,?,?,?,?,?,NULL,?,1,?,?)',
                                (run_id, kind, origin, target_type, 'running', now, len(authors), '', account_id))
+            if verified_bookmark_account or not stamp:
+                connection.execute('INSERT INTO run_flags(run_id,verified_bookmark_account,stamp_following) VALUES(?,?,?)',
+                                   (run_id, verified_bookmark_account, stamp))
             connection.executemany(
                 'INSERT INTO run_authors(run_id,seq,author_id,state) VALUES(?,?,?,?)',
                 [(run_id, seq, author, 'pending') for seq, author in enumerate(authors)])
-            return run_id
+            return RunHandle(run_id, account_id)
         return self._transaction(create)
 
     def run(self, run_id):
@@ -385,15 +484,25 @@ class BatchRunLedger:
             RUN_ACTIVE).fetchone())
         return None if row is None else self._run_row(row)
 
-    def set_run_state(self, run_id, state, error_code=''):
-        """Move a run between states; terminal states stamp finished_utc and stay final."""
-        _run_id(run_id)
+    @staticmethod
+    def _require_run_owner(connection, run_id, account_id):
+        row = connection.execute('SELECT account_id FROM runs WHERE run_id=?', (run_id,)).fetchone()
+        if row is None:
+            raise BatchRunError()
+        require_same_account(row[0], account_id)
+
+    def set_run_state(self, handle: RunHandle, state, error_code=''):
+        """Apply a state transition to the specified execution."""
+        if type(handle) is not RunHandle:
+            raise AccountMismatch()
+        run_id = handle.run_id
         _code(error_code)
         if state not in RUN_STATES:
             raise BatchRunError()
         now = self._now()
 
         def move(connection):
+            self._require_run_owner(connection, run_id, handle.account_id)
             row = connection.execute('SELECT state FROM runs WHERE run_id=?', (run_id,)).fetchone()
             if row is None:
                 raise BatchRunError()
@@ -401,22 +510,24 @@ class BatchRunLedger:
                 if row[0] == state:
                     return
                 raise BatchRunConflict()
-            finished = now if state not in RUN_ACTIVE else None
+            finished = now if state not in RUN_ACTIVE and error_code not in (AccountMismatch.code, 'bookmark_account_mismatch') else None
             connection.execute(
                 'UPDATE runs SET state=?,error_code=?,finished_utc=?,revision=revision+1 WHERE run_id=?',
                 (state, error_code, finished, run_id))
         self._transaction(move)
 
-    def recover_interrupted(self):
-        """After a restart no run can still be active: mark each one `interrupted`.
-
-        Authors that were mid-step become `stopped`; they were never stamped.
-        """
+    # Startup-only recovery under the process-owned database lock.
+    def _recover_interrupted(self, *, account_id=_ALL_RUN_OWNERS):
+        """Recover orphaned runs at startup, or only one owner's history before a new run."""
         now = self._now()
+        query = 'SELECT run_id FROM runs WHERE state IN (?,?,?)'
+        params = RUN_ACTIVE
+        if account_id is not _ALL_RUN_OWNERS:
+            query += ' AND account_id IS ?'
+            params += (account_id,)
 
         def recover(connection):
-            ids = [r[0] for r in connection.execute(
-                'SELECT run_id FROM runs WHERE state IN (?,?,?)', RUN_ACTIVE)]
+            ids = [row[0] for row in connection.execute(query, params)]
             for run_id in ids:
                 connection.execute(
                     "UPDATE run_authors SET state='stopped',finished_utc=? WHERE run_id=? "
@@ -426,6 +537,75 @@ class BatchRunLedger:
                     (now, run_id))
             return tuple(ids)
         return self._transaction(recover)
+
+    RESUMABLE_STATES = ('stopped', 'interrupted', 'failed')
+
+    def resumable_run(self, *, account_id):
+        """The newest manual run, when it ended early with authors left and was not discarded.
+
+        Terminal states are final, so "resume" is a new run seeded from `unfinished_authors`.
+        A newer manual run by the same owner ends the offer. An automatic ☆ check does not: it
+        runs unattended on a timer and must not make the user's interrupted run disappear.
+        """
+        row = self._read(lambda c: self._resumable_row(c, account_id))
+        return None if row is None else self._run_row(row)
+
+    def _resumable_row(self, connection, account_id):
+        row = connection.execute(
+            'SELECT ' + ','.join(_RUN_COLUMNS) + " FROM runs WHERE origin='manual' AND account_id IS ? "
+            'ORDER BY started_utc DESC,rowid DESC LIMIT 1', (account_id,)).fetchone()
+        if row is None or row[4] not in self.RESUMABLE_STATES:
+            return None
+        if connection.execute('SELECT 1 FROM run_flags WHERE run_id=? AND discarded=1', (row[0],)).fetchone():
+            return None
+        if not connection.execute("SELECT 1 FROM run_authors WHERE run_id=? AND state!='done' LIMIT 1",
+                                  (row[0],)).fetchone():
+            return None
+        return row
+
+    def _has_verified_bookmark_resume(self):
+        """Whether identifying the reader could reveal a verified bookmark offer."""
+        def has_offer(connection):
+            owners = connection.execute(
+                "SELECT DISTINCT account_id FROM runs JOIN run_flags USING(run_id) "
+                "WHERE kind='bookmarks' AND verified_bookmark_account=1 AND account_id IS NOT NULL "
+                "AND state IN ('stopped','interrupted','failed')")
+            for (account,) in owners:
+                row = self._resumable_row(connection, account)
+                if row is not None and row[1] == 'bookmarks' and connection.execute(
+                        'SELECT 1 FROM run_flags WHERE run_id=? AND verified_bookmark_account=1',
+                        (row[0],)).fetchone():
+                    return True
+            return False
+        return self._read(has_offer)
+
+    def has_verified_bookmark_account(self, run_id):
+        _run_id(run_id)
+        return bool(self._read(lambda c: c.execute(
+            'SELECT 1 FROM run_flags WHERE run_id=? AND verified_bookmark_account=1',
+            (run_id,)).fetchone()))
+
+    def unfinished_authors(self, run_id):
+        """Author IDs of a run that are not `done`, in the run's order."""
+        _run_id(run_id)
+        rows = self._read(lambda c: c.execute(
+            "SELECT author_id FROM run_authors WHERE run_id=? AND state!='done' ORDER BY seq",
+            (run_id,)).fetchall())
+        return tuple(r[0] for r in rows)
+
+    def discard_run(self, handle: RunHandle):
+        """End the resume offer for this owner's current unfinished execution."""
+        if type(handle) is not RunHandle or handle.account_id is None:
+            raise AccountMismatch()
+
+        def flag(connection):
+            self._require_run_owner(connection, handle.run_id, handle.account_id)
+            offer = self._resumable_row(connection, handle.account_id)
+            if offer is None or offer[0] != handle.run_id:
+                raise BatchRunConflict()
+            connection.execute('INSERT INTO run_flags(run_id,discarded) VALUES(?,1) '
+                               'ON CONFLICT(run_id) DO UPDATE SET discarded=1', (handle.run_id,))
+        self._transaction(flag)
 
     # -- authors -----------------------------------------------------------
     @staticmethod
@@ -441,7 +621,7 @@ class BatchRunLedger:
             (run_id,)).fetchall())
         return tuple(self._author_row(r) for r in rows)
 
-    def update_author(self, run_id, author_id, *, state=None, counters=None, scan_id=None,
+    def update_author(self, run_id, author_id, *, account_id, state=None, counters=None, scan_id=None,
                       deletion_check=None, error_code=None):
         """Record progress for one author. `done` is reserved for `complete_author`."""
         _run_id(run_id)
@@ -462,6 +642,7 @@ class BatchRunLedger:
         now = self._now()
 
         def update(connection):
+            self._require_run_owner(connection, run_id, account_id)
             self._update_author(connection, run_id, author_id, state, counters, scan_id,
                                 deletion_check, error_code, now)
         self._transaction(update)
@@ -501,13 +682,15 @@ class BatchRunLedger:
             connection.execute('UPDATE run_authors SET ' + ','.join(sets) + ' WHERE run_id=? AND author_id=?',
                                (*values, run_id, author_id))
 
-    def complete_author(self, run_id, author_id, counters=None, *, following=None, account_id=None):
-        """The author's step returned normally: mark it `done` and stamp last_downloaded.
+    def complete_author(self, run_id, author_id, counters=None, *, listing: OwnedListing, following=None):
+        """Complete a verified author listing and stamp its persisted run account."""
+        return self._complete_row(run_id, author_id, counters, kind='authors', listing=listing, following=following)
 
-        The stamp goes to following_sync only for an `authors` run, only when
-        the run is still running or paused (not stopping), and only when the
-        account already has a row for the author. Returns the stamp or None.
-        """
+    def complete_bookmark_row(self, run_id, row_id, counters=None, *, account_id):
+        """Complete a bookmark visibility row without an author download stamp."""
+        self._complete_row(run_id, row_id, counters, kind='bookmarks', listing=None, following=None, account_id=account_id)
+
+    def _complete_row(self, run_id, author_id, counters, *, kind, listing, following, account_id=None):
         _run_id(run_id)
         _identifier(author_id)
         counters = {} if counters is None else dict(counters)
@@ -522,12 +705,24 @@ class BatchRunLedger:
                                      (run_id,)).fetchone()
             if run is None:
                 raise BatchRunError()
-            kind, run_state, run_account = run
+            run_kind, run_state, run_account = run
+            if run_kind != kind:
+                raise BatchRunError()
+            if kind == 'bookmarks':
+                require_same_account(run_account, account_id)
+            else:
+                if type(listing) is not OwnedListing or listing.author_id != author_id:
+                    raise AccountMismatch()
+                listing.scope.verify_observed()
+                if run_account is not None:
+                    require_same_account(run_account, listing.account_id)
             row = connection.execute('SELECT state FROM run_authors WHERE run_id=? AND author_id=?',
                                      (run_id, author_id)).fetchone()
             if row is None or row[0] in AUTHOR_TERMINAL:
                 raise BatchRunConflict()
-            stamping = kind == 'authors' and run_state in ('running', 'paused')
+            stamping = (kind == 'authors' and run_account is not None and run_state in ('running', 'paused')
+                        and connection.execute('SELECT 1 FROM run_flags WHERE run_id=? AND stamp_following=0',
+                                               (run_id,)).fetchone() is None)
             sets = ['state=?', 'finished_utc=?'] + [name + '=?' for name in counters]
             values = ['done', stamp, *counters.values()]
             if stamping:
@@ -541,25 +736,22 @@ class BatchRunLedger:
         stamping, run_account = self._transaction(complete)
         if not stamping or following is None:
             return None
-        account = account_id if account_id is not None else run_account
-        if account is None:
-            return None
         try:
-            following.record_downloaded(account, author_id, stamp)
+            following.record_downloaded(run_account, author_id, stamp, scope=listing.scope)
         except Exception:
             return None  # the author is recorded done; stamp_written stays 0 and shows it
         self._transaction(lambda c: c.execute(
             'UPDATE run_authors SET stamp_written=1 WHERE run_id=? AND author_id=?', (run_id, author_id)))
         return stamp
 
-    def finish_author(self, run_id, author_id, state, *, counters=None, error_code=''):
+    def finish_author(self, run_id, author_id, state, *, account_id, counters=None, error_code=''):
         """Terminal non-`done` outcome (failed / stopped / skipped): never stamps."""
         if state not in ('failed', 'stopped', 'skipped'):
             raise BatchRunError()
-        self.update_author(run_id, author_id, state=state, counters=counters, error_code=error_code)
+        self.update_author(run_id, author_id, account_id=account_id, state=state, counters=counters, error_code=error_code)
 
     # -- items -------------------------------------------------------------
-    def record_item(self, run_id, author_id, work_key, media, operation_id, *, job_id=None, state='queued'):
+    def record_item(self, run_id, author_id, work_key, media, operation_id, *, account_id, job_id=None, state='queued'):
         _run_id(run_id)
         _identifier(author_id)
         for value, limit in ((work_key, 64), (media, 32), (operation_id, 128)):
@@ -569,6 +761,7 @@ class BatchRunLedger:
             raise BatchRunError()
 
         def record(connection):
+            self._require_run_owner(connection, run_id, account_id)
             connection.execute(
                 'INSERT INTO run_items VALUES(?,?,?,?,?,?,?) ON CONFLICT(run_id,author_id,work_key) '
                 'DO UPDATE SET job_id=COALESCE(excluded.job_id,job_id),state=excluded.state,'
@@ -576,7 +769,7 @@ class BatchRunLedger:
                 (run_id, author_id, work_key, media, operation_id, job_id, state))
         self._transaction(record)
 
-    def record_items(self, run_id, author_id, rows):
+    def record_items(self, run_id, author_id, rows, *, account_id):
         """Many `record_item` rows in one transaction: (work_key, media, operation_id, job_id, state)."""
         _run_id(run_id)
         _identifier(author_id)
@@ -588,10 +781,8 @@ class BatchRunLedger:
             if state not in ITEM_STATES or (job_id is not None and (type(job_id) is not str or len(job_id) > 64)):
                 raise BatchRunError()
             clean.append((run_id, author_id, work_key, media, operation_id, job_id, state))
-        if not clean:
-            return
-
         def record(connection):
+            self._require_run_owner(connection, run_id, account_id)
             connection.executemany(
                 'INSERT INTO run_items VALUES(?,?,?,?,?,?,?) ON CONFLICT(run_id,author_id,work_key) '
                 'DO UPDATE SET job_id=COALESCE(excluded.job_id,job_id),state=excluded.state,'

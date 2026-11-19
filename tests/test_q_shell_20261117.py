@@ -180,7 +180,9 @@ def test_title_and_tabs_use_sans_and_the_original_title_size():
     assert 'Mincho' not in title
     tab = re.search(r'\.pv-tab\s*\{([^}]*)\}', CSS).group(1)
     assert 'Mincho' not in tab
-    assert re.search(r'\.pv-dialog-title\s*\{[^}]*Yu Mincho', CSS)
+    assert DARK['--pv-ui-font'].startswith('"Noto Sans JP"')
+    assert re.search(r'body\s*\{[^}]*font-family:var\(--pv-ui-font\)', CSS)
+    assert re.search(r'\.pv-dialog-title\s*\{[^}]*font-family:inherit', CSS)
 
 
 def test_selected_tab_ground_is_the_measured_original_color_over_transparent_unselected():

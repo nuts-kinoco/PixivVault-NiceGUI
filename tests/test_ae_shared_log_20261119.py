@@ -78,7 +78,7 @@ def test_scheduler_logs_only_accepted_dispatch_without_extra_network(monkeypatch
     class Ledger:
         def __init__(self,root):pass
         def favourites(self):return ('1',)
-        def sync_favourites(self, authors):pass
+        def _sync_favourites(self, authors):pass
         def close(self):pass
     class Runner:
         def __init__(self,ledger,dispatch,*,reconcile):self.dispatch=dispatch

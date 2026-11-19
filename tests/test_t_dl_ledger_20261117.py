@@ -4,11 +4,20 @@ from datetime import datetime, timezone
 
 import pytest
 
+from types import SimpleNamespace
+
+from account_test_support import observed_scope
+from pixivvault_nicegui.account_scope import AccountScope, OwnedListing
 from pixivvault_nicegui.batch_runs import (
     BatchRunConflict, BatchRunError, BatchRunLedger, saved_counts_by_author)
 from pixivvault_nicegui.following_sync import FollowingSyncError, FollowingSyncStore
 
 ACCOUNT = '55'
+
+def listing(author_id):
+    reader = SimpleNamespace(_verified_identity=ACCOUNT)
+    return OwnedListing(AccountScope(ACCOUNT, reader), author_id, 'both', ())
+
 
 
 class Reader:
@@ -46,7 +55,7 @@ def row(snapshot, uid):
 
 def test_record_downloaded_stamps_only_the_named_existing_author(store):
     before = store.snapshot(ACCOUNT)
-    after = store.record_downloaded(ACCOUNT, '41', '2026-11-18T01:02:03+00:00')
+    after = store.record_downloaded(ACCOUNT, '41', '2026-11-18T01:02:03+00:00', scope=observed_scope(ACCOUNT))
     assert row(after, '41').last_downloaded == '2026-11-18T01:02:03+00:00'
     assert row(after, '42').last_downloaded is None
     # the follow list itself is unchanged: no revision bump, so a running follow
@@ -56,8 +65,8 @@ def test_record_downloaded_stamps_only_the_named_existing_author(store):
 
 def test_record_downloaded_for_unknown_author_or_account_is_a_noop(store):
     before = store.snapshot(ACCOUNT)
-    assert store.record_downloaded(ACCOUNT, '999', '2026-11-18T01:02:03+00:00') == before
-    assert store.record_downloaded('77', '41', '2026-11-18T01:02:03+00:00').authors == ()
+    assert store.record_downloaded(ACCOUNT, '999', '2026-11-18T01:02:03+00:00', scope=observed_scope(ACCOUNT)) == before
+    assert store.record_downloaded('77', '41', '2026-11-18T01:02:03+00:00', scope=observed_scope('77')).authors == ()
     assert store.snapshot(ACCOUNT) == before
     assert store.snapshot('77').revision == 0  # no phantom account row
 
@@ -65,13 +74,13 @@ def test_record_downloaded_for_unknown_author_or_account_is_a_noop(store):
 @pytest.mark.parametrize('bad', ['yesterday', '2026-11-18T01:02:03+09:00', '', 5])
 def test_record_downloaded_rejects_bad_stamp(store, bad):
     with pytest.raises(FollowingSyncError):
-        store.record_downloaded(ACCOUNT, '41', bad)
+        store.record_downloaded(ACCOUNT, '41', bad, scope=observed_scope(ACCOUNT))
 
 
 def test_record_downloaded_honours_expected_revision(store):
     from pixivvault_nicegui.following_sync import FollowingSyncConflict
     with pytest.raises(FollowingSyncConflict):
-        store.record_downloaded(ACCOUNT, '41', expected_revision=store.snapshot(ACCOUNT).revision + 1)
+        store.record_downloaded(ACCOUNT, '41', expected_revision=store.snapshot(ACCOUNT).revision + 1, scope=observed_scope(ACCOUNT))
 
 
 def test_set_favorite_round_trip(store):
@@ -86,7 +95,7 @@ def test_set_favorite_round_trip(store):
 
 def test_resync_keeps_last_downloaded_favorite_and_zipped(tmp_path, store):
     """Characterisation (design 11): sync() must not wipe user-owned columns."""
-    store.record_downloaded(ACCOUNT, '41', '2026-11-18T01:02:03+00:00')
+    store.record_downloaded(ACCOUNT, '41', '2026-11-18T01:02:03+00:00', scope=observed_scope(ACCOUNT))
     store.set_favorite(ACCOUNT, '41', True)
     with sqlite3.connect(tmp_path / 'follow' / 'following.sqlite3') as raw:
         raw.execute("UPDATE following_authors SET is_zipped=1 WHERE user_id='41'")
@@ -103,7 +112,7 @@ def test_stamp_survives_reopen(tmp_path):
     root = tmp_path / 'follow'
     first = FollowingSyncStore(root)
     first.sync(Reader(('41',)))
-    first.record_downloaded(ACCOUNT, '41', '2026-11-18T01:02:03+00:00')
+    first.record_downloaded(ACCOUNT, '41', '2026-11-18T01:02:03+00:00', scope=observed_scope(ACCOUNT))
     first.close()
     second = FollowingSyncStore(root)
     try:
@@ -117,16 +126,16 @@ def test_stamp_survives_reopen(tmp_path):
 def test_run_lifecycle_and_reopen(tmp_path):
     root = tmp_path / 'runs'
     ledger = BatchRunLedger(root)
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42', '41'), account_id=ACCOUNT)
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42', '41'), account_id=ACCOUNT).run_id
     record = ledger.run(run_id)
     assert (record.state, record.authors_total, record.kind, record.finished_utc) == ('running', 2, 'authors', None)
     assert [a.state for a in ledger.authors(run_id)] == ['pending', 'pending']
-    ledger.update_author(run_id, '41', state='listing')
-    ledger.update_author(run_id, '41', state='downloading', counters={'n_new': 3, 'n_updated': 1})
-    ledger.record_item(run_id, '41', '100', 'illustration', 'a' * 32, job_id='b' * 32)
-    ledger.record_item(run_id, '41', '100', 'illustration', 'a' * 32, state='done')
-    ledger.complete_author(run_id, '41', {'n_new': 3, 'n_updated': 1, 'n_failed': 1})
-    ledger.set_run_state(run_id, 'done')
+    ledger.update_author(run_id, '41', state='listing', account_id=ledger.run(run_id).account_id)
+    ledger.update_author(run_id, '41', state='downloading', counters={'n_new': 3, 'n_updated': 1}, account_id=ledger.run(run_id).account_id)
+    ledger.record_item(run_id, '41', '100', 'illustration', 'a' * 32, job_id='b' * 32, account_id=ledger.run(run_id).account_id)
+    ledger.record_item(run_id, '41', '100', 'illustration', 'a' * 32, state='done', account_id=ledger.run(run_id).account_id)
+    ledger.complete_author(run_id, '41', {'n_new': 3, 'n_updated': 1, 'n_failed': 1}, listing=listing('41'))
+    ledger.set_run_state(ledger.run(run_id).handle, 'done')
     ledger.close()
     ledger = BatchRunLedger(root)  # reopen: everything is still there
     try:
@@ -164,38 +173,38 @@ def test_foreign_or_corrupt_folders_are_rejected(tmp_path):
 
 
 def test_only_one_active_run_at_a_time(ledger):
-    first = ledger.begin_run('authors', 'manual', 'both', ('41',))
+    first = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=None).run_id
     with pytest.raises(BatchRunConflict):
-        ledger.begin_run('authors', 'auto', 'both', ('42',))
+        ledger.begin_run('authors', 'auto', 'both', ('42',), account_id=None)
     assert ledger.active_run().run_id == first
-    ledger.set_run_state(first, 'stopped')
+    ledger.set_run_state(ledger.run(first).handle, 'stopped')
     assert ledger.active_run() is None
-    ledger.begin_run('bookmarks', 'manual', '', ())
+    ledger.begin_run('bookmarks', 'manual', '', (), account_id=None)
 
 
 def test_terminal_run_state_is_final(ledger):
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('41',))
-    ledger.set_run_state(run_id, 'failed', 'x_failed')
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=None).run_id
+    ledger.set_run_state(ledger.run(run_id).handle, 'failed', 'x_failed')
     with pytest.raises(BatchRunConflict):
-        ledger.set_run_state(run_id, 'running')
-    ledger.set_run_state(run_id, 'failed')  # same state again is harmless
+        ledger.set_run_state(ledger.run(run_id).handle, 'running')
+    ledger.set_run_state(ledger.run(run_id).handle, 'failed')  # same state again is harmless
     assert ledger.run(run_id).error_code == 'x_failed'
 
 
 def test_recover_interrupted_marks_active_runs_and_midflight_authors(ledger):
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=ACCOUNT)
-    ledger.update_author(run_id, '41', state='downloading')
-    assert ledger.recover_interrupted() == (run_id,)
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=ACCOUNT).run_id
+    ledger.update_author(run_id, '41', state='downloading', account_id=ledger.run(run_id).account_id)
+    assert ledger._recover_interrupted() == (run_id,)
     assert ledger.run(run_id).state == 'interrupted'
     assert [a.state for a in ledger.authors(run_id)] == ['stopped', 'pending']
-    assert ledger.active_run() is None and ledger.recover_interrupted() == ()
+    assert ledger.active_run() is None and ledger._recover_interrupted() == ()
 
 
 # ---- last_downloaded rule ---------------------------------------------------
 
 def test_done_author_stamps_last_downloaded(ledger, store):
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=ACCOUNT)
-    stamp = ledger.complete_author(run_id, '41', {'n_new': 2}, following=store)
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=ACCOUNT).run_id
+    stamp = ledger.complete_author(run_id, '41', {'n_new': 2}, following=store, listing=listing('41'))
     assert row(store.snapshot(ACCOUNT), '41').last_downloaded == stamp
     assert row(store.snapshot(ACCOUNT), '42').last_downloaded is None
     author = ledger.authors(run_id)[0]
@@ -205,39 +214,39 @@ def test_done_author_stamps_last_downloaded(ledger, store):
 
 @pytest.mark.parametrize('outcome', ['failed', 'stopped', 'skipped'])
 def test_failed_stopped_or_skipped_author_never_stamps(ledger, store, outcome):
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=ACCOUNT)
-    ledger.finish_author(run_id, '41', outcome, error_code='boom')
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=ACCOUNT).run_id
+    ledger.finish_author(run_id, '41', outcome, error_code='boom', account_id=ledger.run(run_id).account_id)
     assert row(store.snapshot(ACCOUNT), '41').last_downloaded is None
     with pytest.raises(BatchRunConflict):  # a settled author cannot be completed afterwards
-        ledger.complete_author(run_id, '41', following=store)
+        ledger.complete_author(run_id, '41', following=store, listing=listing('41'))
     assert row(store.snapshot(ACCOUNT), '41').last_downloaded is None
 
 
 def test_stopping_run_never_stamps_even_if_the_step_returned(ledger, store):
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=ACCOUNT)
-    ledger.set_run_state(run_id, 'stopping')
-    assert ledger.complete_author(run_id, '41', following=store) is None
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=ACCOUNT).run_id
+    ledger.set_run_state(ledger.run(run_id).handle, 'stopping')
+    assert ledger.complete_author(run_id, '41', following=store, listing=listing('41')) is None
     assert row(store.snapshot(ACCOUNT), '41').last_downloaded is None
     assert ledger.authors(run_id)[0].state == 'done'  # the work is recorded, the stamp is not
 
 
 def test_bookmarks_run_never_stamps(ledger, store):
-    run_id = ledger.begin_run('bookmarks', 'manual', '', ('41',), account_id=ACCOUNT)
-    assert ledger.complete_author(run_id, '41', following=store) is None
+    run_id = ledger.begin_run('bookmarks', 'manual', '', ('41',), account_id=ACCOUNT).run_id
+    assert ledger.complete_bookmark_row(run_id, '41', account_id=ledger.run(run_id).account_id) is None
     assert row(store.snapshot(ACCOUNT), '41').last_downloaded is None
 
 
 def test_author_that_is_not_followed_is_recorded_without_stamping(ledger, store):
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('999',), account_id=ACCOUNT)
-    ledger.complete_author(run_id, '999', {'n_new': 1}, following=store)
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('999',), account_id=ACCOUNT).run_id
+    ledger.complete_author(run_id, '999', {'n_new': 1}, following=store, listing=listing('999'))
     assert ledger.authors(run_id)[0].state == 'done'
     assert store.snapshot(ACCOUNT).revision == 1 and all(a.last_downloaded is None for a in store.snapshot(ACCOUNT).authors)
 
 
 def test_no_account_or_no_store_does_not_stamp(ledger, store):
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'))
-    assert ledger.complete_author(run_id, '41', following=store) is None
-    assert ledger.complete_author(run_id, '42') is None
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=None).run_id
+    assert ledger.complete_author(run_id, '41', following=store, listing=listing('41')) is None
+    assert ledger.complete_author(run_id, '42', listing=listing('42')) is None
     assert all(a.last_downloaded is None for a in store.snapshot(ACCOUNT).authors)
 
 

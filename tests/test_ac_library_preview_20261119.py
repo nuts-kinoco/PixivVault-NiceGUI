@@ -172,10 +172,6 @@ def test_thumbnail_setting_off_is_checked_after_waiting_for_decode_slot(tmp_path
         prefs.close()
 
 
-
-
-
-
 def _legacy_copy_root(tmp_path):
     root = tmp_path.parent / (tmp_path.name + '-legacy-copies')
     root.mkdir(exist_ok=True)

@@ -18,8 +18,8 @@ def row(uid, wid='21', name='Generated', thumb=True):
 class Reader:
     def __init__(self):
         self.calls=[];self.identity='7';self.routes={}
-    def verify_identity(self):self.calls.append('verify');return self.identity
-    def require_identity(self):return self.identity
+    def verify_identity(self):self.calls.append('verify');self._verified_identity = self.identity; return self._verified_identity
+    def require_identity(self):self._verified_identity = self.identity; return self._verified_identity
     def get_following_users(self, uid, rest_type):
         self.calls.append(('follow',rest_type))
         return [dict(user_id='10')] if rest_type=='show' else [dict(user_id='11')]

@@ -1,0 +1,51 @@
+⚠️⚠️ 本番DBを使用中: S:\Projects\PV-DEV-20261117\wt-w\.tmp-review\ui-smoke-bulk-fixed\run\managed
+PixivVault
+× [未認証/期限切れ] Cookieファイルが設定されていません。設定から選んでください。
+アプリ: 未接続
+API切り替え
+history
+visibility
+folder_open
+light_mode
+public
+settings
+info_outline
+【Cookie未連携】
+PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。
+拡張機能の受信が動いていません。自動連携は使えません。設定からcookies.txtを選んでください。
+open_in_browser
+Pixivを開く
+close
+download
+ダウンロード
+queue
+キュー
+report_problem
+失敗リスト
+content_copy
+重複整理
+explore
+学習
+leaderboard
+ランキング
+military_tech
+自分のランキング
+photo_library
+ライブラリ
+recommend
+おすすめ
+schedule
+定期チェック
+edit_note
+メタデータ補完
+メタデータ後埋め
+専用管理フォルダーにのみ設定を保存します。元DBや既存画像は変更しません。
+ブックマーク数・いいね数・閲覧数などは、作品ごとに詳細を1回ずつ取りに行かないと分かりません。自動で埋めるかどうかは、設定の「作品メタデータ」で切り替えます（既定はON）。
+ダウンロード中・取得停止中は動かず、終わるまで待ちます。停止は通信完了待ちです。
+メタデータ: 0 / 0 件（残り 0）
+いま埋める
+取得の停止を要求
+取得処理: 未実行
+fact_check
+台帳の詳細・保留と中断の確認
+keyboard_arrow_down

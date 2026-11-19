@@ -649,6 +649,7 @@ def register_pages(learning_sandbox: Path | None = None,
             notification_backend=WindowsToastBackend()
         if desktop_roots:
             desktop = DesktopIntegration(allowed_roots=desktop_roots, launcher=WindowsLauncher(),
+                legacy_image_root=library_image_root,
                 protocol=WindowsProtocolRegistration(protocol_command) if protocol_command else None)
     if pixiv_cookie_file is not None:
         if live_client is not None:
@@ -1125,6 +1126,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     from nicegui import app as _owned_app
     from .services import _APP_KEY as _SERVICE_KEY
     from .managed_network_stop_gate import ManagedNetworkGateStorageError
+    from .managed_downloads import LegacyV5Uncertain
     from .managed_network_stop_shared_scope import SharedGetOutcomeUncertain
     _prior_service = getattr(_owned_app.state, _SERVICE_KEY, None)
     _launched_service = None
@@ -1160,6 +1162,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                     raise
                 from .native_startup import register_profile_recovery
                 register_profile_recovery(native_profile, cookie_rejected=True)
+            except LegacyV5Uncertain:
+                if native_profile is None:
+                    raise
+                from .native_startup import register_profile_recovery
+                register_profile_recovery(native_profile, legacy_v5_uncertain=True)
             except ManagedNetworkGateStorageError as gate_error:
                 if native_profile is None:
                     raise

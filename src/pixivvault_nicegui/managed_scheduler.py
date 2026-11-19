@@ -6,7 +6,7 @@ managed JobService enqueue. This module does not perform network requests.
 """
 from __future__ import annotations
 
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import os
@@ -18,8 +18,13 @@ from threading import Event, Thread, current_thread
 from typing import Callable
 from uuid import uuid4
 
+from .account_scope import AccountMismatch, AccountScope, BoundSchedulerLedger, OwnedListing, require_same_account
+
 
 VALID_INTERVALS = frozenset({0, 6, 12, 24, 48})
+# The original had no limit on the star authors of the periodic check (scheduler.py:182). The 128
+# here only guarded the hand-typed ID box; the ledger's own limit is the follow list (10,000).
+MAX_FAVOURITES = 100_000
 
 
 class ScheduleError(RuntimeError):
@@ -82,14 +87,61 @@ class ManagedScheduler:
     An interrupted dispatch remains explicitly recorded as `interrupted`.
     """
 
+    _favourites_source = None
+    _account_guard = False
+
+    def attach_favourites(self, book) -> None:
+        """Use account-scoped stars from the following ledger."""
+        with self._lock:
+            self._favourites_source = book
+            self._account_guard = True
+
+    def _bound_account(self):
+        with self._lock:
+            row = self._db.execute('SELECT account_id FROM scheduler_account WHERE id=1').fetchone()
+            return None if row is None else row[0]
+
+    def favourite_account(self):
+        book = self._favourites_source
+        return None if book is None else book.account()
+
+    def _dispatch_favourites(self):
+        """Resolve backlog membership against the scheduler owner's stars."""
+        if self._account_guard:
+            account_id = self._bound_account()
+            if account_id is None:
+                raise ScheduleAccountError('unknown')
+            return self.favourites(account_id)
+        return self.favourites()
+
+    def _touch_revision(self) -> None:
+        """A star changed outside the settings form: stale forms must fail their revision check."""
+        with self._lock:
+            self._ensure_open()
+            self._db.execute('UPDATE schedule SET revision=revision+1 WHERE id=1')
+
+    def _remove_deferred_authors(self, author_ids):
+        self._db.executemany('DELETE FROM deferred_work WHERE author_id=?',
+                             ((author_id,) for author_id in author_ids))
+
+    def legacy_favourites(self) -> tuple[str, ...]:
+        """The standalone scheduler list, kept separate from the following ledger."""
+        with self._lock:
+            self._ensure_open()
+            exists = self._db.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='favourite_authors'").fetchone()[0]
+            return (tuple(row[0] for row in self._db.execute('SELECT author_id FROM favourite_authors ORDER BY author_id'))
+                    if exists else ())
+
     def __init__(self, managed_root: Path):
         root = Path(managed_root)
         if not root.is_absolute() or not root.is_dir() or root.is_symlink():
             raise ScheduleError('scheduler requires existing isolated managed root')
         self.path = root / '.pixivvault-managed-scheduler.sqlite3'
         _safe_path(self.path)
+        existing_database = self.path.exists()
         self._lock = RLock()
         self._closed = False
+        self._active_batch_slots = set()
         self._file_owner = None
         try:
             # This ledger is a single-writer process-owned resource, exactly
@@ -114,8 +166,13 @@ class ManagedScheduler:
             self._db.execute('PRAGMA synchronous=FULL')
             self._db.execute('BEGIN IMMEDIATE')
             self._db.execute('CREATE TABLE IF NOT EXISTS schedule (id INTEGER PRIMARY KEY CHECK(id=1), interval_hours INTEGER NOT NULL, startup_check INTEGER NOT NULL, revision INTEGER NOT NULL, last_due_utc TEXT, next_due_utc TEXT, last_status TEXT NOT NULL)')
-            self._db.execute('INSERT OR IGNORE INTO schedule VALUES (1,24,0,1,NULL,?,\'never\')',
-                             (_timestamp(datetime.now(timezone.utc) + timedelta(hours=24)),))
+            schedule_columns = {row[1] for row in self._db.execute('PRAGMA table_info(schedule)')}
+            if 'settings_origin' not in schedule_columns:
+                self._db.execute('ALTER TABLE schedule ADD COLUMN settings_origin TEXT')
+            self._db.execute(
+                "INSERT OR IGNORE INTO schedule VALUES (1,24,0,1,NULL,?,'never',?)",
+                (_timestamp(datetime.now(timezone.utc) + timedelta(hours=24)),
+                 None if existing_database else 'app'))
             self._db.execute("UPDATE schedule SET next_due_utc=? WHERE id=1 AND interval_hours=24 AND last_due_utc IS NULL AND next_due_utc IS NULL AND last_status='never'",
                              (_timestamp(datetime.now(timezone.utc) + timedelta(hours=24)),))
             self._db.execute('CREATE TABLE IF NOT EXISTS dispatch_history (slot TEXT PRIMARY KEY, status TEXT NOT NULL, started_utc TEXT NOT NULL, finished_utc TEXT, authors INTEGER NOT NULL DEFAULT 0, accepted INTEGER NOT NULL DEFAULT 0, deferred INTEGER NOT NULL DEFAULT 0, error_code TEXT)')
@@ -126,9 +183,10 @@ class ManagedScheduler:
             self._db.execute('CREATE TABLE IF NOT EXISTS deferred_work (author_id TEXT NOT NULL, work_id TEXT NOT NULL, update_date TEXT NOT NULL, page_count INTEGER NOT NULL, work_type INTEGER NOT NULL, created_utc TEXT NOT NULL, PRIMARY KEY(author_id,work_id))')
             self._db.execute('CREATE TABLE IF NOT EXISTS favourite_authors (author_id TEXT PRIMARY KEY)')
             self._db.execute('CREATE TABLE IF NOT EXISTS scheduler_account (id INTEGER PRIMARY KEY CHECK(id=1), account_id TEXT NOT NULL)')
-            row = self._db.execute('SELECT interval_hours,startup_check,revision,last_due_utc,next_due_utc,last_status FROM schedule WHERE id=1').fetchone()
+            row = self._db.execute('SELECT interval_hours,startup_check,revision,last_due_utc,next_due_utc,last_status,settings_origin FROM schedule WHERE id=1').fetchone()
             if row is None or row[0] not in VALID_INTERVALS or row[1] not in (0,1) or row[2] < 1:
                 raise ScheduleError('invalid managed schedule ledger')
+            self._unbound_unknown_schedule = row[6] != 'app'
             self._db.execute('COMMIT')
         except BaseException:
             if hasattr(self, '_db'):
@@ -151,29 +209,39 @@ class ManagedScheduler:
         if self._closed:
             raise ScheduleError('scheduler is closed')
 
-    def configure(self, *, interval_hours: int, startup_check: bool, expected_revision: int, now: datetime) -> ScheduleState:
-        if type(interval_hours) is not int or interval_hours not in VALID_INTERVALS or type(startup_check) is not bool:
-            raise ValueError('unsupported interval or startup setting')
-        if type(expected_revision) is not int or expected_revision < 1:
-            raise ValueError('invalid schedule revision')
-        current_time = _utc(now)
+    def configure(self, *, interval_hours: int, startup_check: bool, expected_revision: int,
+                  now: datetime, account_id=None) -> ScheduleState:
+        return self.configure_all(author_ids=None, interval_hours=interval_hours,
+                                  startup_check=startup_check, expected_revision=expected_revision,
+                                  now=now, account_id=account_id)
+
+    def _disable(self, *, expected_revision: int, account_id=None) -> ScheduleState:
+        """Save the global stop with the settings revision displayed by the editor."""
         with self._lock:
             self._ensure_open()
-            self._db.execute('BEGIN IMMEDIATE')
-            try:
-                prior = self.snapshot()
-                if expected_revision != prior.revision:
-                    raise ScheduleError('schedule changed in another client')
-                due = (None if interval_hours == 0 else _timestamp(current_time + timedelta(hours=interval_hours)))
-                self._db.execute('UPDATE schedule SET interval_hours=?,startup_check=?,revision=?,next_due_utc=? WHERE id=1',
-                                 (interval_hours, int(startup_check), prior.revision + 1, due))
-                self._db.execute('COMMIT')
-            except BaseException:
-                self._db.execute('ROLLBACK')
-                raise
-            return self.snapshot()
+            book = self._favourites_source
+            following = book.following if book is not None and account_id is not None else None
+            with following._lock if following is not None else nullcontext():
+                if account_id is not None:
+                    require_same_account(account_id, self.favourite_account(),
+                                         error=ScheduleAccountError('mismatch'))
+                self._db.execute('BEGIN IMMEDIATE')
+                try:
+                    before = self.snapshot()
+                    if before.revision != expected_revision:
+                        raise ScheduleError('settings changed')
+                    self._db.execute('UPDATE schedule SET interval_hours=0,startup_check=0,next_due_utc=NULL,'
+                                     'revision=revision+1 WHERE id=1 AND (interval_hours!=0 OR startup_check!=0 '
+                                     'OR next_due_utc IS NOT NULL)')
+                    saved = self.snapshot()
+                    self._db.execute('COMMIT')
+                    return saved
+                except BaseException:
+                    self._db.execute('ROLLBACK')
+                    raise
 
-    def claim_due(self, now: datetime, *, startup: bool = False) -> str | None:
+    # Timer-only lifecycle. These transitions reserve/settle a slot before first binding.
+    def _claim_due(self, now: datetime, *, startup: bool = False) -> str | None:
         current_time = _utc(now)
         with self._lock:
             self._ensure_open()
@@ -204,7 +272,7 @@ class ManagedScheduler:
                 self._db.execute('ROLLBACK')
                 raise
 
-    def complete(self, slot: str, *, succeeded: bool) -> None:
+    def _complete(self, slot: str, *, succeeded: bool) -> None:
         with self._lock:
             self._ensure_open()
             self._db.execute('BEGIN IMMEDIATE')
@@ -219,12 +287,13 @@ class ManagedScheduler:
                 self._db.execute('ROLLBACK')
                 raise
 
-    def acknowledge_interrupted(self, *, expected_revision: int) -> ScheduleState:
+    def acknowledge_interrupted(self, *, expected_revision: int, account_id=None) -> ScheduleState:
         """Explicitly acknowledge ambiguous crash recovery without replaying it."""
         with self._lock:
             self._ensure_open()
             self._db.execute('BEGIN IMMEDIATE')
             try:
+                self._require_owner(account_id)
                 state = self.snapshot()
                 if state.revision != expected_revision or state.last_status != 'interrupted':
                     raise ScheduleError('schedule acknowledgement changed')
@@ -236,36 +305,46 @@ class ManagedScheduler:
                 raise
             return self.snapshot()
 
-    def begin_dispatch(self, slot: str, now: datetime, authors: int) -> None:
+    def begin_dispatch(self, slot: str, now: datetime, authors: int, *, account_id=None,
+                       batch=False) -> None:
         with self._lock:
             self._ensure_open()
+            self._require_owner(account_id)
             self._db.execute('INSERT OR IGNORE INTO dispatch_history(slot,status,started_utc,authors) VALUES(?,?,?,?)',
                              (slot, 'running', _timestamp(now), authors))
+            if batch:
+                self._active_batch_slots.add(slot)
 
     def finish_dispatch(self, slot: str, *, status: str, accepted: int, deferred: int,
-                        error_code: str | None = None, now: datetime | None = None) -> None:
+                        error_code: str | None = None, now: datetime | None = None, account_id=None) -> None:
         if status not in {'queued', 'failed', 'interrupted', 'empty'}:
             raise ValueError('invalid dispatch state')
         with self._lock:
             self._ensure_open()
-            self._db.execute('UPDATE dispatch_history SET status=?,finished_utc=?,accepted=?,deferred=?,error_code=? WHERE slot=?',
-                             (status, _timestamp(now or datetime.now(timezone.utc)), accepted, deferred,
-                              error_code, slot))
+            self._require_owner(account_id)
+            stamp = None if error_code == AccountMismatch.code else _timestamp(now or datetime.now(timezone.utc))
+            self._db.execute('UPDATE dispatch_history SET status=?,finished_utc=COALESCE(?,finished_utc),'
+                             'accepted=?,deferred=?,error_code=? WHERE slot=?',
+                             (status, stamp, accepted, deferred, error_code, slot))
+            self._active_batch_slots.discard(slot)
+            self._reconcile_dispatch_status(slot)
 
-    def update_dispatch_progress(self, slot: str, *, accepted: int, deferred: int) -> None:
+    def update_dispatch_progress(self, slot: str, *, accepted: int, deferred: int, account_id=None) -> None:
         """Publish admission counts without declaring dispatch or saving complete."""
         if any(type(value) is not int or value < 0 for value in (accepted, deferred)):
             raise ValueError('invalid dispatch progress')
         with self._lock:
             self._ensure_open()
+            self._require_owner(account_id)
             self._db.execute(
                 'UPDATE dispatch_history SET accepted=?,deferred=? WHERE slot=?',
                 (accepted, deferred, slot))
 
     def prepare_dispatch_item(self, *, slot: str, work_id: str, author_id: str,
-                              operation_id: str) -> None:
+                              operation_id: str, account_id=None) -> None:
         with self._lock:
             self._ensure_open()
+            self._require_owner(account_id)
             self._db.execute('INSERT OR IGNORE INTO dispatch_items(slot,work_id,author_id,operation_id,job_id,state) VALUES(?,?,?,?,NULL,?)',
                              (slot, work_id, author_id, operation_id, 'submitting'))
 
@@ -276,26 +355,51 @@ class ManagedScheduler:
                                     (slot, work_id)).fetchone()
 
     def bind_dispatch_job(self, *, slot: str, work_id: str, operation_id: str,
-                          job_id: str, accepted_fingerprint: str) -> None:
+                          job_id: str, accepted_fingerprint: str, account_id=None) -> None:
         with self._lock:
             self._ensure_open()
+            self._require_owner(account_id)
             self._db.execute("UPDATE dispatch_items SET job_id=?,accepted_fingerprint=?,state='queued' WHERE slot=? AND work_id=? AND operation_id=?",
                              (job_id, accepted_fingerprint, slot, work_id, operation_id))
 
-    def fail_dispatch_item(self, *, slot: str, work_id: str, operation_id: str) -> None:
+    def fail_dispatch_item(self, *, slot: str, work_id: str, operation_id: str, account_id=None) -> None:
         with self._lock:
             self._ensure_open()
+            self._require_owner(account_id)
             self._db.execute("UPDATE dispatch_items SET state='failed' WHERE slot=? AND work_id=? AND operation_id=? AND job_id IS NULL",
                              (slot, work_id, operation_id))
 
-    def defer_work(self, *, author_id: str, work: dict, now: datetime) -> None:
+    def _require_owner(self, account_id):
+        bound = self._bound_account()
+        if self._account_guard or bound is not None:
+            if account_id is None:
+                raise ScheduleAccountError('mismatch')
+            require_same_account(bound, account_id, error=ScheduleAccountError('mismatch'))
+
+    @contextmanager
+    def _deferred_transaction(self, account_id):
         with self._lock:
             self._ensure_open()
+            self._db.execute('BEGIN IMMEDIATE')
+            try:
+                self._require_owner(account_id)
+                yield
+                self._db.execute('COMMIT')
+            except BaseException:
+                if self._db.in_transaction:
+                    self._db.execute('ROLLBACK')
+                raise
+
+    def defer_work(self, *, author_id: str, work: dict, now: datetime, account_id=None) -> None:
+        with self._deferred_transaction(account_id):
             # The favourite list may have changed while an author's complete
             # inventory was being fetched. Do not recreate a row pruned by a
             # concurrent settings transaction.
-            if self._db.execute('SELECT 1 FROM favourite_authors WHERE author_id=?', (author_id,)).fetchone() is None:
-                return
+            try:
+                if author_id not in self._dispatch_favourites():
+                    return
+            except Exception:
+                pass  # an unavailable star list must not discard pending work
             self._db.execute('INSERT INTO deferred_work(author_id,work_id,update_date,page_count,work_type,created_utc) VALUES(?,?,?,?,?,?) ON CONFLICT(author_id,work_id) DO UPDATE SET update_date=excluded.update_date,page_count=excluded.page_count,work_type=excluded.work_type',
                              (author_id, work['id'], work['update_date'], work['page_count'], work['type'], _timestamp(now)))
 
@@ -307,27 +411,24 @@ class ManagedScheduler:
     def has_deferred(self) -> bool:
         with self._lock:
             self._ensure_open()
-            return self._db.execute('SELECT 1 FROM deferred_work d JOIN favourite_authors f ON f.author_id=d.author_id LIMIT 1').fetchone() is not None
+            authors = {row[0] for row in self._db.execute('SELECT DISTINCT author_id FROM deferred_work')}
+            if not authors:
+                return False
+            if self._account_guard and self._bound_account() is None:
+                return False
+            try:
+                return bool(authors.intersection(self._dispatch_favourites()))
+            except Exception:
+                return True  # an unavailable star list must not hide pending work
 
     def deferred_count(self) -> int:
         with self._lock:
             self._ensure_open()
             return self._db.execute('SELECT COUNT(*) FROM deferred_work').fetchone()[0]
 
-    def resolve_deferred(self, author_id: str, work_id: str) -> None:
-        with self._lock:
-            self._ensure_open()
+    def resolve_deferred(self, author_id: str, work_id: str, *, account_id=None) -> None:
+        with self._deferred_transaction(account_id):
             self._db.execute('DELETE FROM deferred_work WHERE author_id=? AND work_id=?', (author_id, work_id))
-
-    def prune_deferred_inventory(self, author_id: str, present_ids: set[str]) -> None:
-        """A complete verified inventory may retire stale deferred candidates."""
-        if type(present_ids) is not set:
-            raise ValueError('complete inventory IDs must be a set')
-        with self._lock:
-            self._ensure_open()
-            rows = self._db.execute('SELECT work_id FROM deferred_work WHERE author_id=?', (author_id,)).fetchall()
-            stale = [(author_id, row[0]) for row in rows if row[0] not in present_ids]
-            self._db.executemany('DELETE FROM deferred_work WHERE author_id=? AND work_id=?', stale)
 
     def history(self) -> tuple[dict, ...]:
         with self._lock:
@@ -340,12 +441,13 @@ class ManagedScheduler:
 
     def reconcile_jobs(self, jobs, receipt_fingerprints: dict[str, str],
                        operation_to_job: dict[str, str] | None = None,
-                       operation_to_fingerprint: dict[str, str] | None = None) -> tuple[str, ...]:
+                       operation_to_fingerprint: dict[str, str] | None = None, *, account_id=None) -> tuple[str, ...]:
         """Reconcile queued item states with durable JobService and CAS receipts."""
         by_id = {job.job_id: job for job in jobs}
         newly_saved = []
         with self._lock:
             self._ensure_open()
+            self._require_owner(account_id)
             rows = self._db.execute('SELECT slot,work_id,operation_id,job_id,accepted_fingerprint,state FROM dispatch_items').fetchall()
             operation_to_job = operation_to_job or {}
             operation_to_fingerprint = operation_to_fingerprint or {}
@@ -388,20 +490,8 @@ class ManagedScheduler:
                     self._db.execute('UPDATE dispatch_items SET state=? WHERE slot=? AND work_id=?', (state, slot, wid))
                     if state == 'saved':
                         newly_saved.append(wid)
-            slots = self._db.execute("SELECT DISTINCT slot FROM dispatch_items").fetchall()
-            for (slot,) in slots:
-                states = [row[0] for row in self._db.execute(
-                    'SELECT state FROM dispatch_items WHERE slot=?', (slot,))]
-                if states and all(value == 'saved' for value in states):
-                    status = 'saved'
-                elif states and all(value in {'saved', 'failed'} for value in states) and 'failed' in states:
-                    status = 'partial' if 'saved' in states else 'failed'
-                elif states and all(value in {'saved', 'failed', 'unknown'} for value in states):
-                    status = 'unknown'
-                else:
-                    continue
-                self._db.execute('UPDATE dispatch_history SET status=?,finished_utc=COALESCE(finished_utc,?) WHERE slot=? AND status IN (\'queued\',\'running\',\'unknown\',\'partial\')',
-                                 (status, _timestamp(datetime.now(timezone.utc)), slot))
+            for slot in {row[0] for row in rows}:
+                self._reconcile_dispatch_status(slot)
             # Slots with no accepted jobs have no dispatch_items to aggregate.
             # Finalize unsupported-only/deferred-only runs instead of leaving
             # their history permanently queued.
@@ -409,12 +499,37 @@ class ManagedScheduler:
                              (_timestamp(datetime.now(timezone.utc)),))
             return tuple(newly_saved)
 
+    def _reconcile_dispatch_status(self, slot):
+        # An open batch can still add admissions. After restart, the durable
+        # receipts can finish its orphaned history.
+        if slot in self._active_batch_slots:
+            return
+        states = {row[0] for row in self._db.execute(
+            'SELECT state FROM dispatch_items WHERE slot=?', (slot,))}
+        if states == {'saved'}:
+            status = 'saved'
+        elif states and states <= {'saved', 'failed'}:
+            status = 'partial' if 'saved' in states else 'failed'
+        elif states and states <= {'saved', 'failed', 'unknown'}:
+            status = 'unknown'
+        else:
+            return
+        self._db.execute("UPDATE dispatch_history SET status=?,finished_utc=COALESCE(finished_utc,?) "
+                         "WHERE slot=? AND status IN ('queued','running','unknown','partial')",
+                         (status, _timestamp(datetime.now(timezone.utc)), slot))
+
+    def _unreconciled_operations(self, operations):
+        with self._lock:
+            self._ensure_open()
+            rows = self._db.execute("SELECT operation_id FROM dispatch_items WHERE state!='saved'")
+            return {row[0] for row in rows if row[0] in operations}
+
     def pending_notifications(self) -> tuple[str, ...]:
         with self._lock:
             self._ensure_open()
             return tuple(row[0] for row in self._db.execute("SELECT DISTINCT work_id FROM dispatch_items WHERE state='saved' AND notified=0 ORDER BY work_id"))
 
-    def claim_pending_notifications(self) -> tuple[str, ...]:
+    def claim_pending_notifications(self, *, account_id=None) -> tuple[str, ...]:
         """Atomically claim durable completion notices across concurrent clients.
 
         UI notifications are transient, so delivery is deliberately at-most-once:
@@ -425,6 +540,7 @@ class ManagedScheduler:
             self._ensure_open()
             self._db.execute('BEGIN IMMEDIATE')
             try:
+                self._require_owner(account_id)
                 work_ids = tuple(row[0] for row in self._db.execute(
                     "SELECT DISTINCT work_id FROM dispatch_items WHERE state='saved' AND notified=0 ORDER BY work_id"))
                 if work_ids:
@@ -466,9 +582,10 @@ class ManagedScheduler:
                     values.add(fingerprint)
             return {work_id: frozenset(values) for work_id, values in expected.items()}
 
-    def mark_notified(self, work_ids) -> None:
+    def mark_notified(self, work_ids, *, account_id=None) -> None:
         with self._lock:
             self._ensure_open()
+            self._require_owner(account_id)
             self._db.executemany("UPDATE dispatch_items SET notified=1 WHERE work_id=? AND state='saved'", ((wid,) for wid in work_ids))
 
     def close(self) -> None:
@@ -479,72 +596,136 @@ class ManagedScheduler:
                 if self._file_owner is not None:
                     self._file_owner.close()
 
-    def set_favourites(self, author_ids: tuple[str, ...], *, expected_revision: int) -> tuple[str, ...]:
+    def set_favourites(self, author_ids: tuple[str, ...], *, expected_revision: int, account_id) -> tuple[str, ...]:
         """Persist the explicitly selected star authors, never legacy DB favourites."""
         from .pixiv_read_client import _identifier
-        if type(author_ids) is not tuple or len(author_ids) > 128:
+        if type(author_ids) is not tuple:
             raise ValueError('invalid favourite author selection')
         ids = tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
+        with self._settings_transaction(ids, account_id=account_id) as account:
+            state = self.snapshot()
+            if state.revision != expected_revision:
+                raise ScheduleError('schedule changed in another client')
+            ids, _ = self._store_favourites(ids, attached_account=account)
+            self._db.execute('UPDATE schedule SET revision=? WHERE id=1', (state.revision + 1,))
+        return ids
+
+    @contextmanager
+    def _settings_transaction(self, ids, *, account_id, book_override=None):
+        """Commit the scheduler and following ledgers together when stars are edited."""
         with self._lock:
             self._ensure_open()
-            self._db.execute('BEGIN IMMEDIATE')
-            try:
-                state = self.snapshot()
-                if state.revision != expected_revision:
-                    raise ScheduleError('schedule changed in another client')
-                self._db.execute('CREATE TABLE IF NOT EXISTS favourite_authors(author_id TEXT PRIMARY KEY)')
-                self._db.execute('DELETE FROM favourite_authors')
-                self._db.executemany('INSERT INTO favourite_authors(author_id) VALUES (?)', ((uid,) for uid in ids))
-                self._db.execute('DELETE FROM deferred_work WHERE author_id NOT IN (SELECT author_id FROM favourite_authors)')
-                self._db.execute('UPDATE schedule SET revision=? WHERE id=1', (state.revision + 1,))
-                self._db.execute('COMMIT')
-            except BaseException:
-                self._db.execute('ROLLBACK')
-                raise
-        return ids
+            book = book_override if book_override is not None else self._favourites_source
+            if book is None and self._bound_account() is not None:
+                raise ScheduleAccountError('mismatch')
+            following = None if book is None else book.following
+            with following._lock if following is not None else nullcontext():
+                attached = False
+                if book is not None:
+                    if account_id is None:
+                        raise ScheduleAccountError('mismatch')
+                    require_same_account(account_id, book.account(), error=ScheduleAccountError('mismatch'))
+                    if ids is not None:
+                        following._ensure_open()
+                        self._db.execute('ATTACH DATABASE ? AS following_settings', (str(following.path),))
+                        attached = True
+                try:
+                    self._db.execute('BEGIN IMMEDIATE')
+                    try:
+                        yield account_id if attached else None
+                        self._db.execute('COMMIT')
+                    except BaseException:
+                        if self._db.in_transaction:
+                            self._db.execute('ROLLBACK')
+                        raise
+                finally:
+                    if attached:
+                        self._db.execute('DETACH DATABASE following_settings')
+
+    def set_star(self, book, user_id, favourite, *, account_id, expected=None):
+        """Commit the star and form revision together under the settings lock."""
+        from .pixiv_read_client import _identifier
+        user_id = _identifier(user_id)
+        with self._settings_transaction((), account_id=account_id, book_override=book):
+            row = self._db.execute(
+                'SELECT is_favorite FROM following_settings.following_authors WHERE account_id=? AND user_id=?',
+                (account_id, user_id)).fetchone()
+            if row is None or bool(row[0]) == favourite or (expected is not None and bool(row[0]) != expected):
+                return False
+            self._db.execute('UPDATE following_settings.following_authors SET is_favorite=? '
+                             'WHERE account_id=? AND user_id=?', (int(favourite), account_id, user_id))
+            self._db.execute('UPDATE following_settings.following_accounts SET revision=revision+1 '
+                             'WHERE account_id=?', (account_id,))
+            self._touch_revision()
+            return True
 
     def configure_all(self, *, author_ids: tuple[str, ...], interval_hours: int,
                       startup_check: bool, expected_revision: int,
-                      now: datetime) -> ScheduleState:
+                      now: datetime, return_ignored: bool = False, account_id=None,
+                      report_retained: bool = False):
         """One all-or-nothing settings transaction, using the client's CAS."""
         from .pixiv_read_client import _identifier
-        if (type(author_ids) is not tuple or len(author_ids) > 128
+        if (not (author_ids is None or type(author_ids) is tuple)
                 or type(interval_hours) is not int or interval_hours not in VALID_INTERVALS
                 or type(startup_check) is not bool or type(expected_revision) is not int
                 or expected_revision < 1):
             raise ValueError('invalid managed schedule settings')
-        ids = tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
+        # author_ids=None leaves the stars exactly as they are (a form that never saw them must not save them).
+        ids = None if author_ids is None else tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
         current_time = _utc(now)
-        with self._lock:
-            self._ensure_open()
-            self._db.execute('BEGIN IMMEDIATE')
-            try:
-                previous = self.snapshot()
-                if previous.revision != expected_revision:
-                    raise ScheduleError('schedule changed in another client')
-                self._db.execute('CREATE TABLE IF NOT EXISTS favourite_authors(author_id TEXT PRIMARY KEY)')
-                self._db.execute('DELETE FROM favourite_authors')
-                self._db.executemany('INSERT INTO favourite_authors(author_id) VALUES (?)',
-                                     ((uid,) for uid in ids))
-                self._db.execute('DELETE FROM deferred_work WHERE author_id NOT IN (SELECT author_id FROM favourite_authors)')
-                next_due = (None if interval_hours == 0 else
-                            _timestamp(current_time + timedelta(hours=interval_hours)))
-                self._db.execute('UPDATE schedule SET interval_hours=?,startup_check=?,revision=?,next_due_utc=? WHERE id=1',
-                                 (interval_hours, int(startup_check), expected_revision + 1, next_due))
-                self._db.execute('COMMIT')
-            except BaseException:
-                self._db.execute('ROLLBACK')
-                raise
-            return self.snapshot()
+        with self._settings_transaction(ids, account_id=account_id) as account:
+            previous = self.snapshot()
+            if previous.revision != expected_revision:
+                raise ScheduleError('schedule changed in another client')
+            applied, retained = (), ()
+            if ids is not None:
+                applied, retained = self._store_favourites(ids, attached_account=account)
+            next_due = (None if interval_hours == 0 else
+                        _timestamp(current_time + timedelta(hours=interval_hours)))
+            self._db.execute('UPDATE schedule SET interval_hours=?,startup_check=?,revision=?,next_due_utc=? WHERE id=1',
+                             (interval_hours, int(startup_check), expected_revision + 1, next_due))
+            state = self.snapshot()
+        if return_ignored:
+            applied_ids = set(applied)
+            ignored = () if ids is None else tuple(uid for uid in ids if uid not in applied_ids)
+            return (state, ignored, retained) if report_retained else (state, ignored)
+        return state
 
-    def favourites(self) -> tuple[str, ...]:
-        with self._lock:
-            self._ensure_open()
-            exists = self._db.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='favourite_authors'").fetchone()[0]
-            return (tuple(row[0] for row in self._db.execute('SELECT author_id FROM favourite_authors ORDER BY author_id'))
-                    if exists else ())
+    def _store_favourites(self, ids, *, attached_account=None):
+        """Store the selection in the attached account or standalone scheduler."""
+        if attached_account is not None:
+            rows = self._db.execute(
+                'SELECT user_id,is_following,is_favorite FROM following_settings.following_authors WHERE account_id=?',
+                (attached_account,)).fetchall()
+            wanted = set(ids)
+            applied_ids = {uid for uid, following, star in rows if following or star}
+            inactive_stars = {uid for uid, following, star in rows if star and not following}
+            removed = {uid for uid, _, star in rows if star and uid not in wanted}
+            changed = False
+            for uid, following, star in rows:
+                new = uid in wanted and bool(following or star)
+                if bool(star) != new:
+                    self._db.execute('UPDATE following_settings.following_authors SET is_favorite=? '
+                                     'WHERE account_id=? AND user_id=?', (int(new), attached_account, uid))
+                    changed = True
+            if changed:
+                self._db.execute('UPDATE following_settings.following_accounts SET revision=revision+1 '
+                                 'WHERE account_id=?', (attached_account,))
+            if attached_account == self._bound_account():
+                self._remove_deferred_authors(removed)
+            return (tuple(uid for uid in ids if uid in applied_ids),
+                    tuple(uid for uid in ids if uid in inactive_stars))
+        old = set(self.legacy_favourites())
+        self._db.execute('DELETE FROM favourite_authors')
+        self._db.executemany('INSERT INTO favourite_authors(author_id) VALUES (?)', ((uid,) for uid in ids))
+        self._remove_deferred_authors(old.difference(ids))
+        return ids, ()
 
-    def bind_account(self, account_id: str) -> None:
+    def favourites(self, account_id=None) -> tuple[str, ...]:
+        book = self._favourites_source
+        return self.legacy_favourites() if book is None else book.ids(account_id)
+
+    def bind_account(self, account_id: str, *, scope: AccountScope) -> None:
         """Bind only an empty unowned history; never adopt unknown old state."""
         from .pixiv_read_client import _identifier
         account_id = _identifier(account_id)
@@ -552,21 +733,29 @@ class ManagedScheduler:
             self._ensure_open()
             self._db.execute('BEGIN IMMEDIATE')
             try:
+                if type(scope) is not AccountScope:
+                    raise AccountMismatch()
+                scope.verify_observed()
+                require_same_account(account_id, scope.account_id)
                 row = self._db.execute('SELECT account_id FROM scheduler_account WHERE id=1').fetchone()
                 if row is None:
+                    if self._unbound_unknown_schedule:
+                        raise ScheduleAccountError('unknown')
                     for table in ('favourite_authors', 'deferred_work', 'dispatch_history', 'dispatch_items'):
                         if self._db.execute(f'SELECT 1 FROM {table} LIMIT 1').fetchone() is not None:
                             raise ScheduleAccountError('unknown')
                     self._db.execute('INSERT INTO scheduler_account VALUES (1,?)', (account_id,))
-                elif row[0] != account_id:
-                    raise ScheduleAccountError('mismatch')
+                else:
+                    require_same_account(row[0], account_id, error=ScheduleAccountError('mismatch'))
                 self._db.execute('COMMIT')
             except BaseException:
                 self._db.execute('ROLLBACK')
                 raise
 
-    def sync_favourites(self, author_ids: tuple[str, ...]) -> None:
-        """Cache the current account's stars for deferred-work membership."""
+    def _sync_favourites(self, author_ids: tuple[str, ...]) -> None:
+        """Refresh the standalone scheduler list without touching the following ledger."""
+        if self._favourites_source is not None:
+            return
         from .pixiv_read_client import _identifier
         ids = tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
         with self._lock:
@@ -604,6 +793,13 @@ def _require_managed_network_allowed(services):
         integration.require_allowed()
 
 
+def _dispatch_account(ledger):
+    bound = ledger._bound_account() if ledger is not None else None
+    if bound is None and ledger is not None and ledger._account_guard:
+        raise ScheduleAccountError('mismatch')
+    return bound
+
+
 def submit_author_batch(services, author_ids, *, cancellation: Event,
                         max_items: int = 50, ledger: ManagedScheduler | None = None,
                         slot: str | None = None) -> dict[str, int]:
@@ -630,36 +826,44 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
     if type(max_items) is not int or not 1 <= max_items <= 50:
         raise ValueError('invalid scheduler queue capacity')
     verified_authors = tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
+    bound = _dispatch_account(ledger)
     if not verified_authors:
         if ledger is not None:
             now = datetime.now(timezone.utc)
             slot = slot or _timestamp(now)
-            ledger.begin_dispatch(slot, now, 0)
-            ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0, now=now)
+            ledger.begin_dispatch(slot, now, 0, account_id=bound)
+            ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0, now=now, account_id=bound)
         return {'accepted': 0, 'deferred': 0, 'authors': 0}
     owner = uuid4().hex
     accepted, deferred = 0, 0
     now = datetime.now(timezone.utc)
     slot = slot or _timestamp(now)
     if ledger is not None:
-        ledger.begin_dispatch(slot, now, len(verified_authors))
+        ledger.begin_dispatch(slot, now, len(verified_authors), account_id=bound)
     from .job_service import UNFINISHED
     try:
         saved = {receipt['work_id']: (digest, date, relative)
                  for relative, receipt, digest, date
                  in services.managed_downloads.saved_receipts_with_dates()}
-        full_reader = getattr(services.live_client, 'get_author_artworks_complete', None)
+        reader = services.live_client
+        full_reader = getattr(reader, 'get_author_artworks_complete', None)
         if not callable(full_reader):
             raise ScheduleError('complete author inventory is required')
-        services.live_client.verify_identity()
+        _require_managed_network_allowed(services)
+        scope = AccountScope(reader.verify_identity(), reader)
+        if bound is not None:
+            require_same_account(bound, scope.account_id)
+        scope.verify_current(services)
+        deferred_writer = BoundSchedulerLedger(ledger, scope, services) if ledger is not None else None
         for author_id in verified_authors:
             if cancellation.is_set() or services.closing:
                 break
             _require_managed_network_allowed(services)
+            scope.verify_current(services)
             # No fallback to partial/masked inventories: fail closed.
-            works = full_reader(author_id)
-            if ledger is not None:
-                ledger.prune_deferred_inventory(author_id, {work['id'] for work in works})
+            listing = OwnedListing(scope, author_id, 'illust', tuple(full_reader(author_id)))
+            listing.scope.verify_current(services)
+            works = listing.rows
             bridge = getattr(services, 'legacy_author_bridge', None)
             legacy_saved = {}
             if bridge is not None:
@@ -672,6 +876,7 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
             ordered_works = sorted(works, key=lambda work: (work['id'] not in deferred_ids, -int(work['id'])))
             for work_index, work in enumerate(ordered_works):
                 _require_managed_network_allowed(services)
+                scope.verify_current(services)
                 if cancellation.is_set() or services.closing:
                     if ledger is not None:
                         for remaining in ordered_works[work_index:]:
@@ -680,7 +885,7 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                                     and isinstance(remaining.get('id'), str)
                                     and isinstance(remaining.get('update_date'), str)
                                     and type(remaining.get('page_count')) is int):
-                                ledger.defer_work(author_id=author_id, work=remaining,
+                                deferred_writer.defer_work(author_id=author_id, work=remaining,
                                                   now=datetime.now(timezone.utc))
                                 deferred += 1
                     break
@@ -692,8 +897,6 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                     raise ScheduleError('complete inventory author changed')
                 if wid in pending:
                     deferred += 1
-                    if ledger is not None:
-                        ledger.resolve_deferred(author_id, wid)
                     continue
                 prior = saved.get(wid)
                 if prior is None or prior[1] != work['update_date']:
@@ -702,6 +905,7 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                     # that GET runs; recheck any missing or stale-date pointer
                     # before making a new operation, not just NEW candidates.
                     latest = services.managed_downloads.verified_saved_receipt(wid, verify_pages=False)
+                    scope.verify_current(services)
                     if latest is not None:
                         relative, receipt, digest, latest_date, _ = latest
                         if (receipt['author_id'] != author_id
@@ -713,7 +917,7 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                             if receipt['page_count'] != work['page_count']:
                                 raise ScheduleError('managed receipt page count changed without remote revision')
                             if ledger is not None:
-                                ledger.resolve_deferred(author_id, wid)
+                                deferred_writer.resolve_deferred(author_id, wid)
                             continue
                     else:
                         prior = None
@@ -738,20 +942,17 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                     elif difference == Difference.UNKNOWN:
                         deferred += 1
                         # An ambiguous legacy receipt cannot authorize an
-                        # unattended retry. It may be reconsidered on the next
-                        # scheduled full check, not spun in the durable backlog.
-                        if ledger is not None:
-                            ledger.resolve_deferred(author_id, wid)
+                        # unattended retry or clear the held work.
                         continue
                     else:
                         deferred += 1
                         if ledger is not None:
-                            ledger.resolve_deferred(author_id, wid)
+                            deferred_writer.resolve_deferred(author_id, wid)
                         continue
                 if accepted >= max_items or len(pending) >= max_items:
                     deferred += 1
                     if ledger is not None:
-                        ledger.defer_work(author_id=author_id, work=work, now=datetime.now(timezone.utc))
+                        deferred_writer.defer_work(author_id=author_id, work=work, now=datetime.now(timezone.utc))
                     continue
                 # Serialize the final active-receipt/pending check, the detail
                 # GET and enqueue against both manual acceptance and the worker
@@ -762,17 +963,17 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                     if sum(j.state in UNFINISHED for j in services.jobs.snapshot()) >= max_items:
                         deferred += 1
                         if ledger is not None:
-                            ledger.defer_work(author_id=author_id, work=work, now=datetime.now(timezone.utc))
+                            deferred_writer.defer_work(author_id=author_id, work=work, now=datetime.now(timezone.utc))
                         continue
                     current_pending = any(
                         j.kind == 'pixiv-illust' and j.target_id == wid and j.state in UNFINISHED
                         for j in services.jobs.snapshot())
+                    scope.verify_current(services)
                     if current_pending:
                         deferred += 1
-                        if ledger is not None:
-                            ledger.resolve_deferred(author_id, wid)
                         continue
                     latest = services.managed_downloads.verified_saved_receipt(wid, verify_pages=False)
+                    scope.verify_current(services)
                     if latest is None:
                         if prior is not None:
                             raise ScheduleError('active managed receipt disappeared during scheduler dispatch')
@@ -787,13 +988,14 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                                 raise ScheduleError('managed receipt page count changed without remote revision')
                             saved[wid] = latest_prior
                             if ledger is not None:
-                                ledger.resolve_deferred(author_id, wid)
+                                deferred_writer.resolve_deferred(author_id, wid)
                             continue
                         if prior != latest_prior:
                             raise ScheduleError('active managed receipt changed during scheduler dispatch')
                     # Reuse the same verified detail/DTO adapter as manual
                     # selection; masked metadata cannot become a job intent.
-                    record = services.live_client.get_artwork_download_record(wid)
+                    record = reader.get_artwork_download_record(wid)
+                    scope.verify_current(services)
                     if (record.author_id != author_id or record.kind != 'illustration'
                             or record.illustration_type not in (0, 1)
                             or not record.page_count_known
@@ -810,14 +1012,15 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                         # Persist the idempotency key before JobService enqueue;
                         # after a crash we can discover the accepted job by ID.
                         ledger.prepare_dispatch_item(slot=slot, work_id=wid,
-                                                     author_id=author_id, operation_id=operation_id)
+                                                     author_id=author_id, operation_id=operation_id, account_id=bound)
                     try:
                         _require_managed_network_allowed(services)
                         job, created = services.enqueue_managed_download(
                             intent, operation_id, owner=owner, return_created=True)
+                        scope.verify_current(services)
                     except Exception:
                         if ledger is not None:
-                            ledger.fail_dispatch_item(slot=slot, work_id=wid, operation_id=operation_id)
+                            ledger.fail_dispatch_item(slot=slot, work_id=wid, operation_id=operation_id, account_id=bound)
                         raise
                     finally:
                         services.forget_accepted_managed_author_batch(owner, (wid,))
@@ -831,18 +1034,21 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                     fingerprint = accepted_author_fingerprint(intent, job.job_id)
                     ledger.bind_dispatch_job(slot=slot, work_id=wid,
                                              operation_id=operation_id, job_id=job.job_id,
-                                             accepted_fingerprint=fingerprint)
-                    ledger.resolve_deferred(author_id, wid)
-                    ledger.update_dispatch_progress(slot, accepted=accepted, deferred=deferred)
+                                             accepted_fingerprint=fingerprint, account_id=bound)
+                    deferred_writer.resolve_deferred(author_id, wid)
+                    ledger.update_dispatch_progress(slot, accepted=accepted, deferred=deferred, account_id=bound)
         result = {'accepted': accepted, 'deferred': deferred, 'authors': len(verified_authors)}
         if ledger is not None:
             ledger.finish_dispatch(slot, status='queued' if accepted else ('empty' if not deferred else 'queued'),
-                                   accepted=accepted, deferred=deferred)
+                                   accepted=accepted, deferred=deferred, account_id=bound)
         return result
     except Exception as exc:
         if ledger is not None:
+            mismatch = isinstance(exc, AccountMismatch)
             ledger.finish_dispatch(slot, status='failed', accepted=accepted, deferred=deferred,
-                                   error_code=type(exc).__name__)
+                                   error_code=AccountMismatch.code if mismatch else type(exc).__name__, account_id=bound)
+        if isinstance(exc, AccountMismatch):
+            raise ScheduleAccountError('mismatch') from exc
         raise
     finally:
         services.release_managed_owner(owner)
@@ -856,6 +1062,7 @@ def submit_author_media_batch(services, author_ids, *, cancellation, max_items=5
     """
     _require_managed_network_allowed(services)
     from .author_media import AuthorMediaCandidate, identifier
+    from .author_download import Difference
     from .job_service import UNFINISHED
     if services.closing or services.jobs is None:
         raise ScheduleError('author media unavailable')
@@ -866,39 +1073,47 @@ def submit_author_media_batch(services, author_ids, *, cancellation, max_items=5
     authors=tuple(dict.fromkeys(identifier(uid) for uid in author_ids))
     slot=slot or _timestamp(datetime.now(timezone.utc))
     accepted=deferred=0
+    bound = _dispatch_account(ledger)
     if ledger is not None:
-        ledger.begin_dispatch(slot,datetime.now(timezone.utc),len(authors))
+        ledger.begin_dispatch(slot,datetime.now(timezone.utc),len(authors), account_id=bound)
     try:
         for aid in authors:
             if cancellation.is_set() or services.closing: break
             _require_managed_network_allowed(services)
-            rows=tuple(services.author_media_preview(aid))
+            listing = services.author_media_preview_owned(aid, expected_account=bound)
+            if type(listing) is not OwnedListing or listing.author_id != aid:
+                raise AccountMismatch()
+            if bound is not None:
+                require_same_account(bound, listing.account_id)
+            listing.scope.verify_current(services)
+            deferred_writer = BoundSchedulerLedger(ledger, listing.scope, services) if ledger is not None else None
+            rows = listing.rows
             if any(type(c) is not AuthorMediaCandidate or c.author_id!=aid for c in rows):
                 raise ScheduleError('complete author media identity changed')
             if len({c.key for c in rows})!=len(rows):
                 raise ScheduleError('duplicate author media inventory key')
             backlog=ledger.deferred_ids(aid) if ledger else frozenset()
-            if ledger is not None:
-                ledger.prune_deferred_inventory(aid,{c.key for c in rows})
             rows=sorted(rows,key=lambda c:(c.key not in backlog,-int(c.work_id),c.kind))
             for c in rows:
                 _require_managed_network_allowed(services)
+                listing.scope.verify_current(services)
                 if not c.eligible:
                     deferred+=1
-                    if ledger is not None: ledger.resolve_deferred(aid,c.key)
+                    if ledger is not None and c.difference == Difference.SKIPPED:
+                        deferred_writer.resolve_deferred(aid,c.key)
                     continue
                 if (cancellation.is_set() or services.closing or accepted>=max_items
                         or sum(j.state in UNFINISHED for j in services.jobs.snapshot())>=max_items):
                     deferred+=1
                     if ledger is not None:
-                        ledger.defer_work(author_id=aid,work=c.deferred_work(),now=datetime.now(timezone.utc))
+                        deferred_writer.defer_work(author_id=aid,work=c.deferred_work(),now=datetime.now(timezone.utc))
                     continue
                 with getattr(services, '_media_admission_lock', nullcontext()):
                     _require_managed_network_allowed(services)
                     if sum(j.state in UNFINISHED for j in services.jobs.snapshot())>=max_items:
                         deferred+=1
                         if ledger is not None:
-                            ledger.defer_work(author_id=aid,work=c.deferred_work(),now=datetime.now(timezone.utc))
+                            deferred_writer.defer_work(author_id=aid,work=c.deferred_work(),now=datetime.now(timezone.utc))
                         continue
                     existing=ledger.dispatch_operation(slot,c.key) if ledger else None
                     operation=existing[0] if existing else uuid4().hex
@@ -906,30 +1121,34 @@ def submit_author_media_batch(services, author_ids, *, cancellation, max_items=5
                         # Previously accepted in this slot; reconcile will decide
                         # saved/failed, never an automatic new operation/retry.
                         deferred+=1
-                        if ledger is not None: ledger.resolve_deferred(aid,c.key)
+                        if ledger is not None: deferred_writer.resolve_deferred(aid,c.key)
                         continue
                     if ledger is not None:
-                        ledger.prepare_dispatch_item(slot=slot,work_id=c.key,author_id=aid,operation_id=operation)
+                        ledger.prepare_dispatch_item(slot=slot,work_id=c.key,author_id=aid,operation_id=operation, account_id=bound)
                     try:
                         _require_managed_network_allowed(services)
                         job,created,fingerprint=services.enqueue_author_media(c,operation,origin='follow')
+                        listing.scope.verify_current(services)
                     except Exception:
                         if ledger is not None:
-                            ledger.fail_dispatch_item(slot=slot,work_id=c.key,operation_id=operation)
+                            ledger.fail_dispatch_item(slot=slot,work_id=c.key,operation_id=operation, account_id=bound)
                         raise
                     accepted+=int(created); deferred+=int(not created)
                     if ledger is not None:
                         ledger.bind_dispatch_job(slot=slot,work_id=c.key,operation_id=operation,
-                                                 job_id=job.job_id,accepted_fingerprint=fingerprint)
-                        ledger.resolve_deferred(aid,c.key)
-                        ledger.update_dispatch_progress(slot,accepted=accepted,deferred=deferred)
+                                                 job_id=job.job_id,accepted_fingerprint=fingerprint, account_id=bound)
+                        deferred_writer.resolve_deferred(aid,c.key)
+                        ledger.update_dispatch_progress(slot,accepted=accepted,deferred=deferred, account_id=bound)
         if ledger is not None:
             ledger.finish_dispatch(slot,status='queued' if accepted or deferred else 'empty',
-                                   accepted=accepted,deferred=deferred)
+                                   accepted=accepted,deferred=deferred, account_id=bound)
         return dict(accepted=accepted,deferred=deferred,authors=len(authors))
     except Exception as exc:
         if ledger is not None:
-            ledger.finish_dispatch(slot,status='failed',accepted=accepted,deferred=deferred,error_code=type(exc).__name__)
+            ledger.finish_dispatch(slot, status='failed', accepted=accepted, deferred=deferred,
+                                   error_code=AccountMismatch.code if isinstance(exc, AccountMismatch) else type(exc).__name__, account_id=bound)
+        if isinstance(exc, AccountMismatch):
+            raise ScheduleAccountError('mismatch') from exc
         raise
 
 
@@ -965,13 +1184,13 @@ class ManagedScheduleRunner:
         with self._state_lock:
             return not self._claim_active
 
-    def acknowledge_interrupted(self, *, expected_revision: int) -> ScheduleState:
+    def acknowledge_interrupted(self, *, expected_revision: int, account_id) -> ScheduleState:
         # The same lock brackets claim+reservation and explicit recovery, so a
         # crash acknowledgement cannot race a claim that has not enqueued yet.
         with self._state_lock:
             if self._claim_active:
                 raise ScheduleError('scheduler claim or dispatch is active')
-            return self.ledger.acknowledge_interrupted(expected_revision=expected_revision)
+            return self.ledger.acknowledge_interrupted(expected_revision=expected_revision, account_id=account_id)
 
     def _claim_reserved(self, now: datetime, *, startup: bool = False) -> str | None:
         with self._state_lock:
@@ -979,7 +1198,7 @@ class ManagedScheduleRunner:
                 return None
             self._claim_active = True
             try:
-                slot = self.ledger.claim_due(now, startup=startup)
+                slot = self.ledger._claim_due(now, startup=startup)
             except BaseException:
                 self._claim_active = False
                 raise
@@ -994,14 +1213,14 @@ class ManagedScheduleRunner:
         except Exception:
             if claimed:
                 try:
-                    self.ledger.complete(slot, succeeded=False)
+                    self.ledger._complete(slot, succeeded=False)
                 except ScheduleError:
                     pass
         else:
             succeeded = True
             if claimed:
                 try:
-                    self.ledger.complete(slot, succeeded=True)
+                    self.ledger._complete(slot, succeeded=True)
                 except ScheduleError:
                     pass
         finally:
@@ -1110,3 +1329,112 @@ class ManagedScheduleRunner:
                 raise ScheduleError('scheduler worker has not stopped')
         with self._state_lock:
             self._running = False
+
+
+class _BatchDispatch:
+    '''Bind batch admissions to one periodic slot before calling JobService.'''
+
+    def __init__(self, ledger, slot, account, bound_account):
+        self.ledger, self.slot = ledger, slot
+        self.account, self.bound_account = account, bound_account
+
+    def prepare(self, handle, candidate, operation):
+        require_same_account(self.account, handle.account_id)
+        existing = self.ledger.dispatch_operation(self.slot, candidate.key)
+        if existing is not None:
+            return existing[0]
+        self.ledger.prepare_dispatch_item(slot=self.slot, work_id=candidate.key, author_id=candidate.author_id,
+                                         operation_id=operation, account_id=self.bound_account)
+        return operation
+
+    def fail(self, handle, candidate, operation):
+        require_same_account(self.account, handle.account_id)
+        self.ledger.fail_dispatch_item(slot=self.slot, work_id=candidate.key,
+                                      operation_id=operation, account_id=self.bound_account)
+
+
+def run_author_check(services, author_ids, *, cancellation: Event, ledger: ManagedScheduler | None = None,
+                     slot: str | None = None, poll: float = 0.5, wait: bool = True,
+                     account_id: str) -> dict[str, int]:
+    """The periodic check on the author batch engine (original scheduler.py:182 `_run_check`).
+
+    Every star author (no 128 limit), differential, both media, stamped on completion, behind the
+    same network stop gate as the screen's 「実行」. A run the user started is never joined by an
+    automatic one. A run the gate paused is left paused for the user to resume; this slot ends.
+    """
+    from .pixiv_read_client import _identifier
+    ids = tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
+    now = datetime.now(timezone.utc)
+    slot = slot or _timestamp(now)
+    bound = _dispatch_account(ledger)
+    account = AccountScope(account_id).account_id
+    if bound is not None:
+        require_same_account(bound, account)
+    engine = services.batch_runs
+    engine.port.verify_run_account(account)
+    if ledger is not None:
+        ledger.begin_dispatch(slot, now, len(ids), account_id=bound, batch=True)
+
+    def persist_outcome(state, code, totals):
+        accepted = sum(totals[name] for name in ('n_new', 'n_updated', 'n_restored', 'n_missing'))
+        if ledger is not None:
+            status = ('queued' if state == 'done' and accepted else 'empty' if state == 'done'
+                      else 'interrupted' if state in ('stopped', 'paused', 'interrupted') else 'failed')
+            error_code = (code or None) if status in ('interrupted', 'failed') else None
+            try:
+                ledger.finish_dispatch(slot, status=status, accepted=accepted, deferred=0,
+                                       error_code=error_code, account_id=bound)
+            except (ScheduleError, sqlite3.Error):
+                if not services.closing:
+                    raise
+        return accepted
+
+    result = None
+
+    def finished(own_result):
+        nonlocal result
+        require_same_account(account, own_result.handle.account_id)
+        result = own_result
+        if not wait:
+            persist_outcome(result.state, result.error_code, result.totals)
+
+    try:
+        if not ids:
+            if ledger is not None:
+                ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0, account_id=bound)
+            return {'accepted': 0, 'deferred': 0, 'authors': 0}
+        if engine.active:
+            if ledger is not None:
+                ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0, error_code='run_active', account_id=bound)
+            return {'accepted': 0, 'deferred': 0, 'authors': 0}
+        _require_managed_network_allowed(services)
+        dispatch = {} if ledger is None else {'dispatch': _BatchDispatch(ledger, slot, account, bound)}
+        handle = services.start_batch_run(ids, origin='auto', target_type='both',
+                                          account_id=account, on_finish=finished, **dispatch)
+    except Exception as error:
+        if ledger is not None:
+            code = AccountMismatch.code if isinstance(error, AccountMismatch) else type(error).__name__
+            ledger.finish_dispatch(slot, status='failed', accepted=0, deferred=0, error_code=code, account_id=bound)
+        raise
+    if not wait:
+        # 「今すぐチェック」: the run goes on in the background; progress is on the download screen.
+        return {'accepted': 0, 'deferred': 0, 'authors': len(ids), 'started': True}
+    paused = ''
+    while not engine.join(poll, handle=handle):
+        if cancellation.is_set() or services.closing:
+            engine._stop_run(handle)
+            continue
+        status = engine.status(handle)
+        if status is not None and status[0] == 'paused' and status[1] not in ('', 'user'):
+            # A gated automatic run must release the engine for future slots.
+            paused = status[1]
+            engine._stop_run(handle)
+    if result is None or result.handle != handle:
+        raise ScheduleError('author check result unavailable')
+    state = 'paused' if paused else result.state
+    accepted = persist_outcome(state, paused or result.error_code, result.totals)
+    if state == 'failed':
+        if result.error_code == AccountMismatch.code:
+            raise ScheduleAccountError('mismatch')
+        raise ScheduleError('author check failed')
+    return {'accepted': accepted, 'deferred': 0, 'authors': len(ids)}

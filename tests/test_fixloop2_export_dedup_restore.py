@@ -3,9 +3,43 @@ import hashlib
 import json
 import sqlite3
 import zipfile
+from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 import pytest
 
 from pixivvault_nicegui import legacy_metadata_export as exporter
+
+
+@pytest.mark.parametrize('damage_archive', [False, True])
+def test_reused_archive_is_rechecked_if_cleanup_fails(tmp_path, monkeypatch, damage_archive):
+    source = tmp_path / 'source'
+    source.mkdir()
+    db = source / 'legacy.db'
+    with sqlite3.connect(db) as conn:
+        conn.execute('CREATE TABLE works(work_id TEXT, title TEXT)')
+        conn.execute('INSERT INTO works VALUES (?, ?)', ('1', 'Generated title'))
+    output = tmp_path / 'exports'
+    saved = exporter.export_frozen_legacy_metadata(db, output)
+    before = saved.path.read_bytes()
+
+    class CleanupFailure(TemporaryDirectory):
+        def __exit__(self, *args):
+            super().__exit__(*args)
+            if damage_archive:
+                saved.path.write_bytes(b'generated damaged ZIP')
+            raise PermissionError('generated temporary folder cleanup failure')
+
+    monkeypatch.setattr(exporter, 'tempfile', SimpleNamespace(TemporaryDirectory=CleanupFailure))
+    if damage_archive:
+        with pytest.raises(exporter.LegacyMetadataExportError):
+            exporter.export_frozen_legacy_metadata(db, output)
+    else:
+        result = exporter.export_frozen_legacy_metadata(db, output)
+        assert result.cleanup_warning
+        assert result.path == saved.path
+        assert result.zip_sha256 == saved.zip_sha256
+        assert saved.path.read_bytes() == before
+    assert list(output.glob('*.zip')) == [saved.path]
 
 
 def test_identical_images_share_one_payload_and_restore_both_paths(tmp_path):

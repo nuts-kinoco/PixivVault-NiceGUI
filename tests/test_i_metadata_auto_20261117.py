@@ -31,7 +31,8 @@ class Source:
         self.closed = False
 
     def verify_identity(self):
-        return "12"
+        self._verified_identity = "12"
+        return self._verified_identity
 
     def get_bookmarked_works(self, identity, rest_type):
         if rest_type == "show":

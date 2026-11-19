@@ -10,6 +10,7 @@ import time
 
 from nicegui import background_tasks, ui
 
+from ..account_scope import require_same_account
 from ..following_sync import (FollowingSyncCancelled, FollowingSyncConflict,
     FollowingSyncError, FollowingSyncTimedOut)
 from ..pixiv_read_client import ReadDeadlineExceeded, read_deadline_scope
@@ -22,14 +23,12 @@ class _PinnedReader:
 
     def require_identity(self):
         self.checkpoint()
-        if self.reader.require_identity() != self.account_id:
-            raise FollowingSyncError()
+        require_same_account(self.account_id, self.reader.require_identity(), error=FollowingSyncError())
         return self.account_id
 
     def get_following_users_detailed(self, account_id, rest_type='show'):
         self.checkpoint()
-        if account_id != self.account_id:
-            raise FollowingSyncError()
+        require_same_account(self.account_id, account_id, error=FollowingSyncError())
         return self.reader.get_following_users_detailed(account_id, rest_type)
 
 
@@ -225,8 +224,8 @@ class FollowingSyncView:
                 checkpoint()
                 if type(actual) is not str or re.fullmatch(r'[1-9][0-9]{0,19}', actual) is None:
                     raise FollowingSyncError()
-                if account is not None and actual != account:
-                    raise FollowingSyncCancelled()
+                if account is not None:
+                    require_same_account(account, actual, error=FollowingSyncCancelled())
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     raise FollowingSyncTimedOut()

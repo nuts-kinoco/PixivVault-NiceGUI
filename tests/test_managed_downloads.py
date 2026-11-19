@@ -39,7 +39,8 @@ class Client:
 
     def verify_identity(self):
         self.identity += 1
-        return "456"
+        self._verified_identity = '456'
+        return self._verified_identity
 
     def get_artwork_original_pages(self, work_id):
         self.urls += 1
@@ -147,7 +148,11 @@ def test_single_pinned_page_does_not_decode_the_whole_artwork_again(tmp_path, mo
         monkeypatch.setattr(module, "_image", observed)
         assert runner.read_saved_page(relative, 0, saved[2]) == png()
         assert decoded == [], "one thumbnail request must not decode all saved pages"
-        # Complete-save / duplicate validation still checks every stored page.
+        # Complete-save / duplicate validation still checks every stored page ...
+        runner._receipt_cache.clear()
+        runner.saved_receipts()
+        assert len(decoded) == 2
+        # ... and a work whose folder has not changed since is then not decoded a second time.
         runner.saved_receipts()
         assert len(decoded) == 2
     finally:
@@ -360,9 +365,12 @@ def test_missing_receipt_and_duplicate_completed_work_are_errors(tmp_path):
     second.rmdir()
     import shutil
     shutil.copytree(original.parent, second)
+    third = runner.outputs / ('work-123-' + 'b' * 32)
+    shutil.copytree(original.parent, third)
     with pytest.raises(ManagedDownloadError, match='duplicate completed'):
         runner.saved_receipts()
     shutil.rmtree(second)
+    shutil.rmtree(third)
     original.unlink()
     with pytest.raises(ManagedDownloadError):
         runner.saved_receipts()

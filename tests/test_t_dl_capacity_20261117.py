@@ -21,6 +21,7 @@ from pixivvault_nicegui.job_service import JobService, JobServiceError
 from pixivvault_nicegui.managed_download_requests import ManagedDownloadRequests, ManagedRequestError
 from pixivvault_nicegui.managed_downloads import IDENTITY, MARKER
 from pixivvault_nicegui.services import ApplicationServices
+from test_t_dl_engine_20261117 import OwnedInventoryPort
 
 import json
 
@@ -256,7 +257,7 @@ def test_services_port_retire_distinguishes_unsupported_not_ready_and_done():
 
 # ---- the engine over the capped ledger (fake port; the cap is the real 10,000) ----
 
-class CappedPort:
+class CappedPort(OwnedInventoryPort):
     """Enqueue costs one ledger slot until retire(); job state needs `latency` polls."""
     closing = False
     CAP = 10_000
@@ -275,8 +276,8 @@ class CappedPort:
 
     def require_allowed(self): pass
     def author_target(self, aid): return None
-    def list_author(self, aid, target): return self.inventory[aid]
-    def settle(self, aid): pass
+    def list_author(self, aid, target, *, expected_account): return self.owned(aid, target, self.inventory[aid], expected_account)
+    def settle(self, aid, *, scope): pass
     def stop_jobs(self, refs): pass
     def observe_deletion(self, aid, remote, scan_id): return None
 
@@ -491,11 +492,10 @@ def test_updates_do_not_count_against_the_store_cap_and_unknown_headroom_is_allo
         assert ledger.run(run_id).state == 'done' and port.n == 5
 
 
-def test_services_port_saved_headroom_reads_the_generation_count():
-    from pixivvault_nicegui.managed_generations import _MAX_ENTRIES
-    def port(entries):
-        return ServicesPort(NS(managed_downloads=NS(_generations=NS(entries=entries))))
-    assert port(lambda: {str(i): {} for i in range(30)}).saved_headroom() == _MAX_ENTRIES - 30
+def test_services_port_saved_headroom_reads_the_generation_capacity():
+    def port(capacity):
+        return ServicesPort(NS(managed_downloads=NS(_generations=NS(capacity=capacity))))
+    assert port(lambda: {'headroom': 970}).saved_headroom() == 970
     assert port(lambda: (_ for _ in ()).throw(ValueError('generation limit exceeded'))).saved_headroom() == 0
     assert port(lambda: (_ for _ in ()).throw(OSError('x'))).saved_headroom() is None
     assert ServicesPort(NS()).saved_headroom() is None
@@ -515,11 +515,12 @@ def test_jobs_paused_by_admission_pause_the_run_instead_of_hanging(ledger, code)
     port.inventory = {'41': works('41', 2)}
     port.job_states = lambda refs: {r.job_id: ('paused', code) for r in refs}
     engine = BatchRunEngine(port, ledger, poll_seconds=0.001, wait=lambda s: None)
-    run_id = engine.start(('41',))
+    handle = engine.start(('41',), account_id='55')
+    run_id = handle.run_id
     assert wait_for(lambda: ledger.run(run_id).state == 'paused')
     assert ledger.run(run_id).error_code == ('network_stopped' if code == 'admission_blocked'
                                              else 'network_gate_unavailable')
-    engine.stop()
+    engine.stop(handle)
     assert engine.join(5)
 
 
@@ -527,6 +528,8 @@ def test_proof_binding_runs_every_16_finished_jobs_and_at_the_author_end(ledger)
     port = CappedPort()
     port.inventory = {'41': works('41', 100)}
     settles = []
-    port.settle = lambda aid: settles.append(aid)
-    run_engine(port, ledger, ('41',))
+    port.settle = lambda aid, *, scope: settles.append((aid, scope.account_id))
+    run_id = run_engine(port, ledger, ('41',))
+    assert ledger.run(run_id).state == 'done'
     assert 6 <= len(settles) <= 9
+    assert set(settles) == {('41', '55')}

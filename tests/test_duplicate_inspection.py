@@ -20,7 +20,7 @@ class Context:
 
 class Client:
     def __init__(self):self.calls=0
-    def verify_identity(self):return '9'
+    def verify_identity(self):self._verified_identity = '9'; return self._verified_identity
     def get_artwork_original_pages(self,wid):return ('https://i.pximg.net/synthetic',)
     def get_image_bytes(self,url):
         self.calls+=1;out=BytesIO();Image.new('RGB',(16,12),'red').save(out,format='PNG');return out.getvalue()

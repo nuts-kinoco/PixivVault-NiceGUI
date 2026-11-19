@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import pytest
 from nicegui import Client,ui
 from pixivvault_nicegui.managed_scheduler import ManagedScheduler,submit_author_batch
+from pixivvault_nicegui.account_scope import AccountScope, OwnedListing
 from pixivvault_nicegui.author_media import AuthorMediaCandidate
 from pixivvault_nicegui.author_download import Difference
 from pixivvault_nicegui.bookmark_remote_adapter import RemoteBookmark
@@ -40,12 +41,13 @@ async def test_accepted_count_visible_before_next_author_finishes(tmp_path,route
         jobs=SimpleNamespace(snapshot=lambda:tuple(queue)),
         managed_downloads=SimpleNamespace(saved_receipts_with_dates=lambda:(),
             verified_saved_receipt=lambda *a,**k:None,work_lock=lambda *a:nullcontext()),
-        live_client=SimpleNamespace(verify_identity=lambda:None,get_author_artworks_complete=inventory,
+        live_client=SimpleNamespace(_verified_identity='42',verify_identity=lambda:'42',get_author_artworks_complete=inventory,
             get_artwork_download_record=lambda wid:record),
-        author_media_preview=inventory,enqueue_author_media=enqueue,enqueue_managed_download=enqueue,
+        author_media_preview_owned=lambda aid, **kw: OwnedListing(
+            AccountScope("42", services.live_client), aid, "both", inventory(aid)),enqueue_author_media=enqueue,enqueue_managed_download=enqueue,
         remember_managed_author_batch=lambda owner,records:records,
         forget_accepted_managed_author_batch=lambda *a:None,release_managed_owner=lambda *a:None,
-        managed_scheduler=ledger,reconcile_managed_scheduler=lambda:ledger.reconcile_jobs(queue,{}))
+        managed_scheduler=ledger,reconcile_managed_scheduler=lambda:ledger.reconcile_jobs(queue,{}, account_id=ledger._bound_account()))
     client=Client(ui.page('/generated-flr01-'+route+'-'+ending))
     task=view=None
     try:

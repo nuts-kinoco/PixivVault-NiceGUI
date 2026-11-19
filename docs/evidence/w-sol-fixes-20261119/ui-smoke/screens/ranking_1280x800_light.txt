@@ -1,0 +1,68 @@
+⚠️⚠️ 本番DBを使用中: S:\Projects\PV-DEV-20261117\wt-w\.tmp-review\ui-smoke-bulk-fixed\run\managed
+PixivVault
+× [未認証/期限切れ] Cookieファイルが設定されていません。設定から選んでください。
+アプリ: 未接続
+API切り替え
+history
+visibility
+folder_open
+dark_mode
+public
+settings
+info_outline
+【Cookie未連携】
+PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。
+拡張機能の受信が動いていません。自動連携は使えません。設定からcookies.txtを選んでください。
+open_in_browser
+Pixivを開く
+close
+download
+ダウンロード
+queue
+キュー
+report_problem
+失敗リスト
+content_copy
+重複整理
+explore
+学習
+leaderboard
+ランキング
+military_tech
+自分のランキング
+photo_library
+ライブラリ
+recommend
+おすすめ
+schedule
+定期チェック
+edit_note
+メタデータ補完
+ランキング
+日間
+arrow_drop_down
+作品種別
+イラスト
+arrow_drop_down
+calendar_month
+今日
+日付 YYYYMMDD（空欄は今日）
+R-18
+AIを除外
+タグ検索
+取得・更新
+並び順
+公式順
+arrow_drop_down
+tune
+公式ランキング · 0 件 · これ以上のページはありません
+検索
+カードサイズ
+view_module
+大
+view_comfy
+中
+apps
+小
+0 / 0 件表示
+取得した条件に該当する作品がありません。

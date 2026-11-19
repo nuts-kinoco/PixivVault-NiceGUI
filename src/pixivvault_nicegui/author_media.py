@@ -16,6 +16,7 @@ import sqlite3
 from threading import RLock
 from uuid import uuid4
 
+from .account_scope import AccountMismatch, AccountScope, OwnedListing, require_same_account
 from .author_download import Difference, decide_difference
 from .job_service import UNFINISHED
 from .fs_paths import native_io_path
@@ -64,6 +65,7 @@ class AuthorMediaCandidate:
     # update. Explicit one-shot target overrides leave this fence unset.
     author_setting_revision: int | None = field(default=None, repr=False, compare=False)
     author_setting_target: str | None = field(default=None, repr=False, compare=False)
+    account_id: str | None = field(default=None, repr=False, compare=False)
 
     @property
     def key(self):
@@ -227,7 +229,14 @@ class AuthorMediaService:
                 return json.loads(spec)['update_date']
         return None
 
-    def preview(self, author_id, target_type=None, *, novel_format='EPUB', ugoira_format='gif', new_only=False):
+    def preview(self, author_id, target_type=None, *, novel_format='EPUB', ugoira_format='gif',
+                new_only=False, expected_account=None):
+        return self.preview_owned(author_id, target_type, novel_format=novel_format,
+                                  ugoira_format=ugoira_format, new_only=new_only,
+                                  expected_account=expected_account).rows
+
+    def preview_owned(self, author_id, target_type=None, *, expected_account=None,
+                      novel_format='EPUB', ugoira_format='gif', new_only=False) -> OwnedListing:
         self._open()
         identifier(author_id)
         setting = None
@@ -238,8 +247,14 @@ class AuthorMediaService:
             raise ValueError('invalid author media selection')
         if type(new_only) is not bool:raise ValueError('invalid new-only selection')
         s = self.services
-        s.live_client.verify_identity()
-        self.reconcile()
+        reader = s.live_client
+        scope = AccountScope(reader.verify_identity(), reader)
+        account = scope.account_id
+        if expected_account is not None:
+            require_same_account(expected_account, account)
+        scope.verify_current(s)
+        self.reconcile(author_id=author_id, scope=scope)
+        scope.verify_current(s)
         output = []
         bridge = getattr(s,'legacy_author_bridge',None)
         legacy_known = bridge.observe_author(author_id, ()).saved if new_only and bridge is not None else {}
@@ -258,8 +273,10 @@ class AuthorMediaService:
             return ((current is not None and current[3] == date) or
                     (current is None and old is not None and not old.deleted and old.files_present is True and old.update_date == date))
         if target_type in ('both','illust'):
-            works = (s.live_client.get_user_works(author_id,early_exit_checker=known) if new_only
-                     else s.live_client.get_author_artworks_complete(author_id))
+            scope.verify_current(s)
+            works = (reader.get_user_works(author_id,early_exit_checker=known) if new_only
+                     else reader.get_author_artworks_complete(author_id))
+            scope.verify_current(s)
             bridge = getattr(s,'legacy_author_bridge',None)
             legacy = {}
             if bridge is not None:
@@ -295,16 +312,19 @@ class AuthorMediaService:
                 if not date:
                     difference = Difference.UNKNOWN
                 output.append(AuthorMediaCandidate(kind,wid,author_id,date,work['page_count'],work.get('title') or wid,
-                    difference,fmt,prior,payload,work['type']))
+                    difference,fmt,prior,payload,work['type'],account_id=account))
         if target_type in ('both','novel'):
             # Complete profile listing is required even when novel storage is
             # disabled: a missing owner is explicit UNKNOWN, not silent loss.
-            ids = (tuple(row['id'] for row in s.live_client.get_user_novels(author_id,early_exit_checker=known))
-                   if new_only else s.live_client.get_author_novel_ids(author_id))
+            scope.verify_current(s)
+            ids = (tuple(row['id'] for row in reader.get_user_novels(author_id,early_exit_checker=known))
+                   if new_only else reader.get_author_novel_ids(author_id))
+            scope.verify_current(s)
             for wid in ids:
                 identifier(wid)
                 if getattr(s,'novel_jobs',None) is None:
-                    output.append(AuthorMediaCandidate('novel',wid,author_id,'',1,wid,Difference.UNKNOWN,novel_format))
+                    output.append(AuthorMediaCandidate('novel',wid,author_id,'',1,wid,Difference.UNKNOWN,
+                                                       novel_format,account_id=account))
                     continue
                 from .novel_save_presentation import NovelSavePresentation
                 from .managed_novel_jobs import _canonical, _hash
@@ -328,14 +348,14 @@ class AuthorMediaService:
                 if type(date) is not str or not date:
                     difference = Difference.UNKNOWN
                 output.append(AuthorMediaCandidate('novel',wid,author_id,date,1,selection.title,difference,novel_format,
-                    canonical(proof) if proof else None,selection))
+                    canonical(proof) if proof else None,selection,account_id=account))
         if setting is not None:
             if self.author_target(author_id) != setting:
                 raise AuthorTargetChanged('author settings changed; preview again')
-            return tuple(replace(candidate,
-                author_setting_revision=setting.revision,
-                author_setting_target=setting.target_type) for candidate in output)
-        return tuple(output)
+            output = [replace(candidate, author_setting_revision=setting.revision,
+                              author_setting_target=setting.target_type) for candidate in output]
+        scope.verify_current(s)
+        return OwnedListing(scope, author_id, target_type, tuple(output))
 
     def _refresh_candidate(self, candidate):
         """Revalidate one frozen item, never repeat a full author crawl per item."""
@@ -376,8 +396,14 @@ class AuthorMediaService:
         if type(operation_id) is not str or re.fullmatch(r'[a-f0-9]{32}',operation_id) is None:
             raise ValueError('invalid author operation')
         spec = canonical(candidate.admission())
+        s = self.services
+        reader = s.live_client if candidate.account_id is not None else None
+        scope = AccountScope(candidate.account_id, reader) if candidate.account_id is not None else None
+
         with self.lock:
             self._open()
+            if scope is not None:
+                scope.verify_current(s)
             with self._db() as db:
                 row = db.execute('SELECT spec,job_id,fingerprint FROM admissions WHERE operation_id=?',(operation_id,)).fetchone()
             if row is not None and row[0] != spec:
@@ -385,6 +411,8 @@ class AuthorMediaService:
             jobs = self._owner_jobs(candidate.kind)
             existing = next((j for j in jobs.snapshot() if operation_id in jobs.operation_ids(j.job_id)),None)
             if existing is not None:
+                if scope is not None:
+                    scope.verify_current(s)
                 fingerprint = self._bind(candidate,operation_id,existing)
                 return existing,False,fingerprint
             # This check shares the same RLock as configure_author_target/zip,
@@ -405,13 +433,16 @@ class AuthorMediaService:
             # Source proof and predecessor are revalidated. Never silently
             # rebase a frozen UI selection onto another client's generation.
             match = self._refresh_candidate(candidate)
+            if scope is not None:
+                scope.verify_current(s)
             if match is None or not match.eligible or canonical(match.admission()) != spec:
                 raise ValueError('author selection revision changed')
             with self._db() as db:
                 db.execute('INSERT OR IGNORE INTO admissions(operation_id,media_key,spec) VALUES(?,?,?)',
                            (operation_id,candidate.key,spec))
-            s=self.services
             before={j.job_id for j in jobs.snapshot()}
+            if scope is not None:
+                scope.verify_current(s)
             if candidate.kind=='illustration':
                 owner=uuid4().hex
                 work=match.payload
@@ -419,7 +450,9 @@ class AuthorMediaService:
                     current=s.managed_downloads.verified_saved_receipt(candidate.work_id)
                     if (current[2] if current else None)!=candidate.prior_token:
                         raise ValueError('author receipt changed')
-                    record=s.live_client.get_artwork_download_record(candidate.work_id)
+                    record=(reader or s.live_client).get_artwork_download_record(candidate.work_id)
+                    if scope is not None:
+                        scope.verify_current(s)
                     if (record.author_id!=candidate.author_id or record.illustration_type!=candidate.work_type
                             or record.page_count!=candidate.page_count or not record.page_count_known):
                         raise ValueError('author detail changed')
@@ -442,7 +475,7 @@ class AuthorMediaService:
         """Drop journal rows of retired static (illustration) operations; return how many.
 
         Their jobs and receipts-of-record are gone from JobService, so the rows can no
-        longer bind to anything, yet every preview reconciles every row.
+        longer bind to anything, yet they still consume journal space.
         Novel/ugoira rows are never touched: their owners keep their ledgers.
         """
         ids = [op for op in operation_ids if type(op) is str and re.fullmatch(r'[a-f0-9]{32}', op)]
@@ -503,15 +536,20 @@ class AuthorMediaService:
         return tuple('作者受付 '+op+'：'+reasons.get(v['phase'],reasons['invalid_spec'])
                      for op,v in self.reconcile_errors.copy().items())
 
-    def reconcile(self, expected=None, *, author_id=None):
+    def reconcile(self, expected=None, *, author_id=None, scope: AccountScope | None = None,
+                  include_retained=False):
         """Return (verified fingerprint by media key, op->job, op->fingerprint).
 
-        No GET. Recover enqueue/bind crashes from owner operation history.
-        Job done alone never proves an active generation or accepted revision.
+        Recover enqueue/bind crashes from the durable job's operation history.
+        Account-triggered recovery also requires the preview's current reader.
+        Local projection recovery uses the admitted operation and its verified receipt.
         """
         with self.lock:
             self._open()
+            if scope is not None:
+                scope.verify_current(self.services)
             proofs,operations,fingerprints={},{},{}
+            accepted_by_kind = {}
             with self._db() as db:
                 rows=db.execute('SELECT operation_id,media_key,spec,job_id,fingerprint,proof FROM admissions').fetchall()
             for op,key,raw,jid,fp,known in rows:
@@ -539,6 +577,13 @@ class AuthorMediaService:
                     phase='binding'
                     jobs=self._owner_jobs(kind)
                     job=next((j for j in jobs.snapshot() if op in jobs.operation_ids(j.job_id)),None)
+                    if job is None and include_retained and hasattr(jobs, 'accepted_operations'):
+                        if kind not in accepted_by_kind:
+                            accepted_by_kind[kind] = {operation: job_id for operation, job_id, *_ in
+                                                      jobs.accepted_operations()}
+                        job_id = accepted_by_kind[kind].get(op)
+                        if job_id is not None:
+                            job = jobs.retained_job(job_id)
                     if job is None:
                         self.reconcile_errors.pop(op,None)
                         continue
@@ -551,15 +596,22 @@ class AuthorMediaService:
                     valid=proof is not None and proof['receipt']==job.result
                     if kind=='ugoira':valid=valid and proof['job_id']==job.job_id
                     phase='journal_write'
-                    with self._db() as db:
-                        db.execute('UPDATE admissions SET job_id=?,fingerprint=?,proof=COALESCE(?,proof) WHERE operation_id=?',
-                                   (job.job_id,expected_fp,canonical(proof) if valid else None,op))
+                    next_proof = canonical(proof) if valid else known
+                    if (job.job_id, expected_fp, next_proof) != (jid, fp, known):
+                        if scope is not None:
+                            scope.verify_current(self.services)
+                        with self._db() as db:
+                            db.execute('UPDATE admissions SET job_id=?,fingerprint=?,proof=? WHERE operation_id=?',
+                                       (job.job_id, expected_fp, next_proof, op))
                     # Publish reconciliation evidence only after the owned
                     # journal commit, preserving the durable-bind boundary.
                     operations[op]=job.job_id;fingerprints[op]=expected_fp
                     if valid and (expected is None or expected_fp in expected.get(key,())):proofs[key]=expected_fp
                     self.reconcile_errors.pop(op,None)
-                except Exception as error:self._reconcile_error(op,aid,phase,error)
+                except AccountMismatch:
+                    raise
+                except Exception as error:
+                    self._reconcile_error(op,aid,phase,error)
             return proofs,operations,fingerprints
 
     def completed_projection_sources(self):

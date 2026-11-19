@@ -13,6 +13,7 @@ import pixivvault_nicegui.bootstrap  # noqa: F401  (import real owners before an
 import pixivvault_nicegui.managed_network_stop_integration  # noqa: F401
 import pixivvault_nicegui.managed_network_stop_reader  # noqa: F401
 import pixivvault_nicegui.managed_network_stop_shared_transport  # noqa: F401
+from account_test_support import observed_scope
 from pixivvault_nicegui.following_sync import FollowingSyncStore
 from pixivvault_nicegui.native_profile import NativeProfileStore
 from pixivvault_nicegui.native_startup import NativeProfileBinding
@@ -61,6 +62,7 @@ class FakeFollowReader:
         pass
 
     def require_identity(self):
+        self._verified_identity = self.uid
         return self.uid
 
     def get_following_users_detailed(self, account_id, rest_type='show'):
@@ -126,7 +128,7 @@ def test_store_reports_the_most_recently_synced_account_and_clears_one_account(t
     seed_account(following, '100', hours_ago=30)
     seed_account(following, '200', hours_ago=5)
     assert following.last_synced_account() == '200'
-    following.clear_account('200')
+    following.clear_account('200', scope=observed_scope('200'))
     assert following.snapshot('200').authors == () and following.snapshot('200').last_synced_at is None
     assert len(following.snapshot('100').authors) == 2          # other accounts are untouched
     assert following.last_synced_account() == '100'
@@ -283,6 +285,26 @@ async def test_confirm_deletes_only_the_old_account_then_resyncs(tmp_path, monke
     await binding.followup.confirm_account_switch()                       # a second click is a no-op
     assert len(FakeFollowReader.runs) == 1
     binding.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('change', ('observed_identity', 'latest_sync'))
+async def test_account_switch_rejects_stale_confirmation(tmp_path, monkeypatch, change):
+    factory = (lambda _: FakeFollowReader('999')) if change == 'observed_identity' else 'default'
+    binding, following, events = make(tmp_path, monkeypatch, uid='888', reader_factory=factory)
+    try:
+        seed_account(following, '777', hours_ago=40)
+        await go(binding)
+        assert binding.followup.pending.old_account == '777'
+        if change == 'latest_sync':
+            seed_account(following, '999')
+        before = tuple(following._connection.iterdump())
+        await binding.followup.confirm_account_switch()
+        assert tuple(following._connection.iterdump()) == before
+        assert any('削除していません' in line for line in texts(events))
+    finally:
+        binding.close()
+        following.close()
 
 
 @pytest.mark.asyncio

@@ -12,6 +12,8 @@ import os
 from pathlib import Path
 import re
 import stat
+import time
+import zlib
 from threading import Lock, RLock
 from types import MappingProxyType
 from uuid import uuid4
@@ -31,6 +33,12 @@ MAX_PIXELS = 28_000_000
 MAX_TOTAL = 2 * 1024 * 1024 * 1024
 MAX_PAGES = 1000
 MAX_RECEIPT_BYTES = 512 * 1024
+_MAX_SAVED_RECEIPTS = 1_000_000  # same ceiling as managed_generations._MAX_ENTRIES
+# A work verified in full is trusted again for this long while its folder (listing, sizes, times) is
+# unchanged. A rewrite that keeps size and time is not seen by that check, so every entry is verified
+# in full again after this many seconds (spread +-25% per work so a big library does not expire at
+# once), when the store is reopened, and always when the bytes are read (read_saved_page hashes them).
+_RECEIPT_RECHECK_SECONDS = 1800.0
 _ID = re.compile(r"[1-9][0-9]{0,19}\Z")
 _SHA = re.compile(r"[0-9a-f]{64}\Z")
 _FILE = re.compile(r"page-([1-9][0-9]{0,3})\.(png|jpg|webp)\Z")
@@ -38,6 +46,13 @@ _FILE = re.compile(r"page-([1-9][0-9]{0,3})\.(png|jpg|webp)\Z")
 
 class ManagedDownloadError(JobFailure, ValueError):
     """Fixed public error text; never includes URLs or downloaded metadata."""
+
+
+class LegacyV5Uncertain(ManagedDownloadError):
+    """A generationless index has no reliable witness of its latest state."""
+
+    def __init__(self):
+        super().__init__('保管領域の状態を確認できません（旧形式の判別不能）。バックアップから復元してください。')
 
 
 class ManagedPageSelectionChanged(ManagedDownloadError):
@@ -203,7 +218,11 @@ def _image(data: bytes) -> tuple[str, str, int, int]:
     return {"PNG": ("png", "png"), "JPEG": ("jpg", "jpeg"), "WEBP": ("webp", "webp")}[kind] + (width, height)
 
 
+from .managed_root_writer import bootstrap_fenced_init
+
+
 class ManagedPixivDownloads:
+    @bootstrap_fenced_init
     def __init__(self, root: Path, client, *, resolve_record):
         self.root = Path(root)
         if not self.root.is_absolute() or self.root.parent == self.root:
@@ -235,20 +254,26 @@ class ManagedPixivDownloads:
             except (OSError, UnicodeError, ValueError, RecursionError):
                 raise ManagedDownloadError("managed marker rejected") from None
         else:
-            _write(marker, json.dumps(IDENTITY, sort_keys=True).encode("utf-8"))
+            from .managed_generations import _index_creation_guard
+            with _index_creation_guard(self.root):
+                _write(marker, json.dumps(IDENTITY, sort_keys=True).encode("utf-8"))
+        from .managed_generations import ManagedGenerations, _index_creation_guard, reject_uncertain_old_v5
+        reject_uncertain_old_v5(self.root)
         self.outputs = self.root / "outputs"
-        native_io_path(self.outputs).mkdir(exist_ok=True)
-        _safe_path(self.outputs)
         self.incomplete = self.root / 'incomplete'
-        native_io_path(self.incomplete).mkdir(exist_ok=True)
-        _safe_path(self.incomplete)
-        # v1 outputs remain immutable forever. v2 generations have their own
-        # namespace, so an interrupted publication can never masquerade as a
-        # second active receipt or break old reader start-up.
         self.generation_outputs = self.root / 'generations'
-        native_io_path(self.generation_outputs).mkdir(exist_ok=True)
-        _safe_path(self.generation_outputs)
-        from .managed_generations import ManagedGenerations
+        folders = (self.outputs, self.incomplete, self.generation_outputs)
+        if any(not native_io_path(folder).is_dir() for folder in folders):
+            ManagedGenerations._verify_before_directory_creation(self.root)
+            with _index_creation_guard(self.root) as reserved:
+                ManagedGenerations._verify_before_directory_creation(self.root, reserved=reserved)
+                for folder in folders:
+                    _safe_path(folder)
+                    native_io_path(folder).mkdir(exist_ok=True)
+                    _safe_path(folder)
+        else:
+            for folder in folders:
+                _safe_path(folder)
         self._generations = ManagedGenerations(self.root)
         from .managed_quarantine import ManagedQuarantine
         self.quarantine = ManagedQuarantine(self)
@@ -278,6 +303,19 @@ class ManagedPixivDownloads:
                 or not re.fullmatch(r"work-[1-9][0-9]{0,19}-[0-9a-f]{32}", pieces[1])):
             raise ManagedDownloadError("receipt location rejected")
         folder = native_io_path(self.root / pieces[0] / pieces[1])
+        # A work whose folder (listing, sizes, times) is unchanged since it was last verified in full
+        # is not read, hashed and decoded again: the catalog was re-verifying every page of every work
+        # on each pass (about 9 ms per work, 9 s at 1,000 works). Any change to the folder, its
+        # receipt or a page forces a full verification. Pages relocated to quarantine are never cached.
+        cache = self.__dict__.setdefault('_receipt_cache', {})
+        signature = self._receipt_signature(folder)
+        cached = cache.get(relative)
+        if (signature is not None and cached is not None and cached[0] == signature
+                and (cached[3] or not verify_pages)
+                and time.monotonic() - cached[4] < _RECEIPT_RECHECK_SECONDS * (0.75 + zlib.crc32(relative.encode()) % 500 / 1000)):
+            if verify_pages and progress is not None:
+                progress(len(json.loads(cached[1])['files']), len(json.loads(cached[1])['files']))
+            return json.loads(cached[1], object_pairs_hook=_json_unique), cached[2]
         _safe_path(folder)
         path = folder / "receipt.json"
         _safe_path(path, file=True)
@@ -289,7 +327,9 @@ class ManagedPixivDownloads:
             required = {'version', 'source', 'work_id', 'author_id', 'author_name',
                                 'title', 'tags', 'created_at', 'saved_at', 'illustration_type',
                                 'x_restrict', 'page_count', 'files'}
-            if (not required <= set(receipt) <= required | {'bookmark_count'}
+            if (not required <= set(receipt) <= required | {'bookmark_count', 'generation'}
+                    or ('generation' in receipt and (type(receipt['generation']) is not int
+                                                     or receipt['generation'] < 1))
                     or (receipt.get('bookmark_count') is not None
                         and (type(receipt['bookmark_count']) is not int or receipt['bookmark_count'] < 0))):
                 raise ValueError()
@@ -363,9 +403,37 @@ class ManagedPixivDownloads:
                 # This also catches an unexpected vanished page even when
                 # another page has a valid relocation proof.
                 raise ValueError()
-            return receipt, hashlib.sha256(raw).hexdigest()
+            digest = hashlib.sha256(raw).hexdigest()
+            if signature is not None and relocated is None:
+                if len(cache) >= 250_000:
+                    cache.clear()
+                cache[relative] = (signature, raw, digest, bool(verify_pages), time.monotonic())
+            return receipt, digest
         except (OSError, KeyError, TypeError, ValueError, OverflowError, RecursionError):
-            raise ManagedDownloadError("saved receipt verification failed") from None
+            failure = ManagedDownloadError("saved receipt verification failed")
+            # The text stays fixed; these name the work so one damaged work can be found and
+            # repaired instead of the whole catalog simply failing.
+            failure.work_id = pieces[1].split("-")[1]
+            failure.relative_receipt = relative
+            raise failure from None
+
+    @staticmethod
+    def _receipt_signature(folder):
+        """Cheap identity of one work folder: its own times plus every child's name, size and time."""
+        try:
+            info = os.lstat(folder)
+            if stat.S_ISLNK(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
+                return None
+            items = []
+            with os.scandir(folder) as listing:
+                for entry in listing:
+                    child = entry.stat(follow_symlinks=False)
+                    if entry.is_symlink() or getattr(child, 'st_file_attributes', 0) & 0x400:
+                        return None
+                    items.append((entry.name, child.st_size, child.st_mtime_ns))
+            return (info.st_mtime_ns, tuple(sorted(items)))
+        except OSError:
+            return None
 
     def _legacy_receipts(self) -> tuple[tuple[str, dict, str], ...]:
         if self.closed:
@@ -375,7 +443,7 @@ class ManagedPixivDownloads:
         seen = set()
         folders = []
         for folder in native_io_path(self.outputs).iterdir():
-            if len(folders) >= 10000:
+            if len(folders) >= _MAX_SAVED_RECEIPTS:
                 raise ManagedDownloadError('saved receipt limit exceeded')
             folders.append(folder)
         for folder in sorted(folders):
@@ -400,7 +468,7 @@ class ManagedPixivDownloads:
         if self.closed:
             raise ManagedDownloadError('managed download is closed')
         active = self._generations.entries()
-        if len(active) > 10000:
+        if len(active) > _MAX_SAVED_RECEIPTS:
             raise ManagedDownloadError('saved receipt limit exceeded')
         result = []
         for wid, entry in sorted(active.items()):
@@ -736,6 +804,9 @@ class ManagedPixivDownloads:
                 raise ManagedDownloadError("managed job rejected")
             context.checkpoint()
             record = _record(self.resolve_record(job.target_id), job.target_id)
+            # Refuse a new work the store could not record, before it is downloaded (a save with no
+            # intent lands in outputs/ and used to be refused only afterwards).
+            self._generations.assert_room(record.remote_id, indexed=True)
             job_id=getattr(job,'job_id',None)
             if type(job_id) is not str or not 1<=len(job_id)<=128:job_id='untracked-'+uuid4().hex
             legacy_pages,legacy_token=(self.legacy_quarantine.download_state(record)
@@ -864,10 +935,8 @@ class ManagedPixivDownloads:
                        "x_restrict": record.x_restrict, "page_count": len(files), "files": files}
             if record.bookmark_count is not None:
                 receipt["bookmark_count"] = record.bookmark_count
-            _write(folder / "receipt.json", json.dumps(receipt, ensure_ascii=False, sort_keys=True).encode("utf-8"))
-            _fsync_dir(folder)
             context.checkpoint()
-            destination = native_io_path(self.generation_outputs if intent is not None else self.outputs)
+            destination = native_io_path(self.generation_outputs)
             final = destination / f"work-{record.remote_id}-{uuid4().hex}"
             # Verify the staged bytes before they enter the completed namespace.
             for entry in files:
@@ -894,18 +963,22 @@ class ManagedPixivDownloads:
                     raise ManagedDownloadError('legacy quarantine changed during download')
                 if self._generations.work_state_token(record.remote_id) != work_state_token:
                     raise ManagedDownloadError('generation compare-and-swap rejected')
-                if intent is not None:
-                    self._generations.prepare_for_publication()
+                # Another process may have filled the store since the initial admission check.
+                self._generations.assert_room(record.remote_id, indexed=True)
+                self._generations.prepare_for_publication()
+                receipt['generation'] = self._generations.committed_generation()
+                _write(folder / "receipt.json", json.dumps(receipt, ensure_ascii=False, sort_keys=True).encode("utf-8"))
+                _fsync_dir(folder)
                 folder.rename(final)
                 _fsync_dir(destination)
-                relative = f"{'generations' if intent is not None else 'outputs'}/{final.name}/receipt.json"
+                relative = f"generations/{final.name}/receipt.json"
                 _, digest = self._receipt(relative)
                 context.checkpoint()
-                if intent is not None:
-                    self._generations.publish(record.remote_id, relative, digest,
-                        intent.update_date, intent.expected_receipt_sha256,
-                        intent.expected_relative_receipt, fingerprint,
-                        expected_work_state_token=work_state_token)
+                self._generations.publish(record.remote_id, relative, digest,
+                    intent.update_date if intent is not None else '',
+                    intent.expected_receipt_sha256 if intent is not None else None,
+                    intent.expected_relative_receipt if intent is not None else None, fingerprint,
+                    expected_work_state_token=work_state_token)
             self._cleanup_job_partials(job_id,record.remote_id)
             return relative
         except ManagedDownloadError:

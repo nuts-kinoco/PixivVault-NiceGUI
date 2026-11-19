@@ -13,7 +13,7 @@ def scheduler_fixture(monkeypatch,tmp_path,authors,dispatch):
     class Ledger:
         def __init__(self,root):pass
         def favourites(self):return authors
-        def sync_favourites(self, authors):pass
+        def _sync_favourites(self, authors):pass
         def close(self):pass
     class Runner:
         def __init__(self,ledger,dispatch,*,reconcile):self.dispatch=dispatch
@@ -46,7 +46,9 @@ def test_verified_saves_logged_once_after_durable_reconcile():
     class Ledger:
         def __init__(self):self.results=[('123','456'),()]
         def reconcile_expected_fingerprints(self,_):return {}
-        def reconcile_jobs(self,*_):return self.results.pop(0)
+        def reconcile_jobs(self, *_, account_id):
+            assert account_id is None
+            return self.results.pop(0)
         def has_deferred(self):return False
     service=NS(closing=False,managed_scheduler=Ledger(),jobs=NS(snapshot=lambda:()),
         managed_downloads=object(),_managed_job_records={},notifications=None,

@@ -6,6 +6,14 @@ LOG_HIDDEN_TABS = frozenset({'download', 'queue', 'failed', 'history', 'learning
                              'ranking', 'library', 'recommend', 'dedup'})
 
 
+def render_log_entries(panel, entries):
+    panel.clear()
+    with panel:
+        for entry in entries:
+            ui.label(f'[{entry.timestamp}] {entry.message}').classes(
+                'pv-queue-log-line pv-queue-log-' + entry.level)
+
+
 class SharedLogView:
     def __init__(self, log):
         self.log = log
@@ -51,11 +59,7 @@ class SharedLogView:
         if entries == self._signature:
             return
         self._signature = entries
-        self.panel.clear()
-        with self.panel:
-            for entry in entries:
-                ui.label(f'[{entry.timestamp}] {entry.message}').classes(
-                    'pv-queue-log-line pv-queue-log-' + entry.level)
+        render_log_entries(self.panel, entries)
         self._scroll()
 
     def close(self):

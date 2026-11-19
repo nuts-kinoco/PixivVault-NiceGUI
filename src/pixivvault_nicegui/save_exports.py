@@ -43,6 +43,21 @@ class _DependencyBatch:
     pending: object
 
 
+def notify_zip_problem(services,job,error,*,author_id=None):
+    """元 core._verify_zip_and_notify の通知: ZIP が検証に通らなかったとき、トーストで知らせる（失敗はジョブの失敗として残る）。"""
+    dispatcher=getattr(services,'notifications',None)
+    if dispatcher is None:return None
+    try:
+        if author_id is None:
+            try:author_id=json.loads(_read_bounded(services.save_exports.root/(job.target_id+'.json'),2_000_000))['author_id']
+            except Exception:author_id='?'
+        reason=str(error)[:120] or type(error).__name__
+        return dispatcher.notify('PixivVault - ZIP破損検出','作者 '+str(author_id)+' のアーカイブに問題があります: '+reason,
+                                 event_id='zip-problem:'+str(job.job_id))
+    except Exception:
+        return None
+
+
 class _UnownedAuthorZip(ValueError):
     pass
 
@@ -1180,6 +1195,8 @@ class SaveExports:
         except JobCancelled:raise
         except Exception as error:
             record_io_failure(native_io_path(self.root),job,error,self._io_operation)
+            if job.kind=='auto-zip':
+                notify_zip_problem(self.s,job,error)
             raise
 
     def _run(self,job,context):

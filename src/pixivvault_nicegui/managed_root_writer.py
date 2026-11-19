@@ -33,7 +33,18 @@ if hasattr(os, 'register_at_fork'):
 
 
 @contextmanager
-def writer_fence(root):
+def _local_fence(lock, blocking):
+    from .managed_downloads import ManagedDownloadError
+    if not lock.acquire(blocking=blocking):
+        raise ManagedDownloadError('managed root writer fence busy')
+    try:
+        yield
+    finally:
+        lock.release()
+
+
+@contextmanager
+def writer_fence(root, *, blocking=True):
     """Acquire an OS-wide, recursive per-root mutex (never writes original data)."""
     from .managed_downloads import ManagedDownloadError, MARKER
 
@@ -41,7 +52,7 @@ def writer_fence(root):
     key = os.path.normcase(str(path.resolve())).casefold()
     with _REGISTRY_LOCK:
         local_lock = _ROOT_LOCKS.setdefault(key, RLock())
-    with local_lock:
+    with _local_fence(local_lock, blocking):
         depths = getattr(_THREAD, 'depths', None)
         if depths is None:
             depths = {}
@@ -77,7 +88,7 @@ def writer_fence(root):
                 raise ManagedDownloadError('managed root writer fence unavailable')
             acquired = False
             try:
-                if wait(handle, 30000) not in (0, 0x80):
+                if wait(handle, 30000 if blocking else 0) not in (0, 0x80):
                     raise ManagedDownloadError('managed root writer fence busy')
                 acquired = True
                 depths[key] = 1
@@ -96,7 +107,7 @@ def writer_fence(root):
             try:
                 try:
                     fd = os.open(str(path / MARKER), os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0))
-                    fcntl.flock(fd, fcntl.LOCK_EX)
+                    fcntl.flock(fd, fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB))
                     # Fail closed if an external actor replaced the lock file.
                     marker = os.stat(str(path / MARKER), follow_symlinks=False)
                     original = os.fstat(fd)
@@ -113,6 +124,55 @@ def writer_fence(root):
                 if fd is not None:
                     fcntl.flock(fd, fcntl.LOCK_UN)
                     os.close(fd)
+
+
+@contextmanager
+def bootstrap_fence(root):
+    """Serialize managed-root initialization without blocking ordinary writes."""
+    from .managed_downloads import ManagedDownloadError
+    path = native_io_path(Path(root))
+    key = os.path.normcase(str(path.resolve())).casefold()
+    if os.name != 'nt':
+        with _REGISTRY_LOCK:
+            lock = _ROOT_LOCKS.setdefault(('bootstrap', key), RLock())
+        with lock:
+            yield
+        return
+    import ctypes
+    from ctypes import wintypes
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    create = kernel.CreateMutexW
+    create.argtypes = (wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR)
+    create.restype = wintypes.HANDLE
+    wait = kernel.WaitForSingleObject
+    wait.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+    wait.restype = wintypes.DWORD
+    release = kernel.ReleaseMutex
+    release.argtypes = (wintypes.HANDLE,)
+    close = kernel.CloseHandle
+    close.argtypes = (wintypes.HANDLE,)
+    digest = hashlib.sha256(key.encode('utf-16le')).hexdigest()
+    handle = create(None, False, 'Global\\PixivVaultBootstrap_' + digest)
+    if not handle:
+        raise ManagedDownloadError('managed root initialization unavailable')
+    acquired = False
+    try:
+        if wait(handle, 30000) not in (0, 0x80):
+            raise ManagedDownloadError('managed root initialization busy')
+        acquired = True
+        yield
+    finally:
+        if acquired:
+            release(handle)
+        close(handle)
+
+
+def bootstrap_fenced_init(method):
+    @wraps(method)
+    def call(self, root, *args, **kwargs):
+        with bootstrap_fence(root):
+            return method(self, root, *args, **kwargs)
+    return call
 
 
 def fenced_writer(method):

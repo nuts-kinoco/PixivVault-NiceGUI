@@ -17,7 +17,7 @@ from dataclasses import replace
 def setup():
     calls, accepted = [], []
     class Reader:
-        def require_identity(self):return '7'
+        def require_identity(self):self._verified_identity = '7'; return self._verified_identity
         def get_user_works(self, aid, **kw):
             calls.append(('read', aid))
             return [dict(id='11', user_id=aid, title='Generated', user_name='Author')]

@@ -3,6 +3,7 @@ from threading import Event
 
 import pytest
 
+from account_test_support import observed_scope
 from pixivvault_nicegui.services import ApplicationServices
 from pixivvault_nicegui.managed_scheduler import ManagedScheduler, ManagedScheduleRunner, ScheduleError, submit_author_batch
 
@@ -12,7 +13,8 @@ def test_scheduler_targets_all_stars_from_current_account_and_checks_gate():
     class Reader:
         def verify_identity(self):
             calls.append('identity')
-            return '42'
+            self._verified_identity = '42'
+            return self._verified_identity
     class Store:
         def snapshot(self, account):
             assert account == '42'
@@ -27,7 +29,7 @@ def test_scheduler_targets_all_stars_from_current_account_and_checks_gate():
 
 
 def test_scheduler_fails_closed_without_favourite_store():
-    service = SimpleNamespace(live_client=SimpleNamespace(verify_identity=lambda: '42'),
+    service = SimpleNamespace(live_client=SimpleNamespace(_verified_identity='42', verify_identity=lambda: '42'),
                               following_sync=None, managed_network_stop=None, closing=False)
     with pytest.raises(RuntimeError):
         ApplicationServices.scheduler_favourite_authors(service)
@@ -38,7 +40,7 @@ def test_dispatch_allows_more_than_128_starred_authors():
     service = SimpleNamespace(managed_network_stop=None, author_media=None,
         managed_downloads=SimpleNamespace(saved_receipts_with_dates=lambda: ()),
         jobs=SimpleNamespace(snapshot=lambda: ()), closing=False, release_managed_owner=lambda owner: None,
-        live_client=SimpleNamespace(verify_identity=lambda: '42',
+        live_client=SimpleNamespace(_verified_identity='42', verify_identity=lambda: '42',
             get_author_artworks_complete=lambda aid: seen.append(aid) or ()))
     result = submit_author_batch(service, tuple(str(i) for i in range(1, 132)), cancellation=Event())
     assert result['authors'] == 131
@@ -62,10 +64,10 @@ def test_scheduler_refreshes_star_cache_without_losing_settings_revision(tmp_pat
     ledger = ManagedScheduler(tmp_path)
     try:
         revision = ledger.snapshot().revision
-        ledger.bind_account('42')
-        ledger.sync_favourites(tuple(str(i) for i in range(1, 132)))
+        ledger.bind_account('42', scope=observed_scope('42'))
+        ledger._sync_favourites(tuple(str(i) for i in range(1, 132)))
         assert len(ledger.favourites()) == 131
-        ledger.sync_favourites(('9',))
+        ledger._sync_favourites(('9',))
         assert ledger.favourites() == ('9',)
         assert ledger.snapshot().revision == revision
     finally:
@@ -74,7 +76,7 @@ def test_scheduler_refreshes_star_cache_without_losing_settings_revision(tmp_pat
 
 def test_unbound_existing_state_is_preserved_and_cannot_be_adopted(tmp_path):
     ledger = ManagedScheduler(tmp_path)
-    ledger.set_favourites(('9',), expected_revision=ledger.snapshot().revision)
+    ledger.set_favourites(('9',), expected_revision=ledger.snapshot().revision, account_id=None)
     ledger._db.execute("INSERT INTO deferred_work VALUES ('99','100','2020',1,0,'2020')")
     ledger.close()
     ledger = ManagedScheduler(tmp_path)
@@ -82,7 +84,7 @@ def test_unbound_existing_state_is_preserved_and_cannot_be_adopted(tmp_path):
         assert ledger.favourites() == ('9',)
         assert ledger.deferred_count() == 1
         with pytest.raises(ScheduleError):
-            ledger.bind_account('42')
+            ledger.bind_account('42', scope=observed_scope('42'))
         assert ledger.favourites() == ('9',) and ledger.deferred_count() == 1
     finally:
         ledger.close()
@@ -91,12 +93,12 @@ def test_unbound_existing_state_is_preserved_and_cannot_be_adopted(tmp_path):
 def test_bound_account_rejects_other_account_without_changing_work(tmp_path):
     ledger = ManagedScheduler(tmp_path)
     try:
-        ledger.bind_account('42')
-        ledger.sync_favourites(('9',))
-        ledger.defer_work(author_id='9', work={'id':'100','update_date':'2020','page_count':1,'type':0}, now=__import__('datetime').datetime.now(__import__('datetime').timezone.utc))
+        ledger.bind_account('42', scope=observed_scope('42'))
+        ledger._sync_favourites(('9',))
+        ledger.defer_work(author_id='9', work={'id':'100','update_date':'2020','page_count':1,'type':0}, now=__import__('datetime').datetime.now(__import__('datetime').timezone.utc), account_id='42')
         with pytest.raises(ScheduleError):
-            ledger.bind_account('43')
-        ledger.sync_favourites(())
+            ledger.bind_account('43', scope=observed_scope('43'))
+        ledger._sync_favourites(())
         assert ledger.deferred_count() == 1
     finally:
         ledger.close()
@@ -105,11 +107,11 @@ def test_bound_account_rejects_other_account_without_changing_work(tmp_path):
 def test_off_schedule_does_not_dispatch_deferred_backlog(tmp_path):
     from datetime import datetime, timezone
     ledger = ManagedScheduler(tmp_path)
-    ledger.bind_account('42')
-    ledger.sync_favourites(('9',))
-    ledger.defer_work(author_id='9', work={'id':'100','update_date':'2020','page_count':1,'type':0}, now=datetime.now(timezone.utc))
-    state = ledger.snapshot()
-    ledger.configure(interval_hours=0, startup_check=False, expected_revision=state.revision, now=datetime.now(timezone.utc))
+    ledger.bind_account('42', scope=observed_scope('42'))
+    ledger._sync_favourites(('9',))
+    ledger.defer_work(author_id='9', work={'id':'100','update_date':'2020','page_count':1,'type':0},
+                      now=datetime.now(timezone.utc), account_id='42')
+    ledger._disable(expected_revision=ledger.snapshot().revision)
     fired = Event()
     runner = ManagedScheduleRunner(ledger, lambda *_: fired.set())
     try:
@@ -143,7 +145,7 @@ def test_account_binding_failures_have_distinct_safe_messages():
 
 async def test_unsynced_following_never_uses_another_accounts_scheduler_stars():
     from threading import Lock
-    reader = SimpleNamespace(verify_identity=lambda: '42', get_following_users=lambda uid, visibility:
+    reader = SimpleNamespace(_verified_identity='42', verify_identity=lambda: '42', get_following_users=lambda uid, visibility:
         [{'user_id':'9','name':'author'}] if visibility == 'show' else [])
     service = SimpleNamespace(_direct_owner=lambda owner: owner, closing=False,
         managed_downloads=object(), live_client=reader, following_sync=None,
