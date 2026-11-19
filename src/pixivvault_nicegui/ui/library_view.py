@@ -1022,8 +1022,26 @@ class LibraryView(ViewerController):
                         ui.button('似た絵を探す',on_click=lambda _,aid=author.author_id,
                                   owner=self._author_session,popup=menu:self.search_similar_author(aid,owner,popup)).props(
                             'flat dense data-testid=library-author-similar-open')
+                    saved_button=ui.button('保存先を開く',icon='folder_open',
+                        on_click=lambda _,a=author,owner=session,popup=menu:self.open_author_saved(a,owner,popup)
+                    ).props('flat dense data-testid=library-author-open-saved')
+                    saved_button.set_enabled(getattr(self.services.desktop,'launcher',None) is not None)
         self.author_cards[author.author_id] = card
         self.author_openers[author.author_id] = opener
+
+    async def open_author_saved(self,author,session,menu):
+        provider=self._image_provider
+        def current():
+            return (self.active and not self.closed and self.subview=='downloaded'
+                    and self._author_session is session and self._image_provider is provider
+                    and author in self.state.visible_authors)
+        if not current():return
+        menu.close()
+        try:
+            await self.services.open_external_saved(author.representative.work_id,
+                catalog_token=provider.token,author_id=author.author_id,is_current=current)
+        except Exception:
+            if current():ui.notify('保存場所を開けませんでした。',type='negative')
 
     async def open_remote_author(self,author_id,session,menu=None):
         if not self.active or self.closed or session is not self._author_session:return

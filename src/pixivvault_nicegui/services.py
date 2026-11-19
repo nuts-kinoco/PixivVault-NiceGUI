@@ -1420,14 +1420,25 @@ class ApplicationServices:
 
         return await asyncio.to_thread(open_target)
 
-    async def open_external_saved(self, work_id, page=1, *, catalog_token=None):
-        if self.closing or self.desktop is None or type(page) is not int or page<1 or not catalog_token:
+    async def open_external_saved(self, work_id, page=1, *, catalog_token=None,
+                                  author_id=None, is_current=None):
+        desktop = self.desktop
+        if self.closing or desktop is None or type(page) is not int or page<1 or not catalog_token:
             raise RuntimeError('external viewer unavailable')
+
         def open_target():
-            target = self.images.external_target(catalog_token, work_id, page-1)
-            if self.closing:
-                raise RuntimeError('application closing')
-            return self.desktop.open_saved(target)
+            from .local_media_adapter import MediaMissing
+            from .saved_folders import legacy_author_destination
+            try:
+                target = self.images.external_target(catalog_token, work_id, page-1)
+            except MediaMissing:
+                target = legacy_author_destination(self.library_image_root, author_id)
+                if target is None:
+                    raise
+            if self.closing or self.desktop is not desktop or (is_current is not None and not is_current()):
+                raise RuntimeError('saved selection changed')
+            return desktop.open_saved(target)
+
         return await asyncio.to_thread(open_target)
 
     async def save_viewer_page(self, work_id, page_no, page_count, author_id=None, *, is_current=None,
