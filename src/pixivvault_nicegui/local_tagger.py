@@ -3,7 +3,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import csv
+import io
+import importlib.util
 from pathlib import Path
+from threading import RLock
 
 
 DEFAULT_MODEL = r'S:\EMAKINOCO-Models\tagger\wd-swinv2-tagger-v3'
@@ -47,3 +51,96 @@ def verify_model(folder, receipt=None):
         return '未検出', None
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
         return '読込失敗', None
+
+
+def prepare_image(data):
+    """Produce a BGR PIL image; tensor construction is deferred to the runtime."""
+    from PIL import Image
+    with Image.open(io.BytesIO(data)) as source:
+        image = source.convert('RGBA')
+        background = Image.new('RGBA', image.size, 'white')
+        background.alpha_composite(image)
+        image = background.convert('RGB')
+        side = max(image.size)
+        square = Image.new('RGB', (side, side), 'white')
+        square.paste(image, ((side - image.width) // 2, (side - image.height) // 2))
+        square = square.resize((448, 448), Image.Resampling.BICUBIC)
+        r, g, b = square.split()
+        return Image.merge('RGB', (b, g, r))
+
+
+class LocalTagger:
+    def __init__(self, folder, *, session_factory=None, tensor_factory=None, providers=None, receipt=None):
+        self.folder = Path(folder)
+        self.session_factory = session_factory
+        self.tensor_factory = tensor_factory
+        self.providers = providers
+        self.receipt = receipt
+        self.status = '未検出'
+        self.session = None
+        self.tags = None
+        self.cache = {}
+        self._lock = RLock()
+        self._closed = False
+
+    def _runtime_available(self):
+        return (self.session_factory is not None and self.tensor_factory is not None) or (
+            importlib.util.find_spec('onnxruntime') is not None and importlib.util.find_spec('numpy') is not None)
+
+    def verify(self):
+        with self._lock:
+            if self._closed:
+                return '読込失敗'
+            old_receipt = self.receipt
+            self.status = '検証中'
+            status, receipt = verify_model(self.folder, self.receipt)
+            self.receipt = receipt
+            if old_receipt != receipt:
+                self.session = self.tags = None
+                self.cache.clear()
+            self.status = status if status != '利用可能' or self._runtime_available() else 'onnxruntime なし'
+            return self.status
+
+    def predict(self, data):
+        with self._lock:
+            if self.verify() != '利用可能':
+                return []
+            key = hashlib.sha256(data).hexdigest()
+            if key in self.cache:
+                return list(self.cache[key])
+            try:
+                if self.session is None:
+                    with (self.folder / 'selected_tags.csv').open(encoding='utf-8-sig', newline='') as stream:
+                        tags = list(csv.DictReader(stream))
+                    if not tags or any(not {'name', 'category'} <= row.keys() for row in tags):
+                        raise ValueError('invalid tags')
+                    if self.session_factory is None:
+                        import onnxruntime as ort
+                        session = ort.InferenceSession(str(self.folder / 'model.onnx'), providers=self.providers)
+                    else:
+                        session = self.session_factory(self.folder / 'model.onnx')
+                    self.tags, self.session = tags, session
+                image = prepare_image(data)
+                if self.tensor_factory is None:
+                    import numpy as np
+                    tensor = np.asarray(image, dtype=np.float32)[None, ...]
+                else:
+                    tensor = self.tensor_factory(image)
+                scores = self.session.run(None, {self.session.get_inputs()[0].name: tensor})[0][0]
+                if len(scores) != len(self.tags):
+                    raise ValueError('tag count mismatch')
+                result = sorted(((row['name'], float(score)) for row, score in zip(self.tags, scores)
+                    if (row['category'] == '0' and score >= .35) or (row['category'] == '4' and score >= .85)),
+                    key=lambda pair: pair[1], reverse=True)
+                self.cache[key] = tuple(result)
+                return result
+            except Exception:
+                self.session = self.tags = None
+                self.status = '読込失敗'
+                return []
+
+    def close(self):
+        with self._lock:
+            self._closed = True
+            self.session = self.tags = None
+            self.cache.clear()
