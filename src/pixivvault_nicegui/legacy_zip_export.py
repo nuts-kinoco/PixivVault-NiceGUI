@@ -332,7 +332,8 @@ class LegacyZipExporter:
             self._verify_archive(staging, names, 'ZIP')
             if self._closing or verified_zip_digest(path) != expected_sha256:
                 raise LegacyZipExportError('previous ZIP changed')
-            finish = self.mutation_guard(staging, path, expected_sha256) if self.mutation_guard else None
+            finish = (self.mutation_guard(staging, path, expected_sha256, contents_changed=True)
+                      if self.mutation_guard else None)
             try:
                 os.replace(staging, path)
                 _fsync_dir(path.parent)

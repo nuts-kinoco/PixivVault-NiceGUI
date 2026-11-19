@@ -140,3 +140,50 @@ def test_move_restore_republishes_complete_author_zip(tmp_path):
             q.exports.scan();assert all(j.state=='done' for j in settled(q.exports))
             with ZipFile(archive(q)) as z:assert len(z.namelist())==2
         finally:source.close()
+
+
+def test_repeated_copy_isolation_and_restore_republish(tmp_path):
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan()
+        original = settled(q.exports)[0]
+        assert original.state == 'done'
+        path = archive(q)
+        with ZipFile(path) as z:
+            pages = {name: z.read(name) for name in z.namelist()}
+        source = ManagedDuplicateInspection(q.managed)
+        try:
+            for cycle in range(1, 4):
+                result = source.execute(plan_for(source, '123:1'), operation_id=f'{cycle:032x}')
+                assert not result.failed
+                q.exports.scan()
+                jobs = settled(q.exports)
+                assert len(jobs) == 2 * cycle and all(j.state == 'done' for j in jobs)
+                with ZipFile(path) as z:
+                    assert z.namelist() == ['synthetic title(123)_2.png']
+                q.managed.quarantine.restore(result.operation_id, expected_revision=result.state_revision)
+                q.exports.scan()
+                jobs = settled(q.exports)
+                with ZipFile(path) as z:
+                    assert {name: z.read(name) for name in z.namelist()} == pages
+                assert len(jobs) == 2 * cycle + 1 and all(j.state == 'done' for j in jobs)
+                q.exports.scan()
+                assert len(settled(q.exports)) == len(jobs)
+        finally:
+            source.close()
+
+
+def test_auto_zip_does_not_reuse_completion_after_member_removal(tmp_path):
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan()
+        assert settled(q.exports)[0].state == 'done'
+        path = archive(q)
+        with ZipFile(path) as z:
+            pages = {name: z.read(name) for name in z.namelist()}
+        q.exports.zip.remove_entry(path, 'synthetic title(123)_1.png', sha256(path.read_bytes()).hexdigest())
+        with ZipFile(path) as z:
+            assert {name: z.read(name) for name in z.namelist()} != pages
+        q.exports.scan()
+        jobs = settled(q.exports)
+        with ZipFile(path) as z:
+            assert {name: z.read(name) for name in z.namelist()} == pages
+        assert len(jobs) == 2 and all(j.state == 'done' for j in jobs)

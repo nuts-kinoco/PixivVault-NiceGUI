@@ -42,6 +42,10 @@ class _DependencyBatch:
     pending: object
 
 
+class _UnownedAuthorZip(ValueError):
+    pass
+
+
 class SaveExports:
     def __init__(self, services, root, account_id=None):
         self.s=services;self.root=Path(root);self.account=account_id
@@ -366,7 +370,8 @@ class SaveExports:
             raise ValueError('author manifest changed')
         if entry.kind=='auto-zip':
             name=manifest.get('archive')
-            if (set(manifest)!={'source','archive','sha256'} or type(name) is not str
+            if (set(manifest) not in ({'source','archive','sha256'}, {'source','archive','sha256','contents_changed'})
+                    or manifest.get('contents_changed',True) is not True or type(name) is not str
                     or not name.lower().endswith('.zip') or '/' in name or chr(92) in name or ':' in name
                     or type(manifest.get('sha256')) is not str or re.fullmatch(r'[a-f0-9]{64}',manifest['sha256']) is None):
                 raise ValueError('invalid completion metadata')
@@ -447,17 +452,32 @@ class SaveExports:
     def enqueue(self,kind,identity,*,dependencies=...):
         identity=self._pin_page_selection(kind,identity)
         with self.lock:
+            if kind=='auto-zip':
+                accepted=self._accepted_projection(kind,identity)
+                completed=(accepted is not None and
+                           (accepted.state=='done' or
+                            accepted.state=='retained' and self._publication_completed(accepted)))
+                try:
+                    publication=self._current_auto_zip(identity['author_id'])
+                except _UnownedAuthorZip:
+                    if completed:raise  # Never reuse completion for changed external bytes.
+                else:
+                    if publication is None:
+                        if completed:
+                            identity=dict(identity,rebuild_from={'target':accepted.target_id,'sha256':None})
+                    else:
+                        target,receipt=publication
+                        published=receipt['source']
+                        prior={k:v for k,v in published.items() if k!='rebuild_from'}
+                        if not receipt.get('contents_changed') and self._logical(prior)==self._logical(identity):
+                            accepted=self._accepted_projection(kind,published)
+                            if accepted is not None:return accepted
+                        else:
+                            # Byte-identical archives can recur after restore.
+                            # Pin which publication this request follows.
+                            identity=dict(identity,rebuild_from={'target':target,'sha256':receipt['sha256']})
             if kind in ('bookmark-projection','author-projection','auto-zip'):
                 accepted=self._accepted_projection(kind,identity)
-                if (accepted is not None and kind=='auto-zip' and
-                        (accepted.state=='done' or accepted.state=='retained' and self._publication_completed(accepted))):
-                    previous=self._previous_auto_zip(identity['author_id'],with_source=True)
-                    if previous is not None:
-                        proof,source=previous
-                        prior={k:v for k,v in source.items() if k!='rebuild_from'}
-                        if self._logical(prior)!=self._logical(identity):
-                            identity=dict(identity,rebuild_from=proof)
-                            accepted=self._accepted_projection(kind,identity)
                 if accepted is not None:return accepted
         if kind=='bookmark-projection':
             aid=identity.get('author_id')
@@ -533,6 +553,7 @@ class SaveExports:
         receipts=source_snapshot.receipts
         completed=self._static_completed(jobs,{row['work_id']:rel for rel,row,sha in receipts})
         done=set(completed)
+        zipped_authors = set()
         inherited_flags = None
         inherited_error = None
         for rel,row,sha in receipts:
@@ -560,7 +581,8 @@ class SaveExports:
                 # Original core.py combines global ZIP with the author's flag;
                 # an explicit author OFF does not disable global ZIP.
                 enabled=(self.s.preferences.get_setting('zip_all_after_download','0')=='1' or setting is True)
-                if enabled and zip_ready:
+                if enabled and zip_ready and row['author_id'] not in zipped_authors:
+                    zipped_authors.add(row['author_id'])
                     proofs=[(r[1]['work_id'],r[2]) for r in self.author_snapshot(row['author_id'])]
                     self.enqueue('auto-zip',dict(author_id=row['author_id'],proofs=proofs))
                 accepted=[record for job,record in matching]
@@ -733,7 +755,7 @@ class SaveExports:
             raise ValueError('unsafe projection file')
         if sha256(path.read_bytes()).hexdigest()!=expected:raise ValueError('projection bytes changed')
 
-    def _prepare_zip_mutation(self, stage, archive, previous):
+    def _prepare_zip_mutation(self, stage, archive, previous, *, contents_changed=False):
         """Journal direct archive changes before replacing an auto-ZIP."""
         from .legacy_zip_export import verified_zip_digest
         self._mutation_lock.acquire()
@@ -766,6 +788,7 @@ class SaveExports:
                 self._check_completed_zip_pending(name,value['source'],previous,previous)
             note={'version':1,'archive':archive.name,'before':previous,
                   'after':verified_zip_digest(stage),'receipts':sorted(matches)}
+            if contents_changed:note['contents_changed']=True
             path=native_io_path(self.root)/('zip-mutation-'+uuid4().hex+'.json')
             temporary=path.with_suffix('.tmp')
             try:
@@ -862,12 +885,13 @@ class SaveExports:
                 raise ValueError('ZIP mutation receipt changed')
             self._check_completed_zip_pending(name,source,value['sha256'] if old_name is not None else note['before'],
                                               value['sha256'] if old_name is not None else note['after'],remove=True)
-            if value['sha256']==note['after'] and value['archive']==note['archive']:continue
-            if old_name is None:value['sha256']=note['after']
-            value['archive']=note['archive']
+            updated=dict(value,archive=note['archive'])
+            if old_name is None:updated['sha256']=note['after']
+            if note.get('contents_changed'):updated['contents_changed']=True
+            if value==updated:continue
             temp=native_io_path(self.root)/('zip-receipt-'+uuid4().hex+'.tmp')
             try:
-                _write(temp,packet(value));os.replace(temp,receipt);_fsync_dir(receipt.parent)
+                _write(temp,packet(updated));os.replace(temp,receipt);_fsync_dir(receipt.parent)
             finally:
                 temp.unlink(missing_ok=True)
         path.unlink();_fsync_dir(path.parent)
@@ -897,8 +921,9 @@ class SaveExports:
             try:
                 note=json.loads(_read_bounded(path,2_000_000),object_pairs_hook=_json_unique)
                 if (type(note) is not dict or set(note) not in ({'version','archive','before','after','receipts'},
+                                               {'version','archive','before','after','receipts','contents_changed'},
                                                {'version','archive','previous_archive','before','after','receipts'})
-                        or note['version']!=1 or type(note['archive']) is not str
+                        or note.get('contents_changed',True) is not True or note['version']!=1 or type(note['archive']) is not str
                         or Path(note['archive']).name!=note['archive'] or not note['archive'].endswith('.zip')
                         or 'previous_archive' in note and (type(note['previous_archive']) is not str or Path(note['previous_archive']).name!=note['previous_archive'] or not note['previous_archive'].endswith('.zip'))
                         or any(type(note[k]) is not str or re.fullmatch(r'[a-f0-9]{64}',note[k]) is None for k in ('before','after'))
@@ -910,27 +935,36 @@ class SaveExports:
                 continue
             self._finish_zip_mutation(path,note)
 
+    def _current_auto_zip(self, author_id):
+        from .legacy_zip_export import verified_zip_digest
+        with self._mutation_lock:
+            self._recover_zip_mutations_locked()
+            archives=list(native_io_path(self.zip.root).glob('*('+author_id+').zip'))
+            if not archives:return None
+            if len(archives)!=1:raise ValueError('ambiguous previous ZIP')
+            archive=archives[0]
+            actual=verified_zip_digest(archive)
+            # Acceptance order is durable even after jobs leave the UI window.
+            for _,jid,kind,target,title in reversed(self.jobs.accepted_operations()):
+                if kind!='auto-zip' or re.fullmatch(r'[a-f0-9]{64}',target) is None:continue
+                try:
+                    value=json.loads(_read_bounded(self.root/(target+'.export.json'),2_000_000),
+                                     object_pairs_hook=_json_unique)
+                except FileNotFoundError:
+                    continue
+                if (value.get('archive')!=archive.name or value.get('sha256')!=actual
+                        or value.get('source',{}).get('author_id')!=author_id):
+                    continue
+                entry=RetainedExport(jid,kind,target,title)
+                self._publication_metadata(entry,value,self._read_intent(entry))
+                return target,value
+            raise _UnownedAuthorZip('previous ZIP has no matching completed receipt')
+
     def _previous_auto_zip(self, author_id, *, with_source=False):
-        self._recover_zip_mutations()
-        archives=list(native_io_path(self.zip.root).glob('*('+author_id+').zip'))
-        if not archives:return None
-        if len(archives)!=1:raise ValueError('ambiguous previous ZIP')
-        archive=archives[0]
-        _safe_path(archive,file=True)
-        # Only a completed export receipt can authorize replacing this owned ZIP.
-        for path in native_io_path(self.root).glob('*.export.json'):
-            value=json.loads(_read_bounded(path,2_000_000),object_pairs_hook=_json_unique)
-            if (isinstance(value.get('archive'),str)
-                    and value['archive'].endswith('('+author_id+').zip')
-                    and value.get('source',{}).get('author_id')==author_id):
-                expected=value.get('sha256')
-                if isinstance(expected,str) and re.fullmatch(r'[a-f0-9]{64}',expected):
-                    from .legacy_zip_export import verified_zip_digest
-                    try:
-                        if verified_zip_digest(archive)!=expected:continue
-                    except ValueError:continue
-                    return (expected,value['source']) if with_source else expected
-        raise ValueError('previous ZIP has no matching completed receipt')
+        publication=self._current_auto_zip(author_id)
+        if publication is None:return None
+        _,value=publication
+        return (value['sha256'],value['source']) if with_source else value['sha256']
 
     def _finish_zip_pending(self,job,identity,manifest,context):
         pending=native_io_path(self.root/(job.target_id+'.zip-pending.json'))
@@ -1036,8 +1070,14 @@ class SaveExports:
             if not native_io_path(manifest).exists() and not pending.exists():
                 rows,source_pages,_=self._auto_page_state(identity)
                 self._io_operation='export_author_zip'
-                publication=self._previous_auto_zip(aid,with_source=True)
-                previous,previous_source=publication if publication is not None else (None,None)
+                publication=self._current_auto_zip(aid)
+                target,prior=publication if publication is not None else (None,None)
+                previous=prior['sha256'] if prior is not None else None
+                previous_source=prior['source'] if prior is not None else None
+                anchor=identity.get('rebuild_from')
+                if isinstance(anchor,dict) and (previous!=anchor['sha256']
+                        or previous is not None and target!=anchor['target']):
+                    raise ValueError('previous ZIP publication changed')
                 def record_stage(stage,archive):
                     context.checkpoint()
                     h=sha256()
