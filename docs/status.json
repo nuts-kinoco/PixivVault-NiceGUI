@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-20 04:39",
+  "updated": "2026-11-20 07:41",
   "phases": [
     {
       "id": "P0",
@@ -724,16 +724,62 @@
       "value": "台帳の check_inventory_coverage --strict-gaps が、本人裁定・意図的削除の行を除いてクリア（tier C は追わない）",
       "set_by": "私（アドバイザー助言）",
       "status": "既定で進行"
+    },
+    {
+      "topic": "【待ち】借用プレミアムを ON にする（実機ヘッダー）",
+      "value": "K01/K02/K09/Z04 の実機確認の前提。ON/OFF は設定変更のため本人が行う",
+      "set_by": "本人",
+      "status": "待ち"
+    },
+    {
+      "topic": "【待ち】COS R3 に貼って返信ブロックを貼る",
+      "value": "docs/cos/COS_REALAPP_PROMPT_R3.md（合言葉 琥珀の灯台-R3-4186）。実機アプリは 22386 で起動済み",
+      "set_by": "本人",
+      "status": "待ち"
+    },
+    {
+      "topic": "【判断】失敗リストの「N件を再試行」",
+      "value": "元は N 件の一括再試行。移植版は対象を作品に限定して 0 件表示。仕様か退行かの判定",
+      "set_by": "本人",
+      "status": "待ち"
+    },
+    {
+      "topic": "【判断】GPU 学習（RTX 5080 16GB）の設計の承認",
+      "value": "Neon の設計書（tmp/neon_gpu_out.md）を読んで、方式（埋め込み＋分類器／嗜好クラスタ／微調整）を選ぶ",
+      "set_by": "本人",
+      "status": "待ち"
+    },
+    {
+      "topic": "【判断】クラッシュ証跡の保存先",
+      "value": "元は DB と同じフォルダ、移植版はコードツリー直下（S: 限定）。元に合わせるか",
+      "set_by": "本人",
+      "status": "待ち"
     }
   ],
   "running": [
     {
-      "who": "wt-t",
-      "what": "ダウンロード WU-1〜3（実行台帳・バッチエンジン）"
+      "who": "wt-lrn（Sol）",
+      "what": "学習タブを元に合わせる（pixiv アイコン・取得失敗の中央カード）07:54 期限"
     },
     {
-      "who": "checker",
-      "what": "共通シェルの検査"
+      "who": "wt-ctx（Sol）",
+      "what": "右クリックを元に合わせる（作者一覧メニュー・保存先を開く・ビューア）07:54 期限"
+    },
+    {
+      "who": "wt-p5b（Sol）",
+      "what": "P5 の残り（ダウンロード画面の撮影・表示退行の修正）07:55 期限"
+    },
+    {
+      "who": "wt-p4b（Sol）",
+      "what": "P4 の統合待ち項目の再判定 07:55 期限"
+    },
+    {
+      "who": "Neon",
+      "what": "GPU 学習（RTX 5080）の設計書"
+    },
+    {
+      "who": "全体テスト",
+      "what": "work c457410（レビュー指摘の修正後）"
     }
   ],
   "ledger_counts_provisional": {
@@ -750,12 +796,12 @@
     "errors": 0,
     "seconds": 653.13
   },
-  "head": "20a1f0c Merge branch 'feat-p6' into pv-dev-baseline",
+  "head": "b7e50f8 学習: 本番構成では「学習（デモ）」の見出しと説明文を出さない。元との差の調査（学習・右クリック）を記録",
   "worktrees": [
     {
       "path": "work",
       "branch": "pv-dev-baseline",
-      "head": "20a1f0c"
+      "head": "b7e50f8"
     },
     {
       "path": "basewt",
@@ -838,6 +884,11 @@
       "head": "1898324"
     },
     {
+      "path": "wt-ctx",
+      "branch": "feat-ctx",
+      "head": "b7e50f8"
+    },
+    {
       "path": "wt-d",
       "branch": "fix-d-cookie-auth",
       "head": "df78ff0"
@@ -883,6 +934,11 @@
       "head": "a3ffe50"
     },
     {
+      "path": "wt-lrn",
+      "branch": "feat-lrn",
+      "head": "b7e50f8"
+    },
+    {
       "path": "wt-m",
       "branch": "fix-m-legacy-thumb",
       "head": "4f21155"
@@ -913,9 +969,19 @@
       "head": "473cd9e"
     },
     {
+      "path": "wt-p4b",
+      "branch": "feat-p4b",
+      "head": "6ffb60d"
+    },
+    {
       "path": "wt-p5",
       "branch": "feat-p5",
       "head": "ba3a0a3"
+    },
+    {
+      "path": "wt-p5b",
+      "branch": "feat-p5b",
+      "head": "d3e2641"
     },
     {
       "path": "wt-p6",
@@ -978,5 +1044,5 @@
       "head": "2e53a24"
     }
   ],
-  "stop": ""
+  "stop": "07:59 に強制停止（本人指示）"
 }
