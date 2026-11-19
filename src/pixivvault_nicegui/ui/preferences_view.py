@@ -65,7 +65,7 @@ CACHE_LIMIT_FIELDS = {
 
 
 class PreferencesView:
-    def __init__(self, store, *, enabled_keys=(), unavailable_reasons=None, on_change=None, desktop=None, clear_cache=None, extension_status=None, export_legacy=None, native_profile=None, following_sync=None, pixiv_actions_mode='readonly', extension_counts=None, extension_reasons=None, extension_snapshot=None, vault=None, similarity_status=None, resume_similarity=None, tagger=None, on_tagger_change=None):
+    def __init__(self, store, *, enabled_keys=(), unavailable_reasons=None, on_change=None, desktop=None, clear_cache=None, extension_status=None, export_legacy=None, export_metadata=None, native_profile=None, following_sync=None, pixiv_actions_mode='readonly', extension_counts=None, extension_reasons=None, extension_snapshot=None, vault=None, similarity_status=None, resume_similarity=None, tagger=None, on_tagger_change=None):
         if pixiv_actions_mode not in ('readonly', 'enabled', 'preferences'):
             raise ValueError('invalid Pixiv action policy')
         self.pixiv_actions_mode=pixiv_actions_mode
@@ -98,11 +98,13 @@ class PreferencesView:
         self.extension_snapshot=extension_snapshot
         self.clear_cache=clear_cache
         self.export_legacy=export_legacy
+        self.export_metadata=export_metadata
         self.native_profile=native_profile
         self.following_sync=following_sync
         self.export_busy=False
         self.export_message=''
         self.export_button=None
+        self.export_metadata_button=None
         self.export_status=None
         self.closed=False
         self._epoch=0
@@ -256,6 +258,11 @@ class PreferencesView:
             else:
                 ui.label('ブラウザ拡張機能の自動起動: URI起動経路が未接続です。').classes('text-caption')
             ui.label('エクスポート').classes('text-subtitle1')
+            ui.label('データベースのエクスポート').classes('text-caption')
+            ui.label('データベースと作品メタデータをZIPに保存します（画像は含まれません）。').classes('text-caption')
+            self.export_metadata_button=ui.button('エクスポートを実行', icon='archive',
+                on_click=self.run_metadata_export).props('data-testid=preferences-export-metadata')
+            self.export_metadata_button.set_enabled(self.export_metadata is not None and not self.export_busy)
             ui.label('旧データベース、作品メタデータ、指定した画像フォルダーをZIPに保存します。').classes('text-caption')
             ui.label('同じ画像は1回だけ保存します。全ての元のパスに復元するには、ZIP内の RESTORE_IMAGES.txt の手順を使ってください。').classes('text-caption')
             self.export_button=ui.button('DBと画像をZIPへ保存',on_click=self.run_legacy_export).props(
@@ -312,22 +319,27 @@ class PreferencesView:
             if note is not None:
                 note.set_visibility(visible)
 
-    async def run_legacy_export(self):
-        """Execute E01 off the UI loop, never call an export twice while busy."""
-        if self.closed or not self.opened or self.export_busy or self.export_legacy is None:
+    async def run_metadata_export(self):
+        await self.run_legacy_export(include_images=False)
+
+    async def run_legacy_export(self, *, include_images=True):
+        """Use one in-flight export per view for both archive choices."""
+        export = self.export_legacy if include_images else self.export_metadata
+        if self.closed or not self.opened or self.export_busy or export is None:
             return
         self.export_busy=True
         self.export_message='エクスポート中…'
         self.export_button.set_enabled(False)
+        self.export_metadata_button.set_enabled(False)
         self.export_status.set_text(self.export_message)
         succeeded=False
         cleanup_warning=False
         try:
-            result=await asyncio.to_thread(self.export_legacy)
+            result=await asyncio.to_thread(export)
             cleanup_warning=bool(getattr(result,'cleanup_warning',False))
             prefix='[完了・一時フォルダーの後始末要確認]' if cleanup_warning else '[完了]'
-            self.export_message=(f'{prefix} {result.path}（旧DB・メタデータ・画像フォルダー、'
-                                 f'作品 {result.works} 件）')
+            contents = '旧DB・メタデータ・画像フォルダー' if include_images else '旧DB・メタデータのみ'
+            self.export_message=f'{prefix} {result.path}（{contents}、作品 {result.works} 件）'
             succeeded=True
         except LegacyMetadataExportError as error:
             # A typed bounded reason from our own validator, never raw secret
@@ -340,6 +352,7 @@ class PreferencesView:
             if not self.closed:
                 if self.opened and self.export_button is not None and self.export_status is not None:
                     self.export_button.set_enabled(self.export_legacy is not None)
+                    self.export_metadata_button.set_enabled(self.export_metadata is not None)
                     self.export_status.set_text(self.export_message)
                 # The thread round-trip may resume without an implicit UI
                 # slot; notify explicitly in the original dialog's client.

@@ -479,6 +479,14 @@ class ManagedDuplicateInspection:
             if self.owner is None:return None
             return self.owner.root if self.legacy is not None else self.owner.quarantine.location()
 
+    def original_quarantine_location(self):
+        with self._lock:
+            self._check()
+            if self.legacy is None:
+                return None
+            self.legacy._check()
+            return self.legacy.catalog.root.parent / 'quarantine'
+
     def quarantine_parent_if_uncreated(self):
         with self._lock:
             self._check()

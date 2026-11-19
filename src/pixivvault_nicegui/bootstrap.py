@@ -649,6 +649,7 @@ def register_pages(learning_sandbox: Path | None = None,
             notification_backend=WindowsToastBackend()
         if desktop_roots:
             desktop = DesktopIntegration(allowed_roots=desktop_roots, launcher=WindowsLauncher(),
+                legacy_image_root=library_image_root,
                 protocol=WindowsProtocolRegistration(protocol_command) if protocol_command else None)
     if pixiv_cookie_file is not None:
         if live_client is not None:
