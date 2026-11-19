@@ -779,9 +779,48 @@ class SaveExports:
             finally:self._mutation_lock.release()
         return finish
 
+    def _reconcile_zip_name(self, identity, manifest):
+        from .legacy_zip_export import verified_zip_digest
+        value=json.loads(_read_bounded(manifest,2_000_000),object_pairs_hook=_json_unique)
+        old=value['archive']; author_id=identity['author_id']
+        rows,_,_=self._auto_page_state(identity)
+        visible=[row for _,row,_ in rows]
+        latest=max(visible,key=lambda row:(row['saved_at'],row['work_id']))
+        name=_INVALID_FILENAME.sub('_',latest['author_name']) or author_id
+        suffix='('+author_id+').zip'; desired=name+suffix
+        if old==desired:return
+        old_alias=old[:-len(suffix)]
+        if old_alias.startswith(name+'(') and old_alias.endswith(')'):return
+        candidate=name+'('+old_alias+')'+suffix
+        if len(candidate)>150:candidate=desired
+        source=native_io_path(self.zip.root)/old;target=native_io_path(self.zip.root)/candidate
+        if target.exists() or target.is_symlink():raise ValueError('author ZIP rename collision')
+        if verified_zip_digest(source)!=value['sha256']:raise ValueError('previous ZIP changed')
+        matches=[]
+        for receipt in native_io_path(self.root).glob('*.export.json'):
+            record=json.loads(_read_bounded(receipt,2_000_000),object_pairs_hook=_json_unique)
+            if record.get('archive')==old and record.get('source',{}).get('author_id')==author_id:
+                matches.append(receipt.name)
+        if not matches:raise ValueError('ZIP rename receipt missing')
+        note={'version':1,'archive':candidate,'previous_archive':old,'before':value['sha256'],
+              'after':value['sha256'],'receipts':sorted(matches)}
+        journal=native_io_path(self.root)/('zip-mutation-'+uuid4().hex+'.json')
+        temp=journal.with_suffix('.tmp')
+        try:_write(temp,packet(note));os.replace(temp,journal);_fsync_dir(journal.parent)
+        finally:temp.unlink(missing_ok=True)
+        self._finish_zip_mutation(journal,note)
+
     def _finish_zip_mutation(self, path, note):
         from .legacy_zip_export import verified_zip_digest
         archive=native_io_path(self.zip.root)/note['archive']
+        old_name=note.get('previous_archive')
+        if old_name is not None:
+            previous=native_io_path(self.zip.root)/old_name
+            if previous.exists() and not archive.exists():
+                if verified_zip_digest(previous)!=note['before']:raise ValueError('ZIP rename source changed')
+                os.rename(previous,archive);_fsync_dir(archive.parent)
+            elif previous.exists() or not archive.exists():
+                raise ValueError('ZIP rename destination conflict')
         actual=verified_zip_digest(archive)
         if actual==note['before'] and actual!=note['after']:
             path.unlink();_fsync_dir(path.parent);return
@@ -794,11 +833,14 @@ class SaveExports:
             if (author is None or type(source) is not dict or source.get('author_id')!=author.group(1)
                     or digest(source)+'.export.json'!=name or type(value.get('archive')) is not str
                     or not value['archive'].endswith('('+author.group(1)+').zip')
-                    or value.get('sha256') not in (note['before'],note['after'])):
+                    or old_name is not None and value['archive'] not in (old_name,note['archive'])
+                    or old_name is None and value.get('sha256') not in (note['before'],note['after'])):
                 raise ValueError('ZIP mutation receipt changed')
-            self._check_completed_zip_pending(name,source,note['before'],note['after'],remove=True)
+            self._check_completed_zip_pending(name,source,value['sha256'] if old_name is not None else note['before'],
+                                              value['sha256'] if old_name is not None else note['after'],remove=True)
             if value['sha256']==note['after'] and value['archive']==note['archive']:continue
-            value['sha256']=note['after'];value['archive']=note['archive']
+            if old_name is None:value['sha256']=note['after']
+            value['archive']=note['archive']
             temp=native_io_path(self.root)/('zip-receipt-'+uuid4().hex+'.tmp')
             try:
                 _write(temp,packet(value));os.replace(temp,receipt);_fsync_dir(receipt.parent)
@@ -830,9 +872,11 @@ class SaveExports:
             _safe_path(path,file=True)
             try:
                 note=json.loads(_read_bounded(path,2_000_000),object_pairs_hook=_json_unique)
-                if (type(note) is not dict or set(note)!={'version','archive','before','after','receipts'}
+                if (type(note) is not dict or set(note) not in ({'version','archive','before','after','receipts'},
+                                               {'version','archive','previous_archive','before','after','receipts'})
                         or note['version']!=1 or type(note['archive']) is not str
                         or Path(note['archive']).name!=note['archive'] or not note['archive'].endswith('.zip')
+                        or 'previous_archive' in note and (type(note['previous_archive']) is not str or Path(note['previous_archive']).name!=note['previous_archive'] or not note['previous_archive'].endswith('.zip'))
                         or any(type(note[k]) is not str or re.fullmatch(r'[a-f0-9]{64}',note[k]) is None for k in ('before','after'))
                         or type(note['receipts']) is not list or not note['receipts']
                         or any(type(name) is not str or re.fullmatch(r'[a-f0-9]{64}\.export\.json',name) is None for name in note['receipts'])):
@@ -982,6 +1026,7 @@ class SaveExports:
             with self._mutation_lock:
                 self._recover_zip_mutations_locked()
                 self._finish_zip_pending(job,identity,manifest,context)
+                self._reconcile_zip_name(identity,manifest)
                 receipt=json.loads(_read_bounded(manifest,2_000_000),object_pairs_hook=_json_unique)
                 if receipt.get('source')!=identity or Path(receipt['archive']).name!=receipt['archive']:
                     raise ValueError('ZIP export manifest changed')

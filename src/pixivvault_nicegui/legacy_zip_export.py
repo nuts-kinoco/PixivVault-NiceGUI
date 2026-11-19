@@ -414,23 +414,7 @@ class LegacyZipExporter:
                 with ZipFile(previous_path, 'r') as previous:
                     if previous.testzip() is not None:
                         raise LegacyZipExportError('legacy ZIP verification failed')
-                old_alias = previous_path.name[:-len(f'({author_id}).zip')]
-                if previous_path != destination:
-                    if old_alias.startswith(f'{author_name}(') and old_alias.endswith(')'):
-                        destination = previous_path
-                    else:
-                        candidate = f'{author_name}({old_alias})({author_id}).zip'
-                        if len(candidate) > 150:
-                            candidate = zip_name
-                        target = native_io_path(self.root / candidate)
-                        _safe_path(target, file=True)
-                        if target.exists():
-                            raise LegacyZipExportError('author ZIP rename collision')
-                        if verified_zip_digest(previous_path) != replace_existing_sha256:
-                            raise LegacyZipExportError('previous ZIP changed')
-                        os.rename(previous_path, target)
-                        _fsync_dir(native_io_path(self.root))
-                        destination = target
+                destination = previous_path
 
             members = set()
             entries = []
