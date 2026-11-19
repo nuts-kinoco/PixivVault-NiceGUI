@@ -140,8 +140,9 @@ class DiscoveryLearningService(LearningService):
         for work in works:
             if self._seed_stop.is_set():
                 return
-            wid = str(work.work_id)
-            if wid not in saved or work.tags:
+            artwork = getattr(work, 'artwork', work)
+            wid = str(artwork.work_id)
+            if wid not in saved or artwork.tags:
                 continue
             try:
                 data = self.local_image(wid)
@@ -179,7 +180,8 @@ class DiscoveryLearningService(LearningService):
         if fingerprint is None:
             return result
         saved = set(str(x) for x in (self.saved_ids() if callable(self.saved_ids) else self.saved_ids))
-        eligible = {str(w.work_id) for w in self.saved_works() if not w.tags} & saved
+        artworks = (getattr(work, 'artwork', work) for work in self.saved_works())
+        eligible = {str(artwork.work_id) for artwork in artworks if not artwork.tags} & saved
         for row in db.conn.execute("SELECT work_id,tags FROM managed_local_seed WHERE source='local' AND model_fingerprint=?", (fingerprint,)):
             if row['work_id'] not in eligible:
                 continue
