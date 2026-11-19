@@ -1198,7 +1198,6 @@ class SaveExports:
                     publication=self._current_auto_zip(aid)
                     target,prior=publication if publication is not None else (None,None)
                     previous=prior['sha256'] if prior is not None else None
-                    previous_source=prior['source'] if prior is not None else None
                     anchor=identity.get('rebuild_from')
                     if isinstance(anchor,dict) and (previous!=anchor['sha256']
                             or previous is not None and target!=anchor['target']):
@@ -1217,7 +1216,7 @@ class SaveExports:
                             mutation=self._prepare_zip_replacement(job.target_id,note)
                     self.zip.export_author(aid,expected_proofs=identity['proofs'],before_publish=record_stage,
                                            expected_source_pages=source_pages,replace_existing_sha256=previous,
-                                           previous_source=previous_source)
+                                           require_member_proof=True)
                     if mutation is not None:self._finish_zip_mutation(*mutation)
                 self._finish_zip_pending(job,identity,manifest,context)
                 receipt=json.loads(_read_bounded(manifest,2_000_000),object_pairs_hook=_json_unique)

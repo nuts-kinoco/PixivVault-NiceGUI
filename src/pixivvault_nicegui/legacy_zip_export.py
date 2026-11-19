@@ -136,12 +136,6 @@ def zip_arcname_candidates(arcname: str, safe_title: str, work_id: str) -> list[
     candidates.append(arcname)
     return candidates
 
-def _safe_page_candidates(canonical, candidates, work_id):
-    # A weak old name containing a different work ID cannot identify this work.
-    return [candidate for candidate in candidates if candidate == canonical
-            or not any(marker != work_id for marker in re.findall(r'\(([1-9][0-9]*)\)', candidate))]
-
-
 def _arcname_work_id(arcname):
     if '/' in arcname:
         return None
@@ -376,48 +370,42 @@ class LegacyZipExporter:
             finally:
                 self._writer.release()
 
-    def _prior_member_proofs(self, author_id, author_rows, previous_source):
-        """Resolve immutable receipts from the last published ZIP's source."""
-        wanted = dict(previous_source['proofs'])
-        rows = {}
-        for _, receipt, proof in author_rows:
-            wid = receipt['work_id']
-            if wanted.get(wid) == proof:
-                rows[wid] = receipt
-                del wanted[wid]
-        if wanted:
-            for root in ('outputs', 'generations'):
-                folder = native_io_path(self.managed.root / root)
-                _safe_path(folder)
-                for path in folder.iterdir():
-                    match = re.fullmatch(r'work-([1-9][0-9]{0,19})-[0-9a-f]{32}', path.name)
-                    if match is None or match[1] not in wanted:
-                        continue
-                    relative = f'{root}/{path.name}/receipt.json'
-                    try:
-                        receipt, proof = self.managed._receipt(relative, verify_pages=False)
-                    except ManagedDownloadError:
-                        continue  # Missing prior proof leaves members untouched.
-                    if receipt['author_id'] == author_id and wanted[match[1]] == proof:
-                        rows[match[1]] = receipt
-                        del wanted[match[1]]
-                        if not wanted:
-                            break
-                if not wanted:
-                    break
+    def _member_owners(self, author_id, old_hashes):
+        """Match the actual ZIP to canonical names and checksums in saved receipts."""
+        members = defaultdict(dict)
+        for name, page_hash in old_hashes.items():
+            work_id = _arcname_work_id(name)
+            if work_id is not None:
+                members[work_id][name] = page_hash
         owners = defaultdict(set)
-        filters = previous_source.get('page_filters', {})
-        for wid, receipt in rows.items():
-            for index in filters.get(wid, range(receipt['page_count'])):
-                name, _ = _page_names(receipt, index)
-                owners[name, receipt['files'][index]['sha256']].add((wid, index))
+        if not members:
+            return owners
+        # Retained receipts can still prove old names after a title change and
+        # later publications. A numeric suffix alone is only a lookup hint.
+        for root in ('outputs', 'generations'):
+            folder = native_io_path(self.managed.root / root)
+            _safe_path(folder)
+            for path in folder.iterdir():
+                match = re.fullmatch(r'work-([1-9][0-9]{0,19})-[0-9a-f]{32}', path.name)
+                if match is None or match[1] not in members:
+                    continue
+                relative = f'{root}/{path.name}/receipt.json'
+                try:
+                    receipt, _ = self.managed._receipt(relative, verify_pages=False)
+                except ManagedDownloadError:
+                    continue  # An unverifiable receipt cannot claim a member.
+                if receipt['author_id'] != author_id:
+                    continue
+                work_id = receipt['work_id']
+                for index, page in enumerate(receipt['files']):
+                    name, _ = _page_names(receipt, index)
+                    if members[work_id].get(name) == page['sha256']:
+                        owners[name].add((work_id, index))
         return owners
 
-    def _zip_member_plan(self, author_id, author_rows, source_pages, old_hashes, previous_source):
-        owners = (self._prior_member_proofs(author_id, author_rows, previous_source)
-                  if previous_source is not None else {})
-        old_owners = {name: owners.get((name, proof), set()) for name, proof in old_hashes.items()}
-        verified_work = {name: next(iter(pages))[0] for name, pages in old_owners.items() if len(pages) == 1}
+    def _zip_member_plan(self, author_id, author_rows, source_pages, old_hashes, require_member_proof):
+        old_owners = self._member_owners(author_id, old_hashes)
+        verified_work = {name: next(iter(pages))[0] for name, pages in old_owners.items()}
         canonical = {}
         weak = defaultdict(set)
         pages = []
@@ -430,7 +418,6 @@ class LegacyZipExporter:
                 if name in canonical:
                     raise LegacyZipAmbiguousError()
                 canonical[name] = page
-                candidates = _safe_page_candidates(name, candidates, wid)
                 for alias in {candidate for candidate in candidates if candidate != name}:
                     weak[alias].add(page)
                 pages.append((page, relative, digest, file, name, candidates, active))
@@ -440,16 +427,17 @@ class LegacyZipExporter:
         existing = set(old_hashes)
         for page, relative, digest, file, name, candidates, active in pages:
             wid, index = page
+            owners = old_owners.get(name)
             usable_slot = (name in old_hashes
                            and _arcname_work_id(name) == wid
-                           and (old_owners[name] == {page} or previous_source is None))
+                           and (owners == {page} or not require_member_proof and not owners))
             if not active:
                 if usable_slot:
                     drop.add(name)
                 continue
             if name in old_hashes:
                 # Flet skips exact names. A managed generation may replace the
-                # exact slot only when the prior publication proves its owner.
+                # exact slot only when the member matches a saved page.
                 if usable_slot and old_hashes[name] != file['sha256']:
                     drop.add(name)
                     write.append((relative, digest, index, name, file['bytes']))
@@ -461,13 +449,11 @@ class LegacyZipExporter:
             same_work = _work_id_arcname(name, wid)
             legacy = name.replace(f'({wid})', '', 1)
             aliases = {same_work, legacy, *candidates} - {name}
-            if previous_source is None:
-                aliases = set(_safe_page_candidates(name, aliases, wid))
             matched = {alias for alias in aliases & existing
                        if verified_work.get(alias, wid) == wid
                        and (alias not in canonical or canonical[alias] == page)}
             if matched:
-                if previous_source is None and any(len(weak[alias]) > 1 for alias in matched):
+                if not require_member_proof and any(len(weak[alias]) > 1 for alias in matched):
                     raise LegacyZipAmbiguousError()
                 continue
             write.append((relative, digest, index, name, file['bytes']))
@@ -476,7 +462,7 @@ class LegacyZipExporter:
 
     def export_author(self, author_id: str, *, expected_proofs=None, before_publish=None,
                       expected_source_pages=None, replace_existing_sha256=None,
-                      previous_source=None) -> Path:
+                      require_member_proof=False) -> Path:
         """Export all active still-image works of one author as a new ZIP.
 
         Does not overwrite, append to, rename, delete or hardlink any original
@@ -561,7 +547,7 @@ class LegacyZipExporter:
                                 hasher.update(block)
                         old_hashes[name] = hasher.hexdigest()
             drop, entries = self._zip_member_plan(
-                author_id, author_rows, source_pages, old_hashes, previous_source)
+                author_id, author_rows, source_pages, old_hashes, require_member_proof)
             old_names = previous_infos.keys() - drop
             members = old_names | {entry[3] for entry in entries}
             estimate = sum(previous_infos[name].file_size + 2 * len(name.encode('utf-8'))

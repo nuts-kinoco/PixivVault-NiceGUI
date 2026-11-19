@@ -38,12 +38,13 @@ def generated_author_exports(tmp_path, title=None):
 def archive(q): return q.exports.zip.root / 'tester(456).zip'
 
 
-@pytest.mark.parametrize(('old_title', 'new_title', 'legacy', 'added_title'), [
-    ('portrait(124)', 'portrait(124)(123)', False, None),
-    ('portrait', 'portrait', True, None),
-    ('portrait', 'portrait(123)', False, 'portrait(123)(124)'),
-], ids=['id-in-title', 'no-id', 'verified-other-work'])
-def test_auto_zip_does_not_reassign_old_title(tmp_path, old_title, new_title, legacy, added_title):
+@pytest.mark.parametrize(('old_title', 'new_title', 'legacy', 'added_title', 'intervening'), [
+    ('portrait(124)', 'portrait(124)(123)', False, None, False),
+    ('portrait', 'portrait', True, None, False),
+    ('portrait', 'portrait(123)', False, 'portrait(123)(124)', False),
+    ('portrait', 'portrait(123)', False, 'portrait(123)(124)', True),
+], ids=['id-in-title', 'no-id', 'verified-other-work', 'verified-after-publication'])
+def test_auto_zip_does_not_reassign_old_title(tmp_path, old_title, new_title, legacy, added_title, intervening):
     with generated_author_exports(tmp_path, old_title) as q:
         q.exports.scan()
         job = settled(q.exports)[0]
@@ -73,18 +74,27 @@ def test_auto_zip_does_not_reassign_old_title(tmp_path, old_title, new_title, le
                                      current['sha256'], 'updated', current['relative_receipt'])
         q.completed.result = q.managed.run(
             SimpleNamespace(kind='pixiv-illust', target_id='123', job_id='e'*32), Context(), intent=intent)
+        expected = {**previous, 'revised(123)_1.png': q.reader.payload, 'revised(123)_2.png': q.reader.payload}
+        if intervening:
+            q.exports.scan()
+            jobs = settled(q.exports)
+            assert len(jobs) == 2 and all(j.state == 'done' for j in jobs)
+            with ZipFile(path) as z:
+                assert {name: z.read(name) for name in z.namelist()} == expected
+                assert z.testzip() is None
         q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title=new_title)
         q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
 
         q.exports.scan()
-        assert all(j.state == 'done' for j in settled(q.exports))
+        jobs = settled(q.exports)
+        assert len(jobs) == 2 + intervening and all(j.state == 'done' for j in jobs)
         with ZipFile(path) as z:
-            expected = {
-                **previous, 'revised(123)_1.png': q.reader.payload, 'revised(123)_2.png': q.reader.payload}
             if added_title:
                 expected.update({f'{added_title}_{page}.png': q.reader.payload for page in (1, 2)})
             assert {name: z.read(name) for name in z.namelist()} == expected
             assert z.testzip() is None
+        for completed in jobs:
+            assert q.exports.run(completed, Context()) == completed.result
 
 
 def test_auto_zip_refreshes_managed_generation(tmp_path):
