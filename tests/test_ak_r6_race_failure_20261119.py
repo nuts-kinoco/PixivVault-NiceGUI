@@ -248,3 +248,72 @@ async def test_open_learning_trend_removes_stale_projection(tmp_path, fixture, m
             task.cancel()
         await asyncio.gather(*owned, return_exceptions=True)
         await asyncio.to_thread(service.close)
+
+
+@pytest.mark.asyncio
+async def test_visible_judgment_waits_for_unrelated_image_after_db_commit(tmp_path, fixture, monkeypatch):
+    _, store, tagger, _ = fixture
+    monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
+    image = png()
+    blocked, release = Event(), Event()
+    hold = False
+    def local_image(_):
+        if hold:
+            blocked.set()
+            assert release.wait(6)
+        return image
+    service = create(tmp_path / 'learning', tagger, [SimpleNamespace(work_id='1', tags=())], local_image)
+    seed_candidates(service, [candidate(i, tags=('api_untouched',)) for i in range(4)])
+    await asyncio.wrap_future(service.refresh_saved_seeds())
+    client = Client(ui.page('/r4-judgment'))
+    owned_before = set(background_tasks.running_tasks)
+    with client:
+        view = LearningView(FakeServices(service))
+    try:
+        view._initial_done = True
+        await settled(view)
+        view.set_active(True)
+        await settled(view)
+        async with asyncio.timeout(5):
+            while view._seed_watch_task is None or not view._seed_watch_task.done():
+                await asyncio.sleep(.01)
+
+        def judged():
+            return service._database().get_judged_work_ids()
+
+        async def judge_and_observe(enabled, operation):
+            nonlocal hold
+            store.set_setting('local_tagger_enabled', enabled)
+            work = view.state.current_artwork
+            assert work is not None
+            view._on_loaded(SimpleNamespace(args=view._image_url))
+            title_before = view.title.text
+            hold = True
+            start = time.perf_counter()
+            assert view.judge('like', {'work_id': work.work_id, 'generation': view.state.generation,
+                                      'operation_id': operation})
+            assert work.work_id in await asyncio.wrap_future(service._submit(judged))
+            elapsed_commit = time.perf_counter()-start
+            if enabled == '1':
+                assert await asyncio.to_thread(blocked.wait, 2)
+            else:
+                await asyncio.wait_for(asyncio.shield(view._save_task), 2)
+            print('enabled', enabled, 'database committed before release', True,
+                  'commit ms', round(elapsed_commit*1000, 3), 'title updated', title_before != view.title.text,
+                  'save task done', view._save_task.done())
+            return title_before != view.title.text
+
+        assert await judge_and_observe('0', 'off-like')
+        updated = await judge_and_observe('1', 'on-like')
+        release.set()
+        await asyncio.wait_for(view._save_task, 4)
+        assert updated
+    finally:
+        release.set()
+        view.close()
+        client.delete()
+        owned = set(background_tasks.running_tasks) - owned_before
+        for task in owned:
+            task.cancel()
+        await asyncio.gather(*owned, return_exceptions=True)
+        await asyncio.to_thread(service.close)

@@ -892,6 +892,12 @@ class LearningView:
                 saved_state = self.state
                 saved_generation = self.state.generation
                 self._count_superlike(command.judgment.choice, undo=command.undo)
+                # Publish the committed next card before any background ranking.
+                self.refresh()
+                if command.undo:
+                    self.toast.hide()
+                else:
+                    self._show_judgment_toast(command.judgment.choice, command)
                 if self.discovery is not None:
                     if not command.undo:self._set_trend_open(False)
                     try:
@@ -912,10 +918,6 @@ class LearningView:
                 if self.state is not saved_state or self.state.generation != saved_generation or self._storage_busy:
                     return
                 self.refresh()
-                if command.undo:
-                    self.toast.hide()
-                else:
-                    self._show_judgment_toast(command.judgment.choice, command)
                 if self.discovery is not None:
                     try:
                         trend=await self.discovery.trend_snapshot()
