@@ -111,7 +111,7 @@ def test_off_schedule_does_not_dispatch_deferred_backlog(tmp_path):
     ledger._sync_favourites(('9',))
     ledger.defer_work(author_id='9', work={'id':'100','update_date':'2020','page_count':1,'type':0},
                       now=datetime.now(timezone.utc), account_id='42')
-    ledger._disable()
+    ledger._disable(expected_revision=ledger.snapshot().revision)
     fired = Event()
     runner = ManagedScheduleRunner(ledger, lambda *_: fired.set())
     try:
