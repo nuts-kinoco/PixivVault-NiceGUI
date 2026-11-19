@@ -43,6 +43,9 @@ class _RankingGallery(GalleryView):
         if self._viewer_state is not self.state:
             self._viewer_state.close()
             self._viewer_state = self.state
+    def search(self,value=None):
+        if self._viewer_state is not self.state:self.close_viewer(restore_focus=False)
+        super().search(value)
     def open(self,work_id,page_no=0):
         if self._viewer_state is not self.state:self.close_viewer(restore_focus=False)
         self.owner._open_generation+=1

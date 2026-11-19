@@ -121,18 +121,16 @@ async def test_ranking_viewer_hide_writes_shared_data_keeps_viewer_and_drops_car
 @pytest.mark.asyncio
 async def test_recommendation_viewer_hide_removes_work_from_shelf(tmp_path, monkeypatch):
     monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
-    services = make_recommend(tmp_path)
+    services = make_recommend_with_saved_work(tmp_path)
     client = Client(ui.page('/_x_ctx_view_rec_hide'))
     try:
         with client:
             view = await open_view(services)
             viewer = view._recommend_viewer
-            from pixivvault_nicegui.models import Artwork
-            from pixivvault_nicegui.state import GalleryState
-            art = Artwork('12', '確実作品', '別作者', author_id='92')
-            viewer._viewer_state = GalleryState((art,))
-            viewer.set_viewer_active(True)
-            viewer._viewer_state.open_artwork('12', 0)
+            await view.open_work('12', generation=view._render_generation)
+            assert viewer._viewer_state.viewer_open
+            image_pin = viewer.selection.images
+            assert not image_pin.closed
             await viewer._viewer_hide()
             assert '12' in services.recommendations.snapshot()['hidden_works']
             for _ in range(100):  # 読み直しは背景処理。最大約2秒待つ。
@@ -143,6 +141,10 @@ async def test_recommendation_viewer_hide_removes_work_from_shelf(tmp_path, monk
             assert '12' not in shown and '11' in shown
             assert viewer._viewer_state.viewer_open
             assert viewer._viewer_state.selected_artwork.work_id == '12'
+            assert not image_pin.closed
+            assert image_pin.get('12').data
+            viewer.close_viewer()
+            assert image_pin.closed
             view.close()
     finally:
         client.delete()
@@ -202,21 +204,27 @@ async def test_viewer_folder_uses_saved_work_and_disables_unsaved(tmp_path, monk
         svc.close()
 
 
-@pytest.mark.asyncio
-async def test_library_viewer_hides_the_work_and_stays_open(tmp_path, monkeypatch):
+def make_recommend_with_saved_work(tmp_path):
     from pixivvault_nicegui.library_models import LibrarySnapshot, LibraryWork
     from pixivvault_nicegui.local_media_adapter import ReadonlyLocalMediaCatalog
     from pixivvault_nicegui.models import Artwork
-    from pixivvault_nicegui.ui.library_view import LibraryView
     from test_ac_library_cover_20261119 import png
 
-    monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
     services = make_recommend(tmp_path)
     folder = tmp_path / 'Author(92)'
     folder.mkdir()
     (folder / 'Title(12).png').write_bytes(png('red'))
     services.library = LibrarySnapshot((LibraryWork(Artwork('12', 'Title', 'Author', author_id='92'), '92'),))
     services.images.publish(ReadonlyLocalMediaCatalog(tmp_path, services.library), None)
+    return services
+
+
+@pytest.mark.asyncio
+async def test_library_viewer_hides_the_work_and_stays_open(tmp_path, monkeypatch):
+    from pixivvault_nicegui.ui.library_view import LibraryView
+
+    monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
+    services = make_recommend_with_saved_work(tmp_path)
     client = Client(ui.page('/_ctx_library_viewer_hide'))
     try:
         with client:

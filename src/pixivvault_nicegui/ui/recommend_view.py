@@ -37,7 +37,7 @@ class RecommendView:
         self._pending_hide=None
         self._save_operations={};self._saving=set();self._busy_buttons=[];self._refresh_pending=False
         self._action_bindings=[];self._render_generation=0
-        self._media=None;self._open_generation=0;self._opening=None
+        self._media=None;self._selection_media=None;self._open_generation=0;self._opening=None
         self._author_browser=None
         self.client=ui.context.client
         self._card_actions=CardActions(services,lambda text:self.notice.set_text(text),lambda:self.active and not self.closed)
@@ -68,7 +68,7 @@ class RecommendView:
         # Like ranking/library, the overlay is a sibling in the shell content;
         # it is never deleted when a shelf's body is re-rendered.
         self._recommend_viewer=RecommendationViewer(services,self.root,
-            on_close=self._invalidate_open,on_hidden=self._viewer_hidden,on_author=self._show_author_page)
+            on_close=self._viewer_closed,on_hidden=self._viewer_hidden,on_author=self._show_author_page)
         self.client.on_delete(self.close)
         self.refresh_button.set_enabled(self.controller is not None)
         self.update_button.disable()
@@ -275,6 +275,12 @@ class RecommendView:
         self._open_generation+=1
         self._opening=None
 
+    def _viewer_closed(self):
+        self._invalidate_open()
+        media=self._selection_media
+        self._selection_media=None
+        if media is not None and media is not self._media:media.close()
+
     def _visible_works(self):
         if self.data is None:return ()
         result=[]
@@ -353,6 +359,7 @@ class RecommendView:
             if not current():return
             media.ensure_source(work_id)
             self._recommend_viewer.show(selection,card_size=self.card_size)
+            self._selection_media=media
             selection=None  # Viewer owns this lease until close/replacement.
             self.notice.set_text('')
         except Exception:
@@ -381,7 +388,8 @@ class RecommendView:
             # An unavailable catalog must not authorize remote fallback for an
             # identity whose saved/excluded state could not be inspected.
             self._media=None
-        if old_media is not None and old_media is not self._media:old_media.close()
+        if old_media is not None and old_media is not self._media and old_media is not self._selection_media:
+            old_media.close()
         for controls in self._action_bindings:controls.close()
         self._action_bindings.clear()
         self._render_generation+=1
