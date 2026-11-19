@@ -133,21 +133,20 @@ class RequestAdmission:
         for item in queue:
             if not item[3]:return item
         return None
-    def _capped(self,now):
-        """True when the first background request has already yielded the full cap."""
-        first=self._background[0] if self._background else None
-        return first is not None and first[2] is not None and now-first[2]>=MAX_BACKGROUND_DEFER_SECONDS
+    def _capped(self,ticket,now):
+        """Original rate_coordinator: every background call yields for at most the cap, counted from its own start."""
+        return now-ticket[1]>=MAX_BACKGROUND_DEFER_SECONDS
     def _my_turn(self,ticket,interactive,now):
-        # the yield clock starts when a background request becomes first in line, parked or not
-        if self._background and self._background[0][2] is None:self._background[0][2]=now
         if interactive:
-            return self._head(self._interactive) is ticket and not self._capped(now)
+            if self._head(self._interactive) is not ticket:return False
+            head=self._head(self._background)         # a parked (paused) background request cannot issue, so it never blocks
+            return head is None or not self._capped(head,now)
         if self._head(self._background) is not ticket:return False
-        return self._head(self._interactive) is None or self._capped(now)
+        return self._head(self._interactive) is None or self._capped(ticket,now)
     def __call__(self,deadline):
         request_checkpoint();_check_deadline(deadline,self.clock)
         interactive=_LANE.get()=='interactive'
-        ticket=[object(),self.clock(),None,False]       # token, queued at, yield start, parked
+        ticket=[object(),self.clock(),None,False]       # token, queued at, (unused), parked
         queue=self._interactive if interactive else self._background
         with self._lock:queue.append(ticket)
         try:
@@ -161,11 +160,14 @@ class RequestAdmission:
                 try:request_checkpoint();_check_deadline(deadline,self.clock)
                 finally:ticket[3]=False
                 with self._lock:
+                    seconds=float(self.interval())      # settings are read again with the decision, as before this change
+                    if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
                     now=self.clock()                     # taken after every blocking call
                     if self._my_turn(ticket,interactive,now):
                         remaining=0 if self._last is None else self._last+seconds-now
                         if remaining<=0:
                             self._last=now
+                            queue.remove(ticket)         # leave the queue in the same locked step as the issue
                             return
                         if now+remaining>=deadline:
                             from .pixiv_read_client import ReadDeadlineExceeded
@@ -174,7 +176,8 @@ class RequestAdmission:
                     else:pause=0.05
                 self.sleep(pause)
         finally:
-            with self._lock:queue.remove(ticket)
+            with self._lock:
+                if ticket in queue:queue.remove(ticket)
 
 
 class RequestRetryPolicy:

@@ -228,14 +228,17 @@ class RankingSource:
                     if error.code not in FALLBACK_CODES:raise
             if query.tag and page!=1:raise RankingUnavailable()
             self.reader.require_identity()
-            if query.content=='novel':
-                raw=self.reader.get_novel_ranking(mode=query.mode,page=page,date=query.date)
-            elif query.tag:
-                packet=self.reader.search_illusts(query.tag,page=1,order='date_d',mode='r18' if query.r18 else 'safe')
-                if type(packet) is not dict or type(packet.get('works')) is not list:raise ValueError('invalid search response')
-                raw=packet['works']
-            else:
-                raw=self.reader.get_ranking(mode=query.effective_mode,content=query.content,page=page,date=query.date)
+            from .request_policy import interactive_lane
+            # the ranking screen's fetch is screen-driven: original ranking_tab.py:1024 uses lane="interactive"
+            with interactive_lane():
+                if query.content=='novel':
+                    raw=self.reader.get_novel_ranking(mode=query.mode,page=page,date=query.date)
+                elif query.tag:
+                    packet=self.reader.search_illusts(query.tag,page=1,order='date_d',mode='r18' if query.r18 else 'safe')
+                    if type(packet) is not dict or type(packet.get('works')) is not list:raise ValueError('invalid search response')
+                    raw=packet['works']
+                else:
+                    raw=self.reader.get_ranking(mode=query.effective_mode,content=query.content,page=page,date=query.date)
             if type(raw) not in (list,tuple):raise ValueError('invalid ranking response')
             rows=[]
             novel_ids=set()

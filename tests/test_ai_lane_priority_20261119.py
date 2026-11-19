@@ -208,21 +208,6 @@ def test_deadline_during_interval_read_does_not_consume_the_slot():
     gate(clock.now + 5.0)                  # a later request is not blocked by the failed one
 
 
-def test_background_queued_behind_others_does_not_count_that_wait_as_yielding():
-    gate, clock = _gate(1.5)
-    gate(1000.0)
-    heads = []
-    for _ in range(3):
-        heads.append([object(), clock.now, None, False])
-    with gate._lock:
-        gate._background.extend(heads)
-    clock.now += 2.5                       # they waited a long time in the background queue
-    _queued_interactive(gate)              # an interactive request arrives now
-    with gate._lock:
-        assert gate._my_turn(heads[0], False, clock.now) is False   # yields starts at its own head time
-    assert heads[0][2] == clock.now
-
-
 def test_explicit_background_lane_overrides_enclosing_interactive_lane():
     from pixivvault_nicegui.request_policy import lane_scope
     seen = []
@@ -355,12 +340,62 @@ def test_parked_interactive_in_pause_does_not_make_background_wait_the_cap_each_
     resume.set(); s.join(5)
 
 
-def test_second_background_is_not_given_a_yield_clock_head_start_by_a_parked_first():
-    gate, clock = _gate(0.3)
-    first = [object(), 0.0, None, True]    # parked (pausing) first background
-    second = [object(), 0.0, None, False]
+def test_background_yield_is_counted_per_call_from_its_own_start_like_the_original():
+    gate, clock = _gate(1.5)
+    gate(1000.0)
+    clock.now = 4.0
+    _queued_interactive(gate)              # an interactive request is queued
+    old = [object(), 1.0, None, False]     # a background call that started 3 s ago has yielded its cap
     with gate._lock:
-        gate._background.extend([first, second])
-        gate._interactive.append([object(), 0.0, None, False])
-        assert gate._my_turn(second, False, 0.0) is False
-    assert first[2] == 0.0 and second[2] is None   # only the first-in-line owns the yield clock
+        gate._background.append(old)
+        assert gate._my_turn(old, False, clock.now) is True
+    young = [object(), 3.9, None, False]
+    with gate._lock:
+        gate._background[:] = [young]
+        assert gate._my_turn(young, False, clock.now) is False
+
+
+def test_paused_capped_background_head_does_not_block_a_screen_request():
+    gate, clock = _gate(0.3)
+    gate(1000.0)
+    clock.now = 10.0
+    parked = [object(), 0.0, None, True]   # yielded long ago but is paused (cannot issue)
+    with gate._lock:
+        gate._background.append(parked)
+    before = clock.now
+    with interactive_lane():
+        gate(1000.0)
+    assert clock.now - before < 0.3 + 1e-9  # not held for the cap
+
+
+def test_interval_is_read_with_the_decision_so_a_setting_change_is_honoured():
+    clock = _Clock()
+    values = iter([0.3, 0.3, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5])
+    current = {'v': 0.3}
+
+    def interval():
+        return current['v']
+    gate = RequestAdmission(interval, clock=clock, sleep=clock.sleep)
+    gate(1000.0)                           # issued at t=0 with 0.3
+    current['v'] = 1.5                     # the setting changes before the next request decides
+    before = clock.now
+    gate(1000.0)
+    assert clock.now - before == pytest.approx(1.5)
+
+
+def test_ranking_screen_fetch_runs_in_the_interactive_lane():
+    from pixivvault_nicegui.ranking_source import RankingSource, RankingQuery
+    seen = []
+
+    class Reader:
+        def require_identity(self):
+            pass
+        def get_ranking(self, **kwargs):
+            seen.append(current_lane())
+            return []
+    try:
+        RankingSource(Reader()).fetch(RankingQuery())
+    except Exception:
+        pass                               # the response shape is irrelevant here; only the lane at the GET matters
+    assert seen == ['interactive']
+
