@@ -268,24 +268,35 @@ class CookieExpiryCoordinator:
                     self._check()
                     attempted = True
                     result = store.commit(candidate)
-            snapshot, proof, rows = store.expiry_source()
-            if snapshot.cookie_file != result.cookie_file or snapshot.revision != result.profile_revision:
-                raise CookieSourceRejected()
-            from .managed_network_stop_profile_scope import _ProfileBoundTransport
-            self._snapshot, self._proof, self._rows = snapshot, proof, rows
-            self._adopted = True
-            for item in self._readers:
-                if item._closed:
-                    continue
-                with item._expiry_cancel_lock:
+            from .frozen_source_pin import _open_held
+            with ExitStack() as pins:
+                cookie_fd = _open_held(result.cookie_file)
+                pins.callback(os.close, cookie_fd)
+                metadata_path = result.cookie_file.parent / 'generation.json'
+                metadata_fd = _open_held(metadata_path)
+                pins.callback(os.close, metadata_fd)
+                snapshot, proof, rows = store.expiry_source()
+                _, metadata_proof = _read_stable(metadata_path, 2048)
+                if (snapshot.cookie_file != result.cookie_file or snapshot.revision != result.profile_revision
+                        or proof.sha256 != result.sha256 or metadata_proof.sha256 != result.metadata_sha256
+                        or _identity(os.fstat(cookie_fd)) != proof.identity
+                        or _identity(os.fstat(metadata_fd)) != metadata_proof.identity):
+                    raise CookieSourceRejected()
+                from .managed_network_stop_profile_scope import _ProfileBoundTransport
+                self._snapshot, self._proof, self._rows = snapshot, proof, rows
+                self._adopted = True
+                for item in self._readers:
                     if item._closed:
                         continue
-                    fresh, user_id = _read_cookies(result.cookie_file)
-                    if user_id is not None and user_id != identity:
-                        raise CookieSourceRejected()
-                    item._cookies, item._cookie_user_id = fresh, user_id
-                    if isinstance(item._transport, _ProfileBoundTransport):
-                        item._transport.cookie_path = result.cookie_file
+                    with item._expiry_cancel_lock:
+                        if item._closed:
+                            continue
+                        fresh, user_id = _read_cookies(result.cookie_file)
+                        if user_id is not None and user_id != identity:
+                            raise CookieSourceRejected()
+                        item._cookies, item._cookie_user_id = fresh, user_id
+                        if isinstance(item._transport, _ProfileBoundTransport):
+                            item._transport.cookie_path = result.cookie_file
         except (CookieSyncBusy, CookieSyncCapacityExceeded):
             if not attempted:
                 return

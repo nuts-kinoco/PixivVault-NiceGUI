@@ -24,6 +24,12 @@ def test_repeated_expiry_extensions_bound_and_prune_generations(tmp_path):
         assert profile.snapshot().cookie_file.is_file()
         assert created[-2].is_file()
         assert any(not path.exists() for path in created[:-2])
+        import sqlite3
+        connection = sqlite3.connect(profile.path)
+        try:
+            assert connection.execute('SELECT COUNT(*) FROM native_cookie_adoptions').fetchone()[0] <= 8
+        finally:
+            connection.close()
     finally:
         client.close(); coordinator.close(); store.close(); profile.close()
 
@@ -67,6 +73,76 @@ def test_cleanup_start_failure_is_retried_and_renewals_resume(tmp_path, monkeypa
         client.close(); coordinator.close(); store.close(); profile.close()
 
 
+@pytest.mark.parametrize('restart_store', [False, True])
+def test_manual_external_cookie_selection_keeps_prior_adopted_generations(tmp_path, restart_store):
+    from pixivvault_nicegui.cookie_expiry_refresh import CookieExpiryCoordinator
+    from pixivvault_nicegui.extension_cookie_store import ExtensionCookieStore
+    expiry, cookie, profile, store, coordinator = setup(tmp_path)
+    client, _ = reader(cookie, coordinator, [])
+    try:
+        for index in range(8):
+            header = 'PHPSESSID=777_old; Domain=.pixiv.net; Path=/; Secure; Expires=' + formatdate(expiry + 3600 + index, usegmt=True)
+            client._transport = lambda *args: _ReadResponse(b'{"error":false,"body":{}}', (header,))
+            fetch(client)
+        prior = profile.snapshot().cookie_file
+        client.close(); coordinator.close()
+        manual_dir = tmp_path / 'manual'
+        manual_dir.mkdir()
+        manual = manual_dir / 'cookies.txt'
+        manual.write_bytes(cookie.read_bytes())
+        snapshot = profile.snapshot()
+        profile.update(cookie_file=manual, expected_revision=snapshot.revision)
+        if restart_store:
+            store.close()
+            store = ExtensionCookieStore(tmp_path / 'generations', profile=profile)
+        coordinator = CookieExpiryCoordinator(profile, lambda: store)
+        client, _ = reader(manual, coordinator, [])
+        initial = profile.snapshot().revision
+        for index in range(6):
+            header = 'PHPSESSID=777_old; Domain=.pixiv.net; Path=/; Secure; Expires=' + formatdate(expiry + 7200 + index, usegmt=True)
+            client._transport = lambda *args: _ReadResponse(b'{"error":false,"body":{}}', (header,))
+            fetch(client)
+        assert profile.snapshot().revision == initial + 6
+        assert len(list((store.root / 'generations').iterdir())) <= 8
+        assert prior.is_file()
+        assert manual.read_bytes() == cookie.read_bytes()
+    finally:
+        client.close(); coordinator.close(); store.close(); profile.close()
+
+
+@pytest.mark.parametrize('restart_store', [False, True])
+def test_manual_reselection_of_older_managed_generation_keeps_other_adopted_branch(tmp_path, restart_store):
+    from pixivvault_nicegui.cookie_expiry_refresh import CookieExpiryCoordinator
+    from pixivvault_nicegui.extension_cookie_store import ExtensionCookieStore
+    expiry, cookie, profile, store, coordinator = setup(tmp_path)
+    client, _ = reader(cookie, coordinator, [])
+    generations = []
+    try:
+        for index in range(8):
+            header = 'PHPSESSID=777_old; Domain=.pixiv.net; Path=/; Secure; Expires=' + formatdate(expiry + 3600 + index, usegmt=True)
+            client._transport = lambda *args: _ReadResponse(b'{"error":false,"body":{}}', (header,))
+            fetch(client)
+            generations.append(profile.snapshot().cookie_file)
+        client.close(); coordinator.close()
+        snapshot = profile.snapshot()
+        profile.update(cookie_file=generations[2], expected_revision=snapshot.revision)
+        if restart_store:
+            store.close()
+            store = ExtensionCookieStore(tmp_path / 'generations', profile=profile)
+        coordinator = CookieExpiryCoordinator(profile, lambda: store)
+        client, _ = reader(generations[2], coordinator, [])
+        initial = profile.snapshot().revision
+        for index in range(6):
+            header = 'PHPSESSID=777_old; Domain=.pixiv.net; Path=/; Secure; Expires=' + formatdate(expiry + 7200 + index, usegmt=True)
+            client._transport = lambda *args: _ReadResponse(b'{"error":false,"body":{}}', (header,))
+            fetch(client)
+        assert profile.snapshot().revision == initial + 6
+        assert len(list((store.root / 'generations').iterdir())) <= 8
+        assert generations[-1].is_file()
+    finally:
+        client.close(); coordinator.close(); store.close(); profile.close()
+
+
 def test_failed_partial_cleanup_does_not_fail_renewal_and_retries(tmp_path, monkeypatch):
     import pixivvault_nicegui.extension_cookie_store as module
     monkeypatch.setattr(module, 'MAX_RETAINED_COOKIE_GENERATIONS', 2)
@@ -74,11 +150,11 @@ def test_failed_partial_cleanup_does_not_fail_renewal_and_retries(tmp_path, monk
     client, _ = reader(cookie, coordinator, [])
     original_unlink = store._delete_retired_file
     failed = []
-    def fail_metadata_once(path, proof, limit):
+    def fail_metadata_once(path, proof, limit, descriptor):
         if path.name == 'generation.json' and not failed:
             failed.append(True)
             raise PermissionError('synthetic cleanup failure')
-        return original_unlink(path, proof, limit)
+        return original_unlink(path, proof, limit, descriptor)
     monkeypatch.setattr(store, '_delete_retired_file', fail_metadata_once)
     try:
         for index in range(4):
@@ -156,11 +232,11 @@ def test_partial_cleanup_retried_when_space_is_already_sufficient(tmp_path, monk
             saved.append(profile.snapshot().cookie_file)
         original = store._delete_retired_file
         failed = []
-        def fail_once(path, proof, limit):
+        def fail_once(path, proof, limit, descriptor):
             if path.name == 'generation.json' and not failed:
                 failed.append(True)
                 raise PermissionError('synthetic cleanup failure')
-            return original(path, proof, limit)
+            return original(path, proof, limit, descriptor)
         monkeypatch.setattr(store, '_delete_retired_file', fail_once)
         with pytest.raises(PermissionError):
             store._remove_retired(saved[0].parent)
