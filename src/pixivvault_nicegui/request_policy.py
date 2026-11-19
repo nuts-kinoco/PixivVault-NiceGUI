@@ -103,12 +103,19 @@ def _wait(seconds,deadline,*,clock,sleep):
 
 
 class RequestAdmission:
+    """Shared minimum-interval gate with the original rate_coordinator lanes.
+
+    The next issue slot is reserved atomically (short lock); the wait happens outside the
+    lock. A background request defers before reserving while an interactive request is
+    queued, for at most MAX_BACKGROUND_DEFER_SECONDS measured once per call, so an
+    interactive stream can never starve it. An interactive request reserves at once.
+    A request that fails (deadline, stop checkpoint) gives its slot back.
+    """
     def __init__(self,interval,*,clock=time.monotonic,sleep=time.sleep):
         self.interval=interval;self.clock=clock;self.sleep=sleep
-        self._lock=Lock();self._last=None
+        self._lock=Lock();self._next=None
         self._count_lock=Lock();self._interactive_waiting=0
     def _defer_for_interactive(self,deadline):
-        """Background yields to waiting interactive requests, at most MAX_BACKGROUND_DEFER_SECONDS."""
         start=self.clock()
         while True:
             with self._count_lock:
@@ -116,6 +123,21 @@ class RequestAdmission:
             if self.clock()-start>=MAX_BACKGROUND_DEFER_SECONDS:return
             request_checkpoint();_check_deadline(deadline,self.clock)
             self.sleep(0.05)
+    def _reserve(self,deadline):
+        while not self._lock.acquire(timeout=0.1):
+            request_checkpoint();_check_deadline(deadline,self.clock)
+        try:
+            seconds=float(self.interval())
+            if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
+            now=self.clock()
+            previous=self._next
+            start=now if previous is None else max(now,previous)
+            self._next=start+seconds
+            return start-now,previous,start+seconds
+        finally:self._lock.release()
+    def _release(self,previous,reserved):
+        with self._lock:
+            if self._next==reserved:self._next=previous
     def __call__(self,deadline):
         request_checkpoint();_check_deadline(deadline,self.clock)
         interactive=_LANE.get()=='interactive'
@@ -123,15 +145,10 @@ class RequestAdmission:
             with self._count_lock:self._interactive_waiting+=1
         try:
             if not interactive:self._defer_for_interactive(deadline)
-            while not self._lock.acquire(timeout=0.1):
-                request_checkpoint();_check_deadline(deadline,self.clock)
-            try:
-                seconds=float(self.interval())
-                if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
-                now=self.clock();wait=0 if self._last is None else max(0,self._last+seconds-now)
-                _wait(wait,deadline,clock=self.clock,sleep=self.sleep)
-                self._last=self.clock()
-            finally:self._lock.release()
+            wait,previous,reserved=self._reserve(deadline)
+            try:_wait(wait,deadline,clock=self.clock,sleep=self.sleep)
+            except BaseException:
+                self._release(previous,reserved);raise
         finally:
             if interactive:
                 with self._count_lock:self._interactive_waiting-=1
