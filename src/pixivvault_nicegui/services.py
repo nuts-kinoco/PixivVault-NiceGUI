@@ -179,6 +179,7 @@ class ApplicationServices:
         self.external_vault_root = external_vault_root
         self.image_cache_root = image_cache_root
         self.preferences = None
+        self.local_tagger = None
         self._failure_actions_lock = RLock()
         self._failure_record_actions = None
         self.discovery = None
@@ -723,6 +724,8 @@ class ApplicationServices:
             if preferences_root is not None:
                 from .preferences import PreferencesStore
                 self.preferences = PreferencesStore(Path(preferences_root) / 'preferences.sqlite3')
+                from .local_tagger import TaggerManager
+                self.local_tagger = TaggerManager(self.preferences, provider=lambda: self._egara_provider)
                 if self.live_client is not None:
                     from .bookmark_cache_store import BookmarkCacheStore
                     try:
@@ -3019,6 +3022,8 @@ class ApplicationServices:
             self.recommendations.close()
         if self.discovery is not None:
             self.discovery.close()
+        if self.local_tagger is not None:
+            self.local_tagger.close()
         if self.following_sync is not None:
             self.following_sync.close()
         vault_shutdown_error = None
