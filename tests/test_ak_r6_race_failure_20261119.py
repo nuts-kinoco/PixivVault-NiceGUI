@@ -124,7 +124,6 @@ async def test_first_session_snapshot_does_not_abort_seed_scan(tmp_path, fixture
 
 
 @pytest.mark.asyncio
-@pytest.mark.asyncio
 async def test_readability_change_during_fetch_result_uses_fresh_order(tmp_path, fixture):
     _, store, tagger, _ = fixture
     started, release = Event(), Event()
@@ -249,6 +248,3 @@ async def test_open_learning_trend_removes_stale_projection(tmp_path, fixture, m
             task.cancel()
         await asyncio.gather(*owned, return_exceptions=True)
         await asyncio.to_thread(service.close)
-
-
-@pytest.mark.asyncio
