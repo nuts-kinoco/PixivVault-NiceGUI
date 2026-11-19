@@ -1,11 +1,14 @@
 """Reopen indexless artwork storage with its real sibling owners."""
 import hashlib
 import json
+from types import SimpleNamespace
 
 import pytest
 
 from pixivvault_nicegui.author_media import AuthorMediaService
 from pixivvault_nicegui.legacy_ledger_rebuild import publish_rebuilt_ledger, rebuild_undecidable_ledger
+from pixivvault_nicegui import legacy_quarantine
+from pixivvault_nicegui.library_models import LibrarySnapshot
 from pixivvault_nicegui.managed_downloads import ManagedDownloadError, ManagedPixivDownloads
 from pixivvault_nicegui.managed_generations import ManagedGenerations
 from pixivvault_nicegui.managed_network_stop_integration import ManagedNetworkStopIntegration
@@ -114,6 +117,51 @@ def test_indexless_artwork_root_preserves_rebuilt_legacy_ledger(tmp_path):
     finally:
         owner.close()
     assert {name: value for name, value in snapshot(root).items() if name in before} == before
+
+
+@pytest.mark.parametrize('torn', [False, True])
+def test_indexless_artwork_root_preserves_interrupted_legacy_quarantine_marker(
+        old_artwork_root, tmp_path, monkeypatch, torn):
+    images = tmp_path / 'legacy-images'
+    images.mkdir()
+    root = old_artwork_root
+    legacy = legacy_quarantine.LegacyQuarantine(
+        images, LibrarySnapshot(()), owner=SimpleNamespace(root=root, closed=False))
+    original_write = legacy_quarantine._write
+
+    def interrupt(path, data):
+        original_write(path, data[:60] if torn else data)
+        raise OSError('interrupted before publishing quarantine identity')
+
+    with monkeypatch.context() as patch:
+        patch.setattr(legacy_quarantine, '_write', interrupt)
+        with pytest.raises(OSError, match='interrupted before publishing'):
+            legacy._ensure()
+    stage, = root.glob('legacy-identity-*.next')
+    assert stage.is_file()
+    assert not (root / 'legacy-quarantine' / 'IDENTITY.json').exists()
+    before = snapshot(root)
+
+    owner = ManagedPixivDownloads(root, None, resolve_record=lambda _: record())
+    try:
+        assert owner.saved_receipts()[0][1]['work_id'] == '123'
+    finally:
+        owner.close()
+        legacy.close()
+    assert {name: value for name, value in snapshot(root).items() if name in before} == before
+
+
+@pytest.mark.parametrize('bad_stage', ['name', 'payload', 'missing folder'])
+def test_indexless_artwork_root_rejects_unrecognized_quarantine_staging(old_artwork_root, bad_stage):
+    root = old_artwork_root
+    if bad_stage != 'missing folder':
+        (root / 'legacy-quarantine').mkdir()
+    suffix = 'a' * 31 if bad_stage == 'name' else 'a' * 32
+    (root / f'legacy-identity-{suffix}.next').write_bytes(b'not a marker' if bad_stage == 'payload' else b'{')
+    before = snapshot(root)
+    with pytest.raises(ManagedDownloadError):
+        ManagedPixivDownloads(root, None, resolve_record=lambda _: record())
+    assert snapshot(root) == before
 
 
 @pytest.mark.parametrize('unexpected', ['jobs.sqlite3.unrecognized', 'generations',

@@ -450,6 +450,9 @@ class ManagedGenerations:
                     _safe_path(child)
                     continue
                 if child.name not in managed_dirs or not child.is_dir():
+                    from .legacy_quarantine import is_legacy_identity_stage
+                    if is_legacy_identity_stage(child):
+                        continue
                     raise ManagedDownloadError('active generation index missing')
                 _safe_path(child)
                 if child.name == 'outputs':
