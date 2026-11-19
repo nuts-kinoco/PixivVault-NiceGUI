@@ -1739,7 +1739,8 @@ class LearningView:
                 async with self._review_detail_lock:
                     if not self._review_valid(epoch):
                         return
-                    raw = await asyncio.to_thread(self.discovery.reader.get_discovery_work, wid)
+                    from ..request_policy import interactive
+                    raw = await asyncio.to_thread(interactive(self.discovery.reader.get_discovery_work), wid)
                 if str(raw.get('id')) != wid:
                     raise ValueError('wrong work identity')
             title = title or raw.get('title')

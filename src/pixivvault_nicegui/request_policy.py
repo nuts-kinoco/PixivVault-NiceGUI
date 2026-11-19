@@ -21,6 +21,30 @@ class _Scope:
 
 _SCOPE=ContextVar('pixivvault_request_scope',default=_Scope())
 _BOUNDED_GET_RETRY=ContextVar('pixivvault_bounded_get_retry',default=False)
+_LANE=ContextVar('pixivvault_request_lane',default='background')
+# Original rate_coordinator.py MAX_BACKGROUND_DEFER_SECONDS: background yields to a
+# waiting interactive request, but never starves for longer than this.
+MAX_BACKGROUND_DEFER_SECONDS=2.0
+
+
+def interactive(function):
+    """Wrap a callable so its requests are admitted in the interactive lane."""
+    @wraps(function)
+    def run(*args,**kwargs):
+        with interactive_lane():return function(*args,**kwargs)
+    return run
+
+
+def current_lane():
+    return _LANE.get()
+
+
+@contextmanager
+def interactive_lane():
+    """Mark requests issued inside as screen-driven (admitted ahead of background)."""
+    token=_LANE.set('interactive')
+    try:yield
+    finally:_LANE.reset(token)
 
 
 def durable_stop_status(status):
@@ -82,17 +106,35 @@ class RequestAdmission:
     def __init__(self,interval,*,clock=time.monotonic,sleep=time.sleep):
         self.interval=interval;self.clock=clock;self.sleep=sleep
         self._lock=Lock();self._last=None
+        self._count_lock=Lock();self._interactive_waiting=0
+    def _defer_for_interactive(self,deadline):
+        """Background yields to waiting interactive requests, at most MAX_BACKGROUND_DEFER_SECONDS."""
+        start=self.clock()
+        while True:
+            with self._count_lock:
+                if self._interactive_waiting==0:return
+            if self.clock()-start>=MAX_BACKGROUND_DEFER_SECONDS:return
+            request_checkpoint();_check_deadline(deadline,self.clock)
+            self.sleep(0.05)
     def __call__(self,deadline):
         request_checkpoint();_check_deadline(deadline,self.clock)
-        while not self._lock.acquire(timeout=0.1):
-            request_checkpoint();_check_deadline(deadline,self.clock)
+        interactive=_LANE.get()=='interactive'
+        if interactive:
+            with self._count_lock:self._interactive_waiting+=1
         try:
-            seconds=float(self.interval())
-            if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
-            now=self.clock();wait=0 if self._last is None else max(0,self._last+seconds-now)
-            _wait(wait,deadline,clock=self.clock,sleep=self.sleep)
-            self._last=self.clock()
-        finally:self._lock.release()
+            if not interactive:self._defer_for_interactive(deadline)
+            while not self._lock.acquire(timeout=0.1):
+                request_checkpoint();_check_deadline(deadline,self.clock)
+            try:
+                seconds=float(self.interval())
+                if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
+                now=self.clock();wait=0 if self._last is None else max(0,self._last+seconds-now)
+                _wait(wait,deadline,clock=self.clock,sleep=self.sleep)
+                self._last=self.clock()
+            finally:self._lock.release()
+        finally:
+            if interactive:
+                with self._count_lock:self._interactive_waiting-=1
 
 
 class RequestRetryPolicy:

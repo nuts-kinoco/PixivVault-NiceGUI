@@ -1301,7 +1301,8 @@ class LibraryView(ViewerController):
                 self.services.managed_network_stop.require_allowed()
             return vault.search(query, filters.bookmark_min, r18=filters.include_r18, exclude_ai=filters.exclude_ai)
         try:
-            packet = await asyncio.to_thread(read)
+            from ..request_policy import interactive
+            packet = await asyncio.to_thread(interactive(read))
             works, records = {}, {}
             for raw in packet['illusts']:
                 row = normalize_item(raw)
