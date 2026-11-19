@@ -160,10 +160,11 @@ class SchedulerView:
                 with self.services._scheduler_dispatch_lock:
                     if any(job.state in UNFINISHED for job in self.services.jobs.snapshot()):
                         raise RuntimeError('unfinished managed jobs must be inspected first')
-                    self.services.managed_schedule_runner.acknowledge_interrupted(
+                    return self.services.managed_schedule_runner.acknowledge_interrupted(
                         expected_revision=revision,
                         account_id=self._displayed_history_account(ledger, account_id))
-            await asyncio.to_thread(inspect)
+            saved = await asyncio.to_thread(inspect)
+            self.revision = saved.revision
             self.services.managed_schedule_runner.settings_changed()
             self._load(ledger)
         except (ScheduleAccountError, AccountMismatch):
@@ -271,21 +272,20 @@ class SchedulerView:
             account_id = self._settings_account
             if str(form[1]) == '0' and not form[2]:
                 authors_edited = form[0] != getattr(self, '_loaded_authors', '')
-                saved = await asyncio.to_thread(ledger._disable, expected_revision=revision)
+                saved = await asyncio.to_thread(ledger._disable, expected_revision=revision,
+                                                account_id=account_id)
+                self.revision = revision = saved.revision
                 stop_saved = True
                 runner = getattr(self.services, 'managed_schedule_runner', None)
                 if runner is not None:
                     runner.settings_changed()
                 if not authors_edited:
                     self._settings_dirty = (self.authors.value or '', self.interval.value, self.startup.value) != form
-                    if self._settings_dirty:
-                        self.revision = saved.revision
                     self._load(ledger)
                     return
                 if self._stars_unknown_in_form:
                     self.action_notice.set_text('停止を保存しました。☆を変更するには再読込してください。')
                     return
-                revision = saved.revision
             require_same_account(account_id, ledger.favourite_account(),
                                  error=ScheduleAccountError('mismatch'))
             raw = tuple(part.strip() for part in form[0].split(',') if part.strip())
@@ -324,8 +324,7 @@ class SchedulerView:
             # Edits made while the worker saved the captured form still belong
             # to the user. Keep them and base the next CAS on this commit.
             self._settings_dirty = (self.authors.value or '', self.interval.value, self.startup.value) != form
-            if self._settings_dirty:
-                self.revision = saved.revision
+            self.revision = saved.revision
             self._load(ledger)
             notices = []
             if ignored:
@@ -338,7 +337,8 @@ class SchedulerView:
             notice = '同期先アカウントが変わりました。「編集を破棄して再読込」してから保存してください'
             self.action_notice.set_text(('停止を保存しました。' if stop_saved else '') + notice)
         except Exception:
-            self.status.set_text('設定を保存できませんでした。別画面の更新や入力を確認してください')
+            notice = '設定を保存できませんでした。別画面の更新や入力を確認してください'
+            self.status.set_text(('停止を保存しました。' if stop_saved else '') + notice)
         finally:
             self._busy = False
             if not self.closed:

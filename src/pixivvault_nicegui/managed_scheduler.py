@@ -214,24 +214,30 @@ class ManagedScheduler:
                                   startup_check=startup_check, expected_revision=expected_revision,
                                   now=now, account_id=account_id)
 
-    def _disable(self, *, expected_revision: int) -> ScheduleState:
+    def _disable(self, *, expected_revision: int, account_id=None) -> ScheduleState:
         """Save the global stop with the settings revision displayed by the editor."""
         with self._lock:
             self._ensure_open()
-            self._db.execute('BEGIN IMMEDIATE')
-            try:
-                before = self.snapshot()
-                if before.revision != expected_revision:
-                    raise ScheduleError('settings changed')
-                self._db.execute('UPDATE schedule SET interval_hours=0,startup_check=0,next_due_utc=NULL,'
-                                 'revision=revision+1 WHERE id=1 AND (interval_hours!=0 OR startup_check!=0 '
-                                 'OR next_due_utc IS NOT NULL)')
-                saved = self.snapshot()
-                self._db.execute('COMMIT')
-                return saved
-            except BaseException:
-                self._db.execute('ROLLBACK')
-                raise
+            book = self._favourites_source
+            following = book.following if book is not None and account_id is not None else None
+            with following._lock if following is not None else nullcontext():
+                if account_id is not None:
+                    require_same_account(account_id, self.favourite_account(),
+                                         error=ScheduleAccountError('mismatch'))
+                self._db.execute('BEGIN IMMEDIATE')
+                try:
+                    before = self.snapshot()
+                    if before.revision != expected_revision:
+                        raise ScheduleError('settings changed')
+                    self._db.execute('UPDATE schedule SET interval_hours=0,startup_check=0,next_due_utc=NULL,'
+                                     'revision=revision+1 WHERE id=1 AND (interval_hours!=0 OR startup_check!=0 '
+                                     'OR next_due_utc IS NOT NULL)')
+                    saved = self.snapshot()
+                    self._db.execute('COMMIT')
+                    return saved
+                except BaseException:
+                    self._db.execute('ROLLBACK')
+                    raise
 
     # Timer-only lifecycle. These transitions reserve/settle a slot before first binding.
     def _claim_due(self, now: datetime, *, startup: bool = False) -> str | None:
