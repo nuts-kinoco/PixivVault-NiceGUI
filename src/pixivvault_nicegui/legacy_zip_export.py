@@ -104,13 +104,13 @@ def legacy_filename(title: str, work_id: str, page_no: int, page_count: int,
     safe_title = _INVALID_FILENAME.sub('_', title)
     legacy = (f'{safe_title}.{ext}' if page_count == 1
               else f'{safe_title}_{page_no + 1}.{ext}')
-    stem, suffix = legacy.rsplit('.', 1)
+    stem, suffix = os.path.splitext(legacy)
     if f'({work_id})' in legacy:
         filename = legacy  # Original core.py work_id_arcname is idempotent.
     else:
         match = _PAGE_SUFFIX.match(stem)
-        filename = (f'{match.group(1)}({work_id})_{match.group(2)}.{suffix}'
-                    if match else f'{stem}({work_id}).{suffix}')
+        filename = (f'{match.group(1)}({work_id})_{match.group(2)}{suffix}'
+                    if match else f'{stem}({work_id}){suffix}')
     return filename
 
 
