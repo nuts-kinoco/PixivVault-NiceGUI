@@ -464,6 +464,7 @@ class DuplicateView:
                 message = ('旧ごみ箱を開けませんでした。画像保存先と同じ階層の quarantine を確認してください。'
                            if original else 'ごみ箱の保存先を開けませんでした。再読込して確認してください。')
                 self.trash_status.set_text(message)
+                self.trash_status.set_visibility(True)
         finally:
             self._trash_opening=False
             if not self.closed:self.sync()

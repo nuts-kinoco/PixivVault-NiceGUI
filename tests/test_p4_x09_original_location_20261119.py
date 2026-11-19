@@ -10,6 +10,37 @@ from test_required_legacy_duplicates import select, setup
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('original', [False, True])
+async def test_healthy_trash_shows_open_location_failure(tmp_path, original):
+    source, legacy, owner, *_ = setup(tmp_path)
+    client = Client(ui.page('/_p4_x09_open_failure'))
+    attempted = []
+
+    async def fail_open(**options):
+        attempted.append(options)
+        raise DesktopActionRejected('generated launcher failure')
+
+    try:
+        with legacy._lock:
+            legacy._ensure()
+        with client:
+            view = DuplicateView(source, open_trash=fail_open)
+            view.set_active(True)
+            await view.open_trash()
+            assert not view.trash_status.visible
+            await view.open_trash_location(original=original)
+            assert attempted == [{'original': True} if original else {}]
+            assert '開けませんでした' in view.trash_status.text
+            assert view.trash_status.visible
+            await view.refresh_trash()
+            assert not view.trash_status.visible
+    finally:
+        client.delete()
+        source.close()
+        owner.close()
+
+
+@pytest.mark.asyncio
 async def test_trash_opens_original_and_managed_locations_separately(tmp_path):
     source, legacy, owner, _, images, _ = setup(tmp_path)
     opened = []
