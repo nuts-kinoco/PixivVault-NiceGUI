@@ -141,25 +141,6 @@ class DiscoveryLearningService(LearningService):
         for session in self._sessions.values():
             session.repository.artwork_metadata[record.work_id] = deepcopy(self._metadata[record.work_id])
 
-    def _record(self, session_id, judgment):
-        session = self._session(session_id)
-        metadata = session.repository.artwork_metadata.get(judgment.work_id)
-        original_tags = metadata.get('tags') if metadata is not None else None
-        try:
-            if (metadata is not None and not original_tags and self.tagger is not None
-                    and self.local_image is not None and judgment.operation_id not in session.receipts):
-                try:
-                    data = self.local_image(judgment.work_id)
-                    tags = self.tagger.predict(data) if data else ()
-                    if tags:
-                        metadata['tags'] = tuple(name for name, _ in tags)
-                except Exception:
-                    pass  # Optional inference must not prevent an ordinary judgment.
-            return super()._record(session_id, judgment)
-        finally:
-            if metadata is not None:
-                metadata['tags'] = original_tags
-
     async def initialize_once(self, refresh_context_callback=None, *, is_current=None):
         """Configured app startup and first tab share original initial_load.
 

@@ -39,10 +39,10 @@ def test_only_missing_api_tags_are_used_in_real_judgment(tmp_path):
         def read():
             return {r['work_id']: json.loads(r['tags']) for r in service._database().conn.execute('SELECT work_id,tags FROM discovery_swipe_history')}
         rows = service._submit(read).result()
-        assert rows['1000'] == ['cat']
+        assert rows['1000'] == []
         assert rows['1001'] == ['api_tag']
         assert rows['1002'] == []
-        assert calls == [b'image']
+        assert calls == []
         tagger.enabled = False
         service.submit_record(session.session_id, Judgment('1000', 'hate', 'op-new')).result()
         assert service._submit(read).result()['1000'] == []
