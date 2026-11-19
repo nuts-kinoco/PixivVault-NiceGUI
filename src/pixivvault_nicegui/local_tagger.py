@@ -34,7 +34,7 @@ def verify_model(folder, receipt=None):
     try:
         paths = [manifest, *(root / name for name in FILES)]
         identities = [_identity(path) for path in paths]
-        if receipt and receipt.get('identities') == identities and receipt.get('verified') is True:
+        if isinstance(receipt, dict) and receipt.get('identities') == identities and receipt.get('verified') is True:
             return '利用可能', receipt
         source = json.loads(manifest.read_text(encoding='utf-8'))
         entries = {item['path']: item['sha256'] for item in source['files']}
@@ -144,3 +144,63 @@ class LocalTagger:
             self._closed = True
             self.session = self.tags = None
             self.cache.clear()
+
+
+class TaggerManager:
+    """Own one model session and save verification evidence in preferences."""
+    def __init__(self, preferences, *, provider=lambda: 'auto'):
+        self.preferences = preferences
+        self.provider = provider
+        self.tagger = None
+        self.status = '未検出'
+        self._lock = RLock()
+        self._closed = False
+
+    def _current(self):
+        snapshot = self.preferences.snapshot()
+        path = snapshot.values['local_tagger_path']
+        provider = self.provider()
+        if self.tagger is None or str(self.tagger.folder) != path or self._provider != provider:
+            if self.tagger is not None:
+                self.tagger.close()
+            try:
+                receipt = json.loads(snapshot.values['local_tagger_receipt'])
+            except (ValueError, TypeError):
+                receipt = None
+            providers = {'cpu': ['CPUExecutionProvider'], 'cuda': ['CUDAExecutionProvider', 'CPUExecutionProvider']}.get(provider)
+            self.tagger = LocalTagger(path, providers=providers, receipt=receipt)
+            self._provider = provider
+        return snapshot
+
+    def verify(self):
+        with self._lock:
+            if self._closed:
+                return '読込失敗'
+            snapshot = self._current()
+            self.status = '検証中'
+            self.status = self.tagger.verify()
+            value = json.dumps(self.tagger.receipt, ensure_ascii=False, separators=(',', ':')) if self.tagger.receipt else ''
+            if value != snapshot.values['local_tagger_receipt']:
+                try:
+                    self.preferences.update({'local_tagger_receipt': value}, expected_revision=snapshot.revision)
+                except Exception:
+                    pass  # Another settings edit wins; verification will be repeated later.
+            return self.status
+
+    def predict(self, data):
+        with self._lock:
+            if self._closed:
+                return []
+            snapshot = self._current()
+            if snapshot.values['local_tagger_enabled'] != '1' or self.verify() != '利用可能':
+                return []
+            result = self.tagger.predict(data)
+            self.status = self.tagger.status
+            return result
+
+    def close(self):
+        with self._lock:
+            self._closed = True
+            if self.tagger is not None:
+                self.tagger.close()
+                self.tagger = None
