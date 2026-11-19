@@ -1095,8 +1095,10 @@ class LivePixivReadClient:
         """Original discovery author lane; an early exit is never a complete inventory."""
         if early_exit_checker is not None and not callable(early_exit_checker):
             raise ValueError('invalid early exit checker')
-        return self._get_author_artworks(user_id, require_complete=False,
-            discovery=True, early_exit_checker=early_exit_checker)
+        from .request_policy import lane_scope
+        with lane_scope(lane):
+            return self._get_author_artworks(user_id, require_complete=False,
+                discovery=True, early_exit_checker=early_exit_checker)
 
     def _get_author_artworks(self, user_id: str, *, require_complete: bool,
                             discovery=False, early_exit_checker=None) -> tuple[dict, ...]:

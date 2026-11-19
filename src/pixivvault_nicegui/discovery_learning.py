@@ -45,8 +45,10 @@ class _Reader:
         target = getattr(self.reader, "search_recommendation_illusts" if name == "search_illusts" and hasattr(self.reader, "search_recommendation_illusts") else name)
         def call(*args, **kwargs):
             if self.is_current is not None and not self.is_current():raise RuntimeError('discovery acquisition stopped')
-            kwargs.pop('lane', None)
-            return target(*args, **kwargs)
+            from .request_policy import lane_scope
+            lane = kwargs.pop('lane', 'background')
+            with lane_scope(lane):
+                return target(*args, **kwargs)
         return call
 
 class DiscoveryLearningService(LearningService):
