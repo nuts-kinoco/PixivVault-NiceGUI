@@ -78,3 +78,18 @@ def test_restore_republishes_complete_author_zip(tmp_path):
             with ZipFile(archive(q)) as z: assert len(z.namelist())==2
             jobs=settled(q.exports); q.exports.scan(); assert len(settled(q.exports))==len(jobs)
         finally:source.close()
+
+
+def test_move_restore_republishes_complete_author_zip(tmp_path):
+    with generated_exports(tmp_path,True,None) as q:
+        q.exports.scan();assert all(j.state=='done' for j in settled(q.exports))
+        source=ManagedDuplicateInspection(q.managed)
+        try:
+            result=source.execute(plan_for(source,'123:1'),operation_id='c'*32,mode='move',confirmed_move=True)
+            q.exports.scan();assert all(j.state=='done' for j in settled(q.exports))
+            with ZipFile(archive(q)) as z:assert len(z.namelist())==1
+            source.restore_move(result.operation_id,expected_revision=result.state_revision)
+            assert q.managed.visible_source_pages('123')==(0,1)
+            q.exports.scan();assert all(j.state=='done' for j in settled(q.exports))
+            with ZipFile(archive(q)) as z:assert len(z.namelist())==2
+        finally:source.close()
