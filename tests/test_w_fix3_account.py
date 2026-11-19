@@ -60,7 +60,7 @@ async def test_bookmark_resume_does_not_use_different_account(tmp_path, monkeypa
     owner = services_with_runs(tmp_path, following_sync_root=following)
     prepared, finish = Event(), Event()
 
-    def hold_before_listing(_):
+    def hold_before_listing(_visibility, _records):
         prepared.set()
         if not finish.wait(8):
             raise TimeoutError('review synchronization')
@@ -69,9 +69,9 @@ async def test_bookmark_resume_does_not_use_different_account(tmp_path, monkeypa
     try:
         sync(owner.following_sync, 1)
         monkeypatch.setattr(owner.batch_runs.port, 'list_bookmarks', hold_before_listing)
-        old_id = await owner.start_bookmark_run(('show',))
+        old_id = (await owner.start_bookmark_run(('show',))).run_id
         assert await asyncio.to_thread(prepared.wait, 8)
-        owner.batch_runs.stop()
+        owner.batch_runs.stop(owner.batch_run_ledger.run(old_id).handle)
         finish.set()
         assert await asyncio.to_thread(owner.batch_runs.join, 8)
         old = owner.batch_run_ledger.run(old_id)
@@ -88,16 +88,14 @@ async def test_bookmark_resume_does_not_use_different_account(tmp_path, monkeypa
     reader = OtherReader()
     reopened = services_with_runs(tmp_path, reader, following_sync_root=following)
     try:
-        offer = reopened.batch_runs.resumable_run()
+        offer = reopened.batch_runs.resumable_run('55')
         assert offer.run_id == old_id
-        new_id = reopened.resume_batch_run(old_id)
-        assert await asyncio.to_thread(reopened.batch_runs.join, 12)
-        new = reopened.batch_run_ledger.run(new_id)
-        items = reopened.batch_run_ledger.items(new_id, VISIBILITY_ROWS['show'])
-        print(f'bookmark account: run account={new.account_id}, actual account=77, '
-              f'state={new.state}, stored={reopened.managed_downloads.verified_saved_receipt("99") is not None}, '
-              f'works={[row.work_key for row in items]}')
-        assert not items and (new.state, new.error_code) == ('interrupted', 'bookmark_account_mismatch')
+        from pixivvault_nicegui.account_scope import AccountMismatch
+        before = reopened.batch_run_ledger.runs()
+        with pytest.raises(AccountMismatch):
+            await reopened.resume_batch_run(offer.handle)
+        assert reopened.batch_run_ledger.runs() == before
+        assert not reader.calls
         assert reopened.managed_downloads.verified_saved_receipt('99') is None
     finally:
         await asyncio.to_thread(reopened.close)

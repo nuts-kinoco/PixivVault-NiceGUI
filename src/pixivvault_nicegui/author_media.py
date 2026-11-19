@@ -16,7 +16,7 @@ import sqlite3
 from threading import RLock
 from uuid import uuid4
 
-from .account_scope import AccountScope, OwnedListing, require_same_account
+from .account_scope import AccountMismatch, AccountScope, OwnedListing, require_same_account
 from .author_download import Difference, decide_difference
 from .job_service import UNFINISHED
 from .fs_paths import native_io_path
@@ -230,9 +230,10 @@ class AuthorMediaService:
         return None
 
     def preview(self, author_id, target_type=None, *, novel_format='EPUB', ugoira_format='gif',
-                new_only=False):
+                new_only=False, expected_account=None):
         return self.preview_owned(author_id, target_type, novel_format=novel_format,
-                                  ugoira_format=ugoira_format, new_only=new_only).rows
+                                  ugoira_format=ugoira_format, new_only=new_only,
+                                  expected_account=expected_account).rows
 
     def preview_owned(self, author_id, target_type=None, *, expected_account=None,
                       novel_format='EPUB', ugoira_format='gif', new_only=False) -> OwnedListing:
@@ -252,7 +253,7 @@ class AuthorMediaService:
         if expected_account is not None:
             require_same_account(expected_account, account)
         scope.verify_current(s)
-        self.reconcile()
+        self.reconcile(author_id=author_id, scope=scope)
         scope.verify_current(s)
         output = []
         bridge = getattr(s,'legacy_author_bridge',None)
@@ -474,7 +475,7 @@ class AuthorMediaService:
         """Drop journal rows of retired static (illustration) operations; return how many.
 
         Their jobs and receipts-of-record are gone from JobService, so the rows can no
-        longer bind to anything, yet every preview reconciles every row.
+        longer bind to anything, yet they still consume journal space.
         Novel/ugoira rows are never touched: their owners keep their ledgers.
         """
         ids = [op for op in operation_ids if type(op) is str and re.fullmatch(r'[a-f0-9]{32}', op)]
@@ -535,14 +536,17 @@ class AuthorMediaService:
         return tuple('作者受付 '+op+'：'+reasons.get(v['phase'],reasons['invalid_spec'])
                      for op,v in self.reconcile_errors.copy().items())
 
-    def reconcile(self, expected=None, *, author_id=None):
+    def reconcile(self, expected=None, *, author_id=None, scope: AccountScope | None = None):
         """Return (verified fingerprint by media key, op->job, op->fingerprint).
 
-        No GET. Recover enqueue/bind crashes from owner operation history.
-        Job done alone never proves an active generation or accepted revision.
+        Recover enqueue/bind crashes from the durable job's operation history.
+        Account-triggered recovery also requires the preview's current reader.
+        Local projection recovery uses the admitted operation and its verified receipt.
         """
         with self.lock:
             self._open()
+            if scope is not None:
+                scope.verify_current(self.services)
             proofs,operations,fingerprints={},{},{}
             with self._db() as db:
                 rows=db.execute('SELECT operation_id,media_key,spec,job_id,fingerprint,proof FROM admissions').fetchall()
@@ -583,15 +587,22 @@ class AuthorMediaService:
                     valid=proof is not None and proof['receipt']==job.result
                     if kind=='ugoira':valid=valid and proof['job_id']==job.job_id
                     phase='journal_write'
-                    with self._db() as db:
-                        db.execute('UPDATE admissions SET job_id=?,fingerprint=?,proof=COALESCE(?,proof) WHERE operation_id=?',
-                                   (job.job_id,expected_fp,canonical(proof) if valid else None,op))
+                    next_proof = canonical(proof) if valid else known
+                    if (job.job_id, expected_fp, next_proof) != (jid, fp, known):
+                        if scope is not None:
+                            scope.verify_current(self.services)
+                        with self._db() as db:
+                            db.execute('UPDATE admissions SET job_id=?,fingerprint=?,proof=? WHERE operation_id=?',
+                                       (job.job_id, expected_fp, next_proof, op))
                     # Publish reconciliation evidence only after the owned
                     # journal commit, preserving the durable-bind boundary.
                     operations[op]=job.job_id;fingerprints[op]=expected_fp
                     if valid and (expected is None or expected_fp in expected.get(key,())):proofs[key]=expected_fp
                     self.reconcile_errors.pop(op,None)
-                except Exception as error:self._reconcile_error(op,aid,phase,error)
+                except AccountMismatch:
+                    raise
+                except Exception as error:
+                    self._reconcile_error(op,aid,phase,error)
             return proofs,operations,fingerprints
 
     def completed_projection_sources(self):

@@ -123,7 +123,7 @@ def test_batch_engine_does_not_finish_author_after_account_change(tmp_path, swit
             assert run.finished_utc is None
             assert all(account == A for _, account, _ in calls)
         finally:
-            svc.batch_runs.stop()
+            svc.batch_runs._shutdown(0)
             assert svc.batch_runs.join(5)
             batch_ledger.close()
 
@@ -210,7 +210,7 @@ def test_completion_ledger_rejects_account_other_than_run_owner(tmp_path):
         store.sync(reader)
         batch = BatchRunLedger(tmp_path / "batch")
         try:
-            run_id = batch.begin_run("authors", "manual", "both", (X,), account_id=A)
+            run_id = batch.begin_run("authors", "manual", "both", (X,), account_id=A).run_id
             with pytest.raises(RuntimeError, match="account changed"):
                 listing = OwnedListing(AccountScope(B, NS(_verified_identity=B)), X, "both", ())
                 batch.complete_author(run_id, X, following=store, listing=listing)

@@ -19,7 +19,7 @@ async def test_new_bookmark_run_records_verified_bookmark_account(tmp_path, monk
     owner = services_with_runs(tmp_path, Reader(), **kwargs)
     ready, finish = Event(), Event()
 
-    def hold(_):
+    def hold(_visibility, _records):
         ready.set()
         assert finish.wait(8)
         return ()
@@ -29,9 +29,9 @@ async def test_new_bookmark_run_records_verified_bookmark_account(tmp_path, monk
             sync(owner.following_sync, 1)
             assert owner.following_sync.last_synced_account() == ACCOUNT != '77'
         monkeypatch.setattr(owner.batch_runs.port, 'list_bookmarks', hold)
-        run_id = await owner.start_bookmark_run(('show',))
+        run_id = (await owner.start_bookmark_run(('show',))).run_id
         assert await asyncio.to_thread(ready.wait, 8)
-        owner.batch_runs.stop()
+        owner.batch_runs.stop(owner.batch_run_ledger.run(run_id).handle)
         finish.set()
         assert await asyncio.to_thread(owner.batch_runs.join, 8)
         run = owner.batch_run_ledger.run(run_id)

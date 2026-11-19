@@ -1,11 +1,11 @@
 import time
 from html.parser import HTMLParser
-from types import SimpleNamespace
 
 import pytest
 
-from test_w_dl_screen_20261118 import author_rows, finish, make
+from test_w_dl_screen_20261118 import ACCOUNT, author_rows, finish, make
 from pixivvault_nicegui import unified_download_state as U
+from pixivvault_nicegui.batch_runs import RunHandle
 
 
 @pytest.mark.asyncio
@@ -81,7 +81,8 @@ async def test_tick_refreshes_only_changed_chips(tmp_path, monkeypatch):
         calls = []
         original = view._chip_status
         monkeypatch.setattr(view, '_chip_status', lambda uid: (calls.append(uid), original(uid))[1])
-        view._events.put({'event': 'author_start', 'author_id': '1001'})
+        view._displayed_handle = RunHandle('1' * 32, ACCOUNT)
+        view._events.put({'event': 'author_start', 'author_id': '1001', 'handle': view._displayed_handle})
         view.tick()
         assert calls == ['1001']
     finally:
@@ -89,7 +90,7 @@ async def test_tick_refreshes_only_changed_chips(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_resuming_reconciles_chips_outside_new_run(tmp_path, monkeypatch):
+async def test_resuming_reconciles_chips_outside_new_run(tmp_path):
     services, client, view = make(tmp_path, author_rows(3))
     try:
         await view.reload()
@@ -100,11 +101,11 @@ async def test_resuming_reconciles_chips_outside_new_run(tmp_path, monkeypatch):
         view.refresh_chip_status()
         assert view._chips['1001']['status'].text == '完了'
         assert view._chips['1002']['status'].text == '失敗'
-        view.resumable = SimpleNamespace(run_id='1' * 32)
-        monkeypatch.setattr(services, 'resume_batch_run', lambda *args, **kwargs: None)
-        monkeypatch.setattr(services.batch_run_ledger, 'authors', lambda _: [
-            SimpleNamespace(author_id='1002'), SimpleNamespace(author_id='1003')])
-        assert view.resume_interrupted()
+        ledger = services.batch_run_ledger
+        prior = ledger.begin_run('authors', 'manual', 'both', ('1002', '1003'), account_id=ACCOUNT)
+        ledger.set_run_state(prior, 'stopped')
+        view.refresh_resumable()
+        assert await view.resume_interrupted()
         assert view._chips['1001']['status'].text == '待機'
         assert view._chips['1002']['status'].text == '待機'
     finally:
@@ -121,8 +122,9 @@ async def test_large_run_start_and_active_tick(tmp_path, count):
         started = time.perf_counter()
         assert view.run()
         elapsed = time.perf_counter() - started
-        view._events.put({'event': 'author_start', 'author_id': '1001'})
-        view._events.put({'event': 'work_progress', 'author_id': '1001', 'done': 0, 'queued': 2})
+        view._events.put({'event': 'author_start', 'author_id': '1001', 'handle': view._displayed_handle})
+        view._events.put({'event': 'work_progress', 'author_id': '1001', 'done': 0, 'queued': 2,
+                          'handle': view._displayed_handle})
         started = time.perf_counter()
         view.tick()
         tick = time.perf_counter() - started

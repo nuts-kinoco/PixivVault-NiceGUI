@@ -15,13 +15,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from threading import Condition, RLock, Thread
+from types import MappingProxyType
+from typing import Mapping
 import random
 import time
 from uuid import uuid4
 
 from .account_scope import AccountMismatch, AccountScope, OwnedListing, require_same_account
 from .author_download import Difference
-from .batch_runs import COUNTERS, BatchRunError
+from .batch_runs import COUNTERS, BatchRunError, RunHandle
 
 BETWEEN_AUTHORS = (4.0, 6.0)          # original core.py:2269 random.uniform(4.0, 6.0)
 MAX_IN_FLIGHT = 16                    # unfinished jobs the engine itself keeps queued
@@ -91,6 +93,20 @@ class JobRef:
     operation_id: str
 
 
+@dataclass(frozen=True, slots=True)
+class RunResult:
+    handle: RunHandle
+    state: str
+    error_code: str
+    totals: Mapping[str, int]
+
+
+@dataclass(frozen=True, slots=True)
+class BookmarkRunInput:
+    scope: AccountScope | None
+    records: tuple
+
+
 class ServicesPort:
     """Adapter over ApplicationServices (or anything shaped like it)."""
 
@@ -116,6 +132,9 @@ class ServicesPort:
             raise AccountMismatch()
         return AccountScope(reader.verify_identity(), reader).verify_current(self.s)
 
+    def verify_run_account(self, account_id: str) -> None:
+        AccountScope(account_id, self.s.live_client).verify_current(self.s)
+
     def list_author(self, author_id, target_type, *, expected_account: str) -> OwnedListing:
         AccountScope(expected_account)
         return self.s.author_media_preview_owned(author_id, target_type, expected_account=expected_account)
@@ -131,8 +150,8 @@ class ServicesPort:
         job, created, _ = self.s.enqueue_author_media(candidate, operation_id, origin='follow')
         return job.job_id, bool(created)
 
-    def list_bookmarks(self, visibility):
-        """Candidates of the cached bookmark list for one visibility (no network: the caller refreshed it)."""
+    def list_bookmarks(self, visibility, records):
+        """Classify one visibility of this execution’s frozen bookmark input."""
         from .bookmark_run import classify
         owner = self.s.managed_downloads
 
@@ -141,8 +160,7 @@ class ServicesPort:
                 return owner.verified_saved_receipt(work_id, verify_pages=False) is not None
             except Exception:
                 return False
-        records = [r for r in self.s.bookmark_download_candidates() if r.visibility == visibility]
-        return classify(records, is_saved=saved)
+        return classify((r for r in records if r.visibility == visibility), is_saved=saved)
 
     def _owner(self, kind):
         media = getattr(self.s, 'author_media', None)
@@ -209,11 +227,11 @@ class ServicesPort:
         except Exception as error:
             return 0 if 'limit exceeded' in str(error) else None
 
-    def settle(self, author_id):
+    def settle(self, author_id, *, scope):
         """Bind finished jobs to their proofs before the bounded job window forgets them."""
         media = getattr(self.s, 'author_media', None)
         if media is not None:
-            media.reconcile(author_id=author_id)
+            media.reconcile(author_id=author_id, scope=scope)
 
     def retire(self, refs):
         """Free the capped ledgers: int = retired, None = not safe yet, 'unsupported' = never."""
@@ -229,7 +247,7 @@ class BatchRunEngine:
         if type(max_in_flight) is not int or not 1 <= max_in_flight <= 40:
             raise ValueError('invalid in-flight limit')
         self.port, self.ledger = port, ledger
-        self.following, self.account_id = following, account_id
+        self.following, self._default_account = following, account_id
         self.on_progress = on_progress
         self.between_authors, self._uniform = between_authors, uniform
         self._external_wait = wait
@@ -244,101 +262,138 @@ class BatchRunEngine:
         self._paused = False
         self._current = None
         self._thread = None
-        self.run_id = None
+        self._handle = None
         self.state = 'idle'
         self.pause_reason = ''
-        self.totals = {name: 0 for name in COUNTERS}
+        self._totals = {name: 0 for name in COUNTERS}
 
     # -- control -----------------------------------------------------------
     @property
     def active(self):
         return self.state in ('running', 'paused', 'stopping')
 
-    def pause(self, reason='user'):
-        with self._cond:
-            if self.active and not self._stop:
-                self._paused, self.pause_reason, self.state = True, reason, 'paused'
-                self._set_run('paused', reason if reason != 'user' else '')
-                self._cond.notify_all()
+    @property
+    def run_id(self):
+        return self._handle.run_id if self._handle is not None else None
 
-    def resume(self):
+    def active_run(self, account_id):
         with self._cond:
+            if self.active and self._handle.account_id == account_id:
+                return self._handle
+            return None
+
+    def status(self, handle: RunHandle):
+        """Live status of the specified execution, or None after it finishes."""
+        with self._cond:
+            if self.active and handle == self._handle:
+                return self.state, self.pause_reason
+            return None
+
+    def _verify_owner(self, handle):
+        if type(handle) is not RunHandle:
+            raise AccountMismatch()
+        self.port.verify_run_account(handle.account_id)
+
+    def _require_active_handle(self, handle):
+        self._verify_owner(handle)
+        if handle != self._handle:
+            raise AccountMismatch()
+
+    def pause(self, handle: RunHandle, reason='user'):
+        with self._cond:
+            self._require_active_handle(handle)
+            return self._pause_run(handle, reason)
+
+    def _pause_run(self, handle, reason):
+        with self._cond:
+            if handle != self._handle or not self.active or self._stop:
+                return False
+            self._set_run(handle, 'paused', reason if reason != 'user' else '')
+            self._paused, self.pause_reason, self.state = True, reason, 'paused'
+            self._cond.notify_all()
+            return True
+
+    def resume(self, handle: RunHandle):
+        with self._cond:
+            self._require_active_handle(handle)
             if self.state == 'paused':
+                self._set_run(handle, 'running')
                 self._paused, self.pause_reason, self.state = False, '', 'running'
-                self._set_run('running')
                 self._cond.notify_all()
                 return True
             return False
 
-    def stop(self):
-        """Ask the run to stop. Safe from any thread; wakes every wait at once."""
+    def stop(self, handle: RunHandle):
         with self._cond:
-            if self.active and not self._stop:
-                self._stop, self._paused, self.state = True, False, 'stopping'
-                self._set_run('stopping')
-                self._cond.notify_all()
+            self._require_active_handle(handle)
+            return self._stop_run(handle)
+
+    def _stop_run(self, handle):
+        """Stop the specified execution during a scheduler cancellation or shutdown."""
+        with self._cond:
+            if handle != self._handle or not self.active or self._stop:
+                return False
+            self._set_run(handle, 'stopping')
+            self._stop, self._paused, self.state = True, False, 'stopping'
+            self._cond.notify_all()
+            return True
+
+    def _shutdown(self, timeout):
+        with self._cond:
+            handle = self._handle
+            if handle is not None:
+                self._stop_run(handle)
+        return self.join(timeout)
 
     # -- after a stop or a restart ------------------------------------------
     def _recover_on_startup(self):
-        """At application start: a run still marked active can no longer be running.
-
-        Marks it `interrupted` (its mid-step author `stopped`, never stamped). Starts nothing and
-        talks to nobody: whether to continue is the user's call (`resumable_run`).
-        """
+        """Mark orphaned runs interrupted while holding the ledger's process lock."""
         with self._cond:
             if self.active:
                 return ()
             return self.ledger._recover_interrupted()
 
-    def resumable_run(self):
-        """The run the screen offers as 「前回は途中で止まりました。再開／破棄」, or None."""
+    def resumable_run(self, account_id):
+        """Offer only the unfinished run belonging to the displayed account."""
         with self._cond:
-            return None if self.active else self.ledger.resumable_run()
+            if not self.active:
+                return self.ledger.resumable_run(account_id=account_id)
+            return None
 
-    def _displayed_resume(self, run_id):
-        run = self.resumable_run()
-        if run is None or run.run_id != run_id:
+    def _displayed_resume(self, handle):
+        self._verify_owner(handle)
+        run = self.resumable_run(handle.account_id)
+        if run is None or run.run_id != handle.run_id:
             raise AccountMismatch()
         return run
 
-    def discard_resumable(self, run_id, *, account_id):
+    def discard_resumable(self, handle: RunHandle):
         with self._cond:
-            run = self._displayed_resume(run_id)
-            self.ledger.discard_run(run.run_id, account_id=account_id)
+            run = self._displayed_resume(handle)
+            self.ledger.discard_run(handle)
             return run
 
-    def start_unfinished(self, run_id, *, account_id=None, bookmark_refresh=None):
+    def start_unfinished(self, handle: RunHandle, *, bookmark_refresh=None):
         """Resume the exact displayed run over its unfinished rows."""
         with self._cond:
-            run = self._displayed_resume(run_id)
-            verified = run.kind == 'bookmarks' and self.ledger.has_verified_bookmark_account(run.run_id)
-            if run.kind == 'bookmarks':
-                if not verified or not run.account_id:
-                    raise RunNeedsConfirmation('account_unknown')
-                if account_id is not None:
-                    require_same_account(run.account_id, account_id)
-                account_id = run.account_id
-            else:
-                AccountScope(account_id)
-                require_same_account(run.account_id, account_id)
-            authors = self.ledger.unfinished_authors(run.run_id)
-            preflight = (lambda: bookmark_refresh(account_id)) if verified and bookmark_refresh else None
+            run = self._displayed_resume(handle)
+            verified = run.kind == 'bookmarks' and self.ledger.has_verified_bookmark_account(handle.run_id)
+            if run.kind == 'bookmarks' and not verified:
+                raise RunNeedsConfirmation('account_unknown')
+            authors = self.ledger.unfinished_authors(handle.run_id)
             return self.start(authors, kind=run.kind, origin=run.origin, target_type=run.target_type or None,
-                              preflight=preflight, account_id=account_id, verified_bookmark_account=verified,
-                              resume_from=run.run_id)
+                              preflight=bookmark_refresh, account_id=handle.account_id,
+                              verified_bookmark_account=verified, resume_from=handle)
 
-    def join(self, timeout=None):
-        thread = self._thread
+    def join(self, timeout=None, *, handle: RunHandle | None = None):
+        with self._cond:
+            thread = self._thread if handle is None or self._handle == handle else None
         if thread is not None:
             thread.join(timeout)
         return thread is None or not thread.is_alive()
 
-    def _set_run(self, state, error_code=''):
-        if self.run_id is not None:
-            try:
-                self.ledger.set_run_state(self.run_id, state, error_code, account_id=self.account_id)
-            except BatchRunError:
-                pass
+    def _set_run(self, handle, state, error_code=''):
+        self.ledger.set_run_state(handle, state, error_code)
 
     def _check_state(self):
         """Original check_state(): raise on stop, block while paused."""
@@ -363,65 +418,79 @@ class BatchRunEngine:
                     return
                 self._cond.wait(min(left, 0.5))
 
-    def _emit(self, event, **values):
+    def _emit(self, handle, event, **values):
         if self.on_progress is not None:
             try:
-                self.on_progress(dict(event=event, run_id=self.run_id, totals=dict(self.totals), **values))
+                self.on_progress(dict(event=event, handle=handle, run_id=handle.run_id,
+                                      totals=dict(self._totals), **values))
             except Exception:
                 pass
 
     # -- entry points ------------------------------------------------------
     def start(self, author_ids, *, kind='authors', origin='manual', target_type=None, preflight=None,
-              account_id=_ACCOUNT_UNSET, verified_bookmark_account=False, resume_from=None, on_finish=None):
-        """Begin a run on its own thread and return the run id."""
-        run_id = self._begin(author_ids, kind, origin, target_type, account_id=account_id,
-                             verified_bookmark_account=verified_bookmark_account, resume_from=resume_from)
-        self._thread = Thread(target=self._execute, args=(run_id, tuple(self._authors), preflight, on_finish),
-                              name='pixivvault-batch', daemon=True)
-        self._thread.start()
-        return run_id
+              account_id=_ACCOUNT_UNSET, verified_bookmark_account=False, resume_from=None, on_finish=None,
+              stamp_following=True, bookmarks=None):
+        """Begin a run on its own thread and return its bound handle."""
+        with self._cond:
+            handle, authors = self._begin(author_ids, kind, origin, target_type, account_id=account_id,
+                                          verified_bookmark_account=verified_bookmark_account,
+                                          resume_from=resume_from, stamp_following=stamp_following)
+            self._thread = Thread(target=self._execute, args=(handle, authors, preflight, on_finish, bookmarks),
+                                  name='pixivvault-batch', daemon=True)
+            self._thread.start()
+            return handle
 
     def run(self, author_ids, *, kind='authors', origin='manual', target_type=None):
-        """Same as `start`, but on the calling thread (tests, scripts)."""
-        run_id = self._begin(author_ids, kind, origin, target_type)
-        self._execute(run_id, tuple(self._authors))
-        return run_id
+        """Same execution on the calling thread (tests, scripts)."""
+        with self._cond:
+            handle, authors = self._begin(author_ids, kind, origin, target_type)
+            self._thread = None
+        self._execute(handle, authors)
+        return handle.run_id
 
     def _begin(self, author_ids, kind, origin, target_type, *, account_id=_ACCOUNT_UNSET,
-               verified_bookmark_account=False, resume_from=None):
+               verified_bookmark_account=False, resume_from=None, stamp_following=True):
         if kind not in ('authors', 'bookmarks'):
             raise ValueError('invalid run kind')
         if kind == 'bookmarks':
             from .bookmark_run import ROW_VISIBILITY, VISIBILITY_ROWS
-            # The rows of a bookmarks run are its visibilities (names, or the row IDs of a continued run).
             author_ids = tuple(VISIBILITY_ROWS.get(v, v) for v in author_ids)
             if not author_ids or any(v not in ROW_VISIBILITY for v in author_ids):
                 raise ValueError('invalid bookmark visibility')
-        with self._cond:
-            if self.active:
-                raise RuntimeError('a batch run is already active')
-            owner = self.account_id if account_id is _ACCOUNT_UNSET else account_id
-            if resume_from is None:
-                self.ledger._recover_interrupted(account_id=owner)
-            authors = tuple(dict.fromkeys(author_ids))
-            run_id = self.ledger.begin_run(kind, origin, target_type or 'both', authors, account_id=owner,
-                                           verified_bookmark_account=verified_bookmark_account, resume_from=resume_from)
-            self.account_id, self._authors, self.run_id = owner, authors, run_id
-            self._stop = self._paused = False
-            self.state, self.pause_reason = 'running', ''
-            self._settled, self._retire_disabled = [], False
-            self._next_drain_at = self.retire_every
-            self.totals = {name: 0 for name in COUNTERS}
-            self.kind, self.target_type = kind, target_type
-            self._started = self._monotonic()
-            return self.run_id
+        if self.port.closing:
+            raise RuntimeError('application services are closed')
+        if self.active:
+            raise RuntimeError('a batch run is already active')
+        owner = self._default_account if account_id is _ACCOUNT_UNSET else account_id
+        if owner is not None:
+            self.port.verify_run_account(owner)
+        if resume_from is None:
+            self.ledger._recover_interrupted(account_id=owner)
+        else:
+            self._verify_owner(resume_from)
+            require_same_account(owner, resume_from.account_id)
+        authors = tuple(dict.fromkeys(author_ids))
+        handle = self.ledger.begin_run(kind, origin, target_type or 'both', authors, account_id=owner,
+                                       verified_bookmark_account=verified_bookmark_account,
+                                       resume_from=resume_from,
+                                       stamp_following=stamp_following)
+        self._handle = handle
+        self._stop = self._paused = False
+        self.state, self.pause_reason = 'running', ''
+        self._settled, self._retire_disabled = [], False
+        self._next_drain_at = self.retire_every
+        self._totals = {name: 0 for name in COUNTERS}
+        self.kind, self.target_type = kind, target_type
+        self._started = self._monotonic()
+        return handle, authors
 
     # -- the run -----------------------------------------------------------
-    def _execute(self, run_id, authors, preflight=None, on_finish=None):
+    def _execute(self, handle, authors, preflight=None, on_finish=None, bookmarks=None):
+        run_id = handle.run_id
         total = len(authors)
         outcome, code = 'done', ''
-        author_account = self.account_id
-        self._emit('run_start', total=total)
+        author_account = handle.account_id
+        self._emit(handle, 'run_start', total=total)
         try:
             if preflight is not None:
                 while True:
@@ -429,7 +498,7 @@ class BatchRunEngine:
                     try:
                         self._gate()
                         try:
-                            preflight()
+                            bookmarks = preflight()
                         except Exception:
                             # A failed route can wrap a 429; the gate is the
                             # authoritative record of whether it stopped traffic.
@@ -437,8 +506,8 @@ class BatchRunEngine:
                             raise
                         break
                     except GateClosed as closed:
-                        self.pause(closed.code)
-                        self._emit('run_paused', reason=closed.code, index=0, total=total,
+                        self._pause_run(handle, closed.code)
+                        self._emit(handle, 'run_paused', reason=closed.code, index=0, total=total,
                                    author_id=None)
             for index, author_id in enumerate(authors, 1):
                 self._current = None
@@ -449,7 +518,7 @@ class BatchRunEngine:
                     self._check_state()
                     try:
                         if self.kind == 'bookmarks':
-                            self._process_bookmarks(run_id, index, total, author_id)
+                            self._process_bookmarks(handle, index, total, author_id, bookmarks)
                         else:
                             if author_account is None:
                                 self._gate()
@@ -458,55 +527,64 @@ class BatchRunEngine:
                                 except Exception:
                                     self._gate()
                                     raise
-                            self._process_author(run_id, index, total, author_id, author_account)
+                            self._process_author(handle, index, total, author_id, author_account)
                         break
                     except GateClosed as closed:
-                        self._reset_author(run_id, author_id)
-                        self.pause(closed.code)
-                        self._emit('run_paused', reason=closed.code, index=index, total=total,
+                        self._reset_author(handle, author_id)
+                        self._pause_run(handle, closed.code)
+                        self._emit(handle, 'run_paused', reason=closed.code, index=index, total=total,
                                    author_id=author_id)
                     except (RunStopped, RunFailed, AccountMismatch):
                         raise
                     except Exception as error:
-                        self._author_failed(run_id, index, total, author_id, error)
+                        self._author_failed(handle, index, total, author_id, error)
                         break
         except RunStopped:
             outcome = 'stopped'
-            self._close_author(run_id, 'stopped', '')
+            self._close_author(handle, 'stopped', '')
         except AccountMismatch as error:
             outcome, code = 'failed', error.code
             if self._current is not None:
-                self._reset_author(run_id, self._current)
+                self._reset_author(handle, self._current)
                 self._current = None
         except RunNeedsConfirmation:
             outcome, code = 'interrupted', 'bookmark_account_mismatch'
-            self._close_author(run_id, 'stopped', code)
+            self._close_author(handle, 'stopped', code)
         except RunFailed as failed:
             outcome, code = 'failed', failed.code
-            self._close_author(run_id, 'failed', failed.code)
+            self._close_author(handle, 'failed', failed.code)
         except Exception as error:  # a ledger fault etc.: end the run, never hang the thread
             outcome, code = 'failed', type(error).__name__
-            self._close_author(run_id, 'failed', code)
+            self._close_author(handle, 'failed', code)
         finally:
+            result = RunResult(handle, outcome, code, MappingProxyType(dict(self._totals)))
             try:
-                # The scheduler owns its own lock. Keep the run active until it records
-                # the outcome, but never call back with the engine condition held.
                 if on_finish is not None:
-                    on_finish(outcome, code, dict(self.totals))
+                    on_finish(result)
             finally:
                 with self._cond:
-                    self._set_run(outcome, code)
+                    try:
+                        self._set_run(handle, outcome, code)
+                    except BatchRunError:
+                        pass
                     self.state = outcome
                     self._paused = False
-                self._emit('run_end', outcome=outcome, error_code=code, total=total,
-                           elapsed=self._monotonic() - self._started)
+                    end_event = dict(event='run_end', handle=handle, run_id=run_id,
+                                     totals=dict(result.totals), outcome=outcome, error_code=code,
+                                     total=total, elapsed=self._monotonic() - self._started)
+                if self.on_progress is not None:
+                    try:
+                        self.on_progress(end_event)
+                    except Exception:
+                        pass
 
-    def _close_author(self, run_id, state, code):
+    def _close_author(self, handle, state, code):
         """The author that was mid-step when the run ended: never `done`, never stamped."""
+        run_id = handle.run_id
         author_id, self._current = self._current, None
         if author_id is not None:
             try:
-                self.ledger.finish_author(run_id, author_id, state, error_code=code, account_id=self.account_id)
+                self.ledger.finish_author(run_id, author_id, state, error_code=code, account_id=handle.account_id)
             except BatchRunError:
                 pass  # already settled
 
@@ -515,19 +593,21 @@ class BatchRunEngine:
         self._sleep(self._uniform(low, high), between_authors=True)
         self._check_state()
 
-    def _reset_author(self, run_id, author_id):
+    def _reset_author(self, handle, author_id):
+        run_id = handle.run_id
         try:
-            self.ledger.update_author(run_id, author_id, state='pending', account_id=self.account_id)
+            self.ledger.update_author(run_id, author_id, state='pending', account_id=handle.account_id)
         except BatchRunError:
             pass
 
-    def _author_failed(self, run_id, index, total, author_id, error):
+    def _author_failed(self, handle, index, total, author_id, error):
+        run_id = handle.run_id
         code = type(error).__name__
         try:
-            self.ledger.finish_author(run_id, author_id, 'failed', error_code=code, account_id=self.account_id)
+            self.ledger.finish_author(run_id, author_id, 'failed', error_code=code, account_id=handle.account_id)
         except BatchRunError:
             pass
-        self._emit('author_failed', index=index, total=total, author_id=author_id, error_code=code)
+        self._emit(handle, 'author_failed', index=index, total=total, author_id=author_id, error_code=code)
 
     def _gate(self):
         try:
@@ -543,10 +623,11 @@ class BatchRunEngine:
         own = self.port.author_target(author_id)
         return own or self.target_type
 
-    def _process_author(self, run_id, index, total, author_id, expected_account):
+    def _process_author(self, handle, index, total, author_id, expected_account):
+        run_id = handle.run_id
         self._gate()
-        self.ledger.update_author(run_id, author_id, state='listing', account_id=self.account_id)
-        self._emit('author_start', index=index, total=total, author_id=author_id)
+        self.ledger.update_author(run_id, author_id, state='listing', account_id=handle.account_id)
+        self._emit(handle, 'author_start', index=index, total=total, author_id=author_id)
         target = self._target_for(author_id)
         try:
             listing = self.port.list_author(author_id, target, expected_account=expected_account)
@@ -570,28 +651,34 @@ class BatchRunEngine:
         for candidate in rows:
             counters[names[candidate.difference]] += 1
         self.port.verify_author_scope(listing.scope)
-        self._observe_deletion(run_id, author_id, target, rows, counters)
+        self._observe_deletion(handle, author_id, target, rows, counters)
         self._check_saved_capacity(rows)
-        self.ledger.update_author(run_id, author_id, state='downloading', counters=counters, account_id=self.account_id)
-        self._emit('author_listed', index=index, total=total, author_id=author_id, counters=dict(counters))
+        self.ledger.update_author(run_id, author_id, state='downloading', counters=counters, account_id=handle.account_id)
+        self._emit(handle, 'author_listed', index=index, total=total, author_id=author_id, counters=dict(counters))
         queue = sorted((c for c in rows if c.eligible), key=lambda c: (-int(c.work_id), c.kind))
-        failed = self._download(run_id, index, total, author_id, queue, listing=listing)
+        failed = self._download(handle, index, total, author_id, queue, scope=listing.scope, settle_author=True)
         counters['n_failed'] = failed
         self._check_state()
         self.port.verify_author_scope(listing.scope)
         self.ledger.complete_author(run_id, author_id, counters, listing=listing, following=self.following)
         for name in COUNTERS:
-            self.totals[name] += counters[name]
-        self._emit('author_done', index=index, total=total, author_id=author_id, counters=dict(counters))
+            self._totals[name] += counters[name]
+        self._emit(handle, 'author_done', index=index, total=total, author_id=author_id, counters=dict(counters))
 
-    def _process_bookmarks(self, run_id, index, total, row_id):
+    def _process_bookmarks(self, handle, index, total, row_id, bookmarks):
         """One visibility of the bookmark run: list, save what is new, done. Never stamps."""
         from .bookmark_run import ROW_VISIBILITY
         self._gate()
-        self.ledger.update_author(run_id, row_id, state='listing', account_id=self.account_id)
-        self._emit('author_start', index=index, total=total, author_id=row_id)
+        run_id = handle.run_id
+        scope = bookmarks.scope if bookmarks is not None else None
+        if bookmarks is not None:
+            require_same_account(handle.account_id, None if scope is None else scope.account_id)
+        if scope is not None:
+            self.port.verify_author_scope(scope)
+        self.ledger.update_author(run_id, row_id, state='listing', account_id=handle.account_id)
+        self._emit(handle, 'author_start', index=index, total=total, author_id=row_id)
         try:
-            rows = self.port.list_bookmarks(ROW_VISIBILITY[row_id])
+            rows = self.port.list_bookmarks(ROW_VISIBILITY[row_id], None if bookmarks is None else bookmarks.records)
         except Exception as error:
             if _gate_error(error):
                 raise GateClosed('network_stopped' if type(error).__name__ == 'ManagedNetworkStopped'
@@ -607,16 +694,18 @@ class BatchRunEngine:
         for candidate in rows:
             counters[names[candidate.difference]] += 1
         self._check_saved_capacity(rows)
-        self.ledger.update_author(run_id, row_id, state='downloading', counters=counters, account_id=self.account_id)
-        self._emit('author_listed', index=index, total=total, author_id=row_id, counters=dict(counters))
+        self.ledger.update_author(run_id, row_id, state='downloading', counters=counters, account_id=handle.account_id)
+        self._emit(handle, 'author_listed', index=index, total=total, author_id=row_id, counters=dict(counters))
         queue = sorted((c for c in rows if c.eligible), key=lambda c: (-int(c.work_id), c.kind))
-        failed = self._download(run_id, index, total, row_id, queue, listing=None)
+        failed = self._download(handle, index, total, row_id, queue, scope=scope)
         counters['n_failed'] = failed
         self._check_state()
-        self.ledger.complete_bookmark_row(run_id, row_id, counters, account_id=self.account_id)
+        if scope is not None:
+            self.port.verify_author_scope(scope)
+        self.ledger.complete_bookmark_row(run_id, row_id, counters, account_id=handle.account_id)
         for name in COUNTERS:
-            self.totals[name] += counters[name]
-        self._emit('author_done', index=index, total=total, author_id=row_id, counters=dict(counters))
+            self._totals[name] += counters[name]
+        self._emit(handle, 'author_done', index=index, total=total, author_id=row_id, counters=dict(counters))
 
     def _check_saved_capacity(self, rows):
         """Refuse an author whose new works cannot fit the managed store (no partial, stamped run)."""
@@ -628,8 +717,9 @@ class BatchRunEngine:
         if room is not None and new > room:
             raise RunFailed('saved_works_limit')
 
-    def _observe_deletion(self, run_id, author_id, target, rows, counters):
+    def _observe_deletion(self, handle, author_id, target, rows, counters):
         """Original phase B. Skipped (never guessed) unless a full illustration list was read."""
+        run_id = handle.run_id
         illust = [c for c in rows if c.kind in ('illustration', 'ugoira')]
         if target == 'novel':
             check = 'skipped_novel_only'
@@ -639,7 +729,7 @@ class BatchRunEngine:
             scan_id = uuid4().hex
             remote = tuple(dict(id=c.work_id, user_id=c.author_id, type=c.work_type,
                                 page_count=c.page_count, update_date=c.update_date) for c in illust)
-            self.ledger.update_author(run_id, author_id, scan_id=scan_id, deletion_check='pending', account_id=self.account_id)
+            self.ledger.update_author(run_id, author_id, scan_id=scan_id, deletion_check='pending', account_id=handle.account_id)
             try:
                 result = self.port.observe_deletion(author_id, remote, scan_id)
             except Exception:
@@ -651,7 +741,7 @@ class BatchRunEngine:
             else:
                 check = 'done'
                 counters['n_absent_pending'], counters['n_absent_confirmed'] = result
-        self.ledger.update_author(run_id, author_id, deletion_check=check, account_id=self.account_id)
+        self.ledger.update_author(run_id, author_id, deletion_check=check, account_id=handle.account_id)
 
     def _hold_jobs(self, refs):
         hook = getattr(self.port, 'pause_jobs', None)
@@ -678,12 +768,13 @@ class BatchRunEngine:
         self._next_drain_at = self.retire_every
         return True
 
-    def _download(self, run_id, index, total, author_id, queue, *, listing):
+    def _download(self, handle, index, total, author_id, queue, *, scope, settle_author=False):
         """Hand work to the durable jobs a few at a time; return how many did not save.
 
         The job ledger caps at 10,000 operations (job_service.MAX_OPERATION_IDS), so after
         `retire_every` finished jobs new work is held back until the port can free them.
         """
+        run_id = handle.run_id
         inflight, failed, done_count, unsettled = {}, 0, 0, 0
         pending = list(queue)
         drain_since = None
@@ -694,8 +785,8 @@ class BatchRunEngine:
                     self._hold_jobs([ref for ref, _ in inflight.values()])
                     jobs_held = True
                 self._check_state()
-                if listing is not None:
-                    self.port.verify_author_scope(listing.scope)
+                if scope is not None:
+                    self.port.verify_author_scope(scope)
                 if jobs_held:
                     self._release_jobs([ref for ref, _ in inflight.values()])
                     jobs_held = False
@@ -712,8 +803,8 @@ class BatchRunEngine:
                     self._next_drain_at = len(self._settled) + self.retire_every
                 while pending and not holding and len(inflight) < self.max_in_flight:
                     self._gate()
-                    if listing is not None:
-                        self.port.verify_author_scope(listing.scope)
+                    if scope is not None:
+                        self.port.verify_author_scope(scope)
                     candidate = pending[0]
                     operation_id = uuid4().hex
                     try:
@@ -732,20 +823,20 @@ class BatchRunEngine:
                         pending.pop(0)
                         failed += 1
                         self.ledger.record_items(run_id, author_id, (
-                            (candidate.key, candidate.kind, operation_id, None, 'error'),), account_id=self.account_id)
+                            (candidate.key, candidate.kind, operation_id, None, 'error'),), account_id=handle.account_id)
                         continue
                     pending.pop(0)
                     progressed = True
-                    self._emit('work_info', index=index, total=total, author_id=author_id,
+                    self._emit(handle, 'work_info', index=index, total=total, author_id=author_id,
                                title=getattr(candidate, 'title', '') or '')
                     ref = JobRef(candidate.kind, job_id, operation_id)
                     inflight[job_id] = (ref, candidate)
                     self.ledger.record_items(run_id, author_id, (
-                        (candidate.key, candidate.kind, operation_id, job_id, 'queued'),), account_id=self.account_id)
+                        (candidate.key, candidate.kind, operation_id, job_id, 'queued'),), account_id=handle.account_id)
                 if inflight:
                     states = self.port.job_states([ref for ref, _ in inflight.values()])
-                    if listing is not None:
-                        self.port.verify_author_scope(listing.scope)
+                    if scope is not None:
+                        self.port.verify_author_scope(scope)
                     finished = []
                     for job_id, (ref, candidate) in tuple(inflight.items()):
                         state, error_code = states.get(job_id, ('lost', ''))
@@ -759,8 +850,8 @@ class BatchRunEngine:
                     if finished:
                         progressed = True
                         unsettled += len(finished)
-                        if unsettled >= SETTLE_EVERY:
-                            self.port.settle(author_id)
+                        if settle_author and unsettled >= SETTLE_EVERY:
+                            self.port.settle(author_id, scope=scope)
                             unsettled = 0
                         rows = []
                         for ref, candidate, state in finished:
@@ -770,9 +861,9 @@ class BatchRunEngine:
                             rows.append((candidate.key, candidate.kind, ref.operation_id, ref.job_id,
                                          {'done': 'done', 'error': 'error', 'stopped': 'stopped'}.get(state, 'lost')))
                             self._settled.append(ref)
-                        self.ledger.record_items(run_id, author_id, rows, account_id=self.account_id)
-                        self.ledger.update_author(run_id, author_id, counters={'n_failed': failed}, account_id=self.account_id)
-                        self._emit('work_progress', index=index, total=total, author_id=author_id,
+                        self.ledger.record_items(run_id, author_id, rows, account_id=handle.account_id)
+                        self.ledger.update_author(run_id, author_id, counters={'n_failed': failed}, account_id=handle.account_id)
+                        self._emit(handle, 'work_progress', index=index, total=total, author_id=author_id,
                                    done=done_count, queued=len(queue), failed=failed,
                                    title=getattr(finished[-1][1], 'title', '') or '')
                 if not progressed and (pending or inflight):
@@ -781,7 +872,7 @@ class BatchRunEngine:
             if inflight:
                 self.port.stop_jobs([ref for ref, _ in inflight.values()])
             raise
-        if unsettled:
-            self.port.settle(author_id)
+        if settle_author and unsettled:
+            self.port.settle(author_id, scope=scope)
         self._retire()  # best effort at the author boundary; carried over when not yet safe
         return failed

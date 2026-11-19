@@ -11,7 +11,7 @@ from pixivvault_nicegui import unified_download_state as U
 from account_test_support import observed_scope
 from pixivvault_nicegui.account_scope import AccountMismatch, AccountScope, BoundSchedulerLedger, OwnedListing
 from pixivvault_nicegui.batch_engine import BatchRunEngine, ServicesPort
-from pixivvault_nicegui.batch_runs import BatchRunError, BatchRunLedger
+from pixivvault_nicegui.batch_runs import BatchRunError, BatchRunLedger, RunHandle
 from pixivvault_nicegui.bookmark_remote_adapter import RemoteBookmark
 from pixivvault_nicegui.favourites import FavouriteBook
 from pixivvault_nicegui.following_sync import FollowingSyncError, FollowingSyncStore
@@ -113,9 +113,9 @@ OWNER_BOUND = {
     },
     BatchRunLedger: {
         "begin_run": lambda c, p: c.batch.begin_run("authors", "manual", "both", (X,),
-            account_id=p.account, resume_from=c.run),
-        "set_run_state": lambda c, p: c.batch.set_run_state(c.run, "failed", account_id=p.account),
-        "discard_run": lambda c, p: c.batch.discard_run(c.run, account_id=p.account),
+            account_id=p.account, resume_from=RunHandle(c.run, p.account)),
+        "set_run_state": lambda c, p: c.batch.set_run_state(RunHandle(c.run, p.account), "failed"),
+        "discard_run": lambda c, p: c.batch.discard_run(RunHandle(c.run, p.account)),
         "update_author": lambda c, p: c.batch.update_author(c.run, X, state="listing", account_id=p.account),
         "complete_author": lambda c, p: c.batch.complete_author(c.run, X, listing=p.listing, following=c.store),
         "complete_bookmark_row": lambda c, p: c.batch.complete_bookmark_row(c.run, X, account_id=p.account),
@@ -174,9 +174,9 @@ def test_account_sinks_reject_without_writing_any_table(tmp_path, cls, method, e
         batch = BatchRunLedger(tmp_path / "batch")
         try:
             kind = "bookmarks" if method == "complete_bookmark_row" else "authors"
-            run = batch.begin_run(kind, "manual", "both", (X,), account_id=A)
+            run = batch.begin_run(kind, "manual", "both", (X,), account_id=A).run_id
             if method in ("begin_run", "discard_run"):
-                batch.set_run_state(run, "stopped", account_id=A)
+                batch.set_run_state(batch.run(run).handle, "stopped")
             context = NS(book=svc.favourite_book(), ledger=ledger, batch=batch, run=run,
                          store=store, now=now, revision=ledger.snapshot().revision)
             scope = {"absent": None, "unbound": AccountScope(A), "other_account": observed_scope(B)}[evidence]
@@ -199,7 +199,7 @@ def test_unbound_scheduler_and_bookmark_only_exit_cannot_write_author_state(tmp_
         sync_accounts(store, reader)
         batch = BatchRunLedger(tmp_path / "batch")
         try:
-            run = batch.begin_run("authors", "manual", "both", (X,), account_id=A)
+            run = batch.begin_run("authors", "manual", "both", (X,), account_id=A).run_id
             before = dump(store, ledger, batch)
             with pytest.raises(ScheduleAccountError):
                 ledger.defer_work(author_id=X, work=HELD, now=datetime.now(timezone.utc), account_id=A)
@@ -214,7 +214,7 @@ def test_unbound_scheduler_and_bookmark_only_exit_cannot_write_author_state(tmp_
 
 def author_view(svc, targets):
     view = NS(mode="authors", targets=targets, services=svc, target_type="both",
-              target_ids=lambda: [row["user_id"] for row in targets],
+              target_ids=lambda: [row["user_id"] for row in targets], _history_account=lambda: None,
               run_block_reason=lambda: "", notices=[], refresh_chip_status=lambda: None,
               render_controls=lambda: None, _render_band=lambda: None)
     view.set_notice = view.notices.append
@@ -329,12 +329,12 @@ def test_cross_path_mismatch_preserves_state(tmp_path, route, observation):
                 assert row.finished_utc is None and row.last_downloaded_utc is None
                 assert batch.items(run.run_id) == ()
         finally:
-            engine.stop()
+            engine._shutdown(0)
             assert engine.join(5)
             batch.close()
 
 
-def test_explicit_id_only_run_has_no_follow_account_or_stamp(tmp_path):
+def test_explicit_id_only_run_has_owner_and_no_follow_stamp(tmp_path):
     with resources(tmp_path) as (root, store, ledger, reader, svc):
         sync_accounts(store, reader)
         use_media_dispatch(root, reader, svc, switch_at=None)
@@ -349,11 +349,11 @@ def test_explicit_id_only_run_has_no_follow_account_or_stamp(tmp_path):
             assert UnifiedDownloadView.run(view)
             assert engine.join(5)
             run = batch.run(engine.run_id)
-            assert run.account_id is None and run.state == "done"
+            assert run.account_id == A and run.state == "done"
             (author,) = batch.authors(run.run_id)
             assert author.last_downloaded_utc is None and not author.stamp_written
             assert (store.snapshot(A), store.snapshot(B)) == before
         finally:
-            engine.stop()
+            engine._shutdown(0)
             assert engine.join(5)
             batch.close()

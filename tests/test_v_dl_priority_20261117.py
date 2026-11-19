@@ -301,14 +301,14 @@ async def test_real_services_provision_the_engine_recover_after_a_restart_and_cl
         # the periodic check is provisioned together with the schedule and reaches the same engine
         assert services.enable_managed_scheduler() is services.managed_scheduler
         assert services.batch_runs is engine and services.managed_scheduler._bound_account() is None
-        run_id = services.batch_run_ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=None)
+        run_id = services.batch_run_ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=None).run_id
     finally:
         await asyncio.to_thread(services.close)
     reopened = build()
     try:
         engine = reopened.enable_batch_runs(runs)
         assert reopened.batch_run_ledger.run(run_id).state == 'interrupted'   # never restarted by itself
-        assert engine.resumable_run().run_id == run_id and engine.active is False
+        assert engine.resumable_run(None).run_id == run_id and engine.active is False
     finally:
         await asyncio.to_thread(reopened.close)
 

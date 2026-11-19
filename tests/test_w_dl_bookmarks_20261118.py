@@ -35,7 +35,7 @@ class BookmarkPort(FakePort):
         self.saved = set(saved)
         self.listed = []
 
-    def list_bookmarks(self, visibility):
+    def list_bookmarks(self, visibility, records):
         self.listed.append(visibility)
         recs = [r for r in self.records if r.visibility == visibility]
         return tuple(candidate(r, Difference.SKIPPED if r.remote_id in self.saved else Difference.NEW) for r in recs)
@@ -126,11 +126,11 @@ def test_a_stopped_bookmark_run_can_be_continued_over_the_unfinished_visibility(
                 break
             import time
             time.sleep(0.01)
-        engine.stop()
+        engine.stop(engine.active_run(ACCOUNT))
         assert engine.join(10)
-        assert engine.resumable_run().kind == 'bookmarks'
+        assert engine.resumable_run(ACCOUNT).kind == 'bookmarks'
         port.hold = False
-        engine.start_unfinished(engine.resumable_run().run_id)
+        engine.start_unfinished(engine.resumable_run(ACCOUNT).handle)
         assert engine.join(10)
         assert sorted(set(port.listed)) == ['hide', 'show'] and ledger.runs()[0].state == 'done'
     finally:
@@ -155,9 +155,9 @@ def test_services_port_lists_cached_bookmarks_and_enqueues_through_the_managed_p
         enqueue_managed_download=lambda rec, op, return_created=False:
             (accepted.append((rec.remote_id, op)), (SimpleNamespace(job_id='j' + rec.remote_id), True))[1])
     port = ServicesPort(services)
-    rows = port.list_bookmarks('show')
+    rows = port.list_bookmarks('show', recs)
     assert [(c.work_id, c.difference) for c in rows] == [('11', Difference.NEW), ('13', Difference.SKIPPED)]
-    assert [c.work_id for c in port.list_bookmarks('hide')] == ['12']
+    assert [c.work_id for c in port.list_bookmarks('hide', recs)] == ['12']
     assert port.enqueue(rows[0], 'op1') == ('j11', True) and accepted == [('11', 'op1')]
 
 
@@ -170,7 +170,7 @@ class BmServices(FakeServices):
         self.refreshed = 0
         self.settings = {'use_work_folder': '0', 'bookmark_download_mode': 'direct'}
 
-    async def start_bookmark_run(self, visibilities, *, origin='manual', target_type=None):
+    async def start_bookmark_run(self, visibilities, *, origin='manual', target_type=None, expected_account=None):
         self.refreshed += 1
         return self.batch_runs.start(tuple(visibilities), kind='bookmarks', origin=origin, target_type=target_type)
 

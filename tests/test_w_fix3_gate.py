@@ -57,7 +57,7 @@ from test_w_review_favourites_20261118 import create_stars
 async def test_bookmarks_resume_pauses_when_gate_closes(tmp_path, when):
     owner = services_with_runs(tmp_path)
     row_id = VISIBILITY_ROWS['show']
-    run_id = owner.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row_id,), account_id='55', verified_bookmark_account=True)
+    run_id = owner.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row_id,), account_id='55', verified_bookmark_account=True).run_id
     owner.batch_run_ledger.update_author(run_id, row_id, state='downloading', account_id=owner.batch_run_ledger.run(run_id).account_id)
     await asyncio.to_thread(owner.close)
 
@@ -88,14 +88,22 @@ async def test_bookmarks_resume_pauses_when_gate_closes(tmp_path, when):
     reopened = services_with_runs(tmp_path, GatedReader())
     reopened.managed_network_stop = integration
     try:
-        new_id = reopened.resume_batch_run(run_id)
+        offer = reopened.batch_run_ledger.run(run_id)
+        if when == 'before_identity':
+            from pixivvault_nicegui.managed_network_stop_gate import ManagedNetworkStopped
+            with pytest.raises(ManagedNetworkStopped):
+                await reopened.resume_batch_run(offer.handle)
+            assert reopened.batch_run_ledger.runs() == (offer,)
+            assert issued == [] and integration.gate.snapshot().blocked
+            return
+        new_id = (await reopened.resume_batch_run(offer.handle)).run_id
         for _ in range(500):
             state = reopened.batch_run_ledger.run(new_id)
             if state.state in ('paused', 'failed', 'done'):
                 break
             await asyncio.sleep(0.01)
         assert integration.gate.snapshot().blocked
-        assert issued == ([] if when == 'before_identity' else ['identity', 'illustration:show'])
+        assert issued == ['identity', 'illustration:show']
         print(f'gate {when}: issued={issued}, state={state.state}, error={state.error_code}')
         assert (state.state, state.error_code) == ('paused', 'network_stopped')
     finally:

@@ -56,16 +56,16 @@ async def test_other_account_cannot_change_author_run_history_after_restart(tmp_
     a_svc = services(root, following, a_reader, ledger)
     try:
         following.sync(a_reader)
-        a_run_id = a_svc.start_batch_run((X,), target_type="illust", account_id=A)
+        a_run_id = a_svc.start_batch_run((X,), target_type="illust", account_id=A).run_id
         assert entered_listing.wait(5)
-        a_svc.batch_runs.stop()
+        a_svc.batch_runs.stop(ledger.run(a_run_id).handle)
         allow_listing.set()
         assert a_svc.batch_runs.join(5)
         assert ledger.run(a_run_id).state == "stopped"
         assert ledger.run(a_run_id).account_id == A
     finally:
         allow_listing.set()
-        a_svc.batch_runs.stop()
+        a_svc.batch_runs._shutdown(0)
         assert a_svc.batch_runs.join(5)
         ledger.close()
         following.close()
@@ -90,7 +90,7 @@ async def test_other_account_cannot_change_author_run_history_after_restart(tmp_
             assert view.discard_interrupted() is False
             assert "再読込" in view.notice_text
         elif shown and action == "resume" and view.resume_button.visible:
-            assert view.resume_interrupted() is False
+            assert await view.resume_interrupted() is False
             assert "再読込" in view.notice_text
         assert b_svc.batch_runs.join(5)
         assert not requested
@@ -98,7 +98,7 @@ async def test_other_account_cannot_change_author_run_history_after_restart(tmp_
         if view is not None:
             view.close()
         client.delete()
-        b_svc.batch_runs.stop()
+        b_svc.batch_runs._shutdown(0)
         assert b_svc.batch_runs.join(5)
         ledger.close()
         following.close()
@@ -109,7 +109,7 @@ async def test_other_account_cannot_change_author_run_history_after_restart(tmp_
     try:
         following.sync(a_reader)
         rows = ledger.runs()
-        offered = ledger.resumable_run()
+        offered = ledger.resumable_run(account_id=A)
         print(f"action={action} B-view-shows-A={shown} runs="
               f"{[(row.account_id, row.state, row.error_code) for row in rows]} "
               f"original-A-resumable={offered is not None and offered.run_id == a_run_id}")
@@ -220,7 +220,7 @@ def test_periodic_check_can_run_for_bound_a_after_return_from_b(tmp_path):
             rows = batch.runs()
             assert len(rows) == 1 and rows[0].state == "done" and rows[0].account_id == A
         finally:
-            svc.batch_runs.stop()
+            svc.batch_runs._shutdown(0)
             assert svc.batch_runs.join(5)
             batch.close()
 
@@ -260,7 +260,7 @@ async def test_check_now_records_mismatch_without_finishing_dispatch(tmp_path):
         finally:
             view.close()
             client.delete()
-            engine.stop()
+            engine._shutdown(0)
             assert engine.join(5)
             batch.close()
 
@@ -315,7 +315,7 @@ async def test_manual_check_rejects_stale_displayed_account_before_admission(tmp
         finally:
             view.close()
             client.delete()
-            engine.stop()
+            engine._shutdown(0)
             assert engine.join(5)
             batch.close()
 
@@ -370,8 +370,8 @@ async def test_displayed_account_can_discard_its_run_with_no_remaining_follows(t
     store = FollowingSyncStore(following_path)
     batch = BatchRunLedger(batch_path)
     svc = services(root, store, reader, batch)
-    run_id = batch.begin_run("authors", "manual", "both", (X,), account_id=A)
-    batch.set_run_state(run_id, "stopped", account_id=A)
+    run_id = batch.begin_run("authors", "manual", "both", (X,), account_id=A).run_id
+    batch.set_run_state(batch.run(run_id).handle, "stopped")
     client = Client(ui.page("/review-empty-following-history"))
     try:
         store.sync(reader)
@@ -380,7 +380,7 @@ async def test_displayed_account_can_discard_its_run_with_no_remaining_follows(t
             await view.reload()
         assert view.authors == [] and view.resumable.run_id == run_id
         assert view.discard_interrupted() is True
-        assert batch.resumable_run() is None
+        assert batch.resumable_run(account_id=A) is None
         view.close()
     finally:
         client.delete()

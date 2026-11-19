@@ -28,6 +28,9 @@ class OwnedInventoryPort:
         self._verified_identity = ACCOUNT
         return self._verified_identity
 
+    def verify_run_account(self, account_id):
+        require_same_account(account_id, getattr(self, '_verified_identity', ACCOUNT))
+
     def owned(self, aid, target, rows, expected_account):
         observed = self.verified_author_account()
         require_same_account(expected_account, observed)
@@ -100,7 +103,7 @@ class FakePort(OwnedInventoryPort):
             raise value
         return value
 
-    def settle(self, aid):
+    def settle(self, aid, *, scope):
         self.calls.append(('settle', aid))
 
     def retire(self, refs):
@@ -233,7 +236,7 @@ def test_a_second_run_cannot_start_while_one_is_active(env):
     assert wait_for(lambda: engine.state == 'running' and port.enqueued)
     with pytest.raises(RuntimeError):
         engine.start(('42',))
-    engine.stop()
+    engine.stop(engine.active_run(ACCOUNT))
     assert engine.join(5)
 
 
@@ -266,11 +269,11 @@ def test_stop_during_the_wait_between_authors_is_immediate(env):
     engine = BatchRunEngine(port, ledger, following=following, account_id=ACCOUNT,
                             between_authors=(30.0, 30.0), poll_seconds=0.001)
     port.ledger = ledger
-    run_id = engine.start(('41', '42', '43'))
+    run_id = engine.start(('41', '42', '43')).run_id
     assert wait_for(lambda: ledger.authors(run_id)[0].state == 'done')
     time.sleep(0.2)  # now inside the 30 s wait
     began = time.monotonic()
-    engine.stop()
+    engine.stop(engine.active_run(ACCOUNT))
     assert engine.join(3) and time.monotonic() - began < 2
     assert engine.state == 'stopped' and ledger.run(run_id).state == 'stopped'
     assert [a.state for a in ledger.authors(run_id)] == ['done', 'pending', 'pending']
@@ -283,9 +286,9 @@ def test_stop_in_the_middle_of_an_author_never_stamps_and_stops_its_jobs(env):
     port.hold_jobs = True
     ledger, following = env
     engine = engine_for(port, env)
-    run_id = engine.start(('41',))
+    run_id = engine.start(('41',)).run_id
     assert wait_for(lambda: len(port.enqueued) == 2)
-    engine.stop()
+    engine.stop(engine.active_run(ACCOUNT))
     assert engine.join(5)
     assert ledger.authors(run_id)[0].state == 'stopped' and ledger.run(run_id).state == 'stopped'
     assert stamps(following)['41'] is None
@@ -297,14 +300,14 @@ def test_pause_blocks_the_next_step_and_resume_continues(env):
     ledger, following = env
     gate = Event()
     engine = engine_for(port, env, wait=lambda seconds: gate.wait(5))  # parked in the first wait
-    run_id = engine.start(('41', '42', '43'))
+    run_id = engine.start(('41', '42', '43')).run_id
     assert wait_for(lambda: ledger.authors(run_id)[0].state == 'done')
-    engine.pause()
+    engine.pause(engine.active_run(ACCOUNT))
     gate.set()
     assert wait_for(lambda: ledger.run(run_id).state == 'paused')
     time.sleep(0.3)
     assert ledger.authors(run_id)[1].state == 'pending'  # nothing runs while paused
-    assert engine.resume()
+    assert engine.resume(engine.active_run(ACCOUNT))
     assert engine.join(5) and ledger.run(run_id).state == 'done'
     assert all(stamps(following)[u] for u in ('41', '42', '43'))
 
@@ -314,7 +317,7 @@ def test_app_shutdown_counts_as_stop(env):
     port.hold_jobs = True
     ledger, following = env
     engine = engine_for(port, env)
-    run_id = engine.start(('41',))
+    run_id = engine.start(('41',)).run_id
     assert wait_for(lambda: port.enqueued)
     port.closing = True
     assert engine.join(5)
@@ -328,13 +331,13 @@ def test_closed_gate_pauses_the_run_without_traffic_or_failure(env):
     port.gate_closed = True
     ledger, following = env
     engine = engine_for(port, env)
-    run_id = engine.start(('41', '42'))
+    run_id = engine.start(('41', '42')).run_id
     assert wait_for(lambda: ledger.run(run_id).state == 'paused')
     assert ledger.run(run_id).error_code == 'network_stopped'
     assert port.calls == [] and port.enqueued == []          # no listing, no enqueue
     assert ledger.authors(run_id)[0].state == 'pending' and stamps(following)['41'] is None
     port.gate_closed = False
-    assert engine.resume()
+    assert engine.resume(engine.active_run(ACCOUNT))
     assert engine.join(5)
     assert ledger.run(run_id).state == 'done'
     assert [a.state for a in ledger.authors(run_id)] == ['done', 'done']
@@ -351,12 +354,12 @@ def test_gate_closing_mid_author_pauses_and_the_author_is_retried_on_resume(env)
     port.enqueue = closing_enqueue
     ledger, following = env
     engine = engine_for(port, env)
-    run_id = engine.start(('41',))
+    run_id = engine.start(('41',)).run_id
     assert wait_for(lambda: ledger.run(run_id).state == 'paused')
     assert stamps(following)['41'] is None and ledger.authors(run_id)[0].state == 'pending'
     port.gate_closed = False
     port.enqueue = original
-    assert engine.resume() and engine.join(5)
+    assert engine.resume(engine.active_run(ACCOUNT)) and engine.join(5)
     assert ledger.authors(run_id)[0].state == 'done'
 
 
@@ -365,10 +368,10 @@ def test_jobs_paused_by_admission_block_pause_the_run(env):
     port.job_states = lambda refs: {r.job_id: ('paused', 'admission_blocked') for r in refs}
     ledger, following = env
     engine = engine_for(port, env)
-    run_id = engine.start(('41',))
+    run_id = engine.start(('41',)).run_id
     assert wait_for(lambda: ledger.run(run_id).state == 'paused')
     assert stamps(following)['41'] is None and port.stopped_jobs == []  # jobs stay for the recovery screen
-    engine.stop()
+    engine.stop(engine.active_run(ACCOUNT))
     assert engine.join(5)
 
 
@@ -442,7 +445,7 @@ def test_services_port_maps_services_onto_the_engine_port():
 
 def test_a_run_left_active_by_a_crash_is_closed_as_interrupted_before_the_next_run(env):
     ledger, following = env
-    stale = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=ACCOUNT)
+    stale = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=ACCOUNT).run_id
     ledger.update_author(stale, '41', state='downloading', account_id=ledger.run(stale).account_id)
     run_id = engine_for(FakePort({'41': ()}), env).run(('41',))
     assert ledger.run(stale).state == 'interrupted' and ledger.run(run_id).state == 'done'

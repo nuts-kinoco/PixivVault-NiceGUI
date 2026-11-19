@@ -15,13 +15,12 @@ async def test_unverified_legacy_bookmark_run_does_not_resume(tmp_path, old_acco
     try:
         ledger = services.batch_run_ledger
         old_run = ledger.begin_run('bookmarks', 'manual', 'both', (VISIBILITY_ROWS['show'],),
-                                   account_id=old_account)
+                                   account_id=old_account).run_id
         ledger.update_author(old_run, VISIBILITY_ROWS['show'], state='downloading', account_id=ledger.run(old_run).account_id)
         ledger._recover_interrupted()
-        services.batch_runs.account_id = '77'
         count = len(ledger.runs())
         with pytest.raises(RunNeedsConfirmation):
-            services.resume_batch_run(old_run)
+            await services.resume_batch_run(services.batch_run_ledger.run(old_run).handle)
         assert len(ledger.runs()) == count
         assert reader.calls == []
         assert ledger.run(old_run).state == 'interrupted'
@@ -33,7 +32,7 @@ async def test_unverified_legacy_bookmark_run_does_not_resume(tmp_path, old_acco
 async def test_new_bookmark_start_records_verified_account(tmp_path):
     services = services_with_runs(tmp_path)
     try:
-        run_id = await services.start_bookmark_run(('show',))
+        run_id = (await services.start_bookmark_run(('show',))).run_id
         assert await asyncio.to_thread(services.batch_runs.join, 12)
         assert services.batch_run_ledger.run(run_id).account_id == '55'
         assert services.batch_run_ledger.has_verified_bookmark_account(run_id)
@@ -70,17 +69,18 @@ async def test_version2_ledger_migrates_existing_account_as_unknown(tmp_path):
     import sqlite3
     services = services_with_runs(tmp_path)
     ledger = services.batch_run_ledger
-    run_id = ledger.begin_run('bookmarks', 'manual', 'both', (VISIBILITY_ROWS['show'],), account_id='77')
+    run_id = ledger.begin_run('bookmarks', 'manual', 'both', (VISIBILITY_ROWS['show'],), account_id='77').run_id
     ledger._recover_interrupted()
     path = ledger.path
     await asyncio.to_thread(services.close)
     with sqlite3.connect(path) as db:
+        db.execute('ALTER TABLE run_flags DROP COLUMN stamp_following')
         db.execute('ALTER TABLE run_flags DROP COLUMN verified_bookmark_account')
         db.execute('PRAGMA user_version=2')
     reopened = services_with_runs(tmp_path)
     try:
         assert not reopened.batch_run_ledger.has_verified_bookmark_account(run_id)
         with pytest.raises(RunNeedsConfirmation):
-            reopened.resume_batch_run(run_id)
+            await reopened.resume_batch_run(reopened.batch_run_ledger.run(run_id).handle)
     finally:
         await asyncio.to_thread(reopened.close)

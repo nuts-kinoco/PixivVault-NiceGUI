@@ -17,14 +17,16 @@ async def test_rejected_concurrent_start_cannot_rebind_active_resume(tmp_path):
     first = services_with_runs(tmp_path)
     try:
         previous = first.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row,),
-                                                    account_id='55', verified_bookmark_account=True)
+                                                    account_id='55', verified_bookmark_account=True).run_id
         first.batch_run_ledger.update_author(previous, row, state='downloading', account_id=first.batch_run_ledger.run(previous).account_id)
     finally:
         await asyncio.to_thread(first.close)
 
     class OtherReader(GeneratedReader):
+        current = '55'
+
         def verify_identity(self):
-            self._verified_identity = '77'
+            self._verified_identity = self.current
             return self._verified_identity
 
     class OtherFollowing(FollowingReader):
@@ -36,6 +38,8 @@ async def test_rejected_concurrent_start_cannot_rebind_active_resume(tmp_path):
 
     class Admission:
         def require_allowed(self):
+            if getattr(reader, '_verified_identity', None) is None:
+                return
             before_preflight.set()
             assert finish.wait(8)
 
@@ -45,9 +49,10 @@ async def test_rejected_concurrent_start_cannot_rebind_active_resume(tmp_path):
     assert owner.following_sync.last_synced_account() == '77'
     owner.managed_network_stop = Admission()
     try:
-        current = owner.resume_batch_run(previous)
+        current = (await owner.resume_batch_run(owner.batch_run_ledger.run(previous).handle)).run_id
         assert await asyncio.to_thread(before_preflight.wait, 8)
         assert owner.batch_run_ledger.run(current).account_id == '55'
+        reader.current = '77'
         reader.verify_identity()
         with pytest.raises(RuntimeError, match='already active'):
             owner.start_batch_run(('1000',), origin='manual', account_id='77')

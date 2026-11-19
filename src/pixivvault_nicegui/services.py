@@ -1565,9 +1565,10 @@ class ApplicationServices:
             self.release_managed_owner(owner)
 
     def author_media_preview(self, author_id, target_type=None, *, novel_format=None, ugoira_format=None,
-                             new_only=False):
+                             new_only=False, expected_account=None):
         return self.author_media_preview_owned(author_id, target_type, novel_format=novel_format,
-                                              ugoira_format=ugoira_format, new_only=new_only).rows
+                                              ugoira_format=ugoira_format, new_only=new_only,
+                                              expected_account=expected_account).rows
 
     def author_media_preview_owned(self, author_id, target_type=None, *, novel_format=None, ugoira_format=None,
                                    new_only=False, expected_account=None):
@@ -2797,12 +2798,16 @@ class ApplicationServices:
             self._bookmark_restored_identity = account
             return True
 
-    async def refresh_bookmark_cache(self, *, automatic=False, expected_account=None, return_account=False):
+    async def refresh_bookmark_cache(self, *, automatic=False, expected_account=None, return_account=False,
+                                     return_batch_input=False, _verified_scope=None):
         """Publish complete bookmark routes and their verified export account."""
+        from .batch_engine import BookmarkRunInput
         if expected_account is not None and self.live_client is None:
             from .batch_engine import RunNeedsConfirmation
             raise RunNeedsConfirmation()
         if self.library_repository is None and self.live_client is None:
+            if return_batch_input:
+                return BookmarkRunInput(None, self.bookmark_download_candidates())
             snapshots = self.bookmark_remote_snapshot(), self.bookmark_local_snapshot()
             return (*snapshots, None) if return_account else snapshots
         async with self._library_refresh_lock:
@@ -2828,10 +2833,7 @@ class ApplicationServices:
             reader = self.live_client
             exports = self.save_exports
             account = None
-            mismatch = None
-            if expected_account is not None:
-                from .batch_engine import RunNeedsConfirmation
-                mismatch = RunNeedsConfirmation()
+            mismatch = AccountMismatch() if expected_account is not None else None
 
             def check_current_read():
                 if self.closing or self.live_client is not reader:
@@ -2863,6 +2865,9 @@ class ApplicationServices:
                     and self._bookmark_verified_reader is reader
                     and getattr(reader, '_verified_identity', None) == self._bookmark_verified_identity
                     else None)
+                if _verified_scope is not None:
+                    require_same_account(expected_account, _verified_scope.verify_current(self))
+                    verified_account = _verified_scope.account_id
 
                 def read_all():
                     if self.managed_network_stop is not None:
@@ -2942,6 +2947,9 @@ class ApplicationServices:
                 if catalog is not None and not adopted:
                     catalog.close()
                 raise
+            if return_batch_input:
+                scope = None if account is None else AccountScope(account, reader)
+                return BookmarkRunInput(scope, tuple(records or ()))
             return (remote, local, account) if return_account else (remote, local)
 
     def close(self) -> None:
@@ -3041,8 +3049,7 @@ class ApplicationServices:
             self.discovery.close()
         if self.batch_runs is not None:
             # Closing marks `closing`, which the engine reads as a stop; wait for its thread.
-            self.batch_runs.stop()
-            self.batch_runs.join(60.0)
+            self.batch_runs._shutdown(60.0)
         if self.batch_run_ledger is not None:
             self.batch_run_ledger.close()
         if self.following_sync is not None:
@@ -3317,38 +3324,66 @@ class ApplicationServices:
             return {}
         return saved_counts_by_author(with_dates(verify_pages=False))
 
-    def resume_batch_run(self, run_id, *, account_id=None):
-        """Continue the offered run (`batch_runs.resumable_run()`) over its unfinished authors."""
+    async def _confirm_bookmark_run_account(self):
+        """Identify a reopened bookmark view when it has a durable resume offer."""
+        engine, reader = self.batch_runs, self.live_client
+        if (engine is None or reader is None or self.closing
+                or getattr(reader, '_verified_identity', None) is not None):
+            return
+        if not await asyncio.to_thread(engine.ledger._has_verified_bookmark_resume):
+            return
+
+        def verify():
+            engine.port.require_allowed()
+            return reader.verify_identity()
+
+        account = await asyncio.to_thread(verify)
+        AccountScope(account, reader).verify_current(self)
+
+    async def resume_batch_run(self, handle):
+        """Verify the current reader before continuing the displayed execution."""
+        from .batch_runs import RunHandle
+        engine = self.batch_runs
+        if engine is None or self.closing or type(handle) is not RunHandle:
+            raise AccountMismatch()
+        run = engine.ledger.run(handle.run_id)
+        if run is None:
+            raise AccountMismatch()
+        require_same_account(run.account_id, handle.account_id)
+        if run.kind != 'bookmarks':
+            return engine.start_unfinished(handle)
+        if not engine.ledger.has_verified_bookmark_account(handle.run_id):
+            from .batch_engine import RunNeedsConfirmation
+            raise RunNeedsConfirmation('account_unknown')
+
+        reader = self.live_client
+        if reader is None:
+            raise AccountMismatch()
+        scope = AccountScope(handle.account_id, reader)
+        def verify():
+            engine.port.require_allowed()
+            return reader.verify_identity()
+
+        require_same_account(scope.account_id, await asyncio.to_thread(verify))
+        scope.verify_current(self)
+        if self.closing:
+            raise AccountMismatch()
+        loop = asyncio.get_running_loop()
+
+        def refresh_bookmarks():
+            from .batch_engine import RunNeedsConfirmation
+            scope.verify_current(self, error=RunNeedsConfirmation())
+            refresh = self.refresh_bookmark_cache(expected_account=scope.account_id, return_batch_input=True,
+                                                  _verified_scope=scope)
+            return asyncio.run_coroutine_threadsafe(refresh, loop).result()
+
+        return engine.start_unfinished(handle, bookmark_refresh=refresh_bookmarks)
+
+    def discard_batch_run(self, handle):
         engine = self.batch_runs
         if engine is None or self.closing:
-            raise RuntimeError('author batch runs are not enabled')
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-
-        def refresh_bookmarks(expected_account):
-            if self.live_client is None and self.library_repository is None:
-                raise RuntimeError('bookmark source unavailable')
-            if loop is not None and loop.is_running():
-                asyncio.run_coroutine_threadsafe(self.refresh_bookmark_cache(expected_account=expected_account), loop).result()
-            else:
-                asyncio.run(self.refresh_bookmark_cache(expected_account=expected_account))
-
-        run = engine.resumable_run()
-        if run is None or run.run_id != run_id:
             raise AccountMismatch()
-        if run.kind == 'bookmarks':
-            return engine.start_unfinished(run_id, account_id=account_id, bookmark_refresh=refresh_bookmarks)
-        with ApplicationServices._displayed_batch_account(self, account_id):
-            return engine.start_unfinished(run_id, account_id=account_id)
-
-    def discard_batch_run(self, run_id, *, account_id):
-        engine = self.batch_runs
-        if engine is None or self.closing:
-            raise AccountMismatch()
-        with ApplicationServices._displayed_batch_account(self, account_id):
-            return engine.discard_resumable(run_id, account_id=account_id)
+        return engine.discard_resumable(handle)
 
     @contextmanager
     def _displayed_batch_account(self, account_id):
@@ -3392,9 +3427,20 @@ class ApplicationServices:
             raise ValueError('invalid author batch kind')
         callbacks = {} if on_finish is None else {'on_finish': on_finish}
         if origin == 'id':
-            require_same_account(None, account_id)
+            reader = self.live_client
+            if reader is None:
+                raise AccountMismatch()
+            owner = getattr(reader, '_verified_identity', None)
+            if owner is None:
+                engine.port.require_allowed()
+                require_identity = getattr(reader, 'require_identity', None) or reader.verify_identity
+                owner = require_identity()
+            scope = AccountScope(owner, reader)
+            if account_id is not None:
+                require_same_account(scope.account_id, account_id)
+            scope.verify_current(self)
             return engine.start(tuple(author_ids), kind=kind, origin='manual', target_type=target_type,
-                                account_id=None, **callbacks)
+                                account_id=scope.account_id, stamp_following=False, **callbacks)
         if origin == 'auto':
             scope = AccountScope(account_id, self.live_client)
             ledger = getattr(self, 'managed_scheduler', None)
@@ -3408,7 +3454,7 @@ class ApplicationServices:
             return engine.start(tuple(author_ids), kind=kind, origin=origin, target_type=target_type,
                                 account_id=scope.account_id, **callbacks)
 
-    async def start_bookmark_run(self, visibilities, *, origin='manual', target_type=None):
+    async def start_bookmark_run(self, visibilities, *, origin='manual', target_type=None, expected_account=None):
         """「マイブックマーク」の実行 1 回: read the complete bookmark lists (Pixiv, behind the stop gate), then run.
 
         The refresh is the same one the bookmark screen uses; a run is never started on a partial list.
@@ -3417,12 +3463,18 @@ class ApplicationServices:
             raise RuntimeError('author batch runs are not enabled')
         if self.batch_run_active():
             raise RuntimeError('a batch run is already active')
-        _, _, account = await self.refresh_bookmark_cache(return_account=True)
+        if self.live_client is None:
+            raise AccountMismatch()
+        bookmarks = await self.refresh_bookmark_cache(expected_account=expected_account, return_batch_input=True)
+        scope = bookmarks.scope
+        if scope is None:
+            raise AccountMismatch()
+        account = scope.verify_current(self)
         engine = self.batch_runs
         if engine is None or self.closing:
             raise RuntimeError('author batch runs are not enabled')
         return engine.start(tuple(visibilities), kind='bookmarks', origin=origin, target_type=target_type,
-                            account_id=account, verified_bookmark_account=account is not None)
+                            account_id=account, verified_bookmark_account=True, bookmarks=bookmarks)
 
     def bookmark_layout(self):
         """The bookmark projection layout and optional per-work folders."""
@@ -3874,11 +3926,15 @@ class ApplicationServices:
             if receipt is not None and receipt[4] in expected:
                 receipt_fingerprints[receipt[1]['work_id']] = receipt[4]
         if getattr(self, 'author_media', None) is not None:
-            _, extra_jobs, extra_fingerprints = self.author_media.reconcile()
-            operation_to_job.update(extra_jobs)
-            operation_to_fingerprint.update(extra_fingerprints)
-            expected = ledger.reconcile_expected_fingerprints(operation_to_fingerprint)
-            extra_receipts, _, _ = self.author_media.reconcile(expected)
+            ownership = {} if scope is None else {'scope': scope}
+            try:
+                _, extra_jobs, extra_fingerprints = self.author_media.reconcile(**ownership)
+                operation_to_job.update(extra_jobs)
+                operation_to_fingerprint.update(extra_fingerprints)
+                expected = ledger.reconcile_expected_fingerprints(operation_to_fingerprint)
+                extra_receipts, _, _ = self.author_media.reconcile(expected, **ownership)
+            except AccountMismatch:
+                return False
             receipt_fingerprints.update(extra_receipts)
         try:
             if scope is not None:

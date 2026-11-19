@@ -204,6 +204,7 @@ class UnifiedDownloadView:
         self.run_ended = None
         self.starting = False
         self._run_task = None
+        self._displayed_handle = None
         self.bm_show, self.bm_hide = True, False
         self.bm_hierarchical = self.bm_work_folder = False
         self.unfollowed_view = None
@@ -219,7 +220,7 @@ class UnifiedDownloadView:
         self._build()
         self._subscribe()
         self.client.on_delete(self.close)
-        self._adopt_active_run()
+        self.sync_engine()
         self.render_all()
         self.refresh_resumable()
         self._timer = ui.timer(0.4, self.tick)
@@ -249,29 +250,26 @@ class UnifiedDownloadView:
         if callable(subscribe):
             self._unsubscribe = subscribe(self._events.put)
 
-    def _adopt_active_run(self):
-        """画面を開いたとき、すでに走っている実行（定期チェックなど）があれば、その進み具合を写す。"""
-        engine = self.engine
-        if engine is None or not getattr(engine, "active", False):
+    def _adopt_active_run(self, handle):
+        """Load the progress of the execution shown in this account's view."""
+        run = self.engine.ledger.run(handle.run_id)
+        if run is None:
             return
-        try:
-            ledger = self.services.batch_run_ledger
-            rows = ledger.authors(engine.run_id)
-            ids = [row.author_id for row in rows]
-            self.run_target_ids = ids
-            self.progress = U.RunProgress(ids)
-            self.progress.kind = getattr(engine, "kind", "authors") or "authors"
-            self.progress.state = engine.state
-            self.progress.done = sum(1 for row in rows if row.state in ("done", "failed", "skipped"))
-            current = next((row.author_id for row in rows if row.state in ("listing", "downloading")), None)
-            self.progress.current = current
-        except Exception:
-            pass
+        rows = self.engine.ledger.authors(handle.run_id)
+        ids = [row.author_id for row in rows]
+        self._displayed_handle = handle
+        self.run_target_ids = ids
+        self.progress = U.RunProgress(ids)
+        self.progress.kind = run.kind
+        self.progress.state = run.state
+        self.progress.done = sum(1 for row in rows if row.state in ("done", "failed", "skipped"))
+        self.progress.current = next((row.author_id for row in rows if row.state in ("listing", "downloading")), None)
 
     def refresh_resumable(self):
         engine = self.engine
+        account = self._run_view_account()
         try:
-            self.resumable = None if engine is None else engine.resumable_run()
+            self.resumable = None if engine is None or account is None else engine.resumable_run(account)
         except Exception:
             self.resumable = None
         self._render_band()
@@ -518,7 +516,7 @@ class UnifiedDownloadView:
                     "type=button data-testid=unified-resume")
                 with self.resume_button:
                     ui.label("再開")
-                self.resume_button.on("click", lambda _e: self.resume_interrupted())
+                self.resume_button.on("click", self.resume_interrupted)
                 self.discard_button = ui.element("button").classes("pv-ud-textbtn").props(
                     "type=button data-testid=unified-discard")
                 with self.discard_button:
@@ -653,6 +651,14 @@ class UnifiedDownloadView:
             return False
         self.author_snapshot_account = account
         self.authors = [dict(row) for row in rows]
+        identify = getattr(self.services, "_confirm_bookmark_run_account", None)
+        if account is None and callable(identify):
+            try:
+                await identify()
+            except Exception:
+                pass  # Keep the history hidden until the reader is verified.
+            if self.closed:
+                return False
         counts = getattr(self.services, "saved_author_counts", None)
         now = time.monotonic()
         if callable(counts) and (force_counts or now - self._counts_at >= 30.0):
@@ -664,6 +670,8 @@ class UnifiedDownloadView:
             if self.closed:
                 return False
         self._loaded = True
+        self.sync_engine()
+        self.refresh_resumable()
         self.refresh_bookmark_layout()
         self.render_all()
         return True
@@ -746,6 +754,8 @@ class UnifiedDownloadView:
             self.mode = mode
             self.root.props["data-mode"] = mode
             self.root.update()
+            self.sync_engine()
+            self.refresh_resumable()
             self.render_all()
         return True
 
@@ -925,8 +935,9 @@ class UnifiedDownloadView:
             account_id = next(iter(accounts), None)
             if account_id is None and any(target["origin"] != "id" for target in chosen):
                 raise AccountMismatch()
-            self.services.start_batch_run(tuple(ids), origin="id" if account_id is None else "manual",
-                                          target_type=self.target_type, account_id=account_id)
+            self._displayed_handle = self.services.start_batch_run(
+                tuple(ids), origin="id" if account_id is None else "manual",
+                target_type=self.target_type, account_id=account_id or self._history_account())
         except AccountMismatch:
             self.set_notice("同期先アカウントを確認できません。ダウンロード画面を再読込してください。")
             return False
@@ -958,7 +969,9 @@ class UnifiedDownloadView:
         self.starting = True
         self.render_controls()
         try:
-            await self.services.start_bookmark_run(tuple(chosen), origin="manual", target_type=self.target_type)
+            self._displayed_handle = await self.services.start_bookmark_run(
+                tuple(chosen), origin="manual", target_type=self.target_type,
+                expected_account=self._run_view_account())
         except Exception as exc:
             self.starting = False
             self.set_notice("いまダウンロードが走っています。終わってから実行してください。"
@@ -1049,25 +1062,29 @@ class UnifiedDownloadView:
         return True
 
     def toggle_pause(self):
-        engine = self.engine
-        if engine is None or not engine.active:
-            return False
-        if engine.state == "paused":
-            engine.resume()
-        else:
-            engine.pause("user")
-        self.sync_engine()
-        self.render_controls()
-        return True
+        return self._control_run(pause=True)
 
     def stop(self):
+        return self._control_run(pause=False)
+
+    def _control_run(self, *, pause):
         engine = self.engine
-        if engine is None or not engine.active:
+        handle = self._displayed_handle
+        if engine is None or handle is None or handle.account_id != self._run_view_account():
             return False
-        engine.stop()
+        status = engine.status(handle)
+        if status is None:
+            return False
+        try:
+            if pause:
+                changed = engine.resume(handle) if status[0] == "paused" else engine.pause(handle)
+            else:
+                changed = engine.stop(handle)
+        except AccountMismatch:
+            return False
         self.sync_engine()
         self.render_controls()
-        return True
+        return changed
 
     def _history_account(self):
         accounts = {row.get("account_id") for row in self.authors}
@@ -1075,27 +1092,35 @@ class UnifiedDownloadView:
             return getattr(self, "author_snapshot_account", None)
         return next(iter(accounts)) if len(accounts) == 1 else None
 
-    def resume_interrupted(self):
+    def _run_view_account(self):
+        reader = getattr(self.services, "live_client", None)
+        observed = getattr(reader, "_verified_identity", None)
+        if self.mode == "bookmark":
+            return observed
+        return self._history_account() or observed
+
+    async def resume_interrupted(self):
         resume = getattr(self.services, "resume_batch_run", None)
         offered = self.resumable
-        if not callable(resume) or self.running or offered is None:
+        if (not callable(resume) or self.running or self.starting or offered is None
+                or offered.account_id != self._run_view_account()):
             return False
+        self.starting = True
+        self.render_controls()
         try:
-            resume(offered.run_id, account_id=self._history_account())
+            handle = await resume(offered.handle)
         except AccountMismatch:
             self.set_notice("表示した実行とアカウントを確認できません。ダウンロード画面を再読込してください。")
             return False
         except Exception:
             self.set_notice("再開できませんでした。")
             return False
-        try:
-            ids = [row.author_id for row in self.engine.ledger.authors(self.engine.run_id)]
-        except Exception:
-            ids = []
-        self.run_target_ids = ids
-        self.progress = U.RunProgress(ids)
-        self.progress.kind = getattr(self.engine, "kind", "authors") or "authors"
-        self.progress.state = "running"
+        finally:
+            self.starting = False
+            self.render_controls()
+        if self.closed or handle.account_id != self._run_view_account():
+            return False
+        self._adopt_active_run(handle)
         self.refresh_chip_status()  # a resumed run has a new target set and progress
         self.run_started = datetime.now()
         self.run_ended = None
@@ -1107,10 +1132,11 @@ class UnifiedDownloadView:
     def discard_interrupted(self):
         discard = getattr(self.services, "discard_batch_run", None)
         offered = self.resumable
-        if offered is None or not callable(discard):
+        if (offered is None or not callable(discard)
+                or offered.account_id != self._run_view_account()):
             return False
         try:
-            discard(offered.run_id, account_id=self._history_account())
+            discard(offered.handle)
         except AccountMismatch:
             self.set_notice("表示した実行とアカウントを確認できません。ダウンロード画面を再読込してください。")
             return False
@@ -1133,6 +1159,13 @@ class UnifiedDownloadView:
                 event = self._events.get_nowait()
             except queue.Empty:
                 break
+            handle = event.get("handle")
+            if handle is None or handle.account_id != self._run_view_account():
+                continue
+            if handle != self._displayed_handle:
+                if event.get("event") != "run_start" or self._displayed_handle is not None and self.running:
+                    continue
+                self._adopt_active_run(handle)
             before_current = self.progress.current
             before_done = self.progress.done
             before_completed = self.progress.completed
@@ -1159,17 +1192,23 @@ class UnifiedDownloadView:
     def sync_engine(self):
         """エンジンの state を画面の run_state へ。変わったら True。"""
         engine = self.engine
-        state = "idle"
-        if engine is not None and getattr(engine, "active", False):
-            state = engine.state
+        account = self._run_view_account()
+        active = None if engine is None or account is None else engine.active_run(account)
         before = (self.run_state, self.band_state)
-        self.run_state = state if state in ("running", "paused", "stopping") else "idle"
-        if self.run_state != "idle":
+        if active is not None and active != self._displayed_handle:
+            self._adopt_active_run(active)
+        status = engine.status(active) if active is not None else None
+        self.run_state = status[0] if status is not None else "idle"
+        if status is not None:
             self.band_state = self.run_state
             self.progress.state = self.run_state
-            self.progress.pause_reason = getattr(engine, "pause_reason", "") or ""
+            self.progress.pause_reason = status[1]
+        elif self._displayed_handle is not None and self._displayed_handle.account_id != account:
+            self._displayed_handle = None
+            self.progress = U.RunProgress(())
+            self.run_target_ids = []
+            self.band_state, self.band_error = "idle", ""
         elif before[0] != "idle" and self.band_state in ("running", "paused", "stopping"):
-            # イベントを取りこぼしたまま止まった（再起動回復など）。台帳の最終状態を見る。
             self.band_state = self._ledger_outcome() or "done"
             self._after_run_end()
         if (self.run_state, self.band_state) != before:
@@ -1180,7 +1219,7 @@ class UnifiedDownloadView:
     def _ledger_outcome(self):
         try:
             engine = self.engine
-            run = engine.ledger.run(engine.run_id)
+            run = engine.ledger.run(self._displayed_handle.run_id)
             if run.state == "interrupted" and run.error_code == "bookmark_account_mismatch":
                 self.band_error = run.error_code
                 return "interrupted"

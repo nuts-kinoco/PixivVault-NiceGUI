@@ -62,7 +62,7 @@ async def test_interrupted_bookmark_run_restores_list_before_finishing(tmp_path)
     try:
         await first.refresh_bookmark_cache()
         assert [r.work_id for r in first.bookmark_download_candidates()] == ['99']
-        old_run = first.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row_id,), account_id='55', verified_bookmark_account=True)
+        old_run = first.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row_id,), account_id='55', verified_bookmark_account=True).run_id
         first.batch_run_ledger.update_author(old_run, row_id, state='downloading', account_id=first.batch_run_ledger.run(old_run).account_id)
     finally:
         await asyncio.to_thread(first.close)
@@ -72,11 +72,11 @@ async def test_interrupted_bookmark_run_restores_list_before_finishing(tmp_path)
     try:
         assert reopened.batch_run_ledger.run(old_run).state == 'interrupted'
         assert not reopened.bookmark_download_candidates()
-        new_run = reopened.resume_batch_run(old_run)
+        new_run = (await reopened.resume_batch_run(reopened.batch_run_ledger.run(old_run).handle)).run_id
         assert await asyncio.to_thread(reopened.batch_runs.join, 12)
         outcome = reopened.batch_run_ledger.run(new_run).state
         items = reopened.batch_run_ledger.items(new_run, row_id)
-        print(f'bookmark resume: state={outcome}, items={len(items)}, refresh_calls={len(reader.calls)}, offer={reopened.batch_runs.resumable_run() is not None}')
+        print(f'bookmark resume: state={outcome}, items={len(items)}, refresh_calls={len(reader.calls)}, offer={reopened.batch_runs.resumable_run('55') is not None}')
         assert outcome == 'done' and any(row.work_key == '99' for row in items)
     finally:
         await asyncio.to_thread(reopened.close)
@@ -87,7 +87,7 @@ async def test_bookmark_resume_failed_refresh_remains_resumable(tmp_path):
     first = services_with_runs(tmp_path)
     row_id = VISIBILITY_ROWS['show']
     try:
-        old_run = first.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row_id,), account_id='55', verified_bookmark_account=True)
+        old_run = first.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row_id,), account_id='55', verified_bookmark_account=True).run_id
         first.batch_run_ledger.update_author(old_run, row_id, state='downloading', account_id=first.batch_run_ledger.run(old_run).account_id)
     finally:
         await asyncio.to_thread(first.close)
@@ -98,11 +98,12 @@ async def test_bookmark_resume_failed_refresh_remains_resumable(tmp_path):
 
     reopened = services_with_runs(tmp_path, BrokenReader())
     try:
-        new_run = reopened.resume_batch_run(old_run)
-        assert await asyncio.to_thread(reopened.batch_runs.join, 12)
-        assert reopened.batch_run_ledger.run(new_run).state == 'failed'
-        assert reopened.batch_runs.resumable_run().run_id == new_run
-        assert reopened.batch_run_ledger.unfinished_authors(new_run) == (row_id,)
+        original = reopened.batch_runs.resumable_run('55')
+        with pytest.raises(RuntimeError, match='synthetic temporary failure'):
+            await reopened.resume_batch_run(original.handle)
+        assert reopened.batch_run_ledger.runs() == (original,)
+        assert reopened.batch_runs.resumable_run('55') == original
+        assert reopened.batch_run_ledger.unfinished_authors(old_run) == (row_id,)
     finally:
         await asyncio.to_thread(reopened.close)
 

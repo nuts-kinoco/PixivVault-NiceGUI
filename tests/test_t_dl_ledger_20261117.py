@@ -126,7 +126,7 @@ def test_stamp_survives_reopen(tmp_path):
 def test_run_lifecycle_and_reopen(tmp_path):
     root = tmp_path / 'runs'
     ledger = BatchRunLedger(root)
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42', '41'), account_id=ACCOUNT)
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42', '41'), account_id=ACCOUNT).run_id
     record = ledger.run(run_id)
     assert (record.state, record.authors_total, record.kind, record.finished_utc) == ('running', 2, 'authors', None)
     assert [a.state for a in ledger.authors(run_id)] == ['pending', 'pending']
@@ -135,7 +135,7 @@ def test_run_lifecycle_and_reopen(tmp_path):
     ledger.record_item(run_id, '41', '100', 'illustration', 'a' * 32, job_id='b' * 32, account_id=ledger.run(run_id).account_id)
     ledger.record_item(run_id, '41', '100', 'illustration', 'a' * 32, state='done', account_id=ledger.run(run_id).account_id)
     ledger.complete_author(run_id, '41', {'n_new': 3, 'n_updated': 1, 'n_failed': 1}, listing=listing('41'))
-    ledger.set_run_state(run_id, 'done', account_id=ledger.run(run_id).account_id)
+    ledger.set_run_state(ledger.run(run_id).handle, 'done')
     ledger.close()
     ledger = BatchRunLedger(root)  # reopen: everything is still there
     try:
@@ -173,26 +173,26 @@ def test_foreign_or_corrupt_folders_are_rejected(tmp_path):
 
 
 def test_only_one_active_run_at_a_time(ledger):
-    first = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=None)
+    first = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=None).run_id
     with pytest.raises(BatchRunConflict):
         ledger.begin_run('authors', 'auto', 'both', ('42',), account_id=None)
     assert ledger.active_run().run_id == first
-    ledger.set_run_state(first, 'stopped', account_id=ledger.run(first).account_id)
+    ledger.set_run_state(ledger.run(first).handle, 'stopped')
     assert ledger.active_run() is None
     ledger.begin_run('bookmarks', 'manual', '', (), account_id=None)
 
 
 def test_terminal_run_state_is_final(ledger):
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=None)
-    ledger.set_run_state(run_id, 'failed', 'x_failed', account_id=ledger.run(run_id).account_id)
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=None).run_id
+    ledger.set_run_state(ledger.run(run_id).handle, 'failed', 'x_failed')
     with pytest.raises(BatchRunConflict):
-        ledger.set_run_state(run_id, 'running', account_id=ledger.run(run_id).account_id)
-    ledger.set_run_state(run_id, 'failed', account_id=ledger.run(run_id).account_id)  # same state again is harmless
+        ledger.set_run_state(ledger.run(run_id).handle, 'running')
+    ledger.set_run_state(ledger.run(run_id).handle, 'failed')  # same state again is harmless
     assert ledger.run(run_id).error_code == 'x_failed'
 
 
 def test_recover_interrupted_marks_active_runs_and_midflight_authors(ledger):
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=ACCOUNT)
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=ACCOUNT).run_id
     ledger.update_author(run_id, '41', state='downloading', account_id=ledger.run(run_id).account_id)
     assert ledger._recover_interrupted() == (run_id,)
     assert ledger.run(run_id).state == 'interrupted'
@@ -203,7 +203,7 @@ def test_recover_interrupted_marks_active_runs_and_midflight_authors(ledger):
 # ---- last_downloaded rule ---------------------------------------------------
 
 def test_done_author_stamps_last_downloaded(ledger, store):
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=ACCOUNT)
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=ACCOUNT).run_id
     stamp = ledger.complete_author(run_id, '41', {'n_new': 2}, following=store, listing=listing('41'))
     assert row(store.snapshot(ACCOUNT), '41').last_downloaded == stamp
     assert row(store.snapshot(ACCOUNT), '42').last_downloaded is None
@@ -214,7 +214,7 @@ def test_done_author_stamps_last_downloaded(ledger, store):
 
 @pytest.mark.parametrize('outcome', ['failed', 'stopped', 'skipped'])
 def test_failed_stopped_or_skipped_author_never_stamps(ledger, store, outcome):
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=ACCOUNT)
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=ACCOUNT).run_id
     ledger.finish_author(run_id, '41', outcome, error_code='boom', account_id=ledger.run(run_id).account_id)
     assert row(store.snapshot(ACCOUNT), '41').last_downloaded is None
     with pytest.raises(BatchRunConflict):  # a settled author cannot be completed afterwards
@@ -223,28 +223,28 @@ def test_failed_stopped_or_skipped_author_never_stamps(ledger, store, outcome):
 
 
 def test_stopping_run_never_stamps_even_if_the_step_returned(ledger, store):
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=ACCOUNT)
-    ledger.set_run_state(run_id, 'stopping', account_id=ledger.run(run_id).account_id)
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=ACCOUNT).run_id
+    ledger.set_run_state(ledger.run(run_id).handle, 'stopping')
     assert ledger.complete_author(run_id, '41', following=store, listing=listing('41')) is None
     assert row(store.snapshot(ACCOUNT), '41').last_downloaded is None
     assert ledger.authors(run_id)[0].state == 'done'  # the work is recorded, the stamp is not
 
 
 def test_bookmarks_run_never_stamps(ledger, store):
-    run_id = ledger.begin_run('bookmarks', 'manual', '', ('41',), account_id=ACCOUNT)
+    run_id = ledger.begin_run('bookmarks', 'manual', '', ('41',), account_id=ACCOUNT).run_id
     assert ledger.complete_bookmark_row(run_id, '41', account_id=ledger.run(run_id).account_id) is None
     assert row(store.snapshot(ACCOUNT), '41').last_downloaded is None
 
 
 def test_author_that_is_not_followed_is_recorded_without_stamping(ledger, store):
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('999',), account_id=ACCOUNT)
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('999',), account_id=ACCOUNT).run_id
     ledger.complete_author(run_id, '999', {'n_new': 1}, following=store, listing=listing('999'))
     assert ledger.authors(run_id)[0].state == 'done'
     assert store.snapshot(ACCOUNT).revision == 1 and all(a.last_downloaded is None for a in store.snapshot(ACCOUNT).authors)
 
 
 def test_no_account_or_no_store_does_not_stamp(ledger, store):
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=None)
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=None).run_id
     assert ledger.complete_author(run_id, '41', following=store, listing=listing('41')) is None
     assert ledger.complete_author(run_id, '42', listing=listing('42')) is None
     assert all(a.last_downloaded is None for a in store.snapshot(ACCOUNT).authors)

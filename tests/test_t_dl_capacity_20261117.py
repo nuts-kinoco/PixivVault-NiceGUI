@@ -277,7 +277,7 @@ class CappedPort(OwnedInventoryPort):
     def require_allowed(self): pass
     def author_target(self, aid): return None
     def list_author(self, aid, target, *, expected_account): return self.owned(aid, target, self.inventory[aid], expected_account)
-    def settle(self, aid): pass
+    def settle(self, aid, *, scope): pass
     def stop_jobs(self, refs): pass
     def observe_deletion(self, aid, remote, scan_id): return None
 
@@ -515,11 +515,12 @@ def test_jobs_paused_by_admission_pause_the_run_instead_of_hanging(ledger, code)
     port.inventory = {'41': works('41', 2)}
     port.job_states = lambda refs: {r.job_id: ('paused', code) for r in refs}
     engine = BatchRunEngine(port, ledger, poll_seconds=0.001, wait=lambda s: None)
-    run_id = engine.start(('41',))
+    handle = engine.start(('41',), account_id='55')
+    run_id = handle.run_id
     assert wait_for(lambda: ledger.run(run_id).state == 'paused')
     assert ledger.run(run_id).error_code == ('network_stopped' if code == 'admission_blocked'
                                              else 'network_gate_unavailable')
-    engine.stop()
+    engine.stop(handle)
     assert engine.join(5)
 
 

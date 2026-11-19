@@ -20,7 +20,7 @@ async def test_bookmark_resume_without_source_keeps_offer(tmp_path):
     row_id = VISIBILITY_ROWS['show']
     try:
         await first.refresh_bookmark_cache()
-        old_run = first.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row_id,), account_id='55', verified_bookmark_account=True)
+        old_run = first.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row_id,), account_id='55', verified_bookmark_account=True).run_id
         first.batch_run_ledger.update_author(old_run, row_id, state='downloading', account_id=first.batch_run_ledger.run(old_run).account_id)
     finally:
         await asyncio.to_thread(first.close)
@@ -29,10 +29,13 @@ async def test_bookmark_resume_without_source_keeps_offer(tmp_path):
         second.live_client = None
         assert not second.bookmark_download_candidates()
         assert second.library_repository is None
-        new_run = second.resume_batch_run(old_run)
-        assert await asyncio.to_thread(second.batch_runs.join, 10)
-        assert second.batch_run_ledger.run(new_run).state != 'done'
-        assert second.batch_runs.resumable_run() is not None
+        from pixivvault_nicegui.account_scope import AccountMismatch
+        offer = second.batch_runs.resumable_run('55')
+        assert offer.run_id == old_run
+        with pytest.raises(AccountMismatch):
+            await second.resume_batch_run(offer.handle)
+        assert second.batch_run_ledger.runs() == (offer,)
+        assert second.batch_runs.resumable_run('55') == offer
     finally:
         await asyncio.to_thread(second.close)
 

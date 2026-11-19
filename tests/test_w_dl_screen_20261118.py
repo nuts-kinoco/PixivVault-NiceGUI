@@ -60,7 +60,7 @@ class FakePort(OwnedInventoryPort):
     def observe_deletion(self, aid, remote, scan_id):
         return None
 
-    def settle(self, aid):
+    def settle(self, aid, *, scope):
         pass
 
     def retire(self, refs):
@@ -93,6 +93,7 @@ class FakeServices:
         self.following_sync.sync(Reader())
         self.batch_run_ledger = BatchRunLedger(tmp_path / 'runs')
         self.port = FakePort(hold)
+        self.live_client = SimpleNamespace(_verified_identity=ACCOUNT)
         self.batch_runs = self.engine = BatchRunEngine(self.port, self.batch_run_ledger, following=self.following_sync,
                                          account_id=ACCOUNT, poll_seconds=0.001, wait=lambda seconds: None,
                                          on_progress=self._fan_out)
@@ -113,13 +114,13 @@ class FakeServices:
 
     def start_batch_run(self, author_ids, *, account_id, origin='manual', target_type=None):
         return self.batch_runs.start(tuple(author_ids), origin='manual' if origin == 'id' else origin,
-                                     target_type=target_type, account_id=account_id)
+                                     target_type=target_type, account_id=account_id or ACCOUNT)
 
-    def resume_batch_run(self, run_id, *, account_id):
-        return self.batch_runs.start_unfinished(run_id, account_id=account_id)
+    async def resume_batch_run(self, handle):
+        return self.batch_runs.start_unfinished(handle)
 
-    def discard_batch_run(self, run_id, *, account_id):
-        return self.batch_runs.discard_resumable(run_id, account_id=account_id)
+    def discard_batch_run(self, handle):
+        return self.batch_runs.discard_resumable(handle)
 
     def unified_download_authors(self):
         if self.rows:
@@ -140,8 +141,7 @@ class FakeServices:
         return ()
 
     def close(self):
-        self.engine.stop()
-        self.engine.join(5)
+        self.engine._shutdown(5)
         self.batch_run_ledger.close()
         self.following_sync.close()
 

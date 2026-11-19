@@ -1320,9 +1320,14 @@ def run_author_check(services, author_ids, *, cancellation: Event, ledger: Manag
     now = datetime.now(timezone.utc)
     slot = slot or _timestamp(now)
     bound = _dispatch_account(ledger)
+    account = AccountScope(account_id).account_id
+    if bound is not None:
+        require_same_account(bound, account)
+    engine = services.batch_runs
+    engine.port.verify_run_account(account)
     if ledger is not None:
         ledger.begin_dispatch(slot, now, len(ids), account_id=bound)
-    engine = services.batch_runs
+
     def persist_outcome(state, code, totals):
         accepted = sum(totals[name] for name in ('n_new', 'n_updated', 'n_restored', 'n_missing'))
         if ledger is not None:
@@ -1337,10 +1342,16 @@ def run_author_check(services, author_ids, *, cancellation: Event, ledger: Manag
                     raise
         return accepted
 
+    result = None
+
+    def finished(own_result):
+        nonlocal result
+        require_same_account(account, own_result.handle.account_id)
+        result = own_result
+        if not wait:
+            persist_outcome(result.state, result.error_code, result.totals)
+
     try:
-        account = AccountScope(account_id).account_id
-        if bound is not None:
-            require_same_account(bound, account)
         if not ids:
             if ledger is not None:
                 ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0, account_id=bound)
@@ -1350,9 +1361,8 @@ def run_author_check(services, author_ids, *, cancellation: Event, ledger: Manag
                 ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0, error_code='run_active', account_id=bound)
             return {'accepted': 0, 'deferred': 0, 'authors': 0}
         _require_managed_network_allowed(services)
-        notification = {} if wait else {'on_finish': persist_outcome}
-        run_id = services.start_batch_run(ids, origin='auto', target_type='both',
-                                          account_id=account, **notification)
+        handle = services.start_batch_run(ids, origin='auto', target_type='both',
+                                          account_id=account, on_finish=finished)
     except Exception as error:
         if ledger is not None:
             code = AccountMismatch.code if isinstance(error, AccountMismatch) else type(error).__name__
@@ -1362,21 +1372,21 @@ def run_author_check(services, author_ids, *, cancellation: Event, ledger: Manag
         # 「今すぐチェック」: the run goes on in the background; progress is on the download screen.
         return {'accepted': 0, 'deferred': 0, 'authors': len(ids), 'started': True}
     paused = ''
-    while not engine.join(poll):
+    while not engine.join(poll, handle=handle):
         if cancellation.is_set() or services.closing:
-            engine.stop()
-        elif engine.state == 'paused' and engine.pause_reason not in ('', 'user'):
-            # The gate closed under an automatic run. Do not leave it active for ever (it would block
-            # every later slot and the background work): end it; the next slot is differential.
-            paused = engine.pause_reason
-            engine.stop()
-            engine.join(30.0)
-            break
-    run = engine.ledger.run(run_id)
-    state = run.state if not paused else 'paused'
-    accepted = persist_outcome(state, paused or run.error_code, engine.totals)
+            engine._stop_run(handle)
+            continue
+        status = engine.status(handle)
+        if status is not None and status[0] == 'paused' and status[1] not in ('', 'user'):
+            # A gated automatic run must release the engine for future slots.
+            paused = status[1]
+            engine._stop_run(handle)
+    if result is None or result.handle != handle:
+        raise ScheduleError('author check result unavailable')
+    state = 'paused' if paused else result.state
+    accepted = persist_outcome(state, paused or result.error_code, result.totals)
     if state == 'failed':
-        if run.error_code == AccountMismatch.code:
+        if result.error_code == AccountMismatch.code:
             raise ScheduleAccountError('mismatch')
         raise ScheduleError('author check failed')
     return {'accepted': accepted, 'deferred': 0, 'authors': len(ids)}
