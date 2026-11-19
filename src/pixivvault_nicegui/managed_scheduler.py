@@ -913,16 +913,29 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
         saved = {receipt['work_id']: (digest, date, relative)
                  for relative, receipt, digest, date
                  in services.managed_downloads.saved_receipts_with_dates()}
-        full_reader = getattr(services.live_client, 'get_author_artworks_complete', None)
+        reader = services.live_client
+        full_reader = getattr(reader, 'get_author_artworks_complete', None)
         if not callable(full_reader):
             raise ScheduleError('complete author inventory is required')
-        services.live_client.verify_identity()
+        bound = getattr(ledger, '_bound_account', lambda: None)()
+
+        def check_account(account):
+            if (services.live_client is not reader
+                    or (bound is not None and (account != bound
+                        or getattr(reader, '_verified_identity', account) != bound))):
+                raise ScheduleAccountError('mismatch')
+
+        _require_managed_network_allowed(services)
+        verified = reader.verify_identity()
+        check_account(verified)
         for author_id in verified_authors:
             if cancellation.is_set() or services.closing:
                 break
             _require_managed_network_allowed(services)
+            check_account(verified)
             # No fallback to partial/masked inventories: fail closed.
             works = full_reader(author_id)
+            check_account(verified)
             if ledger is not None:
                 ledger.prune_deferred_inventory(author_id, {work['id'] for work in works})
             bridge = getattr(services, 'legacy_author_bridge', None)
