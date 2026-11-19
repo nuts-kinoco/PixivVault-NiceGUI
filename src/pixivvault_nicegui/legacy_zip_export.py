@@ -14,6 +14,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import stat
 from threading import Lock
 from uuid import uuid4
@@ -241,7 +242,10 @@ class LegacyZipExporter:
                     if name in members:
                         raise LegacyZipExportError('duplicate legacy ZIP member rejected')
                     members.add(name)
-                    entries.append((relative, digest, page_index, name))
+                    safe_title = _INVALID_FILENAME.sub('_', receipt['title'])
+                    legacy = (f'{safe_title}.{ext}' if receipt['page_count'] == 1
+                              else f'{safe_title}_{page_index + 1}.{ext}')
+                    entries.append((relative, digest, page_index, name, legacy))
 
             _safe_path(native_io_path(self.incomplete))
             staging = native_io_path(self.incomplete) / ('zip-' + uuid4().hex + '.tmp')
@@ -250,7 +254,24 @@ class LegacyZipExporter:
             with staging.open('xb') as output:
                 with ZipFile(output, 'w', compression=ZIP_DEFLATED,
                              compresslevel=6, allowZip64=False) as archive:
-                    for relative, digest, index, name in entries:
+                    if replace_existing_sha256 is not None:
+                        # Read every old member, including entries no longer in
+                        # the managed catalog, before publishing a replacement.
+                        with ZipFile(destination, 'r') as previous:
+                            old_names = set()
+                            for info in previous.infolist():
+                                name = info.filename.replace('\\', '/')
+                                if name in old_names:
+                                    raise LegacyZipExportError('duplicate previous ZIP member')
+                                old_names.add(name)
+                                info.filename = name
+                                with previous.open(info) as source, archive.open(info, 'w') as target:
+                                    shutil.copyfileobj(source, target, 1024 * 1024)
+                            members.update(old_names)
+                        entries = [entry for entry in entries
+                                   if entry[3] not in old_names and entry[4] not in old_names]
+                    members = old_names | {entry[3] for entry in entries} if replace_existing_sha256 is not None else members
+                    for relative, digest, index, name, _legacy in entries:
                         if self._closing:
                             raise LegacyZipExportError('ZIP export interrupted by shutdown')
                         data = self.managed.read_saved_page(relative, index, digest)
@@ -295,7 +316,7 @@ class LegacyZipExporter:
             return logical_path(destination)
         except (LegacyZipExportError, ManagedDownloadError):
             raise
-        except (OSError, ValueError, LargeZipFile, KeyError, RuntimeError):
+        except (OSError, ValueError, BadZipFile, LargeZipFile, KeyError, RuntimeError, ZlibError):
             raise LegacyZipExportError('legacy ZIP export failed') from None
         finally:
             if staging is not None and not retain_stage:
