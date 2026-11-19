@@ -37,6 +37,27 @@ def packet(value):
     return json.dumps(value,sort_keys=True,separators=(',',':'),ensure_ascii=True).encode()
 
 
+def _quarantine_identity(source):
+    return {'version':1,'purpose':'legacy-quarantine','source':source}
+
+
+def is_legacy_identity_stage(path):
+    """Recognize an inert, possibly torn write before publishing IDENTITY.json."""
+    if re.fullmatch(r'legacy-identity-[a-f0-9]{32}\.next', path.name) is None:
+        return False
+    folder = path.parent / 'legacy-quarantine'
+    _safe_path(folder)
+    if not folder.is_dir():
+        return False
+    template = packet(_quarantine_identity('0' * 64))
+    raw = _read_bounded(path, len(template))
+    start = template.index(b'0' * 64)
+    source = raw[start:start + 64]
+    if re.fullmatch(rb'[a-f0-9]{0,64}', source) is None:
+        return False
+    return packet(_quarantine_identity(source.decode('ascii').ljust(64, '0'))).startswith(raw)
+
+
 def digest_file(path):
     value=sha256()
     with native_io_path(path).open('rb') as stream:
@@ -53,8 +74,7 @@ class LegacyQuarantine:
         if self.root is not None and (self.root.is_relative_to(self.catalog.root)
                                       or self.catalog.root.is_relative_to(self.root)):
             raise ValueError('legacy and managed storage overlap')
-        self.identity={'version':1,'purpose':'legacy-quarantine',
-                       'source':sha256(str(self.catalog.root).casefold().encode()).hexdigest()}
+        self.identity=_quarantine_identity(sha256(str(self.catalog.root).casefold().encode()).hexdigest())
         self._mutex=RLock();self._closed=False;self._rows={}
         self._physical=None
         self._recovery_page_bindings={}
