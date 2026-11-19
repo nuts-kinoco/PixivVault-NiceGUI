@@ -345,6 +345,8 @@ class LearningView:
                             self.review_bodies[positive] = ui.column().classes('w-full gap-1 shrink-0')
         self.review_panel.set_visibility(False)
         self._review_timer = ui.timer(1.0, self._poll_review_jobs)
+        self._local_trend_revision = None
+        self._local_revision_task = None
 
         # NiceGUI 3.18: js_handler は emit(...) へ送る値を組み立てられる。
         # root 配下にフォーカスがある場合だけ拾い、入力中とIME中は除外する。
@@ -2033,6 +2035,8 @@ class LearningView:
     def watch_local_seeds(self):
         if self.state.closed or getattr(self.discovery, '_seed_executor', None) is None:
             return
+        if self._local_revision_task is None or self._local_revision_task.done():
+            self._local_revision_task = background_tasks.create(self._watch_local_revision(), name='learning local revision watch')
         future = getattr(self.discovery, '_seed_future', None)
         if self._seed_watch_task is not None and not self._seed_watch_task.done():
             self._seed_watch_task.cancel()
@@ -2040,6 +2044,18 @@ class LearningView:
             self._seed_watch_task = background_tasks.create(self._refresh_local_trend(), name='learning local seed refresh')
         else:
             self._seed_watch_task = background_tasks.create(self._watch_local_seeds(future), name='learning local seeds')
+
+    async def _watch_local_revision(self):
+        local = getattr(getattr(self, 'discovery', None), 'local_tag_view', None)
+        if local is None:
+            return
+        while not self.state.closed and not self.services.closing:
+            revision = await asyncio.to_thread(local.revision)
+            if self.active and revision != self._local_trend_revision:
+                self._local_trend_revision = revision
+                await self._refresh_local_trend()
+                self.refresh_tagger_order()
+            await asyncio.sleep(0.5)
 
     async def _refresh_local_trend(self):
         if self.state.closed or self.services.closing:
@@ -2387,6 +2403,8 @@ class LearningView:
         self.close_summary()
         self._summary_epoch += 1
         self._review_timer.cancel()
+        if self._local_revision_task is not None:
+            self._local_revision_task.cancel()
         self.toast.close()
         self.view_history.close()
         if self.reset_view is not None:self.reset_view.close()

@@ -174,3 +174,81 @@ async def test_readability_change_during_fetch_result_uses_fresh_order(tmp_path,
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('transition', ['disabled', 'digest', 'nonlocal', 'unsaved', 'unreadable', 'api'])
+async def test_open_learning_trend_removes_stale_projection(tmp_path, fixture, monkeypatch, transition):
+    folder, store, tagger, behavior = fixture
+    monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
+    works = [SimpleNamespace(work_id=str(i), tags=()) for i in range(1, 9)]
+    saved = {w.work_id for w in works}
+    image = [png()]
+    service = create(tmp_path / 'learning', tagger, works, lambda _: image[0], saved)
+    seed_candidates(service, [candidate(0, tags=('different',)), candidate(1, tags=('cat',))])
+    await asyncio.wrap_future(service.refresh_saved_seeds())
+    client = Client(ui.page('/r4-learning-' + transition))
+    owned_before = set(background_tasks.running_tasks)
+    with client:
+        view = LearningView(FakeServices(service))
+    try:
+        view._initial_done = True
+        await settled(view)
+        view.set_active(True)
+        await settled(view)
+        async with asyncio.timeout(5):
+            while not view._trend_snapshot or not view._trend_snapshot['local_seed_rows']:
+                await asyncio.sleep(.01)
+            while view._seed_watch_task is None or not view._seed_watch_task.done():
+                await asyncio.sleep(.01)
+        assert view._trend_snapshot['local_seed_rows'][0]['tag'] == 'cat'
+
+        if transition == 'disabled':
+            # Settings click notification follows the actual shell entry point.
+            store.set_setting('local_tagger_enabled', '0')
+            from pixivvault_nicegui.services import ApplicationServices
+            from pixivvault_nicegui.ui.shell import DemoShell
+            app = FakeServices(service)
+            app.local_tag_view = service.local_tag_view
+            app.preferences = store
+            app._sync_metadata_auto = lambda: None
+            app._sync_similarity_auto = lambda: None
+            app.shared_image_cache = None
+            app.apply_preferences = lambda snapshot: ApplicationServices.apply_preferences(app, snapshot)
+            shell = SimpleNamespace(services=app, learning=view, gallery=None, personal_view=None)
+            DemoShell.apply_preferences(shell)
+            DemoShell._tagger_settings_changed(shell)
+        elif transition == 'digest':
+            (folder / 'model.onnx').write_bytes(b'changed-contents')
+        elif transition == 'nonlocal':
+            target = folder / 'model.onnx'
+            original = Path.resolve
+            monkeypatch.setattr(Path, 'resolve', lambda p, *a, **kw:
+                Path(r'\\synthetic\share\model') if p == target else original(p, *a, **kw))
+        elif transition == 'unsaved':
+            saved.clear()
+            service.local_tag_view.invalidate()
+            service.refresh_saved_seeds()
+        elif transition == 'unreadable':
+            image[0] = None
+        else:
+            works[:] = [SimpleNamespace(work_id=w.work_id, tags=('api_arrived',)) for w in works]
+            service.local_tag_view.invalidate()
+            service.refresh_saved_seeds()
+
+        current = await service.trend_snapshot()
+        assert not current['local_seed_rows']
+        expected, _ = await service.rank_pending(('1000', '1001'))
+        await asyncio.sleep(1.15)
+        displayed = (tuple(row['tag'] for row in view._trend_snapshot['local_seed_rows']),
+                     tuple(a.work_id for a in view.state.artworks))
+        print('transition', transition, 'current-service-order', expected, 'displayed', displayed)
+        assert displayed == ((), expected)
+    finally:
+        view.close()
+        client.delete()
+        owned = set(background_tasks.running_tasks) - owned_before
+        for task in owned:
+            task.cancel()
+        await asyncio.gather(*owned, return_exceptions=True)
+        await asyncio.to_thread(service.close)
+
+
+@pytest.mark.asyncio
