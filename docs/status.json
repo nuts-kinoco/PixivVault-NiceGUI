@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-18 08:02",
+  "updated": "2026-11-20 02:24",
   "phases": [
     {
       "id": "P0",
@@ -35,17 +35,17 @@
       "id": "P3",
       "name": "機能の完成",
       "goal": "台帳の「無」「弱」を機能単位で実装（元との並置・取得停止ゲートの検査つき）",
-      "state": "進行中",
+      "state": "進行中（R3 待ち）",
       "approval": "事前承認（この計画）",
-      "done": 0,
+      "done": 3,
       "total": 5,
-      "pct": 0
+      "pct": 60
     },
     {
       "id": "P4",
       "name": "公式 45 残件",
       "goal": "OLD45 の A〜E を処理",
-      "state": "未着手",
+      "state": "進行中",
       "approval": "事前承認（この計画）",
       "done": 0,
       "total": 1,
@@ -55,7 +55,7 @@
       "id": "P5",
       "name": "デザイン証拠",
       "goal": "元との並置比較と、固定サイズでの画面証拠",
-      "state": "未着手",
+      "state": "進行中",
       "approval": "事前承認（この計画）",
       "done": 0,
       "total": 1,
@@ -65,7 +65,7 @@
       "id": "P6",
       "name": "応答性と安全",
       "goal": "元と移植版の測定・改善、取得停止ゲートの網羅検査、C ドライブ差分、機密検出",
-      "state": "未着手",
+      "state": "進行中",
       "approval": "事前承認（この計画）",
       "done": 0,
       "total": 1,
@@ -210,50 +210,50 @@
     {
       "phase": "P3",
       "condition": "台帳の無・弱 57 行を、本人裁定・意図的削除を除いてゼロにする（check_inventory_coverage --strict-gaps が 0）",
-      "met": "未",
-      "evidence": ""
+      "met": "達成",
+      "evidence": "work 4f828a1: check_inventory_coverage --strict-gaps 終了 0（無・弱の台帳行 0）。台帳は Z01/Z02/Z04/Z05/Z07/Z12/I15/D00/D03/D08-D12/D16/A13 を有に再ステータス（根拠付き）"
     },
     {
       "phase": "P3",
       "condition": "FL-D00 ダウンロードの全体設計（WU-1〜8, 10）",
-      "met": "未",
-      "evidence": "設計書 docs/design/DOWNLOAD_TAB_DESIGN_2026-11-17.md"
+      "met": "達成",
+      "evidence": "wt-w 統合 58f8742。独立検証 Sol 第13回 High 0（既知の限界 tmp/known_limits_wtw.md）。実機は COS R3 で確認"
     },
     {
       "phase": "P3",
       "condition": "Z04・Z07・Z12 を実装",
-      "met": "未",
-      "evidence": ""
+      "met": "達成",
+      "evidence": "wt-ag 統合（tests/test_ag_z04/z05/z07/z12_*）。限界は tmp/known_limits_zag.md"
     },
     {
       "phase": "P3",
       "condition": "条件付きの機能（おすすめ・重複整理）を、旧ライブラリ接続の検証用プロファイルで実機確認",
       "met": "未",
-      "evidence": ""
+      "evidence": "借用プレミアムが必要な K01/K02/K09/Z04 の実機確認は未了（COS R3 では扱わない）"
     },
     {
       "phase": "P3",
       "condition": "統合後の全体テスト失敗 0・画面スモーク PASS・checker 指摘ゼロ・実機（COS）確認",
       "met": "未",
-      "evidence": ""
+      "evidence": "work 全体テスト 3,649 passed（8c3c4fd）、wt-rs 候補 3,675、wt-p6 候補 3,683。最終候補の全体試験・UI スモークは統合後に 1 回。COS R3 プロンプト作成済み（docs/cos/COS_REALAPP_PROMPT_R3.md）、返信待ち"
     },
     {
       "phase": "P4",
       "condition": "fail ゼロ、partial は PASS か物理操作区分",
       "met": "未",
-      "evidence": ""
+      "evidence": "wt-p4 統合 67e992e: 公式 45 件の判定表 docs/OLD45_STATUS_2026-11-19.md（PASS 8・物理操作 13・P5 で確認 20・未達 4: K01/K02/K09 借用と U16）。E01/X09/V08 修正、Neon レビュー 4 件を Sol が真偽確定"
     },
     {
       "phase": "P5",
       "condition": "全画面の画面証拠と並置比較",
       "met": "未",
-      "evidence": ""
+      "evidence": "wt-p5 統合 8c3c4fd: 11 画面×2 サイズ×2 テーマ×3 プロファイルの並置 132 組。書体を Noto Sans JP に統一。残り: 一部画面の通常・長文、区分 D の未確認操作、ダウンロード画面の再撮影"
     },
     {
       "phase": "P6",
       "condition": "D6・D7 を満たす",
       "met": "未",
-      "evidence": ""
+      "evidence": "wt-p6 65dd74e（独立検証中）: D7 通信 287 箇所を分類、未解決 0。D6 は docs/P6_RESPONSIVENESS_2026-11-19.md。C ドライブ差分は判定保留（未分類 1 件）"
     },
     {
       "phase": "P7",
@@ -737,9 +737,8 @@
     }
   ],
   "ledger_counts_provisional": {
-    "有": 83,
-    "無": 17,
-    "弱": 29,
+    "有": 115,
+    "無": 14,
     "条件付きで有": 33,
     "不明": 50,
     "意図的削除": 6
@@ -751,12 +750,12 @@
     "errors": 0,
     "seconds": 653.13
   },
-  "head": "9dbe443 FL-V03（1280px の 2 段折り返し）を実装済みに更新",
+  "head": "b698efa COS R3 実機の画面確認プロンプトを追加",
   "worktrees": [
     {
       "path": "work",
       "branch": "pv-dev-baseline",
-      "head": "9dbe443"
+      "head": "b698efa"
     },
     {
       "path": "basewt",
@@ -767,6 +766,61 @@
       "path": "wt-a",
       "branch": "fix-a-q17-x09",
       "head": "e43b408"
+    },
+    {
+      "path": "wt-aa",
+      "branch": "feat-aa-recommend",
+      "head": "50e5f4e"
+    },
+    {
+      "path": "wt-ab",
+      "branch": "feat-ab-learning-b",
+      "head": "b56240a"
+    },
+    {
+      "path": "wt-ac",
+      "branch": "feat-ac-library",
+      "head": "b7fae77"
+    },
+    {
+      "path": "wt-ad",
+      "branch": "feat-ad-i09",
+      "head": "9a1ef6e"
+    },
+    {
+      "path": "wt-ae",
+      "branch": "feat-ae-shell-queue",
+      "head": "60170d3"
+    },
+    {
+      "path": "wt-af",
+      "branch": "feat-af-notify-dup",
+      "head": "73dac8c"
+    },
+    {
+      "path": "wt-ag",
+      "branch": "feat-ag-storage-auth",
+      "head": "c1c52fe"
+    },
+    {
+      "path": "wt-ah",
+      "branch": "feat-ah-zip",
+      "head": "e787fc1"
+    },
+    {
+      "path": "wt-ai",
+      "branch": "feat-ai-lanes",
+      "head": "ac8217b"
+    },
+    {
+      "path": "wt-aj",
+      "branch": "feat-aj-z14",
+      "head": "90e18fa"
+    },
+    {
+      "path": "wt-ak",
+      "branch": "feat-ak-i15-tagger",
+      "head": "e0175f3"
     },
     {
       "path": "wt-b",
@@ -849,6 +903,26 @@
       "head": "66c33a0"
     },
     {
+      "path": "wt-p3ab",
+      "branch": "feat-p3-ab",
+      "head": "17988d8"
+    },
+    {
+      "path": "wt-p4",
+      "branch": "feat-p4",
+      "head": "473cd9e"
+    },
+    {
+      "path": "wt-p5",
+      "branch": "feat-p5",
+      "head": "ba3a0a3"
+    },
+    {
+      "path": "wt-p6",
+      "branch": "feat-p6",
+      "head": "65dd74e"
+    },
+    {
       "path": "wt-q",
       "branch": "feat-q-shell",
       "head": "69997a8"
@@ -859,6 +933,11 @@
       "head": "14f937b"
     },
     {
+      "path": "wt-rs",
+      "branch": "fix-real-start",
+      "head": "2e8a646"
+    },
+    {
       "path": "wt-s",
       "branch": "feat-s-download-design",
       "head": "8dc5a6c"
@@ -866,7 +945,37 @@
     {
       "path": "wt-t",
       "branch": "feat-t-download-engine",
-      "head": "dbece97"
+      "head": "ed199cc"
+    },
+    {
+      "path": "wt-u",
+      "branch": "fix-u-shell-findings",
+      "head": "ffa985e"
+    },
+    {
+      "path": "wt-v",
+      "branch": "feat-v-download-ui",
+      "head": "10fa655"
+    },
+    {
+      "path": "wt-w",
+      "branch": "feat-w-download-screen",
+      "head": "58f8742"
+    },
+    {
+      "path": "wt-x",
+      "branch": "feat-x-context-menus",
+      "head": "947ef7c"
+    },
+    {
+      "path": "wt-y",
+      "branch": "feat-y-ranking",
+      "head": "18eb14f"
+    },
+    {
+      "path": "wt-z",
+      "branch": "feat-z-learning-a",
+      "head": "2e53a24"
     }
   ],
   "stop": ""
