@@ -53,3 +53,14 @@ def test_python_audit_targets_writes_without_exposing_arguments():
     assert write_destinations('os.rename', ('source', 'C:/fixture', -1, -1)) == ('C:/fixture',)
     assert write_destinations('sqlite3.connect', ('file:///C:/generated.sqlite?mode=ro',)) == ()
     assert write_destinations('sqlite3.connect', ('file:///C:/generated.sqlite?mode=rwc',)) == ('C:/generated.sqlite',)
+
+
+def test_isolated_profile_retains_existing_browser_installation_lookup(tmp_path, monkeypatch):
+    installed = tmp_path / 'existing' / 'ms-playwright'
+    installed.mkdir(parents=True)
+    monkeypatch.setenv('LOCALAPPDATA', str(installed.parent))
+    monkeypatch.delenv('PLAYWRIGHT_BROWSERS_PATH', raising=False)
+    env = p6_c_drive.command_environment(tmp_path / 'run')
+    assert env['PLAYWRIGHT_BROWSERS_PATH'] == str(installed)
+    assert Path(env['LOCALAPPDATA']) == tmp_path / 'run' / 'test-profile' / 'AppData' / 'Local'
+    assert Path(env['TEMP']) == tmp_path / 'run' / 'temp'
