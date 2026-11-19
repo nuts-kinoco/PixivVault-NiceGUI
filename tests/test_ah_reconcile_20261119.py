@@ -80,12 +80,30 @@ def test_author_rename_recovers_after_receipt_write_failure(tmp_path,monkeypatch
             if str(dst).endswith('.export.json'):raise OSError('injected')
             return original(src,dst)
         monkeypatch.setattr(os,'replace',fail)
-        q.exports.scan();assert any(j.state=='error' for j in settled(q.exports))
+        q.exports.scan();failed=next(j for j in settled(q.exports) if j.state=='error')
         monkeypatch.setattr(os,'replace',original)
         q.exports.close(); reopened=SaveExports(q.exports.s,q.exports.root)
         try:
+            assert (reopened.zip.root/'tester(456).zip').exists()
+            reopened.run(failed,Context())
             target=reopened.zip.root/'new(tester)(456).zip'
             assert target.exists() and not (reopened.zip.root/'tester(456).zip').exists()
             assert reopened._previous_auto_zip('456') is not None
             assert not list(reopened.root.glob('zip-mutation-*.json'))
         finally:reopened.close()
+
+
+def test_failed_rename_receipt_update_restores_old_path(tmp_path,monkeypatch):
+    import os
+    with generated_exports(tmp_path,True,None) as q:
+        q.exports.scan();assert all(j.state=='done' for j in settled(q.exports))
+        q.managed.resolve_record=lambda wid:replace(record(),remote_id=wid,title='second',author_name='new')
+        q.managed.run(SimpleNamespace(kind='pixiv-illust',target_id='124'),Context())
+        original=os.replace
+        def fail(src,dst):
+            if str(dst).endswith('.export.json'):raise OSError('injected')
+            return original(src,dst)
+        monkeypatch.setattr(os,'replace',fail)
+        q.exports.scan();assert any(j.state=='error' for j in settled(q.exports))
+        old=q.exports.zip.root/'tester(456).zip';new=q.exports.zip.root/'new(tester)(456).zip'
+        assert old.exists() and not new.exists()

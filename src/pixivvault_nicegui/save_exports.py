@@ -808,13 +808,37 @@ class SaveExports:
         temp=journal.with_suffix('.tmp')
         try:_write(temp,packet(note));os.replace(temp,journal);_fsync_dir(journal.parent)
         finally:temp.unlink(missing_ok=True)
-        self._finish_zip_mutation(journal,note)
+        try:
+            self._finish_zip_mutation(journal,note)
+        except Exception:
+            # Restore any already-updated receipts before restoring the old path.
+            # If rollback itself fails, keep the durable journal for recovery.
+            for receipt_name in matches:
+                receipt=native_io_path(self.root)/receipt_name
+                record=json.loads(_read_bounded(receipt,2_000_000),object_pairs_hook=_json_unique)
+                if record.get('archive')==candidate:
+                    record['archive']=old
+                    temporary=native_io_path(self.root)/('zip-receipt-'+uuid4().hex+'.tmp')
+                    try:_write(temporary,packet(record));os.replace(temporary,receipt);_fsync_dir(receipt.parent)
+                    finally:temporary.unlink(missing_ok=True)
+                elif record.get('archive')!=old:
+                    raise ValueError('ZIP rename rollback receipt changed')
+            if target.exists() and not source.exists():
+                if verified_zip_digest(target)!=value['sha256']:raise ValueError('ZIP rename rollback source changed')
+                os.rename(target,source);_fsync_dir(source.parent)
+            if source.exists() and not target.exists():
+                journal.unlink(missing_ok=True);_fsync_dir(journal.parent)
+            raise
 
     def _finish_zip_mutation(self, path, note):
         from .legacy_zip_export import verified_zip_digest
         archive=native_io_path(self.zip.root)/note['archive']
         old_name=note.get('previous_archive')
         if old_name is not None:
+            author=re.search(r'\(([1-9][0-9]*)\)\.zip$',note['archive'])
+            if (author is None or not old_name.endswith('('+author.group(1)+').zip')
+                    or old_name==note['archive'] or note['before']!=note['after']):
+                raise ValueError('ZIP rename journal rejected')
             previous=native_io_path(self.zip.root)/old_name
             if previous.exists() and not archive.exists():
                 if verified_zip_digest(previous)!=note['before']:raise ValueError('ZIP rename source changed')
