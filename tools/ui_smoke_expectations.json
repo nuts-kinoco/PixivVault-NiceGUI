@@ -48,7 +48,7 @@
     },
     "failed": {
       "label": "失敗リスト",
-      "text_fonts": {".pv-failure-heading": "Noto Sans JP"},
+      "text_fonts": {".pv-failure-heading": "Yu Mincho"},
       "testids": ["failed-records-view", "failed-count", "failed-search", "failed-retry-all",
                   "failed-category-all", "failed-rows", "failed-reload"],
       "texts": ["ダウンロード失敗キュー・保存品質異常リスト", "すべて 17"]
@@ -112,7 +112,7 @@
     },
     "settings": {
       "label": "設定", "open": "preferences-open",
-      "text_fonts": {".pv-dialog-title": "Noto Sans JP"},
+      "text_fonts": {".pv-dialog-title": "Yu Mincho"},
       "testids": ["preferences-dialog", "preferences-save", "preferences-reload", "native-profile-pick-cookie",
                   "native-profile-pick-folder", "native-profile-save", "preference-download_interval",
                   "preferences-version"],

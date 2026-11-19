@@ -14,7 +14,7 @@ TOKENS = {
     "gap": 12,
     "radius_card": 12,
     "radius_control": 8,
-    "heading_font": UI_FONT,
+    "heading_font": '"Yu Mincho", "YuMincho", serif',
     "body_font": UI_FONT,
 }
 
@@ -49,7 +49,7 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family:var(
 .pv-header-actions { display:flex; flex-wrap:nowrap; align-items:center; gap:5px; flex:0 0 auto; align-self:center; }
 .pv-title { font-family:inherit; font-size:32px; font-weight:700; line-height:46px; }
 .pv-subtitle { color:var(--pv-muted); font-size:13px; }
-.pv-dialog-title { font-family:inherit; color:var(--pv-text-main); }
+.pv-dialog-title { font-family:"Yu Mincho", "YuMincho", serif; color:var(--pv-text-main); }
 .pv-auth { font-size:13px; font-weight:500; line-height:1.2; }
 .pv-auth[data-tone=red] { color:var(--pv-auth-red); } .pv-auth[data-tone=green] { color:var(--pv-auth-green); }
 .pv-auth[data-tone=yellow] { color:var(--pv-auth-yellow); } .pv-auth[data-tone=blue] { color:var(--pv-auth-blue); }
