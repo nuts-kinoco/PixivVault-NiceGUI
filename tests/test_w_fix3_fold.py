@@ -224,6 +224,7 @@ def test_pending_recovery_does_not_wait_behind_writer_fence(tmp_path, monkeypatc
     writer.prepare_for_publication()
     publish(writer, root, '1000')
     observer = mg.ManagedGenerations(root)
+    before = observer.state_snapshot()
     replace = mg._replace_retrying
     def interrupt(source, target, patience=5):
         if target == writer.index_path:
@@ -244,8 +245,11 @@ def test_pending_recovery_does_not_wait_behind_writer_fence(tmp_path, monkeypatc
         reader = pool.submit(observer.state_snapshot)
         try:
             assert wait((reader,), timeout=0.5).done, 'reader blocked behind writer fence'
-            with pytest.raises(ManagedDownloadError):
-                reader.result()
+            during = reader.result()
+            assert dict(during['entries']) == dict(before['entries'])
+            assert during['revision'] == before['revision']
+            assert during['exclusions'] == before['exclusions']
+            assert during['operations'] == before['operations']
         finally:
             release.set()
         holder.result(timeout=8)
