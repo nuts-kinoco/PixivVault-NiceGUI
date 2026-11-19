@@ -163,6 +163,13 @@ class ApplicationServices:
             raise ValueError("novel fixture mode requires an isolated configuration")
         self.legacy_capacity = None
         self._owned_legacy_capacity_cache = None
+        self._bookmark_cache_store = None
+        self._bookmark_restore_attempted = False
+        self._bookmark_restored_identity = None
+        self._bookmark_restored_reader = None
+        self._bookmark_verified_identity = None
+        self._bookmark_verified_reader = None
+        self.bookmark_cache_persist_failed = False
         self.preferences_root = preferences_root
         self.discovery_root = discovery_root
         self.following_sync_root = following_sync_root
@@ -408,6 +415,7 @@ class ApplicationServices:
         # listing after a newer scan and invent a fresh deletion streak.
         self._legacy_inventory_lock = Lock()
         self._direct_download_candidates: dict[str, OrderedDict] = {}
+        self._follow_account_by_owner = {}
         self._author_owned_pins: dict[str, frozenset[str]] = {}
         self._managed_receipts = ()
         self._managed_catalog_snapshot = None
@@ -418,6 +426,9 @@ class ApplicationServices:
         self._legacy_local_bookmarks = ()
         self._library_composition = None
         self.jobs = None
+        from .queue_log import QueueLog
+        self.queue_log = QueueLog()
+        self.shared_log = QueueLog()
         self.static_jobs = None
         self.download_writer = None
         self.artworks = generate_demo_artworks(count)
@@ -429,6 +440,7 @@ class ApplicationServices:
         self._cached_remote_bookmarks = None if live_client is not None else self.artworks[:110]
         self._cached_local_bookmarks = () if live_client is not None else self.artworks[:40]
         self.bookmark_cache_failed = False
+        self.bookmark_cache_fetched_at = None
         self.library_readonly_db = library_readonly_db
         self.library_image_root = library_image_root
         self._library_refresh_lock = asyncio.Lock()
@@ -437,7 +449,8 @@ class ApplicationServices:
             from .local_media_adapter import ReadonlyLocalMediaCatalog
             try:
                 repository = ReadonlyLibraryRepository(library_readonly_db, immutable=True)
-                snapshot = repository.library_snapshot()
+                self.bookmark_cache_fetched_at = repository.bookmark_cache_fetched_at()
+                snapshot, preview_urls = repository.library_snapshot_with_previews()
                 self._assert_legacy_library_source()
                 self._validate_library_ids(snapshot)
                 try:
@@ -449,13 +462,19 @@ class ApplicationServices:
                     # prevent a healthy downloaded library from opening.
                     records, cached_remote, cached_local = (), None, ()
                     self.bookmark_cache_failed = True
+                if live_client is not None:
+                    # The old cache has no verified account binding; its private
+                    # rows and freshness cannot be attributed to this reader.
+                    records, cached_remote = (), None
+                    self.bookmark_cache_fetched_at = None
                 catalog = ReadonlyLocalMediaCatalog(library_image_root, snapshot)
             except BaseException:
                 if "repository" in locals():
                     repository.close()
                 self.images.close()
                 raise
-            self.images.publish(catalog, self._remote_images(records or ()))
+            self.images.publish(catalog, self._remote_images(records or ()),
+                                self._legacy_preview_images(preview_urls))
             self.library = snapshot
             self._legacy_library_snapshot = snapshot
             self._legacy_local_bookmarks = tuple(cached_local)
@@ -472,6 +491,7 @@ class ApplicationServices:
             from .learning_service import LearningService
             try:
                 self.learning = LearningService(learning_sandbox, self.artworks)
+                self.learning._event_services = self
             except Exception:
                 self.images.close()
                 if self.library_repository is not None:
@@ -569,7 +589,9 @@ class ApplicationServices:
                 if legacy_zip_export_root is not None:
                     from .legacy_zip_export import LegacyZipExporter
                     self.legacy_zip_exporter = LegacyZipExporter(
-                        Path(legacy_zip_export_root), self.managed_downloads)
+                        Path(legacy_zip_export_root), self.managed_downloads,
+                        notify_corrupt=lambda title, body: (self.notifications.notify(title, body)
+                                                             if self.notifications is not None else None))
                 self.static_jobs = JobService(
                     job_request_runner(self._run_managed_job), self.managed_downloads.storage_path,
                     dispatch_admission=(self.managed_network_stop.admit_job
@@ -707,6 +729,12 @@ class ApplicationServices:
             if preferences_root is not None:
                 from .preferences import PreferencesStore
                 self.preferences = PreferencesStore(Path(preferences_root) / 'preferences.sqlite3')
+                if self.live_client is not None:
+                    from .bookmark_cache_store import BookmarkCacheStore
+                    try:
+                        self._bookmark_cache_store = BookmarkCacheStore(Path(preferences_root))
+                    except Exception:
+                        self.bookmark_cache_persist_failed = True
                 if library_image_root is not None:
                     from .capacity_cache import CapacityCache
                     from .legacy_capacity import LegacyCapacityReader
@@ -738,11 +766,15 @@ class ApplicationServices:
                         log_root = self.managed_downloads.root
                     self.pixiv_actions = PixivActions(self.live_client, following_store=self.following_sync,
                                                      response_log_root=log_root)
+                    from .managed_network_stop_write import write_admission
+                    self.pixiv_actions._writer._post_admission = lambda: write_admission(
+                        self.live_client, managed_network_stop_scope, shared_network_stop_scope)
             if discovery_root is not None:
                 from .discovery_learning import DiscoveryLearningService
                 self.discovery = DiscoveryLearningService(discovery_root, self.live_client,
                     following=self.discovery_following_snapshot, saved_ids=self.saved_discovery_ids,
                     seed_readonly_db=library_readonly_db)
+                self.discovery._event_services = self
             if self.discovery is not None and recommendation_preferences_root is not None:
                 from .recommendation_state import (DiscoveryRecommendationSource, CombinedRecommendationSource,
                     RecommendationPreferences, RecommendationController)
@@ -798,12 +830,13 @@ class ApplicationServices:
         except BaseException:
             self.close()
             raise
-        if self.managed_downloads is not None:
-            from .managed_scheduler import ManagedScheduler
-            if ManagedScheduler.configured(self.managed_downloads.root):
-                # Start dispatch only after every configured media owner and
-                # its durable history have been recovered.
+        if self.managed_downloads is not None and self.live_client is not None and self.following_sync is not None:
+            # Start after all configured media owners and histories recover.
+            try:
                 self.enable_managed_scheduler()
+            except BaseException:
+                self.close()
+                raise
 
     def novel_catalog(self,author_id=None,rest='show'):
         rows=self.novel_fixture_source.catalog(author_id,rest)
@@ -1075,6 +1108,9 @@ class ApplicationServices:
             store.discard(candidate)
             return SimpleNamespace(state='unchanged', saved=True)
         store.commit(candidate)
+        log = getattr(self, 'queue_log', None)
+        if log is not None:
+            log.cookie_sync_notice(rows)
         # 実行中の取得はこの起動時の Cookie のまま。新しい Cookie は次回の起動から使う。
         return SimpleNamespace(state='pending', saved=True)
 
@@ -1129,6 +1165,10 @@ class ApplicationServices:
 
     def preference_consumers(self):
         enabled = set()
+        if self.preferences is not None:
+            enabled.add('bookmark_auto_refresh')
+            if self.library_repository is not None and self.live_client is not None:
+                enabled.add('legacy_novel_thumbnail_auto')
         if self.pixiv_actions_mode == 'preferences' and self.preferences is not None:
             enabled.add('pixiv_actions_enabled')
         if self.extension_setting_available():
@@ -1820,6 +1860,7 @@ class ApplicationServices:
         with self._managed_target_lock:
             self._direct_download_candidates.pop(token, None)
             self._author_owned_pins.pop(token, None)
+            self._follow_account_by_owner.pop(token, None)
 
     def forget_accepted_managed_author_batch(self, owner, work_ids):
         """Unpin accepted author items so a single view can stage the next 128.
@@ -2039,7 +2080,7 @@ class ApplicationServices:
     async def followed_download_authors(self, *, owner: str):
         """Use a completed account-scoped sync, or explicitly GET an unsynced list."""
         from .author_download import AuthorTarget
-        self._direct_owner(owner)
+        owner = self._direct_owner(owner)
         if self.closing or self.managed_downloads is None or self.live_client is None:
             raise RuntimeError('managed downloads unavailable')
         reader = self.live_client
@@ -2062,15 +2103,10 @@ class ApplicationServices:
                 if synced.last_synced_at is not None:
                     return uid, tuple(AuthorTarget(row.user_id, row.name, 'follow',
                                       is_favorite=row.is_favorite, follow_order=row.follow_order)
-                                      for row in synced.following)
+                                      for row in synced.following), True
             # Favorites are local application choices, not inferred from a
             # public Pixiv following response. With no configured local ledger
             # retain None (unknown), rather than falsely reporting known zero.
-            scheduler = getattr(self, 'managed_scheduler', None)
-            try:
-                favourite_ids = None if scheduler is None else frozenset(scheduler.favourites())
-            except Exception:
-                favourite_ids = None  # the star list cannot be read now: unknown, not "no stars"
             seen = {}
             for visibility in ('show', 'hide'):
                 checkpoint(uid)
@@ -2079,13 +2115,39 @@ class ApplicationServices:
                     if entry['user_id'] not in seen:
                         seen[entry['user_id']] = AuthorTarget(
                             entry['user_id'], entry['name'], 'follow',
-                            is_favorite=(None if favourite_ids is None else entry['user_id'] in favourite_ids),
+                            is_favorite=None,
                             follow_order=len(seen))
-            return uid, tuple(seen.values())
+            return uid, tuple(seen.values()), False
 
-        account, result = await asyncio.to_thread(fetch)
+        account, result, owned = await asyncio.to_thread(fetch)
         checkpoint(account)
+        with self._managed_target_lock:
+            if owned:
+                self._follow_account_by_owner[owner] = account
+            else:
+                self._follow_account_by_owner.pop(owner, None)
         return result
+
+    async def set_followed_author_favorite(self, user_id, *, owner, expected, favorite):
+        """Change only the verified account and author list shown to this view."""
+        token = self._direct_owner(owner)
+        if type(expected) is not bool or type(favorite) is not bool or favorite == expected:
+            raise ValueError('invalid favorite transition')
+        def update():
+            with self._managed_target_lock:
+                account = self._follow_account_by_owner.get(token)
+                reader, store = self.live_client, self.following_sync
+                if (self.closing or account is None or reader is None or store is None
+                        or getattr(reader, '_verified_identity', None) != account):
+                    raise RuntimeError('author account changed')
+                snapshot = store.snapshot(account)
+                row = next((row for row in snapshot.authors if row.user_id == user_id), None)
+                if snapshot.account_id != account or row is None or row.is_favorite != expected:
+                    raise RuntimeError('author favorite changed')
+                if self.closing or self.live_client is not reader or getattr(reader, '_verified_identity', None) != account:
+                    raise RuntimeError('author account changed')
+                store.set_favorite(account, user_id, favorite, expected_revision=snapshot.revision)
+        await asyncio.to_thread(update)
 
     def _resolve_managed_record(self, work_id):
         # The serial runner installs exactly one accepted job's frozen record.
@@ -2261,16 +2323,16 @@ class ApplicationServices:
         self._assert_legacy_library_source()
         result = getattr(self.library_repository, method)()
         self._assert_legacy_library_source()
-        if method == 'library_snapshot':
-            self._validate_library_ids(result)
+        if method in ('library_snapshot', 'library_snapshot_with_previews'):
+            self._validate_library_ids(result[0] if method == 'library_snapshot_with_previews' else result)
         return result
 
     def _publish_managed_library(self, snapshot, catalog, local, *,
                                  legacy_snapshot, legacy_local, records,
-                                 reader=_CURRENT_IMAGE_READER):
+                                 reader=_CURRENT_IMAGE_READER, preview_urls=_CURRENT_IMAGE_READER):
         """Publish one matching source selection, DTO snapshot and image owner."""
         provider = catalog
-        legacy_catalog = remote = None
+        legacy_catalog = remote = preview = None
         composition = None
         try:
             receipts = catalog.receipts
@@ -2298,7 +2360,8 @@ class ApplicationServices:
                 visible_snapshot = composition.snapshot
                 visible_local = composition.local_bookmarks
             remote = self._remote_images(records, reader=reader)
-            self.images.publish(provider, remote)
+            preview = self._legacy_preview_images(preview_urls, reader=reader)
+            self.images.publish(provider, remote, preview)
         except BaseException:
             try:
                 provider.close()
@@ -2307,6 +2370,8 @@ class ApplicationServices:
                     legacy_catalog.close()
                 if remote is not None:
                     remote.close()
+                if preview is not None:
+                    preview.close()
             raise
         self.library = visible_snapshot
         self._library_composition = composition
@@ -2326,7 +2391,24 @@ class ApplicationServices:
         from .remote_media import RemoteBookmarkImages
         return RemoteBookmarkImages(reader, tuple(records))
 
-    def _publish_images(self, snapshot, records, *, reader=_CURRENT_IMAGE_READER) -> None:
+    def _legacy_preview_images(self, urls, *, reader=_CURRENT_IMAGE_READER):
+        if reader is _CURRENT_IMAGE_READER:
+            reader = self.live_client
+        if urls is _CURRENT_IMAGE_READER:
+            return self.images.clone_legacy_preview(reader)
+        if not urls:
+            return None
+        from .remote_media import LegacyNovelPreviewImages
+        def enabled():
+            if self.closing:
+                return False
+            try:
+                return self.preferences is not None and self.preferences.get_setting('legacy_novel_thumbnail_auto', '1') == '1'
+            except Exception:
+                return False
+        return LegacyNovelPreviewImages(reader, urls, enabled)
+
+    def _publish_images(self, snapshot, records, *, reader=_CURRENT_IMAGE_READER, preview_urls=_CURRENT_IMAGE_READER) -> None:
         from .local_media_adapter import ReadonlyLocalMediaCatalog
         if self.managed_downloads is not None:
             # The immutable publication cache was prepared off-loop. Reusing
@@ -2336,19 +2418,23 @@ class ApplicationServices:
                                            snapshot=self._managed_catalog_snapshot)
             self._publish_managed_library(self._managed_library_snapshot, local,
                 self._managed_local_bookmarks, legacy_snapshot=self._legacy_library_snapshot,
-                legacy_local=self._legacy_local_bookmarks, records=records, reader=reader)
+                legacy_local=self._legacy_local_bookmarks, records=records, reader=reader, preview_urls=preview_urls)
             return
         else:
             local = (ReadonlyLocalMediaCatalog(self.library_image_root, snapshot)
                      if self.library_image_root is not None else None)
-        remote = self._remote_images(records, reader=reader)
+        remote = preview = None
         try:
-            self.images.publish(local, remote)
+            remote = self._remote_images(records, reader=reader)
+            preview = self._legacy_preview_images(preview_urls, reader=reader)
+            self.images.publish(local, remote, preview)
         except BaseException:
             if local is not None:
                 local.close()
             if remote is not None:
                 remote.close()
+            if preview is not None:
+                preview.close()
             raise
 
     def acquire_ranking_images(self, records):
@@ -2602,20 +2688,22 @@ class ApplicationServices:
                 from .managed_download_catalog import build_managed_library
                 legacy_snapshot = self._legacy_library_snapshot
                 if self.library_repository is not None:
-                    legacy_snapshot = await asyncio.to_thread(self._read_legacy_source, 'library_snapshot')
+                    legacy_snapshot, preview_urls = await asyncio.to_thread(self._read_legacy_source, 'library_snapshot_with_previews')
+                else:
+                    preview_urls = _CURRENT_IMAGE_READER
                 snapshot, catalog, local = await asyncio.to_thread(build_managed_library, self.managed_downloads)
                 if self.closing:
                     catalog.close()
                     raise RuntimeError("application services are closed")
                 self._publish_managed_library(snapshot, catalog, local,
                     legacy_snapshot=legacy_snapshot, legacy_local=self._legacy_local_bookmarks,
-                    records=self._remote_records)
+                    records=self._remote_records, preview_urls=preview_urls)
                 return self.library
-            snapshot = await asyncio.to_thread(self._read_legacy_source, 'library_snapshot')
+            snapshot, preview_urls = await asyncio.to_thread(self._read_legacy_source, 'library_snapshot_with_previews')
             if self.closing:
                 raise RuntimeError("application services are closed")
             self._validate_library_ids(snapshot)
-            self._publish_images(snapshot, self._remote_records)
+            self._publish_images(snapshot, self._remote_records, preview_urls=preview_urls)
             self.library = snapshot
             self._legacy_library_snapshot = snapshot
             return snapshot
@@ -2626,13 +2714,86 @@ class ApplicationServices:
             raise RuntimeError("application services are closed")
         return self._cached_remote_bookmarks
 
+    def bookmark_auto_refresh_enabled(self):
+        if self.preferences is None:
+            return False
+        try:
+            return self.preferences.get_setting('bookmark_auto_refresh', '1') == '1'
+        except Exception:
+            return False
+
     def bookmark_local_snapshot(self):
         """Downloaded badge fixtures are separate from remote bookmarks."""
         if self.closing:
             raise RuntimeError("application services are closed")
         return self._cached_local_bookmarks
 
-    async def refresh_bookmark_cache(self, *, expected_account=None, return_account=False):
+    async def restore_bookmark_cache(self):
+        """Expose durable private data only after matching a verified identity."""
+        store = self._bookmark_cache_store
+        if store is None or self.live_client is None or not self.bookmark_auto_refresh_enabled():
+            return False
+        if (self._bookmark_restored_reader is self.live_client and self._bookmark_restored_identity is not None
+                and getattr(self.live_client, '_verified_identity', None) == self._bookmark_restored_identity):
+            return True
+        async with self._library_refresh_lock:
+            if self.closing or not self.bookmark_auto_refresh_enabled():
+                return False
+            if self._bookmark_restore_attempted:
+                return (self._bookmark_restored_reader is self.live_client and self._bookmark_restored_identity is not None
+                        and getattr(self.live_client, '_verified_identity', None) == self._bookmark_restored_identity)
+            try:
+                has_snapshot = store.has_snapshot()
+            except Exception:
+                self.bookmark_cache_persist_failed = True
+                self._bookmark_restore_attempted = True
+                store.close()
+                self._bookmark_cache_store = None
+                return False
+            if not has_snapshot:
+                self._bookmark_restore_attempted = True
+                return False
+            reader = self.live_client
+            def verify():
+                if not self.bookmark_auto_refresh_enabled():
+                    raise RuntimeError('bookmark automatic refresh disabled')
+                if self.managed_network_stop is not None:
+                    self.managed_network_stop.require_allowed()
+                return reader.verify_identity()
+            account = getattr(reader, '_verified_identity', None)
+            if not isinstance(account, str) or re.fullmatch(r'[1-9][0-9]{0,19}', account) is None:
+                account = await asyncio.to_thread(verify)
+            if (self.closing or self.live_client is not reader or not self.bookmark_auto_refresh_enabled() or
+                    getattr(reader, '_verified_identity', account) != account):
+                raise RuntimeError('bookmark reader changed')
+            if (self.save_exports is not None and self.save_exports.account not in (None, account)):
+                raise RuntimeError('bookmark export account differs')
+            self._bookmark_verified_reader = reader
+            self._bookmark_verified_identity = account
+            try:
+                stored = await asyncio.to_thread(store.read, account)
+            except Exception:
+                self.bookmark_cache_persist_failed = True
+                self._bookmark_restore_attempted = True
+                store.close()
+                self._bookmark_cache_store = None
+                return False
+            if self.closing or self.live_client is not reader or not self.bookmark_auto_refresh_enabled() or getattr(reader, '_verified_identity', account) != account:
+                raise RuntimeError('bookmark reader changed')
+            self._bookmark_restore_attempted = True
+            if stored is None:
+                return False
+            records, stamp = stored
+            self._publish_images(self.library, records, reader=reader)
+            self._remote_records = records
+            self._cached_remote_bookmarks = tuple(record.as_artwork() for record in records)
+            self.bookmark_cache_fetched_at = stamp
+            self.bookmark_cache_failed = False
+            self._bookmark_restored_reader = reader
+            self._bookmark_restored_identity = account
+            return True
+
+    async def refresh_bookmark_cache(self, *, automatic=False, expected_account=None, return_account=False):
         """Publish complete bookmark routes and their verified export account."""
         if expected_account is not None and self.live_client is None:
             from .batch_engine import RunNeedsConfirmation
@@ -2643,6 +2804,23 @@ class ApplicationServices:
         async with self._library_refresh_lock:
             if self.closing:
                 raise RuntimeError("application services are closed")
+            try:
+                cache_revision = (self._bookmark_cache_store.revision()
+                                  if self._bookmark_cache_store is not None else None)
+            except Exception:
+                self.bookmark_cache_persist_failed = True
+                self._bookmark_cache_store.close()
+                self._bookmark_cache_store = None
+                cache_revision = None
+            if automatic:
+                from datetime import datetime
+                try:
+                    age = (datetime.now() - datetime.fromisoformat(self.bookmark_cache_fetched_at)).total_seconds()
+                except (TypeError, ValueError):
+                    age = None
+                if (not self.bookmark_auto_refresh_enabled() or
+                        (self._cached_remote_bookmarks is not None and age is not None and age < 120)):
+                    return self.bookmark_remote_snapshot(), self.bookmark_local_snapshot()
             reader = self.live_client
             exports = self.save_exports
             account = None
@@ -2656,6 +2834,10 @@ class ApplicationServices:
                     raise RuntimeError('bookmark reader closed')
                 if exports is not self.save_exports:
                     raise RuntimeError('bookmark export owner changed')
+                if (account is not None and
+                        (type(account) is not str or re.fullmatch(r'[1-9][0-9]{0,19}', account) is None
+                         or getattr(reader, '_verified_identity', account) != account)):
+                    raise RuntimeError('bookmark account verification changed')
                 if exports is not None:
                     # Real LivePixivReadClient always has this cache scalar.
                     # Injected read clients may express the same verified
@@ -2670,8 +2852,15 @@ class ApplicationServices:
             if reader is not None:
                 from .bookmark_remote_adapter import fetch_all_bookmarks
 
+                verified_account = (self._bookmark_verified_identity if automatic
+                    and self._bookmark_verified_reader is reader
+                    and getattr(reader, '_verified_identity', None) == self._bookmark_verified_identity
+                    else None)
+
                 def read_all():
-                    identity = reader.verify_identity()
+                    if self.managed_network_stop is not None:
+                        self.managed_network_stop.require_allowed()
+                    identity = verified_account or reader.verify_identity()
                     if expected_account is not None and identity != expected_account:
                         from .batch_engine import RunNeedsConfirmation
                         raise RunNeedsConfirmation()
@@ -2730,6 +2919,18 @@ class ApplicationServices:
                     with self._managed_target_lock:
                         self._remote_records = records or ()
                     self.bookmark_cache_failed = False
+                    if reader is not None:
+                        self._bookmark_restore_attempted = True
+                        from datetime import datetime
+                        stamp = datetime.now().isoformat()
+                        if self._bookmark_cache_store is not None:
+                            try:
+                                written = self._bookmark_cache_store.write(account, stamp, records,
+                                    expected_revision=cache_revision)
+                                self.bookmark_cache_persist_failed = not written
+                            except Exception:
+                                self.bookmark_cache_persist_failed = True
+                        self.bookmark_cache_fetched_at = stamp
             except BaseException:
                 if catalog is not None and not adopted:
                     catalog.close()
@@ -2797,6 +2998,9 @@ class ApplicationServices:
         if self._owned_legacy_capacity_cache is not None:
             self._owned_legacy_capacity_cache.close()
             self._owned_legacy_capacity_cache = None
+        if self._bookmark_cache_store is not None:
+            self._bookmark_cache_store.close()
+            self._bookmark_cache_store = None
         if self.save_exports is not None:self.save_exports.close()
         if self.extension_bridge is not None:self.extension_bridge.close()
         if self.extension_commands is not None:self.extension_commands.close(timeout=150.0)
@@ -2890,16 +3094,56 @@ class ApplicationServices:
         if vault_shutdown_error is not None:
             raise vault_shutdown_error
 
+    def clear_shared_image_cache(self):
+        """Clear the owned cache and record only the confirmed outcome."""
+        from .shared_events import emit_shared
+        try:
+            self.shared_image_cache.clear()
+        except Exception:
+            emit_shared(self, '画像キャッシュを削除できませんでした。', level='error')
+            raise
+        emit_shared(self, '画像キャッシュを削除しました。', level='success')
+
+    def scheduler_favourite_authors(self, *, ledger=None, seed=True):
+        """Read all local stars for the currently verified account."""
+        from .managed_scheduler import _require_managed_network_allowed
+        store = self.following_sync
+        reader = self.live_client
+        if self.closing or store is None or reader is None:
+            raise RuntimeError('favourite author source unavailable')
+        _require_managed_network_allowed(self)
+        account = reader.verify_identity()
+        snapshot = store.snapshot(account)
+        if self.closing or self.live_client is not reader or snapshot.account_id != account:
+            raise RuntimeError('favourite author account changed')
+        if getattr(reader, '_verified_identity', account) != account:
+            raise RuntimeError('favourite author account changed')
+        ledger = ledger if ledger is not None else getattr(self, 'managed_scheduler', None)
+        if ledger is not None:
+            ledger.bind_account(account)
+            book = getattr(ledger, '_favourites_source', None)
+            if seed and book is not None and book.account() == account:
+                ledger.attach_favourites(book)
+                snapshot = store.snapshot(account)
+                if (self.closing or self.live_client is not reader or snapshot.account_id != account
+                        or getattr(reader, '_verified_identity', account) != account):
+                    raise RuntimeError('favourite author account changed')
+        return tuple(row.user_id for row in snapshot.authors if row.is_favorite)
+
     def enable_managed_scheduler(self):
         """Explicit opt-in, after managed-only application resources exist."""
         with self._close_lock, self._managed_scheduler_lock:
             if self.closing or self.managed_downloads is None or self.live_client is None:
                 raise RuntimeError('isolated managed Pixiv mode is required')
             if self.managed_scheduler is None:
-                from .managed_scheduler import ManagedScheduler, ManagedScheduleRunner, submit_author_batch
+                from .managed_scheduler import ManagedScheduler, ManagedScheduleRunner, ScheduleAccountError, submit_author_batch
+                from .managed_network_stop_gate import ManagedNetworkStopped
                 ledger = ManagedScheduler(self.managed_downloads.root)
-                ledger.attach_favourites(self.favourite_book(scheduler=ledger))
-                if self.author_media is not None and self.batch_runs is None:
+                attach = getattr(ledger, 'attach_favourites', None)
+                book_factory = getattr(self, 'favourite_book', None)
+                if attach is not None and book_factory is not None:
+                    attach(book_factory(scheduler=ledger), seed=False)
+                if getattr(self, 'author_media', None) is not None and getattr(self, 'batch_runs', None) is None:
                     try:
                         # The timer and 「今すぐチェック」 run on the same engine as the screen.
                         self._provision_batch_runs()
@@ -2910,7 +3154,40 @@ class ApplicationServices:
                     # Engine run: every ☆ author, in turn, stamped on completion, behind the same
                     # network stop gate. Otherwise queue acceptance (not a verified saved receipt).
                     with self._scheduler_dispatch_lock:
-                        self.dispatch_author_check(ledger, slot, cancellation)
+                        try:
+                            if book_factory is not None:
+                                authors = self.scheduler_favourite_authors(ledger=ledger)
+                            else:
+                                authors = self.scheduler_favourite_authors()
+                            ledger.sync_favourites(authors)
+                            if authors and not cancellation.is_set() and not self.closing:
+                                self.shared_log.append(f'☆ お気に入り自動チェックを開始します ({len(authors)}人の作者)')
+                            dispatch_check = getattr(self, 'dispatch_author_check', None)
+                            if dispatch_check is None:
+                                submit_author_batch(self, authors, cancellation=cancellation,
+                                                    ledger=ledger, slot=slot)
+                            else:
+                                dispatch_check(ledger, slot, cancellation, authors=authors)
+                        except ManagedNetworkStopped:
+                            if not cancellation.is_set() and not self.closing:
+                                self.shared_log.append('☆ お気に入り自動チェックは取得停止により中断しました。')
+                            raise
+                        except ScheduleAccountError as error:
+                            if not cancellation.is_set() and not self.closing:
+                                message = ('定期チェックの既存データの出所を確認できません。データを保持して停止しました。'
+                                           if error.reason == 'unknown' else
+                                           '定期チェックの台帳は別のアカウントに紐付いています。既存データを保持して停止しました。')
+                                self.shared_log.append(message, level='error')
+                            raise
+                        except Exception:
+                            if not cancellation.is_set() and not self.closing:
+                                self.shared_log.append('☆ お気に入り自動チェック中にエラーが発生しました。', level='error')
+                            raise
+                        if not cancellation.is_set() and not self.closing:
+                            if authors:
+                                self.shared_log.append('定期チェックの受付処理を終了しました。保存完了は各ジョブで確認してください。')
+                            else:
+                                self.shared_log.append('☆ お気に入り自動チェック: 対象の作者（☆お気に入り）が登録されていません。')
 
                 runner = ManagedScheduleRunner(ledger, dispatch,
                                                reconcile=self.reconcile_managed_scheduler)
@@ -3042,19 +3319,27 @@ class ApplicationServices:
 
         return engine.start_unfinished(run_id, bookmark_refresh=refresh_bookmarks)
 
-    def dispatch_author_check(self, ledger, slot, cancellation, *, wait=True):
+    def dispatch_author_check(self, ledger, slot, cancellation, *, wait=True, authors=None):
         """One periodic / manual ☆ check: on the engine when provisioned, else the old queue handoff.
 
         The caller holds `_scheduler_dispatch_lock`."""
+        if authors is None:
+            source = getattr(self, 'scheduler_favourite_authors', None)
+            if source is None:
+                authors = ledger.favourites()  # injected service without the live account source
+            else:
+                authors = source(ledger=ledger)
+                ledger.sync_favourites(authors)
         if self.batch_runs is not None:
             from .managed_scheduler import run_author_check
-            return run_author_check(self, ledger.favourites(), cancellation=cancellation,
-                                    ledger=ledger, slot=slot, wait=wait)
+            account = getattr(ledger, '_bound_account', lambda: None)()
+            return run_author_check(self, authors, cancellation=cancellation,
+                                    ledger=ledger, slot=slot, wait=wait, account_id=account)
         from .managed_scheduler import submit_author_batch
-        return submit_author_batch(self, ledger.favourites(), cancellation=cancellation,
+        return submit_author_batch(self, authors, cancellation=cancellation,
                                    ledger=ledger, slot=slot)
 
-    def start_batch_run(self, author_ids, *, kind='authors', origin='manual', target_type=None):
+    def start_batch_run(self, author_ids, *, kind='authors', origin='manual', target_type=None, account_id=None):
         """Start one run. Raises RuntimeError when a run is already active.
 
         kind='authors': `author_ids` are the authors. kind='bookmarks': they are the chosen visibilities
@@ -3063,10 +3348,14 @@ class ApplicationServices:
         engine = self.batch_runs
         if engine is None or self.closing:
             raise RuntimeError('author batch runs are not enabled')
-        account_id = engine.account_id
-        if self.following_sync is not None:
-            # No network: the account of the newest completed follow sync. Without one nothing is stamped.
-            account_id = self.following_sync.last_synced_account()
+        if account_id is None:
+            account_id = engine.account_id
+            if self.following_sync is not None:
+                # Manual runs use the newest completed follow sync.
+                account_id = self.following_sync.last_synced_account()
+        elif (self.live_client is None or
+              getattr(self.live_client, '_verified_identity', account_id) != account_id):
+            raise RuntimeError('author account changed')
         return engine.start(tuple(author_ids), kind=kind, origin=origin, target_type=target_type,
                             account_id=account_id)
 
@@ -3442,6 +3731,32 @@ class ApplicationServices:
             wake.wake()
         return count
 
+    def _run_metadata_auto_logged(self, *, transport):
+        from .managed_network_stop_gate import ManagedNetworkStopped
+        from .shared_events import emit_shared
+        def shutting_down():
+            event = getattr(self, '_metadata_cancel_event', None)
+            return bool(getattr(self, 'closing', False) or (event is not None and event.is_set()))
+        try:
+            summary = self.run_managed_metadata_all(transport=transport)
+        except ManagedNetworkStopped:
+            if not shutting_down():
+                emit_shared(self, 'メタデータ自動処理は取得停止により中断しました。')
+            raise
+        except Exception:
+            if not shutting_down():
+                emit_shared(self, 'メタデータ自動処理に失敗しました。', level='error')
+            raise
+        if shutting_down():
+            return summary
+        if summary.stopped == 'network_stopped':
+            emit_shared(self, 'メタデータ自動処理は取得停止により中断しました。')
+        elif summary.stopped in ('global_failure', 'authentication_unverified',
+                                 'authentication_or_state_unavailable',
+                                 'five_consecutive_unknown_failures', 'managed_state_changed'):
+            emit_shared(self, 'メタデータ自動処理を完了できませんでした。', level='error')
+        return summary
+
     def start_metadata_auto(self, *, transport=None, initial_delay: float = 60.0, intervals=None):
         """起動時の 1 回。設定が OFF でもスレッドだけは待機で持ち、ON にしたとき起こす。"""
         from .metadata_auto import MetadataAutoRunner
@@ -3452,7 +3767,7 @@ class ApplicationServices:
             if transport is None and self.live_client is None:
                 return False
             runner = MetadataAutoRunner(
-                lambda: self.run_managed_metadata_all(transport=transport),
+                lambda: self._run_metadata_auto_logged(transport=transport),
                 self.metadata_auto_enabled, initial_delay=initial_delay, intervals=intervals)
             self._metadata_auto_seen = self.metadata_auto_enabled()
             runner.start()
@@ -3478,6 +3793,12 @@ class ApplicationServices:
         if (self.closing or self.managed_scheduler is None or self.jobs is None
                 or self.managed_downloads is None):
             return False
+        ledger = self.managed_scheduler
+        if getattr(ledger, '_account_guard', False):
+            account = ledger._bound_account()
+            if (account is None or self.live_client is None
+                    or getattr(self.live_client, '_verified_identity', None) != account):
+                return False
         from .job_service import UNFINISHED
         jobs = self.jobs.snapshot()
         operation_to_job = {}
@@ -3515,11 +3836,14 @@ class ApplicationServices:
             receipt_fingerprints.update(extra_receipts)
         newly_saved = self.managed_scheduler.reconcile_jobs(
             jobs, receipt_fingerprints, operation_to_job, operation_to_fingerprint)
+        confirmed_count = len(set(newly_saved))
+        if confirmed_count:
+            self.shared_log.append(f'☆ お気に入り自動チェック: {confirmed_count}件の作品の保存を確認しました。', level='success')
         notifier=getattr(self,'notifications',None)
-        if newly_saved and notifier is not None:
+        if confirmed_count and notifier is not None:
             # Reconciliation changes accepted -> saved once in the durable ledger.
             # OS toast is best effort; existing durable history/UI notice remains.
-            notifier.notify('PixivVault',f'作者更新チェック: {len(newly_saved)}件の保存が完了しました。')
+            notifier.notify('PixivVault',f'作者更新チェック: {confirmed_count}件の保存が完了しました。')
         unfinished_count = sum(1 for job in jobs if job.state in UNFINISHED)
         previous_count = self._scheduler_unfinished_count
         self._scheduler_unfinished_count = unfinished_count

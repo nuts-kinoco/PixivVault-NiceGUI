@@ -25,7 +25,7 @@ async def test_scheduler_reports_reason_and_next_step(monkeypatch,kind,error,cau
     client=Client(ui.page('/batch4-'+kind))
     try:
         with client:
-            view=SchedulerView(NS(closing=False,managed_scheduler=NS(favourites=lambda:('9',)),_scheduler_dispatch_lock=Lock(),_scheduler_cancel_event=Event()))
+            view=SchedulerView(NS(closing=False,managed_scheduler=NS(sync_favourites=lambda authors:None),scheduler_favourite_authors=lambda:('9',),_scheduler_dispatch_lock=Lock(),_scheduler_cancel_event=Event()))
             await view.run_once()
             assert cause in view.action_notice.text
             assert action in view.action_notice.text

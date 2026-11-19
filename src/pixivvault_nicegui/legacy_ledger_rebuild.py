@@ -17,6 +17,7 @@ from pathlib import Path, PurePosixPath
 import re
 import sqlite3
 import stat
+import zlib
 from typing import Callable
 from uuid import uuid4
 from zipfile import BadZipFile, ZipFile
@@ -25,7 +26,7 @@ from .failed_records_repository import immutable_copy_signature
 from .fs_paths import native_io_path, sqlite_readonly_uri
 from .local_media_adapter import _safe_entry, _saved_title
 from .managed_downloads import (
-    IDENTITY, MARKER, _fsync_dir, _json_unique, _read_bounded, _safe_path, _write,
+    IDENTITY, MARKER, ManagedDownloadError, _fsync_dir, _json_unique, _read_bounded, _safe_path, _write,
 )
 from .managed_root_writer import writer_fence
 
@@ -52,6 +53,7 @@ class LedgerRebuildResult:
     skipped_multi: int
     unreadable: tuple[str, ...]
     generation_sha256: str = ''
+    base_current: bytes | None = None
 
 
 def _identity(path):
@@ -201,6 +203,60 @@ class _SourceInventory:
             if _identity(path) != identity:
                 raise LedgerRebuildError()
 
+    def fingerprint(self):
+        rows = sorted((str(path), list(identity)) for path, identity in self.proofs.items())
+        return hashlib.sha256(json.dumps(rows, ensure_ascii=True, separators=(',', ':')).encode()).hexdigest()
+
+
+def _page_digest(images, page, checkpoint):
+    """Hash one identified source member without extracting it or trusting mtime."""
+    store = Path(page['store_path'])
+    entry = page['entry_name']
+    if not store.is_relative_to(images) or '..' in store.parts or not _safe_entry(entry):
+        raise LedgerRebuildError()
+    _safe_path(store, file=not native_io_path(store).is_dir())
+    path = store / Path(*PurePosixPath(entry).parts) if native_io_path(store).is_dir() else store
+    if not path.is_relative_to(images):
+        raise LedgerRebuildError()
+    _safe_path(path, file=True)
+    before = _identity(path)
+    digest = hashlib.sha256()
+    with native_io_path(path).open('rb') as stream:
+        opened = os.fstat(stream.fileno())
+        if (opened.st_dev, opened.st_ino, opened.st_mode, opened.st_size, opened.st_mtime_ns) != before:
+            raise LedgerRebuildError()
+        def consume(source):
+            while True:
+                checkpoint()
+                chunk = source.read(65536)
+                if not chunk:
+                    break
+                digest.update(chunk)
+        if path == store:
+            with ZipFile(stream) as archive:
+                matches = [item for item in archive.infolist() if item.filename == entry]
+                if len(matches) != 1:
+                    raise LedgerRebuildError()
+                item = matches[0]
+                if item.is_dir() or stat.S_IFMT(item.external_attr >> 16) == stat.S_IFLNK:
+                    raise LedgerRebuildError()
+                try:
+                    member = archive.open(item)
+                except (RuntimeError, NotImplementedError) as error:
+                    raise LedgerRebuildError() from error
+                with member:
+                    consume(member)
+        else:
+            consume(stream)
+        opened_after = os.fstat(stream.fileno())
+        if (opened_after.st_dev, opened_after.st_ino, opened_after.st_mode,
+                opened_after.st_size, opened_after.st_mtime_ns) != before:
+            raise LedgerRebuildError()
+    _safe_path(path, file=True)
+    if _identity(path) != before:
+        raise LedgerRebuildError()
+    return digest.hexdigest()
+
 
 def _author_candidates(works, index, checkpoint):
     illusts = [w for w in works if (w['content_type'] or 'illust') == 'illust']
@@ -279,10 +335,17 @@ def rebuild_undecidable_ledger(*, undecidable_db: Path, images_root: Path,
         checkpoint()
         check_owner()
         before = immutable_copy_signature(db)
+        with writer_fence(managed):
+            expected = {'source_db_sha256': before[3].hex(),
+                        'source_db_path_sha256': _path_digest(db),
+                        'images_root_sha256': _path_digest(images)}
+            base_current, current_payload, _ = _current_snapshot(managed, images, expected)
+            owned_manual = _owned_manual(current_payload, images)
         works, manual = _read_source(db)
         inventory = _SourceInventory(images, checkpoint)
         stores = inventory.stores()
         manual_groups = {row['ambiguous_group'] for row in manual if row['ambiguous_group'] is not None}
+        manual_groups.update(item['group']['ambiguous_group'] for item in owned_manual)
         manual_keys = {(str(row['work_id']), row['page']) for row in manual}
         grouped = {}
         unreadable = []
@@ -311,6 +374,22 @@ def rebuild_undecidable_ledger(*, undecidable_db: Path, images_root: Path,
         groups = tuple({**grouped[key], 'candidates': tuple(sorted(
             grouped[key]['candidates'], key=lambda candidate: candidate['work_id']))}
                        for key in sorted(grouped))
+        proofs = {}
+        valid_groups = []
+        for group in groups:
+            local = {}
+            try:
+                for candidate in group['candidates']:
+                    for page in candidate['pages']:
+                        key = (page['store_path'], page['entry_name'])
+                        if key not in proofs and key not in local:
+                            local[key] = _page_digest(images, page, checkpoint)
+            except (LedgerRebuildError, ManagedDownloadError, OSError, BadZipFile, zlib.error, EOFError):
+                unreadable.append(f"{group['candidates'][0]['user_id']}:source unreadable")
+                continue
+            proofs.update(local)
+            valid_groups.append(group)
+        groups = tuple(valid_groups)
         inventory.verify()
         if immutable_copy_signature(db) != before:
             raise LedgerRebuildError()
@@ -319,7 +398,10 @@ def rebuild_undecidable_ledger(*, undecidable_db: Path, images_root: Path,
             'source_db_sha256': before[3].hex(),
             'source_db_path_sha256': _path_digest(db),
             'images_root_sha256': hashlib.sha256(str(images).casefold().encode()).hexdigest(),
-            'groups': groups, 'manual_rows': manual, 'scanned_groups': scanned,
+            'groups': groups, 'manual_rows': manual, 'owned_manual': owned_manual,
+            'page_proofs': [{'store_path': path, 'entry_name': entry, 'sha256': digest}
+                            for (path, entry), digest in sorted(proofs.items())],
+            'scanned_groups': scanned,
             'skipped_multi': skipped, 'unreadable': unreadable,
         }, ensure_ascii=True, sort_keys=True, separators=(',', ':')).encode()
         if len(payload) > _MAX_JSON:
@@ -338,11 +420,14 @@ def rebuild_undecidable_ledger(*, undecidable_db: Path, images_root: Path,
             checkpoint()
             check_owner()
             inventory.verify()
+            for (path, entry), digest in proofs.items():
+                if _page_digest(images, {'store_path': path, 'entry_name': entry}, checkpoint) != digest:
+                    raise LedgerRebuildError()
             if immutable_copy_signature(db) != before:
                 raise LedgerRebuildError()
         return LedgerRebuildResult(groups, target, scanned, skipped, tuple(unreadable),
-                                   hashlib.sha256(payload).hexdigest())
-    except (OSError, sqlite3.Error, ValueError, TypeError, KeyError) as error:
+                                   hashlib.sha256(payload).hexdigest(), base_current)
+    except (OSError, sqlite3.Error, ValueError, TypeError, KeyError, BadZipFile, zlib.error) as error:
         if isinstance(error, LedgerRebuildError):
             raise
         raise LedgerRebuildError() from error
@@ -418,11 +503,11 @@ def _read_generation(target, digest, images, expected):
     return payload, _restored_groups(payload['groups'], images)
 
 
-def _read_current(managed, images, expected):
+def _current_snapshot(managed, images, expected):
     current = managed / 'legacy-ledger' / 'CURRENT.json'
     _safe_path(current, file=True)
     if not native_io_path(current).exists():
-        return None
+        return None, None, None
     raw = _read_bounded(current, 4096)
     ref = json.loads(raw, object_pairs_hook=_json_unique)
     if (type(ref) is not dict or set(ref) != {'version', 'generation', 'sha256'}
@@ -430,14 +515,111 @@ def _read_current(managed, images, expected):
             or not _GENERATION.fullmatch(ref['generation'])):
         raise LedgerRebuildError()
     target = current.parent / ref['generation'] / 'ledger.json'
-    _, groups = _read_generation(target, ref['sha256'], images, expected)
+    payload, groups = _read_generation(target, ref['sha256'], images, expected)
     if _read_bounded(current, 4096) != raw:
         raise LedgerRebuildError()
-    return groups
+    return raw, payload, groups
+
+
+def _read_current(managed, images, expected):
+    return _current_snapshot(managed, images, expected)[2]
+
+
+def _owned_manual(payload, images):
+    rows = [] if payload is None else payload.get('owned_manual', [])
+    if type(rows) is not list or len(rows) > _MAX_ENTRIES:
+        raise LedgerRebuildError()
+    seen = set()
+    for row in rows:
+        if type(row) is not dict or set(row) != {'group', 'work_id'} or type(row['work_id']) is not str:
+            raise LedgerRebuildError()
+        group = _restored_groups([row['group']], images)[0]
+        key = group['ambiguous_group']
+        if key in seen or row['work_id'] not in {c['work_id'] for c in group['candidates']}:
+            raise LedgerRebuildError()
+        seen.add(key)
+    return rows
+
+
+def resolve_rebuilt_group(*, managed_root: Path, undecidable_db: Path, images_root: Path,
+                          group: dict, work_id: str, expected_current: bytes) -> tuple[dict, ...]:
+    """Persist a selected candidate in a new generation without modifying the source."""
+    try:
+        db, images, managed, signature, expected = _publication_inputs(managed_root, undecidable_db, images_root)
+        # Normalize tuples from in-memory groups to the JSON shape used on disk.
+        wanted = json.loads(json.dumps(group, ensure_ascii=True))
+        _restored_groups([wanted], images)
+        with writer_fence(managed):
+            raw, payload, groups = _current_snapshot(managed, images, expected)
+            if payload is None or raw is None or type(expected_current) is not bytes or raw != expected_current:
+                raise LedgerRebuildError()
+            current_groups = payload['groups']
+            matches = [g for g in current_groups if g['ambiguous_group'] == wanted['ambiguous_group']]
+            if len(matches) != 1 or matches[0] != wanted:
+                raise LedgerRebuildError()
+            candidates = [c for c in wanted['candidates'] if c['work_id'] == work_id]
+            if len(candidates) != 1:
+                raise LedgerRebuildError()
+            proof_rows = payload.get('page_proofs')
+            if type(proof_rows) is not list or len(proof_rows) > _MAX_ENTRIES:
+                raise LedgerRebuildError()
+            proofs = {}
+            for row in proof_rows:
+                if (type(row) is not dict or set(row) != {'store_path', 'entry_name', 'sha256'}
+                        or type(row['store_path']) is not str or type(row['entry_name']) is not str
+                        or type(row['sha256']) is not str or not _DIGEST.fullmatch(row['sha256'])):
+                    raise LedgerRebuildError()
+                key = row['store_path'], row['entry_name']
+                if key in proofs:
+                    raise LedgerRebuildError()
+                proofs[key] = row['sha256']
+            pages = candidates[0]['pages']
+            def verify_selected():
+                for page in pages:
+                    expected_digest = proofs.get((page['store_path'], page['entry_name']))
+                    if expected_digest is None or _page_digest(images, page, lambda: None) != expected_digest:
+                        raise LedgerRebuildError()
+            verify_selected()
+            manual = _owned_manual(payload, images)
+            manual.append({'group': wanted, 'work_id': work_id})
+            payload['owned_manual'] = manual
+            payload['groups'] = [g for g in current_groups if g['ambiguous_group'] != wanted['ambiguous_group']]
+            encoded = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(',', ':')).encode()
+            if len(encoded) > _MAX_JSON:
+                raise LedgerRebuildError()
+            parent = managed / 'legacy-ledger'
+            generation = parent / uuid4().hex
+            _safe_path(generation)
+            native_io_path(generation).mkdir()
+            _write(generation / 'ledger.json', encoded)
+            _fsync_dir(native_io_path(generation))
+            _fsync_dir(native_io_path(parent))
+            ref = json.dumps({'version': 1, 'generation': generation.name,
+                              'sha256': hashlib.sha256(encoded).hexdigest()},
+                             sort_keys=True, separators=(',', ':')).encode()
+            pending = parent / ('CURRENT.' + uuid4().hex + '.next')
+            _write(pending, ref)
+            _fsync_dir(native_io_path(parent))
+            verify_selected()
+            if _publication_inputs(managed, db, images)[3] != signature:
+                raise LedgerRebuildError()
+            current = parent / 'CURRENT.json'
+            _safe_path(current, file=True)
+            try:
+                os.replace(native_io_path(pending), native_io_path(current))
+                _fsync_dir(native_io_path(parent))
+            except OSError:
+                if not native_io_path(current).exists() or _read_bounded(current, 4096) != ref:
+                    raise
+            return _read_current(managed, images, expected)
+    except (OSError, sqlite3.Error, ValueError, TypeError, KeyError, BadZipFile, zlib.error) as error:
+        if isinstance(error, LedgerRebuildError):
+            raise
+        raise LedgerRebuildError() from error
 
 
 def load_rebuilt_ledger(*, managed_root: Path, undecidable_db: Path,
-                       images_root: Path) -> tuple[dict, ...] | None:
+                       images_root: Path, with_token: bool = False):
     """Read the last explicitly published generation; None means never published.
 
     A corrupt pointer/generation, changed DB, different input path or unowned
@@ -448,14 +630,32 @@ def load_rebuilt_ledger(*, managed_root: Path, undecidable_db: Path,
         inputs = _publication_inputs(managed_root, undecidable_db, images_root,
                                      allow_missing=True)
         if inputs is None:
-            return None
+            return (None, None, False) if with_token else None
         db, images, managed, signature, expected = inputs
         with writer_fence(managed):
-            groups = _read_current(managed, images, expected)
+            raw, payload, groups = _current_snapshot(managed, images, expected)
             after = _publication_inputs(managed, db, images)
             if after[3] != signature:
                 raise LedgerRebuildError()
+            if with_token:
+                return groups, raw, payload is not None and type(payload.get('page_proofs')) is list
             return groups
+    except (OSError, ValueError, TypeError, KeyError) as error:
+        if isinstance(error, LedgerRebuildError):
+            raise
+        raise LedgerRebuildError() from error
+
+
+def rebuilt_ledger_has_page_proofs(*, managed_root: Path, undecidable_db: Path,
+                                   images_root: Path) -> bool:
+    """Older generations remain readable but require a rescan before resolution."""
+    try:
+        db, images, managed, signature, expected = _publication_inputs(managed_root, undecidable_db, images_root)
+        with writer_fence(managed):
+            _, payload, _ = _current_snapshot(managed, images, expected)
+            if _publication_inputs(managed, db, images)[3] != signature:
+                raise LedgerRebuildError()
+            return payload is not None and type(payload.get('page_proofs')) is list
     except (OSError, ValueError, TypeError, KeyError) as error:
         if isinstance(error, LedgerRebuildError):
             raise
@@ -482,7 +682,9 @@ def publish_rebuilt_ledger(result: LedgerRebuildResult, *, managed_root: Path,
             raise LedgerRebuildError()
         with writer_fence(managed):
             # Refuse to overwrite tampered or foreign-source existing state.
-            _read_current(managed, images, expected)
+            raw, _, _ = _current_snapshot(managed, images, expected)
+            if raw != result.base_current:
+                raise LedgerRebuildError()
             payload, groups = _read_generation(generation, result.generation_sha256,
                                                 images, expected)
             if (groups != result.groups or payload['scanned_groups'] != result.scanned_groups

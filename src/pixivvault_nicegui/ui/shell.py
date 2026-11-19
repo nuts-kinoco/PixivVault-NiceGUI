@@ -163,6 +163,7 @@ class DemoShell:
                         self.theme_tooltip = ui.tooltip('ライトモードへ切り替え')
                     self.pixiv_home = ui.link('', 'https://www.pixiv.net/', new_tab=True).classes('pv-hbtn').props(
                         'data-testid=pixiv-home-link aria-label=ブラウザでPixivを開く')
+                    self.pixiv_home.on('click', self._log_pixiv_open)
                     with self.pixiv_home:
                         ui.icon('public')
                         ui.tooltip('ブラウザで Pixiv を開く (ログイン状態確認・自動連携)')
@@ -194,6 +195,8 @@ class DemoShell:
                     self.gallery = RankingView(services, card_size=self.card_size, on_size_change=self.change_card_size)
                 else:
                     self.gallery = GalleryView(services, card_size=self.card_size, on_size_change=self.change_card_size)
+            from .shared_log_view import SharedLogView
+            self.shared_log_view = SharedLogView(services.shared_log)
             # 閲覧履歴（元 gui.py の閲覧履歴ボタン）は学習タブを開かずに、起動時から件数を出してダイアログを開く。
             self._build_view_history()
         self._attach_auth_status()
@@ -208,6 +211,11 @@ class DemoShell:
         else:
             self.gallery.set_viewer_active(True)
             self._update_tabs()
+
+    def _log_pixiv_open(self, *_):
+        if not self.closed:
+            self.services.shared_log.append(
+                'ブラウザで Pixiv を開きました。PV拡張機能をお使いの場合、ページを開くと自動で Cookie が連携・更新されます。', level='info')
 
     def _build_cookie_banner(self):
         # Original gui.py cookie_banner: 青枠の情報帯。ヘッダーとタブバーの間。
@@ -323,7 +331,7 @@ class DemoShell:
             self.preferences_view = PreferencesView(self.services.preferences,
                 enabled_keys=self.services.preference_consumers(),
                 on_change=self.apply_preferences,
-                clear_cache=self.services.shared_image_cache.clear if self.services.shared_image_cache else None,
+                clear_cache=self.services.clear_shared_image_cache if self.services.shared_image_cache else None,
                 desktop=self.services.desktop,
                 export_legacy=(self.services.export_legacy_metadata
                                if self.services.legacy_metadata_export_available() else None),
@@ -331,7 +339,9 @@ class DemoShell:
                 extension_snapshot=lambda: self.services.extension_bridge.response_snapshot() if self.services.extension_bridge is not None else ({}, {}),
                 native_profile=self.profile_view, following_sync=self.following_view,
                 vault=getattr(self.services, 'external_vault', None),
-                pixiv_actions_mode=getattr(self.services, 'pixiv_actions_mode', 'readonly'))
+                pixiv_actions_mode=getattr(self.services, 'pixiv_actions_mode', 'readonly'),
+                similarity_status=(self.services.similarity_analysis_status if self.services.similarity_analysis_enabled else None),
+                resume_similarity=(self.services.rescan_similarity_analysis if self.services.similarity_analysis_enabled else None))
         self.preferences_view.open()
 
     def _refresh_app_connection(self):
@@ -381,6 +391,12 @@ class DemoShell:
         finally:self._syncing_borrow=False
         if self.borrow_recovery_button is not None and self.borrow_dialog is not None:
             self.borrow_recovery_button.set_visibility(self.borrow_dialog.recovery_visible())
+        library = self.library
+        if library is not None:
+            library = getattr(library, 'views', {}).get('illustration', library)
+            update = getattr(library, 'refresh_search_scope', None)
+            if callable(update):
+                update()
     async def borrow_changed(self,event):
         if self._syncing_borrow or self.closed:return
         vault=self.services.external_vault
@@ -500,6 +516,7 @@ class DemoShell:
             from .duplicate_view import DuplicateView
             with self.content:
                 self.duplicate_view = DuplicateView(self.services.duplicate_inspection,
+                    event_services=self.services,
                     open_trash=(getattr(self.services,'open_duplicate_quarantine',None)
                         if getattr(self.services,'desktop',None) is not None else None))
         if tab == 'scheduler' and self.scheduler_view is None:
@@ -550,6 +567,7 @@ class DemoShell:
             self.backup_view.root.set_visibility(tab=='history')
             self.backup_view.set_active(tab=='history')
         self.active_tab = tab
+        self.shared_log_view.show_tab(tab)
         self.gallery.root.set_visibility(tab == "ranking")
         self.gallery.set_viewer_active(tab == "ranking")
         if self.library is not None:
@@ -632,6 +650,7 @@ class DemoShell:
         if self.closed:
             return
         self.closed = True
+        self.shared_log_view.close()
         if self._borrow_timer is not None:self._borrow_timer.deactivate()
         if self._app_conn_timer is not None:self._app_conn_timer.deactivate()
         if self.borrow_dialog is not None:self.borrow_dialog.close()

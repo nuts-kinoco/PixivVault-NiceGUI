@@ -63,9 +63,13 @@ class SaveExports:
             raise ValueError('invalid bookmark account')
         self._account_lock=RLock()
         # Reuse the existing ownership and no-overwrite export contract.
-        self.owner=LegacyZipExporter(self.root,services.managed_downloads)
-        self.zip=LegacyZipExporter(self.root/'archives',services.managed_downloads,preserve_incomplete=True)
-        self.projection=LegacyZipExporter(self.root/'projection',services.managed_downloads)
+        def notify_corrupt(title, body):
+            notifier = getattr(services, 'notifications', None)
+            if notifier is not None:
+                notifier.notify(title, body)
+        self.owner=LegacyZipExporter(self.root,services.managed_downloads,notify_corrupt=notify_corrupt)
+        self.zip=LegacyZipExporter(self.root/'archives',services.managed_downloads,preserve_incomplete=True,notify_corrupt=notify_corrupt)
+        self.projection=LegacyZipExporter(self.root/'projection',services.managed_downloads,notify_corrupt=notify_corrupt)
         self._dependency_local=local()
         self._log_salt=os.urandom(32)
         self.stop=Event();self.thread=None;self.lock=RLock();self.last_error='';self.scan_errors={};self._reported_errors={};self.scan_warnings={};self._reported_warnings={}

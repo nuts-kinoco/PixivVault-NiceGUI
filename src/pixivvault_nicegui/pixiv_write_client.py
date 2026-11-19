@@ -16,6 +16,7 @@ import http.client
 import inspect
 import json
 import math
+from contextlib import nullcontext
 import os
 import re
 import socket
@@ -263,6 +264,7 @@ def _write_response_body(response, owner, limit):
 
 class _OwnedWriteTransport(OwnedHTTPSPool):
     def __call__(self, request, timeout, limit, deadline):
+        from .pixiv_read_client import HTTPStatusRejected
         parsed, origin = urlsplit(request.full_url), urlsplit(API_ORIGIN)
         if (request.get_method() != 'POST' or parsed.scheme != 'https'
                 or parsed.netloc != origin.netloc or parsed.username or parsed.password
@@ -274,6 +276,7 @@ class _OwnedWriteTransport(OwnedHTTPSPool):
                 or type(deadline) not in (int, float) or not math.isfinite(deadline)
                 or type(limit) is not int or not 0 < limit <= MAX_POST_BYTES):
             raise TimeoutError('write outcome unknown')
+        observed_status = None
         try:
             with self.session(
                     timeout=min(timeout, MAX_MUTATION_SECONDS),
@@ -284,12 +287,15 @@ class _OwnedWriteTransport(OwnedHTTPSPool):
                     response = opener.open(request, timeout=owner.remaining())
                 except HTTPError as error:
                     response = error
+                observed_status = response.getcode()
                 owner.response(response)
                 owner.check()
                 body = _write_response_body(response, owner, limit)
                 owner.check()
-                return WriteHTTPResponse(response.getcode(), body)
+                return WriteHTTPResponse(observed_status, body)
         except Exception:
+            if observed_status in (401, 403, 429):
+                raise HTTPStatusRejected(observed_status) from None
             raise TimeoutError('write outcome unknown') from None
 
 
@@ -358,6 +364,7 @@ class PixivWriteClient:
         if transport is not None and not callable(transport):
             raise WriteValidationError()
         self._reader=reader
+        self._post_admission=None
         self._response_log_root = response_log_root
         self._owned_transport=_OwnedWriteTransport() if transport is None else None
         self._transport=transport if transport is not None else self._owned_transport
@@ -375,7 +382,8 @@ class PixivWriteClient:
         # A single bounded GET, explicitly avoiding the reader's optional GET
         # retry policy. The shared GET-only reader is never changed or closed.
         deadline=time.monotonic()+MAX_MUTATION_SECONDS
-        homepage=self._reader._get_once('home',API_ORIGIN+'/',deadline=deadline)
+        from .request_policy import interactive_lane
+        with interactive_lane():homepage=self._reader._get_once('home',API_ORIGIN+'/',deadline=deadline)   # original pixiv_client.py:1756: interactive
         if _identity_from_home(homepage)!=expected_account_id:
             raise WriteValidationError()
         return _csrf_from_home(homepage)
@@ -567,7 +575,8 @@ class PixivWriteClient:
 
         return self._reconcile_observed(account_id,kind,target_id,read_state=observe)
 
-    def execute(self,intent:WriteIntent, *, before_dispatch:Callable[[],None]|None=None)->WriteResult:
+    def execute(self,intent:WriteIntent, *, before_dispatch:Callable[[],None]|None=None,
+                mark_dispatch:Callable[[],None]|None=None)->WriteResult:
         _validate(intent)
         if before_dispatch is not None and not callable(before_dispatch):
             raise WriteValidationError()
@@ -632,15 +641,34 @@ class PixivWriteClient:
                     if self._closed or self._epoch!=epoch:
                         return self._finish(intent,target_key,
                             'indeterminate','writer_closed',None,epoch)
+            dispatched = False
+            response = None
             try:
-                deadline=time.monotonic()+MAX_MUTATION_SECONDS
-                response=self._transport(request,MAX_MUTATION_SECONDS,MAX_POST_BYTES,deadline)
-                self._reader._ensure_open()
-                if (time.monotonic()>deadline or not isinstance(response,WriteHTTPResponse)
-                        or type(response.status) is not int):
-                    raise TimeoutError()
+                from .pixiv_read_client import HTTPStatusRejected
+                admission = self._post_admission() if self._post_admission is not None else nullcontext()
+                with admission:
+                    with self._lock:
+                        if self._closed or self._epoch != epoch:
+                            raise WriteValidationError()
+                    if mark_dispatch is not None:
+                        mark_dispatch()
+                    deadline=time.monotonic()+MAX_MUTATION_SECONDS
+                    dispatched = True
+                    response=self._transport(request,MAX_MUTATION_SECONDS,MAX_POST_BYTES,deadline)
+                    if (self._post_admission is not None and isinstance(response, WriteHTTPResponse)
+                            and response.status in (401,403,429)):
+                        raise HTTPStatusRejected(response.status)
+                    self._reader._ensure_open()
+                    if (time.monotonic()>deadline or not isinstance(response,WriteHTTPResponse)
+                            or type(response.status) is not int):
+                        raise TimeoutError()
+            except HTTPStatusRejected as error:
+                if response is None or response.status != error.status_code:
+                    return self._finish(intent,target_key,'indeterminate','transport_unknown',None,epoch)
             except Exception:
-                return self._finish(intent,target_key,'indeterminate','transport_unknown',None,epoch)
+                return self._finish(intent,target_key,
+                    'indeterminate' if dispatched else 'rejected',
+                    'transport_unknown' if dispatched else 'preflight_not_sent',None,epoch)
             payload=_json_packet(response.body)
             readback_allowed = False
             if intent.action in ('follow', 'unfollow'):

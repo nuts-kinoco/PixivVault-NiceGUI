@@ -332,12 +332,14 @@ class JobService:
     """
 
     def __init__(self, runner, storage: Path | None = None, *, max_jobs: int = 50,
-                 dispatch_admission=None):
+                 dispatch_admission=None, terminal_callback=None):
         if (not callable(runner) or type(max_jobs) is not int or max_jobs < 1
-                or (dispatch_admission is not None and not callable(dispatch_admission))):
+                or (dispatch_admission is not None and not callable(dispatch_admission))
+                or (terminal_callback is not None and not callable(terminal_callback))):
             raise ValueError("invalid job service configuration")
         self._runner = runner
         self._dispatch_admission = dispatch_admission
+        self._terminal_callback = terminal_callback
         self._max_jobs = max_jobs
         self._condition = Condition(RLock())
         self._jobs: dict[str, JobSnapshot] = {}
@@ -553,6 +555,13 @@ class JobService:
                 self._thread.start()
             return job
 
+    def enqueue_with_status(self, kind, target_id, title='', operation_id=None):
+        """Atomically distinguish a new job from an already accepted one."""
+        with self._condition:
+            existing = frozenset(self._jobs)
+            job = self.enqueue(kind, target_id, title, operation_id)
+            return job, job.job_id not in existing
+
     def retire_jobs(self, job_ids) -> tuple[str, ...]:
         """Forget finished jobs together with their operation IDs (bulk-run capacity).
 
@@ -629,6 +638,7 @@ class JobService:
         deferred_job_id = None
         deferred_since = None
         while True:
+            terminal = None
             with self._condition:
                 if self._closing or self._fatal:
                     return
@@ -709,14 +719,20 @@ class JobService:
                         reason = ("interrupted" if self._closing and
                                   current.error_code == "interrupted" else "")
                     try:
-                        self._replace(current, state=outcome, paused_from=None, error_code=reason,
-                                      result=result if outcome == "done" else None)
+                        terminal = self._replace(current, state=outcome, paused_from=None, error_code=reason,
+                                                 result=result if outcome == "done" else None)
                     except JobStorageError:
                         self._fatal = True
                         # A storage fault is a separate volatile diagnostic.
                         # Keep the last committed snapshot; never publish a
                         # terminal state which the database did not accept.
                 self._condition.notify_all()
+            # Keep callbacks outside the job lock, after durable publication.
+            if terminal is not None and self._terminal_callback is not None:
+                try:
+                    self._terminal_callback(terminal)
+                except Exception:
+                    pass
 
     def close(self, *, timeout: float = 10.0) -> None:
         with self._condition:

@@ -21,6 +21,41 @@ class _Scope:
 
 _SCOPE=ContextVar('pixivvault_request_scope',default=_Scope())
 _BOUNDED_GET_RETRY=ContextVar('pixivvault_bounded_get_retry',default=False)
+_LANE=ContextVar('pixivvault_request_lane',default='background')
+# Original rate_coordinator.py MAX_BACKGROUND_DEFER_SECONDS: background yields to a
+# waiting interactive request, but never starves for longer than this.
+MAX_BACKGROUND_DEFER_SECONDS=2.0
+
+
+def interactive(function):
+    """Wrap a callable so its requests are admitted in the interactive lane."""
+    @wraps(function)
+    def run(*args,**kwargs):
+        with interactive_lane():return function(*args,**kwargs)
+    return run
+
+
+@contextmanager
+def lane_scope(lane):
+    """Run requests inside the named lane. None keeps the enclosing lane; an explicit lane overrides it."""
+    if lane is None:
+        yield
+        return
+    token=_LANE.set('interactive' if lane == 'interactive' else 'background')
+    try:yield
+    finally:_LANE.reset(token)
+
+
+def current_lane():
+    return _LANE.get()
+
+
+@contextmanager
+def interactive_lane():
+    """Mark requests issued inside as screen-driven (admitted ahead of background)."""
+    token=_LANE.set('interactive')
+    try:yield
+    finally:_LANE.reset(token)
 
 
 def durable_stop_status(status):
@@ -79,20 +114,71 @@ def _wait(seconds,deadline,*,clock,sleep):
 
 
 class RequestAdmission:
+    """Shared minimum-interval gate: the original rate_coordinator.py algorithm.
+
+    The next issue slot is reserved at call time under a short lock and the wait happens
+    outside it, so a request that arrived earlier owns an earlier slot and a later
+    background request cannot overtake it. An interactive request reserves immediately;
+    a background request first yields while an interactive one is still waiting for its
+    slot, for at most MAX_BACKGROUND_DEFER_SECONDS counted from its own call, so it is
+    never starved. Pause/cancel checkpoints and the deadline are honoured outside the lock.
+    A request that fails before issuing gives its slot back when nothing was queued behind it.
+    """
     def __init__(self,interval,*,clock=time.monotonic,sleep=time.sleep):
         self.interval=interval;self.clock=clock;self.sleep=sleep
-        self._lock=Lock();self._last=None
-    def __call__(self,deadline):
-        request_checkpoint();_check_deadline(deadline,self.clock)
-        while not self._lock.acquire(timeout=0.1):
+        self._lock=Lock();self._next=None;self._issued=None;self._interactive_waiting=0
+    def _defer_for_interactive(self,deadline,start):
+        while True:
+            with self._lock:
+                if self._interactive_waiting==0:return
+            if self.clock()-start>=MAX_BACKGROUND_DEFER_SECONDS:return
             request_checkpoint();_check_deadline(deadline,self.clock)
+            self.sleep(0.05)
+    def _reserve(self,deadline,called=None,interactive=True):
+        seconds=float(self.interval())
+        if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
+        request_checkpoint();_check_deadline(deadline,self.clock)       # cancelled/expired during the settings read: reserve nothing
+        with self._lock:
+            now=self.clock()
+            if (not interactive and self._interactive_waiting and now-called<MAX_BACKGROUND_DEFER_SECONDS):
+                return None                                            # an interactive request queued meanwhile: keep yielding (original order)
+            start=now if self._next is None else max(now,self._next)
+            if start>=deadline:
+                from .pixiv_read_client import ReadDeadlineExceeded
+                raise ReadDeadlineExceeded()                           # the slot cannot be used before the deadline: do not take it
+            self._next=start+seconds
+            return start,start+seconds,seconds
+    def _release(self,start,end):
+        with self._lock:
+            if self._next==end:self._next=start
+    def __call__(self,deadline):
+        called=self.clock()
+        request_checkpoint();_check_deadline(deadline,self.clock)
+        interactive=_LANE.get()=='interactive'
+        if interactive:
+            with self._lock:self._interactive_waiting+=1
         try:
-            seconds=float(self.interval())
-            if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
-            now=self.clock();wait=0 if self._last is None else max(0,self._last+seconds-now)
-            _wait(wait,deadline,clock=self.clock,sleep=self.sleep)
-            self._last=self.clock()
-        finally:self._lock.release()
+            while True:
+                if not interactive:self._defer_for_interactive(deadline,called)
+                reserved=self._reserve(deadline,called,interactive)
+                if reserved is not None:break
+            start,end,seconds=reserved
+            try:
+                while True:
+                    request_checkpoint();_check_deadline(deadline,self.clock)
+                    with self._lock:
+                        now=self.clock()
+                        # the reserved slot AND the real spacing since the previous actual issue (e.g. after a long pause)
+                        left=max(start-now,0 if self._issued is None else self._issued+seconds-now)
+                        if left<=0:
+                            self._issued=now
+                            return
+                    self.sleep(min(left,0.1))
+            except BaseException:
+                self._release(start,end);raise
+        finally:
+            if interactive:
+                with self._lock:self._interactive_waiting-=1
 
 
 class RequestRetryPolicy:

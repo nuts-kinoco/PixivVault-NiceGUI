@@ -12,7 +12,7 @@ from contextlib import ExitStack
 from .desktop_integration import TrayController, PystrayFactory
 from .native_tray_exit import (
     configure_owned_tray_exit, release_owned_tray_exit, send_owned_tray_exit,
-    send_owned_tray_restore,
+    send_owned_tray_restore, send_owned_window_exit,
 )
 
 
@@ -25,6 +25,7 @@ class NativeTrayBridge:
         self._exit_token=token_hex(32)
         self._exit_lock=RLock()
         self.exit_unconfirmed=False
+        self._from_window=False
         self.restore_unconfirmed=False
         self.failed=not configure_owned_tray_exit(app.native,self._exit_token,self._sender)
         self.controller=TrayController(preferences,show=self.restore,hide=self.hide,
@@ -64,7 +65,20 @@ class NativeTrayBridge:
 
     def _try_idle_lease(self):
         """Fence new queue admissions only if every known queue is idle."""
-        from .job_service import JobService, STATES, UNFINISHED
+        from .job_service import STATES, UNFINISHED
+        owners=self._job_owners()
+        if not owners:return ()
+        with ExitStack() as stack:
+            for owner in owners:stack.enter_context(owner._condition)
+            if any(owner._closing or owner._closed or owner._fatal or owner._native_exit_freeze or owner._active is not None
+                   or any(job.state not in STATES or job.state in UNFINISHED for job in owner._jobs.values())
+                   for owner in owners):
+                return ()
+            for owner in owners:owner._native_exit_freeze=True
+        return owners
+
+    def _job_owners(self):
+        from .job_service import JobService
         from .media_jobs import MediaJobs
         jobs=self.services.jobs if self.services is not None else None
         if isinstance(jobs, JobService):
@@ -83,15 +97,17 @@ class NativeTrayBridge:
         else:
             return ()
         if not owners or len({id(owner) for owner in owners}) != len(owners):return ()
-        owners=tuple(sorted(owners,key=id))
+        return tuple(sorted(owners,key=id))
+
+    def _window_activity(self):
+        owners=self._job_owners()
+        if not owners:return 'unknown'
         with ExitStack() as stack:
             for owner in owners:stack.enter_context(owner._condition)
-            if any(owner._closing or owner._closed or owner._fatal or owner._native_exit_freeze or owner._active is not None
-                   or any(job.state not in STATES or job.state in UNFINISHED for job in owner._jobs.values())
-                   for owner in owners):
-                return ()
-            for owner in owners:owner._native_exit_freeze=True
-        return owners
+            if any(owner._closing or owner._closed or owner._fatal for owner in owners):return 'unknown'
+            if any(owner._active is not None or any(job.state=='running' for job in owner._jobs.values())
+                   for owner in owners):return 'active'
+        return 'unknown'
 
     @staticmethod
     def _release_idle_lease(owners):
@@ -110,7 +126,12 @@ class NativeTrayBridge:
             self.exit_unconfirmed=False
             try:
                 self._idle_lease=self._try_idle_lease()
-                accepted=send_owned_tray_exit(self.app,self._exit_token,not bool(self._idle_lease)) is True
+                if self._from_window:
+                    state = 'idle' if self._idle_lease else self._window_activity()
+                    accepted=send_owned_window_exit(self.app,self._exit_token,state) is True
+                else:
+                    state = False if self._idle_lease else ('active' if self._window_activity() == 'active' else True)
+                    accepted=send_owned_tray_exit(self.app,self._exit_token,state) is True
             except Exception:
                 accepted=False
             if not accepted:
@@ -130,7 +151,7 @@ class NativeTrayBridge:
                         self.failed=True;self.exit_unconfirmed=True
                         self.last_exit_result='unconfirmed'
                 return
-            if result not in ('ready','cancelled','failed','closed'):continue
+            if result not in ('ready','cancelled','failed','closed','close_request'):continue
             with self._exit_lock:
                 if self.closed:return
                 if result=='ready':
@@ -138,6 +159,11 @@ class NativeTrayBridge:
                     # The child now owns a duplicated writer. Closing ours lets
                     # EOF reveal child/channel loss instead of waiting forever.
                     self._sender.close()
+                    continue
+                if result=='close_request':
+                    self._from_window=True
+                    try:self.controller.exit_from_tray()
+                    finally:self._from_window=False
                     continue
                 self.last_exit_result=result
                 if result in ('cancelled','failed'):
@@ -167,10 +193,17 @@ class _DefaultTrayPreferences:
         return default
 
 
+class _NoTrayFactory:
+    def __call__(self, *_):
+        return None
+
+
 def bind_native_tray(app,preferences,*,factory=None,services=None):
     if preferences is None:
         preferences = _DefaultTrayPreferences()
     if factory is None:
-        if find_spec('pystray') is None:return None
-        factory=PystrayFactory()
+        if find_spec('pystray') is None:
+            factory=_NoTrayFactory()
+        else:
+            factory=PystrayFactory()
     return NativeTrayBridge(app,preferences,factory,services)

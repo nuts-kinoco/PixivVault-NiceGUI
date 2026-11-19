@@ -298,6 +298,8 @@ class QueueView:
         self._latest = ()
         self._managed_job_author_names = {}
         self._managed_job_author_ids = {}
+        self._log_expanded = False
+        self._log_signature = None
         with ui.column().classes("pv-jobs-view pv-queue-view w-full").props(
             f"data-testid={self.prefix}-view data-active=true data-epoch=0 data-selection-revision=0 data-view-generation=0") as self.root:
             with ui.row().classes("pv-toolbar"):
@@ -309,12 +311,15 @@ class QueueView:
                     self.refresh_button.tooltip("リスト更新")
                     self.refresh_button.on_click(lambda: self.refresh())
                 else:
-                    # 元 gui.py:3734-3739 の見出しと補助文。補助文の後半「一覧かタイトルの
-                    # ダブルクリックでログと切替」は、ログ欄(FL-E06)が無いので載せない。
-                    with ui.column().classes("gap-0"):
+                    with ui.column().classes("gap-0").props(
+                            'tabindex=0 role=button aria-label=ログ表示切替 data-testid=queue-heading') as self.queue_heading:
                         ui.label("現在のジョブ（アプリ連携）").classes("pv-library-heading")
                         ui.label(f"{int(self.REFRESH_INTERVAL_SECONDS)}秒毎に自動更新").classes("pv-subtitle").style(
                             "font-size:10.5px")
+                        ui.label('一覧かタイトルのダブルクリックでログと切替').classes('pv-subtitle').style('font-size:10.5px')
+                    self.queue_heading.on('dblclick', self.toggle_log)
+                    self.queue_heading.on('keydown', self.toggle_log,
+                        js_handler="e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); emit(); } }")
                 self.search_input = ui.input(placeholder="タイトル・IDで検索" if failed_only else "作者名・作品IDで絞り込む").props(
                     f"outlined dense clearable debounce=200 data-testid={self.prefix}-search").classes("pv-search")
                 self.search_input.on("update:model-value", self._search_event,
@@ -353,6 +358,9 @@ class QueueView:
             self.retained_list=ui.column().props(f"data-testid={self.prefix}-retained-exports")
             self._retained_signature=None
             self.list = ui.column().classes("pv-jobs-scroll w-full gap-0").props(f"data-testid={self.prefix}-list")
+            if not failed_only:
+                self.list.on('dblclick', self.toggle_log,
+                    js_handler="e => { if (!e.target.closest('button, input, [role=checkbox], a')) emit(); }")
             with ui.row().classes("w-full items-center justify-end"):
                 self.previous = ui.button("前へ", color=None).props(f"flat dense data-testid={self.prefix}-previous")
                 self.previous.on("click", lambda e: self._page_event(e, -1),
@@ -361,6 +369,12 @@ class QueueView:
                 self.next = ui.button("次へ", color=None).props(f"flat dense data-testid={self.prefix}-next")
                 self.next.on("click", lambda e: self._page_event(e, 1),
                     js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
+            if not failed_only:
+                with ui.row().classes('items-center gap-2').props('data-testid=queue-log-heading') as self.log_heading:
+                    ui.icon('list_alt').classes('text-primary')
+                    ui.label('ダウンロードキューログ').classes('pv-library-heading')
+                    ui.label('拡張機能連携のDLはここにのみ表示').classes('pv-subtitle')
+                self.log_container = ui.column().classes('pv-queue-log w-full gap-0').props('data-testid=queue-log')
         # Match the original Flet's interruptible 2-second snapshot ticker.
         # The explicit refresh below is the one immediate initial snapshot;
         # the timer starts with its first delayed tick to avoid a duplicate.
@@ -370,6 +384,32 @@ class QueueView:
 
     def _valid(self, epoch=None):
         return self.active and not self.closed and (epoch is None or str(epoch) == str(self.epoch))
+
+    def toggle_log(self, *_):
+        if self._valid() and not self.failed_only:
+            self._log_expanded = not self._log_expanded
+            self.log_heading.set_visibility(not self._log_expanded)
+            self.log_container.set_visibility(not self._log_expanded)
+            if not self._log_expanded:
+                self._scroll_log_to_end()
+
+    def _refresh_log(self):
+        log = getattr(self.services, 'queue_log', None)
+        entries = log.snapshot() if log is not None else ()
+        if entries == self._log_signature:
+            return
+        self._log_signature = entries
+        self.log_container.clear()
+        with self.log_container:
+            for entry in entries:
+                ui.label(f'[{entry.timestamp}] {entry.message}').classes(
+                    'pv-queue-log-line pv-queue-log-' + entry.level)
+        self._scroll_log_to_end()
+
+    def _scroll_log_to_end(self):
+        from nicegui import core
+        if core.loop is not None:
+            self.client.run_javascript(f"requestAnimationFrame(() => requestAnimationFrame(() => {{ const e=document.getElementById('{self.log_container.html_id}'); if(e) e.scrollTop=e.scrollHeight; }}))")
 
     def _search_event(self, event):
         if self._valid() and _browser_event(event, epoch=self.epoch):
@@ -573,6 +613,9 @@ class QueueView:
                     failed += 1
             return rejected == failed == 0
         finally:
+            if failed:
+                from ..shared_events import emit_shared
+                emit_shared(self.services, f'キュー一括操作で{failed}件失敗しました。', level='error')
             self.selected.difference_update(job_id for job_id, _ in candidates)
             self._bump_selection()
             self.busy.difference_update(job_id for job_id, _ in targets)
@@ -649,6 +692,8 @@ class QueueView:
     def refresh(self):
         if not self._valid():
             return
+        if not self.failed_only:
+            self._refresh_log()
         service = self.services.jobs
         jobs = () if service is None else service.snapshot()
         self._latest = jobs
@@ -854,6 +899,8 @@ class QueueView:
                 self.notice.set_text("操作を受け付けました" if changed else "状態が変わったため操作しませんでした")
             return changed
         except Exception:
+            from ..shared_events import emit_shared
+            emit_shared(self.services, 'キュー操作に失敗しました。', level='error')
             if not self.closed:
                 self.notice.set_text("操作結果を保存できませんでした")
             return False

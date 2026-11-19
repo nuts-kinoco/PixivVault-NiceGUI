@@ -159,7 +159,8 @@ class RemoteBookmarkImages:
         # Resolve that metadata before entering the decode semaphore, otherwise
         # a multi-page work would be rejected against the placeholder count=1.
         if variant in ('view','original') and record.kind == 'illustration' and record.illustration_type != 2 and not record.page_count_known:
-            self.prepare_artwork(work_id)
+            from .request_policy import interactive_lane
+            with interactive_lane():self.prepare_artwork(work_id)   # current card display: original discovery_tab.py:624 detail GET is interactive
             with self._lock:record=self._record(work_id,page_no,variant)
         if variant == 'original':
             # Fetch one original only when the user requests it. No default
@@ -230,6 +231,7 @@ class RemoteBookmarkImages:
                     url = pages[page_no]
                 with self._lock:
                     self._record(work_id, page_no, variant)
+                self._before_image_fetch()
                 data = self.client.get_image_bytes(thumbnail_url(url))
                 if not isinstance(data, bytes) or len(data) > 24 * 1024 * 1024:
                     raise RuntimeError("remote image exceeds limit")
@@ -261,6 +263,9 @@ class RemoteBookmarkImages:
                 self._bytes += len(png)
             return blob
 
+    def _before_image_fetch(self):
+        pass
+
     def peek(self, work_id: str, page_no: int, variant: str):
         with self._lock:
             self._record(work_id, page_no, variant)
@@ -273,3 +278,36 @@ class RemoteBookmarkImages:
             if self._shared_cache is not None:self._shared_cache.close()
             self._pages.clear()
             self._bytes = 0
+
+
+class LegacyNovelPreviewImages(RemoteBookmarkImages):
+    """Version-owned legacy metadata URLs, used only for author thumbnails."""
+
+    def __init__(self, client, urls, enabled):
+        from types import SimpleNamespace
+        self._urls = dict(urls)
+        self._enabled = enabled
+        records = tuple(SimpleNamespace(work_id=wid, remote_id=wid.removeprefix('novel:'),
+                         thumbnail=url, page_count=1, kind='novel', illustration_type=None)
+                        for wid, url in self._urls.items())
+        super().__init__(client, records)
+
+    def clone(self, client):
+        with self._lock:
+            if self._closed:
+                raise RuntimeError('image catalog closed')
+            return LegacyNovelPreviewImages(client, self._urls, self._enabled)
+
+    def get(self, work_id, page_no=0, variant='view'):
+        if variant != 'thumb' or self.client is None or not self._enabled():
+            raise RuntimeError('legacy preview unavailable')
+        return super().get(work_id, page_no, variant)
+
+    def _before_image_fetch(self):
+        if self.client is None or not self._enabled():
+            raise RuntimeError('legacy preview unavailable')
+
+    def close(self):
+        super().close()
+        self._urls.clear()
+        self.works.clear()

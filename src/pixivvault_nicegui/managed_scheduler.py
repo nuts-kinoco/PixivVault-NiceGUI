@@ -29,6 +29,14 @@ class ScheduleError(RuntimeError):
     pass
 
 
+class ScheduleAccountError(ScheduleError):
+    def __init__(self, reason):
+        if reason not in ('unknown', 'mismatch'):
+            raise ValueError('invalid scheduler account failure')
+        self.reason = reason
+        super().__init__(reason)
+
+
 @dataclass(frozen=True, slots=True)
 class ScheduleState:
     interval_hours: int
@@ -80,7 +88,7 @@ class ManagedScheduler:
     _favourites_source = None          # FavouriteBook: the single home of the stars (following ledger)
     _star_cache = (0.0, frozenset())
 
-    def attach_favourites(self, book) -> None:
+    def attach_favourites(self, book, *, seed=True) -> None:
         """Read the star authors from `book` (the following ledger) instead of the own list.
 
         Until the one-time import has run (`favourites_seeded`) the own list keeps being used, so
@@ -88,12 +96,25 @@ class ManagedScheduler:
         """
         self._favourites_source = book
         self._star_cache = (0.0, frozenset())
+        self._account_guard = getattr(self, '_account_guard', False) or not seed
+        if not seed:
+            return
         try:
-            book.seed()
-            if self._ledger_is_source():          # only a real, readable star list may prune anything
-                self._prune_deferred(self.favourites())
+            with self._lock:
+                following = book.following
+                with following._lock if following is not None else nullcontext():
+                    if self._account_guard and self._bound_account() != book.account():
+                        return
+                    book.seed()
+                    if self._ledger_is_source():
+                        self._prune_deferred(self.favourites())
         except Exception:
             pass  # not synced yet: the next call tries again
+
+    def _bound_account(self):
+        with self._lock:
+            row = self._db.execute('SELECT account_id FROM scheduler_account WHERE id=1').fetchone()
+            return None if row is None else row[0]
 
     def favourites_seeded(self) -> bool:
         with self._lock:
@@ -181,6 +202,7 @@ class ManagedScheduler:
             raise ScheduleError('scheduler requires existing isolated managed root')
         self.path = root / '.pixivvault-managed-scheduler.sqlite3'
         _safe_path(self.path)
+        existing_database = self.path.exists()
         self._lock = RLock()
         self._closed = False
         self._file_owner = None
@@ -207,7 +229,10 @@ class ManagedScheduler:
             self._db.execute('PRAGMA synchronous=FULL')
             self._db.execute('BEGIN IMMEDIATE')
             self._db.execute('CREATE TABLE IF NOT EXISTS schedule (id INTEGER PRIMARY KEY CHECK(id=1), interval_hours INTEGER NOT NULL, startup_check INTEGER NOT NULL, revision INTEGER NOT NULL, last_due_utc TEXT, next_due_utc TEXT, last_status TEXT NOT NULL)')
-            self._db.execute('INSERT OR IGNORE INTO schedule VALUES (1,24,0,1,NULL,NULL,\'never\')')
+            self._db.execute('INSERT OR IGNORE INTO schedule VALUES (1,24,0,1,NULL,?,\'never\')',
+                             (_timestamp(datetime.now(timezone.utc) + timedelta(hours=24)),))
+            self._db.execute("UPDATE schedule SET next_due_utc=? WHERE id=1 AND interval_hours=24 AND last_due_utc IS NULL AND next_due_utc IS NULL AND last_status='never'",
+                             (_timestamp(datetime.now(timezone.utc) + timedelta(hours=24)),))
             self._db.execute('CREATE TABLE IF NOT EXISTS dispatch_history (slot TEXT PRIMARY KEY, status TEXT NOT NULL, started_utc TEXT NOT NULL, finished_utc TEXT, authors INTEGER NOT NULL DEFAULT 0, accepted INTEGER NOT NULL DEFAULT 0, deferred INTEGER NOT NULL DEFAULT 0, error_code TEXT)')
             self._db.execute('CREATE TABLE IF NOT EXISTS dispatch_items (slot TEXT NOT NULL, work_id TEXT NOT NULL, author_id TEXT NOT NULL, operation_id TEXT NOT NULL UNIQUE, job_id TEXT, accepted_fingerprint TEXT, state TEXT NOT NULL, notified INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(slot,work_id))')
             item_columns = {row[1] for row in self._db.execute('PRAGMA table_info(dispatch_items)')}
@@ -215,17 +240,14 @@ class ManagedScheduler:
                 self._db.execute('ALTER TABLE dispatch_items ADD COLUMN accepted_fingerprint TEXT')
             self._db.execute('CREATE TABLE IF NOT EXISTS deferred_work (author_id TEXT NOT NULL, work_id TEXT NOT NULL, update_date TEXT NOT NULL, page_count INTEGER NOT NULL, work_type INTEGER NOT NULL, created_utc TEXT NOT NULL, PRIMARY KEY(author_id,work_id))')
             self._db.execute('CREATE TABLE IF NOT EXISTS favourite_authors (author_id TEXT PRIMARY KEY)')
-            # Older ledgers could contain deferred rows for authors removed
-            # during a live dispatch. They must not wake a runner forever.
-            # Once the stars live in the following ledger this own list is only the import source and
-            # says nothing about who is a star: pruning by it would erase the pending work.
-            seeded = (self._db.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='favourite_seed'").fetchone()[0]
-                      and self._db.execute('SELECT 1 FROM favourite_seed WHERE id=1').fetchone() is not None)
-            if not seeded:
-                self._db.execute('DELETE FROM deferred_work WHERE author_id NOT IN (SELECT author_id FROM favourite_authors)')
+            self._db.execute('CREATE TABLE IF NOT EXISTS scheduler_account (id INTEGER PRIMARY KEY CHECK(id=1), account_id TEXT NOT NULL)')
             row = self._db.execute('SELECT interval_hours,startup_check,revision,last_due_utc,next_due_utc,last_status FROM schedule WHERE id=1').fetchone()
             if row is None or row[0] not in VALID_INTERVALS or row[1] not in (0,1) or row[2] < 1:
                 raise ScheduleError('invalid managed schedule ledger')
+            self._unbound_unknown_schedule = (existing_database
+                and self._db.execute('SELECT 1 FROM scheduler_account WHERE id=1').fetchone() is None
+                and (row[0] != 24 or row[1] != 0 or row[2] != 1
+                     or row[3] is not None or row[5] != 'never'))
             self._db.execute('COMMIT')
         except BaseException:
             if hasattr(self, '_db'):
@@ -406,7 +428,28 @@ class ManagedScheduler:
     def has_deferred(self) -> bool:
         with self._lock:
             self._ensure_open()
-            return self._db.execute('SELECT 1 FROM deferred_work LIMIT 1').fetchone() is not None
+            authors = {row[0] for row in self._db.execute('SELECT DISTINCT author_id FROM deferred_work')}
+            if not authors:
+                return False
+            guarded = getattr(self, '_account_guard', False)
+            bound = self._bound_account() if guarded else None
+            if guarded and bound is None:
+                return False
+            book = self._favourites_source
+            seeded = self.favourites_seeded()
+            if book is not None and book.readable():
+                if guarded and bound != book.account():
+                    return False
+                try:
+                    stars = set(book.ids())
+                    if not seeded and not guarded:
+                        stars.update(self.legacy_favourites())
+                    return bool(authors.intersection(stars))
+                except Exception:
+                    return True  # an unreadable list is unknown
+            if seeded:
+                return True  # unknown stars must not hide durable pending work
+            return bool(authors.intersection(self.legacy_favourites()))
 
     def deferred_count(self) -> int:
         with self._lock:
@@ -581,7 +624,7 @@ class ManagedScheduler:
     def set_favourites(self, author_ids: tuple[str, ...], *, expected_revision: int) -> tuple[str, ...]:
         """Persist the explicitly selected star authors, never legacy DB favourites."""
         from .pixiv_read_client import _identifier
-        if type(author_ids) is not tuple or len(author_ids) > MAX_FAVOURITES:
+        if type(author_ids) is not tuple:
             raise ValueError('invalid favourite author selection')
         ids = tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
         with self._settings_transaction(ids) as account:
@@ -628,6 +671,10 @@ class ManagedScheduler:
         with self._settings_transaction((), book_override=book) as account:
             if account is None:
                 return False
+            if getattr(self, '_account_guard', False):
+                bound = self._bound_account()
+                if bound is not None and bound != account:
+                    raise ScheduleAccountError('mismatch')
             row = self._db.execute(
                 'SELECT is_favorite FROM following_settings.following_authors WHERE account_id=? AND user_id=?',
                 (account, user_id)).fetchone()
@@ -646,7 +693,7 @@ class ManagedScheduler:
                       now: datetime, return_ignored: bool = False) -> ScheduleState:
         """One all-or-nothing settings transaction, using the client's CAS."""
         from .pixiv_read_client import _identifier
-        if (not (author_ids is None or (type(author_ids) is tuple and len(author_ids) <= MAX_FAVOURITES))
+        if (not (author_ids is None or type(author_ids) is tuple)
                 or type(interval_hours) is not int or interval_hours not in VALID_INTERVALS
                 or type(startup_check) is not bool or type(expected_revision) is not int
                 or expected_revision < 1):
@@ -672,6 +719,12 @@ class ManagedScheduler:
 
     def _store_favourites(self, ids, *, attached_account=None):
         """Write the star set where it lives: the ledger once it is the source, else the own list."""
+        if getattr(self, '_account_guard', False):
+            bound = self._bound_account()
+            if bound is None:
+                raise ScheduleAccountError('unknown')
+            if attached_account != bound:
+                raise ScheduleAccountError('mismatch')
         if self._stars_unknown():
             raise ScheduleError('favourite authors unavailable')
         if attached_account is not None:
@@ -694,6 +747,10 @@ class ManagedScheduler:
             self._star_cache = (0.0, frozenset())
             if self.favourites_seeded():
                 self._prune_deferred(applied)
+                return applied
+            if getattr(self, '_account_guard', False):
+                # The verified following ledger is authoritative. Leave any
+                # not-yet-imported scheduler data untouched until seeding.
                 return applied
             self._db.execute('CREATE TABLE IF NOT EXISTS favourite_authors(author_id TEXT PRIMARY KEY)')
             self._db.execute('DELETE FROM favourite_authors')
@@ -719,9 +776,21 @@ class ManagedScheduler:
 
     def favourites(self) -> tuple[str, ...]:
         book = self._favourites_source
+        if getattr(self, '_account_guard', False):
+            bound = self._bound_account()
+            if bound is None:
+                legacy = self.legacy_favourites()
+                if legacy:
+                    return legacy
+                return book.ids() if book is not None and book.readable() else ()
+            if book is not None and book.readable() and book.account() != bound:
+                raise ScheduleAccountError('mismatch')
         if book is not None and not self.favourites_seeded():
             try:
-                book.seed()  # the first sync may have happened since
+                if getattr(self, '_account_guard', False):
+                    self.attach_favourites(book)
+                else:
+                    book.seed()  # the first sync may have happened since
             except Exception:
                 pass
         if self.favourites_seeded():
@@ -737,6 +806,46 @@ class ManagedScheduler:
             except Exception:
                 return legacy
         return legacy
+
+    def bind_account(self, account_id: str) -> None:
+        """Bind only an empty unowned history; never adopt unknown old state."""
+        from .pixiv_read_client import _identifier
+        account_id = _identifier(account_id)
+        with self._lock:
+            self._ensure_open()
+            self._db.execute('BEGIN IMMEDIATE')
+            try:
+                row = self._db.execute('SELECT account_id FROM scheduler_account WHERE id=1').fetchone()
+                if row is None:
+                    if self._unbound_unknown_schedule:
+                        raise ScheduleAccountError('unknown')
+                    for table in ('favourite_authors', 'deferred_work', 'dispatch_history', 'dispatch_items'):
+                        if self._db.execute(f'SELECT 1 FROM {table} LIMIT 1').fetchone() is not None:
+                            raise ScheduleAccountError('unknown')
+                    self._db.execute('INSERT INTO scheduler_account VALUES (1,?)', (account_id,))
+                elif row[0] != account_id:
+                    raise ScheduleAccountError('mismatch')
+                self._db.execute('COMMIT')
+            except BaseException:
+                self._db.execute('ROLLBACK')
+                raise
+
+    def sync_favourites(self, author_ids: tuple[str, ...]) -> None:
+        """Cache the current account's stars for deferred-work membership."""
+        from .pixiv_read_client import _identifier
+        ids = tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
+        with self._lock:
+            self._ensure_open()
+            self._db.execute('BEGIN IMMEDIATE')
+            try:
+                if self._db.execute('SELECT 1 FROM scheduler_account WHERE id=1').fetchone() is None:
+                    raise ScheduleAccountError('unknown')
+                self._db.execute('DELETE FROM favourite_authors')
+                self._db.executemany('INSERT INTO favourite_authors(author_id) VALUES (?)', ((uid,) for uid in ids))
+                self._db.execute('COMMIT')
+            except BaseException:
+                self._db.execute('ROLLBACK')
+                raise
 
     @staticmethod
     def configured(root: Path) -> bool:
@@ -781,7 +890,7 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
     if (services.managed_downloads is None or services.jobs is None
             or services.live_client is None or services.closing):
         raise ScheduleError('managed scheduler dispatch not available')
-    if type(author_ids) not in (tuple, list) or len(author_ids) > MAX_FAVOURITES:
+    if type(author_ids) not in (tuple, list):
         raise ValueError('invalid configured favourite authors')
     if type(max_items) is not int or not 1 <= max_items <= 50:
         raise ValueError('invalid scheduler queue capacity')
@@ -1015,7 +1124,7 @@ def submit_author_media_batch(services, author_ids, *, cancellation, max_items=5
     from .job_service import UNFINISHED
     if services.closing or services.jobs is None:
         raise ScheduleError('author media unavailable')
-    if type(author_ids) not in (tuple,list) or len(author_ids)>MAX_FAVOURITES:
+    if type(author_ids) not in (tuple,list):
         raise ValueError('invalid configured favourite authors')
     if type(max_items) is not int or not 1<=max_items<=50:
         raise ValueError('invalid scheduler queue capacity')
@@ -1226,7 +1335,7 @@ class ManagedScheduleRunner:
                 # Recovery acknowledgement is an explicit user action. The
                 # backlog path must obey the same interrupted-state barrier as
                 # scheduled claims, even when the next due time is in future.
-                if (state.last_status != 'interrupted'
+                if (state.interval_hours > 0 and state.last_status != 'interrupted'
                         and capacity_available and self.ledger.has_deferred()
                         and not self.stop_event.is_set()):
                     with self._state_lock:
@@ -1269,7 +1378,8 @@ class ManagedScheduleRunner:
 
 
 def run_author_check(services, author_ids, *, cancellation: Event, ledger: ManagedScheduler | None = None,
-                     slot: str | None = None, poll: float = 0.5, wait: bool = True) -> dict[str, int]:
+                     slot: str | None = None, poll: float = 0.5, wait: bool = True,
+                     account_id: str | None = None) -> dict[str, int]:
     """The periodic check on the author batch engine (original scheduler.py:182 `_run_check`).
 
     Every star author (no 128 limit), differential, both media, stamped on completion, behind the
@@ -1293,7 +1403,8 @@ def run_author_check(services, author_ids, *, cancellation: Event, ledger: Manag
         return {'accepted': 0, 'deferred': 0, 'authors': 0}
     try:
         _require_managed_network_allowed(services)
-        run_id = services.start_batch_run(ids, origin='auto', target_type='both')
+        account = {} if account_id is None else {'account_id': account_id}
+        run_id = services.start_batch_run(ids, origin='auto', target_type='both', **account)
     except Exception as error:
         if ledger is not None:
             ledger.finish_dispatch(slot, status='failed', accepted=0, deferred=0, error_code=type(error).__name__)

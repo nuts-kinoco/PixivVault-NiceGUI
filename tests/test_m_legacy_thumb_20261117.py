@@ -40,16 +40,15 @@ def test_legacy_url_is_media_route_without_query(projected, variant):
 
 
 def test_legacy_url_with_catalog_token_has_single_query(projected):
-    reg = object.__new__(LibraryImageRegistry)
-    import threading
-    reg._lock = threading.RLock()
-    token = "a" * 32
-    reg._version = lambda t: object()
-    reg._provider = lambda v, w: projected
-    reg.demo = object()
-    url = reg.url_for(token, "1", 0, "thumb")
-    assert url == f"/media/1/0/thumb.png?catalog={token}"
-    assert url.count("?") == 1
+    from pixivvault_nicegui.media import DemoImageCatalog
+    reg = LibraryImageRegistry(DemoImageCatalog(()))
+    try:
+        token = reg.publish(projected, None)
+        url = reg.url_for(token, "1", 0, "thumb")
+        assert url == f"/media/1/0/thumb.png?catalog={token}"
+        assert url.count("?") == 1
+    finally:
+        reg.close()
 
 
 @pytest.mark.parametrize("variant", ["thumb", "view", "original"])

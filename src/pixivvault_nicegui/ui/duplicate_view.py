@@ -21,8 +21,9 @@ def format_trash_size(n):
     return f'{n:.1f}TB'
 
 class DuplicateView:
-    def __init__(self,source,*,open_trash=None):
+    def __init__(self,source,*,open_trash=None,event_services=None):
         self.source=source;self.active=False;self.closed=False;self.busy=False
+        self.event_services=event_services
         self.generation=0;self.selection_revision=0;self.scan_result=None;self.selections={};self.query=''
         self.thumb_size='medium';self.thumbnails=[]
         self.group_move_buttons={};self._confirmation=None;self._last_result=None
@@ -356,8 +357,18 @@ class DuplicateView:
         count=self._trash_snapshot.purgeable_count
         self.busy=True;self.sync()
         result=None
+        def perform():
+            from ..shared_events import emit_shared
+            try:
+                outcome=emptier(expected_count=count,confirmed=True)
+            except Exception:
+                emit_shared(self.event_services, 'ごみ箱を空にした結果を確認できません。', level='error')
+                raise
+            emit_shared(self.event_services, f'ごみ箱: {outcome.removed}件を完全に削除しました。失敗{outcome.failed}件。',
+                        level='error' if outcome.failed else 'success')
+            return outcome
         try:
-            result=await asyncio.to_thread(lambda:emptier(expected_count=count,confirmed=True))
+            result=await asyncio.to_thread(perform)
         except Exception:
             result=None
         finally:
@@ -488,8 +499,10 @@ class DuplicateView:
             return
         groups=visible_undecidable_groups(self.undecidable_groups,self.query,limit=None)
         shown=groups[:50]
+        can_resolve=bool(getattr(self.source, 'can_resolve_undecidable', False))
         self.undecidable_notice.set_text(
-            f'{len(shown)} / {len(groups)} 組を表示（台帳全体 {len(self.undecidable_groups)} 組）')
+            f'{len(shown)} / {len(groups)} 組を表示（台帳全体 {len(self.undecidable_groups)} 組）。'
+            + ('' if can_resolve else '旧データベースは読み取り専用です。対応付けを確定するには管理保存先でスキャンしてください。'))
         with self.undecidable_rows:
             if not groups:
                 if self.query:
@@ -504,16 +517,52 @@ class DuplicateView:
                     ui.label(f"{sample.get('author_name') or ''} / {sample.get('title') or ''}")
                     ui.label('候補: '+' / '.join(str(c['work_id']) for c in candidates)).classes('pv-subtitle')
                     for candidate in candidates:
-                        ui.label(f"{candidate.get('title') or ''}（{candidate['work_id']}）")
+                        if can_resolve:
+                            ui.button(f"{candidate.get('title') or ''}（{candidate['work_id']}）のものにする",
+                                      on_click=lambda _e, g=group, wid=candidate['work_id']:
+                                      self.resolve_undecidable(g, wid)).props('dense no-caps')
+                        else:
+                            ui.label(f"{candidate.get('title') or ''}（{candidate['work_id']}）")
             if len(groups)>len(shown):
                 ui.label(f'先頭{len(shown)}件のみ表示・残り{len(groups)-len(shown)}件').classes('pv-subtitle')
+
+    async def resolve_undecidable(self, group, work_id):
+        if self.closed or not self.active or self.busy or self.undecidable_state != 'ready':
+            return
+        self.busy=True
+        self.sync()
+        try:
+            groups=await asyncio.to_thread(self.source.resolve_undecidable, group, work_id)
+            if not self.closed and self.active:
+                self.undecidable_groups=tuple(groups)
+                self.render_undecidable()
+        except Exception:
+            if not self.closed and self.active:
+                self.undecidable_notice.set_text('対応付けを保存できませんでした。再読込して確認してください。')
+        finally:
+            self.busy=False
+            if not self.closed:self.sync()
     async def scan(self):
         if self.closed or not self.active or self.busy:return
         self.busy=True;self.generation+=1;generation=self.generation;self.sync();self.notice.set_text('スキャンしています…')
         self.skipped_notice.set_text('');self.skipped_notice.set_visibility(False)
         self.refresh_scan_progress()
+        def perform_scan():
+            from ..shared_events import emit_shared
+            try:
+                result=self.source.scan()
+            except Exception:
+                if not self.closed:
+                    emit_shared(self.event_services, '重複整理スキャンの結果を確認できません。', level='error')
+                raise
+            unreadable=len(result.unreadable); skipped=len(result.skipped_authors)
+            if unreadable or skipped:
+                emit_shared(self.event_services,
+                            f'重複整理スキャン: 読取失敗{unreadable}件・上限超過{skipped}作者。',
+                            level='error' if unreadable else 'normal')
+            return result
         try:
-            result=await asyncio.to_thread(self.source.scan)
+            result=await asyncio.to_thread(perform_scan)
             if self.closed or not self.active or generation!=self.generation:return
             self.scan_result=result;self.selections={}
             self.skipped_notice.set_text('\n'.join(f'上限超過: 作者ID {aid} · {count}枚（上限2000枚）'
@@ -692,11 +741,25 @@ class DuplicateView:
             if not self.closed:self.sync()
 
     async def _execute_accepted(self,plan,operation_id,physical_move=False):
-        if physical_move:
-            result=await asyncio.to_thread(self.source.execute,plan,operation_id=operation_id,
-                                           mode='move',confirmed_move=True)
-        else:
-            result=await asyncio.to_thread(self.source.execute,plan,operation_id=operation_id)
+        from ..shared_events import emit_shared
+        try:
+            if physical_move:
+                result=await asyncio.to_thread(self.source.execute,plan,operation_id=operation_id,
+                                               mode='move',confirmed_move=True)
+            else:
+                result=await asyncio.to_thread(self.source.execute,plan,operation_id=operation_id)
+        except Exception:
+            emit_shared(self.event_services, '重複整理の結果を確認できません。', level='error')
+            raise
+        unprocessed = len(getattr(result, 'unprocessed', ()))
+        recovery_required = bool(getattr(result, 'recovery_required', False))
+        message = f'重複整理: {len(result.committed)}件を隔離しました。失敗{len(result.failed)}件。'
+        if unprocessed:
+            message += f'未処理{unprocessed}件。'
+        if recovery_required:
+            message += '保存状態の再確認が必要です。'
+        emit_shared(self.event_services, message,
+                    level='error' if result.failed or unprocessed or recovery_required else 'success')
         self._last_result=result
         refresh_warning=False
         if result.committed:

@@ -261,6 +261,14 @@ class PixivActions:
         try:
             self._identity(control, intent.account_id)
             self._checkpoint(control)
+        except ActionError as error:
+            control.dispatch_error = error
+            raise
+        return None
+
+    def _mark_dispatch(self, control):
+        try:
+            self._checkpoint(control)
             with self._lock:
                 if self._closing or control.cancel_event.is_set():
                     raise ActionCancelled()
@@ -514,7 +522,8 @@ class PixivActions:
                 self._writer.invalidate_confirmed_state(*key)
             self._checkpoint(control)
             result = self._writer.execute(
-                intent, before_dispatch=lambda: self._before_dispatch(control, intent))
+                intent, before_dispatch=lambda: self._before_dispatch(control, intent),
+                mark_dispatch=lambda: self._mark_dispatch(control))
         except WriteBusy:
             raise ActionBusy() from None
         except WriteOperationConflict:

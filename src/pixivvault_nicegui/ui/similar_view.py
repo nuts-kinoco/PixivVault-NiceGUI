@@ -10,6 +10,10 @@ class SimilarView:
                     'failed':'失敗・再開待ち', 'stopped':'停止'}
     ACTIVE_PROVIDERS = {'cuda': 'GPU (CUDA)', 'cpu': 'CPU'}
     REQUESTED_PROVIDERS = {'auto': '自動（GPU優先）', 'cuda': 'GPU (CUDA)', 'cpu': 'CPU'}
+    STOP_REASONS = {
+        'analysis_error': '解析に失敗しました', 'iterator_error': '解析対象を取得できませんでした',
+        'invalid_page': '解析対象が不正です', 'model_error': '解析モデルを利用できませんでした',
+    }
     # Only fixed, public summaries. ORT's exception bodies may contain local
     # paths, GPU device details or untrusted inference input; never echo them.
     FALLBACK_REASONS = {
@@ -213,6 +217,14 @@ class SimilarView:
             detail+=' / 自動実行は ON（ダウンロード後、続きから自動で解析します）'
         elif status.get('auto') is False:
             detail+=' / 自動実行は OFF です。『全保存ページの解析』で手動実行できます'
+        reason = self.STOP_REASONS.get(status.get('last_stopped_reason'))
+        if reason:
+            if self._status_phase == 'failed':
+                detail += ' / ' + reason
+            elif status.get('auto') is True:
+                detail += f' / 前回は次の理由で止まりました: {reason}。ダウンロードのたびに再挑戦しています'
+            else:
+                detail += f' / 前回は次の理由で止まりました: {reason}。『いま推論する』で再開できます'
         self.analysis_text.set_text(detail)
         self._sync_control_buttons()
 

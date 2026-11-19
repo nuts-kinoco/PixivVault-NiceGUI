@@ -2,7 +2,7 @@
 from __future__ import annotations
 import asyncio
 from uuid import uuid4
-from nicegui import background_tasks, ui
+from nicegui import background_tasks, core, ui
 from ..recommendation_state import LABELS, ORDER
 from ..recommendation_media import RecommendationMediaSnapshot
 from ..viewer_metadata import pixiv_url
@@ -11,6 +11,15 @@ from .grid_layout import MAX_COLUMNS
 from .recommendation_viewer import RecommendationViewer
 from .card_actions import CardActions
 from .card_context_menu import MenuEntry, build_context_menu, open_from_keyboard
+
+_TREND_TIERS=((16,2.0),(13.5,1.5),(12,1),(11,1))
+_SECTION_DESCRIPTIONS={
+    'trend_added':'傾向ピルをクリックして追加したタグの候補',
+    'trend':'好みの学習結果に基づく候補',
+    'certain':'あなたが好んで見ているタグの作品',
+    'boosted':'個別に登録した作者の新着',
+    'superlike':'自分が強く反応した作品',
+}
 
 class RecommendView:
     def __init__(self,services,*,on_open=None,on_enqueue=None,card_size="large",on_size_change=None,on_navigate_to_learning=None,on_search_tag=None):
@@ -24,6 +33,7 @@ class RecommendView:
         # Original section expansion uses 6 -> 12 -> 18, independently of
         # explicit subsequent remote page acquisition.
         self.data=None;self.undo=None;self.visible={};self.step=6
+        self._certain_buttons={}
         self._pending_hide=None
         self._save_operations={};self._saving=set();self._busy_buttons=[];self._refresh_pending=False
         self._action_bindings=[];self._render_generation=0
@@ -148,7 +158,13 @@ class RecommendView:
             return False
         except Exception:
             if self.active and self.epoch==epoch:
-                self.notice.set_text('取得または保存に失敗しました。前の結果とページを保持しています。再読込後に再試行できます。')
+                try:
+                    data=await asyncio.to_thread(self.controller.snapshot)
+                    if self.active and not self.closed and self.epoch==epoch:
+                        self.data=data;self.render()
+                except Exception:pass
+                if self.active and not self.closed and self.epoch==epoch:
+                    self.notice.set_text('取得または保存に失敗しました。前の結果とページを保持しています。再読込後に再試行できます。')
             return False
         finally:
             self._finish_operation()
@@ -232,6 +248,15 @@ class RecommendView:
         order[index],order[target]=order[target],order[index]
         revision=self.data['revision']
         await self._change(lambda:self.controller.configure('recommend_section_order',order,revision))
+    async def collapse_certain_group(self,tag):
+        if self.data is None:return
+        values=set(self.data['certain_group_collapsed'])
+        values.remove(tag) if tag in values else values.add(tag)
+        revision=self.data['revision']
+        if await self._change(lambda:self.controller.configure('recommend_certain_group_collapsed',sorted(values),revision)):
+            button=self._certain_buttons.get(tag)
+            if button is not None and self.active and not self.closed and self.client.has_socket_connection:
+                self.client.run_javascript(f"requestAnimationFrame(() => {{ const n=document.getElementById('{button.html_id}'); if(n?.isConnected && n.getClientRects().length && !n.closest('[inert], [aria-hidden=\"true\"]')) n.focus({{preventScroll:true}}); }});")
     async def reset_order(self):
         """Restore the original five shelf order using the same revisioned settings."""
         if (self.data is None or not self.data.get('writable')
@@ -257,6 +282,7 @@ class RecommendView:
             if (kind=='trend' or kind in self.data['collapsed']
                     or kind in self.data['unavailable']):continue
             for group in self.data['sections'].get(kind,()):
+                if kind=='certain' and group.key in self.data.get('certain_group_collapsed',()):continue
                 count=self.visible.get((kind,group.key),self.step)
                 result.extend(group.works[:count])
         return tuple(result)
@@ -300,7 +326,7 @@ class RecommendView:
             resolved=None
             if media.needs_detail(work_id):
                 self.notice.set_text('作品のページ情報を確認しています…')
-                resolved=await asyncio.to_thread(media.read_detail,work_id)
+                resolved=await asyncio.to_thread(media.read_detail,work_id)   # original recommend_tab.py:1025: default (background) lane
                 if not current():return
             selection=media.select(work_id,resolved)
             if selection.images.needs_metadata(work_id):
@@ -347,7 +373,7 @@ class RecommendView:
         self._action_bindings.clear()
         self._render_generation+=1
         generation=self._render_generation
-        data=self.data;self.body.clear()
+        data=self.data;self.body.clear();self._certain_buttons={}
         self.update_button.set_enabled(data.get('can_acquire',False))
         self.reset_button.set_enabled(bool(data.get('writable') and tuple(data['order'])!=ORDER and not self.busy))
         with self.body:
@@ -366,20 +392,37 @@ class RecommendView:
                 with ui.column().classes('w-full gap-2').props(f'data-testid=recommend-section-{kind}'):
                     with ui.row().classes('items-center'):
                         ui.label(LABELS[kind]).classes('pv-library-heading')
+                        if kind=='trend' and len(data.get('trends',()))>40:
+                            ui.label(f"+{len(data['trends'])-40}").classes('pv-subtitle')
                         button=ui.button('展開' if kind in data['collapsed'] else '折りたたむ',on_click=lambda e,k=kind:self.collapse(k)).props('flat')
                         button.set_enabled(data['writable'])
                         for label,delta in (('上へ',-1),('下へ',1)):
                             b=ui.button(label,on_click=lambda e,k=kind,d=delta:self.move(k,d)).props('flat')
                             b.set_enabled(data['writable'] and 0<=list(data['order']).index(kind)+delta<len(data['order']))
                     if kind in data['collapsed']:continue
+                    ui.label(_SECTION_DESCRIPTIONS[kind]).classes('pv-subtitle')
                     if kind=='trend':
-                        with ui.row().classes('gap-2'):
+                        trends=data.get('trends',())
+                        with ui.row().classes('gap-2 w-full').style('max-height: 80px; overflow: hidden; align-content: flex-start') as trend_box:
                             added={r['tag'] for r in data.get('added_tags',())}
-                            for trend in data.get('trends',()):
+                            for index,trend in enumerate(trends[:40]):
                                 tag=trend['tag'];display=trend.get('display') or tag
-                                b=ui.button(('追加済み: ' if tag in added else '')+display,
-                                    on_click=lambda e,t=tag,d=display:self.toggle_trend(t,d)).props('outline')
-                                b.set_enabled(data.get('can_acquire',False))
+                                size,border=_TREND_TIERS[min(index,3)]
+                                selected=tag in added
+                                b=ui.button(display,on_click=lambda e,t=tag,d=display:self.toggle_trend(t,d),color=None).props(f'unelevated data-testid=recommend-trend-pill-{index}')
+                                if selected:b.props('icon-right=close')
+                                b.style(f'font-size: {size}px; border: {1.5 if selected else border}px solid var(--pv-pixiv-blue)' if selected else f'font-size: {size}px; border: {border}px solid var(--pv-border-vault)')
+                                b.style('border-radius: 999px; color: var(--pv-text-main) !important; background: var(--pv-pixiv-blue-glow) !important' if selected else 'border-radius: 999px; color: var(--pv-text-main) !important; background: var(--pv-bg-card) !important')
+                                b.set_enabled(data['writable'] if tag in added else data.get('can_acquire',False))
+                        if trends and core.loop is not None:self.client.run_javascript(f"""requestAnimationFrame(() => {{
+                              const box=document.getElementById('{trend_box.html_id}'); if(!box) return;
+                              const update=() => {{ if(!box.isConnected) {{ observer.disconnect(); return; }}
+                                const bottom=box.getBoundingClientRect().bottom;
+                                for(const b of box.querySelectorAll('button'))
+                                  b.tabIndex=b.disabled || b.getBoundingClientRect().bottom > bottom + 0.5 ? -1 : 0;
+                              }};
+                              const observer=new ResizeObserver(update); observer.observe(box); update();
+                            }});""")
                         if not data.get('trends'):ui.label('表示できる傾向がまだありません。学習済みの判定から計算します。')
                         continue
                     if kind=='trend_added':
@@ -396,17 +439,30 @@ class RecommendView:
                     groups=data['sections'].get(kind,())
                     if not any(g.works for g in groups):ui.label('表示対象がありません。').classes('pv-subtitle')
                     for group in groups:
-                        ui.label(group.title).classes('pv-subtitle')
+                        if kind in ('certain','trend_added','boosted'):
+                            ui.label(group.title+('（傾向から追加）' if kind=='trend_added' else '')).classes('pv-library-heading')
+                        subtitle=(f'あなたが好んで見ている『{group.title}』の作品' if kind=='certain'
+                                  else f'『{group.title}』の作品' if kind=='trend_added'
+                                  else f'「{group.title}」の新着' if kind=='boosted' else group.title)
+                        ui.label(subtitle).classes('pv-subtitle')
+                        if kind=='certain':
+                            closed=group.key in data.get('certain_group_collapsed',())
+                            b=ui.button('このタグを開く' if closed else 'このタグを閉じる',on_click=lambda e,t=group.key:self.collapse_certain_group(t)).props('flat')
+                            self._certain_buttons[group.key]=b
+                            b.set_enabled(data['writable'])
+                            if closed:continue
                         key=(kind,group.key);count=self.visible.get(key,self.step)
                         with ui.element("div").classes("pv-grid w-full").style(f"--pv-max-cols:{MAX_COLUMNS[self.card_size]}"):
                             for work in group.works[:count]:
                                 with ui.column().classes('w-full gap-1').style('min-width:0').props(f'data-testid=recommend-work-{kind}-{work.work_id}'):
                                     with ui.element('div').classes('pv-card w-full').props(
                                             f'tabindex=0 role=button data-testid=recommend-open-{kind}-{work.work_id}') as preview:
-                                        preview.props['aria-label']='画集ビューアで開く: '+(work.title or 'ID '+work.work_id)
-                                        preview.on('click',lambda e,w=work.work_id,g=generation:self.open_work(w,generation=g))
-                                        preview.on('keydown.enter',lambda e,w=work.work_id,g=generation:self.open_work(w,generation=g),
-                                            js_handler='event => {event.preventDefault();emit();}')
+                                        if not work.deleted:
+                                            preview.props['aria-label']='画集ビューアで開く: '+(work.title or 'ID '+work.work_id)
+                                            preview.on('click',lambda e,w=work.work_id,g=generation:self.open_work(w,generation=g))
+                                            preview.on('keydown.enter',lambda e,w=work.work_id,g=generation:self.open_work(w,generation=g),
+                                                js_handler='event => {event.preventDefault();emit();}')
+                                        else:preview.props['aria-label']='表示できません: '+(work.title or 'ID '+work.work_id)
                                         thumbnail=None
                                         caption='サムネイル未取得'
                                         try:
@@ -424,6 +480,7 @@ class RecommendView:
                                         with ui.element('div').classes('pv-card-meta'):
                                             ui.label(work.title or 'ID '+work.work_id).classes('pv-card-title')
                                             ui.label(work.author_name or work.author_id).classes('pv-card-author')
+                                            if work.deleted:ui.label('⚠ 表示できません').classes('pv-subtitle').props(f'data-testid=recommend-unavailable-{work.work_id}')
                                     self._card_menu(kind,work,generation,preview,data)
                                     if self.on_open is not None:ui.button('保存済みを開く',
                                         on_click=lambda e,w=work.work_id,g=generation:self.open_saved_work(w,generation=g)).props('flat dense')
@@ -454,10 +511,11 @@ class RecommendView:
                         elif kind=='boosted' and count < self.controller.acquisition.visible_limit*3:
                             limit=self.controller.acquisition.visible_limit
                             next_limit=limit*2 if count<limit*2 else limit*3
-                            b=ui.button('作者の作品をさらに取得',on_click=lambda e,a=group.key,n=next_limit:self.more_author(a,n)).props('outline')
+                            b=ui.button('もっと見る',on_click=lambda e,a=group.key,n=next_limit:self.more_author(a,n)).props('outline')
                             b.set_enabled(data.get('can_acquire',False))
                         elif kind in ('certain','trend_added') and not group.exhausted:
-                            b=ui.button('さらに取得',on_click=lambda e,k=kind,t=group.key:self.next_page(k,t)).props('outline')
+                            failed=data.get('errors',{}).get(kind+':'+group.key)=='fetch_failed_retry_same_page'
+                            b=ui.button('取得に失敗しました。再試行' if failed else 'もっと見る',on_click=lambda e,k=kind,t=group.key:self.next_page(k,t)).props('outline')
                             b.set_enabled(data.get('can_acquire',False))
             with ui.expansion('出さない一覧').classes('w-full'):
                 if not data['hidden_works'] and not data['hidden_authors']:

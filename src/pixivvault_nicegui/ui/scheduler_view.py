@@ -35,6 +35,7 @@ class SchedulerView:
                                            '24': '24時間', '48': '48時間'}, value='24',
                                           label='自動チェック間隔').style('min-width:184px').props('data-testid=scheduler-interval')
                 self.startup = ui.checkbox('起動時にもチェック').props('data-testid=scheduler-startup')
+            ui.label('☆お気に入りにした作者全員をチェックします。').classes('pv-subtitle')
             self.authors = ui.input(label='お気に入り（☆）作者ID（カンマ区切り。☆はダウンロード画面でも付け外しできます）').classes('w-full').style('max-width:640px').props('data-testid=scheduler-authors')
             self.interval.on_value_change(lambda _: self._mark_settings_dirty())
             self.startup.on_value_change(lambda _: self._mark_settings_dirty())
@@ -99,6 +100,7 @@ class SchedulerView:
                 try:
                     self.authors.set_value(','.join(ledger.favourites()))
                     self._stars_unknown_in_form = False
+                    self._loaded_authors = self.authors.value or ''
                 except Exception:
                     self.authors.set_value('')
                     self._stars_unknown_in_form = True   # the empty box is "unknown", not "no stars"
@@ -266,17 +268,22 @@ class SchedulerView:
                     return
                 raw = None   # still unknown: save only the interval / startup, never the stars
             def update():
-                return ledger.configure_all(
-                    author_ids=raw, interval_hours=int(form[1]),
-                    startup_check=bool(form[2]),
-                    expected_revision=revision,
-                    now=datetime.now(timezone.utc), return_ignored=True)
+                if raw is None or form[0] == getattr(self, '_loaded_authors', ''):
+                    return ledger.configure(interval_hours=int(form[1]), startup_check=bool(form[2]),
+                                            expected_revision=revision, now=datetime.now(timezone.utc)), ()
+                verify = getattr(self.services, 'scheduler_favourite_authors', None)
+                if verify is not None:
+                    verify(ledger=ledger, seed=False)
+                return ledger.configure_all(author_ids=raw, interval_hours=int(form[1]),
+                                            startup_check=bool(form[2]), expected_revision=revision,
+                                            now=datetime.now(timezone.utc), return_ignored=True)
             saved, ignored = await asyncio.to_thread(update)
-            self.services.managed_schedule_runner.settings_changed()
+            runner = getattr(self.services, 'managed_schedule_runner', None)
+            if runner is not None:
+                runner.settings_changed()
             # Edits made while the worker saved the captured form still belong
             # to the user. Keep them and base the next CAS on this commit.
-            self._settings_dirty = (self.authors.value or '', self.interval.value,
-                                    self.startup.value) != form
+            self._settings_dirty = (self.authors.value or '', self.interval.value, self.startup.value) != form
             if self._settings_dirty:
                 self.revision = saved.revision
             self._load(ledger)
@@ -312,7 +319,11 @@ class SchedulerView:
                     dispatch = getattr(self.services, 'dispatch_author_check', None)
                     if dispatch is not None:
                         return dispatch(ledger, slot, self.services._scheduler_cancel_event, wait=False)
-                    return submit_author_batch(self.services, ledger.favourites(),
+                    source = getattr(self.services, 'scheduler_favourite_authors', None)
+                    authors = source() if source is not None else ledger.favourites()
+                    if source is not None:
+                        ledger.sync_favourites(authors)
+                    return submit_author_batch(self.services, authors,
                                                cancellation=self.services._scheduler_cancel_event,
                                                ledger=ledger, slot=slot)
             result = await asyncio.to_thread(submit)
@@ -348,6 +359,11 @@ def check_failure_message(error):
     # Never display raw exception text: it may contain paths or credentials.
     from ..managed_network_stop_gate import ManagedNetworkStopped, ManagedNetworkGateBusy, ManagedNetworkGateStorageError
     from ..pixiv_read_client import HTTPStatusRejected, AuthenticationMissing
+    from ..managed_scheduler import ScheduleAccountError
+    if isinstance(error, ScheduleAccountError):
+        if error.reason == 'unknown':
+            return '定期チェックの既存データの出所を確認できません。データを保持して停止しました。'
+        return '定期チェックの台帳は別のアカウントに紐付いています。既存データを保持して停止しました。'
     if isinstance(error, ManagedNetworkStopped):
         return f'HTTP {error.status_code}による取得停止が記録されています。取得停止の確認・回復で状態を確認してください。'
     if isinstance(error, ManagedNetworkGateBusy):

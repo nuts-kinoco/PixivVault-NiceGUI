@@ -69,7 +69,7 @@ class LearningResetView:
         p = self.parent
         return (not self.closed and not self.busy and p.active and not p.state.closed
                 and not p.services.closing and p._storage_ready and not p._storage_busy
-                and not p.state.saving and not p._review_busy)
+                and not p.state.saving and not p._review_busy and not getattr(p, '_review_mutating', False))
 
     async def refresh(self):
         """開くたびに数え直す（元 §3-1）。古い件数のままだと解錠の期待値がずれる。"""

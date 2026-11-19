@@ -1,7 +1,13 @@
 import sys
+import pytest
 from threading import Event, Thread
 from types import SimpleNamespace
 from pixivvault_nicegui.native_tray_exit import install_owned_tray_exit
+
+@pytest.fixture(autouse=True)
+def mock_native_prompt(monkeypatch):
+    monkeypatch.setattr('pixivvault_nicegui.native_tray_exit._confirm_exit',
+                        lambda window, active: window.create_confirmation_dialog('終了確認', 'synthetic'))
 
 def test_confirmation_serialized_and_cancel_retry(monkeypatch):
     entered=Event(); release=Event(); closed=Event(); calls=[]
@@ -58,6 +64,8 @@ def spawn_fake_native(sender):
     from types import SimpleNamespace
     from threading import Event
     import sys
+    import pixivvault_nicegui.native_tray_exit as native_exit
+    native_exit._confirm_exit=lambda window,active:window.create_confirmation_dialog('終了確認','synthetic')
     class Window:
         uid='master';confirm_close=True;events=SimpleNamespace(closed=Event())
         def show(self):pass

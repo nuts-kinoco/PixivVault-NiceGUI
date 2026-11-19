@@ -1091,12 +1091,14 @@ class LivePixivReadClient:
         """
         return self._get_author_artworks(user_id, require_complete=True)
 
-    def get_user_works(self, user_id, early_exit_checker=None, lane='background'):
+    def get_user_works(self, user_id, early_exit_checker=None, lane=None):
         """Original discovery author lane; an early exit is never a complete inventory."""
         if early_exit_checker is not None and not callable(early_exit_checker):
             raise ValueError('invalid early exit checker')
-        return self._get_author_artworks(user_id, require_complete=False,
-            discovery=True, early_exit_checker=early_exit_checker)
+        from .request_policy import lane_scope
+        with lane_scope(lane):
+            return self._get_author_artworks(user_id, require_complete=False,
+                discovery=True, early_exit_checker=early_exit_checker)
 
     def _get_author_artworks(self, user_id: str, *, require_complete: bool,
                             discovery=False, early_exit_checker=None) -> tuple[dict, ...]:
@@ -1423,7 +1425,7 @@ class LivePixivReadClient:
         if type(related) is not list:raise InvalidPayload()
         return dict(works=works,total=total,related_tags=related)
 
-    def get_recommended_users(self, user_id, user_num=10, work_num=4, include_r18=True, lane='background'):
+    def get_recommended_users(self, user_id, user_num=10, work_num=4, include_r18=True, lane=None):
         uid=_identifier(user_id)
         if type(user_num) is not int or user_num!=10 or type(work_num) is not int or work_num!=4 or type(include_r18) is not bool:
             raise DestinationRejected()
@@ -1431,7 +1433,9 @@ class LivePixivReadClient:
         url=f'{API_ORIGIN}/ajax/user/{uid}/recommends?'+urlencode(params)
         _validate_destination(url,'related_authors')
         self.require_identity()
-        body=self._json('related_authors',url,deadline=time.monotonic()+MAX_OPERATION_SECONDS)
+        from .request_policy import lane_scope
+        with lane_scope(lane):
+            body=self._json('related_authors',url,deadline=time.monotonic()+MAX_OPERATION_SECONDS)
         if type(body) is not dict or type(body.get('users')) is not list or type(body.get('thumbnails')) is not dict:
             raise InvalidPayload()
         raw=body['thumbnails'].get('illust');users=[]
@@ -1447,6 +1451,16 @@ class LivePixivReadClient:
         wid=_identifier(work_id)
         self.require_identity()
         body=self._json('artwork',f'{API_ORIGIN}/ajax/illust/{wid}',deadline=time.monotonic()+MAX_OPERATION_SECONDS)
+        record=_discovery_record(body)
+        if record['id']!=wid:raise InvalidPayload()
+        return record
+
+    def get_recommendation_work(self, work_id):
+        """Allow an explicitly empty body while retaining identity and payload checks."""
+        wid=_identifier(work_id)
+        self.require_identity()
+        body=self._json('artwork',f'{API_ORIGIN}/ajax/illust/{wid}',deadline=time.monotonic()+MAX_OPERATION_SECONDS)
+        if body is None or body == {}:return None
         record=_discovery_record(body)
         if record['id']!=wid:raise InvalidPayload()
         return record

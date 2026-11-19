@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 import re
 from uuid import uuid4
 
@@ -724,6 +725,28 @@ class ManagedDownloadView:
         # from the same filtered author page.
         self._render_follow_list(invalidate=False)
 
+    async def _toggle_author_favorite(self, uid, epoch, generation):
+        if not self._valid(epoch) or self.author_loading or generation != self.follow_render_generation:
+            return
+        author = next((item for item in self.follow_authors if item.user_id == uid), None)
+        if author is None or author.is_favorite is None:
+            return
+        self.author_loading = True
+        self._render_follow_list()
+        try:
+            await self.services.set_followed_author_favorite(
+                uid, owner=self._owner, expected=author.is_favorite, favorite=not author.is_favorite)
+            if self._valid(epoch):
+                self.follow_authors = tuple(replace(item, is_favorite=not author.is_favorite)
+                                            if item.user_id == uid else item for item in self.follow_authors)
+        except Exception:
+            if self._valid(epoch):
+                self.author_status_label.set_text('☆の保存に失敗しました。作者一覧を更新してください')
+        finally:
+            self.author_loading = False
+            if not self.closed:
+                self._render_follow_list()
+
     def _render_follow_list(self, *, invalidate=True):
         if self.closed:
             return
@@ -747,13 +770,18 @@ class ManagedDownloadView:
         with self.follow_list:
             for author in matches[:self.follow_shown]:
                 picked = author.user_id in selected_ids
-                button = ui.button(
-                    ('★ ' if author.is_favorite is True else '☆ ' if author.is_favorite is False else '')
-                    + f'{author.display_name} · {author.user_id}' + (' ✓' if picked else ''),
-                    color=None).props('flat dense no-caps data-testid=managed-download-follow-select')
-                button.on('click', lambda _e, uid=author.user_id, epoch=self.epoch,
-                          revision=self.follow_render_generation: self._follow_pick(uid, epoch, revision))
-                button.set_enabled(self.active and not self.author_loading)
+                with ui.row().classes('items-center no-wrap'):
+                    if author.is_favorite is not None:
+                        star = ui.button('★' if author.is_favorite else '☆', color=None).props(
+                            'flat dense data-testid=managed-download-follow-star')
+                        star.on('click', lambda _e, uid=author.user_id, epoch=self.epoch,
+                                generation=self.follow_render_generation: self._toggle_author_favorite(uid, epoch, generation))
+                        star.set_enabled(self.active and not self.author_loading)
+                    button = ui.button(f'{author.display_name} · {author.user_id}' + (' ✓' if picked else ''),
+                        color=None).props('flat dense no-caps data-testid=managed-download-follow-select')
+                    button.on('click', lambda _e, uid=author.user_id, epoch=self.epoch,
+                              revision=self.follow_render_generation: self._follow_pick(uid, epoch, revision))
+                    button.set_enabled(self.active and not self.author_loading)
             if len(matches) > self.follow_shown:
                 generation = self.follow_render_generation
                 ui.button('作者をもっと見る', color=None,

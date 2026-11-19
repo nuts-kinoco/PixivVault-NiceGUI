@@ -389,6 +389,8 @@ def _wire_followup(native_profile, services):
     """FL-A09/A10: the following store and request pacing of this application."""
     native_profile.followup.store_provider = lambda: services.following_sync
     native_profile.followup.admission_provider = lambda: getattr(services, '_request_admission', None)
+    native_profile._shared_event_services = services
+    native_profile.followup._shared_event_services = services
 
 
 def _build_owned_media_readers(*, pixiv_cookie_file, pixiv_download_root,

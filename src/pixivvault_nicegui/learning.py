@@ -15,6 +15,7 @@ class Judgment:
     work_id: str
     choice: str
     operation_id: str
+    bookmarked: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,7 +115,7 @@ class LearningState:
         return bool(success)
 
     def prepare_judgment(self, choice: str, *, expected_work_id: str,
-                         expected_generation: int, operation_id: str) -> SaveCommand | None:
+                         expected_generation: int, operation_id: str, bookmarked: bool = False) -> SaveCommand | None:
         item = self.current_artwork
         if (item is None or self.saving or not self.ready or self._pending is not None
                 or expected_work_id != item.work_id
@@ -124,7 +125,9 @@ class LearningState:
                 or not isinstance(operation_id, str) or not operation_id):
             self.last_error = "invalid judgment"
             return None
-        judgment = Judgment(item.work_id, choice, operation_id)
+        if type(bookmarked) is not bool:
+            return None
+        judgment = Judgment(item.work_id, choice, operation_id, bookmarked)
         self._saving = SaveCommand(judgment, operation_id)
         self.last_error = None
         return self._saving
