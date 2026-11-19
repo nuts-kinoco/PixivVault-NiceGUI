@@ -25,7 +25,7 @@ class SchedulerView:
         self._settings_dirty = False
         self._loading_settings = False
         self._refresh_pending = False
-        with ui.column().classes('w-full gap-3') as self.root:
+        with ui.column().classes('pv-scheduler-view w-full gap-3') as self.root:
             ui.label('お気に入り作者の定期チェック').classes('text-h6')
             ui.label('新しい専用管理フォルダーにだけ保存します。旧DB、画像、Cookieは更新しません。')
             with ui.row().classes('items-center gap-3 flex-wrap'):

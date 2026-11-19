@@ -371,7 +371,8 @@ def run_matrix(pw, url, out: Path, expectations, screens, wait_ms, get_net, star
                 lap(f"load|{size[0]}x{size[1]}|{theme}")
                 # What the user sees right after launch, before any click (initial tab).
                 load_snap = page.evaluate(SNAPSHOT_JS)
-                load_png = page.screenshot()
+                load_png = page.screenshot() if any(expectations["screens"][s].get("kind") == "startup"
+                                                    for s in screens) else None
                 load_errors = (list(console_errors), list(page_errors))
                 for name in screens:
                     spec = expectations["screens"][name]
@@ -394,6 +395,13 @@ def run_matrix(pw, url, out: Path, expectations, screens, wait_ms, get_net, star
                     snap["console_errors"] = list(console_errors)
                     snap["page_errors"] = list(page_errors)
                     snap["theme_ok"] = theme_ok and snap.pop("dark") == (theme == "dark")
+                    selectors = sorted(set(gspec.get("text_fonts", {})) | set(spec.get("text_fonts", {})))
+                    if selectors:
+                        snap["text_fonts"] = page.evaluate("""selectors => Object.fromEntries(
+                            selectors.map(s => [s, [...document.querySelectorAll(s)]
+                                .filter(e => e.getClientRects().length)
+                                .map(e => getComputedStyle(e).fontFamily.split(',')[0].trim()
+                                    .replace(/^["']|["']$/g, ''))]))""", selectors)
                     failures = H.check_snapshot(snap, gspec, spec)
                     failures += H.check_screen_network(seen["calls"], seen["denied"], spec.get("allowed_calls", []),
                                                        strict=strict)
