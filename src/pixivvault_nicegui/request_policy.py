@@ -37,7 +37,10 @@ def interactive(function):
 
 @contextmanager
 def lane_scope(lane):
-    """Run requests inside the named lane; an explicit lane overrides an enclosing one."""
+    """Run requests inside the named lane. None keeps the enclosing lane; an explicit lane overrides it."""
+    if lane is None:
+        yield
+        return
     token=_LANE.set('interactive' if lane == 'interactive' else 'background')
     try:yield
     finally:_LANE.reset(token)
@@ -124,8 +127,7 @@ class RequestAdmission:
     def __init__(self,interval,*,clock=time.monotonic,sleep=time.sleep):
         self.interval=interval;self.clock=clock;self.sleep=sleep
         self._lock=Lock();self._next=None;self._interactive_waiting=0
-    def _defer_for_interactive(self,deadline):
-        start=self.clock()
+    def _defer_for_interactive(self,deadline,start):
         while True:
             with self._lock:
                 if self._interactive_waiting==0:return
@@ -148,12 +150,13 @@ class RequestAdmission:
         with self._lock:
             if self._next==end:self._next=start
     def __call__(self,deadline):
+        called=self.clock()
         request_checkpoint();_check_deadline(deadline,self.clock)
         interactive=_LANE.get()=='interactive'
         if interactive:
             with self._lock:self._interactive_waiting+=1
         try:
-            if not interactive:self._defer_for_interactive(deadline)
+            if not interactive:self._defer_for_interactive(deadline,called)
             start,end=self._reserve(deadline)
             try:
                 while True:

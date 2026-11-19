@@ -46,7 +46,7 @@ class _Reader:
         def call(*args, **kwargs):
             if self.is_current is not None and not self.is_current():raise RuntimeError('discovery acquisition stopped')
             from .request_policy import lane_scope
-            lane = kwargs.pop('lane', 'background')
+            lane = kwargs.pop('lane', None)
             with lane_scope(lane):
                 return target(*args, **kwargs)
         return call

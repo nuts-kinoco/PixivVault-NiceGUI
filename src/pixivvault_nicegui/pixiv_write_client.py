@@ -382,7 +382,8 @@ class PixivWriteClient:
         # A single bounded GET, explicitly avoiding the reader's optional GET
         # retry policy. The shared GET-only reader is never changed or closed.
         deadline=time.monotonic()+MAX_MUTATION_SECONDS
-        homepage=self._reader._get_once('home',API_ORIGIN+'/',deadline=deadline)
+        from .request_policy import interactive_lane
+        with interactive_lane():homepage=self._reader._get_once('home',API_ORIGIN+'/',deadline=deadline)   # original pixiv_client.py:1756: interactive
         if _identity_from_home(homepage)!=expected_account_id:
             raise WriteValidationError()
         return _csrf_from_home(homepage)

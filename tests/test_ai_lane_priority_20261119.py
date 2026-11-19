@@ -42,15 +42,19 @@ def test_interactive_wrapper_runs_callable_in_interactive_lane():
     assert seen == ['interactive'] and current_lane() == 'background'
 
 
-def test_lane_scope_explicit_background_overrides_enclosing_interactive():
+def test_lane_scope_explicit_background_overrides_enclosing_interactive_and_none_inherits():
     seen = []
     with interactive_lane():
         with lane_scope('background'):
             seen.append(current_lane())
+        with lane_scope(None):
+            seen.append(current_lane())
         seen.append(current_lane())
     with lane_scope('interactive'):
         seen.append(current_lane())
-    assert seen == ['background', 'interactive', 'interactive']
+    with lane_scope(None):
+        seen.append(current_lane())
+    assert seen == ['background', 'interactive', 'interactive', 'interactive', 'background']
 
 
 def test_background_keeps_the_minimum_interval_without_interactive():
@@ -241,3 +245,45 @@ def test_ranking_screen_fetch_runs_in_the_interactive_lane_but_tag_search_stays_
         except Exception:
             pass                           # the response shape is irrelevant; only the lane at the GET matters
     assert seen == [('ranking', 'interactive'), ('tag', 'background')]
+
+
+def test_background_yield_is_counted_from_the_call_even_when_the_entry_checkpoint_is_slow():
+    clock = _Clock()
+    gate = RequestAdmission(lambda: 0.3, clock=clock, sleep=clock.sleep)
+    gate(1000.0)
+    clock.now = 10.0
+    gate._interactive_waiting = 1
+    calls = []
+
+    def checkpoint():
+        calls.append(1)
+        if len(calls) == 1:
+            clock.now += 2.5               # the entry checkpoint is slow (a pause)
+    start = clock.now
+    with request_scope(checkpoint=checkpoint):
+        gate(1000.0)
+    assert clock.now - start <= 2.5 + 0.35  # not another full cap after resuming
+
+
+def test_real_read_client_default_lane_inherits_the_callers_interactive_lane():
+    from pixivvault_nicegui.pixiv_read_client import LivePixivReadClient
+    import inspect
+    assert inspect.signature(LivePixivReadClient.get_user_works).parameters['lane'].default is None
+    assert inspect.signature(LivePixivReadClient.get_recommended_users).parameters['lane'].default is None
+
+
+def test_follow_bookmark_csrf_home_get_runs_in_the_interactive_lane():
+    from pixivvault_nicegui.pixiv_write_client import PixivWriteClient
+    seen = []
+
+    class Reader:
+        def _get_once(self, *a, **k):
+            seen.append(current_lane())
+            return b''
+    client = PixivWriteClient.__new__(PixivWriteClient)
+    client._reader = Reader()
+    try:
+        client._csrf_token('1')
+    except Exception:
+        pass                               # the home page body is irrelevant; only the lane at the GET matters
+    assert seen == ['interactive']

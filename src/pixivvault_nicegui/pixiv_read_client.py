@@ -1091,7 +1091,7 @@ class LivePixivReadClient:
         """
         return self._get_author_artworks(user_id, require_complete=True)
 
-    def get_user_works(self, user_id, early_exit_checker=None, lane='background'):
+    def get_user_works(self, user_id, early_exit_checker=None, lane=None):
         """Original discovery author lane; an early exit is never a complete inventory."""
         if early_exit_checker is not None and not callable(early_exit_checker):
             raise ValueError('invalid early exit checker')
@@ -1425,7 +1425,7 @@ class LivePixivReadClient:
         if type(related) is not list:raise InvalidPayload()
         return dict(works=works,total=total,related_tags=related)
 
-    def get_recommended_users(self, user_id, user_num=10, work_num=4, include_r18=True, lane='background'):
+    def get_recommended_users(self, user_id, user_num=10, work_num=4, include_r18=True, lane=None):
         uid=_identifier(user_id)
         if type(user_num) is not int or user_num!=10 or type(work_num) is not int or work_num!=4 or type(include_r18) is not bool:
             raise DestinationRejected()

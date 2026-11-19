@@ -568,7 +568,8 @@ class LearningView:
         self._summary_retrying = True
         self._summary_buttons()
         try:
-            raw = await asyncio.to_thread(fetch_summary, reader, *key)
+            from ..request_policy import interactive
+            raw = await asyncio.to_thread(interactive(fetch_summary), reader, *key)   # original discovery_tab.py:3928: interactive
             if not self._summary_click_current(payload):
                 return False
             self._summary_fetched[key] = raw
