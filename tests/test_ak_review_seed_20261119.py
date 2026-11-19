@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 import json
+import asyncio
 from threading import Event
 import pytest
 from pixivvault_nicegui.discovery_learning import DiscoveryLearningService
@@ -29,17 +30,15 @@ def test_saved_seed_is_separate_and_revalidated_on_query(tmp_path, monkeypatch, 
     try:
         seed_candidates(service, [candidate(0, tags=())])
         service.refresh_saved_seeds().result(15)
-        def state():
-            db = service._database()
-            rows = db.conn.execute('SELECT work_id,source,model_fingerprint,tags FROM managed_local_seed').fetchall()
-            return [(r['work_id'],r['source'],r['model_fingerprint'],json.loads(r['tags'])) for r in rows], service._effective_preferences(db)
-        rows, prefs = service._submit(state).result(10)
-        assert len(rows) == 3
-        assert all(row[1] == 'local' and row[2] and row[3] == ['cat'] for row in rows)
+        snapshot = service.local_tag_view.snapshot()
+        prefs = service._submit(lambda: service._effective_preferences(service._database(), snapshot)).result(10)
+        assert len(snapshot.by_work) == 3
+        assert snapshot.fingerprint and all(tags == ('cat',) for tags in snapshot.by_work.values())
+        assert service._submit(lambda: service._database().conn.execute("SELECT 1 FROM sqlite_master WHERE name='managed_local_seed'").fetchone()).result(10) is None
         assert prefs['cat']['seed_saved'] == 3
         assert 'cat' not in service._submit(lambda: service._database().get_discovery_preferences()).result()
         assert 'cat' in service.preferred_tags()
-        trend = service._submit(service._trend_snapshot).result()
+        trend = asyncio.run(service.trend_snapshot())
         assert ('cat', 3) in [(row['tag'], row['count']) for row in trend['local_seed_rows']]
         service.close()
         if invalidate == 'disabled': store.set_setting('local_tagger_enabled', '0')
@@ -47,9 +46,10 @@ def test_saved_seed_is_separate_and_revalidated_on_query(tmp_path, monkeypatch, 
         else: (folder / 'model.onnx').write_bytes(b'changed')
         service = DiscoveryLearningService(tmp_path / 'discovery', FakeReader(), tagger=manager,
             local_image=lambda _: png(), saved_ids=lambda: frozenset(w.work_id for w in works), saved_works=lambda: works)
-        assert 'cat' not in service._submit(lambda: service._effective_preferences(service._database())).result()
+        snapshot = service.local_tag_view.snapshot()
+        assert 'cat' not in service._submit(lambda: service._effective_preferences(service._database(), snapshot)).result()
         assert 'cat' not in service.preferred_tags()
-        assert service._submit(service._trend_snapshot).result()['local_seed_rows'] == ()
+        assert asyncio.run(service.trend_snapshot())['local_seed_rows'] == ()
     finally:
         service.close()
         manager.close()
@@ -58,15 +58,16 @@ def test_saved_seed_is_separate_and_revalidated_on_query(tmp_path, monkeypatch, 
 
 def test_refresh_requested_during_scan_is_not_lost(tmp_path, monkeypatch):
     entered, release = Event(), Event()
-    service = DiscoveryLearningService(tmp_path / 'discovery', FakeReader(), tagger=object(),
-        local_image=lambda _: b'', saved_works=lambda: ())
     calls = []
-    def scan():
-        calls.append(1)
-        if len(calls) == 1:
-            entered.set()
-            assert release.wait(10)
-    monkeypatch.setattr(service, '_scan_saved_seeds', scan)
+    class Tagger:
+        def current_fingerprint(self):
+            calls.append(1)
+            if len(calls) == 1:
+                entered.set()
+                assert release.wait(10)
+            return None
+    service = DiscoveryLearningService(tmp_path / 'discovery', FakeReader(), tagger=Tagger(),
+        local_image=lambda _: b'', saved_works=lambda: ())
     try:
         future = service.refresh_saved_seeds()
         assert entered.wait(10)

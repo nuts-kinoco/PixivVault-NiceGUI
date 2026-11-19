@@ -180,6 +180,7 @@ class ApplicationServices:
         self.image_cache_root = image_cache_root
         self.preferences = None
         self.local_tagger = None
+        self.local_tag_view = None
         self._failure_actions_lock = RLock()
         self._failure_record_actions = None
         self.discovery = None
@@ -773,6 +774,7 @@ class ApplicationServices:
                     seed_readonly_db=library_readonly_db, tagger=self.local_tagger, local_image=self.images.local_bytes,
                     saved_works=lambda: tuple(self.library.works))
                 self.discovery._event_services = self
+                self.local_tag_view = self.discovery.local_tag_view
             if self.discovery is not None and recommendation_preferences_root is not None:
                 from .recommendation_state import (DiscoveryRecommendationSource, CombinedRecommendationSource,
                     RecommendationPreferences, RecommendationController)
@@ -1209,7 +1211,8 @@ class ApplicationServices:
             return
         self._sync_metadata_auto()
         self._sync_similarity_auto()
-        if self.discovery is not None and self.local_tagger is not None:
+        if self.discovery is not None and self.local_tag_view is not None:
+            self.local_tag_view.invalidate()
             self.discovery.refresh_saved_seeds()
         if self.shared_image_cache is not None:
             self.shared_image_cache.configure(int(self.preferences.get_setting('pixiv_shared_image_cache_size_mb','1024'))*1024**2)
@@ -2383,7 +2386,8 @@ class ApplicationServices:
         self._managed_catalog_snapshot = managed_version
         self._cached_local_bookmarks = visible_local
         discovery = getattr(self, 'discovery', None)
-        if discovery is not None and self.local_tagger is not None and not self.closing:
+        if discovery is not None and self.local_tag_view is not None and not self.closing:
+            self.local_tag_view.invalidate()
             discovery.refresh_saved_seeds()
 
     def _remote_images(self, records, *, reader=_CURRENT_IMAGE_READER):

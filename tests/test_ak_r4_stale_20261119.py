@@ -13,7 +13,7 @@ def test_seed_is_checked_against_current_readable_image_on_every_query(tmp_path)
         local_image=lambda _: current[0], saved_works=lambda: (SimpleNamespace(work_id='1', tags=()),), saved_ids=lambda: ('1',))
     try:
         service.refresh_saved_seeds().result(10)
-        def rows(): return service._submit(lambda: service._local_seed_counts(service._database())).result(10)
+        def rows(): return service.local_tag_view.snapshot().seed_counts
         assert 'first' in rows()
         current[0] = None
         assert rows() == {}
@@ -83,7 +83,7 @@ def test_seed_is_not_saved_if_image_changes_during_inference(tmp_path):
         local_image=lambda _: current[0], saved_works=lambda: (SimpleNamespace(work_id='1', tags=()),), saved_ids=lambda: ('1',))
     try:
         service.refresh_saved_seeds().result(10)
-        rows = service._submit(lambda: service._database().conn.execute('SELECT COUNT(*) FROM managed_local_seed').fetchone()[0]).result(10)
-        assert rows == 0
+        assert not service.local_tag_view.snapshot().by_work
+        assert service._submit(lambda: service._database().conn.execute("SELECT 1 FROM sqlite_master WHERE name='managed_local_seed'").fetchone()).result(10) is None
     finally:
         service.close()

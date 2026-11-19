@@ -297,7 +297,9 @@ class TaggerManager:
             folder = Path(path)
             paths = [folder / 'MODEL_SOURCE.json', *(folder / name for name in FILES)]
             if receipt.get('identities') != [_identity(item) for item in paths]:
-                self.status = verify_model(path, receipt)[0]
+                # A caller may be the learning FIFO. Hashing is deferred to the
+                # local view's background verification instead of blocking it.
+                self.status = '検証中'
                 return None
             current = self.preferences.snapshot()
             if current.values['local_tagger_enabled'] != '1' or _path_key(current.values['local_tagger_path']) != _path_key(path):

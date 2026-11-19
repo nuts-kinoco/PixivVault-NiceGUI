@@ -35,7 +35,7 @@ def test_saved_local_seed_affects_ranking_only_while_enabled(tmp_path):
         service.close()
 
 
-def test_local_seed_reaches_search_only_while_enabled(tmp_path):
+def test_local_seed_never_enters_search_even_while_enabled(tmp_path):
     class Tagger:
         enabled = False
         def current_fingerprint(self): return 'model' if self.enabled else None
@@ -57,7 +57,8 @@ def test_local_seed_reaches_search_only_while_enabled(tmp_path):
         service.refresh_saved_seeds().result(10)
         reader.words.clear()
         asyncio.run(service.fetch_candidates())
-        assert 'local_special' in reader.words
+        assert tuple(reader.words) == off
+        assert 'local_special' not in reader.words
         tagger.enabled = False
         reader.words.clear()
         asyncio.run(service.fetch_candidates())
