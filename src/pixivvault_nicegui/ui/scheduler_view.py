@@ -271,18 +271,18 @@ class SchedulerView:
             account_id = self._settings_account
             if str(form[1]) == '0' and not form[2]:
                 authors_edited = form[0] != getattr(self, '_loaded_authors', '')
-                saved, previous_revision = await asyncio.to_thread(ledger._disable)
+                saved = await asyncio.to_thread(ledger._disable, expected_revision=revision)
                 stop_saved = True
                 runner = getattr(self.services, 'managed_schedule_runner', None)
                 if runner is not None:
                     runner.settings_changed()
                 if not authors_edited:
                     self._settings_dirty = (self.authors.value or '', self.interval.value, self.startup.value) != form
-                    if self._settings_dirty and previous_revision == revision:
+                    if self._settings_dirty:
                         self.revision = saved.revision
                     self._load(ledger)
                     return
-                if self._stars_unknown_in_form or previous_revision != revision:
+                if self._stars_unknown_in_form:
                     self.action_notice.set_text('停止を保存しました。☆を変更するには再読込してください。')
                     return
                 revision = saved.revision
