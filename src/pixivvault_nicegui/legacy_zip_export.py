@@ -619,10 +619,8 @@ class LegacyZipExporter:
                 else:
                     if verified_zip_digest(destination)!=replace_existing_sha256:
                         raise LegacyZipExportError('previous ZIP changed')
-                    replacement=staging.with_name(staging.name+'.publish')
-                    os.link(staging,replacement)
-                    try:os.replace(replacement,destination)
-                    finally:replacement.unlink(missing_ok=True)
+                    os.replace(staging,destination)
+                    _fsync_dir(staging.parent)
                 _fsync_dir(native_io_path(self.root))
             return logical_path(destination)
         except (LegacyZipExportError, ManagedDownloadError):

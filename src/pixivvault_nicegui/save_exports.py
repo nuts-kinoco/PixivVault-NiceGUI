@@ -808,22 +808,35 @@ class SaveExports:
             temporary.unlink(missing_ok=True)
         return path
 
-    def _sync_replaced_zip_receipts(self, manifest, note):
-        """Keep prior completion paths and checksums readable after replacement."""
-        previous=note.get('previous_sha256')
-        if previous is None or previous==note['sha256']:return
+    def _prepare_zip_replacement(self, target, note):
+        """Durably bind prior completions and the staged publication before replacing the ZIP."""
+        previous=note['previous_sha256']
         matches=[]
         for path in native_io_path(self.root).glob('*.export.json'):
-            if path.name==manifest.name:continue
+            if path.name==target+'.export.json':continue
             value=json.loads(_read_bounded(path,2_000_000),object_pairs_hook=_json_unique)
             if (value.get('archive')==note['archive'] and value.get('sha256')==previous
                     and value.get('source',{}).get('author_id')==note['source']['author_id']):
+                self._check_completed_zip_pending(path.name,value['source'],previous,previous)
                 matches.append(path.name)
-        if matches:
-            mutation={'version':1,'archive':note['archive'],'before':previous,'after':note['sha256'],
-                      'receipts':sorted(matches),'contents_changed':True}
-            journal=self._record_zip_mutation(mutation)
-            self._finish_zip_mutation(journal,mutation)
+        mutation={'version':1,'archive':note['archive'],'before':previous,'after':note['sha256'],
+                  'receipts':sorted(matches),'contents_changed':True,'publication':target}
+        return self._record_zip_mutation(mutation),mutation
+
+    def _zip_replacement_publication(self, note):
+        target=note['publication']
+        identity=self._read_intent(RetainedExport('', 'auto-zip', target, ''))
+        pending=native_io_path(self.root/(target+'.zip-pending.json'))
+        staged=self._read_zip_pending(pending,identity)
+        if (staged['archive']!=note['archive'] or staged.get('previous_sha256')!=note['before']
+                or staged['sha256']!=note['after']):
+            raise ValueError('ZIP replacement journal changed')
+        stage=native_io_path(self.zip.incomplete)/staged['stage']
+        _safe_path(stage.parent)
+        if stage.is_symlink():raise ValueError('unsafe ZIP recovery stage')
+        manifest=self.root/(target+'.export.json')
+        receipt=dict(archive=note['archive'],sha256=note['after'],source=identity)
+        return stage,manifest,receipt
 
     def _reconcile_zip_name(self, identity, manifest):
         from .legacy_zip_export import verified_zip_digest
@@ -901,10 +914,24 @@ class SaveExports:
                 _fsync_dir(archive.parent)
             elif previous.exists() or not archive.exists():
                 raise ValueError('ZIP rename destination conflict')
+        publication=self._zip_replacement_publication(note) if 'publication' in note else None
+        stage=publication[0] if publication is not None else None
+        if stage is not None and not archive.exists():
+            raise ValueError('previous ZIP missing during recovery')
+        if stage is not None and stage.exists() and os.path.samestat(stage.lstat(),archive.lstat()):
+            # An earlier version published by linking the staged inode. A
+            # retry can finalize that publication after verifying both names.
+            info=self._zip_stage_stat(stage,note['after'])
+            existing=archive.lstat()
+            if (archive.is_symlink() or getattr(existing,'st_file_attributes',0)&0x400
+                    or not os.path.samestat(info,existing) or info.st_nlink!=2 or existing.st_nlink!=2):
+                raise ValueError('ZIP recovery links changed')
+            stage.unlink();_fsync_dir(stage.parent)
+        before_replace=stage is not None and stage.exists()
         actual=verified_zip_digest(archive)
-        if actual==note['before'] and actual!=note['after']:
+        if actual==note['before'] and (actual!=note['after'] or before_replace):
             path.unlink();_fsync_dir(path.parent);return
-        if actual!=note['after']:raise ValueError('ZIP mutation archive changed')
+        if actual!=note['after'] or before_replace:raise ValueError('ZIP mutation archive changed')
         for name in note['receipts']:
             receipt=native_io_path(self.root)/name
             value=json.loads(_read_bounded(receipt,2_000_000),object_pairs_hook=_json_unique)
@@ -927,6 +954,9 @@ class SaveExports:
                 _write(temp,packet(updated));os.replace(temp,receipt);_fsync_dir(receipt.parent)
             finally:
                 temp.unlink(missing_ok=True)
+        if publication is not None:
+            _,manifest,receipt=publication
+            _publish_owned(manifest,packet(receipt))
         path.unlink();_fsync_dir(path.parent)
 
     def _check_completed_zip_pending(self, name, source, before, after, *, remove=False):
@@ -955,12 +985,16 @@ class SaveExports:
                 note=json.loads(_read_bounded(path,2_000_000),object_pairs_hook=_json_unique)
                 if (type(note) is not dict or set(note) not in ({'version','archive','before','after','receipts'},
                                                {'version','archive','before','after','receipts','contents_changed'},
+                                               {'version','archive','before','after','receipts','contents_changed','publication'},
                                                {'version','archive','previous_archive','before','after','receipts'})
                         or note.get('contents_changed',True) is not True or note['version']!=1 or type(note['archive']) is not str
                         or Path(note['archive']).name!=note['archive'] or not note['archive'].endswith('.zip')
                         or 'previous_archive' in note and (type(note['previous_archive']) is not str or Path(note['previous_archive']).name!=note['previous_archive'] or not note['previous_archive'].endswith('.zip'))
                         or any(type(note[k]) is not str or re.fullmatch(r'[a-f0-9]{64}',note[k]) is None for k in ('before','after'))
-                        or type(note['receipts']) is not list or not note['receipts']
+                        or type(note['receipts']) is not list or not note['receipts'] and 'publication' not in note
+                        or 'publication' in note and (type(note['publication']) is not str
+                                                      or re.fullmatch(r'[a-f0-9]{64}',note['publication']) is None
+                                                      or note['publication']+'.export.json' in note['receipts'])
                         or any(type(name) is not str or re.fullmatch(r'[a-f0-9]{64}\.export\.json',name) is None for name in note['receipts'])):
                     raise ValueError('ZIP mutation journal rejected')
             except (ValueError, UnicodeDecodeError, TypeError):
@@ -1085,18 +1119,19 @@ class SaveExports:
             raise ValueError('ZIP recovery manifest changed')
         if stage.is_symlink():raise ValueError('unsafe ZIP recovery stage')
         if not stage.exists():
-            if completed:
-                self._sync_replaced_zip_receipts(manifest,note)
-                return True
+            if completed:return True
             raise ValueError('ZIP recovery stage unavailable')
         info=self._zip_stage_stat(stage,note['sha256'])
-        if previous is not None and not archive.exists():
-            raise ValueError('previous ZIP missing during recovery')
-        if previous is not None and not os.path.samestat(info,archive.lstat()):
+        if previous is not None:
+            if not archive.exists():raise ValueError('previous ZIP missing during recovery')
+            if os.path.samestat(info,archive.lstat()):
+                self._finish_zip_mutation(*self._prepare_zip_replacement(job.target_id,note))
+                return True
             with self._zip_publication_scope(identity):
                 from .legacy_zip_export import verified_zip_digest
-                context.checkpoint();self._auto_page_state(identity)
+                context.checkpoint()
                 if verified_zip_digest(archive)!=previous:raise ValueError('previous ZIP changed')
+                mutation=self._prepare_zip_replacement(job.target_id,note)
                 replacement=stage.with_name(stage.name+'.publish')
                 if replacement.exists() or replacement.is_symlink():
                     link=replacement.lstat()
@@ -1105,13 +1140,13 @@ class SaveExports:
                             or info.st_nlink!=2 or link.st_nlink!=2
                             or not os.path.samestat(info,link)):
                         raise ValueError('ZIP recovery publication link changed')
-                else:
-                    if info.st_nlink!=1:raise ValueError('ZIP recovery stage has external link')
-                    os.link(stage,replacement)
-                try:os.replace(replacement,archive)
-                finally:replacement.unlink(missing_ok=True)
-                _fsync_dir(archive.parent)
-            info=stage.lstat()
+                    replacement.unlink()
+                elif info.st_nlink!=1:
+                    raise ValueError('ZIP recovery stage has external link')
+                os.replace(stage,archive)
+                _fsync_dir(archive.parent);_fsync_dir(stage.parent)
+            self._finish_zip_mutation(*mutation)
+            return True
         if archive.exists() or archive.is_symlink():
             existing=archive.lstat()
             if (archive.is_symlink() or not stat.S_ISREG(existing.st_mode)
@@ -1136,7 +1171,6 @@ class SaveExports:
         if info.st_nlink!=2 or existing.st_nlink!=2 or not os.path.samestat(info,existing):
             raise ValueError('ZIP recovery links changed')
         stage.unlink();_fsync_dir(stage.parent)
-        self._sync_replaced_zip_receipts(manifest,note)
         return True
 
     def run(self,job,context):
@@ -1169,7 +1203,9 @@ class SaveExports:
                     if isinstance(anchor,dict) and (previous!=anchor['sha256']
                             or previous is not None and target!=anchor['target']):
                         raise ValueError('previous ZIP publication changed')
+                    mutation=None
                     def record_stage(stage,archive):
+                        nonlocal mutation
                         context.checkpoint()
                         h=sha256()
                         with stage.open('rb') as stream:
@@ -1177,9 +1213,12 @@ class SaveExports:
                         note=dict(version=1,source=identity,archive=archive.name,stage=stage.name,sha256=h.hexdigest())
                         if previous is not None:note['previous_sha256']=previous
                         _publish_owned(pending,packet(note))
+                        if previous is not None:
+                            mutation=self._prepare_zip_replacement(job.target_id,note)
                     self.zip.export_author(aid,expected_proofs=identity['proofs'],before_publish=record_stage,
                                            expected_source_pages=source_pages,replace_existing_sha256=previous,
                                            previous_source=previous_source)
+                    if mutation is not None:self._finish_zip_mutation(*mutation)
                 self._finish_zip_pending(job,identity,manifest,context)
                 receipt=json.loads(_read_bounded(manifest,2_000_000),object_pairs_hook=_json_unique)
                 if job.state!='done' and not receipt.get('contents_changed'):

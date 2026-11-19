@@ -4,6 +4,90 @@ import pytest
 from test_u11_zip_contract import generated_exports, settled
 
 
+@pytest.mark.parametrize('failure', ['journal', 'after_replace', 'receipt', 'completion'])
+def test_auto_zip_keeps_previous_completion_readable_after_publication_interruption(
+        tmp_path, monkeypatch, failure):
+    from dataclasses import replace
+    import json
+    import os
+    from pathlib import Path
+    from types import SimpleNamespace
+    from pixivvault_nicegui import save_exports
+    from test_fail7_batch1 import add_second
+    from test_managed_downloads import Context, record
+
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan()
+        first, = settled(q.exports)
+        assert first.state == 'done'
+        path = q.exports.zip.root / 'tester(456).zip'
+        before = path.read_bytes()
+        add_second(q)
+        original = os.replace
+        publish_owned = save_exports._publish_owned
+        hits = []
+
+        def interrupt(src, dst):
+            name = Path(dst).name
+            if failure == 'journal' and name.startswith('zip-mutation-') and name.endswith('.json'):
+                hits.append(name)
+                raise PermissionError('synthetic journal publication denial')
+            if failure == 'after_replace' and name == path.name:
+                original(src, dst)
+                hits.append(name)
+                raise OSError('synthetic interruption after archive replacement')
+            if failure == 'receipt' and name == first.result:
+                hits.append(name)
+                raise PermissionError('synthetic prior receipt write denial')
+            return original(src, dst)
+
+        def interrupt_completion(destination, data):
+            if failure == 'completion' and destination.name.endswith('.export.json'):
+                hits.append(destination.name)
+                raise PermissionError('synthetic new receipt publication denial')
+            return publish_owned(destination, data)
+
+        with monkeypatch.context() as injection:
+            injection.setattr(os, 'replace', interrupt)
+            injection.setattr(save_exports, '_publish_owned', interrupt_completion)
+            q.exports.scan()
+            failed = next(job for job in settled(q.exports) if job.state == 'error')
+            assert len(hits) == 1
+            if failure == 'journal':
+                assert path.read_bytes() == before
+                assert q.exports.run(first, Context()) == first.result
+            else:
+                assert list(q.exports.root.glob('zip-mutation-*.json'))
+                with ZipFile(path) as z:
+                    assert len(z.namelist()) == 4 and z.testzip() is None
+
+        q.exports.close()
+        reopened = save_exports.SaveExports(q.exports.s, q.exports.root)
+        try:
+            receipt = json.loads((reopened.root / first.result).read_bytes())
+            assert (receipt['archive'], receipt['sha256']) == (
+                path.name, sha256(path.read_bytes()).hexdigest())
+            assert reopened.run(first, Context()) == first.result
+            assert not list(reopened.root.glob('zip-mutation-*.json'))
+
+            q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title='third')
+            q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='125'), Context())
+            reopened.scan()
+            jobs = settled(reopened)
+            with ZipFile(path) as z:
+                assert len(z.namelist()) == 6 and z.testzip() is None
+            for job in jobs:
+                if job.state == 'done':
+                    assert reopened.run(job, Context()) == job.result
+            if failure == 'journal':
+                with pytest.raises(ValueError, match='saved generation changed'):
+                    reopened.run(failed, Context())
+            else:
+                assert reopened.run(failed, Context()).endswith('.export.json')
+        finally:
+            reopened.close()
+
+
 @pytest.mark.parametrize('operation', ['normalize', 'remove'])
 def test_direct_mutation_keeps_auto_zip_receipt_current(tmp_path, operation):
     with generated_exports(tmp_path, True, None) as q:
