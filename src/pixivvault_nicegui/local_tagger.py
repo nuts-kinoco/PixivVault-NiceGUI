@@ -287,6 +287,8 @@ class TaggerManager:
         try:
             if self._closed:
                 return None
+            if self.tagger is not None and self.tagger._load_failed:
+                return None
             snapshot = self.preferences.snapshot()
             path = snapshot.values['local_tagger_path']
             if snapshot.values['local_tagger_enabled'] != '1':

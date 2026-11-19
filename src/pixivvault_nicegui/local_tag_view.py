@@ -165,6 +165,8 @@ class LocalTagView:
             with self._lock:
                 if self._epoch != epoch:
                     fingerprint, works, counts = None, {}, {}
+                elif self._projection is None:
+                    self._projection = projection
                 elif projection != self._projection:
                     self._projection = projection
                     self._epoch += 1
