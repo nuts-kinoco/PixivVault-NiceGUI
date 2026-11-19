@@ -662,7 +662,11 @@ class ManagedUgoiraJobs:
                 continue
             if packet.get('source_sha256') != source.receipt_sha256 or packet.get('gif_sha256') != rendered.sha256:
                 continue
-            receipt, verified = self._reference_gif(receipt_path, source, inspection, checkpoint)
+            from .ugoira_gif import UgoiraGifError
+            try:
+                receipt, verified = self._reference_gif(receipt_path, source, inspection, checkpoint)
+            except (FileNotFoundError, UgoiraGifError):
+                continue  # Incomplete or damaged content is never reused.
             if verified.sha256 == rendered.sha256:
                 return receipt_path, receipt
         return None

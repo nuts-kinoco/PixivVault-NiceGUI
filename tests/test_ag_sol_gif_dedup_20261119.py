@@ -87,3 +87,26 @@ def test_unrelated_corrupt_gif_does_not_block_new_fallback(tmp_path, monkeypatch
         assert (foreign / 'animation.gif').read_bytes() == b'corrupt'
     finally:
         owner.close()
+
+
+def test_corrupt_matching_gif_is_not_reused(tmp_path, monkeypatch):
+    def fail(*args, **kwargs):
+        raise UgoiraMp4Error()
+    monkeypatch.setattr('pixivvault_nicegui.ugoira_mp4.render_mp4', fail)
+    root = tmp_path / 'ugoira'
+    owner = PracticalUgoiraJobs(root, build_ugoira_fixture(), codec_python=sys.executable)
+    try:
+        first = owner.enqueue_selection(owner.preview('123', '91', 'gif'), 'corrupt-original')
+        with owner.jobs._condition:
+            assert owner.jobs._condition.wait_for(lambda: owner.jobs.retained_job(first.job_id).state == 'done', timeout=15)
+        original = next(root.glob('gifs/*/animation.gif'))
+        original.write_bytes(b'corrupt')
+        second = owner.enqueue_selection(owner.preview('123', '91', 'mp4'), 'fresh-fallback')
+        with owner.jobs._condition:
+            assert owner.jobs._condition.wait_for(
+                lambda: owner.jobs.retained_job(second.job_id).state in {'done', 'error'}, timeout=15)
+        assert owner.jobs.retained_job(second.job_id).state == 'done'
+        assert original.read_bytes() == b'corrupt'
+        assert len(list(root.glob('gifs/*/animation.gif'))) == 2
+    finally:
+        owner.close()
