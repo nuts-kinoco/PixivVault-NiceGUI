@@ -66,3 +66,37 @@ def test_direct_mutation_refuses_unfinished_auto_zip_stage(tmp_path):
         with pytest.raises(ValueError):
             q.exports.zip.normalize_archive(archive,sha256(before).hexdigest(),zip64_threshold=1)
         assert archive.read_bytes()==before and stage.read_bytes()==b'unfinished'
+
+
+def test_partial_journal_does_not_block_reopen(tmp_path):
+    from pixivvault_nicegui.save_exports import SaveExports
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan(); assert all(j.state=='done' for j in settled(q.exports))
+        archive=q.exports.zip.root/'tester(456).zip'; before=archive.read_bytes()
+        (q.exports.root/('zip-mutation-'+'a'*32+'.json')).write_bytes(b'{"version":1,')
+        q.exports.close()
+        reopened=SaveExports(q.exports.s,q.exports.root)
+        try:
+            assert reopened._previous_auto_zip('456')==sha256(before).hexdigest()
+            assert archive.read_bytes()==before
+        finally: reopened.close()
+
+
+def test_partial_temp_write_cannot_publish_journal(tmp_path, monkeypatch):
+    from pixivvault_nicegui.save_exports import SaveExports
+    import pixivvault_nicegui.save_exports as module
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan(); assert all(j.state=='done' for j in settled(q.exports))
+        archive=q.exports.zip.root/'tester(456).zip'; before=archive.read_bytes()
+        original=module._write
+        def partial(path,data):
+            if path.name.startswith('zip-mutation-'):
+                path.write_bytes(data[:15]); raise OSError('injected')
+            return original(path,data)
+        monkeypatch.setattr(module,'_write',partial)
+        with pytest.raises(ValueError): q.exports.zip.normalize_archive(archive,sha256(before).hexdigest(),zip64_threshold=1)
+        monkeypatch.setattr(module,'_write',original)
+        assert archive.read_bytes()==before and not list(q.exports.root.glob('zip-mutation-*.json'))
+        q.exports.close(); reopened=SaveExports(q.exports.s,q.exports.root)
+        try: assert reopened._previous_auto_zip('456')==sha256(before).hexdigest()
+        finally: reopened.close()

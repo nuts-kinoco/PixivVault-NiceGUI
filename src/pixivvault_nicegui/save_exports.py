@@ -750,7 +750,10 @@ class SaveExports:
             note={'version':1,'archive':archive.name,'before':previous,
                   'after':verified_zip_digest(stage),'receipts':sorted(matches)}
             path=native_io_path(self.root)/('zip-mutation-'+uuid4().hex+'.json')
-            _write(path,packet(note));_fsync_dir(path.parent)
+            temporary=path.with_suffix('.tmp')
+            try:
+                _write(temporary,packet(note));os.replace(temporary,path);_fsync_dir(path.parent)
+            finally:temporary.unlink(missing_ok=True)
         except BaseException:
             self._mutation_lock.release()
             raise
@@ -807,14 +810,19 @@ class SaveExports:
         for path in native_io_path(self.root).glob('zip-mutation-*.json'):
             if re.fullmatch(r'zip-mutation-[a-f0-9]{32}\.json',path.name) is None:
                 raise ValueError('ZIP mutation journal rejected')
-            note=json.loads(_read_bounded(path,2_000_000),object_pairs_hook=_json_unique)
-            if (type(note) is not dict or set(note)!={'version','archive','before','after','receipts'}
-                    or note['version']!=1 or type(note['archive']) is not str
-                    or Path(note['archive']).name!=note['archive'] or not note['archive'].endswith('.zip')
-                    or any(type(note[k]) is not str or re.fullmatch(r'[a-f0-9]{64}',note[k]) is None for k in ('before','after'))
-                    or type(note['receipts']) is not list or not note['receipts']
-                    or any(type(name) is not str or re.fullmatch(r'[a-f0-9]{64}\.export\.json',name) is None for name in note['receipts'])):
-                raise ValueError('ZIP mutation journal rejected')
+            _safe_path(path,file=True)
+            try:
+                note=json.loads(_read_bounded(path,2_000_000),object_pairs_hook=_json_unique)
+                if (type(note) is not dict or set(note)!={'version','archive','before','after','receipts'}
+                        or note['version']!=1 or type(note['archive']) is not str
+                        or Path(note['archive']).name!=note['archive'] or not note['archive'].endswith('.zip')
+                        or any(type(note[k]) is not str or re.fullmatch(r'[a-f0-9]{64}',note[k]) is None for k in ('before','after'))
+                        or type(note['receipts']) is not list or not note['receipts']
+                        or any(type(name) is not str or re.fullmatch(r'[a-f0-9]{64}\.export\.json',name) is None for name in note['receipts'])):
+                    raise ValueError('ZIP mutation journal rejected')
+            except (ValueError, UnicodeDecodeError, TypeError):
+                path.unlink();_fsync_dir(path.parent)
+                continue
             self._finish_zip_mutation(path,note)
 
     def _previous_auto_zip(self, author_id):
