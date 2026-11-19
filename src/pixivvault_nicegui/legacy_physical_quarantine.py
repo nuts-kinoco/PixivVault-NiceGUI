@@ -12,7 +12,7 @@ from pathlib import Path, PurePosixPath
 import shutil
 import stat
 from uuid import uuid4
-from zipfile import ZipFile
+from zipfile import ZipFile, ZIP_FILECOUNT_LIMIT
 
 from .fs_paths import native_io_path
 from .local_media_adapter import _safe_entry
@@ -326,6 +326,33 @@ class PhysicalLegacyQuarantine:
                 self._cleanup_scratch(intent);return
             if intent['kind']!='zip' or current!=intent['after_sha256']:
                 raise ValueError('physical recovery source conflict')
+        if intent['kind']=='zip':
+            donor=unit/'retained'
+            moved=unit/'retained-next'
+            if donor.exists() and moved.exists():raise ValueError('physical recovery source conflict')
+            if not donor.exists() and moved.exists():donor=moved
+            if donor.exists() and _same_filesystem(unit,source.parent):
+                _legacy_input(donor)
+                if _digest(donor)!=intent['before_sha256']:raise ValueError('physical recovery source conflict')
+                if source.exists():
+                    if _digest(source)!=intent['after_sha256']:raise ValueError('physical recovery source conflict')
+                    self.store._checkpoint('physical-rollback-displaced:'+intent['key'])
+                if donor!=moved:os.rename(donor,moved)
+                os.replace(moved,source);_fsync_dir(source.parent);_fsync_dir(unit)
+                self.store._checkpoint('physical-rollback-restored:'+intent['key'])
+                if _digest(source)!=intent['before_sha256']:raise ValueError('physical recovery verification failed')
+                self._cleanup_scratch(intent);return
+            before=unit/'before'
+            if _digest(before)!=intent['before_sha256']:raise ValueError('physical before-generation changed')
+            _require_space(source.parent,before.stat().st_size+_SPACE_MARGIN)
+            ready=self._copy_scratch(intent,'recover',before)
+            if source.exists():
+                if _digest(source)!=intent['after_sha256']:raise ValueError('physical recovery source conflict')
+                self.store._checkpoint('physical-rollback-displaced:'+intent['key'])
+            os.replace(ready,source);_fsync_dir(source.parent)
+            self.store._checkpoint('physical-rollback-restored:'+intent['key'])
+            if _digest(source)!=intent['before_sha256']:raise ValueError('physical recovery verification failed')
+            self._cleanup_scratch(intent);return
         donor=unit/(intent['filename'] if intent['kind']=='file' else 'retained')
         if donor.exists():
             _legacy_input(donor)
@@ -448,8 +475,10 @@ class PhysicalLegacyQuarantine:
                 infos=original.infolist()
                 if len(infos)>100000 or len({i.filename for i in infos})!=len(infos):
                     raise ValueError('physical archive members rejected')
+                use_zip64=source.stat().st_size >= 4000 * 1024 * 1024
+                allow_zip64=use_zip64 or len(infos)-1 > ZIP_FILECOUNT_LIMIT
                 with (unit/'after').open('xb') as output:
-                    with ZipFile(output,'w',allowZip64=True) as rebuilt:
+                    with ZipFile(output,'w',allowZip64=allow_zip64) as rebuilt:
                         rebuilt.comment=original.comment
                         for info in infos:
                             if (not _safe_entry(info.filename) or info.flag_bits&1
@@ -461,7 +490,7 @@ class PhysicalLegacyQuarantine:
                                 if info.filename==member:
                                     while part.read(1024*1024):pass  # CRC verification, bounded memory.
                                 else:
-                                    with rebuilt.open(info,'w',force_zip64=True) as target:
+                                    with rebuilt.open(info,'w',force_zip64=use_zip64) as target:
                                         shutil.copyfileobj(part,target,1024*1024)
                     output.flush();os.fsync(output.fileno())
             _copy(unit/'after',stage/'active.zip')
@@ -486,15 +515,19 @@ class PhysicalLegacyQuarantine:
         else:
             ready=self._copy_scratch(intent,'ready',unit/'after')
             if _digest(source)!=intent['before_sha256']:raise ValueError('physical source changed')
-            # Retain the actual old inode as well as the verified before copy.
-            # Windows rename refuses an occupied destination. A crash in this
-            # two-rename interval is resolved from the durable intent on reopen.
-            os.rename(source,unit/'retained')
+            # A same-volume hard link preserves the original inode without
+            # removing the public source name before the atomic replacement.
+            retained=unit/'retained'
+            if _same_filesystem(unit,source.parent):
+                try:os.link(source,retained)
+                except OSError:pass  # The durable before-copy remains the fallback.
+                if retained.exists() and (_digest(retained)!=intent['before_sha256']
+                                          or not os.path.samefile(source,retained)):
+                    raise ValueError('physical source changed')
             self.store._checkpoint('physical-source-retained:'+intent['key'])
-            if _digest(unit/'retained')!=intent['before_sha256']:
-                if not source.exists():os.rename(unit/'retained',source)
+            if _digest(source)!=intent['before_sha256']:
                 raise ValueError('physical source changed')
-            os.rename(ready,source)
+            os.replace(ready,source)
         _fsync_dir(source.parent);_fsync_dir(unit)
 
     def execute(self,plan,operation_id,*,validate_snapshot=None):

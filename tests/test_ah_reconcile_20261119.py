@@ -1,0 +1,180 @@
+from dataclasses import replace
+from types import SimpleNamespace
+from zipfile import ZipFile
+from hashlib import sha256
+import json
+import os
+import pytest
+from test_u11_zip_contract import generated_exports, settled
+from test_managed_downloads import Context, record
+
+
+def test_author_zip_rename_denied_keeps_completed_old_path(tmp_path, monkeypatch, caplog):
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan()
+        original = settled(q.exports)[0]
+        assert original.state == 'done'
+        old = q.exports.zip.root / 'tester(456).zip'
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title='second', author_name='new')
+        q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
+        rename = os.rename
+
+        def deny_alias(src, dst):
+            if str(dst).endswith('new(tester)(456).zip'):
+                raise PermissionError('synthetic rename denial')
+            return rename(src, dst)
+
+        monkeypatch.setattr(os, 'rename', deny_alias)
+        q.exports.scan()
+        jobs = settled(q.exports)
+        assert len(jobs) == 2 and all(job.state == 'done' for job in jobs)
+        assert not (old.parent / 'new(tester)(456).zip').exists()
+        assert not list(q.exports.root.glob('zip-mutation-*.json'))
+        assert 'ZIPの改名に失敗' in caplog.text
+        with ZipFile(old) as z:
+            assert len(z.namelist()) == 4 and z.testzip() is None
+        actual = sha256(old.read_bytes()).hexdigest()
+        for job in jobs:
+            manifest = json.loads((q.exports.root / job.result).read_bytes())
+            assert (manifest['archive'], manifest['sha256']) == (old.name, actual)
+            assert q.exports.run(job, Context()) == job.result
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows filename case comparison')
+def test_author_zip_keeps_name_for_case_only_change(tmp_path):
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan()
+        assert settled(q.exports)[0].state == 'done'
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title='second', author_name='Tester')
+        q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
+        q.exports.scan()
+        assert all(job.state == 'done' for job in settled(q.exports))
+        assert [p.name for p in q.exports.zip.root.glob('*.zip')] == ['tester(456).zip']
+        with ZipFile(q.exports.zip.root / 'tester(456).zip') as z:
+            assert len(z.namelist()) == 4 and z.testzip() is None
+
+
+def test_author_zip_uses_largest_owned_archive_with_duplicate_author_paths(tmp_path, caplog):
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan()
+        assert settled(q.exports)[0].state == 'done'
+        root = q.exports.zip.root
+        smaller = root / 'old(456).zip'
+        with ZipFile(smaller, 'w') as z:
+            z.writestr('old.txt', b'synthetic')
+        before = smaller.read_bytes()
+        assert len(before) < (root / 'tester(456).zip').stat().st_size
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title='second', author_name='new')
+        q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
+        q.exports.scan()
+        jobs = settled(q.exports)
+        assert len(jobs) == 2 and all(job.state == 'done' for job in jobs)
+        assert {p.name for p in root.glob('*.zip')} == {'tester(456).zip', smaller.name}
+        assert smaller.read_bytes() == before
+        with ZipFile(root / 'tester(456).zip') as z:
+            assert len(z.namelist()) == 4 and z.testzip() is None
+        assert '同じ作者のZIP' in caplog.text
+
+
+def test_auto_zip_reconciles_author_rename(tmp_path):
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan()
+        assert all(j.state == 'done' for j in settled(q.exports))
+        old = q.exports.zip.root / 'tester(456).zip'
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title='second', author_name='new')
+        q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
+        q.exports.scan()
+        assert all(j.state == 'done' for j in settled(q.exports))
+        new = q.exports.zip.root / 'new(tester)(456).zip'
+        assert not old.exists() and new.exists()
+        with ZipFile(new) as archive:
+            assert len(archive.namelist()) == 4
+            assert archive.testzip() is None
+
+
+def test_renamed_archive_keeps_receipt_after_interrupted_export(tmp_path, monkeypatch):
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan()
+        assert all(j.state == 'done' for j in settled(q.exports))
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title='second', author_name='new')
+        q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
+        original = q.managed.read_saved_page
+        def fail(*args):
+            raise ValueError('injected')
+        monkeypatch.setattr(q.managed, 'read_saved_page', fail)
+        q.exports.scan()
+        failed = next(j for j in settled(q.exports) if j.state == 'error')
+        renamed = q.exports.zip.root / 'new(tester)(456).zip'
+        old = q.exports.zip.root / 'tester(456).zip'
+        assert old.exists() and not renamed.exists()
+        assert q.exports._previous_auto_zip('456') is not None
+        monkeypatch.setattr(q.managed, 'read_saved_page', original)
+        q.exports.run(failed, Context())
+        assert renamed.exists()
+        assert len(list(q.exports.zip.root.glob('*.zip'))) == 1
+
+
+def test_recovery_does_not_publish_when_previous_archive_is_missing(tmp_path, monkeypatch):
+    import os
+    import pytest
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan()
+        assert all(j.state == 'done' for j in settled(q.exports))
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title='second', author_name='new')
+        q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
+        original_replace = os.replace
+        def fail(src, dst):
+            if str(dst).endswith('.zip'): raise OSError('injected')
+            return original_replace(src, dst)
+        monkeypatch.setattr(os, 'replace', fail)
+        q.exports.scan()
+        failed = next(j for j in settled(q.exports) if j.state == 'error')
+        renamed = q.exports.zip.root / 'new(tester)(456).zip'
+        original = q.exports.zip.root / 'tester(456).zip'
+        held = q.exports.zip.root / 'temporarily-held.bin'
+        if original.exists(): original.rename(held)
+        else: renamed.rename(held)
+        monkeypatch.setattr(os, 'replace', original_replace)
+        with pytest.raises(ValueError): q.exports.run(failed, Context())
+        assert held.exists() and not original.exists() and not renamed.exists()
+
+
+def test_author_rename_recovers_after_receipt_write_failure(tmp_path,monkeypatch):
+    import os
+    from pixivvault_nicegui.save_exports import SaveExports
+    with generated_exports(tmp_path,True,None) as q:
+        q.exports.scan();assert all(j.state=='done' for j in settled(q.exports))
+        q.managed.resolve_record=lambda wid:replace(record(),remote_id=wid,title='second',author_name='new')
+        q.managed.run(SimpleNamespace(kind='pixiv-illust',target_id='124'),Context())
+        original=os.replace
+        def fail(src,dst):
+            if str(dst).endswith('.export.json'):raise OSError('injected')
+            return original(src,dst)
+        monkeypatch.setattr(os,'replace',fail)
+        q.exports.scan();failed=next(j for j in settled(q.exports) if j.state=='error')
+        monkeypatch.setattr(os,'replace',original)
+        q.exports.close(); reopened=SaveExports(q.exports.s,q.exports.root)
+        try:
+            assert (reopened.zip.root/'tester(456).zip').exists()
+            reopened.run(failed,Context())
+            target=reopened.zip.root/'new(tester)(456).zip'
+            assert target.exists() and not (reopened.zip.root/'tester(456).zip').exists()
+            assert reopened._previous_auto_zip('456') is not None
+            assert not list(reopened.root.glob('zip-mutation-*.json'))
+        finally:reopened.close()
+
+
+def test_failed_rename_receipt_update_restores_old_path(tmp_path,monkeypatch):
+    import os
+    with generated_exports(tmp_path,True,None) as q:
+        q.exports.scan();assert all(j.state=='done' for j in settled(q.exports))
+        q.managed.resolve_record=lambda wid:replace(record(),remote_id=wid,title='second',author_name='new')
+        q.managed.run(SimpleNamespace(kind='pixiv-illust',target_id='124'),Context())
+        original=os.replace
+        def fail(src,dst):
+            if str(dst).endswith('.export.json'):raise OSError('injected')
+            return original(src,dst)
+        monkeypatch.setattr(os,'replace',fail)
+        q.exports.scan();assert any(j.state=='error' for j in settled(q.exports))
+        old=q.exports.zip.root/'tester(456).zip';new=q.exports.zip.root/'new(tester)(456).zip'
+        assert old.exists() and not new.exists()
