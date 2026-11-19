@@ -3747,9 +3747,14 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
             raise RuntimeError("application services already use a different learning storage")
         if library_readonly_db is not None and services.library_source_db != library_readonly_db:
             raise RuntimeError("application services already use a different library DB")
-        if legacy_copy_root is not None and (services._legacy_copy_owner is None or
-                services._legacy_copy_owner.root != Path(legacy_copy_root).absolute()):
-            raise RuntimeError('application services already use a different legacy snapshot root')
+        if legacy_copy_root is not None:
+            import os
+            from .fs_paths import logical_path
+            def comparable_root(path):
+                return os.path.normcase(os.path.normpath(str(logical_path(path).absolute())))
+            if (services._legacy_copy_owner is None or
+                    comparable_root(services._legacy_copy_owner.root) != comparable_root(legacy_copy_root)):
+                raise RuntimeError('application services already use a different legacy snapshot root')
         if library_image_root is not None and services.library_image_root != library_image_root:
             raise RuntimeError("application services already use a different image root")
         if live_client is not None and services.live_client is not live_client:

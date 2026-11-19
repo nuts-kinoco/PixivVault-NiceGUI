@@ -476,6 +476,7 @@ class LegacyLibraryCopies:
                             info = stage.stat()
                             if (info.st_dev, info.st_ino) != recorded:
                                 raise LegacyCopyError('legacy snapshot stage changed')
+                            # Same-user replacement during cleanup is outside the threat model.
                             _mutate_file(stage, _identity(info), require_marker=False)
                     except (OSError, ValueError):
                         cleanup_failed = True
