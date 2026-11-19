@@ -253,3 +253,41 @@ def test_model_invalidation_is_published_before_hashing_changed_model(tmp_path, 
         manager.close()
         store.close()
     assert results == [None]
+
+
+def test_mapped_model_drive_expiry(tmp_path, monkeypatch):
+    from pixivvault_nicegui import local_tagger
+    from pixivvault_nicegui.preferences import PreferencesStore
+    from test_ak_tagger_20261119 import make_model
+    from test_ak_tagger_inference_20261119 import png
+
+    model = tmp_path / 'model'
+    model.mkdir()
+    make_model(model)
+    store = PreferencesStore(tmp_path / 'preferences.sqlite')
+    store.set_setting('local_tagger_path', str(model))
+
+    class Session:
+        def get_inputs(self): return [SimpleNamespace(name='input')]
+        def run(self, *_): return [[(.9,)]]
+
+    manager = local_tagger.TaggerManager(store)
+    manager.tagger = local_tagger.LocalTagger(model, session_factory=lambda _: Session(),
+                                             tensor_factory=lambda value: value)
+    manager._provider = 'auto'
+    view = LocalTagView(manager, lambda _: png(),
+                        lambda: (SimpleNamespace(work_id='1', tags=()),), lambda: ('1',))
+    try:
+        view.refresh_now()
+        before = view.snapshot()
+        assert before.by_work['1'] == ('cat',)
+        drive_type = local_tagger._drive_type
+        monkeypatch.setattr(local_tagger, '_drive_type',
+                            lambda drive: 4 if drive.casefold() == model.anchor.casefold() else drive_type(drive))
+        assert manager.try_current_fingerprint() is None
+        assert view.epoch() > before.epoch
+        assert not view.current_tags('1')
+    finally:
+        view.close()
+        manager.close()
+        store.close()

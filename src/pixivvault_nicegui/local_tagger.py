@@ -338,8 +338,7 @@ class TaggerManager:
             if snapshot.values['local_tagger_enabled'] != '1':
                 return None
             if not _local_folder(path):
-                self.status = '利用不可（ローカルのフォルダを指定）'
-                return None
+                raise NonLocalModelPath()
             receipt = self.tagger.receipt if self.tagger is not None else self.preferences.read_tagger_verification().get('receipt')
             if not isinstance(receipt, dict) or receipt.get('verified') is not True:
                 return None
