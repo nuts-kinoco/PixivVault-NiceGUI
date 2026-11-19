@@ -408,6 +408,7 @@ class LegacyZipExporter:
         owners = (self._prior_member_proofs(author_id, author_rows, previous_source)
                   if previous_source is not None else {})
         old_owners = {name: owners.get((name, proof), set()) for name, proof in old_hashes.items()}
+        verified_work = {name: next(iter(pages))[0] for name, pages in old_owners.items() if len(pages) == 1}
         canonical = {}
         weak = defaultdict(set)
         pages = []
@@ -446,15 +447,16 @@ class LegacyZipExporter:
                 continue
 
             # Flet append_to_zip checks both directions with the ID from the
-            # incoming filename map. A name used by another current canonical
-            # page cannot be a replacement target for this page.
+            # incoming filename map. Receipt and payload proof can disambiguate
+            # an old name that actually belongs to another work.
             same_work = _work_id_arcname(name, wid)
             legacy = name.replace(f'({wid})', '', 1)
             aliases = {same_work, legacy, *candidates} - {name}
             if previous_source is None:
                 aliases = set(_safe_page_candidates(name, aliases, wid))
             matched = {alias for alias in aliases & existing
-                       if alias not in canonical or canonical[alias] == page}
+                       if verified_work.get(alias, wid) == wid
+                       and (alias not in canonical or canonical[alias] == page)}
             if matched:
                 if previous_source is None and any(len(weak[alias]) > 1 for alias in matched):
                     raise LegacyZipAmbiguousError()

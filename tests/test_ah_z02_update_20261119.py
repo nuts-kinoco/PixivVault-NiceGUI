@@ -38,9 +38,13 @@ def generated_author_exports(tmp_path, title=None):
 def archive(q): return q.exports.zip.root / 'tester(456).zip'
 
 
-@pytest.mark.parametrize('legacy', [False, True], ids=['id-in-title', 'no-id'])
-def test_auto_zip_does_not_reassign_old_title(tmp_path, legacy):
-    with generated_author_exports(tmp_path, 'portrait' if legacy else 'portrait(124)') as q:
+@pytest.mark.parametrize(('old_title', 'new_title', 'legacy', 'added_title'), [
+    ('portrait(124)', 'portrait(124)(123)', False, None),
+    ('portrait', 'portrait', True, None),
+    ('portrait', 'portrait(123)', False, 'portrait(123)(124)'),
+], ids=['id-in-title', 'no-id', 'verified-other-work'])
+def test_auto_zip_does_not_reassign_old_title(tmp_path, old_title, new_title, legacy, added_title):
+    with generated_author_exports(tmp_path, old_title) as q:
         q.exports.scan()
         job = settled(q.exports)[0]
         assert job.state == 'done'
@@ -69,15 +73,17 @@ def test_auto_zip_does_not_reassign_old_title(tmp_path, legacy):
                                      current['sha256'], 'updated', current['relative_receipt'])
         q.completed.result = q.managed.run(
             SimpleNamespace(kind='pixiv-illust', target_id='123', job_id='e'*32), Context(), intent=intent)
-        title = 'portrait' if legacy else 'portrait(124)(123)'
-        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title=title)
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title=new_title)
         q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
 
         q.exports.scan()
         assert all(j.state == 'done' for j in settled(q.exports))
         with ZipFile(path) as z:
-            assert {name: z.read(name) for name in z.namelist()} == {
+            expected = {
                 **previous, 'revised(123)_1.png': q.reader.payload, 'revised(123)_2.png': q.reader.payload}
+            if added_title:
+                expected.update({f'{added_title}_{page}.png': q.reader.payload for page in (1, 2)})
+            assert {name: z.read(name) for name in z.namelist()} == expected
             assert z.testzip() is None
 
 
