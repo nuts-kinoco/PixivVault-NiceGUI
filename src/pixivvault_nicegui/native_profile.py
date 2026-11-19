@@ -159,7 +159,7 @@ def _create_marker(root: Path, marker: str, identity: bytes) -> None:
 
 
 def _check_config(snapshot: NativeProfileSnapshot, profile_root: Path,
-                  *, live_paths: bool) -> None:
+                  *, live_paths: bool, legacy_live_paths: bool = True) -> None:
     if not isinstance(snapshot, NativeProfileSnapshot) or type(snapshot.revision) is not int or snapshot.revision < 0:
         raise NativeProfileError('保存された設定の形式が不正です。')
     if (snapshot.similarity_provider not in ('auto', 'cuda', 'cpu')
@@ -174,11 +174,11 @@ def _check_config(snapshot: NativeProfileSnapshot, profile_root: Path,
         value = getattr(snapshot, name)
         if value is not None:
             _absolute(value, kind=kind)
-            if live_paths:
+            if live_paths and (legacy_live_paths or name not in ('library_readonly_db', 'library_image_root')):
                 _existing(value, kind=kind)
     if (snapshot.library_readonly_db is None) != (snapshot.library_image_root is None):
         raise NativeProfileError('旧DBと旧画像は両方を明示してください。')
-    if live_paths and snapshot.library_readonly_db is not None:
+    if live_paths and legacy_live_paths and snapshot.library_readonly_db is not None:
         from .library_repository import require_frozen_library_copy
         try:
             require_frozen_library_copy(snapshot.library_readonly_db)
@@ -443,7 +443,10 @@ class NativeProfileStore:
                     previous.similarity_model_file if similarity_model_file is _UNSET else _absolute(similarity_model_file, kind='file'),
                     previous.similarity_provider if similarity_provider is _UNSET else similarity_provider,
                     previous.similarity_auto if similarity_auto is _UNSET else similarity_auto)
-                _check_config(candidate, self.root, live_paths=True)
+                cookie_only = (cookie_file is not _UNSET and all(value is _UNSET for value in
+                    (save_parent, library_readonly_db, library_image_root, similarity_model_file,
+                     similarity_provider, similarity_auto)))
+                _check_config(candidate, self.root, live_paths=True, legacy_live_paths=not cookie_only)
                 if candidate == previous:
                     self._connection.execute('COMMIT')
                     return previous
