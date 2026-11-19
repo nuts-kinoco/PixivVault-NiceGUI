@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import sys
 import threading
+import traceback
 
 _active = None
 
@@ -21,16 +22,25 @@ class _Capture:
         self.previous_sys = sys.excepthook
         self.previous_thread = threading.excepthook
 
-    def _write(self, kind):
+    def _write(self, kind, exc_type=None, tb=None, thread=None):
+        # Type name and file:line/function only. Exception bodies (which can carry
+        # cookies or user data) and directory names are never written.
         try:
             self.stream.write(f'----- 未捕捉の例外 ({kind}) {datetime.now().isoformat()} -----\n')
+            if exc_type is not None:
+                self.stream.write(f'型: {getattr(exc_type, "__name__", "Exception")}\n')
+            if thread is not None:
+                self.stream.write(f'スレッド: {getattr(thread, "name", "?")}\n')
+            if tb is not None:
+                for frame in traceback.extract_tb(tb)[-12:]:
+                    self.stream.write(f'  {os.path.basename(frame.filename)}:{frame.lineno} {frame.name}\n')
             self.stream.flush()
         except Exception:
             pass
 
     def sys_hook(self, exc_type, exc_value, exc_tb):
         try:
-            self._write('main')
+            self._write('main', exc_type, exc_tb)
         finally:
             safe_type = next((t for t in (ValueError, TypeError, RuntimeError, OSError) if exc_type is t), RuntimeError)
             try:
@@ -40,7 +50,7 @@ class _Capture:
 
     def thread_hook(self, args):
         try:
-            self._write('thread')
+            self._write('thread', args.exc_type, args.exc_traceback, args.thread)
         finally:
             safe_type = next((t for t in (ValueError, TypeError, RuntimeError, OSError) if args.exc_type is t), RuntimeError)
             try:

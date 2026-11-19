@@ -53,7 +53,7 @@ class SharedLogView:
             self._scroll()
 
     def refresh(self):
-        if self.closed:
+        if self.closed or not self.root.visible or not self.expanded:
             return
         entries = self.log.snapshot()
         if entries == self._signature:

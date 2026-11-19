@@ -24,6 +24,8 @@ def test_exception_hooks_write_no_exception_payload_and_delegate(tmp_path, monke
         content=path.read_text(encoding='utf-8')
         assert 'synthetic-sensitive-body' not in content
         assert '未捕捉の例外' in content
+        assert '型: ValueError' in content
+        assert 'test_ae_crash_evidence_20261119.py:' in content and str(tmp_path) not in content
         assert seen == [('fault', True), ('sys', ValueError), ('thread', ValueError)]
     finally:
         guard.close()
