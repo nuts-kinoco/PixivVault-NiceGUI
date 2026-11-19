@@ -173,11 +173,11 @@
 | FL-I02 | Ctrl+Z で直前の判定を取り消す、取り消すボタン（ツールチップ「直前の判定を取り消す Ctrl+Z」） | gui.py:6047-6050、discovery_tab.py:2510-2553 | learning_view.py:177-178, 236-250（`ctrlKey && z`） | 有 | FOLLOWUP D06 で決着済み |
 | FL-I03 | Esc で概要の板を閉じる（他は判定に落とさない） | gui.py:6053-6059 | learning_view.py:280-292 | 有 | |
 | FL-I04 | 学習タブ以外ではキーを無視、入力欄・IME 中は無視 | gui.py:6038-6043 | learning_view.py:236-262（`isComposing`/`tag` 判定） | 有 | 要素単位の `keydown`（ページ全体フックではない） |
-| FL-I05 | 「合わない」後の理由 2 択チップ「何が合いませんでしたか？ 絵柄／ジャンル」（任意・無視すると「タグだけ下げる」） | discovery_tab.py:1701-1765 | 無（`learning_view.py` に `reason` 表示なし。`learning_repository.py:75-79` と `legacy/database.py:34 VALID_HATE_REASONS` はデータ層のみ） | 有 | **小〜中**。データ層は残っているので UI の追加のみ。好みの学習精度に直結。FOLLOWUP/KNOWN_ISSUES に記録なし（見落とされていた） **2026-11-18 再ステータス（work dbece97 で確認）**: 今も開いている。ui/learning_view.py に理由 2 択チップが無い（grep） **2026-11-19 再ステータス（work 2842b6c、候補・実機未確認）**: 「合わない」後の理由チップ（wt-z、P3-4a） |
-| FL-I06 | 判定直後のトースト帯「判定しました ／取り消す」（5 秒、理由帯と共存） | discovery_tab.py:1528-1700 | learning_view.py:734（`status` に「判定を保存しています…」）、177（常設 Undo ボタン） | 有 | 時限付きの取り消し帯は無く常設ボタンのみ。小 **2026-11-18 再ステータス（work dbece97 で確認）**: 今も開いている。ui/learning_view.py に判定直後のトースト帯が無い（「判定しました」0 件） **2026-11-19 再ステータス（work 2842b6c、候補・実機未確認）**: 取り消し帯 4 秒（元 discovery_tab.py:1540）（wt-z、P3-4a。台帳の 5 秒は誤記） |
+| FL-I05 | 「合わない」後の理由 2 択チップ「何が合いませんでしたか？ 絵柄／ジャンル」（任意・無視すると「タグだけ下げる」） | discovery_tab.py:1701-1765 | `ui/learning_view.py:962,975`（`_show_judgment_toast`、`_pick_reason`）、`ui/learning_toast.py:88`（`show_reason`） | 有 | wt-lrn でコード・隔離試験を確認。絵柄／ジャンルのチップを6秒表示する。`tests/test_z_learning_reason_20261118.py`。実機受入未確認 |
+| FL-I06 | 判定直後のトースト帯「判定しました／取り消す」（4秒。「合わない」では同じ位置に理由帯） | discovery_tab.py:1528-1700（4秒は1540）、1750-1755 | `ui/learning_view.py:962`（`_show_judgment_toast`）、`ui/learning_toast.py:13`（`UNDO_SECONDS`） | 有 | wt-lrn でコード・隔離試験を確認。常設 Undo もある。`tests/test_z_learning_toast_20261118.py`。実機受入未確認 |
 | FL-I07 | 画像が表示されるまで判定不可（`画像を読み込んでいます`／`画像を見ないままの判定はできません`／再試行） | discovery_tab.py:399, 2384-2386, 409-448 | learning_view.py:1050-1069, 179（`画像を再読込`） | 有 | |
-| FL-I08 | 画像クリックで画集ビューアを開く／pixiv ページを直接開く | discovery_tab.py:2062, 2446-2456 | learning_view.py:165 `_open_learning_picture`、1643 `view_history.open_work(record=True)` | 有 | 閲覧履歴に記録（`record_discovery_open`）。FOLLOWUP 時点の「接続なし」は解消 |
-| FL-I09 | カード下の「ブックマーク」（pixiv へ書込・♥） | discovery_tab.py:2132-2216, 2536-2584 | 無（learning_view.py に bookmark ボタンなし。ビューアを開けば `ブクマ` ボタンあり: artwork_viewer.py:42, pixiv_action_buttons.py:108） | 有 | 判定画面から直接ブクマ不可、ビューア経由のみ。小〜中（`pixiv_actions` 接続時のみ） **2026-11-18 再ステータス（work dbece97 で確認）**: 今も開いている。ui/learning_view.py にブックマークのボタンが無い（grep） **2026-11-19 再ステータス（work 2842b6c、候補・実機未確認）**: ブックマーク♥（トグル、登録済みの再押下で解除。pixiv_actions・取得停止ゲート経由）（wt-ab・wt-ad、tests/test_ab_learning_i09_20261118.py・test_ad_i09_toggle_20261119.py） |
+| FL-I08 | 画像クリックで画集ビューアを開く／画像右上の小アイコンから pixiv の作品ページを開く | discovery_tab.py:2067-2121, 2446-2458 | `ui/learning_view.py:228,1286,2531`（小アイコン、`_sync_pixiv_link`、`_open_learning_picture`）、`viewer_metadata.py:18`（`pixiv_url`） | 弱 | wt-lrn で2つの入口を確認。画像クリックは閲覧履歴付き。pixiv リンクはブラウザーへ URL を渡す。元がリンク経由でも行う閲覧履歴の記録と学習時の閲覧加点には未接続。`tests/test_lrn_work_link_20261120.py`。実機受入未確認 |
+| FL-I09 | カード下の「ブックマーク」（pixiv へ書込・♥） | discovery_tab.py:2132-2216, 2536-2584 | `ui/learning_view.py:272,1662`（`_on_learning_bookmark`、`_bookmark_current`） | 条件付きで有 | `pixiv_actions` 接続かつ画像表示後に、学習画面から登録・解除できる。既存の取得停止ゲート経由。wt-lrn の隔離試験 `tests/test_ab_learning_i09_20261118.py`・`tests/test_ad_i09_toggle_20261119.py`。実機受入未確認 |
 | FL-I10 | 「作品を保存」（保存対象へ追加） | 元は「ダウンロードキューへ積む」系 | learning_view.py:187（`managed_button`） | 条件付きで有 | 管理保存構成のみ |
 | FL-I11 | 好みの傾向パネル（判定 20 枚から。「いまはあなたの保存から出しています」「まだ傾向が出ていません」） | discovery_tab.py:2930-3120, 4229-4242 | learning_view.py:191-193, 1317-1336（「傾向表示は20件から」） | 有 | 判定すると自動で閉じる（tooltip 同文言: 193）。**2026-11-17 に Argon 指摘を元と移植版で再読して検証（一部事実・規模 小）**。事実: 元はビューポート高さと配置 rail/band/fold で表示件数を増減（discovery_tab.py:2930-3158, 2995-2997）、移植版は全行を 1 列固定で描く（ui/learning_view.py:1342-1356）。誤り: バーの長さは元も合成スコア相対（row["score"]/score_max、discovery_tab.py:2768-2817）で、「最大いいね数比」ではない。行の文言（いいね N・表示 N、MAX バッジ）は同じ **2026-11-19 再ステータス（work 2842b6c、候補・実機未確認）**: 好みの傾向パネル（実測高さ・rail/band/fold）（wt-ab、tests/test_ab_learning_i11_20261118.py）。バーは元コード準拠で表示中の合成スコア最大値比（依頼文の「最大いいね数比」との差を記録） |
 | FL-I12 | 探索の設定（「知らないジャンルを見る割合」「知らない絵柄を見る割合」スライダー、ドロワー） | discovery_tab.py:3176-3330 | learning_view.py:184, 220-229（`発掘設定` ダイアログ: 数値入力＋保存）、discovery_settings.py | 有 | 即時スライダー→ダイアログ＋保存ボタンへ UI 変更。FOLLOWUP D07 で「入力粒度・保存表記の違い」と記録済み。検索対象（すべて/全年齢/R-18）の選択は移植版で追加 **2026-11-18 再ステータス（work dbece97 で確認）**: 今も開いている。ui/learning_view.py に slider が無く、発掘設定ダイアログの数値入力 **2026-11-19 再ステータス（work 2842b6c、候補・実機未確認）**: 探索設定（wt-z、P3-4a） |
@@ -345,7 +345,7 @@
 | FL-E06 | キューログ欄と一覧の切替（ダブルクリック） | 小 | |
 | FL-H03 | 重複「決められないもの」の確定操作 | 中 | 読取専用設計との調整が要る |
 | FL-H06 | ごみ箱を空にする（件数入力で解錠） | 小（取込のみ） | wt-f `c9c77c7` に実装あり・未取り込み。P1 |
-| FL-I05 | 「合わない」の理由 2 択（絵柄/ジャンル） | 小 | データ層 `VALID_HATE_REASONS` は在る。学習精度に直結 |
+| FL-I05 | 「合わない」の理由 2 択（絵柄/ジャンル） | 小 | 初回調査時点。現在の実装は I 節を参照 |
 | FL-I15 | 空状態の「ローカルモデル導入」案内 | 小 | |
 | FL-J10 | ランキングの「出さない」入口と管理 | 中 | 「出さない」データ層は既存（recommend と共有） |
 
@@ -364,7 +364,7 @@
 | FL-D16 | 保存直後の自動品質検査・ZIP 破損通知 | 中 |
 | FL-J09 | ランキングカードの右クリック 4 項目が無い | 中 |
 | FL-L05 | おすすめの右クリック 12 項目のうち 4 つが無い | 中 |
-| FL-I09 | 学習画面から直接ブックマークできない | 中 |
+| FL-I09 | 学習画面からの直接ブックマークが調査時点で未実装（現在の実装は I 節） | 中 |
 | FL-K02 | ライブラリの「pixiv 本体も含む」スコープ | 中 |
 | FL-N05 | 拡張機能ジョブ・ZIP 破損の Windows 通知 | 中 |
 | FL-A03 | 初期タブが「ダウンロード」ではなく「ランキング」 | 小 |
@@ -378,7 +378,7 @@
 | FL-E07 | キュー見出し・補助文 | 小 |
 | FL-F05 | 失敗リストの「リスト更新」 | 小 |
 | FL-H02 | 重複整理の切替チップ | 小 |
-| FL-I06 | 判定直後の時限トースト帯 | 小 |
+| FL-I06 | 判定直後の時限トースト帯が調査時点で未実装（現在の実装は I 節） | 小 |
 | FL-I12 | 探索設定がスライダーではなくダイアログ＋保存 | 小（FOLLOWUP D07 で記録済み） |
 | FL-K06 | ブクマ一覧の最終更新表示と自動更新（120 秒間引き） | 小（L17 は C 分類） |
 | FL-L09 | おすすめ空状態の「学習タブへ」 | 小 |
