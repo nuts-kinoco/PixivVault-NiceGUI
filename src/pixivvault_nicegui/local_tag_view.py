@@ -25,9 +25,11 @@ class LocalTagView:
         self.saved_works, self.saved_ids = saved_works, saved_ids
         self._lock = RLock()
         self._entries = {}
+        self._projection = None
         self._epoch = 0
         self._closed = False
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='pv-local-tag-view')
+        self._validation_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='pv-local-tag-check')
         self._future = None
         self._rescan = False
 
@@ -39,12 +41,18 @@ class LocalTagView:
         with self._lock:
             self._epoch += 1
             self._entries = {}
+            self._projection = None
             if self._future is not None and not self._future.done():
                 self._rescan = True
             return self._epoch
 
     def revision(self):
-        return self.epoch(), self.tagger.try_current_fingerprint()
+        with self._lock:
+            if self._closed:
+                return self._epoch, None
+            future = self._validation_executor.submit(self.snapshot)
+        snapshot = future.result()
+        return snapshot.epoch, snapshot.fingerprint
 
     def _eligible(self):
         saved = {str(value) for value in self.saved_ids()}
@@ -125,7 +133,10 @@ class LocalTagView:
                     entry = entries.get(wid)
                     if entry is None or entry[0] != fingerprint:
                         continue
-                    data = self.local_image(wid)
+                    try:
+                        data = self.local_image(wid)
+                    except (OSError, ValueError, RuntimeError):
+                        continue
                     if not data or sha256(data).hexdigest() != entry[1]:
                         continue
                     works[wid] = entry[2]
@@ -141,6 +152,15 @@ class LocalTagView:
                 works, counts = {}, {}
         if self.epoch() != epoch or self.tagger.try_current_fingerprint() != fingerprint:
             fingerprint, works, counts = None, {}, {}
+        else:
+            projection = (fingerprint, tuple(sorted(works.items())))
+            with self._lock:
+                if self._epoch != epoch:
+                    fingerprint, works, counts = None, {}, {}
+                elif projection != self._projection:
+                    self._projection = projection
+                    self._epoch += 1
+                    epoch = self._epoch
         return LocalTagSnapshot(epoch, fingerprint, MappingProxyType(works), MappingProxyType(counts))
 
     def current_tags(self, work_id):
@@ -163,3 +183,4 @@ class LocalTagView:
             self._epoch += 1
             self._entries = {}
         self._executor.shutdown(wait=True, cancel_futures=False)
+        self._validation_executor.shutdown(wait=True, cancel_futures=False)

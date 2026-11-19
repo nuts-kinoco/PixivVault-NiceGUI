@@ -58,6 +58,7 @@ class RankingView(RankingCardMenus):
     def __init__(self,services,*,card_size='large',on_size_change=None):
         self.services=services;self.proxy=_ViewServices(services)
         self._auto_loaded=False;self._auto_task=None
+        self._preferred=frozenset();self._preferred_base=frozenset();self._preferred_revision=None
         self.active=False;self.closed=False;self.busy=False;self.epoch=0;self._open_generation=0;self.page=None;self.pin=None
         self._condition_task=None;self._condition_pending=False;self._syncing_controls=False
         self._calendar_token=None;self.calendar_dialog=None;self.calendar_picker=None
@@ -90,7 +91,30 @@ class RankingView(RankingCardMenus):
         # category or checkbox. Do not send a request for every typed letter.
         self.tag.on_value_change(lambda _:self.changed())
         self.tag.on('keydown.enter',lambda _:self.changed(refresh=True))
+        self._local_revision_task=None
+        self._local_revision_timer=ui.timer(1.0, self._sync_local_revision) if getattr(services, 'local_tag_view', None) is not None else None
         self.client.on_delete(self.close)
+
+    def local_tags_changed(self):
+        self._preferred_revision = None
+        self._sync_local_revision()
+
+    def _sync_local_revision(self):
+        local = getattr(self.services, 'local_tag_view', None)
+        if self.closed or not self.active or local is None or not self._preferred_built:
+            return
+        if self._preferred_revision == local.revision():
+            return
+        if self.page is not None:
+            self.render()
+        if self._local_revision_task is None or self._local_revision_task.done():
+            self._local_revision_task = asyncio.create_task(self._refresh_local_preferred())
+
+    async def _refresh_local_preferred(self):
+        await asyncio.to_thread(self._rebuild_preferred)
+        if not self.closed and self.active and self.page is not None:
+            self.render()
+
     def changed(self,*,refresh=False):
         if self.closed or self._syncing_controls:return
         self.epoch+=1
@@ -218,7 +242,11 @@ class RankingView(RankingCardMenus):
         await self.load(refresh_preferences=True)
     def preferred_tags_in(self,tags):
         from ..library_filters import normalize_tag
-        return any(normalize_tag(t) in self._preferred for t in tags or ())
+        local = getattr(self.services, 'local_tag_view', None) or getattr(getattr(self.services, 'discovery', None), 'local_tag_view', None)
+        preferred = self._preferred
+        if local is not None and getattr(self, '_preferred_revision', None) != local.revision():
+            preferred = getattr(self, '_preferred_base', frozenset())
+        return any(normalize_tag(t) in preferred for t in tags or ())
     def preferred_work(self,work_id):
         return False if self.page is None else any(i.record.work_id==work_id and self.preferred_tags_in(i.record.tags) for i in self.page.items)
     async def load(self,*,append=False,refresh_preferences=False):
@@ -288,7 +316,16 @@ class RankingView(RankingCardMenus):
         return value
     def _rebuild_preferred(self):
         # 失敗しても印を諦めるだけで、ランキング本体は止めない（元 ranking_tab.py:519-530）。作った扱いにして取得ごとに引かない。
-        try:self._preferred=frozenset(self.services.preferred_ranking_tags())
+        try:
+            local = getattr(self.services, 'local_tag_view', None) or getattr(getattr(self.services, 'discovery', None), 'local_tag_view', None)
+            base = getattr(self.services, 'preferred_ranking_tags_base', None) or getattr(getattr(self.services, 'discovery', None), 'base_preferred_tags', None)
+            self._preferred_base = frozenset(base()) if local is not None and callable(base) else None
+            before = local.revision() if local is not None else None
+            self._preferred = frozenset(self.services.preferred_ranking_tags())
+            if self._preferred_base is None:
+                self._preferred_base = self._preferred
+            after = local.revision() if local is not None else None
+            self._preferred_revision = after if before == after else None
         except Exception:
             import logging
             logging.getLogger(__name__).warning('ランキング: 好みタグの集合を読めませんでした。',exc_info=True)
@@ -363,5 +400,7 @@ class RankingView(RankingCardMenus):
     def close(self):
         if self.closed:return
         self.closed=True;self.active=False;self.epoch+=1;self._condition_pending=False
+        timer=getattr(self, '_local_revision_timer', None)
+        if timer is not None:timer.cancel()
         self._close_calendar();self.gallery.close()
         if self.pin is not None:self.pin.close()

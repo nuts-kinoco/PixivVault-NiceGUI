@@ -335,13 +335,21 @@ class DiscoveryLearningService(LearningService):
                   get_setting=db.get_setting) if count >= TREND_MIN_JUDGMENTS else []
         merged = self.local_tag_view.merge_preferences({}, snapshot) if self.local_tag_view and snapshot else {}
         local_rows = tuple({'tag':tag, 'display':value['display_tag'], 'count':value['seed_saved']} for tag,value in sorted(merged.items(), key=lambda pair:(-pair[1]['seed_saved'], pair[0])))
-        return {'judged':count,'rows':tuple(rows),'ready':count >= TREND_MIN_JUDGMENTS, 'local_seed_rows':local_rows}
+        revision = (snapshot.epoch, snapshot.fingerprint) if snapshot and local_rows else None
+        return {'judged':count,'rows':tuple(rows),'ready':count >= TREND_MIN_JUDGMENTS, 'local_seed_rows':local_rows, 'local_revision':revision}
+
+    def base_preferred_tags(self):
+        from .ranking_preferred_tags import preferred_tag_set
+        return self._submit(lambda: preferred_tag_set(self._database().get_discovery_preferences())).result()
 
     def preferred_tags(self):
         """世間ランキングの好みタグ印用（元 ranking_tab.py:519-530）。worker の外から呼ぶ同期 API。"""
         from .ranking_preferred_tags import preferred_tag_set
         snapshot = self.local_tag_view.snapshot() if self.local_tag_view else None
         return self._submit(lambda: preferred_tag_set(self._effective_preferences(self._database(), snapshot))).result()
+
+    def trend_rows_base(self):
+        return self._submit(self._trend_snapshot, None).result()['rows']
 
     def trend_rows(self):
         """Synchronous recommendation worker API, never call from this worker."""

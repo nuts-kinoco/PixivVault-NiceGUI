@@ -63,3 +63,33 @@ def test_cached_local_trend_is_not_reused_before_revalidation(monkeypatch):
     LearningView._revalidate_local_trend(view)
     assert renders[0]['local_seed_rows'] == ()
     assert scheduled == [True]
+
+
+@pytest.mark.asyncio
+async def test_rerank_retries_when_refill_merges():
+    started, release = asyncio.Event(), asyncio.Event()
+    class Discovery:
+        calls = 0
+        async def rank_pending(self, ids, authors):
+            self.calls += 1
+            if self.calls == 1:
+                started.set()
+                await release.wait()
+            return tuple(reversed(ids)), {}
+    class State:
+        artworks = (SimpleNamespace(work_id='1', author_id='a'), SimpleNamespace(work_id='2', author_id='b'))
+        index = 0
+        generation = 7
+        saving = False
+        closed = False
+        def _invalidate(self): self.generation += 1
+    view = SimpleNamespace(state=State(), discovery=Discovery(), services=SimpleNamespace(closing=False),
+        _refill_merge_revision=0, _tagger_rank_epoch=1, _discovery_frames={}, refresh=lambda: None)
+    task = asyncio.create_task(LearningView._rerank_tagger_order(view, 1))
+    await started.wait()
+    view.state.artworks += (SimpleNamespace(work_id='3', author_id='c'),)
+    view._refill_merge_revision += 1
+    release.set()
+    await task
+    assert tuple(a.work_id for a in view.state.artworks) == ('3', '2', '1')
+    assert view.discovery.calls == 2

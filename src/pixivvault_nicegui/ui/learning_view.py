@@ -2001,31 +2001,34 @@ class LearningView:
         background_tasks.create(self._rerank_tagger_order(self._tagger_rank_epoch), name='learning tagger rerank')
 
     async def _rerank_tagger_order(self, epoch):
-        while (self.state.saving or getattr(self, '_storage_busy', False)) and not self.state.closed and not self.services.closing and epoch == self._tagger_rank_epoch:
-            await asyncio.sleep(0.1)
-        if self.state.closed or self.services.closing or epoch != self._tagger_rank_epoch:
+        while not self.state.closed and not self.services.closing and epoch == self._tagger_rank_epoch:
+            if self.state.saving or getattr(self, '_storage_busy', False):
+                await asyncio.sleep(0.1)
+                continue
+            state = self.state
+            generation = state.generation
+            revision = self._refill_merge_revision
+            prefix, pending = state.artworks[:state.index], state.artworks[state.index:]
+            if not pending:
+                return
+            try:
+                order, frames = await self.discovery.rank_pending(tuple(a.work_id for a in pending), tuple(a.author_id for a in prefix if a.author_id))
+            except Exception:
+                return
+            if state.closed or self.services.closing or epoch != self._tagger_rank_epoch:
+                return
+            if (self.state is not state or state.saving or state.generation != generation
+                    or self._refill_merge_revision != revision):
+                continue
+            by_id = {a.work_id:a for a in pending}
+            if len(order) != len(pending) or set(order) != set(by_id):
+                return
+            self._discovery_frames.update(frames)
+            if tuple(a.work_id for a in pending) != tuple(order):
+                state._invalidate()
+                state.artworks = prefix + tuple(by_id[wid] for wid in order)
+                self.refresh()
             return
-        state = self.state
-        generation = state.generation
-        revision = self._refill_merge_revision
-        prefix, pending = state.artworks[:state.index], state.artworks[state.index:]
-        if not pending:
-            return
-        try:
-            order, frames = await self.discovery.rank_pending(tuple(a.work_id for a in pending), tuple(a.author_id for a in prefix if a.author_id))
-        except Exception:
-            return
-        if (self.state is not state or state.closed or state.saving or state.generation != generation
-                or self._refill_merge_revision != revision or epoch != self._tagger_rank_epoch):
-            return
-        by_id = {a.work_id:a for a in pending}
-        if len(order) != len(pending) or set(order) != set(by_id):
-            return
-        self._discovery_frames.update(frames)
-        if tuple(a.work_id for a in pending) != tuple(order):
-            state._invalidate()
-            state.artworks = prefix + tuple(by_id[wid] for wid in order)
-            self.refresh()
 
     def watch_local_seeds(self):
         if self.state.closed or getattr(self.discovery, '_seed_executor', None) is None:
@@ -2068,6 +2071,11 @@ class LearningView:
                 return
 
     def _render_trend(self,trend):
+        revision = trend.get('local_revision')
+        local = getattr(getattr(self, 'discovery', None), 'local_tag_view', None)
+        if revision is not None and local is not None and local.revision() != revision:
+            trend = dict(trend, rows=(), local_seed_rows=(), local_revision=None)
+            background_tasks.create(self._refresh_local_trend(), name='learning stale trend recheck')
         self._trend_snapshot = trend
         self.trend_content.clear()
         self.trend_label.set_text(f"これまでの判定: {trend['judged']}枚")

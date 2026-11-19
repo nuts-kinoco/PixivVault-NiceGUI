@@ -434,6 +434,9 @@ class DemoShell:
     def _tagger_settings_changed(self):
         if self.learning is not None:
             self.learning.refresh_tagger_order()
+        for view in (self.gallery, self.personal_view):
+            changed=getattr(view, 'local_tags_changed', None)
+            if callable(changed):changed()
 
     def _reflect_uid_once(self, dialog) -> None:
         # プロセス起動時に1回だけ（シェルは画面を開くたびに作られる）。
