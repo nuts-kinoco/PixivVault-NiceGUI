@@ -111,74 +111,61 @@ def _wait(seconds,deadline,*,clock,sleep):
 
 
 class RequestAdmission:
-    """Shared minimum-interval gate with the original rate_coordinator lanes.
+    """Shared minimum-interval gate: the original rate_coordinator.py algorithm.
 
-    One lock decides, at the moment of issue, whether this request may go: it must be
-    its lane's head ticket, no interactive request may be ahead of a background one
-    (unless that background request has already yielded for MAX_BACKGROUND_DEFER_SECONDS),
-    and the real interval since the previous issue must have elapsed. There are no slot
-    reservations, so a late wake-up cannot shrink the real spacing and a cancelled
-    request leaves nothing behind. Interactive tickets are served first-come first-served.
+    The next issue slot is reserved at call time under a short lock and the wait happens
+    outside it, so a request that arrived earlier owns an earlier slot and a later
+    background request cannot overtake it. An interactive request reserves immediately;
+    a background request first yields while an interactive one is still waiting for its
+    slot, for at most MAX_BACKGROUND_DEFER_SECONDS counted from its own call, so it is
+    never starved. Pause/cancel checkpoints and the deadline are honoured outside the lock.
+    A request that fails before issuing gives its slot back when nothing was queued behind it.
     """
     def __init__(self,interval,*,clock=time.monotonic,sleep=time.sleep):
         self.interval=interval;self.clock=clock;self.sleep=sleep
-        self._lock=Lock();self._last=None
-        self._interactive=[];self._background=[]
-    @property
-    def _interactive_waiting(self):
-        with self._lock:return len(self._interactive)
-    @staticmethod
-    def _head(queue):
-        """First ticket that is not parked inside a (possibly blocking) pause checkpoint."""
-        for item in queue:
-            if not item[3]:return item
-        return None
-    def _capped(self,ticket,now):
-        """Original rate_coordinator: every background call yields for at most the cap, counted from its own start."""
-        return now-ticket[1]>=MAX_BACKGROUND_DEFER_SECONDS
-    def _my_turn(self,ticket,interactive,now):
-        if interactive:
-            if self._head(self._interactive) is not ticket:return False
-            head=self._head(self._background)         # a parked (paused) background request cannot issue, so it never blocks
-            return head is None or not self._capped(head,now)
-        if self._head(self._background) is not ticket:return False
-        return self._head(self._interactive) is None or self._capped(ticket,now)
+        self._lock=Lock();self._next=None;self._interactive_waiting=0
+    def _defer_for_interactive(self,deadline):
+        start=self.clock()
+        while True:
+            with self._lock:
+                if self._interactive_waiting==0:return
+            if self.clock()-start>=MAX_BACKGROUND_DEFER_SECONDS:return
+            request_checkpoint();_check_deadline(deadline,self.clock)
+            self.sleep(0.05)
+    def _reserve(self,deadline):
+        seconds=float(self.interval())
+        if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
+        request_checkpoint();_check_deadline(deadline,self.clock)       # cancelled/expired during the settings read: reserve nothing
+        with self._lock:
+            now=self.clock()
+            start=now if self._next is None else max(now,self._next)
+            if start>=deadline:
+                from .pixiv_read_client import ReadDeadlineExceeded
+                raise ReadDeadlineExceeded()                           # the slot cannot be used before the deadline: do not take it
+            self._next=start+seconds
+            return start,start+seconds
+    def _release(self,start,end):
+        with self._lock:
+            if self._next==end:self._next=start
     def __call__(self,deadline):
         request_checkpoint();_check_deadline(deadline,self.clock)
         interactive=_LANE.get()=='interactive'
-        ticket=[object(),self.clock(),None,False]       # token, queued at, (unused), parked
-        queue=self._interactive if interactive else self._background
-        left=False
-        with self._lock:queue.append(ticket)
+        if interactive:
+            with self._lock:self._interactive_waiting+=1
         try:
-            while True:
-                ticket[3]=True                           # parked only while a pause checkpoint may block
-                try:request_checkpoint();_check_deadline(deadline,self.clock)
-                finally:ticket[3]=False
-                seconds=float(self.interval())
-                if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
-                ticket[3]=True                           # cancelled/expired during the settings read: issue nothing
-                try:request_checkpoint();_check_deadline(deadline,self.clock)
-                finally:ticket[3]=False
-                with self._lock:
-                    now=self.clock()                     # taken after every blocking call
-                    if self._my_turn(ticket,interactive,now):
-                        remaining=0 if self._last is None else self._last+seconds-now
-                        if remaining<=0:
-                            self._last=now
-                            queue.remove(ticket)         # leave the queue in the same locked step as the issue
-                            left=True
-                            return
-                        if now+remaining>=deadline:
-                            from .pixiv_read_client import ReadDeadlineExceeded
-                            raise ReadDeadlineExceeded()
-                        pause=min(remaining,0.1)
-                    else:pause=0.05
-                self.sleep(pause)
+            if not interactive:self._defer_for_interactive(deadline)
+            start,end=self._reserve(deadline)
+            try:
+                while True:
+                    request_checkpoint();_check_deadline(deadline,self.clock)
+                    left=start-self.clock()
+                    if left<=0:return
+                    self.sleep(min(left,0.1))
+            except BaseException:
+                self._release(start,end);raise
         finally:
-            if not left:                                  # a successful issue already left the queue under the same lock
-                with self._lock:
-                    if ticket in queue:queue.remove(ticket)
+            if interactive:
+                with self._lock:self._interactive_waiting-=1
 
 
 class RequestRetryPolicy:

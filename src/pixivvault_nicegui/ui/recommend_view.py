@@ -326,8 +326,7 @@ class RecommendView:
             resolved=None
             if media.needs_detail(work_id):
                 self.notice.set_text('作品のページ情報を確認しています…')
-                from ..request_policy import interactive
-                resolved=await asyncio.to_thread(interactive(media.read_detail),work_id)
+                resolved=await asyncio.to_thread(media.read_detail,work_id)   # original recommend_tab.py:1025: default (background) lane
                 if not current():return
             selection=media.select(work_id,resolved)
             if selection.images.needs_metadata(work_id):

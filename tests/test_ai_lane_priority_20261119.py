@@ -1,12 +1,15 @@
 """FL-Z10: interactive requests are admitted ahead of background ones (original
-rate_coordinator.py:27-82). Generated clocks/threads only; no network."""
-from threading import Thread
+rate_coordinator.py:27-82: slot reserved at call time, wait outside the lock, background
+yields to a waiting interactive request for at most 2.0 s from its own call).
+Generated clocks/threads only; no network."""
+from threading import Event, Thread
 import time
 
 import pytest
 
 from pixivvault_nicegui.request_policy import (
-    MAX_BACKGROUND_DEFER_SECONDS, RequestAdmission, current_lane, interactive, interactive_lane)
+    MAX_BACKGROUND_DEFER_SECONDS, RequestAdmission, current_lane, interactive, interactive_lane,
+    lane_scope, request_scope)
 from pixivvault_nicegui.pixiv_read_client import ReadDeadlineExceeded
 
 
@@ -17,14 +20,6 @@ class _Clock:
         return self.now
     def sleep(self, seconds):
         self.now += seconds
-
-
-def _queued_interactive(gate):
-    """Put a queued (not yet issued) interactive ticket in front, as another thread would."""
-    ticket = [object(), 0.0, None, False]
-    with gate._lock:
-        gate._interactive.append(ticket)
-    return ticket
 
 
 def _gate(interval=0.6):
@@ -47,114 +42,163 @@ def test_interactive_wrapper_runs_callable_in_interactive_lane():
     assert seen == ['interactive'] and current_lane() == 'background'
 
 
-def test_background_defers_exactly_the_cap_while_interactive_waits():
+def test_lane_scope_explicit_background_overrides_enclosing_interactive():
+    seen = []
+    with interactive_lane():
+        with lane_scope('background'):
+            seen.append(current_lane())
+        seen.append(current_lane())
+    with lane_scope('interactive'):
+        seen.append(current_lane())
+    assert seen == ['background', 'interactive', 'interactive']
+
+
+def test_background_keeps_the_minimum_interval_without_interactive():
     gate, clock = _gate()
-    gate(1000.0)                           # first slot at t=0 (next free at 0.6)
-    clock.now = 10.0                       # long idle: no interval wait remains
-    _queued_interactive(gate)              # an interactive request stays queued
+    gate(1000.0)
+    before = clock.now
+    gate(1000.0)
+    assert clock.now - before == pytest.approx(0.6)
+
+
+def test_background_defers_exactly_the_cap_while_an_interactive_request_waits():
+    gate, clock = _gate()
+    gate(1000.0)
+    clock.now = 10.0
+    gate._interactive_waiting = 1          # an interactive request is still waiting for its slot
     before = clock.now
     gate(1000.0)
     deferred = clock.now - before
     assert MAX_BACKGROUND_DEFER_SECONDS <= deferred <= MAX_BACKGROUND_DEFER_SECONDS + 0.06
 
 
-def test_background_does_not_defer_without_interactive_and_keeps_interval():
-    gate, clock = _gate()
-    gate(1000.0)
-    before = clock.now
-    gate(1000.0)
-    assert abs((clock.now - before) - 0.6) < 1e-9
-
-
-def test_interactive_is_never_deferred_by_background_waiting():
+def test_interactive_is_never_deferred():
     gate, clock = _gate()
     gate(1000.0)
     clock.now = 10.0
     before = clock.now
     with interactive_lane():
         gate(1000.0)
-    assert clock.now == before            # slot free, no deferral, no extra wait
+    assert clock.now == before
 
 
-def test_late_wakeup_cannot_shrink_real_spacing():
+def test_slots_are_reserved_at_call_time_so_a_later_background_cannot_overtake_an_earlier_one():
     gate, clock = _gate(0.3)
-    issued = []
-    for late in (0.0, 0.25, 0.0):
-        gate(1000.0)
-        issued.append(clock.now)
-        clock.now += late                  # the caller wakes up late
-    assert all(b - a >= 0.3 - 1e-9 for a, b in zip(issued, issued[1:]))
+    first = gate._reserve(1000.0)          # (start, end)
+    second = gate._reserve(1000.0)
+    third = gate._reserve(1000.0)
+    assert first[0] == 0 and second[0] == pytest.approx(0.3) and third[0] == pytest.approx(0.6)
 
 
-def test_failed_wait_leaves_nothing_behind():
-    gate, clock = _gate()
+def test_interactive_reserved_before_a_later_background_keeps_the_earlier_slot():
+    gate, clock = _gate(0.3)
     gate(1000.0)
+    clock.now = 0.05
+    with interactive_lane():
+        interactive_slot = gate._reserve(1000.0)      # reserved first
+    background_slot = gate._reserve(1000.0)           # arrives later
+    assert interactive_slot[0] < background_slot[0]
+
+
+def test_slot_that_cannot_be_used_before_the_deadline_is_not_taken():
+    gate, clock = _gate()
+    gate(1000.0)                           # next free at 0.6
     with pytest.raises(ReadDeadlineExceeded):
-        gate(clock.now + 0.1)              # needs 0.6 s -> deadline error
-    assert gate._interactive == [] and gate._background == []
+        gate(clock.now + 0.1)
+    assert gate._next == pytest.approx(0.6)
     before = clock.now
-    gate(1000.0)                           # only the normal interval
+    gate(1000.0)
     assert clock.now - before == pytest.approx(0.6)
 
 
-def test_cancelled_earlier_request_does_not_make_later_ones_expire():
+def test_cancel_while_waiting_gives_the_slot_back_when_nothing_is_queued_behind():
     gate, clock = _gate(0.6)
     gate(1000.0)
-    for _ in range(2):
-        with pytest.raises(ReadDeadlineExceeded):
-            gate(clock.now + 0.2)
-    gate(clock.now + 0.9)                  # a later request still gets the free slot
+    calls = []
+
+    def checkpoint():
+        calls.append(1)
+        if len(calls) >= 4:                # cancelled during the slot wait
+            raise RuntimeError('cancelled')
+    with request_scope(checkpoint=checkpoint):
+        with pytest.raises(RuntimeError):
+            gate(1000.0)
+    assert gate._next == pytest.approx(0.6)
 
 
-def test_interactive_counter_released_on_deadline_error():
+def test_cancel_during_interval_read_reserves_nothing():
+    clock = _Clock()
+    cancelled = []
+
+    def interval():
+        cancelled.append(True)
+        return 0.6
+    gate = RequestAdmission(interval, clock=clock, sleep=clock.sleep)
+
+    def checkpoint():
+        if cancelled:
+            raise RuntimeError('cancelled')
+    with request_scope(checkpoint=checkpoint):
+        with pytest.raises(RuntimeError):
+            gate(1000.0)
+    assert gate._next is None
+
+
+def test_interactive_counter_released_on_failure():
     gate, clock = _gate()
     gate(1000.0)
     with pytest.raises(ReadDeadlineExceeded):
         with interactive_lane():
             gate(clock.now + 0.1)
-    assert gate._interactive_waiting == 0 and gate._background == []
+    assert gate._interactive_waiting == 0
 
 
-def test_real_threads_interactive_issues_before_waiting_background():
+def test_paused_checkpoint_does_not_hold_the_gate_lock():
     gate = RequestAdmission(lambda: 0.3)
-    gate(time.monotonic() + 30)            # occupy the gate: the next issue waits ~0.3 s
-    issued = []
+    gate(time.monotonic() + 30)
+    resume = Event()
+    entered = Event()
 
-    def background():
-        gate(time.monotonic() + 30)
-        issued.append('background')
+    def checkpoint():
+        entered.set()
+        resume.wait(5)
+
+    def paused_background():
+        with request_scope(checkpoint=checkpoint):
+            gate(time.monotonic() + 30)
+    b = Thread(target=paused_background)
+    b.start()
+    assert entered.wait(5)
+    started = time.monotonic()
+    with interactive_lane():
+        gate(time.monotonic() + 5)         # an unrelated screen request is not blocked by the paused job
+    assert time.monotonic() - started < 1.0
+    resume.set()
+    b.join(5)
+    assert not b.is_alive()
+
+
+def test_real_threads_interactive_issues_before_a_background_that_arrived_after_it():
+    gate = RequestAdmission(lambda: 0.3)
+    gate(time.monotonic() + 30)            # occupy the gate
+    issued = []
 
     def screen():
         with interactive_lane():
             gate(time.monotonic() + 30)
         issued.append('interactive')
 
-    b = Thread(target=background); b.start()
-    time.sleep(0.05)                       # background is already waiting for its slot
-    s = Thread(target=screen); s.start()
-    s.join(5); b.join(5)
-    assert not s.is_alive() and not b.is_alive()
+    def background():
+        gate(time.monotonic() + 30)
+        issued.append('background')
+    s = Thread(target=screen)
+    s.start()
+    time.sleep(0.05)
+    b = Thread(target=background)
+    b.start()
+    s.join(5)
+    b.join(5)
     assert issued == ['interactive', 'background']
-
-
-def test_background_yielded_the_full_cap_goes_before_a_later_interactive_stream():
-    gate, clock = _gate(0.3)
-    gate(1000.0)
-    clock.now = 10.0
-    _queued_interactive(gate)              # an endless interactive stream is queued
-    before = clock.now
-    gate(1000.0)                           # background: yields the cap, then is served
-    assert MAX_BACKGROUND_DEFER_SECONDS <= clock.now - before <= MAX_BACKGROUND_DEFER_SECONDS + 0.06
-
-
-def test_lane_scope_and_reader_lane_kwarg_reach_the_gate():
-    from pixivvault_nicegui.request_policy import lane_scope
-    seen = []
-    with lane_scope('background'):
-        seen.append(current_lane())
-    with lane_scope('interactive'):
-        seen.append(current_lane())
-    assert seen == ['background', 'interactive'] and current_lane() == 'background'
 
 
 def test_discovery_reader_wrapper_honours_lane_kwarg():
@@ -165,10 +209,10 @@ def test_discovery_reader_wrapper_honours_lane_kwarg():
         def get_ranking(self, **kwargs):
             seen.append((kwargs, current_lane()))
             return []
+
         def get_user_works(self, *a, **k):
             seen.append((k, current_lane()))
             return []
-
     reader = _Reader(Target())
     reader.get_ranking(mode='day', lane='interactive')
     reader.get_user_works('1', lane='background')
@@ -176,233 +220,24 @@ def test_discovery_reader_wrapper_honours_lane_kwarg():
     assert seen[1][1] == 'background' and 'lane' not in seen[1][0]
 
 
-def test_cancel_during_interval_read_issues_nothing():
-    from pixivvault_nicegui.request_policy import request_scope
-    clock = _Clock()
-    cancelled = []
-
-    def interval():
-        cancelled.append(True)             # the operation is cancelled while settings are read
-        return 0.6
-    gate = RequestAdmission(interval, clock=clock, sleep=clock.sleep)
-
-    def checkpoint():
-        if len(cancelled) >= 1:
-            raise RuntimeError('cancelled')
-    with request_scope(checkpoint=checkpoint):
-        with pytest.raises(RuntimeError):
-            gate(1000.0)
-    assert gate._last is None              # no slot consumed, nothing issued
-
-
-def test_deadline_during_interval_read_does_not_consume_the_slot():
-    clock = _Clock()
-
-    def interval():
-        clock.now += 0.15                  # settings read is slow
-        return 0.6
-    gate = RequestAdmission(interval, clock=clock, sleep=clock.sleep)
-    with pytest.raises(ReadDeadlineExceeded):
-        gate(clock.now + 0.07)
-    assert gate._last is None
-    gate(clock.now + 5.0)                  # a later request is not blocked by the failed one
-
-
-def test_explicit_background_lane_overrides_enclosing_interactive_lane():
-    from pixivvault_nicegui.request_policy import lane_scope
-    seen = []
-    with interactive_lane():
-        with lane_scope('background'):
-            seen.append(current_lane())
-        seen.append(current_lane())
-    assert seen == ['background', 'interactive']
-
-
-def test_paused_checkpoint_does_not_hold_the_lock_or_block_unrelated_screen_requests():
-    from threading import Event
-    from pixivvault_nicegui.request_policy import request_scope
-    gate = RequestAdmission(lambda: 0.3)
-    gate(time.monotonic() + 30)
-    resume = Event()
-    entered = Event()
-
-    def checkpoint():
-        entered.set()
-        resume.wait(5)                     # a paused job waits for resume here
-
-    def paused_background():
-        with request_scope(checkpoint=checkpoint):
-            gate(time.monotonic() + 30)
-
-    b = Thread(target=paused_background); b.start()
-    assert entered.wait(5)
-    started = time.monotonic()
-    with interactive_lane():
-        gate(time.monotonic() + 5)         # unrelated screen request is not blocked by the paused job
-    assert time.monotonic() - started < 1.0
-    resume.set(); b.join(5)
-    assert not b.is_alive()
-
-
-def test_paused_background_head_does_not_block_screen_requests_after_the_cap(monkeypatch):
-    from threading import Event
-    from pixivvault_nicegui import request_policy
-    from pixivvault_nicegui.request_policy import request_scope
-    monkeypatch.setattr(request_policy, 'MAX_BACKGROUND_DEFER_SECONDS', 0.1)
-    gate = RequestAdmission(lambda: 0.3)
-    gate(time.monotonic() + 30)
-    resume = Event(); entered = Event()
-
-    def checkpoint():
-        entered.set(); resume.wait(5)
-
-    def paused_background():
-        with request_scope(checkpoint=checkpoint):
-            gate(time.monotonic() + 30)
-
-    b = Thread(target=paused_background); b.start()
-    assert entered.wait(5)
-    time.sleep(0.3)                        # well beyond the (patched) cap
-    with interactive_lane():
-        gate(time.monotonic() + 3)         # must still pass
-    resume.set(); b.join(5)
-
-
-def test_time_is_taken_after_a_blocking_checkpoint_so_spacing_is_real():
-    from pixivvault_nicegui.request_policy import request_scope
-    clock = _Clock()
-    gate = RequestAdmission(lambda: 0.3, clock=clock, sleep=clock.sleep)
-    calls = []
-
-    def checkpoint():
-        calls.append(1)
-        if len(calls) == 3:                # the first request's pre-issue checkpoint pauses 0.45 s
-            clock.now += 0.45
-    with request_scope(checkpoint=checkpoint):
-        gate(1000.0)
-        first = clock.now
-        gate(1000.0)
-        second = clock.now
-    assert second - first >= 0.3 - 1e-9
-
-
-def test_registered_interactive_request_keeps_priority_while_it_rereads_settings():
-    from threading import Event
-    reading = Event(); release = Event()
-    gate = RequestAdmission(lambda: 0.3)
-    gate(time.monotonic() + 30)
-    reads = []
-
-    def interval():
-        if len(reads) == 1 and current_lane() == 'interactive':   # the second read of the screen request
-            reading.set(); release.wait(5)
-        reads.append(1)
-        return 0.3
-    gate.interval = interval
-    issued = []
-
-    def screen():
-        with interactive_lane():
-            gate(time.monotonic() + 30)
-        issued.append('interactive')
-
-    def background():
-        gate(time.monotonic() + 30)
-        issued.append('background')
-    s = Thread(target=screen); s.start()
-    assert reading.wait(5)
-    b = Thread(target=background); b.start()
-    time.sleep(0.4)                        # the background request would be free to go (interval elapsed)
-    assert issued == []                    # ...but it defers to the registered screen request
-    release.set(); s.join(5); b.join(5)
-    assert issued == ['interactive', 'background']
-
-
-def test_parked_interactive_in_pause_does_not_make_background_wait_the_cap_each_time():
-    from threading import Event
-    from pixivvault_nicegui.request_policy import request_scope
-    gate = RequestAdmission(lambda: 0.3)
-    gate(time.monotonic() + 30)
-    entered = Event(); resume = Event()
-
-    def checkpoint():
-        entered.set(); resume.wait(5)
-
-    def paused_screen():
-        with interactive_lane(), request_scope(checkpoint=checkpoint):
-            gate(time.monotonic() + 30)
-
-    s = Thread(target=paused_screen); s.start()
-    assert entered.wait(5)
-    started = time.monotonic()
-    gate(time.monotonic() + 5)             # an unrelated background request is not held for the cap
-    assert time.monotonic() - started < 1.0
-    resume.set(); s.join(5)
-
-
-def test_background_yield_is_counted_per_call_from_its_own_start_like_the_original():
-    gate, clock = _gate(1.5)
-    gate(1000.0)
-    clock.now = 4.0
-    _queued_interactive(gate)              # an interactive request is queued
-    old = [object(), 1.0, None, False]     # a background call that started 3 s ago has yielded its cap
-    with gate._lock:
-        gate._background.append(old)
-        assert gate._my_turn(old, False, clock.now) is True
-    young = [object(), 3.9, None, False]
-    with gate._lock:
-        gate._background[:] = [young]
-        assert gate._my_turn(young, False, clock.now) is False
-
-
-def test_paused_capped_background_head_does_not_block_a_screen_request():
-    gate, clock = _gate(0.3)
-    gate(1000.0)
-    clock.now = 10.0
-    parked = [object(), 0.0, None, True]   # yielded long ago but is paused (cannot issue)
-    with gate._lock:
-        gate._background.append(parked)
-    before = clock.now
-    with interactive_lane():
-        gate(1000.0)
-    assert clock.now - before < 0.3 + 1e-9  # not held for the cap
-
-
-def test_ranking_screen_fetch_runs_in_the_interactive_lane():
+def test_ranking_screen_fetch_runs_in_the_interactive_lane_but_tag_search_stays_background():
     from pixivvault_nicegui.ranking_source import RankingSource, RankingQuery
     seen = []
 
     class Reader:
         def require_identity(self):
             pass
+
         def get_ranking(self, **kwargs):
-            seen.append(current_lane())
+            seen.append(('ranking', current_lane()))
             return []
-    try:
-        RankingSource(Reader()).fetch(RankingQuery())
-    except Exception:
-        pass                               # the response shape is irrelevant here; only the lane at the GET matters
-    assert seen == ['interactive']
 
-
-def test_tag_search_stays_in_the_background_lane_like_the_original():
-    from pixivvault_nicegui.ranking_source import RankingSource, RankingQuery
-    seen = []
-
-    class Reader:
-        def require_identity(self):
-            pass
         def search_illusts(self, *a, **k):
-            seen.append(current_lane())
+            seen.append(('tag', current_lane()))
             return {'works': []}
-    try:
-        RankingSource(Reader()).fetch(RankingQuery(tag='test'))
-    except Exception:
-        pass
-    assert seen == ['background']
-
-
-def test_successful_issue_leaves_the_queue_in_the_same_locked_step():
-    gate, clock = _gate()
-    gate(1000.0)
-    assert gate._interactive == [] and gate._background == []
+    for query in (RankingQuery(), RankingQuery(tag='test')):
+        try:
+            RankingSource(Reader()).fetch(query)
+        except Exception:
+            pass                           # the response shape is irrelevant; only the lane at the GET matters
+    assert seen == [('ranking', 'interactive'), ('tag', 'background')]
