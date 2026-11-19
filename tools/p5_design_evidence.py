@@ -35,7 +35,7 @@ PROFILES = ("normal", "empty", "long")
 SCREENS = {
     "queue": "queue", "failed": "failed", "dedup": "dedup", "learning": "learning",
     "ranking": "ranking", "library": "library", "bookmarks": "library/マイブックマーク",
-    "recommend": "recommend", "history": "history", "settings": "settings", "personal": None,
+    "recommend": "recommend", "history": "history", "settings": "settings", "personal": "ranking/自分",
     "scheduler": None, "metadata": None, "download": "download",
 }
 SENTINEL = "P5合成データ"
