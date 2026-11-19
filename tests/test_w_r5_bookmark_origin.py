@@ -16,8 +16,8 @@ async def test_unverified_legacy_bookmark_run_does_not_resume(tmp_path, old_acco
         ledger = services.batch_run_ledger
         old_run = ledger.begin_run('bookmarks', 'manual', 'both', (VISIBILITY_ROWS['show'],),
                                    account_id=old_account)
-        ledger.update_author(old_run, VISIBILITY_ROWS['show'], state='downloading')
-        ledger.recover_interrupted()
+        ledger.update_author(old_run, VISIBILITY_ROWS['show'], state='downloading', account_id=ledger.run(old_run).account_id)
+        ledger._recover_interrupted()
         services.batch_runs.account_id = '77'
         count = len(ledger.runs())
         with pytest.raises(RunNeedsConfirmation):
@@ -71,7 +71,7 @@ async def test_version2_ledger_migrates_existing_account_as_unknown(tmp_path):
     services = services_with_runs(tmp_path)
     ledger = services.batch_run_ledger
     run_id = ledger.begin_run('bookmarks', 'manual', 'both', (VISIBILITY_ROWS['show'],), account_id='77')
-    ledger.recover_interrupted()
+    ledger._recover_interrupted()
     path = ledger.path
     await asyncio.to_thread(services.close)
     with sqlite3.connect(path) as db:

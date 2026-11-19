@@ -8,12 +8,13 @@ from types import SimpleNamespace as NS
 import pytest
 
 from pixivvault_nicegui import unified_download_state as U
+from account_test_support import observed_scope
 from pixivvault_nicegui.account_scope import AccountMismatch, AccountScope, BoundSchedulerLedger, OwnedListing
 from pixivvault_nicegui.batch_engine import BatchRunEngine, ServicesPort
 from pixivvault_nicegui.batch_runs import BatchRunError, BatchRunLedger
 from pixivvault_nicegui.bookmark_remote_adapter import RemoteBookmark
 from pixivvault_nicegui.favourites import FavouriteBook
-from pixivvault_nicegui.following_sync import FollowingSyncStore
+from pixivvault_nicegui.following_sync import FollowingSyncError, FollowingSyncStore
 from pixivvault_nicegui.managed_scheduler import ManagedScheduler, ScheduleAccountError
 from pixivvault_nicegui.services import ApplicationServices
 from pixivvault_nicegui.ui.unified_download_view import UnifiedDownloadView
@@ -31,7 +32,7 @@ def sync_accounts(store, reader):
         reader._verified_identity = account
         store.sync(reader)
         store.set_favorite(account, author, True)
-        store.record_downloaded(account, X, DATE)
+        store.record_downloaded(account, X, DATE, scope=observed_scope(account))
 
 
 def dump(store, scheduler, batch):
@@ -79,24 +80,66 @@ READ_ONLY = {
     BoundSchedulerLedger: {},
 }
 
+# The value supplies the valid non-ownership arguments for each reflected call.
+# Adding a method here also adds its negative ownership tests automatically.
 OWNER_BOUND = {
     ManagedScheduler: {
-        "touch_revision", "configure", "claim_due", "complete", "acknowledge_interrupted",
-        "begin_dispatch", "finish_dispatch", "update_dispatch_progress", "prepare_dispatch_item",
-        "bind_dispatch_job", "fail_dispatch_item", "defer_work", "resolve_deferred", "reconcile_jobs",
-        "claim_pending_notifications", "mark_notified", "set_favourites", "set_star",
-        "configure_all", "bind_account", "sync_favourites",
+        "configure": lambda c, p: c.ledger.configure(interval_hours=6, startup_check=True,
+            expected_revision=c.revision, now=c.now, account_id=p.account),
+        "configure_all": lambda c, p: c.ledger.configure_all(author_ids=(), interval_hours=6, startup_check=True,
+            expected_revision=c.revision, now=c.now, account_id=p.account),
+        "set_favourites": lambda c, p: c.ledger.set_favourites((), expected_revision=c.revision, account_id=p.account),
+        "set_star": lambda c, p: c.ledger.set_star(c.book, X, False, account_id=p.account),
+        "bind_account": lambda c, p: c.ledger.bind_account(A, scope=p.scope),
+        "acknowledge_interrupted": lambda c, p: c.ledger.acknowledge_interrupted(
+            expected_revision=c.revision, account_id=p.account),
+        "begin_dispatch": lambda c, p: c.ledger.begin_dispatch("new", c.now, 1, account_id=p.account),
+        "finish_dispatch": lambda c, p: c.ledger.finish_dispatch(
+            "existing", status="empty", accepted=0, deferred=0, account_id=p.account),
+        "update_dispatch_progress": lambda c, p: c.ledger.update_dispatch_progress(
+            "existing", accepted=1, deferred=0, account_id=p.account),
+        "prepare_dispatch_item": lambda c, p: c.ledger.prepare_dispatch_item(
+            slot="existing", work_id="200", author_id=X, operation_id="op", account_id=p.account),
+        "bind_dispatch_job": lambda c, p: c.ledger.bind_dispatch_job(
+            slot="existing", work_id="200", operation_id="op", job_id="job",
+            accepted_fingerprint="fingerprint", account_id=p.account),
+        "fail_dispatch_item": lambda c, p: c.ledger.fail_dispatch_item(
+            slot="existing", work_id="200", operation_id="op", account_id=p.account),
+        "defer_work": lambda c, p: c.ledger.defer_work(author_id=X, work=WORK, now=c.now, account_id=p.account),
+        "resolve_deferred": lambda c, p: c.ledger.resolve_deferred(X, HELD["id"], account_id=p.account),
+        "reconcile_jobs": lambda c, p: c.ledger.reconcile_jobs((), {}, account_id=p.account),
+        "claim_pending_notifications": lambda c, p: c.ledger.claim_pending_notifications(account_id=p.account),
+        "mark_notified": lambda c, p: c.ledger.mark_notified(("200",), account_id=p.account),
     },
     BatchRunLedger: {
-        "begin_run", "set_run_state", "recover_interrupted", "discard_run", "update_author",
-        "complete_author", "complete_bookmark_row", "finish_author", "record_item", "record_items",
+        "begin_run": lambda c, p: c.batch.begin_run("authors", "manual", "both", (X,),
+            account_id=p.account, resume_from=c.run),
+        "set_run_state": lambda c, p: c.batch.set_run_state(c.run, "failed", account_id=p.account),
+        "discard_run": lambda c, p: c.batch.discard_run(c.run, account_id=p.account),
+        "update_author": lambda c, p: c.batch.update_author(c.run, X, state="listing", account_id=p.account),
+        "complete_author": lambda c, p: c.batch.complete_author(c.run, X, listing=p.listing, following=c.store),
+        "complete_bookmark_row": lambda c, p: c.batch.complete_bookmark_row(c.run, X, account_id=p.account),
+        "finish_author": lambda c, p: c.batch.finish_author(c.run, X, "failed", account_id=p.account),
+        "record_item": lambda c, p: c.batch.record_item(c.run, X, "200", "illustration", "op", account_id=p.account),
+        "record_items": lambda c, p: c.batch.record_items(c.run, X,
+            (("200", "illustration", "op", None, "queued"),), account_id=p.account),
     },
-    FavouriteBook: {"set"},
+    FavouriteBook: {"set": lambda c, p: c.book.set(X, False, account_id=p.account)},
     FollowingSyncStore: {
-        "sync", "clear_account", "record_followed", "record_unfollowed", "set_favorite",
-        "replace_favorites", "record_downloaded",
+        "sync": lambda c, p: c.store.sync(p.sync_reader),
+        "clear_account": lambda c, p: c.store.clear_account(A, scope=p.scope),
+        "record_followed": lambda c, p: c.store.record_followed(A, X, scope=p.scope),
+        "record_unfollowed": lambda c, p: c.store.record_unfollowed(A, X, scope=p.scope),
+        "set_favorite": lambda c, p: c.store.set_favorite(p.account, X, False),
+        "replace_favorites": lambda c, p: c.store.replace_favorites(p.account, ()),
+        "record_downloaded": lambda c, p: c.store.record_downloaded(A, X, DATE, scope=p.scope),
     },
-    BoundSchedulerLedger: {"defer_work", "resolve_deferred"},
+    BoundSchedulerLedger: {
+        "defer_work": lambda c, p: BoundSchedulerLedger(c.ledger, p.scope, p.services).defer_work(
+            author_id=X, work=WORK, now=c.now),
+        "resolve_deferred": lambda c, p: BoundSchedulerLedger(c.ledger, p.scope, p.services).resolve_deferred(
+            X, HELD["id"]),
+    },
 }
 
 
@@ -112,51 +155,41 @@ def test_every_public_method_has_one_classification(cls):
     assert public_methods(cls) == set(reads).union(writes)
 
 
-# Register every new scoped read or durable write exit here.
-# An explicit ID can read its own rows. An OwnedListing cannot stand in for an ID.
-SINKS = (
-    ("book.ids", lambda c, aid, listing: c.book.ids(aid), False),
-    ("book.set", lambda c, aid, listing: c.book.set(X, False, account_id=aid), True),
-    ("scheduler.favourites", lambda c, aid, listing: c.ledger.favourites(aid), False),
-    ("scheduler.set_favourites", lambda c, aid, listing: c.ledger.set_favourites(
-        (), expected_revision=c.revision, account_id=aid), True),
-    ("scheduler.set_star", lambda c, aid, listing: c.ledger.set_star(c.book, X, False, account_id=aid), True),
-    ("scheduler.configure_all", lambda c, aid, listing: c.ledger.configure_all(
-        author_ids=(), interval_hours=6, startup_check=True, expected_revision=c.revision,
-        now=c.now, account_id=aid), True),
-    ("scheduler.configure", lambda c, aid, listing: c.ledger.configure(
-        interval_hours=6, startup_check=True, expected_revision=c.revision,
-        now=c.now, account_id=aid), True),
-    ("scheduler.defer_work", lambda c, aid, listing: c.ledger.defer_work(
-        author_id=X, work=WORK, now=c.now, account_id=aid), True),
-    ("scheduler.resolve_deferred", lambda c, aid, listing: c.ledger.resolve_deferred(
-        X, HELD["id"], account_id=aid), True),
-    ("batch.complete_author", lambda c, aid, listing: c.batch.complete_author(
-        c.run, X, listing=listing, following=c.store), True),
-)
+def reflected_write_cases():
+    for cls, reads in READ_ONLY.items():
+        for method in sorted(public_methods(cls) - set(reads)):
+            yield pytest.param(cls, method, id=f"{cls.__name__}.{method}")
 
 
-@pytest.mark.parametrize("name,invoke,uses_account_id", SINKS, ids=[entry[0] for entry in SINKS])
+@pytest.mark.parametrize("cls,method", reflected_write_cases())
 @pytest.mark.parametrize("evidence", ("absent", "unbound", "other_account"))
-def test_account_sinks_reject_without_writing_any_table(tmp_path, name, invoke, uses_account_id, evidence):
+def test_account_sinks_reject_without_writing_any_table(tmp_path, cls, method, evidence):
+    invoke = OWNER_BOUND[cls][method]
     with resources(tmp_path) as (_, store, ledger, reader, svc):
         sync_accounts(store, reader)
         now = datetime.now(timezone.utc)
-        ledger.bind_account(A)
+        ledger.bind_account(A, scope=observed_scope(A))
         ledger.defer_work(author_id=X, work=HELD, now=now, account_id=A)
+        ledger.begin_dispatch("existing", now, 1, account_id=A)
         batch = BatchRunLedger(tmp_path / "batch")
         try:
-            run = batch.begin_run("authors", "manual", "both", (X,), account_id=A)
+            kind = "bookmarks" if method == "complete_bookmark_row" else "authors"
+            run = batch.begin_run(kind, "manual", "both", (X,), account_id=A)
+            if method in ("begin_run", "discard_run"):
+                batch.set_run_state(run, "stopped", account_id=A)
             context = NS(book=svc.favourite_book(), ledger=ledger, batch=batch, run=run,
                          store=store, now=now, revision=ledger.snapshot().revision)
-            unbound = OwnedListing(AccountScope(A), X, "both", ())
-            other = OwnedListing(AccountScope(B, NS(_verified_identity=B)), X, "both", ())
-            proof = {"absent": None, "unbound": unbound, "other_account": other}[evidence]
-            account_arg = B if uses_account_id and evidence == "other_account" else proof
+            scope = {"absent": None, "unbound": AccountScope(A), "other_account": observed_scope(B)}[evidence]
+            identities = iter((A, B))
+            other_sync = NS(require_identity=lambda: next(identities), get_following_users_detailed=lambda *args: ())
+            proof = NS(account={"absent": None, "unbound": AccountScope(A), "other_account": B}[evidence],
+                       scope=scope, listing=None if scope is None else OwnedListing(scope, X, "both", ()),
+                       services=NS(live_client=scope.reader if scope is not None else None),
+                       sync_reader={"absent": None, "unbound": object(), "other_account": other_sync}[evidence])
             before = dump(store, ledger, batch)
-            with pytest.raises((AccountMismatch, ScheduleAccountError)):
-                invoke(context, account_arg, proof)
-            assert dump(store, ledger, batch) == before, name
+            with pytest.raises((AccountMismatch, ScheduleAccountError, FollowingSyncError)):
+                invoke(context, proof)
+            assert dump(store, ledger, batch) == before
         finally:
             batch.close()
 
@@ -173,7 +206,7 @@ def test_unbound_scheduler_and_bookmark_only_exit_cannot_write_author_state(tmp_
             with pytest.raises(ScheduleAccountError):
                 ledger.resolve_deferred(X, HELD["id"], account_id=A)
             with pytest.raises(BatchRunError):
-                batch.complete_bookmark_row(run, X)
+                batch.complete_bookmark_row(run, X, account_id=batch.run(run).account_id)
             assert dump(store, ledger, batch) == before
         finally:
             batch.close()
@@ -205,7 +238,7 @@ def test_manual_start_refuses_stale_follow_target_before_creating_run(tmp_path):
 
 def dispatch_fixture(root, store, ledger, reader, svc, route, observation):
     sync_accounts(store, reader)
-    ledger.bind_account(A)
+    ledger.bind_account(A, scope=observed_scope(A))
     ledger.defer_work(author_id=X, work=HELD, now=datetime.now(timezone.utc), account_id=A)
     use_media_dispatch(root, reader, svc, switch_at=None)
     svc._media_admission_lock = RLock()

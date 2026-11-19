@@ -47,7 +47,7 @@ async def test_accepted_count_visible_before_next_author_finishes(tmp_path,route
             AccountScope("42", services.live_client), aid, "both", inventory(aid)),enqueue_author_media=enqueue,enqueue_managed_download=enqueue,
         remember_managed_author_batch=lambda owner,records:records,
         forget_accepted_managed_author_batch=lambda *a:None,release_managed_owner=lambda *a:None,
-        managed_scheduler=ledger,reconcile_managed_scheduler=lambda:ledger.reconcile_jobs(queue,{}))
+        managed_scheduler=ledger,reconcile_managed_scheduler=lambda:ledger.reconcile_jobs(queue,{}, account_id=ledger._bound_account()))
     client=Client(ui.page('/generated-flr01-'+route+'-'+ending))
     task=view=None
     try:

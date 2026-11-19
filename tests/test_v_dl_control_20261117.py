@@ -30,7 +30,7 @@ def test_a_stopped_run_is_resumed_over_the_unfinished_authors_only(env):
     offer = engine.resumable_run()
     assert offer.run_id == first and ledger.unfinished_authors(first) == ('42', '43')
     port.calls.clear()
-    second = engine.start_unfinished(first)
+    second = engine.start_unfinished(first, account_id=ACCOUNT)
     assert engine.join(5) and ledger.run(second).state == 'done'
     assert [a.author_id for a in ledger.authors(second)] == ['42', '43']
     assert ('list', '41', 'both') not in port.calls and ('list', '42', 'both') in port.calls
@@ -49,15 +49,15 @@ def test_a_finished_run_is_never_offered_even_with_a_failed_author(env):
 
 def test_resume_without_an_offer_is_refused(env):
     engine = engine_for(FakePort({}), env)
-    with pytest.raises(RuntimeError, match='no resumable run'):
-        engine.start_unfinished()
+    with pytest.raises(RuntimeError, match='account changed'):
+        engine.start_unfinished('1' * 32, account_id=ACCOUNT)
 
 
 def test_a_run_left_active_by_a_crash_becomes_interrupted_without_any_traffic(env):
     ledger, _ = env
     port = FakePort({'41': (cand('41', 1),)})
     run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=ACCOUNT)
-    ledger.update_author(run_id, '41', state='listing')
+    ledger.update_author(run_id, '41', state='listing', account_id=ledger.run(run_id).account_id)
     engine = engine_for(port, env)
     assert engine.recover() == (run_id,)
     assert port.calls == [] and port.enqueued == []             # nothing talks to Pixiv at start-up
@@ -68,10 +68,10 @@ def test_a_run_left_active_by_a_crash_becomes_interrupted_without_any_traffic(en
 
 def test_discard_ends_the_offer_and_survives_a_reopen(tmp_path):
     ledger = BatchRunLedger(tmp_path / 'runs')
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('41',))
-    ledger.recover_interrupted()
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=ACCOUNT)
+    ledger._recover_interrupted()
     assert ledger.resumable_run().run_id == run_id
-    ledger.discard_run(run_id)
+    ledger.discard_run(run_id, account_id=ledger.run(run_id).account_id)
     assert ledger.resumable_run() is None
     ledger.close()
     reopened = BatchRunLedger(tmp_path / 'runs')
@@ -82,8 +82,8 @@ def test_discard_ends_the_offer_and_survives_a_reopen(tmp_path):
 def test_a_version_1_ledger_is_migrated_in_place(tmp_path):
     import sqlite3
     ledger = BatchRunLedger(tmp_path / 'runs')
-    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'))
-    ledger.recover_interrupted()
+    run_id = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=None)
+    ledger._recover_interrupted()
     ledger.close()
     database = sqlite3.connect(str(tmp_path / 'runs' / 'batch-runs.sqlite3'))
     database.executescript('DROP TABLE run_flags; PRAGMA user_version=1;')
@@ -95,10 +95,10 @@ def test_a_version_1_ledger_is_migrated_in_place(tmp_path):
 
 def test_only_the_newest_run_can_be_resumed(env):
     ledger, _ = env
-    old = ledger.begin_run('authors', 'manual', 'both', ('41',))
-    ledger.recover_interrupted()
-    newer = ledger.begin_run('authors', 'manual', 'both', ('42',))
-    ledger.set_run_state(newer, 'done')
+    old = ledger.begin_run('authors', 'manual', 'both', ('41',), account_id=None)
+    ledger._recover_interrupted()
+    newer = ledger.begin_run('authors', 'manual', 'both', ('42',), account_id=None)
+    ledger.set_run_state(newer, 'done', account_id=ledger.run(newer).account_id)
     assert ledger.resumable_run() is None and old != newer
 
 
@@ -177,7 +177,7 @@ def test_resume_after_a_restart_stamps_with_the_account_that_began_the_run(env):
     # a new process: its engine starts without any account
     fresh = BatchRunEngine(port, ledger, following=following, account_id=None,
                            poll_seconds=0.001, wait=lambda s: None)
-    second = fresh.start_unfinished(first)
+    second = fresh.start_unfinished(first, account_id=ACCOUNT)
     assert fresh.join(5) and ledger.run(second).state == 'done'
     assert all(stamps(following)[u] for u in ('41', '42', '43'))
 
@@ -214,18 +214,18 @@ def test_real_jobservice_pause_and_resume_through_the_services_port(tmp_path):
 
 def test_d_an_automatic_check_does_not_hide_the_interrupted_manual_run(env):
     ledger, _ = env
-    manual = ledger.begin_run('authors', 'manual', 'both', ('41', '42'))
-    ledger.recover_interrupted()
-    auto = ledger.begin_run('authors', 'auto', 'both', ('43',))
-    ledger.set_run_state(auto, 'done')
+    manual = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=None)
+    ledger._recover_interrupted()
+    auto = ledger.begin_run('authors', 'auto', 'both', ('43',), account_id=None)
+    ledger.set_run_state(auto, 'done', account_id=ledger.run(auto).account_id)
     assert ledger.resumable_run().run_id == manual           # the offer survives the timer's run
-    newer = ledger.begin_run('authors', 'manual', 'both', ('44',))
-    ledger.set_run_state(newer, 'done')
+    newer = ledger.begin_run('authors', 'manual', 'both', ('44',), account_id=None)
+    ledger.set_run_state(newer, 'done', account_id=ledger.run(newer).account_id)
     assert ledger.resumable_run() is None                    # a newer manual run does end it
 
 
 def test_d_an_interrupted_automatic_run_is_not_offered(env):
     ledger, _ = env
-    ledger.begin_run('authors', 'auto', 'both', ('41',))
-    ledger.recover_interrupted()
+    ledger.begin_run('authors', 'auto', 'both', ('41',), account_id=None)
+    ledger._recover_interrupted()
     assert ledger.resumable_run() is None

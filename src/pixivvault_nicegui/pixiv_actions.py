@@ -20,6 +20,7 @@ import math
 from threading import Event, RLock, get_ident
 import time
 
+from .account_scope import AccountScope
 from .bookmark_write_evidence import positive_id
 from .pixiv_read_client import (
     LivePixivReadClient, MAX_FOLLOWED_AUTHORS, ReadDeadlineExceeded, read_deadline_scope,
@@ -497,10 +498,10 @@ class PixivActions:
                 self._following.record_followed(
                     intent.account_id, intent.target_id,
                     observation.name or author_name, observation.restrict,
-                    expected_revision=control.local_revision)
+                    scope=AccountScope(intent.account_id, self._reader), expected_revision=control.local_revision)
             else:
                 self._following.record_unfollowed(intent.account_id, intent.target_id,
-                    expected_revision=control.local_revision)
+                    scope=AccountScope(intent.account_id, self._reader), expected_revision=control.local_revision)
             return False
         except Exception:
             # Remote success/observation survives a failed local transaction.

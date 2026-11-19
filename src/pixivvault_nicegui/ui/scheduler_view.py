@@ -5,7 +5,7 @@ import asyncio
 from datetime import datetime, timezone
 from threading import Event
 from uuid import uuid4
-from ..account_scope import AccountMismatch, require_same_account
+from ..account_scope import AccountMismatch, AccountScope, require_same_account
 from ..legacy_author_sync import LegacyAuthorSourceError
 from ..managed_scheduler import ScheduleAccountError
 
@@ -132,6 +132,16 @@ class SchedulerView:
             self._settings_dirty = True
             self.status.set_text('設定を再読込できませんでした')
 
+    def _displayed_history_account(self, ledger, account_id):
+        if getattr(ledger, '_account_guard', False):
+            mismatch = ScheduleAccountError('mismatch')
+            require_same_account(account_id, ledger.favourite_account(), error=mismatch)
+            if account_id is None:
+                raise mismatch
+            AccountScope(account_id, getattr(self.services, 'live_client', None)).verify_current(
+                self.services, error=mismatch)
+        return account_id
+
     async def acknowledge(self):
         if self.closed or self.services.managed_scheduler is None:
             return
@@ -142,6 +152,8 @@ class SchedulerView:
         try:
             ledger = self.services.managed_scheduler
             from ..job_service import UNFINISHED
+            account_id, revision = self._settings_account, self.revision
+
             def inspect():
                 # Never silently requeue an ambiguous accepted job; the
                 # existing JobService owns reconciliation and receipt checks.
@@ -149,10 +161,13 @@ class SchedulerView:
                     if any(job.state in UNFINISHED for job in self.services.jobs.snapshot()):
                         raise RuntimeError('unfinished managed jobs must be inspected first')
                     self.services.managed_schedule_runner.acknowledge_interrupted(
-                        expected_revision=self.revision)
+                        expected_revision=revision,
+                        account_id=self._displayed_history_account(ledger, account_id))
             await asyncio.to_thread(inspect)
             self.services.managed_schedule_runner.settings_changed()
             self._load(ledger)
+        except (ScheduleAccountError, AccountMismatch):
+            self.action_notice.set_text('同期先を確認して、定期チェック画面を再読込してください。')
         except Exception:
             self.status.set_text('未完了ジョブまたは設定更新があり中断状態を解除できません。キューを確認してください')
         finally:
@@ -176,7 +191,16 @@ class SchedulerView:
             if ledger is None:
                 return
             self._load(ledger)
-            pending = await asyncio.to_thread(ledger.claim_pending_notifications)
+            account_id = self._settings_account
+
+            def claim_notifications():
+                owner = self._displayed_history_account(ledger, account_id)
+                return ledger.claim_pending_notifications(account_id=owner)
+
+            try:
+                pending = await asyncio.to_thread(claim_notifications)
+            except (ScheduleAccountError, AccountMismatch):
+                pending = ()
             if self.closed:
                 return
             notification_error = False
@@ -203,9 +227,12 @@ class SchedulerView:
                 # separate durable state. Show both without replacing the
                 # schedule's interrupted/running status with an old history row.
                 self.status.set_text(f'{self.status.text} / 最終チェック: {status_label}')
+                finished = latest['finished_utc'] or ('実行中' if latest['status'] == 'running' else '完了日時なし')
                 self.history_label.set_text(
                     f'最終実行: {status_label} / 受付 {latest["accepted"]}件 / '
-                    f'保留 {latest["deferred"]}件 / {latest["finished_utc"] or "実行中"}')
+                    f'保留 {latest["deferred"]}件 / {finished}')
+                if latest.get('error_code') == AccountMismatch.code:
+                    self.action_notice.set_text(check_failure_message(AccountMismatch()))
             if notification_error and not self.closed:
                 self.action_notice.set_text('保存完了の通知を表示できませんでした。実行履歴で確認してください')
         except Exception:
@@ -241,6 +268,18 @@ class SchedulerView:
             form = (self.authors.value or '', self.interval.value, self.startup.value)
             revision = self.revision
             account_id = self._settings_account
+            if str(form[1]) == '0' and not form[2]:
+                authors_edited = form[0] != getattr(self, '_loaded_authors', '')
+                saved = await asyncio.to_thread(ledger._disable)
+                runner = getattr(self.services, 'managed_schedule_runner', None)
+                if runner is not None:
+                    runner.settings_changed()
+                self._settings_dirty = authors_edited or (self.authors.value or '', self.interval.value, self.startup.value) != form
+                self.revision = saved.revision
+                self._load(ledger)
+                if authors_edited:
+                    self.action_notice.set_text('停止を保存しました。☆の変更は再読込後に個別に保存してください。')
+                return
             require_same_account(account_id, ledger.favourite_account(),
                                  error=ScheduleAccountError('mismatch'))
             raw = tuple(part.strip() for part in form[0].split(',') if part.strip())
@@ -325,7 +364,7 @@ class SchedulerView:
                     source = getattr(self.services, 'scheduler_favourite_authors', None)
                     authors = source() if source is not None else ledger.favourites()
                     if source is not None:
-                        ledger.sync_favourites(authors)
+                        ledger._sync_favourites(authors)
                     return submit_author_batch(self.services, authors,
                                                cancellation=self.services._scheduler_cancel_event,
                                                ledger=ledger, slot=slot)

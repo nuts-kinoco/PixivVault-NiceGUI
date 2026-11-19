@@ -12,7 +12,7 @@ from test_w_review_favourites_20261118 import create_stars
 def test_form_save_blocks_then_rejects_stale_revision(tmp_path, monkeypatch):
     following, ledger, book = create_stars(tmp_path)
     star_written, form_attempting, allow_commit = Event(), Event(), Event()
-    original = ledger.touch_revision
+    original = ledger._touch_revision
 
     def hold_revision():
         star_written.set()
@@ -29,7 +29,7 @@ def test_form_save_blocks_then_rejects_stale_revision(tmp_path, monkeypatch):
         assert book.set('1000', True, account_id=ACCOUNT)
         before = ledger.snapshot()
         prior_follow = following.snapshot(book.account()).revision
-        monkeypatch.setattr(ledger, 'touch_revision', hold_revision)
+        monkeypatch.setattr(ledger, '_touch_revision', hold_revision)
         with ThreadPoolExecutor(max_workers=2) as pool:
             click = pool.submit(book.set, '1001', True, account_id=ACCOUNT)
             try:

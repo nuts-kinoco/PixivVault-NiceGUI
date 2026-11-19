@@ -58,7 +58,7 @@ async def test_bookmarks_resume_pauses_when_gate_closes(tmp_path, when):
     owner = services_with_runs(tmp_path)
     row_id = VISIBILITY_ROWS['show']
     run_id = owner.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row_id,), account_id='55', verified_bookmark_account=True)
-    owner.batch_run_ledger.update_author(run_id, row_id, state='downloading')
+    owner.batch_run_ledger.update_author(run_id, row_id, state='downloading', account_id=owner.batch_run_ledger.run(run_id).account_id)
     await asyncio.to_thread(owner.close)
 
     integration = ManagedNetworkStopIntegration(tmp_path / 'managed')

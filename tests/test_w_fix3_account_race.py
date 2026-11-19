@@ -18,7 +18,7 @@ async def test_rejected_concurrent_start_cannot_rebind_active_resume(tmp_path):
     try:
         previous = first.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row,),
                                                     account_id='55', verified_bookmark_account=True)
-        first.batch_run_ledger.update_author(previous, row, state='downloading')
+        first.batch_run_ledger.update_author(previous, row, state='downloading', account_id=first.batch_run_ledger.run(previous).account_id)
     finally:
         await asyncio.to_thread(first.close)
 
@@ -50,7 +50,7 @@ async def test_rejected_concurrent_start_cannot_rebind_active_resume(tmp_path):
         assert owner.batch_run_ledger.run(current).account_id == '55'
         reader.verify_identity()
         with pytest.raises(RuntimeError, match='already active'):
-            owner.start_batch_run(('1000',), origin='auto', account_id='77')
+            owner.start_batch_run(('1000',), origin='manual', account_id='77')
         finish.set()
         assert await asyncio.to_thread(owner.batch_runs.join, 12)
         run = owner.batch_run_ledger.run(current)

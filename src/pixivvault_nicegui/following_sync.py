@@ -16,7 +16,7 @@ import sqlite3
 from threading import RLock
 import time
 
-from .account_scope import require_same_account
+from .account_scope import AccountMismatch, AccountScope, require_same_account
 from .bookmark_remote_adapter import profile_image_url
 from .fs_paths import native_io_path, sqlite_readonly_uri
 from .managed_downloads import _safe_path, _read_bounded, _write, _fsync_dir
@@ -270,7 +270,7 @@ class FollowingSyncStore:
             except Exception:
                 pass
             raise FollowingSyncError() from None
-        if isinstance(error, FollowingSyncError):
+        if isinstance(error, (FollowingSyncError, AccountMismatch)):
             raise error from None
         if isinstance(error, Exception):
             raise FollowingSyncError() from None
@@ -322,6 +322,8 @@ class FollowingSyncStore:
                 self._abort(error)
 
     def sync(self, reader, *, expected_revision=None, cancelled=None, timeout=120):
+        if not callable(getattr(reader, 'require_identity', None)):
+            raise AccountMismatch()
         expected_revision = _revision(expected_revision)
         if (type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0
                 or (cancelled is not None and not callable(cancelled))):
@@ -400,7 +402,14 @@ class FollowingSyncStore:
             except BaseException as error:
                 self._abort(error)
 
-    def clear_account(self, account_id):
+    @staticmethod
+    def _require_scope(account_id, scope):
+        if type(scope) is not AccountScope:
+            raise AccountMismatch()
+        scope.verify_observed()
+        require_same_account(account_id, scope.account_id)
+
+    def clear_account(self, account_id, *, scope):
         """Delete one account's saved following data (the original's account switch).
 
         Irreversible: is_favorite / is_zipped / last_downloaded exist only here.
@@ -408,6 +417,7 @@ class FollowingSyncStore:
         """
         account_id = _identifier(account_id)
         with self._lock:
+            self._require_scope(account_id, scope)
             try:
                 self._ensure_open()
                 self._connection.execute('BEGIN IMMEDIATE')
@@ -417,13 +427,14 @@ class FollowingSyncStore:
             except BaseException as error:
                 self._abort(error)
 
-    def record_followed(self, account_id, user_id, name='', restrict=0, *, expected_revision=None):
+    def record_followed(self, account_id, user_id, name='', restrict=0, *, scope, expected_revision=None):
         account_id, user_id = _identifier(account_id), _identifier(user_id)
         name = _text(name)
         expected_revision = _revision(expected_revision)
         if type(restrict) is not int or restrict not in (0, 1):
             raise FollowingSyncError()
         def record(connection, before):
+            self._require_scope(account_id, scope)
             existing = next((row for row in before.authors if row.user_id == user_id), None)
             if existing is not None:
                 if existing.is_following and existing.restrict == restrict:
@@ -438,10 +449,11 @@ class FollowingSyncStore:
             return True
         return self._commit(account_id, expected_revision, record)
 
-    def record_unfollowed(self, account_id, user_id, *, expected_revision=None):
+    def record_unfollowed(self, account_id, user_id, *, scope, expected_revision=None):
         account_id, user_id = _identifier(account_id), _identifier(user_id)
         expected_revision = _revision(expected_revision)
         def record(connection, before):
+            self._require_scope(account_id, scope)
             if not any(row.user_id == user_id and row.is_following for row in before.authors):
                 return False
             connection.execute('UPDATE following_authors SET is_following=0 WHERE account_id=? AND user_id=?',
@@ -462,7 +474,9 @@ class FollowingSyncStore:
             connection.execute('UPDATE following_authors SET is_favorite=? WHERE account_id=? AND user_id=?',
                                (int(favorite), account_id, user_id))
             return True
-        return self._commit(account_id, expected_revision, record)
+        with self._lock:
+            require_same_account(account_id, self.last_synced_account())
+            return self._commit(account_id, expected_revision, record)
 
     def replace_favorites(self, account_id, author_ids):
         """Replace the stars in one following-ledger transaction."""
@@ -484,10 +498,12 @@ class FollowingSyncStore:
                     changed = True
             return changed
 
-        self._commit(account_id, None, record)
+        with self._lock:
+            require_same_account(account_id, self.last_synced_account())
+            self._commit(account_id, None, record)
         return tuple(result)
 
-    def record_downloaded(self, account_id, user_id, at=None, *, expected_revision=None):
+    def record_downloaded(self, account_id, user_id, at=None, *, scope, expected_revision=None):
         """Stamp last_downloaded for one author the account already has a row for.
 
         Mirrors the original's `UPDATE following_users SET last_downloaded` (0 rows
@@ -499,6 +515,7 @@ class FollowingSyncStore:
         expected_revision = _revision(expected_revision)
         at = _stamp(datetime.now(timezone.utc).isoformat() if at is None else at)
         def record(connection, before):
+            self._require_scope(account_id, scope)
             if not any(row.user_id == user_id for row in before.authors):
                 return False
             connection.execute('UPDATE following_authors SET last_downloaded=? WHERE account_id=? AND user_id=?',

@@ -130,7 +130,7 @@ def test_a_stopped_bookmark_run_can_be_continued_over_the_unfinished_visibility(
         assert engine.join(10)
         assert engine.resumable_run().kind == 'bookmarks'
         port.hold = False
-        engine.start_unfinished()
+        engine.start_unfinished(engine.resumable_run().run_id)
         assert engine.join(10)
         assert sorted(set(port.listed)) == ['hide', 'show'] and ledger.runs()[0].state == 'done'
     finally:

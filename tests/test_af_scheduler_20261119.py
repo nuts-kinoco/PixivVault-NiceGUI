@@ -3,6 +3,7 @@ from threading import Event
 
 import pytest
 
+from account_test_support import observed_scope
 from pixivvault_nicegui.services import ApplicationServices
 from pixivvault_nicegui.managed_scheduler import ManagedScheduler, ManagedScheduleRunner, ScheduleError, submit_author_batch
 
@@ -63,10 +64,10 @@ def test_scheduler_refreshes_star_cache_without_losing_settings_revision(tmp_pat
     ledger = ManagedScheduler(tmp_path)
     try:
         revision = ledger.snapshot().revision
-        ledger.bind_account('42')
-        ledger.sync_favourites(tuple(str(i) for i in range(1, 132)))
+        ledger.bind_account('42', scope=observed_scope('42'))
+        ledger._sync_favourites(tuple(str(i) for i in range(1, 132)))
         assert len(ledger.favourites()) == 131
-        ledger.sync_favourites(('9',))
+        ledger._sync_favourites(('9',))
         assert ledger.favourites() == ('9',)
         assert ledger.snapshot().revision == revision
     finally:
@@ -83,7 +84,7 @@ def test_unbound_existing_state_is_preserved_and_cannot_be_adopted(tmp_path):
         assert ledger.favourites() == ('9',)
         assert ledger.deferred_count() == 1
         with pytest.raises(ScheduleError):
-            ledger.bind_account('42')
+            ledger.bind_account('42', scope=observed_scope('42'))
         assert ledger.favourites() == ('9',) and ledger.deferred_count() == 1
     finally:
         ledger.close()
@@ -92,12 +93,12 @@ def test_unbound_existing_state_is_preserved_and_cannot_be_adopted(tmp_path):
 def test_bound_account_rejects_other_account_without_changing_work(tmp_path):
     ledger = ManagedScheduler(tmp_path)
     try:
-        ledger.bind_account('42')
-        ledger.sync_favourites(('9',))
+        ledger.bind_account('42', scope=observed_scope('42'))
+        ledger._sync_favourites(('9',))
         ledger.defer_work(author_id='9', work={'id':'100','update_date':'2020','page_count':1,'type':0}, now=__import__('datetime').datetime.now(__import__('datetime').timezone.utc))
         with pytest.raises(ScheduleError):
-            ledger.bind_account('43')
-        ledger.sync_favourites(())
+            ledger.bind_account('43', scope=observed_scope('43'))
+        ledger._sync_favourites(())
         assert ledger.deferred_count() == 1
     finally:
         ledger.close()
@@ -106,8 +107,8 @@ def test_bound_account_rejects_other_account_without_changing_work(tmp_path):
 def test_off_schedule_does_not_dispatch_deferred_backlog(tmp_path):
     from datetime import datetime, timezone
     ledger = ManagedScheduler(tmp_path)
-    ledger.bind_account('42')
-    ledger.sync_favourites(('9',))
+    ledger.bind_account('42', scope=observed_scope('42'))
+    ledger._sync_favourites(('9',))
     ledger.defer_work(author_id='9', work={'id':'100','update_date':'2020','page_count':1,'type':0}, now=datetime.now(timezone.utc))
     state = ledger.snapshot()
     ledger.configure(interval_hours=0, startup_check=False, expected_revision=state.revision, now=datetime.now(timezone.utc))

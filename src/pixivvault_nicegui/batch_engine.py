@@ -288,34 +288,44 @@ class BatchRunEngine:
         with self._cond:
             if self.active:
                 return ()
-            return self.ledger.recover_interrupted()
+            return self.ledger._recover_interrupted()
 
     def resumable_run(self):
         """The run the screen offers as 「前回は途中で止まりました。再開／破棄」, or None."""
         with self._cond:
             return None if self.active else self.ledger.resumable_run()
 
-    def discard_resumable(self):
+    def _displayed_resume(self, run_id):
         run = self.resumable_run()
-        if run is not None:
-            self.ledger.discard_run(run.run_id)
+        if run is None or run.run_id != run_id:
+            raise AccountMismatch()
         return run
 
-    def start_unfinished(self, run_id=None, *, bookmark_refresh=None):
-        """Resume = a new run over the authors the earlier run did not finish (done ones are skipped)."""
-        run = self.ledger.resumable_run()
-        if run is None or (run_id is not None and run.run_id != run_id):
-            raise RuntimeError('no resumable run')
-        verified = run.kind == 'bookmarks' and self.ledger.has_verified_bookmark_account(run.run_id)
-        if run.kind == 'bookmarks' and (not verified or not run.account_id):
-            raise RunNeedsConfirmation('account_unknown')
-        authors = self.ledger.unfinished_authors(run.run_id)
-        # The stamps belong to the account that began the run, also after a restart (the engine of
-        # a new process starts without one).
-        account_id = run.account_id
-        preflight = (lambda: bookmark_refresh(account_id)) if run.kind == 'bookmarks' and bookmark_refresh else None
-        return self.start(authors, kind=run.kind, origin=run.origin, target_type=run.target_type or None,
-                          preflight=preflight, account_id=account_id, verified_bookmark_account=verified)
+    def discard_resumable(self, run_id, *, account_id):
+        with self._cond:
+            run = self._displayed_resume(run_id)
+            self.ledger.discard_run(run.run_id, account_id=account_id)
+            return run
+
+    def start_unfinished(self, run_id, *, account_id=None, bookmark_refresh=None):
+        """Resume the exact displayed run over its unfinished rows."""
+        with self._cond:
+            run = self._displayed_resume(run_id)
+            verified = run.kind == 'bookmarks' and self.ledger.has_verified_bookmark_account(run.run_id)
+            if run.kind == 'bookmarks':
+                if not verified or not run.account_id:
+                    raise RunNeedsConfirmation('account_unknown')
+                if account_id is not None:
+                    require_same_account(run.account_id, account_id)
+                account_id = run.account_id
+            else:
+                AccountScope(account_id)
+                require_same_account(run.account_id, account_id)
+            authors = self.ledger.unfinished_authors(run.run_id)
+            preflight = (lambda: bookmark_refresh(account_id)) if verified and bookmark_refresh else None
+            return self.start(authors, kind=run.kind, origin=run.origin, target_type=run.target_type or None,
+                              preflight=preflight, account_id=account_id, verified_bookmark_account=verified,
+                              resume_from=run.run_id)
 
     def join(self, timeout=None):
         thread = self._thread
@@ -326,7 +336,7 @@ class BatchRunEngine:
     def _set_run(self, state, error_code=''):
         if self.run_id is not None:
             try:
-                self.ledger.set_run_state(self.run_id, state, error_code)
+                self.ledger.set_run_state(self.run_id, state, error_code, account_id=self.account_id)
             except BatchRunError:
                 pass
 
@@ -362,11 +372,11 @@ class BatchRunEngine:
 
     # -- entry points ------------------------------------------------------
     def start(self, author_ids, *, kind='authors', origin='manual', target_type=None, preflight=None,
-              account_id=_ACCOUNT_UNSET, verified_bookmark_account=False):
+              account_id=_ACCOUNT_UNSET, verified_bookmark_account=False, resume_from=None, on_finish=None):
         """Begin a run on its own thread and return the run id."""
         run_id = self._begin(author_ids, kind, origin, target_type, account_id=account_id,
-                             verified_bookmark_account=verified_bookmark_account)
-        self._thread = Thread(target=self._execute, args=(run_id, tuple(self._authors), preflight),
+                             verified_bookmark_account=verified_bookmark_account, resume_from=resume_from)
+        self._thread = Thread(target=self._execute, args=(run_id, tuple(self._authors), preflight, on_finish),
                               name='pixivvault-batch', daemon=True)
         self._thread.start()
         return run_id
@@ -378,7 +388,7 @@ class BatchRunEngine:
         return run_id
 
     def _begin(self, author_ids, kind, origin, target_type, *, account_id=_ACCOUNT_UNSET,
-               verified_bookmark_account=False):
+               verified_bookmark_account=False, resume_from=None):
         if kind not in ('authors', 'bookmarks'):
             raise ValueError('invalid run kind')
         if kind == 'bookmarks':
@@ -390,15 +400,15 @@ class BatchRunEngine:
         with self._cond:
             if self.active:
                 raise RuntimeError('a batch run is already active')
-            if account_id is not _ACCOUNT_UNSET:
-                self.account_id = account_id
+            owner = self.account_id if account_id is _ACCOUNT_UNSET else account_id
             # The ledger has one process owner, so a run still marked active while this engine
             # is idle is left over from a crash or shutdown: close it as `interrupted` first.
-            self.ledger.recover_interrupted()
-            self._authors = tuple(dict.fromkeys(author_ids))
-            self.run_id = self.ledger.begin_run(kind, origin, target_type or 'both',
-                                                self._authors, account_id=self.account_id,
-                                                verified_bookmark_account=verified_bookmark_account)
+            if resume_from is None:
+                self.ledger._recover_interrupted()
+            authors = tuple(dict.fromkeys(author_ids))
+            run_id = self.ledger.begin_run(kind, origin, target_type or 'both', authors, account_id=owner,
+                                           verified_bookmark_account=verified_bookmark_account, resume_from=resume_from)
+            self.account_id, self._authors, self.run_id = owner, authors, run_id
             self._stop = self._paused = False
             self.state, self.pause_reason = 'running', ''
             self._settled, self._retire_disabled = [], False
@@ -409,7 +419,7 @@ class BatchRunEngine:
             return self.run_id
 
     # -- the run -----------------------------------------------------------
-    def _execute(self, run_id, authors, preflight=None):
+    def _execute(self, run_id, authors, preflight=None, on_finish=None):
         total = len(authors)
         outcome, code = 'done', ''
         author_account = self.account_id
@@ -481,9 +491,13 @@ class BatchRunEngine:
             self._close_author(run_id, 'failed', code)
         finally:
             with self._cond:
-                self.state = outcome
-                self._paused = False
-            self._set_run(outcome, code)
+                self._set_run(outcome, code)
+                try:
+                    if on_finish is not None:
+                        on_finish(outcome, code, dict(self.totals))
+                finally:
+                    self.state = outcome
+                    self._paused = False
             self._emit('run_end', outcome=outcome, error_code=code, total=total,
                        elapsed=self._monotonic() - self._started)
 
@@ -492,7 +506,7 @@ class BatchRunEngine:
         author_id, self._current = self._current, None
         if author_id is not None:
             try:
-                self.ledger.finish_author(run_id, author_id, state, error_code=code)
+                self.ledger.finish_author(run_id, author_id, state, error_code=code, account_id=self.account_id)
             except BatchRunError:
                 pass  # already settled
 
@@ -503,14 +517,14 @@ class BatchRunEngine:
 
     def _reset_author(self, run_id, author_id):
         try:
-            self.ledger.update_author(run_id, author_id, state='pending')
+            self.ledger.update_author(run_id, author_id, state='pending', account_id=self.account_id)
         except BatchRunError:
             pass
 
     def _author_failed(self, run_id, index, total, author_id, error):
         code = type(error).__name__
         try:
-            self.ledger.finish_author(run_id, author_id, 'failed', error_code=code)
+            self.ledger.finish_author(run_id, author_id, 'failed', error_code=code, account_id=self.account_id)
         except BatchRunError:
             pass
         self._emit('author_failed', index=index, total=total, author_id=author_id, error_code=code)
@@ -531,7 +545,7 @@ class BatchRunEngine:
 
     def _process_author(self, run_id, index, total, author_id, expected_account):
         self._gate()
-        self.ledger.update_author(run_id, author_id, state='listing')
+        self.ledger.update_author(run_id, author_id, state='listing', account_id=self.account_id)
         self._emit('author_start', index=index, total=total, author_id=author_id)
         target = self._target_for(author_id)
         try:
@@ -558,7 +572,7 @@ class BatchRunEngine:
         self.port.verify_author_scope(listing.scope)
         self._observe_deletion(run_id, author_id, target, rows, counters)
         self._check_saved_capacity(rows)
-        self.ledger.update_author(run_id, author_id, state='downloading', counters=counters)
+        self.ledger.update_author(run_id, author_id, state='downloading', counters=counters, account_id=self.account_id)
         self._emit('author_listed', index=index, total=total, author_id=author_id, counters=dict(counters))
         queue = sorted((c for c in rows if c.eligible), key=lambda c: (-int(c.work_id), c.kind))
         failed = self._download(run_id, index, total, author_id, queue, listing=listing)
@@ -574,7 +588,7 @@ class BatchRunEngine:
         """One visibility of the bookmark run: list, save what is new, done. Never stamps."""
         from .bookmark_run import ROW_VISIBILITY
         self._gate()
-        self.ledger.update_author(run_id, row_id, state='listing')
+        self.ledger.update_author(run_id, row_id, state='listing', account_id=self.account_id)
         self._emit('author_start', index=index, total=total, author_id=row_id)
         try:
             rows = self.port.list_bookmarks(ROW_VISIBILITY[row_id])
@@ -593,13 +607,13 @@ class BatchRunEngine:
         for candidate in rows:
             counters[names[candidate.difference]] += 1
         self._check_saved_capacity(rows)
-        self.ledger.update_author(run_id, row_id, state='downloading', counters=counters)
+        self.ledger.update_author(run_id, row_id, state='downloading', counters=counters, account_id=self.account_id)
         self._emit('author_listed', index=index, total=total, author_id=row_id, counters=dict(counters))
         queue = sorted((c for c in rows if c.eligible), key=lambda c: (-int(c.work_id), c.kind))
         failed = self._download(run_id, index, total, row_id, queue, listing=None)
         counters['n_failed'] = failed
         self._check_state()
-        self.ledger.complete_bookmark_row(run_id, row_id, counters)
+        self.ledger.complete_bookmark_row(run_id, row_id, counters, account_id=self.account_id)
         for name in COUNTERS:
             self.totals[name] += counters[name]
         self._emit('author_done', index=index, total=total, author_id=row_id, counters=dict(counters))
@@ -625,7 +639,7 @@ class BatchRunEngine:
             scan_id = uuid4().hex
             remote = tuple(dict(id=c.work_id, user_id=c.author_id, type=c.work_type,
                                 page_count=c.page_count, update_date=c.update_date) for c in illust)
-            self.ledger.update_author(run_id, author_id, scan_id=scan_id, deletion_check='pending')
+            self.ledger.update_author(run_id, author_id, scan_id=scan_id, deletion_check='pending', account_id=self.account_id)
             try:
                 result = self.port.observe_deletion(author_id, remote, scan_id)
             except Exception:
@@ -637,7 +651,7 @@ class BatchRunEngine:
             else:
                 check = 'done'
                 counters['n_absent_pending'], counters['n_absent_confirmed'] = result
-        self.ledger.update_author(run_id, author_id, deletion_check=check)
+        self.ledger.update_author(run_id, author_id, deletion_check=check, account_id=self.account_id)
 
     def _hold_jobs(self, refs):
         hook = getattr(self.port, 'pause_jobs', None)
@@ -718,7 +732,7 @@ class BatchRunEngine:
                         pending.pop(0)
                         failed += 1
                         self.ledger.record_items(run_id, author_id, (
-                            (candidate.key, candidate.kind, operation_id, None, 'error'),))
+                            (candidate.key, candidate.kind, operation_id, None, 'error'),), account_id=self.account_id)
                         continue
                     pending.pop(0)
                     progressed = True
@@ -727,7 +741,7 @@ class BatchRunEngine:
                     ref = JobRef(candidate.kind, job_id, operation_id)
                     inflight[job_id] = (ref, candidate)
                     self.ledger.record_items(run_id, author_id, (
-                        (candidate.key, candidate.kind, operation_id, job_id, 'queued'),))
+                        (candidate.key, candidate.kind, operation_id, job_id, 'queued'),), account_id=self.account_id)
                 if inflight:
                     states = self.port.job_states([ref for ref, _ in inflight.values()])
                     if listing is not None:
@@ -756,8 +770,8 @@ class BatchRunEngine:
                             rows.append((candidate.key, candidate.kind, ref.operation_id, ref.job_id,
                                          {'done': 'done', 'error': 'error', 'stopped': 'stopped'}.get(state, 'lost')))
                             self._settled.append(ref)
-                        self.ledger.record_items(run_id, author_id, rows)
-                        self.ledger.update_author(run_id, author_id, counters={'n_failed': failed})
+                        self.ledger.record_items(run_id, author_id, rows, account_id=self.account_id)
+                        self.ledger.update_author(run_id, author_id, counters={'n_failed': failed}, account_id=self.account_id)
                         self._emit('work_progress', index=index, total=total, author_id=author_id,
                                    done=done_count, queued=len(queue), failed=failed,
                                    title=getattr(finished[-1][1], 'title', '') or '')

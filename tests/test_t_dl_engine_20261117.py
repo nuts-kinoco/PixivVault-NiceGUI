@@ -443,7 +443,7 @@ def test_services_port_maps_services_onto_the_engine_port():
 def test_a_run_left_active_by_a_crash_is_closed_as_interrupted_before_the_next_run(env):
     ledger, following = env
     stale = ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=ACCOUNT)
-    ledger.update_author(stale, '41', state='downloading')
+    ledger.update_author(stale, '41', state='downloading', account_id=ledger.run(stale).account_id)
     run_id = engine_for(FakePort({'41': ()}), env).run(('41',))
     assert ledger.run(stale).state == 'interrupted' and ledger.run(run_id).state == 'done'
     assert [a.state for a in ledger.authors(stale)] == ['stopped', 'pending']

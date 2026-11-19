@@ -6,6 +6,7 @@ import sqlite3
 import pytest
 
 from pixivvault_nicegui import managed_generations as mg
+from account_test_support import observed_scope
 from pixivvault_nicegui.bookmark_run import VISIBILITY_ROWS
 from pixivvault_nicegui.managed_downloads import ManagedDownloadError
 from pixivvault_nicegui.managed_root_writer import writer_fence
@@ -36,7 +37,7 @@ def test_inactive_follow_row_is_reported_as_ignored(tmp_path):
     following, ledger, book = create_stars(tmp_path)
     try:
         account = following.last_synced_account()
-        following.record_unfollowed(account, '1001')
+        following.record_unfollowed(account, '1001', scope=observed_scope(account))
         assert '1001' not in {row.user_id for row in following.snapshot(account).following}
         before = ledger.snapshot()
         _, ignored = ledger.configure_all(author_ids=('1001',), interval_hours=6, startup_check=False,

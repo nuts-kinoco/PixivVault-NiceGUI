@@ -115,8 +115,11 @@ class FakeServices:
         return self.batch_runs.start(tuple(author_ids), origin='manual' if origin == 'id' else origin,
                                      target_type=target_type, account_id=account_id)
 
-    def resume_batch_run(self, run_id=None):
-        return self.batch_runs.start_unfinished(run_id)
+    def resume_batch_run(self, run_id, *, account_id):
+        return self.batch_runs.start_unfinished(run_id, account_id=account_id)
+
+    def discard_batch_run(self, run_id, *, account_id):
+        return self.batch_runs.discard_resumable(run_id, account_id=account_id)
 
     def unified_download_authors(self):
         if self.rows:

@@ -21,7 +21,7 @@ async def test_bookmark_resume_without_source_keeps_offer(tmp_path):
     try:
         await first.refresh_bookmark_cache()
         old_run = first.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row_id,), account_id='55', verified_bookmark_account=True)
-        first.batch_run_ledger.update_author(old_run, row_id, state='downloading')
+        first.batch_run_ledger.update_author(old_run, row_id, state='downloading', account_id=first.batch_run_ledger.run(old_run).account_id)
     finally:
         await asyncio.to_thread(first.close)
     second = services_with_runs(tmp_path)

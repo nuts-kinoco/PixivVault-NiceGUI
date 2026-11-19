@@ -64,6 +64,8 @@ class BoundSchedulerLedger:
     """Deferred-work writes require the account scope of the current dispatch."""
 
     def __init__(self, ledger, scope: AccountScope, services):
+        if type(scope) is not AccountScope:
+            raise AccountMismatch()
         self._ledger = ledger
         self._scope = scope
         self._services = services

@@ -4,6 +4,7 @@ from types import SimpleNamespace as NS
 
 import pytest
 
+from account_test_support import observed_scope
 from pixivvault_nicegui.managed_network_stop_gate import ManagedNetworkStopped
 from pixivvault_nicegui.managed_scheduler import ManagedScheduleRunner
 from pixivvault_nicegui.queue_log import QueueLog
@@ -25,8 +26,8 @@ def build(monkeypatch,tmp_path):
 def test_prefenced_scheduler_reports_stop_not_error_and_propagates(monkeypatch,tmp_path):
     owner,ledger=build(monkeypatch,tmp_path)
     try:
-        ledger.bind_account('42')
-        ledger.sync_favourites(('1',))
+        ledger.bind_account('42', scope=observed_scope('42'))
+        ledger._sync_favourites(('1',))
         def stopped():raise ManagedNetworkStopped(429)
         owner.managed_network_stop=NS(require_allowed=stopped)
         with pytest.raises(ManagedNetworkStopped):
@@ -45,11 +46,11 @@ def test_two_slots_same_verified_work_count_as_one(monkeypatch,tmp_path):
     try:
         fingerprint='a'*64
         for slot,operation in (('slot-one','op-one'),('slot-two','op-two')):
-            ledger.begin_dispatch(slot,datetime.now(timezone.utc),1)
-            ledger.prepare_dispatch_item(slot=slot,work_id='123',author_id='1',operation_id=operation)
+            ledger.begin_dispatch(slot,datetime.now(timezone.utc),1, account_id=ledger._bound_account())
+            ledger.prepare_dispatch_item(slot=slot,work_id='123',author_id='1',operation_id=operation, account_id=ledger._bound_account())
             ledger.bind_dispatch_job(slot=slot,work_id='123',operation_id=operation,
-                                     job_id='fixture-job',accepted_fingerprint=fingerprint)
-            ledger.finish_dispatch(slot,status='queued',accepted=1,deferred=0)
+                                     job_id='fixture-job',accepted_fingerprint=fingerprint, account_id=ledger._bound_account())
+            ledger.finish_dispatch(slot,status='queued',accepted=1,deferred=0, account_id=ledger._bound_account())
         receipt=(None,{'work_id':'123'},None,None,fingerprint)
         owner.managed_downloads.verified_saved_receipt=lambda *a,**kw:receipt
         assert ApplicationServices.reconcile_managed_scheduler(owner)

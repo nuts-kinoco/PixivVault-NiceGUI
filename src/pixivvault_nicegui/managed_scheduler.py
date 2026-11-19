@@ -114,7 +114,7 @@ class ManagedScheduler:
             return self.favourites(account_id)
         return self.favourites()
 
-    def touch_revision(self) -> None:
+    def _touch_revision(self) -> None:
         """A star changed outside the settings form: stale forms must fail their revision check."""
         with self._lock:
             self._ensure_open()
@@ -214,7 +214,17 @@ class ManagedScheduler:
                                   startup_check=startup_check, expected_revision=expected_revision,
                                   now=now, account_id=account_id)
 
-    def claim_due(self, now: datetime, *, startup: bool = False) -> str | None:
+    def _disable(self) -> ScheduleState:
+        """Store only the global stop command, even before an account is known."""
+        with self._lock:
+            self._ensure_open()
+            self._db.execute('UPDATE schedule SET interval_hours=0,startup_check=0,next_due_utc=NULL,'
+                             'revision=revision+1 WHERE id=1 AND (interval_hours!=0 OR startup_check!=0 '
+                             'OR next_due_utc IS NOT NULL)')
+            return self.snapshot()
+
+    # Timer-only lifecycle. These transitions reserve/settle a slot before first binding.
+    def _claim_due(self, now: datetime, *, startup: bool = False) -> str | None:
         current_time = _utc(now)
         with self._lock:
             self._ensure_open()
@@ -245,7 +255,7 @@ class ManagedScheduler:
                 self._db.execute('ROLLBACK')
                 raise
 
-    def complete(self, slot: str, *, succeeded: bool) -> None:
+    def _complete(self, slot: str, *, succeeded: bool) -> None:
         with self._lock:
             self._ensure_open()
             self._db.execute('BEGIN IMMEDIATE')
@@ -260,12 +270,13 @@ class ManagedScheduler:
                 self._db.execute('ROLLBACK')
                 raise
 
-    def acknowledge_interrupted(self, *, expected_revision: int) -> ScheduleState:
+    def acknowledge_interrupted(self, *, expected_revision: int, account_id=None) -> ScheduleState:
         """Explicitly acknowledge ambiguous crash recovery without replaying it."""
         with self._lock:
             self._ensure_open()
             self._db.execute('BEGIN IMMEDIATE')
             try:
+                self._require_owner(account_id)
                 state = self.snapshot()
                 if state.revision != expected_revision or state.last_status != 'interrupted':
                     raise ScheduleError('schedule acknowledgement changed')
@@ -277,37 +288,41 @@ class ManagedScheduler:
                 raise
             return self.snapshot()
 
-    def begin_dispatch(self, slot: str, now: datetime, authors: int) -> None:
+    def begin_dispatch(self, slot: str, now: datetime, authors: int, *, account_id=None) -> None:
         with self._lock:
             self._ensure_open()
+            self._require_owner(account_id)
             self._db.execute('INSERT OR IGNORE INTO dispatch_history(slot,status,started_utc,authors) VALUES(?,?,?,?)',
                              (slot, 'running', _timestamp(now), authors))
 
     def finish_dispatch(self, slot: str, *, status: str, accepted: int, deferred: int,
-                        error_code: str | None = None, now: datetime | None = None) -> None:
+                        error_code: str | None = None, now: datetime | None = None, account_id=None) -> None:
         if status not in {'queued', 'failed', 'interrupted', 'empty'}:
             raise ValueError('invalid dispatch state')
         with self._lock:
             self._ensure_open()
+            self._require_owner(account_id)
             stamp = None if error_code == AccountMismatch.code else _timestamp(now or datetime.now(timezone.utc))
             self._db.execute('UPDATE dispatch_history SET status=?,finished_utc=COALESCE(?,finished_utc),'
                              'accepted=?,deferred=?,error_code=? WHERE slot=?',
                              (status, stamp, accepted, deferred, error_code, slot))
 
-    def update_dispatch_progress(self, slot: str, *, accepted: int, deferred: int) -> None:
+    def update_dispatch_progress(self, slot: str, *, accepted: int, deferred: int, account_id=None) -> None:
         """Publish admission counts without declaring dispatch or saving complete."""
         if any(type(value) is not int or value < 0 for value in (accepted, deferred)):
             raise ValueError('invalid dispatch progress')
         with self._lock:
             self._ensure_open()
+            self._require_owner(account_id)
             self._db.execute(
                 'UPDATE dispatch_history SET accepted=?,deferred=? WHERE slot=?',
                 (accepted, deferred, slot))
 
     def prepare_dispatch_item(self, *, slot: str, work_id: str, author_id: str,
-                              operation_id: str) -> None:
+                              operation_id: str, account_id=None) -> None:
         with self._lock:
             self._ensure_open()
+            self._require_owner(account_id)
             self._db.execute('INSERT OR IGNORE INTO dispatch_items(slot,work_id,author_id,operation_id,job_id,state) VALUES(?,?,?,?,NULL,?)',
                              (slot, work_id, author_id, operation_id, 'submitting'))
 
@@ -318,17 +333,25 @@ class ManagedScheduler:
                                     (slot, work_id)).fetchone()
 
     def bind_dispatch_job(self, *, slot: str, work_id: str, operation_id: str,
-                          job_id: str, accepted_fingerprint: str) -> None:
+                          job_id: str, accepted_fingerprint: str, account_id=None) -> None:
         with self._lock:
             self._ensure_open()
+            self._require_owner(account_id)
             self._db.execute("UPDATE dispatch_items SET job_id=?,accepted_fingerprint=?,state='queued' WHERE slot=? AND work_id=? AND operation_id=?",
                              (job_id, accepted_fingerprint, slot, work_id, operation_id))
 
-    def fail_dispatch_item(self, *, slot: str, work_id: str, operation_id: str) -> None:
+    def fail_dispatch_item(self, *, slot: str, work_id: str, operation_id: str, account_id=None) -> None:
         with self._lock:
             self._ensure_open()
+            self._require_owner(account_id)
             self._db.execute("UPDATE dispatch_items SET state='failed' WHERE slot=? AND work_id=? AND operation_id=? AND job_id IS NULL",
                              (slot, work_id, operation_id))
+
+    def _require_owner(self, account_id):
+        if self._account_guard:
+            if account_id is None:
+                raise ScheduleAccountError('mismatch')
+            require_same_account(self._bound_account(), account_id, error=ScheduleAccountError('mismatch'))
 
     @contextmanager
     def _deferred_transaction(self, account_id):
@@ -336,10 +359,7 @@ class ManagedScheduler:
             self._ensure_open()
             self._db.execute('BEGIN IMMEDIATE')
             try:
-                if self._account_guard:
-                    if account_id is None:
-                        raise ScheduleAccountError('mismatch')
-                    require_same_account(self._bound_account(), account_id, error=ScheduleAccountError('mismatch'))
+                self._require_owner(account_id)
                 yield
                 self._db.execute('COMMIT')
             except BaseException:
@@ -398,12 +418,13 @@ class ManagedScheduler:
 
     def reconcile_jobs(self, jobs, receipt_fingerprints: dict[str, str],
                        operation_to_job: dict[str, str] | None = None,
-                       operation_to_fingerprint: dict[str, str] | None = None) -> tuple[str, ...]:
+                       operation_to_fingerprint: dict[str, str] | None = None, *, account_id=None) -> tuple[str, ...]:
         """Reconcile queued item states with durable JobService and CAS receipts."""
         by_id = {job.job_id: job for job in jobs}
         newly_saved = []
         with self._lock:
             self._ensure_open()
+            self._require_owner(account_id)
             rows = self._db.execute('SELECT slot,work_id,operation_id,job_id,accepted_fingerprint,state FROM dispatch_items').fetchall()
             operation_to_job = operation_to_job or {}
             operation_to_fingerprint = operation_to_fingerprint or {}
@@ -472,7 +493,7 @@ class ManagedScheduler:
             self._ensure_open()
             return tuple(row[0] for row in self._db.execute("SELECT DISTINCT work_id FROM dispatch_items WHERE state='saved' AND notified=0 ORDER BY work_id"))
 
-    def claim_pending_notifications(self) -> tuple[str, ...]:
+    def claim_pending_notifications(self, *, account_id=None) -> tuple[str, ...]:
         """Atomically claim durable completion notices across concurrent clients.
 
         UI notifications are transient, so delivery is deliberately at-most-once:
@@ -483,6 +504,7 @@ class ManagedScheduler:
             self._ensure_open()
             self._db.execute('BEGIN IMMEDIATE')
             try:
+                self._require_owner(account_id)
                 work_ids = tuple(row[0] for row in self._db.execute(
                     "SELECT DISTINCT work_id FROM dispatch_items WHERE state='saved' AND notified=0 ORDER BY work_id"))
                 if work_ids:
@@ -524,9 +546,10 @@ class ManagedScheduler:
                     values.add(fingerprint)
             return {work_id: frozenset(values) for work_id, values in expected.items()}
 
-    def mark_notified(self, work_ids) -> None:
+    def mark_notified(self, work_ids, *, account_id=None) -> None:
         with self._lock:
             self._ensure_open()
+            self._require_owner(account_id)
             self._db.executemany("UPDATE dispatch_items SET notified=1 WHERE work_id=? AND state='saved'", ((wid,) for wid in work_ids))
 
     def close(self) -> None:
@@ -595,7 +618,7 @@ class ManagedScheduler:
                              'WHERE account_id=? AND user_id=?', (int(favourite), account_id, user_id))
             self._db.execute('UPDATE following_settings.following_accounts SET revision=revision+1 '
                              'WHERE account_id=?', (account_id,))
-            self.touch_revision()
+            self._touch_revision()
             return True
 
     def configure_all(self, *, author_ids: tuple[str, ...], interval_hours: int,
@@ -664,7 +687,7 @@ class ManagedScheduler:
         book = self._favourites_source
         return self.legacy_favourites() if book is None else book.ids(account_id)
 
-    def bind_account(self, account_id: str) -> None:
+    def bind_account(self, account_id: str, *, scope: AccountScope) -> None:
         """Bind only an empty unowned history; never adopt unknown old state."""
         from .pixiv_read_client import _identifier
         account_id = _identifier(account_id)
@@ -672,6 +695,10 @@ class ManagedScheduler:
             self._ensure_open()
             self._db.execute('BEGIN IMMEDIATE')
             try:
+                if type(scope) is not AccountScope:
+                    raise AccountMismatch()
+                scope.verify_observed()
+                require_same_account(account_id, scope.account_id)
                 row = self._db.execute('SELECT account_id FROM scheduler_account WHERE id=1').fetchone()
                 if row is None:
                     if self._unbound_unknown_schedule:
@@ -687,7 +714,7 @@ class ManagedScheduler:
                 self._db.execute('ROLLBACK')
                 raise
 
-    def sync_favourites(self, author_ids: tuple[str, ...]) -> None:
+    def _sync_favourites(self, author_ids: tuple[str, ...]) -> None:
         """Refresh the standalone scheduler list without touching the following ledger."""
         if self._favourites_source is not None:
             return
@@ -766,15 +793,15 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
         if ledger is not None:
             now = datetime.now(timezone.utc)
             slot = slot or _timestamp(now)
-            ledger.begin_dispatch(slot, now, 0)
-            ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0, now=now)
+            ledger.begin_dispatch(slot, now, 0, account_id=bound)
+            ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0, now=now, account_id=bound)
         return {'accepted': 0, 'deferred': 0, 'authors': 0}
     owner = uuid4().hex
     accepted, deferred = 0, 0
     now = datetime.now(timezone.utc)
     slot = slot or _timestamp(now)
     if ledger is not None:
-        ledger.begin_dispatch(slot, now, len(verified_authors))
+        ledger.begin_dispatch(slot, now, len(verified_authors), account_id=bound)
     from .job_service import UNFINISHED
     try:
         saved = {receipt['work_id']: (digest, date, relative)
@@ -947,7 +974,7 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                         # Persist the idempotency key before JobService enqueue;
                         # after a crash we can discover the accepted job by ID.
                         ledger.prepare_dispatch_item(slot=slot, work_id=wid,
-                                                     author_id=author_id, operation_id=operation_id)
+                                                     author_id=author_id, operation_id=operation_id, account_id=bound)
                     try:
                         _require_managed_network_allowed(services)
                         job, created = services.enqueue_managed_download(
@@ -955,7 +982,7 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                         scope.verify_current(services)
                     except Exception:
                         if ledger is not None:
-                            ledger.fail_dispatch_item(slot=slot, work_id=wid, operation_id=operation_id)
+                            ledger.fail_dispatch_item(slot=slot, work_id=wid, operation_id=operation_id, account_id=bound)
                         raise
                     finally:
                         services.forget_accepted_managed_author_batch(owner, (wid,))
@@ -969,19 +996,19 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
                     fingerprint = accepted_author_fingerprint(intent, job.job_id)
                     ledger.bind_dispatch_job(slot=slot, work_id=wid,
                                              operation_id=operation_id, job_id=job.job_id,
-                                             accepted_fingerprint=fingerprint)
+                                             accepted_fingerprint=fingerprint, account_id=bound)
                     deferred_writer.resolve_deferred(author_id, wid)
-                    ledger.update_dispatch_progress(slot, accepted=accepted, deferred=deferred)
+                    ledger.update_dispatch_progress(slot, accepted=accepted, deferred=deferred, account_id=bound)
         result = {'accepted': accepted, 'deferred': deferred, 'authors': len(verified_authors)}
         if ledger is not None:
             ledger.finish_dispatch(slot, status='queued' if accepted else ('empty' if not deferred else 'queued'),
-                                   accepted=accepted, deferred=deferred)
+                                   accepted=accepted, deferred=deferred, account_id=bound)
         return result
     except Exception as exc:
         if ledger is not None:
             mismatch = isinstance(exc, AccountMismatch)
             ledger.finish_dispatch(slot, status='failed', accepted=accepted, deferred=deferred,
-                                   error_code=AccountMismatch.code if mismatch else type(exc).__name__)
+                                   error_code=AccountMismatch.code if mismatch else type(exc).__name__, account_id=bound)
         if isinstance(exc, AccountMismatch):
             raise ScheduleAccountError('mismatch') from exc
         raise
@@ -1010,7 +1037,7 @@ def submit_author_media_batch(services, author_ids, *, cancellation, max_items=5
     accepted=deferred=0
     bound = _dispatch_account(ledger)
     if ledger is not None:
-        ledger.begin_dispatch(slot,datetime.now(timezone.utc),len(authors))
+        ledger.begin_dispatch(slot,datetime.now(timezone.utc),len(authors), account_id=bound)
     try:
         for aid in authors:
             if cancellation.is_set() or services.closing: break
@@ -1059,29 +1086,29 @@ def submit_author_media_batch(services, author_ids, *, cancellation, max_items=5
                         if ledger is not None: deferred_writer.resolve_deferred(aid,c.key)
                         continue
                     if ledger is not None:
-                        ledger.prepare_dispatch_item(slot=slot,work_id=c.key,author_id=aid,operation_id=operation)
+                        ledger.prepare_dispatch_item(slot=slot,work_id=c.key,author_id=aid,operation_id=operation, account_id=bound)
                     try:
                         _require_managed_network_allowed(services)
                         job,created,fingerprint=services.enqueue_author_media(c,operation,origin='follow')
                         listing.scope.verify_current(services)
                     except Exception:
                         if ledger is not None:
-                            ledger.fail_dispatch_item(slot=slot,work_id=c.key,operation_id=operation)
+                            ledger.fail_dispatch_item(slot=slot,work_id=c.key,operation_id=operation, account_id=bound)
                         raise
                     accepted+=int(created); deferred+=int(not created)
                     if ledger is not None:
                         ledger.bind_dispatch_job(slot=slot,work_id=c.key,operation_id=operation,
-                                                 job_id=job.job_id,accepted_fingerprint=fingerprint)
+                                                 job_id=job.job_id,accepted_fingerprint=fingerprint, account_id=bound)
                         deferred_writer.resolve_deferred(aid,c.key)
-                        ledger.update_dispatch_progress(slot,accepted=accepted,deferred=deferred)
+                        ledger.update_dispatch_progress(slot,accepted=accepted,deferred=deferred, account_id=bound)
         if ledger is not None:
             ledger.finish_dispatch(slot,status='queued' if accepted or deferred else 'empty',
-                                   accepted=accepted,deferred=deferred)
+                                   accepted=accepted,deferred=deferred, account_id=bound)
         return dict(accepted=accepted,deferred=deferred,authors=len(authors))
     except Exception as exc:
         if ledger is not None:
             ledger.finish_dispatch(slot, status='failed', accepted=accepted, deferred=deferred,
-                                   error_code=AccountMismatch.code if isinstance(exc, AccountMismatch) else type(exc).__name__)
+                                   error_code=AccountMismatch.code if isinstance(exc, AccountMismatch) else type(exc).__name__, account_id=bound)
         if isinstance(exc, AccountMismatch):
             raise ScheduleAccountError('mismatch') from exc
         raise
@@ -1119,13 +1146,13 @@ class ManagedScheduleRunner:
         with self._state_lock:
             return not self._claim_active
 
-    def acknowledge_interrupted(self, *, expected_revision: int) -> ScheduleState:
+    def acknowledge_interrupted(self, *, expected_revision: int, account_id) -> ScheduleState:
         # The same lock brackets claim+reservation and explicit recovery, so a
         # crash acknowledgement cannot race a claim that has not enqueued yet.
         with self._state_lock:
             if self._claim_active:
                 raise ScheduleError('scheduler claim or dispatch is active')
-            return self.ledger.acknowledge_interrupted(expected_revision=expected_revision)
+            return self.ledger.acknowledge_interrupted(expected_revision=expected_revision, account_id=account_id)
 
     def _claim_reserved(self, now: datetime, *, startup: bool = False) -> str | None:
         with self._state_lock:
@@ -1133,7 +1160,7 @@ class ManagedScheduleRunner:
                 return None
             self._claim_active = True
             try:
-                slot = self.ledger.claim_due(now, startup=startup)
+                slot = self.ledger._claim_due(now, startup=startup)
             except BaseException:
                 self._claim_active = False
                 raise
@@ -1148,14 +1175,14 @@ class ManagedScheduleRunner:
         except Exception:
             if claimed:
                 try:
-                    self.ledger.complete(slot, succeeded=False)
+                    self.ledger._complete(slot, succeeded=False)
                 except ScheduleError:
                     pass
         else:
             succeeded = True
             if claimed:
                 try:
-                    self.ledger.complete(slot, succeeded=True)
+                    self.ledger._complete(slot, succeeded=True)
                 except ScheduleError:
                     pass
         finally:
@@ -1279,33 +1306,47 @@ def run_author_check(services, author_ids, *, cancellation: Event, ledger: Manag
     ids = tuple(dict.fromkeys(_identifier(uid) for uid in author_ids))
     now = datetime.now(timezone.utc)
     slot = slot or _timestamp(now)
+    bound = _dispatch_account(ledger)
     if ledger is not None:
-        ledger.begin_dispatch(slot, now, len(ids))
+        ledger.begin_dispatch(slot, now, len(ids), account_id=bound)
     engine = services.batch_runs
+    def persist_outcome(state, code, totals):
+        accepted = sum(totals[name] for name in ('n_new', 'n_updated', 'n_restored', 'n_missing'))
+        if ledger is not None:
+            status = ('queued' if state == 'done' and accepted else 'empty' if state == 'done'
+                      else 'interrupted' if state in ('stopped', 'paused', 'interrupted') else 'failed')
+            error_code = (code or None) if status in ('interrupted', 'failed') else None
+            try:
+                ledger.finish_dispatch(slot, status=status, accepted=accepted, deferred=0,
+                                       error_code=error_code, account_id=bound)
+            except (ScheduleError, sqlite3.Error):
+                if not services.closing:
+                    raise
+        return accepted
+
     try:
         account = AccountScope(account_id).account_id
-        bound = _dispatch_account(ledger)
         if bound is not None:
             require_same_account(bound, account)
         if not ids:
             if ledger is not None:
-                ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0)
+                ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0, account_id=bound)
             return {'accepted': 0, 'deferred': 0, 'authors': 0}
         if engine.active:
             if ledger is not None:
-                ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0, error_code='run_active')
+                ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0, error_code='run_active', account_id=bound)
             return {'accepted': 0, 'deferred': 0, 'authors': 0}
         _require_managed_network_allowed(services)
-        run_id = services.start_batch_run(ids, origin='auto', target_type='both', account_id=account)
+        notification = {} if wait else {'on_finish': persist_outcome}
+        run_id = services.start_batch_run(ids, origin='auto', target_type='both',
+                                          account_id=account, **notification)
     except Exception as error:
         if ledger is not None:
             code = AccountMismatch.code if isinstance(error, AccountMismatch) else type(error).__name__
-            ledger.finish_dispatch(slot, status='failed', accepted=0, deferred=0, error_code=code)
+            ledger.finish_dispatch(slot, status='failed', accepted=0, deferred=0, error_code=code, account_id=bound)
         raise
     if not wait:
         # 「今すぐチェック」: the run goes on in the background; progress is on the download screen.
-        if ledger is not None:
-            ledger.finish_dispatch(slot, status='queued', accepted=0, deferred=0)
         return {'accepted': 0, 'deferred': 0, 'authors': len(ids), 'started': True}
     paused = ''
     while not engine.join(poll):
@@ -1318,17 +1359,11 @@ def run_author_check(services, author_ids, *, cancellation: Event, ledger: Manag
             engine.stop()
             engine.join(30.0)
             break
-    totals = engine.totals
-    accepted = sum(totals[name] for name in ('n_new', 'n_updated', 'n_restored', 'n_missing'))
-    state = engine.ledger.run(run_id).state if not paused else 'paused'
-    if ledger is not None:
-        status = ('queued' if state == 'done' and accepted else 'empty' if state == 'done'
-                  else 'interrupted' if state in ('stopped', 'paused', 'interrupted') else 'failed')
-        ledger.finish_dispatch(slot, status=status, accepted=accepted, deferred=0,
-                               error_code=paused or (engine.ledger.run(run_id).error_code or None)
-                               if status != 'queued' and status != 'empty' else None)
+    run = engine.ledger.run(run_id)
+    state = run.state if not paused else 'paused'
+    accepted = persist_outcome(state, paused or run.error_code, engine.totals)
     if state == 'failed':
-        if engine.ledger.run(run_id).error_code == AccountMismatch.code:
+        if run.error_code == AccountMismatch.code:
             raise ScheduleAccountError('mismatch')
         raise ScheduleError('author check failed')
     return {'accepted': accepted, 'deferred': 0, 'authors': len(ids)}

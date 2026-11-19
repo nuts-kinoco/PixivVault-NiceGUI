@@ -63,7 +63,7 @@ async def test_interrupted_bookmark_run_restores_list_before_finishing(tmp_path)
         await first.refresh_bookmark_cache()
         assert [r.work_id for r in first.bookmark_download_candidates()] == ['99']
         old_run = first.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row_id,), account_id='55', verified_bookmark_account=True)
-        first.batch_run_ledger.update_author(old_run, row_id, state='downloading')
+        first.batch_run_ledger.update_author(old_run, row_id, state='downloading', account_id=first.batch_run_ledger.run(old_run).account_id)
     finally:
         await asyncio.to_thread(first.close)
 
@@ -88,7 +88,7 @@ async def test_bookmark_resume_failed_refresh_remains_resumable(tmp_path):
     row_id = VISIBILITY_ROWS['show']
     try:
         old_run = first.batch_run_ledger.begin_run('bookmarks', 'manual', 'both', (row_id,), account_id='55', verified_bookmark_account=True)
-        first.batch_run_ledger.update_author(old_run, row_id, state='downloading')
+        first.batch_run_ledger.update_author(old_run, row_id, state='downloading', account_id=first.batch_run_ledger.run(old_run).account_id)
     finally:
         await asyncio.to_thread(first.close)
 

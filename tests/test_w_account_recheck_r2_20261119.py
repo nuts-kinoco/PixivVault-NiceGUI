@@ -6,6 +6,7 @@ from types import SimpleNamespace as NS
 import pytest
 from nicegui import Client, ui
 
+from account_test_support import observed_scope
 from pixivvault_nicegui.account_scope import AccountScope, OwnedListing
 from pixivvault_nicegui.managed_scheduler import ScheduleAccountError
 from pixivvault_nicegui.services import ApplicationServices
@@ -143,7 +144,7 @@ async def test_existing_star_and_backlog_survive_concurrent_unfollow_when_star_i
             assert view.authors.value == X and ledger.deferred_ids(X) == {"200"}
             view.authors.set_value(f"{X},{Y}")
             # X remains selected. The app changes its follow status after the form loaded.
-            store.record_unfollowed(A, X)
+            store.record_unfollowed(A, X, scope=observed_scope(A))
             assert stars(store, A) == (X,) and ledger.deferred_ids(X) == {"200"}
             assert ledger.snapshot().revision == view.revision
             await view.save()

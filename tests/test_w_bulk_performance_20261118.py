@@ -100,7 +100,8 @@ async def test_resuming_reconciles_chips_outside_new_run(tmp_path, monkeypatch):
         view.refresh_chip_status()
         assert view._chips['1001']['status'].text == '完了'
         assert view._chips['1002']['status'].text == '失敗'
-        monkeypatch.setattr(services, 'resume_batch_run', lambda: None)
+        view.resumable = SimpleNamespace(run_id='1' * 32)
+        monkeypatch.setattr(services, 'resume_batch_run', lambda *args, **kwargs: None)
         monkeypatch.setattr(services.batch_run_ledger, 'authors', lambda _: [
             SimpleNamespace(author_id='1002'), SimpleNamespace(author_id='1003')])
         assert view.resume_interrupted()

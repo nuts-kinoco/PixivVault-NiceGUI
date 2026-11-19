@@ -1062,12 +1062,20 @@ class UnifiedDownloadView:
         self.render_controls()
         return True
 
+    def _history_account(self):
+        accounts = {row.get("account_id") for row in self.authors}
+        return next(iter(accounts)) if len(accounts) == 1 else None
+
     def resume_interrupted(self):
         resume = getattr(self.services, "resume_batch_run", None)
-        if not callable(resume) or self.running:
+        offered = self.resumable
+        if not callable(resume) or self.running or offered is None:
             return False
         try:
-            resume()
+            resume(offered.run_id, account_id=self._history_account())
+        except AccountMismatch:
+            self.set_notice("表示した実行とアカウントを確認できません。ダウンロード画面を再読込してください。")
+            return False
         except Exception:
             self.set_notice("再開できませんでした。")
             return False
@@ -1088,14 +1096,21 @@ class UnifiedDownloadView:
         return True
 
     def discard_interrupted(self):
-        engine = self.engine
-        if engine is not None:
-            try:
-                engine.discard_resumable()
-            except Exception:
-                pass
+        discard = getattr(self.services, "discard_batch_run", None)
+        offered = self.resumable
+        if offered is None or not callable(discard):
+            return False
+        try:
+            discard(offered.run_id, account_id=self._history_account())
+        except AccountMismatch:
+            self.set_notice("表示した実行とアカウントを確認できません。ダウンロード画面を再読込してください。")
+            return False
+        except Exception:
+            self.set_notice("破棄できませんでした。")
+            return False
         self.resumable = None
         self._render_band()
+        return True
 
     # ------------------------------------------------------------------ engine → screen
     def tick(self):

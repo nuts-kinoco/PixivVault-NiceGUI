@@ -48,7 +48,7 @@ async def test_scheduler_displays_typed_failure_without_raw_exception(monkeypatc
     client=Client(ui.page('/batch3-'+kind))
     try:
         with client:
-            v=SchedulerView(NS(closing=False,managed_scheduler=NS(sync_favourites=lambda authors: None),scheduler_favourite_authors=lambda: ('9',),_scheduler_dispatch_lock=Lock(),_scheduler_cancel_event=Event()))
+            v=SchedulerView(NS(closing=False,managed_scheduler=NS(_sync_favourites=lambda authors: None),scheduler_favourite_authors=lambda: ('9',),_scheduler_dispatch_lock=Lock(),_scheduler_cancel_event=Event()))
             await v.run_once();text=v.action_notice.text
             assert text and 'private-data' not in text and 'キュー状態を確認' not in text
             if kind=='uncertain':assert '取得停止の確認・回復' in text

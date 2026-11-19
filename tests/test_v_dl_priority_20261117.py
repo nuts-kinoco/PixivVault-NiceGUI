@@ -5,6 +5,7 @@ from types import SimpleNamespace as NS
 
 import pytest
 
+from account_test_support import observed_scope
 from pixivvault_nicegui.batch_engine import BatchRunEngine
 from pixivvault_nicegui.batch_runs import BatchRunLedger
 from pixivvault_nicegui.favourites import FavouriteBook
@@ -74,7 +75,7 @@ def test_the_unowned_scheduler_list_is_preserved_and_never_used_as_follow_stars(
     sync(following, 5)
     assert scheduler.favourites(ACCOUNT) == ()
     with pytest.raises(ScheduleAccountError):
-        scheduler.bind_account(ACCOUNT)
+        scheduler.bind_account(ACCOUNT, scope=observed_scope(ACCOUNT))
     assert scheduler.legacy_favourites() == ids
 
 
@@ -109,7 +110,7 @@ def test_replacing_the_stars_through_the_scheduler_writes_the_ledger_and_prunes_
     _, following, scheduler = world
     sync(following, 5)
     scheduler.attach_favourites(FavouriteBook(following, scheduler=scheduler))
-    scheduler.bind_account(ACCOUNT)
+    scheduler.bind_account(ACCOUNT, scope=observed_scope(ACCOUNT))
     scheduler.set_favourites(('1001', '1002'), expected_revision=now_state(scheduler).revision, account_id=ACCOUNT)
     scheduler.defer_work(author_id='1001', work=dict(id='5', update_date='d', page_count=1, type=0),
                          now=datetime.now(timezone.utc), account_id=ACCOUNT)
@@ -127,9 +128,10 @@ class Services:
         self.batch_runs = engine
         self.following = following
 
-    def start_batch_run(self, ids, *, account_id, origin='manual', target_type=None):
+    def start_batch_run(self, ids, *, account_id, origin='manual', target_type=None, on_finish=None):
         self.engine_account = account_id
-        return self.batch_runs.start(ids, origin=origin, target_type=target_type, account_id=account_id)
+        return self.batch_runs.start(ids, origin=origin, target_type=target_type, account_id=account_id,
+                                     on_finish=on_finish)
 
 
 @pytest.fixture
@@ -212,7 +214,7 @@ def test_dispatch_author_check_uses_the_engine_when_provisioned(auto):
     ledger = auto.scheduler
     auto.following.set_favorite(ACCOUNT, '1001', True)
     ledger.attach_favourites(FavouriteBook(auto.following, scheduler=ledger))
-    services = NS(batch_runs=auto.engine, closing=False, following_sync=auto.following,
+    services = NS(batch_runs=auto.engine, closing=False, following_sync=auto.following, managed_scheduler=ledger,
                   live_client=NS(_verified_identity=ACCOUNT, verify_identity=lambda: ACCOUNT))
     services.start_batch_run = lambda *args, **kwargs: ApplicationServices.start_batch_run(services, *args, **kwargs)
     services.scheduler_favourite_authors = lambda **kwargs: ApplicationServices.scheduler_favourite_authors(services, **kwargs)
@@ -299,7 +301,7 @@ async def test_real_services_provision_the_engine_recover_after_a_restart_and_cl
         # the periodic check is provisioned together with the schedule and reaches the same engine
         assert services.enable_managed_scheduler() is services.managed_scheduler
         assert services.batch_runs is engine and services.managed_scheduler._bound_account() is None
-        run_id = services.batch_run_ledger.begin_run('authors', 'manual', 'both', ('41', '42'))
+        run_id = services.batch_run_ledger.begin_run('authors', 'manual', 'both', ('41', '42'), account_id=None)
     finally:
         await asyncio.to_thread(services.close)
     reopened = build()
@@ -340,7 +342,7 @@ def test_d4_the_services_entry_point_bumps_it_too(world):
 
 def test_d6_an_unattached_or_unsynced_store_never_prunes_the_pending_work(world):
     _, following, scheduler = world
-    scheduler.bind_account(ACCOUNT)
+    scheduler.bind_account(ACCOUNT, scope=observed_scope(ACCOUNT))
     scheduler.set_favourites(('1001',), expected_revision=now_state(scheduler).revision, account_id=None)
     scheduler.defer_work(author_id='1001', work=dict(id='5', update_date='d', page_count=1, type=0),
                          now=datetime.now(timezone.utc), account_id=ACCOUNT)
@@ -355,7 +357,7 @@ def test_d6_reopening_the_scheduler_keeps_the_pending_work_of_ledger_stars(world
     sync(following, 5)
     book = FavouriteBook(following, scheduler=scheduler)
     scheduler.attach_favourites(book)
-    scheduler.bind_account(ACCOUNT)
+    scheduler.bind_account(ACCOUNT, scope=observed_scope(ACCOUNT))
     book.set('1001', True, account_id=ACCOUNT)
     scheduler.defer_work(author_id='1001', work=dict(id='5', update_date='d', page_count=1, type=0),
                          now=datetime.now(timezone.utc), account_id=ACCOUNT)
@@ -379,7 +381,7 @@ def bound_world(world):
     sync(following, 5)
     book = FavouriteBook(following, scheduler=scheduler)
     scheduler.attach_favourites(book)
-    scheduler.bind_account(ACCOUNT)
+    scheduler.bind_account(ACCOUNT, scope=observed_scope(ACCOUNT))
     book.set('1001', True, account_id=ACCOUNT)
     scheduler.defer_work(author_id='1001', work=dict(id='5', update_date='d', page_count=1, type=0),
                          now=datetime.now(timezone.utc), account_id=ACCOUNT)

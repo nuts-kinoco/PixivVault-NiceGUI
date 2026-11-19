@@ -13,6 +13,8 @@ from .media import DemoImageCatalog
 from .library_fixtures import build_library_fixture
 from .library_models import LibrarySnapshot
 from .library_media_registry import LibraryImageRegistry
+from contextlib import contextmanager
+
 from .account_scope import AccountMismatch, AccountScope, require_current_account, require_same_account
 from .request_policy import job_request_runner, request_scope
 
@@ -3130,7 +3132,7 @@ class ApplicationServices:
         if self.closing or self.following_sync is not store:
             raise RuntimeError('favourite author source unavailable')
         if ledger is not None:
-            ledger.bind_account(account)
+            ledger.bind_account(account, scope=AccountScope(account, reader))
         return tuple(row.user_id for row in snapshot.authors if row.is_favorite)
 
     def enable_managed_scheduler(self):
@@ -3162,7 +3164,7 @@ class ApplicationServices:
                                 authors = self.scheduler_favourite_authors(ledger=ledger)
                             else:
                                 authors = self.scheduler_favourite_authors()
-                            ledger.sync_favourites(authors)
+                            ledger._sync_favourites(authors)
                             if authors and not cancellation.is_set() and not self.closing:
                                 self.shared_log.append(f'☆ お気に入り自動チェックを開始します ({len(authors)}人の作者)')
                             dispatch_check = getattr(self, 'dispatch_author_check', None)
@@ -3194,12 +3196,13 @@ class ApplicationServices:
 
                 runner = ManagedScheduleRunner(ledger, dispatch,
                                                reconcile=self.reconcile_managed_scheduler)
+                self.managed_scheduler = ledger
                 try:
                     runner.start()
                 except BaseException:
+                    self.managed_scheduler = None
                     ledger.close()
                     raise
-                self.managed_scheduler = ledger
                 self.managed_schedule_runner = runner
             return self.managed_scheduler
 
@@ -3304,7 +3307,7 @@ class ApplicationServices:
             return {}
         return saved_counts_by_author(with_dates(verify_pages=False))
 
-    def resume_batch_run(self, run_id=None):
+    def resume_batch_run(self, run_id, *, account_id=None):
         """Continue the offered run (`batch_runs.resumable_run()`) over its unfinished authors."""
         engine = self.batch_runs
         if engine is None or self.closing:
@@ -3322,7 +3325,31 @@ class ApplicationServices:
             else:
                 asyncio.run(self.refresh_bookmark_cache(expected_account=expected_account))
 
-        return engine.start_unfinished(run_id, bookmark_refresh=refresh_bookmarks)
+        run = engine.resumable_run()
+        if run is None or run.run_id != run_id:
+            raise AccountMismatch()
+        if run.kind == 'bookmarks':
+            return engine.start_unfinished(run_id, account_id=account_id, bookmark_refresh=refresh_bookmarks)
+        with ApplicationServices._displayed_batch_account(self, account_id):
+            return engine.start_unfinished(run_id, account_id=account_id)
+
+    def discard_batch_run(self, run_id, *, account_id):
+        engine = self.batch_runs
+        if engine is None or self.closing:
+            raise AccountMismatch()
+        with ApplicationServices._displayed_batch_account(self, account_id):
+            return engine.discard_resumable(run_id, account_id=account_id)
+
+    @contextmanager
+    def _displayed_batch_account(self, account_id):
+        from contextlib import nullcontext
+        scope = AccountScope(account_id, self.live_client)
+        store = self.following_sync
+        with store._lock if store is not None else nullcontext():
+            if store is not None:
+                require_same_account(scope.account_id, store.last_synced_account())
+            scope.verify_current(self)
+            yield scope
 
     def dispatch_author_check(self, ledger, slot, cancellation, *, wait=True, authors=None):
         """One periodic / manual ☆ check: on the engine when provisioned, else the old queue handoff.
@@ -3334,7 +3361,7 @@ class ApplicationServices:
                 authors = ledger.favourites()  # injected service without the live account source
             else:
                 authors = source(ledger=ledger)
-                ledger.sync_favourites(authors)
+                ledger._sync_favourites(authors)
         if self.batch_runs is not None:
             from .managed_scheduler import _dispatch_account, run_author_check
             account = _dispatch_account(ledger)
@@ -3345,26 +3372,30 @@ class ApplicationServices:
                                    ledger=ledger, slot=slot)
 
     def start_batch_run(self, author_ids, *, account_id: str | None, kind='authors',
-                        origin='manual', target_type=None):
-        """Start an author run for the displayed account or an explicit ID-only selection."""
-        from contextlib import nullcontext
+                        origin='manual', target_type=None, on_finish=None):
+        """Start a displayed-account, explicit ID-only, or verified automatic author run."""
         engine = self.batch_runs
         if engine is None or self.closing:
             raise RuntimeError('author batch runs are not enabled')
         if kind != 'authors':
             raise ValueError('invalid author batch kind')
+        callbacks = {} if on_finish is None else {'on_finish': on_finish}
         if origin == 'id':
             require_same_account(None, account_id)
             return engine.start(tuple(author_ids), kind=kind, origin='manual', target_type=target_type,
-                                account_id=None)
-        scope = AccountScope(account_id, self.live_client)
-        following = self.following_sync
-        with following._lock if following is not None else nullcontext():
-            if following is not None:
-                require_same_account(scope.account_id, following.last_synced_account())
+                                account_id=None, **callbacks)
+        if origin == 'auto':
+            scope = AccountScope(account_id, self.live_client)
+            ledger = getattr(self, 'managed_scheduler', None)
+            if ledger is None:
+                raise AccountMismatch()
+            require_same_account(ledger._bound_account(), scope.account_id)
             scope.verify_current(self)
             return engine.start(tuple(author_ids), kind=kind, origin=origin, target_type=target_type,
-                                account_id=scope.account_id)
+                                account_id=scope.account_id, **callbacks)
+        with ApplicationServices._displayed_batch_account(self, account_id) as scope:
+            return engine.start(tuple(author_ids), kind=kind, origin=origin, target_type=target_type,
+                                account_id=scope.account_id, **callbacks)
 
     async def start_bookmark_run(self, visibilities, *, origin='manual', target_type=None):
         """「マイブックマーク」の実行 1 回: read the complete bookmark lists (Pixiv, behind the stop gate), then run.
@@ -3846,7 +3877,8 @@ class ApplicationServices:
         if self.managed_scheduler is not ledger or self.closing:
             return False
         newly_saved = ledger.reconcile_jobs(
-            jobs, receipt_fingerprints, operation_to_job, operation_to_fingerprint)
+            jobs, receipt_fingerprints, operation_to_job, operation_to_fingerprint,
+            account_id=scope.account_id if scope is not None else None)
         confirmed_count = len(set(newly_saved))
         if confirmed_count:
             self.shared_log.append(f'☆ お気に入り自動チェック: {confirmed_count}件の作品の保存を確認しました。', level='success')

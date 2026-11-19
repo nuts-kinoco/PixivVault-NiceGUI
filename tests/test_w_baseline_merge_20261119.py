@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from account_test_support import observed_scope
 from pixivvault_nicegui.favourites import FavouriteBook
 from pixivvault_nicegui.following_sync import FollowingSyncStore
 from pixivvault_nicegui.managed_scheduler import ManagedScheduler, ScheduleAccountError
@@ -28,7 +29,7 @@ def test_unbound_legacy_settings_and_pending_are_not_imported_or_deleted(tmp_pat
         assert book.ids(ACCOUNT) == ()
         assert ledger.deferred_count() == 1
         with pytest.raises(ScheduleAccountError):
-            ledger.bind_account(book.account())
+            ledger.bind_account(book.account(), scope=observed_scope(book.account()))
         assert book.ids(ACCOUNT) == () and ledger.deferred_count() == 1
     finally:
         ledger.close()
@@ -42,7 +43,7 @@ def test_star_selection_rejects_the_wrong_displayed_account(tmp_path):
     sync(following, 3)
     ledger = ManagedScheduler(root)
     try:
-        ledger.bind_account('999')
+        ledger.bind_account('999', scope=observed_scope('999'))
         book = FavouriteBook(following, scheduler=ledger)
         ledger.attach_favourites(book)
         with pytest.raises(ScheduleAccountError):
@@ -56,7 +57,7 @@ def test_star_selection_rejects_the_wrong_displayed_account(tmp_path):
 def test_dispatch_selects_verified_account_stars_before_queue(monkeypatch):
     from pixivvault_nicegui import managed_scheduler
     calls = []
-    ledger = SimpleNamespace(sync_favourites=lambda ids: calls.append(('sync', ids)))
+    ledger = SimpleNamespace(_sync_favourites=lambda ids: calls.append(('sync', ids)))
     service = SimpleNamespace(batch_runs=None,
         scheduler_favourite_authors=lambda **kwargs: calls.append(('verify', kwargs['ledger'])) or ('7', '8'))
     monkeypatch.setattr(managed_scheduler, 'submit_author_batch',
@@ -78,13 +79,13 @@ def test_unbound_existing_schedule_settings_are_not_adopted(tmp_path):
     ledger = ManagedScheduler(tmp_path)
     try:
         with pytest.raises(ScheduleAccountError):
-            ledger.bind_account('55')
+            ledger.bind_account('55', scope=observed_scope('55'))
         assert ledger.snapshot() == before
     finally:
         ledger.close()
 
 
-def test_scheduler_batch_refuses_when_verified_account_differs_from_latest_sync():
+def test_automatic_and_displayed_batches_use_their_respective_accounts():
     class Engine:
         account_id = None
         def start(self, authors, **kwargs):
@@ -93,10 +94,12 @@ def test_scheduler_batch_refuses_when_verified_account_differs_from_latest_sync(
             return 'run'
     service = SimpleNamespace(batch_runs=Engine(), closing=False,
         following_sync=SimpleNamespace(last_synced_account=lambda: '99', _lock=RLock()),
-        live_client=SimpleNamespace(_verified_identity='55'))
+        live_client=SimpleNamespace(_verified_identity='55'),
+        managed_scheduler=SimpleNamespace(_bound_account=lambda: '55'))
+    start = ApplicationServices.start_batch_run
+    assert start(service, ('7',), origin='auto', target_type='both', account_id='55') == 'run'
     with pytest.raises(RuntimeError, match='account changed'):
-        ApplicationServices.start_batch_run(service, ('7',), origin='auto',
-                                            target_type='both', account_id='55')
+        start(service, ('7',), origin='manual', target_type='both', account_id='55')
 
 
 def test_scheduler_passes_bound_account_to_batch_engine(monkeypatch):
@@ -198,7 +201,7 @@ def test_first_due_check_binds_account_after_claim_without_losing_stars(tmp_path
                               managed_network_stop=None, managed_scheduler=ledger)
     try:
         assert ledger.snapshot().interval_hours == 24
-        assert ledger.claim_due(datetime.now(timezone.utc) + timedelta(hours=25)) is not None
+        assert ledger._claim_due(datetime.now(timezone.utc) + timedelta(hours=25)) is not None
         assert ApplicationServices.scheduler_favourite_authors(service, ledger=ledger) == ('1001',)
         assert ledger._bound_account() == '55' and book.ids(ACCOUNT) == ('1001',)
     finally:
@@ -216,7 +219,7 @@ def test_verified_account_star_save_failure_rolls_back_following_ledger(tmp_path
     ledger = ManagedScheduler(root)
     book = FavouriteBook(following, scheduler=ledger)
     ledger.attach_favourites(book)
-    ledger.bind_account('55')
+    ledger.bind_account('55', scope=observed_scope('55'))
     ledger._db.execute("CREATE TRIGGER reject_schedule BEFORE UPDATE ON schedule BEGIN SELECT RAISE(ABORT, 'test'); END")
     try:
         with pytest.raises(Exception):
