@@ -127,32 +127,41 @@ class RequestAdmission:
     @property
     def _interactive_waiting(self):
         with self._lock:return len(self._interactive)
+    @staticmethod
+    def _head(queue):
+        """First ticket that is not parked in a (possibly blocking) pause/settings call."""
+        for item in queue:
+            if not item[3]:return item
+        return None
     def _my_turn(self,ticket,interactive,now):
         if interactive:
-            if self._interactive[0] is not ticket:return False
-            head=self._background[0] if self._background else None
+            if self._head(self._interactive) is not ticket:return False
+            head=self._head(self._background)
             # a background head that already yielded the full cap goes before more interactive ones
             return head is None or head[2] is None or now-head[2]<MAX_BACKGROUND_DEFER_SECONDS
-        if self._background[0] is not ticket:return False
+        if self._head(self._background) is not ticket:return False
         if ticket[2] is None:ticket[2]=now          # the yield starts when it becomes the head, not while queued behind others
-        return not self._interactive or now-ticket[2]>=MAX_BACKGROUND_DEFER_SECONDS
+        return self._head(self._interactive) is None or now-ticket[2]>=MAX_BACKGROUND_DEFER_SECONDS
     def __call__(self,deadline):
         request_checkpoint();_check_deadline(deadline,self.clock)
         interactive=_LANE.get()=='interactive'
-        ticket=[object(),self.clock(),None]
+        ticket=[object(),self.clock(),None,False]       # token, queued at, yield start, parked
         queue=self._interactive if interactive else self._background
         with self._lock:queue.append(ticket)
         try:
             while True:
-                request_checkpoint();_check_deadline(deadline,self.clock)
-                seconds=float(self.interval())            # read outside the lock and before the decision
-                if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
+                ticket[3]=True                           # parked: a pause/settings call may block outside the lock
+                try:
+                    request_checkpoint();_check_deadline(deadline,self.clock)
+                    seconds=float(self.interval())
+                    if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
+                    request_checkpoint();_check_deadline(deadline,self.clock)   # cancelled during the settings read: issue nothing
+                finally:ticket[3]=False
                 with self._lock:
-                    now=self.clock()
+                    now=self.clock()                     # taken after every blocking call
                     if self._my_turn(ticket,interactive,now):
                         remaining=0 if self._last is None else self._last+seconds-now
                         if remaining<=0:
-                            request_checkpoint();_check_deadline(deadline,self.clock)   # cancel/deadline during the read: issue nothing
                             self._last=now
                             return
                         if now+remaining>=deadline:

@@ -21,7 +21,7 @@ class _Clock:
 
 def _queued_interactive(gate):
     """Put a queued (not yet issued) interactive ticket in front, as another thread would."""
-    ticket = [object(), 0.0, None]
+    ticket = [object(), 0.0, None, False]
     with gate._lock:
         gate._interactive.append(ticket)
     return ticket
@@ -213,7 +213,7 @@ def test_background_queued_behind_others_does_not_count_that_wait_as_yielding():
     gate(1000.0)
     heads = []
     for _ in range(3):
-        heads.append([object(), clock.now, None])
+        heads.append([object(), clock.now, None, False])
     with gate._lock:
         gate._background.extend(heads)
     clock.now += 2.5                       # they waited a long time in the background queue
@@ -231,3 +231,71 @@ def test_explicit_background_lane_overrides_enclosing_interactive_lane():
             seen.append(current_lane())
         seen.append(current_lane())
     assert seen == ['background', 'interactive']
+
+
+def test_paused_checkpoint_does_not_hold_the_lock_or_block_unrelated_screen_requests():
+    from threading import Event
+    from pixivvault_nicegui.request_policy import request_scope
+    gate = RequestAdmission(lambda: 0.3)
+    gate(time.monotonic() + 30)
+    resume = Event()
+    entered = Event()
+
+    def checkpoint():
+        entered.set()
+        resume.wait(5)                     # a paused job waits for resume here
+
+    def paused_background():
+        with request_scope(checkpoint=checkpoint):
+            gate(time.monotonic() + 30)
+
+    b = Thread(target=paused_background); b.start()
+    assert entered.wait(5)
+    started = time.monotonic()
+    with interactive_lane():
+        gate(time.monotonic() + 5)         # unrelated screen request is not blocked by the paused job
+    assert time.monotonic() - started < 1.0
+    resume.set(); b.join(5)
+    assert not b.is_alive()
+
+
+def test_paused_background_head_does_not_block_screen_requests_after_the_cap(monkeypatch):
+    from threading import Event
+    from pixivvault_nicegui import request_policy
+    from pixivvault_nicegui.request_policy import request_scope
+    monkeypatch.setattr(request_policy, 'MAX_BACKGROUND_DEFER_SECONDS', 0.1)
+    gate = RequestAdmission(lambda: 0.3)
+    gate(time.monotonic() + 30)
+    resume = Event(); entered = Event()
+
+    def checkpoint():
+        entered.set(); resume.wait(5)
+
+    def paused_background():
+        with request_scope(checkpoint=checkpoint):
+            gate(time.monotonic() + 30)
+
+    b = Thread(target=paused_background); b.start()
+    assert entered.wait(5)
+    time.sleep(0.3)                        # well beyond the (patched) cap
+    with interactive_lane():
+        gate(time.monotonic() + 3)         # must still pass
+    resume.set(); b.join(5)
+
+
+def test_time_is_taken_after_a_blocking_checkpoint_so_spacing_is_real():
+    from pixivvault_nicegui.request_policy import request_scope
+    clock = _Clock()
+    gate = RequestAdmission(lambda: 0.3, clock=clock, sleep=clock.sleep)
+    calls = []
+
+    def checkpoint():
+        calls.append(1)
+        if len(calls) == 3:                # the first request's pre-issue checkpoint pauses 0.45 s
+            clock.now += 0.45
+    with request_scope(checkpoint=checkpoint):
+        gate(1000.0)
+        first = clock.now
+        gate(1000.0)
+        second = clock.now
+    assert second - first >= 0.3 - 1e-9
