@@ -304,8 +304,9 @@ def export_frozen_legacy_metadata(db_path: Path, output_directory: Path, *, imag
             for existing in output.glob('PixivVault_Export_*.zip'):
                 check_cancelled()
                 if _same_archive_payload(existing, temporary_zip, check_cancelled):
-                    return LegacyMetadataExport(existing, count, saved_db_hash,
-                                                _digest(existing), existing.stat().st_size)
+                    published_result = LegacyMetadataExport(existing, count, saved_db_hash,
+                                                           _digest(existing), existing.stat().st_size)
+                    return published_result
             published = output / name
             check_cancelled()
             # On Windows rename is atomic and refuses existing destinations,
@@ -322,7 +323,7 @@ def export_frozen_legacy_metadata(db_path: Path, output_directory: Path, *, imag
     except (OSError, sqlite3.Error, UnicodeError, ValueError, TypeError, zipfile.BadZipFile) as exc:
         if published_result is not None:
             # Cleanup of the *owned staging directory* can fail after ZIP
-            # publication. The committed ZIP still exists. Do not tell the UI
+            # publication or reuse of a verified ZIP. Do not tell the UI
             # that a valid completed archive was never created; preserve a
             # separate warning so users can inspect residual staging files.
             try:
