@@ -89,3 +89,10 @@ def test_ui_progress_band_displays_action_and_retains_controls(state, code):
         assert label == INTERRUPTED_TEXT
     view.resume_button.set_visibility.assert_called_once_with(True)
     view.discard_button.set_visibility.assert_called_once_with(True)
+
+
+def test_author_account_mismatch_explains_why_run_stopped():
+    from pixivvault_nicegui.unified_download_state import status_text
+
+    message = status_text('failed', outcome_code='author_account_mismatch')
+    assert 'アカウント' in message and '中止' in message

@@ -1147,6 +1147,8 @@ class UnifiedDownloadView:
             if run.state == "interrupted" and run.error_code == "bookmark_account_mismatch":
                 self.band_error = run.error_code
                 return "interrupted"
+            if run.state == "failed":
+                self.band_error = run.error_code
             return {"interrupted": "stopped"}.get(run.state, run.state if run.state in ("done", "stopped", "failed") else None)
         except Exception:
             return None
