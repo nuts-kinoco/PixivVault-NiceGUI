@@ -115,20 +115,35 @@ class JobPort(FakePort):
         self.job_calls.append(('resume', sorted(r.job_id for r in refs)))
 
 
-def test_user_pause_holds_the_queued_jobs_and_resume_releases_them(env):
+def test_user_pause_holds_the_queued_jobs_and_resume_releases_them(env, monkeypatch):
     port = JobPort({'41': (cand('41', 1), cand('41', 2))})
     ledger, _ = env
     engine = engine_for(port, env)
-    run_id = engine.start(('41',)).run_id
-    assert wait_for(lambda: len(port.enqueued) == 2)
-    engine.pause(engine.active_run(ACCOUNT))
-    assert wait_for(lambda: any(c[0] == 'pause' for c in port.job_calls))
-    ids = sorted(j for _, _, j in port.enqueued)
-    assert port.job_calls[0] == ('pause', ids)
-    port.hold_jobs = False
-    assert engine.resume(engine.active_run(ACCOUNT))
-    assert engine.join(5) and ledger.run(run_id).state == 'done'
-    assert ('resume', ids) in port.job_calls
+    checking, proceed = threading.Event(), threading.Event()
+    check_state = engine._check_state
+
+    def at_pause_boundary(*args, **kwargs):
+        if len(port.enqueued) == 2 and not checking.is_set():
+            checking.set()
+            assert proceed.wait(5)
+        return check_state(*args, **kwargs)
+
+    monkeypatch.setattr(engine, '_check_state', at_pause_boundary)
+    handle = engine.start(('41',))
+    try:
+        assert checking.wait(5)
+        assert engine.pause(handle)
+        proceed.set()
+        assert wait_for(lambda: any(c[0] == 'pause' for c in port.job_calls))
+        ids = sorted(j for _, _, j in port.enqueued)
+        assert port.job_calls[0] == ('pause', ids)
+        port.hold_jobs = False
+        assert engine.resume(handle)
+        assert engine.join(5) and ledger.run(handle.run_id).state == 'done'
+        assert ('resume', ids) in port.job_calls
+    finally:
+        proceed.set()
+        assert engine._shutdown(5)
 
 
 def test_a_gate_pause_does_not_touch_the_jobs(env):

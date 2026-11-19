@@ -395,15 +395,21 @@ class BatchRunEngine:
     def _set_run(self, handle, state, error_code=''):
         self.ledger.set_run_state(handle, state, error_code)
 
-    def _check_state(self):
-        """Original check_state(): raise on stop, block while paused."""
-        with self._cond:
-            while True:
+    def _check_state(self, *, inflight=None):
+        """Wait for resume and hold this run's jobs if the user paused it."""
+        jobs_held = False
+        while True:
+            with self._cond:
                 if self._stop or self.port.closing:
                     raise RunStopped()
                 if not self._paused:
-                    return
-                self._cond.wait(0.5)
+                    return jobs_held
+                if jobs_held or not inflight or self.pause_reason != 'user':
+                    self._cond.wait(0.5)
+                    continue
+            # Job controls use their own locks, so release the engine condition first.
+            self._hold_jobs([ref for ref, _ in inflight.values()])
+            jobs_held = True
 
     def _sleep(self, seconds, *, between_authors=False):
         """Wait up to `seconds`; return early on stop or pause (the original could not)."""
@@ -745,7 +751,7 @@ class BatchRunEngine:
 
     def _hold_jobs(self, refs):
         hook = getattr(self.port, 'pause_jobs', None)
-        if hook is not None and refs and self.pause_reason in ('', 'user'):
+        if hook is not None:
             hook(refs)
 
     def _release_jobs(self, refs):
@@ -779,17 +785,12 @@ class BatchRunEngine:
         pending = list(queue)
         drain_since = None
         try:
-            jobs_held = False
             while pending or inflight:
-                if self._paused and inflight and not jobs_held:
-                    self._hold_jobs([ref for ref, _ in inflight.values()])
-                    jobs_held = True
-                self._check_state()
+                jobs_held = self._check_state(inflight=inflight)
                 if scope is not None:
                     self.port.verify_author_scope(scope)
                 if jobs_held:
                     self._release_jobs([ref for ref, _ in inflight.values()])
-                    jobs_held = False
                 progressed = False
                 draining = len(self._settled) >= self._next_drain_at and not self._retire_disabled
                 if draining and drain_since is None:
