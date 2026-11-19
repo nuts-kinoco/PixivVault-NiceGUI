@@ -150,6 +150,23 @@ def _page_names(receipt, index):
     canonical = _work_id_arcname(legacy, work_id)
     return canonical, zip_arcname_candidates(legacy, title, work_id)
 
+
+def author_zip_candidates(root, author_id):
+    """Find an author's flat ZIP paths by their trailing author ID."""
+    suffix = f'({author_id}).zip'
+    return [path for path in native_io_path(root).iterdir() if path.name.endswith(suffix)]
+
+
+def _zip_path_size(path):
+    try:
+        return path.lstat().st_size
+    except OSError:
+        return 0
+
+
+def largest_author_zip(paths):
+    return max(paths, key=_zip_path_size)
+
 def _export_path(root: Path) -> Path:
     if not isinstance(root, Path) or not root.is_absolute() or root == root.parent:
         raise LegacyZipExportError('dedicated absolute legacy export root required')
@@ -502,17 +519,14 @@ class LegacyZipExporter:
             destination = native_io_path(self.root / zip_name)
             _safe_path(native_io_path(self.root))
             _safe_path(destination, file=True)
-            existing_archives = [p for p in native_io_path(self.root).iterdir()
-                                 if p.name.endswith(f'({author_id}).zip')]
-            if len(existing_archives) > 1:
-                raise LegacyZipExportError('ambiguous previous author ZIP')
+            existing_archives = author_zip_candidates(self.root, author_id)
             if replace_existing_sha256 is None:
                 if existing_archives or destination.exists():
                     raise LegacyZipExportError('legacy author ZIP already exported')
             else:
-                if len(existing_archives) != 1:
+                if not existing_archives:
                     raise LegacyZipExportError('previous ZIP missing')
-                previous_path = existing_archives[0]
+                previous_path = largest_author_zip(existing_archives)
                 if verified_zip_digest(previous_path) != replace_existing_sha256:
                     raise LegacyZipExportError('previous ZIP changed')
                 # Validate all bytes before changing even the archive name.

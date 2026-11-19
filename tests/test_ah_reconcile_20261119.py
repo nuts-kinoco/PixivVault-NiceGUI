@@ -4,6 +4,7 @@ from zipfile import ZipFile
 from hashlib import sha256
 import json
 import os
+import pytest
 from test_u11_zip_contract import generated_exports, settled
 from test_managed_downloads import Context, record
 
@@ -37,6 +38,42 @@ def test_author_zip_rename_denied_keeps_completed_old_path(tmp_path, monkeypatch
             manifest = json.loads((q.exports.root / job.result).read_bytes())
             assert (manifest['archive'], manifest['sha256']) == (old.name, actual)
             assert q.exports.run(job, Context()) == job.result
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows filename case comparison')
+def test_author_zip_keeps_name_for_case_only_change(tmp_path):
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan()
+        assert settled(q.exports)[0].state == 'done'
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title='second', author_name='Tester')
+        q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
+        q.exports.scan()
+        assert all(job.state == 'done' for job in settled(q.exports))
+        assert [p.name for p in q.exports.zip.root.glob('*.zip')] == ['tester(456).zip']
+        with ZipFile(q.exports.zip.root / 'tester(456).zip') as z:
+            assert len(z.namelist()) == 4 and z.testzip() is None
+
+
+def test_author_zip_uses_largest_owned_archive_with_duplicate_author_paths(tmp_path, caplog):
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan()
+        assert settled(q.exports)[0].state == 'done'
+        root = q.exports.zip.root
+        smaller = root / 'old(456).zip'
+        with ZipFile(smaller, 'w') as z:
+            z.writestr('old.txt', b'synthetic')
+        before = smaller.read_bytes()
+        assert len(before) < (root / 'tester(456).zip').stat().st_size
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title='second', author_name='new')
+        q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='124'), Context())
+        q.exports.scan()
+        jobs = settled(q.exports)
+        assert len(jobs) == 2 and all(job.state == 'done' for job in jobs)
+        assert {p.name for p in root.glob('*.zip')} == {'tester(456).zip', smaller.name}
+        assert smaller.read_bytes() == before
+        with ZipFile(root / 'tester(456).zip') as z:
+            assert len(z.namelist()) == 4 and z.testzip() is None
+        assert '同じ作者のZIP' in caplog.text
 
 
 def test_auto_zip_reconciles_author_rename(tmp_path):

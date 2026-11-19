@@ -7,7 +7,8 @@ import json,os,stat,logging,re
 from uuid import uuid4
 from contextlib import contextmanager,ExitStack
 from dataclasses import dataclass
-from .legacy_zip_export import LegacyZipExporter,legacy_filename,_INVALID_FILENAME
+from .legacy_zip_export import (LegacyZipExporter,author_zip_candidates,largest_author_zip,
+                               legacy_filename,_INVALID_FILENAME)
 from .managed_downloads import _safe_path,_write as _raw_write,_read_bounded as _raw_read,_json_unique,_fsync_dir
 from .job_service import JobService,UNFINISHED
 
@@ -828,16 +829,20 @@ class SaveExports:
         from .legacy_zip_export import verified_zip_digest
         value=json.loads(_read_bounded(manifest,2_000_000),object_pairs_hook=_json_unique)
         old=value['archive']; author_id=identity['author_id']
+        if len(author_zip_candidates(self.zip.root,author_id))>1:
+            logging.getLogger(__name__).warning('同じ作者のZIPが複数あるため最大のZIPを改名せず使用します')
+            return
         rows,_,_=self._auto_page_state(identity)
         visible=[row for _,row,_ in rows]
         latest=max(visible,key=lambda row:(row['saved_at'],row['work_id']))
         name=_INVALID_FILENAME.sub('_',latest['author_name']) or author_id
         suffix='('+author_id+').zip'; desired=name+suffix
-        if old==desired:return
+        if os.path.normcase(old)==os.path.normcase(desired):return
         old_alias=old[:-len(suffix)]
         if old_alias.startswith(name+'(') and old_alias.endswith(')'):return
         candidate=name+'('+old_alias+')'+suffix
         if len(candidate)>150:candidate=desired
+        if os.path.normcase(old)==os.path.normcase(candidate):return
         source=native_io_path(self.zip.root)/old;target=native_io_path(self.zip.root)/candidate
         if target.exists() or target.is_symlink():
             logging.getLogger(__name__).warning('ZIPの改名先が既に存在するため旧パスを使用します')
@@ -967,10 +972,9 @@ class SaveExports:
         from .legacy_zip_export import verified_zip_digest
         with self._mutation_lock:
             self._recover_zip_mutations_locked()
-            archives=list(native_io_path(self.zip.root).glob('*('+author_id+').zip'))
+            archives=author_zip_candidates(self.zip.root,author_id)
             if not archives:return None
-            if len(archives)!=1:raise ValueError('ambiguous previous ZIP')
-            archive=archives[0]
+            archive=largest_author_zip(archives)
             actual=verified_zip_digest(archive)
             # Acceptance order is durable even after jobs leave the UI window.
             for _,jid,kind,target,title in reversed(self.jobs.accepted_operations()):
