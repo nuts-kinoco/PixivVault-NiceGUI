@@ -28,6 +28,45 @@ def test_repeated_expiry_extensions_bound_and_prune_generations(tmp_path):
         client.close(); coordinator.close(); store.close(); profile.close()
 
 
+@pytest.mark.parametrize('restart', [False, True])
+def test_cleanup_start_failure_is_retried_and_renewals_resume(tmp_path, monkeypatch, restart):
+    from pixivvault_nicegui.cookie_expiry_refresh import CookieExpiryCoordinator
+    from pixivvault_nicegui.extension_cookie_store import ExtensionCookieStore
+    import pixivvault_nicegui.extension_cookie_store as module
+    expiry, cookie, profile, store, coordinator = setup(tmp_path)
+    client, _ = reader(cookie, coordinator, [])
+    original = module._write_new
+    failed = []
+    def fail_retiring_once(path, data):
+        if path.name == '.retiring' and not failed:
+            failed.append(True)
+            raise PermissionError('synthetic cleanup admission failure')
+        return original(path, data)
+    monkeypatch.setattr(module, '_write_new', fail_retiring_once)
+    try:
+        for index in range(9):
+            header = 'PHPSESSID=777_old; Domain=.pixiv.net; Path=/; Secure; Expires=' + formatdate(expiry + 3600 + index, usegmt=True)
+            client._transport = lambda *args: _ReadResponse(b'{"error":false,"body":{}}', (header,))
+            fetch(client)
+        assert failed
+        assert len(list((store.root / 'generations').iterdir())) == 9
+        revision = profile.snapshot().revision
+        if restart:
+            selected = profile.snapshot().cookie_file
+            client.close(); coordinator.close(); store.close()
+            store = ExtensionCookieStore(tmp_path / 'generations', profile=profile)
+            coordinator = CookieExpiryCoordinator(profile, lambda: store)
+            client, _ = reader(selected, coordinator, [])
+        for index in range(9, 12):
+            header = 'PHPSESSID=777_old; Domain=.pixiv.net; Path=/; Secure; Expires=' + formatdate(expiry + 3600 + index, usegmt=True)
+            client._transport = lambda *args: _ReadResponse(b'{"error":false,"body":{}}', (header,))
+            fetch(client)
+        assert profile.snapshot().revision == revision + 3
+        assert len(list((store.root / 'generations').iterdir())) <= 8
+    finally:
+        client.close(); coordinator.close(); store.close(); profile.close()
+
+
 def test_failed_partial_cleanup_does_not_fail_renewal_and_retries(tmp_path, monkeypatch):
     import pixivvault_nicegui.extension_cookie_store as module
     monkeypatch.setattr(module, 'MAX_RETAINED_COOKIE_GENERATIONS', 2)

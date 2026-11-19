@@ -682,7 +682,10 @@ class ExtensionCookieStore:
             count, total, _ = self._retention_state()
             if count > MAX_RETAINED_COOKIE_GENERATIONS or total + len(raw) + 2048 > MAX_RETAINED_COOKIE_BYTES:
                 try:
-                    self._cleanup_generations(snapshot, reserve_bytes=len(raw) + 2048, recovery_only=True)
+                    # Excess generations are debt from an earlier successful
+                    # publication, including a failure before marker creation.
+                    self._cleanup_generations(snapshot, reserve_bytes=len(raw) + 2048,
+                                              recovery_only=count <= MAX_RETAINED_COOKIE_GENERATIONS)
                 except (OSError, ValueError, CookieSyncError):
                     pass
                 count, total, _ = self._retention_state()
