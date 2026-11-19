@@ -1,17 +1,20 @@
 """Contracts for isolated account-scoped author operations."""
 from contextlib import nullcontext
 from datetime import datetime, timezone
+from inspect import getmembers, isroutine
 from threading import Event, RLock
 from types import SimpleNamespace as NS
 
 import pytest
 
 from pixivvault_nicegui import unified_download_state as U
-from pixivvault_nicegui.account_scope import AccountMismatch, AccountScope, OwnedListing
+from pixivvault_nicegui.account_scope import AccountMismatch, AccountScope, BoundSchedulerLedger, OwnedListing
 from pixivvault_nicegui.batch_engine import BatchRunEngine, ServicesPort
 from pixivvault_nicegui.batch_runs import BatchRunError, BatchRunLedger
 from pixivvault_nicegui.bookmark_remote_adapter import RemoteBookmark
-from pixivvault_nicegui.managed_scheduler import ScheduleAccountError
+from pixivvault_nicegui.favourites import FavouriteBook
+from pixivvault_nicegui.following_sync import FollowingSyncStore
+from pixivvault_nicegui.managed_scheduler import ManagedScheduler, ScheduleAccountError
 from pixivvault_nicegui.services import ApplicationServices
 from pixivvault_nicegui.ui.unified_download_view import UnifiedDownloadView
 
@@ -33,6 +36,80 @@ def sync_accounts(store, reader):
 
 def dump(store, scheduler, batch):
     return tuple(tuple(db.iterdump()) for db in (store._connection, scheduler._db, batch._connection))
+
+
+# Reflection is the denominator. Every public method added to one of these
+# persistence boundaries must be classified here; an unclassified method fails.
+# READ_ONLY means the method cannot change SQLite, including in-memory-only lifecycle.
+READ_ONLY = {
+    ManagedScheduler: {
+        "attach_favourites": "connects an in-memory follow source",
+        "close": "releases the connection and lock",
+        "configured": "checks an existing path",
+        "snapshot": "reads schedule settings",
+        "favourite_account": "reads latest follow-sync owner",
+        "favourites": "reads stars for the specified account",
+        "legacy_favourites": "reads the standalone scheduler list",
+        "deferred_ids": "reads pending work IDs",
+        "deferred_count": "counts pending work",
+        "has_deferred": "looks for pending work of starred authors",
+        "dispatch_operation": "looks up an operation",
+        "history": "reads dispatch records",
+        "pending_notifications": "lists unclaimed completion notices",
+        "reconcile_candidates": "reads candidate work IDs",
+        "reconcile_expected_fingerprints": "reads saved receipt expectations",
+    },
+    BatchRunLedger: {
+        "run": "reads one run",
+        "runs": "reads run history",
+        "active_run": "reads the currently active run",
+        "resumable_run": "reads a candidate for resumption",
+        "has_verified_bookmark_account": "reads the bookmark proof flag",
+        "unfinished_authors": "reads incomplete rows",
+        "authors": "reads author history",
+        "items": "reads recorded work",
+        "close": "releases the connection and lock",
+    },
+    FavouriteBook: {"account": "reads the latest follow-sync owner", "ids": "reads one account's stars"},
+    FollowingSyncStore: {
+        "snapshot": "reads one account's snapshot",
+        "last_synced_account": "reads the latest completed sync owner",
+        "close": "releases the connection and lock",
+    },
+    BoundSchedulerLedger: {},
+}
+
+OWNER_BOUND = {
+    ManagedScheduler: {
+        "touch_revision", "configure", "claim_due", "complete", "acknowledge_interrupted",
+        "begin_dispatch", "finish_dispatch", "update_dispatch_progress", "prepare_dispatch_item",
+        "bind_dispatch_job", "fail_dispatch_item", "defer_work", "resolve_deferred", "reconcile_jobs",
+        "claim_pending_notifications", "mark_notified", "set_favourites", "set_star",
+        "configure_all", "bind_account", "sync_favourites",
+    },
+    BatchRunLedger: {
+        "begin_run", "set_run_state", "recover_interrupted", "discard_run", "update_author",
+        "complete_author", "complete_bookmark_row", "finish_author", "record_item", "record_items",
+    },
+    FavouriteBook: {"set"},
+    FollowingSyncStore: {
+        "sync", "clear_account", "record_followed", "record_unfollowed", "set_favorite",
+        "replace_favorites", "record_downloaded",
+    },
+    BoundSchedulerLedger: {"defer_work", "resolve_deferred"},
+}
+
+
+def public_methods(cls):
+    return {name for name, value in getmembers(cls, isroutine) if not name.startswith("_")}
+
+
+@pytest.mark.parametrize("cls", READ_ONLY, ids=lambda cls: cls.__name__)
+def test_every_public_method_has_one_classification(cls):
+    reads, writes = READ_ONLY[cls], OWNER_BOUND[cls]
+    assert not set(reads).intersection(writes)
+    assert all(reads.values())
+    assert public_methods(cls) == set(reads).union(writes)
 
 
 # Register every new scoped read or durable write exit here.
