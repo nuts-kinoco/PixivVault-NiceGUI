@@ -128,10 +128,10 @@ class Services:
         self.batch_runs = engine
         self.following = following
 
-    def start_batch_run(self, ids, *, account_id, origin='manual', target_type=None, on_finish=None):
+    def start_batch_run(self, ids, *, account_id, origin='manual', target_type=None, on_finish=None, dispatch=None):
         self.engine_account = account_id
         return self.batch_runs.start(ids, origin=origin, target_type=target_type, account_id=account_id,
-                                     on_finish=on_finish)
+                                     on_finish=on_finish, dispatch=dispatch)
 
 
 @pytest.fixture

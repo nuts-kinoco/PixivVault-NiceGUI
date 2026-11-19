@@ -1639,6 +1639,14 @@ class ApplicationServices:
             for operation, job_id, _kind, _target, _title in self.static_jobs.accepted_operations():
                 if job_id in wanted:
                     operations.setdefault(job_id, []).append(operation)
+            schedule = getattr(self, 'managed_scheduler', None)
+            accepted_ops = {operation for batch in operations.values() for operation in batch}
+            if schedule is not None and schedule._unreconciled_operations(accepted_ops):
+                self.reconcile_managed_scheduler()
+                outstanding = schedule._unreconciled_operations(accepted_ops)
+                done = [job_id for job_id in done if outstanding.isdisjoint(operations.get(job_id, ()))]
+                if not done:
+                    return None
             retired = self.static_jobs.retire_jobs(done)
             freed = [op for job_id in retired for op in operations.get(job_id, ())]
             # Intents go only after JobService forgot them: startup reloads the intent of every
@@ -3419,7 +3427,7 @@ class ApplicationServices:
                                    ledger=ledger, slot=slot)
 
     def start_batch_run(self, author_ids, *, account_id: str | None, kind='authors',
-                        origin='manual', target_type=None, on_finish=None):
+                        origin='manual', target_type=None, on_finish=None, dispatch=None):
         """Start a displayed-account, explicit ID-only, or verified automatic author run."""
         engine = self.batch_runs
         if engine is None or self.closing:
@@ -3427,6 +3435,10 @@ class ApplicationServices:
         if kind != 'authors':
             raise ValueError('invalid author batch kind')
         callbacks = {} if on_finish is None else {'on_finish': on_finish}
+        if dispatch is not None:
+            if origin != 'auto' or dispatch.ledger is not self.managed_scheduler:
+                raise AccountMismatch()
+            callbacks['dispatch'] = dispatch
         if origin == 'id':
             reader = self.live_client
             if reader is None:
@@ -3927,7 +3939,9 @@ class ApplicationServices:
             if receipt is not None and receipt[4] in expected:
                 receipt_fingerprints[receipt[1]['work_id']] = receipt[4]
         if getattr(self, 'author_media', None) is not None:
-            ownership = {} if scope is None else {'scope': scope}
+            ownership = {'include_retained': True}
+            if scope is not None:
+                ownership['scope'] = scope
             try:
                 _, extra_jobs, extra_fingerprints = self.author_media.reconcile(**ownership)
                 operation_to_job.update(extra_jobs)
@@ -3950,11 +3964,16 @@ class ApplicationServices:
         confirmed_count = len(set(newly_saved))
         if confirmed_count:
             self.shared_log.append(f'☆ お気に入り自動チェック: {confirmed_count}件の作品の保存を確認しました。', level='success')
-        notifier=getattr(self,'notifications',None)
-        if confirmed_count and notifier is not None:
-            # Reconciliation changes accepted -> saved once in the durable ledger.
-            # OS toast is best effort; existing durable history/UI notice remains.
-            notifier.notify('PixivVault',f'作者更新チェック: {confirmed_count}件の保存が完了しました。')
+        notifier = getattr(self, 'notifications', None)
+        prefs = getattr(self, 'preferences', None)
+        if (notifier is not None and getattr(notifier, 'available', True)
+                and (prefs is None or prefs.get_setting('enable_notifications', '1') == '1')):
+            # The in-app fallback claims from the same durable queue.
+            if scope is not None:
+                scope.verify_current(self)
+            pending = ledger.claim_pending_notifications(account_id=scope.account_id if scope is not None else None)
+            if pending:
+                notifier.notify('PixivVault', f'作者更新チェック: {len(pending)}件の保存が完了しました。')
         unfinished_count = sum(1 for job in jobs if job.state in UNFINISHED)
         previous_count = self._scheduler_unfinished_count
         self._scheduler_unfinished_count = unfinished_count

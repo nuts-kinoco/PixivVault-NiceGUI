@@ -435,12 +435,13 @@ class BatchRunEngine:
     # -- entry points ------------------------------------------------------
     def start(self, author_ids, *, kind='authors', origin='manual', target_type=None, preflight=None,
               account_id=_ACCOUNT_UNSET, verified_bookmark_account=False, resume_from=None, on_finish=None,
-              stamp_following=True, bookmarks=None):
+              stamp_following=True, bookmarks=None, dispatch=None):
         """Begin a run on its own thread and return its bound handle."""
         with self._cond:
             handle, authors = self._begin(author_ids, kind, origin, target_type, account_id=account_id,
                                           verified_bookmark_account=verified_bookmark_account,
                                           resume_from=resume_from, stamp_following=stamp_following)
+            self._dispatch = dispatch
             self._thread = Thread(target=self._execute, args=(handle, authors, preflight, on_finish, bookmarks),
                                   name='pixivvault-batch', daemon=True)
             self._thread.start()
@@ -451,6 +452,7 @@ class BatchRunEngine:
         with self._cond:
             handle, authors = self._begin(author_ids, kind, origin, target_type)
             self._thread = None
+            self._dispatch = None
         self._execute(handle, authors)
         return handle.run_id
 
@@ -808,6 +810,8 @@ class BatchRunEngine:
                         self.port.verify_author_scope(scope)
                     candidate = pending[0]
                     operation_id = uuid4().hex
+                    if self._dispatch is not None:
+                        operation_id = self._dispatch.prepare(handle, candidate, operation_id)
                     try:
                         job_id, _created = self.port.enqueue(candidate, operation_id)
                     except AccountMismatch:
@@ -821,6 +825,9 @@ class BatchRunEngine:
                             raise RunFailed(code) from None
                         if _queue_full(error):
                             break  # wait for jobs to finish, then offer it again
+                        if self._dispatch is not None:
+                            self.port.verify_author_scope(scope)
+                            self._dispatch.fail(handle, candidate, operation_id)
                         pending.pop(0)
                         failed += 1
                         self.ledger.record_items(run_id, author_id, (

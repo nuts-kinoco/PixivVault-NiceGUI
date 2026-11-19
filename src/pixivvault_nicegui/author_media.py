@@ -536,7 +536,8 @@ class AuthorMediaService:
         return tuple('作者受付 '+op+'：'+reasons.get(v['phase'],reasons['invalid_spec'])
                      for op,v in self.reconcile_errors.copy().items())
 
-    def reconcile(self, expected=None, *, author_id=None, scope: AccountScope | None = None):
+    def reconcile(self, expected=None, *, author_id=None, scope: AccountScope | None = None,
+                  include_retained=False):
         """Return (verified fingerprint by media key, op->job, op->fingerprint).
 
         Recover enqueue/bind crashes from the durable job's operation history.
@@ -548,6 +549,7 @@ class AuthorMediaService:
             if scope is not None:
                 scope.verify_current(self.services)
             proofs,operations,fingerprints={},{},{}
+            accepted_by_kind = {}
             with self._db() as db:
                 rows=db.execute('SELECT operation_id,media_key,spec,job_id,fingerprint,proof FROM admissions').fetchall()
             for op,key,raw,jid,fp,known in rows:
@@ -575,6 +577,13 @@ class AuthorMediaService:
                     phase='binding'
                     jobs=self._owner_jobs(kind)
                     job=next((j for j in jobs.snapshot() if op in jobs.operation_ids(j.job_id)),None)
+                    if job is None and include_retained and hasattr(jobs, 'accepted_operations'):
+                        if kind not in accepted_by_kind:
+                            accepted_by_kind[kind] = {operation: job_id for operation, job_id, *_ in
+                                                      jobs.accepted_operations()}
+                        job_id = accepted_by_kind[kind].get(op)
+                        if job_id is not None:
+                            job = jobs.retained_job(job_id)
                     if job is None:
                         self.reconcile_errors.pop(op,None)
                         continue

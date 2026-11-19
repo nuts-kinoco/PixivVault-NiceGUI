@@ -141,6 +141,7 @@ class ManagedScheduler:
         existing_database = self.path.exists()
         self._lock = RLock()
         self._closed = False
+        self._active_batch_slots = set()
         self._file_owner = None
         try:
             # This ledger is a single-writer process-owned resource, exactly
@@ -304,12 +305,15 @@ class ManagedScheduler:
                 raise
             return self.snapshot()
 
-    def begin_dispatch(self, slot: str, now: datetime, authors: int, *, account_id=None) -> None:
+    def begin_dispatch(self, slot: str, now: datetime, authors: int, *, account_id=None,
+                       batch=False) -> None:
         with self._lock:
             self._ensure_open()
             self._require_owner(account_id)
             self._db.execute('INSERT OR IGNORE INTO dispatch_history(slot,status,started_utc,authors) VALUES(?,?,?,?)',
                              (slot, 'running', _timestamp(now), authors))
+            if batch:
+                self._active_batch_slots.add(slot)
 
     def finish_dispatch(self, slot: str, *, status: str, accepted: int, deferred: int,
                         error_code: str | None = None, now: datetime | None = None, account_id=None) -> None:
@@ -322,6 +326,8 @@ class ManagedScheduler:
             self._db.execute('UPDATE dispatch_history SET status=?,finished_utc=COALESCE(?,finished_utc),'
                              'accepted=?,deferred=?,error_code=? WHERE slot=?',
                              (status, stamp, accepted, deferred, error_code, slot))
+            self._active_batch_slots.discard(slot)
+            self._reconcile_dispatch_status(slot)
 
     def update_dispatch_progress(self, slot: str, *, accepted: int, deferred: int, account_id=None) -> None:
         """Publish admission counts without declaring dispatch or saving complete."""
@@ -484,26 +490,39 @@ class ManagedScheduler:
                     self._db.execute('UPDATE dispatch_items SET state=? WHERE slot=? AND work_id=?', (state, slot, wid))
                     if state == 'saved':
                         newly_saved.append(wid)
-            slots = self._db.execute("SELECT DISTINCT slot FROM dispatch_items").fetchall()
-            for (slot,) in slots:
-                states = [row[0] for row in self._db.execute(
-                    'SELECT state FROM dispatch_items WHERE slot=?', (slot,))]
-                if states and all(value == 'saved' for value in states):
-                    status = 'saved'
-                elif states and all(value in {'saved', 'failed'} for value in states) and 'failed' in states:
-                    status = 'partial' if 'saved' in states else 'failed'
-                elif states and all(value in {'saved', 'failed', 'unknown'} for value in states):
-                    status = 'unknown'
-                else:
-                    continue
-                self._db.execute('UPDATE dispatch_history SET status=?,finished_utc=COALESCE(finished_utc,?) WHERE slot=? AND status IN (\'queued\',\'running\',\'unknown\',\'partial\')',
-                                 (status, _timestamp(datetime.now(timezone.utc)), slot))
+            for slot in {row[0] for row in rows}:
+                self._reconcile_dispatch_status(slot)
             # Slots with no accepted jobs have no dispatch_items to aggregate.
             # Finalize unsupported-only/deferred-only runs instead of leaving
             # their history permanently queued.
             self._db.execute("UPDATE dispatch_history SET status='deferred', finished_utc=COALESCE(finished_utc, ?) WHERE accepted=0 AND deferred>0 AND status IN ('queued','running') AND slot NOT IN (SELECT DISTINCT slot FROM dispatch_items)",
                              (_timestamp(datetime.now(timezone.utc)),))
             return tuple(newly_saved)
+
+    def _reconcile_dispatch_status(self, slot):
+        # An open batch can still add admissions. After restart, the durable
+        # receipts can finish its orphaned history.
+        if slot in self._active_batch_slots:
+            return
+        states = {row[0] for row in self._db.execute(
+            'SELECT state FROM dispatch_items WHERE slot=?', (slot,))}
+        if states == {'saved'}:
+            status = 'saved'
+        elif states and states <= {'saved', 'failed'}:
+            status = 'partial' if 'saved' in states else 'failed'
+        elif states and states <= {'saved', 'failed', 'unknown'}:
+            status = 'unknown'
+        else:
+            return
+        self._db.execute("UPDATE dispatch_history SET status=?,finished_utc=COALESCE(finished_utc,?) "
+                         "WHERE slot=? AND status IN ('queued','running','unknown','partial')",
+                         (status, _timestamp(datetime.now(timezone.utc)), slot))
+
+    def _unreconciled_operations(self, operations):
+        with self._lock:
+            self._ensure_open()
+            rows = self._db.execute("SELECT operation_id FROM dispatch_items WHERE state!='saved'")
+            return {row[0] for row in rows if row[0] in operations}
 
     def pending_notifications(self) -> tuple[str, ...]:
         with self._lock:
@@ -1312,6 +1331,28 @@ class ManagedScheduleRunner:
             self._running = False
 
 
+class _BatchDispatch:
+    '''Bind batch admissions to one periodic slot before calling JobService.'''
+
+    def __init__(self, ledger, slot, account, bound_account):
+        self.ledger, self.slot = ledger, slot
+        self.account, self.bound_account = account, bound_account
+
+    def prepare(self, handle, candidate, operation):
+        require_same_account(self.account, handle.account_id)
+        existing = self.ledger.dispatch_operation(self.slot, candidate.key)
+        if existing is not None:
+            return existing[0]
+        self.ledger.prepare_dispatch_item(slot=self.slot, work_id=candidate.key, author_id=candidate.author_id,
+                                         operation_id=operation, account_id=self.bound_account)
+        return operation
+
+    def fail(self, handle, candidate, operation):
+        require_same_account(self.account, handle.account_id)
+        self.ledger.fail_dispatch_item(slot=self.slot, work_id=candidate.key,
+                                      operation_id=operation, account_id=self.bound_account)
+
+
 def run_author_check(services, author_ids, *, cancellation: Event, ledger: ManagedScheduler | None = None,
                      slot: str | None = None, poll: float = 0.5, wait: bool = True,
                      account_id: str) -> dict[str, int]:
@@ -1332,7 +1373,7 @@ def run_author_check(services, author_ids, *, cancellation: Event, ledger: Manag
     engine = services.batch_runs
     engine.port.verify_run_account(account)
     if ledger is not None:
-        ledger.begin_dispatch(slot, now, len(ids), account_id=bound)
+        ledger.begin_dispatch(slot, now, len(ids), account_id=bound, batch=True)
 
     def persist_outcome(state, code, totals):
         accepted = sum(totals[name] for name in ('n_new', 'n_updated', 'n_restored', 'n_missing'))
@@ -1367,8 +1408,9 @@ def run_author_check(services, author_ids, *, cancellation: Event, ledger: Manag
                 ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0, error_code='run_active', account_id=bound)
             return {'accepted': 0, 'deferred': 0, 'authors': 0}
         _require_managed_network_allowed(services)
+        dispatch = {} if ledger is None else {'dispatch': _BatchDispatch(ledger, slot, account, bound)}
         handle = services.start_batch_run(ids, origin='auto', target_type='both',
-                                          account_id=account, on_finish=finished)
+                                          account_id=account, on_finish=finished, **dispatch)
     except Exception as error:
         if ledger is not None:
             code = AccountMismatch.code if isinstance(error, AccountMismatch) else type(error).__name__
