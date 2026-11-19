@@ -56,8 +56,16 @@ def _sha256(path):
 
 
 def _identity(path):
+    resolved = path.resolve()
+    key = _path_key(str(resolved))
+    if key is None:
+        raise NonLocalModelPath()
     stat = path.stat()
-    return [_path_key(str(path.resolve())), stat.st_size, stat.st_mtime_ns]
+    return [key, stat.st_size, stat.st_mtime_ns]
+
+
+class NonLocalModelPath(ValueError):
+    pass
 
 
 def verify_model(folder, receipt=None):
@@ -82,6 +90,8 @@ def verify_model(folder, receipt=None):
         if [_identity(path) for path in paths] != identities:
             return '読込失敗', None
         return '利用可能', {'identities': identities, 'verified': True}
+    except NonLocalModelPath:
+        return '利用不可（ローカルのフォルダを指定）', None
     except FileNotFoundError:
         return '未検出', None
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
@@ -257,6 +267,7 @@ class TaggerManager:
             if snapshot.values['local_tagger_enabled'] != '1':
                 return None
             status = self.tagger.verify()
+            self.status = status
             if status not in ('利用可能', 'onnxruntime なし') or not self.tagger.receipt:
                 return None
             identity = json.dumps(self.tagger.receipt, sort_keys=True, separators=(',', ':')).encode('utf-8')
@@ -286,12 +297,16 @@ class TaggerManager:
             folder = Path(path)
             paths = [folder / 'MODEL_SOURCE.json', *(folder / name for name in FILES)]
             if receipt.get('identities') != [_identity(item) for item in paths]:
+                self.status = verify_model(path, receipt)[0]
                 return None
             current = self.preferences.snapshot()
             if current.values['local_tagger_enabled'] != '1' or _path_key(current.values['local_tagger_path']) != _path_key(path):
                 return None
             identity = json.dumps(receipt, sort_keys=True, separators=(',', ':')).encode('utf-8')
             return hashlib.sha256(identity).hexdigest()
+        except NonLocalModelPath:
+            self.status = '利用不可（ローカルのフォルダを指定）'
+            return None
         except (OSError, ValueError, TypeError, RuntimeError):
             return None
 
