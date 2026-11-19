@@ -121,3 +121,47 @@ def test_direct_normalize_waits_for_other_pending_auto_zip(tmp_path,monkeypatch)
         assert path.read_bytes()==before
         assert q.exports.run(failed,Context()).endswith('.export.json')
         with ZipFile(path) as z:assert len(z.namelist())==4
+
+
+@pytest.mark.parametrize('publication_link', [False, True], ids=['stage', 'stage-and-link'])
+def test_new_publication_retires_superseded_zip_stage(tmp_path, monkeypatch, publication_link):
+    from dataclasses import replace
+    import json
+    import os
+    from types import SimpleNamespace
+    from test_fail7_batch1 import add_second
+    from test_managed_downloads import Context, record
+
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan()
+        assert settled(q.exports)[0].state == 'done'
+        path = q.exports.zip.root / 'tester(456).zip'
+        add_second(q)
+        original = os.replace
+
+        def fail(src, dst):
+            if str(dst).endswith('.zip'):
+                raise OSError('synthetic interruption')
+            return original(src, dst)
+
+        monkeypatch.setattr(os, 'replace', fail)
+        q.exports.scan()
+        failed = next(job for job in settled(q.exports) if job.state == 'error')
+        pending = q.exports.root / (failed.target_id + '.zip-pending.json')
+        stage = q.exports.zip.incomplete / json.loads(pending.read_bytes())['stage']
+        assert stage.is_file()
+        link = stage.with_name(stage.name + '.publish')
+        if publication_link:
+            os.link(stage, link)
+
+        monkeypatch.setattr(os, 'replace', original)
+        q.managed.resolve_record = lambda wid: replace(record(), remote_id=wid, title='third')
+        q.managed.run(SimpleNamespace(kind='pixiv-illust', target_id='125'), Context())
+        q.exports.scan()
+        assert sum(job.state == 'done' for job in settled(q.exports)) == 2
+        assert not stage.exists() and not link.exists() and not pending.exists()
+        with pytest.raises(ValueError, match='saved generation changed'):
+            q.exports.run(failed, Context())
+        q.exports.zip.normalize_archive(path, sha256(path.read_bytes()).hexdigest(), zip64_threshold=1)
+        with ZipFile(path) as z:
+            assert len(z.namelist()) == 6 and z.testzip() is None

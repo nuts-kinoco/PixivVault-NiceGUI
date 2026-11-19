@@ -994,9 +994,8 @@ class SaveExports:
         _,value=publication
         return (value['sha256'],value['source']) if with_source else value['sha256']
 
-    def _finish_zip_pending(self,job,identity,manifest,context):
-        pending=native_io_path(self.root/(job.target_id+'.zip-pending.json'))
-        if not pending.exists():return False
+    @staticmethod
+    def _read_zip_pending(pending, identity):
         note=json.loads(_read_bounded(pending,2_000_000),object_pairs_hook=_json_unique)
         if (type(note) is not dict or set(note) not in ({'version','source','archive','stage','sha256'},
                     {'version','source','archive','stage','sha256','previous_sha256'})
@@ -1010,6 +1009,69 @@ class SaveExports:
         previous=note.get('previous_sha256')
         if previous is not None and (type(previous) is not str or re.fullmatch(r'[a-f0-9]{64}',previous) is None):
             raise ValueError('ZIP recovery previous proof rejected')
+        return note
+
+    @staticmethod
+    def _zip_stage_stat(stage, expected):
+        info=stage.lstat()
+        if (stage.is_symlink() or not stat.S_ISREG(info.st_mode) or info.st_nlink not in (1,2)
+                or getattr(info,'st_file_attributes',0)&0x400):raise ValueError('unsafe ZIP recovery stage')
+        hasher=sha256()
+        with stage.open('rb') as stream:
+            opened=os.fstat(stream.fileno())
+            if not os.path.samestat(info,opened) or opened.st_nlink not in (1,2):raise ValueError('ZIP recovery stage changed')
+            for part in iter(lambda:stream.read(1024*1024),b''):hasher.update(part)
+        if hasher.hexdigest()!=expected:raise ValueError('ZIP recovery bytes changed')
+        return info
+
+    def _retire_superseded_zip_stages(self, target, author_id):
+        operations=self.jobs.accepted_operations()
+        if not any(kind=='auto-zip' and key==target for _,_,kind,key,_ in operations):
+            return
+        for _,jid,kind,key,title in operations:
+            if kind!='auto-zip':continue
+            if key==target:break
+            if re.fullmatch(r'[a-f0-9]{64}',key) is None:continue
+            pending=native_io_path(self.root/(key+'.zip-pending.json'))
+            if not pending.exists() or native_io_path(self.root/(key+'.export.json')).exists():
+                continue
+            try:
+                identity=self._read_intent(RetainedExport(jid,kind,key,title))
+                if identity.get('author_id')!=author_id:continue
+                note=self._read_zip_pending(pending,identity)
+                self._remove_superseded_zip_stage(note)
+                pending.unlink()
+                _fsync_dir(pending.parent)
+            except (OSError, ValueError, TypeError):
+                logging.getLogger(__name__).warning(
+                    'Could not retire superseded ZIP stage: ownership or cleanup failed')
+
+    def _remove_superseded_zip_stage(self, note):
+        stage=native_io_path(self.zip.incomplete)/note['stage']
+        replacement=stage.with_name(stage.name+'.publish')
+        _safe_path(stage.parent)
+        if stage.is_symlink() or replacement.is_symlink():
+            raise ValueError('unsafe ZIP recovery stage')
+        if not stage.exists():
+            if replacement.exists():raise ValueError('ZIP recovery stage unavailable')
+            return  # Interrupted cleanup may leave just the journal.
+        info=self._zip_stage_stat(stage,note['sha256'])
+        if replacement.exists():
+            linked=replacement.lstat()
+            if (info.st_nlink!=2 or linked.st_nlink!=2 or not os.path.samestat(info,linked)
+                    or getattr(linked,'st_file_attributes',0)&0x400):
+                raise ValueError('ZIP recovery publication link changed')
+            replacement.unlink()
+        elif info.st_nlink!=1:
+            raise ValueError('ZIP recovery stage has external link')
+        stage.unlink()
+        _fsync_dir(stage.parent)
+
+    def _finish_zip_pending(self,job,identity,manifest,context):
+        pending=native_io_path(self.root/(job.target_id+'.zip-pending.json'))
+        if not pending.exists():return False
+        note=self._read_zip_pending(pending,identity)
+        previous=note.get('previous_sha256')
         stage=native_io_path(self.zip.incomplete)/note['stage']
         archive=native_io_path(self.zip.root)/note['archive']
         _safe_path(stage.parent);_safe_path(archive.parent)
@@ -1023,15 +1085,7 @@ class SaveExports:
                 self._sync_replaced_zip_receipts(manifest,note)
                 return True
             raise ValueError('ZIP recovery stage unavailable')
-        info=stage.lstat()
-        if (stage.is_symlink() or not stat.S_ISREG(info.st_mode) or info.st_nlink not in (1,2)
-                or getattr(info,'st_file_attributes',0)&0x400):raise ValueError('unsafe ZIP recovery stage')
-        hasher=sha256()
-        with stage.open('rb') as stream:
-            opened=os.fstat(stream.fileno())
-            if not os.path.samestat(info,opened) or opened.st_nlink not in (1,2):raise ValueError('ZIP recovery stage changed')
-            for part in iter(lambda:stream.read(1024*1024),b''):hasher.update(part)
-        if hasher.hexdigest()!=note['sha256']:raise ValueError('ZIP recovery bytes changed')
+        info=self._zip_stage_stat(stage,note['sha256'])
         if previous is not None and not archive.exists():
             raise ValueError('previous ZIP missing during recovery')
         if previous is not None and not os.path.samestat(info,archive.lstat()):
@@ -1134,6 +1188,7 @@ class SaveExports:
                 with archive.open('rb') as stream:
                     for part in iter(lambda:stream.read(1024*1024),b''):hasher.update(part)
                 if hasher.hexdigest()!=receipt['sha256']:raise ValueError('ZIP bytes changed')
+                self._retire_superseded_zip_stages(job.target_id,aid)
             context.checkpoint();return str(manifest.relative_to(self.root))
         if job.kind not in ('bookmark-projection','author-projection','auto-zip'):raise ValueError('unknown export kind')
         if identity.get('media') in ('novel','ugoira'):
