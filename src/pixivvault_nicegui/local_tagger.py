@@ -24,12 +24,27 @@ def _drive_type(root):
     return ctypes.windll.kernel32.GetDriveTypeW(root)
 
 
-def _local_folder(folder):
+def _path_key(folder):
     text = os.fspath(folder)
-    if not text or text.startswith(('\\', '/')):
-        return False
-    drive, _ = ntpath.splitdrive(ntpath.abspath(text))
-    return bool(drive) and _drive_type(drive + '\\') != 4
+    if not text:
+        return None
+    text = text.replace('/', '\\')
+    if text.startswith('\\\\?\\'):
+        text = text[4:]
+        drive, tail = ntpath.splitdrive(text)
+        if len(drive) != 2 or drive[1] != ':' or not tail.startswith('\\'):
+            return None
+    if text.startswith('\\'):
+        return None
+    text = ntpath.normcase(ntpath.normpath(ntpath.abspath(text)))
+    drive, _ = ntpath.splitdrive(text)
+    if not drive or not drive.endswith(':') or _drive_type(drive + '\\') == 4:
+        return None
+    return text
+
+
+def _local_folder(folder):
+    return _path_key(folder) is not None
 
 
 def _sha256(path):
@@ -42,7 +57,7 @@ def _sha256(path):
 
 def _identity(path):
     stat = path.stat()
-    return [str(path.resolve()), stat.st_size, stat.st_mtime_ns]
+    return [_path_key(str(path.resolve())), stat.st_size, stat.st_mtime_ns]
 
 
 def verify_model(folder, receipt=None):
@@ -195,7 +210,7 @@ class TaggerManager:
         snapshot = self.preferences.snapshot()
         path = snapshot.values['local_tagger_path']
         provider = self.provider()
-        if self.tagger is None or str(self.tagger.folder) != path or self._provider != provider:
+        if self.tagger is None or _path_key(self.tagger.folder) != _path_key(path) or self._provider != provider:
             if self.tagger is not None:
                 self.tagger.close()
             receipt = self.preferences.read_tagger_verification().get('receipt')
@@ -227,7 +242,7 @@ class TaggerManager:
             result = self.tagger.predict(data)
             self.status = self.tagger.status
             current = self.preferences.snapshot()
-            if current.values['local_tagger_enabled'] != '1' or current.values['local_tagger_path'] != path:
+            if current.values['local_tagger_enabled'] != '1' or _path_key(current.values['local_tagger_path']) != _path_key(path):
                 return []
             status, current_receipt = verify_model(path, receipt)
             if status != '利用可能' or current_receipt != receipt:
@@ -273,7 +288,7 @@ class TaggerManager:
             if receipt.get('identities') != [_identity(item) for item in paths]:
                 return None
             current = self.preferences.snapshot()
-            if current.values['local_tagger_enabled'] != '1' or current.values['local_tagger_path'] != path:
+            if current.values['local_tagger_enabled'] != '1' or _path_key(current.values['local_tagger_path']) != _path_key(path):
                 return None
             identity = json.dumps(receipt, sort_keys=True, separators=(',', ':')).encode('utf-8')
             return hashlib.sha256(identity).hexdigest()
