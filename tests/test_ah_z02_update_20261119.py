@@ -118,6 +118,39 @@ def test_auto_zip_applies_real_partial_quarantine(tmp_path):
         finally: source.close()
 
 
+def test_numeric_title_page_is_removed_and_restored_in_author_zip(tmp_path):
+    with generated_author_exports(tmp_path, 'portrait (2025)') as q:
+        q.exports.scan()
+        assert settled(q.exports)[0].state == 'done'
+        path = archive(q)
+        with ZipFile(path) as z:
+            first = z.read('portrait (2025)(123)_1.png')
+            second = z.read('portrait (2025)(123)_2.png')
+        source = ManagedDuplicateInspection(q.managed)
+        try:
+            result = source.execute(plan_for(source, '123:2'), operation_id='a'*32)
+            assert not result.failed and q.managed.visible_source_pages('123') == (0,)
+            q.exports.scan()
+            jobs = settled(q.exports)
+            assert len(jobs) == 2 and all(job.state == 'done' for job in jobs)
+            with ZipFile(path) as z:
+                assert z.namelist() == ['portrait (2025)(123)_1.png']
+                assert z.read(z.namelist()[0]) == first and z.testzip() is None
+
+            q.managed.quarantine.restore(result.operation_id, expected_revision=result.state_revision)
+            q.exports.scan()
+            jobs = settled(q.exports)
+            assert len(jobs) == 3 and all(job.state == 'done' for job in jobs)
+            with ZipFile(path) as z:
+                assert {name: z.read(name) for name in z.namelist()} == {
+                    'portrait (2025)(123)_1.png': first, 'portrait (2025)(123)_2.png': second}
+                assert z.testzip() is None
+            for job in jobs:
+                assert q.exports.run(job, Context()) == job.result
+        finally:
+            source.close()
+
+
 def test_restore_republishes_complete_author_zip(tmp_path):
     with generated_exports(tmp_path,True,None) as q:
         q.exports.scan(); assert all(j.state=='done' for j in settled(q.exports))

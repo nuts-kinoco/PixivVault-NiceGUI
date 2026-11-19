@@ -35,6 +35,7 @@ EXPORT_IDENTITY = {'application': 'pixivvault-nicegui', 'purpose': 'legacy-zip-e
                    'version': 1}
 _ID = re.compile(r'[1-9][0-9]{0,19}\Z')
 _PAGE_SUFFIX = re.compile(r'^(.*)_(\d+)$')
+_MEMBER_WORK_ID = re.compile(r'\(([1-9][0-9]{0,19})\)(?:_\d+)?\Z')
 _INVALID_FILENAME = re.compile(r'[\\/:*?"<>|]+')
 _STAGED_ZIP = re.compile(r'zip-[0-9a-f]{32}\.tmp(?:\.publish)?\Z')
 MAX_EXPORT_WORKS = 3000
@@ -139,6 +140,14 @@ def _safe_page_candidates(canonical, candidates, work_id):
     # A weak old name containing a different work ID cannot identify this work.
     return [candidate for candidate in candidates if candidate == canonical
             or not any(marker != work_id for marker in re.findall(r'\(([1-9][0-9]*)\)', candidate))]
+
+
+def _arcname_work_id(arcname):
+    if '/' in arcname:
+        return None
+    stem, _ = os.path.splitext(arcname)
+    match = _MEMBER_WORK_ID.search(stem)
+    return match.group(1) if match else None
 
 
 def _page_names(receipt, index):
@@ -432,7 +441,7 @@ class LegacyZipExporter:
         for page, relative, digest, file, name, candidates, active in pages:
             wid, index = page
             usable_slot = (name in old_hashes
-                           and set(re.findall(r'\(([1-9][0-9]*)\)', name)) == {wid}
+                           and _arcname_work_id(name) == wid
                            and (old_owners[name] == {page} or previous_source is None))
             if not active:
                 if usable_slot:
