@@ -13,7 +13,8 @@ import json
 import math
 import threading
 from urllib.parse import urlencode, urlsplit
-from .external_vault import VaultError, TOKEN_FIELDS, remaining, normalize_data
+from .external_vault import (VaultError, _FirstPayoutGateBusy, _SharedGateBusy, TOKEN_FIELDS,
+    remaining, normalize_data)
 
 ACCOUNT='https://pixshaft.com/v1/account/nana7mi'
 INVALID='https://pixshaft.com/v1/account/nana7mi/invalid'
@@ -334,7 +335,7 @@ class ShaftTransport:
         except ManagedNetworkGateBusy:
             # A different reader owns the short-lived process/thread GET lock.
             # This is not a latched 401/403/429 and must not be reported as one.
-            raise VaultError('pixiv-network-busy') from None
+            raise _SharedGateBusy() from None
         except (ManagedNetworkGateStorageError,ManagedNetworkStopped,HTTPStatusRejected):
             raise VaultError('pixiv-network-stopped') from None
 
@@ -420,7 +421,12 @@ class ShaftTransport:
         for attempt in range(2):
             if slot.get('payout_not_before',0)>now:raise RateLimited(slot['payout_not_before'])
             reserve=(lambda:self._budget('payout',request_uid)) if self._budget is not None else None
-            response=self._signed(ACCOUNT,{'uid':request_uid},secret,reserve=reserve)
+            try:
+                response=self._signed(ACCOUNT,{'uid':request_uid},secret,reserve=reserve)
+            except _SharedGateBusy:
+                if attempt==0:
+                    raise _FirstPayoutGateBusy() from None
+                raise
             if response.status==429:raise RateLimited(quota_retry_at(response.body,now))
             if not 200<=response.status<300:raise VaultError('payout-failed')
             body=response.body;account=body.get('account',{});token=token_fields(account)
