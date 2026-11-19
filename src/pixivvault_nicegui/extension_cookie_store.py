@@ -377,6 +377,7 @@ class ExtensionCookieStore:
                 source = _canonical(initial.cookie_file, file=True, missing=True)
                 if source.is_relative_to(self.root):
                     self._owned_generation(source)
+            self._migrate_legacy_lineage()
         except CookieSyncError:
             self._closed = True
             self._release_owner()
@@ -507,6 +508,85 @@ class ExtensionCookieStore:
         except (CookieSyncError, UnicodeError, ValueError):
             rows = {}  # Invalid old syntax can be replaced, never edited or adopted as valid.
         return raw, proof, rows, None
+
+    def _migrate_legacy_lineage(self):
+        """Adopt only the selected legacy chain, atomically and without changing it."""
+        from .frozen_source_pin import _open_held
+        # A fresh store has no history to migrate and needs no migration marker.
+        if not any(self._generations.iterdir()):
+            return
+        root_key = hashlib.sha256(os.path.normcase(str(self.root)).encode('utf-8')).hexdigest()
+        with ExitStack() as stack, self._profile.pinned_snapshot(include_adoptions=True) as (snapshot, adoptions, db):
+            self._usable()
+            db.execute('''CREATE TABLE IF NOT EXISTS native_cookie_legacy_migrations
+                (root_key TEXT PRIMARY KEY, completed INTEGER NOT NULL,
+                 notice_pending INTEGER NOT NULL, notice_sent INTEGER NOT NULL)''')
+            state = db.execute('SELECT completed,notice_pending,notice_sent FROM native_cookie_legacy_migrations WHERE root_key=?', (root_key,)).fetchone()
+            if state is not None and state[0]:
+                return
+            selected = snapshot.cookie_file
+            managed = selected is not None and selected.parent.parent == self._generations
+            known = {Path(row[0]): row for row in adoptions}
+            visited = set()
+            records = []
+            uncertain = False
+            path = selected if managed else None
+            while path is not None:
+                token = path.parent.name
+                if token in visited or len(visited) >= 64:
+                    uncertain = True
+                    break
+                try:
+                    _, cookie_proof, _, _ = self._owned_generation(path)
+                    metadata, metadata_proof = _read_stable(path.parent / 'generation.json', 2048)
+                    packet = json.loads(metadata, object_pairs_hook=_unique)
+                    for file_path, proof, limit in ((path, cookie_proof, COOKIE_LIMIT),
+                                                   (path.parent / 'generation.json', metadata_proof, 2048)):
+                        descriptor = _open_held(file_path)
+                        stack.callback(os.close, descriptor)
+                        if (_identity(os.fstat(descriptor)) != proof.identity or
+                                _read_stable(file_path, limit)[1] != proof):
+                            raise CookieSyncConflict()
+                    old = known.get(path)
+                    if old is not None and (old[1], old[2]) != (cookie_proof.sha256, metadata_proof.sha256):
+                        raise CookieSyncConflict()
+                except (OSError, ValueError, CookieSyncError):
+                    uncertain = True
+                    break
+                visited.add(token)
+                records.append((path, cookie_proof.sha256, metadata_proof.sha256))
+                previous = packet.get('previous')
+                path = self._generations / previous / 'cookies.txt' if previous is not None else None
+            # Any unproven branch is retained. Never infer ownership from its name.
+            for item in self._generations.iterdir():
+                if item.name not in visited and item / 'cookies.txt' not in known:
+                    uncertain = True
+            if len(adoptions) + sum(path not in known for path, _, _ in records) > 64:
+                raise CookieSyncCapacityExceeded()
+            if records:
+                db.execute('''CREATE TABLE IF NOT EXISTS native_cookie_adoptions
+                    (cookie_path TEXT PRIMARY KEY, cookie_sha TEXT NOT NULL,
+                     metadata_sha TEXT NOT NULL, revision INTEGER NOT NULL,
+                     selected_revision INTEGER NOT NULL)''')
+                for depth, (path, cookie_sha, metadata_sha) in enumerate(records):
+                    revision = max(0, snapshot.revision - depth)
+                    db.execute('INSERT OR IGNORE INTO native_cookie_adoptions VALUES (?,?,?,?,?)',
+                               (str(path), cookie_sha, metadata_sha, revision, revision))
+            completed = int(managed and bool(records))
+            pending = int(uncertain and not (state and state[2]))
+            db.execute('''INSERT INTO native_cookie_legacy_migrations VALUES (?,?,?,0)
+                ON CONFLICT(root_key) DO UPDATE SET completed=excluded.completed,
+                notice_pending=MAX(notice_pending,excluded.notice_pending)''',
+                       (root_key, completed, pending))
+
+    def take_legacy_migration_notice(self):
+        """Claim the retained-history notice once for the application event log."""
+        root_key = hashlib.sha256(os.path.normcase(str(self.root)).encode('utf-8')).hexdigest()
+        with self._profile.pinned_snapshot(include_adoptions=True) as (_, _, db):
+            if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='native_cookie_legacy_migrations'").fetchone():
+                return False
+            result = db.execute('UPDATE native_cookie_legacy_migrations SET notice_pending=0, notice_sent=1 WHERE root_key=? AND notice_pending=1 AND notice_sent=0', (root_key,))
+            return result.rowcount == 1
 
     def expiry_source(self):
         """Capture a profile revision, exact file proof and all existing rows."""

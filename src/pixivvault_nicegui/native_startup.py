@@ -291,6 +291,15 @@ class NativeProfileBinding:
                 if self._closed or self.cookie_store_factory is None:
                     raise RuntimeError('credential store unavailable')
                 self._cookie_store = self.cookie_store_factory()
+            claim_notice = getattr(self._cookie_store, 'take_legacy_migration_notice', None)
+            event_owner = getattr(self, '_shared_event_services', None)
+            if claim_notice is not None and getattr(event_owner, 'shared_log', None) is not None:
+                try:
+                    if claim_notice():
+                        from .shared_events import emit_shared
+                        emit_shared(event_owner, '\u7531\u6765\u4e0d\u660e\u306e\u65e7 Cookie \u4e16\u4ee3\u306f\u524a\u9664\u305b\u305a\u4fdd\u6301\u3057\u307e\u3057\u305f\u3002', level='normal')
+                except Exception:
+                    pass  # Notification failure must not interrupt authentication.
             return self._cookie_store
 
     def cookie_expiry_coordinator(self):
