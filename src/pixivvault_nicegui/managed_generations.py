@@ -1057,6 +1057,9 @@ class ManagedGenerations:
                 or not (loaded.mark_records if cached else 0) <= mark['records'] <= seq
                 or mark['chain'] != all_chains[mark['records']]):
             raise ValueError()
+        if (floor is not None and floor['generation'] == loaded.generation
+                and (floor['records'] > seq or all_chains[floor['records']] != floor['chain'])):
+            raise ValueError()
         records = head.get('records')
         if records is not None and mark['records'] > records:
             head = self._read_head()
@@ -1816,7 +1819,7 @@ class ManagedGenerations:
                     or type(floor['digest']) is not str or not _SHA.fullmatch(floor['digest'])
                     or type(floor['candidate']) is not str
                     or re.fullmatch(r'active-[a-f0-9]{32}\.tmp', floor['candidate']) is None
-                    or type(floor['records']) is not int or floor['records'] != 0 or type(floor['chain']) is not str
+                    or type(floor['records']) is not int or floor['records'] < 0 or type(floor['chain']) is not str
                     or not _SHA.fullmatch(floor['chain'])):
                 raise ValueError()
             return floor
@@ -1825,7 +1828,13 @@ class ManagedGenerations:
 
     def _write_head(self, head):
         floor = self._read_floor()
-        if (floor is None or head['generation'] > floor['generation']) and head['records'] == 0:
+        advance = floor is None or head['generation'] > floor['generation']
+        if floor is not None and head['generation'] == floor['generation']:
+            if (head['id'] != floor['id'] or head['digest'] != floor['digest']
+                    or (head['records'] == floor['records'] and head['chain'] != floor['chain'])):
+                raise ManagedDownloadError('active generation index rejected')
+            advance = head['records'] > floor['records']
+        if advance:
             temporary = self.stage_dir / ('floor-' + uuid4().hex + '.tmp')
             _write(temporary, _canonical(head))
             _fsync_dir(self.stage_dir)
