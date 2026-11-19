@@ -563,6 +563,7 @@ class ManagedGenerations:
             raise ManagedDownloadError('active generation index rejected') from None
 
     def _recover_if_pending(self):
+        self._pending_fold = None
         head = self._read_head()
         floor = self._read_floor()
         if floor is not None and (head is None or floor['generation'] > head['generation']):
@@ -578,7 +579,11 @@ class ManagedGenerations:
                             and _identity(self.stage_dir / current['candidate']) is None):
                         return
                     time.sleep(0.01)
-                raise
+                # The writer still owns the fence. assert_consistent may serve
+                # the old view only after proving the committed candidate is
+                # exactly equivalent, including quarantine state.
+                self._pending_fold = floor
+                return
             return
         if head is None:
             return
@@ -599,7 +604,8 @@ class ManagedGenerations:
                 if _identity(candidate) is None:
                     return  # The caller still verifies the complete state.
                 time.sleep(0.01)
-            raise
+            self._pending_fold = floor
+            return
 
     @staticmethod
     def _read_receipt(path, pieces, folders):
@@ -945,10 +951,14 @@ class ManagedGenerations:
             raise ValueError()
         head = self._read_head()
         floor = self._read_floor()
-        if (head is None or head['id'] != loaded.jid or head['generation'] != loaded.generation
-                or head['digest'] != loaded.base_digest):
+        pending_fold = getattr(self, '_pending_fold', None)
+        folding = (pending_fold is not None and pending_fold == floor
+                   and floor['generation'] == loaded.generation + 1 and floor['records'] == 0)
+        old_head = (head is not None and head['id'] == loaded.jid
+                    and head['generation'] == loaded.generation and head['digest'] == loaded.base_digest)
+        if not old_head and not (folding and head == floor):
             raise ValueError()
-        if floor is not None and (floor['generation'] > loaded.generation or
+        if floor is not None and ((floor['generation'] > loaded.generation and not folding) or
                 (floor['generation'] == loaded.generation and
                  (floor['id'] != loaded.jid or floor['digest'] != loaded.base_digest))):
             raise ValueError()
@@ -987,7 +997,10 @@ class ManagedGenerations:
             if _identity(self.root) != directory:
                 raise ValueError()
             loaded.witness_directory, loaded.witness_entries = directory, tuple(found)
-        if any(generation > loaded.generation for _, _, generation in loaded.witness_entries):
+        if any(generation > loaded.generation and not
+               (folding and generation == floor['generation']
+                and _JOURNAL_NAME.fullmatch(path.name).group(1) == floor['id'])
+               for path, _, generation in loaded.witness_entries):
             raise ValueError()
 
         jpath, mpath = self._journal_file(loaded.jid), self._mark_file(loaded.jid)
@@ -1057,6 +1070,25 @@ class ManagedGenerations:
                 or not (loaded.mark_records if cached else 0) <= mark['records'] <= seq
                 or mark['chain'] != all_chains[mark['records']]):
             raise ValueError()
+        if folding:
+            # A fold changes the generation but not the visible state. A
+            # quarantine commit is not equivalent and must never use this view.
+            data = _read_shared(self.stage_dir / floor['candidate'], _MAX_INDEX_BYTES)
+            candidate = json.loads(data, object_pairs_hook=_json_unique)
+            expected = dict(loaded.indexed)
+            expected.update((entry['work_id'], entry) for entry in entries)
+            if (hashlib.sha256(data).hexdigest() != floor['digest']
+                    or type(candidate) is not dict or candidate.keys() != _V5_KEYS
+                    or candidate['version'] != 5
+                    or candidate['journal'] != {'id': floor['id'], 'generation': floor['generation'],
+                                                 'parent': loaded.base_digest}
+                    or candidate['entries'] != expected
+                    or candidate['exclusions'] != loaded.exclusions
+                    or candidate['quarantine_operations'] != loaded.operations
+                    or self._read_floor() != floor or _identity(self.index_path) != loaded.base_sig):
+                raise ValueError()
+            if not old_head:
+                head = {'records': mark['records'], 'chain': mark['chain']}
         if (floor is not None and floor['generation'] == loaded.generation
                 and (floor['records'] > seq or all_chains[floor['records']] != floor['chain'])):
             raise ValueError()
