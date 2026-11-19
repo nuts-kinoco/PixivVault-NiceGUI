@@ -1391,20 +1391,25 @@ class ApplicationServices:
         from .saved_folders import open_saved_folder
         return await open_saved_folder(self, choice, is_current=is_current)
 
-    async def open_duplicate_quarantine(self, *, parent_if_uncreated=False):
-        """Open only the existing, revalidated owned quarantine directory."""
+    async def open_duplicate_quarantine(self, *, parent_if_uncreated=False, original=False):
+        """Open the selected managed or original quarantine location."""
         source = self.duplicate_inspection
         desktop = self.desktop
         if self.closing or source is None or desktop is None:
             raise RuntimeError('quarantine location unavailable')
 
         def open_target():
-            target = (source.quarantine_parent_if_uncreated() if parent_if_uncreated
-                      else source.quarantine_location())
+            if original:
+                target = source.original_quarantine_location()
+            else:
+                target = (source.quarantine_parent_if_uncreated() if parent_if_uncreated
+                          else source.quarantine_location())
             if (target is None or self.closing
                     or self.duplicate_inspection is not source
                     or self.desktop is not desktop):
                 raise RuntimeError('quarantine location unavailable')
+            if original:
+                return desktop.open_saved(target, original_quarantine=True)
             return desktop.open_saved(target)
 
         return await asyncio.to_thread(open_target)

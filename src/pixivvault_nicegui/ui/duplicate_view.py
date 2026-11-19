@@ -128,6 +128,10 @@ class DuplicateView:
                             'flat data-testid=duplicate-trash-refresh')
                         self.trash_open_button=ui.button('保存先を開く',on_click=self.open_trash_location).props(
                             'flat data-testid=duplicate-trash-open')
+                        self.trash_original_open_button=ui.button('旧ごみ箱を開く',
+                            on_click=self.open_original_trash_location).props('flat data-testid=duplicate-trash-open-original')
+                        self.trash_original_open_button.set_visibility(
+                            self._open_trash_callback is not None and getattr(self.source, 'legacy', None) is not None)
                         self.trash_open_button.tooltip('このアプリ専用のごみ箱フォルダをOSで開きます。'
                             if self._open_trash_callback is not None else
                             'この起動ではOSで開く操作を利用できません。')
@@ -176,6 +180,9 @@ class DuplicateView:
             and self._trash_state in ('ready','uncreated') and self._trash_snapshot is not None
             and (self._trash_state=='uncreated' or self._trash_snapshot.location is not None)
             and self._open_trash_callback is not None)
+        self.trash_original_open_button.set_enabled(enabled and self.trash_dialog.value
+            and not self._trash_reading and not self._trash_opening
+            and self._open_trash_callback is not None and legacy is not None)
         self.low_button.set_enabled(enabled and self.mode=='near' and self.scan_result is not None)
         for button in self.size_buttons.values():button.set_enabled(enabled)
         self.plan_button.set_enabled(enabled and self.mode=='near' and any(self.selections.values()))
@@ -436,18 +443,27 @@ class DuplicateView:
                 self.sync()
                 if self.trash_dialog.value:await self.refresh_trash()
 
-    async def open_trash_location(self):
-        if (self.closed or not self.active or self.busy or self._trash_reading
-                or self._trash_opening or not self.trash_dialog.value
-                or self._trash_state not in ('ready','uncreated') or self._trash_snapshot is None
-                or (self._trash_state=='ready' and self._trash_snapshot.location is None) or self._open_trash_callback is None):return
+    async def open_original_trash_location(self):
+        await self.open_trash_location(original=True)
+
+    async def open_trash_location(self, *, original=False):
+        button = self.trash_original_open_button if original else self.trash_open_button
+        if not button.enabled:
+            return
         epoch,generation=self._trash_epoch,self.generation
         self._trash_opening=True;self.sync()
         try:
-            await self._open_trash_callback(parent_if_uncreated=True) if self._trash_state=='uncreated' else await self._open_trash_callback()
+            if original:
+                await self._open_trash_callback(original=True)
+            elif self._trash_state=='uncreated':
+                await self._open_trash_callback(parent_if_uncreated=True)
+            else:
+                await self._open_trash_callback()
         except Exception:
             if self._trash_current(epoch,generation):
-                self.trash_status.set_text('ごみ箱の保存先を開けませんでした。再読込して確認してください。')
+                message = ('旧ごみ箱を開けませんでした。画像保存先と同じ階層の quarantine を確認してください。'
+                           if original else 'ごみ箱の保存先を開けませんでした。再読込して確認してください。')
+                self.trash_status.set_text(message)
         finally:
             self._trash_opening=False
             if not self.closed:self.sync()

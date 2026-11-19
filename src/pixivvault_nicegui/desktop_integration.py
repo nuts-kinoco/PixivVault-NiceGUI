@@ -408,12 +408,15 @@ class WindowsLauncher:
 
 class DesktopIntegration:
     """Only saved targets in explicitly configured roots can be launched."""
-    def __init__(self, *, allowed_roots=(), launcher=None, protocol=None, environment=None, exists=None):
+    def __init__(self, *, allowed_roots=(), launcher=None, protocol=None, environment=None, exists=None,
+                 legacy_image_root=None):
         roots=tuple(native_io_path(p) for p in allowed_roots)
         if any(node.is_symlink() or (node.exists() and getattr(node.lstat(),'st_file_attributes',0)&0x400)
                for root in roots for node in (root,*root.parents)):
             raise DesktopActionRejected('保存先にリンクは使用できません。')
         self.allowed_roots=tuple(logical_path(root.resolve()) for root in roots)
+        self._original_quarantine = (logical_path(legacy_image_root).parent / 'quarantine'
+                                     if legacy_image_root is not None else None)
         self.launcher=launcher
         self.protocol=protocol
         self.environment=dict(os.environ if environment is None else environment)
@@ -439,17 +442,19 @@ class DesktopIntegration:
                 if self.exists(path): return path
         return None
 
-    def open_saved(self,target):
+    def open_saved(self,target,*,original_quarantine=False):
         if self.launcher is None: raise DesktopUnavailable('外部ビューアの接続がありません。')
         original=native_io_path(target)
         if any(node.is_symlink() or (node.exists() and getattr(node.lstat(),'st_file_attributes',0)&0x400) for node in (original,*original.parents)):
             raise DesktopActionRejected('保存場所にリンクは使用できません。')
         target=logical_path(original.resolve())
-        if not any(target==root or target.is_relative_to(root) for root in self.allowed_roots):
-            raise DesktopActionRejected('保存先の範囲外です。')
-        # Compare canonical logical paths, but perform filesystem checks with
-        # native spelling so a long target cannot be mistaken for a missing one.
+        # The legacy action only authorizes that exact directory, never its contents.
         io_target=native_io_path(target)
+        if original_quarantine:
+            if target != self._original_quarantine or not io_target.is_dir():
+                raise DesktopActionRejected('旧ごみ箱の保存場所を確認できません。')
+        elif not any(target==root or target.is_relative_to(root) for root in self.allowed_roots):
+            raise DesktopActionRejected('保存先の範囲外です。')
         if not io_target.exists(): raise DesktopActionRejected('保存場所が見つかりませんでした。')
         if not io_target.is_dir() and target.suffix.lower() not in {'.zip','.jpg','.jpeg','.png','.gif','.webp','.bmp','.tif','.tiff'}:
             raise DesktopActionRejected('対応する保存画像ではありません。')
