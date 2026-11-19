@@ -744,6 +744,9 @@ class SaveExports:
                 if owned:raise ValueError('previous ZIP has no matching completed receipt')
                 self._mutation_lock.release()
                 return None
+            for name in matches:
+                value=json.loads(_read_bounded(native_io_path(self.root)/name,2_000_000),object_pairs_hook=_json_unique)
+                self._check_completed_zip_pending(name,value['source'],previous,previous)
             note={'version':1,'archive':archive.name,'before':previous,
                   'after':verified_zip_digest(stage),'receipts':sorted(matches)}
             path=native_io_path(self.root)/('zip-mutation-'+uuid4().hex+'.json')
@@ -773,6 +776,7 @@ class SaveExports:
                     or not value['archive'].endswith('('+author.group(1)+').zip')
                     or value.get('sha256') not in (note['before'],note['after'])):
                 raise ValueError('ZIP mutation receipt changed')
+            self._check_completed_zip_pending(name,source,note['before'],note['after'],remove=True)
             if value['sha256']==note['after'] and value['archive']==note['archive']:continue
             value['sha256']=note['after'];value['archive']=note['archive']
             temp=native_io_path(self.root)/('zip-receipt-'+uuid4().hex+'.tmp')
@@ -781,6 +785,19 @@ class SaveExports:
             finally:
                 temp.unlink(missing_ok=True)
         path.unlink();_fsync_dir(path.parent)
+
+    def _check_completed_zip_pending(self, name, source, before, after, *, remove=False):
+        pending=native_io_path(self.root)/(name[:-len('.export.json')]+'.zip-pending.json')
+        if not pending.exists():return
+        old_note=json.loads(_read_bounded(pending,2_000_000),object_pairs_hook=_json_unique)
+        stage=old_note.get('stage')
+        if (old_note.get('source')!=source or old_note.get('sha256') not in (before,after)
+                or type(stage) is not str or re.fullmatch(r'zip-[a-f0-9]{32}\.tmp',stage) is None):
+            raise ValueError('ZIP mutation pending publication unresolved')
+        stage_path=native_io_path(self.zip.incomplete)/stage
+        if stage_path.exists() or stage_path.is_symlink():
+            raise ValueError('ZIP mutation pending publication unresolved')
+        if remove:pending.unlink();_fsync_dir(pending.parent)
 
     def _recover_zip_mutations(self):
         with self._mutation_lock:
@@ -937,15 +954,17 @@ class SaveExports:
                     _publish_owned(pending,packet(note))
                 self.zip.export_author(aid,expected_proofs=identity['proofs'],before_publish=record_stage,
                                        expected_source_pages=source_pages,replace_existing_sha256=previous)
-            self._finish_zip_pending(job,identity,manifest,context)
-            receipt=json.loads(_read_bounded(manifest,2_000_000),object_pairs_hook=_json_unique)
-            if receipt.get('source')!=identity or Path(receipt['archive']).name!=receipt['archive']:
-                raise ValueError('ZIP export manifest changed')
-            archive=native_io_path(self.zip.root/receipt['archive']);_safe_path(archive,file=True)
-            hasher=sha256()
-            with archive.open('rb') as stream:
-                for part in iter(lambda:stream.read(1024*1024),b''):hasher.update(part)
-            if hasher.hexdigest()!=receipt['sha256']:raise ValueError('ZIP bytes changed')
+            with self._mutation_lock:
+                self._recover_zip_mutations_locked()
+                self._finish_zip_pending(job,identity,manifest,context)
+                receipt=json.loads(_read_bounded(manifest,2_000_000),object_pairs_hook=_json_unique)
+                if receipt.get('source')!=identity or Path(receipt['archive']).name!=receipt['archive']:
+                    raise ValueError('ZIP export manifest changed')
+                archive=native_io_path(self.zip.root/receipt['archive']);_safe_path(archive,file=True)
+                hasher=sha256()
+                with archive.open('rb') as stream:
+                    for part in iter(lambda:stream.read(1024*1024),b''):hasher.update(part)
+                if hasher.hexdigest()!=receipt['sha256']:raise ValueError('ZIP bytes changed')
             context.checkpoint();return str(manifest.relative_to(self.root))
         if job.kind not in ('bookmark-projection','author-projection','auto-zip'):raise ValueError('unknown export kind')
         if identity.get('media') in ('novel','ugoira'):

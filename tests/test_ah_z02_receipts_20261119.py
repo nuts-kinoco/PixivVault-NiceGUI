@@ -43,3 +43,26 @@ def test_direct_mutation_recovery_keeps_receipt_consistent(tmp_path, monkeypatch
             assert (sha256(path.read_bytes()).hexdigest()==prior) == (failure=='before_archive_replace')
             assert not list(reopened.root.glob('zip-mutation-*.json'))
         finally: reopened.close()
+
+
+def test_completed_auto_zip_can_be_read_after_direct_mutation(tmp_path):
+    from test_managed_downloads import Context
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan(); job=settled(q.exports)[0]; assert job.state=='done'
+        path=q.exports.zip.root/'tester(456).zip'
+        q.exports.zip.normalize_archive(path,sha256(path.read_bytes()).hexdigest(),zip64_threshold=1)
+        result=q.exports.run(job,Context())
+        assert result==job.result
+
+
+def test_direct_mutation_refuses_unfinished_auto_zip_stage(tmp_path):
+    import json
+    with generated_exports(tmp_path, True, None) as q:
+        q.exports.scan(); job=settled(q.exports)[0]; assert job.state=='done'
+        archive=q.exports.zip.root/'tester(456).zip'; before=archive.read_bytes()
+        pending=q.exports.root/(job.target_id+'.zip-pending.json')
+        stage=q.exports.zip.incomplete/json.loads(pending.read_bytes())['stage']
+        stage.write_bytes(b'unfinished')
+        with pytest.raises(ValueError):
+            q.exports.zip.normalize_archive(archive,sha256(before).hexdigest(),zip64_threshold=1)
+        assert archive.read_bytes()==before and stage.read_bytes()==b'unfinished'
