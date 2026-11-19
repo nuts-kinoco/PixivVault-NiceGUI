@@ -544,6 +544,7 @@ class ExtensionCookieStore:
                     uncertain = True
                     break
                 try:
+                    # Same-user replacement between validation and use is outside the threat model.
                     _, cookie_proof, _, _ = self._owned_generation(path)
                     metadata, metadata_proof = _read_stable(path.parent / 'generation.json', 2048)
                     packet = json.loads(metadata, object_pairs_hook=_unique)
@@ -579,7 +580,7 @@ class ExtensionCookieStore:
                     revision = max(0, snapshot.revision - depth)
                     db.execute('INSERT OR IGNORE INTO native_cookie_adoptions VALUES (?,?,?,?,?)',
                                (str(path), cookie_sha, metadata_sha, revision, revision))
-            completed = int(managed and bool(records))
+            completed = 1  # Evaluation is one-time even without a managed selection.
             pending = int(uncertain and not (state and state[2]))
             db.execute('''INSERT INTO native_cookie_legacy_migrations VALUES (?,?,?,0)
                 ON CONFLICT(root_key) DO UPDATE SET completed=excluded.completed,
