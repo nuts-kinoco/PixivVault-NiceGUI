@@ -39,6 +39,17 @@ class VaultError(ValueError):
         self.code=code
         super().__init__('external vault: '+code)
 
+class _SharedGateBusy(VaultError):
+    """The shared gate rejected admission before dispatch."""
+
+    def __init__(self):
+        super().__init__('pixiv-network-busy')
+
+
+class _FirstPayoutGateBusy(_SharedGateBusy):
+    """The first ACCOUNT could not enter the shared gate."""
+
+
 VAULT_INTEGRITY_ERRORS = frozenset(('invalid-ciphertext', 'invalid-generation', 'invalid-vault'))
 
 class CryptoUnavailable(VaultError):
@@ -988,6 +999,10 @@ class ExternalVaultService:
                 # Guard entry failed before any transport operation.
                 if isinstance(error,VaultError):raise
                 raise VaultError('refresh-failed') from None
+            if isinstance(error, _FirstPayoutGateBusy):
+                # The timestamps above are on a working copy. Keep the
+                # persisted slot eligible for the keeper's short retry.
+                raise
             if isinstance(error,VaultError) and error.code=='invalid-token-fields':
                 raise VaultError('invalid-response') from None
             slot['consecutive_failures']=slot.get('consecutive_failures',0)+1
