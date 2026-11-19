@@ -37,7 +37,8 @@ class _GeneratedMetadataReader(ManagedLivePixivReadClient):
     """Override metadata with fictional results, retain the real guarded image GET."""
 
     def verify_identity(self):
-        return "999"
+        self._verified_identity = '999'
+        return self._verified_identity
 
     def get_artwork_update_revision(self, work_id, author_id):
         assert author_id == "24" and work_id in ("123", "124")

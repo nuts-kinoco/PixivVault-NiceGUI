@@ -379,7 +379,7 @@ def test_legacy_redownload_of_purged_page_skips_it_and_still_succeeds(tmp_path):
 
     class Reader:
         def verify_identity(self):
-            calls.append('verify'); return '7'
+            calls.append('verify'); self._verified_identity = '7'; return self._verified_identity
 
         def get_artwork_original_pages(self, wid):
             return ('https://i.pximg.net/p0', 'https://i.pximg.net/p1')
@@ -563,7 +563,8 @@ def test_stand_in_page_stays_hidden_when_the_legacy_store_is_not_bound(tmp_path)
 
     class Reader:
         def verify_identity(self):
-            return '7'
+            self._verified_identity = '7'
+            return self._verified_identity
 
         def get_artwork_original_pages(self, wid):
             return ('https://i.pximg.net/p0', 'https://i.pximg.net/p1')

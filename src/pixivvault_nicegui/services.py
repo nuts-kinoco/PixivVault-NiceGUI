@@ -1227,12 +1227,7 @@ class ApplicationServices:
             return None if value is None else tuple(value)
         reader = self.live_client
         cached = self._following_snapshot
-        missing = object()
-        account = getattr(reader, '_verified_identity', missing)
-        if account is missing:
-            # Compatibility with explicit adapters lacking a cached-identity
-            # field: only a context acquired from this same reader is usable.
-            account = cached[1] if cached is not None and cached[0] is reader else None
+        account = getattr(reader, '_verified_identity', None)
         if type(account) is not str or re.fullmatch(r'[1-9][0-9]{0,19}', account) is None:
             return None
         value = None
@@ -2766,7 +2761,7 @@ class ApplicationServices:
             if not isinstance(account, str) or re.fullmatch(r'[1-9][0-9]{0,19}', account) is None:
                 account = await asyncio.to_thread(verify)
             if (self.closing or self.live_client is not reader or not self.bookmark_auto_refresh_enabled() or
-                    getattr(reader, '_verified_identity', account) != account):
+                    getattr(reader, '_verified_identity', None) != account):
                 raise RuntimeError('bookmark reader changed')
             if (self.save_exports is not None and self.save_exports.account not in (None, account)):
                 raise RuntimeError('bookmark export account differs')
@@ -2780,7 +2775,7 @@ class ApplicationServices:
                 store.close()
                 self._bookmark_cache_store = None
                 return False
-            if self.closing or self.live_client is not reader or not self.bookmark_auto_refresh_enabled() or getattr(reader, '_verified_identity', account) != account:
+            if self.closing or self.live_client is not reader or not self.bookmark_auto_refresh_enabled() or getattr(reader, '_verified_identity', None) != account:
                 raise RuntimeError('bookmark reader changed')
             self._bookmark_restore_attempted = True
             if stored is None:
@@ -3360,7 +3355,7 @@ class ApplicationServices:
                 account_id = self.following_sync.last_synced_account()
         else:
             reader = self.live_client
-            require_same_account(account_id, getattr(reader, '_verified_identity', account_id) if reader is not None else None)
+            require_same_account(account_id, getattr(reader, '_verified_identity', None) if reader is not None else None)
         return engine.start(tuple(author_ids), kind=kind, origin=origin, target_type=target_type,
                             account_id=account_id)
 

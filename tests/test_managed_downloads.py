@@ -39,7 +39,8 @@ class Client:
 
     def verify_identity(self):
         self.identity += 1
-        return "456"
+        self._verified_identity = '456'
+        return self._verified_identity
 
     def get_artwork_original_pages(self, work_id):
         self.urls += 1

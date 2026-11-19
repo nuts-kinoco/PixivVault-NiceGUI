@@ -12,7 +12,7 @@ from pixivvault_nicegui.ui.author_browse_view import AuthorBrowseView
 
 class Reader:
     def __init__(self): self.details=[];self.authors=[];self.entered=None;self.release=None;self.fail=False
-    def require_identity(self): return '7'
+    def require_identity(self): self._verified_identity = '7'; return self._verified_identity
     def get_artwork_metadata_raw(self,wid,aid):
         self.details.append((wid,aid))
         if self.entered:

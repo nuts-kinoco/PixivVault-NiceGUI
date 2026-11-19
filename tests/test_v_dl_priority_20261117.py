@@ -213,7 +213,7 @@ def test_dispatch_author_check_uses_the_engine_when_provisioned(auto):
     auto.following.set_favorite(ACCOUNT, '1001', True)
     ledger.attach_favourites(FavouriteBook(auto.following, scheduler=ledger))
     services = NS(batch_runs=auto.engine, closing=False, following_sync=auto.following,
-                  live_client=NS(verify_identity=lambda: ACCOUNT))
+                  live_client=NS(_verified_identity=ACCOUNT, verify_identity=lambda: ACCOUNT))
     services.start_batch_run = lambda *args, **kwargs: ApplicationServices.start_batch_run(services, *args, **kwargs)
     services.scheduler_favourite_authors = lambda **kwargs: ApplicationServices.scheduler_favourite_authors(services, **kwargs)
     result = ApplicationServices.dispatch_author_check(services, ledger, 'd1', threading.Event())

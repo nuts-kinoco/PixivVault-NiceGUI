@@ -57,7 +57,7 @@ def direct_child(root, wid):
         def progress(self, *_): pass
 
     class Client:
-        def verify_identity(self): return '99'
+        def verify_identity(self): self._verified_identity = '99'; return self._verified_identity
 
         def get_artwork_original_pages(self, wid):
             await_start(root, wid, True)  # after assert_room; neither writer has yet published

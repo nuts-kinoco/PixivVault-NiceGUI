@@ -24,11 +24,13 @@ async def test_rejected_concurrent_start_cannot_rebind_active_resume(tmp_path):
 
     class OtherReader(GeneratedReader):
         def verify_identity(self):
-            return '77'
+            self._verified_identity = '77'
+            return self._verified_identity
 
     class OtherFollowing(FollowingReader):
         def require_identity(self):
-            return '77'
+            self._verified_identity = '77'
+            return self._verified_identity
 
     before_preflight, finish = Event(), Event()
 

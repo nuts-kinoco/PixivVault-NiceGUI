@@ -46,7 +46,7 @@ def test_fatal_swallowed_in_first_author_stops_second_before_remote_inventory(
             return ()
 
         live_client = SimpleNamespace(
-            verify_identity=lambda: "generated-only",
+            _verified_identity="42", verify_identity=lambda: "42",
             get_author_artworks_complete=generated_remote_inventory,
         )
         services = SimpleNamespace(

@@ -30,7 +30,8 @@ class FakeSource:
 
     def verify_identity(self):
         self.calls.append("identity")
-        return "12"
+        self._verified_identity = '12'
+        return self._verified_identity
 
     def get_bookmarked_works(self, identity, rest_type):
         assert identity == "12"

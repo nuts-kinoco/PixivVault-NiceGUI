@@ -196,7 +196,7 @@ def test_quarantined_legacy_pages_never_download_again_and_surviving_pages_stay_
     source,legacy,owner,*_=setup(tmp_path)
     calls=[]
     class Reader:
-        def verify_identity(self):calls.append('verify');return '7'
+        def verify_identity(self):calls.append('verify');self._verified_identity = '7'; return self._verified_identity
         def get_artwork_original_pages(self,wid):
             return ('https://i.pximg.net/p0',) if wid=='2' else ('https://i.pximg.net/p0','https://i.pximg.net/p1')
         def get_image_bytes(self,url):calls.append(url);return png()

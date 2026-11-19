@@ -40,7 +40,7 @@ async def test_accepted_count_visible_before_next_author_finishes(tmp_path,route
         jobs=SimpleNamespace(snapshot=lambda:tuple(queue)),
         managed_downloads=SimpleNamespace(saved_receipts_with_dates=lambda:(),
             verified_saved_receipt=lambda *a,**k:None,work_lock=lambda *a:nullcontext()),
-        live_client=SimpleNamespace(verify_identity=lambda:None,get_author_artworks_complete=inventory,
+        live_client=SimpleNamespace(_verified_identity='42',verify_identity=lambda:'42',get_author_artworks_complete=inventory,
             get_artwork_download_record=lambda wid:record),
         author_media_preview=inventory,enqueue_author_media=enqueue,enqueue_managed_download=enqueue,
         remember_managed_author_batch=lambda owner,records:records,

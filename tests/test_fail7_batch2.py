@@ -161,7 +161,7 @@ def test_z04_other_callers_keep_expiry_fallback():
         def status(self):return dict(open=True,mode='nana7mi',transport_available=True)
         def search(self,*a,**kw):raise VaultError('expired-payout')
     class Reader:
-        def require_identity(self):return '1'
+        def require_identity(self):self._verified_identity = '1'; return self._verified_identity
         def search_illusts(self,*a,**kw):return {'works':[]}
     assert PremiumSearch(V(),Reader()).search('tag')['illusts']==[]
 

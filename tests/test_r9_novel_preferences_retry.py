@@ -17,8 +17,8 @@ class GeneratedReader:
     def __init__(self):
         self.calls = []
         self.wrong_author = False
-    def require_identity(self): return '12'
-    def verify_identity(self): return '12'
+    def require_identity(self): self._verified_identity = '12'; return self._verified_identity
+    def verify_identity(self): self._verified_identity = '12'; return self._verified_identity
     def get_novel_payload(self, wid, aid):
         self.calls.append((wid, aid))
         return dict(id=wid, userId='99' if self.wrong_author else aid,

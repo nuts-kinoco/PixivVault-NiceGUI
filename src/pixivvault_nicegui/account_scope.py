@@ -1,6 +1,10 @@
 """Fail closed when an account-scoped result belongs to another account."""
 
 
+from dataclasses import dataclass
+import re
+
+
 class AccountMismatch(RuntimeError):
     code = 'author_account_mismatch'
 
@@ -15,6 +19,56 @@ def require_same_account(expected_owner, observed, *, error=None):
 
 def require_current_account(services, reader, account, *, error=None):
     """Recheck the reader that produced the result before adopting it."""
-    if reader is None or services.live_client is not reader:
+    observed = getattr(reader, '_verified_identity', None)
+    if reader is None or services.live_client is not reader or observed is None:
         raise AccountMismatch() if error is None else error
-    require_same_account(account, getattr(reader, '_verified_identity', account), error=error)
+    require_same_account(account, observed, error=error)
+
+
+@dataclass(frozen=True, slots=True)
+class AccountScope:
+    account_id: str
+    reader: object | None = None
+
+    def __post_init__(self):
+        if type(self.account_id) is not str or re.fullmatch(r'[1-9][0-9]{0,19}', self.account_id) is None:
+            raise AccountMismatch()
+
+    def verify_current(self, services, *, error=None) -> str:
+        require_current_account(services, self.reader, self.account_id, error=error)
+        return self.account_id
+
+
+@dataclass(frozen=True, slots=True)
+class OwnedListing:
+    scope: AccountScope
+    author_id: str
+    target_type: str
+    rows: tuple[object, ...]
+
+    def __post_init__(self):
+        if (type(self.scope) is not AccountScope or type(self.rows) is not tuple
+                or type(self.author_id) is not str or re.fullmatch(r'[1-9][0-9]{0,19}', self.author_id) is None
+                or self.target_type not in ('both', 'illust', 'novel')):
+            raise AccountMismatch()
+
+    @property
+    def account_id(self) -> str:
+        return self.scope.account_id
+
+
+class BoundSchedulerLedger:
+    """Deferred-work writes require the account scope of the current dispatch."""
+
+    def __init__(self, ledger, scope: AccountScope, services):
+        self._ledger = ledger
+        self._scope = scope
+        self._services = services
+
+    def defer_work(self, *, author_id, work, now):
+        account = self._scope.verify_current(self._services)
+        self._ledger.defer_work(author_id=author_id, work=work, now=now, account_id=account)
+
+    def resolve_deferred(self, author_id, work_id):
+        account = self._scope.verify_current(self._services)
+        self._ledger.resolve_deferred(author_id, work_id, account_id=account)

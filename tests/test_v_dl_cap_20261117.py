@@ -478,7 +478,7 @@ def test_the_real_writer_reports_storage_capacity_when_the_ceiling_is_reached(tm
         def progress(self, *_): pass
 
     class Client:
-        def verify_identity(self): return '99'
+        def verify_identity(self): self._verified_identity = '99'; return self._verified_identity
         def get_artwork_original_pages(self, wid): return (f'https://i.pximg.net/synthetic/{wid}/1.png',)
         def get_artwork_update_revision(self, wid, aid):
             return dict(author_id=aid, page_count=1, illustration_type=0, update_date='2026-10-29T00:00:00Z')
@@ -514,7 +514,7 @@ def _writer_with_works(tmp_path, count):
         def progress(self, *_): pass
 
     class Client:
-        def verify_identity(self): return '99'
+        def verify_identity(self): self._verified_identity = '99'; return self._verified_identity
         def get_artwork_original_pages(self, wid): return (f'https://i.pximg.net/synthetic/{wid}/1.png',)
         def get_artwork_update_revision(self, wid, aid):
             return dict(author_id=aid, page_count=1, illustration_type=0, update_date='2026-10-29T00:00:00Z')

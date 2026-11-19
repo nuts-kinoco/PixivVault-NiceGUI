@@ -23,7 +23,8 @@ class GeneratedReader:
     def close(self): pass
 
     def verify_identity(self):
-        return '55'
+        self._verified_identity = '55'
+        return self._verified_identity
 
     def get_bookmarked_works(self, _uid, *, rest_type):
         self.calls.append(('illustration', rest_type))

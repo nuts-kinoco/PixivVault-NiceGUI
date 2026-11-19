@@ -62,11 +62,13 @@ class FakeClient:
 
     def verify_identity(self):
         self._hit("verify_identity")
-        return "99"
+        self._verified_identity = '99'
+        return self._verified_identity
 
     def require_identity(self):
         self._hit("require_identity")
-        return "99"
+        self._verified_identity = '99'
+        return self._verified_identity
 
     def close(self):
         pass

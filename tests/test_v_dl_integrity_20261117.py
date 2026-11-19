@@ -335,7 +335,7 @@ def test_e_a_save_without_intent_is_refused_up_front_when_the_store_is_full(tmp_
         def progress(self, *_): pass
 
     class Client:
-        def verify_identity(self): return '99'
+        def verify_identity(self): self._verified_identity = '99'; return self._verified_identity
         def get_artwork_original_pages(self, wid): return (f'https://i.pximg.net/synthetic/{wid}/1.png',)
         def get_image_bytes(self, url):
             downloaded.append(url)

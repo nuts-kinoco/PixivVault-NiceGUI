@@ -82,7 +82,8 @@ async def test_bookmark_resume_does_not_use_different_account(tmp_path, monkeypa
 
     class OtherReader(GeneratedReader):
         def verify_identity(self):
-            return '77'
+            self._verified_identity = '77'
+            return self._verified_identity
 
     reader = OtherReader()
     reopened = services_with_runs(tmp_path, reader, following_sync_root=following)

@@ -12,7 +12,8 @@ def test_scheduler_targets_all_stars_from_current_account_and_checks_gate():
     class Reader:
         def verify_identity(self):
             calls.append('identity')
-            return '42'
+            self._verified_identity = '42'
+            return self._verified_identity
     class Store:
         def snapshot(self, account):
             assert account == '42'
@@ -27,7 +28,7 @@ def test_scheduler_targets_all_stars_from_current_account_and_checks_gate():
 
 
 def test_scheduler_fails_closed_without_favourite_store():
-    service = SimpleNamespace(live_client=SimpleNamespace(verify_identity=lambda: '42'),
+    service = SimpleNamespace(live_client=SimpleNamespace(_verified_identity='42', verify_identity=lambda: '42'),
                               following_sync=None, managed_network_stop=None, closing=False)
     with pytest.raises(RuntimeError):
         ApplicationServices.scheduler_favourite_authors(service)
@@ -38,7 +39,7 @@ def test_dispatch_allows_more_than_128_starred_authors():
     service = SimpleNamespace(managed_network_stop=None, author_media=None,
         managed_downloads=SimpleNamespace(saved_receipts_with_dates=lambda: ()),
         jobs=SimpleNamespace(snapshot=lambda: ()), closing=False, release_managed_owner=lambda owner: None,
-        live_client=SimpleNamespace(verify_identity=lambda: '42',
+        live_client=SimpleNamespace(_verified_identity='42', verify_identity=lambda: '42',
             get_author_artworks_complete=lambda aid: seen.append(aid) or ()))
     result = submit_author_batch(service, tuple(str(i) for i in range(1, 132)), cancellation=Event())
     assert result['authors'] == 131
@@ -143,7 +144,7 @@ def test_account_binding_failures_have_distinct_safe_messages():
 
 async def test_unsynced_following_never_uses_another_accounts_scheduler_stars():
     from threading import Lock
-    reader = SimpleNamespace(verify_identity=lambda: '42', get_following_users=lambda uid, visibility:
+    reader = SimpleNamespace(_verified_identity='42', verify_identity=lambda: '42', get_following_users=lambda uid, visibility:
         [{'user_id':'9','name':'author'}] if visibility == 'show' else [])
     service = SimpleNamespace(_direct_owner=lambda owner: owner, closing=False,
         managed_downloads=object(), live_client=reader, following_sync=None,

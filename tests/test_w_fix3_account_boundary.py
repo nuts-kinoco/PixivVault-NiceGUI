@@ -12,7 +12,8 @@ from test_w_review_bookmark_resume_20261118 import GeneratedReader, services_wit
 async def test_new_bookmark_run_records_verified_bookmark_account(tmp_path, monkeypatch, synced):
     class Reader(GeneratedReader):
         def verify_identity(self):
-            return '77'
+            self._verified_identity = '77'
+            return self._verified_identity
 
     kwargs = {'following_sync_root': tmp_path / 'follow'} if synced else {}
     owner = services_with_runs(tmp_path, Reader(), **kwargs)

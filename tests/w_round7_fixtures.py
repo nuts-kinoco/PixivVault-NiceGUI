@@ -26,7 +26,8 @@ PNG = DATA.getvalue()
 
 class Client:
     def verify_identity(self):
-        return '6400'
+        self._verified_identity = '6400'
+        return self._verified_identity
     def get_artwork_original_pages(self, wid):
         return ('https://i.pximg.net/synthetic/' + wid + '.png',)
     def get_image_bytes(self, url):

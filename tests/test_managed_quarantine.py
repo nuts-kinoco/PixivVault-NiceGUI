@@ -25,7 +25,8 @@ class Client:
         self.images = []
 
     def verify_identity(self):
-        return '99'
+        self._verified_identity = '99'
+        return self._verified_identity
 
     def get_artwork_original_pages(self, wid):
         count = 3 if wid == '123' else 1
