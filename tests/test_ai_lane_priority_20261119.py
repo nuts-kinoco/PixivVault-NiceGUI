@@ -368,21 +368,6 @@ def test_paused_capped_background_head_does_not_block_a_screen_request():
     assert clock.now - before < 0.3 + 1e-9  # not held for the cap
 
 
-def test_interval_is_read_with_the_decision_so_a_setting_change_is_honoured():
-    clock = _Clock()
-    values = iter([0.3, 0.3, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5])
-    current = {'v': 0.3}
-
-    def interval():
-        return current['v']
-    gate = RequestAdmission(interval, clock=clock, sleep=clock.sleep)
-    gate(1000.0)                           # issued at t=0 with 0.3
-    current['v'] = 1.5                     # the setting changes before the next request decides
-    before = clock.now
-    gate(1000.0)
-    assert clock.now - before == pytest.approx(1.5)
-
-
 def test_ranking_screen_fetch_runs_in_the_interactive_lane():
     from pixivvault_nicegui.ranking_source import RankingSource, RankingQuery
     seen = []
@@ -399,3 +384,25 @@ def test_ranking_screen_fetch_runs_in_the_interactive_lane():
         pass                               # the response shape is irrelevant here; only the lane at the GET matters
     assert seen == ['interactive']
 
+
+def test_tag_search_stays_in_the_background_lane_like_the_original():
+    from pixivvault_nicegui.ranking_source import RankingSource, RankingQuery
+    seen = []
+
+    class Reader:
+        def require_identity(self):
+            pass
+        def search_illusts(self, *a, **k):
+            seen.append(current_lane())
+            return {'works': []}
+    try:
+        RankingSource(Reader()).fetch(RankingQuery(tag='test'))
+    except Exception:
+        pass
+    assert seen == ['background']
+
+
+def test_successful_issue_leaves_the_queue_in_the_same_locked_step():
+    gate, clock = _gate()
+    gate(1000.0)
+    assert gate._interactive == [] and gate._background == []

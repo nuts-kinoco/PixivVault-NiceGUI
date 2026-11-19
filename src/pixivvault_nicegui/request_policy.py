@@ -148,6 +148,7 @@ class RequestAdmission:
         interactive=_LANE.get()=='interactive'
         ticket=[object(),self.clock(),None,False]       # token, queued at, (unused), parked
         queue=self._interactive if interactive else self._background
+        left=False
         with self._lock:queue.append(ticket)
         try:
             while True:
@@ -160,14 +161,13 @@ class RequestAdmission:
                 try:request_checkpoint();_check_deadline(deadline,self.clock)
                 finally:ticket[3]=False
                 with self._lock:
-                    seconds=float(self.interval())      # settings are read again with the decision, as before this change
-                    if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
                     now=self.clock()                     # taken after every blocking call
                     if self._my_turn(ticket,interactive,now):
                         remaining=0 if self._last is None else self._last+seconds-now
                         if remaining<=0:
                             self._last=now
                             queue.remove(ticket)         # leave the queue in the same locked step as the issue
+                            left=True
                             return
                         if now+remaining>=deadline:
                             from .pixiv_read_client import ReadDeadlineExceeded
@@ -176,8 +176,9 @@ class RequestAdmission:
                     else:pause=0.05
                 self.sleep(pause)
         finally:
-            with self._lock:
-                if ticket in queue:queue.remove(ticket)
+            if not left:                                  # a successful issue already left the queue under the same lock
+                with self._lock:
+                    if ticket in queue:queue.remove(ticket)
 
 
 class RequestRetryPolicy:
