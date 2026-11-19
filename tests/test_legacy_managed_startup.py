@@ -1,6 +1,7 @@
 """Reopen indexless artwork storage with its real sibling owners."""
 import hashlib
 import json
+import os
 from types import SimpleNamespace
 
 import pytest
@@ -18,7 +19,7 @@ from pixivvault_nicegui.services import ApplicationServices
 from test_managed_download_services import FakeSource
 from test_managed_downloads import Client, record
 from test_original_ledger_rebuild import fixture as legacy_ledger_fixture
-from test_v_dl_cap_20261117 import make_generation, make_legacy, make_root, png
+from test_v_dl_cap_20261117 import make_generation, make_legacy, make_root, png, publish
 from test_w_round6_contract import snapshot
 
 
@@ -51,17 +52,21 @@ def test_indexless_artwork_root_preserves_existing_outputs_on_both_opens(old_art
     digest = hashlib.sha256(receipt.read_bytes()).hexdigest()
     assert not (root / 'active-generations.json').exists()
 
-    for _ in range(2):
+    for attempt in range(2):
         owner = ManagedPixivDownloads(root, client, resolve_record=lambda _: record())
         try:
             assert (root / 'active-generations.json').is_file()
             (saved_relative, saved, saved_digest), = owner.saved_receipts()
             assert (saved_relative, saved['work_id'], saved_digest) == (relative, '123', digest)
             assert owner.read_saved_page(relative, 0, digest) == png()
-            assert {name: snapshot_value for name, snapshot_value in snapshot(root).items()
-                    if name in before} == before
         finally:
             owner.close()
+        after = snapshot(root)
+        if attempt == 0:
+            assert {name: value for name, value in after.items() if name in before} == before
+            first_open = after
+        else:
+            assert after == first_open
 
     assert (client.identity, client.urls, client.count) == (0, 0, 0)
 
@@ -160,6 +165,47 @@ def test_indexless_artwork_root_rejects_unrecognized_quarantine_staging(old_artw
     (root / f'legacy-identity-{suffix}.next').write_bytes(b'not a marker' if bad_stage == 'payload' else b'{')
     before = snapshot(root)
     with pytest.raises(ManagedDownloadError):
+        ManagedPixivDownloads(root, None, resolve_record=lambda _: record())
+    assert snapshot(root) == before
+
+
+@pytest.mark.parametrize('name', ['active-generations.floor', 'active-generations.v5-committed',
+                                 'active-generations.sequence-required', 'active-generations-*.mark'])
+def test_indexless_artwork_root_rejects_a_single_generation_witness(old_artwork_root, tmp_path, name):
+    witness_parent = tmp_path / 'witness'
+    witness_parent.mkdir()
+    witness_root = make_root(witness_parent)
+    generation = ManagedGenerations(witness_root)
+    publish(generation, witness_root, '456')
+    witness, = witness_root.glob(name)
+    root = old_artwork_root
+    (root / witness.name).write_bytes(witness.read_bytes())
+    before = snapshot(root)
+    with pytest.raises(ManagedDownloadError):
+        ManagedPixivDownloads(root, None, resolve_record=lambda _: record())
+    assert snapshot(root) == before
+
+
+@pytest.mark.parametrize('kind', ['file as directory', 'directory as file', 'symlink', 'hard link'])
+def test_indexless_artwork_root_rejects_wrong_kind_or_link_at_shared_name(old_artwork_root, tmp_path, kind):
+    root = old_artwork_root
+    if kind == 'file as directory':
+        (root / 'legacy-ledger').write_bytes(b'wrong kind')
+    elif kind == 'directory as file':
+        (root / '.pixivvault-managed-scheduler.sqlite3').mkdir()
+    else:
+        target = tmp_path / 'outside.txt'
+        target.write_bytes(b'outside')
+        link = root / '.pixivvault-managed-scheduler.sqlite3'
+        if kind == 'symlink':
+            try:
+                link.symlink_to(target)
+            except (OSError, NotImplementedError):
+                pytest.skip('symlink creation unavailable')
+        else:
+            os.link(target, link)
+    before = snapshot(root)
+    with pytest.raises(ManagedDownloadError, match='managed (?:storage link|file|directory|storage reparse point) rejected'):
         ManagedPixivDownloads(root, None, resolve_record=lambda _: record())
     assert snapshot(root) == before
 
