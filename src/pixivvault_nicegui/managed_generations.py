@@ -1154,46 +1154,42 @@ class ManagedGenerations:
 
     def _refresh(self) -> _Loaded:
         with self._lock:
-            loaded = self._loaded
-            if loaded is not None:
-                if loaded.version == 5 and _identity(self.index_path) == loaded.base_sig:
-                    for attempt in range(8):
-                        try:
-                            self.assert_consistent(loaded)
-                        except Exception:
-                            if _identity(self.index_path) != loaded.base_sig:
-                                # A legitimate fold moved the base to a new journal.
-                                self._loaded = None
-                                return self._refresh()
-                            if attempt == 7:
-                                # Do not discard our witness and accept a valid-looking
-                                # older journal/mark pair against the same base.
-                                raise ManagedDownloadError('active generation index rejected') from None
-                            time.sleep(0.01 * (attempt + 1))
-                        else:
-                            if _identity(self.output_dir) != loaded.out_sig:
-                                self._refresh_legacy(loaded)
-                            return loaded
-                if (loaded.version is None and _identity(self.index_path) is None
-                        and _identity(self.generation_dir) == loaded.gen_sig
-                        and _identity(self.output_dir) == loaded.out_sig):
-                    return loaded
-            self._loaded = None
-            # The index and its journal are read as separate files. A writer folding in between would
-            # show a half-old pair, so the pair must still be the same files when the read is done.
+            deadline = time.monotonic() + 2.0
             for attempt in range(8):
-                start = _identity(self.index_path)
-                try:
-                    fresh = self._load_full()
-                except ManagedDownloadError as error:
-                    # A file opened while another process replaces it, or a pair read across a fold,
-                    # looks like damage for a moment. Real damage is still damage after the retries.
-                    if attempt < 7 and str(error).endswith('rejected'):
-                        time.sleep(0.01 * (attempt + 1))
-                        continue
-                    raise
-                self._loaded = fresh
-                return fresh
+                loaded = self._loaded
+                if loaded is not None and loaded.version == 5 and _identity(self.index_path) == loaded.base_sig:
+                    try:
+                        self.assert_consistent(loaded)
+                    except Exception:
+                        if _identity(self.index_path) != loaded.base_sig:
+                            self._loaded = None
+                        if attempt == 7 or time.monotonic() >= deadline:
+                            raise ManagedDownloadError('active generation index rejected') from None
+                    else:
+                        if _identity(self.output_dir) != loaded.out_sig:
+                            self._refresh_legacy(loaded)
+                        return loaded
+                elif loaded is not None:
+                    if (loaded.version is None and _identity(self.index_path) is None
+                            and _identity(self.generation_dir) == loaded.gen_sig
+                            and _identity(self.output_dir) == loaded.out_sig):
+                        return loaded
+                    self._loaded = None
+                if self._loaded is None:
+                    try:
+                        fresh = self._load_full()
+                    except ManagedDownloadError as error:
+                        if (attempt == 7 or time.monotonic() >= deadline
+                                or not str(error).endswith('rejected')):
+                            raise
+                    else:
+                        self._loaded = fresh
+                        return fresh
+                # A fold may have committed after the caller's precheck. Refresh
+                # its head/floor and recovery state before validating again.
+                # Keep a cached reader's journal witness until its index moves.
+                self._recover_if_pending()
+                time.sleep(0.01 * (attempt + 1))
             raise ManagedDownloadError('active generation index rejected')
 
     def _checked(self, *, verify_quarantine_payloads=True, tolerate_missing=False):
