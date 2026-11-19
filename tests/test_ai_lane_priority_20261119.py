@@ -88,7 +88,7 @@ def test_interactive_is_never_deferred():
 
 def test_slots_are_reserved_at_call_time_so_a_later_background_cannot_overtake_an_earlier_one():
     gate, clock = _gate(0.3)
-    first = gate._reserve(1000.0)          # (start, end)
+    first = gate._reserve(1000.0)          # (start, end, seconds)
     second = gate._reserve(1000.0)
     third = gate._reserve(1000.0)
     assert first[0] == 0 and second[0] == pytest.approx(0.3) and third[0] == pytest.approx(0.6)
@@ -287,3 +287,46 @@ def test_follow_bookmark_csrf_home_get_runs_in_the_interactive_lane():
     except Exception:
         pass                               # the home page body is irrelevant; only the lane at the GET matters
     assert seen == ['interactive']
+
+
+def test_real_spacing_is_kept_after_a_long_pause_inside_the_gate():
+    clock = _Clock()
+    gate = RequestAdmission(lambda: 0.3, clock=clock, sleep=clock.sleep)
+    gate(1000.0)                           # issued at 0.0
+    pause = {'n': 0}
+
+    def checkpoint():
+        pause['n'] += 1
+        if pause['n'] == 3:                # request A pauses inside the gate until 0.55
+            clock.now = 0.55
+    with request_scope(checkpoint=checkpoint):
+        gate(1000.0)
+    a = clock.now
+    gate(1000.0)                           # B was reserved for 0.6 but A really issued at 0.55
+    b = clock.now
+    assert b - a >= 0.3 - 1e-9
+
+
+def test_background_keeps_yielding_when_an_interactive_request_queues_during_its_settings_read():
+    clock = _Clock()
+    state = {'reads': 0}
+    gate = RequestAdmission(lambda: 0.3, clock=clock, sleep=clock.sleep)
+    gate(1000.0)
+    clock.now = 5.0
+
+    def interval():
+        state['reads'] += 1
+        if state['reads'] == 1:
+            gate._interactive_waiting = 1     # an interactive request queues while the background reads settings
+        return 0.3
+    gate.interval = interval
+    start = clock.now
+    gate(1000.0)
+    assert clock.now - start >= MAX_BACKGROUND_DEFER_SECONDS - 0.06
+
+
+def test_related_authors_explicit_lane_is_honoured_by_the_real_reader_signature():
+    import inspect
+    from pixivvault_nicegui.pixiv_read_client import LivePixivReadClient
+    source = inspect.getsource(LivePixivReadClient.get_recommended_users)
+    assert 'lane_scope(lane)' in source

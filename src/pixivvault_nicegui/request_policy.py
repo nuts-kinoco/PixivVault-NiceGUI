@@ -126,7 +126,7 @@ class RequestAdmission:
     """
     def __init__(self,interval,*,clock=time.monotonic,sleep=time.sleep):
         self.interval=interval;self.clock=clock;self.sleep=sleep
-        self._lock=Lock();self._next=None;self._interactive_waiting=0
+        self._lock=Lock();self._next=None;self._issued=None;self._interactive_waiting=0
     def _defer_for_interactive(self,deadline,start):
         while True:
             with self._lock:
@@ -134,18 +134,20 @@ class RequestAdmission:
             if self.clock()-start>=MAX_BACKGROUND_DEFER_SECONDS:return
             request_checkpoint();_check_deadline(deadline,self.clock)
             self.sleep(0.05)
-    def _reserve(self,deadline):
+    def _reserve(self,deadline,called=None,interactive=True):
         seconds=float(self.interval())
         if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
         request_checkpoint();_check_deadline(deadline,self.clock)       # cancelled/expired during the settings read: reserve nothing
         with self._lock:
             now=self.clock()
+            if (not interactive and self._interactive_waiting and now-called<MAX_BACKGROUND_DEFER_SECONDS):
+                return None                                            # an interactive request queued meanwhile: keep yielding (original order)
             start=now if self._next is None else max(now,self._next)
             if start>=deadline:
                 from .pixiv_read_client import ReadDeadlineExceeded
                 raise ReadDeadlineExceeded()                           # the slot cannot be used before the deadline: do not take it
             self._next=start+seconds
-            return start,start+seconds
+            return start,start+seconds,seconds
     def _release(self,start,end):
         with self._lock:
             if self._next==end:self._next=start
@@ -156,13 +158,21 @@ class RequestAdmission:
         if interactive:
             with self._lock:self._interactive_waiting+=1
         try:
-            if not interactive:self._defer_for_interactive(deadline,called)
-            start,end=self._reserve(deadline)
+            while True:
+                if not interactive:self._defer_for_interactive(deadline,called)
+                reserved=self._reserve(deadline,called,interactive)
+                if reserved is not None:break
+            start,end,seconds=reserved
             try:
                 while True:
                     request_checkpoint();_check_deadline(deadline,self.clock)
-                    left=start-self.clock()
-                    if left<=0:return
+                    with self._lock:
+                        now=self.clock()
+                        # the reserved slot AND the real spacing since the previous actual issue (e.g. after a long pause)
+                        left=max(start-now,0 if self._issued is None else self._issued+seconds-now)
+                        if left<=0:
+                            self._issued=now
+                            return
                     self.sleep(min(left,0.1))
             except BaseException:
                 self._release(start,end);raise

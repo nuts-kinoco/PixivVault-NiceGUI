@@ -1433,7 +1433,9 @@ class LivePixivReadClient:
         url=f'{API_ORIGIN}/ajax/user/{uid}/recommends?'+urlencode(params)
         _validate_destination(url,'related_authors')
         self.require_identity()
-        body=self._json('related_authors',url,deadline=time.monotonic()+MAX_OPERATION_SECONDS)
+        from .request_policy import lane_scope
+        with lane_scope(lane):
+            body=self._json('related_authors',url,deadline=time.monotonic()+MAX_OPERATION_SECONDS)
         if type(body) is not dict or type(body.get('users')) is not list or type(body.get('thumbnails')) is not dict:
             raise InvalidPayload()
         raw=body['thumbnails'].get('illust');users=[]
