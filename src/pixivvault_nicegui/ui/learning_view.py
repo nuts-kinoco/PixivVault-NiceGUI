@@ -119,6 +119,7 @@ class LearningView:
         self._storage_busy = False
         self._storage_ready = self.storage is None
         self._baseline_count = 0
+        self._judged_before_session = 0
         self._failed_command: SaveCommand | None = None
         self._notice = ""
         self._save_task = None
@@ -171,7 +172,7 @@ class LearningView:
             if self.discovery is None:
                 ui.label(description).classes("pv-subtitle")
             stage_start = len(self.root.default_slot.children)
-            with ui.element('div').classes('w-full relative'):
+            with ui.element('div').classes('w-full relative') as self.candidate_header:
                 with ui.row().classes('w-full items-center gap-2'):
                     self.title = ui.label().classes("pv-view-title")
                     self.summary_button = ui.button('概要 ▸').props(
@@ -232,6 +233,8 @@ class LearningView:
                                 'background:var(--pv-raised);color:var(--pv-muted)')
                         self.open_pixiv_button.tooltip('クリックでpixivの作品ページを開く')
                         self.open_pixiv_button.set_visibility(False)
+                if self.discovery is not None:
+                    self._build_candidate_status_card()
                 self.toast = LearningToast()
             self.picture.on('click', self._open_learning_picture, js_handler=self._click_js())
             self.status = ui.label().classes("pv-subtitle pv-learning-status").props("role=status aria-live=polite")
@@ -246,7 +249,7 @@ class LearningView:
                     self.tagger_settings_button=ui.button('設定を開く', on_click=on_open_preferences).props('flat dense data-testid=learning-tagger-settings')
                     self.tagger_settings_button.set_enabled(on_open_preferences is not None)
             self.empty_card.set_visibility(False)
-            with ui.row().classes("items-center gap-2"):
+            with ui.row().classes("items-center gap-2") as self.judgment_controls:
                 self.buttons = {}
                 for label, choice, *_ in self.CHOICES:
                     button = ui.button(label, color=None).props(
@@ -270,7 +273,7 @@ class LearningView:
                     'flat dense no-caps data-testid=learning-bookmark')
                 self.bookmark_button.on('click', self._on_learning_bookmark, js_handler=self._bookmark_click_js())
                 self.bookmark_tip = self.bookmark_button.tooltip('絵が表示されてから押せます')
-            ui.label("矢印キー / WASD / 1〜4 で判定。画面を選択して操作してください。").classes("pv-subtitle")
+            self.judgment_help = ui.label("矢印キー / WASD / 1〜4 で判定。画面を選択して操作してください。").classes("pv-subtitle")
             if self.discovery is not None:
                 # 元 discovery_tab.py:3295-3302 の「探索の設定 ▸」引き出し。畳んだ行だけが流れに入り、開いた板は重ね置き。
                 ui.label('判定は保存され、次に出す候補の並べ替えに反映されます。').classes('pv-subtitle')
@@ -1124,6 +1127,7 @@ class LearningView:
         self.toast.hide()
         self._baseline_count = (sum(item.work_id in snapshot.judged_ids for item in self._artworks)
                                 if self.discovery is not None else len(self._artworks) - len(remaining))
+        self._judged_before_session = len(snapshot.judged_ids)
         self.state = LearningState(remaining, self.ledger)
         # A late browser event from the previous snapshot must never match again.
         self.state.generation = generation
@@ -1259,6 +1263,7 @@ class LearningView:
         if self.discovery is not None:
             self.settings_button.set_enabled(available and not self._managed_busy)
             self.fetch_button.set_enabled(available and not self._managed_busy and (self._initial_task is None or self._initial_task.done()))
+            self.candidate_status_retry.set_enabled(self.fetch_button.enabled and not self._refill.running)
             self.managed_button.props(props)
             self.managed_button.set_enabled(available and item is not None and not self._managed_busy and getattr(self.services, 'managed_downloads', None) is not None)
         self.review_button.set_enabled(available and self.storage is not None and not self._review_busy)
@@ -1283,13 +1288,65 @@ class LearningView:
         self.open_pixiv_button.props['href'] = target or ''
         self.open_pixiv_button.set_visibility(target is not None)
 
+    def _build_candidate_status_card(self) -> None:
+        with ui.element('div').classes('w-full grid place-items-center').style(
+                'min-height:min(54dvh,460px)') as self.candidate_status_stage:
+            with ui.card().classes('items-center gap-2 text-center').props(
+                    'data-testid=learning-candidate-status').style(
+                    'width:460px;max-width:100%;background:var(--pv-raised);'
+                    'border:1px solid var(--pv-border);padding:24px'):
+                self.candidate_status_spinner = ui.spinner(size='22px', thickness=2).props(
+                    'data-testid=learning-candidate-spinner')
+                self.candidate_status_icon = ui.icon('search_off', size='22px').props(
+                    'data-testid=learning-candidate-icon').style('color:var(--pv-muted)')
+                self.candidate_status_title = ui.label().classes('pv-dialog-title').style(
+                    'font-size:14px;font-weight:600')
+                self.candidate_status_body = ui.label().classes('pv-subtitle').props('role=status').style('font-size:12px')
+                self.candidate_status_judged = ui.label().style('font-size:11.5px')
+                self.candidate_status_retry = ui.button('もう一度探す', on_click=self._retry_candidate_restock).props(
+                    'flat no-caps data-testid=learning-candidate-retry')
+        self.candidate_status_stage.set_visibility(False)
+
+    def _render_candidate_status(self) -> None:
+        policy = self._refill
+        judged = self._judged_before_session + self.state.index
+        failed = policy.last_failed
+        no_candidate = self._empty_state_shown()
+        show_status = no_candidate and (failed or judged > 0 or bool(self.state.artworks))
+        self.empty_card.set_visibility(no_candidate and not show_status)
+        self.candidate_status_stage.set_visibility(show_status)
+        for element in (self.candidate_header, self.progress, self.judgment_controls, self.judgment_help,
+                        self.retry_button, self.bookmark_button, self.fetch_button, self.managed_button,
+                        self.refill_status):
+            element.set_visibility(not show_status)
+        if not show_status:
+            self.candidate_status_retry.set_visibility(False)
+            return
+
+        # 元 discovery_tab.py:4381-4488 と discovery_display_state.py:71-88。
+        stopped = policy.gave_up
+        if failed:
+            title = '候補を取りにいけませんでした'
+            body = '通信に失敗しました。30秒ごとにもう一度試しています。'
+        else:
+            title = 'しばらく新しい候補が見つかりませんでした' if stopped else '次の候補を探しています'
+            body = 'いま出せる候補はすべて判定しました。新しい候補が見つかると続きから始まります。'
+        self.candidate_status_title.set_text(title)
+        self.candidate_status_body.set_text('自動での再取得は止まっています。' if stopped else body)
+        self.candidate_status_judged.set_text(f'これまでの判定: {judged}枚')
+        self.candidate_status_spinner.set_visibility(not stopped)
+        self.candidate_status_icon.props('name=cloud_off' if failed else 'name=search_off')
+        self.candidate_status_icon.set_visibility(stopped)
+        self.candidate_status_retry.set_visibility(failed or stopped)
+        self.candidate_status_retry.set_enabled(self.fetch_button.enabled and not policy.running)
+
     def refresh(self) -> None:
         item = self.state.current_artwork
         self._summary_sync()
         if self.discovery is not None:
             self._update_frame_badge()
             self._sync_pixiv_link(item)
-        self.empty_card.set_visibility(self._empty_state_shown())
+            self._render_candidate_status()
         self.title.set_text(item.title if item else ("現在の候補がありません" if self._refill.armed else "初回候補を読み込んでいます") if self.discovery is not None else "判定が完了しました")
         self.progress.set_text(f"{self._baseline_count + self.state.index} / {len(self._artworks)} 件判定済み")
         if item is None:
@@ -1299,7 +1356,10 @@ class LearningView:
             message = (("現在の候補が尽きました。" if self._refill.armed else "設定された取得元から初回候補を読み込みます。") if self.discovery is not None else "すべての判定が完了しました。")
             if self.state.can_undo:
                 message += "Undo で戻せます。"
-            self.status.set_text(self._notice or message)
+            if self._empty_state_shown():
+                self.status.set_text(self._resting_message())
+            else:
+                self.status.set_text(self._notice or message)
         else:
             self.picture.set_visibility(True)
             self.request_image()
@@ -2170,7 +2230,6 @@ class LearningView:
             if not self._initial_current(epoch):return
             self._append_refill(batch,records,self._refill_epoch)
             if self.state.current_artwork is None:
-                self._notice='候補を取得できませんでした。' if result.nothing_and_failed else '現在は新しい候補がありません。'
                 self.refresh()
             else:self._kick_candidate_refill()
         except asyncio.CancelledError:
@@ -2180,9 +2239,10 @@ class LearningView:
                 self._initial_done=True
                 self._refill.arm(self._refill_clock())
                 self._refill.last_failed=True
-                self._notice='初回候補を取得できませんでした。'
-                self.toast.show_gave_up('初回の候補を取得できませんでした',
-                                        '「候補を取得」でもう一度探せます。', heavy=True, key='initial')
+                if self.state.current_artwork is not None:
+                    self._notice='初回候補を取得できませんでした。'
+                    self.toast.show_gave_up('初回の候補を取得できませんでした',
+                                            '「候補を取得」でもう一度探せます。', heavy=True, key='initial')
                 self.refresh()
         finally:
             if epoch==self._initial_epoch:
@@ -2226,6 +2286,13 @@ class LearningView:
         try:await asyncio.wait_for(self._refill_wake.wait(),timeout=delay)
         except asyncio.TimeoutError:pass
 
+    def _retry_candidate_restock(self) -> None:
+        if (not self._refill_current(self._refill_epoch) or self.state.current_artwork is not None
+                or not self.candidate_status_retry.visible or not self.candidate_status_retry.enabled):
+            return
+        self._refill.resume(self._refill_clock())
+        self._kick_candidate_refill()
+
     def _render_refill_status(self):
         if self.discovery is None:return
         policy=self._refill
@@ -2240,12 +2307,13 @@ class LearningView:
         elif policy.empty_topups>=3:text='候補の補充をいったん止めています。候補が尽きると再取得します。'
         else:text=''
         self.refill_status.set_text(text)
+        self._render_candidate_status()
         self._sync_refill_notice()
 
     def _sync_refill_notice(self):
         """仕入れが止まったことを、消えない通知枠で一度だけ知らせる（元 discovery_tab.py:896-901, 1137-1151）。"""
         policy=self._refill
-        stopped=policy.armed and policy.gave_up
+        stopped=policy.armed and policy.gave_up and not self.candidate_status_stage.visible
         if stopped and not self._refill_notice_shown:
             self._refill_notice_shown=self.toast.show_gave_up(
                 '候補を取りにいけませんでした' if policy.failed_rounds else 'しばらく新しい候補が見つかりませんでした',
@@ -2373,9 +2441,11 @@ class LearningView:
             notice=('候補を取得できませんでした。再試行できます。' if batch.nothing_and_failed else
                     '一部の候補ソースを取得できませんでした。' if batch.failed else
                     '候補を取得しました。' if batch.artworks else '新しい候補はありません。')
+            if not batch.artworks and self.state.current_artwork is None:
+                notice=''
         except Exception:
             self._refill.last_failed=True
-            notice='候補を取得できませんでした。再試行できます。'
+            notice='候補を取得できませんでした。再試行できます。' if self.state.current_artwork is not None else ''
         finally:
             self._storage_busy=False
         if self._refill_current(epoch):self.reload_storage(notice=notice)

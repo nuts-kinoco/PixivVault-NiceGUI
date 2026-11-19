@@ -67,11 +67,11 @@
     },
     "learning": {
       "label": "学習",
-      "note": "Opening the tab refills discovery candidates by design (画面を開いている間に候補を補充).",
+      "note": "The offline fixture opens the candidate-fetch failure card and offers explicit retry.",
       "allowed_calls": ["require_identity", "get_following_users", "get_user_works", "get_ranking"],
-      "testids": ["discovery-fetch", "discovery-settings-open", "learning-summary-toggle", "learning-reset-open",
+      "testids": ["learning-candidate-status", "learning-candidate-spinner", "learning-candidate-retry", "discovery-settings-open", "learning-reset-open",
                   "learning-review-open", "view-history-open"],
-      "texts": ["発掘の判定は専用保存先に記録します", "見送る", "いいね"]
+      "texts": ["候補を取りにいけませんでした", "通信に失敗しました。30秒ごとにもう一度試しています。", "これまでの判定: 0枚", "もう一度探す"]
     },
     "ranking": {
       "label": "ランキング",
