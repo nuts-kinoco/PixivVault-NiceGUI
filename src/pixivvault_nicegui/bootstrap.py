@@ -53,6 +53,7 @@ class RunConfig:
     similarity_auto: bool = False
     extension_bridge_auto: bool = False
     startup_tab: str | None = None
+    legacy_copy_root: Path | None = None
 
 
 def _port(value: str) -> int:
@@ -89,6 +90,8 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
                         help="合成デモの判定を専用フォルダーへ保存（絶対パス、新規または本デモ作成済み）")
     parser.add_argument("--library-readonly-db", type=_sandbox_path,
                         help="明示SQLiteの読取専用ライブラリ（DB変更は行わない）")
+    parser.add_argument("--legacy-copy-root", type=_sandbox_path,
+                        help="Existing dedicated S: directory for frozen legacy database snapshots")
     parser.add_argument("--library-image-root", type=_sandbox_path,
                         help="読取専用ライブラリの明示画像ルート")
     parser.add_argument("--pixiv-cookie-file", type=_sandbox_path,
@@ -146,7 +149,7 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
     if args.profile_root is not None:
         if not args.native:
             parser.error('起動設定は専用ウィンドウで使用してください。')
-        source_options = ('learning_sandbox', 'library_readonly_db', 'library_image_root',
+        source_options = ('learning_sandbox', 'library_readonly_db', 'library_image_root', 'legacy_copy_root',
             'pixiv_cookie_file', 'download_sandbox', 'pixiv_download_root',
             'failed_queue_readonly_db', 'legacy_zip_export_root', 'legacy_diff_image_root',
             'novel_fixture_root', 'novel_download_root', 'ugoira_root', 'ugoira_fixture_root',
@@ -283,6 +286,8 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
     from .media_jobs import validate_media_roots
     try: validate_media_roots(args.novel_fixture_root or args.novel_download_root, args.ugoira_fixture_root or args.ugoira_root, args.pixiv_download_root, args.legacy_zip_export_root)
     except ValueError as error: parser.error(str(error))
+    if args.legacy_copy_root is not None and args.library_readonly_db is None:
+        parser.error('legacy-copy-root requires a legacy library database')
     if (args.library_readonly_db is None) != (args.library_image_root is None):
         parser.error("library-readonly-db and library-image-root must be specified together")
     if args.library_readonly_db is not None:
@@ -357,7 +362,7 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
                      args.failed_queue_readonly_db, args.legacy_zip_export_root,
                      args.legacy_diff_image_root, args.novel_fixture_root, args.novel_download_root,args.ugoira_root,args.ugoira_fixture_root,args.ugoira_codec_python,args.recommendation_preferences_root,args.preferences_root,args.discovery_root,args.external_vault_root,args.image_cache_root,args.startup_uri,args.extension_bridge,args.save_export_root,args.bookmark_account_id,args.profile_root,profile_revision,profile_reference_unavailable,args.following_sync_root,args.enable_pixiv_actions,
                      args.similarity_index_root,args.similarity_model_file,args.similarity_provider,args.similarity_auto,
-                     extension_bridge_auto, args.tab)
+                     extension_bridge_auto, args.tab, args.legacy_copy_root)
 
 
 _registered = False
@@ -397,7 +402,7 @@ def _build_owned_media_readers(*, pixiv_cookie_file, pixiv_download_root,
                                novel_download_root, novel_fixture_root,
                                novel_source, ugoira_root, ugoira_fixture_root,
                                live_client, managed_network_stop_scope,
-                               shared_network_stop_scope=None):
+                               shared_network_stop_scope=None, cookie_expiry_coordinator=None):
     """Construct all authenticated readers as one fail-closed ownership unit.
 
     A partial failure before ApplicationServices assumes the readers must not
@@ -427,6 +432,8 @@ def _build_owned_media_readers(*, pixiv_cookie_file, pixiv_download_root,
             else:
                 reader = shared_network_stop_scope.create_reader(pixiv_cookie_file)
             owned.callback(reader.close)
+            if cookie_expiry_coordinator is not None:
+                cookie_expiry_coordinator.register(reader)
             return reader
 
         if pixiv_cookie_file is not None:
@@ -517,7 +524,7 @@ def register_pages(learning_sandbox: Path | None = None,
                    managed_network_stop_scope=None, shared_network_stop_scope=None,
                    similarity_index_root=None, similarity_model_file=None,
                    similarity_provider='auto', similarity_auto=False, extension_bridge_auto=False,
-                   startup_tab=None) -> None:
+                   startup_tab=None, legacy_copy_root=None) -> None:
     """NiceGUIのHTTPルートを登録する。呼ぶだけではサーバーを起動しない。"""
     global _registered
     if _registered:
@@ -598,7 +605,11 @@ def register_pages(learning_sandbox: Path | None = None,
         if (novel_download_root is not None or ugoira_root is not None) and pixiv_download_root is None:
             raise ValueError('legacy library with live media requires an explicit managed Pixiv root')
         from .library_repository import require_frozen_library_copy
-        require_frozen_library_copy(library_readonly_db)
+        from .legacy_library_copies import LegacyCopyError
+        try:
+            require_frozen_library_copy(library_readonly_db)
+        except (OSError, ValueError):
+            raise LegacyCopyError('legacy database source is unavailable or in use') from None
     desktop_roots = ()
     if desktop_enabled:
         from .saved_folders import desktop_saved_roots
@@ -644,6 +655,42 @@ def register_pages(learning_sandbox: Path | None = None,
             raise ValueError("choose one pixiv client source")
         if pixiv_download_root is not None:
             _validate_managed_paths(pixiv_download_root, pixiv_cookie_file)
+    if library_readonly_db is not None:
+        from .legacy_library_copies import LegacyCopyError
+        from .managed_downloads import _safe_path
+        try:
+            provision_copy_root = legacy_copy_root is None
+            if provision_copy_root:
+                if native_profile is None or native_profile.launch_snapshot.save_parent is None:
+                    raise LegacyCopyError('legacy database snapshot destination is required')
+                from .native_profile import STORAGE_FOLDER, STORAGE_MARKER, STORAGE_IDENTITY, _owned_marker
+                parent = Path(native_profile.launch_snapshot.save_parent)
+                base = parent / STORAGE_FOLDER
+                _owned_marker(base, STORAGE_MARKER, STORAGE_IDENTITY)
+                legacy_copy_root = base / 'legacy-library-copies'
+            legacy_copy_root = Path(legacy_copy_root)
+            if not legacy_copy_root.is_absolute() or legacy_copy_root.drive.upper() != 'S:':
+                raise LegacyCopyError('legacy database snapshot destination must be on S:')
+            validate_readonly_boundaries((legacy_copy_root,),
+                (Path(library_readonly_db).parent, library_image_root,
+                 Path(failed_queue_readonly_db).parent if failed_queue_readonly_db else None,
+                 legacy_diff_image_root,
+                 Path(pixiv_cookie_file).parent if pixiv_cookie_file else None,
+                 Path(similarity_model_file).parent if similarity_model_file else None,
+                 getattr(getattr(native_profile, 'store', None), 'root', None)))
+            validate_media_roots(legacy_copy_root, pixiv_download_root, novel_fixture_root,
+                novel_download_root, ugoira_root, ugoira_fixture_root, preferences_root,
+                discovery_root, external_vault_root, image_cache_root,
+                recommendation_preferences_root, following_sync_root, legacy_zip_export_root,
+                learning_sandbox, download_sandbox, similarity_index_root, save_export_root)
+            _safe_path(legacy_copy_root)
+            if provision_copy_root:
+                legacy_copy_root.mkdir(exist_ok=True)
+            _safe_path(legacy_copy_root)
+        except LegacyCopyError:
+            raise
+        except (OSError, ValueError):
+            raise LegacyCopyError('legacy database snapshot destination unavailable') from None
     live_client, novel_source, novel_fixture_root, ugoira_source, ugoira_root = _build_owned_media_readers(
         pixiv_cookie_file=pixiv_cookie_file,
         pixiv_download_root=pixiv_download_root,
@@ -654,7 +701,11 @@ def register_pages(learning_sandbox: Path | None = None,
         ugoira_fixture_root=ugoira_fixture_root,
         live_client=live_client,
         managed_network_stop_scope=managed_network_stop_scope,
-        shared_network_stop_scope=shared_network_stop_scope)
+        shared_network_stop_scope=shared_network_stop_scope,
+        cookie_expiry_coordinator=(native_profile.cookie_expiry_coordinator()
+            if native_profile is not None and pixiv_cookie_file is not None
+            and managed_network_stop_scope is not None
+            and getattr(native_profile, 'cookie_store_factory', None) is not None else None))
     try:
         services = get_services(app, learning_sandbox=learning_sandbox,
             library_readonly_db=library_readonly_db, library_image_root=library_image_root,
@@ -670,7 +721,7 @@ def register_pages(learning_sandbox: Path | None = None,
             external_vault_root=external_vault_root,image_cache_root=image_cache_root,desktop=desktop,notification_backend=notification_backend,
             following_sync_root=following_sync_root, pixiv_actions_mode=pixiv_actions_mode,
             managed_network_stop_scope=managed_network_stop_scope,
-            shared_network_stop_scope=shared_network_stop_scope)
+            shared_network_stop_scope=shared_network_stop_scope, legacy_copy_root=legacy_copy_root)
     except BaseException:
         if novel_download_root is not None and novel_source is not None:
             novel_source._reader.close()
@@ -999,6 +1050,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if config.library_readonly_db is not None:
             registration["library_readonly_db"] = config.library_readonly_db
             registration["library_image_root"] = config.library_image_root
+            if config.legacy_copy_root is not None:
+                registration["legacy_copy_root"] = config.legacy_copy_root
         if config.pixiv_cookie_file is not None:
             registration["pixiv_cookie_file"] = config.pixiv_cookie_file
         if config.download_sandbox is not None:
@@ -1091,11 +1144,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 register_profile_recovery(native_profile)
         else:
             from .pixiv_read_client import CookieSourceRejected
+            from .legacy_library_copies import LegacyCopyError
             try:
                 register_pages(**registration)
                 _candidate_service = getattr(_owned_app.state, _SERVICE_KEY, None)
                 if _candidate_service is not _prior_service:
                     _launched_service = _candidate_service
+            except LegacyCopyError as copy_error:
+                if native_profile is None:
+                    print(str(copy_error), file=sys.stderr)
+                    return 2
+                from .native_startup import register_profile_recovery
+                register_profile_recovery(native_profile, legacy_copy_error=True)
             except CookieSourceRejected:
                 if native_profile is None:
                     raise

@@ -107,7 +107,7 @@ def test_ra01_missing_zip_still_blocks_all_bound_works(tmp_path,monkeypatch,reop
             patch.setattr(legacy,'_checkpoint',crash)
             with pytest.raises(PowerLoss):
                 source.execute(plan,operation_id=uuid4().hex,mode='move',confirmed_move=True)
-        assert not archive.exists()
+        assert archive.exists()  # ZIP replacement never removes the original path.
         if reopen:
             source.close()
             reopened=LegacyQuarantine(original,snapshot,owner=owner)

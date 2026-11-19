@@ -9,18 +9,22 @@ Cookie and the NiceGUI managed store remain untouched.
 from __future__ import annotations
 
 import hashlib
+import copy
 from contextlib import ExitStack
+from collections import defaultdict
 import json
 import os
 from pathlib import Path
 import re
+import shutil
 import stat
 from threading import Lock
 from uuid import uuid4
-from zipfile import BadZipFile, ZipFile, ZIP_DEFLATED, LargeZipFile
+from zipfile import BadZipFile, ZipFile, ZIP_DEFLATED, LargeZipFile, ZIP64_LIMIT, ZIP_FILECOUNT_LIMIT
 from zlib import error as ZlibError
 
 from .fs_paths import native_io_path, logical_path
+from .job_failure import JobFailure
 from .managed_downloads import (ManagedPixivDownloads, ManagedDownloadError,
                                 _safe_path, _read_bounded, _write, _fsync_dir,
                                 _json_unique)
@@ -31,13 +35,36 @@ EXPORT_IDENTITY = {'application': 'pixivvault-nicegui', 'purpose': 'legacy-zip-e
                    'version': 1}
 _ID = re.compile(r'[1-9][0-9]{0,19}\Z')
 _PAGE_SUFFIX = re.compile(r'^(.*)_(\d+)$')
+_MEMBER_WORK_ID = re.compile(r'\(([1-9][0-9]{0,19})\)(?:_\d+)?\Z')
 _INVALID_FILENAME = re.compile(r'[\\/:*?"<>|]+')
 _STAGED_ZIP = re.compile(r'zip-[0-9a-f]{32}\.tmp(?:\.publish)?\Z')
 MAX_EXPORT_WORKS = 3000
 MAX_EXPORT_PAGES = 5000
 MAX_EXPORT_INPUT_BYTES = 1700 * 1024 * 1024
 MAX_ZIP_NAME_BYTES = 240
+ZIP64_THRESHOLD = 4000 * 1024 * 1024
+# CPython uses a 2 GiB ZIP32 guard; switch early to avoid partial writes.
+# ZIP64 is selected consistently for all members and remains ZIP-readable.
+ZIP32_SAFE_LIMIT = int(ZIP64_LIMIT / 1.05) - 1024 * 1024
+ZIP32_ENTRY_LIMIT = ZIP_FILECOUNT_LIMIT
 
+
+
+def _without_zip64_extra(extra):
+    clean = bytearray()
+    pos = 0
+    while pos < len(extra):
+        if pos + 4 > len(extra):
+            raise LegacyZipExportError('invalid ZIP extra field')
+        kind = int.from_bytes(extra[pos:pos+2], 'little')
+        size = int.from_bytes(extra[pos+2:pos+4], 'little')
+        end = pos + 4 + size
+        if end > len(extra):
+            raise LegacyZipExportError('invalid ZIP extra field')
+        if kind != 1:
+            clean.extend(extra[pos:end])
+        pos = end
+    return bytes(clean)
 
 def verified_zip_digest(path):
     """Stream an existing regular owned ZIP without buffering the archive."""
@@ -59,6 +86,11 @@ class LegacyZipExportError(ValueError):
     """Fixed public error strings: no original titles, IDs or paths."""
 
 
+class LegacyZipAmbiguousError(JobFailure, LegacyZipExportError):
+    def __init__(self):
+        super().__init__('ambiguous legacy ZIP member', reason_code='zip_member_ambiguous')
+
+
 def legacy_filename(title: str, work_id: str, page_no: int, page_count: int,
                     ext: str) -> str:
     """Pure parity of legacy core.py sanitize_filename + work_id_arcname.
@@ -68,23 +100,75 @@ def legacy_filename(title: str, work_id: str, page_no: int, page_count: int,
     """
     if (type(title) is not str or type(work_id) is not str or not _ID.fullmatch(work_id)
             or type(page_no) is not int or type(page_count) is not int
-            or not 0 <= page_no < page_count <= 1000 or ext not in ('png', 'jpg', 'webp')
-            or len(title) > 256):
+            or not 0 <= page_no < page_count <= 1000 or ext not in ('png', 'jpg', 'webp')):
         raise LegacyZipExportError('legacy filename source rejected')
     safe_title = _INVALID_FILENAME.sub('_', title)
     legacy = (f'{safe_title}.{ext}' if page_count == 1
               else f'{safe_title}_{page_no + 1}.{ext}')
-    stem, suffix = legacy.rsplit('.', 1)
-    if f'({work_id})' in legacy:
-        filename = legacy  # Original core.py work_id_arcname is idempotent.
-    else:
-        match = _PAGE_SUFFIX.match(stem)
-        filename = (f'{match.group(1)}({work_id})_{match.group(2)}.{suffix}'
-                    if match else f'{stem}({work_id}).{suffix}')
-    if len(filename.encode('utf-8')) > MAX_ZIP_NAME_BYTES:
-        raise LegacyZipExportError('legacy ZIP filename too long')
-    return filename
+    return _work_id_arcname(legacy, work_id)
 
+
+def _work_id_arcname(arcname, work_id):
+    if not work_id or '/' in arcname or f'({work_id})' in arcname:
+        return arcname
+    stem, ext = os.path.splitext(arcname)
+    match = _PAGE_SUFFIX.match(stem)
+    return (f'{match.group(1)}({work_id})_{match.group(2)}{ext}'
+            if match else f'{stem}({work_id}){ext}')
+
+
+def zip_arcname_candidates(arcname: str, safe_title: str, work_id: str) -> list[str]:
+    """Legacy lookup order, including the title ending in a page-like suffix."""
+    if '/' in arcname:
+        return [arcname]
+    stem, ext = os.path.splitext(arcname)
+    candidates = []
+    if stem == safe_title:
+        candidates.append(f'{safe_title}({work_id}){ext}')
+        structural = _work_id_arcname(arcname, work_id)
+        if structural not in candidates:
+            candidates.append(structural)
+    else:
+        prefix = f'{safe_title}_'
+        page = stem[len(prefix):] if stem.startswith(prefix) else ''
+        if page and page.isdigit():
+            candidates.append(f'{safe_title}({work_id})_{page}{ext}')
+    candidates.append(arcname)
+    return candidates
+
+def _arcname_work_id(arcname):
+    if '/' in arcname:
+        return None
+    stem, _ = os.path.splitext(arcname)
+    match = _MEMBER_WORK_ID.search(stem)
+    return match.group(1) if match else None
+
+
+def _page_names(receipt, index):
+    work_id = receipt['work_id']
+    title = _INVALID_FILENAME.sub('_', receipt['title'])
+    ext = {'png': 'png', 'jpeg': 'jpg', 'webp': 'webp'}[receipt['files'][index]['format']]
+    legacy = (f'{title}.{ext}' if receipt['page_count'] == 1
+              else f'{title}_{index + 1}.{ext}')
+    canonical = _work_id_arcname(legacy, work_id)
+    return canonical, zip_arcname_candidates(legacy, title, work_id)
+
+
+def author_zip_candidates(root, author_id):
+    """Find an author's flat ZIP paths by their trailing author ID."""
+    suffix = f'({author_id}).zip'
+    return [path for path in native_io_path(root).iterdir() if path.name.endswith(suffix)]
+
+
+def _zip_path_size(path):
+    try:
+        return path.lstat().st_size
+    except OSError:
+        return 0
+
+
+def largest_author_zip(paths):
+    return max(paths, key=_zip_path_size)
 
 def _export_path(root: Path) -> Path:
     if not isinstance(root, Path) or not root.is_absolute() or root == root.parent:
@@ -96,6 +180,7 @@ def _export_path(root: Path) -> Path:
 class LegacyZipExporter:
     def __init__(self, root: Path, managed: ManagedPixivDownloads, *, preserve_incomplete=False, notify_corrupt=None):
         self.notify_corrupt = notify_corrupt
+        self.mutation_guard = None
         if not isinstance(managed, ManagedPixivDownloads) or managed.closed:
             raise LegacyZipExportError('managed originals unavailable')
         path = _export_path(logical_path(root))
@@ -166,8 +251,218 @@ class LegacyZipExporter:
                     pass  # Notification failure does not hide verification failure.
             raise LegacyZipExportError('legacy ZIP verification failed') from error
 
+    def normalize_archive(self, path: Path, expected_sha256: str, *,
+                          zip64_threshold: int = 4000 * 1024 * 1024) -> None:
+        """Rewrite an owned ZIP with normalized paths and one ZIP64 policy."""
+        path = native_io_path(logical_path(path))
+        if path.parent != native_io_path(self.root) or not path.name.endswith('.zip'):
+            raise LegacyZipExportError('ZIP path rejected')
+        if (not isinstance(expected_sha256, str) or not re.fullmatch(r'[a-f0-9]{64}', expected_sha256)
+                or type(zip64_threshold) is not int or zip64_threshold < 1):
+            raise LegacyZipExportError('ZIP normalization input rejected')
+        if not self._writer.acquire(blocking=False):
+            raise LegacyZipExportError('ZIP writer already active')
+        staging = None
+        try:
+            if self.closed or self._closing or verified_zip_digest(path) != expected_sha256:
+                raise LegacyZipExportError('previous ZIP changed')
+            with ZipFile(path, 'r') as inspect:
+                infos = inspect.infolist()
+                expanded = sum(info.file_size + len(info.filename.encode('utf-8'))
+                               + len(info.extra) + len(info.comment) + 256 for info in infos)
+            use_zip64 = (path.stat().st_size >= zip64_threshold
+                         or expanded >= ZIP32_SAFE_LIMIT or len(infos) >= ZIP32_ENTRY_LIMIT)
+            _safe_path(native_io_path(self.incomplete))
+            staging = native_io_path(self.incomplete) / ('zip-' + uuid4().hex + '.tmp')
+            names = set()
+            with ZipFile(path, 'r') as source, staging.open('xb') as output:
+                with ZipFile(output, 'w', allowZip64=use_zip64) as target:
+                    target.comment = source.comment
+                    for original in source.infolist():
+                        info = copy.copy(original)
+                        info.filename = info.filename.replace('\\', '/')
+                        if info.filename in names:
+                            raise LegacyZipExportError('duplicate previous ZIP member')
+                        names.add(info.filename)
+                        info.extra = _without_zip64_extra(info.extra)
+                        if not use_zip64 and info.compress_type in (0, 8):
+                            info.extract_version = min(info.extract_version, 20)
+                            info.create_version = min(info.create_version, 20)
+                        with source.open(original) as src, target.open(info, 'w', force_zip64=use_zip64) as dst:
+                            shutil.copyfileobj(src, dst, 1024 * 1024)
+                output.flush()
+                os.fsync(output.fileno())
+            self._verify_archive(staging, names, 'ZIP')
+            if self._closing or verified_zip_digest(path) != expected_sha256:
+                raise LegacyZipExportError('previous ZIP changed')
+            finish = self.mutation_guard(staging, path, expected_sha256) if self.mutation_guard else None
+            try:
+                os.replace(staging, path)
+                _fsync_dir(path.parent)
+            finally:
+                if finish is not None:
+                    finish()
+        except (OSError, BadZipFile, RuntimeError, ZlibError, LargeZipFile) as error:
+            raise LegacyZipExportError('ZIP normalization failed') from error
+        finally:
+            try:
+                if staging is not None:
+                    staging.unlink(missing_ok=True)
+            finally:
+                self._writer.release()
+
+    def remove_entry(self, path: Path, entry_name: str, expected_sha256: str) -> bytes:
+        """Remove one entry from an owned archive after verifying every member."""
+        path = native_io_path(logical_path(path))
+        if path.parent != native_io_path(self.root) or not path.name.endswith('.zip'):
+            raise LegacyZipExportError('ZIP path rejected')
+        if not isinstance(entry_name, str) or not entry_name:
+            raise LegacyZipExportError('ZIP member rejected')
+        if not isinstance(expected_sha256, str) or not re.fullmatch(r'[a-f0-9]{64}', expected_sha256):
+            raise LegacyZipExportError('invalid previous ZIP proof')
+        if not self._writer.acquire(blocking=False):
+            raise LegacyZipExportError('ZIP writer already active')
+        staging = None
+        try:
+            if self.closed or self._closing:
+                raise LegacyZipExportError('ZIP exporter closed')
+            if verified_zip_digest(path) != expected_sha256:
+                raise LegacyZipExportError('previous ZIP changed')
+            _safe_path(native_io_path(self.incomplete))
+            staging = native_io_path(self.incomplete) / ('zip-' + uuid4().hex + '.tmp')
+            removed = None
+            names = set()
+            with ZipFile(path, 'r') as source, staging.open('xb') as output:
+                with ZipFile(output, 'w', allowZip64=True) as target:
+                    target.comment = source.comment
+                    for info in source.infolist():
+                        if info.filename in names:
+                            raise LegacyZipExportError('duplicate previous ZIP member')
+                        names.add(info.filename)
+                        if info.filename == entry_name:
+                            removed = source.read(info)
+                        else:
+                            with source.open(info) as src, target.open(info, 'w') as dst:
+                                shutil.copyfileobj(src, dst, 1024 * 1024)
+                output.flush()
+                os.fsync(output.fileno())
+            if removed is None:
+                raise LegacyZipExportError('ZIP member not found')
+            names.remove(entry_name)
+            self._verify_archive(staging, names, 'ZIP')
+            if self._closing or verified_zip_digest(path) != expected_sha256:
+                raise LegacyZipExportError('previous ZIP changed')
+            finish = (self.mutation_guard(staging, path, expected_sha256, contents_changed=True)
+                      if self.mutation_guard else None)
+            try:
+                os.replace(staging, path)
+                _fsync_dir(path.parent)
+            finally:
+                if finish is not None:
+                    finish()
+            return removed
+        except (OSError, BadZipFile, RuntimeError, ZlibError, LargeZipFile) as error:
+            raise LegacyZipExportError('ZIP removal failed') from error
+        finally:
+            try:
+                if staging is not None:
+                    staging.unlink(missing_ok=True)
+            finally:
+                self._writer.release()
+
+    def _member_owners(self, author_id, old_hashes):
+        """Match the actual ZIP to canonical names and checksums in saved receipts."""
+        members = defaultdict(dict)
+        for name, page_hash in old_hashes.items():
+            work_id = _arcname_work_id(name)
+            if work_id is not None:
+                members[work_id][name] = page_hash
+        owners = defaultdict(set)
+        if not members:
+            return owners
+        # Retained receipts can still prove old names after a title change and
+        # later publications. A numeric suffix alone is only a lookup hint.
+        for root in ('outputs', 'generations'):
+            folder = native_io_path(self.managed.root / root)
+            _safe_path(folder)
+            for path in folder.iterdir():
+                match = re.fullmatch(r'work-([1-9][0-9]{0,19})-[0-9a-f]{32}', path.name)
+                if match is None or match[1] not in members:
+                    continue
+                relative = f'{root}/{path.name}/receipt.json'
+                try:
+                    receipt, _ = self.managed._receipt(relative, verify_pages=False)
+                except ManagedDownloadError:
+                    continue  # An unverifiable receipt cannot claim a member.
+                if receipt['author_id'] != author_id:
+                    continue
+                work_id = receipt['work_id']
+                for index, page in enumerate(receipt['files']):
+                    name, _ = _page_names(receipt, index)
+                    if members[work_id].get(name) == page['sha256']:
+                        owners[name].add((work_id, index))
+        return owners
+
+    def _zip_member_plan(self, author_id, author_rows, source_pages, old_hashes, require_member_proof):
+        old_owners = self._member_owners(author_id, old_hashes)
+        verified_work = {name: next(iter(pages))[0] for name, pages in old_owners.items()}
+        canonical = {}
+        weak = defaultdict(set)
+        pages = []
+        for relative, receipt, digest in author_rows:
+            wid = receipt['work_id']
+            for index, file in enumerate(receipt['files']):
+                name, candidates = _page_names(receipt, index)
+                active = index in source_pages[wid]
+                page = wid, index
+                if name in canonical:
+                    raise LegacyZipAmbiguousError()
+                canonical[name] = page
+                for alias in {candidate for candidate in candidates if candidate != name}:
+                    weak[alias].add(page)
+                pages.append((page, relative, digest, file, name, candidates, active))
+
+        drop = set()
+        write = []
+        existing = set(old_hashes)
+        for page, relative, digest, file, name, candidates, active in pages:
+            wid, index = page
+            owners = old_owners.get(name)
+            usable_slot = (name in old_hashes
+                           and _arcname_work_id(name) == wid
+                           and (owners == {page} or not require_member_proof and not owners))
+            if not active:
+                if usable_slot:
+                    drop.add(name)
+                continue
+            if name in old_hashes:
+                # Flet skips exact names. A managed generation may replace the
+                # exact slot only when the member matches a saved page.
+                if usable_slot and old_hashes[name] != file['sha256']:
+                    drop.add(name)
+                    write.append((relative, digest, index, name, file['bytes']))
+                continue
+
+            # Flet append_to_zip checks both directions with the ID from the
+            # incoming filename map. Receipt and payload proof can disambiguate
+            # an old name that actually belongs to another work.
+            same_work = _work_id_arcname(name, wid)
+            legacy = name.replace(f'({wid})', '', 1)
+            aliases = {same_work, legacy, *candidates} - {name}
+            matched = {alias for alias in aliases & existing
+                       if verified_work.get(alias, wid) == wid
+                       and (alias not in canonical or canonical[alias] == page)}
+            if matched:
+                if not require_member_proof and any(len(weak[alias]) > 1 for alias in matched):
+                    raise LegacyZipAmbiguousError()
+                continue
+            write.append((relative, digest, index, name, file['bytes']))
+            existing.add(name)
+        return drop, write
+
     def export_author(self, author_id: str, *, expected_proofs=None, before_publish=None,
-                      expected_source_pages=None, replace_existing_sha256=None) -> Path:
+                      expected_source_pages=None, replace_existing_sha256=None,
+                      require_member_proof=False) -> Path:
         """Export all active still-image works of one author as a new ZIP.
 
         Does not overwrite, append to, rename, delete or hardlink any original
@@ -221,43 +516,74 @@ class LegacyZipExporter:
             destination = native_io_path(self.root / zip_name)
             _safe_path(native_io_path(self.root))
             _safe_path(destination, file=True)
-            # The old app reconciles an author rename to a single ZIP. Our
-            # non-destructive export cannot rename an earlier archive, so
-            # refuse a second ZIP whose author ID matches an older name.
-            for existing in native_io_path(self.root).iterdir():
-                if existing.name.endswith(f'({author_id}).zip') and (replace_existing_sha256 is None or existing != destination):
+            existing_archives = author_zip_candidates(self.root, author_id)
+            if replace_existing_sha256 is None:
+                if existing_archives or destination.exists():
                     raise LegacyZipExportError('legacy author ZIP already exported')
-            if destination.exists() and replace_existing_sha256 is None:
-                raise LegacyZipExportError('legacy ZIP already exists; refusing overwrite')
-            if replace_existing_sha256 is not None:
-                if verified_zip_digest(destination)!=replace_existing_sha256:
+            else:
+                if not existing_archives:
+                    raise LegacyZipExportError('previous ZIP missing')
+                previous_path = largest_author_zip(existing_archives)
+                if verified_zip_digest(previous_path) != replace_existing_sha256:
                     raise LegacyZipExportError('previous ZIP changed')
+                # Validate all bytes before changing even the archive name.
+                with ZipFile(previous_path, 'r') as previous:
+                    if previous.testzip() is not None:
+                        raise LegacyZipExportError('legacy ZIP verification failed')
+                destination = previous_path
 
-            members = set()
-            entries = []
-            for relative, receipt, digest in receipts:
-                for page_index in source_pages[receipt['work_id']]:
-                    entry = receipt['files'][page_index]
-                    ext = {'png': 'png', 'jpeg': 'jpg', 'webp': 'webp'}[entry['format']]
-                    name = legacy_filename(receipt['title'], receipt['work_id'],
-                                           page_index, receipt['page_count'], ext)
-                    if name in members:
-                        raise LegacyZipExportError('duplicate legacy ZIP member rejected')
-                    members.add(name)
-                    entries.append((relative, digest, page_index, name))
+            previous_infos = {}
+            old_hashes = {}
+            if replace_existing_sha256 is not None:
+                with ZipFile(destination, 'r') as previous:
+                    for info in previous.infolist():
+                        name = info.filename.replace('\\', '/')
+                        if name in previous_infos:
+                            raise LegacyZipExportError('duplicate previous ZIP member')
+                        previous_infos[name] = info
+                        hasher = hashlib.sha256()
+                        with previous.open(info) as source:
+                            for block in iter(lambda: source.read(1024 * 1024), b''):
+                                hasher.update(block)
+                        old_hashes[name] = hasher.hexdigest()
+            drop, entries = self._zip_member_plan(
+                author_id, author_rows, source_pages, old_hashes, require_member_proof)
+            old_names = previous_infos.keys() - drop
+            members = old_names | {entry[3] for entry in entries}
+            estimate = sum(previous_infos[name].file_size + 2 * len(name.encode('utf-8'))
+                           + 2 * len(previous_infos[name].extra) + len(previous_infos[name].comment) + 256
+                           for name in old_names)
+            estimate += sum(size + 2 * len(name.encode('utf-8')) + 256
+                            for _, _, _, name, size in entries)
+            use_zip64 = (estimate >= min(ZIP64_THRESHOLD, ZIP32_SAFE_LIMIT)
+                         or len(members) >= ZIP32_ENTRY_LIMIT)
 
             _safe_path(native_io_path(self.incomplete))
             staging = native_io_path(self.incomplete) / ('zip-' + uuid4().hex + '.tmp')
-            # Create before ZipFile with xb: an earlier failed staging archive
-            # may never be silently overwritten or mistaken for a final ZIP.
+            # Never overwrite a retained archive from an earlier attempt.
             with staging.open('xb') as output:
                 with ZipFile(output, 'w', compression=ZIP_DEFLATED,
-                             compresslevel=6, allowZip64=False) as archive:
-                    for relative, digest, index, name in entries:
+                             compresslevel=6, allowZip64=use_zip64) as archive:
+                    if replace_existing_sha256 is not None:
+                        with ZipFile(destination, 'r') as previous:
+                            archive.comment = previous.comment
+                            for name, info in previous_infos.items():
+                                if name not in old_names:
+                                    continue
+                                new_info = copy.copy(info)
+                                new_info.filename = name
+                                new_info.extra = _without_zip64_extra(info.extra)
+                                if not use_zip64 and info.compress_type in (0, 8):
+                                    new_info.extract_version = min(info.extract_version, 20)
+                                    new_info.create_version = min(info.create_version, 20)
+                                with previous.open(info) as source, archive.open(new_info, 'w', force_zip64=use_zip64) as target:
+                                    shutil.copyfileobj(source, target, 1024 * 1024)
+                    for relative, digest, index, name, _ in entries:
                         if self._closing:
                             raise LegacyZipExportError('ZIP export interrupted by shutdown')
                         data = self.managed.read_saved_page(relative, index, digest)
-                        archive.writestr(name, data)
+                        with archive.open(name, 'w', force_zip64=use_zip64) as target:
+                            target.write(data)
                 output.flush()
                 os.fsync(output.fileno())
             self._verify_archive(staging, members, zip_name[:-4])
@@ -290,15 +616,13 @@ class LegacyZipExporter:
                 else:
                     if verified_zip_digest(destination)!=replace_existing_sha256:
                         raise LegacyZipExportError('previous ZIP changed')
-                    replacement=staging.with_name(staging.name+'.publish')
-                    os.link(staging,replacement)
-                    try:os.replace(replacement,destination)
-                    finally:replacement.unlink(missing_ok=True)
+                    os.replace(staging,destination)
+                    _fsync_dir(staging.parent)
                 _fsync_dir(native_io_path(self.root))
             return logical_path(destination)
         except (LegacyZipExportError, ManagedDownloadError):
             raise
-        except (OSError, ValueError, LargeZipFile, KeyError, RuntimeError):
+        except (OSError, ValueError, BadZipFile, LargeZipFile, KeyError, RuntimeError, ZlibError):
             raise LegacyZipExportError('legacy ZIP export failed') from None
         finally:
             if staging is not None and not retain_stage:

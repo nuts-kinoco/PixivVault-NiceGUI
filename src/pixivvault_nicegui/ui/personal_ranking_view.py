@@ -25,7 +25,7 @@ class PersonalRankingView(RankingView):
         self._condition_task=None;self._condition_pending=False
         self._calendar_token=None;self.calendar_dialog=None;self.calendar_picker=None
         self.client=ui.context.client
-        self._context_snapshot={};self._context_request=0;self._context_task=None
+        self._context_snapshot={};self._context_base={};self._context_revision=None;self._context_request=0;self._context_task=None
         saved=self.vault.ranking_preferences() if self.vault else {}
         self.saved_filters=normalize_personal_filters(saved.get('filters'));self.filters=dict(self.saved_filters)
         with ui.column().classes('pv-gallery w-full').props('data-testid=personal-ranking-view').style('overflow-y:auto;') as self.root:
@@ -80,7 +80,20 @@ class PersonalRankingView(RankingView):
         # 元 ranking_tab.py:1935-1947, 2012-2022, 2036-2038: サーバー側条件（ブクマ数下限・並び順・R-18）と条件クリアは再検索する。
         for control in (self.bookmarks,self.sort,self.r18,self.ai):control.on_value_change(lambda _:self.server_changed())
         for control in (self.date,self.include,self.exclude,self.author_max,*self.exclusions.values()):control.on_value_change(lambda _:self.local_changed())
+        self._local_revision_timer=ui.timer(1.0, self._sync_local_context) if getattr(services, 'local_tag_view', None) is not None else None
         self.client.on_delete(self.close);self.availability();self._refresh_chips()
+
+    def local_tags_changed(self):
+        self._context_revision = None
+        self._sync_local_context()
+
+    def _sync_local_context(self):
+        local = getattr(self.services, 'local_tag_view', None)
+        if self.closed or not self.active or local is None or self._context_revision == local.revision():
+            return
+        self.trend_row.clear()
+        if self.page is not None:self.render()
+        self._start_context_refresh()
     def _apply_candidates_open(self):
         opened=self._candidates_open
         self.candidates_label.set_visibility(opened);self.candidates_box.set_visibility(opened)
@@ -137,6 +150,9 @@ class PersonalRankingView(RankingView):
             tags_include=str(self.include.value or '').splitlines(),tags_exclude=str(self.exclude.value or '').splitlines(),per_author_max=self.author_max.value,
             **{k:bool(v.value) for k,v in self.exclusions.items()}))
     def context(self):
+        local = getattr(self.services, 'local_tag_view', None) or getattr(getattr(self.services, 'discovery', None), 'local_tag_view', None)
+        if local is not None and self._context_revision != local.revision():
+            return self._context_base
         return self._context_snapshot
     def _after_hidden_change(self):
         # 除外集合は文脈（保存済みの読み込み）から来る。読み直してから描き直す。
@@ -164,10 +180,21 @@ class PersonalRankingView(RankingView):
         task.add_done_callback(finished)
     async def _refresh_context(self):
         self._context_request+=1;request=self._context_request;epoch=self.epoch
-        try:context=await asyncio.to_thread(self._read_context)
-        except Exception:context={}
+        local = getattr(self.services, 'local_tag_view', None) or getattr(getattr(self.services, 'discovery', None), 'local_tag_view', None)
+        base_reader = getattr(self.services, 'personal_ranking_context_base', None)
+        try:
+            base = await asyncio.to_thread(base_reader) if local is not None and callable(base_reader) else None
+            before = local.revision() if local is not None else None
+            context = await asyncio.to_thread(self._read_context)
+            after = local.revision() if local is not None else None
+            revision = after if before == after else None
+        except Exception:
+            context, base, revision = {}, {}, None
         if self.closed or not self.active or self.epoch!=epoch or request!=self._context_request:return None
+        self._context_base = context if base is None else base
+        self._context_revision = revision
         self._context_snapshot=context
+        context=self.context()
         self.trend_row.clear()
         with self.trend_row:
             for candidate in context.get('trend_rows',())[:24]:

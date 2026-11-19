@@ -105,6 +105,8 @@ class NativeProfileBinding:
         self.cookie_store_factory = None
         self._cookie_store = None
         self._cookie_lock = Lock()
+        self._expiry_lock = Lock()
+        self._cookie_expiry_coordinator = None
         self._startup_extract_done = False
         self.last_cookie_adoption = None
         # FL-A09/A10: after a confirmed Cookie, account-switch confirmation and
@@ -289,7 +291,25 @@ class NativeProfileBinding:
                 if self._closed or self.cookie_store_factory is None:
                     raise RuntimeError('credential store unavailable')
                 self._cookie_store = self.cookie_store_factory()
+            claim_notice = getattr(self._cookie_store, 'take_legacy_migration_notice', None)
+            event_owner = getattr(self, '_shared_event_services', None)
+            if claim_notice is not None and getattr(event_owner, 'shared_log', None) is not None:
+                try:
+                    if claim_notice():
+                        from .shared_events import emit_shared
+                        emit_shared(event_owner, '\u7531\u6765\u4e0d\u660e\u306e\u65e7 Cookie \u4e16\u4ee3\u306f\u524a\u9664\u305b\u305a\u4fdd\u6301\u3057\u307e\u3057\u305f\u3002', level='normal')
+                except Exception:
+                    pass  # Notification failure must not interrupt authentication.
             return self._cookie_store
+
+    def cookie_expiry_coordinator(self):
+        with self._expiry_lock:
+            if self._closed or self.cookie_store_factory is None:
+                raise RuntimeError('credential store unavailable')
+            if self._cookie_expiry_coordinator is None:
+                from .cookie_expiry_refresh import CookieExpiryCoordinator
+                self._cookie_expiry_coordinator = CookieExpiryCoordinator(self.store, self._open_cookie_store)
+            return self._cookie_expiry_coordinator
 
     async def adopt_browser_cookies(self):
         """Extract, verify through the gate, then adopt the browser Cookie.
@@ -345,10 +365,16 @@ class NativeProfileBinding:
     def cookie_replaced_since_launch(self):
         """True when the saved Cookie differs from the one the readers were built with."""
         try:
-            return (self.launch_snapshot is not None
-                    and self.store.snapshot().cookie_file != self.launch_snapshot.cookie_file)
+            if self.launch_snapshot is None:
+                return False
+            current = self.store.snapshot()
+            if current.cookie_file == self.launch_snapshot.cookie_file:
+                return False
+            coordinator = self._cookie_expiry_coordinator
+            return not (coordinator is not None and coordinator.recognizes_renewal(
+                current, self.launch_snapshot.cookie_file))
         except Exception:
-            return False
+            return True
 
     def _configured_cookie(self):
         try:
@@ -552,6 +578,10 @@ class NativeProfileBinding:
             if reader is not None:
                 reader.close()
         self.followup.close()
+        with self._expiry_lock:
+            expiry, self._cookie_expiry_coordinator = self._cookie_expiry_coordinator, None
+        if expiry is not None:
+            expiry.close()
         with self._cookie_lock:
             cookie_store, self._cookie_store = self._cookie_store, None
         if cookie_store is not None:
@@ -564,7 +594,8 @@ class NativeProfileBinding:
 
 def register_profile_recovery(binding, *, cookie_rejected=False,
                               stop_migration_required=False, stop_gate_busy=False,
-                              stop_get_uncertain=False, legacy_v5_uncertain=False):
+                              stop_get_uncertain=False, legacy_v5_uncertain=False,
+                              legacy_copy_error=False):
     """Show editable configuration only; no media/service fallback is started."""
     from nicegui import app, ui
     from .ui.theme import CSS, TOKENS
@@ -579,6 +610,8 @@ def register_profile_recovery(binding, *, cookie_rejected=False,
             startup_result = getattr(binding, 'auth_startup_result', None)
             ui.label('保管領域の状態を確認できません（旧形式の判別不能）。バックアップから復元してください。'
                      if legacy_v5_uncertain else
+                     '\u65e7DB\u306e\u8907\u88fd\u4f5c\u6210\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002\u4fdd\u5b58\u5148\u30fb\u5bb9\u91cf\u30fb\u65e7DB\u306e\u4f7f\u7528\u72b6\u614b\u3092\u78ba\u8a8d\u3057\u3066\u518d\u8d77\u52d5\u3057\u3066\u304f\u3060\u3055\u3044\u3002'
+                     if legacy_copy_error else
                      startup_result.message if type(startup_result) is NativeAuthResult else
                      '前の取得結果が不確かなため通信を停止しています。取得停止の確認・回復を開いて手順を確認してください。'
                      if stop_get_uncertain else

@@ -22,9 +22,13 @@ class _Clock:
         self.now += seconds
 
 
+def _exact(low, high):
+    return (low + high) / 2                # deterministic: exactly the base interval (the +-20% jitter is tested in test_ag_z05)
+
+
 def _gate(interval=0.6):
     clock = _Clock()
-    return RequestAdmission(lambda: interval, clock=clock, sleep=clock.sleep), clock
+    return RequestAdmission(lambda: interval, clock=clock, sleep=clock.sleep, jitter=_exact), clock
 
 
 def test_default_lane_is_background_and_context_restores():
@@ -137,7 +141,7 @@ def test_cancel_during_interval_read_reserves_nothing():
     def interval():
         cancelled.append(True)
         return 0.6
-    gate = RequestAdmission(interval, clock=clock, sleep=clock.sleep)
+    gate = RequestAdmission(interval, clock=clock, sleep=clock.sleep, jitter=_exact)
 
     def checkpoint():
         if cancelled:
@@ -158,7 +162,7 @@ def test_interactive_counter_released_on_failure():
 
 
 def test_paused_checkpoint_does_not_hold_the_gate_lock():
-    gate = RequestAdmission(lambda: 0.3)
+    gate = RequestAdmission(lambda: 0.3, jitter=_exact)
     gate(time.monotonic() + 30)
     resume = Event()
     entered = Event()
@@ -183,7 +187,7 @@ def test_paused_checkpoint_does_not_hold_the_gate_lock():
 
 
 def test_real_threads_interactive_issues_before_a_background_that_arrived_after_it():
-    gate = RequestAdmission(lambda: 0.3)
+    gate = RequestAdmission(lambda: 0.3, jitter=_exact)
     gate(time.monotonic() + 30)            # occupy the gate
     issued = []
 
@@ -249,7 +253,7 @@ def test_ranking_screen_fetch_runs_in_the_interactive_lane_but_tag_search_stays_
 
 def test_background_yield_is_counted_from_the_call_even_when_the_entry_checkpoint_is_slow():
     clock = _Clock()
-    gate = RequestAdmission(lambda: 0.3, clock=clock, sleep=clock.sleep)
+    gate = RequestAdmission(lambda: 0.3, clock=clock, sleep=clock.sleep, jitter=_exact)
     gate(1000.0)
     clock.now = 10.0
     gate._interactive_waiting = 1
@@ -291,7 +295,7 @@ def test_follow_bookmark_csrf_home_get_runs_in_the_interactive_lane():
 
 def test_real_spacing_is_kept_after_a_long_pause_inside_the_gate():
     clock = _Clock()
-    gate = RequestAdmission(lambda: 0.3, clock=clock, sleep=clock.sleep)
+    gate = RequestAdmission(lambda: 0.3, clock=clock, sleep=clock.sleep, jitter=_exact)
     gate(1000.0)                           # issued at 0.0
     pause = {'n': 0}
 
@@ -310,7 +314,7 @@ def test_real_spacing_is_kept_after_a_long_pause_inside_the_gate():
 def test_background_keeps_yielding_when_an_interactive_request_queues_during_its_settings_read():
     clock = _Clock()
     state = {'reads': 0}
-    gate = RequestAdmission(lambda: 0.3, clock=clock, sleep=clock.sleep)
+    gate = RequestAdmission(lambda: 0.3, clock=clock, sleep=clock.sleep, jitter=_exact)
     gate(1000.0)
     clock.now = 5.0
 

@@ -163,14 +163,14 @@ class ManagedDownloadCatalog:
     def receipts(self):
         return deepcopy(self._receipts)
 
-    def _check(self, work_id, page_no, variant):
+    def _check(self, work_id, page_no, variant, *, check_visibility=True):
         if self._closed:
             raise MediaUnavailable("catalog closed")
         work = self.works.get(work_id) if isinstance(work_id, str) else None
         if work is None or type(page_no) is not int or not 0 <= page_no < work.page_count or variant not in ("thumb", "view", "original"):
             raise MediaMissing("image not found")
         guard = getattr(self._writer, 'assert_page_visible', None)
-        if callable(guard):
+        if check_visibility and callable(guard):
             try:
                 guard(work_id, self.source_pages[work_id][page_no])
             except (OSError, ValueError) as error:
@@ -263,6 +263,24 @@ class ManagedDownloadCatalog:
             blob=ImageBlob(data, "image/png", '"' + hashlib.sha256(data).hexdigest() + '"')
             if self._shared_cache is not None and disk_key is not None:self._shared_cache.put(key,blob,disk_key=disk_key)
             return blob
+
+    def image_token(self, work_id, page_no=0, variant='view'):
+        with self._lock:
+            relative, _, digest = self._check(work_id, page_no, variant, check_visibility=False)
+            source_page = self.source_pages[work_id][page_no]
+        return self._writer.saved_page_token(relative, source_page, digest)
+
+    def get_fresh(self, work_id, page_no=0, variant='view'):
+        with self._lock:
+            relative, receipt, digest = self._check(work_id, page_no, variant)
+        try:
+            blob = self._decode(relative, receipt, digest, page_no, variant)
+        except (OSError, ValueError, KeyError) as exc:
+            raise MediaUnavailable('saved image read failed') from exc
+        with self._lock:
+            if self._closed:
+                raise MediaUnavailable('catalog closed')
+        return blob
 
     def get(self, work_id: str, page_no: int = 0, variant: str = "view") -> ImageBlob:
         with self._lock:

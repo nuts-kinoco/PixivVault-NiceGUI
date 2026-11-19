@@ -78,6 +78,10 @@ class DemoShell:
         self.account_switch_dialog = None
         self._banner_dismissed = False
         self._app_conn_timer = None
+        owner = getattr(services, 'ugoira', None)
+        self._ugoira_notified = {(job.job_id, job.attempt) for job in owner.jobs.snapshot()
+                                  if job.state in ('done', 'stopped', 'error')} if owner is not None else set()
+        self._ugoira_timer = ui.timer(2, self._notify_ugoira_fallback) if owner is not None else None
         self.view_history_button = None
         self.view_history = None
         self.client.on_delete(self.close)
@@ -339,6 +343,8 @@ class DemoShell:
                 extension_snapshot=lambda: self.services.extension_bridge.response_snapshot() if self.services.extension_bridge is not None else ({}, {}),
                 native_profile=self.profile_view, following_sync=self.following_view,
                 vault=getattr(self.services, 'external_vault', None),
+                tagger=getattr(self.services, 'local_tagger', None),
+                on_tagger_change=self._tagger_settings_changed,
                 pixiv_actions_mode=getattr(self.services, 'pixiv_actions_mode', 'readonly'),
                 similarity_status=(self.services.similarity_analysis_status if self.services.similarity_analysis_enabled else None),
                 resume_similarity=(self.services.rescan_similarity_analysis if self.services.similarity_analysis_enabled else None))
@@ -425,9 +431,18 @@ class DemoShell:
         if self.personal_view is not None and word.strip():self.personal_view.tags.set_value(word.strip())
     def apply_preferences(self,snapshot=None):
         self.services.apply_preferences(snapshot)
-        if self.learning is not None:self.learning.refresh_prefetch()
+        if self.learning is not None:
+            self.learning.refresh_prefetch()
+            self.learning.watch_local_seeds()
         refresh = getattr(self.job_views.get('download'), 'refresh_bookmark_layout', None)
         if callable(refresh):refresh()
+
+    def _tagger_settings_changed(self):
+        if self.learning is not None:
+            self.learning.refresh_tagger_order()
+        for view in (self.gallery, self.personal_view):
+            changed=getattr(view, 'local_tags_changed', None)
+            if callable(changed):changed()
 
     def _reflect_uid_once(self, dialog) -> None:
         # プロセス起動時に1回だけ（シェルは画面を開くたびに作られる）。
@@ -480,7 +495,7 @@ class DemoShell:
         if tab == "learning" and self.learning is None:
             from .learning_view import LearningView
             with self.content:
-                self.learning = LearningView(self.services)
+                self.learning = LearningView(self.services, on_open_preferences=self.open_preferences)
             history_view = getattr(self.learning, 'view_history', None)
             if history_view is not None:
                 history_view.on_count = self.set_view_history_count
@@ -640,6 +655,20 @@ class DemoShell:
         if getattr(self, 'personal_view', None) is not None:
             self.personal_view.apply_card_size(size)
 
+    def _notify_ugoira_fallback(self):
+        owner = getattr(self.services, 'ugoira', None)
+        if self.closed or owner is None:
+            return
+        for job in owner.jobs.snapshot():
+            key = (job.job_id, job.attempt)
+            if job.state not in ('done', 'stopped', 'error') or key in self._ugoira_notified:
+                continue
+            self._ugoira_notified.add(key)
+            message = owner.fallback_message(job)
+            if message:
+                with self.client:
+                    ui.notify(message, type='warning')
+
     def close(self) -> None:
         if self._auth_unsubscribe is not None:
             self._auth_unsubscribe()
@@ -653,6 +682,7 @@ class DemoShell:
         self.shared_log_view.close()
         if self._borrow_timer is not None:self._borrow_timer.deactivate()
         if self._app_conn_timer is not None:self._app_conn_timer.deactivate()
+        if self._ugoira_timer is not None:self._ugoira_timer.deactivate()
         if self.borrow_dialog is not None:self.borrow_dialog.close()
         self.saved_folder_button.close()
         if self.get_recovery_view is not None:self.get_recovery_view.close()

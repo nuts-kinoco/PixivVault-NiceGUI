@@ -9,7 +9,9 @@ import pytest
 
 from pixivvault_nicegui.bookmark_remote_adapter import RemoteBookmark
 from pixivvault_nicegui.duplicate_inspection import ManagedDuplicateInspection
-from pixivvault_nicegui.managed_downloads import ManagedDownloadError, ManagedPixivDownloads
+from pixivvault_nicegui.managed_downloads import (
+    ManagedDownloadError, ManagedPageQuarantined, ManagedPixivDownloads,
+)
 
 
 class Context:
@@ -240,3 +242,21 @@ def test_explicit_recovery_restores_only_the_expected_committed_exclusion(owned)
     assert proof_bytes(writer) == before and tuple(client.images) == calls
     with pytest.raises(ManagedDownloadError, match='compare-and-swap|changed'):
         writer.quarantine.restore(result.operation_id, expected_revision=result.state_revision)
+
+
+def test_visibility_keeps_exclusions_after_a_fold_with_damaged_trash(owned):
+    writer, source, _ = owned
+    reader = type(writer._generations)(writer.root)
+    reader.assert_page_visible('123', 1, verify_payloads=False)
+    operation = 'a' * 32
+    result = source.execute(plan_for(source, '123:2'), operation_id=operation,
+                            mode='move', confirmed_move=True)
+    assert [item.key for item in result.committed] == ['123:2']
+    copy, = (writer.quarantine.operations / operation).glob('*.png')
+    copy.write_bytes(b'changed length')
+
+    reader.assert_page_visible('123', 0, verify_payloads=False)
+    with pytest.raises(ManagedPageQuarantined):
+        reader.assert_page_visible('123', 1, verify_payloads=False)
+    with pytest.raises(ManagedDownloadError, match='quarantine'):
+        reader.entries()

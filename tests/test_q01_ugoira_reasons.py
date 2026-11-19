@@ -28,10 +28,10 @@ def no_external_execution(monkeypatch):
     monkeypatch.setattr(subprocess, "Popen", reject)
 
 
-def archive():
+def archive(size=(3, 2)):
     frame = io.BytesIO()
     # Valid archive image; odd width is explicitly rejected by actual mp4_plan.
-    Image.new("RGB", (3, 2), (1, 2, 3)).save(frame, format="PNG")
+    Image.new("RGB", size, (1, 2, 3)).save(frame, format="PNG")
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w") as packet:
         packet.writestr("000000.png", frame.getvalue())
@@ -65,15 +65,21 @@ def test_actual_ugoira_run_keeps_safe_reason(tmp_path, monkeypatch, case, expect
         return original_mkdir(path, *args, **kwargs)
     monkeypatch.setattr(Path, "mkdir", mkdir)
     try:
-        owner.enqueue("synthetic-operation", *archive(), output="mp4")
+        # This test injects faults at codec-stage creation; use a supported
+        # size so the earlier format validation cannot bypass that boundary.
+        owner.enqueue("synthetic-operation", *archive((2, 2)), output="mp4")
         with owner.jobs._condition:
             assert owner.jobs._condition.wait_for(
-                lambda: owner.jobs.snapshot() and owner.jobs.snapshot()[0].state in {"error", "stopped"},
+                lambda: owner.jobs.snapshot() and owner.jobs.snapshot()[0].state in {"done", "error", "stopped"},
                 timeout=5)
         failed = owner.jobs.snapshot()[0]
-        assert calls == [True]
-        assert failed.state == ("stopped" if case == "cancel" else "error")
-        assert failed.error_code == expected and failed.result is None
+        assert calls == [True] * (2 if case == 'mp4' else 1)
+        if case == "mp4":
+            assert failed.state == "done" and failed.result.startswith("gifs/")
+            assert (root / failed.result).is_file()
+        else:
+            assert failed.state == ("stopped" if case == "cancel" else "error")
+            assert failed.error_code == expected and failed.result is None
         assert not tuple(owner.mp4s.iterdir())
         for path in owner.diagnostics.rglob("*.json"):
             assert PRIVATE not in path.read_text()
@@ -84,8 +90,8 @@ def test_actual_ugoira_run_keeps_safe_reason(tmp_path, monkeypatch, case, expect
     reopened = ManagedUgoiraJobs(root, codec_python=sys.executable)
     try:
         assert reopened.jobs.snapshot()[0] == failed
-        assert calls == [True]
-        if case in {"mp4", "permission"}:
+        assert calls == [True] * (2 if case == 'mp4' else 1)
+        if case == "permission":
             from nicegui import ui
             from pixivvault_nicegui.ui.job_views import QueueView
             with ui.column() as holder:

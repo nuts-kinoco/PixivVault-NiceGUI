@@ -7,9 +7,10 @@ module unless their launcher explicitly opts in.
 """
 from __future__ import annotations
 
-from contextlib import closing
+from contextlib import closing, contextmanager
 from dataclasses import dataclass
 import os
+import re
 from pathlib import Path
 import sqlite3
 import stat
@@ -159,7 +160,7 @@ def _create_marker(root: Path, marker: str, identity: bytes) -> None:
 
 
 def _check_config(snapshot: NativeProfileSnapshot, profile_root: Path,
-                  *, live_paths: bool) -> None:
+                  *, live_paths: bool, legacy_live_paths: bool = True) -> None:
     if not isinstance(snapshot, NativeProfileSnapshot) or type(snapshot.revision) is not int or snapshot.revision < 0:
         raise NativeProfileError('保存された設定の形式が不正です。')
     if (snapshot.similarity_provider not in ('auto', 'cuda', 'cpu')
@@ -174,11 +175,11 @@ def _check_config(snapshot: NativeProfileSnapshot, profile_root: Path,
         value = getattr(snapshot, name)
         if value is not None:
             _absolute(value, kind=kind)
-            if live_paths:
+            if live_paths and (legacy_live_paths or name not in ('library_readonly_db', 'library_image_root')):
                 _existing(value, kind=kind)
     if (snapshot.library_readonly_db is None) != (snapshot.library_image_root is None):
         raise NativeProfileError('旧DBと旧画像は両方を明示してください。')
-    if live_paths and snapshot.library_readonly_db is not None:
+    if live_paths and legacy_live_paths and snapshot.library_readonly_db is not None:
         from .library_repository import require_frozen_library_copy
         try:
             require_frozen_library_copy(snapshot.library_readonly_db)
@@ -423,7 +424,7 @@ class NativeProfileStore:
     def update(self, *, cookie_file=_UNSET, save_parent=_UNSET, expected_revision: int,
                library_readonly_db=_UNSET, library_image_root=_UNSET,
                similarity_model_file=_UNSET, similarity_provider=_UNSET,
-               similarity_auto=_UNSET) -> NativeProfileSnapshot:
+               similarity_auto=_UNSET, _cookie_adoptions=()) -> NativeProfileSnapshot:
         if type(expected_revision) is not int or expected_revision < 0:
             raise NativeProfileError('profileの世代が不正です。')
         with self._lock:
@@ -443,7 +444,10 @@ class NativeProfileStore:
                     previous.similarity_model_file if similarity_model_file is _UNSET else _absolute(similarity_model_file, kind='file'),
                     previous.similarity_provider if similarity_provider is _UNSET else similarity_provider,
                     previous.similarity_auto if similarity_auto is _UNSET else similarity_auto)
-                _check_config(candidate, self.root, live_paths=True)
+                cookie_only = (cookie_file is not _UNSET and all(value is _UNSET for value in
+                    (save_parent, library_readonly_db, library_image_root, similarity_model_file,
+                     similarity_provider, similarity_auto)))
+                _check_config(candidate, self.root, live_paths=True, legacy_live_paths=not cookie_only)
                 if candidate == previous:
                     self._connection.execute('COMMIT')
                     return previous
@@ -460,19 +464,97 @@ class NativeProfileStore:
                 self._connection.execute('INSERT OR REPLACE INTO native_inference_state VALUES(1,?,?,?)',
                     (str(candidate.similarity_model_file) if candidate.similarity_model_file else None,
                      candidate.similarity_provider, int(candidate.similarity_auto)))
+                adoption_table = self._connection.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='native_cookie_adoptions'").fetchone()
+                if adoption_table and previous.cookie_file is not None and previous.cookie_file != candidate.cookie_file:
+                    self._connection.execute(
+                        'UPDATE native_cookie_adoptions SET selected_revision=? WHERE cookie_path=? AND selected_revision<?',
+                        (expected_revision, str(previous.cookie_file), expected_revision))
+                if _cookie_adoptions:
+                    if type(_cookie_adoptions) is not tuple or len(_cookie_adoptions) > 2:
+                        raise NativeProfileError('Cookie adoption rejected')
+                    self._connection.execute('''CREATE TABLE IF NOT EXISTS native_cookie_adoptions
+                        (cookie_path TEXT PRIMARY KEY, cookie_sha TEXT NOT NULL,
+                         metadata_sha TEXT NOT NULL, revision INTEGER NOT NULL,
+                         selected_revision INTEGER NOT NULL)''')
+                    for item in _cookie_adoptions:
+                        if (type(item) is not tuple or len(item) != 3 or
+                                not isinstance(item[0], Path) or
+                                item[0] not in (previous.cookie_file, candidate.cookie_file) or
+                                any(type(value) is not str or re.fullmatch(r'[0-9a-f]{64}', value) is None
+                                    for value in item[1:])):
+                            raise NativeProfileError('Cookie adoption rejected')
+                        existing = self._connection.execute(
+                            'SELECT cookie_sha,metadata_sha FROM native_cookie_adoptions WHERE cookie_path=?',
+                            (str(item[0]),)).fetchone()
+                        if existing is not None and existing != item[1:]:
+                            raise NativeProfileConflict('Cookie adoption rejected')
+                        self._connection.execute('''INSERT INTO native_cookie_adoptions VALUES (?,?,?,?,?)
+                            ON CONFLICT(cookie_path) DO NOTHING''',
+                            (str(item[0]), item[1], item[2], expected_revision + (item[0] == candidate.cookie_file),
+                             expected_revision + (item[0] == candidate.cookie_file)))
+                    if self._connection.execute('SELECT COUNT(*) FROM native_cookie_adoptions').fetchone()[0] > 64:
+                        raise NativeProfileError('Cookie adoption rejected')
                 self._connection.execute('COMMIT')
                 return NativeProfileSnapshot(expected_revision+1, candidate.cookie_file,
                     candidate.save_parent, candidate.library_readonly_db,candidate.library_image_root,
                     candidate.similarity_model_file,candidate.similarity_provider,candidate.similarity_auto)
             except NativeProfileConflict:
-                self._connection.execute('ROLLBACK')
+                if self._connection.in_transaction:
+                    self._connection.execute('ROLLBACK')
                 raise
             except NativeProfileError:
-                self._connection.execute('ROLLBACK')
+                if self._connection.in_transaction:
+                    self._connection.execute('ROLLBACK')
                 raise  # This module's bounded diagnostics never include secrets.
             except Exception:
-                self._connection.execute('ROLLBACK')
+                if self._connection.in_transaction:
+                    self._connection.execute('ROLLBACK')
                 raise NativeProfileError('保存できませんでした。旧設定は変更していません。') from None
+
+    @contextmanager
+    def pinned_snapshot(self, *, include_adoptions=False):
+        """Reserve the profile with an independent connection; allow reads."""
+        with self._lock:
+            if self._closed:
+                raise NativeProfileError('profile unavailable')
+        connection = None
+        try:
+            _assert_chain(self.path, kind='file')
+            uri = sqlite_readonly_uri(self.path, immutable=False).replace('?mode=ro', '?mode=rw')
+            connection = sqlite3.connect(uri, uri=True, timeout=4, isolation_level=None)
+            connection.execute('BEGIN IMMEDIATE')
+            snapshot = self._read_row(connection, self.root)
+            adoptions = ()
+            if include_adoptions and connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='native_cookie_adoptions'").fetchone():
+                adoptions = tuple(connection.execute('SELECT cookie_path,cookie_sha,metadata_sha,revision,selected_revision FROM native_cookie_adoptions ORDER BY revision DESC'))
+                if len(adoptions) > 64 or any(
+                    type(row[0]) is not str or not row[0] or
+                    any(type(value) is not str or re.fullmatch(r'[0-9a-f]{64}', value) is None for value in row[1:3]) or
+                    any(type(value) is not int or value < 0 or value > snapshot.revision for value in row[3:])
+                    for row in adoptions):
+                    raise NativeProfileError('Cookie adoption rejected')
+        except Exception:
+            if connection is not None:
+                connection.close()
+            raise NativeProfileError('profile unavailable') from None
+        try:
+            yield (snapshot, adoptions, connection) if include_adoptions else snapshot
+        finally:
+            import sys
+            from .pixiv_read_client import HTTPStatusRejected
+            active = sys.exc_info()[1]
+            cleanup_error = None
+            for action in ((lambda: connection.execute('COMMIT' if include_adoptions and active is None else 'ROLLBACK')), connection.close):
+                try:
+                    action()
+                except Exception as error:
+                    if isinstance(active, HTTPStatusRejected):
+                        active.cleanup_failed = True
+                    elif cleanup_error is None:
+                        cleanup_error = error
+            if cleanup_error is not None:
+                raise cleanup_error
 
     def native_kwargs(self, snapshot: NativeProfileSnapshot | None = None) -> dict:
         """Opt-in launcher input; no implicit config/CLI overrides or I/O."""

@@ -2,8 +2,8 @@
 
 No mutation occurs on construction. Every operation has an explicit account,
 target, action and operation ID; a POST is sent at most once. The existing
-LivePixivReadClient owns the frozen, read-only Cookie jar and authenticated GET
-identity. This writer never persists a Cookie, logs a token, or closes reader.
+LivePixivReadClient owns the Cookie jar and authenticated GET identity. This
+writer never persists a Cookie, logs a token, or closes the reader.
 
 Original Pixiv endpoints are preserved, but live write acceptance remains
 UNVERIFIED. Callers must not silently retry an indeterminate result.
@@ -599,9 +599,13 @@ class PixivWriteClient:
         status='indeterminate'
         reason='unknown_outcome'
         created=None
+        coordinator = getattr(self._reader, '_expiry_coordinator', None)
+        generation = None
         try:
             # Verify the same explicit Cookie reader's established account.
             try:
+                # Identity may itself take coordinator.lock while holding the
+                # reader identity lock. Never invert that order here.
                 account=self._reader.require_identity()
                 if (account != intent.account_id or
                         (self._reader._cookie_user_id is not None and
@@ -613,8 +617,17 @@ class PixivWriteClient:
                     if bookmark_id is None:
                         status,reason='indeterminate','unverified_bookmark_receipt'
                         return self._finish(intent,target_key,status,reason,created,epoch)
-                csrf=self._csrf_token(intent.account_id)
-                request=self._request(intent,csrf,bookmark_id)
+                with (coordinator.lock if coordinator is not None else nullcontext()):
+                    if coordinator is not None:
+                        coordinator.ensure_current(self._reader)
+                        if self._reader._verified_identity != account or (
+                                self._reader._cookie_user_id is not None and
+                                self._reader._cookie_user_id != account):
+                            raise WriteValidationError()
+                    csrf=self._csrf_token(intent.account_id)
+                    request=self._request(intent,csrf,bookmark_id)
+                    if coordinator is not None:
+                        generation = coordinator.generation_token(self._reader)
             except Exception:
                 status,reason='rejected','preflight_not_sent'
                 return self._finish(intent,target_key,status,reason,created,epoch)
@@ -645,24 +658,40 @@ class PixivWriteClient:
             response = None
             try:
                 from .pixiv_read_client import HTTPStatusRejected
-                admission = self._post_admission() if self._post_admission is not None else nullcontext()
-                with admission:
-                    with self._lock:
-                        if self._closed or self._epoch != epoch:
+                with (coordinator.lock if coordinator is not None else nullcontext()):
+                    if coordinator is not None and coordinator.generation_token(self._reader) != generation:
+                        raise WriteValidationError()
+                    admission = self._post_admission() if self._post_admission is not None else nullcontext()
+                    with admission:
+                        with self._lock:
+                            if self._closed or self._epoch != epoch:
+                                raise WriteValidationError()
+                        if coordinator is not None and coordinator.generation_token(self._reader) != generation:
                             raise WriteValidationError()
-                    if mark_dispatch is not None:
-                        mark_dispatch()
-                    deadline=time.monotonic()+MAX_MUTATION_SECONDS
-                    dispatched = True
-                    response=self._transport(request,MAX_MUTATION_SECONDS,MAX_POST_BYTES,deadline)
-                    if (self._post_admission is not None and isinstance(response, WriteHTTPResponse)
-                            and response.status in (401,403,429)):
-                        raise HTTPStatusRejected(response.status)
-                    self._reader._ensure_open()
-                    if (time.monotonic()>deadline or not isinstance(response,WriteHTTPResponse)
-                            or type(response.status) is not int):
-                        raise TimeoutError()
+                        with (coordinator.post_fence(self._reader, generation) if coordinator is not None else nullcontext()):
+                            with (getattr(self._reader, '_expiry_cancel_lock', None) or nullcontext()):
+                                self._reader._ensure_open()
+                                if mark_dispatch is not None:
+                                    mark_dispatch()
+                                self._reader._ensure_open()
+                                if coordinator is not None:
+                                    coordinator.ensure_post_owner(self._reader)
+                                with self._lock:
+                                    if self._closed or self._epoch != epoch:
+                                        raise WriteValidationError()
+                                deadline=time.monotonic()+MAX_MUTATION_SECONDS
+                                dispatched = True
+                                response=self._transport(request,MAX_MUTATION_SECONDS,MAX_POST_BYTES,deadline)
+                                if (self._post_admission is not None and isinstance(response, WriteHTTPResponse)
+                                        and response.status in (401,403,429)):
+                                    raise HTTPStatusRejected(response.status)
+                                self._reader._ensure_open()
+                                if (time.monotonic()>deadline or not isinstance(response,WriteHTTPResponse)
+                                        or type(response.status) is not int):
+                                    raise TimeoutError()
             except HTTPStatusRejected as error:
+                if getattr(error, 'cleanup_failed', False):
+                    return self._finish(intent,target_key,'indeterminate','transport_unknown',None,epoch)
                 if response is None or response.status != error.status_code:
                     return self._finish(intent,target_key,'indeterminate','transport_unknown',None,epoch)
             except Exception:

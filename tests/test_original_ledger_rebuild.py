@@ -404,3 +404,35 @@ def test_load_missing_root_is_none_but_existing_unowned_root_is_rejected(tmp_pat
     missing.mkdir()
     with pytest.raises(LedgerRebuildError):
         load((paths[0], paths[1], missing))
+
+
+def test_original_path_identity_survives_separate_frozen_generations(tmp_path):
+    import shutil
+    from pixivvault_nicegui.legacy_ledger_rebuild import resolve_rebuilt_group, rebuilt_ledger_has_page_proofs
+    db, images, managed = paths = fixture(tmp_path)
+    store(images)
+    first = run(paths)
+    publish(paths, first)
+    source_digest = rebuild_module._path_digest(db.resolve())
+    copy1 = tmp_path / 'copy1.db'
+    copy2 = tmp_path / 'copy2.db'
+    shutil.copyfile(db, copy1)
+    shutil.copyfile(db, copy2)
+    common = dict(managed_root=managed, images_root=images, source_db_path_sha256=source_digest)
+    groups, token, available = load_rebuilt_ledger(undecidable_db=copy1, with_token=True, **common)
+    assert groups == first.groups and available
+    assert rebuilt_ledger_has_page_proofs(undecidable_db=copy2, **common)
+    assert resolve_rebuilt_group(undecidable_db=copy1, group=groups[0], work_id='1', expected_current=token, **common) == ()
+    assert load_rebuilt_ledger(undecidable_db=copy2, **common) == ()
+    again = rebuild_undecidable_ledger(undecidable_db=copy2, **common)
+    assert again.groups == ()
+    publish_rebuilt_ledger(again, undecidable_db=copy2, **common)
+    with pytest.raises(LedgerRebuildError):
+        load_rebuilt_ledger(undecidable_db=copy2, **(common | {'source_db_path_sha256': rebuild_module._path_digest(copy2.resolve())}))
+    for invalid in ('x' * 64, 'a' * 63, 'A' * 64, '', 1):
+        with pytest.raises(LedgerRebuildError):
+            load_rebuilt_ledger(undecidable_db=copy2, **(common | {'source_db_path_sha256': invalid}))
+    with sqlite3.connect(copy2) as conn:
+        conn.execute("UPDATE works SET title='changed' WHERE work_id='1'")
+    with pytest.raises(LedgerRebuildError):
+        load_rebuilt_ledger(undecidable_db=copy2, **common)

@@ -65,14 +65,19 @@ CACHE_LIMIT_FIELDS = {
 
 
 class PreferencesView:
-    def __init__(self, store, *, enabled_keys=(), unavailable_reasons=None, on_change=None, desktop=None, clear_cache=None, extension_status=None, export_legacy=None, native_profile=None, following_sync=None, pixiv_actions_mode='readonly', extension_counts=None, extension_reasons=None, extension_snapshot=None, vault=None, similarity_status=None, resume_similarity=None):
+    def __init__(self, store, *, enabled_keys=(), unavailable_reasons=None, on_change=None, desktop=None, clear_cache=None, extension_status=None, export_legacy=None, native_profile=None, following_sync=None, pixiv_actions_mode='readonly', extension_counts=None, extension_reasons=None, extension_snapshot=None, vault=None, similarity_status=None, resume_similarity=None, tagger=None, on_tagger_change=None):
         if pixiv_actions_mode not in ('readonly', 'enabled', 'preferences'):
             raise ValueError('invalid Pixiv action policy')
         self.pixiv_actions_mode=pixiv_actions_mode
         self.store=store
+        self.tagger=tagger
+        self.on_tagger_change=on_tagger_change
         self.similarity_status=similarity_status
         self.resume_similarity=resume_similarity
         self._similarity_timer=None
+        self._tagger_timer=None
+        self._tagger_verifying=0
+        self._tagger_pending=False
         self.vault=vault
         self.enabled_keys=frozenset(enabled_keys)
         if not self.enabled_keys.issubset(SPEC_BY_KEY):
@@ -122,6 +127,11 @@ class PreferencesView:
         if self._similarity_timer is not None:
             self._similarity_timer.cancel()
             self._similarity_timer=None
+        if self._tagger_timer is not None:
+            self._tagger_timer.cancel()
+            self._tagger_timer=None
+        self._tagger_verifying=0
+        self._tagger_pending=False
         self.opened=True
         self._epoch+=1
         epoch=self._epoch
@@ -168,7 +178,20 @@ class PreferencesView:
                 self.dialog.open()
                 return
             self.controls={}
-            for group in dict.fromkeys(spec.group for spec in SPECS if spec.key != 'grid_card_size_mode'):
+            if self.tagger is not None:
+                ui.label('ローカルタグ補完モデル（任意）').classes('text-subtitle1')
+                self.tagger_path=ui.input('モデルフォルダ', value=self.snapshot.values['local_tagger_path']).classes('w-full').props('data-testid=tagger-path')
+                self.tagger_enabled=ui.switch('有効', value=self.snapshot.values['local_tagger_enabled']=='1').props('data-testid=tagger-enabled')
+                self.tagger_status=ui.label(self.tagger.status).props('role=status data-testid=tagger-status')
+                self._tagger_pending=True
+                try:
+                    loop=asyncio.get_running_loop()
+                except RuntimeError:
+                    self._tagger_timer=ui.timer(0.1, lambda: self._sync_tagger_status(epoch))
+                else:
+                    self._tagger_timer=loop.create_task(self._watch_tagger_status(epoch))
+                ui.timer(0.1, lambda: self._verify_tagger(epoch), once=True)
+            for group in dict.fromkeys(spec.group for spec in SPECS if spec.key != 'grid_card_size_mode' and spec.group != 'local_tagger_internal'):
                 ui.label(group).classes('text-subtitle1')
                 for spec in SPECS:
                     if spec.group!=group or spec.key == 'grid_card_size_mode': continue
@@ -245,10 +268,38 @@ class PreferencesView:
             ui.label(f'ver {__version__}').props('data-testid=preferences-version').style(
                 'font-size:11px;color:var(--pv-muted);text-align:center;width:100%')
             with ui.row():
-                ui.button('保存',on_click=lambda:self.save() if self._epoch==epoch and self.opened else None).props('data-testid=preferences-save').set_enabled(bool(self.enabled_keys))
+                ui.button('保存',on_click=lambda:self.save() if self._epoch==epoch and self.opened else None).props('data-testid=preferences-save').set_enabled(bool(self.enabled_keys) or self.tagger is not None)
                 ui.button('変更を破棄して再読込',on_click=self.open).props('data-testid=preferences-reload')
                 ui.button('閉じる',on_click=self.close_dialog)
         self.dialog.open()
+
+    async def _verify_tagger(self, epoch):
+        if self.closed or not self.opened or epoch != self._epoch or self.tagger is None:
+            return
+        self._tagger_pending=False
+        self._tagger_verifying+=1
+        self.tagger_status.set_text('検証中')
+        try:
+            result = await asyncio.to_thread(self.tagger.verify)
+            latest = self.store.snapshot()
+            if self.snapshot is not None and all(latest.values[k] == v for k, v in self.snapshot.values.items() if k != 'local_tagger_receipt'):
+                self.snapshot = latest
+        except Exception:
+            result = '読込失敗'
+        finally:
+            if epoch == self._epoch:
+                self._tagger_verifying-=1
+        if not self.closed and self.opened and epoch == self._epoch:
+            self.tagger_status.set_text(result)
+
+    async def _watch_tagger_status(self, epoch):
+        while not self.closed and self.opened and epoch == self._epoch:
+            await asyncio.sleep(0.1)
+            self._sync_tagger_status(epoch)
+
+    def _sync_tagger_status(self, epoch):
+        if not self.closed and self.opened and epoch == self._epoch and not self._tagger_verifying and not self._tagger_pending:
+            self.tagger_status.set_text(self.tagger.status)
 
     def _sync_cache_limit_visibility(self):
         # Keep both draft values and consumer capabilities. Only the selected
@@ -301,6 +352,10 @@ class PreferencesView:
     def save(self):
         if self.closed or not self.opened or self.snapshot is None: return False
         changes={key:self.controls[key].value for key in self.enabled_keys if self.controls[key].value!=self.snapshot.values[key]}
+        if self.tagger is not None:
+            for key, value in (('local_tagger_path', self.tagger_path.value or ''),
+                               ('local_tagger_enabled', '1' if self.tagger_enabled.value else '0')):
+                if value != self.snapshot.values[key]: changes[key]=value
         try:
             snapshot=self.store.update(changes,expected_revision=self.snapshot.revision)
         except PreferencesError as exc:
@@ -310,8 +365,14 @@ class PreferencesView:
             self.status.set_text('設定を保存できません。入力を保持しています。')
             return False
         self.snapshot=snapshot
+        if self.tagger is not None and any(key.startswith('local_tagger_') for key in changes):
+            self._tagger_pending=True
+            self.tagger_status.set_text('検証中')
+            ui.timer(0.1, lambda: self._verify_tagger(self._epoch), once=True)
         try:
             if self.on_change and changes: self.on_change(snapshot)
+            if self.on_tagger_change and any(key in changes for key in ('local_tagger_path', 'local_tagger_enabled')):
+                self.on_tagger_change()
         except Exception:
             self.status.set_text('設定は保存されましたが、適用を確認できません。再読込してください。')
             return False
@@ -384,6 +445,9 @@ class PreferencesView:
             if not self.save():
                 return
         self.opened=False
+        if self._tagger_timer is not None:
+            self._tagger_timer.cancel()
+            self._tagger_timer=None
         if self._similarity_timer is not None:
             self._similarity_timer.cancel()
             self._similarity_timer=None

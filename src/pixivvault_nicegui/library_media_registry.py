@@ -386,6 +386,29 @@ class LibraryImageRegistry:
             token = self._current
         return self.url_for(token, work_id, page_no, variant)
 
+    def local_bytes(self, work_id):
+        """Read only the current local catalog, never a remote or demo fallback."""
+        return self._local_image(work_id, 'get_fresh', lambda blob: blob.data)
+
+    def local_image_token(self, work_id):
+        return self._local_image(work_id, 'image_token', lambda token: token)
+
+    def _local_image(self, work_id, method, project):
+        with self._lock:
+            token = self._current
+            version = self._version(token)
+            local = version.local
+            if local is None or self._provider(version, work_id, 'view') is not local:
+                return None
+            version.refs += 1
+        try:
+            lookup = getattr(local, method, None)
+            return project(lookup(work_id, 0, 'view')) if callable(lookup) else None
+        except (ValueError, OSError, RuntimeError, KeyError):
+            return None
+        finally:
+            self.release(token)
+
     def get(self, work_id: str, page_no: int = 0, variant: str = "view") -> ImageBlob:
         # Internal service callers already own this app. HTTP callers must
         # present a version token for any non-demo media.

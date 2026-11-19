@@ -477,7 +477,7 @@ class ManagedGenerations:
             for folder in folders:
                 _safe_path(folder)
         self._lock = RLock()
-        self._visibility_cache = None
+        self._visibility_cache = {}
         self._loaded = None
         self._unconfirmed_operations = set()
         self._recover_if_pending()
@@ -833,7 +833,7 @@ class ManagedGenerations:
                 result.update(done)
         return result
 
-    def _load_full(self) -> _Loaded:
+    def _load_full(self, *, verify_quarantine_payloads=True, tolerate_missing=False) -> _Loaded:
         """Verify everything once: index, journal, every receipt, every work folder."""
         if native_io_path(self.index_path).is_symlink():
             raise ManagedDownloadError('generation index link rejected')
@@ -887,7 +887,8 @@ class ManagedGenerations:
                 raise LegacyV5Uncertain()
             loaded.jid = journal['id']
             loaded.generation, loaded.parent_digest = journal['generation'], journal['parent']
-            self._quarantine_fields(loaded.qpacket(), verify_payloads=True, tolerate_missing=False)
+            self._quarantine_fields(loaded.qpacket(), verify_payloads=verify_quarantine_payloads,
+                                    tolerate_missing=tolerate_missing)
             loaded.indexed = self._check_entries(packet['entries'], loaded.version, folders)
             self.assert_consistent(loaded, folders=folders)
             active = dict(legacy)
@@ -1152,7 +1153,7 @@ class ManagedGenerations:
         except Exception:
             pass
 
-    def _refresh(self) -> _Loaded:
+    def _refresh(self, **quarantine_checks) -> _Loaded:
         with self._lock:
             deadline = None
             for attempt in range(8):
@@ -1178,7 +1179,7 @@ class ManagedGenerations:
                 else:
                     self._loaded = None
                     try:
-                        fresh = self._load_full()
+                        fresh = self._load_full(**quarantine_checks)
                     except ManagedDownloadError as error:
                         if attempt == 7 or not str(error).endswith('rejected'):
                             raise
@@ -1197,7 +1198,11 @@ class ManagedGenerations:
     def _checked(self, *, verify_quarantine_payloads=True, tolerate_missing=False):
         """Fresh state plus the quarantine check the old per-call `_index()` did."""
         with self._lock:
-            loaded = self._refresh()
+            checks = {}
+            if not verify_quarantine_payloads or tolerate_missing:
+                checks = dict(verify_quarantine_payloads=verify_quarantine_payloads,
+                              tolerate_missing=tolerate_missing)
+            loaded = self._refresh(**checks)
             packet = loaded.qpacket()
             if packet is None:
                 self._unconfirmed_operations = set()
@@ -1947,7 +1952,7 @@ class ManagedGenerations:
             self._install_prepared(journal[0], generation)
         _safe_path(self.index_path, file=True)
         _replace_retrying(temporary, self.index_path, patience)
-        self._visibility_cache = None
+        self._visibility_cache.clear()
         _fsync_dir(self.root)
         previous = loaded.jid if loaded is not None else None
         if journal is not None:
@@ -2136,13 +2141,13 @@ class ManagedGenerations:
         return (value.st_dev, value.st_ino, value.st_size,
                 value.st_mtime_ns, value.st_ctime_ns)
 
-    def _visibility_signature(self):
-        self._checked()
+    def _visibility_signature(self, *, verify_payloads):
+        self._checked(verify_quarantine_payloads=verify_payloads)
         head = self._read_head()
         anchor = None if head is None else (head['generation'], head['id'], head['digest'])
         return self._file_identity(self.index_path), anchor
 
-    def assert_page_visible(self, work_id: str, page_no: int) -> None:
+    def assert_page_visible(self, work_id: str, page_no: int, *, verify_payloads=True) -> None:
         """Check exclusions without rescanning all artwork for every image.
 
         Only a previously validated index can be cached. Relevant quarantine
@@ -2155,12 +2160,12 @@ class ManagedGenerations:
         self._recover_if_pending()
         with self._lock:
             try:
-                signature = self._visibility_signature()
+                signature = self._visibility_signature(verify_payloads=verify_payloads)
             except FileNotFoundError:
-                self._checked()
-                self._visibility_cache = None
+                self._checked(verify_quarantine_payloads=verify_payloads)
+                self._visibility_cache.pop(verify_payloads, None)
                 return
-            cached = self._visibility_cache
+            cached = self._visibility_cache.get(verify_payloads)
             if cached is not None and cached[0] == signature:
                 try:
                     unchanged = all(self._file_identity(self.root / relative) == identity
@@ -2171,9 +2176,8 @@ class ManagedGenerations:
                     if str(page_no) in cached[1].get(wid, {}):
                         raise ManagedPageQuarantined('managed page is quarantined')
                     return
-            self._visibility_cache = None
-            self._checked()
-            exclusions, operations, _ = self._quarantine_fields()
+            self._visibility_cache.pop(verify_payloads, None)
+            _, (exclusions, operations, _) = self._checked(verify_quarantine_payloads=verify_payloads)
             watched = {}
             verified_proofs = {}
             for operation_id, operation in operations.items():
@@ -2201,8 +2205,8 @@ class ManagedGenerations:
                             raise ManagedDownloadError('quarantine source proof changed')
                         verified_proofs[key] = proof_identity
                     paths[proof_relative] = verified_proofs[key]
-            if self._visibility_signature() != signature:
+            if self._visibility_signature(verify_payloads=verify_payloads) != signature:
                 raise ManagedDownloadError('quarantine index changed')
-            self._visibility_cache = (signature, exclusions, watched)
+            self._visibility_cache[verify_payloads] = (signature, exclusions, watched)
             if str(page_no) in exclusions.get(wid, {}):
                 raise ManagedPageQuarantined('managed page is quarantined')

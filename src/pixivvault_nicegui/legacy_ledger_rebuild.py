@@ -299,6 +299,7 @@ def _author_candidates(works, index, checkpoint):
 
 def rebuild_undecidable_ledger(*, undecidable_db: Path, images_root: Path,
                                managed_root: Path,
+                               source_db_path_sha256: str | None = None,
                                check_cancelled: Callable[[], None] | None = None
                                ) -> LedgerRebuildResult:
     """Return fresh original-shaped groups and their new owned JSON generation.
@@ -311,6 +312,7 @@ def rebuild_undecidable_ledger(*, undecidable_db: Path, images_root: Path,
     """
     checkpoint = check_cancelled or (lambda: None)
     try:
+        _validated_source_path_digest(source_db_path_sha256)
         db, images, managed = map(Path, (undecidable_db, images_root, managed_root))
         if not all(path.is_absolute() for path in (db, images, managed)):
             raise LedgerRebuildError()
@@ -337,7 +339,7 @@ def rebuild_undecidable_ledger(*, undecidable_db: Path, images_root: Path,
         before = immutable_copy_signature(db)
         with writer_fence(managed):
             expected = {'source_db_sha256': before[3].hex(),
-                        'source_db_path_sha256': _path_digest(db),
+                        'source_db_path_sha256': _source_path_digest(db, source_db_path_sha256),
                         'images_root_sha256': _path_digest(images)}
             base_current, current_payload, _ = _current_snapshot(managed, images, expected)
             owned_manual = _owned_manual(current_payload, images)
@@ -396,7 +398,7 @@ def rebuild_undecidable_ledger(*, undecidable_db: Path, images_root: Path,
         payload = json.dumps({
             'version': 1, 'purpose': 'legacy-undecidable-ledger',
             'source_db_sha256': before[3].hex(),
-            'source_db_path_sha256': _path_digest(db),
+            'source_db_path_sha256': _source_path_digest(db, source_db_path_sha256),
             'images_root_sha256': hashlib.sha256(str(images).casefold().encode()).hexdigest(),
             'groups': groups, 'manual_rows': manual, 'owned_manual': owned_manual,
             'page_proofs': [{'store_path': path, 'entry_name': entry, 'sha256': digest}
@@ -437,7 +439,20 @@ def _path_digest(path):
     return hashlib.sha256(str(path).casefold().encode()).hexdigest()
 
 
-def _publication_inputs(managed_root, undecidable_db, images_root, *, allow_missing=False):
+def _validated_source_path_digest(value):
+    if value is not None and (type(value) is not str or _DIGEST.fullmatch(value) is None):
+        raise LedgerRebuildError()
+    return value
+
+
+def _source_path_digest(path, value):
+    value = _validated_source_path_digest(value)
+    return _path_digest(path) if value is None else value
+
+
+def _publication_inputs(managed_root, undecidable_db, images_root, *, allow_missing=False,
+                        source_db_path_sha256=None):
+    _validated_source_path_digest(source_db_path_sha256)
     db, images, managed = map(Path, (undecidable_db, images_root, managed_root))
     if not all(path.is_absolute() for path in (db, images, managed)):
         raise LedgerRebuildError()
@@ -454,7 +469,7 @@ def _publication_inputs(managed_root, undecidable_db, images_root, *, allow_miss
         raise LedgerRebuildError()
     signature = immutable_copy_signature(db)
     expected = {'source_db_sha256': signature[3].hex(),
-                'source_db_path_sha256': _path_digest(db),
+                'source_db_path_sha256': _source_path_digest(db, source_db_path_sha256),
                 'images_root_sha256': _path_digest(images)}
     return db, images, managed, signature, expected
 
@@ -542,10 +557,11 @@ def _owned_manual(payload, images):
 
 
 def resolve_rebuilt_group(*, managed_root: Path, undecidable_db: Path, images_root: Path,
-                          group: dict, work_id: str, expected_current: bytes) -> tuple[dict, ...]:
+                          group: dict, work_id: str, expected_current: bytes,
+                          source_db_path_sha256: str | None = None) -> tuple[dict, ...]:
     """Persist a selected candidate in a new generation without modifying the source."""
     try:
-        db, images, managed, signature, expected = _publication_inputs(managed_root, undecidable_db, images_root)
+        db, images, managed, signature, expected = _publication_inputs(managed_root, undecidable_db, images_root, source_db_path_sha256=source_db_path_sha256)
         # Normalize tuples from in-memory groups to the JSON shape used on disk.
         wanted = json.loads(json.dumps(group, ensure_ascii=True))
         _restored_groups([wanted], images)
@@ -601,7 +617,7 @@ def resolve_rebuilt_group(*, managed_root: Path, undecidable_db: Path, images_ro
             _write(pending, ref)
             _fsync_dir(native_io_path(parent))
             verify_selected()
-            if _publication_inputs(managed, db, images)[3] != signature:
+            if _publication_inputs(managed, db, images, source_db_path_sha256=source_db_path_sha256)[3] != signature:
                 raise LedgerRebuildError()
             current = parent / 'CURRENT.json'
             _safe_path(current, file=True)
@@ -619,7 +635,8 @@ def resolve_rebuilt_group(*, managed_root: Path, undecidable_db: Path, images_ro
 
 
 def load_rebuilt_ledger(*, managed_root: Path, undecidable_db: Path,
-                       images_root: Path, with_token: bool = False):
+                       images_root: Path, with_token: bool = False,
+                       source_db_path_sha256: str | None = None):
     """Read the last explicitly published generation; None means never published.
 
     A corrupt pointer/generation, changed DB, different input path or unowned
@@ -628,13 +645,13 @@ def load_rebuilt_ledger(*, managed_root: Path, undecidable_db: Path,
     """
     try:
         inputs = _publication_inputs(managed_root, undecidable_db, images_root,
-                                     allow_missing=True)
+                                     allow_missing=True, source_db_path_sha256=source_db_path_sha256)
         if inputs is None:
             return (None, None, False) if with_token else None
         db, images, managed, signature, expected = inputs
         with writer_fence(managed):
             raw, payload, groups = _current_snapshot(managed, images, expected)
-            after = _publication_inputs(managed, db, images)
+            after = _publication_inputs(managed, db, images, source_db_path_sha256=source_db_path_sha256)
             if after[3] != signature:
                 raise LedgerRebuildError()
             if with_token:
@@ -647,13 +664,13 @@ def load_rebuilt_ledger(*, managed_root: Path, undecidable_db: Path,
 
 
 def rebuilt_ledger_has_page_proofs(*, managed_root: Path, undecidable_db: Path,
-                                   images_root: Path) -> bool:
+                                   images_root: Path, source_db_path_sha256: str | None = None) -> bool:
     """Older generations remain readable but require a rescan before resolution."""
     try:
-        db, images, managed, signature, expected = _publication_inputs(managed_root, undecidable_db, images_root)
+        db, images, managed, signature, expected = _publication_inputs(managed_root, undecidable_db, images_root, source_db_path_sha256=source_db_path_sha256)
         with writer_fence(managed):
             _, payload, _ = _current_snapshot(managed, images, expected)
-            if _publication_inputs(managed, db, images)[3] != signature:
+            if _publication_inputs(managed, db, images, source_db_path_sha256=source_db_path_sha256)[3] != signature:
                 raise LedgerRebuildError()
             return payload is not None and type(payload.get('page_proofs')) is list
     except (OSError, ValueError, TypeError, KeyError) as error:
@@ -663,7 +680,8 @@ def rebuilt_ledger_has_page_proofs(*, managed_root: Path, undecidable_db: Path,
 
 
 def publish_rebuilt_ledger(result: LedgerRebuildResult, *, managed_root: Path,
-                           undecidable_db: Path, images_root: Path) -> None:
+                           undecidable_db: Path, images_root: Path,
+                           source_db_path_sha256: str | None = None) -> None:
     """Atomically publish only after the caller's complete explicit scan succeeds.
 
     Every previous generation remains intact. A failure before replacement
@@ -672,7 +690,7 @@ def publish_rebuilt_ledger(result: LedgerRebuildResult, *, managed_root: Path,
     """
     try:
         db, images, managed, signature, expected = _publication_inputs(
-            managed_root, undecidable_db, images_root)
+            managed_root, undecidable_db, images_root, source_db_path_sha256=source_db_path_sha256)
         if not isinstance(result, LedgerRebuildResult):
             raise LedgerRebuildError()
         generation = Path(result.generation_path)
@@ -699,7 +717,7 @@ def publish_rebuilt_ledger(result: LedgerRebuildResult, *, managed_root: Path,
             _write(pending, ref)
             _fsync_dir(native_io_path(parent))
             _safe_path(current, file=True)
-            after = _publication_inputs(managed, db, images)
+            after = _publication_inputs(managed, db, images, source_db_path_sha256=source_db_path_sha256)
             if after[3] != signature:
                 raise LedgerRebuildError()
             try:

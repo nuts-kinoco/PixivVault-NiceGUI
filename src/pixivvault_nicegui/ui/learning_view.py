@@ -55,7 +55,7 @@ class LearningView:
         ("SuperLike", "superLike", "arrowup", "w", "4"),
     )
 
-    def __init__(self, services: ApplicationServices) -> None:
+    def __init__(self, services: ApplicationServices, *, on_open_preferences=None) -> None:
         self.services = services
         self.ledger = MemoryJudgmentLedger()
         self.discovery = getattr(services, "discovery", None)
@@ -84,6 +84,8 @@ class LearningView:
         self._trend_mode = 'rail'
         self._trend_capacity = PreferenceCapacity()
         self._trend_snapshot = None
+        self._seed_watch_task = None
+        self._tagger_rank_epoch = 0
         self._trend_visible_rows = 0
         self._summary_open = False
         self._summary_page = 0
@@ -221,11 +223,15 @@ class LearningView:
             self.picture.on('click', self._open_learning_picture, js_handler=self._click_js())
             self.status = ui.label().classes("pv-subtitle pv-learning-status").props("role=status aria-live=polite")
             # 元 discovery_tab.py:4358-4365 の空状態の案内（候補が無いとき、何をすると何が起きるか）。
-            # 画像タグ補完のローカルモデル案内は、移植版に該当機能が無いので載せない。
             with ui.column().classes("items-center gap-1").props("data-testid=learning-empty") as self.empty_card:
                 ui.icon("explore").classes("text-4xl")
                 ui.label(EMPTY_TITLE).classes("pv-view-title")
                 ui.label(EMPTY_BODY).classes("pv-subtitle").style("white-space:pre-line;text-align:center")
+                ui.separator().classes('w-full')
+                with ui.row().classes('items-center justify-center flex-wrap'):
+                    ui.label('画像からのタグ補完にはローカルモデルの導入（任意）が利用できます。').style('font-size:11px;color:var(--pv-muted)')
+                    self.tagger_settings_button=ui.button('設定を開く', on_click=on_open_preferences).props('flat dense data-testid=learning-tagger-settings')
+                    self.tagger_settings_button.set_enabled(on_open_preferences is not None)
             self.empty_card.set_visibility(False)
             with ui.row().classes("items-center gap-2"):
                 self.buttons = {}
@@ -339,6 +345,8 @@ class LearningView:
                             self.review_bodies[positive] = ui.column().classes('w-full gap-1 shrink-0')
         self.review_panel.set_visibility(False)
         self._review_timer = ui.timer(1.0, self._poll_review_jobs)
+        self._local_trend_revision = None
+        self._local_revision_task = None
 
         # NiceGUI 3.18: js_handler は emit(...) へ送る値を組み立てられる。
         # root 配下にフォーカスがある場合だけ拾い、入力中とIME中は除外する。
@@ -884,6 +892,12 @@ class LearningView:
                 saved_state = self.state
                 saved_generation = self.state.generation
                 self._count_superlike(command.judgment.choice, undo=command.undo)
+                # Publish the committed next card before any background ranking.
+                self.refresh()
+                if command.undo:
+                    self.toast.hide()
+                else:
+                    self._show_judgment_toast(command.judgment.choice, command)
                 if self.discovery is not None:
                     if not command.undo:self._set_trend_open(False)
                     try:
@@ -904,10 +918,6 @@ class LearningView:
                 if self.state is not saved_state or self.state.generation != saved_generation or self._storage_busy:
                     return
                 self.refresh()
-                if command.undo:
-                    self.toast.hide()
-                else:
-                    self._show_judgment_toast(command.judgment.choice, command)
                 if self.discovery is not None:
                     try:
                         trend=await self.discovery.trend_snapshot()
@@ -1055,6 +1065,7 @@ class LearningView:
                 trend = await self.discovery.trend_snapshot()
                 if not self.state.closed:
                     self._render_trend(trend)
+                    self.watch_local_seeds()
         except Exception:
             if self.services.closing:
                 self.close()
@@ -1946,6 +1957,8 @@ class LearningView:
     def toggle_trend(self):
         if self.discovery is None or self.state.closed or not self.active or self.services.closing:return
         self._set_trend_open(not self._trend_open)
+        if self._trend_open:
+            self._revalidate_local_trend()
 
     def _on_trend_measure(self, event):
         if self.discovery is None or self.state.closed or self._review_open:
@@ -1975,16 +1988,123 @@ class LearningView:
         self.trend_button.set_visibility(mode == 'fold')
         self._set_trend_open(self._trend_open)
         if changed and self._trend_snapshot is not None:
-            self._render_trend(self._trend_snapshot)
+            if self._trend_snapshot.get('local_seed_rows'):
+                self._revalidate_local_trend()
+            else:
+                self._render_trend(self._trend_snapshot)
+
+    def _revalidate_local_trend(self):
+        if self._trend_snapshot and self._trend_snapshot.get('local_seed_rows'):
+            self._render_trend(dict(self._trend_snapshot, local_seed_rows=()))
+            background_tasks.create(self._refresh_local_trend(), name='learning local trend recheck')
+
+    def refresh_tagger_order(self):
+        if self.discovery is None or self.state.closed or self.services.closing:
+            return
+        self._tagger_rank_epoch += 1
+        background_tasks.create(self._rerank_tagger_order(self._tagger_rank_epoch), name='learning tagger rerank')
+
+    async def _rerank_tagger_order(self, epoch):
+        while not self.state.closed and not self.services.closing and epoch == self._tagger_rank_epoch:
+            if self.state.saving or getattr(self, '_storage_busy', False):
+                await asyncio.sleep(0.1)
+                continue
+            state = self.state
+            generation = state.generation
+            revision = self._refill_merge_revision
+            prefix, pending = state.artworks[:state.index], state.artworks[state.index:]
+            if not pending:
+                return
+            try:
+                order, frames = await self.discovery.rank_pending(tuple(a.work_id for a in pending), tuple(a.author_id for a in prefix if a.author_id))
+            except Exception:
+                return
+            if state.closed or self.services.closing or epoch != self._tagger_rank_epoch:
+                return
+            if (self.state is not state or state.saving or state.generation != generation
+                    or self._refill_merge_revision != revision):
+                continue
+            by_id = {a.work_id:a for a in pending}
+            if len(order) != len(pending) or set(order) != set(by_id):
+                return
+            self._discovery_frames.update(frames)
+            if tuple(a.work_id for a in pending) != tuple(order):
+                state._invalidate()
+                state.artworks = prefix + tuple(by_id[wid] for wid in order)
+                self.refresh()
+            return
+
+    def watch_local_seeds(self):
+        if self.state.closed or getattr(self.discovery, '_seed_executor', None) is None:
+            return
+        if self._local_revision_task is None or self._local_revision_task.done():
+            self._local_revision_task = background_tasks.create(self._watch_local_revision(), name='learning local revision watch')
+        future = getattr(self.discovery, '_seed_future', None)
+        if self._seed_watch_task is not None and not self._seed_watch_task.done():
+            self._seed_watch_task.cancel()
+        if future is None:
+            self._seed_watch_task = background_tasks.create(self._refresh_local_trend(), name='learning local seed refresh')
+        else:
+            self._seed_watch_task = background_tasks.create(self._watch_local_seeds(future), name='learning local seeds')
+
+    async def _watch_local_revision(self):
+        local = getattr(getattr(self, 'discovery', None), 'local_tag_view', None)
+        if local is None:
+            return
+        while not self.state.closed and not self.services.closing:
+            revision = await asyncio.to_thread(local.revision)
+            if self.active and revision != self._local_trend_revision:
+                self._local_trend_revision = revision
+                await self._refresh_local_trend()
+                self.refresh_tagger_order()
+            await asyncio.sleep(0.5)
+
+    async def _refresh_local_trend(self):
+        if self.state.closed or self.services.closing:
+            return
+        try:
+            trend = await self.discovery.trend_snapshot()
+            if not self.state.closed and not self.services.closing:
+                self._render_trend(trend)
+        except Exception:
+            return
+
+    async def _watch_local_seeds(self, future):
+        wrapped = asyncio.wrap_future(future)
+        while not self.state.closed and not self.services.closing:
+            try:
+                await asyncio.wait_for(asyncio.shield(wrapped), timeout=3.0)
+            except asyncio.TimeoutError:
+                pass
+            except Exception:
+                return
+            if self.state.closed or self.services.closing:
+                return
+            try:
+                self._render_trend(await self.discovery.trend_snapshot())
+            except Exception:
+                return
+            if future.done():
+                self.refresh_tagger_order()
+                return
 
     def _render_trend(self,trend):
+        revision = trend.get('local_revision')
+        local = getattr(getattr(self, 'discovery', None), 'local_tag_view', None)
+        if revision is not None and local is not None and local.revision() != revision:
+            trend = dict(trend, rows=(), local_seed_rows=(), local_revision=None)
+            background_tasks.create(self._refresh_local_trend(), name='learning stale trend recheck')
         self._trend_snapshot = trend
         self.trend_content.clear()
         self.trend_label.set_text(f"これまでの判定: {trend['judged']}枚")
         if not trend['ready']:
             with self.trend_content:
                 ui.label('いまはあなたの保存から出しています').classes('pv-subtitle')
-            self._trend_visible_rows = 0
+                for row in trend.get('local_seed_rows', ())[:6]:
+                    with ui.row().classes('w-full items-center justify-between'):
+                        ui.label(row['display']).classes('truncate')
+                        ui.label(f'保存 {row["count"]} 件').classes('pv-subtitle')
+            self._trend_visible_rows = len(trend.get('local_seed_rows', ())[:6])
             return
         shown = displayed_rows(trend['rows'], self._trend_mode, getattr(self, '_trend_rail_rows', 1))
         self._trend_visible_rows = len(shown)
@@ -2285,6 +2405,8 @@ class LearningView:
         self.close_summary()
         self._summary_epoch += 1
         self._review_timer.cancel()
+        if self._local_revision_task is not None:
+            self._local_revision_task.cancel()
         self.toast.close()
         self.view_history.close()
         if self.reset_view is not None:self.reset_view.close()
