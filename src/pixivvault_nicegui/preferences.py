@@ -23,6 +23,9 @@ class PreferenceSpec:
 
 
 SPECS = (
+    PreferenceSpec('local_tagger_path', 'model path', r'S:\EMAKINOCO-Models\tagger\wd-swinv2-tagger-v3', (), 'local_tagger_internal'),
+    PreferenceSpec('local_tagger_enabled', 'enabled', '1', ('0','1'), 'local_tagger_internal'),
+    PreferenceSpec('local_tagger_receipt', 'receipt', '', (), 'local_tagger_internal'),
     PreferenceSpec('grid_card_size_mode', 'カードサイズ', 'large', ('large','medium','small'), '表示'),
     PreferenceSpec('use_work_folder','作品ごとのフォルダーを使う','0',('0','1'),'保存'),
     PreferenceSpec('nana7mi_shaft_refresh_interval_hours', 'Nana7mi借用アカウント自動更新間隔', '24', ('1','6','12','24','48'), '保存'),
@@ -131,6 +134,8 @@ class PreferencesStore:
 
     @staticmethod
     def _validate(key,value):
+        if key in ('local_tagger_path', 'local_tagger_receipt') and type(value) is str and len(value) <= 32767 and '\x00' not in value:
+            return
         if key not in SPEC_BY_KEY or type(value) is not str or value not in SPEC_BY_KEY[key].choices:
             raise PreferencesError('設定値が選択肢と一致しません。')
 

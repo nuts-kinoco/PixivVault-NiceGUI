@@ -168,7 +168,7 @@ class PreferencesView:
                 self.dialog.open()
                 return
             self.controls={}
-            for group in dict.fromkeys(spec.group for spec in SPECS if spec.key != 'grid_card_size_mode'):
+            for group in dict.fromkeys(spec.group for spec in SPECS if spec.key != 'grid_card_size_mode' and spec.group != 'local_tagger_internal'):
                 ui.label(group).classes('text-subtitle1')
                 for spec in SPECS:
                     if spec.group!=group or spec.key == 'grid_card_size_mode': continue
