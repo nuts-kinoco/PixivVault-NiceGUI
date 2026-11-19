@@ -425,22 +425,23 @@ def test_services_port_maps_services_onto_the_engine_port():
                control=lambda jid, action: calls.append((jid, action)))
     calls, gate = [], NS(require_allowed=lambda: calls.append('gate'))
     media = NS(author_target=lambda aid: NS(target_type='novel'), owner_jobs=lambda kind: owner,
-               reconcile=lambda author_id: calls.append(('reconcile', author_id)))
+               reconcile=lambda author_id, scope: calls.append(('reconcile', author_id, scope.account_id)))
     services = NS(closing=False, managed_network_stop=gate, author_media=media,
                   author_media_preview_owned=lambda aid, target, expected_account:
                       calls.append(('preview', aid, target)) or OwnedInventoryPort().owned(aid, target, (), expected_account),
                   enqueue_author_media=lambda c, op, origin: (job, True, 'fp'), legacy_author_bridge=None)
     port = ServicesPort(services)
     port.require_allowed()
-    assert port.author_target('41') == 'novel' and port.list_author('41', 'both', expected_account=ACCOUNT).rows == ()
+    listing = port.list_author('41', 'both', expected_account=ACCOUNT)
+    assert port.author_target('41') == 'novel' and listing.rows == ()
     assert port.enqueue(object(), 'c' * 32) == ('a' * 32, True)
     refs = [JobRef('illustration', 'a' * 32, 'x'), JobRef('illustration', 'b' * 32, 'y'),
             JobRef('illustration', 'c' * 32, 'z')]
     assert port.job_states(refs) == {'a' * 32: ('error', 'boom'), 'b' * 32: ('done', ''), 'c' * 32: ('lost', '')}
     port.stop_jobs(refs[:1])
-    port.settle('41')
+    port.settle('41', scope=listing.scope)
     assert port.observe_deletion('41', (), 'd' * 32) is None and port.retire(refs) == 'unsupported'
-    assert calls == ['gate', ('preview', '41', 'both'), ('a' * 32, 'stop'), ('reconcile', '41')]
+    assert calls == ['gate', ('preview', '41', 'both'), ('a' * 32, 'stop'), ('reconcile', '41', ACCOUNT)]
 
 
 def test_a_run_left_active_by_a_crash_is_closed_as_interrupted_before_the_next_run(env):
