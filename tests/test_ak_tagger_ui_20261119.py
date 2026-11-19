@@ -14,9 +14,10 @@ async def test_settings_tagger_path_enable_and_status(tmp_path):
             return self.status
     store = PreferencesStore(tmp_path / 'prefs.sqlite')
     client = Client(ui.page('/ak-tagger-settings'))
+    changed = []
     try:
         with client:
-            view = PreferencesView(store, tagger=Manager())
+            view = PreferencesView(store, tagger=Manager(), on_tagger_change=lambda: changed.append(True))
             view.open()
             assert view.tagger_path.value
             view.tagger_path.set_value(str(tmp_path))
@@ -24,6 +25,7 @@ async def test_settings_tagger_path_enable_and_status(tmp_path):
             assert view.save()
             assert store.get_setting('local_tagger_path') == str(tmp_path)
             assert store.get_setting('local_tagger_enabled') == '0'
+            assert changed == [True]
             await view._verify_tagger(view._epoch)
             assert view.tagger_status.text == 'onnxruntime なし'
             view.close()

@@ -69,3 +69,21 @@ def test_managed_catalog_does_not_use_cached_bytes_after_read_access_is_lost(mon
         assert registry.local_bytes('1') is None
     finally:
         registry.close()
+
+
+def test_seed_is_not_saved_if_image_changes_during_inference(tmp_path):
+    current = [b'before']
+    class Tagger:
+        def current_fingerprint(self): return 'model'
+        def try_current_fingerprint(self): return 'model'
+        def predict_with_fingerprint(self, data):
+            current[0] = b'after'
+            return ('model', [('old', .9)])
+    service = DiscoveryLearningService(tmp_path / 'discovery', FakeReader(), tagger=Tagger(),
+        local_image=lambda _: current[0], saved_works=lambda: (SimpleNamespace(work_id='1', tags=()),), saved_ids=lambda: ('1',))
+    try:
+        service.refresh_saved_seeds().result(10)
+        rows = service._submit(lambda: service._database().conn.execute('SELECT COUNT(*) FROM managed_local_seed').fetchone()[0]).result(10)
+        assert rows == 0
+    finally:
+        service.close()

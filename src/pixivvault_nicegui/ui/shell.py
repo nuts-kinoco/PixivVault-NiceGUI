@@ -340,6 +340,7 @@ class DemoShell:
                 native_profile=self.profile_view, following_sync=self.following_view,
                 vault=getattr(self.services, 'external_vault', None),
                 tagger=getattr(self.services, 'local_tagger', None),
+                on_tagger_change=self._tagger_settings_changed,
                 pixiv_actions_mode=getattr(self.services, 'pixiv_actions_mode', 'readonly'),
                 similarity_status=(self.services.similarity_analysis_status if self.services.similarity_analysis_enabled else None),
                 resume_similarity=(self.services.rescan_similarity_analysis if self.services.similarity_analysis_enabled else None))
@@ -429,6 +430,10 @@ class DemoShell:
         if self.learning is not None:
             self.learning.refresh_prefetch()
             self.learning.watch_local_seeds()
+
+    def _tagger_settings_changed(self):
+        if self.learning is not None:
+            self.learning.refresh_tagger_order()
 
     def _reflect_uid_once(self, dialog) -> None:
         # プロセス起動時に1回だけ（シェルは画面を開くたびに作られる）。

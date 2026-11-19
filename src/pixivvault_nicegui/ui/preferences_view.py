@@ -65,12 +65,13 @@ CACHE_LIMIT_FIELDS = {
 
 
 class PreferencesView:
-    def __init__(self, store, *, enabled_keys=(), unavailable_reasons=None, on_change=None, desktop=None, clear_cache=None, extension_status=None, export_legacy=None, native_profile=None, following_sync=None, pixiv_actions_mode='readonly', extension_counts=None, extension_reasons=None, extension_snapshot=None, vault=None, similarity_status=None, resume_similarity=None, tagger=None):
+    def __init__(self, store, *, enabled_keys=(), unavailable_reasons=None, on_change=None, desktop=None, clear_cache=None, extension_status=None, export_legacy=None, native_profile=None, following_sync=None, pixiv_actions_mode='readonly', extension_counts=None, extension_reasons=None, extension_snapshot=None, vault=None, similarity_status=None, resume_similarity=None, tagger=None, on_tagger_change=None):
         if pixiv_actions_mode not in ('readonly', 'enabled', 'preferences'):
             raise ValueError('invalid Pixiv action policy')
         self.pixiv_actions_mode=pixiv_actions_mode
         self.store=store
         self.tagger=tagger
+        self.on_tagger_change=on_tagger_change
         self.similarity_status=similarity_status
         self.resume_similarity=resume_similarity
         self._similarity_timer=None
@@ -370,6 +371,8 @@ class PreferencesView:
             ui.timer(0.1, lambda: self._verify_tagger(self._epoch), once=True)
         try:
             if self.on_change and changes: self.on_change(snapshot)
+            if self.on_tagger_change and any(key in changes for key in ('local_tagger_path', 'local_tagger_enabled')):
+                self.on_tagger_change()
         except Exception:
             self.status.set_text('設定は保存されましたが、適用を確認できません。再読込してください。')
             return False
