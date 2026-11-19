@@ -26,7 +26,9 @@ def test_existing_gif_reused_for_mp4_fallback_and_restart(tmp_path, monkeypatch)
         assert len(list(root.glob('gifs/*/animation.gif'))) == 1
         assert len(owner.library()) == 1
         assert len(owner.playback(owner.library()[0])['frames']) == 3
-        assert owner.fallback_message(job)
+        with monkeypatch.context() as patch:
+            patch.setattr(owner, '_load', lambda *args, **kwargs: pytest.fail('notification must not decode on UI thread'))
+            assert owner.fallback_message(job)
         with owner.jobs._condition:
             assert owner.jobs._condition.wait_for(lambda: owner.jobs._active is None, timeout=5)
         assert gif_job_id in owner.jobs.retire_jobs([gif_job_id])
@@ -39,7 +41,7 @@ def test_existing_gif_reused_for_mp4_fallback_and_restart(tmp_path, monkeypatch)
         assert len(owner.library()) == 1
         assert len(owner.playback(owner.library()[0])['frames']) == 3
         existing = next(root.glob('gifs/*/animation.gif'))
-        existing.write_bytes(b'corrupt')
+        existing.write_bytes(b'x' * existing.stat().st_size)
         with pytest.raises(ValueError):
             owner.library()
         assert not owner.fallback_message(job)

@@ -143,6 +143,7 @@ class ManagedUgoiraJobs:
         self._accept = Lock()
         self._artifact = Lock()
         self._reservations = {}
+        self._fallback_refs = {}
         self.diagnostic_errors = {}
         self._close_lock = Lock()
         try:
@@ -573,11 +574,15 @@ class ManagedUgoiraJobs:
             if output != 'mp4' or set(packet) != {'version', 'kind', 'request', 'source_receipt',
                     'source_sha256', 'gif_receipt', 'gif_receipt_sha256', 'gif_sha256', 'mp4_fallback'}:
                 raise ManagedUgoiraError()
+            stamp = self._reference_stamp(folder, packet)
             reference_bytes, rendered = self._reference_gif(packet['gif_receipt'], source, inspection, checkpoint)
             expected = _gif_reference_receipt(job.target_id, source, rendered, packet['mp4_fallback'],
                                               packet['gif_receipt'], reference_bytes)
             if receipt_on_disk != expected or {child.name for child in folder.iterdir()} != {'receipt.json', storage.COMPLETION}:
                 raise ManagedUgoiraError()
+            if self._reference_stamp(folder, packet) != stamp:
+                raise ManagedUgoiraError()
+            self._fallback_refs[token] = stamp
             return f'gifs/{token}/receipt.json'
         data = _read_bounded(folder / 'animation.gif', MAX_GIF_BYTES)
         rendered = _verify_gif(data, inspection, checkpoint, time.monotonic() + MAX_GIF_SECONDS)
@@ -596,6 +601,24 @@ class ManagedUgoiraJobs:
         if completion != _gif_completion(token, receipt):
             raise ManagedUgoiraError()
         return f'gifs/{token}/receipt.json'
+
+    def _reference_stamp(self, folder, packet):
+        gif = packet.get('gif_receipt')
+        source = packet.get('source_receipt')
+        if (type(gif) is not str or re.fullmatch(r'gifs/[a-f0-9]{32}/receipt\.json', gif) is None
+                or type(source) is not str or re.fullmatch(r'frames/[a-f0-9]{32}/receipt\.json', source) is None):
+            raise ManagedUgoiraError()
+        gif_folder = (self.root / gif).parent
+        source_folder = (self.frames.root / source).parent
+        paths = (folder / 'receipt.json', folder / storage.COMPLETION,
+                 gif_folder / 'receipt.json', gif_folder / storage.COMPLETION,
+                 gif_folder / 'animation.gif', source_folder / 'receipt.json', source_folder / storage.COMPLETION)
+        result = []
+        for path in paths:
+            _safe_path(path, file=True)
+            info = path.stat()
+            result.append((info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns))
+        return tuple(result)
 
     def _reference_gif(self, receipt_path, source, inspection, checkpoint):
         match = re.fullmatch(r'gifs/([a-f0-9]{32})/receipt\.json', receipt_path) if type(receipt_path) is str else None
@@ -700,7 +723,7 @@ class ManagedUgoiraJobs:
                 return ''
             packet = json.loads(receipt, object_pairs_hook=_json_unique)
             if packet.get('version') == 4:
-                if self._verified_result(job, self._load(job.target_id)) != job.result:
+                if self._fallback_refs.get(match.group(1)) != self._reference_stamp(folder, packet):
                     return ''
             reason = packet.get('mp4_fallback') if packet.get('version') in (2, 3, 4) else 'failed'
             if type(reason) is str:
