@@ -885,7 +885,9 @@ class ApplicationServices:
                 quota_policy=getattr(self.external_vault.transport,'set_borrowed_429_scope',None)
                 if callable(quota_policy):quota_policy('account')
                 from .pixiv_read_client import PublicImageReadClient, VaultImageReader
+                from .managed_network_stop_public_cdn import bind_public_cdn_shared_stop
                 self._public_images = PublicImageReadClient()
+                bind_public_cdn_shared_stop(self._public_images, shared_network_stop_scope)
                 self._vault_images = VaultImageReader(self.external_vault, self._public_images)
                 if self.preferences is not None:
                     self._public_images.set_request_admission(self._request_admission)

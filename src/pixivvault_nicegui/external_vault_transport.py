@@ -217,12 +217,11 @@ class ShaftTransport:
         if callback is not None:
             if token is None:callback()
             else:callback(token)
-    def _request(self,method,url,headers,body=None):
-        """Fence *direct Pixiv* app-api GET and OAuth POST before I/O.
+    def _request(self,method,url,headers,body=None,*,reserve=None):
+        """Admit Pixiv and Shaft requests through the sealed shared STOP.
 
-        A nonfatal HTTP outcome is observed while the durable user-wide gate
-        lock remains held. Fatal 401/403/429 is latched before consumers can
-        turn a remote status into an ordinary VaultError or retry another UID.
+        Only direct Pixiv responses can latch Pixiv STOP. Shaft responses
+        still drive the existing payout and report retry/quotas.
         """
         if self._premium_authorized is not None:self._premium_authorized()
         elif type(self.request) is UrlopenVaultRequest:raise VaultError('premium-disabled')
@@ -234,8 +233,8 @@ class ShaftTransport:
         self._check_session()
         route=url.split('?',1)[0]
         direct_pixiv=route in (*APP_READ_ROUTES,OAUTH)
-        if not direct_pixiv:
-            return self._request_unfenced(method,url,headers,body)
+        if not direct_pixiv and route not in (ACCOUNT,INVALID,ONLINE):
+            raise VaultError('destination-rejected')
         # These are deterministic local refusals, before any attempt to emit
         # HTTP. A malformed request must not leave an in-flight marker that
         # would permanently poison the user's unrelated Native/CLI GETs.
@@ -255,6 +254,7 @@ class ShaftTransport:
             # transports are usable without real HTTP in standalone tests.
             if isinstance(self.request,UrlopenVaultRequest):
                 raise VaultError('shared-stop-migration-required')
+            if reserve is not None:reserve()
             return self._request_unfenced(method,url,headers,body)
         if scope is None:
             raise VaultError('shared-stop-migration-required')
@@ -281,8 +281,11 @@ class ShaftTransport:
             scope._check_owner()
             with scope.gate.request():
                 try:
+                    if reserve is not None:reserve()
                     result=self._request_unfenced(method,url,headers,body,
                         observe_status=observe_status,observe_send=observe_send)
+                    if not direct_pixiv:
+                        return result
                     # A complete 408/425/5xx HTTP response does not establish
                     # whether the already-sent Pixiv operation took effect.
                     # Keep the shared gate's ordinary-error marker cleanup,
@@ -294,7 +297,9 @@ class ShaftTransport:
                                  500<=result.status<=599)):
                         raise VaultError('pixiv-outcome-uncertain')
                 except VaultError as error:
-                    if status_seen in STOP_STATUSES and not (route==OAUTH and status_seen in (400,403)):
+                    if not direct_pixiv and not self.revocation_unverified:
+                        raise _NonfatalCarrier(error) from None
+                    if direct_pixiv and status_seen in STOP_STATUSES and not (route==OAUTH and status_seen in (400,403)):
                         # Header status always overrides body, timeout and
                         # even cleanup faults, before the durable gate unlock.
                         raise HTTPStatusRejected(status_seen) from None
@@ -325,7 +330,7 @@ class ShaftTransport:
                     raise HTTPStatusRejected(result.status)
                 return result
         except _NonfatalCarrier as carrier:
-            raise VaultError(carrier.original.code) from None
+            raise carrier.original from None
         except ManagedNetworkGateBusy:
             # A different reader owns the short-lived process/thread GET lock.
             # This is not a latched 401/403/429 and must not be reported as one.
@@ -357,10 +362,10 @@ class ShaftTransport:
             return response
         except VaultError:raise
         except Exception:raise VaultError('transport-failed') from None
-    def _signed(self,url,payload,secret):
+    def _signed(self,url,payload,secret,*,reserve=None):
         body=canonical(payload)
         return self._request('POST',url,{'X-Shaft-Sign':hmac.new(secret.encode('utf-8'),body,hashlib.sha256).hexdigest(),
-            'Content-Type':'application/json','User-Agent':self.shaft_user_agent},body)
+            'Content-Type':'application/json','User-Agent':self.shaft_user_agent},body,reserve=reserve)
     def _refresh_oauth(self,refresh_token,slot=None):
         digest=(hashlib.sha256(refresh_token.encode('utf-8')).hexdigest()
                 if type(refresh_token) is str else None)
@@ -414,8 +419,8 @@ class ShaftTransport:
         # The service's durable unknown-send fence remains authoritative.
         for attempt in range(2):
             if slot.get('payout_not_before',0)>now:raise RateLimited(slot['payout_not_before'])
-            if self._budget is not None:self._budget('payout',request_uid)
-            response=self._signed(ACCOUNT,{'uid':request_uid},secret)
+            reserve=(lambda:self._budget('payout',request_uid)) if self._budget is not None else None
+            response=self._signed(ACCOUNT,{'uid':request_uid},secret,reserve=reserve)
             if response.status==429:raise RateLimited(quota_retry_at(response.body,now))
             if not 200<=response.status<300:raise VaultError('payout-failed')
             body=response.body;account=body.get('account',{});token=token_fields(account)
@@ -456,7 +461,8 @@ class ShaftTransport:
         if digest==slot.get('reported_refresh_hash') or slot.get('backoff_until',0)>now:return
         try:self._signed(INVALID,{'uid':account_uid,'refreshTokenHash':digest},secret)
         except VaultError as error:
-            if error.code in ('stale-session','pixiv-outcome-uncertain','pixiv-network-stopped'):raise
+            if error.code in ('stale-session','pixiv-outcome-uncertain','pixiv-network-stopped',
+                              'pixiv-network-busy','shared-stop-migration-required'):raise
         slot['reported_refresh_hash']=digest
     def queue_online(self,secret,uid,account,now):
         with self._online_lock:generation=self._online_generation
@@ -511,7 +517,17 @@ class ShaftTransport:
                     if delay is None or not 0<delay<=60 or task['waited']+delay>120:continue
                     task['waited']+=delay;retry=True
                 else:retry=status in (408,425) or status>=500
-            except VaultError:retry=True
+            except VaultError as error:
+                if error.code in ('pixiv-network-busy','pixiv-network-stopped','shared-stop-migration-required'):
+                    # No HTTP attempt took place. Keep the pending report and
+                    # the original retry budget for a later admitted send.
+                    task['attempt']-=1
+                    task['due']=now+(30 if error.code=='pixiv-network-busy' else 900)
+                    with self._online_lock:
+                        if task['generation']==self._online_generation and not self.revocation_unverified:
+                            self._online.append(task)
+                    continue
+                retry=True
             if retry and task['attempt']<5:
                 task['due']=now+(delay if delay is not None else (30,60,120,240,480)[task['attempt']-1])
                 with self._online_lock:
