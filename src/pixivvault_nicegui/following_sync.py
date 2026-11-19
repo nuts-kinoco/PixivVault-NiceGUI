@@ -16,7 +16,7 @@ import sqlite3
 from threading import RLock
 import time
 
-from .account_scope import AccountMismatch, AccountScope, require_same_account
+from .account_scope import AccountMismatch, AccountScope, ConfirmedFollowingSwitch, require_same_account
 from .bookmark_remote_adapter import profile_image_url
 from .fs_paths import native_io_path, sqlite_readonly_uri
 from .managed_downloads import _safe_path, _read_bounded, _write, _fsync_dir
@@ -417,10 +417,13 @@ class FollowingSyncStore:
         """
         account_id = _identifier(account_id)
         with self._lock:
-            self._require_scope(account_id, scope)
             try:
                 self._ensure_open()
                 self._connection.execute('BEGIN IMMEDIATE')
+                if type(scope) is ConfirmedFollowingSwitch:
+                    scope.verify(account_id, self.last_synced_account())
+                else:
+                    self._require_scope(account_id, scope)
                 self._connection.execute('DELETE FROM following_authors WHERE account_id=?', (account_id,))
                 self._connection.execute('DELETE FROM following_accounts WHERE account_id=?', (account_id,))
                 self._connection.execute('COMMIT')

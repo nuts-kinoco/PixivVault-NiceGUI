@@ -43,6 +43,24 @@ class AccountScope:
 
 
 @dataclass(frozen=True, slots=True)
+class ConfirmedFollowingSwitch:
+    """Proof for the explicit delete-and-resync confirmation."""
+
+    old_account: str
+    new_scope: AccountScope
+
+    def __post_init__(self):
+        AccountScope(self.old_account)
+        if type(self.new_scope) is not AccountScope or self.old_account == self.new_scope.account_id:
+            raise AccountMismatch()
+
+    def verify(self, account_id, last_synced_account):
+        require_same_account(self.old_account, account_id)
+        require_same_account(self.old_account, last_synced_account)
+        self.new_scope.verify_observed()
+
+
+@dataclass(frozen=True, slots=True)
 class OwnedListing:
     scope: AccountScope
     author_id: str
