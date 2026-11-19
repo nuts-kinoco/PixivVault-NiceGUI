@@ -47,6 +47,15 @@ async def run(url):
     assert [site.target for site in p6_network.inventory(tmp_path)] == ['deferred.urllib.request.urlopen']
 
 
+def test_manual_exclusion_requires_original_code_location(tmp_path):
+    (tmp_path / 'manual.py').write_text('import webbrowser\nwebbrowser.open("https://example.invalid")\n')
+    site, = p6_network.inventory(tmp_path)
+    approval = {'status': 'manual', 'reason': 'Click opens the external browser'}
+    assert p6_network.check([site], {site.key: approval})
+    assert p6_network.check([site], {site.key: dict(approval, evidence='src/manual.py:2')})
+    assert not p6_network.check([site], {site.key: dict(approval, evidence='original/gui.py:2825')})
+
+
 def test_candidate_network_routes():
     root = Path(__file__).resolve().parents[1]
     review = json.loads((root / 'tools' / 'p6_network_review.json').read_text(encoding='utf-8'))

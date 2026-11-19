@@ -22,7 +22,7 @@ NETWORK_NAMES = {'getaddrinfo', 'gethostbyname', 'gethostbyaddr', 'urlopen', 'ur
                  '_transport', 'perform', 'sendto', 'sendall', 'connect_ex', 'request', 'connect',
                  '_signed', '_app_read', '_read_response', '_default_write_transport', 'bind_shared_pixiv_stop',
                  'bind_public_cdn_shared_stop', 'create_shared_profile_reader', 'create_exact_managed_read_client',
-                 'metadata_transport_for', 'write_admission'}
+                 'metadata_transport_for', 'write_admission', '_request', 'submit_author_batch'}
 CLIENT_FILES = {'pixiv_read_client.py': {'LivePixivReadClient', 'PublicImageReadClient', 'VaultImageReader'},
                 'pixiv_write_client.py': {'PixivWriteClient'},
                 'external_vault_transport.py': {'ShaftTransport'}}
@@ -205,6 +205,10 @@ def check(sites, review):
         status = entry.get('status', 'unreviewed')
         if status not in {'gated', 'local', 'manual', 'non-network'} or not entry.get('reason'):
             errors.append(f'{site.path}:{site.line} {site.scope} {site.target}: {status}')
+        elif status in {'local', 'manual', 'non-network'} and not entry.get('evidence'):
+            errors.append(f'{site.path}:{site.line} {site.scope} {site.target}: missing exclusion evidence')
+        elif status == 'manual' and not re.search(r'original/[^\s]+\.py:[0-9]+', entry['evidence']):
+            errors.append(f'{site.path}:{site.line} {site.scope} {site.target}: missing original location')
     for key in sorted(set(review) - {site.key for site in sites}):
         errors.append(f'stale review: {key}')
     return errors
