@@ -224,7 +224,9 @@ def serve_port(port, nonce):
         # The isolated reader already knows its synthetic account. The production
         # cache validation/restoration path still loads through its real store.
         reader._verified_identity = "12"
-        store = BookmarkCacheStore(base / "prefs")
+        prefs = base / "prefs"
+        prefs.mkdir()
+        store = BookmarkCacheStore(prefs)
         try:
             store.write("12", "2026-10-22T00:00:00+00:00", records, expected_revision=store.revision())
         finally:
@@ -273,7 +275,7 @@ def running_app(kind, python, base, port, nonce=None):
             raise RuntimeError(f"original lock port in use: {port + 1}")
     args = [str(python), "-B", str(Path(__file__).resolve()), f"--serve-{kind}", str(port)]
     if nonce:
-        args.extend(["--nonce", nonce])
+        args.append(f"--nonce={nonce}")
     url = f"http://127.0.0.1:{port}"
     log_path = base.parent / (kind + ".log")
     with log_path.open("wb") as log:
