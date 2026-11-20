@@ -374,7 +374,7 @@ class QueueView:
             if not failed_only:
                 with ui.row().classes('items-center gap-2').props('data-testid=queue-log-heading') as self.log_heading:
                     ui.icon('list_alt').classes('text-primary')
-                    ui.label('ダウンロードキューログ').classes('pv-library-heading')
+                    ui.label('ダウンロードキューログ').classes('pv-library-heading pv-serif-heading')
                     ui.label('拡張機能連携のDLはここにのみ表示').classes('pv-subtitle')
                 self.log_container = ui.column().classes('pv-queue-log w-full gap-0').props('data-testid=queue-log')
         # Match the original Flet's interruptible 2-second snapshot ticker.

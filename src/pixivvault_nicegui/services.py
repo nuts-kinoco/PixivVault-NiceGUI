@@ -2861,6 +2861,21 @@ class ApplicationServices:
             raise RuntimeError("application services are closed")
         return self._cached_remote_bookmarks
 
+    def bookmark_snapshot_token(self):
+        """Identify the published snapshot without exposing an account identifier."""
+        return getattr(self, '_bookmark_snapshot_token', None)
+
+    def bookmark_persistence_confirmed(self, token):
+        """Confirm that this snapshot still has the recorded cache revision."""
+        store = self._bookmark_cache_store
+        if (token is None or token is not getattr(self, '_bookmark_persisted_token', None) or store is None
+                or store is not getattr(self, '_bookmark_persisted_store', None)):
+            return False
+        try:
+            return store.revision() == getattr(self, '_bookmark_persisted_revision', None)
+        except Exception:
+            return False
+
     def bookmark_auto_refresh_enabled(self):
         if self.preferences is None:
             return False
@@ -2918,7 +2933,18 @@ class ApplicationServices:
             self._bookmark_verified_reader = reader
             self._bookmark_verified_identity = account
             try:
-                stored = await asyncio.to_thread(store.read, account)
+                def read_with_revision():
+                    try:
+                        before = store.revision()
+                    except Exception:
+                        before = None
+                    value = store.read(account)
+                    try:
+                        after = store.revision()
+                    except Exception:
+                        after = None
+                    return value, after if before is not None and before == after else None
+                stored, stored_revision = await asyncio.to_thread(read_with_revision)
             except Exception:
                 self.bookmark_cache_persist_failed = True
                 self._bookmark_restore_attempted = True
@@ -2934,6 +2960,11 @@ class ApplicationServices:
             self._publish_images(self.library, records, reader=reader)
             self._remote_records = records
             self._cached_remote_bookmarks = tuple(record.as_artwork() for record in records)
+            self._bookmark_snapshot_token = object()
+            if stored_revision is not None:
+                self._bookmark_persisted_token = self._bookmark_snapshot_token
+                self._bookmark_persisted_revision = stored_revision
+                self._bookmark_persisted_store = store
             self.bookmark_cache_fetched_at = stamp
             self.bookmark_cache_failed = False
             self._bookmark_restored_reader = reader
@@ -3069,6 +3100,7 @@ class ApplicationServices:
                         if self.library_repository is not None:
                             self._legacy_local_bookmarks = tuple(local)
                     self._cached_remote_bookmarks = remote
+                    self._bookmark_snapshot_token = object()
                     self._cached_local_bookmarks = local
                     with self._managed_target_lock:
                         self._remote_records = records or ()
@@ -3082,6 +3114,10 @@ class ApplicationServices:
                                 written = self._bookmark_cache_store.write(account, stamp, records,
                                     expected_revision=cache_revision)
                                 self.bookmark_cache_persist_failed = not written
+                                if written and type(cache_revision) is int:
+                                    self._bookmark_persisted_token = self._bookmark_snapshot_token
+                                    self._bookmark_persisted_revision = cache_revision + 1
+                                    self._bookmark_persisted_store = self._bookmark_cache_store
                             except Exception:
                                 self.bookmark_cache_persist_failed = True
                         self.bookmark_cache_fetched_at = stamp

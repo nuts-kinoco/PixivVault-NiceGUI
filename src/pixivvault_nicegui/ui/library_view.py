@@ -86,6 +86,7 @@ class LibraryView(ViewerController):
         self.card_size = card_size
         self._on_size_change = on_size_change
         self.filters = LibraryFilters()
+        self._bookmark_snapshot_token = services.bookmark_snapshot_token()
         self.bookmark_state = BookmarkState(
             local=services.bookmark_local_snapshot(),
             cached_remote=services.bookmark_remote_snapshot(),
@@ -243,8 +244,8 @@ class LibraryView(ViewerController):
                             if getattr(services,'similarity_source',None) is not None else None),
                 image_url=lambda work_id: self._image_provider.bookmark_url(work_id),
                 can_open=lambda work_id: self._image_provider.can_open(work_id),
-                cache_persistence_unconfirmed=lambda: (services.bookmark_cache_persist_failed
-                                                       or services._bookmark_cache_store is None),
+                cache_persistence_unconfirmed=lambda: not services.bookmark_persistence_confirmed(
+                    self._bookmark_snapshot_token),
                 with_filter_toggle=True,
             )
             self.bookmarks.render()
@@ -736,8 +737,11 @@ class LibraryView(ViewerController):
     def _adopt_service_bookmarks(self):
         remote = self.services.bookmark_remote_snapshot()
         fetched_at = self.services.bookmark_cache_fetched_at
+        snapshot_token = self.services.bookmark_snapshot_token()
         if remote is not None and (self.bookmark_state.loaded_at != fetched_at
+                                   or self._bookmark_snapshot_token is not snapshot_token
                                    or not self.bookmark_state.has_remote_cache):
+            self._bookmark_snapshot_token = snapshot_token
             self.bookmark_state.adopt_cache(remote, self.services.bookmark_local_snapshot(), fetched_at)
             self._refresh_bookmark_projection()
             if self.bookmarks is not None:
@@ -804,7 +808,8 @@ class LibraryView(ViewerController):
         except Exception:
             self.bookmark_state.complete_fetch(epoch, (), ok=False)
         else:
-            self.bookmark_state.complete_fetch(epoch, remote, ok=True)
+            if self.bookmark_state.complete_fetch(epoch, remote, ok=True):
+                self._bookmark_snapshot_token = self.services.bookmark_snapshot_token()
         if self.bookmarks is not None:
             self.bookmarks.refresh()
 
@@ -813,6 +818,7 @@ class LibraryView(ViewerController):
             if automatic:
                 restored = await self.services.restore_bookmark_cache()
                 if restored and not self.closed and self.active and self.subview == 'bookmarks':
+                    self._bookmark_snapshot_token = self.services.bookmark_snapshot_token()
                     self.bookmark_state.adopt_cache(self.services.bookmark_remote_snapshot(),
                         self.services.bookmark_local_snapshot(), self.services.bookmark_cache_fetched_at)
                     self.bookmark_state.silent_fetch = True
@@ -833,6 +839,7 @@ class LibraryView(ViewerController):
                 return
             accepted = self.bookmark_state.complete_fetch(epoch, remote, ok=True)
             if accepted:
+                self._bookmark_snapshot_token = self.services.bookmark_snapshot_token()
                 self.bookmark_state.loaded_at = self.services.bookmark_cache_fetched_at
                 self.bookmark_state.replace_local(local)
                 if automatic:
@@ -850,8 +857,6 @@ class LibraryView(ViewerController):
         if accepted and not self.closed and self.bookmarks is not None:
             with self.client:
                 self.bookmarks.refresh()
-                self.bookmarks.persistence_status.set_text(
-                    'キャッシュの保存を確認できません。' if self.services.bookmark_cache_persist_failed else '')
 
     def _build_viewer_state(self) -> None:
         # Local data wins for downloaded works; remote-only entries must also

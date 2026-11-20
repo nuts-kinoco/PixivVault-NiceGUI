@@ -476,7 +476,7 @@ DOM_AUDIT = r"""() => {
         if (!r.width || !r.height) continue;
         const problem = boundary(e, r);
         const item = {id:name(e), text:n.textContent.trim().slice(0,160), rect:rect(r), font:s.fontFamily,
-                      serif:!!e.closest('.pv-serif-heading, .pv-dialog-title, .pv-failure-heading')};
+                      serif:!!e.closest('.pv-serif-heading, .pv-dialog-title, .pv-failure-heading, [data-testid=queue-log-heading] .pv-library-heading')};
         if (problem === 'scroll') scroll.push(item);
         else if (problem === 'ellipsis') ellipses.push(item);
         else if (problem) clipped.push({...item, by:problem});
@@ -528,7 +528,8 @@ def audit_port(page):
         doc = cdp.send("DOM.getDocument")["root"]["nodeId"]
         data["rendered_fonts"] = {}
         for selector in (".pv-title", ".pv-tab .q-icon", ".pv-tab .q-btn__content span.block",
-                         ".pv-dialog-title", ".pv-serif-heading", ".pv-failure-heading", "[data-testid=failed-reason]"):
+                         ".pv-dialog-title", ".pv-serif-heading", ".pv-failure-heading", "[data-testid=failed-reason]",
+                         "[data-testid=queue-log-heading] .pv-library-heading"):
             nodes = cdp.send("DOM.querySelectorAll", {"nodeId": doc, "selector": selector})["nodeIds"]
             if nodes:
                 data["rendered_fonts"][selector] = cdp.send("CSS.getPlatformFontsForNode", {"nodeId": nodes[0]})["fonts"]
@@ -656,7 +657,8 @@ def mechanics(audits, theme, key):
     for selector, fonts in port["rendered_fonts"].items():
         if not fonts or selector == ".pv-tab .q-icon":
             continue
-        serif_expected = selector in {".pv-dialog-title", ".pv-serif-heading", ".pv-failure-heading"}
+        serif_expected = selector in {".pv-dialog-title", ".pv-serif-heading", ".pv-failure-heading",
+                                      "[data-testid=queue-log-heading] .pv-library-heading"}
         has_serif = any("Mincho" in font["familyName"] for font in fonts)
         if has_serif != serif_expected:
             flags.append(f"rendered font mismatch {selector}")

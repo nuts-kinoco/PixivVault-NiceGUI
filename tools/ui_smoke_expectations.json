@@ -43,7 +43,7 @@
     },
     "queue": {
       "label": "キュー",
-      "text_fonts": {"[data-testid=queue-heading] .pv-library-heading": "Yu Mincho"},
+      "text_fonts": {"[data-testid=queue-heading] .pv-library-heading": "Yu Mincho", "[data-testid=queue-log-heading] .pv-library-heading": "Yu Mincho"},
       "testids": ["queue-view", "queue-count", "queue-search", "queue-select-mode", "queue-filter-all", "queue-list"],
       "texts": ["現在のジョブ", "すべて 0"]
     },

@@ -172,6 +172,11 @@ class BookmarkView:
             self.more_cell.move(self.grid)
         self.more_cell.set_visibility(self.state.has_more)
         status = self.state.status
+        persistence_unconfirmed = (self.cache_persistence_unconfirmed is not None
+                                   and self.cache_persistence_unconfirmed())
+        if self.cache_persistence_unconfirmed is not None and self.state.has_remote_cache:
+            self.persistence_status.set_text(
+                'キャッシュの保存を確認できません。' if persistence_unconfirmed else '')
         messages = {
             "loading": "ブックマークを読み込み中です",
             "fetch_failed": "ブックマークの取得に失敗しました。再読込できます",
@@ -181,7 +186,7 @@ class BookmarkView:
         }
         if status == "fetch_failed":
             if visible:
-                if self.cache_persistence_unconfirmed is not None and self.cache_persistence_unconfirmed():
+                if persistence_unconfirmed:
                     messages["fetch_failed"] = "取得に失敗しました。現在の一覧を表示しています。再読込できます"
                 else:
                     messages["fetch_failed"] = "取得に失敗しました。保存済みのブックマークを表示しています。再読込できます"
