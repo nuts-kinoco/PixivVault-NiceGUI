@@ -233,12 +233,15 @@ class LearningView:
                                 'width:21px;height:21px;font-size:8px;'
                                 'background:var(--pv-raised);color:var(--pv-muted)')
                         self.open_pixiv_button.tooltip('クリックでpixivの作品ページを開く')
-                        self.open_pixiv_button.on('click', self._open_learning_pixiv, js_handler=self._click_js())
+                        open_js = self._click_js('open')
+                        self.open_pixiv_button.on('click', self._open_learning_pixiv, js_handler=open_js)
+                        self.open_pixiv_button.on('auxclick', js_handler=open_js)
+                        self.open_pixiv_button.on('contextmenu', js_handler=open_js)
                         self.open_pixiv_button.set_visibility(False)
                 if self.discovery is not None:
                     self._build_candidate_status_card()
-                self.toast = LearningToast()
-            self.picture.on('click', self._open_learning_picture, js_handler=self._click_js())
+                self.toast = LearningToast(on_expired_undo=self._on_expired_undo)
+            self.picture.on('click', self._open_learning_picture, js_handler=self._click_js('open'))
             self.status = ui.label().classes("pv-subtitle pv-learning-status").props("role=status aria-live=polite")
             # 元 discovery_tab.py:4358-4365 の空状態の案内（候補が無いとき、何をすると何が起きるか）。
             with ui.column().classes("items-center gap-1").props("data-testid=learning-empty") as self.empty_card:
@@ -258,7 +261,7 @@ class LearningView:
                         "no-caps" if choice == "like" else "outline no-caps"
                     ).classes(f"pv-judgment pv-judgment-{choice}")
                     button.on("click", lambda event, c=choice: self._on_judgment(c, event),
-                              js_handler=self._click_js())
+                              js_handler=self._click_js('block-open'))
                     self.buttons[choice] = button
             # 元 discovery_tab.py:2672-2680: 判定ボタンの真下の情報行。高さを固定し、出し入れでボタンを動かさない。
             with ui.row().classes("w-full items-center").style("height:20px"):
@@ -267,10 +270,11 @@ class LearningView:
             self.superlike_used_label.set_visibility(False)
             with ui.row().classes("items-center gap-2"):
                 self.undo_button = ui.button("ひとつ戻す（Undo）", color=None).props("flat no-caps").classes("pv-undo")
-                self.undo_button.on("click", self._on_undo, js_handler=self._click_js())
+                self.undo_button.on("click", self._on_undo, js_handler=self._click_js('block-open'))
                 self.retry_button = ui.button("画像を再読込", on_click=self.request_image).props("flat")
                 self.save_retry_button = ui.button("保存を再試行", on_click=self.retry_save).props("flat")
-                self.reload_button = ui.button("保存状態を再読込", on_click=self.reload_storage).props("flat")
+                self.reload_button = ui.button("保存状態を再読込").props("flat")
+                self.reload_button.on("click", self._on_reload_click, js_handler=self._click_js('block-open'))
                 self.bookmark_button = ui.button('pixiv', icon='favorite_border').props(
                     'flat dense no-caps data-testid=learning-bookmark')
                 self.bookmark_button.on('click', self._on_learning_bookmark, js_handler=self._bookmark_click_js())
@@ -379,7 +383,7 @@ class LearningView:
         if self.discovery is not None:
             self.root.on('trend-measure', self._on_trend_measure, js_handler='event => emit(event.detail)')
         self.picture.on("load", self._on_loaded)
-        self.picture.on("error", self._on_failed)
+        self.picture.on("error", self._on_failed, js_handler=self._image_error_js(self.picture.html_id))
         self.set_summary_viewport(1280, 720)
         self._summary_sync()
         self.set_active(False)
@@ -390,13 +394,38 @@ class LearningView:
             self.reload_storage()
 
     @staticmethod
-    def _click_js() -> str:
+    def _click_js(intent: str = '') -> str:
         return """(event) => {
             const el = event.currentTarget;
-            emit({work_id: el.getAttribute('data-work-id'),
-                  generation: Number(el.getAttribute('data-generation')),
-                  operation_id: crypto.randomUUID()});
+            const root = el.closest('.pv-learning');
+            const payload = {work_id: el.dataset.workId ?? root?.dataset.workId,
+                             generation: Number(el.dataset.generation ?? root?.dataset.generation),
+                             operation_id: crypto.randomUUID()};
+            """ + {
+                'open': """
+                    const pending = root?.__pvPendingLearningAction;
+                    if (el.dataset.workOpen !== 'true' || root?.__pvFailedImage === payload.generation ||
+                        (pending &&
+                        pending.generation === payload.generation &&
+                        pending.operation_id !== root.dataset.finishedOperation)) {
+                        event.preventDefault();
+                        return;
+                    }
+                    if (event.type !== 'click') return;
+                """,
+                'block-open': 'if (root) root.__pvPendingLearningAction = payload;',
+            }.get(intent, '') + """
+            emit(payload);
         }"""
+
+    @staticmethod
+    def _image_error_js(image_id: str) -> str:
+        return f"""(source) => {{
+            const image = document.getElementById('{image_id}');
+            const root = image?.closest('.pv-learning');
+            if (root) root.__pvFailedImage = Number(image.dataset.generation);
+            emit(source);
+        }}"""
 
     @staticmethod
     def _bookmark_click_js() -> str:
@@ -422,13 +451,19 @@ class LearningView:
                 !event.currentTarget.getAttribute('data-active') ||
                 event.currentTarget.getAttribute('data-active') !== 'true') return;
             const key = event.key.toLowerCase();
+            const root = event.currentTarget;
+            const save = (input) => {
+                const payload = {...input, work_id:root.dataset.workId || '',
+                                 generation:Number(root.dataset.generation),
+                                 operation_id:crypto.randomUUID()};
+                root.__pvPendingLearningAction = payload;
+                emit(payload);
+            };
             if (event.ctrlKey) {
                 if (key !== 'z' || event.shiftKey) return;
                 event.preventDefault();
                 event.stopPropagation();
-                emit({action:'undo', work_id:event.currentTarget.getAttribute('data-work-id') || '',
-                      generation:Number(event.currentTarget.getAttribute('data-generation')),
-                      operation_id:crypto.randomUUID()});
+                save({action:'undo'});
                 return;
             }
             if (key === 'escape' || key === 'esc') {
@@ -446,9 +481,7 @@ class LearningView:
             const choice = map[key];
             if (!choice) return;
             event.preventDefault();
-            emit({choice, work_id:event.currentTarget.getAttribute('data-work-id'),
-                  generation:Number(event.currentTarget.getAttribute('data-generation')),
-                  operation_id:crypto.randomUUID()});
+            save({choice});
         }"""
 
     @staticmethod
@@ -456,20 +489,30 @@ class LearningView:
         return event.args if isinstance(event.args, dict) else {}
 
     def _on_judgment(self, choice: str, event) -> None:
-        self.judge(choice, self._payload(event))
+        payload = self._payload(event)
+        self.judge(choice, payload)
+        self._finish_open_block(payload)
+
+    def _finish_open_block(self, payload: dict) -> None:
+        # A successful action changes generation. A rejected browser gesture
+        # can stay on the same candidate and needs an explicit release.
+        if (not self.state.saving and not self._storage_busy
+                and isinstance(payload.get('operation_id'), str)):
+            self.root.props['data-finished-operation'] = payload['operation_id']
+
+    def _on_expired_undo(self, event) -> None:
+        self._finish_open_block(self._payload(event))
 
     def _on_key(self, event) -> None:
         data = self._payload(event)
         if data.get('action') == 'undo':
-            if self._review_open:
-                return
             self._on_undo(event)
             return
         if data.get('action') == 'summary-close':
             if self.active:
                 self.close_summary()
             return
-        self.judge(data.get("choice"), data)
+        self._on_judgment(data.get("choice"), event)
 
     def _summary_source(self):
         item = self.state.current_artwork
@@ -862,6 +905,10 @@ class LearningView:
 
     def _on_undo(self, event) -> None:
         payload = self._payload(event)
+        self._undo(payload)
+        self._finish_open_block(payload)
+
+    def _undo(self, payload: dict) -> None:
         item = self.state.current_artwork
         # Undo は直前の操作で画面が切り替わった後に届くイベントを拒否する。
         if (not self.active or self.state.closed or self.services.closing or not self._storage_ready or self._storage_busy or self._review_mutating or self._review_open or
@@ -987,7 +1034,7 @@ class LearningView:
             session_id = self._session_id
             if self.toast.show_reason(lambda reason, j=judgment, s=session_id: self._pick_reason(j, s, reason)):
                 return
-        self.toast.show_undo(self._click_js(), self._on_undo, props)
+        self.toast.show_undo(self._click_js('block-open'), self._on_undo, props)
 
     def _pick_reason(self, judgment, session_id: str, reason: str) -> None:
         self.toast.hide()
@@ -1069,10 +1116,14 @@ class LearningView:
         if command is not None:
             self._start_save(command)
 
-    def reload_storage(self, *, notice: str = "", review_queue=None) -> None:
+    def _on_reload_click(self, event) -> None:
+        if not self.reload_storage():
+            self._finish_open_block(self._payload(event))
+
+    def reload_storage(self, *, notice: str = "", review_queue=None) -> bool:
         if (self.storage is None or self.state.closed or self.services.closing or self.state.saving or self._storage_busy
                 or (self._review_mutating and review_queue is None)):
-            return
+            return False
         self._stop_candidate_refill()
         self._storage_busy = True
         self._render_review()
@@ -1080,6 +1131,7 @@ class LearningView:
         self.status.set_text("保存された判定を読み込んでいます…")
         self._update_buttons()
         background_tasks.create(self._reload_storage(notice, review_queue), name="learning restore")
+        return True
 
     async def _reload_storage(self, notice: str, review_queue=None) -> None:
         try:
@@ -1256,10 +1308,14 @@ class LearningView:
         work_id = item.work_id if item else ""
         props = f'data-work-id="{work_id}" data-generation={self.state.generation}'
         available = self.active and not self.services.closing and self._storage_ready and not self._storage_busy and not self.state.saving and not self._settings_busy and not self._review_mutating
-        self.picture.props(props)
+        can_open = item is not None and self._can_open_learning_work()
+        open_props = props + f" data-work-open={'true' if can_open else 'false'}"
+        self.picture.props(open_props)
         if self.discovery is not None:
-            self.open_pixiv_button.props(props)
-            self.open_pixiv_button.set_enabled(item is not None and self._can_open_learning_work())
+            self.open_pixiv_button.props(open_props)
+            self.open_pixiv_button.set_enabled(can_open)
+            self.open_pixiv_button.set_visibility(bool(self.open_pixiv_button.props.get('href'))
+                                                  and self.state.last_error != 'image load failed')
         self.root.props(props + f" data-saving={'true' if self.state.saving else 'false'}")
         for button in self.buttons.values():
             button.props(props)
@@ -2551,14 +2607,17 @@ class LearningView:
 
     def _can_open_learning_work(self) -> bool:
         return (self.active and not self.state.closed and not self.services.closing
-                and not self._review_open and not self._storage_busy)
+                and self._storage_ready and not self._review_open and not self._storage_busy
+                and not self._review_mutating and not self._settings_busy and not self.state.saving
+                and self._failed_command is None and self.state.last_error != 'image load failed')
 
     def _clicked_learning_work(self, event):
         payload = self._payload(event)
         item = self.state.current_artwork
+        generation = payload.get('generation')
         if (not self._can_open_learning_work()
                 or item is None or payload.get('work_id') != item.work_id
-                or payload.get('generation') != self.state.generation):
+                or type(generation) is not int or generation != self.state.generation):
             return None
         if self.discovery is not None:
             if pixiv_url(item.work_id) is None:

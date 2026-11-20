@@ -16,6 +16,9 @@ function Get-SPath([string]$Path) {
     if ($Path -notmatch '^[sS]:[\\/]') {
         throw 'Specify an absolute path on S:.'
     }
+    if ($Path -match '["\x00-\x1f]') {
+        throw 'Quotes and control characters are unavailable in launcher paths.'
+    }
     $full = [IO.Path]::GetFullPath($Path)
     if ($full.Length -gt 3) { $full = $full.TrimEnd('\') }
     for ($item = $full; $item; $item = [IO.Path]::GetDirectoryName($item)) {
@@ -25,6 +28,12 @@ function Get-SPath([string]$Path) {
         }
     }
     return $full
+}
+
+function Join-ProcessArguments([string[]]$Arguments) {
+    # Start-Process on Windows PowerShell 5.1 takes one Windows command line.
+    # Paths have already rejected quotes. Double final backslashes before the closing quote.
+    return (($Arguments | ForEach-Object { '"' + ($_ -replace '(\\+)$', '$1$1') + '"' }) -join ' ')
 }
 
 $CodeRoot = Get-SPath $CodeRoot
@@ -52,10 +61,13 @@ if (-not $profileParent) {
 $LogRoot = Get-SPath $LogRoot
 $TempRoot = Get-SPath $TempRoot
 
-$commandLine = '-B -u -m pixivvault_nicegui'
+$launchArgs = @('-B', '-u', '-m', 'pixivvault_nicegui')
 if ($IsolatedWorkspace) {
     $IsolatedWorkspace = Get-SPath $IsolatedWorkspace
-    $prefix = $IsolatedWorkspace.TrimEnd('\') + '\'
+    if ($IsolatedWorkspace -eq [IO.Path]::GetPathRoot($IsolatedWorkspace)) {
+        throw 'IsolatedWorkspace must be a directory below the S: drive root.'
+    }
+    $prefix = $IsolatedWorkspace + '\'
     foreach ($path in @($ProfileRoot, $LogRoot, $TempRoot)) {
         if (-not $path.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
             throw 'Isolated ProfileRoot, LogRoot and TempRoot must be inside IsolatedWorkspace.'
@@ -67,7 +79,7 @@ if ($IsolatedWorkspace) {
         -not (Test-Path -LiteralPath $testEntry -PathType Leaf)) {
         throw 'IsolatedWorkspace requires the existing source-test marker and entry point.'
     }
-    $commandLine = '-B -u "{0}" --test-workspace "{1}" --' -f $testEntry, $IsolatedWorkspace.TrimEnd('\')
+    $launchArgs = @('-B', '-u', $testEntry, '--test-workspace', $IsolatedWorkspace, '--')
 } else {
     $local = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
     if ($local -notmatch '^[sS]:[\\/]') {
@@ -75,7 +87,8 @@ if ($IsolatedWorkspace) {
     }
     $null = Get-SPath (Join-Path $local 'PixivVault-NiceGUI\managed-pixiv-get-stop-v1')
 }
-$commandLine += ' --native --host 127.0.0.1 --port {0} --profile-root "{1}"' -f $Port, $ProfileRoot.TrimEnd('\')
+$launchArgs += @('--native', '--host', '127.0.0.1', '--port', [string]$Port, '--profile-root', $ProfileRoot)
+$commandLine = Join-ProcessArguments $launchArgs
 
 $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, $Port)
 try {
@@ -115,15 +128,19 @@ try {
     }
     $preflight = @'
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 from pixivvault_nicegui.native_profile import NativeProfileStore
+from pixivvault_nicegui.test_owner_runtime import isolated_test_workspace
 
 try:
     profile = Path(sys.argv[1])
+    workspace = Path(sys.argv[2]) if len(sys.argv) > 2 else None
     if profile.parent.resolve().drive.upper() != 'S:':
         raise ValueError
-    snapshot = NativeProfileStore.peek(profile)
-    if sys.argv[2] == 'isolated' and snapshot.cookie_file is not None:
+    with (isolated_test_workspace(workspace) if workspace else nullcontext()):
+        snapshot = NativeProfileStore.peek(profile)
+    if workspace and snapshot.cookie_file is not None:
         raise ValueError
     for path in (snapshot.cookie_file, snapshot.save_parent, snapshot.library_readonly_db,
                  snapshot.library_image_root, snapshot.similarity_model_file):
@@ -132,10 +149,11 @@ try:
 except Exception:
     sys.exit(2)
 '@
-    $mode = if ($IsolatedWorkspace) { 'isolated' } else { 'product' }
-    $preflight | & $python -B - $ProfileRoot $mode
+    $preflightArgs = @($ProfileRoot)
+    if ($IsolatedWorkspace) { $preflightArgs += $IsolatedWorkspace }
+    $preflight | & $python -B - @preflightArgs
     if ($LASTEXITCODE -ne 0) {
-        throw 'Profile preflight failed. Check that configured paths are on S: and the isolated profile has no credentials.'
+        throw 'Profile preflight failed. Check that configured paths are on S: and isolated paths stay inside IsolatedWorkspace without credentials.'
     }
 
     [IO.Directory]::CreateDirectory($profileParent) | Out-Null

@@ -70,3 +70,20 @@ async def test_toast_reuses_undo_and_leaves_meter_updates_to_browser(tmp_path, m
         assert first.props['data-generation'] == '2'
     finally:
         await cleanup()
+
+
+async def test_toast_expiry_rearms_when_the_loop_wakes_early(tmp_path, monkeypatch):
+    view, _, _, cleanup = await open_discovery_view(tmp_path, monkeypatch)
+    try:
+        toast = view.toast
+        with view.client:
+            toast.show_undo('', lambda event: None, '')
+        toast._expiry.cancel()
+        view.clock.now = toast._deadline - 0.001
+        toast._expire()
+        assert toast.band.visible and toast._expiry is not None
+        view.clock.now += 1
+        toast.tick()
+        assert not toast.band.visible
+    finally:
+        await cleanup()

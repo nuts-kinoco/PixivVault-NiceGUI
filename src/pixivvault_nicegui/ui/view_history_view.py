@@ -164,10 +164,15 @@ class ViewHistoryView:
         if self.error:self.notice.set_text(self.error)
 
     async def record_open(self, wid):
+        if self.closed or self.storage is None:
+            return
+        work_generation = self.parent.state.generation
         try:
             await self.storage.record_view(wid)
         except Exception:
-            self.parent.status.set_text('閲覧履歴を記録できませんでした。作品表示は続けます。')
+            if (not self.closed and self.parent.state.generation == work_generation
+                    and self.parent._can_open_learning_work()):
+                self.parent.status.set_text('閲覧履歴を記録できませんでした。')
         else:
             await self.refresh()
 
@@ -175,8 +180,16 @@ class ViewHistoryView:
         if self.closed or not self.parent.active:return
         epoch = self.generation
         work_generation = self.parent.state.generation
+
+        def current():
+            return (not self.closed and self.parent.active and epoch == self.generation
+                    and (not record or (self.parent.state.generation == work_generation
+                                        and self.parent._can_open_learning_work())))
+
         if record:
             await self.record_open(wid)
+            if not current():
+                return
         pin = None
         try:
             if self.parent.discovery is not None:
@@ -189,8 +202,7 @@ class ViewHistoryView:
             else:
                 artwork = next(a for a in self.parent.services.artworks if a.work_id == wid)
                 pin = self.parent.services.images
-            if (self.closed or not self.parent.active or epoch != self.generation
-                    or (record and self.parent.state.generation != work_generation)):
+            if not current():
                 if pin is not self.parent.services.images:pin.close()
                 return
             selection = SimpleNamespace(closed=False, artwork=artwork, images=pin,
@@ -199,7 +211,8 @@ class ViewHistoryView:
             if getattr(self.parent,'close_dialog_on_open',False):self.dialog.close()
         except Exception:
             if pin is not None and pin is not self.parent.services.images:pin.close()
-            self.parent.status.set_text('作品を表示できません。取得状態を確認してください。')
+            if current():
+                self.parent.status.set_text('作品を表示できません。取得状態を確認してください。')
 
     def close(self):
         self.closed = True

@@ -23,7 +23,7 @@ _ROW_STYLE = 'display:flex;flex-wrap:wrap;align-items:center;justify-content:cen
 
 
 class LearningToast:
-    def __init__(self, *, clock=time.monotonic) -> None:
+    def __init__(self, *, clock=time.monotonic, on_expired_undo=None) -> None:
         self._clock = clock
         self.kind: str | None = None
         self.heavy = False
@@ -31,6 +31,7 @@ class LearningToast:
         self.reason_active = False
         self.undo_button = None
         self._undo_action = None
+        self._on_expired_undo = on_expired_undo
         self._deadline: float | None = None
         self._expiry = None
         self._meter_variant = False
@@ -106,6 +107,8 @@ class LearningToast:
     def _undo_clicked(self, event) -> None:
         if self.kind == 'undo':
             self._undo_action(event)
+        elif self._on_expired_undo is not None:
+            self._on_expired_undo(event)
 
     def set_undo_props(self, props: str) -> None:
         if self.kind == 'undo' and self.undo_button is not None:
@@ -170,7 +173,14 @@ class LearningToast:
 
     def _expire(self) -> None:
         self._expiry = None
-        self.tick()
+        if self._deadline is None:
+            return
+        remaining = self._deadline - self._clock()
+        if remaining > 0:
+            # An asyncio timer can run up to the loop's clock resolution early.
+            self._expiry = asyncio.get_running_loop().call_later(remaining, self._expire)
+        else:
+            self.tick()
 
     def _cancel_expiry(self) -> None:
         if self._expiry is not None:
