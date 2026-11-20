@@ -130,6 +130,44 @@ def serve_nice(base):
     from pixivvault_nicegui.models import Artwork
     from pixivvault_nicegui.preferences import PreferencesStore
 
+    segments = {}
+    if os.environ.get('PV_P6_SEGMENTS') == '1':
+        from functools import wraps
+        from pixivvault_nicegui.library_state import LibraryState
+        from pixivvault_nicegui.ui.learning_view import LearningView
+        from pixivvault_nicegui.ui.library_view import LibraryView
+        from pixivvault_nicegui.ui.viewer_controller import ViewerController
+        from pixivvault_nicegui.ui.artwork_viewer import ArtworkViewer
+
+        def instrument(owner, name):
+            original = getattr(owner, name)
+            @wraps(original)
+            def timed(*args, **kwargs):
+                start = time.perf_counter_ns()
+                try:
+                    return original(*args, **kwargs)
+                finally:
+                    segments.setdefault(f'{owner.__name__}.{name}', []).append(
+                        (time.perf_counter_ns() - start) / 1_000_000)
+            setattr(owner, name, timed)
+        for owner, methods in ((LearningView, ('judge', '_start_save', 'refresh', 'request_image')),
+                               (learning_service.LearningService, ('_record',)),
+                               (LibraryView, ('search', 'render_authors', '_make_author_card')),
+                               (LibraryState, ('set_query',)),
+                               (ViewerController, ('_on_key', 'move_page', 'update_viewer', 'request_image', '_image_loaded')),
+                               (ArtworkViewer, ('set_metadata',))):
+            for method in methods:
+                instrument(owner, method)
+        submit_record = learning_service.LearningService.submit_record
+        @wraps(submit_record)
+        def timed_submit(*args, **kwargs):
+            start = time.perf_counter_ns()
+            future = submit_record(*args, **kwargs)
+            future.add_done_callback(lambda _: segments.setdefault('LearningService.queue_to_commit', []).append(
+                (time.perf_counter_ns() - start) / 1_000_000))
+            return future
+        learning_service.LearningService.submit_record = timed_submit
+
     rows = json.loads((base / 'learning.json').read_text(encoding='utf-8'))
     artworks = tuple(
         Artwork(f"demo-{row['work_id']}", row['title'], row['author_name'], aspect_ratio=4 / 3,
@@ -153,6 +191,10 @@ def serve_nice(base):
     @app.get('/__p6_network')
     def network_counts():
         return network
+
+    @app.get('/__p6_segments')
+    def segment_counts():
+        return segments
 
     ui.run(host='127.0.0.1', port=NICE_PORT, show=False, reload=False, native=False,
            binding_refresh_interval=None)
@@ -207,6 +249,17 @@ def browser_run(base, url, name, env, probe_only, repetitions, cases):
         context.route('**/*', route)
         try:
             page = context.pages[0]
+            if name == 'nice' and os.environ.get('PV_P6_SEGMENTS') == '1':
+                page.add_init_script('''(() => {
+                  const decode = HTMLImageElement.prototype.decode;
+                  window.__p6decodes = [];
+                  HTMLImageElement.prototype.decode = function() {
+                    const start = performance.now();
+                    return decode.call(this).then(value => {
+                      window.__p6decodes.push(performance.now() - start); return value;
+                    }, error => { throw error; });
+                  };
+                })()''')
             page.goto(url, timeout=25000)
             if name == 'original':
                 page.locator('flt-semantics-placeholder').evaluate('(e) => e.click()', timeout=30000)
@@ -220,6 +273,9 @@ def browser_run(base, url, name, env, probe_only, repetitions, cases):
             if name == 'nice':
                 with urllib.request.urlopen(url + '__p6_network', timeout=5) as response:
                     (base / 'nice-server-network.json').write_bytes(response.read())
+                if os.environ.get('PV_P6_SEGMENTS') == '1':
+                    with urllib.request.urlopen(url + '__p6_segments', timeout=5) as response:
+                        (base / 'nice-server-segments.json').write_bytes(response.read())
 
 
 def probe(page, base, name):
@@ -240,6 +296,9 @@ def measure(page, base, name, repetitions, cases):
 
     original = name == 'original'
     records = {}
+    segments = {}
+    milestones = {}
+    dom_segments = {}
     samples = base / f'{name}-samples.json'
     page.set_default_timeout(9000)
 
@@ -259,11 +318,52 @@ def measure(page, base, name, repetitions, cases):
         page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
 
     def elapsed(operation, action, ready):
+        tracing = not original and os.environ.get('PV_P6_SEGMENTS') == '1' and operation in (
+            'learning', 'library_search', 'viewer_next')
+        if tracing:
+            page.evaluate('''op => {
+              const select = () => {
+                if (op === 'learning') return [...document.querySelectorAll('.pv-learning .pv-view-title')]
+                  .map(e => e.textContent.trim()).find(t => /^Bench Learn [0-9]{6}$/.test(t)) || '';
+                if (op === 'viewer_next') return document.querySelector('[data-testid=library-viewer] .pv-counter')?.textContent || '';
+                const input = document.querySelector('input[placeholder="タイトル・作者・タグを検索"]');
+                const card = [...document.querySelectorAll('[data-testid=library-author-open]')]
+                  .find(e => e.getAttribute('aria-label') === input?.value);
+                return card ? input.value : '';
+              };
+              const before = select();
+              const state = {start: null, changed: null};
+              const onEvent = e => {
+                if ((op === 'learning' && e.type === 'keydown' && e.key === '3') ||
+                    (op === 'viewer_next' && e.type === 'keydown' && e.key === 'ArrowRight') ||
+                    (op === 'library_search' && e.type === 'input' &&
+                     e.target.getAttribute('placeholder') === 'タイトル・作者・タグを検索')) state.start = performance.now();
+              };
+              document.addEventListener('keydown', onEvent, true);
+              document.addEventListener('input', onEvent, true);
+              const observer = new MutationObserver(() => {
+                if (state.start !== null && state.changed === null && select() && select() !== before)
+                  state.changed = performance.now();
+              });
+              observer.observe(document.body, {subtree: true, childList: true, attributes: true, characterData: true});
+              window.__p6Trace = {state, stop() {
+                observer.disconnect(); document.removeEventListener('keydown', onEvent, true);
+                document.removeEventListener('input', onEvent, true);
+                return state.start !== null && state.changed !== null ? state.changed - state.start : null;
+              }};
+            }''', operation)
         started = time.perf_counter_ns()
         action()
+        action_done = time.perf_counter_ns()
         ready()
+        ready_done = time.perf_counter_ns()
         paint()
-        records.setdefault(operation, []).append((time.perf_counter_ns() - started) / 1_000_000)
+        finished = time.perf_counter_ns()
+        records.setdefault(operation, []).append((finished - started) / 1_000_000)
+        segments.setdefault(operation, []).append({'action_ms': (action_done-started)/1_000_000,
+            'ready_ms': (ready_done-action_done)/1_000_000, 'paint_ms': (finished-ready_done)/1_000_000})
+        if tracing:
+            dom_segments.setdefault(operation, []).append(page.evaluate('() => window.__p6Trace.stop()'))
         samples.write_text(json.dumps(records, indent=2), encoding='utf-8')
 
     def image_ready(number, page_no=0):
@@ -320,12 +420,17 @@ def measure(page, base, name, repetitions, cases):
         seen = {'Bench Learn 800000'}
         for _ in range(repetitions):
             def next_card():
+                start = time.perf_counter_ns()
                 handle = page.wait_for_function('''({seen, selector}) => [...document.querySelectorAll(selector)]
                     .map(e => e.textContent.trim()).find(t => /^Bench Learn [0-9]{6}$/.test(t) && !seen.includes(t))''',
                     arg={'seen': sorted(seen), 'selector': title_selector}, timeout=9000)
                 title = handle.json_value()
                 number = int(title.rsplit(' ', 1)[-1])
+                title_time = time.perf_counter_ns()
                 image_ready(number)
+                image_time = time.perf_counter_ns()
+                milestones.setdefault('learning', []).append({'title_ms': (title_time-start)/1_000_000,
+                    'image_check_ms': (image_time-title_time)/1_000_000})
                 seen.add(title)
             elapsed('learning', lambda: page.keyboard.press('3'), next_card)
 
@@ -386,10 +491,21 @@ def measure(page, base, name, repetitions, cases):
         card.click()
         image_ready(100000)
         for index in range(1, repetitions + 1):
+            if not original:
+                # Pixel paint precedes the verified-image load event's return
+                # to the server; the viewer deliberately rejects keys until it
+                # has acknowledged that event. Wait outside the sample.
+                page.wait_for_function('''() => document.querySelector(
+                    '[data-testid="library-viewer-image"]')?.getAttribute('aria-busy') === 'false' ''')
             expected = f'{index + 1} / {EXTRA_PAGES + 1}' if original else f'{index + 1}/{EXTRA_PAGES + 1}'
             def next_page():
+                start = time.perf_counter_ns()
                 page.get_by_text(expected, exact=True).first.wait_for()
+                title_time = time.perf_counter_ns()
                 image_ready(100000, index)
+                image_time = time.perf_counter_ns()
+                milestones.setdefault('viewer_next', []).append({'page_label_ms': (title_time-start)/1_000_000,
+                    'image_check_ms': (image_time-title_time)/1_000_000})
             elapsed('viewer_next', lambda: page.keyboard.press('ArrowRight'), next_page)
 
     failures = {}
@@ -411,6 +527,17 @@ def measure(page, base, name, repetitions, cases):
                      'p95_ms': sorted(values)[math.ceil(len(values) * .95) - 1]}
                for key, values in records.items()}
     (base / f'{name}-summary.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
+    (base / f'{name}-segments.json').write_text(json.dumps(segments, indent=2), encoding='utf-8')
+    (base / f'{name}-milestones.json').write_text(json.dumps(milestones, indent=2), encoding='utf-8')
+    if not original:
+        timings = page.evaluate('''() => performance.getEntriesByType('resource')
+          .filter(e => e.name.includes('/media/')).map(e => ({duration: e.duration,
+          response: e.responseEnd-e.responseStart, transfer: e.transferSize}))''')
+        (base / 'nice-media-timing.json').write_text(json.dumps(timings, indent=2), encoding='utf-8')
+        if os.environ.get('PV_P6_SEGMENTS') == '1':
+            (base / 'nice-dom-segments.json').write_text(json.dumps(dom_segments, indent=2), encoding='utf-8')
+            (base / 'nice-decode-segments.json').write_text(
+                json.dumps(page.evaluate('() => window.__p6decodes || []'), indent=2), encoding='utf-8')
     return failures
 
 

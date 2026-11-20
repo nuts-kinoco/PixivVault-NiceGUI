@@ -96,6 +96,25 @@ class LibraryState:
     def _matches(self, author: AuthorSummary, needle: str) -> bool:
         if self.filters.unread_only and author.representative.artwork.viewed is True:
             return False
+        if needle and type(author.name) is str:
+            author_match = needle in author.name.casefold()
+            for work in author.works:
+                artwork = work.artwork
+                tags = artwork.tags
+                values = (work.work_id, artwork.title, work.display_author_name, artwork.description)
+                # Legacy or hand-built DTOs may contain malformed text. Preserve
+                # the original filter-first short circuit for those inputs.
+                if (type(tags) in (tuple, list) and
+                        all(type(value) is str for value in values) and
+                        all(type(tag) is str for tag in tags)):
+                    if not author_match and not any(needle in value.casefold() for value in (*values, *tags)):
+                        continue
+                    if self.filters.matches_artwork(artwork, author_id=work.author_id, apply_unread=False):
+                        return True
+                elif self.filters.matches_artwork(artwork, author_id=work.author_id, apply_unread=False) and (
+                        author_match or any(needle in value.casefold() for value in (*values, *tags))):
+                    return True
+            return False
         return any(
             self.filters.matches_artwork(work.artwork, author_id=work.author_id, apply_unread=False) and (
                 not needle or needle in author.name.casefold() or
