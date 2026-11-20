@@ -11,6 +11,7 @@ from nicegui import ui
 
 from ..bookmark_state import BookmarkState, BookmarkCard
 from .grid_layout import MAX_COLUMNS
+from .action_controls import refresh_button
 
 
 class BookmarkView:
@@ -67,8 +68,7 @@ class BookmarkView:
                     self.download_button.disable()
                     if self.on_enqueue is None:
                         self.download_button.tooltip("この起動では作品の保存先が未接続です")
-                    self.retry = ui.button("更新", on_click=self.request_refresh).props(
-                        "flat dense data-testid=bookmark-refresh")
+                    self.retry = refresh_button(self.request_refresh, label="更新", testid="bookmark-refresh")
                     self.freshness = ui.label().classes("pv-counter").props("data-testid=bookmark-freshness")
                 self.search_input = ui.input("ブックマーク内を検索", value=self.state.query,
                     on_change=lambda event: self.search(event.value or "")).props(

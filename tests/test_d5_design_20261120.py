@@ -21,6 +21,7 @@ async def test_failed_refresh_explains_cached_cards():
             assert view.cards
             assert '保存済み' in view.message.text
             assert '失敗' in view.message.text
+            assert view.retry._props.get('icon') == 'refresh'
     finally:
         client.delete()
 
@@ -34,6 +35,7 @@ async def test_ranking_period_and_filters_are_toggle_controls():
             assert isinstance(view.mode, ui.toggle)
             assert isinstance(view.r18, ui.switch)
             assert isinstance(view.ai, ui.switch)
+            assert view.fetch_button._props.get('icon') == 'refresh'
             view.mode.set_value('weekly')
             assert view.mode.value == 'weekly'
             view.close()
@@ -47,3 +49,17 @@ def test_empty_queue_has_original_message():
         assert '現在のジョブはありません' in _texts(view)
     finally:
         view.close()
+
+
+@pytest.mark.asyncio
+async def test_retry_action_uses_pill_with_refresh_icon():
+    from pixivvault_nicegui.ui.similar_view import SimilarView
+    client = Client(ui.page('/_d5_retry'))
+    try:
+        with client:
+            view = SimilarView(None, lambda *_: None)
+            assert view.retry._props.get('icon') == 'refresh'
+            assert 'pv-retry-action' in view.retry._classes
+            view.close()
+    finally:
+        client.delete()

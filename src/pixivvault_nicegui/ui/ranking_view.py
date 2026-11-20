@@ -8,6 +8,7 @@ from ..ranking_source import RankingQuery, RankingUnavailable, MODES, CONTENTS, 
 from ..state import GalleryState
 from .gallery import GalleryView
 from .ranking_card_menus import RankingCardMenus
+from .action_controls import refresh_button
 
 class _ViewServices:
     def __init__(self,parent):self.parent=parent;self.artworks=();self.images=parent.images
@@ -82,7 +83,7 @@ class RankingView(RankingCardMenus):
                 self.r18=ui.switch('R-18',value=False).props('data-testid=ranking-r18')
                 self.ai=ui.switch('AIを除外',value=False).props('data-testid=ranking-exclude-ai')
                 self.tag=ui.input('タグ検索').props('outlined dense data-testid=ranking-tag')
-                self.fetch_button=ui.button('取得・更新',on_click=self.refresh).props('flat data-testid=ranking-fetch')
+                self.fetch_button=refresh_button(self.refresh,label='取得・更新',testid='ranking-fetch')
                 self.sort=ui.select(SORTS,value='rank',label='並び順',on_change=lambda _:self.render()).props('outlined dense data-testid=ranking-sort')
                 self._build_hide_manager()
             self.notice=ui.label('条件を選び、取得してください。').props('role=status data-testid=ranking-notice')

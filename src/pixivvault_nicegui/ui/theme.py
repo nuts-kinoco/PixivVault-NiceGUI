@@ -347,4 +347,5 @@ CSS += """
 .pv-preferences-card { border-radius:16px !important; }
 .pv-preferences-card .q-btn { border-radius:999px; background:rgba(33,150,243,.10) !important; color:var(--pv-text) !important; box-shadow:none !important; }
 .pv-preferences-group { border:1px solid var(--pv-border); border-radius:12px; padding:12px; width:100%; background:var(--pv-bg); }
+.pv-retry-action { border-radius:999px; background:rgba(33,150,243,.12); color:var(--pv-text); padding:6px 12px !important; }
 """
