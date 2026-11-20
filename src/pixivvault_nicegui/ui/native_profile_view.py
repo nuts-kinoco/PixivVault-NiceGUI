@@ -128,20 +128,20 @@ class NativeProfileView:
         self.folder_value = None
         self._sync_values()
         with ui.row():
-            self.cookie_button = ui.button('Cookieファイルを選択', on_click=choose_cookie).props(
-                'data-testid=native-profile-pick-cookie')
+            self.cookie_button = ui.button('Cookieファイルを選択', icon='upload_file', color=None, on_click=choose_cookie).props(
+                'flat no-caps data-testid=native-profile-pick-cookie')
             self.cookie_button.set_enabled(self.pick_file is not None and self.snapshot is not None)
             ui.button('選択解除', on_click=lambda:self.clear_cookie() if self._epoch == epoch else None).props(
-                'data-testid=native-profile-clear-cookie').set_enabled(self.snapshot is not None)
+                'flat no-caps data-testid=native-profile-clear-cookie').set_enabled(self.snapshot is not None)
         ui.label('作品の保存先（親フォルダ）').classes('text-subtitle1')
         self.folder_value = ui.label().props('data-testid=native-profile-folder-value')
         self._sync_values()
         with ui.row():
-            self.folder_button = ui.button('保存先を選択', on_click=choose_folder).props(
-                'data-testid=native-profile-pick-folder')
+            self.folder_button = ui.button('保存先を選択', icon='folder_open', color=None, on_click=choose_folder).props(
+                'flat no-caps data-testid=native-profile-pick-folder')
             self.folder_button.set_enabled(self.pick_folder is not None and self.snapshot is not None)
             ui.button('選択解除', on_click=lambda:self.clear_folder() if self._epoch == epoch else None).props(
-                'data-testid=native-profile-clear-folder').set_enabled(self.snapshot is not None)
+                'flat no-caps data-testid=native-profile-clear-folder').set_enabled(self.snapshot is not None)
         with ui.expansion('旧ライブラリ（任意・読取専用）', icon='folder_open',
                           value=self.draft_database is not None or self.draft_images is not None).props(
                               'data-testid=native-profile-library-section'):
@@ -177,12 +177,12 @@ class NativeProfileView:
         self.auth_button = None
         if self.verify_auth is not None:
             self.auth_button = ui.button('選択したCookieの認証を確認', on_click=check_auth).props(
-                'data-testid=native-profile-auth-check')
+                'flat no-caps data-testid=native-profile-auth-check')
             self.auth_button.set_enabled(self.draft_cookie is not None)
         with ui.row():
-            self.save_button = ui.button('保存', on_click=lambda:self.save() if self._epoch == epoch else None).props('data-testid=native-profile-save')
+            self.save_button = ui.button('保存', on_click=lambda:self.save() if self._epoch == epoch else None).props('flat no-caps data-testid=native-profile-save')
             self.save_button.set_enabled(self.snapshot is not None)
-            ui.button('取消', on_click=lambda:self.cancel() if self._epoch == epoch else None).props('data-testid=native-profile-cancel')
+            ui.button('取消', on_click=lambda:self.cancel() if self._epoch == epoch else None).props('flat no-caps data-testid=native-profile-cancel')
         if self.migration_factory is not None:
             with ui.column().classes('w-full gap-3 mt-6'):
                 ui.label('停止履歴の引き継ぎ').classes('text-lg font-semibold')

@@ -145,12 +145,13 @@ class PreferencesView:
         if self.following_sync is not None:
             self.following_sync.deactivate()
         self.dialog.clear()
-        with self.dialog, ui.card().classes('w-full max-w-2xl').style('max-height:90vh;overflow:auto'):
+        with self.dialog, ui.card().classes('w-full max-w-2xl pv-preferences-card').style('max-height:90vh;overflow:auto'):
             with ui.row().classes('w-full items-center justify-between'):
                 ui.label('設定').classes('text-h6 pv-dialog-title')
-                ui.button('閉じる', on_click=self.close_dialog).props('data-testid=preferences-close-top')
+                ui.button('閉じる', icon='close', color=None, on_click=self.close_dialog).props('flat no-caps data-testid=preferences-close-top')
             if self.native_profile is not None:
-                self.native_profile.build()
+                with ui.column().classes('pv-preferences-group'):
+                    self.native_profile.build()
                 ui.separator()
             if self.following_sync is not None:
                 self.following_sync.build()
@@ -195,45 +196,46 @@ class PreferencesView:
                     self._tagger_timer=loop.create_task(self._watch_tagger_status(epoch))
                 ui.timer(0.1, lambda: self._verify_tagger(epoch), once=True)
             for group in dict.fromkeys(spec.group for spec in SPECS if spec.key != 'grid_card_size_mode' and spec.group != 'local_tagger_internal'):
-                ui.label(group).classes('text-subtitle1')
-                for spec in SPECS:
-                    if spec.group!=group or spec.key == 'grid_card_size_mode': continue
-                    key_labels=KEY_CHOICE_LABELS.get(spec.key,{})
-                    options={v:key_labels.get(v, CHOICE_LABELS.get(v, ('ON' if v=='1' else 'OFF') if spec.choices==('0','1') else v)) for v in spec.choices}
-                    value=self.snapshot.values[spec.key]
-                    if spec.key == 'pixiv_actions_enabled' and self.pixiv_actions_mode != 'preferences':
-                        value='1' if self.pixiv_actions_mode == 'enabled' else '0'
-                    control=ui.select(options,label=spec.label,value=value).classes('w-full').props(f'data-testid=preference-{spec.key}')
-                    control.props['data-value']=str(control.value)
-                    def acknowledge(event, control=control):
-                        control.props['data-value']=str(event.value)
-                        control.update()
-                    control.on_value_change(acknowledge)
-                    control.set_enabled(spec.key in self.enabled_keys)
-                    self.controls[spec.key]=control
-                    if spec.key in DESCRIPTIONS:
-                        ui.label(DESCRIPTIONS[spec.key]).classes('text-caption text-grey').props(
-                            f'data-testid=preference-description-{spec.key}')
-                    if spec.key == 'embed_auto_on_download' and self.similarity_status is not None:
-                        self.similarity_status_label=ui.label('').props('role=status data-testid=preferences-similarity-status')
-                        self.similarity_resume_button=ui.button('いま推論する', on_click=self._resume_similarity).props('flat data-testid=preferences-similarity-resume')
-                        self._refresh_similarity_status()
-                        self._similarity_timer=ui.timer(1.0, self._refresh_similarity_status)
-                    if spec.key == 'pixiv_actions_enabled':
-                        notice=('変更は次回の通常起動から適用されます。Cookieの参照先が必要です。'
-                                if spec.key in self.enabled_keys else self.reasons[spec.key])
-                        ui.label(notice).classes('text-caption text-grey').props('data-testid=preference-pixiv-actions-mode')
-                    elif spec.key == 'extension_bridge_enabled' and spec.key in self.enabled_keys:
-                        ui.label('変更は次回の起動から適用されます。実行中の受信は止めません。127.0.0.1（このPC内）だけで受け付けます。').classes(
-                            'text-caption text-grey').props('data-testid=preference-extension-bridge-note')
-                    elif spec.key == 'bookmark_download_mode' and spec.key in self.enabled_keys:
-                        ui.label('設定保存だけでは通信しません。通常起動では、マイブックマークの「再読込」が成功してから、そのアカウントの保存配置に適用します。').classes(
-                            'text-caption text-grey').props('data-testid=preference-bookmark-account-gate')
-                    elif spec.key not in self.enabled_keys:
-                        note=ui.label(self.reasons.get(spec.key,'この起動では適用先が接続されていません。')).classes('text-caption text-grey').props(
-                            f'data-testid=preference-unavailable-{spec.key}')
-                        if spec.key in CACHE_LIMIT_FIELDS.values():
-                            self._cache_limit_notes[spec.key]=note
+                with ui.column().classes('pv-preferences-group'):
+                    ui.label(group).classes('text-subtitle1')
+                    for spec in SPECS:
+                        if spec.group!=group or spec.key == 'grid_card_size_mode': continue
+                        key_labels=KEY_CHOICE_LABELS.get(spec.key,{})
+                        options={v:key_labels.get(v, CHOICE_LABELS.get(v, ('ON' if v=='1' else 'OFF') if spec.choices==('0','1') else v)) for v in spec.choices}
+                        value=self.snapshot.values[spec.key]
+                        if spec.key == 'pixiv_actions_enabled' and self.pixiv_actions_mode != 'preferences':
+                            value='1' if self.pixiv_actions_mode == 'enabled' else '0'
+                        control=ui.select(options,label=spec.label,value=value).classes('w-full').props(f'data-testid=preference-{spec.key}')
+                        control.props['data-value']=str(control.value)
+                        def acknowledge(event, control=control):
+                            control.props['data-value']=str(event.value)
+                            control.update()
+                        control.on_value_change(acknowledge)
+                        control.set_enabled(spec.key in self.enabled_keys)
+                        self.controls[spec.key]=control
+                        if spec.key in DESCRIPTIONS:
+                            ui.label(DESCRIPTIONS[spec.key]).classes('text-caption text-grey').props(
+                                f'data-testid=preference-description-{spec.key}')
+                        if spec.key == 'embed_auto_on_download' and self.similarity_status is not None:
+                            self.similarity_status_label=ui.label('').props('role=status data-testid=preferences-similarity-status')
+                            self.similarity_resume_button=ui.button('いま推論する', on_click=self._resume_similarity).props('flat data-testid=preferences-similarity-resume')
+                            self._refresh_similarity_status()
+                            self._similarity_timer=ui.timer(1.0, self._refresh_similarity_status)
+                        if spec.key == 'pixiv_actions_enabled':
+                            notice=('変更は次回の通常起動から適用されます。Cookieの参照先が必要です。'
+                                    if spec.key in self.enabled_keys else self.reasons[spec.key])
+                            ui.label(notice).classes('text-caption text-grey').props('data-testid=preference-pixiv-actions-mode')
+                        elif spec.key == 'extension_bridge_enabled' and spec.key in self.enabled_keys:
+                            ui.label('変更は次回の起動から適用されます。実行中の受信は止めません。127.0.0.1（このPC内）だけで受け付けます。').classes(
+                                'text-caption text-grey').props('data-testid=preference-extension-bridge-note')
+                        elif spec.key == 'bookmark_download_mode' and spec.key in self.enabled_keys:
+                            ui.label('設定保存だけでは通信しません。通常起動では、マイブックマークの「再読込」が成功してから、そのアカウントの保存配置に適用します。').classes(
+                                'text-caption text-grey').props('data-testid=preference-bookmark-account-gate')
+                        elif spec.key not in self.enabled_keys:
+                            note=ui.label(self.reasons.get(spec.key,'この起動では適用先が接続されていません。')).classes('text-caption text-grey').props(
+                                f'data-testid=preference-unavailable-{spec.key}')
+                            if spec.key in CACHE_LIMIT_FIELDS.values():
+                                self._cache_limit_notes[spec.key]=note
             self.controls['discovery_cache_limit_mode'].on_value_change(
                 lambda _: self._sync_cache_limit_visibility()
                 if self.opened and not self.closed and self._epoch == epoch else None)

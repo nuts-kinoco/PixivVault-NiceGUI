@@ -115,15 +115,15 @@ class BookmarkView:
                     if item.downloaded:
                         ui.label("DL済み").classes("pv-bookmark-badge").props(
                             "data-testid=bookmark-downloaded")
+                    checked = art.work_id in self.state.selected_ids
+                    choice = ui.checkbox(value=checked, on_change=lambda event,
+                        wid=art.work_id, token=self._session: self.select(wid, bool(event.value), token))
+                    choice.props("aria-label=選択 data-testid=bookmark-select").classes("pv-bookmark-select")
                 ui.label(art.title).classes("pv-card-title")
                 ui.label(art.author).classes("pv-card-author")
                 if art.bookmark_count is not None:
                     ui.label(f"★ {art.bookmark_count:,}").classes("pv-library-card-info").props(
                         "data-testid=bookmark-card-count")
-                checked = art.work_id in self.state.selected_ids
-                choice = ui.checkbox("選択", value=checked, on_change=lambda event,
-                    wid=art.work_id, token=self._session: self.select(wid, bool(event.value), token))
-                choice.props("data-testid=bookmark-select")
                 if self.on_similar is not None or self.on_author is not None:
                     with ui.context_menu().props('data-testid=bookmark-similar-context') as menu:
                         if self.on_author is not None:
@@ -177,6 +177,8 @@ class BookmarkView:
             "unloaded": "ブックマークを読み込んでいません",
             "no_match": "条件に合うブックマークがありません",
         }
+        if status == "fetch_failed" and self.state.items:
+            messages["fetch_failed"] = "取得に失敗しました。保存済みのブックマークを表示しています。再読込できます"
         self.message.set_text(messages.get(status, ""))
         self.message.set_visibility(status != "ready")
         self.retry.set_visibility(status != "loading")
