@@ -113,9 +113,11 @@ class RecommendationAcquisition:
             sections.setdefault('trend_added',())
             # The original list is known empty, even when no searches were made.
             unavailable.discard('trend_added')
+        acquisition_connected = self.source is not None
         state.update(sections=sections,unavailable=tuple(sorted(unavailable)),
             trends=trends,added_tags=tuple(env['added']),boosted=tuple(registry.items()),
-            errors=dict(self.errors),can_acquire=self.source is not None and state['writable'])
+            errors=dict(self.errors),acquisition_connected=acquisition_connected,
+            can_acquire=acquisition_connected and state['writable'])
         return state
 
     def begin(self,revision,*,require_source=True):

@@ -333,12 +333,13 @@ def test_personal_ranking_hides_the_shared_log():
 
 
 @pytest.mark.asyncio
-async def test_recommend_missing_saved_section_does_not_claim_connection_is_missing(tmp_path, monkeypatch):
+@pytest.mark.parametrize('writable', (False, True), ids=('read-only', 'writable'))
+async def test_recommend_missing_saved_section_does_not_claim_connection_is_missing(tmp_path, monkeypatch, writable):
     from pixivvault_nicegui.recommendation_state import RecommendationSnapshot
     from test_x_ctx_recommend_20261118 import make, open_view as open_recommend
 
     monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
-    services = make(tmp_path)
+    services = make(tmp_path, writable=writable)
     services.recommendations.source.load = lambda: RecommendationSnapshot(unavailable=('certain',))
     services.recommendations.acquisition.source = object()
     client = Client(ui.page('/_r3_recommend_cache'))
@@ -346,15 +347,14 @@ async def test_recommend_missing_saved_section_does_not_claim_connection_is_miss
         with client:
             view = await open_recommend(services)
             texts = {getattr(element, 'text', '') or '' for element in view.body.descendants()}
-            assert view.update_button.enabled
+            assert view.update_button.enabled is writable
             assert '未接続' not in view.notice.text
             assert '取得元を接続' not in ''.join(texts)
             assert any('保存済み結果がありません' in text for text in texts)
             services.recommendations.acquisition.source = None
             await view.refresh()
             assert not view.update_button.enabled
-            assert any('取得元が未接続' in getattr(element, 'text', '')
-                       for element in view.body.descendants())
+            assert '更新用の取得元が未接続' in view.notice.text
             view.close()
     finally:
         client.delete()

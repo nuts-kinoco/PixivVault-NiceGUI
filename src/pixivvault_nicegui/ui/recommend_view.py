@@ -132,10 +132,13 @@ class RecommendView:
             if self.active and self.epoch==epoch:
                 self.data=data;self.render(preserve_viewer=preserve_viewer)
                 unavailable=data.get('unavailable', ())
-                self.notice.set_text(
-                    '保存結果を確認できない項目があります：'
-                    + '・'.join(LABELS.get(k,k) for k in unavailable) if unavailable
-                    else '保存済み結果を読み込みました。')
+                if unavailable:
+                    message = '保存結果を確認できない項目があります：' + '・'.join(LABELS.get(k,k) for k in unavailable)
+                    if data.get('acquisition_connected') is False:
+                        message = '更新用の取得元が未接続です。' + message
+                else:
+                    message = '保存済み結果を読み込みました。'
+                self.notice.set_text(message)
         except Exception:
             if self.active and self.epoch==epoch:self.notice.set_text('保存済み結果を確認できません。前の一覧を保持しました。')
         finally:
