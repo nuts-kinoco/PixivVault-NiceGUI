@@ -109,6 +109,8 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family:var(
 .pv-grid .pv-thumb { flex:1 1 0; min-height:0; height:0; aspect-ratio:auto; border-bottom:0; border-radius:12px; }
 .pv-grid .pv-card-meta { flex:0 0 auto; min-width:0; padding:0; display:flex; flex-direction:column; gap:3px; }
 .pv-grid .pv-card-title { font-size:11px; font-weight:400; line-height:1.2; white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+.pv-bookmarks .pv-grid .pv-card-title,
+[data-testid=recommend-view] .pv-grid .pv-card-title { display:block; white-space:nowrap; text-overflow:ellipsis; }
 .pv-grid .pv-card-author { font-size:10px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pv-candidates-box { flex:1 1 0; min-width:0; overflow-x:auto; }
 .pv-grid .pv-card-head { flex:0 0 auto; }
@@ -274,6 +276,8 @@ body.body--light .pv-queue-log-info { color:#23578a; }
 .pv-job-state { min-width:66px; font-size:12px; }
 .pv-job-actions { gap:4px; flex-wrap:nowrap; }
 .pv-job-actions .q-btn { min-width:40px; font-size:11px; }
+[data-testid=queue-view] .pv-jobs-scroll { min-height:112px; }
+[data-testid=queue-view] .pv-empty { padding:12px 14px; text-align:left; }
 .pv-queue-view .pv-job-row { height:36px; min-height:36px; padding:3px 14px; gap:8px; border-left:0; flex:0 0 36px; box-sizing:border-box; overflow:hidden; }
 .pv-queue-view .pv-job-row .q-checkbox { width:24px; height:24px; min-height:24px; padding:0; flex:0 0 24px; }
 .pv-queue-view .pv-job-row .q-checkbox__inner { width:24px; min-width:24px; height:24px; }

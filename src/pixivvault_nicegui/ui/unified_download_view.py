@@ -37,14 +37,14 @@ NEED_TARGET = "左の一覧で作者を選ぶと押せます"
 _AUTHOR_ID = re.compile(r"[1-9][0-9]{0,19}\Z")
 
 CSS = """
-.pv-ud { width:1246px; max-width:100%; margin:0 auto; flex:1 1 0; min-height:0; display:flex; flex-direction:column; gap:8px; box-sizing:border-box; padding:0; }
+.pv-ud { width:1246px; max-width:100%; margin:0 auto; flex:1 1 0; min-height:0; display:flex; flex-direction:column; gap:8px; box-sizing:border-box; padding:0; overflow:auto; }
 .pv-ud * { box-sizing:border-box; }
 .pv-ud-header { flex:0 0 46px; height:46px; padding:0 4px; display:flex; flex-direction:row; align-items:center; gap:12px; flex-wrap:nowrap; }
 .pv-ud-title { font-size:19px; color:var(--pv-text); line-height:27px; }
 .pv-ud-sub { font-size:11px; color:var(--pv-muted); }
-.pv-ud-body { flex:1 1 0; min-height:120px; display:flex; flex-direction:row; gap:10px; width:100%; }
-.pv-ud-left { flex:0 0 776px; width:776px; min-width:0; min-height:0; display:flex; flex-direction:column; gap:10px; padding:16px; background:var(--pv-surface); border:1px solid var(--pv-border); border-radius:12px; }
-.pv-ud-right { flex:0 0 460px; width:460px; min-width:0; min-height:0; display:flex; flex-direction:column; gap:12px; }
+.pv-ud-body { flex:1 1 0; min-height:288px; display:flex; flex-direction:row; gap:10px; width:100%; }
+.pv-ud-left { flex:0 1 776px; min-width:0; min-height:0; display:flex; flex-direction:column; gap:10px; padding:16px; background:var(--pv-surface); border:1px solid var(--pv-border); border-radius:12px; }
+.pv-ud-right { flex:0 1 460px; min-width:0; min-height:0; display:flex; flex-direction:column; gap:12px; }
 .pv-ud-pane { flex:1 1 0; min-height:0; display:flex; flex-direction:column; gap:8px; }
 .pv-ud-moderow { display:flex; flex-direction:row; gap:4px; flex:0 0 42px; height:42px; }
 .pv-ud-mode { flex:1 1 0; height:42px; border:0; border-radius:8px; background:var(--pv-raised); color:var(--pv-text); font:inherit; font-size:14px; font-weight:500; cursor:pointer; }
@@ -134,7 +134,6 @@ CSS = """
 .pv-ud-bmrow { display:flex; flex-direction:row; gap:4px; }
 .pv-ud-bmrow .pv-ud-mode { height:36px; flex:1 1 0; }
 .pv-ud-hr { height:1px; background:var(--pv-border); flex:0 0 1px; }
-.pv-ud-body { position:relative; min-height:120px; }
 .pv-ud-band-top { display:flex; flex-direction:row; align-items:center; gap:8px; min-height:19px; }
 .pv-ud-band-status { font-size:13px; font-weight:700; color:var(--pv-text); line-height:19px; flex:1 1 auto; }
 .pv-ud-bar { height:6px; flex:0 0 6px; border-radius:3px; background:var(--pv-raised); overflow:hidden; }
@@ -294,9 +293,19 @@ class UnifiedDownloadView:
             with ui.element("div").classes("pv-ud-body").props("data-testid=unified-body"):
                 self._build_left()
                 self._build_right()
-                ui.element("q-resize-observer").props("debounce=200").on(
-                    "resize", lambda e: self.on_body_size((e.args or {}).get("height")))
             self._build_band()
+            # The body can scroll below the viewport. Measure the available
+            # space so opening and closing the progress summary keeps its threshold.
+            ui.element("q-resize-observer").props("debounce=200").on(
+                "resize", lambda e: self.on_body_size(e.args),
+                js_handler=f"""() => {{
+                    const root = document.getElementById('{self.root.html_id}');
+                    if (!root) return;
+                    const header = root.querySelector('.pv-ud-header');
+                    const band = root.querySelector('.pv-ud-band');
+                    const gaps = 2 * parseFloat(getComputedStyle(root).rowGap);
+                    emit(Math.max(1, root.clientHeight - header.offsetHeight - band.offsetHeight - gaps));
+                }}""")
         self._build_details_dialog()
 
     def _build_left(self):
@@ -1509,7 +1518,7 @@ class UnifiedDownloadView:
 
     # ---- the band: open / close, the record boxes ---------------------------------------------
     def on_body_size(self, height):
-        """左右カラムの実測の高さ（q-resize-observer）。小さくなりすぎたら詳細を自動で閉じる。"""
+        """Use the visible space for the columns when deciding whether to close the band."""
         try:
             height = float(height)
         except (TypeError, ValueError):
@@ -1533,8 +1542,11 @@ class UnifiedDownloadView:
         return True
 
     def _set_band_open(self, value):
+        old_height = self.band_height
         self.band_open = bool(value)
         self.band_height = BAND_OPEN_H if self.band_open else BAND_CLOSED_H
+        if self.body_h:
+            self.body_h += old_height - self.band_height
         self.band.props["data-open"] = "true" if self.band_open else "false"
         self.band.style(replace=f"height:{self.band_height}px;flex-basis:{self.band_height}px")
         self.sumband.set_visibility(self.band_open)
