@@ -29,7 +29,6 @@ class _RankingGallery(GalleryView):
     def _after_viewer_hide(self,art,hidden):
         owner=getattr(self,'owner',None)
         if owner is None:return super()._after_viewer_hide(art,hidden)
-        self.close_viewer(restore_focus=False)
         owner.adopt_hidden(art.work_id,art.title,hidden)
     def render_gallery(self):
         super().render_gallery()
@@ -40,8 +39,15 @@ class _RankingGallery(GalleryView):
     def close_viewer(self, *, restore_focus=True):
         owner=getattr(self,'owner',None)
         if owner is not None:owner._open_generation+=1
-        return super().close_viewer(restore_focus=restore_focus)
+        super().close_viewer(restore_focus=restore_focus)
+        if self._viewer_state is not self.state:
+            self._viewer_state.close()
+            self._viewer_state = self.state
+    def search(self,value=None):
+        if self._viewer_state is not self.state:self.close_viewer(restore_focus=False)
+        super().search(value)
     def open(self,work_id,page_no=0):
+        if self._viewer_state is not self.state:self.close_viewer(restore_focus=False)
         self.owner._open_generation+=1
         request=self.owner._open_generation
         if not self.services.images.can_open(work_id):
@@ -335,14 +341,19 @@ class RankingView(RankingCardMenus):
         if self.closed or self.page is None:return
         if not self._result_matches_conditions():
             self._sync_result_controls();return
-        self.gallery.close_viewer(restore_focus=False)
+        viewer_state=self.gallery._viewer_state
+        hidden=self.hidden_work_ids()
+        keep_viewer=viewer_state.viewer_open and viewer_state.selected_id in hidden
+        if not keep_viewer:self.gallery.close_viewer(restore_focus=False)
         old=self.gallery.state
         items=self.page.items if self.page.query.tag else sorted_items(self.page.items,self.sort.value)
-        hidden=self.hidden_work_ids()
         if hidden:items=tuple(i for i in items if i.record.work_id not in hidden)
         state=GalleryState(tuple(i.record.as_artwork() for i in items),page_size=max(50,len(items)))
-        state.set_card_size(old.card_size);state.set_query(old.query);state.generation=old.generation+1;old.close()
-        self.gallery.state=self.gallery._viewer_state=state
+        state.set_card_size(old.card_size);state.set_query(old.query);state.generation=old.generation+1
+        # The hidden work leaves the ranking while its open viewer retains the selection.
+        if not keep_viewer or old is not viewer_state:old.close()
+        self.gallery.state=state
+        if not keep_viewer:self.gallery._viewer_state=state
         self.gallery.empty.set_text('取得した条件に該当する作品がありません。')
         self.gallery.render_gallery()
         for work_id,image in self.gallery.images.items():image.set_source(self.proxy.images.url(work_id,0,'thumb'))

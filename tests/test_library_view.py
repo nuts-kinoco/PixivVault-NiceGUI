@@ -324,3 +324,51 @@ async def test_legacy_capacity_update_reuses_cards_until_order_changes(library):
     assert next(iter(view.author_cards)) == first_id
     assert view.author_cards[first_id] is not ordered[first_id]
     assert view.author_capacity_labels[first_id].text == "2.0 KiB"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('with_archive', [False, True])
+async def test_author_context_opens_pinned_saved_image(tmp_path, monkeypatch, with_archive):
+    import asyncio
+    from nicegui import core
+    from pixivvault_nicegui.desktop_integration import DesktopIntegration
+    from pixivvault_nicegui.library_models import LibraryWork
+    from pixivvault_nicegui.local_media_adapter import ReadonlyLocalMediaCatalog
+    from pixivvault_nicegui.models import Artwork
+    from test_ac_library_cover_20261119 import png
+    from test_x_ctx_ranking_20261118 import click
+
+    monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
+    root = tmp_path / 'images'
+    folder = root / 'Author(42)'
+    folder.mkdir(parents=True)
+    target = folder / 'Title(101).png'
+    target.write_bytes(png('red'))
+    if with_archive:
+        from zipfile import ZipFile
+        target = root / 'Author(42).zip'
+        with ZipFile(target, 'w') as archive:
+            archive.writestr('Title(101).png', png('blue'))
+    opened = []
+    desktop = DesktopIntegration(allowed_roots=(root,),
+                                 launcher=SimpleNamespace(open_default=opened.append))
+    services = ApplicationServices(1, desktop=desktop)
+    services.library = LibrarySnapshot((LibraryWork(Artwork('101', 'Title', 'Author', author_id='42'), '42'),))
+    services.library_image_root = root
+    services.images.publish(ReadonlyLocalMediaCatalog(root, services.library), None)
+    client = Client(ui.page('/_ctx_library_author_saved_location'))
+    try:
+        with client:
+            view = LibraryView(services)
+            card = view.author_cards['42']
+            action = next(node for node in card.descendants()
+                          if node.props.get('data-testid') == 'library-author-open-saved')
+            assert action.text == '保存先を開く' and action.props['icon'] == 'folder_open'
+            await click(action)
+            assert opened == [target]
+            view.set_active(False)
+            await click(action)
+            assert opened == [target]
+    finally:
+        client.delete()
+        services.close()

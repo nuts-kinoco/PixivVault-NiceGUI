@@ -130,17 +130,17 @@ class ArtworkViewer:
     def _build_context_menu(self, with_hide: bool) -> None:
         """元 artbook_viewer.py:849-870 の右クリック 4 項目。"""
         entries = [
-            MenuEntry('pixiv', 'pixivで作品ページを開く', 'open_in_new', href='', enabled=False,
+            MenuEntry('pixiv', 'pixivで作品ページを開く', href='', enabled=False,
                       testid='viewer-context-pixiv'),
-            MenuEntry('author', '作者ページを開く', 'person_outline', href='', enabled=False,
+            MenuEntry('author', '作者ページを開く', href='', enabled=False,
                       testid='viewer-context-author'),
         ]
         if with_hide:
-            entries.append(MenuEntry('hide', '出さない', 'visibility_off',
-                                     lambda: self.on_hide() if self.on_hide else None, enabled=False,
+            entries.append(MenuEntry('hide', '出さない',
+                                     on_click=lambda: self.on_hide() if self.on_hide else None, enabled=False,
                                      testid='viewer-context-hide'))
-        entries.append(MenuEntry('folder', '保存フォルダを開く', 'folder_open',
-                                 lambda: self.on_folder() if self.on_folder else None, enabled=False,
+        entries.append(MenuEntry('folder', '保存フォルダを開く',
+                                 on_click=lambda: self.on_folder() if self.on_folder else None, enabled=False,
                                  testid='viewer-context-folder'))
         self.context_menu, self.context_items = build_context_menu(entries, testid='viewer-context-menu')
         open_from_keyboard(self.root, self.context_menu)

@@ -35,6 +35,10 @@ class _Services:
 
 
 class _Gallery(GalleryView):
+    def _card_menu(self, art, card):
+        if self.owner.build_card_menu is not None:
+            self.owner.build_card_menu(art, card, self.owner)
+
     def _make_card(self, art):
         if art.work_id not in self.owner.missing_previews:
             return super()._make_card(art)
@@ -68,8 +72,9 @@ class _Gallery(GalleryView):
 
 
 class AuthorBrowseView:
-    def __init__(self, services, reader, *, card_size='large'):
+    def __init__(self, services, reader, *, card_size='large', build_card_menu=None):
         self.services, self.reader = services, reader
+        self.build_card_menu = build_card_menu
         self.proxy = _Services(services)
         self.epoch = 0
         self.open_request = 0

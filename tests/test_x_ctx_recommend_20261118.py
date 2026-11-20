@@ -225,3 +225,43 @@ async def test_items_without_their_prerequisites_are_disabled_and_keyboard_opens
     finally:
         client.delete()
         services.close()
+
+@pytest.mark.asyncio
+async def test_author_overlay_menu_has_eleven_items_and_uses_the_overlay_card(tmp_path, monkeypatch):
+    from test_p3_viewer_author import Images, Reader
+
+    monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
+    services = make(tmp_path)
+    services.live_client = Reader()
+    services.live_client.close = lambda: None
+    monkeypatch.setattr(services, 'acquire_ranking_images', lambda records: Images())
+    queued, tags = [], []
+
+    async def enqueue(work_id, operation, *, is_current=None):
+        assert is_current()
+        queued.append(work_id)
+        return object()
+
+    client = Client(ui.page('/_ctx_recommend_author_overlay'))
+    try:
+        with client:
+            view = await open_view(services, on_enqueue=enqueue, on_search_tag=tags.append)
+            await click(item(view, 'certain', '12', '作者の作品一覧へ飛ぶ'))
+            overlay = view._author_browser
+            card = overlay.gallery.cards['101']
+            menu = next(node for node in card.descendants() if isinstance(node, ui.context_menu))
+            entries = [node for node in menu.descendants() if isinstance(node, ui.menu_item)]
+            assert [label_of(node) for node in entries] == [label for label in FULL if label != '取り下げる']
+            by_label = {label_of(node): node for node in entries}
+            await click(by_label['ダウンロードキューへ積む'])
+            await click(by_label['このタグで検索'])
+            await click(by_label['出さない（理由をつける）'])
+            assert view.hide_dialog.value and view._pending_hide[0] == '101'
+            assert queued == ['101'] and tags == ['blue']
+            overlay.hide()
+            await click(by_label['ダウンロードキューへ積む'])
+            assert queued == ['101']
+            view.close()
+    finally:
+        client.delete()
+        services.close()
