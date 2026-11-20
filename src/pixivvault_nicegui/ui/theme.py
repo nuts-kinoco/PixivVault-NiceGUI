@@ -353,4 +353,7 @@ CSS += """
 .pv-period-chips .q-btn[aria-pressed=true] { background:rgba(33,150,243,.12) !important; }
 .pv-filter-switch { font-size:11px; color:var(--pv-muted); }
 .pv-filter-switch .q-toggle__inner { font-size:32px; }
+@layer quasar_importants {
+  .pv-period-chips .q-btn[aria-pressed=true] { background:rgba(33,150,243,.12) !important; color:var(--pv-text) !important; }
+}
 """
