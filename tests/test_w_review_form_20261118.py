@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 from nicegui import Client, ui
+from account_test_support import observed_scope
 from pixivvault_nicegui import managed_generations as mg
 from pixivvault_nicegui.favourites import FavouriteBook
 from pixivvault_nicegui.following_sync import FollowingSyncStore, FollowingSyncError
@@ -37,7 +38,7 @@ def create_stars(tmp_path):
 async def test_nonfollowed_manual_star_is_not_silently_discarded(tmp_path):
     following, ledger, book = create_stars(tmp_path)
     book.set('1000', True, account_id=ACCOUNT)
-    services = SimpleNamespace(managed_scheduler=ledger,
+    services = SimpleNamespace(managed_scheduler=ledger, live_client=observed_scope(ACCOUNT).reader,
                                managed_schedule_runner=SimpleNamespace(settings_changed=lambda: None))
     client = Client(ui.page('/sol-form-unknown-id'))
     try:

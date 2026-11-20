@@ -427,7 +427,8 @@ def test_r2_2_a_deferral_for_a_star_is_kept_while_the_ledger_cannot_be_read(worl
 def make_view(ledger, name):
     from nicegui import Client, ui
     from pixivvault_nicegui.ui.scheduler_view import SchedulerView
-    services = NS(managed_scheduler=ledger, managed_schedule_runner=NS(settings_changed=lambda: None))
+    services = NS(managed_scheduler=ledger, live_client=observed_scope(ACCOUNT).reader,
+                  managed_schedule_runner=NS(settings_changed=lambda: None))
     client = Client(ui.page('/' + name))
     with client:
         view = SchedulerView(services)

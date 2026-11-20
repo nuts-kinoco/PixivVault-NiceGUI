@@ -157,11 +157,15 @@ async def test_settings_form_never_adopts_another_accounts_commit(tmp_path, acti
             revision = view.revision
             await (view.save() if action == 'stop' else view.acknowledge())
             assert '\u518d\u8aad\u8fbc' in view.action_notice.text
-            assert view.authors.value == Y and view.revision == revision
+            assert not view.authors.visible and not view.authors.value
+            assert not view.history_label.visible and view.revision == revision
             assert (schedule.snapshot(), store.snapshot(A), store.snapshot(B)) == current
+            store.sync(Reader(A))
+            svc.live_client = Reader(A)
+            view._load(schedule)
+            assert view.authors.visible and view.authors.value == Y
+            assert view.revision == revision
             if action == 'acknowledge':
-                store.sync(Reader(A))
-                svc.live_client = Reader(A)
                 await view.acknowledge()
                 assert view.authors.value == Y
                 assert view.revision == schedule.snapshot().revision > revision

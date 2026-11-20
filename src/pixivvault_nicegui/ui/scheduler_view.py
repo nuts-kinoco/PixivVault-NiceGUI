@@ -173,7 +173,7 @@ class SchedulerView:
         self.authors.set_visibility(False)
         self._loaded_authors = ''
         self._stars_unknown_in_form = True
-        self.star_notice.set_text('同期先を確認して、定期チェック画面を再読込してください。')
+        self.star_notice.set_text('☆の一覧を読み込めません。同期先を確認して、定期チェック画面を再読込してください。')
         self.account_label.set_text('紐づけアカウントを確認できません')
         self.status.set_text('定期状態: 紐づけアカウントを確認できません')
         self.ack_button.set_enabled(False)
@@ -203,9 +203,9 @@ class SchedulerView:
         if bound != scope.account_id:
             self._hide_history()
             self.ack_button.set_enabled(False)
-        if self._stars_unknown_in_form:
+        if self._stars_unknown_in_form or (bound is not None and bound != scope.account_id):
             self.account_label.set_text('紐づけアカウントを確認できません')
-        elif bound != scope.account_id:
+        elif bound is None:
             self.account_label.set_text(f'対象アカウント ID {scope.account_id}（未紐づけ）')
         else:
             self.account_label.set_text(f'紐づけアカウント ID {scope.account_id}')
@@ -256,9 +256,13 @@ class SchedulerView:
             self.services.managed_schedule_runner.settings_changed()
             self._load(ledger)
         except (ScheduleAccountError, AccountMismatch):
-            self.action_notice.set_text('同期先を確認して、定期チェック画面を再読込してください。')
+            if not self.closed:
+                self._show_account(ledger)
+                self.action_notice.set_text('同期先を確認して、定期チェック画面を再読込してください。')
         except Exception:
-            self.status.set_text('未完了ジョブまたは設定更新があり中断状態を解除できません。キューを確認してください')
+            if not self.closed:
+                self._show_account(ledger)
+                self.status.set_text('未完了ジョブまたは設定更新があり中断状態を解除できません。キューを確認してください')
         finally:
             self._busy = False
 
@@ -465,6 +469,8 @@ class SchedulerView:
             if not self.closed:
                 self._show_account(ledger)
             notice = '同期先アカウントが変わりました。「編集を破棄して再読込」してから保存してください'
+            if account_id is None and form[0].strip():
+                notice = '☆の一覧を読めないため入力したIDは保存できません。復旧後に再読込してください'
             self.action_notice.set_text(('停止を保存しました。' if stop_saved else '') + notice)
         except Exception:
             notice = '設定を保存できませんでした。別画面の更新や入力を確認してください'
