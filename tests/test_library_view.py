@@ -1,5 +1,6 @@
 """合成ライブラリのイベント結線。実画面の受入は別のbrowser/native検証で行う。"""
 
+import asyncio
 from types import SimpleNamespace
 
 from nicegui import Client, ui
@@ -83,6 +84,23 @@ async def test_search_does_not_reset_closed_viewer_but_invalidates_open_request(
     assert not view.dialog.is_open
     assert view.viewer_image.props['src'] == ''
     assert not view.page_cards
+
+
+async def test_search_reuses_restored_capacities_and_coalesces_followup(library, monkeypatch):
+    view, services, client = library
+    monkeypatch.setattr(services, 'legacy_capacity', object())
+    view._legacy_restore_needed = False
+    calls = []
+    monkeypatch.setattr(view, '_schedule_legacy_capacity_restore',
+                        lambda: calls.append((view.state.query, view._legacy_restore_needed)))
+    with client:
+        view.search('0003')
+        view.search('0004')
+    assert not calls
+    async with asyncio.timeout(2):
+        while not calls:
+            await asyncio.sleep(.01)
+    assert calls == [('0004', False)]
 
 
 @pytest.mark.asyncio

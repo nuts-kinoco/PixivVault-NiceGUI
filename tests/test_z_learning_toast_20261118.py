@@ -174,7 +174,7 @@ def test_heavy_notice_is_not_replaced_by_light_and_survives_hide_and_timer():
         client.delete()
 
 
-def test_reason_band_blocks_undo_band_until_replaced_or_hidden():
+async def test_reason_band_blocks_undo_band_until_replaced_or_hidden():
     client, toast, clock = make_toast()
     try:
         assert toast.show_reason(lambda reason: None)

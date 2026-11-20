@@ -896,17 +896,26 @@ class LearningView:
             return False
         self._failed_command = None
         self._notice = ""
-        self.status.set_text("取消を保存しています…" if command.undo else "判定を保存しています…")
-        self._update_buttons()
         self._save_task = background_tasks.create(self._persist(command, pending), name="learning save")
         return True
 
     async def _persist(self, command: SaveCommand, pending: Future) -> None:
+        def show_saving() -> None:
+            if pending.done() or self.state.closed or self.services.closing:
+                return
+            with self.client:
+                self.status.set_text("取消を保存しています…" if command.undo else "判定を保存しています…")
+                self._update_buttons()
+
+        saving_notice = asyncio.get_running_loop().call_later(0.09, show_saving)
         try:
             # Cancelling a UI waiter must not cancel an accepted executor job.
             wrapped = asyncio.wrap_future(pending)
             wrapped.add_done_callback(lambda done: None if done.cancelled() else done.exception())
-            await asyncio.shield(wrapped)
+            try:
+                await asyncio.shield(wrapped)
+            finally:
+                saving_notice.cancel()
         except Exception as exc:
             self._save_failed(command, exc)
         else:

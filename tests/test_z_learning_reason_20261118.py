@@ -63,7 +63,8 @@ async def judge(view, choice, operation):
 
 
 def chip(view, testid):
-    found = [e for e in view.toast.band.descendants() if getattr(e, 'props', {}).get('data-testid') == testid]
+    found = [e for row in view.toast.band.default_slot.children if row.visible
+             for e in row.descendants() if e.props.get('data-testid') == testid]
     return found[0] if found else None
 
 

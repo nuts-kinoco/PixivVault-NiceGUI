@@ -6,19 +6,20 @@
 """
 from __future__ import annotations
 
+import asyncio
 import time
 
 from nicegui import ui
 
 UNDO_SECONDS = 4.0     # original discovery_tab.py:1540 _TOAST_SECONDS_UNDO (the original is correct)
 REASON_SECONDS = 6.0   # 元 discovery_tab.py:1539 _TOAST_SECONDS_REASON
-TICK_SECONDS = 0.25    # 元 discovery_tab.py:1537 _TOAST_TICK
 
 _BAND_STYLE = ("position:absolute;right:16px;bottom:12px;z-index:20;width:320px;max-width:calc(100% - 32px);"
                "background:var(--pv-overlay);border:1px solid var(--pv-border);border-radius:12px;"
                "padding:10px 14px;box-sizing:border-box;display:flex;flex-direction:column;gap:6px;")
 _CHIP_STYLE = ("background:var(--pv-raised) !important;border:1px solid var(--pv-border);border-radius:999px;"
                "color:var(--pv-text) !important;font-size:11.5px;min-height:0;padding:2px 12px;")
+_ROW_STYLE = 'display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;'
 
 
 class LearningToast:
@@ -29,17 +30,28 @@ class LearningToast:
         self.heavy_key: str | None = None
         self.reason_active = False
         self.undo_button = None
+        self._undo_action = None
         self._deadline: float | None = None
-        self._timeout = 0.0
+        self._expiry = None
+        self._meter_variant = False
+        # Alternate identical keyframes to restart even for consecutive toasts
+        # with the same duration, without replacing the progress element.
+        ui.add_css("""
+            @keyframes pv-learning-meter-a { from {transform:scaleX(1)} to {transform:scaleX(0)} }
+            @keyframes pv-learning-meter-b { from {transform:scaleX(1)} to {transform:scaleX(0)} }
+            [data-testid=learning-toast-meter] .q-linear-progress__model {
+                animation: var(--pv-meter-animation, none) var(--pv-meter-duration, 0s) linear forwards;
+            }
+        """)
         self.band = ui.element('div').style(_BAND_STYLE).props(
             'role=status aria-live=polite data-testid=learning-toast')
         with self.band:
-            self.row = ui.element('div').style(
-                'display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;')
+            self.row = ui.element('div').style(_ROW_STYLE)
+            self._undo_row = ui.element('div').style(_ROW_STYLE)
             self.meter = ui.linear_progress(value=1.0, show_value=False, size='2px').props(
                 'rounded data-testid=learning-toast-meter')
         self.band.set_visibility(False)
-        self._timer = ui.timer(TICK_SECONDS, self.tick, active=False)
+        self._undo_row.set_visibility(False)
 
     # ---- 出し入れ -------------------------------------------------------
     def _chip(self, label: str, *, testid: str, on_click=None, js_handler=None):
@@ -60,26 +72,40 @@ class LearningToast:
         self.kind = kind
         self.reason_active = False
         self.row.clear()
-        with self.row:
-            build()
-        self.meter.set_value(1.0)
+        self.row.set_visibility(kind != 'undo')
+        self._undo_row.set_visibility(kind == 'undo')
+        if build is not None:
+            with self.row:
+                build()
         self.meter.set_visibility(bool(timeout))
+        if timeout:
+            self._meter_variant = not self._meter_variant
+            suffix = 'a' if self._meter_variant else 'b'
+            self.meter.style(f'--pv-meter-animation:pv-learning-meter-{suffix};--pv-meter-duration:{timeout}s')
         self.band.set_visibility(True)
-        self._timeout = float(timeout)
+        self._cancel_expiry()
         self._deadline = self._clock() + timeout if timeout else None
-        self._timer.active = bool(timeout)
+        if timeout:
+            self._expiry = asyncio.get_running_loop().call_later(timeout, self._expire)
         return True
 
     def show_undo(self, undo_js, on_undo, props: str) -> bool:
         """判定直後の「判定しました／取り消す」。理由2択が生きている間は出さない。"""
-        if self.reason_active:
+        if self.reason_active or self.heavy:
             return False
 
-        def build():
-            ui.label('判定しました').classes('pv-subtitle').style('font-size:11.5px;')
-            self.undo_button = self._chip('取り消す', testid='learning-toast-undo', on_click=on_undo, js_handler=undo_js)
-            self.undo_button.props(props)
-        return self._show(build, timeout=UNDO_SECONDS, kind='undo')
+        if self.undo_button is None:
+            with self._undo_row:
+                ui.label('判定しました').classes('pv-subtitle').style('font-size:11.5px;')
+                self.undo_button = self._chip('取り消す', testid='learning-toast-undo',
+                                             on_click=self._undo_clicked, js_handler=undo_js)
+        self._undo_action = on_undo
+        self.undo_button.props(props)
+        return self._show(None, timeout=UNDO_SECONDS, kind='undo')
+
+    def _undo_clicked(self, event) -> None:
+        if self.kind == 'undo':
+            self._undo_action(event)
 
     def set_undo_props(self, props: str) -> None:
         if self.kind == 'undo' and self.undo_button is not None:
@@ -124,10 +150,11 @@ class LearningToast:
         self.heavy_key = None
         self.reason_active = False
         self.kind = None
-        self.undo_button = None
+        self._undo_action = None
         self._deadline = None
-        self._timer.active = False
+        self._cancel_expiry()
         self.row.clear()
+        self._undo_row.set_visibility(False)
         self.band.set_visibility(False)
         return True
 
@@ -137,16 +164,19 @@ class LearningToast:
             self.hide(force=True)
 
     def tick(self) -> None:
-        if self._deadline is None:
-            return
-        remaining = self._deadline - self._clock()
-        if remaining <= 0:
-            self.hide()
-            return
-        value = max(0.0, remaining / self._timeout)
-        if abs(self.meter.value - value) >= 0.01:
-            self.meter.set_value(value)
+        if self._deadline is not None and self._clock() >= self._deadline:
+            with self.band.client:
+                self.hide()
+
+    def _expire(self) -> None:
+        self._expiry = None
+        self.tick()
+
+    def _cancel_expiry(self) -> None:
+        if self._expiry is not None:
+            self._expiry.cancel()
+            self._expiry = None
 
     def close(self) -> None:
         self._deadline = None
-        self._timer.active = False
+        self._cancel_expiry()

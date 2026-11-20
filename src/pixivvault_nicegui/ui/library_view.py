@@ -121,6 +121,7 @@ class LibraryView(ViewerController):
         self._legacy_cached_ids = set()
         self._legacy_auto_attempted = set()
         self._legacy_auto_task = None
+        self._search_capacity_delay = None
         self._managed_capacities = {}
         self._bookmark_refreshing = False
         self._bookmark_projection_pending = False
@@ -426,9 +427,13 @@ class LibraryView(ViewerController):
                     and self.active and self.subview == 'downloaded'
                     and self.state.selected_author_id is not None)
 
-    def _invalidate_capacity(self, *, clear_values=False):
+    def _invalidate_capacity(self, *, clear_values=False, restore_cache=True):
         self._capacity_epoch += 1
-        self._legacy_restore_needed = True
+        if restore_cache:
+            self._legacy_restore_needed = True
+        if self._search_capacity_delay is not None:
+            self._search_capacity_delay.cancel()
+            self._search_capacity_delay = None
         self.capacity_status.set_text('')
         self.legacy_capacity_status.set_text('')
         self.legacy_auto_capacity_status.set_text('')
@@ -468,7 +473,7 @@ class LibraryView(ViewerController):
         measurement worker retains the same lifetime and cancellation guards.
         """
         state=self.state
-        if getattr(self.services,'closing',False):return
+        if self._search_capacity_delay is not None or getattr(self.services,'closing',False):return
         if not self._legacy_restore_needed:
             self._schedule_unmeasured_capacity()
             return
@@ -515,6 +520,7 @@ class LibraryView(ViewerController):
         if (service is None or self.closed or getattr(self.services,'closing',False)
                 or not self.active or self.subview!='downloaded'
                 or self.load_error or state.selected_author_id is not None
+                or self._search_capacity_delay is not None
                 or self._legacy_restore_needed or self._legacy_auto_task is not None
                 or self._legacy_capacity_busy or self._capacity_busy):return
         targets=tuple(a.author_id for a in state.visible_authors
@@ -1285,7 +1291,9 @@ class LibraryView(ViewerController):
         if self.state.set_query(value or ""):
             if self.search_scope == 'pixiv':
                 self._schedule_pixiv_search()
-            self._invalidate_capacity()
+            # A query changes visible targets, but leaves already restored
+            # capacity values in the same library snapshot.
+            self._invalidate_capacity(restore_cache=False)
             # Keep normal retirement after any viewer use, including a pending
             # request or focus callback. A never-used viewer needs no reset.
             if self._request_serial or self._viewer_state.viewer_open or self._bookmark_projection_pending:
@@ -1294,7 +1302,13 @@ class LibraryView(ViewerController):
             self.render_authors()
             self._sync_panels()
             self._restore_scroll(self.authors_scroll, reset=True)
-            self._schedule_legacy_capacity_restore()
+            if getattr(self.services, 'legacy_capacity', None) is not None:
+                self._search_capacity_delay = asyncio.get_running_loop().call_later(
+                    0.25, self._resume_search_capacity)
+
+    def _resume_search_capacity(self) -> None:
+        self._search_capacity_delay = None
+        self._schedule_legacy_capacity_restore()
 
     def set_search_scope(self, scope):
         from ..premium_read import borrowed_ready
