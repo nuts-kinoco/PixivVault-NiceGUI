@@ -18,7 +18,7 @@ from pixivvault_nicegui.queue_log import QueueLog
 from pixivvault_nicegui.services import ApplicationServices
 from pixivvault_nicegui.ui.shared_log_view import SharedLogView
 from test_ac_library_search_20261119 import until
-from test_r3_owner_commit_20261120 import confirm_switch, populate
+from test_r3_owner_commit_20261120 import confirm_switch, populate, seed_history
 from test_w_account_separation_20261119 import A, B, X, Y, Reader, resources
 
 
@@ -187,3 +187,19 @@ def test_unaware_notification_backend_accepts_common_but_suppresses_owned_messag
         assert calls == [('common', 'fixture')]
     finally:
         dispatcher.close()
+
+
+def test_legacy_native_backend_does_not_consume_owned_notification(tmp_path):
+    with resources(tmp_path) as (_, store, ledger, reader, services):
+        populate(store, ledger, reader, services)
+        seed_history(ledger, saved=True)
+        services.managed_downloads = NS(verified_saved_receipt=lambda *_args, **_kwargs: None)
+        services._scheduler_unfinished_count = None
+        backend = NS(send=lambda *_: pytest.fail('stale backend must not send'))
+        dispatcher = NotificationDispatcher(NS(get_setting=lambda *_: '1'), backend=backend)
+        services.notifications = dispatcher
+        try:
+            assert ApplicationServices.reconcile_managed_scheduler(services)
+            assert ledger.pending_notifications() == ('200',)
+        finally:
+            dispatcher.close()

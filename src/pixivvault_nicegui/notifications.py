@@ -63,6 +63,10 @@ class NotificationDispatcher:
     def available(self):
         return self.backend is not None and not self._closed
 
+    @property
+    def supports_authorized_delivery(self):
+        return callable(getattr(self.backend, 'send_authorized', None))
+
     def notify(self,title,body,*,event_id=None,authorize=None):
         """Queue a toast, optionally checking its authority in the send worker."""
         if type(title) is not str or type(body) is not str:

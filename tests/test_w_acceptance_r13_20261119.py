@@ -179,6 +179,8 @@ async def test_settings_form_never_adopts_another_accounts_commit(tmp_path, acti
 
 
 class Notifier:
+    supports_authorized_delivery = True
+
     def __init__(self):
         self.events = []
 

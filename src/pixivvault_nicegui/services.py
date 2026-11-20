@@ -4120,7 +4120,7 @@ class ApplicationServices:
         notifier = getattr(self, 'notifications', None)
         prefs = getattr(self, 'preferences', None)
         if (notifier is not None and getattr(notifier, 'available', True)
-                and (scope is None or owner is not None)
+                and (scope is None or (owner is not None and getattr(notifier, 'supports_authorized_delivery', False)))
                 and (prefs is None or prefs.get_setting('enable_notifications', '1') == '1')):
             # The desktop and in-app consumers use the same typed, atomic claim.
             from .managed_scheduler import ScheduleAccountError

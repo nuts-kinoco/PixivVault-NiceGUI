@@ -181,7 +181,8 @@ async def test_desktop_notification_waiting_to_claim_cannot_consume_old_owner(tm
         services.managed_downloads = NS(verified_saved_receipt=lambda *_args, **_kwargs: None)
         services._scheduler_unfinished_count = None
         notifications = []
-        services.notifications = NS(notify=lambda *args: notifications.append(args))
+        services.notifications = NS(supports_authorized_delivery=True,
+                                    notify=lambda *args, **_kwargs: notifications.append(args))
         entered, release = Event(), Event()
         original = ledger.claim_pending_notifications
 
