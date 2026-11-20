@@ -78,6 +78,7 @@ class LibraryView(ViewerController):
         self.pixiv_loading = False
         self._pixiv_epoch = 0
         self._reload_after_viewer = False
+        self._viewer_focus_page = None
         self._remote_retired = False
         self._pixiv_records = ()
         self._pixiv_works = ()
@@ -210,7 +211,7 @@ class LibraryView(ViewerController):
                 "data-testid=library-detail"
             ) as self.pages_panel:
                 with ui.row().classes("pv-library-detail-header w-full"):
-                    ui.button("← 作者一覧", color=None, on_click=self.close_author).props(
+                    self.detail_back = ui.button("← 作者一覧", color=None, on_click=self.close_author).props(
                         "flat dense no-caps data-testid=library-back")
                     self.detail_title = ui.label().classes("pv-library-detail-title")
                     self.zip_export_button = ui.button('旧形式ZIPを書き出す', color=None).props(
@@ -752,7 +753,12 @@ class LibraryView(ViewerController):
 
     def close_viewer(self, *, restore_focus=True, apply_deferred=True):
         was_open = self._viewer_state.viewer_open
-        super().close_viewer(restore_focus=restore_focus)
+        returns_to_redraw = (was_open and restore_focus and self.active and not self.closed
+                             and (self._bookmark_projection_pending
+                                  or (apply_deferred and (self._remote_retired or self._reload_after_viewer))))
+        page_key, self._viewer_focus_page = self._viewer_focus_page, None
+        author = self.state.selected_author_id
+        super().close_viewer(restore_focus=restore_focus and not returns_to_redraw)
         if self._bookmark_projection_pending and not self.closed and self.active:
             self._bookmark_projection_pending = False
             self._refresh_bookmark_projection()
@@ -761,6 +767,21 @@ class LibraryView(ViewerController):
                 self.set_search_scope('library')
             elif self._reload_after_viewer:
                 self.reload(preserve=True)
+        if returns_to_redraw:
+            self._focus_rebuilt_opener(page_key, author)
+
+    def _focus_rebuilt_opener(self, page_key, author):
+        if self.closed or not self.active:
+            return
+        if self.subview == 'bookmarks':
+            target = self.bookmarks_button
+        elif self.state.selected_author_id is not None:
+            target = self.page_cards.get(page_key)
+            if target is None or target.props.get('aria-disabled') == 'true':
+                target = self.detail_back
+        else:
+            target = self.author_openers.get(author, self.downloaded_button)
+        self.viewer.focus_after_close(target)
 
     def refresh_bookmarks(self, *, automatic=False) -> None:
         """Keep demo refresh immediate; real DB/network work is off the UI loop."""
@@ -891,7 +912,8 @@ class LibraryView(ViewerController):
         saved_author = previous_state.selected_author_id
         saved_author_limit = previous_state.shown_author_count
         saved_page_limit = previous_state.shown_page_count
-        self.close_viewer(restore_focus=False, apply_deferred=False)
+        if self._viewer_state.viewer_open or self.viewer.is_open:
+            self.close_viewer(restore_focus=False, apply_deferred=False)
         self.state.close()
         self._viewer_state.close()
         self.author_grid.clear()
@@ -1462,6 +1484,7 @@ class LibraryView(ViewerController):
             return
         if not self._image_provider.can_open(work_id):
             return
+        self._viewer_focus_page = (work_id, page_no)
         super().open(work_id, page_no)
 
     def more(self, session: object | None = None) -> None:

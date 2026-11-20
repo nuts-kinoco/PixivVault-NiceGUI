@@ -439,6 +439,17 @@ class ManagedScheduler:
             finally:
                 self._db.row_factory = None
 
+    def history_for(self, scope: AccountScope) -> tuple[dict, ...]:
+        """Read only the history bound to a verified account."""
+        if type(scope) is not AccountScope:
+            raise AccountMismatch()
+        with self._lock:
+            self._ensure_open()
+            scope.verify_observed()
+            require_same_account(self._bound_account(), scope.account_id,
+                                 error=ScheduleAccountError('mismatch'))
+            return self.history()
+
     def reconcile_jobs(self, jobs, receipt_fingerprints: dict[str, str],
                        operation_to_job: dict[str, str] | None = None,
                        operation_to_fingerprint: dict[str, str] | None = None, *, account_id=None) -> tuple[str, ...]:

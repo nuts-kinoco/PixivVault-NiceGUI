@@ -222,27 +222,27 @@ async def test_server_side_conditions_search_again_by_themselves(monkeypatch):
             view = await open_view(services, vault)
             view.tags.set_value('tag')
             await settle(view)
-            assert vault.calls == [], 'タグを変えただけでは検索しない（元は取得ボタン）'
+            assert [c['bookmark_min'] for c in vault.calls] == [0]
             view.bookmarks.set_value(1000)
             await settle(view)
-            assert [c['bookmark_min'] for c in vault.calls] == [1000]
+            assert [c['bookmark_min'] for c in vault.calls] == [0, 1000]
             assert view.page is not None and view.page.key[3] == 1000
             assert '件表示' in view.notice.text and view.gallery.counter.text != '未取得'
             view.sort.set_value('date_desc')
             await settle(view)
-            assert vault.calls[-1]['sort'] == 'date_desc' and len(vault.calls) == 2
+            assert vault.calls[-1]['sort'] == 'date_desc' and len(vault.calls) == 3
             # 手元条件は再検索しない
             view.author_max.set_value(1)
             view.date.set_value('1year')
             await settle(view)
-            assert len(vault.calls) == 2
+            assert len(vault.calls) == 3
             # R-18 切替も元は再検索する（結果は同じ）
             view.r18.set_value(False)
             await settle(view)
-            assert len(vault.calls) == 3 and vault.calls[-1]['r18'] is False
+            assert len(vault.calls) == 4 and vault.calls[-1]['r18'] is False
             view.ai.set_value(True)
             await settle(view)
-            assert len(vault.calls) == 4 and vault.calls[-1]['exclude_ai'] is True
+            assert len(vault.calls) == 5 and vault.calls[-1]['exclude_ai'] is True
             view.close()
     finally:
         client.delete()

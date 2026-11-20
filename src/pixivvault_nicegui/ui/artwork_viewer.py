@@ -396,6 +396,24 @@ class ArtworkViewer:
                 }});
             }})()""")
 
+    def focus_after_close(self, target) -> None:
+        """Focus a replacement opener after its containing view redraws."""
+        if not self.client.has_socket_connection:
+            return
+        self.client.run_javascript(f"""(() => {{
+            const viewer = document.getElementById('{self.root.html_id}');
+            if (!viewer) return;
+            const generation = viewer.__pvFocusGeneration;
+            requestAnimationFrame(() => {{
+                const opener = document.getElementById('{target.html_id}');
+                if (viewer.isConnected && viewer.__pvFocusGeneration === generation &&
+                    viewer.getAttribute('aria-hidden') === 'true' &&
+                    opener?.isConnected && opener.getClientRects().length &&
+                    !opener.closest('[inert], [aria-hidden="true"]'))
+                    opener.focus({{preventScroll:true}});
+            }});
+        }})()""")
+
     def set_metadata(self, artwork: Artwork, page_no: int) -> None:
         if not 0 <= page_no < artwork.page_count:
             raise ValueError("page_no out of range")

@@ -77,7 +77,9 @@ class PersonalRankingView(RankingView):
             # an empty search result or leave its unrelated placeholder visible.
             self.gallery.empty.set_visibility(False)
             self.gallery.counter.set_text('未取得')
-        for control in (self.tags,self.start_date,self.end_date):control.on_value_change(lambda _:self.changed())
+        # Flet ranking_tab.py:1805,1813 searches after tag add/remove.
+        self.tags.on_value_change(lambda _: self.server_changed())
+        for control in (self.start_date,self.end_date):control.on_value_change(lambda _:self.changed())
         # 元 ranking_tab.py:1935-1947, 2012-2022, 2036-2038: サーバー側条件（ブクマ数下限・並び順・R-18）と条件クリアは再検索する。
         for control in (self.bookmarks,self.sort,self.r18,self.ai):control.on_value_change(lambda _:self.server_changed())
         for control in (self.date,self.include,self.exclude,self.author_max,*self.exclusions.values()):control.on_value_change(lambda _:self.local_changed())
@@ -223,10 +225,10 @@ class PersonalRankingView(RankingView):
         # When exhausted the original gallery hides the entire more-cell.
         # Retain its existing enabled state for a future replacement page;
         # forged append is still rejected by load()'s exhausted guard.
-        self.gallery.more_button.set_enabled(usable and self._current_page())
+        self.gallery.more_button.set_enabled(usable and self._current_page() and self._search_failure_notice is None)
         if update_notice:
             if self._search_failure_notice is not None:
-                self.notice.set_text(self._search_failure_notice)
+                self._render_search_failure()
             elif not enabled:
                 self.notice.set_text('借用プレミアムをONにして、借用アカウントを更新してください。' if status.get('crypto_available') else '借用アカウント検索は未設定、または暗号化依存が利用できません。')
             elif not has_tags:
@@ -302,31 +304,42 @@ class PersonalRankingView(RankingView):
         except Exception:self.notice.set_text('条件を保存できませんでした。')
     async def load(self,*,append=False):
         if not self.active or self.closed or self.busy or self.source is None:return
-        if append and (not self._current_page() or self.page.exhausted):return
+        if append and (not self._current_page() or self.page.exhausted or self._search_failure_notice is not None):return
         epoch=self.epoch;tags=self.selected_tags();filters=self.current_filters()
         if not tags:self.notice.set_text('タグを選択してください。');return
         if not self._search_available():
             self.availability()
             return
+        self._condition_pending = False  # An explicit fetch satisfies the same queued conditions.
         self._search_failure_notice = None
+        r18, exclude_ai = bool(self.r18.value), bool(self.ai.value)
+        dates = {key: value for key, value in zip(('start_date','end_date'), self._server_dates()) if value}
         self.busy=True;self.fetch_button.disable();self.gallery.more_button.disable();self.notice.set_text('取得中…')
         provider=None;old_pin,old_page,old_images=self.pin,self.page,self.proxy.images
         try:
-            pending=self._context_task
-            context=await pending if pending is not None and not pending.done() else await self._refresh_context()
-            if context is None:return
-            candidate=await asyncio.to_thread(self.source.fetch,tags,filters,r18=bool(self.r18.value),exclude_ai=bool(self.ai.value),
-                previous=self.page if append else None,author_counts=context.get('author_counts'),
-                **{k:v for k,v in zip(('start_date','end_date'),self._server_dates()) if v})
-            if (self.closed or not self.active or epoch!=self.epoch
-                    or not self._search_available()):return
-            if candidate.remote_error and old_page is not None and not old_page.remote_error:
+            context = None
+            while context is None:
+                pending = self._context_task
+                context = await pending if pending is not None and not pending.done() else await self._refresh_context()
+                if self.closed or not self.active or epoch != self.epoch:
+                    return
+            if not self._search_available():
+                self._show_search_failure('検索中に借用アカウント検索を利用できなくなりました。接続状態を確認してください。')
+                return
+            candidate=await asyncio.to_thread(self.source.fetch,tags,filters,r18=r18,exclude_ai=exclude_ai,
+                previous=self.page if append else None,author_counts=context.get('author_counts'), **dates)
+            if self.closed or not self.active or epoch != self.epoch:
+                return
+            available = self._search_available()
+            if candidate.remote_error and (not available or (old_page is not None and not old_page.remote_error)):
                 from ..premium_read import unavailable_message
                 message = unavailable_message(candidate.remote_error) or '通信障害のため検索を完了できませんでした。'
                 if candidate.source_warning:
                     message = unavailable_message(candidate.source_warning) + ' ' + message
-                self._search_failure_notice = message + ' 直前の検索結果を表示しています。'
-                self.notice.set_text(self._search_failure_notice)
+                self._show_search_failure(message)
+                return
+            if not available:
+                self._show_search_failure('検索中に借用アカウント検索を利用できなくなりました。接続状態を確認してください。')
                 return
             provider=self.services.acquire_ranking_images(tuple(r['item'].record for r in candidate.rows))
             self.pin=provider;self.proxy.images=provider;self.page=candidate
@@ -360,14 +373,24 @@ class PersonalRankingView(RankingView):
                     self.notice.set_text(message)
                 if getattr(error,'warning',None)=='expired-payout':
                     self.notice.set_text(unavailable_message('expired-payout')+' '+self.notice.text)
-                if old_page is not None and not old_page.remote_error:
-                    self.notice.set_text(self.notice.text + ' 直前の検索結果を表示しています。')
-                self._search_failure_notice = self.notice.text
+                self._show_search_failure(self.notice.text)
         finally:
             if provider is not None:
                 self.pin,self.page,self.proxy.images=old_pin,old_page,old_images;provider.close()
             self.busy=False
             if not self.closed:self.availability(update_notice=False)
+    def _show_search_failure(self, message):
+        self._search_failure_notice = message
+        self._render_search_failure()
+
+    def _render_search_failure(self):
+        message = self._search_failure_notice
+        if self.page is not None and not self.page.remote_error:
+            message += ' 直前の検索結果を表示しています。'
+            self.gallery.counter.set_text('前の検索結果')
+            self.gallery.more_cell.set_visibility(False)
+        self.notice.set_text(message)
+
     def render(self):
         if self.closed or self.page is None:return
         current = self._current_page()
@@ -397,7 +420,7 @@ class PersonalRankingView(RankingView):
             self.gallery.counter.set_text('前の検索結果')
             self.notice.set_text('検索条件が変わりました。「取得・更新」で新しい条件を反映します。')
         if self._search_failure_notice is not None:
-            self.notice.set_text(self._search_failure_notice)
+            self._render_search_failure()
         self.availability(update_notice=False)
     def set_active(self,active):
         super().set_active(active)

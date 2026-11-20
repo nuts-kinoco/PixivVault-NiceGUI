@@ -234,6 +234,19 @@ def serve(args):
     finally:
         preferences.close()
     register_pages(**kw)
+    if getattr(args, 'serve', False):
+        from pixivvault_nicegui.ui.library_view import LibraryView
+
+        load_image = LibraryView._image_loaded
+
+        def load_with_deferred_reload(view, event):
+            opened = view.viewer.is_open
+            load_image(view, event)
+            if not opened and view.viewer.is_open and view.subview == 'downloaded':
+                # Isolated smoke fixture: complete a projection while the viewer is open.
+                view.reload(preserve=True, after_viewer=True)
+
+        LibraryView._image_loaded = load_with_deferred_reload
     stopping = False
 
     def authorized(value):
@@ -354,7 +367,10 @@ def check_download_type(page):
 
 def check_library_pan(page):
     page.get_by_test_id("library-author-open").first.click()
-    page.locator(".pv-library-page-card").first.click()
+    opener = page.locator(".pv-library-page-card").first
+    original_id = opener.get_attribute("id")
+    original_key = [opener.get_attribute("data-work-id"), opener.get_attribute("data-page-no")]
+    opener.click()
     viewer = page.get_by_test_id("library-viewer")
     viewport = viewer.get_by_test_id("viewer-zoom-viewport")
     viewer.wait_for(state="visible", timeout=10000)
@@ -385,11 +401,16 @@ def check_library_pan(page):
     assert viewer.get_attribute("data-zoom-generation") == generation
     assert viewer.get_attribute("aria-hidden") == "false"
     assert page.get_by_test_id("tab-library").get_attribute("aria-current") == "page"
-    viewer.get_by_role("button", name="閉じる", exact=True).click()
+    page.keyboard.press("Escape")
     viewer.wait_for(state="hidden")
+    page.wait_for_function("""([id, key]) => {
+        const active = document.activeElement;
+        return active?.matches('.pv-library-page-card') && active.id !== id &&
+            active.dataset.workId === key[0] && active.dataset.pageNo === key[1];
+    }""", arg=[original_id, original_key])
     page.get_by_test_id("library-detail-close").click()
     page.get_by_test_id("library-author-open").first.wait_for(state="visible")
-    return {"scale": scale, "first_offset": first, "final_offset": second}
+    return {"scale": scale, "first_offset": first, "final_offset": second, "focus_restored_after_rebuild": True}
 
 
 def run_matrix(pw, url, out: Path, expectations, screens, wait_ms, get_net, startup_wait_ms, strict=False):
