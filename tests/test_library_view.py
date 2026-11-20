@@ -3,7 +3,7 @@
 import asyncio
 from types import SimpleNamespace
 
-from nicegui import Client, ui
+from nicegui import Client, background_tasks, ui
 import pytest
 import pytest_asyncio
 
@@ -93,14 +93,93 @@ async def test_search_coalesces_capacity_restore_without_missing_cache_writes(li
     calls = []
     monkeypatch.setattr(view, '_schedule_legacy_capacity_restore',
                         lambda: calls.append((view.state.query, view._legacy_restore_needed)))
+    loop = asyncio.get_running_loop()
     with client:
         view.search('0003')
+        previous = view._search_capacity_delay
+        before_search = loop.time()
         view.search('0004')
+    assert previous.cancelled()
+    assert view._search_capacity_delay.when() >= before_search + .8
     assert not calls
     async with asyncio.timeout(2):
         while not calls:
             await asyncio.sleep(.01)
     assert calls == [('0004', True)]
+
+
+async def test_quick_auto_capacity_keeps_start_notice_out_of_ui_updates(library, monkeypatch):
+    monkeypatch.setattr(background_tasks, 'create', asyncio.create_task)
+    view, services, _ = library
+    author = view.state.visible_authors[0]
+    service = SimpleNamespace(cached=lambda _: (1, 1024))
+    monkeypatch.setattr(services, 'legacy_capacity', service)
+    monkeypatch.setattr(view, '_legacy_cached_ids',
+                        {a.author_id for a in view.state.visible_authors if a != author})
+    view._legacy_restore_needed = False
+    updates = []
+    status = view.legacy_auto_capacity_status
+    button = view.legacy_capacity_button
+    view._sync_panels()
+    assert button.enabled
+
+    for element in (status, button):
+        original_update = element.update
+
+        def record(e=element, update=original_update):
+            updates.append((e.id, status.text, button.enabled))
+            update()
+
+        monkeypatch.setattr(element, 'update', record)
+
+    async def without_thread(call, *args):
+        return call(*args)
+
+    monkeypatch.setattr(asyncio, 'to_thread', without_thread)
+    view._schedule_unmeasured_capacity()
+    assert view._legacy_capacity_busy
+    await view._legacy_auto_task
+    assert view.author_capacity_labels[author.author_id].text == '1.0 KiB'
+    assert all(not text and enabled for _, text, enabled in updates)
+    assert not view._legacy_capacity_busy
+
+
+async def test_slow_auto_capacity_shows_progress_and_cleans_up(library, monkeypatch):
+    monkeypatch.setattr(background_tasks, 'create', asyncio.create_task)
+    view, services, _ = library
+    author = view.state.visible_authors[0]
+    service = SimpleNamespace(cached=lambda _: (1, 1024))
+    monkeypatch.setattr(services, 'legacy_capacity', service)
+    monkeypatch.setattr(view, '_legacy_cached_ids',
+                        {a.author_id for a in view.state.visible_authors if a != author})
+    view._legacy_restore_needed = False
+    view._sync_panels()
+    release = asyncio.Event()
+    entered = asyncio.Event()
+
+    async def wait_before_lookup(call, *args):
+        entered.set()
+        await release.wait()
+        return call(*args)
+
+    monkeypatch.setattr(asyncio, 'to_thread', wait_before_lookup)
+    view._schedule_unmeasured_capacity()
+    task = view._legacy_auto_task
+    try:
+        async with asyncio.timeout(1):
+            await entered.wait()
+            assert view.legacy_capacity_button.enabled
+            assert view.legacy_auto_capacity_status.text == ''
+            # The pending visual state does not change the measurement gate.
+            await view.measure_legacy_capacity()
+            while not view.legacy_auto_capacity_status.text:
+                await asyncio.sleep(.01)
+        assert not view.legacy_capacity_button.enabled
+    finally:
+        release.set()
+        await task
+    assert view.legacy_capacity_button.enabled
+    assert view.legacy_auto_capacity_status.text == ''
 
 
 @pytest.mark.asyncio

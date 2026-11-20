@@ -121,6 +121,7 @@ class LibraryView(ViewerController):
         self._legacy_cached_ids = set()
         self._legacy_auto_attempted = set()
         self._legacy_auto_task = None
+        self._legacy_auto_progress = False
         self._search_capacity_delay = None
         self._managed_capacities = {}
         self._bookmark_refreshing = False
@@ -320,7 +321,11 @@ class LibraryView(ViewerController):
         self.root.props["data-library-generation"] = str(self.state.generation)
         downloaded = self.subview == "downloaded"
         self.capacity_button.set_enabled(downloaded and not selected and self.active and not self.closed and not self.load_error and not self._capacity_busy and self.services.managed_downloads is not None)
-        self.legacy_capacity_button.set_enabled(downloaded and not selected and self.active and not self.closed and not self.load_error and not self._legacy_capacity_busy and getattr(self.services,'legacy_capacity',None) is not None)
+        legacy_busy_visible = self._legacy_capacity_busy and (
+            self._legacy_auto_task is None or self._legacy_auto_progress)
+        self.legacy_capacity_button.set_enabled(
+            downloaded and not selected and self.active and not self.closed and not self.load_error
+            and not legacy_busy_visible and getattr(self.services, 'legacy_capacity', None) is not None)
         self.authors_panel.set_visibility(downloaded and not selected and not self.load_error)
         self.pages_panel.set_visibility(downloaded and selected and not self.load_error)
         enabled = (bool(getattr(self.services, 'legacy_zip_export_available', False))
@@ -528,7 +533,6 @@ class LibraryView(ViewerController):
         if not targets:return
         from nicegui import background_tasks
         self._legacy_capacity_busy=True
-        self.legacy_capacity_button.disable()
         self._legacy_auto_task=background_tasks.create(self._measure_unmeasured_capacity(
             service,state,state.generation,self._capacity_epoch,targets,self._legacy_auto_attempted))
 
@@ -538,11 +542,18 @@ class LibraryView(ViewerController):
         def current():
             return (self._legacy_current(state,generation,epoch) and not self.load_error
                     and getattr(self.services,'legacy_capacity',None) is service)
+
+        def show_progress():
+            if current():
+                self._legacy_auto_progress = True
+                self.legacy_capacity_button.disable()
+                self.legacy_auto_capacity_status.set_text('未計測の作者保存先容量を確認しています…')
+
+        progress = asyncio.get_running_loop().call_later(0.09, show_progress)
         try:
             for aid in targets:
                 if not current():return
                 lease=MeasurementLease();self._legacy_lease=lease
-                self.legacy_auto_capacity_status.set_text('未計測の作者保存先容量を確認しています…')
                 try:
                     revision,cached=await asyncio.to_thread(service.cached,aid)
                     if not current():return
@@ -581,6 +592,8 @@ class LibraryView(ViewerController):
                     f'作者保存先 {completed}作者の容量を確認。未計測 {failed}作者。次回表示時に再試行します。'
                     if failed else '')
         finally:
+            progress.cancel()
+            self._legacy_auto_progress = False
             self._legacy_auto_task=None
             self._legacy_capacity_busy=False
             if not self.closed:
@@ -1302,7 +1315,7 @@ class LibraryView(ViewerController):
             if getattr(self.services, 'legacy_capacity', None) is not None:
                 # Coalesce searches without ignoring a concurrent cache write.
                 self._search_capacity_delay = asyncio.get_running_loop().call_later(
-                    0.25, self._resume_search_capacity)
+                    0.8, self._resume_search_capacity)
 
     def _resume_search_capacity(self) -> None:
         self._search_capacity_delay = None
