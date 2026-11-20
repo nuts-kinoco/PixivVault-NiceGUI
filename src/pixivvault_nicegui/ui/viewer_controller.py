@@ -28,6 +28,7 @@ class ViewerController:
         # Keep a request identity across replacement GalleryState instances (reload).
         # A state generation alone can be reused and accept a stale browser load event.
         self._request_serial = 0
+        self._open_serial = 0
         self.detail_open = False
         self._viewer_host = host
         self._folder_request = self._folder_target = None
@@ -41,7 +42,6 @@ class ViewerController:
             image_test_id="library-viewer-image" if library else "viewer-image",
         )
         self.viewer.on_hide = lambda: self._viewer_hide()
-        self.viewer.on_folder = lambda: self._viewer_open_folder()
         from ..viewer_save import ViewerSave
         self._viewer_save = ViewerSave(services)
         from .pixiv_action_buttons import PixivActionButtons
@@ -51,15 +51,18 @@ class ViewerController:
                 notice=self.viewer.action_status, prefix='viewer-action')
         self.viewer.author_button.on('click', self._open_author)
         self.viewer.download_button.props('data-testid=viewer-download')
-        self.viewer.download_button.on('click', self._save_visible_work,
-            js_handler=f"event => emit(document.getElementById('{self.viewer.root.html_id}').dataset.saveGeneration)")
+        click_generation = (
+            f"event => emit(document.getElementById('{self.viewer.root.html_id}').dataset.saveGeneration)"
+        )
+        self.viewer.download_button.on('click', self._save_visible_work, js_handler=click_generation)
+        self.viewer.context_items['folder'].on('click', self._viewer_open_folder, js_handler=click_generation)
         # Capture the browser's request identity at click time. A queued click
         # from a previous page must not request the newly selected original.
         self.viewer.quality_button.on('click', self._quality_clicked,
             js_handler=f"""event => {{
                 const root = document.getElementById('{self.viewer.root.html_id}');
                 if (!root) return;
-                emit({{serial: root.dataset.qualitySerial,
+                emit({{open: root.dataset.openSerial, serial: root.dataset.qualitySerial,
                        work: root.dataset.qualityWork, page: root.dataset.qualityPage}});
             }}""")
         self.dialog = self.viewer.dialog
@@ -92,6 +95,7 @@ class ViewerController:
 
     def open(self, work_id: str, page_no: int = 0) -> None:
         if self._viewer_active and self._viewer_state.open_artwork(work_id, page_no):
+            self._open_serial += 1
             self._quality = 'view'
             self.detail_open = False
             self.viewer.set_details_open(False)
@@ -99,6 +103,7 @@ class ViewerController:
 
     def move_work(self, delta: int) -> None:
         if self._viewer_active and self._viewer_state.move_viewer(delta):
+            self._open_serial += 1
             self._quality = 'view'
             self.update_viewer()
 
@@ -143,6 +148,7 @@ class ViewerController:
         # Zoom/pan belong to the decoded page, never to a retained previous frame
         # or a pending GIF/HTTP request.
         self.viewer.reset_zoom()
+        self.viewer.root.props['data-open-serial'] = str(self._open_serial)
         self.viewer.root.props['data-save-generation'] = str(self._request_serial)
         self.viewer.root.props['data-quality-serial'] = str(self._request_serial)
         self.viewer.root.props['data-quality-work'] = art.work_id
@@ -308,6 +314,7 @@ class ViewerController:
         art = state.selected_artwork
         payload = getattr(event, 'args', None)
         if (art is None or not isinstance(payload, dict) or
+                payload.get('open') != str(self._open_serial) or
                 payload.get('serial') != str(self._request_serial) or
                 payload.get('work') != art.work_id or
                 payload.get('page') != str(state.selected_page)):
@@ -484,25 +491,29 @@ class ViewerController:
     def _after_viewer_hide(self, art, hidden) -> None:
         """一覧を持つビューアで、出さない結果を反映するためのフック。"""
 
-    async def _viewer_open_folder(self):
+    async def _viewer_open_folder(self, event):
         """Recheck the selected saved work before launching its folder."""
         from ..viewer_folders import viewer_work_folder
-        if self._folder_target is None:
+        generation = self._request_serial
+        if event.args != str(generation) or self._folder_target is None:
             return
         folder, art, page_no, desktop, current = self._folder_target
 
+        def current_request():
+            return current() and generation == self._request_serial
+
         def open_folder():
-            if not current():
+            if not current_request():
                 return
             if viewer_work_folder(self.services, art, page_no) != folder:
                 raise ValueError('saved folder changed')
-            if current():
+            if current_request():
                 desktop.open_saved(folder)
 
         try:
             await asyncio.to_thread(open_folder)
         except Exception:
-            if current():
+            if current_request():
                 self.viewer.context_items['folder'].disable()
                 self._folder_target = None
                 self._viewer_say('保存フォルダを開けませんでした。')

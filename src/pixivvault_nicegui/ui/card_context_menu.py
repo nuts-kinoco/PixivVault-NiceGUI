@@ -30,7 +30,7 @@ class MenuEntry:
     testid: str | None = None  # 既存の data-testid を保つとき（既定は <menu>-<key>）
 
 
-def build_context_menu(entries, *, testid: str) -> tuple[ui.context_menu, dict[str, ui.menu_item]]:
+def build_context_menu(entries, *, testid: str, item_type=ui.menu_item) -> tuple[ui.context_menu, dict[str, ui.menu_item]]:
     """親要素（カード等）の右クリックで開くメニューを作る。呼び出し元の `with` 内で呼ぶ。
 
     各項目は data-testid=<testid>-<key>。メニュー自体は data-testid=<testid>。
@@ -38,7 +38,7 @@ def build_context_menu(entries, *, testid: str) -> tuple[ui.context_menu, dict[s
     items: dict[str, ui.menu_item] = {}
     with ui.context_menu().props(f'data-testid={testid}') as menu:
         for entry in entries:
-            item = ui.menu_item(entry.label, on_click=entry.on_click if entry.href is None else None)
+            item = item_type(entry.label, on_click=entry.on_click if entry.href is None else None)
             item.props(f'data-testid={entry.testid or f"{testid}-{entry.key}"}')
             if entry.href is not None:
                 item.props(f'href="{entry.href}" target=_blank rel="noopener noreferrer"')

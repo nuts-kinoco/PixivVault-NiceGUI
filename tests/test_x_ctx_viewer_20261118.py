@@ -1,5 +1,6 @@
 """P3-1: ビューアの右クリック 4 項目（元 artbook_viewer.py:849-870、FL-M04）。通信なし。"""
 import asyncio
+from inspect import isawaitable
 from types import SimpleNamespace as NS
 
 import pytest
@@ -183,15 +184,31 @@ async def test_viewer_folder_uses_saved_work_and_disables_unsaved(tmp_path, monk
         with client:
             view = GalleryView(svc)
             for work_id, expected in [('101', folder), ('102', author), ('103', None)]:
+                stale_request = str(view._request_serial)
                 view.open(work_id)
                 button = ctx(view.viewer, 'folder')
+
+                async def folder_click(serial):
+                    listeners = [e for e in button._event_listeners.values() if e.type == 'click']
+                    event = next((e for e in listeners if e.js_handler and 'saveGeneration' in e.js_handler),
+                                 listeners[0])
+                    before = set(background_tasks.running_tasks)
+                    result = event.handler(NS(args=serial))
+                    if isawaitable(result):
+                        await result
+                    pending = set(background_tasks.running_tasks) - before
+                    if pending:
+                        await asyncio.gather(*pending)
                 if expected is not None:
                     for _ in range(100):
                         if button.enabled:
                             break
                         await asyncio.sleep(0.01)
                     assert button.enabled
-                    await click(button)
+                    before = tuple(opened)
+                    await folder_click(stale_request)
+                    assert tuple(opened) == before
+                    await folder_click(str(view._request_serial))
                     assert opened[-1] == expected
                 else:
                     await asyncio.sleep(0.1)

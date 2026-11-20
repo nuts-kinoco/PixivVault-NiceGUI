@@ -8,7 +8,9 @@ from nicegui import ui
 
 from ..models import Artwork
 from .card_context_menu import MenuEntry, build_context_menu, open_from_keyboard
-from .verified_image import VerifiedImage
+from .artwork_page import (
+    ArtworkPage, PageButton, PageColumn, PageImage, PageLabel, PageMenuItem, PageRow,
+)
 
 
 class ArtworkViewer:
@@ -25,20 +27,19 @@ class ArtworkViewer:
         context_hide: bool = True,
     ) -> None:
         self.on_hide = None      # 右クリックの「出さない」「保存フォルダを開く」は持ち主（ViewerController）が結線する
-        self.on_folder = None
         self.dialog = self  # GalleryView's existing dialog.open()/close() call sites.
         self.client = ui.context.client
         self._is_open = False
         self._zoom_generation = 0
-        with ui.column().classes("pv-viewer pv-viewer-overlay hidden").props(
+        with ArtworkPage() as self.page, PageColumn().classes("pv-viewer pv-viewer-overlay hidden").props(
             "tabindex=-1 role=dialog aria-label=画集ビューア aria-modal=false aria-hidden=true "
             f"data-testid={test_id} data-zoom-generation=0 data-zoom-ready=false"
         ) as self.root:
                 with ui.row().classes("pv-viewer-header w-full items-center"):
                     ui.label("画集ビューア").classes("pv-viewer-heading")
                     ui.space()
-                    self.counter = ui.label().classes("pv-counter")
-                    self.quality_button = ui.button('原寸を表示', icon='high_quality', color=None).props(
+                    self.counter = PageLabel().classes("pv-counter")
+                    self.quality_button = PageButton('原寸を表示', icon='high_quality', color=None).props(
                         'flat dense no-caps data-testid=viewer-quality-toggle '
                         'aria-label=現在のページを原寸で表示')
                     self.quality_button.set_enabled(False)
@@ -55,58 +56,58 @@ class ArtworkViewer:
                     ).props("flat round aria-label=閉じる")
                 with ui.element("div").classes("pv-viewer-stage") as self.stage:
                     self._build_context_menu(context_hide)
-                    self.previous_page = ui.button(
+                    self.previous_page = PageButton(
                         icon="chevron_left", on_click=on_previous, color=None
                     ).props("flat round aria-label=前のページ").classes("pv-viewer-page-prev")
                     with ui.element("div").classes("pv-viewer-viewport").props(
                         "data-testid=viewer-zoom-viewport role=region aria-label=作品画像の拡大と移動"
                     ) as self.viewport:
                         with ui.element("div").classes("pv-viewer-zoom-plane") as self.zoom_plane:
-                            self.image = VerifiedImage(alt="作品画像", retain_previous=True).props(
+                            self.image = PageImage(alt="作品画像", retain_previous=True).props(
                                 f"data-testid={image_test_id}"
                             ).classes("pv-view-art")
                             self.image.on("click", lambda _: self._close_details_on_image_click(on_details))
-                    self.next_page = ui.button(
+                    self.next_page = PageButton(
                         icon="chevron_right", on_click=on_next, color=None
                     ).props("flat round aria-label=次のページ").classes("pv-viewer-page-next")
                     with ui.row().classes("pv-viewer-zoom-tools items-center").props(
                         "role=group aria-label=画像の拡大縮小"
                     ) as self.zoom_tools:
-                        self.zoom_out = ui.button("−", color=None).props(
+                        self.zoom_out = PageButton("−", color=None).props(
                             "flat dense aria-label=縮小 data-testid=viewer-zoom-out")
                         self.zoom_value = ui.label("100%").classes("pv-viewer-zoom-value").props(
                             "role=status aria-live=polite aria-atomic=true data-testid=viewer-zoom-value")
-                        self.zoom_in = ui.button("+", color=None).props(
+                        self.zoom_in = PageButton("+", color=None).props(
                             "flat dense aria-label=拡大 data-testid=viewer-zoom-in")
-                        self.zoom_reset = ui.button("元に戻す", color=None).props(
+                        self.zoom_reset = PageButton("元に戻す", color=None).props(
                             "flat dense aria-label=倍率と位置をリセット data-testid=viewer-zoom-reset")
                         self.zoom_help = ui.label("ホイールまたは＋／−で拡大縮小、0でリセット。拡大中はドラッグで移動").classes(
                             "pv-viewer-zoom-help")
                         ui.tooltip("ホイール・＋／−で拡大縮小、0でリセット。拡大中はドラッグで移動")
                     self.zoom_tools.props(f"aria-describedby={self.zoom_help.html_id}")
-                    self.image_status = ui.label().classes("pv-subtitle pv-viewer-status")
-                    self.retry_button = ui.button(
+                    self.image_status = PageLabel().classes("pv-subtitle pv-viewer-status")
+                    self.retry_button = PageButton(
                         "画像を再読込", on_click=on_retry, color=None
                     ).props("flat").classes("pv-viewer-retry")
-                    with ui.column().classes("pv-description pv-viewer-details gap-2").props(
+                    with PageColumn().classes("pv-description pv-viewer-details gap-2").props(
                         'data-testid=viewer-detail-panel aria-busy=false'
                     ) as self.details_panel:
-                        with ui.column().classes('pv-detail-skeleton-lines').props(
+                        with PageColumn().classes('pv-detail-skeleton-lines').props(
                             'aria-hidden=true data-testid=viewer-detail-description-skeleton'
                         ) as self.description_skeleton:
                             for _ in range(3):
                                 ui.element('div').classes('pv-detail-skeleton-bar').props(
                                     'data-testid=viewer-detail-skeleton-bar')
-                        self.description = ui.label().classes("whitespace-pre-wrap")
-                        with ui.row().classes('pv-detail-skeleton-tags').props(
+                        self.description = PageLabel().classes("whitespace-pre-wrap")
+                        with PageRow().classes('pv-detail-skeleton-tags').props(
                             'aria-hidden=true data-testid=viewer-detail-tags-skeleton'
                         ) as self.tags_skeleton:
                             for _ in range(3):
                                 ui.element('div').classes('pv-detail-skeleton-chip').props(
                                     'data-testid=viewer-detail-skeleton-chip')
-                        self.tags = ui.row().classes("gap-1 flex-wrap").props('data-testid=viewer-detail-tags')
-                        self.numbers = ui.label().props('data-testid=viewer-detail-numbers')
-                        self.detail_status = ui.label().props('role=status data-testid=viewer-detail-status')
+                        self.tags = PageRow().classes("gap-1 flex-wrap").props('data-testid=viewer-detail-tags')
+                        self.numbers = PageLabel().props('data-testid=viewer-detail-numbers')
+                        self.detail_status = PageLabel().props('role=status data-testid=viewer-detail-status')
                 with ui.column().classes("pv-viewer-bottom w-full"):
                     with ui.row().classes("pv-viewer-info w-full items-center"):
                         self.title = ui.label().classes("pv-view-title")
@@ -116,16 +117,25 @@ class ArtworkViewer:
                         self.author_button = self.author
                         self.author_button.tooltip('作者の作品を表示')
                         ui.space()
-                        self.details_button = ui.button(
+                        self.details_button = PageButton(
                             "詳細", on_click=on_details, color=None
                         ).props("flat aria-expanded=false")
-                    self.action_status = ui.label().classes('pv-subtitle')
+                    self.action_status = PageLabel().classes('pv-subtitle')
                     self.action_status.set_visibility(False)
+        self._detail_tags = ()
         self._details_open = False
         self._detail_loading = False
         self.set_zoom_ready(False)
         self.set_details_open(False)
         self.set_status("")
+        self.page.bind(
+            self.root, self.counter, self.quality_button, self.download_button,
+            self.bookmark_button, self.follow_button, self.image, self.image_status,
+            self.retry_button, self.previous_page, self.next_page, self.zoom_out,
+            self.zoom_in, self.zoom_reset, self.action_status, self.details_panel,
+            self.description_skeleton, self.description, self.tags_skeleton, self.tags,
+            self.numbers, self.detail_status, self.details_button, *self.context_items.values(),
+        )
 
     def _build_context_menu(self, with_hide: bool) -> None:
         """元 artbook_viewer.py:849-870 の右クリック 4 項目。"""
@@ -140,9 +150,9 @@ class ArtworkViewer:
                                      on_click=lambda: self.on_hide() if self.on_hide else None, enabled=False,
                                      testid='viewer-context-hide'))
         entries.append(MenuEntry('folder', '保存フォルダを開く',
-                                 on_click=lambda: self.on_folder() if self.on_folder else None, enabled=False,
+                                 enabled=False,
                                  testid='viewer-context-folder'))
-        self.context_menu, self.context_items = build_context_menu(entries, testid='viewer-context-menu')
+        self.context_menu, self.context_items = build_context_menu(entries, testid='viewer-context-menu', item_type=PageMenuItem)
         open_from_keyboard(self.root, self.context_menu)
 
     def set_context_target(self, artwork: Artwork, *, hide_ok: bool, folder_ok: bool) -> None:
@@ -151,16 +161,16 @@ class ArtworkViewer:
         for key, url in (('pixiv', pixiv_url(artwork.work_id)),
                          ('author', pixiv_url(artwork.author_id, author=True) if artwork.author_id else None)):
             item = self.context_items[key]
-            item.props['href'] = url or ''
+            if item.props.get('href') != (url or ''):
+                item.props['href'] = url or ''
             item.set_enabled(url is not None)
-            item.update()
         if 'hide' in self.context_items:
             self.context_items['hide'].set_enabled(bool(hide_ok))
         self.context_items['folder'].set_enabled(bool(folder_ok))
 
     @staticmethod
     def _unavailable_action(icon: str, label: str, purpose: str):
-        button = ui.button(label, icon=icon, color=None).props("flat no-caps").classes("pv-viewer-header-action")
+        button = PageButton(label, icon=icon, color=None).props("flat no-caps").classes("pv-viewer-header-action")
         button.props(f"aria-label={purpose}")
         button.set_enabled(False)
         button.tooltip("表示中の1ページを専用保存先へ保存します" if purpose == "個別ダウンロード" else
@@ -357,7 +367,7 @@ class ArtworkViewer:
         self.root.classes(remove="hidden")
         self.root.props("aria-hidden=false")
         if self.client.has_socket_connection:
-            self.client.run_javascript(f"""(() => {{
+            self.page.after_state(f"""(() => {{
                 const node = document.getElementById('{self.root.html_id}');
                 if (!node) return;
                 const generation = (node.__pvFocusGeneration || 0) + 1;
@@ -370,7 +380,7 @@ class ArtworkViewer:
                         node.focus({{preventScroll:true}});
                 }});
             }})()""")
-            self.client.run_javascript(self._zoom_script())
+            self.page.after_state(self._zoom_script())
 
     def close(self, *, restore_focus: bool = True) -> None:
         # A tab departure also invalidates a queued focus restoration from a prior close.
@@ -379,7 +389,7 @@ class ArtworkViewer:
         self.root.props("aria-hidden=true")
         self.root.classes(add="hidden")
         if self.client.has_socket_connection:
-            self.client.run_javascript(f"""(() => {{
+            self.page.after_state(f"""(() => {{
                 const node = document.getElementById('{self.root.html_id}');
                 if (!node) return;
                 const generation = (node.__pvFocusGeneration || 0) + 1;
@@ -400,7 +410,7 @@ class ArtworkViewer:
         """Focus a replacement opener after its containing view redraws."""
         if not self.client.has_socket_connection:
             return
-        self.client.run_javascript(f"""(() => {{
+        self.page.after_state(f"""(() => {{
             const viewer = document.getElementById('{self.root.html_id}');
             if (!viewer) return;
             const generation = viewer.__pvFocusGeneration;
@@ -425,9 +435,10 @@ class ArtworkViewer:
         # retain that bounded viewport through success, empty data, and failure.
         self.details_panel.classes(remove='pv-viewer-details-reserved')
         from ..viewer_metadata import pixiv_url
-        self.pixiv_link.set_visibility(pixiv_url(artwork.work_id) is not None)
-        self.pixiv_link.props['href'] = pixiv_url(artwork.work_id) or ''
-        self.pixiv_link.update()
+        url = pixiv_url(artwork.work_id)
+        self.pixiv_link.set_visibility(url is not None)
+        if self.pixiv_link.props.get('href') != (url or ''):
+            self.pixiv_link.props['href'] = url or ''
         self.counter.set_text(f"{page_no + 1}/{artwork.page_count}")
         self.counter._props["aria-label"] = f"ページ {page_no + 1} / {artwork.page_count}"
         self.counter.update()
@@ -436,9 +447,13 @@ class ArtworkViewer:
 
     def set_detail_values(self, description, tags, date=None, bookmarks=None, views=None, width=None, height=None):
         self.description.set_text(description)
-        self.tags.clear()
-        with self.tags:
-            for tag in tags: ui.label(tag).classes('pv-subtitle border rounded px-2')
+        tags = tuple(tags)
+        if tags != self._detail_tags:
+            self._detail_tags = tags
+            self.tags.clear()
+            with self.tags:
+                for tag in tags:
+                    ui.label(tag).classes('pv-subtitle border rounded px-2')
         def known(value): return str(value) if value is not None else '不明'
         resolution=f'{width} × {height}' if width is not None and height is not None else '不明'
         self.numbers.set_text(f'投稿日 {known(date or None)} · ブクマ {known(bookmarks)} · 閲覧 {known(views)} · 解像度 {resolution}')
