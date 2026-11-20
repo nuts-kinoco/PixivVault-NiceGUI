@@ -86,7 +86,7 @@ async def test_search_does_not_reset_closed_viewer_but_invalidates_open_request(
     assert not view.page_cards
 
 
-async def test_search_reuses_restored_capacities_and_coalesces_followup(library, monkeypatch):
+async def test_search_coalesces_capacity_restore_without_missing_cache_writes(library, monkeypatch):
     view, services, client = library
     monkeypatch.setattr(services, 'legacy_capacity', object())
     view._legacy_restore_needed = False
@@ -100,7 +100,7 @@ async def test_search_reuses_restored_capacities_and_coalesces_followup(library,
     async with asyncio.timeout(2):
         while not calls:
             await asyncio.sleep(.01)
-    assert calls == [('0004', False)]
+    assert calls == [('0004', True)]
 
 
 @pytest.mark.asyncio

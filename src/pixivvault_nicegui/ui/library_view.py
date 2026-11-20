@@ -427,10 +427,9 @@ class LibraryView(ViewerController):
                     and self.active and self.subview == 'downloaded'
                     and self.state.selected_author_id is not None)
 
-    def _invalidate_capacity(self, *, clear_values=False, restore_cache=True):
+    def _invalidate_capacity(self, *, clear_values=False):
         self._capacity_epoch += 1
-        if restore_cache:
-            self._legacy_restore_needed = True
+        self._legacy_restore_needed = True
         if self._search_capacity_delay is not None:
             self._search_capacity_delay.cancel()
             self._search_capacity_delay = None
@@ -1291,9 +1290,7 @@ class LibraryView(ViewerController):
         if self.state.set_query(value or ""):
             if self.search_scope == 'pixiv':
                 self._schedule_pixiv_search()
-            # A query changes visible targets, but leaves already restored
-            # capacity values in the same library snapshot.
-            self._invalidate_capacity(restore_cache=False)
+            self._invalidate_capacity()
             # Keep normal retirement after any viewer use, including a pending
             # request or focus callback. A never-used viewer needs no reset.
             if self._request_serial or self._viewer_state.viewer_open or self._bookmark_projection_pending:
@@ -1303,6 +1300,7 @@ class LibraryView(ViewerController):
             self._sync_panels()
             self._restore_scroll(self.authors_scroll, reset=True)
             if getattr(self.services, 'legacy_capacity', None) is not None:
+                # Coalesce searches without ignoring a concurrent cache write.
                 self._search_capacity_delay = asyncio.get_running_loop().call_later(
                     0.25, self._resume_search_capacity)
 
