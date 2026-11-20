@@ -200,7 +200,7 @@ class PreferencesView:
                     ui.timer(0.1, lambda: self._verify_tagger(epoch), once=True)
             for group in dict.fromkeys(spec.group for spec in SPECS if spec.key != 'grid_card_size_mode' and spec.group != 'local_tagger_internal'):
                 with ui.column().classes('pv-preferences-group'):
-                    ui.label(group).classes('text-subtitle1')
+                    ui.label(group).classes('text-subtitle1 pv-serif-heading')
                     for spec in SPECS:
                         if spec.group!=group or spec.key == 'grid_card_size_mode': continue
                         key_labels=KEY_CHOICE_LABELS.get(spec.key,{})
@@ -264,7 +264,7 @@ class PreferencesView:
             else:
                 ui.label('ブラウザ拡張機能の自動起動: URI起動経路が未接続です。').classes('text-caption')
             with ui.column().classes('pv-preferences-group'):
-                ui.label('エクスポート').classes('text-subtitle1')
+                ui.label('エクスポート').classes('text-subtitle1 pv-serif-heading').props('data-testid=preferences-export-heading')
                 ui.label('データベースのエクスポート').classes('text-caption')
                 ui.label('データベースと作品メタデータをZIPに保存します（画像は含まれません）。').classes('text-caption')
                 self.export_metadata_button=ui.button('エクスポートを実行', icon='archive', color=None,

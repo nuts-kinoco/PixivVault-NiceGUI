@@ -13,7 +13,8 @@ def size_buttons(on_change, *, prefix: str, small_first: bool = False) -> dict[s
     for label, size, icon in reversed(sizes) if small_first else sizes:
         button = ui.button(label, icon=icon, color=None,
                            on_click=lambda _, value=size: on_change(value))
-        button.props(f"flat dense stack no-caps aria-label={label} aria-pressed=false "
+        accessible_label = f"サムネイル{label}" if prefix == 'duplicate' else label
+        button.props(f"flat dense stack no-caps aria-label={accessible_label} aria-pressed=false "
                      f"data-testid={prefix}-size-{size}").classes("pv-card-size pv-size-button")
         result[size] = button
     return result
