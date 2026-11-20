@@ -96,7 +96,14 @@ class RankingCardMenus:
     def _titles(self) -> dict[str, str]:
         titles = dict(self._hm().titles)
         page = getattr(self, 'page', None)
-        for item in (page.items if page is not None else ()):
+        if page is None:
+            items = ()
+        elif hasattr(page, 'items'):
+            items = page.items
+        else:
+            # PersonalPage keeps rows as {'item': ...} mappings (no `.items`).
+            items = tuple(row['item'] for row in getattr(page, 'rows', ()) if isinstance(row, dict) and 'item' in row)
+        for item in items:
             artwork = item.record.as_artwork()
             titles.setdefault(artwork.work_id, artwork.title)
         return titles
