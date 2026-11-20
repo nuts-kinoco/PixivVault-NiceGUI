@@ -27,6 +27,7 @@ class SchedulerView:
         self.revision = None
         self._settings_account = None
         self._settings_owner = None
+        self._stop_owner = None
         self._completion_notification = None
         self._hidden_star_draft = None
         self._busy = False
@@ -106,9 +107,22 @@ class SchedulerView:
         ledger = self.services.managed_scheduler
         if ledger is None or self.revision is None:
             return
-        global_off = self._settings_account is None and str(self.interval.value) == '0' and not self.startup.value
-        usable = not getattr(ledger, '_account_guard', False) or self._settings_owner is not None or global_off
+        usable = (not getattr(ledger, '_account_guard', False)
+                  or self._settings_owner is not None or self._can_save_global_off())
         self.save_button.set_enabled(usable and not self._busy)
+
+    def _can_save_global_off(self):
+        if str(self.interval.value) != '0' or self.startup.value:
+            return False
+        if self._settings_account is None:
+            return True
+        if self._stop_owner is None:
+            return False
+        try:
+            self._stop_owner.verify_stop_allowed()
+            return True
+        except (OSError, RuntimeError, sqlite3.Error):
+            return False
 
     def _finish_action(self):
         self._busy = False
@@ -159,6 +173,7 @@ class SchedulerView:
         if not self._settings_dirty:
             # The revision belongs to the editable form, even during a poll.
             self.revision = state.revision
+            self._stop_owner = editor.owner if editor is not None else None
             self._hidden_star_draft = None
             self._loading_settings = True
             try:
@@ -246,7 +261,7 @@ class SchedulerView:
         except (OSError, RuntimeError, sqlite3.Error):
             self._hide_account_data()
             return False
-        self._settings_owner = editor.owner
+        self._settings_owner = self._stop_owner = editor.owner
         account_id = editor.owner.account_id
         draft = self._hidden_star_draft
         if draft is not None and draft[0] == account_id:
@@ -446,25 +461,26 @@ class SchedulerView:
             owner = self._settings_owner
             proof = owner if guarded else account_id
             if str(form[1]) == '0' and not form[2]:
-                if guarded and account_id is not None:
-                    self._verify_result(owner)
+                if guarded and not self._can_save_global_off():
+                    raise ScheduleAccountError('mismatch')
+                stop_owner = self._stop_owner if guarded else proof
                 authors_edited = form[0] != getattr(self, '_loaded_authors', '')
                 saved = await asyncio.to_thread(ledger._disable, expected_revision=revision,
-                                                account_id=proof)
+                                                account_id=stop_owner)
                 stop_saved = True
                 runner = getattr(self.services, 'managed_schedule_runner', None)
                 if runner is not None:
                     runner.settings_changed()
                 if self.closed:
                     return
-                if owner is not None:
-                    self._verify_result(owner)
+                if guarded and stop_owner is not None:
+                    stop_owner.verify_stop_allowed()
                 self.revision = revision = saved.revision
                 if not authors_edited:
                     self._settings_dirty = (self.authors.value or '', self.interval.value, self.startup.value) != form
                     self._load(ledger)
                     return
-                if self._stars_unknown_in_form:
+                if self._stars_unknown_in_form or (guarded and owner is None):
                     self.action_notice.set_text('停止を保存しました。☆を変更するには再読込してください。')
                     return
             if guarded:
@@ -565,8 +581,8 @@ class SchedulerView:
                         if not (editor.owns_history or editor.unbound):
                             raise ScheduleAccountError('mismatch')
                     dispatch = getattr(self.services, 'dispatch_author_check', None)
+                    displayed = {} if owner is None else {'displayed_owner': owner}
                     if dispatch is not None:
-                        displayed = {} if owner is None else {'displayed_account': owner.account_id}
                         return dispatch(ledger, slot, self.services._scheduler_cancel_event, wait=False, **displayed)
                     source = getattr(self.services, 'scheduler_favourite_authors', None)
                     authors = source() if source is not None else ledger.favourites()
@@ -574,7 +590,7 @@ class SchedulerView:
                         ledger._sync_favourites(authors)
                     return submit_author_batch(self.services, authors,
                                                cancellation=self.services._scheduler_cancel_event,
-                                               ledger=ledger, slot=slot)
+                                               ledger=ledger, slot=slot, **displayed)
             result = await asyncio.to_thread(submit)
             if self.closed:
                 return

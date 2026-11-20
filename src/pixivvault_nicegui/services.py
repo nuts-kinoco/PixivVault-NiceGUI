@@ -3248,19 +3248,19 @@ class ApplicationServices:
             raise
         emit_shared(self, '画像キャッシュを削除しました。', level='success')
 
-    def scheduler_favourite_authors(self, *, ledger=None, displayed_account=None):
+    def scheduler_favourite_authors(self, *, ledger=None, displayed_owner=None):
         """Read all local stars for the currently verified account."""
         from .managed_scheduler import ScheduleAccountError, _require_managed_network_allowed
         store = self.following_sync
         reader = self.live_client
         if self.closing or store is None or reader is None:
             raise RuntimeError('favourite author source unavailable')
-        if displayed_account is not None:
-            require_same_account(displayed_account, store.last_synced_account())
+        if displayed_owner is not None:
+            displayed_owner.verify_current()
         _require_managed_network_allowed(self)
         account = reader.verify_identity()
-        if displayed_account is not None:
-            require_same_account(displayed_account, account)
+        if displayed_owner is not None:
+            require_same_account(displayed_owner.account_id, account)
         ledger = ledger if ledger is not None else getattr(self, 'managed_scheduler', None)
         bound = getattr(ledger, '_bound_account', lambda: None)()
         mismatch = ScheduleAccountError('mismatch')
@@ -3272,10 +3272,13 @@ class ApplicationServices:
         require_current_account(self, reader, account, error=mismatch)
         if self.closing or self.following_sync is not store:
             raise RuntimeError('favourite author source unavailable')
-        if displayed_account is not None:
-            require_same_account(displayed_account, store.last_synced_account())
         if ledger is not None:
-            ledger.bind_account(account, scope=AccountScope(account, reader))
+            scope = AccountScope(account, reader)
+            if displayed_owner is None:
+                ledger.bind_account(account, scope=scope)
+            else:
+                with ledger._editor_access(displayed_owner):
+                    ledger.bind_account(account, scope=scope)
         return tuple(row.user_id for row in snapshot.authors if row.is_favorite)
 
     def enable_managed_scheduler(self):
@@ -3527,7 +3530,7 @@ class ApplicationServices:
             scope.verify_current(self)
             yield scope
 
-    def dispatch_author_check(self, ledger, slot, cancellation, *, wait=True, authors=None, displayed_account=None):
+    def dispatch_author_check(self, ledger, slot, cancellation, *, wait=True, authors=None, displayed_owner=None):
         """One periodic / manual ☆ check: on the engine when provisioned, else the old queue handoff.
 
         The caller holds `_scheduler_dispatch_lock`."""
@@ -3536,17 +3539,18 @@ class ApplicationServices:
             if source is None:
                 authors = ledger.favourites()  # injected service without the live account source
             else:
-                display = {} if displayed_account is None else {'displayed_account': displayed_account}
+                display = {} if displayed_owner is None else {'displayed_owner': displayed_owner}
                 authors = source(ledger=ledger, **display)
                 ledger._sync_favourites(authors)
+        ownership = {} if displayed_owner is None else {'displayed_owner': displayed_owner}
         if self.batch_runs is not None:
             from .managed_scheduler import _dispatch_account, run_author_check
             account = _dispatch_account(ledger)
             return run_author_check(self, authors, cancellation=cancellation,
-                                    ledger=ledger, slot=slot, wait=wait, account_id=account)
+                                    ledger=ledger, slot=slot, wait=wait, account_id=account, **ownership)
         from .managed_scheduler import submit_author_batch
         return submit_author_batch(self, authors, cancellation=cancellation,
-                                   ledger=ledger, slot=slot)
+                                   ledger=ledger, slot=slot, **ownership)
 
     def start_batch_run(self, author_ids, *, account_id: str | None, kind='authors',
                         origin='manual', target_type=None, on_finish=None, dispatch=None):
@@ -4100,7 +4104,8 @@ class ApplicationServices:
             except (AccountMismatch, ScheduleAccountError):
                 pending = ()
             if pending:
-                notifier.notify('PixivVault', f'作者更新チェック: {len(pending)}件の保存が完了しました。')
+                delivery = {} if owner is None else {'authorize': owner.verify_current}
+                notifier.notify('PixivVault', f'作者更新チェック: {len(pending)}件の保存が完了しました。', **delivery)
         unfinished_count = sum(1 for job in jobs if job.state in UNFINISHED)
         previous_count = self._scheduler_unfinished_count
         self._scheduler_unfinished_count = unfinished_count

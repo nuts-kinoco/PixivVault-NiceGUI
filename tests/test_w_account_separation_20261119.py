@@ -8,6 +8,7 @@ from types import SimpleNamespace as NS
 import pytest
 from nicegui import Client, ui
 
+from account_test_support import schedule_owner
 from pixivvault_nicegui.favourites import FavouriteBook
 from pixivvault_nicegui.following_sync import FollowingSyncStore
 from pixivvault_nicegui.managed_scheduler import ManagedScheduler, ManagedScheduleRunner, ScheduleAccountError
@@ -178,7 +179,7 @@ def test_unknown_legacy_stars_are_not_imported_into_verified_b(tmp_path, legacy_
 def test_unknown_old_schedule_and_backlog_are_kept_without_running(tmp_path):
     with resources(tmp_path) as (root, store, ledger, reader, svc):
         store.sync(reader)
-        ledger.configure(interval_hours=6, startup_check=False, expected_revision=1, account_id=A,
+        ledger.configure(interval_hours=6, startup_check=False, expected_revision=1, account_id=schedule_owner(ledger, A),
                          now=datetime.now(timezone.utc) - timedelta(hours=7))
         ledger._db.execute('ALTER TABLE schedule DROP COLUMN settings_origin')
         ledger._db.execute("INSERT INTO deferred_work VALUES ('1001','100','2020',1,0,'2020')")
@@ -209,10 +210,10 @@ def test_none_and_invalid_id_preserve_account_and_notify(tmp_path):
         now = datetime.now(timezone.utc)
         ledger.defer_work(author_id=X, work=dict(id="200", update_date="2020", page_count=1, type=0), now=now, account_id=A)
         ledger.configure_all(author_ids=None, interval_hours=6, startup_check=False,
-                             expected_revision=ledger.snapshot().revision, now=now, account_id=A)
+                             expected_revision=ledger.snapshot().revision, now=now, account_id=schedule_owner(ledger, A))
         assert stars(store, A) == (X,) and ledger.deferred_count() == 1
         _, ignored = ledger.configure_all(author_ids=(X, "9999"), interval_hours=6, startup_check=False,
-                                          expected_revision=ledger.snapshot().revision, now=now, account_id=A, return_ignored=True)
+                                          expected_revision=ledger.snapshot().revision, now=now, account_id=schedule_owner(ledger, A), return_ignored=True)
         assert ignored == ("9999",) and stars(store, A) == (X,) and ledger.deferred_count() == 1
 
 def test_account_b_can_edit_its_own_star_with_account_a_scheduler(tmp_path):

@@ -8,6 +8,7 @@ from types import SimpleNamespace as NS
 import pytest
 from nicegui import Client, ui
 
+from account_test_support import schedule_owner
 from pixivvault_nicegui.bookmark_remote_adapter import RemoteBookmark
 from pixivvault_nicegui.bookmark_run import VISIBILITY_ROWS
 from pixivvault_nicegui.batch_engine import JobRef
@@ -53,7 +54,7 @@ async def test_owner_bookmark_resume_offer_after_normal_restart(tmp_path, with_f
             schedule = first.managed_scheduler
             schedule.configure(interval_hours=0, startup_check=False,
                                expected_revision=schedule.snapshot().revision,
-                               now=datetime.now(timezone.utc), account_id=A)
+                               now=datetime.now(timezone.utc), account_id=schedule_owner(schedule, A))
         await first.refresh_bookmark_cache()
         handle = first.batch_run_ledger.begin_run(
             'bookmarks', 'manual', 'illust', (VISIBILITY_ROWS['show'],),
@@ -104,7 +105,7 @@ async def test_schedule_stop_and_star_save_retains_the_committed_revision(tmp_pa
         store.sync(reader)
         store.set_favorite(A, X, True)
         schedule.configure(interval_hours=6, startup_check=False, expected_revision=schedule.snapshot().revision,
-                           now=datetime.now(timezone.utc), account_id=A)
+                           now=datetime.now(timezone.utc), account_id=schedule_owner(schedule, A))
         client = Client(ui.page('/r12-stop-and-star'))
         try:
             with client:
@@ -181,7 +182,9 @@ class Notifier:
     def __init__(self):
         self.events = []
 
-    def notify(self, title, message):
+    def notify(self, title, message, *, authorize=None):
+        if authorize is not None:
+            authorize()
         self.events.append((title, message))
 
     def close(self):

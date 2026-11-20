@@ -4,6 +4,7 @@ from threading import Event
 
 import pytest
 
+from account_test_support import schedule_owner
 from pixivvault_nicegui.managed_scheduler import ScheduleError
 from test_v_dl_priority_20261117 import ACCOUNT
 from test_w_review_favourites_20261118 import create_stars
@@ -23,7 +24,7 @@ def test_form_save_blocks_then_rejects_stale_revision(tmp_path, monkeypatch):
         form_attempting.set()
         with pytest.raises(ScheduleError, match='changed in another client'):
             ledger.configure_all(author_ids=('1000',), interval_hours=6, startup_check=False,
-                                 expected_revision=before.revision, now=datetime.now(timezone.utc), account_id=ACCOUNT)
+                                 expected_revision=before.revision, now=datetime.now(timezone.utc), account_id=schedule_owner(ledger, ACCOUNT))
 
     try:
         assert book.set('1000', True, account_id=ACCOUNT)

@@ -5,7 +5,7 @@ from types import SimpleNamespace as NS
 
 import pytest
 
-from account_test_support import observed_scope
+from account_test_support import observed_scope, schedule_owner
 from pixivvault_nicegui.batch_engine import BatchRunEngine
 from pixivvault_nicegui.batch_runs import BatchRunLedger
 from pixivvault_nicegui.favourites import FavouriteBook
@@ -96,7 +96,7 @@ def test_more_than_128_stars_are_kept_and_all_returned(world):
     sync(following, 260)
     scheduler.attach_favourites(FavouriteBook(following, scheduler=scheduler))
     ids = tuple(str(1000 + i) for i in range(200))
-    saved = scheduler.set_favourites(ids, expected_revision=now_state(scheduler).revision, account_id=ACCOUNT)
+    saved = scheduler.set_favourites(ids, expected_revision=now_state(scheduler).revision, account_id=schedule_owner(scheduler, ACCOUNT))
     assert len(saved) == 200 and len(scheduler.favourites(ACCOUNT)) == 200
 
 
@@ -111,11 +111,11 @@ def test_replacing_the_stars_through_the_scheduler_writes_the_ledger_and_prunes_
     sync(following, 5)
     scheduler.attach_favourites(FavouriteBook(following, scheduler=scheduler))
     scheduler.bind_account(ACCOUNT, scope=observed_scope(ACCOUNT))
-    scheduler.set_favourites(('1001', '1002'), expected_revision=now_state(scheduler).revision, account_id=ACCOUNT)
+    scheduler.set_favourites(('1001', '1002'), expected_revision=now_state(scheduler).revision, account_id=schedule_owner(scheduler, ACCOUNT))
     scheduler.defer_work(author_id='1001', work=dict(id='5', update_date='d', page_count=1, type=0),
                          now=datetime.now(timezone.utc), account_id=ACCOUNT)
     assert scheduler.has_deferred()
-    scheduler.set_favourites(('1002',), expected_revision=now_state(scheduler).revision, account_id=ACCOUNT)
+    scheduler.set_favourites(('1002',), expected_revision=now_state(scheduler).revision, account_id=schedule_owner(scheduler, ACCOUNT))
     assert scheduler.favourites(ACCOUNT) == ('1002',) and not scheduler.has_deferred()
 
 
@@ -324,7 +324,7 @@ def test_d4_a_star_change_bumps_the_schedule_revision_so_a_stale_form_cannot_era
     assert book.set('1001', True, account_id=ACCOUNT)
     assert now_state(scheduler).revision == form_revision + 1
     with pytest.raises(Exception):
-        scheduler.set_favourites((), expected_revision=form_revision, account_id=ACCOUNT)
+        scheduler.set_favourites((), expected_revision=form_revision, account_id=schedule_owner(scheduler, ACCOUNT))
     assert scheduler.favourites(ACCOUNT) == ('1001',)
     assert book.set('1001', True, account_id=ACCOUNT) is False                       # no change, no bump
     assert now_state(scheduler).revision == form_revision + 1
@@ -394,7 +394,7 @@ def test_r2_2_an_unreadable_ledger_is_unknown_not_none_and_not_the_old_list(worl
     with pytest.raises(ScheduleError, match='unavailable'):
         scheduler.favourites(ACCOUNT)
     with pytest.raises(ScheduleAccountError):
-        scheduler.set_favourites((), expected_revision=now_state(scheduler).revision, account_id=ACCOUNT)
+        scheduler.set_favourites((), expected_revision=now_state(scheduler).revision, account_id=schedule_owner(scheduler, ACCOUNT))
     assert scheduler.deferred_count() == 1 and book.ids(ACCOUNT) == ('1001',)
 
 
@@ -410,7 +410,7 @@ def test_r2_2_a_transient_error_reading_the_ledger_is_unknown_too(world, monkeyp
         with pytest.raises(RuntimeError, match='database is locked'):
             scheduler.favourites(ACCOUNT)
         with pytest.raises(RuntimeError, match='database is locked'):
-            scheduler.set_favourites((), expected_revision=now_state(scheduler).revision, account_id=ACCOUNT)
+            scheduler.set_favourites((), expected_revision=now_state(scheduler).revision, account_id=schedule_owner(scheduler, ACCOUNT))
     assert scheduler.favourites(ACCOUNT) == ('1001',) and scheduler.deferred_count() == 1
 
 
@@ -488,7 +488,7 @@ async def test_r3_d1_b_after_it_becomes_readable_a_save_of_that_form_is_refused_
 def test_r3_d1_configure_all_without_stars_leaves_them_alone(world):
     following, ledger, book = starred_world(world)
     ledger.configure_all(author_ids=None, interval_hours=6, startup_check=True,
-                         expected_revision=now_state(ledger).revision, now=datetime.now(timezone.utc), account_id=ACCOUNT)
+                         expected_revision=now_state(ledger).revision, now=datetime.now(timezone.utc), account_id=schedule_owner(ledger, ACCOUNT))
     assert ledger.snapshot().interval_hours == 6 and ledger.favourites(ACCOUNT) == ('1001', '1002')
 
 
@@ -505,8 +505,8 @@ def test_r3_d3_a_screen_star_removed_in_the_form_does_not_come_back(world):
     following, scheduler, book = starred_world(world)
     assert scheduler.favourites(ACCOUNT) == ('1001', '1002')
     scheduler.configure_all(author_ids=('1001',), interval_hours=24, startup_check=True,
-                            expected_revision=now_state(scheduler).revision, now=datetime.now(timezone.utc), account_id=ACCOUNT)
+                            expected_revision=now_state(scheduler).revision, now=datetime.now(timezone.utc), account_id=schedule_owner(scheduler, ACCOUNT))
     assert scheduler.favourites(ACCOUNT) == ('1001',) and book.ids(ACCOUNT) == ('1001',)
     scheduler.configure_all(author_ids=('1001', '1003'), interval_hours=24, startup_check=True,
-                            expected_revision=now_state(scheduler).revision, now=datetime.now(timezone.utc), account_id=ACCOUNT)
+                            expected_revision=now_state(scheduler).revision, now=datetime.now(timezone.utc), account_id=schedule_owner(scheduler, ACCOUNT))
     assert scheduler.favourites(ACCOUNT) == ('1001', '1003')

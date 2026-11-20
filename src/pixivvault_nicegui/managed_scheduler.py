@@ -61,13 +61,26 @@ class ScheduleOwner:
     def account_id(self) -> str:
         return self.scope.account_id
 
+    def _verify_following(self):
+        if (getattr(self.services, 'following_sync', self.following) is not self.following
+                or self.following._owner_epoch != self.epoch):
+            raise AccountMismatch()
+        require_same_account(self.account_id, self.following.last_synced_account())
+
     def verify_current(self) -> None:
         with self.following._lock:
+            self._verify_following()
             self.scope.verify_current(self.services)
-            if (getattr(self.services, 'following_sync', self.following) is not self.following
-                    or self.following._owner_epoch != self.epoch):
+
+    def verify_stop_allowed(self) -> None:
+        # The global OFF operation must still work while the same reader is
+        # revalidating. A different reader or a committed switch revokes it.
+        with self.following._lock:
+            self._verify_following()
+            reader = self.scope.reader
+            if (self.services.live_client is not reader or
+                    getattr(reader, '_verified_identity', None) not in (None, self.account_id)):
                 raise AccountMismatch()
-            require_same_account(self.account_id, self.following.last_synced_account())
 
 
 @dataclass(frozen=True, slots=True)
@@ -155,7 +168,7 @@ class ManagedScheduler:
                 return owner
 
     @contextmanager
-    def _editor_access(self, owner, *, require_history=False):
+    def _editor_access(self, owner, *, require_history=False, for_stop=False):
         # The following store publishes owner switches with the second lock.
         # Keep it through the scheduler read or commit. Never hold it across I/O
         # outside the two ledgers, or acquire the scheduler lock from the store.
@@ -168,7 +181,10 @@ class ManagedScheduler:
             if type(owner) is not ScheduleOwner or book is None or book.following is not owner.following:
                 raise ScheduleAccountError('mismatch')
             with owner.following._lock:
-                owner.verify_current()
+                if for_stop:
+                    owner.verify_stop_allowed()
+                else:
+                    owner.verify_current()
                 if require_history:
                     self._require_owner(owner.account_id)
                 yield owner.account_id
@@ -309,17 +325,10 @@ class ManagedScheduler:
         """Save the global stop with the settings revision displayed by the editor."""
         with self._lock:
             self._ensure_open()
-            book = self._favourites_source
-            following = book.following if book is not None and account_id is not None else None
-            owner = account_id if type(account_id) is ScheduleOwner else None
-            ownership = (self._editor_access(owner) if owner is not None else
-                         (following._lock if following is not None else nullcontext()))
-            with ownership as owner_id:
-                if owner is not None:
-                    account_id = owner_id
-                if account_id is not None:
-                    require_same_account(account_id, self.favourite_account(),
-                                         error=ScheduleAccountError('mismatch'))
+            owner = account_id
+            # None explicitly selects the global stop in an unverified editor.
+            ownership = self._editor_access(owner, for_stop=True) if owner is not None else nullcontext()
+            with ownership:
                 self._db.execute('BEGIN IMMEDIATE')
                 try:
                     before = self.snapshot()
@@ -330,7 +339,7 @@ class ManagedScheduler:
                                      'OR next_due_utc IS NOT NULL)')
                     saved = self.snapshot()
                     if owner is not None:
-                        owner.verify_current()
+                        owner.verify_stop_allowed()
                     self._db.execute('COMMIT')
                     return saved
                 except BaseException:
@@ -707,6 +716,8 @@ class ManagedScheduler:
                 raise ScheduleAccountError('mismatch')
             following = None if book is None else book.following
             owner = account_id if type(account_id) is ScheduleOwner else None
+            if book_override is None and account_id is not None and owner is None:
+                raise ScheduleAccountError('mismatch')
             ownership = (self._editor_access(owner) if owner is not None else
                          (following._lock if following is not None else nullcontext()))
             with ownership as owner_id:
@@ -894,9 +905,17 @@ def _dispatch_account(ledger):
     return bound
 
 
+def _dispatch_admission(ledger, owner):
+    if owner is None:
+        return nullcontext()
+    if ledger is None:
+        raise ScheduleAccountError('mismatch')
+    return ledger._editor_access(owner, require_history=True)
+
+
 def submit_author_batch(services, author_ids, *, cancellation: Event,
                         max_items: int = 50, ledger: ManagedScheduler | None = None,
-                        slot: str | None = None) -> dict[str, int]:
+                        slot: str | None = None, displayed_owner: ScheduleOwner | None = None) -> dict[str, int]:
     """Bounded synchronous scheduler handoff into existing durable managed jobs.
 
     Only remote *complete* author lists may authorize an unattended enqueue;
@@ -907,7 +926,7 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
     _require_managed_network_allowed(services)
     if getattr(services, 'author_media', None) is not None:
         return submit_author_media_batch(services, author_ids, cancellation=cancellation,
-            max_items=max_items, ledger=ledger, slot=slot)
+            max_items=max_items, ledger=ledger, slot=slot, displayed_owner=displayed_owner)
     from .author_download import Difference, decide_difference
     from .managed_download_requests import ManagedAuthorIntent
     from .pixiv_read_client import _identifier
@@ -925,15 +944,17 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
         if ledger is not None:
             now = datetime.now(timezone.utc)
             slot = slot or _timestamp(now)
-            ledger.begin_dispatch(slot, now, 0, account_id=bound)
-            ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0, now=now, account_id=bound)
+            with _dispatch_admission(ledger, displayed_owner):
+                ledger.begin_dispatch(slot, now, 0, account_id=bound)
+                ledger.finish_dispatch(slot, status='empty', accepted=0, deferred=0, now=now, account_id=bound)
         return {'accepted': 0, 'deferred': 0, 'authors': 0}
     owner = uuid4().hex
     accepted, deferred = 0, 0
     now = datetime.now(timezone.utc)
     slot = slot or _timestamp(now)
     if ledger is not None:
-        ledger.begin_dispatch(slot, now, len(verified_authors), account_id=bound)
+        with _dispatch_admission(ledger, displayed_owner):
+            ledger.begin_dispatch(slot, now, len(verified_authors), account_id=bound)
     from .job_service import UNFINISHED
     try:
         saved = {receipt['work_id']: (digest, date, relative)
@@ -1148,7 +1169,8 @@ def submit_author_batch(services, author_ids, *, cancellation: Event,
         services.release_managed_owner(owner)
 
 
-def submit_author_media_batch(services, author_ids, *, cancellation, max_items=50, ledger=None, slot=None):
+def submit_author_media_batch(services, author_ids, *, cancellation, max_items=50, ledger=None, slot=None,
+                              displayed_owner: ScheduleOwner | None = None):
     """Original both=illustrations (including ugoira)+novels, bounded at 50.
 
     Complete inventories are fetched before admitting an author's first item.
@@ -1169,7 +1191,8 @@ def submit_author_media_batch(services, author_ids, *, cancellation, max_items=5
     accepted=deferred=0
     bound = _dispatch_account(ledger)
     if ledger is not None:
-        ledger.begin_dispatch(slot,datetime.now(timezone.utc),len(authors), account_id=bound)
+        with _dispatch_admission(ledger, displayed_owner):
+            ledger.begin_dispatch(slot, datetime.now(timezone.utc), len(authors), account_id=bound)
     try:
         for aid in authors:
             if cancellation.is_set() or services.closing: break
@@ -1449,7 +1472,7 @@ class _BatchDispatch:
 
 def run_author_check(services, author_ids, *, cancellation: Event, ledger: ManagedScheduler | None = None,
                      slot: str | None = None, poll: float = 0.5, wait: bool = True,
-                     account_id: str) -> dict[str, int]:
+                     account_id: str, displayed_owner: ScheduleOwner | None = None) -> dict[str, int]:
     """The periodic check on the author batch engine (original scheduler.py:182 `_run_check`).
 
     Every star author (no 128 limit), differential, both media, stamped on completion, behind the
@@ -1467,7 +1490,8 @@ def run_author_check(services, author_ids, *, cancellation: Event, ledger: Manag
     engine = services.batch_runs
     engine.port.verify_run_account(account)
     if ledger is not None:
-        ledger.begin_dispatch(slot, now, len(ids), account_id=bound, batch=True)
+        with _dispatch_admission(ledger, displayed_owner):
+            ledger.begin_dispatch(slot, now, len(ids), account_id=bound, batch=True)
 
     def persist_outcome(state, code, totals):
         accepted = sum(totals[name] for name in ('n_new', 'n_updated', 'n_restored', 'n_missing'))
@@ -1503,6 +1527,10 @@ def run_author_check(services, author_ids, *, cancellation: Event, ledger: Manag
             return {'accepted': 0, 'deferred': 0, 'authors': 0}
         _require_managed_network_allowed(services)
         dispatch = {} if ledger is None else {'dispatch': _BatchDispatch(ledger, slot, account, bound)}
+        # The owned dispatch row is already reserved. Do not hold the following
+        # lock across the batch ledger's own transaction and lock ordering.
+        if displayed_owner is not None:
+            displayed_owner.verify_current()
         handle = services.start_batch_run(ids, origin='auto', target_type='both',
                                           account_id=account, on_finish=finished, **dispatch)
     except Exception as error:

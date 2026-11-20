@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import datetime, timezone
 import pytest
-from account_test_support import observed_scope
+from account_test_support import observed_scope, schedule_owner
 from pixivvault_nicegui.favourites import FavouriteBook
 from pixivvault_nicegui.following_sync import FollowingSyncStore, FollowingSyncError
 from pixivvault_nicegui.managed_scheduler import ManagedScheduler
@@ -29,7 +29,7 @@ def test_form_save_error_rolls_back_all_stars(tmp_path):
              WHEN OLD.user_id='1001' BEGIN SELECT RAISE(ABORT, 'synthetic write failure'); END""")
         with pytest.raises((sqlite3.IntegrityError, FollowingSyncError)):
             ledger.configure_all(author_ids=('1001',), interval_hours=6, startup_check=False,
-                                 expected_revision=before.revision, now=datetime.now(timezone.utc), account_id=ACCOUNT)
+                                 expected_revision=before.revision, now=datetime.now(timezone.utc), account_id=schedule_owner(ledger, ACCOUNT))
         after = ledger.snapshot()
         stars = ledger.favourites(ACCOUNT)
         print(f'form save failed: revision {before.revision} -> {after.revision}, stars={stars}')

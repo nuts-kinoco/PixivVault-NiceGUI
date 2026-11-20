@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from account_test_support import observed_scope
+from account_test_support import observed_scope, schedule_owner
 from pixivvault_nicegui.favourites import FavouriteBook
 from pixivvault_nicegui.following_sync import FollowingSyncStore
 from pixivvault_nicegui.managed_scheduler import ManagedScheduler, ScheduleAccountError
@@ -145,7 +145,7 @@ def test_current_account_stars_are_visible_and_bound_before_dispatch(tmp_path):
         assert ledger.favourites(ACCOUNT) == ('1001',)
         assert ApplicationServices.scheduler_favourite_authors(service, ledger=ledger) == ('1001',)
         assert ledger._bound_account() == '55'
-        ledger.set_favourites(('1002',), expected_revision=ledger.snapshot().revision, account_id=ACCOUNT)
+        ledger.set_favourites(('1002',), expected_revision=ledger.snapshot().revision, account_id=schedule_owner(ledger, ACCOUNT))
         assert book.ids(ACCOUNT) == ('1002',)
     finally:
         ledger.close()
@@ -224,7 +224,7 @@ def test_verified_account_star_save_failure_rolls_back_following_ledger(tmp_path
     try:
         with pytest.raises(Exception):
             ledger.configure_all(author_ids=('1002',), interval_hours=6, startup_check=False,
-                                 expected_revision=ledger.snapshot().revision, now=datetime.now(timezone.utc), account_id=ACCOUNT)
+                                 expected_revision=ledger.snapshot().revision, now=datetime.now(timezone.utc), account_id=schedule_owner(ledger, ACCOUNT))
         assert book.ids(ACCOUNT) == ('1001',)
     finally:
         ledger.close()

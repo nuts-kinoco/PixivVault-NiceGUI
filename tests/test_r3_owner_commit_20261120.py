@@ -41,7 +41,7 @@ def seed_history(ledger, *, saved=False):
         ledger.reconcile_jobs((NS(job_id='isolated-job', state='done'),), {'200': 'verified'}, account_id=A)
 
 
-async def confirm_switch(store, services):
+async def confirm_switch(store, services, *, update_live=True):
     binding = NS(_closed=False, _configured_cookie=lambda: object(),
                  _reader_lock=RLock(), _requests={})
     followup = AccountFollowup(binding)
@@ -50,7 +50,8 @@ async def confirm_switch(store, services):
     followup.store_provider = lambda: store
     await followup.after_confirmed(B)
     assert followup.pending is not None
-    services.live_client = reader
+    if update_live:
+        services.live_client = reader
     await followup.confirm_account_switch()
     assert store.last_synced_account() == B
 
@@ -219,4 +220,119 @@ async def test_unverified_editor_can_still_save_the_global_off_switch(tmp_path):
                 assert not view.authors.visible
                 view.close()
         finally:
+            client.delete()
+
+
+@pytest.mark.parametrize('operation', ('configure', 'configure_all', 'set_favourites', '_disable'))
+def test_scheduler_settings_reject_a_bare_owner_id(tmp_path, operation):
+    from pixivvault_nicegui.managed_scheduler import ScheduleAccountError
+
+    with resources(tmp_path) as (_, store, ledger, reader, services):
+        populate(store, ledger, reader, services)
+        # The saved follow snapshot still belongs to A although B is verified.
+        services.live_client = Reader(B)
+        before = ledger.snapshot()
+        kwargs = {'account_id': A, 'expected_revision': before.revision}
+        if operation in ('configure', 'configure_all'):
+            kwargs.update(interval_hours=6, startup_check=True, now=datetime.now(timezone.utc))
+        if operation in ('set_favourites', 'configure_all'):
+            kwargs['author_ids'] = ()
+        with pytest.raises((AccountMismatch, ScheduleAccountError)):
+            getattr(ledger, operation)(**kwargs)
+        assert ledger.snapshot() == before
+        assert ledger.favourites(A) == (X,)
+
+
+@pytest.mark.asyncio
+async def test_open_editor_can_stop_while_same_reader_revalidates(tmp_path):
+    with resources(tmp_path) as (_, store, ledger, reader, services):
+        populate(store, ledger, reader, services)
+        client = Client(ui.page('/_r2_revalidating_global_off'))
+        try:
+            with client:
+                view = SchedulerView(services)
+                view._load(ledger)
+                view.interval.set_value('0')
+                reader._verified_identity = None
+                await view.refresh()
+                assert not view.authors.visible and view.save_button.enabled
+                await view.save()
+                assert ledger.snapshot().interval_hours == 0
+                view.close()
+        finally:
+            client.delete()
+
+
+@pytest.mark.asyncio
+async def test_queued_desktop_notification_is_discarded_after_switch(tmp_path):
+    from pixivvault_nicegui.notifications import NotificationDispatcher
+
+    with resources(tmp_path) as (_, store, ledger, reader, services):
+        populate(store, ledger, reader, services)
+        seed_history(ledger, saved=True)
+        services.managed_downloads = NS(verified_saved_receipt=lambda *_args, **_kwargs: None)
+        services._scheduler_unfinished_count = None
+        entered, release = Event(), Event()
+        titles = []
+
+        def send(title, _message):
+            titles.append(title)
+            if title == 'test-barrier':
+                entered.set()
+                assert release.wait(5)
+
+        dispatcher = NotificationDispatcher(NS(get_setting=lambda *_: '1'), backend=NS(send=send))
+        services.notifications = dispatcher
+        try:
+            assert dispatcher.notify('test-barrier', '')
+            await until(entered.is_set)
+            await asyncio.to_thread(ApplicationServices.reconcile_managed_scheduler, services)
+            assert ledger.pending_notifications() == ()
+            await confirm_switch(store, services)
+            release.set()
+            tail = dispatcher.notify('test-tail', '')
+            await asyncio.wrap_future(tail)
+            assert titles == ['test-barrier', 'test-tail']
+        finally:
+            release.set()
+            dispatcher.close()
+
+
+@pytest.mark.asyncio
+async def test_manual_scheduler_admission_refuses_owner_changed_after_reading_stars(tmp_path):
+    with resources(tmp_path) as (_, store, ledger, reader, services):
+        populate(store, ledger, reader, services)
+        services.batch_runs = None
+        services.managed_downloads = NS(saved_receipts_with_dates=lambda: ())
+        services._scheduler_cancel_event = Event()
+        services.dispatch_author_check = lambda *args, **kwargs: ApplicationServices.dispatch_author_check(
+            services, *args, **kwargs)
+        read_authors = services.scheduler_favourite_authors
+        entered, release = Event(), Event()
+
+        def capture_authors(**kwargs):
+            authors = read_authors(**kwargs)
+            entered.set()
+            assert release.wait(5)
+            return authors
+
+        services.scheduler_favourite_authors = capture_authors
+        client = Client(ui.page('/_r2_stale_manual_admission'))
+        task = None
+        try:
+            with client:
+                view = SchedulerView(services)
+                view._load(ledger)
+                task = asyncio.create_task(view.run_once())
+                await until(entered.is_set)
+                # The confirmation reader is separate from the long-lived reader.
+                await confirm_switch(store, services, update_live=False)
+                release.set()
+                await task
+                assert ledger.history() == ()
+                view.close()
+        finally:
+            release.set()
+            if task is not None:
+                await task
             client.delete()

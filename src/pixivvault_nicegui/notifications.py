@@ -47,7 +47,8 @@ class NotificationDispatcher:
     def available(self):
         return self.backend is not None and not self._closed
 
-    def notify(self,title,body,*,event_id=None):
+    def notify(self,title,body,*,event_id=None,authorize=None):
+        """Queue a toast, optionally checking its authority in the send worker."""
         if type(title) is not str or type(body) is not str:
             raise ValueError('notification requires text')
         if event_id is not None and (type(event_id) is not str or not event_id):
@@ -56,11 +57,16 @@ class NotificationDispatcher:
             if self._closed or self.backend is None or self.preferences.get_setting('enable_notifications','1')!='1':return None
             if event_id is not None and event_id in self._events:return None
             if event_id is not None:self._events.add(event_id)
-            return self._executor.submit(self._send,title,body)
+            return self._executor.submit(self._send,title,body,authorize)
 
-    def _send(self,title,body):
+    def _send(self,title,body,authorize):
         with self._lock:
             if self._closed or self.preferences.get_setting('enable_notifications','1')!='1':
+                return NotificationResult('suppressed')
+        if authorize is not None:
+            try:
+                authorize()
+            except Exception:
                 return NotificationResult('suppressed')
         try:
             self.backend.send(title,body)

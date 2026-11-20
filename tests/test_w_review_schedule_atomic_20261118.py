@@ -6,7 +6,7 @@ import sqlite3
 import pytest
 
 from pixivvault_nicegui import managed_generations as mg
-from account_test_support import observed_scope
+from account_test_support import observed_scope, schedule_owner
 from pixivvault_nicegui.bookmark_run import VISIBILITY_ROWS
 from pixivvault_nicegui.managed_downloads import ManagedDownloadError
 from pixivvault_nicegui.managed_root_writer import writer_fence
@@ -25,7 +25,7 @@ def test_schedule_update_failure_keeps_old_stars(tmp_path):
             BEGIN SELECT RAISE(ABORT, 'synthetic scheduler save failure'); END""")
         with pytest.raises(sqlite3.IntegrityError):
             ledger.configure_all(author_ids=('1001',), interval_hours=6, startup_check=False,
-                                 expected_revision=before.revision, now=datetime.now(timezone.utc), account_id=ACCOUNT)
+                                 expected_revision=before.revision, now=datetime.now(timezone.utc), account_id=schedule_owner(ledger, ACCOUNT))
         assert ledger.snapshot() == before
         assert book.ids(ACCOUNT) == ('1000',)
     finally:
@@ -41,7 +41,7 @@ def test_inactive_follow_row_is_reported_as_ignored(tmp_path):
         assert '1001' not in {row.user_id for row in following.snapshot(account).following}
         before = ledger.snapshot()
         _, ignored = ledger.configure_all(author_ids=('1001',), interval_hours=6, startup_check=False,
-                                          expected_revision=before.revision, now=datetime.now(timezone.utc), account_id=ACCOUNT,
+                                          expected_revision=before.revision, now=datetime.now(timezone.utc), account_id=schedule_owner(ledger, ACCOUNT),
                                           return_ignored=True)
         assert ignored == ('1001',)
     finally:
