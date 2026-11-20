@@ -63,8 +63,6 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family:var(
 .pv-conn-row .q-toggle__thumb { top:3px; width:20px; height:20px; }
 [dir="ltr"] .pv-conn-row .q-toggle__thumb { left:3px; }
 [dir="ltr"] .pv-conn-row .q-toggle__inner--truthy .q-toggle__thumb { left:20px; }
-.pv-conn-dot { width:10px; height:10px; border-radius:50%; background:var(--pv-on-surface-variant); flex:0 0 10px; }
-.pv-conn-dot[data-state=waiting] { background:var(--pv-auth-green); } .pv-conn-dot[data-state=off] { background:var(--pv-auth-red); }
 .q-btn.pv-hbtn, .pv-hbtn { width:40px; height:40px; min-width:40px; min-height:40px; padding:0; border-radius:50%; color:var(--pv-on-surface-variant) !important; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
 .pv-hbtn .q-icon { font-size:24px; }
 .q-btn.pv-hbtn { color:var(--pv-on-surface-variant) !important; }

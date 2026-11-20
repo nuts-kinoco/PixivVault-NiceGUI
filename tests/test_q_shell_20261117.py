@@ -101,8 +101,8 @@ def test_header_left_column_title_then_auth_then_connection_row(shell_and_client
     assert 'pv-title' in kids[0].classes and kids[0].text == 'PixivVault'
     row = next(e for e in walk(left) if 'pv-conn-row' in e.classes)
     ids = [tid(e) for e in walk(row)]
-    assert 'app-connection-status' in ids and 'premium-borrow-toggle' in ids
-    assert ids.index('app-connection-status') < ids.index('premium-borrow-toggle')
+    # 元の「アプリ: 接続中…」は iOS 連携の接続状態。除外したので表示しない（API切り替えは残る）。
+    assert 'premium-borrow-toggle' in ids and 'app-connection-status' not in ids
     labels = [e.text for e in walk(row) if getattr(e, 'text', None)]
     assert 'API切り替え' in labels
     assert not any('iOS' in t or 'Shaft' in t for t in labels)

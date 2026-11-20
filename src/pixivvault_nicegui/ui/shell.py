@@ -77,7 +77,6 @@ class DemoShell:
         self._followup_unsubscribe = None
         self.account_switch_dialog = None
         self._banner_dismissed = False
-        self._app_conn_timer = None
         owner = getattr(services, 'ugoira', None)
         self._ugoira_notified = {(job.job_id, job.attempt) for job in owner.jobs.snapshot()
                                   if job.state in ('done', 'stopped', 'error')} if owner is not None else set()
@@ -102,10 +101,8 @@ class DemoShell:
                     if getattr(services, 'native_profile', None) is not None:
                         self.auth_label = ui.label(AUTH_CHECKING_TEXT).classes('pv-auth').props(
                             'role=status aria-live=polite data-testid=auth-status data-tone=primary')
-                    # 元 gui.py app_connection_row: アプリ接続状態と「API切り替え」。iOS/Shaft 連携は作らない。
+                    # 元 gui.py app_connection_row の「アプリ: 接続中…」は iOS 連携の接続状態。iOS 連携は作らないため表示ごと除外（2026-11-20 本人指示）。「API切り替え」は残す。
                     with ui.row().classes('pv-conn-row items-center'):
-                        self.app_conn_dot = ui.element('span').classes('pv-conn-dot').props('data-state=idle')
-                        self.app_conn_label = ui.label('アプリ: 未接続').props('role=status data-testid=app-connection-status')
                         from .request_status_view import RequestStatusView
                         from .shared_get_recovery_view import SharedGetRecoveryView, shared_get_scope
                         if getattr(services,'external_vault',None) is not None:
@@ -136,8 +133,6 @@ class DemoShell:
                         shared = shared_get_scope(services)
                         if shared is not None:
                             self.get_recovery_view = SharedGetRecoveryView(shared)
-                        self._app_conn_timer = ui.timer(2, self._refresh_app_connection)
-                        self._refresh_app_connection()
                     policy=getattr(self.services,'_request_retry',None)
                     if policy is not None:
                         self.request_status_view=RequestStatusView(policy)
@@ -351,17 +346,6 @@ class DemoShell:
                 similarity_status=(self.services.similarity_analysis_status if self.services.similarity_analysis_enabled else None),
                 resume_similarity=(self.services.rescan_similarity_analysis if self.services.similarity_analysis_enabled else None))
         self.preferences_view.open()
-
-    def _refresh_app_connection(self):
-        # 元は iOS 連携の最終接続時刻から出す。移植版は iOS 連携を除外しており最終接続時刻の源が無いため、
-        # ブラウザ拡張の受信口の状態（services.extension_bridge_status）から出す。
-        if self.closed:
-            return
-        status = getattr(self.services, 'extension_bridge_status', 'disabled')
-        state, text = {'running': ('waiting', 'アプリ: 受信待機中'),
-                       'setting_off': ('off', 'アプリ: 切断中')}.get(status, ('idle', 'アプリ: 未接続'))
-        self.app_conn_label.set_text(text)
-        self.app_conn_dot.props(f'data-state={state}')
 
     def _build_view_history(self):
         storage = getattr(self.services, 'discovery', None) or getattr(self.services, 'learning', None)
@@ -684,7 +668,6 @@ class DemoShell:
         self.closed = True
         self.shared_log_view.close()
         if self._borrow_timer is not None:self._borrow_timer.deactivate()
-        if self._app_conn_timer is not None:self._app_conn_timer.deactivate()
         if self._ugoira_timer is not None:self._ugoira_timer.deactivate()
         if self.borrow_dialog is not None:self.borrow_dialog.close()
         self.saved_folder_button.close()

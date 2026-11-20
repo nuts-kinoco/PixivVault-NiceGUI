@@ -2,13 +2,13 @@
   "_comment": "UI smoke expectations (tools/ui_smoke_browser.py). testids: data-testid that must be VISIBLE on the screen (the first one is the 'screen is ready' element; a trailing * is a prefix match). texts: substrings of the screen's visible text. absent_testids: must NOT be visible. allowed_calls: fake live client methods this screen is DESIGNED to call on first open (user-initiated tab fetch); anything else on a screen fails. Update procedure: tools/UI_SMOKE_README.md.",
   "global": {
     "testids": [
-      "db-status-banner", "auth-status", "cookie-banner", "app-connection-status", "premium-borrow-toggle",
+      "db-status-banner", "auth-status", "cookie-banner", "premium-borrow-toggle",
       "tab-history", "view-history-open", "saved-folder-open", "theme-toggle", "pixiv-home-link", "preferences-open",
       "tab-download", "tab-queue", "tab-failed", "tab-dedup", "tab-learning", "tab-ranking",
       "tab-personal", "tab-library", "tab-recommend", "tab-scheduler", "tab-metadata"
     ],
     "texts": [
-      "PixivVault", "アプリ:", "API切り替え", "本番DBを使用中", "未認証/期限切れ", "【Cookie未連携】",
+      "PixivVault", "API切り替え", "本番DBを使用中", "未認証/期限切れ", "【Cookie未連携】",
       "ダウンロード", "キュー", "失敗リスト", "重複整理", "学習", "ランキング",
       "自分のランキング", "ライブラリ", "おすすめ", "定期チェック", "メタデータ補完"
     ],
