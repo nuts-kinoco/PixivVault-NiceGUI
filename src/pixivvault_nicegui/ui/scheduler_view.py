@@ -4,9 +4,10 @@ from __future__ import annotations
 import asyncio
 import sqlite3
 from datetime import datetime, timezone
-from threading import Event, get_ident
+from threading import Event
 from uuid import uuid4
 from ..account_scope import AccountMismatch, require_same_account
+from ..following_sync import subscribe_owner_on_loop
 from ..legacy_author_sync import LegacyAuthorSourceError
 from ..managed_scheduler import ScheduleAccountError
 
@@ -74,24 +75,12 @@ class SchedulerView:
         store = getattr(self.services, 'following_sync', None)
         if store is None:
             return
-        ui_thread = get_ident()
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-
         def invalidate(epoch):
             owner = self._settings_owner
             if not self.closed and owner is not None and owner.epoch < epoch:
                 self._hide_account_data()
 
-        def changed(epoch):
-            if get_ident() == ui_thread:
-                invalidate(epoch)
-            elif loop is not None and not loop.is_closed():
-                loop.call_soon_threadsafe(invalidate, epoch)
-
-        self._unsubscribe_owner = store.subscribe_owner(changed)
+        self._unsubscribe_owner = subscribe_owner_on_loop(store, invalidate)
 
     def _set_controls(self, enabled):
         for widget in (self.interval, self.startup, self.authors, self.save_button, self.discard_button,

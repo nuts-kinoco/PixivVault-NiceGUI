@@ -1,21 +1,42 @@
 """Per-client view of the application-owned common log."""
+from contextlib import nullcontext
+from sqlite3 import Error as SQLiteError
+
 from nicegui import ui
+
+from ..following_sync import subscribe_owner_on_loop
 
 
 LOG_HIDDEN_TABS = frozenset({'download', 'queue', 'failed', 'history', 'learning',
                              'ranking', 'personal', 'library', 'recommend', 'dedup'})
 
 
+def _visible(entry):
+    owner = getattr(entry, 'owner', None)
+    if owner is not None:
+        try:
+            owner.verify_current()
+        except (OSError, RuntimeError, SQLiteError):
+            return False
+    return True
+
+
 def render_log_entries(panel, entries):
     panel.clear()
     with panel:
         for entry in entries:
-            ui.label(f'[{entry.timestamp}] {entry.message}').classes(
-                'pv-queue-log-line pv-queue-log-' + entry.level)
+            owner = getattr(entry, 'owner', None)
+            try:
+                with owner.current() if owner is not None else nullcontext():
+                    ui.label(f'[{entry.timestamp}] {entry.message}').classes(
+                        'pv-queue-log-line pv-queue-log-' + entry.level)
+            except (OSError, RuntimeError, SQLiteError):
+                if owner is None:
+                    raise
 
 
 class SharedLogView:
-    def __init__(self, log):
+    def __init__(self, log, *, following=None):
         self.log = log
         self.client = ui.context.client
         self.closed = False
@@ -27,6 +48,18 @@ class SharedLogView:
             self.panel = ui.column().classes('pv-queue-log w-full gap-0').props('data-testid=shared-log')
         self.root.set_visibility(False)
         self.timer = ui.timer(2, self.refresh, immediate=False)
+        self._unsubscribe = (subscribe_owner_on_loop(following, self._owner_changed)
+                             if following is not None else None)
+        self.client.on_delete(self.close)
+
+    def _owner_changed(self, _epoch):
+        if self.closed:
+            return
+        self._signature = None
+        if self.root.visible and self.expanded:
+            self.refresh()
+        else:
+            self.panel.clear()
 
     def _scroll(self):
         from nicegui import core
@@ -55,7 +88,7 @@ class SharedLogView:
     def refresh(self):
         if self.closed or not self.root.visible or not self.expanded:
             return
-        entries = self.log.snapshot()
+        entries = tuple(entry for entry in self.log.snapshot() if _visible(entry))
         if entries == self._signature:
             return
         self._signature = entries
@@ -66,3 +99,6 @@ class SharedLogView:
         if not self.closed:
             self.closed = True
             self.timer.deactivate()
+            if self._unsubscribe is not None:
+                self._unsubscribe()
+                self._unsubscribe = None

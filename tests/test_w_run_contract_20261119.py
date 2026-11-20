@@ -6,7 +6,6 @@ from types import SimpleNamespace as NS
 
 import pytest
 
-from account_test_support import observed_scope
 from pixivvault_nicegui.account_scope import AccountMismatch, AccountScope
 from pixivvault_nicegui.author_media import AuthorMediaService, canonical
 from pixivvault_nicegui.batch_engine import BatchRunEngine, ServicesPort
@@ -92,7 +91,7 @@ def seed(svc, root, store, schedule, reader):
         reader._verified_identity = account
         store.sync(reader)
         store.set_favorite(account, author, True)
-    schedule.bind_account(A, scope=observed_scope(A))
+    schedule.bind_account(A, scope=schedule.capture_owner(svc, account_id=A))
     reader.get_author_artworks_complete = lambda _: ()
     reader.get_author_novel_ids = lambda _: ()
     svc.managed_downloads = NS(root=root)

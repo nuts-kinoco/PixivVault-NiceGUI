@@ -179,7 +179,7 @@ def test_account_sinks_reject_without_writing_any_table(tmp_path, cls, method, e
     with resources(tmp_path) as (_, store, ledger, reader, svc):
         sync_accounts(store, reader)
         now = datetime.now(timezone.utc)
-        ledger.bind_account(A, scope=observed_scope(A))
+        ledger.bind_account(A, scope=ledger.capture_owner(svc, account_id=A))
         ledger.defer_work(author_id=X, work=HELD, now=now, account_id=A)
         ledger.begin_dispatch("existing", now, 1, account_id=A)
         batch = BatchRunLedger(tmp_path / "batch")
@@ -249,7 +249,7 @@ def test_manual_start_refuses_stale_follow_target_before_creating_run(tmp_path):
 
 def dispatch_fixture(root, store, ledger, reader, svc, route, observation):
     sync_accounts(store, reader)
-    ledger.bind_account(A, scope=observed_scope(A))
+    ledger.bind_account(A, scope=ledger.capture_owner(svc, account_id=A))
     ledger.defer_work(author_id=X, work=HELD, now=datetime.now(timezone.utc), account_id=A)
     use_media_dispatch(root, reader, svc, switch_at=None)
     svc._media_admission_lock = RLock()

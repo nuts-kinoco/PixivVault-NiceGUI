@@ -275,7 +275,9 @@ async def test_queued_desktop_notification_is_discarded_after_switch(tmp_path):
         entered, release = Event(), Event()
         titles = []
 
-        def send(title, _message):
+        def send(title, _message, *, authorize):
+            if authorize is not None:
+                authorize()
             titles.append(title)
             if title == 'test-barrier':
                 entered.set()

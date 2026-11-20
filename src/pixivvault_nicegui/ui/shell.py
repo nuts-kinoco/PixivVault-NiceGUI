@@ -200,7 +200,7 @@ class DemoShell:
                 else:
                     self.gallery = GalleryView(services, card_size=self.card_size, on_size_change=self.change_card_size)
             from .shared_log_view import SharedLogView
-            self.shared_log_view = SharedLogView(services.shared_log)
+            self.shared_log_view = SharedLogView(services.shared_log, following=getattr(services, 'following_sync', None))
             # 閲覧履歴（元 gui.py の閲覧履歴ボタン）は学習タブを開かずに、起動時から件数を出してダイアログを開く。
             self._build_view_history()
         self._attach_auth_status()

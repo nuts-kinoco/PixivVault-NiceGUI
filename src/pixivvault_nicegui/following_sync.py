@@ -5,6 +5,7 @@ The caller supplies its existing read-only reader and explicitly requests sync.
 """
 from __future__ import annotations
 
+import asyncio
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -13,7 +14,7 @@ import os
 from pathlib import Path
 import re
 import sqlite3
-from threading import RLock
+from threading import RLock, get_ident
 import time
 
 from .account_scope import AccountMismatch, AccountScope, ConfirmedFollowingSwitch, require_same_account
@@ -118,6 +119,23 @@ def _stamp(value):
     except (ValueError, TypeError):
         raise FollowingSyncError() from None
     return value
+
+
+def subscribe_owner_on_loop(store, listener):
+    """Deliver committed owner changes on the subscriber's event loop."""
+    thread = get_ident()
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    def changed(epoch):
+        if get_ident() == thread:
+            listener(epoch)
+        elif loop is not None and not loop.is_closed():
+            loop.call_soon_threadsafe(listener, epoch)
+
+    return store.subscribe_owner(changed)
 
 
 class FollowingSyncStore:

@@ -22,12 +22,25 @@ def windows_notifications_available():
         return False
 
 
+class NotificationSuppressed(RuntimeError):
+    pass
+
+
+def _authorize_delivery(authorize):
+    if authorize is not None:
+        try:
+            authorize()
+        except Exception:
+            raise NotificationSuppressed() from None
+
+
 class WindowsToastBackend:
-    def send(self,title,body):
+    def send(self, title, body, *, authorize):
         try:
             from win11toast import toast
         except ImportError:
             raise NotificationUnavailable('Windows通知の実行依存がありません。') from None
+        _authorize_delivery(authorize)
         toast(title,body,app_id='PixivVault')
 
 
@@ -63,14 +76,14 @@ class NotificationDispatcher:
         with self._lock:
             if self._closed or self.preferences.get_setting('enable_notifications','1')!='1':
                 return NotificationResult('suppressed')
-        if authorize is not None:
-            try:
-                authorize()
-            except Exception:
-                return NotificationResult('suppressed')
         try:
-            self.backend.send(title,body)
+            # Check before backend setup, and pass the same authority to the
+            # backend for its last check after setup and before delivery.
+            _authorize_delivery(authorize)
+            self.backend.send(title, body, authorize=authorize)
             return NotificationResult('sent')
+        except NotificationSuppressed:
+            return NotificationResult('suppressed')
         except Exception:
             return NotificationResult('failed')
 

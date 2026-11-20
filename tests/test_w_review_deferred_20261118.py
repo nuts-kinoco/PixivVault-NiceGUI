@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import datetime, timezone
 import pytest
-from account_test_support import observed_scope
+from account_test_support import schedule_owner
 from pixivvault_nicegui.favourites import FavouriteBook
 from pixivvault_nicegui.following_sync import FollowingSyncStore, FollowingSyncError
 from pixivvault_nicegui.managed_scheduler import ManagedScheduler
@@ -16,7 +16,7 @@ def create_stars(tmp_path):
     sync(following, 3)
     book = FavouriteBook(following, scheduler=ledger)
     ledger.attach_favourites(book)
-    ledger.bind_account(ACCOUNT, scope=observed_scope(ACCOUNT))
+    ledger.bind_account(ACCOUNT, scope=schedule_owner(ledger, ACCOUNT))
     return following, ledger, book
 
 

@@ -29,7 +29,7 @@ def test_unbound_legacy_settings_and_pending_are_not_imported_or_deleted(tmp_pat
         assert book.ids(ACCOUNT) == ()
         assert ledger.deferred_count() == 1
         with pytest.raises(ScheduleAccountError):
-            ledger.bind_account(book.account(), scope=observed_scope(book.account()))
+            ledger.bind_account(book.account(), scope=schedule_owner(ledger, book.account()))
         assert book.ids(ACCOUNT) == () and ledger.deferred_count() == 1
     finally:
         ledger.close()
@@ -219,7 +219,7 @@ def test_verified_account_star_save_failure_rolls_back_following_ledger(tmp_path
     ledger = ManagedScheduler(root)
     book = FavouriteBook(following, scheduler=ledger)
     ledger.attach_favourites(book)
-    ledger.bind_account('55', scope=observed_scope('55'))
+    ledger.bind_account('55', scope=schedule_owner(ledger, '55'))
     ledger._db.execute("CREATE TRIGGER reject_schedule BEFORE UPDATE ON schedule BEGIN SELECT RAISE(ABORT, 'test'); END")
     try:
         with pytest.raises(Exception):

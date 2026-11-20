@@ -22,6 +22,23 @@ _CURRENT_IMAGE_READER = object()
 _FAILED_LEGACY_COPY_OWNERS = []
 
 
+def _scheduler_output_owner(ledger, services, account_id):
+    """A missing display authority must never interrupt receipt reconciliation."""
+    if not getattr(ledger, '_account_guard', False):
+        return None
+    try:
+        return ledger.capture_owner(services, account_id=account_id)
+    except (OSError, RuntimeError):
+        return None
+
+
+def _append_scheduler_output(log, ledger, message, *, owner, level='normal'):
+    if owner is not None:
+        log.append_owned(message, owner=owner, level=level)
+    elif not getattr(ledger, '_account_guard', False):
+        log.append(message, level=level)
+
+
 def _frozen_library_stat(path):
     from .library_repository import require_frozen_library_copy
     path = require_frozen_library_copy(path)
@@ -3248,7 +3265,7 @@ class ApplicationServices:
             raise
         emit_shared(self, '画像キャッシュを削除しました。', level='success')
 
-    def scheduler_favourite_authors(self, *, ledger=None, displayed_owner=None):
+    def scheduler_favourite_authors(self, *, ledger=None, displayed_owner=None, include_owner=False):
         """Read all local stars for the currently verified account."""
         from .managed_scheduler import ScheduleAccountError, _require_managed_network_allowed
         store = self.following_sync
@@ -3267,19 +3284,23 @@ class ApplicationServices:
         if bound is not None:
             require_same_account(bound, account, error=mismatch)
         require_current_account(self, reader, account, error=mismatch)
+        guarded = getattr(ledger, '_account_guard', False)
+        owner = displayed_owner
+        if guarded and owner is None:
+            if bound is None:
+                owner = ledger.capture_owner(self, account_id=account)
+            elif include_owner:
+                owner = _scheduler_output_owner(ledger, self, account)
         snapshot = store.snapshot(account)
         require_same_account(account, snapshot.account_id, error=mismatch)
         require_current_account(self, reader, account, error=mismatch)
         if self.closing or self.following_sync is not store:
             raise RuntimeError('favourite author source unavailable')
-        if ledger is not None:
-            scope = AccountScope(account, reader)
-            if displayed_owner is None:
-                ledger.bind_account(account, scope=scope)
-            else:
-                with ledger._editor_access(displayed_owner):
-                    ledger.bind_account(account, scope=scope)
-        return tuple(row.user_id for row in snapshot.authors if row.is_favorite)
+        if ledger is not None and bound is None:
+            scope = owner if guarded else AccountScope(account, reader)
+            ledger.bind_account(account, scope=scope)
+        authors = tuple(row.user_id for row in snapshot.authors if row.is_favorite)
+        return (authors, owner) if include_owner else authors
 
     def enable_managed_scheduler(self):
         """Explicit opt-in, after managed-only application resources exist."""
@@ -3306,13 +3327,17 @@ class ApplicationServices:
                     # network stop gate. Otherwise queue acceptance (not a verified saved receipt).
                     with self._scheduler_dispatch_lock:
                         try:
-                            if book_factory is not None:
+                            owner = None
+                            if getattr(ledger, '_account_guard', False):
+                                authors, owner = self.scheduler_favourite_authors(ledger=ledger, include_owner=True)
+                            elif book_factory is not None:
                                 authors = self.scheduler_favourite_authors(ledger=ledger)
                             else:
                                 authors = self.scheduler_favourite_authors()
                             ledger._sync_favourites(authors)
                             if authors and not cancellation.is_set() and not self.closing:
-                                self.shared_log.append(f'☆ お気に入り自動チェックを開始します ({len(authors)}人の作者)')
+                                _append_scheduler_output(self.shared_log, ledger,
+                                    f'☆ お気に入り自動チェックを開始します ({len(authors)}人の作者)', owner=owner)
                             dispatch_check = getattr(self, 'dispatch_author_check', None)
                             if dispatch_check is None:
                                 submit_author_batch(self, authors, cancellation=cancellation,
@@ -3335,10 +3360,9 @@ class ApplicationServices:
                                 self.shared_log.append('☆ お気に入り自動チェック中にエラーが発生しました。', level='error')
                             raise
                         if not cancellation.is_set() and not self.closing:
-                            if authors:
-                                self.shared_log.append('定期チェックの受付処理を終了しました。保存完了は各ジョブで確認してください。')
-                            else:
-                                self.shared_log.append('☆ お気に入り自動チェック: 対象の作者（☆お気に入り）が登録されていません。')
+                            message = ('定期チェックの受付処理を終了しました。保存完了は各ジョブで確認してください。'
+                                       if authors else '☆ お気に入り自動チェック: 対象の作者（☆お気に入り）が登録されていません。')
+                            _append_scheduler_output(self.shared_log, ledger, message, owner=owner)
 
                 runner = ManagedScheduleRunner(ledger, dispatch,
                                                reconcile=self.reconcile_managed_scheduler)
@@ -4036,6 +4060,7 @@ class ApplicationServices:
                 scope.verify_current(self)
         except AccountMismatch:
             return False
+        owner = _scheduler_output_owner(ledger, self, scope.account_id) if scope is not None else None
         from .job_service import UNFINISHED
         jobs = self.jobs.snapshot()
         operation_to_job = {}
@@ -4089,15 +4114,17 @@ class ApplicationServices:
             account_id=scope.account_id if scope is not None else None)
         confirmed_count = len(set(newly_saved))
         if confirmed_count:
-            self.shared_log.append(f'☆ お気に入り自動チェック: {confirmed_count}件の作品の保存を確認しました。', level='success')
+            _append_scheduler_output(self.shared_log, ledger,
+                f'☆ お気に入り自動チェック: {confirmed_count}件の作品の保存を確認しました。',
+                owner=owner, level='success')
         notifier = getattr(self, 'notifications', None)
         prefs = getattr(self, 'preferences', None)
         if (notifier is not None and getattr(notifier, 'available', True)
+                and (scope is None or owner is not None)
                 and (prefs is None or prefs.get_setting('enable_notifications', '1') == '1')):
             # The desktop and in-app consumers use the same typed, atomic claim.
             from .managed_scheduler import ScheduleAccountError
             try:
-                owner = ledger.capture_owner(self, account_id=scope.account_id) if scope is not None else None
                 pending = ledger.claim_pending_notifications(owner=owner)
                 if owner is not None:
                     owner.verify_current()

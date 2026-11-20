@@ -55,7 +55,7 @@ def test_real_dispatcher_honours_notification_setting():
         def get_setting(self, key, default): return self.value
     class Backend:
         def __init__(self): self.sent = []
-        def send(self, title, body): self.sent.append((title, body))
+        def send(self, title, body, *, authorize): self.sent.append((title, body))
     pref=Preferences(); backend=Backend(); dispatcher=NotificationDispatcher(pref, backend=backend)
     try:
         a=app(); a.services.notifications=dispatcher

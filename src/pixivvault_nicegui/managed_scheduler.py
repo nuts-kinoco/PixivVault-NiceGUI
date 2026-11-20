@@ -67,10 +67,17 @@ class ScheduleOwner:
             raise AccountMismatch()
         require_same_account(self.account_id, self.following.last_synced_account())
 
-    def verify_current(self) -> None:
+    @contextmanager
+    def current(self):
+        """Serialize a local presentation or commit with an owner switch."""
         with self.following._lock:
             self._verify_following()
             self.scope.verify_current(self.services)
+            yield
+
+    def verify_current(self) -> None:
+        with self.current():
+            pass
 
     def verify_stop_allowed(self) -> None:
         # The global OFF operation must still work while the same reader is
@@ -830,32 +837,41 @@ class ManagedScheduler:
         book = self._favourites_source
         return self.legacy_favourites() if book is None else book.ids(account_id)
 
-    def bind_account(self, account_id: str, *, scope: AccountScope) -> None:
-        """Bind only an empty unowned history; never adopt unknown old state."""
+    def bind_account(self, account_id: str, *, scope: ScheduleOwner | AccountScope) -> None:
+        """Bind empty unowned history while the verified follow owner is current."""
         from .pixiv_read_client import _identifier
         account_id = _identifier(account_id)
         with self._lock:
             self._ensure_open()
-            self._db.execute('BEGIN IMMEDIATE')
-            try:
-                if type(scope) is not AccountScope:
-                    raise AccountMismatch()
-                scope.verify_observed()
+            if type(scope) is ScheduleOwner:
+                ownership = self._editor_access(scope)
+                verify = scope.verify_current
+            elif not self._account_guard and type(scope) is AccountScope:
+                ownership = nullcontext()
+                verify = scope.verify_observed
+            else:
+                raise AccountMismatch()
+            with ownership:
                 require_same_account(account_id, scope.account_id)
-                row = self._db.execute('SELECT account_id FROM scheduler_account WHERE id=1').fetchone()
-                if row is None:
-                    if self._unbound_unknown_schedule:
-                        raise ScheduleAccountError('unknown')
-                    for table in ('favourite_authors', 'deferred_work', 'dispatch_history', 'dispatch_items'):
-                        if self._db.execute(f'SELECT 1 FROM {table} LIMIT 1').fetchone() is not None:
+                self._db.execute('BEGIN IMMEDIATE')
+                try:
+                    verify()
+                    row = self._db.execute('SELECT account_id FROM scheduler_account WHERE id=1').fetchone()
+                    if row is None:
+                        if self._unbound_unknown_schedule:
                             raise ScheduleAccountError('unknown')
-                    self._db.execute('INSERT INTO scheduler_account VALUES (1,?)', (account_id,))
-                else:
-                    require_same_account(row[0], account_id, error=ScheduleAccountError('mismatch'))
-                self._db.execute('COMMIT')
-            except BaseException:
-                self._db.execute('ROLLBACK')
-                raise
+                        for table in ('favourite_authors', 'deferred_work', 'dispatch_history', 'dispatch_items'):
+                            if self._db.execute(f'SELECT 1 FROM {table} LIMIT 1').fetchone() is not None:
+                                raise ScheduleAccountError('unknown')
+                        self._db.execute('INSERT INTO scheduler_account VALUES (1,?)', (account_id,))
+                    else:
+                        require_same_account(row[0], account_id, error=ScheduleAccountError('mismatch'))
+                    verify()
+                    self._db.execute('COMMIT')
+                except BaseException:
+                    if self._db.in_transaction:
+                        self._db.execute('ROLLBACK')
+                    raise
 
     def _sync_favourites(self, author_ids: tuple[str, ...]) -> None:
         """Refresh the standalone scheduler list without touching the following ledger."""

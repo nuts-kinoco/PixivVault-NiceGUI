@@ -1,6 +1,7 @@
 """Bounded, in-memory queue messages shared across UI clients and workers."""
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 from datetime import datetime
 import hmac
 import secrets
@@ -8,11 +9,16 @@ from threading import Lock
 import time
 
 
+if TYPE_CHECKING:
+    from .managed_scheduler import ScheduleOwner
+
+
 @dataclass(frozen=True, slots=True)
 class QueueLogEntry:
     timestamp: str
     message: str
     level: str
+    owner: 'ScheduleOwner | None' = field(default=None, repr=False)
 
 
 class QueueLog:
@@ -24,7 +30,16 @@ class QueueLog:
         self._last_cookie_notice = None
 
     def append(self, message, *, level='normal'):
-        entry = QueueLogEntry(datetime.now().strftime('%y%m%d %H:%M:%S'), message, level)
+        self._append(message, level, None)
+
+    def append_owned(self, message, *, owner: 'ScheduleOwner', level='normal'):
+        from .managed_scheduler import ScheduleOwner
+        if type(owner) is not ScheduleOwner:
+            raise TypeError('schedule log requires an owner')
+        self._append(message, level, owner)
+
+    def _append(self, message, level, owner):
+        entry = QueueLogEntry(datetime.now().strftime('%y%m%d %H:%M:%S'), message, level, owner)
         with self._lock:
             self._entries.append(entry)
 

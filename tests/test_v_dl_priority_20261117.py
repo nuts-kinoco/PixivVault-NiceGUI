@@ -75,7 +75,7 @@ def test_the_unowned_scheduler_list_is_preserved_and_never_used_as_follow_stars(
     sync(following, 5)
     assert scheduler.favourites(ACCOUNT) == ()
     with pytest.raises(ScheduleAccountError):
-        scheduler.bind_account(ACCOUNT, scope=observed_scope(ACCOUNT))
+        scheduler.bind_account(ACCOUNT, scope=schedule_owner(scheduler, ACCOUNT))
     assert scheduler.legacy_favourites() == ids
 
 
@@ -110,7 +110,7 @@ def test_replacing_the_stars_through_the_scheduler_writes_the_ledger_and_prunes_
     _, following, scheduler = world
     sync(following, 5)
     scheduler.attach_favourites(FavouriteBook(following, scheduler=scheduler))
-    scheduler.bind_account(ACCOUNT, scope=observed_scope(ACCOUNT))
+    scheduler.bind_account(ACCOUNT, scope=schedule_owner(scheduler, ACCOUNT))
     scheduler.set_favourites(('1001', '1002'), expected_revision=now_state(scheduler).revision, account_id=schedule_owner(scheduler, ACCOUNT))
     scheduler.defer_work(author_id='1001', work=dict(id='5', update_date='d', page_count=1, type=0),
                          now=datetime.now(timezone.utc), account_id=ACCOUNT)
@@ -357,7 +357,7 @@ def test_d6_reopening_the_scheduler_keeps_the_pending_work_of_ledger_stars(world
     sync(following, 5)
     book = FavouriteBook(following, scheduler=scheduler)
     scheduler.attach_favourites(book)
-    scheduler.bind_account(ACCOUNT, scope=observed_scope(ACCOUNT))
+    scheduler.bind_account(ACCOUNT, scope=schedule_owner(scheduler, ACCOUNT))
     book.set('1001', True, account_id=ACCOUNT)
     scheduler.defer_work(author_id='1001', work=dict(id='5', update_date='d', page_count=1, type=0),
                          now=datetime.now(timezone.utc), account_id=ACCOUNT)
@@ -381,7 +381,7 @@ def bound_world(world):
     sync(following, 5)
     book = FavouriteBook(following, scheduler=scheduler)
     scheduler.attach_favourites(book)
-    scheduler.bind_account(ACCOUNT, scope=observed_scope(ACCOUNT))
+    scheduler.bind_account(ACCOUNT, scope=schedule_owner(scheduler, ACCOUNT))
     book.set('1001', True, account_id=ACCOUNT)
     scheduler.defer_work(author_id='1001', work=dict(id='5', update_date='d', page_count=1, type=0),
                          now=datetime.now(timezone.utc), account_id=ACCOUNT)
