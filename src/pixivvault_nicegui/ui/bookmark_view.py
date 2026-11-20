@@ -22,7 +22,7 @@ class BookmarkView:
                  on_author: Callable | None = None,
                  image_url: Callable[[str], str] | None = None,
                  can_open: Callable[[str], bool] | None = None,
-                 cache_persist_failed: Callable[[], bool] | None = None,
+                 cache_persistence_unconfirmed: Callable[[], bool] | None = None,
                  with_filter_toggle: bool = False) -> None:
         self.state = state
         self.on_refresh = on_refresh
@@ -32,7 +32,7 @@ class BookmarkView:
         self.on_author = on_author
         self.image_url = image_url
         self.can_open = can_open
-        self.cache_persist_failed = cache_persist_failed
+        self.cache_persistence_unconfirmed = cache_persistence_unconfirmed
         self.with_filter_toggle = with_filter_toggle
         self.filter_toggle = None
         self.root = None
@@ -181,7 +181,7 @@ class BookmarkView:
         }
         if status == "fetch_failed":
             if visible:
-                if self.cache_persist_failed is not None and self.cache_persist_failed():
+                if self.cache_persistence_unconfirmed is not None and self.cache_persistence_unconfirmed():
                     messages["fetch_failed"] = "取得に失敗しました。現在の一覧を表示しています。再読込できます"
                 else:
                     messages["fetch_failed"] = "取得に失敗しました。保存済みのブックマークを表示しています。再読込できます"

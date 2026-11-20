@@ -243,7 +243,8 @@ class LibraryView(ViewerController):
                             if getattr(services,'similarity_source',None) is not None else None),
                 image_url=lambda work_id: self._image_provider.bookmark_url(work_id),
                 can_open=lambda work_id: self._image_provider.can_open(work_id),
-                cache_persist_failed=lambda: services.bookmark_cache_persist_failed,
+                cache_persistence_unconfirmed=lambda: (services.bookmark_cache_persist_failed
+                                                       or services._bookmark_cache_store is None),
                 with_filter_toggle=True,
             )
             self.bookmarks.render()

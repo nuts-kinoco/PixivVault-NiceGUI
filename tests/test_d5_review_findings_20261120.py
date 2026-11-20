@@ -68,6 +68,32 @@ async def test_real_refresh_failure_after_cache_write_failure(tmp_path, monkeypa
         client.delete(); services.close()
 
 
+@pytest.mark.asyncio
+async def test_unconfigured_cache_is_not_called_saved(monkeypatch):
+    from nicegui import core
+    from pixivvault_nicegui.services import ApplicationServices
+    from pixivvault_nicegui.ui.library_view import LibraryView
+    from test_managed_download_services import FakeSource
+    monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
+    source = FakeSource()
+    services = ApplicationServices(live_client=source)
+    client = Client(ui.page('/_d5_review_no_cache'))
+    view = None
+    try:
+        await services.refresh_bookmark_cache()
+        assert services._bookmark_cache_store is None
+        with client:
+            view = LibraryView(services); view.subview = 'bookmarks'
+            view.bookmarks.set_active(True); source.fail = True
+            epoch = view.bookmark_state.begin_fetch()
+            await view._refresh_bookmarks_async(epoch)
+            assert view.bookmarks.cards and '取得に失敗' in view.bookmarks.message.text
+            assert '保存済み' not in view.bookmarks.message.text
+    finally:
+        if view: view.close()
+        client.delete(); services.close()
+
+
 def test_heading_contract():
     from pixivvault_nicegui.ui.theme import CSS
     from tools.ui_smoke_helpers import load_expectations
