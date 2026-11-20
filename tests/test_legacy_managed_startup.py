@@ -51,6 +51,7 @@ _ROOT_CONSUMERS = {
     'desktop_saved_roots', 'get_services', 'load_rebuilt_ledger', 'logical_path', 'maintenance.allows',
     'native_io_path', 'publish_rebuilt_ledger', 'rebuild_undecidable_ledger', 'replace',
     'require_no_unmigrated_root_stop', 'resolve_rebuilt_group', 'validate_media_roots', 'writer_fence',
+    'source.is_relative_to',  # viewer_folders: a read-only check against the managed root.
 }
 _SQLITE_TRANSIENTS = {
     '.pixivvault-legacy-author-sync.sqlite3-journal',
