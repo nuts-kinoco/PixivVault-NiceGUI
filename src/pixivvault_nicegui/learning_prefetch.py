@@ -8,6 +8,8 @@ import asyncio
 from dataclasses import dataclass
 import inspect
 
+from .remote_media import RemoteImageNotFound
+
 
 @dataclass(frozen=True)
 class PrefetchResult:
@@ -56,6 +58,9 @@ class LearningImagePrefetch:
                 epoch=self._generation
                 try:
                     await asyncio.to_thread(self.pin.get,target,0,'view')
+                except RemoteImageNotFound:
+                    failed += 1
+                    continue
                 except Exception:
                     failed+=1
                     return PrefetchResult('failed',fetched,failed)

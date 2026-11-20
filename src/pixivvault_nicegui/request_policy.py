@@ -191,7 +191,8 @@ class RequestRetryPolicy:
     settings() returns RequestPreferences (retry_limit, rate_limit_wait_seconds).
     Transport failures, 408/425, 429 and 5xx are transient candidates. Identity,
     auth 401/403, 404, redirects, invalid payload/destination/limits, operation
-    deadlines and checkpoint cancellation escape immediately. The last original
+    deadlines and checkpoint cancellation escape immediately. A 404 is raised
+    to the caller without a shared progress record. The last original
     typed failure escapes when the configured total HTTP tries are exhausted.
     """
     def __init__(self,settings,*,clock=time.monotonic,sleep=time.sleep,jitter=random.uniform):
@@ -217,12 +218,12 @@ class RequestRetryPolicy:
         if type(count) is not int or count not in (1,3,5,10):raise ValueError('invalid retry count')
         if type(wait) not in (int,float) or wait not in (3.0,5.0,10.0,30.0):raise ValueError('invalid retry wait')
         return count,float(wait)
-    def execute(self,operation,*,deadline,local_not_found=False):
+    def execute(self,operation,*,deadline):
         token=_BOUNDED_GET_RETRY.set(True)
-        try:return self._execute(operation,deadline=deadline,local_not_found=local_not_found)
+        try:return self._execute(operation,deadline=deadline)
         finally:_BOUNDED_GET_RETRY.reset(token)
 
-    def _execute(self,operation,*,deadline,local_not_found):
+    def _execute(self,operation,*,deadline):
         from .pixiv_read_client import HTTPStatusRejected,TransportFailed
         if not callable(operation):raise TypeError('operation must be callable')
         request_checkpoint();_check_deadline(deadline,self.clock)
@@ -231,7 +232,7 @@ class RequestRetryPolicy:
             if self._rate_stopped:raise HTTPStatusRejected(429)
             self._records={k:v for k,v in self._records.items() if v['phase'] in ('requesting','waiting')}
             self._serial+=1;token=self._serial
-        try:return self._attempts(operation,deadline,token,count,rate_wait,local_not_found)
+        try:return self._attempts(operation,deadline,token,count,rate_wait)
         except BaseException:
             with self._status_lock:
                 value=self._records.get(token)
@@ -239,7 +240,7 @@ class RequestRetryPolicy:
                     self._publish(token,'cancelled',value['attempt'],count,status=value['status'])
             raise
 
-    def _attempts(self,operation,deadline,token,count,rate_wait,local_not_found):
+    def _attempts(self,operation,deadline,token,count,rate_wait):
         from .pixiv_read_client import HTTPStatusRejected,TransportFailed
         for attempt in range(count):
             request_checkpoint();_check_deadline(deadline,self.clock)
@@ -256,8 +257,7 @@ class RequestRetryPolicy:
                 if isinstance(error,HTTPStatusRejected):
                     status=error.status_code
                     if status not in (408,425,429) and status<500:
-                        if status == 404 and local_not_found:
-                            # Missing images already have a failure state on their card.
+                        if status == 404:
                             with self._status_lock:
                                 self._records.pop(token, None)
                         else:

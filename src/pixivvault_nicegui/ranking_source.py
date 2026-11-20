@@ -6,7 +6,7 @@ identity is borrowed by its tag-search branch.
 from dataclasses import dataclass,field
 from datetime import datetime
 import time
-from .pixiv_read_client import MAX_OPERATION_SECONDS
+from .pixiv_read_client import HTTPStatusRejected, MAX_OPERATION_SECONDS
 from .bookmark_remote_adapter import RemoteBookmark, positive_id, thumbnail_url
 
 MODES={'daily':'日間','weekly':'週間','monthly':'月間','rookie':'新人'}
@@ -257,9 +257,15 @@ class RankingSource:
                 if query.exclude_ai:
                     ai=item.ai_type
                     if ai is None:
-                        detail=self.reader.get_work_info(item.record.remote_id)
-                        ai=_number(detail.get('ai_type'))
-                        if ai is None:raise ValueError('AI classification unavailable')
+                        try:
+                            detail = self.reader.get_work_info(item.record.remote_id)
+                        except HTTPStatusRejected as error:
+                            if error.status_code != 404:
+                                raise
+                            ai = 0  # Flet uses 0 for an unavailable detail and excludes only 2.
+                        else:
+                            ai = _number(detail.get('ai_type'))
+                            if ai is None:raise ValueError('AI classification unavailable')
                     if ai==2:continue
                 rows.append(item)
             if time.monotonic()>deadline:raise RankingReadFailed()

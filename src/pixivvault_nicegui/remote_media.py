@@ -12,6 +12,11 @@ from PIL import Image, UnidentifiedImageError
 
 from .bookmark_remote_adapter import RemoteBookmark, thumbnail_url
 from .media import ImageBlob
+from .pixiv_read_client import HTTPStatusRejected
+
+
+class RemoteImageNotFound(RuntimeError):
+    """An individual work is missing both its page list and its listing image."""
 
 
 class RemoteBookmarkImages:
@@ -91,8 +96,8 @@ class RemoteBookmarkImages:
             # is unsupported; one animation must not break all other cards.
             return self._record(work_id, 0, "thumb").as_artwork()
 
-    def prepare_artwork(self, work_id: str):
-        """Resolve a cache's unknown count off the UI loop, without guessing pages."""
+    def prepare_artwork(self, work_id: str, *, allow_thumbnail_fallback=False):
+        """Resolve the unknown count, or return None to use the listing image on a 404."""
         with self._decode_slots:
             with self._lock:
                 record = self._record(work_id, 0, "view")
@@ -104,7 +109,9 @@ class RemoteBookmarkImages:
                     raise RuntimeError("invalid page count")
                 for url in pages:
                     thumbnail_url(url)
-            except Exception:
+            except Exception as error:
+                if allow_thumbnail_fallback and isinstance(error, HTTPStatusRejected) and error.status_code == 404:
+                    return None
                 raise RuntimeError("remote page metadata unavailable") from None
             with self._lock:
                 self._record(work_id, 0, "view")
@@ -155,12 +162,16 @@ class RemoteBookmarkImages:
             elif key in self._cache:
                 self._cache.move_to_end(key)
                 return self._cache[key]
+        use_listing_thumbnail = False
         # Discovery starts with a thumbnail and an explicitly unknown count.
         # Resolve that metadata before entering the decode semaphore, otherwise
         # a multi-page work would be rejected against the placeholder count=1.
         if variant in ('view','original') and record.kind == 'illustration' and record.illustration_type != 2 and not record.page_count_known:
             from .request_policy import interactive_lane
-            with interactive_lane():self.prepare_artwork(work_id)   # current card display: original discovery_tab.py:624 detail GET is interactive
+            with interactive_lane():
+                artwork = self.prepare_artwork(
+                    work_id, allow_thumbnail_fallback=variant == 'view' and page_no == 0)
+            use_listing_thumbnail = artwork is None
             with self._lock:record=self._record(work_id,page_no,variant)
         if variant == 'original':
             # Fetch one original only when the user requests it. No default
@@ -211,7 +222,7 @@ class RemoteBookmarkImages:
             try:
                 with self._lock:
                     self._record(work_id, page_no, variant)
-                if variant == "thumb" or record.kind == "novel":
+                if use_listing_thumbnail or variant == "thumb" or record.kind == "novel":
                     url = record.thumbnail
                 else:
                     with self._lock:
@@ -244,8 +255,10 @@ class RemoteBookmarkImages:
                                   else "RGB").save(out, format="PNG")
                 png = out.getvalue()
                 blob = ImageBlob(png, "image/png", '"' + hashlib.sha256(png).hexdigest() + '"')
-            except Exception:
+            except Exception as error:
                 # HTTP exception strings and Pillow messages may contain external data.
+                if use_listing_thumbnail and isinstance(error, HTTPStatusRejected) and error.status_code == 404:
+                    raise RemoteImageNotFound("remote image unavailable") from None
                 raise RuntimeError("remote image unavailable") from None
         with self._lock:
             if self._closed:
