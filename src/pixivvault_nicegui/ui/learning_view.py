@@ -1250,6 +1250,7 @@ class LearningView:
         self.picture.props(props)
         if self.discovery is not None:
             self.open_pixiv_button.props(props)
+            self.open_pixiv_button.set_enabled(item is not None and self._can_open_learning_work())
         self.root.props(props + f" data-saving={'true' if self.state.saving else 'false'}")
         for button in self.buttons.values():
             button.props(props)
@@ -2539,10 +2540,14 @@ class LearningView:
             self.storage.release_session(self._session_id)
             self._session_id = None
 
+    def _can_open_learning_work(self) -> bool:
+        return (self.active and not self.state.closed and not self.services.closing
+                and not self._review_open and not self._storage_busy)
+
     def _clicked_learning_work(self, event):
         payload = self._payload(event)
         item = self.state.current_artwork
-        if (not self.active or self.state.closed or self._review_open or self._storage_busy
+        if (not self._can_open_learning_work()
                 or item is None or payload.get('work_id') != item.work_id
                 or payload.get('generation') != self.state.generation):
             return None

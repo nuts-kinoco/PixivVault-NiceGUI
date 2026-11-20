@@ -32,6 +32,19 @@ async def test_learning_picture_has_a_click_only_pixiv_link(tmp_path, monkeypatc
         await cleanup()
 
 
+async def test_pixiv_link_is_disabled_during_candidate_reload(tmp_path, monkeypatch):
+    view, _, _, cleanup = await open_discovery_view(tmp_path, monkeypatch)
+    try:
+        assert view.open_pixiv_button.enabled
+        with view.client:
+            view.reload_storage()
+            assert not view.open_pixiv_button.enabled
+        await settled(view)
+        assert view.open_pixiv_button.enabled
+    finally:
+        await cleanup()
+
+
 @pytest.mark.parametrize('choice, bonus', [('like', 1), ('superLike', 1), ('skip', 0), ('hate', 0)])
 @pytest.mark.parametrize('entry', ['link', 'picture'])
 async def test_candidate_opens_record_history_and_one_positive_bonus(tmp_path, monkeypatch, choice, bonus, entry):
