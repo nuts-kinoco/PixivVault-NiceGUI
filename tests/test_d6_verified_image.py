@@ -98,3 +98,72 @@ def test_verified_image_runs_once_per_request_and_reports_only_current_decode(tm
         'retainedAfterError': True,
         'unmounted': True,
     }
+
+
+def test_local_preload_promotes_the_decoded_node_only_for_an_adjacent_request(tmp_path):
+    sync_playwright = pytest.importorskip('playwright.sync_api').sync_playwright
+    vue = Path(nicegui.__file__).with_name('static') / 'vue.esm-browser.prod.js'
+    component = Path(verified_image.__file__).with_suffix('.js')
+    with sync_playwright() as playwright:
+        if not Path(playwright.chromium.executable_path).is_file():
+            pytest.skip('Playwright Chromium is unavailable')
+        context = playwright.chromium.launch_persistent_context(
+            str(tmp_path / 'chromium'), headless=True,
+            args=['--proxy-server=http://127.0.0.1:1', '--disable-background-networking'],
+        )
+        try:
+            requested = []
+
+            def route(request):
+                if request.request.url == 'http://127.0.0.1/media/p2':
+                    requested.append(request.request.url)
+                    request.fulfill(content_type='image/svg+xml', headers={'Cache-Control': 'no-store'},
+                                    body='<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"/>')
+                else:
+                    request.abort()
+
+            context.route('**/*', route)
+            page = context.pages[0]
+            page.set_content('<base href="http://127.0.0.1/"><div id="mount"></div>')
+            page.evaluate('''async source => {
+                const url = URL.createObjectURL(new Blob([source], {type: 'text/javascript'}));
+                try { window.pvMountVue = await import(url); }
+                finally { URL.revokeObjectURL(url); }
+            }''', vue.read_text(encoding='utf8'))
+            page.add_script_tag(content=component.read_text(encoding='utf8').replace(
+                'export default {', 'window.pvVerifiedImage = {', 1,
+            ))
+            page.evaluate('''() => {
+                const Vue = window.pvMountVue;
+                window.events = [];
+                window.decoded = [];
+                const decode = HTMLImageElement.prototype.decode;
+                HTMLImageElement.prototype.decode = function() {
+                    return decode.call(this).then(() => window.decoded.push(this));
+                };
+                window.imageProps = Vue.reactive({src:'', request_id:0, preload_src:'/media/p2'});
+                Vue.createApp({render: () => Vue.h(window.pvVerifiedImage, {
+                    ...window.imageProps, onLoad: source => window.events.push(source),
+                    onError: () => window.events.push('error'),
+                })}).mount('#mount');
+            }''')
+            page.wait_for_function('window.decoded.length === 1', timeout=3000)
+            assert page.evaluate('window.events') == []
+            assert page.evaluate("window.decoded[0].dataset.pvDisplayed") == 'false'
+            page.evaluate('''() => Object.assign(window.imageProps, {
+                src:'/media/p2#request-1', preload_src:'', use_preload:true, request_id:1
+            })''')
+            page.wait_for_function('window.events.length === 1')
+            assert page.evaluate('window.events') == ['/media/p2#request-1']
+            assert page.evaluate('window.decoded.length') == 1
+            assert page.evaluate("window.decoded[0] === document.querySelector('[data-pv-displayed=true]')")
+            assert requested == ['http://127.0.0.1/media/p2']
+
+            page.evaluate('''() => Object.assign(window.imageProps, {
+                src:'/media/p2#request-2', use_preload:false, request_id:2
+            })''')
+            page.wait_for_function('window.events.length === 2')
+            assert page.evaluate('window.events')[-1] == '/media/p2#request-2'
+            assert page.evaluate("window.decoded[0] !== document.querySelector('[data-pv-displayed=true]')")
+        finally:
+            context.close()

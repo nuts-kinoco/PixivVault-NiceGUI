@@ -37,7 +37,7 @@ ASSET_SINK = re.compile(r'''(?ix)\b(?:src|srcset)\s*=\s*["']?https?://|'''
                         r'''\burl\(\s*["']?https?://|@import\s+["']https?://''')
 BOUND_ASSET = re.compile(r'\b(?:v-bind:src|:src|srcset)\s*=|\s:src\s*=')
 JS_DELEGATORS = {'run_javascript', 'add_head_html', 'add_body_html', 'html'}
-BROWSER_DELEGATORS = {'image', 'link', 'set_source', 'to', 'props', 'style'}
+BROWSER_DELEGATORS = {'image', 'link', 'set_source', 'set_preload_source', 'to', 'props', 'style'}
 
 
 def strings(node):
@@ -163,7 +163,7 @@ class Visitor(ast.NodeVisitor):
                    for part in fragments):
                 self.add(node, f'browser.{method}.external-url')
             elif ((name.startswith('nicegui.ui.') and method in {'image', 'link'})
-                  or method == 'set_source') and node.args:
+                  or method in {'set_source', 'set_preload_source'}) and node.args:
                 self.add(node, f'browser.{method}.source')
         if has_href:
             self.add(node, 'browser.href')

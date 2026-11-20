@@ -15,7 +15,7 @@ class VerifiedImage(ui.element, component='verified_image.js'):
             self.set_source(source)
 
     def set_source(self, source: str, *, event_source: str | None = None,
-                   retain_previous: bool | None = None) -> 'VerifiedImage':
+                   retain_previous: bool | None = None, use_preload: bool = False) -> 'VerifiedImage':
         if not isinstance(source, str):
             raise TypeError('source must be a string')
         self._request_id += 1
@@ -24,5 +24,10 @@ class VerifiedImage(ui.element, component='verified_image.js'):
         self._props['src'] = source
         self._props['event_source'] = event_source or ''
         self._props['request_id'] = self._request_id
+        self._props['preload_src'] = ''
+        self._props['use_preload'] = use_preload
         self.update()
         return self
+
+    def set_preload_source(self, source: str) -> None:
+        self.props['preload_src'] = source

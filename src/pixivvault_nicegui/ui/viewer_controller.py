@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 
 from ..image_events import source_matches
 from ..services import ApplicationServices
@@ -108,9 +107,9 @@ class ViewerController:
             self._quality = 'view'
             self.detail_open = False
             self.viewer.set_details_open(False)
-            self.update_viewer()
+            self.update_viewer(use_preload=delta == 1)
 
-    def update_viewer(self) -> None:
+    def update_viewer(self, *, use_preload: bool = False) -> None:
         state = self._viewer_state
         art = state.selected_artwork
         if art is None or state.closed or not self._viewer_active:
@@ -126,9 +125,9 @@ class ViewerController:
             is_current=lambda: (self._viewer_active and self._viewer_state is state
                 and not state.closed and state.viewer_open
                 and state.selected_artwork == art and state.selected_page == page_no))
-        self.request_image()
+        self.request_image(use_preload=use_preload)
 
-    def request_image(self) -> None:
+    def request_image(self, *, use_preload: bool = False) -> None:
         state = self._viewer_state
         art = state.selected_artwork
         if art is None or state.closed or not self._viewer_active:
@@ -196,6 +195,7 @@ class ViewerController:
         self.viewer_image.set_source(
             self._image_url,
             retain_previous=self._decoded_identity == (art.work_id, state.selected_page),
+            use_preload=use_preload,
         )
         self.viewer_image.props["aria-busy"] = "true"
         self.viewer.set_status("画像読込中")
@@ -242,13 +242,7 @@ class ViewerController:
                 self._prefetch_next_view_page()
 
     def _prefetch_next_view_page(self) -> None:
-        """Warm one regular *next* page, without adding it to the visible DOM.
-
-        Only a successfully decoded current page may start this request.  A
-        prefetched image does not change the displayed work/page, request
-        serial, zoom state, or original-quality consent.  The browser keeps at
-        most one preloader reference per viewer.
-        """
+        """Warm one regular next page after the current request is accepted."""
         state = self._viewer_state
         artwork = state.selected_artwork
         if (not self._viewer_active or state.closed or not state.viewer_open
@@ -270,28 +264,7 @@ class ViewerController:
                 return
         except Exception:
             return  # A speculative read must never break the visible page.
-        root_id = json.dumps(self.viewer.root.html_id)
-        payload = json.dumps({
-            'serial': str(self._request_serial),
-            'work': artwork.work_id,
-            'page': str(state.selected_page),
-            'url': next_url,
-        }, ensure_ascii=True)
-        try:
-            client.run_javascript(f"""(() => {{
-                const root = document.getElementById({root_id});
-                const next = {payload};
-                if (!root || root.dataset.qualitySerial !== next.serial ||
-                    root.dataset.qualityWork !== next.work ||
-                    root.dataset.qualityPage !== next.page ||
-                    root.getAttribute('aria-hidden') !== 'false') return;
-                const image = new Image();
-                image.decoding = 'async';
-                root.__pvNextViewPreload = image;
-                image.src = next.url;
-            }})()""")
-        except Exception:
-            pass  # Disconnected browsers do not affect foreground decoding.
+        self.viewer_image.set_preload_source(next_url)
 
     def _image_failed(self, event) -> None:
         if (self._viewer_active and source_matches(event.args, self._image_url)
