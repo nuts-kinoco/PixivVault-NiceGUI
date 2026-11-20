@@ -1316,6 +1316,7 @@ class LibraryView(ViewerController):
             return
         self._remote_retired = True
         self._pixiv_epoch += 1
+        self._pixiv_works = self._pixiv_records = ()
         provider = self._image_provider
         if not isinstance(provider, _SearchImages):
             return

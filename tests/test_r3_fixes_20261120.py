@@ -139,6 +139,14 @@ async def test_borrow_poll_retires_remote_pin_and_preserves_local_viewer(monkeyp
             state = view._viewer_state
             generation = view.viewer.root.props['data-zoom-generation']
             remote_pin = view._image_provider.remote
+            if not remote_selected:
+                view._refresh_bookmark_projection()
+                assert view._bookmark_projection_pending
+
+                def no_reacquire(_):
+                    raise AssertionError('retired remote pin must not be reacquired')
+
+                monkeypatch.setattr(services, 'acquire_recommendation_images', no_reacquire)
             vault.ready = False
             view.refresh_search_scope()
             assert remote_pin.closed and not view.scope_pixiv.enabled
@@ -268,7 +276,8 @@ async def test_personal_search_discards_old_response_before_latest_conditions(mo
     ('transport-failed', '通信障害'),
     ('pixiv-network-stopped', '通信の停止状態'),
 ])
-async def test_real_personal_source_failure_keeps_last_cards(monkeypatch, code, reason):
+@pytest.mark.parametrize('replace_tags', (False, True), ids=('filter-change', 'replace-tags'))
+async def test_real_personal_source_failure_keeps_last_cards(monkeypatch, code, reason, replace_tags):
     services, vault, client = await build(monkeypatch, 'r3_failure_' + code)
 
     def fail(*_, **__):
@@ -282,12 +291,21 @@ async def test_real_personal_source_failure_keeps_last_cards(monkeypatch, code, 
             previous, pin = view.page, view.pin
             assert '123' in view.gallery.cards
             monkeypatch.setattr(vault, 'search', fail)
-            view.bookmarks.set_value(1000)
-            await settle(view)
+            if replace_tags:
+                view.tags.set_value('')
+                assert not view.gallery.cards
+                view.tags.set_value('new')
+                await view.load()
+            else:
+                view.bookmarks.set_value(1000)
+                await settle(view)
             assert view.page is previous and view.pin is pin
             assert '123' in view.gallery.cards
             assert reason in view.notice.text and '直前の検索結果' in view.notice.text
             assert not view.gallery.more_button.enabled
+            failure_notice = view.notice.text
+            await view._refresh_context()
+            assert view.notice.text == failure_notice and '123' in view.gallery.cards
             view.close()
     finally:
         client.delete()

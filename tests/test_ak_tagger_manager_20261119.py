@@ -1,4 +1,4 @@
-from pixivvault_nicegui.local_tagger import TaggerManager
+from pixivvault_nicegui.local_tagger import LocalTagger, TaggerManager
 from pixivvault_nicegui.preferences import PreferencesStore
 from test_ak_tagger_20261119 import make_model
 
@@ -10,7 +10,9 @@ def test_manager_persists_verification_and_respects_setting(tmp_path):
     prefs = PreferencesStore(tmp_path / 'preferences.sqlite')
     prefs.set_setting('local_tagger_path', str(model))
     manager = TaggerManager(prefs)
-    assert manager.verify() in ('利用可能', 'onnxruntime なし')
+    manager.tagger = LocalTagger(model, session_factory=lambda _: object(), tensor_factory=lambda image: image)
+    manager._provider = 'auto'
+    assert manager.verify() == '利用可能'
     assert prefs.read_tagger_verification()['receipt']['verified'] is True
     prefs.set_setting('local_tagger_enabled', '0')
     assert manager.predict(b'not-an-image') == []
