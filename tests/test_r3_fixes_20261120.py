@@ -355,6 +355,7 @@ async def test_recommend_missing_saved_section_does_not_claim_connection_is_miss
             await view.refresh()
             assert not view.update_button.enabled
             assert '更新用の取得元が未接続' in view.notice.text
+            assert '接続設定を確認してください' in view.notice.text
             view.close()
     finally:
         client.delete()

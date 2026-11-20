@@ -135,7 +135,7 @@ class RecommendView:
                 if unavailable:
                     message = '保存結果を確認できない項目があります：' + '・'.join(LABELS.get(k,k) for k in unavailable)
                     if data.get('acquisition_connected') is False:
-                        message = '更新用の取得元が未接続です。' + message
+                        message = '更新用の取得元が未接続です。' + message + '。接続設定を確認してください。'
                 else:
                     message = '保存済み結果を読み込みました。'
                 self.notice.set_text(message)
