@@ -80,8 +80,8 @@ class RankingView(RankingCardMenus):
                     'flat no-caps data-testid=ranking-date-calendar aria-label=ランキングの日付を選ぶ')
                 self.date=ui.input('日付 YYYYMMDD（空欄は今日）').props(
                     'outlined dense data-testid=ranking-date').style('min-width:270px')
-                self.r18=ui.switch('R-18',value=False).props('data-testid=ranking-r18')
-                self.ai=ui.switch('AIを除外',value=False).props('data-testid=ranking-exclude-ai')
+                self.r18=ui.switch('R-18',value=False).props('data-testid=ranking-r18').classes('pv-filter-switch')
+                self.ai=ui.switch('AIを除外',value=False).props('data-testid=ranking-exclude-ai').classes('pv-filter-switch')
                 self.tag=ui.input('タグ検索').props('outlined dense data-testid=ranking-tag')
                 self.fetch_button=refresh_button(self.refresh,label='取得・更新',testid='ranking-fetch')
                 self.sort=ui.select(SORTS,value='rank',label='並び順',on_change=lambda _:self.render()).props('outlined dense data-testid=ranking-sort')

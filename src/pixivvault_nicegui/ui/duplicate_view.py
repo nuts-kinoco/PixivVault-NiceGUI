@@ -8,7 +8,7 @@ from ..duplicate_inspection import (
     visible_groups, visible_undecidable_groups,
     low_quality_keys, validate_selection, best_item_index,
 )
-from .card_size_control import update_size_buttons
+from .card_size_control import size_buttons, update_size_buttons
 
 THUMB_SIZES = {'small':88, 'medium':144, 'large':200}
 
@@ -53,11 +53,7 @@ class DuplicateView:
             with ui.row().classes('pv-toolbar'):
                 self.low_button=ui.button('画質の低い方を一括で選ぶ',on_click=self.select_low).props('flat data-testid=duplicate-bulk-low')
                 ui.label('サムネイルサイズ').classes('pv-subtitle')
-                self.size_buttons={}
-                for label,size in (('小','small'),('中','medium'),('大','large')):
-                    button=ui.button(label,color=None,on_click=lambda _,value=size:self.change_thumb_size(value)).props(
-                        f'flat dense no-caps aria-label=サムネイル{label} data-testid=duplicate-size-{size}').classes('pv-size-button')
-                    self.size_buttons[size]=button
+                self.size_buttons=size_buttons(self.change_thumb_size, prefix='duplicate', small_first=True)
                 update_size_buttons(self.size_buttons,self.thumb_size)
             self.notice=ui.label('まだスキャンしていません。').props('role=status data-testid=duplicate-status')
             self.scan_progress=ui.label('').props('role=status data-testid=duplicate-progress')

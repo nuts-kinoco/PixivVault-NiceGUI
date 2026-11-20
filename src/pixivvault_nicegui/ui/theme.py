@@ -348,4 +348,9 @@ CSS += """
 .pv-preferences-card .q-btn { border-radius:999px; background:rgba(33,150,243,.10) !important; color:var(--pv-text) !important; box-shadow:none !important; }
 .pv-preferences-group { border:1px solid var(--pv-border); border-radius:12px; padding:12px; width:100%; background:var(--pv-bg); }
 .pv-retry-action { border-radius:999px; background:rgba(33,150,243,.12); color:var(--pv-text); padding:6px 12px !important; }
+.pv-toolbar .q-btn.pv-size-selected, .pv-library .q-btn.pv-size-selected { background:rgba(33,150,243,.12) !important; color:var(--pv-text) !important; border-color:transparent !important; }
+.pv-period-chips .q-btn { background:transparent !important; color:var(--pv-text) !important; }
+.pv-period-chips .q-btn[aria-pressed=true] { background:rgba(33,150,243,.12) !important; }
+.pv-filter-switch { font-size:11px; color:var(--pv-muted); }
+.pv-filter-switch .q-toggle__inner { font-size:32px; }
 """

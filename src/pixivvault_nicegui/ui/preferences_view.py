@@ -154,7 +154,8 @@ class PreferencesView:
                     self.native_profile.build()
                 ui.separator()
             if self.following_sync is not None:
-                self.following_sync.build()
+                with ui.column().classes('pv-preferences-group'):
+                    self.following_sync.build()
                 ui.separator()
             if self.vault is not None:
                 ui.label('\u501f\u7528\u30d7\u30ec\u30df\u30a2\u30e0\u306e\u72b6\u614b').classes('text-subtitle1')
@@ -240,7 +241,7 @@ class PreferencesView:
                 lambda _: self._sync_cache_limit_visibility()
                 if self.opened and not self.closed and self._epoch == epoch else None)
             self._sync_cache_limit_visibility()
-            ui.button('画像キャッシュを削除',on_click=lambda:self._clear_cache(epoch)).props('data-testid=preferences-clear-cache').set_enabled(self.clear_cache is not None)
+            ui.button('画像キャッシュを削除',icon='delete_outline',color=None,on_click=lambda:self._clear_cache(epoch)).props('flat no-caps data-testid=preferences-clear-cache').set_enabled(self.clear_cache is not None)
             ui.label('アプリ全体で表示した作品・作者のサムネイル画像キャッシュを削除します。保存した作品は削除しません。').classes('text-caption')
             ui.label('静止画保存: 保存元の原画像を維持します。画質を変更する設定はありません。').classes('text-caption')
             application_notice=('Pixiv操作の設定は次回起動から、その他の設定は次の操作から使われます。実行中のジョブは変更しません。'
@@ -260,27 +261,28 @@ class PreferencesView:
                 ui.button('ブラウザ拡張機能の自動起動を設定',on_click=self._uri_prompt).props('data-testid=preferences-uri')
             else:
                 ui.label('ブラウザ拡張機能の自動起動: URI起動経路が未接続です。').classes('text-caption')
-            ui.label('エクスポート').classes('text-subtitle1')
-            ui.label('データベースのエクスポート').classes('text-caption')
-            ui.label('データベースと作品メタデータをZIPに保存します（画像は含まれません）。').classes('text-caption')
-            self.export_metadata_button=ui.button('エクスポートを実行', icon='archive',
-                on_click=self.run_metadata_export).props('data-testid=preferences-export-metadata')
-            self.export_metadata_button.set_enabled(self.export_metadata is not None and not self.export_busy)
-            ui.label('旧データベース、作品メタデータ、指定した画像フォルダーをZIPに保存します。').classes('text-caption')
-            ui.label('同じ画像は1回だけ保存します。全ての元のパスに復元するには、ZIP内の RESTORE_IMAGES.txt の手順を使ってください。').classes('text-caption')
-            self.export_button=ui.button('DBと画像をZIPへ保存',on_click=self.run_legacy_export).props(
-                'data-testid=preferences-export-db')
-            self.export_button.set_enabled(self.export_legacy is not None and not self.export_busy)
-            if self.export_legacy is None:
-                ui.label('この起動では読取専用の旧DBと専用設定保存先の両方が必要です。').classes('text-caption text-grey')
-            self.export_status=ui.label(self.export_message).props('data-testid=preferences-export-status role=status')
+            with ui.column().classes('pv-preferences-group'):
+                ui.label('エクスポート').classes('text-subtitle1')
+                ui.label('データベースのエクスポート').classes('text-caption')
+                ui.label('データベースと作品メタデータをZIPに保存します（画像は含まれません）。').classes('text-caption')
+                self.export_metadata_button=ui.button('エクスポートを実行', icon='archive', color=None,
+                    on_click=self.run_metadata_export).props('flat no-caps data-testid=preferences-export-metadata')
+                self.export_metadata_button.set_enabled(self.export_metadata is not None and not self.export_busy)
+                ui.label('旧データベース、作品メタデータ、指定した画像フォルダーをZIPに保存します。').classes('text-caption')
+                ui.label('同じ画像は1回だけ保存します。全ての元のパスに復元するには、ZIP内の RESTORE_IMAGES.txt の手順を使ってください。').classes('text-caption')
+                self.export_button=ui.button('DBと画像をZIPへ保存',icon='archive',color=None,on_click=self.run_legacy_export).props(
+                    'flat no-caps data-testid=preferences-export-db')
+                self.export_button.set_enabled(self.export_legacy is not None and not self.export_busy)
+                if self.export_legacy is None:
+                    ui.label('この起動では読取専用の旧DBと専用設定保存先の両方が必要です。').classes('text-caption text-grey')
+                self.export_status=ui.label(self.export_message).props('data-testid=preferences-export-status role=status')
             # 元 gui.py:2420: 閉じるボタンの上に、中央寄せの小さいバージョン表記。
             ui.label(f'ver {__version__}').props('data-testid=preferences-version').style(
                 'font-size:11px;color:var(--pv-muted);text-align:center;width:100%')
             with ui.row():
-                ui.button('保存',on_click=lambda:self.save() if self._epoch==epoch and self.opened else None).props('data-testid=preferences-save').set_enabled(bool(self.enabled_keys) or self.tagger is not None)
-                ui.button('変更を破棄して再読込',on_click=self.open).props('data-testid=preferences-reload')
-                ui.button('閉じる',on_click=self.close_dialog)
+                ui.button('保存',icon='save',color=None,on_click=lambda:self.save() if self._epoch==epoch and self.opened else None).props('flat no-caps data-testid=preferences-save').set_enabled(bool(self.enabled_keys) or self.tagger is not None)
+                ui.button('変更を破棄して再読込',icon='refresh',color=None,on_click=self.open).props('flat no-caps data-testid=preferences-reload')
+                ui.button('閉じる',icon='close',color=None,on_click=self.close_dialog).props('flat no-caps')
         self.dialog.open()
 
     async def _verify_tagger(self, epoch):

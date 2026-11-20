@@ -136,8 +136,8 @@ class FollowingSyncView:
             self.synced_at = ui.label('').props('data-testid=following-sync-time')
             self.status = ui.label('').props('role=status data-testid=following-sync-status')
             with ui.row():
-                self.sync_button = ui.button('Pixivから同期', on_click=synchronize).props('data-testid=following-sync-button')
-                self.cancel_button = ui.button('同期を取消', on_click=cancel).props('data-testid=following-sync-cancel')
+                self.sync_button = ui.button('Pixivから同期', icon='sync', color=None, on_click=synchronize).props('flat no-caps data-testid=following-sync-button')
+                self.cancel_button = ui.button('同期を取消', icon='close', color=None, on_click=cancel).props('flat no-caps data-testid=following-sync-cancel')
             self.rows = ui.column().classes('w-full gap-1').props('data-testid=following-sync-rows')
             self.more_button = ui.button('もっと見る', on_click=more).props('data-testid=following-sync-more')
         self._render()
