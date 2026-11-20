@@ -275,15 +275,18 @@ async def test_queued_desktop_notification_is_discarded_after_switch(tmp_path):
         entered, release = Event(), Event()
         titles = []
 
-        def send(title, _message, *, authorize):
-            if authorize is not None:
-                authorize()
+        def send(title, _message):
             titles.append(title)
             if title == 'test-barrier':
                 entered.set()
                 assert release.wait(5)
 
-        dispatcher = NotificationDispatcher(NS(get_setting=lambda *_: '1'), backend=NS(send=send))
+        def send_authorized(title, message, *, authorize):
+            authorize()
+            send(title, message)
+
+        backend = NS(send=send, send_authorized=send_authorized)
+        dispatcher = NotificationDispatcher(NS(get_setting=lambda *_: '1'), backend=backend)
         services.notifications = dispatcher
         try:
             assert dispatcher.notify('test-barrier', '')

@@ -166,9 +166,24 @@ def test_attached_ledger_requires_follow_owner_even_when_reader_matches(tmp_path
 @pytest.mark.parametrize(('cls', 'methods', 'required'), (
     (QueueLog, {'append', 'append_owned', 'cookie_sync_notice', 'snapshot'}, {'append_owned': 'owner'}),
     (NotificationDispatcher, {'notify', 'close'}, {}),
-    (WindowsToastBackend, {'send'}, {'send': 'authorize'}),
+    (WindowsToastBackend, {'send', 'send_authorized'}, {'send_authorized': 'authorize'}),
 ))
 def test_scheduler_output_sinks_have_an_explicit_classification(cls, methods, required):
     assert {name for name, _ in getmembers(cls, isroutine) if not name.startswith('_')} == methods
     for method, argument in required.items():
         assert signature(getattr(cls, method)).parameters[argument].default is Parameter.empty
+
+
+def test_unaware_notification_backend_accepts_common_but_suppresses_owned_messages():
+    calls = []
+
+    def send(title, body):
+        calls.append((title, body))
+
+    dispatcher = NotificationDispatcher(NS(get_setting=lambda *_: '1'), backend=NS(send=send))
+    try:
+        assert dispatcher.notify('common', 'fixture').result(timeout=5).status == 'sent'
+        assert dispatcher.notify('owned', 'fixture', authorize=lambda: None).result(timeout=5).status == 'suppressed'
+        assert calls == [('common', 'fixture')]
+    finally:
+        dispatcher.close()

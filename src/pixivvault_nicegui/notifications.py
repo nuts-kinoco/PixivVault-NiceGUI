@@ -35,7 +35,10 @@ def _authorize_delivery(authorize):
 
 
 class WindowsToastBackend:
-    def send(self, title, body, *, authorize):
+    def send(self, title, body):
+        self.send_authorized(title, body, authorize=None)
+
+    def send_authorized(self, title, body, *, authorize):
         try:
             from win11toast import toast
         except ImportError:
@@ -80,7 +83,13 @@ class NotificationDispatcher:
             # Check before backend setup, and pass the same authority to the
             # backend for its last check after setup and before delivery.
             _authorize_delivery(authorize)
-            self.backend.send(title, body, authorize=authorize)
+            if authorize is None:
+                self.backend.send(title, body)
+            else:
+                send = getattr(self.backend, 'send_authorized', None)
+                if not callable(send):
+                    return NotificationResult('suppressed')
+                send(title, body, authorize=authorize)
             return NotificationResult('sent')
         except NotificationSuppressed:
             return NotificationResult('suppressed')
