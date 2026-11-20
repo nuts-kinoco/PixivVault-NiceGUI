@@ -5,11 +5,12 @@ from nicegui import ui
 from .grid_layout import MAX_COLUMNS
 
 
-def size_buttons(on_change, *, prefix: str) -> dict[str, ui.button]:
+def size_buttons(on_change, *, prefix: str, small_first: bool = False) -> dict[str, ui.button]:
     result = {}
-    for label, size, icon in (("大", "large", "view_module"),
-                              ("中", "medium", "view_comfy"),
-                              ("小", "small", "apps")):
+    sizes = (("大", "large", "crop_square"),
+             ("中", "medium", "grid_view"),
+             ("小", "small", "grid_3x3"))
+    for label, size, icon in reversed(sizes) if small_first else sizes:
         button = ui.button(label, icon=icon, color=None,
                            on_click=lambda _, value=size: on_change(value))
         button.props(f"flat dense stack no-caps aria-label={label} aria-pressed=false "

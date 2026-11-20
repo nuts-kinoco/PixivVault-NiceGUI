@@ -338,3 +338,22 @@ CSS += """
 CSS += """
 .pv-novel-reader-images { max-height:25vh; overflow:auto; flex:0 0 auto; }
 """
+
+CSS += """
+[data-testid=bookmark-status] { padding:0; text-align:left; }
+.pv-bookmarks .pv-bookmark-select { position:absolute; top:2px; left:2px; z-index:2; background:var(--pv-surface); border-radius:6px; }
+.pv-period-chips .q-btn { border-radius:999px !important; box-shadow:none; }
+.pv-period-chips { box-shadow:none; gap:3px; }
+.pv-preferences-card { border-radius:16px !important; }
+.pv-preferences-card .q-btn { border-radius:999px; background:rgba(33,150,243,.10) !important; color:var(--pv-text) !important; box-shadow:none !important; }
+.pv-preferences-group { border:1px solid var(--pv-border); border-radius:12px; padding:12px; width:100%; background:var(--pv-bg); }
+.pv-retry-action { border-radius:999px; background:rgba(33,150,243,.12); color:var(--pv-text); padding:6px 12px !important; }
+.pv-toolbar .q-btn.pv-size-selected, .pv-library .q-btn.pv-size-selected { background:rgba(33,150,243,.12) !important; color:var(--pv-text) !important; border-color:transparent !important; }
+.pv-period-chips .q-btn { background:transparent !important; color:var(--pv-text) !important; }
+.pv-period-chips .q-btn[aria-pressed=true] { background:rgba(33,150,243,.12) !important; }
+.pv-filter-switch { font-size:11px; color:var(--pv-muted); }
+.pv-filter-switch .q-toggle__inner { font-size:32px; }
+@layer quasar_importants {
+  .pv-period-chips .q-btn[aria-pressed=true] { background:rgba(33,150,243,.12) !important; color:var(--pv-text) !important; }
+}
+"""

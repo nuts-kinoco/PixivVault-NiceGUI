@@ -19,6 +19,7 @@ from ..pixiv_read_client import HTTPStatusRejected, PixivReadError
 from ..request_policy import request_scope
 from ..legacy_retry_batch import retry_batch_scope, RETRY_CAPACITY_WAIT_SECONDS
 from .job_views import _accepted_call
+from .action_controls import retry_button
 
 
 CSS = """
@@ -274,7 +275,7 @@ class FailedRecordsView:
                         ui.label(f"{record.title or '無題'}（ID: {record.work_id}）").classes("pv-failure-title")
                         category = self._category_labels[classify_reason(record.error_reason)]
                         ui.label(f"{category} ・ リトライ回数: {record.retry_count}").classes("pv-failure-meta")
-                        retry = ui.button("再試行", icon="refresh", color=None).props("flat dense data-testid=failed-row-retry")
+                        retry = retry_button(testid="failed-row-retry")
                         if can_retry and self._retry_supported(record):
                             self._wire(retry, 'click', lambda row=record: self.request_retry((row,)))
                         else:

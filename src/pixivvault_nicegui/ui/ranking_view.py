@@ -8,6 +8,7 @@ from ..ranking_source import RankingQuery, RankingUnavailable, MODES, CONTENTS, 
 from ..state import GalleryState
 from .gallery import GalleryView
 from .ranking_card_menus import RankingCardMenus
+from .action_controls import refresh_button
 
 class _ViewServices:
     def __init__(self,parent):self.parent=parent;self.artworks=();self.images=parent.images
@@ -71,18 +72,18 @@ class RankingView(RankingCardMenus):
         self.client=ui.context.client
         with ui.column().classes('pv-gallery pv-ranking-view w-full').props('data-testid=ranking-view') as self.root:
             with ui.row().classes('pv-toolbar'):
-                self.mode=ui.select(MODES,value='daily',label='ランキング').props(
-                    'outlined dense data-testid=ranking-mode').style('min-width:145px')
+                self.mode=ui.toggle(MODES,value='daily').props(
+                    'unelevated no-caps rounded data-testid=ranking-mode').classes('pv-period-chips')
                 self.content=ui.select(CONTENTS,value='illust',label='作品種別').props(
                     'outlined dense data-testid=ranking-content').style('min-width:165px')
                 self.date_button=ui.button('今日',icon='calendar_month',on_click=self.open_calendar).props(
                     'flat no-caps data-testid=ranking-date-calendar aria-label=ランキングの日付を選ぶ')
                 self.date=ui.input('日付 YYYYMMDD（空欄は今日）').props(
                     'outlined dense data-testid=ranking-date').style('min-width:270px')
-                self.r18=ui.checkbox('R-18',value=False).props('data-testid=ranking-r18')
-                self.ai=ui.checkbox('AIを除外',value=False).props('data-testid=ranking-exclude-ai')
+                self.r18=ui.switch('R-18',value=False).props('data-testid=ranking-r18').classes('pv-filter-switch')
+                self.ai=ui.switch('AIを除外',value=False).props('data-testid=ranking-exclude-ai').classes('pv-filter-switch')
                 self.tag=ui.input('タグ検索').props('outlined dense data-testid=ranking-tag')
-                self.fetch_button=ui.button('取得・更新',on_click=self.refresh).props('flat data-testid=ranking-fetch')
+                self.fetch_button=refresh_button(self.refresh,label='取得・更新',testid='ranking-fetch')
                 self.sort=ui.select(SORTS,value='rank',label='並び順',on_change=lambda _:self.render()).props('outlined dense data-testid=ranking-sort')
                 self._build_hide_manager()
             self.notice=ui.label('条件を選び、取得してください。').props('role=status data-testid=ranking-notice')

@@ -4,6 +4,7 @@ import asyncio
 import inspect
 import secrets
 from nicegui import Client, ui
+from .action_controls import retry_button
 
 class SimilarView:
     PHASE_LABELS = {'idle':'待機中', 'running':'実行中', 'paused':'一時停止中',
@@ -50,7 +51,7 @@ class SimilarView:
             self.notice=ui.label().props('role=status data-testid=similar-status')
             self.results=ui.column().classes('w-full').props('data-testid=similar-results')
             with ui.row():
-                self.retry=ui.button('再試行',on_click=self.retry_search).props('flat data-testid=similar-retry')
+                self.retry=retry_button(self.retry_search,testid='similar-retry')
                 self.analyze_button=ui.button('保存済み画像を解析して検索').props(
                     'flat data-testid=similar-analyze')
                 self.analyze_button.on('click',self.analyze_current,js_handler="""event => {

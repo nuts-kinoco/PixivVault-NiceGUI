@@ -739,7 +739,7 @@ class QueueView:
         visible = matching[self.page * self.PAGE_SIZE:(self.page + 1) * self.PAGE_SIZE]
         # A new filter/page can produce the same IDs. Its handlers must still
         # belong to the new rendered generation, while progress keeps rows intact.
-        signature = (self.view_generation, tuple(job.job_id for job in visible))
+        signature = (self.view_generation, bool(jobs), tuple(job.job_id for job in visible))
         if signature != self._rows_signature:
             self.list.clear()
             self.rows = {}
@@ -748,7 +748,8 @@ class QueueView:
                 self.rows[job.job_id] = self._make_row(job)
             if not visible:
                 with self.list:
-                    ui.label("失敗したジョブはありません" if self.failed_only else "該当するジョブはありません").classes("pv-empty")
+                    ui.label("失敗したジョブはありません" if self.failed_only else (
+                        "現在のジョブはありません" if not jobs else "該当するジョブはありません")).classes("pv-empty")
         for job in visible:
             row = self.rows[job.job_id]
             display_title, display_target = _novel_identity(job)

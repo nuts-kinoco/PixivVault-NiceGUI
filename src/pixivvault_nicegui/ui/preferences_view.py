@@ -145,31 +145,34 @@ class PreferencesView:
         if self.following_sync is not None:
             self.following_sync.deactivate()
         self.dialog.clear()
-        with self.dialog, ui.card().classes('w-full max-w-2xl').style('max-height:90vh;overflow:auto'):
+        with self.dialog, ui.card().classes('w-full max-w-2xl pv-preferences-card').style('max-height:90vh;overflow:auto'):
             with ui.row().classes('w-full items-center justify-between'):
                 ui.label('設定').classes('text-h6 pv-dialog-title')
-                ui.button('閉じる', on_click=self.close_dialog).props('data-testid=preferences-close-top')
+                ui.button('閉じる', icon='close', color=None, on_click=self.close_dialog).props('flat no-caps data-testid=preferences-close-top')
             if self.native_profile is not None:
-                self.native_profile.build()
+                with ui.column().classes('pv-preferences-group'):
+                    self.native_profile.build()
                 ui.separator()
             if self.following_sync is not None:
-                self.following_sync.build()
+                with ui.column().classes('pv-preferences-group'):
+                    self.following_sync.build()
                 ui.separator()
             if self.vault is not None:
-                ui.label('\u501f\u7528\u30d7\u30ec\u30df\u30a2\u30e0\u306e\u72b6\u614b').classes('text-subtitle1')
-                try:
-                    state=self.vault.status()
-                    message=('\u30ed\u30c3\u30af\u89e3\u9664\u6e08\u307f\u30fb\u691c\u7d22\u6642\u306b\u30c8\u30fc\u30af\u30f3\u306e\u6709\u52b9\u671f\u9650\u3092\u78ba\u8a8d\u3057\u307e\u3059\u3002' if state.get('open') else '\u30ed\u30c3\u30af\u4e2d' if state.get('initialized') else '\u4fdd\u7ba1\u5eab\u306f\u672a\u8a2d\u5b9a\u3067\u3059\u3002')
-                    if state.get('oauth_review_required'): message+=' \u66f4\u65b0\u7d50\u679c\u306e\u78ba\u8a8d\u304c\u5fc5\u8981\u3067\u3059\u3002'
-                    state_label=ui.label(message).props('data-testid=premium-vault-state')
-                    pool=self.vault.premium_pool_status()
-                    for slot in pool:
-                        ui.label(f"\u767b\u9332{slot['index']}\uff1a\u6255\u3044\u51fa\u30575\u6642\u9593 {slot['payouts']}/{slot['payout_limit']}\u4ef6\u30fb\u501f\u75281\u5206 {slot['borrowed']}/{slot['borrow_limit']}\u4ef6\u30fb\u5f85\u6a5f {int(slot['wait'])}\u79d2").props('data-testid=premium-request-budget')
-                    # Leaving an unconfirmed Pixiv result (the "Shaft連携" tab is gone).
-                    self.vault_recovery=PremiumRecoveryPanel(self.vault,gate=getattr(self.vault,'premium_authorization',None),
-                        on_change=lambda:self._vault_state_changed(state_label))
-                except Exception:
-                    ui.label('\u72b6\u614b\u3092\u78ba\u8a8d\u3067\u304d\u307e\u305b\u3093\u3002').props('data-testid=premium-vault-state')
+                with ui.column().classes('pv-preferences-group'):
+                    ui.label('\u501f\u7528\u30d7\u30ec\u30df\u30a2\u30e0\u306e\u72b6\u614b').classes('text-subtitle1')
+                    try:
+                        state=self.vault.status()
+                        message=('\u30ed\u30c3\u30af\u89e3\u9664\u6e08\u307f\u30fb\u691c\u7d22\u6642\u306b\u30c8\u30fc\u30af\u30f3\u306e\u6709\u52b9\u671f\u9650\u3092\u78ba\u8a8d\u3057\u307e\u3059\u3002' if state.get('open') else '\u30ed\u30c3\u30af\u4e2d' if state.get('initialized') else '\u4fdd\u7ba1\u5eab\u306f\u672a\u8a2d\u5b9a\u3067\u3059\u3002')
+                        if state.get('oauth_review_required'): message+=' \u66f4\u65b0\u7d50\u679c\u306e\u78ba\u8a8d\u304c\u5fc5\u8981\u3067\u3059\u3002'
+                        state_label=ui.label(message).props('data-testid=premium-vault-state')
+                        pool=self.vault.premium_pool_status()
+                        for slot in pool:
+                            ui.label(f"\u767b\u9332{slot['index']}\uff1a\u6255\u3044\u51fa\u30575\u6642\u9593 {slot['payouts']}/{slot['payout_limit']}\u4ef6\u30fb\u501f\u75281\u5206 {slot['borrowed']}/{slot['borrow_limit']}\u4ef6\u30fb\u5f85\u6a5f {int(slot['wait'])}\u79d2").props('data-testid=premium-request-budget')
+                        # Leaving an unconfirmed Pixiv result (the "Shaft連携" tab is gone).
+                        self.vault_recovery=PremiumRecoveryPanel(self.vault,gate=getattr(self.vault,'premium_authorization',None),
+                            on_change=lambda:self._vault_state_changed(state_label))
+                    except Exception:
+                        ui.label('\u72b6\u614b\u3092\u78ba\u8a8d\u3067\u304d\u307e\u305b\u3093\u3002').props('data-testid=premium-vault-state')
                 ui.separator()
             self.status=ui.label('').props('data-testid=preferences-status role=status')
             try:
@@ -181,64 +184,66 @@ class PreferencesView:
                 return
             self.controls={}
             if self.tagger is not None:
-                ui.label('ローカルタグ補完モデル（任意）').classes('text-subtitle1')
-                self.tagger_path=ui.input('モデルフォルダ', value=self.snapshot.values['local_tagger_path']).classes('w-full').props('data-testid=tagger-path')
-                self.tagger_enabled=ui.switch('タグ補完を自動で使う', value=self.snapshot.values['local_tagger_enabled']=='1').props('data-testid=tagger-enabled')
-                self.tagger_effective=ui.label('状態 検証中').props('role=status data-testid=tagger-effective')
-                self.tagger_status=ui.label('検証中').props('data-testid=tagger-status')
-                self._tagger_pending=True
-                try:
-                    loop=asyncio.get_running_loop()
-                except RuntimeError:
-                    self._tagger_timer=ui.timer(0.1, lambda: self._sync_tagger_status(epoch))
-                else:
-                    self._tagger_timer=loop.create_task(self._watch_tagger_status(epoch))
-                ui.timer(0.1, lambda: self._verify_tagger(epoch), once=True)
+                with ui.column().classes('pv-preferences-group'):
+                    ui.label('ローカルタグ補完モデル（任意）').classes('text-subtitle1')
+                    self.tagger_path=ui.input('モデルフォルダ', value=self.snapshot.values['local_tagger_path']).classes('w-full').props('data-testid=tagger-path')
+                    self.tagger_enabled=ui.switch('タグ補完を自動で使う', value=self.snapshot.values['local_tagger_enabled']=='1').props('data-testid=tagger-enabled')
+                    self.tagger_effective=ui.label('状態 検証中').props('role=status data-testid=tagger-effective')
+                    self.tagger_status=ui.label('検証中').props('data-testid=tagger-status')
+                    self._tagger_pending=True
+                    try:
+                        loop=asyncio.get_running_loop()
+                    except RuntimeError:
+                        self._tagger_timer=ui.timer(0.1, lambda: self._sync_tagger_status(epoch))
+                    else:
+                        self._tagger_timer=loop.create_task(self._watch_tagger_status(epoch))
+                    ui.timer(0.1, lambda: self._verify_tagger(epoch), once=True)
             for group in dict.fromkeys(spec.group for spec in SPECS if spec.key != 'grid_card_size_mode' and spec.group != 'local_tagger_internal'):
-                ui.label(group).classes('text-subtitle1')
-                for spec in SPECS:
-                    if spec.group!=group or spec.key == 'grid_card_size_mode': continue
-                    key_labels=KEY_CHOICE_LABELS.get(spec.key,{})
-                    options={v:key_labels.get(v, CHOICE_LABELS.get(v, ('ON' if v=='1' else 'OFF') if spec.choices==('0','1') else v)) for v in spec.choices}
-                    value=self.snapshot.values[spec.key]
-                    if spec.key == 'pixiv_actions_enabled' and self.pixiv_actions_mode != 'preferences':
-                        value='1' if self.pixiv_actions_mode == 'enabled' else '0'
-                    control=ui.select(options,label=spec.label,value=value).classes('w-full').props(f'data-testid=preference-{spec.key}')
-                    control.props['data-value']=str(control.value)
-                    def acknowledge(event, control=control):
-                        control.props['data-value']=str(event.value)
-                        control.update()
-                    control.on_value_change(acknowledge)
-                    control.set_enabled(spec.key in self.enabled_keys)
-                    self.controls[spec.key]=control
-                    if spec.key in DESCRIPTIONS:
-                        ui.label(DESCRIPTIONS[spec.key]).classes('text-caption text-grey').props(
-                            f'data-testid=preference-description-{spec.key}')
-                    if spec.key == 'embed_auto_on_download' and self.similarity_status is not None:
-                        self.similarity_status_label=ui.label('').props('role=status data-testid=preferences-similarity-status')
-                        self.similarity_resume_button=ui.button('いま推論する', on_click=self._resume_similarity).props('flat data-testid=preferences-similarity-resume')
-                        self._refresh_similarity_status()
-                        self._similarity_timer=ui.timer(1.0, self._refresh_similarity_status)
-                    if spec.key == 'pixiv_actions_enabled':
-                        notice=('変更は次回の通常起動から適用されます。Cookieの参照先が必要です。'
-                                if spec.key in self.enabled_keys else self.reasons[spec.key])
-                        ui.label(notice).classes('text-caption text-grey').props('data-testid=preference-pixiv-actions-mode')
-                    elif spec.key == 'extension_bridge_enabled' and spec.key in self.enabled_keys:
-                        ui.label('変更は次回の起動から適用されます。実行中の受信は止めません。127.0.0.1（このPC内）だけで受け付けます。').classes(
-                            'text-caption text-grey').props('data-testid=preference-extension-bridge-note')
-                    elif spec.key == 'bookmark_download_mode' and spec.key in self.enabled_keys:
-                        ui.label('設定保存だけでは通信しません。通常起動では、マイブックマークの「再読込」が成功してから、そのアカウントの保存配置に適用します。').classes(
-                            'text-caption text-grey').props('data-testid=preference-bookmark-account-gate')
-                    elif spec.key not in self.enabled_keys:
-                        note=ui.label(self.reasons.get(spec.key,'この起動では適用先が接続されていません。')).classes('text-caption text-grey').props(
-                            f'data-testid=preference-unavailable-{spec.key}')
-                        if spec.key in CACHE_LIMIT_FIELDS.values():
-                            self._cache_limit_notes[spec.key]=note
+                with ui.column().classes('pv-preferences-group'):
+                    ui.label(group).classes('text-subtitle1')
+                    for spec in SPECS:
+                        if spec.group!=group or spec.key == 'grid_card_size_mode': continue
+                        key_labels=KEY_CHOICE_LABELS.get(spec.key,{})
+                        options={v:key_labels.get(v, CHOICE_LABELS.get(v, ('ON' if v=='1' else 'OFF') if spec.choices==('0','1') else v)) for v in spec.choices}
+                        value=self.snapshot.values[spec.key]
+                        if spec.key == 'pixiv_actions_enabled' and self.pixiv_actions_mode != 'preferences':
+                            value='1' if self.pixiv_actions_mode == 'enabled' else '0'
+                        control=ui.select(options,label=spec.label,value=value).classes('w-full').props(f'data-testid=preference-{spec.key}')
+                        control.props['data-value']=str(control.value)
+                        def acknowledge(event, control=control):
+                            control.props['data-value']=str(event.value)
+                            control.update()
+                        control.on_value_change(acknowledge)
+                        control.set_enabled(spec.key in self.enabled_keys)
+                        self.controls[spec.key]=control
+                        if spec.key in DESCRIPTIONS:
+                            ui.label(DESCRIPTIONS[spec.key]).classes('text-caption text-grey').props(
+                                f'data-testid=preference-description-{spec.key}')
+                        if spec.key == 'embed_auto_on_download' and self.similarity_status is not None:
+                            self.similarity_status_label=ui.label('').props('role=status data-testid=preferences-similarity-status')
+                            self.similarity_resume_button=ui.button('いま推論する', on_click=self._resume_similarity).props('flat data-testid=preferences-similarity-resume')
+                            self._refresh_similarity_status()
+                            self._similarity_timer=ui.timer(1.0, self._refresh_similarity_status)
+                        if spec.key == 'pixiv_actions_enabled':
+                            notice=('変更は次回の通常起動から適用されます。Cookieの参照先が必要です。'
+                                    if spec.key in self.enabled_keys else self.reasons[spec.key])
+                            ui.label(notice).classes('text-caption text-grey').props('data-testid=preference-pixiv-actions-mode')
+                        elif spec.key == 'extension_bridge_enabled' and spec.key in self.enabled_keys:
+                            ui.label('変更は次回の起動から適用されます。実行中の受信は止めません。127.0.0.1（このPC内）だけで受け付けます。').classes(
+                                'text-caption text-grey').props('data-testid=preference-extension-bridge-note')
+                        elif spec.key == 'bookmark_download_mode' and spec.key in self.enabled_keys:
+                            ui.label('設定保存だけでは通信しません。通常起動では、マイブックマークの「再読込」が成功してから、そのアカウントの保存配置に適用します。').classes(
+                                'text-caption text-grey').props('data-testid=preference-bookmark-account-gate')
+                        elif spec.key not in self.enabled_keys:
+                            note=ui.label(self.reasons.get(spec.key,'この起動では適用先が接続されていません。')).classes('text-caption text-grey').props(
+                                f'data-testid=preference-unavailable-{spec.key}')
+                            if spec.key in CACHE_LIMIT_FIELDS.values():
+                                self._cache_limit_notes[spec.key]=note
             self.controls['discovery_cache_limit_mode'].on_value_change(
                 lambda _: self._sync_cache_limit_visibility()
                 if self.opened and not self.closed and self._epoch == epoch else None)
             self._sync_cache_limit_visibility()
-            ui.button('画像キャッシュを削除',on_click=lambda:self._clear_cache(epoch)).props('data-testid=preferences-clear-cache').set_enabled(self.clear_cache is not None)
+            ui.button('画像キャッシュを削除',icon='delete_outline',color=None,on_click=lambda:self._clear_cache(epoch)).props('flat no-caps data-testid=preferences-clear-cache').set_enabled(self.clear_cache is not None)
             ui.label('アプリ全体で表示した作品・作者のサムネイル画像キャッシュを削除します。保存した作品は削除しません。').classes('text-caption')
             ui.label('静止画保存: 保存元の原画像を維持します。画質を変更する設定はありません。').classes('text-caption')
             application_notice=('Pixiv操作の設定は次回起動から、その他の設定は次の操作から使われます。実行中のジョブは変更しません。'
@@ -258,27 +263,28 @@ class PreferencesView:
                 ui.button('ブラウザ拡張機能の自動起動を設定',on_click=self._uri_prompt).props('data-testid=preferences-uri')
             else:
                 ui.label('ブラウザ拡張機能の自動起動: URI起動経路が未接続です。').classes('text-caption')
-            ui.label('エクスポート').classes('text-subtitle1')
-            ui.label('データベースのエクスポート').classes('text-caption')
-            ui.label('データベースと作品メタデータをZIPに保存します（画像は含まれません）。').classes('text-caption')
-            self.export_metadata_button=ui.button('エクスポートを実行', icon='archive',
-                on_click=self.run_metadata_export).props('data-testid=preferences-export-metadata')
-            self.export_metadata_button.set_enabled(self.export_metadata is not None and not self.export_busy)
-            ui.label('旧データベース、作品メタデータ、指定した画像フォルダーをZIPに保存します。').classes('text-caption')
-            ui.label('同じ画像は1回だけ保存します。全ての元のパスに復元するには、ZIP内の RESTORE_IMAGES.txt の手順を使ってください。').classes('text-caption')
-            self.export_button=ui.button('DBと画像をZIPへ保存',on_click=self.run_legacy_export).props(
-                'data-testid=preferences-export-db')
-            self.export_button.set_enabled(self.export_legacy is not None and not self.export_busy)
-            if self.export_legacy is None:
-                ui.label('この起動では読取専用の旧DBと専用設定保存先の両方が必要です。').classes('text-caption text-grey')
-            self.export_status=ui.label(self.export_message).props('data-testid=preferences-export-status role=status')
+            with ui.column().classes('pv-preferences-group'):
+                ui.label('エクスポート').classes('text-subtitle1')
+                ui.label('データベースのエクスポート').classes('text-caption')
+                ui.label('データベースと作品メタデータをZIPに保存します（画像は含まれません）。').classes('text-caption')
+                self.export_metadata_button=ui.button('エクスポートを実行', icon='archive', color=None,
+                    on_click=self.run_metadata_export).props('flat no-caps data-testid=preferences-export-metadata')
+                self.export_metadata_button.set_enabled(self.export_metadata is not None and not self.export_busy)
+                ui.label('旧データベース、作品メタデータ、指定した画像フォルダーをZIPに保存します。').classes('text-caption')
+                ui.label('同じ画像は1回だけ保存します。全ての元のパスに復元するには、ZIP内の RESTORE_IMAGES.txt の手順を使ってください。').classes('text-caption')
+                self.export_button=ui.button('DBと画像をZIPへ保存',icon='archive',color=None,on_click=self.run_legacy_export).props(
+                    'flat no-caps data-testid=preferences-export-db')
+                self.export_button.set_enabled(self.export_legacy is not None and not self.export_busy)
+                if self.export_legacy is None:
+                    ui.label('この起動では読取専用の旧DBと専用設定保存先の両方が必要です。').classes('text-caption text-grey')
+                self.export_status=ui.label(self.export_message).props('data-testid=preferences-export-status role=status')
             # 元 gui.py:2420: 閉じるボタンの上に、中央寄せの小さいバージョン表記。
             ui.label(f'ver {__version__}').props('data-testid=preferences-version').style(
                 'font-size:11px;color:var(--pv-muted);text-align:center;width:100%')
             with ui.row():
-                ui.button('保存',on_click=lambda:self.save() if self._epoch==epoch and self.opened else None).props('data-testid=preferences-save').set_enabled(bool(self.enabled_keys) or self.tagger is not None)
-                ui.button('変更を破棄して再読込',on_click=self.open).props('data-testid=preferences-reload')
-                ui.button('閉じる',on_click=self.close_dialog)
+                ui.button('保存',icon='save',color=None,on_click=lambda:self.save() if self._epoch==epoch and self.opened else None).props('flat no-caps data-testid=preferences-save').set_enabled(bool(self.enabled_keys) or self.tagger is not None)
+                ui.button('変更を破棄して再読込',icon='refresh',color=None,on_click=self.open).props('flat no-caps data-testid=preferences-reload')
+                ui.button('閉じる',icon='close',color=None,on_click=self.close_dialog).props('flat no-caps')
         self.dialog.open()
 
     async def _verify_tagger(self, epoch):
