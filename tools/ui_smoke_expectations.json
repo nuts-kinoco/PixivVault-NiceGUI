@@ -43,6 +43,7 @@
     },
     "queue": {
       "label": "キュー",
+      "text_fonts": {"[data-testid=queue-heading] .pv-library-heading": "Yu Mincho"},
       "testids": ["queue-view", "queue-count", "queue-search", "queue-select-mode", "queue-filter-all", "queue-list"],
       "texts": ["現在のジョブ", "すべて 0"]
     },
@@ -61,6 +62,7 @@
     },
     "dedup": {
       "label": "重複整理",
+      "text_fonts": {"[data-testid=duplicate-view] .pv-library-heading": "Yu Mincho"},
       "testids": ["duplicate-view", "duplicate-scan", "duplicate-mode-near", "duplicate-mode-undecidable",
                   "duplicate-trash", "duplicate-search"],
       "texts": ["重複候補の確認", "スキャンして更新", "ごみ箱"]
@@ -113,7 +115,7 @@
     },
     "settings": {
       "label": "設定", "open": "preferences-open",
-      "text_fonts": {".pv-dialog-title": "Yu Mincho"},
+      "text_fonts": {".pv-dialog-title": "Yu Mincho", "[data-testid=preferences-export-heading]": "Yu Mincho"},
       "testids": ["preferences-dialog", "preferences-save", "preferences-reload", "native-profile-pick-cookie",
                   "native-profile-pick-folder", "native-profile-save", "preference-download_interval",
                   "preferences-version"],

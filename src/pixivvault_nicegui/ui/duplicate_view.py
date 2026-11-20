@@ -41,7 +41,7 @@ class DuplicateView:
         self._undecidable_task=None
         self.client=ui.context.client
         with ui.column().classes('pv-metadata-view w-full').props('data-testid=duplicate-view') as self.root:
-            ui.label('重複候補の確認').classes('pv-library-heading')
+            ui.label('重複候補の確認').classes('pv-library-heading pv-serif-heading')
             with ui.row().classes('pv-toolbar'):
                 self.scan_button=ui.button('スキャンして更新',on_click=self.scan).props('flat data-testid=duplicate-scan')
                 self.search=ui.input(placeholder='作者名・IDで絞り込む',on_change=lambda e:self.filter(e.value)).props('outlined dense clearable debounce=200 data-testid=duplicate-search')

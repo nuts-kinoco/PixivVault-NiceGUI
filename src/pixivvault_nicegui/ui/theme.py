@@ -192,6 +192,7 @@ body.body--light .pv-grid .pv-card-heart { color:var(--pv-fill); }
 .pv-library { flex:1 1 0; min-width:0; min-height:0; overflow:hidden; display:flex; flex-direction:column; gap:6px; }
 .pv-library-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:10px; width:100%; flex:0 0 auto; }
 .pv-library-heading { font-size:15px; font-weight:700; }
+.pv-serif-heading { font-family:"Yu Mincho", "YuMincho", serif; }
 .pv-library-subviews { gap:2px; flex-wrap:nowrap; }
 .pv-library .q-btn { color:var(--pv-text) !important; font-size:11px; }
 .pv-library .q-btn.pv-library-subview-selected, .pv-library .q-btn.pv-size-selected { background:var(--pv-fill) !important; color:var(--pv-on-fill-lib) !important; border-radius:8px; }

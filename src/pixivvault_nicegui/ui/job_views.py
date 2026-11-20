@@ -315,7 +315,7 @@ class QueueView:
                 else:
                     with ui.column().classes("gap-0").props(
                             'tabindex=0 role=button aria-label=ログ表示切替 data-testid=queue-heading') as self.queue_heading:
-                        ui.label("現在のジョブ（アプリ連携）").classes("pv-library-heading")
+                        ui.label("現在のジョブ（アプリ連携）").classes("pv-library-heading pv-serif-heading")
                         ui.label(f"{int(self.REFRESH_INTERVAL_SECONDS)}秒毎に自動更新").classes("pv-subtitle").style(
                             "font-size:10.5px")
                         ui.label('一覧かタイトルのダブルクリックでログと切替').classes('pv-subtitle').style('font-size:10.5px')
