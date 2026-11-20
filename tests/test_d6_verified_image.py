@@ -115,12 +115,17 @@ def test_local_preload_promotes_the_decoded_node_only_for_an_adjacent_request(tm
             requested = []
 
             def route(request):
-                if request.request.url == 'http://127.0.0.1/media/p2':
-                    requested.append(request.request.url)
-                    request.fulfill(content_type='image/svg+xml', headers={'Cache-Control': 'no-store'},
-                                    body='<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"/>')
-                else:
+                url = request.request.url
+                if url not in {'http://127.0.0.1/media/p2', 'http://127.0.0.1/media/p3'}:
                     request.abort()
+                    return
+                requested.append(url)
+                headers = {'Cache-Control': 'no-store'}
+                if url.endswith('/p3') and requested.count(url) == 1:
+                    request.fulfill(status=404, headers=headers, body='')
+                else:
+                    request.fulfill(content_type='image/svg+xml', headers=headers,
+                                    body='<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"/>')
 
             context.route('**/*', route)
             page = context.pages[0]
@@ -137,9 +142,13 @@ def test_local_preload_promotes_the_decoded_node_only_for_an_adjacent_request(tm
                 const Vue = window.pvMountVue;
                 window.events = [];
                 window.decoded = [];
+                window.decodeErrors = 0;
                 const decode = HTMLImageElement.prototype.decode;
                 HTMLImageElement.prototype.decode = function() {
-                    return decode.call(this).then(() => window.decoded.push(this));
+                    return decode.call(this).then(() => window.decoded.push(this), error => {
+                        window.decodeErrors++;
+                        throw error;
+                    });
                 };
                 window.imageProps = Vue.reactive({src:'', request_id:0, preload_src:'/media/p2'});
                 Vue.createApp({render: () => Vue.h(window.pvVerifiedImage, {
@@ -165,5 +174,15 @@ def test_local_preload_promotes_the_decoded_node_only_for_an_adjacent_request(tm
             page.wait_for_function('window.events.length === 2')
             assert page.evaluate('window.events')[-1] == '/media/p2#request-2'
             assert page.evaluate("window.decoded[0] !== document.querySelector('[data-pv-displayed=true]')")
+
+            page.evaluate("() => { window.imageProps.preload_src = '/media/p3'; }")
+            page.wait_for_function('window.decodeErrors === 1')
+            assert page.evaluate('window.events.length') == 2
+            page.evaluate('''() => Object.assign(window.imageProps, {
+                src:'/media/p3#request-3', preload_src:'', use_preload:true, request_id:3
+            })''')
+            page.wait_for_function('window.events.length === 3')
+            assert page.evaluate('window.events')[-1] == '/media/p3#request-3'
+            assert requested.count('http://127.0.0.1/media/p3') == 2
         finally:
             context.close()
