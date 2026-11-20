@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-20 07:41",
+  "updated": "2026-11-20 22:59",
   "phases": [
     {
       "id": "P0",
@@ -35,11 +35,11 @@
       "id": "P3",
       "name": "機能の完成",
       "goal": "台帳の「無」「弱」を機能単位で実装（元との並置・取得停止ゲートの検査つき）",
-      "state": "進行中（R3 待ち）",
+      "state": "進行中（実機の借用系 K01/K02/K09/Z04 の確認のみ残り）",
       "approval": "事前承認（この計画）",
-      "done": 3,
+      "done": 4,
       "total": 5,
-      "pct": 60
+      "pct": 80
     },
     {
       "id": "P4",
@@ -234,8 +234,8 @@
     {
       "phase": "P3",
       "condition": "統合後の全体テスト失敗 0・画面スモーク PASS・checker 指摘ゼロ・実機（COS）確認",
-      "met": "未",
-      "evidence": "work 20a1f0c（P3〜P6・実機保存先の起動修正を統合）: 全体テスト 3,717 passed / 3 skipped / 失敗 0、UI スモーク 56 条件 PASS（外部接続 0）。COS R3 は返信待ち（docs/cos/COS_REALAPP_PROMPT_R3.md、実機 22386 起動済み）"
+      "met": "達成",
+      "evidence": "work 20a1f0c（P3〜P6・実機保存先の起動修正を統合）: 全体テスト 3,717 passed / 3 skipped / 失敗 0、UI スモーク 56 条件 PASS（外部接続 0）。COS R3 は返信待ち（docs/cos/COS_REALAPP_PROMPT_R3.md、実機 22386 起動済み） / COS R5(2026-11-20): PASS 6 FAIL 0 判定不能 0（verify/cos_20261120_R5）。R3〜R5 の FAIL は全て修正・再確認済み"
     },
     {
       "phase": "P4",
@@ -758,36 +758,17 @@
   ],
   "running": [
     {
-      "who": "wt-lrn（Sol）",
-      "what": "学習タブを元に合わせる（pixiv アイコン・取得失敗の中央カード）07:54 期限"
-    },
-    {
-      "who": "wt-ctx（Sol）",
-      "what": "右クリックを元に合わせる（作者一覧メニュー・保存先を開く・ビューア）07:54 期限"
-    },
-    {
-      "who": "wt-p5b（Sol）",
-      "what": "P5 の残り（ダウンロード画面の撮影・表示退行の修正）07:55 期限"
-    },
-    {
-      "who": "wt-p4b（Sol）",
-      "what": "P4 の統合待ち項目の再判定 07:55 期限"
-    },
-    {
-      "who": "Neon",
-      "what": "GPU 学習（RTX 5080）の設計書"
-    },
-    {
-      "who": "全体テスト",
-      "what": "work c457410（レビュー指摘の修正後）"
+      "who": "実機アプリ（PID 101844）",
+      "what": "COS 確認用に起動中。最新コード a58e2cf 系。確認が終わったら停止する"
     }
   ],
   "ledger_counts_provisional": {
     "有": 115,
-    "無": 14,
-    "条件付きで有": 33,
+    "無": 12,
+    "条件付きで有": 34,
     "不明": 50,
-    "意図的削除": 6
+    "意図的削除": 6,
+    "弱": 1
   },
   "full_test": {
     "log": "full_work_7.log",
@@ -796,12 +777,12 @@
     "errors": 0,
     "seconds": 653.13
   },
-  "head": "b7e50f8 学習: 本番構成では「学習（デモ）」の見出しと説明文を出さない。元との差の調査（学習・右クリック）を記録",
+  "head": "a58e2cf P3: COS R5 PASS 6/6 を進捗に反映",
   "worktrees": [
     {
       "path": "work",
       "branch": "pv-dev-baseline",
-      "head": "b7e50f8"
+      "head": "a58e2cf"
     },
     {
       "path": "basewt",
@@ -886,7 +867,7 @@
     {
       "path": "wt-ctx",
       "branch": "feat-ctx",
-      "head": "b7e50f8"
+      "head": "b5661fa"
     },
     {
       "path": "wt-d",
@@ -936,7 +917,7 @@
     {
       "path": "wt-lrn",
       "branch": "feat-lrn",
-      "head": "b7e50f8"
+      "head": "18b9024"
     },
     {
       "path": "wt-m",
@@ -971,7 +952,7 @@
     {
       "path": "wt-p4b",
       "branch": "feat-p4b",
-      "head": "6ffb60d"
+      "head": "61ae5d7"
     },
     {
       "path": "wt-p5",
@@ -981,7 +962,7 @@
     {
       "path": "wt-p5b",
       "branch": "feat-p5b",
-      "head": "d3e2641"
+      "head": "4a7b230"
     },
     {
       "path": "wt-p6",
