@@ -13,7 +13,7 @@ WARNING = '⚠️一部の除外条件を適用できませんでした'
 
 
 async def search(view, tag='tag'):
-    view.tags.set_value(tag)
+    view.add_tag(tag)
     await view.load()
     assert view.page is not None
 

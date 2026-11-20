@@ -124,6 +124,8 @@ class FollowingSyncStore:
     """One process owner; views share this instance and synchronize with CAS."""
     def __init__(self, root):
         self._lock = RLock()
+        self._owner_epoch = 0
+        self._owner_listeners = set()
         self._closed = False
         self._connection = self._owner = None
         try:
@@ -288,12 +290,40 @@ class FollowingSyncStore:
             except BaseException as error:
                 self._abort(error)
 
+    def subscribe_owner(self, listener):
+        """Notify listeners of committed owner changes, without account data."""
+        with self._lock:
+            self._ensure_open()
+            self._owner_listeners.add(listener)
+
+        def unsubscribe():
+            with self._lock:
+                self._owner_listeners.discard(listener)
+
+        return unsubscribe
+
+    def _owner_changed(self, previous, current):
+        if current == previous:
+            return ()
+        self._owner_epoch += 1
+        return tuple((listener, self._owner_epoch) for listener in self._owner_listeners)
+
+    @staticmethod
+    def _publish_owner_change(listeners):
+        for listener, epoch in listeners:
+            try:
+                listener(epoch)
+            except Exception:
+                # A disconnected view cannot undo an already committed sync.
+                pass
+
     def _commit(self, account_id, expected_revision, mutate, *, synced_at=None, checkpoint=lambda: None,
                 bump_revision=True):
         with self._lock:
             try:
                 self._ensure_open()
                 checkpoint()
+                previous_owner = self.last_synced_account() if synced_at is not None else None
                 self._connection.execute('BEGIN IMMEDIATE')
                 before = self._read_snapshot(account_id)
                 if expected_revision is not None and before.revision != expected_revision:
@@ -316,10 +346,13 @@ class FollowingSyncStore:
                         (synced_at, account_id))
                 result = self._read_snapshot(account_id)
                 checkpoint()
+                current_owner = self.last_synced_account() if synced_at is not None else None
                 self._connection.execute('COMMIT')
-                return result
+                listeners = self._owner_changed(previous_owner, current_owner)
             except BaseException as error:
                 self._abort(error)
+        self._publish_owner_change(listeners)
+        return result
 
     def sync(self, reader, *, expected_revision=None, cancelled=None, timeout=120):
         if not callable(getattr(reader, 'require_identity', None)):
@@ -419,16 +452,20 @@ class FollowingSyncStore:
         with self._lock:
             try:
                 self._ensure_open()
+                previous_owner = self.last_synced_account()
                 self._connection.execute('BEGIN IMMEDIATE')
                 if type(scope) is ConfirmedFollowingSwitch:
-                    scope.verify(account_id, self.last_synced_account())
+                    scope.verify(account_id, previous_owner)
                 else:
                     self._require_scope(account_id, scope)
                 self._connection.execute('DELETE FROM following_authors WHERE account_id=?', (account_id,))
                 self._connection.execute('DELETE FROM following_accounts WHERE account_id=?', (account_id,))
+                current_owner = self.last_synced_account()
                 self._connection.execute('COMMIT')
+                listeners = self._owner_changed(previous_owner, current_owner)
             except BaseException as error:
                 self._abort(error)
+        self._publish_owner_change(listeners)
 
     def record_followed(self, account_id, user_id, name='', restrict=0, *, scope, expected_revision=None):
         account_id, user_id = _identifier(account_id), _identifier(user_id)

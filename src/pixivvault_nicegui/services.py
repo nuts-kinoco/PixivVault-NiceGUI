@@ -4090,10 +4090,15 @@ class ApplicationServices:
         prefs = getattr(self, 'preferences', None)
         if (notifier is not None and getattr(notifier, 'available', True)
                 and (prefs is None or prefs.get_setting('enable_notifications', '1') == '1')):
-            # The in-app fallback claims from the same durable queue.
-            if scope is not None:
-                scope.verify_current(self)
-            pending = ledger.claim_pending_notifications(account_id=scope.account_id if scope is not None else None)
+            # The desktop and in-app consumers use the same typed, atomic claim.
+            from .managed_scheduler import ScheduleAccountError
+            try:
+                owner = ledger.capture_owner(self, account_id=scope.account_id) if scope is not None else None
+                pending = ledger.claim_pending_notifications(owner=owner)
+                if owner is not None:
+                    owner.verify_current()
+            except (AccountMismatch, ScheduleAccountError):
+                pending = ()
             if pending:
                 notifier.notify('PixivVault', f'作者更新チェック: {len(pending)}件の保存が完了しました。')
         unfinished_count = sum(1 for job in jobs if job.state in UNFINISHED)

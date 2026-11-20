@@ -81,11 +81,11 @@ async def test_personal_last_tag_alone_reschedules_inflight_search(monkeypatch):
             view = PersonalRankingView(services)
             view.set_active(True)
             await view._context_task
-            view.tags.set_value('old')
+            view.add_tag('old')
             await view.load()
             view.bookmarks.set_value(1000)
             await until(entered.is_set)
-            view.tags.set_value('new')
+            view.remove_tag('old'); view.add_tag('new')
             release.set()
             await settle(view)
             assert vault.calls == [('old', 0), ('old', 1000), ('new', 1000)]
@@ -108,7 +108,7 @@ async def test_personal_reports_route_loss_with_previous_cards(monkeypatch, unce
             view = PersonalRankingView(services)
             view.set_active(True)
             await view._context_task
-            view.tags.set_value('tag')
+            view.add_tag('tag')
             await view.load()
             page, pin = view.page, view.pin
 
@@ -328,7 +328,7 @@ async def test_personal_last_tag_waits_for_current_context(monkeypatch):
             view = PersonalRankingView(services)
             view.set_active(True)
             await until(entered.is_set)
-            view.tags.set_value('last')
+            view.add_tag('last')
             await until(lambda: view.busy)
             release.set()
             await settle(view)

@@ -54,7 +54,7 @@ async def test_personal_actual_controls_append_filter_and_persistence(tmp_path,m
             assert initial_task in background_tasks.running_tasks and initial_task.get_loop() is asyncio.get_running_loop()
             assert view.r18.enabled and view.r18.value is True  # FL-J12: 元は既定 ON・借用検索が使えるときは操作できる
             view.add_tag('tag');assert view.selected_tags()==('tag',)
-            view.tags.set_value('tag');await view.load();first=view.gallery.cards['123'];assert view.page.offset==1
+            view.add_tag('tag');await view.load();first=view.gallery.cards['123'];assert view.page.offset==1
             transport.response={'illusts':[raw(124)],'next_url':'next'};await view.load(append=True)
             assert view.gallery.cards['123'] is first and len(view.gallery.cards)==2 and pins[0].closed
             view.exclude.set_value('tag');view.local_changed();assert view.gallery.state.total_count==0
@@ -77,7 +77,7 @@ async def test_personal_stale_and_close_drop_late_results(tmp_path,monkeypatch):
     transport.search=delayed
     try:
         with client:
-            view=PersonalRankingView(services);view.set_active(True);view.tags.set_value('tag')
+            view=PersonalRankingView(services);view.set_active(True);view.add_tag('tag')
             initial_task=view._context_task
             assert initial_task in background_tasks.running_tasks and initial_task.get_loop() is asyncio.get_running_loop()
             task=asyncio.create_task(view.load());assert await asyncio.to_thread(entered.wait,3)

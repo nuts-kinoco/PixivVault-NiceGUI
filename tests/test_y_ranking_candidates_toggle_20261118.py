@@ -40,13 +40,13 @@ async def test_toggle_hides_only_label_and_chips_and_the_choice_survives_reopen_
             assert state(first) == (False, False, True, 'よく効くタグを表示')  # トグルは残る
             assert vault.ranking_preferences()['ranking_personal_candidates_open'] is False
             # タグ編集（preferences の再保存）が開閉の保存を消さない
-            first.tags.set_value('tag')
+            first.add_tag('tag')
             assert vault.ranking_preferences()['tags'] == ['tag']
             assert vault.ranking_preferences()['ranking_personal_candidates_open'] is False
             await drain(first)
             second = PersonalRankingView(services)
             assert state(second) == (False, False, True, 'よく効くタグを表示')
-            assert second.tags.value == 'tag'
+            assert second.selected_tags() == ('tag',)
             second.toggle_candidates()
             assert state(second) == (True, True, True, 'よく効くタグを隠す')
             assert vault.ranking_preferences()['ranking_personal_candidates_open'] is True

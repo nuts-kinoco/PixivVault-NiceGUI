@@ -181,7 +181,12 @@ async def test_b_scheduler_ui_leaves_a_interruption_and_notices(tmp_path, action
                 assert snapshot.last_status == "interrupted"
             else:
                 assert pending == ("200",)
-                assert ledger.claim_pending_notifications(account_id=A) == ("200",)
+                ledger.attach_favourites(FavouriteBook(store, scheduler=ledger))
+                with pytest.raises((AccountMismatch, ScheduleAccountError)):
+                    ledger.capture_owner(svc, account_id=A)
+                store.sync(a_reader)
+                svc.live_client = a_reader
+                assert ledger.claim_pending_notifications(owner=ledger.capture_owner(svc, account_id=A)) == ("200",)
                 assert ledger.pending_notifications() == ()
         finally:
             ledger.close()

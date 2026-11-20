@@ -19,7 +19,7 @@ from pixivvault_nicegui.ui.scheduler_view import SchedulerView
 async def test_accepted_count_visible_before_next_author_finishes(tmp_path,route,ending):
     ledger=ManagedScheduler(tmp_path)
     ledger.configure_all(author_ids=('11','12'),interval_hours=24,startup_check=False,
-        expected_revision=ledger.snapshot().revision,now=datetime.now(timezone.utc))
+        expected_revision=ledger.snapshot().revision,now=datetime.now(timezone.utc),account_id=None)
     entered,release,cancel=Event(),Event(),Event()
     queue=[]
     record=RemoteBookmark('123','illustration','show','Generated','11','Generated author',

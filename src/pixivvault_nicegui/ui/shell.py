@@ -430,7 +430,8 @@ class DemoShell:
         self.sync_borrow()
     def open_premium_search(self,word):
         self.show('personal')
-        if self.personal_view is not None and word.strip():self.personal_view.tags.set_value(word.strip())
+        if self.personal_view is not None and word.strip():
+            self.personal_view.open_with_tag(word.strip())
     def apply_preferences(self,snapshot=None):
         self.services.apply_preferences(snapshot)
         if self.learning is not None:

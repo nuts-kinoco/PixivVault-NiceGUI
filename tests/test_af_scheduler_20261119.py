@@ -54,7 +54,7 @@ def test_default_schedule_has_next_due_and_can_be_disabled(tmp_path):
         state = ledger.snapshot()
         assert state.interval_hours == 24 and state.next_due_utc is not None
         disabled = ledger.configure(interval_hours=0, startup_check=False,
-                                    expected_revision=state.revision, now=datetime.now(timezone.utc))
+                                    expected_revision=state.revision, now=datetime.now(timezone.utc), account_id=None)
         assert disabled.next_due_utc is None
     finally:
         ledger.close()
@@ -111,7 +111,7 @@ def test_off_schedule_does_not_dispatch_deferred_backlog(tmp_path):
     ledger._sync_favourites(('9',))
     ledger.defer_work(author_id='9', work={'id':'100','update_date':'2020','page_count':1,'type':0},
                       now=datetime.now(timezone.utc), account_id='42')
-    ledger._disable(expected_revision=ledger.snapshot().revision)
+    ledger._disable(expected_revision=ledger.snapshot().revision, account_id=None)
     fired = Event()
     runner = ManagedScheduleRunner(ledger, lambda *_: fired.set())
     try:

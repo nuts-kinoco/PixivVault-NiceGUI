@@ -109,7 +109,7 @@ async def test_z04_expired_payout_shows_reason_without_persisting_tokens(tmp_pat
     transport.fetch_account=expired
     try:
         with client:
-            view=PersonalRankingView(services);view.set_active(True);view.tags.set_value('tag');initial=view._context_task
+            view=PersonalRankingView(services);view.set_active(True);view.add_tag('tag');initial=view._context_task
             with caplog.at_level(logging.WARNING):await view.load()
             tokens_after={k:{f:v.get(f) for f in ('access_token','refresh_token','token_expires_at_ms')} for k,v in vault._snapshot()[1]['slots'].items()}
             assert tokens_after==tokens_before
@@ -135,7 +135,7 @@ async def test_z04_network_retains_results_and_local_library_continues(tmp_path,
     try:
         with client:
             library=LibraryView(services)
-            view=PersonalRankingView(services);view.set_active(True);view.tags.set_value('tag');initial=view._context_task
+            view=PersonalRankingView(services);view.set_active(True);view.add_tag('tag');initial=view._context_task
             await view.load()
             previous, pin = view.page, view.pin
             assert set(view.gallery.cards) == {'123'}
@@ -204,7 +204,7 @@ async def test_z04_multi_uid_does_not_lose_expiry_reason(tmp_path,monkeypatch,ca
     client=Client(ui.page('/_fail7_multi'));view=None;initial=None
     try:
         with client:
-            view=PersonalRankingView(services);view.set_active(True);view.tags.set_value('tag');initial=view._context_task
+            view=PersonalRankingView(services);view.set_active(True);view.add_tag('tag');initial=view._context_task
             with caplog.at_level(logging.WARNING):await view.load()
             observe('Z04-multi-'+following,dict(notice=view.notice.text,logs=caplog.text,
                 remote_rows=len(view.page.rows) if view.page else None))

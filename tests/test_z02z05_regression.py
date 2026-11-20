@@ -21,7 +21,7 @@ async def test_invalid_tokens_disable_controls_and_reunlock_restores(tmp_path,mo
     view=None;initial=None
     try:
         with client:
-            view=PersonalRankingView(services);view.set_active(True);view.tags.set_value('tag')
+            view=PersonalRankingView(services);view.set_active(True);view.add_tag('tag')
             initial=view._context_task
             def reject(*a,**kw):raise VaultError('invalid-grant')
             vault.search=reject

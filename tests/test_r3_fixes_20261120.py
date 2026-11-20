@@ -211,7 +211,7 @@ async def test_personal_ai_exclusion_and_more_use_server_offset(monkeypatch):
     try:
         with client:
             view = await open_view(services, vault)
-            view.tags.set_value('tag')
+            view.add_tag('tag')
             await view.load()
             assert set(view.gallery.cards) == {'123', '124'}
             view.ai.set_value(True)
@@ -245,10 +245,10 @@ async def test_personal_search_discards_old_response_before_latest_conditions(mo
     try:
         with client:
             view = await open_view(services, vault)
-            view.tags.set_value('old')
+            view.add_tag('old')
             first = asyncio.create_task(view.load())
             await until(entered.is_set)
-            view.tags.set_value('new')
+            view.remove_tag('old'); view.add_tag('new')
             view.start_date.set_value('2026-01-01')
             view.bookmarks.set_value(1000)
             view.bookmarks.set_value(5000)
@@ -286,15 +286,15 @@ async def test_real_personal_source_failure_keeps_last_cards(monkeypatch, code, 
     try:
         with client:
             view = await open_view(services, vault)
-            view.tags.set_value('tag')
+            view.add_tag('tag')
             await view.load()
             previous, pin = view.page, view.pin
             assert '123' in view.gallery.cards
             monkeypatch.setattr(vault, 'search', fail)
             if replace_tags:
-                view.tags.set_value('')
+                view.remove_tag('tag')
                 assert not view.gallery.cards
-                view.tags.set_value('new')
+                view.add_tag('new')
                 await view.load()
             else:
                 view.bookmarks.set_value(1000)

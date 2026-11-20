@@ -220,7 +220,7 @@ async def test_server_side_conditions_search_again_by_themselves(monkeypatch):
     try:
         with client:
             view = await open_view(services, vault)
-            view.tags.set_value('tag')
+            view.add_tag('tag')
             await settle(view)
             assert [c['bookmark_min'] for c in vault.calls] == [0]
             view.bookmarks.set_value(1000)
@@ -255,7 +255,7 @@ async def test_clear_conditions_and_bookmark_chip_search_again(monkeypatch):
     try:
         with client:
             view = await open_view(services, vault)
-            view.tags.set_value('tag')
+            view.add_tag('tag')
             view.bookmarks.set_value(5000)
             await settle(view)
             assert vault.calls[-1]['bookmark_min'] == 5000
@@ -285,7 +285,7 @@ async def test_no_automatic_search_without_tags_or_when_search_is_unavailable(mo
             view.bookmarks.set_value(1000)
             await settle(view)
             assert vault.calls == []  # タグ無し
-            view.tags.set_value('tag')
+            view.add_tag('tag')
             vault.open = False
             view.sort.set_value('date_desc')
             view.clear_filters()

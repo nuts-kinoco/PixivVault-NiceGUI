@@ -49,6 +49,42 @@ class ScheduleState:
     last_status: str
 
 
+@dataclass(frozen=True, slots=True)
+class ScheduleOwner:
+    """Proof for a displayed schedule, valid for one committed follow owner."""
+    scope: AccountScope
+    services: object
+    following: object
+    epoch: int
+
+    @property
+    def account_id(self) -> str:
+        return self.scope.account_id
+
+    def verify_current(self) -> None:
+        with self.following._lock:
+            self.scope.verify_current(self.services)
+            if (getattr(self.services, 'following_sync', self.following) is not self.following
+                    or self.following._owner_epoch != self.epoch):
+                raise AccountMismatch()
+            require_same_account(self.account_id, self.following.last_synced_account())
+
+
+@dataclass(frozen=True, slots=True)
+class OwnedScheduleEditor:
+    owner: ScheduleOwner
+    state: ScheduleState
+    authors: tuple[str, ...]
+    owns_history: bool
+    unbound: bool
+
+
+@dataclass(frozen=True, slots=True)
+class OwnedScheduleHistory:
+    owner: ScheduleOwner
+    rows: tuple[dict, ...] | None  # None means this ledger is not owned by the editor.
+
+
 def _utc(now: datetime) -> datetime:
     if not isinstance(now, datetime) or now.tzinfo is None:
         raise ValueError('timezone-aware datetime required')
@@ -104,6 +140,60 @@ class ManagedScheduler:
     def favourite_account(self):
         book = self._favourites_source
         return None if book is None else book.account()
+
+    def capture_owner(self, services, *, account_id) -> ScheduleOwner:
+        """Capture the current editor owner without issuing an identity request."""
+        scope = AccountScope(account_id, getattr(services, 'live_client', None))
+        with self._lock:
+            self._ensure_open()
+            book = self._favourites_source
+            if book is None or book.following is None:
+                raise ScheduleAccountError('mismatch')
+            with book.following._lock:
+                owner = ScheduleOwner(scope, services, book.following, book.following._owner_epoch)
+                owner.verify_current()
+                return owner
+
+    @contextmanager
+    def _editor_access(self, owner, *, require_history=False):
+        # The following store publishes owner switches with the second lock.
+        # Keep it through the scheduler read or commit. Never hold it across I/O
+        # outside the two ledgers, or acquire the scheduler lock from the store.
+        with self._lock:
+            self._ensure_open()
+            if owner is None and not self._account_guard and self._bound_account() is None:
+                yield None  # standalone ledger
+                return
+            book = self._favourites_source
+            if type(owner) is not ScheduleOwner or book is None or book.following is not owner.following:
+                raise ScheduleAccountError('mismatch')
+            with owner.following._lock:
+                owner.verify_current()
+                if require_history:
+                    self._require_owner(owner.account_id)
+                yield owner.account_id
+
+    @contextmanager
+    def _history_transaction(self, owner):
+        with self._editor_access(owner, require_history=True):
+            self._db.execute('BEGIN IMMEDIATE')
+            try:
+                yield
+                if owner is not None:
+                    owner.verify_current()
+                self._db.execute('COMMIT')
+            except BaseException:
+                if self._db.in_transaction:
+                    self._db.execute('ROLLBACK')
+                raise
+
+    def read_editor(self, *, owner: ScheduleOwner) -> OwnedScheduleEditor:
+        with self._editor_access(owner) as account_id:
+            if account_id is None:
+                raise ScheduleAccountError('mismatch')
+            bound = self._bound_account()
+            return OwnedScheduleEditor(owner, self.snapshot(), self.favourites(account_id),
+                                       bound == account_id, bound is None)
 
     def _dispatch_favourites(self):
         """Resolve backlog membership against the scheduler owner's stars."""
@@ -210,18 +300,23 @@ class ManagedScheduler:
             raise ScheduleError('scheduler is closed')
 
     def configure(self, *, interval_hours: int, startup_check: bool, expected_revision: int,
-                  now: datetime, account_id=None) -> ScheduleState:
+                  now: datetime, account_id) -> ScheduleState:
         return self.configure_all(author_ids=None, interval_hours=interval_hours,
                                   startup_check=startup_check, expected_revision=expected_revision,
                                   now=now, account_id=account_id)
 
-    def _disable(self, *, expected_revision: int, account_id=None) -> ScheduleState:
+    def _disable(self, *, expected_revision: int, account_id) -> ScheduleState:
         """Save the global stop with the settings revision displayed by the editor."""
         with self._lock:
             self._ensure_open()
             book = self._favourites_source
             following = book.following if book is not None and account_id is not None else None
-            with following._lock if following is not None else nullcontext():
+            owner = account_id if type(account_id) is ScheduleOwner else None
+            ownership = (self._editor_access(owner) if owner is not None else
+                         (following._lock if following is not None else nullcontext()))
+            with ownership as owner_id:
+                if owner is not None:
+                    account_id = owner_id
                 if account_id is not None:
                     require_same_account(account_id, self.favourite_account(),
                                          error=ScheduleAccountError('mismatch'))
@@ -234,6 +329,8 @@ class ManagedScheduler:
                                      'revision=revision+1 WHERE id=1 AND (interval_hours!=0 OR startup_check!=0 '
                                      'OR next_due_utc IS NOT NULL)')
                     saved = self.snapshot()
+                    if owner is not None:
+                        owner.verify_current()
                     self._db.execute('COMMIT')
                     return saved
                 except BaseException:
@@ -287,25 +384,17 @@ class ManagedScheduler:
                 self._db.execute('ROLLBACK')
                 raise
 
-    def acknowledge_interrupted(self, *, expected_revision: int, account_id=None) -> ScheduleState:
+    def acknowledge_interrupted(self, *, expected_revision: int, owner: ScheduleOwner | None) -> ScheduleState:
         """Explicitly acknowledge ambiguous crash recovery without replaying it."""
-        with self._lock:
-            self._ensure_open()
-            self._db.execute('BEGIN IMMEDIATE')
-            try:
-                self._require_owner(account_id)
-                state = self.snapshot()
-                if state.revision != expected_revision or state.last_status != 'interrupted':
-                    raise ScheduleError('schedule acknowledgement changed')
-                self._db.execute("UPDATE schedule SET last_status='unknown',revision=? WHERE id=1",
-                                 (state.revision + 1,))
-                self._db.execute('COMMIT')
-            except BaseException:
-                self._db.execute('ROLLBACK')
-                raise
+        with self._history_transaction(owner):
+            state = self.snapshot()
+            if state.revision != expected_revision or state.last_status != 'interrupted':
+                raise ScheduleError('schedule acknowledgement changed')
+            self._db.execute("UPDATE schedule SET last_status='unknown',revision=? WHERE id=1",
+                             (state.revision + 1,))
             return self.snapshot()
 
-    def begin_dispatch(self, slot: str, now: datetime, authors: int, *, account_id=None,
+    def begin_dispatch(self, slot: str, now: datetime, authors: int, *, account_id,
                        batch=False) -> None:
         with self._lock:
             self._ensure_open()
@@ -316,7 +405,7 @@ class ManagedScheduler:
                 self._active_batch_slots.add(slot)
 
     def finish_dispatch(self, slot: str, *, status: str, accepted: int, deferred: int,
-                        error_code: str | None = None, now: datetime | None = None, account_id=None) -> None:
+                        error_code: str | None = None, now: datetime | None = None, account_id) -> None:
         if status not in {'queued', 'failed', 'interrupted', 'empty'}:
             raise ValueError('invalid dispatch state')
         with self._lock:
@@ -329,7 +418,7 @@ class ManagedScheduler:
             self._active_batch_slots.discard(slot)
             self._reconcile_dispatch_status(slot)
 
-    def update_dispatch_progress(self, slot: str, *, accepted: int, deferred: int, account_id=None) -> None:
+    def update_dispatch_progress(self, slot: str, *, accepted: int, deferred: int, account_id) -> None:
         """Publish admission counts without declaring dispatch or saving complete."""
         if any(type(value) is not int or value < 0 for value in (accepted, deferred)):
             raise ValueError('invalid dispatch progress')
@@ -341,7 +430,7 @@ class ManagedScheduler:
                 (accepted, deferred, slot))
 
     def prepare_dispatch_item(self, *, slot: str, work_id: str, author_id: str,
-                              operation_id: str, account_id=None) -> None:
+                              operation_id: str, account_id) -> None:
         with self._lock:
             self._ensure_open()
             self._require_owner(account_id)
@@ -355,14 +444,14 @@ class ManagedScheduler:
                                     (slot, work_id)).fetchone()
 
     def bind_dispatch_job(self, *, slot: str, work_id: str, operation_id: str,
-                          job_id: str, accepted_fingerprint: str, account_id=None) -> None:
+                          job_id: str, accepted_fingerprint: str, account_id) -> None:
         with self._lock:
             self._ensure_open()
             self._require_owner(account_id)
             self._db.execute("UPDATE dispatch_items SET job_id=?,accepted_fingerprint=?,state='queued' WHERE slot=? AND work_id=? AND operation_id=?",
                              (job_id, accepted_fingerprint, slot, work_id, operation_id))
 
-    def fail_dispatch_item(self, *, slot: str, work_id: str, operation_id: str, account_id=None) -> None:
+    def fail_dispatch_item(self, *, slot: str, work_id: str, operation_id: str, account_id) -> None:
         with self._lock:
             self._ensure_open()
             self._require_owner(account_id)
@@ -390,7 +479,7 @@ class ManagedScheduler:
                     self._db.execute('ROLLBACK')
                 raise
 
-    def defer_work(self, *, author_id: str, work: dict, now: datetime, account_id=None) -> None:
+    def defer_work(self, *, author_id: str, work: dict, now: datetime, account_id) -> None:
         with self._deferred_transaction(account_id):
             # The favourite list may have changed while an author's complete
             # inventory was being fetched. Do not recreate a row pruned by a
@@ -426,7 +515,7 @@ class ManagedScheduler:
             self._ensure_open()
             return self._db.execute('SELECT COUNT(*) FROM deferred_work').fetchone()[0]
 
-    def resolve_deferred(self, author_id: str, work_id: str, *, account_id=None) -> None:
+    def resolve_deferred(self, author_id: str, work_id: str, *, account_id) -> None:
         with self._deferred_transaction(account_id):
             self._db.execute('DELETE FROM deferred_work WHERE author_id=? AND work_id=?', (author_id, work_id))
 
@@ -439,20 +528,17 @@ class ManagedScheduler:
             finally:
                 self._db.row_factory = None
 
-    def history_for(self, scope: AccountScope) -> tuple[dict, ...]:
-        """Read only the history bound to a verified account."""
-        if type(scope) is not AccountScope:
-            raise AccountMismatch()
-        with self._lock:
-            self._ensure_open()
-            scope.verify_observed()
-            require_same_account(self._bound_account(), scope.account_id,
-                                 error=ScheduleAccountError('mismatch'))
-            return self.history()
+    def history_for(self, *, owner: ScheduleOwner) -> OwnedScheduleHistory:
+        """Read only the current editor's history, including an empty result."""
+        with self._editor_access(owner) as account_id:
+            if account_id is None:
+                raise ScheduleAccountError('mismatch')
+            rows = self.history() if self._bound_account() == account_id else None
+            return OwnedScheduleHistory(owner, rows)
 
     def reconcile_jobs(self, jobs, receipt_fingerprints: dict[str, str],
                        operation_to_job: dict[str, str] | None = None,
-                       operation_to_fingerprint: dict[str, str] | None = None, *, account_id=None) -> tuple[str, ...]:
+                       operation_to_fingerprint: dict[str, str] | None = None, *, account_id) -> tuple[str, ...]:
         """Reconcile queued item states with durable JobService and CAS receipts."""
         by_id = {job.job_id: job for job in jobs}
         newly_saved = []
@@ -540,27 +626,19 @@ class ManagedScheduler:
             self._ensure_open()
             return tuple(row[0] for row in self._db.execute("SELECT DISTINCT work_id FROM dispatch_items WHERE state='saved' AND notified=0 ORDER BY work_id"))
 
-    def claim_pending_notifications(self, *, account_id=None) -> tuple[str, ...]:
+    def claim_pending_notifications(self, *, owner: ScheduleOwner | None) -> tuple[str, ...]:
         """Atomically claim durable completion notices across concurrent clients.
 
         UI notifications are transient, so delivery is deliberately at-most-once:
         claiming before emitting prevents duplicate toasts on overlapping refreshes
         or another client. The durable history remains available after a reload.
         """
-        with self._lock:
-            self._ensure_open()
-            self._db.execute('BEGIN IMMEDIATE')
-            try:
-                self._require_owner(account_id)
-                work_ids = tuple(row[0] for row in self._db.execute(
-                    "SELECT DISTINCT work_id FROM dispatch_items WHERE state='saved' AND notified=0 ORDER BY work_id"))
-                if work_ids:
-                    self._db.execute("UPDATE dispatch_items SET notified=1 WHERE state='saved' AND notified=0")
-                self._db.execute('COMMIT')
-                return work_ids
-            except BaseException:
-                self._db.execute('ROLLBACK')
-                raise
+        with self._history_transaction(owner):
+            work_ids = tuple(row[0] for row in self._db.execute(
+                "SELECT DISTINCT work_id FROM dispatch_items WHERE state='saved' AND notified=0 ORDER BY work_id"))
+            if work_ids:
+                self._db.execute("UPDATE dispatch_items SET notified=1 WHERE state='saved' AND notified=0")
+            return work_ids
 
     def reconcile_candidates(self) -> tuple[str, ...]:
         with self._lock:
@@ -593,10 +671,8 @@ class ManagedScheduler:
                     values.add(fingerprint)
             return {work_id: frozenset(values) for work_id, values in expected.items()}
 
-    def mark_notified(self, work_ids, *, account_id=None) -> None:
-        with self._lock:
-            self._ensure_open()
-            self._require_owner(account_id)
+    def mark_notified(self, work_ids, *, owner: ScheduleOwner | None) -> None:
+        with self._history_transaction(owner):
             self._db.executemany("UPDATE dispatch_items SET notified=1 WHERE work_id=? AND state='saved'", ((wid,) for wid in work_ids))
 
     def close(self) -> None:
@@ -630,7 +706,12 @@ class ManagedScheduler:
             if book is None and self._bound_account() is not None:
                 raise ScheduleAccountError('mismatch')
             following = None if book is None else book.following
-            with following._lock if following is not None else nullcontext():
+            owner = account_id if type(account_id) is ScheduleOwner else None
+            ownership = (self._editor_access(owner) if owner is not None else
+                         (following._lock if following is not None else nullcontext()))
+            with ownership as owner_id:
+                if owner is not None:
+                    account_id = owner_id
                 attached = False
                 if book is not None:
                     if account_id is None:
@@ -644,6 +725,8 @@ class ManagedScheduler:
                     self._db.execute('BEGIN IMMEDIATE')
                     try:
                         yield account_id if attached else None
+                        if owner is not None:
+                            owner.verify_current()
                         self._db.execute('COMMIT')
                     except BaseException:
                         if self._db.in_transaction:
@@ -672,7 +755,7 @@ class ManagedScheduler:
 
     def configure_all(self, *, author_ids: tuple[str, ...], interval_hours: int,
                       startup_check: bool, expected_revision: int,
-                      now: datetime, return_ignored: bool = False, account_id=None,
+                      now: datetime, account_id, return_ignored: bool = False,
                       report_retained: bool = False):
         """One all-or-nothing settings transaction, using the client's CAS."""
         from .pixiv_read_client import _identifier
@@ -1195,13 +1278,13 @@ class ManagedScheduleRunner:
         with self._state_lock:
             return not self._claim_active
 
-    def acknowledge_interrupted(self, *, expected_revision: int, account_id) -> ScheduleState:
+    def acknowledge_interrupted(self, *, expected_revision: int, owner: ScheduleOwner | None) -> ScheduleState:
         # The same lock brackets claim+reservation and explicit recovery, so a
         # crash acknowledgement cannot race a claim that has not enqueued yet.
         with self._state_lock:
             if self._claim_active:
                 raise ScheduleError('scheduler claim or dispatch is active')
-            return self.ledger.acknowledge_interrupted(expected_revision=expected_revision, account_id=account_id)
+            return self.ledger.acknowledge_interrupted(expected_revision=expected_revision, owner=owner)
 
     def _claim_reserved(self, now: datetime, *, startup: bool = False) -> str | None:
         with self._state_lock:

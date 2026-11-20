@@ -4,9 +4,9 @@ from __future__ import annotations
 import asyncio
 import sqlite3
 from datetime import datetime, timezone
-from threading import Event
+from threading import Event, get_ident
 from uuid import uuid4
-from ..account_scope import AccountMismatch, AccountScope, require_same_account
+from ..account_scope import AccountMismatch, require_same_account
 from ..legacy_author_sync import LegacyAuthorSourceError
 from ..managed_scheduler import ScheduleAccountError
 
@@ -26,6 +26,8 @@ class SchedulerView:
         self.closed = False
         self.revision = None
         self._settings_account = None
+        self._settings_owner = None
+        self._completion_notification = None
         self._hidden_star_draft = None
         self._busy = False
         self._settings_dirty = False
@@ -63,6 +65,32 @@ class SchedulerView:
         self._refreshing = False
         self._background_refresh_tasks: set[asyncio.Task] = set()
         self._timer = ui.timer(5.0, self.refresh)
+        self._unsubscribe_owner = None
+        self._subscribe_to_owner()
+        ui.context.client.on_delete(self.close)
+
+    def _subscribe_to_owner(self):
+        store = getattr(self.services, 'following_sync', None)
+        if store is None:
+            return
+        ui_thread = get_ident()
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        def invalidate(epoch):
+            owner = self._settings_owner
+            if not self.closed and owner is not None and owner.epoch < epoch:
+                self._hide_account_data()
+
+        def changed(epoch):
+            if get_ident() == ui_thread:
+                invalidate(epoch)
+            elif loop is not None and not loop.is_closed():
+                loop.call_soon_threadsafe(invalidate, epoch)
+
+        self._unsubscribe_owner = store.subscribe_owner(changed)
 
     def _set_controls(self, enabled):
         for widget in (self.interval, self.startup, self.authors, self.save_button, self.discard_button,
@@ -72,6 +100,28 @@ class SchedulerView:
     def _mark_settings_dirty(self):
         if not self._loading_settings:
             self._settings_dirty = True
+            self._enable_save()
+
+    def _enable_save(self):
+        ledger = self.services.managed_scheduler
+        if ledger is None or self.revision is None:
+            return
+        global_off = self._settings_account is None and str(self.interval.value) == '0' and not self.startup.value
+        usable = not getattr(ledger, '_account_guard', False) or self._settings_owner is not None or global_off
+        self.save_button.set_enabled(usable and not self._busy)
+
+    def _finish_action(self):
+        self._busy = False
+        if self.closed:
+            return
+        ledger = self.services.managed_scheduler
+        self._enable_save()
+        if ledger is None or self.revision is None:
+            return
+        if not getattr(ledger, '_account_guard', False):
+            self.run_button.set_enabled(True)
+        elif self._settings_owner is not None:
+            self._show_account(ledger)
 
     async def open(self):
         if self.closed:
@@ -91,74 +141,76 @@ class SchedulerView:
         except Exception:
             self.status.set_text('専用管理モードのスケジューラを開始できませんでした')
         finally:
-            self._busy = False
+            self._finish_action()
 
     def _load(self, ledger):
-        state = ledger.snapshot()
+        guarded = getattr(ledger, '_account_guard', False)
+        account_id = self._settings_account
         if not self._settings_dirty:
-            # Revision is the CAS token of the editable form, not the last
-            # polled ledger version. Pin it while dirty so another client
-            # cannot be silently overwritten.
+            try:
+                account_id = ledger.favourite_account()
+            except (OSError, RuntimeError, sqlite3.Error):
+                account_id = None
+        editor = self._editor(ledger, account_id) if guarded else None
+        state = editor.state if editor is not None else ledger.snapshot()
+        if guarded and editor is None and not self._settings_dirty:
+            # A new unverified editor has only global controls, including OFF.
+            account_id = None
+        if not self._settings_dirty:
+            # The revision belongs to the editable form, even during a poll.
             self.revision = state.revision
             self._hidden_star_draft = None
             self._loading_settings = True
             try:
                 self.interval.set_value(str(state.interval_hours))
                 self.startup.set_value(state.startup_check)
-                previous_account, self._settings_account = self._settings_account, None
-                try:
-                    self._settings_account = ledger.favourite_account()
-                    if getattr(ledger, '_account_guard', False):
-                        self._form_scope(ledger, self._settings_account)
-                    authors = ledger.favourites(self._settings_account)
-                    if getattr(ledger, '_account_guard', False):
-                        self._form_scope(ledger, self._settings_account)
-                    self.authors.set_value(','.join(authors))
-                    self._stars_unknown_in_form = False
-                    self._loaded_authors = self.authors.value or ''
-                except Exception:
-                    self.authors.set_value('')
-                    self._stars_unknown_in_form = True
-                if previous_account != self._settings_account:
+                if self._settings_account != account_id:
                     self.action_notice.set_text('')
                     self._hide_history()
+                self._settings_account = account_id
+                authors = editor.authors if editor is not None else (() if guarded else ledger.favourites(account_id))
+                self.authors.set_value(','.join(authors))
+                self._loaded_authors = self.authors.value or ''
+                self._stars_unknown_in_form = guarded and editor is None
             finally:
                 self._loading_settings = False
         self.star_notice.set_text(
             '☆の一覧を読み込めません。読み込めるまで、☆の設定は保存できません（保留中の取得は消しません）。'
             if self._stars_unknown_in_form else '')
-        if self._show_account(ledger):
-            guarded = getattr(ledger, '_account_guard', False)
-            bound = ledger._bound_account() if guarded else None
-            owns_history = not guarded or bound == self._settings_account
-            self.ack_button.set_enabled(owns_history and state.last_status == 'interrupted')
-            if not owns_history and (bound is not None or state.last_status != 'never'):
-                self.status.set_text('定期状態: 実行履歴の紐づけを確認できません')
-                return
-            status_label = STATUS_LABELS.get(state.last_status, '状態不明')
-            self.status.set_text(f'定期状態: {status_label} / 次回UTC: {state.next_due_utc or "未設定"}')
+        if guarded and not self._show_editor(editor):
+            return
+        owns_history = editor is None or editor.owns_history
+        self.ack_button.set_enabled(owns_history and state.last_status == 'interrupted')
+        if not owns_history and (not editor.unbound or state.last_status != 'never'):
+            self.status.set_text('定期状態: 実行履歴の紐づけを確認できません')
+            return
+        status_label = STATUS_LABELS.get(state.last_status, '状態不明')
+        self.status.set_text(f'定期状態: {status_label} / 次回UTC: {state.next_due_utc or "未設定"}')
 
-    def _form_scope(self, ledger, account_id):
-        mismatch = ScheduleAccountError('mismatch')
-        require_same_account(account_id, ledger.favourite_account(), error=mismatch)
-        if account_id is None:
-            raise mismatch
-        scope = AccountScope(account_id, getattr(self.services, 'live_client', None))
-        scope.verify_current(self.services, error=mismatch)
-        return scope
+    def _editor(self, ledger, account_id):
+        try:
+            owner = ledger.capture_owner(self.services, account_id=account_id)
+            return ledger.read_editor(owner=owner)
+        except (OSError, RuntimeError, sqlite3.Error):
+            return None
 
-    def _verified_binding(self, ledger, account_id, *, allow_unbound=False):
-        scope = self._form_scope(ledger, account_id)
-        bound = ledger._bound_account()
-        if bound is not None or not allow_unbound:
-            require_same_account(bound, scope.account_id, error=ScheduleAccountError('mismatch'))
-        return scope
+    def _verify_result(self, owner):
+        if owner is None or owner != self._settings_owner:
+            raise AccountMismatch()
+        owner.verify_current()
+
+    def _dismiss_completion(self):
+        notice, self._completion_notification = self._completion_notification, None
+        if notice is not None and not notice.is_deleted:
+            notice.dismiss()
 
     def _hide_history(self):
+        self._dismiss_completion()
         self.history_label.set_text('')
         self.history_label.set_visibility(False)
 
     def _hide_account_data(self):
+        self._settings_owner = None
         if self.authors.visible or self.history_label.visible:
             self.action_notice.set_text('')
         if self._settings_dirty and self.authors.visible and self._settings_account is not None:
@@ -177,19 +229,27 @@ class SchedulerView:
         self.account_label.set_text('紐づけアカウントを確認できません')
         self.status.set_text('定期状態: 紐づけアカウントを確認できません')
         self.ack_button.set_enabled(False)
+        self.run_button.set_enabled(False)
         self._hide_history()
+        self._enable_save()
 
     def _show_account(self, ledger):
-        if not getattr(ledger, '_account_guard', False):
-            return True
+        if getattr(ledger, '_account_guard', False):
+            self._show_editor(self._editor(ledger, self._settings_account))
+
+    def _show_editor(self, editor):
+        if editor is None:
+            self._hide_account_data()
+            return False
         try:
-            scope = self._form_scope(ledger, self._settings_account)
-            bound = ledger._bound_account()
+            editor.owner.verify_current()
         except (OSError, RuntimeError, sqlite3.Error):
             self._hide_account_data()
             return False
+        self._settings_owner = editor.owner
+        account_id = editor.owner.account_id
         draft = self._hidden_star_draft
-        if draft is not None and draft[0] == scope.account_id:
+        if draft is not None and draft[0] == account_id:
             self._loading_settings = True
             try:
                 self.authors.set_value(draft[1])
@@ -200,15 +260,17 @@ class SchedulerView:
             finally:
                 self._loading_settings = False
         self.authors.set_visibility(True)
-        if bound != scope.account_id:
+        if not editor.owns_history:
             self._hide_history()
             self.ack_button.set_enabled(False)
-        if self._stars_unknown_in_form or (bound is not None and bound != scope.account_id):
+        self.run_button.set_enabled(not self._busy and (editor.owns_history or editor.unbound))
+        self._enable_save()
+        if self._stars_unknown_in_form or not (editor.owns_history or editor.unbound):
             self.account_label.set_text('紐づけアカウントを確認できません')
-        elif bound is None:
-            self.account_label.set_text(f'対象アカウント ID {scope.account_id}（未紐づけ）')
+        elif editor.unbound:
+            self.account_label.set_text(f'対象アカウント ID {account_id}（未紐づけ）')
         else:
-            self.account_label.set_text(f'紐づけアカウント ID {scope.account_id}')
+            self.account_label.set_text(f'紐づけアカウント ID {account_id}')
         return True
 
     def discard_changes(self):
@@ -225,11 +287,6 @@ class SchedulerView:
             self._settings_dirty = True
             self.status.set_text('設定を再読込できませんでした')
 
-    def _displayed_history_account(self, ledger, account_id):
-        if getattr(ledger, '_account_guard', False):
-            return self._verified_binding(ledger, account_id).account_id
-        return account_id
-
     async def acknowledge(self):
         if self.closed or self.services.managed_scheduler is None:
             return
@@ -240,7 +297,7 @@ class SchedulerView:
         try:
             ledger = self.services.managed_scheduler
             from ..job_service import UNFINISHED
-            account_id, revision = self._settings_account, self.revision
+            owner, revision = self._settings_owner, self.revision
 
             def inspect():
                 # Never silently requeue an ambiguous accepted job; the
@@ -249,11 +306,14 @@ class SchedulerView:
                     if any(job.state in UNFINISHED for job in self.services.jobs.snapshot()):
                         raise RuntimeError('unfinished managed jobs must be inspected first')
                     return self.services.managed_schedule_runner.acknowledge_interrupted(
-                        expected_revision=revision,
-                        account_id=self._displayed_history_account(ledger, account_id))
+                        expected_revision=revision, owner=owner)
             saved = await asyncio.to_thread(inspect)
-            self.revision = saved.revision
             self.services.managed_schedule_runner.settings_changed()
+            if self.closed:
+                return
+            if getattr(ledger, '_account_guard', False):
+                self._verify_result(owner)
+            self.revision = saved.revision
             self._load(ledger)
         except (ScheduleAccountError, AccountMismatch):
             if not self.closed:
@@ -264,7 +324,7 @@ class SchedulerView:
                 self._show_account(ledger)
                 self.status.set_text('未完了ジョブまたは設定更新があり中断状態を解除できません。キューを確認してください')
         finally:
-            self._busy = False
+            self._finish_action()
 
     async def refresh(self, *, ensure_after_current: bool = False):
         if self.closed or self.services.managed_scheduler is None:
@@ -285,36 +345,28 @@ class SchedulerView:
             if ledger is None:
                 return
             self._load(ledger)
-            account_id = self._settings_account
-
+            owner = self._settings_owner
             guarded = getattr(ledger, '_account_guard', False)
 
             def read_activity():
                 if not guarded:
-                    return None, ledger.history(), ledger.claim_pending_notifications(account_id=account_id)
-                scope = self._form_scope(ledger, account_id)
-                if ledger._bound_account() != scope.account_id:
-                    return scope, None, ()
-                history = ledger.history_for(scope)
-                scope.verify_current(self.services)
-                self._verified_binding(ledger, account_id)
-                return scope, history, ledger.claim_pending_notifications(account_id=scope.account_id)
+                    return None, ledger.history(), ledger.claim_pending_notifications(owner=None)
+                history = ledger.history_for(owner=owner)
+                pending = () if history.rows is None else ledger.claim_pending_notifications(owner=history.owner)
+                return history.owner, history.rows, pending
 
             try:
-                scope, history, pending = await asyncio.to_thread(read_activity)
+                result_owner, history, pending = await asyncio.to_thread(read_activity)
                 if self.closed:
                     return
                 if self.services.managed_scheduler is not ledger:
                     self._hide_account_data()
                     return
                 if guarded:
-                    scope.verify_current(self.services)
-                    require_same_account(account_id, self._settings_account)
-                    self._form_scope(ledger, self._settings_account)
+                    self._verify_result(result_owner)
                     if history is None:
                         self._hide_history()
                         return
-                    self._verified_binding(ledger, self._settings_account)
             except (ScheduleAccountError, AccountMismatch):
                 if not self.closed:
                     self._show_account(ledger)
@@ -330,7 +382,11 @@ class SchedulerView:
                 # notification can be lost and the whole refresh misreported.
                 try:
                     with self.root:
-                        ui.notify(f'保存完了: {len(pending)}件', type='positive')
+                        if guarded:
+                            self._dismiss_completion()
+                            self._completion_notification = ui.notification(f'保存完了: {len(pending)}件', type='positive')
+                        else:
+                            ui.notify(f'保存完了: {len(pending)}件', type='positive')
                 except Exception:
                     # Delivery is deliberately at-most-once; if this client is
                     # disappearing, keep durable history readable instead of
@@ -386,15 +442,24 @@ class SchedulerView:
             form = (self.authors.value or '', self.interval.value, self.startup.value)
             revision = self.revision
             account_id = self._settings_account
+            guarded = getattr(ledger, '_account_guard', False)
+            owner = self._settings_owner
+            proof = owner if guarded else account_id
             if str(form[1]) == '0' and not form[2]:
+                if guarded and account_id is not None:
+                    self._verify_result(owner)
                 authors_edited = form[0] != getattr(self, '_loaded_authors', '')
                 saved = await asyncio.to_thread(ledger._disable, expected_revision=revision,
-                                                account_id=account_id)
-                self.revision = revision = saved.revision
+                                                account_id=proof)
                 stop_saved = True
                 runner = getattr(self.services, 'managed_schedule_runner', None)
                 if runner is not None:
                     runner.settings_changed()
+                if self.closed:
+                    return
+                if owner is not None:
+                    self._verify_result(owner)
+                self.revision = revision = saved.revision
                 if not authors_edited:
                     self._settings_dirty = (self.authors.value or '', self.interval.value, self.startup.value) != form
                     self._load(ledger)
@@ -402,12 +467,8 @@ class SchedulerView:
                 if self._stars_unknown_in_form:
                     self.action_notice.set_text('停止を保存しました。☆を変更するには再読込してください。')
                     return
-            guarded = getattr(ledger, '_account_guard', False)
             if guarded:
-                scope = self._form_scope(ledger, account_id)
-                # A busy identity check may have scrubbed the client-side value.
-                if not self.authors.visible:
-                    raise ScheduleAccountError('mismatch')
+                self._verify_result(owner)
             else:
                 require_same_account(account_id, ledger.favourite_account(),
                                      error=ScheduleAccountError('mismatch'))
@@ -432,17 +493,14 @@ class SchedulerView:
             loaded_authors = self._loaded_authors if raw is not None else None
 
             def update():
-                if guarded:
-                    scope.verify_current(self.services)
-                    self._form_scope(ledger, account_id)
                 if raw is None or form[0] == loaded_authors:
                     return ledger.configure(interval_hours=int(form[1]), startup_check=bool(form[2]),
                                             expected_revision=revision, now=datetime.now(timezone.utc),
-                                            account_id=account_id), (), ()
+                                            account_id=proof), (), ()
                 return ledger.configure_all(author_ids=raw, interval_hours=int(form[1]),
                                             startup_check=bool(form[2]), expected_revision=revision,
                                             now=datetime.now(timezone.utc), return_ignored=True,
-                                            account_id=account_id, report_retained=True)
+                                            account_id=proof, report_retained=True)
             saved, ignored, retained = await asyncio.to_thread(update)
             runner = getattr(self.services, 'managed_schedule_runner', None)
             if runner is not None:
@@ -453,11 +511,11 @@ class SchedulerView:
             self.revision = saved.revision
             if self.closed:
                 return
+            if guarded:
+                self._verify_result(owner)
             self._load(ledger)
             if guarded:
-                scope.verify_current(self.services)
-                self._form_scope(ledger, account_id)
-                require_same_account(account_id, self._settings_account)
+                self._verify_result(owner)
             notices = []
             if ignored:
                 notices.append('フォローしていないため保存しなかったID: ' + ', '.join(ignored))
@@ -476,10 +534,7 @@ class SchedulerView:
             notice = '設定を保存できませんでした。別画面の更新や入力を確認してください'
             self.status.set_text(('停止を保存しました。' if stop_saved else '') + notice)
         finally:
-            self._busy = False
-            if not self.closed:
-                self.save_button.set_enabled(True)
-                self.run_button.set_enabled(True)
+            self._finish_action()
 
     async def run_once(self):
         if self.closed or self.services.closing or self.services.managed_scheduler is None:
@@ -498,22 +553,20 @@ class SchedulerView:
             from ..managed_scheduler import submit_author_batch
             ledger = self.services.managed_scheduler
             slot = f'manual-{uuid4().hex}'
-            expected = self._settings_account
-            if getattr(ledger, '_account_guard', False):
-                scope = self._verified_binding(ledger, expected, allow_unbound=True)
-            else:
-                scope = None
+            guarded = getattr(ledger, '_account_guard', False)
+            owner = self._settings_owner
+            if guarded:
+                self._verify_result(owner)
 
             def submit():
                 with self.services._scheduler_dispatch_lock:
-                    if scope is not None:
-                        scope.verify_current(self.services)
-                        self._verified_binding(ledger, expected, allow_unbound=True)
+                    if owner is not None:
+                        editor = ledger.read_editor(owner=owner)
+                        if not (editor.owns_history or editor.unbound):
+                            raise ScheduleAccountError('mismatch')
                     dispatch = getattr(self.services, 'dispatch_author_check', None)
                     if dispatch is not None:
-                        displayed = {}
-                        if getattr(ledger, '_account_guard', False):
-                            displayed['displayed_account'] = AccountScope(expected).account_id
+                        displayed = {} if owner is None else {'displayed_account': owner.account_id}
                         return dispatch(ledger, slot, self.services._scheduler_cancel_event, wait=False, **displayed)
                     source = getattr(self.services, 'scheduler_favourite_authors', None)
                     authors = source() if source is not None else ledger.favourites()
@@ -525,10 +578,8 @@ class SchedulerView:
             result = await asyncio.to_thread(submit)
             if self.closed:
                 return
-            if scope is not None:
-                scope.verify_current(self.services)
-                self._verified_binding(ledger, expected, allow_unbound=True)
-                require_same_account(expected, self._settings_account)
+            if guarded:
+                self._verify_result(owner)
             if result.get('started'):
                 self.action_notice.set_text(f'☆作者 {result["authors"]}人のチェックを始めました。進捗はダウンロード画面で確認できます')
             elif not self.closed:
@@ -548,14 +599,15 @@ class SchedulerView:
                 self._show_account(ledger)
                 self.action_notice.set_text(check_failure_message(error))
         finally:
-            self._busy = False
-            if not self.closed:
-                self.run_button.set_enabled(True)
-                self.save_button.set_enabled(True)
+            self._finish_action()
 
     def close(self):
         self.closed = True
         self._timer.cancel()
+        self._dismiss_completion()
+        if self._unsubscribe_owner is not None:
+            self._unsubscribe_owner()
+            self._unsubscribe_owner = None
 
 
 def check_failure_message(error):

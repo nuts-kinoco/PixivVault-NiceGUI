@@ -296,7 +296,7 @@ def test_periodic_engine_sends_saved_notification(tmp_path, wait, monkeypatch):
             list(workers.map(lambda _: svc.reconcile_managed_scheduler(), range(2)))
         (saved,) = schedule.history()
         assert saved['status'] == 'saved' and saved['accepted'] == 1 and saved['finished_utc']
-        assert schedule.claim_pending_notifications(account_id=A) == ()
+        assert schedule.claim_pending_notifications(owner=schedule.capture_owner(svc, account_id=A)) == ()
         assert len(notifier.events) == 1
         assert svc.following_sync.snapshot(B) == before[2]
     finally:

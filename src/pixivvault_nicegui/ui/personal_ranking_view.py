@@ -29,9 +29,16 @@ class PersonalRankingView(RankingView):
         self._context_snapshot={};self._context_base={};self._context_revision=None;self._context_request=0;self._context_task=None
         saved=self.vault.ranking_preferences() if self.vault else {}
         self.saved_filters=normalize_personal_filters(saved.get('filters'));self.filters=dict(self.saved_filters)
+        self._selected_tags = tuple(saved.get('tags', ()))
         with ui.column().classes('pv-gallery w-full').props('data-testid=personal-ranking-view').style('overflow-y:auto;') as self.root:
             with ui.row().classes('pv-toolbar'):
-                self.tags=ui.textarea('選択タグ（1 行に 1 件・AND 検索）',value='\n'.join(saved.get('tags',[]))).props('outlined dense data-testid=personal-tags')
+                with ui.row().classes('items-center no-wrap').style('max-width:100%;overflow-x:auto;'):
+                    self.tag_chips = ui.row().classes('items-center no-wrap gap-1')
+                    self.tags = ui.input('選択タグ', placeholder='タグを追加してEnter（AND 検索）').props(
+                        'outlined dense data-testid=personal-tags aria-label="追加するタグ"')
+                    self.tags.on('keydown.enter', self._submit_tag, js_handler=(
+                        '(event) => { if (!event.isComposing && event.keyCode !== 229) emit(event.target.value); }'))
+                self._render_selected_tags()
                 self.bookmarks=ui.select(dict(_BOOKMARK_PRESETS),value=self.filters['bookmark_min'],label='ブクマ数下限').props('outlined dense data-testid=personal-bookmarks')
                 self.sort=ui.select(dict(_SORT_PRESETS),value=self.filters['sort'],label='並び順').props('outlined dense data-testid=personal-sort')
                 self.start_date=ui.input('検索開始日 YYYY-MM-DD').props('outlined dense data-testid=personal-start-date')
@@ -77,8 +84,6 @@ class PersonalRankingView(RankingView):
             # an empty search result or leave its unrelated placeholder visible.
             self.gallery.empty.set_visibility(False)
             self.gallery.counter.set_text('未取得')
-        # Flet ranking_tab.py:1805,1813 searches after tag add/remove.
-        self.tags.on_value_change(lambda _: self.server_changed())
         for control in (self.start_date,self.end_date):control.on_value_change(lambda _:self.changed())
         # 元 ranking_tab.py:1935-1947, 2012-2022, 2036-2038: サーバー側条件（ブクマ数下限・並び順・R-18）と条件クリアは再検索する。
         for control in (self.bookmarks,self.sort,self.r18,self.ai):control.on_value_change(lambda _:self.server_changed())
@@ -111,11 +116,46 @@ class PersonalRankingView(RankingView):
                 import logging
                 logging.getLogger(__name__).warning('よく効くタグの開閉を保存できませんでした。',exc_info=True)
         self._apply_candidates_open()
-    def add_tag(self,tag):
-        self.tags.set_value('\n'.join(dict.fromkeys((*self.selected_tags(),tag))))
-        # set_value emits the same changed() callback as keyboard editing.
-        # Do not persist preferences twice for one suggested-tag click.
-    def selected_tags(self):return tuple(dict.fromkeys(t.strip() for t in str(self.tags.value or '').splitlines() if t.strip()))
+    def _submit_tag(self, event):
+        if self.closed or not self.tags.enabled or not isinstance(event.args, str):
+            return
+        self.add_tag(event.args)
+        self.tags.set_value('')
+
+    def add_tag(self, tag):
+        tag = str(tag or '').strip()
+        if tag and tag not in self._selected_tags:
+            self._commit_tags((*self._selected_tags, tag))
+
+    def remove_tag(self, tag):
+        if tag in self._selected_tags:
+            self._commit_tags(tuple(value for value in self._selected_tags if value != tag))
+
+    def open_with_tag(self, tag):
+        """Preselect an explicitly opened search without starting a request."""
+        self._condition_pending = False
+        self.tags.set_value('')
+        self._selected_tags = (tag,)
+        self._render_selected_tags()
+        self.changed()
+
+    def _commit_tags(self, tags):
+        self._selected_tags = tags
+        self._render_selected_tags()
+        self.server_changed()
+
+    def _render_selected_tags(self):
+        self.tag_chips.clear()
+        with self.tag_chips:
+            for tag in self._selected_tags:
+                with ui.row().classes('pv-chip items-center no-wrap gap-1'):
+                    ui.label(tag)
+                    button = ui.button(icon='close', on_click=lambda _, value=tag: self.remove_tag(value))
+                    button.props('flat dense round size=xs data-testid=personal-remove-tag')
+                    button._props['aria-label'] = f'{tag} を解除'
+
+    def selected_tags(self):
+        return self._selected_tags
     def _server_dates(self):
         return tuple(str(getattr(getattr(self,name,None),'value','') or '').strip() for name in ('start_date','end_date'))
     def _server_key(self):

@@ -413,6 +413,23 @@ def check_library_pan(page):
     return {"scale": scale, "first_offset": first, "final_offset": second, "focus_restored_after_rebuild": True}
 
 
+def check_personal_tag_commit(page):
+    draft = page.locator('input[data-testid="personal-tags"], [data-testid="personal-tags"] input')
+    chip = page.get_by_role('button', name='synthetic-smoke を解除')
+    draft.fill('synthetic-smoke', timeout=10000)
+    draft.evaluate("""input => input.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Enter', bubbles: true, isComposing: true
+    }))""")
+    page.wait_for_timeout(180)
+    assert draft.input_value() == 'synthetic-smoke' and not chip.count()
+    draft.press('Enter')
+    chip.wait_for(state='visible')
+    assert draft.input_value() == ''
+    chip.click()
+    chip.wait_for(state='detached')
+    return {'draft_committed_on_enter': True, 'ime_enter_ignored': True, 'removal_confirmed': True}
+
+
 def run_matrix(pw, url, out: Path, expectations, screens, wait_ms, get_net, startup_wait_ms, strict=False):
     """The whole tour.  Returns (cells, foreign requests, testids per screen, call log).
 
@@ -488,6 +505,8 @@ def run_matrix(pw, url, out: Path, expectations, screens, wait_ms, get_net, star
                                 operation = check_download_type(page)
                             elif name == "library":
                                 operation = check_library_pan(page)
+                            elif name == "personal":
+                                operation = check_personal_tag_commit(page)
                         except Exception as e:  # missing opener / ready element: a FAIL, not a crash
                             error = f"{type(e).__name__}: {str(e).splitlines()[0][:200]}"
                         snap = page.evaluate(SNAPSHOT_JS)

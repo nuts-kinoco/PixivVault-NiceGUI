@@ -1,7 +1,7 @@
 """Contracts for isolated account-scoped author operations."""
 from contextlib import nullcontext
 from datetime import datetime, timezone
-from inspect import getmembers, isroutine
+from inspect import Parameter, getmembers, isroutine, signature
 from threading import Event, RLock
 from types import SimpleNamespace as NS
 
@@ -47,7 +47,9 @@ READ_ONLY = {
         "attach_favourites": "connects an in-memory follow source",
         "close": "releases the connection and lock",
         "configured": "checks an existing path",
-        "snapshot": "reads schedule settings",
+        "snapshot": "internal schedule settings and global editor revision",
+        "capture_owner": "captures the verified reader and committed following epoch",
+        "read_editor": "reads the editor snapshot and stars bound to a current owner",
         "favourite_account": "reads latest follow-sync owner",
         "favourites": "reads stars for the specified account",
         "legacy_favourites": "reads the standalone scheduler list",
@@ -76,6 +78,7 @@ READ_ONLY = {
     FollowingSyncStore: {
         "snapshot": "reads one account's snapshot",
         "last_synced_account": "reads the latest completed sync owner",
+        "subscribe_owner": "registers an in-memory subscriber to committed owner changes",
         "close": "releases the connection and lock",
     },
     BoundSchedulerLedger: {},
@@ -93,7 +96,7 @@ OWNER_BOUND = {
         "set_star": lambda c, p: c.ledger.set_star(c.book, X, False, account_id=p.account),
         "bind_account": lambda c, p: c.ledger.bind_account(A, scope=p.scope),
         "acknowledge_interrupted": lambda c, p: c.ledger.acknowledge_interrupted(
-            expected_revision=c.revision, account_id=p.account),
+            expected_revision=c.revision, owner=p.scope),
         "begin_dispatch": lambda c, p: c.ledger.begin_dispatch("new", c.now, 1, account_id=p.account),
         "finish_dispatch": lambda c, p: c.ledger.finish_dispatch(
             "existing", status="empty", accepted=0, deferred=0, account_id=p.account),
@@ -109,8 +112,8 @@ OWNER_BOUND = {
         "defer_work": lambda c, p: c.ledger.defer_work(author_id=X, work=WORK, now=c.now, account_id=p.account),
         "resolve_deferred": lambda c, p: c.ledger.resolve_deferred(X, HELD["id"], account_id=p.account),
         "reconcile_jobs": lambda c, p: c.ledger.reconcile_jobs((), {}, account_id=p.account),
-        "claim_pending_notifications": lambda c, p: c.ledger.claim_pending_notifications(account_id=p.account),
-        "mark_notified": lambda c, p: c.ledger.mark_notified(("200",), account_id=p.account),
+        "claim_pending_notifications": lambda c, p: c.ledger.claim_pending_notifications(owner=p.scope),
+        "mark_notified": lambda c, p: c.ledger.mark_notified(("200",), owner=p.scope),
     },
     BatchRunLedger: {
         "begin_run": lambda c, p: c.batch.begin_run("authors", "manual", "both", (X,),
@@ -154,6 +157,13 @@ def test_every_public_method_has_one_classification(cls):
     assert not set(reads).intersection(writes)
     assert all(reads.values())
     assert public_methods(cls) == set(reads).union(writes)
+
+
+def test_scheduler_persistence_requires_owner_at_the_signature_boundary():
+    for name in (*OWNER_BOUND[ManagedScheduler], "history_for", "read_editor"):
+        arguments = signature(getattr(ManagedScheduler, name)).parameters
+        owner = next((arguments[key] for key in ("owner", "account_id", "scope") if key in arguments), None)
+        assert owner is not None and owner.default is Parameter.empty, name
 
 
 def reflected_write_cases():

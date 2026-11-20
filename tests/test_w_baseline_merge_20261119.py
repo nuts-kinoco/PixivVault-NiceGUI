@@ -72,7 +72,7 @@ def test_unbound_existing_schedule_settings_are_not_adopted(tmp_path):
     ledger = ManagedScheduler(tmp_path)
     initial = ledger.snapshot()
     ledger.configure(interval_hours=6, startup_check=True, expected_revision=initial.revision,
-                     now=datetime.now(timezone.utc))
+                     now=datetime.now(timezone.utc), account_id=None)
     ledger._db.execute('ALTER TABLE schedule DROP COLUMN settings_origin')
     before = ledger.snapshot()
     ledger.close()

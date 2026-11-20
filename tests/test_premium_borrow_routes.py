@@ -249,7 +249,7 @@ async def test_header_toggle_and_library_search_entry_are_local_until_fetch(tmp_
         v.unlock('fixture-password');shell.sync_borrow()
         assert shell.borrow_switch.value and t.calls==[]
         shell.open_premium_search('sample')
-        assert shell.active_tab=='personal' and shell.personal_view.tags.value=='sample' and t.calls==[]
+        assert shell.active_tab=='personal' and shell.personal_view.selected_tags()==('sample',) and t.calls==[]
         await shell.borrow_changed(SimpleNamespace(value=False))
         assert not v.status()['open'] and not shell.borrow_switch.value
     finally:
