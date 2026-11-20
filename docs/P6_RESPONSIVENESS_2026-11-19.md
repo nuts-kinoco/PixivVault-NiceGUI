@@ -38,6 +38,10 @@
 
 同実行のサーバー処理は学習 DB 記録 0.9 / 1.2、受付→保存完了 2.1 / 2.6、検索絞り込み 3.9 / 5.3、検索イベント全体 9.0 / 12.7、画像送りのキー処理 0.9 / 1.0。画像の `decode()` 完了待ち（取得を含み得る）は 10.4 / 14.9（21回）。計測スクリプト・生データ・対応付け結果は `verify/p6b-segments-20261120/timing-runner.py`、`correlated/`、`correlate-timing.py`。各サーバー・専用ブラウザの終了確認は `final-process-check.json`。この追加測定は区間の調査であり、上の両版比較とは別の実行。
 
+さらに別の20回の計測 `socket-correlated` では、対象 DOM を含む NiceGUI 更新の送信開始・ブラウザ受信・DOM 反映を対応付けた。中央値 / p95 ms は、学習の入力→送信 4.9 / 6.0、送信→受信 24.7 / 39.3、受信→DOM 21.4 / 29.4。画像送りは入力→送信 1.7 / 2.0、送信→受信 5.4 / 8.0、受信→DOM 57.5 / 68.6。ブラウザ受信後には Vue の更新と他のブラウザ処理が含まれ、描画 CPU の単独計測ではない。通信区間は同一 PC の時計を使った近似で、計測コードの負荷を含む。元版・製品受入用の比較値ではない。
+
+後続 `socket-payload` と `experimental-viewer` は原因を絞るための隔離実験。画像送りで対象更新の要素数を中央値14→10に減らすよう、測定用コピーで同一作品のメタデータ更新を省いたところ、受信→DOM の中央値は両方とも52.9 ms（各20回）だった。実験は詳細パネルのリセットを保証せず、製品に適用していない。コードと生データは同じ証拠ディレクトリの `socket-timing-runner.py`、`socket-payload-runner.py`、`experimental-viewer-runner.py`、各出力ディレクトリにあり、集計は `summarize-experiment.py` と `experimental-summary.json`。
+
 変更後の全体試験は製品候補 `d60c70e` を含む `19bb64c` で、`verify/p6b-suite-final-20261120/pytest.log` に 3,759 PASS、5 SKIP、3 選択外（`not dpapi`）、14警告、終了0。SKIP はシンボリックリンク作成不可3件と Edge 起動不可2件。製品の原受入や実機確認の合格を意味しない。
 
 区間生データと分布は `baseline-ack/nice-server-segments.json`、`nice-segments.json`、`nice-milestones.json`、`nice-media-timing.json`、`segments-summary.json`。同実行の操作全体は学習 149.4 / 200.5、検索 472.8 / 515.0、画像送り 239.2 / 298.4。元版の前回値とは別実行で、改善後の同時条件比較ではない。計測だけでは往復、DOM更新、画像 decode、画面キャプチャの寄与を十分分離できておらず、原因の確定と安全な改善は未了。
