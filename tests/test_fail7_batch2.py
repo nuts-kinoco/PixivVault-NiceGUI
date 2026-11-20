@@ -128,7 +128,7 @@ async def test_z04_expired_payout_shows_reason_without_persisting_tokens(tmp_pat
 @pytest.mark.asyncio
 @pytest.mark.parametrize('append',[False,True],ids=['replace','append'])
 @pytest.mark.parametrize('error',[TimeoutError('private-error-must-not-log'),ConnectionError('private-error-must-not-log')],ids=['timeout','connection'])
-async def test_z04_network_zero_results_logs_and_local_library_continues(tmp_path,monkeypatch,caplog,error,append):
+async def test_z04_network_retains_results_and_local_library_continues(tmp_path,monkeypatch,caplog,error,append):
     from pixivvault_nicegui.ui.library_view import LibraryView
     monkeypatch.setattr(core,'loop',asyncio.get_running_loop())
     services,vault,transport,pins=setup(tmp_path);client=Client(ui.page('/_fail7_network'));view=None;initial=None;library=None
@@ -136,7 +136,9 @@ async def test_z04_network_zero_results_logs_and_local_library_continues(tmp_pat
         with client:
             library=LibraryView(services)
             view=PersonalRankingView(services);view.set_active(True);view.tags.set_value('tag');initial=view._context_task
-            await view.load();assert len(view.gallery.cards)==1
+            await view.load()
+            previous, pin = view.page, view.pin
+            assert set(view.gallery.cards) == {'123'}
             def fail(*a,**kw):raise error
             transport.search=fail
             with caplog.at_level(logging.WARNING):await view.load(append=append)
@@ -145,11 +147,15 @@ async def test_z04_network_zero_results_logs_and_local_library_continues(tmp_pat
                 remote_cards=len(view.gallery.cards),logs=caplog.text,local_error=library.load_error,
                 local_search_enabled=library.search_input.enabled,fetch_enabled=view.fetch_button.enabled)
             observe('Z04-'+type(error).__name__+('-append' if append else '-replace'),result)
-            assert result['remote_rows']==0 and result['remote_cards']==0
+            assert view.page is previous and view.pin is pin
+            assert result['remote_rows'] == result['remote_cards'] == 1
+            assert set(view.gallery.cards) == {'123'}
+            assert '通信障害' in view.notice.text and '直前の検索結果' in view.notice.text
             assert 'transport-failed' in caplog.text and 'private-error-must-not-log' not in caplog.text
             assert not library.load_error and library.search_input.enabled
             assert view.fetch_button.enabled
-            view.include.set_value('local');view.local_changed();assert view.page.rows==()
+            view.include.set_value('local')
+            assert view.page is previous and not view.gallery.cards
     finally:
         if library:library.close()
         await drain_personal_view(view,initial);client.delete();vault.close();services.close()

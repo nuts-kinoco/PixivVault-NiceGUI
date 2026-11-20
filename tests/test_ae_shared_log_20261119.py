@@ -7,7 +7,7 @@ from nicegui import Client, ui
 def test_shared_log_hidden_original_tabs_and_keyboard_toggle():
     from pixivvault_nicegui.queue_log import QueueLog
     from pixivvault_nicegui.ui.shared_log_view import SharedLogView, LOG_HIDDEN_TABS
-    assert LOG_HIDDEN_TABS == {'download','queue','failed','history','learning','ranking','library','recommend','dedup'}
+    assert LOG_HIDDEN_TABS == {'download','queue','failed','history','learning','ranking','personal','library','recommend','dedup'}
     log=QueueLog()
     for n in range(1002): log.append(str(n),level='success')
     client=Client(ui.page('/_ae_shared_log_isolated'))
@@ -15,7 +15,7 @@ def test_shared_log_hidden_original_tabs_and_keyboard_toggle():
     try:
         for tab in LOG_HIDDEN_TABS:
             view.show_tab(tab); assert not view.root.visible
-        for tab in ('personal','scheduler','metadata'):
+        for tab in ('scheduler','metadata'):
             view.show_tab(tab); assert view.root.visible and view.panel.visible
         view.refresh()
         labels=[e.text for e in view.panel.descendants() if getattr(e,'text',None)]

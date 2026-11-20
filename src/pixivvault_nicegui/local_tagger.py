@@ -138,7 +138,7 @@ class LocalTagger:
         return (self.session_factory is not None and self.tensor_factory is not None) or (
             importlib.util.find_spec('onnxruntime') is not None and importlib.util.find_spec('numpy') is not None)
 
-    def verify(self):
+    def verify(self, *, load_session=True):
         with self._lock:
             if self._closed:
                 return '読込失敗'
@@ -151,9 +151,39 @@ class LocalTagger:
                 self.cache.clear()
                 self._load_failed = False
             self.status = status if status != '利用可能' or self._runtime_available() else 'onnxruntime なし'
+            if self.status == '利用可能' and load_session and self.session is None and not self._load_failed:
+                try:
+                    self._load_session()
+                    status, checked = verify_model(self.folder, receipt, on_identity_change=self.on_identity_change)
+                    if checked != receipt:
+                        self.session = self.tags = None
+                        self.status = status if status != '利用可能' else '検証中'
+                        self.receipt = checked
+                except Exception:
+                    self.session = self.tags = None
+                    self._load_failed = True
             if self.status == '利用可能' and self._load_failed:
                 self.status = '読込失敗'
             return self.status
+
+    def _load_session(self):
+        with (self.folder / 'selected_tags.csv').open(encoding='utf-8-sig', newline='') as stream:
+            tags = list(csv.DictReader(stream))
+        if not tags or any(not {'name', 'category'} <= row.keys() for row in tags):
+            raise ValueError('invalid tags')
+        if self.session_factory is None:
+            import onnxruntime as ort
+            available = ort.get_available_providers()
+            providers = self.providers or (['CUDAExecutionProvider', 'CPUExecutionProvider']
+                if 'CUDAExecutionProvider' in available else ['CPUExecutionProvider'])
+            if providers[0] not in available:
+                raise RuntimeError('requested inference provider unavailable')
+            session = ort.InferenceSession(str(self.folder / 'model.onnx'), providers=providers)
+            if providers[0] not in session.get_providers():
+                raise RuntimeError('requested inference provider not active')
+        else:
+            session = self.session_factory(self.folder / 'model.onnx')
+        self.tags, self.session = tags, session
 
     def predict(self, data):
         with self._lock:
@@ -167,24 +197,6 @@ class LocalTagger:
             except Exception:
                 return []
             try:
-                if self.session is None:
-                    with (self.folder / 'selected_tags.csv').open(encoding='utf-8-sig', newline='') as stream:
-                        tags = list(csv.DictReader(stream))
-                    if not tags or any(not {'name', 'category'} <= row.keys() for row in tags):
-                        raise ValueError('invalid tags')
-                    if self.session_factory is None:
-                        import onnxruntime as ort
-                        available = ort.get_available_providers()
-                        providers = self.providers or (['CUDAExecutionProvider', 'CPUExecutionProvider']
-                            if 'CUDAExecutionProvider' in available else ['CPUExecutionProvider'])
-                        if providers[0] not in available:
-                            raise RuntimeError('requested inference provider unavailable')
-                        session = ort.InferenceSession(str(self.folder / 'model.onnx'), providers=providers)
-                        if providers[0] not in session.get_providers():
-                            raise RuntimeError('requested inference provider not active')
-                    else:
-                        session = self.session_factory(self.folder / 'model.onnx')
-                    self.tags, self.session = tags, session
                 if self.tensor_factory is None:
                     import numpy as np
                     tensor = np.asarray(image, dtype=np.float32)[None, ...]
@@ -276,11 +288,16 @@ class TaggerManager:
         self.tagger.on_identity_change = self._invalidate_fingerprint
         return snapshot
 
+    @property
+    def usable(self):
+        with self._fingerprint_lock:
+            return self._fingerprint is not None and self.status == '利用可能'
+
     def _verify(self, snapshot, epoch):
+        enabled = snapshot.values['local_tagger_enabled'] == '1'
         self.status = '検証中'
-        self.status = self.tagger.verify()
-        valid = (snapshot.values['local_tagger_enabled'] == '1'
-                 and self.status in ('利用可能', 'onnxruntime なし'))
+        self.status = self.tagger.verify(load_session=enabled)
+        valid = enabled and self.status == '利用可能'
         return self._verified_fingerprint(epoch, self.tagger.receipt if valid else None)
 
     def verify(self):
@@ -326,39 +343,43 @@ class TaggerManager:
             return before, tags
 
     def try_current_fingerprint(self):
-        """Explicit lightweight model check that never waits for inference."""
-        epoch = self._verification_epoch
-        try:
+        """Revalidate the current publication without waiting for inference."""
+        with self._fingerprint_lock:
             if self._closed:
                 return None
-            if self.tagger is not None and self.tagger._load_failed:
-                return None
+            epoch, fingerprint = self._verification_epoch, self._fingerprint
+            tagger = self.tagger
+            receipt = tagger.receipt if tagger is not None else None
+
+        def same_publication():
+            return (epoch == self._verification_epoch and fingerprint == self._fingerprint
+                    and self.tagger is tagger and (tagger is None or tagger.receipt is receipt))
+
+        try:
             snapshot = self.preferences.snapshot()
             path = snapshot.values['local_tagger_path']
             if snapshot.values['local_tagger_enabled'] != '1':
                 return None
             if not _local_folder(path):
                 raise NonLocalModelPath()
-            receipt = self.tagger.receipt if self.tagger is not None else self.preferences.read_tagger_verification().get('receipt')
             if not isinstance(receipt, dict) or receipt.get('verified') is not True:
                 return None
             folder = Path(path)
             paths = [folder / 'MODEL_SOURCE.json', *(folder / name for name in FILES)]
-            if receipt.get('identities') != [_identity(item) for item in paths]:
-                self._invalidate_fingerprint()
-                self.status = '検証中'
-                return None
-            current = self.preferences.snapshot()
-            if current.values['local_tagger_enabled'] != '1' or _path_key(current.values['local_tagger_path']) != _path_key(path):
-                return None
-            return self._verified_fingerprint(epoch, receipt)
+            if receipt.get('identities') == [_identity(item) for item in paths]:
+                with self._fingerprint_lock:
+                    return fingerprint if same_publication() else None
+            status = '検証中'
         except NonLocalModelPath:
-            self.status = '利用不可（ローカルのフォルダを指定）'
+            status = '利用不可（ローカルのフォルダを指定）'
         except FileNotFoundError:
-            self.status = '未検出'
+            status = '未検出'
         except (OSError, ValueError, TypeError, RuntimeError):
-            self.status = '読込失敗'
-        self._invalidate_fingerprint()
+            status = '読込失敗'
+        with self._fingerprint_lock:
+            if same_publication():
+                self._invalidate_fingerprint()
+                self.status = status
         return None
 
     def close(self):

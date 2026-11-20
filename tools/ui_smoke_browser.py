@@ -320,6 +320,78 @@ def close_overlay(page):
     page.wait_for_timeout(300)
 
 
+def check_download_type(page):
+    button = page.get_by_test_id("unified-type")
+    titles = []
+    for title in ("イラスト・漫画のみ", "小説のみ", "イラスト・漫画+小説（両方）"):
+        button.evaluate("""el => {
+            const normal = getComputedStyle(el).backgroundColor;
+            const press = el.__typePress = {normal, states: [], changedColor: false};
+            const capture = new MutationObserver(() => {
+                press.states.push(el.dataset.dim);
+                if (el.dataset.dim === 'false') capture.disconnect();
+            });
+            capture.observe(el, {attributes: true, attributeFilter: ['data-dim']});
+            const started = performance.now();
+            const sample = now => {
+                if (getComputedStyle(el).backgroundColor !== normal)
+                    press.changedColor = true;
+                if (now - started < 700)
+                    requestAnimationFrame(sample);
+            };
+            requestAnimationFrame(sample);
+        }""")
+        button.click()
+        page.wait_for_function("""title => {
+            const el = document.querySelector('[data-testid=unified-type]');
+            const press = el.__typePress;
+            return el.title === title && press.states.join(',') === 'true,false' && press.changedColor &&
+                getComputedStyle(el).backgroundColor === press.normal;
+        }""", arg=title, timeout=5000)
+        titles.append(title)
+    return {"cycle": titles, "press_color_changed_and_restored": True}
+
+
+def check_library_pan(page):
+    page.get_by_test_id("library-author-open").first.click()
+    page.locator(".pv-library-page-card").first.click()
+    viewer = page.get_by_test_id("library-viewer")
+    viewport = viewer.get_by_test_id("viewer-zoom-viewport")
+    viewer.wait_for(state="visible", timeout=10000)
+    for _ in range(3):
+        viewer.get_by_test_id("viewer-zoom-in").click()
+    scale = float(viewport.get_attribute("data-zoom-scale"))
+    assert scale > 1
+    box = viewport.bounding_box()
+    x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+
+    def offset():
+        return tuple(float(viewport.get_attribute(f"data-zoom-{axis}")) for axis in ("x", "y"))
+
+    generation = viewer.get_attribute("data-zoom-generation")
+    page.mouse.move(x, y)
+    page.mouse.down()
+    page.mouse.move(x - 23, y - 26, steps=5)
+    first = offset()
+    assert first != (0, 0)
+    # Stay in the drag longer than a shell polling interval.
+    page.wait_for_timeout(1100)
+    page.mouse.move(x + 43, y + 46, steps=8)
+    second = offset()
+    assert second != first and second != (0, 0)
+    page.mouse.up()
+    assert offset() == second
+    assert viewport.get_attribute("data-dragging") == "false"
+    assert viewer.get_attribute("data-zoom-generation") == generation
+    assert viewer.get_attribute("aria-hidden") == "false"
+    assert page.get_by_test_id("tab-library").get_attribute("aria-current") == "page"
+    viewer.get_by_role("button", name="閉じる", exact=True).click()
+    viewer.wait_for(state="hidden")
+    page.get_by_test_id("library-detail-close").click()
+    page.get_by_test_id("library-author-open").first.wait_for(state="visible")
+    return {"scale": scale, "first_offset": first, "final_offset": second}
+
+
 def run_matrix(pw, url, out: Path, expectations, screens, wait_ms, get_net, startup_wait_ms, strict=False):
     """The whole tour.  Returns (cells, foreign requests, testids per screen, call log).
 
@@ -382,6 +454,7 @@ def run_matrix(pw, url, out: Path, expectations, screens, wait_ms, get_net, star
                     startup = spec.get("kind") == "startup"
                     del console_errors[:], page_errors[:]
                     error = None
+                    operation = None
                     if startup:
                         snap = dict(load_snap)
                         console_errors.extend(load_errors[0])
@@ -390,6 +463,10 @@ def run_matrix(pw, url, out: Path, expectations, screens, wait_ms, get_net, star
                     else:
                         try:
                             open_screen(page, name, spec, wait_ms)
+                            if name == "download":
+                                operation = check_download_type(page)
+                            elif name == "library":
+                                operation = check_library_pan(page)
                         except Exception as e:  # missing opener / ready element: a FAIL, not a crash
                             error = f"{type(e).__name__}: {str(e).splitlines()[0][:200]}"
                         snap = page.evaluate(SNAPSHOT_JS)
@@ -419,6 +496,8 @@ def run_matrix(pw, url, out: Path, expectations, screens, wait_ms, get_net, star
                     dumps.setdefault(name, snap["testids"])
                     cells[key] = dict(failures=failures, testids=len(snap["testids"]),
                                       scroll=[snap["scroll_width"], snap["client_width"]])
+                    if operation is not None:
+                        cells[key]["operation"] = operation
                     if name == SETTINGS_SCREEN:
                         close_overlay(page)
                 ctx.close()

@@ -183,8 +183,9 @@ class PreferencesView:
             if self.tagger is not None:
                 ui.label('ローカルタグ補完モデル（任意）').classes('text-subtitle1')
                 self.tagger_path=ui.input('モデルフォルダ', value=self.snapshot.values['local_tagger_path']).classes('w-full').props('data-testid=tagger-path')
-                self.tagger_enabled=ui.switch('有効', value=self.snapshot.values['local_tagger_enabled']=='1').props('data-testid=tagger-enabled')
-                self.tagger_status=ui.label(self.tagger.status).props('role=status data-testid=tagger-status')
+                self.tagger_enabled=ui.switch('タグ補完を自動で使う', value=self.snapshot.values['local_tagger_enabled']=='1').props('data-testid=tagger-enabled')
+                self.tagger_effective=ui.label('状態 検証中').props('role=status data-testid=tagger-effective')
+                self.tagger_status=ui.label('検証中').props('data-testid=tagger-status')
                 self._tagger_pending=True
                 try:
                     loop=asyncio.get_running_loop()
@@ -285,7 +286,7 @@ class PreferencesView:
             return
         self._tagger_pending=False
         self._tagger_verifying+=1
-        self.tagger_status.set_text('検証中')
+        self._display_tagger_status('検証中')
         try:
             result = await asyncio.to_thread(self.tagger.verify)
             latest = self.store.snapshot()
@@ -297,7 +298,14 @@ class PreferencesView:
             if epoch == self._epoch:
                 self._tagger_verifying-=1
         if not self.closed and self.opened and epoch == self._epoch:
-            self.tagger_status.set_text(result)
+            self._display_tagger_status(result)
+
+    def _display_tagger_status(self, result):
+        configured = self.snapshot.values['local_tagger_enabled'] == '1'
+        usable = getattr(self.tagger, 'usable', configured and result == '利用可能')
+        state = '検証中' if result == '検証中' else ('有効' if usable and result == '利用可能' else '無効')
+        self.tagger_effective.set_text(f'状態 {state}')
+        self.tagger_status.set_text(result)
 
     async def _watch_tagger_status(self, epoch):
         while not self.closed and self.opened and epoch == self._epoch:
@@ -306,7 +314,7 @@ class PreferencesView:
 
     def _sync_tagger_status(self, epoch):
         if not self.closed and self.opened and epoch == self._epoch and not self._tagger_verifying and not self._tagger_pending:
-            self.tagger_status.set_text(self.tagger.status)
+            self._display_tagger_status(self.tagger.status)
 
     def _sync_cache_limit_visibility(self):
         # Keep both draft values and consumer capabilities. Only the selected
@@ -380,7 +388,7 @@ class PreferencesView:
         self.snapshot=snapshot
         if self.tagger is not None and any(key.startswith('local_tagger_') for key in changes):
             self._tagger_pending=True
-            self.tagger_status.set_text('検証中')
+            self._display_tagger_status('検証中')
             ui.timer(0.1, lambda: self._verify_tagger(self._epoch), once=True)
         try:
             if self.on_change and changes: self.on_change(snapshot)

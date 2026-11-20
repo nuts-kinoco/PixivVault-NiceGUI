@@ -97,12 +97,13 @@
       "label": "自分のランキング",
       "testids": ["personal-ranking-view", "personal-fetch", "personal-tags", "personal-sort", "personal-bookmarks",
                   "personal-ai", "personal-r18", "personal-chips", "personal-candidates-toggle"],
-      "texts": ["選択タグ", "取得・更新", "出さない作品を除外"]
+      "texts": ["選択タグ", "取得・更新", "出さない作品を除外"],
+      "absent_testids": ["shared-log-host"]
     },
     "scheduler": {
       "label": "定期チェック",
       "testids": ["scheduler-open", "scheduler-interval", "scheduler-save", "scheduler-run",
-                  "scheduler-startup", "scheduler-status"],
+                  "scheduler-startup", "scheduler-status", "scheduler-account", "shared-log-host"],
       "texts": ["お気に入り作者の定期チェック", "今すぐチェック", "☆お気に入りにした作者全員をチェックします。"]
     },
     "metadata": {

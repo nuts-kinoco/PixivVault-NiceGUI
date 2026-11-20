@@ -3,7 +3,7 @@ from nicegui import ui
 
 
 LOG_HIDDEN_TABS = frozenset({'download', 'queue', 'failed', 'history', 'learning',
-                             'ranking', 'library', 'recommend', 'dedup'})
+                             'ranking', 'personal', 'library', 'recommend', 'dedup'})
 
 
 def render_log_entries(panel, entries):

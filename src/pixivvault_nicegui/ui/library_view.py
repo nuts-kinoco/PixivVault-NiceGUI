@@ -77,6 +77,8 @@ class LibraryView(ViewerController):
         self.pixiv_error = False
         self.pixiv_loading = False
         self._pixiv_epoch = 0
+        self._reload_after_viewer = False
+        self._remote_retired = False
         self._pixiv_records = ()
         self._pixiv_works = ()
         self._pixiv_ai_dirty = False
@@ -748,11 +750,17 @@ class LibraryView(ViewerController):
         if self.bookmarks is not None:
             self.bookmarks.refresh(reset_controls=True)
 
-    def close_viewer(self, *, restore_focus=True):
+    def close_viewer(self, *, restore_focus=True, apply_deferred=True):
+        was_open = self._viewer_state.viewer_open
         super().close_viewer(restore_focus=restore_focus)
         if self._bookmark_projection_pending and not self.closed and self.active:
             self._bookmark_projection_pending = False
             self._refresh_bookmark_projection()
+        if apply_deferred and was_open and not self.closed and self.active:
+            if self._remote_retired:
+                self.set_search_scope('library')
+            elif self._reload_after_viewer:
+                self.reload(preserve=True)
 
     def refresh_bookmarks(self, *, automatic=False) -> None:
         """Keep demo refresh immediate; real DB/network work is off the UI loop."""
@@ -866,9 +874,13 @@ class LibraryView(ViewerController):
             self._build_viewer_state()
             super().open(work_id, 0)
 
-    def reload(self, *, preserve: bool = False) -> None:
+    def reload(self, *, preserve: bool = False, after_viewer: bool = False) -> None:
         if self.closed or not self.active:
             return
+        if after_viewer and self._viewer_state.viewer_open:
+            self._reload_after_viewer = True
+            return
+        self._reload_after_viewer = False
         if self.similarity is not None:self.similarity.invalidate()
         self.filter_panel.invalidate()
         self._invalidate_capacity(clear_values=True)
@@ -879,7 +891,7 @@ class LibraryView(ViewerController):
         saved_author = previous_state.selected_author_id
         saved_author_limit = previous_state.shown_author_count
         saved_page_limit = previous_state.shown_page_count
-        self.close_viewer(restore_focus=False)
+        self.close_viewer(restore_focus=False, apply_deferred=False)
         self.state.close()
         self._viewer_state.close()
         self.author_grid.clear()
@@ -972,7 +984,7 @@ class LibraryView(ViewerController):
                 # Keep searches/selections made while disk I/O was in progress.
                 # A full reload or tab leave still invalidates state/epoch ownership.
                 self.bookmark_state.replace_local(self.services.bookmark_local_snapshot())
-                self.reload(preserve=True)
+                self.reload(preserve=True, after_viewer=True)
                 self.bookmarks.refresh()
         finally:
             if epoch == self._refresh_epoch:
@@ -1263,6 +1275,7 @@ class LibraryView(ViewerController):
         if self.state.selected_author_id is not None:
             self.state.close_author()
         self.search_scope = scope
+        self._remote_retired = False
         self._pixiv_epoch += 1
         self._pixiv_works = ()
         self._pixiv_records = ()
@@ -1290,15 +1303,34 @@ class LibraryView(ViewerController):
         if self.scope_pixiv.enabled != ready:
             self.scope_pixiv.set_enabled(ready)
         self.scope_pending.set_visibility(self.subview == 'downloaded' and not ready)
+        # A shell poll may change availability while the user is panning.
+        # Retire the remote pin at once, keep a local image on screen, and
+        # apply the scope change when the viewer closes.
         if not ready and self.search_scope == 'pixiv':
+            self._retire_remote_images()
+        if self._remote_retired and self.search_scope == 'pixiv' and not self._viewer_state.viewer_open:
             self.set_search_scope('library')
+
+    def _retire_remote_images(self):
+        if self._remote_retired:
+            return
+        self._remote_retired = True
+        self._pixiv_epoch += 1
+        provider = self._image_provider
+        if not isinstance(provider, _SearchImages):
+            return
+        selected = self._viewer_state.selected_artwork if self._viewer_state.viewer_open else None
+        provider.remote.close()
+        if selected is not None and selected.work_id in provider.remote_ids:
+            self.close_viewer(restore_focus=False)
 
     def retry_pixiv_search(self):
         if not self.closed and self.active and self.subview == 'downloaded' and self.search_scope == 'pixiv':
             self._schedule_pixiv_search()
 
     def _schedule_pixiv_search(self):
-        if self.closed or not self.active or self.subview != 'downloaded' or self.search_scope != 'pixiv':
+        if (self.closed or not self.active or self.subview != 'downloaded'
+                or self.search_scope != 'pixiv' or self._remote_retired):
             return
         from nicegui import background_tasks
         self._pixiv_epoch += 1
@@ -1360,15 +1392,17 @@ class LibraryView(ViewerController):
             still_ready = borrowed_ready(self.services.external_vault)
         except Exception:
             still_ready = False
-        if not still_ready:
-            with self.client:
-                self.set_search_scope('library')
-            return
         self.pixiv_loading = False
+        if not still_ready:
+            self.pixiv_error = True
+            with self.client:
+                self.pixiv_error_row.set_visibility(True)
+                self.refresh_search_scope()
+            return
         self.pixiv_query = query
         self._pixiv_works, self._pixiv_records = tuple(works.values()), tuple(records.values())
         with self.client:
-            self.reload(preserve=True)
+            self.reload(preserve=True, after_viewer=True)
 
     def sort(self, key: str) -> None:
         if self.closed or not self.active or self.load_error or self.subview != "downloaded":
@@ -1469,6 +1503,8 @@ class LibraryView(ViewerController):
         self.active = bool(active)
         if active:
             self.refresh_search_scope()
+            if self._reload_after_viewer:
+                self.reload(preserve=True, after_viewer=True)
         self._zip_export_epoch = uuid4().hex
         self.root.props['data-zip-export-epoch'] = self._zip_export_epoch
         self.zip_export_status.set_text('')

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import sqlite3
 from datetime import datetime, timezone
 from threading import Event
 from uuid import uuid4
@@ -39,6 +40,8 @@ class SchedulerView:
                                           label='自動チェック間隔').style('min-width:184px').props('data-testid=scheduler-interval')
                 self.startup = ui.checkbox('起動時にもチェック').props('data-testid=scheduler-startup')
             ui.label('☆お気に入りにした作者全員をチェックします。').classes('pv-subtitle')
+            self.account_label = ui.label('紐づけアカウントを確認できません').classes('pv-subtitle').props(
+                'data-testid=scheduler-account')
             self.authors = ui.input(label='お気に入り（☆）作者ID（カンマ区切り。☆はダウンロード画面でも付け外しできます）').classes('w-full').style('max-width:640px').props('data-testid=scheduler-authors')
             self.interval.on_value_change(lambda _: self._mark_settings_dirty())
             self.startup.on_value_change(lambda _: self._mark_settings_dirty())
@@ -114,9 +117,24 @@ class SchedulerView:
         self.star_notice.set_text(
             '☆の一覧を読み込めません。読み込めるまで、☆の設定は保存できません（保留中の取得は消しません）。'
             if self._stars_unknown_in_form else '')
+        self._show_account(ledger)
         status_label = STATUS_LABELS.get(state.last_status, '状態不明')
         self.status.set_text(f'定期状態: {status_label} / 次回UTC: {state.next_due_utc or "未設定"}')
         self.ack_button.set_enabled(state.last_status == 'interrupted')
+
+    def _show_account(self, ledger):
+        message = '紐づけアカウントを確認できません'
+        if getattr(ledger, '_account_guard', False) and not self._stars_unknown_in_form:
+            try:
+                account = self._displayed_history_account(ledger, self._settings_account)
+                bound = ledger._bound_account()
+                if bound is None:
+                    message = f'対象アカウント ID {account}（未紐づけ）'
+                elif account == bound:
+                    message = f'紐づけアカウント ID {account}'
+            except (OSError, RuntimeError, sqlite3.Error):
+                pass
+        self.account_label.set_text(message)
 
     def discard_changes(self):
         """Explicitly abandon stale edits and adopt the newest CAS revision."""
@@ -238,6 +256,7 @@ class SchedulerView:
                 self.action_notice.set_text('保存完了の通知を表示できませんでした。実行履歴で確認してください')
         except Exception:
             if not self.closed:
+                self.account_label.set_text('紐づけアカウントを確認できません')
                 self.status.set_text('状態を取得できませんでした')
         finally:
             self._refreshing = False

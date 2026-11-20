@@ -808,7 +808,9 @@ class LivePixivReadClient:
             with request_scope(checkpoint=self._ensure_open):
                 policy=getattr(self,'_retry_policy',None)
                 if policy is None:return self._get_once(kind,url,deadline=deadline,capture_cookies=capture_cookies)
-                return policy.execute(lambda:self._get_once(kind,url,deadline=deadline,capture_cookies=capture_cookies),deadline=deadline)
+                return policy.execute(
+                    lambda: self._get_once(kind, url, deadline=deadline, capture_cookies=capture_cookies),
+                    deadline=deadline, local_not_found=kind == 'image')
 
     def _get_once(self, kind: str, url: str, *, deadline: float, capture_cookies=False):
         from .request_policy import request_checkpoint

@@ -131,8 +131,15 @@ class PersonalRankingView(RankingView):
             status={}
         return bool(status.get('open') and status.get('mode')=='nana7mi'
                     and status.get('transport_available'))
+    def _show_previous_results(self):
+        if self.page.remote_error:
+            self._show_unfetched()
+            return
+        self.gallery.more_cell.set_visibility(False)
+        self.gallery.counter.set_text('前の検索結果')
+
     def _show_unfetched(self):
-        """Do not present old server results under changed search conditions."""
+        """Reset the display when there is no usable search context."""
         self.gallery.close_viewer(restore_focus=False)
         old=self.gallery.state
         state=GalleryState((),page_size=50)
@@ -235,7 +242,17 @@ class PersonalRankingView(RankingView):
             self.exclusions[key].set_enabled(context_key in context)
     def changed(self):
         self.epoch+=1;self._refresh_chips()
-        if self.page is not None and not self._current_page():self._show_unfetched()
+        if self.page is not None:
+            if not self.selected_tags():
+                self._show_unfetched()
+                self.page = None
+                if self.pin is not None:
+                    self.pin.close()
+                    self.pin = self.proxy.images = None
+            elif self._current_page():
+                self.render()
+            else:
+                self._show_previous_results()
         self.availability(update_notice=False)
         if self.vault is not None:
             try:self.vault.save_ranking_preferences(self.selected_tags(),self.saved_filters)
@@ -314,6 +331,13 @@ class PersonalRankingView(RankingView):
                 **{k:v for k,v in zip(('start_date','end_date'),self._server_dates()) if v})
             if (self.closed or not self.active or epoch!=self.epoch
                     or not self._search_available()):return
+            if candidate.remote_error and old_page is not None and not old_page.remote_error:
+                from ..premium_read import unavailable_message
+                message = unavailable_message(candidate.remote_error) or '通信障害のため検索を完了できませんでした。'
+                if candidate.source_warning:
+                    message = unavailable_message(candidate.source_warning) + ' ' + message
+                self.notice.set_text(message + ' 直前の検索結果を表示しています。')
+                return
             provider=self.services.acquire_ranking_images(tuple(r['item'].record for r in candidate.rows))
             self.pin=provider;self.proxy.images=provider;self.page=candidate
             if not append:
@@ -346,6 +370,8 @@ class PersonalRankingView(RankingView):
                     self.notice.set_text(message)
                 if getattr(error,'warning',None)=='expired-payout':
                     self.notice.set_text(unavailable_message('expired-payout')+' '+self.notice.text)
+                if old_page is not None and not old_page.remote_error:
+                    self.notice.set_text(self.notice.text + ' 直前の検索結果を表示しています。')
         finally:
             if provider is not None:
                 self.pin,self.page,self.proxy.images=old_pin,old_page,old_images;provider.close()
@@ -354,7 +380,7 @@ class PersonalRankingView(RankingView):
     def render(self):
         if self.closed or self.page is None:return
         if not self._current_page():
-            self._show_unfetched()
+            self._show_previous_results()
             self.notice.set_text('検索条件が変わりました。「取得・更新」で新しい条件を反映します。')
             self.availability(update_notice=False)
             return

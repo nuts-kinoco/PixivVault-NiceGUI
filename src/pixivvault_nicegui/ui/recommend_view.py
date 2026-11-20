@@ -133,9 +133,8 @@ class RecommendView:
                 self.data=data;self.render(preserve_viewer=preserve_viewer)
                 unavailable=data.get('unavailable', ())
                 self.notice.set_text(
-                    '保存結果の取得元が未接続または利用できない項目があります：'
-                    + '・'.join(LABELS.get(k,k) for k in unavailable)
-                    + '。接続設定を確認してください。' if unavailable
+                    '保存結果を確認できない項目があります：'
+                    + '・'.join(LABELS.get(k,k) for k in unavailable) if unavailable
                     else '保存済み結果を読み込みました。')
         except Exception:
             if self.active and self.epoch==epoch:self.notice.set_text('保存済み結果を確認できません。前の一覧を保持しました。')
@@ -455,7 +454,7 @@ class RecommendView:
                             b=ui.button((name or aid)+' のもっと見る登録を解除',on_click=lambda e,a=aid,n=name:self.boost(a,n,False)).props('flat')
                             b.set_enabled(data['writable'])
                     if kind in data['unavailable']:
-                        ui.label('この節の保存済み結果がありません。取得元を接続後、更新してください。').classes('pv-subtitle')
+                        ui.label('この節の保存済み結果がありません。').classes('pv-subtitle')
                         continue
                     groups=data['sections'].get(kind,())
                     if not any(g.works for g in groups):ui.label('表示対象がありません。').classes('pv-subtitle')

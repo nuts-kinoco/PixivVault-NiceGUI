@@ -294,7 +294,7 @@ class PersonalRankingSource:
         except VaultError as error:
             if error.code not in ('transport-failed','pixiv-outcome-uncertain'):raise
             import logging
-            logging.getLogger(__name__).warning('個人検索: pixiv通信に失敗しました（%s）。pixiv結果は0件として扱い、ローカルの利用を継続します。',error.code)
+            logging.getLogger(__name__).warning('個人検索: pixiv通信に失敗しました（%s）。',error.code)
             remote_error=error.code
             packet={'illusts':[],'next_url':None,
                     '_borrow_warning':getattr(error,'warning','')}
