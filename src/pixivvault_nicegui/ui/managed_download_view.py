@@ -1073,6 +1073,7 @@ class ManagedDownloadView:
             self._direct_records[work_id] = record
             if not self._load_cached() or work_id not in self.records:
                 raise RuntimeError("lookup record unavailable")
+            self.set_target_mode('bookmark')
             self.query = work_id
             self.shown = 50
             self.search_input.set_value(work_id)

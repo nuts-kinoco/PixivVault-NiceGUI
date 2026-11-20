@@ -205,7 +205,10 @@ class NovelDownloadView:
             if self._valid(captured[0]) and captured[1] == self.selection_revision:
                 self.selection = None
                 self.preview_root.set_visibility(False)
-                self.notice.set_text("作品を確認できません。合成ID・形式・保存状態を確認して再度お試しください。")
+                if self.presentation.practical:
+                    self.notice.set_text("作品を確認できません。小説ID・作者ID・形式と接続状態を確認して再度お試しください。")
+                else:
+                    self.notice.set_text("作品を確認できません。合成ID・形式・保存状態を確認して再度お試しください。")
             return False
         finally:
             self.busy = False

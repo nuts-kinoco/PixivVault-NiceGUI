@@ -15,6 +15,7 @@ import time
 from uuid import uuid4
 
 from .extension_bridge import ExtensionDownload
+from .job_failure import JobFailure
 from .job_service import JobService, JobCancelled, UNFINISHED
 from .request_policy import job_request_runner
 from .managed_downloads import _safe_path, _read_bounded
@@ -201,7 +202,10 @@ class ExtensionApplication:
                 if child.state=='done':
                     self._verify_child(child)
                     return
-                if child.state in ('error','stopped'):raise RuntimeError('child save failed or stopped')
+                if child.state == 'error':
+                    raise JobFailure('child save failed', reason_code=child.error_code)
+                if child.state == 'stopped':
+                    raise RuntimeError('child save stopped')
                 time.sleep(0.05)
         except JobCancelled:
             self._control_child(parent.job_id,child_id,'stop')
