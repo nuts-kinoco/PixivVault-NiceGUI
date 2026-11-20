@@ -158,20 +158,21 @@ class PreferencesView:
                     self.following_sync.build()
                 ui.separator()
             if self.vault is not None:
-                ui.label('\u501f\u7528\u30d7\u30ec\u30df\u30a2\u30e0\u306e\u72b6\u614b').classes('text-subtitle1')
-                try:
-                    state=self.vault.status()
-                    message=('\u30ed\u30c3\u30af\u89e3\u9664\u6e08\u307f\u30fb\u691c\u7d22\u6642\u306b\u30c8\u30fc\u30af\u30f3\u306e\u6709\u52b9\u671f\u9650\u3092\u78ba\u8a8d\u3057\u307e\u3059\u3002' if state.get('open') else '\u30ed\u30c3\u30af\u4e2d' if state.get('initialized') else '\u4fdd\u7ba1\u5eab\u306f\u672a\u8a2d\u5b9a\u3067\u3059\u3002')
-                    if state.get('oauth_review_required'): message+=' \u66f4\u65b0\u7d50\u679c\u306e\u78ba\u8a8d\u304c\u5fc5\u8981\u3067\u3059\u3002'
-                    state_label=ui.label(message).props('data-testid=premium-vault-state')
-                    pool=self.vault.premium_pool_status()
-                    for slot in pool:
-                        ui.label(f"\u767b\u9332{slot['index']}\uff1a\u6255\u3044\u51fa\u30575\u6642\u9593 {slot['payouts']}/{slot['payout_limit']}\u4ef6\u30fb\u501f\u75281\u5206 {slot['borrowed']}/{slot['borrow_limit']}\u4ef6\u30fb\u5f85\u6a5f {int(slot['wait'])}\u79d2").props('data-testid=premium-request-budget')
-                    # Leaving an unconfirmed Pixiv result (the "Shaft連携" tab is gone).
-                    self.vault_recovery=PremiumRecoveryPanel(self.vault,gate=getattr(self.vault,'premium_authorization',None),
-                        on_change=lambda:self._vault_state_changed(state_label))
-                except Exception:
-                    ui.label('\u72b6\u614b\u3092\u78ba\u8a8d\u3067\u304d\u307e\u305b\u3093\u3002').props('data-testid=premium-vault-state')
+                with ui.column().classes('pv-preferences-group'):
+                    ui.label('\u501f\u7528\u30d7\u30ec\u30df\u30a2\u30e0\u306e\u72b6\u614b').classes('text-subtitle1')
+                    try:
+                        state=self.vault.status()
+                        message=('\u30ed\u30c3\u30af\u89e3\u9664\u6e08\u307f\u30fb\u691c\u7d22\u6642\u306b\u30c8\u30fc\u30af\u30f3\u306e\u6709\u52b9\u671f\u9650\u3092\u78ba\u8a8d\u3057\u307e\u3059\u3002' if state.get('open') else '\u30ed\u30c3\u30af\u4e2d' if state.get('initialized') else '\u4fdd\u7ba1\u5eab\u306f\u672a\u8a2d\u5b9a\u3067\u3059\u3002')
+                        if state.get('oauth_review_required'): message+=' \u66f4\u65b0\u7d50\u679c\u306e\u78ba\u8a8d\u304c\u5fc5\u8981\u3067\u3059\u3002'
+                        state_label=ui.label(message).props('data-testid=premium-vault-state')
+                        pool=self.vault.premium_pool_status()
+                        for slot in pool:
+                            ui.label(f"\u767b\u9332{slot['index']}\uff1a\u6255\u3044\u51fa\u30575\u6642\u9593 {slot['payouts']}/{slot['payout_limit']}\u4ef6\u30fb\u501f\u75281\u5206 {slot['borrowed']}/{slot['borrow_limit']}\u4ef6\u30fb\u5f85\u6a5f {int(slot['wait'])}\u79d2").props('data-testid=premium-request-budget')
+                        # Leaving an unconfirmed Pixiv result (the "Shaft連携" tab is gone).
+                        self.vault_recovery=PremiumRecoveryPanel(self.vault,gate=getattr(self.vault,'premium_authorization',None),
+                            on_change=lambda:self._vault_state_changed(state_label))
+                    except Exception:
+                        ui.label('\u72b6\u614b\u3092\u78ba\u8a8d\u3067\u304d\u307e\u305b\u3093\u3002').props('data-testid=premium-vault-state')
                 ui.separator()
             self.status=ui.label('').props('data-testid=preferences-status role=status')
             try:
@@ -183,19 +184,20 @@ class PreferencesView:
                 return
             self.controls={}
             if self.tagger is not None:
-                ui.label('ローカルタグ補完モデル（任意）').classes('text-subtitle1')
-                self.tagger_path=ui.input('モデルフォルダ', value=self.snapshot.values['local_tagger_path']).classes('w-full').props('data-testid=tagger-path')
-                self.tagger_enabled=ui.switch('タグ補完を自動で使う', value=self.snapshot.values['local_tagger_enabled']=='1').props('data-testid=tagger-enabled')
-                self.tagger_effective=ui.label('状態 検証中').props('role=status data-testid=tagger-effective')
-                self.tagger_status=ui.label('検証中').props('data-testid=tagger-status')
-                self._tagger_pending=True
-                try:
-                    loop=asyncio.get_running_loop()
-                except RuntimeError:
-                    self._tagger_timer=ui.timer(0.1, lambda: self._sync_tagger_status(epoch))
-                else:
-                    self._tagger_timer=loop.create_task(self._watch_tagger_status(epoch))
-                ui.timer(0.1, lambda: self._verify_tagger(epoch), once=True)
+                with ui.column().classes('pv-preferences-group'):
+                    ui.label('ローカルタグ補完モデル（任意）').classes('text-subtitle1')
+                    self.tagger_path=ui.input('モデルフォルダ', value=self.snapshot.values['local_tagger_path']).classes('w-full').props('data-testid=tagger-path')
+                    self.tagger_enabled=ui.switch('タグ補完を自動で使う', value=self.snapshot.values['local_tagger_enabled']=='1').props('data-testid=tagger-enabled')
+                    self.tagger_effective=ui.label('状態 検証中').props('role=status data-testid=tagger-effective')
+                    self.tagger_status=ui.label('検証中').props('data-testid=tagger-status')
+                    self._tagger_pending=True
+                    try:
+                        loop=asyncio.get_running_loop()
+                    except RuntimeError:
+                        self._tagger_timer=ui.timer(0.1, lambda: self._sync_tagger_status(epoch))
+                    else:
+                        self._tagger_timer=loop.create_task(self._watch_tagger_status(epoch))
+                    ui.timer(0.1, lambda: self._verify_tagger(epoch), once=True)
             for group in dict.fromkeys(spec.group for spec in SPECS if spec.key != 'grid_card_size_mode' and spec.group != 'local_tagger_internal'):
                 with ui.column().classes('pv-preferences-group'):
                     ui.label(group).classes('text-subtitle1')
