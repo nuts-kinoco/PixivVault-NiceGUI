@@ -63,6 +63,29 @@ async def test_author_search_keeps_representative_and_detail_contains_all_pages(
 
 
 @pytest.mark.asyncio
+async def test_search_does_not_reset_closed_viewer_but_invalidates_open_request(library):
+    view, _, _ = library
+    initial_zoom = view.viewer.root.props['data-zoom-generation']
+    initial_image = view.viewer_image.props['request_id']
+
+    view.search('0003')
+    assert list(view.author_cards) == ['demo-author-01']
+    assert view.viewer.root.props['data-zoom-generation'] == initial_zoom
+    assert view.viewer_image.props['request_id'] == initial_image
+
+    view.open_author('demo-author-01')
+    view.open_page('demo-0060', 0)
+    stale = event_for(view)
+    assert stale.args
+    view.search('0004')
+    view._image_loaded(stale)
+    assert not view._viewer_state.viewer_open
+    assert not view.dialog.is_open
+    assert view.viewer_image.props['src'] == ''
+    assert not view.page_cards
+
+
+@pytest.mark.asyncio
 async def test_selected_page_and_request_generation_survive_only_their_owner(library):
     view, _, _ = library
     view.open_author("demo-author-01")

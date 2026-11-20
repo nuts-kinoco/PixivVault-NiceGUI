@@ -1286,7 +1286,10 @@ class LibraryView(ViewerController):
             if self.search_scope == 'pixiv':
                 self._schedule_pixiv_search()
             self._invalidate_capacity()
-            self.close_viewer(restore_focus=False)
+            # Keep normal retirement after any viewer use, including a pending
+            # request or focus callback. A never-used viewer needs no reset.
+            if self._request_serial or self._viewer_state.viewer_open or self._bookmark_projection_pending:
+                self.close_viewer(restore_focus=False)
             self._clear_pages()
             self.render_authors()
             self._sync_panels()

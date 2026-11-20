@@ -26,10 +26,14 @@ export default {
   data() {
     return { frames: [], imageNodes: new Map(), displayVersion: 0, version: 0 };
   },
+  computed: {
+    verificationRequest() {
+      return [this.src, this.request_id, this.retain_previous];
+    },
+  },
   watch: {
-    src() { this.verify(); },
-    request_id() { this.verify(); },
-    retain_previous() { this.verify(); },
+    // Vue applies these props together for one source update. Verify that update once.
+    verificationRequest() { this.verify(); },
   },
   mounted() {
     this.verify();
