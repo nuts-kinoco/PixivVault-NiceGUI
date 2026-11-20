@@ -78,3 +78,13 @@
 - キャッシュ未接続時に保存失敗フラグが立たず永続化もされない境界を追加発見（`review-no-store-red.log`）。実サービスの保存先なしで red を確認し、保存未確認として表示する修正を加えた。全体試験の最終結果と独立検証・ネイティブ受入は別途必要。
 - 最終コードの最初の全体試験は 3811 passed・1 failed・3 skipped・3 deselected、終了コード 1（`S:/Projects/PV-DEV-20261117/tmp/d5/review-final-full.log`）。Windows の保存領域並行試験で、監視中の `active-generations.floor` 読取が一時的に PermissionError となった。同じ試験ファイルの単独再実行は 4 passed（`review-round7-retest.log`）。期待値・待ち時間は変更せず、同じ候補で全体を再実行する。
 - 同一コードの全体再実行は **3812 passed・3 skipped・3 deselected・14 warnings、終了コード 0**（`S:/Projects/PV-DEV-20261117/tmp/d5/review-final-full2.log`、1481.32 秒）。前回共有拒否が出た試験も 4 件通過。3 件の skip はシンボリックリンク作成不可。先行実行の失敗は環境を含めた発生原因が確定しておらず、再実行の合格とともに残す。最終コード `1dd644c91391dd4d9208f9e4fbe749dd4dbf0a1d` 以降の差分は本記録のみ。独立検証（Sol）、ネイティブ・本人の原受入は未了。
+
+## 2026-11-20 P5 再検証の指摘 3 件
+
+- `pv-dev-baseline` の `f8e2d65` を fast-forward で取り込み、候補 `79cc25a` で修正。ブックマークの保存状態を各画面の一覧に結び付け、保存先のリビジョンが後から変わった場合も保存済みと断言しない。実サービスと 2 画面による保存失敗→成功、成功→失敗の red は `S:/Projects/PV-DEV-20261117/tmp/d5/reaudit-state-red.log`。成功→成功で別の一覧に上書きする場合も修正後に確認した。
+- ヘッダーの表示削除による指紋変更を再レビューし、明示クリックで Pixiv ホームを開く通信経路に変更がないことを照合して、該当台帳キーのみ更新。通信棚卸しの修正前の失敗は `S:/Projects/PV-DEV-20261117/tmp/d5/reaudit-network-current.log`。
+- キューの「ダウンロードキューログ」を明朝にし、個別セレクターで実描画書体を検査する。修正前の失敗は `reaudit-red.log` / `reaudit-font-red2.log`。関連試験は 39 passed（`reaudit-focused.log`）。
+- [並置撮影](../../verify/p5_design_20261120_183031_877163/summary.json) は通常・空、両サイズ・両テーマ、2 画面の 16 組。撮影エラー・機械検査指摘・移植版通信は各 0。元の CDN 要求は遮断。1920 ライトのキューログを目視し、個別セレクターの実描画は Yu Mincho Demibold と確認した。撮影プロセス・使用ポートの残存 0。
+- 最初の全体 pytest は **3818 passed・1 failed・3 skipped・3 deselected、終了コード 1**（`S:/Projects/PV-DEV-20261117/tmp/d5/reaudit-full.log`、1820.44 秒）。Windows 並行試験の監視読取が `active-generations.floor` で `PermissionError` となり、前回と同じ種類の失敗を再確認。該当ファイルの単独再実行は 4 passed（`reaudit-round7-retest.log`）だが、単独通過を全体合格とはしない。
+- 同一候補の全体再実行は **3819 passed・3 skipped・3 deselected・14 warnings、終了コード 0**（`S:/Projects/PV-DEV-20261117/tmp/d5/reaudit-full2.log`、1478.86 秒）。初回失敗した `test_w_round7_live.py` は全体内で 4 件通過。3 skip はシンボリックリンク作成不可。初回の共有拒否は発生原因が確定しておらず、再実行の合格とともに記録を残す。
+- 保存状態に関わる変更のため独立検証（Sol）、ネイティブ・本人の原受入は未了。
