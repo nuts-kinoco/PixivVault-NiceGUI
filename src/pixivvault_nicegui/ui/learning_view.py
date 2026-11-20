@@ -143,6 +143,7 @@ class LearningView:
         self._bookmark_token = uuid4().hex
         self._bookmark_confirmed = set()
         self._bookmark_new = set()
+        self._opened_work_ids: set[str] = set()
         self._bookmark_uncertain = {}
         self._review_undone = {}
         self._review_outcomes = {}
@@ -232,6 +233,7 @@ class LearningView:
                                 'width:21px;height:21px;font-size:8px;'
                                 'background:var(--pv-raised);color:var(--pv-muted)')
                         self.open_pixiv_button.tooltip('クリックでpixivの作品ページを開く')
+                        self.open_pixiv_button.on('click', self._open_learning_pixiv, js_handler=self._click_js())
                         self.open_pixiv_button.set_visibility(False)
                 if self.discovery is not None:
                     self._build_candidate_status_card()
@@ -837,7 +839,13 @@ class LearningView:
         if self.storage is not None:
             actions = getattr(self.services, 'pixiv_actions', None)
             account = getattr(actions, 'cached_verified_account_id', None) if actions is not None else None
-            command = self.state.prepare_judgment(choice, bookmarked=(account, payload.get('work_id')) in self._bookmark_new, **options)
+            work_id = payload.get('work_id')
+            if not isinstance(work_id, str):
+                return False
+            command = self.state.prepare_judgment(
+                choice, bookmarked=(account, work_id) in self._bookmark_new,
+                opened=work_id in self._opened_work_ids, **options,
+            )
             if command is None:
                 return False
             self.close_summary()
@@ -1047,6 +1055,7 @@ class LearningView:
                 failed.judgment.choice, expected_work_id=failed.judgment.work_id,
                 expected_generation=self.state.generation, operation_id=failed.operation_id,
                 bookmarked=failed.judgment.bookmarked,
+                opened=failed.judgment.opened,
             )
         if command is not None:
             self._start_save(command)
@@ -1239,6 +1248,9 @@ class LearningView:
         props = f'data-work-id="{work_id}" data-generation={self.state.generation}'
         available = self.active and not self.services.closing and self._storage_ready and not self._storage_busy and not self.state.saving and not self._settings_busy and not self._review_mutating
         self.picture.props(props)
+        if self.discovery is not None:
+            self.open_pixiv_button.props(props)
+            self.open_pixiv_button.set_enabled(item is not None and self._can_open_learning_work())
         self.root.props(props + f" data-saving={'true' if self.state.saving else 'false'}")
         for button in self.buttons.values():
             button.props(props)
@@ -2528,11 +2540,27 @@ class LearningView:
             self.storage.release_session(self._session_id)
             self._session_id = None
 
-    async def _open_learning_picture(self, event):
+    def _can_open_learning_work(self) -> bool:
+        return (self.active and not self.state.closed and not self.services.closing
+                and not self._review_open and not self._storage_busy)
+
+    def _clicked_learning_work(self, event):
         payload = self._payload(event)
         item = self.state.current_artwork
-        if (not self.active or self.state.closed or self._review_open or self._storage_busy
+        if (not self._can_open_learning_work()
                 or item is None or payload.get('work_id') != item.work_id
                 or payload.get('generation') != self.state.generation):
-            return
-        await self.view_history.open_work(item.work_id, record=True)
+            return None
+        if self.discovery is not None:
+            if pixiv_url(item.work_id) is None:
+                return None
+            self._opened_work_ids.add(item.work_id)
+        return item.work_id
+
+    async def _open_learning_picture(self, event):
+        if (work_id := self._clicked_learning_work(event)) is not None:
+            await self.view_history.open_work(work_id, record=True)
+
+    async def _open_learning_pixiv(self, event):
+        if (work_id := self._clicked_learning_work(event)) is not None:
+            await self.view_history.record_open(work_id)

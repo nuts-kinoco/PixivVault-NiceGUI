@@ -163,14 +163,20 @@ class ViewHistoryView:
         self.error = '閲覧履歴が変更されたか、削除できませんでした。再読込して件数を確認してください。' if failed else ''
         if self.error:self.notice.set_text(self.error)
 
+    async def record_open(self, wid):
+        try:
+            await self.storage.record_view(wid)
+        except Exception:
+            self.parent.status.set_text('閲覧履歴を記録できませんでした。作品表示は続けます。')
+        else:
+            await self.refresh()
+
     async def open_work(self, wid, record=False):
         if self.closed or not self.parent.active:return
         epoch = self.generation
         work_generation = self.parent.state.generation
         if record:
-            try:await self.storage.record_view(wid)
-            except Exception:self.parent.status.set_text('閲覧履歴を記録できませんでした。作品表示は続けます。')
-            else:await self.refresh()  # ヘッダーの件数へ反映する
+            await self.record_open(wid)
         pin = None
         try:
             if self.parent.discovery is not None:
