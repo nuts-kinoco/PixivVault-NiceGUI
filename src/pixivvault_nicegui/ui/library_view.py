@@ -1083,6 +1083,8 @@ class LibraryView(ViewerController):
             if grid.props['grid_active'] != enabled:
                 grid.props['grid_active'] = enabled
                 grid.invalidate_actions()
+                if enabled and grid.props['cards']:
+                    grid.retry_failed_images()
 
     def _author_opener(self, author_id):
         return (f"[...(document.getElementById('{self.author_grid.html_id}')"
@@ -1095,7 +1097,8 @@ class LibraryView(ViewerController):
         def current():
             return (self.active and not self.closed and self.subview=='downloaded'
                     and self._author_session is session and self._image_provider is provider
-                    and author in self.state.visible_authors)
+                    and self.author_cards.get(author.author_id, {}).get('representative_id')
+                    == author.representative.work_id)
         if not current():return
         if menu is not None:menu.close()
         try:
@@ -1114,11 +1117,15 @@ class LibraryView(ViewerController):
     def render_authors(self) -> None:
         visible = self.state.visible_authors
         wanted = tuple(author.author_id for author in visible)
-        if wanted[:len(self._rendered_authors)] != self._rendered_authors:
+        cards = {author.author_id: self._make_author_card(author) for author in visible}
+        action_fields = ('representative_id', 'src', 'profile', 'menu')
+        if (wanted[:len(self._rendered_authors)] != self._rendered_authors or
+                any(cards[aid][field] != old[field] for aid, old in self.author_cards.items()
+                    for field in action_fields)):
             self._author_session = object()
-        self.author_cards = {author.author_id: self._make_author_card(author) for author in visible}
-        self.author_grid.props['cards'] = list(self.author_cards.values())
-        self.author_grid.invalidate_actions()
+            self.author_grid.invalidate_actions()
+        self.author_cards = cards
+        self.author_grid.props['cards'] = list(cards.values())
         self._rendered_authors = wanted
         self.author_counter.set_text(
             f"{self.state.shown_author_count} / {self.state.matched_author_count} 作者表示"
@@ -1173,8 +1180,9 @@ class LibraryView(ViewerController):
                 or type(args.get('epoch')) is not int or args['epoch'] != self.page_grid.render_epoch):
             return
         key, action = args.get('work_id'), args.get('action')
-        if action == 'more' and key is None and self.more_cell.visible:
-            self.more(self._more_session)
+        if action == 'more' and key is None:
+            if self.more_cell.visible and self.more_button.enabled:
+                self.more(self._more_session)
             return
         if type(key) is not str:
             return

@@ -1,13 +1,13 @@
 const CardThumbnail = {
   template: `
     <div class="pv-thumb pv-grid-image" :class="{'pv-grid-cover': placeholder}">
-      <img :key="attempt" v-show="!failed" :src="src" alt="" :loading="eager ? 'eager' : 'lazy'"
+      <img :key="attempt" v-if="src !== null" v-show="!failed" :src="src" alt="" :loading="eager ? 'eager' : 'lazy'"
            :fetchpriority="first ? 'high' : undefined" decoding="async"
            @load="failed = false" @error="failed = true" />
-      <q-icon v-if="failed && placeholder" :name="placeholder"
+      <q-icon v-if="unavailable && placeholder" :name="placeholder"
               class="pv-grid-library-placeholder" role="img" aria-label="画像未表示"
               aria-hidden="false" data-testid="library-image-placeholder" />
-      <div v-else-if="failed" class="pv-grid-image-error column flex-center q-pa-sm"
+      <div v-else-if="unavailable" class="pv-grid-image-error column flex-center q-pa-sm"
            role="status" data-testid="thumbnail-unavailable">
         <q-icon name="broken_image" size="32px" />
         <span class="text-caption text-center">画像を取得できませんでした</span>
@@ -18,6 +18,9 @@ const CardThumbnail = {
   props: {src: String, eager: Boolean, first: Boolean, placeholder: String, retry: Number},
   data() {
     return {failed: false, attempt: 0};
+  },
+  computed: {
+    unavailable() { return this.failed || this.src === null; },
   },
   watch: {
     retry() {
@@ -40,13 +43,14 @@ export default {
           <div class="pv-library-thumb-wrap">
             <div class="pv-library-author-open" role="button" :tabindex="grid_active ? 0 : -1"
                  :aria-label="card.title" aria-haspopup="menu" data-testid="library-author-open"
+                 :aria-disabled="!grid_active || undefined"
                  @click="openCard(card)" @keydown="onKey($event, card)">
               <pv-card-thumbnail :key="card.src" :src="imageSource(card.src)"
-                                 :eager="index < columns" :placeholder="library_placeholder" />
+                                 :eager="index < columns * 3" :placeholder="library_placeholder" :retry="retry_epoch" />
             </div>
             <q-btn icon="open_in_new" flat dense round class="pv-library-profile"
-                   :href="card.profile" :target="card.profile ? '_blank' : undefined"
-                   :rel="card.profile ? 'noopener noreferrer' : undefined" :disable="!card.profile"
+                   :href="grid_active ? card.profile : undefined" :target="card.profile ? '_blank' : undefined"
+                   :rel="card.profile ? 'noopener noreferrer' : undefined" :disable="!grid_active || !card.profile"
                    aria-label="pixivの作者ページ" data-testid="library-author-profile">
               <q-tooltip>{{ card.profile ? 'pixivの作者ページを開く' : 'Pixivの作者IDを確認できません' }}</q-tooltip>
             </q-btn>
@@ -63,18 +67,18 @@ export default {
       <template v-else-if="layout === 'library-page'">
         <div v-for="(card, index) in cards" :key="card.work_id" class="pv-card pv-library-page-card"
              role="button" :tabindex="grid_active && !card.disabled ? 0 : -1"
-             :aria-disabled="card.disabled || undefined" :data-work-id="card.artwork_id"
+             :aria-disabled="!grid_active || card.disabled || undefined" :data-work-id="card.artwork_id"
              :data-page-no="card.page_no" @click="openCard(card)" @keydown="onKey($event, card)">
           <pv-card-thumbnail :key="card.src" :src="imageSource(card.src)"
-                             :eager="index < columns" :placeholder="library_placeholder" />
+                             :eager="index < columns * 3" :placeholder="library_placeholder" :retry="retry_epoch" />
           <div class="pv-library-card-title">{{ card.title }}</div>
           <div class="pv-library-card-info">{{ card.info }}</div>
           <div v-if="card.count !== null" class="pv-library-card-info" data-testid="library-page-bookmark-count">
             {{ card.count }}
           </div>
-          <q-btn v-if="card.external" label="外部ビューアで開く" flat dense data-testid="library-external-open"
+          <q-btn v-if="card.external" label="外部ビューアで開く" :disable="!grid_active" flat dense data-testid="library-external-open"
                  @click.stop="send(card, 'external')" @keydown.stop />
-          <q-btn v-if="card.similar" label="似た絵を探す" flat dense data-testid="library-similar-open"
+          <q-btn v-if="card.similar" label="似た絵を探す" :disable="!grid_active" flat dense data-testid="library-similar-open"
                  @click.stop="send(card, 'similar')" @keydown.stop />
           <q-tooltip v-if="card.disabled">この形式の表示は未接続です</q-tooltip>
         </div>
@@ -84,12 +88,13 @@ export default {
              :data-work-id="card.work_id" data-testid="bookmark-card" @contextmenu="contextMenu($event, card)">
           <div class="pv-library-thumb-wrap">
             <div class="pv-library-author-open" role="button"
-                 :tabindex="grid_active && !card.disabled ? 0 : -1" :aria-disabled="card.disabled || undefined"
+                 :tabindex="grid_active && !card.disabled ? 0 : -1" :aria-disabled="!grid_active || card.disabled || undefined"
                  :aria-haspopup="card.menu.length ? 'menu' : undefined"
                  aria-label="作品を開く" data-testid="bookmark-open"
+                 @mousedown.right="card.disabled && $event.preventDefault()"
                  @click="openCard(card)" @keydown="onKey($event, card)">
               <pv-card-thumbnail v-if="card.src" :key="card.src" :src="imageSource(card.src)"
-                                 :eager="index < columns" :retry="retry_epoch" />
+                                 :eager="index < columns * 3" :retry="retry_epoch" />
               <q-icon v-else name="image" class="pv-thumb" />
               <q-tooltip v-if="card.disabled">表示未対応の形式、または利用できる画像接続がありません</q-tooltip>
             </div>
@@ -108,7 +113,8 @@ export default {
       <template v-else>
       <div v-for="(card, index) in cards" :key="card.work_id" class="pv-card"
            :data-work-id="card.work_id" :role="card.src ? 'button' : undefined"
-           :tabindex="card.src && grid_active ? 0 : undefined"
+           :tabindex="card.src ? (grid_active ? 0 : -1) : undefined"
+           :aria-disabled="card.src && !grid_active || undefined"
            :aria-haspopup="card.menu?.length ? 'menu' : undefined"
            @click="openCard(card)" @keydown="onKey($event, card)"
            @contextmenu="contextMenu($event, card)">
@@ -119,7 +125,7 @@ export default {
         </div>
         <div v-else class="pv-card-rank">{{ card.rank }}</div>
         <pv-card-thumbnail v-if="card.src" :key="card.src" :src="imageSource(card.src)"
-                           :eager="index < columns" :first="index === 0" :retry="retry_epoch" />
+                           :eager="index < columns * 3" :first="index === 0" :retry="retry_epoch" />
         <div v-else class="pv-thumb pv-subtitle">画像を取得できません</div>
         <div class="pv-card-meta">
           <div class="pv-card-title">{{ card.title }}</div>
@@ -135,14 +141,15 @@ export default {
                :disable="!more_enabled || !grid_active"
                @click="send(null, 'more')" />
       </div>
-      <span class="pv-card-menu-anchor" :style="{left: menuX + 'px', top: menuY + 'px'}">
-        <q-menu ref="menu" no-parent-event anchor="top left" self="top left" role="menu"
-                :data-testid="menuCard?.menu_id" @hide="onMenuHide">
-          <q-item v-for="entry in menuCard?.menu || []" :key="entry.key" clickable
-                  :data-testid="entry.testid" :disable="!entry.enabled" role="menuitem"
-                  :href="entry.enabled && menuEpoch === render_epoch ? entry.href : undefined"
+      <span v-for="session in menuSession ? [menuSession] : []" :key="session.sequence"
+            class="pv-card-menu-anchor" :style="{left: session.x + 'px', top: session.y + 'px'}">
+        <q-menu ref="menu" no-parent-event no-refocus anchor="top left" self="top left" role="menu"
+                :data-testid="session.card.menu_id" @hide="onMenuHide(session)">
+          <q-item v-for="entry in session.card.menu" :key="entry.key" clickable
+                  :data-testid="entry.testid" :disable="!entry.enabled || !grid_active" role="menuitem"
+                  :href="entry.enabled && grid_active && session.epoch === render_epoch ? entry.href : undefined"
                   :target="entry.href ? '_blank' : undefined" :rel="entry.href ? 'noopener noreferrer' : undefined"
-                  @click="menuAction($event, entry)">
+                  @click="menuAction($event, entry, session)">
             <q-item-section>{{ entry.label }}</q-item-section>
             <q-icon v-if="entry.icon" :name="entry.icon" class="pv-menu-icon" />
           </q-item>
@@ -163,18 +170,19 @@ export default {
   },
   emits: ['card-action'],
   data() {
-    return {columns: 6, resizeObserver: null, menuCard: null, menuOpener: null,
-            menuEpoch: 0, menuX: 0, menuY: 0, ready: false};
+    return {columns: 6, resizeObserver: null, menuSession: null, menuSequence: 0,
+            ready: window.path_prefix !== undefined};
   },
   watch: {
-    render_epoch() { this.$refs.menu?.hide(); },
+    render_epoch() { this.menuSession = null; },
+    grid_active(active) { if (!active) this.menuSession = null; },
   },
   mounted() {
     // NiceGUI initializes path_prefix in the parent app's mounted hook.
-    this.$nextTick(() => { this.ready = true; });
+    if (!this.ready) this.$nextTick(() => { this.ready = true; });
     this.resizeObserver = new ResizeObserver(() => {
       const tracks = getComputedStyle(this.$refs.grid).gridTemplateColumns;
-      if (tracks !== 'none') this.columns = tracks.split(' ').length;
+      if (tracks && tracks !== 'none') this.columns = tracks.trim().split(/\s+/).length;
     });
     this.resizeObserver.observe(this.$refs.grid);
   },
@@ -183,9 +191,9 @@ export default {
   },
   methods: {
     imageSource(src) {
-      if (!this.ready || !src) return undefined;
-      if (src.startsWith('/media/')) return (window.path_prefix || '') + src;
-      return src.startsWith('data:image/') ? src : undefined;
+      if (!this.ready) return undefined;
+      if (src?.startsWith('/media/')) return (window.path_prefix || '') + src;
+      return src?.startsWith('data:image/') ? src : null;
     },
     send(card, action, epoch = this.render_epoch, value) {
       if (this.grid_active) this.$emit('card-action', {work_id: card?.work_id ?? null, action, epoch, value});
@@ -198,7 +206,7 @@ export default {
       if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
         const bounds = event.currentTarget.getBoundingClientRect();
         this.contextMenu(event, card, bounds.left, bounds.bottom);
-      } else if (event.key === 'Enter' || event.key === ' ') {
+      } else if (event.key === 'Enter') {
         event.preventDefault();
         event.stopPropagation();
         this.openCard(card);
@@ -208,33 +216,41 @@ export default {
       if (!this.grid_active || !card.menu?.length) return;
       event.preventDefault();
       event.stopPropagation();
-      this.menuOpener = event.currentTarget.querySelector('[data-testid=library-author-open], [data-testid=bookmark-open]') ||
-                        event.currentTarget;
-      this.menuOpener.focus({preventScroll: true});
-      this.menuCard = card;
-      this.menuEpoch = this.render_epoch;
-      this.menuX = x;
-      this.menuY = y;
+      const target = event.currentTarget.querySelector('[data-testid=library-author-open], [data-testid=bookmark-open]') ||
+                     event.currentTarget;
+      const previous = document.activeElement;
+      const opener = target.tabIndex >= 0 ? target : (previous === target ? null : previous);
+      if (!opener && previous === target) target.blur();
+      opener?.focus({preventScroll: true});
+      const sequence = ++this.menuSequence;
+      const epoch = this.render_epoch;
+      this.menuSession = {sequence, epoch, card, opener, x, y};
       await this.$nextTick();
-      if (this.menuEpoch === this.render_epoch && this.grid_active) {
-        this.$refs.menu?.show();
-        this.$refs.menu?.updatePosition();
+      if (this.menuSession?.sequence === sequence && epoch === this.render_epoch && this.grid_active) {
+        this.$refs.menu?.[0]?.show();
       }
     },
-    menuAction(event, entry) {
-      if (!entry.enabled || this.menuEpoch !== this.render_epoch || !this.grid_active) {
+    hideMenu() {
+      const menu = this.$refs.menu?.[0];
+      if (menu?.$el && this.menuSession) menu.hide();
+      else this.menuSession = null;
+    },
+    menuAction(event, entry, session) {
+      if (!entry.enabled || session.sequence !== this.menuSession?.sequence ||
+          session.epoch !== this.render_epoch || !this.grid_active) {
         event.preventDefault();
         return;
       }
-      if (!entry.href) this.send(this.menuCard, entry.key, this.menuEpoch);
-      this.$refs.menu?.hide();
+      if (!entry.href) this.send(session.card, entry.key, session.epoch);
+      this.hideMenu();
     },
-    onMenuHide() {
-      if (this.grid_active && this.menuEpoch === this.render_epoch && this.menuOpener?.isConnected &&
-          !this.menuOpener.closest('[inert], [aria-hidden="true"]')) {
-        this.menuOpener.focus({preventScroll: true});
+    onMenuHide(session) {
+      if (session.sequence !== this.menuSession?.sequence) return;
+      if (this.grid_active && session.epoch === this.render_epoch && session.opener?.isConnected &&
+          !session.opener.closest('[inert], [aria-hidden="true"]')) {
+        session.opener.focus({preventScroll: true});
       }
-      this.menuCard = this.menuOpener = null;
+      this.menuSession = null;
     },
   },
 };

@@ -117,8 +117,9 @@ class BookmarkView:
             return
         work_id, action = args.get('work_id'), args.get('action')
         session = self._session
-        if action == 'more' and work_id is None and self.more_cell.visible:
-            self.more(session)
+        if action == 'more' and work_id is None:
+            if self.more_cell.visible and self.more_button.enabled:
+                self.more(session)
         elif type(work_id) is str and work_id in self.cards:
             if action == 'open':
                 self.open(work_id, session)
@@ -134,18 +135,19 @@ class BookmarkView:
             return
         visible = self.state.visible_items
         wanted = tuple(card.work_id for card in visible)
-        if (reset_controls or wanted[:len(self._rendered_ids)] != self._rendered_ids
-                or tuple(visible[:len(self._rendered_cards)]) != self._rendered_cards):
+        became_active = self.state.active and not self.grid.props['grid_active']
+        retired = (reset_controls or wanted[:len(self._rendered_ids)] != self._rendered_ids
+                   or visible[:len(self._rendered_cards)] != self._rendered_cards
+                   or self.grid.props['grid_active'] != self.state.active)
+        if retired:
             self._session = object()
-        if (reset_controls or visible != self._rendered_cards
-                or self.grid.props['grid_active'] != self.state.active):
             self.grid.invalidate_actions()
         self._rendered_ids = wanted
         self._rendered_cards = visible
         self.cards = {item.work_id: self._make_card(item) for item in visible}
         self.grid.props['cards'] = list(self.cards.values())
         self.grid.props['grid_active'] = self.state.active
-        if reset_controls:
+        if reset_controls or became_active:
             self.grid.retry_failed_images()
         self.more_cell.set_visibility(self.state.has_more)
         status = self.state.status

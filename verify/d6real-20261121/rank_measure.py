@@ -121,6 +121,7 @@ def image_ready(page, side):
         image = page.locator(f'flt-semantics[aria-label="{ORIGINAL_IMAGE}"]')
         image.or_(page.get_by_label(ORIGINAL_IMAGE, exact=True)).first.wait_for(
             state="visible", timeout=14000)
+        two_frames(page)
     else:
         page.wait_for_function("""cardSelector => {
             const image = document.querySelector(cardSelector + ' .pv-thumb img');
@@ -130,9 +131,10 @@ def image_ready(page, side):
           const image = document.querySelector(cardSelector + ' .pv-thumb img');
           const begin = performance.now();
           await image.decode();
-          return performance.now() - begin;
+          const decodeTime = performance.now() - begin;
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          return decodeTime;
         }""", NICE_CARD)
-    two_frames(page)
     return perf_counter(), decoded
 
 

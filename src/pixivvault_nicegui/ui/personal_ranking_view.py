@@ -20,6 +20,8 @@ class PersonalRankingView(RankingView):
         reader=getattr(services,'live_client',None)
         self.source=PersonalRankingSource(PremiumSearch(self.vault,reader,preserve_expiry=True)) if self.vault or reader else None
         self.active=False;self.closed=False;self.busy=False;self.epoch=0;self._open_generation=0;self.page=None;self.pin=None
+        self._image_records = {}
+        self._image_reader = None
         self._failed_vault_epoch=None
         self._search_failure_notice = None
         # This subclass bypasses RankingView.__init__ but inherits its lifetime cleanup.
@@ -47,7 +49,7 @@ class PersonalRankingView(RankingView):
                 # 元の借用検索は R-18 を API にも結果の絞り込みにも使わないので、切替で結果は変わらない。
                 self.r18=ui.checkbox('R-18',value=True).props('data-testid=personal-r18');self.r18.tooltip('R-18を含める')
                 self.ai=ui.checkbox('AI を除外',value=False).props('data-testid=personal-ai')
-                self.fetch_button=ui.button('取得・更新',on_click=self.load).props('flat data-testid=personal-fetch')
+                self.fetch_button=ui.button('取得・更新',on_click=self.refresh).props('flat data-testid=personal-fetch')
                 self._build_hide_manager()
             # 副行（元 ranking_tab.py:2142-2166）。隠すのはラベルとチップだけで、トグルは常に出す（戻す導線を残す）。
             # 開閉は設定 ranking_personal_candidates_open へ保存する。既定は開き。
@@ -342,6 +344,9 @@ class PersonalRankingView(RankingView):
             self.saved_filters=candidate
             self.notice.set_text('現在の条件を次回起動用に保存しました。')
         except Exception:self.notice.set_text('条件を保存できませんでした。')
+    async def refresh(self):
+        await self.load()
+
     async def load(self,*,append=False):
         if not self.active or self.closed or self.busy or self.source is None:return
         if append and (not self._current_page() or self.page.exhausted or self._search_failure_notice is not None):return
@@ -356,6 +361,7 @@ class PersonalRankingView(RankingView):
         dates = {key: value for key, value in zip(('start_date','end_date'), self._server_dates()) if value}
         self.busy=True;self.fetch_button.disable();self.gallery.more_button.disable();self.notice.set_text('取得中…')
         provider=None;old_pin,old_page,old_images=self.pin,self.page,self.proxy.images
+        published = False
         try:
             context = None
             while context is None:
@@ -381,11 +387,20 @@ class PersonalRankingView(RankingView):
             if not available:
                 self._show_search_failure('検索中に借用アカウント検索を利用できなくなりました。接続状態を確認してください。')
                 return
-            provider=self.services.acquire_ranking_images(tuple(r['item'].record for r in candidate.rows))
-            self.pin=provider;self.proxy.images=provider;self.page=candidate
-            self.render()
-            if old_pin is not None:old_pin.close()
-            provider=None
+            records = {r['item'].record.work_id: r['item'].record for r in candidate.rows}
+            provider, reader = self._ranking_image_candidate(records)
+            if provider is not None:
+                self.pin = self.proxy.images = provider
+            self.page = candidate
+            if append:
+                self.render(append=True)
+            else:
+                self.render()
+            if provider is not None and old_pin is not None:
+                old_pin.close()
+            self._image_records, self._image_reader = records, reader
+            provider = None
+            published = True
         except Exception as error:
             from ..premium_read import unavailable_message
             if not self.closed and self.active and epoch==self.epoch:
@@ -414,7 +429,9 @@ class PersonalRankingView(RankingView):
                 self._show_search_failure(self.notice.text)
         finally:
             if provider is not None:
-                self.pin,self.page,self.proxy.images=old_pin,old_page,old_images;provider.close()
+                self.pin,self.proxy.images=old_pin,old_images;provider.close()
+            if not published:
+                self.page = old_page
             self.busy=False
             if not self.closed:self.availability(update_notice=False)
     def _show_search_failure(self, message):
@@ -429,7 +446,7 @@ class PersonalRankingView(RankingView):
             self.gallery.more_cell.set_visibility(False)
         self.notice.set_text(message)
 
-    def render(self):
+    def render(self, *, append=False):
         if self.closed or self.page is None:return
         current = self._current_page()
         if not self.selected_tags() or (not current and self.page.remote_error):
@@ -441,7 +458,7 @@ class PersonalRankingView(RankingView):
         self.gallery.close_viewer(restore_focus=False);old=self.gallery.state
         state=GalleryState(tuple(r['item'].record.as_artwork() for r in rows),page_size=max(50,len(rows)))
         state.set_card_size(old.card_size);state.set_query(old.query);state.generation=old.generation+1;old.close()
-        self.gallery.state=self.gallery._viewer_state=state;self.gallery.render_gallery()
+        self.gallery.state=self.gallery._viewer_state=state;self.gallery.render_gallery(retire_actions=not append)
         self.gallery.more_cell.set_visibility(current and not self.page.exhausted)
         self.gallery.empty.set_text('条件に一致する作品は0件です。条件を変更してください。')
         self.notice.set_text(f'{self.page.order_label or "借用アカウント"}・{len(rows)}件表示 / {dropped}件を条件で除外'+('・これで全部' if self.page.exhausted else ''))

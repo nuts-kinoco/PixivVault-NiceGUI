@@ -116,12 +116,16 @@ class GalleryView(ViewerController):
         if menu is not None:menu.close()
         await self._open_author_art(art)
 
-    def render_gallery(self) -> None:
+    def render_gallery(self, *, retire_actions=True) -> None:
         if self.state.closed:
             return
         artworks = {art.work_id: art for art in self.state.visible_items}
         prepared = [(work_id, self._card_data(art, rank))
                     for rank, (work_id, art) in enumerate(artworks.items(), start=1)]
+        if not retire_actions:
+            prior = tuple(self.cards)
+            retire_actions = (tuple(artworks)[:len(prior)] != prior or
+                              any(self.cards[key].data != data for key, data in prepared[:len(prior)]))
         cards = {}
         for work_id, data in prepared:
             card = self.cards.get(work_id)
@@ -132,7 +136,8 @@ class GalleryView(ViewerController):
             cards[work_id] = card
         self.cards, self._card_artworks = cards, artworks
         self.grid.props['cards'] = [card.data for card in cards.values()]
-        self.grid.invalidate_actions()
+        if retire_actions:
+            self.grid.invalidate_actions()
         self.empty.set_visibility(not cards)
         self.more_cell.set_visibility(self.state.has_more)
         self.counter.set_text(f"{self.state.shown_count} / {self.state.total_count} 件表示")
@@ -141,6 +146,8 @@ class GalleryView(ViewerController):
         if self._viewer_active != bool(active):
             self.grid.invalidate_actions()
             self.grid.props['grid_active'] = bool(active)
+            if active and self.cards:
+                self.grid.retry_failed_images()
         super().set_viewer_active(active)
 
     def search(self, value: str | None = None) -> None:
@@ -155,7 +162,7 @@ class GalleryView(ViewerController):
         if self.state.closed or not self._viewer_active:
             return
         self.state.load_more()
-        self.render_gallery()
+        self.render_gallery(retire_actions=False)
 
     def change_size(self, size: str) -> None:
         if self.state.closed or not self._viewer_active:

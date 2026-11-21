@@ -1,7 +1,7 @@
 """Reference-counted image snapshots: one client's reload cannot change another's images."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from threading import RLock
 from uuid import uuid4
 import re
@@ -17,6 +17,7 @@ class _Version:
     remote: object | None
     preview: object | None = None
     refs: int = 0
+    thumbnail_tokens: dict[str, str] = field(default_factory=dict)
 
     def close(self) -> None:
         if self.local is not None:
@@ -98,10 +99,11 @@ class PinnedLibraryImages:
     def artwork_for(self, work_id: str):
         return self.registry.artwork_for(self.token, work_id)
 
+    def reuse_ranking_thumbnails(self, previous=None) -> None:
+        self.registry.link_ranking_thumbnails(self, previous)
+
     def close(self) -> None:
-        if not self.closed:
-            self.closed = True
-            self.registry.release(self.token)
+        self.registry.release_pin(self)
 
 
 class LibraryImageRegistry:
@@ -116,6 +118,7 @@ class LibraryImageRegistry:
         if shared_cache is not None:demo.configure_cache(shared_cache)
         self._lock = RLock()
         self._versions: dict[str, _Version] = {}
+        self._thumbnail_owners: dict[str, dict[str, str]] = {}
         self._current: str | None = None
         self._closed = False
         self._max_versions = max_versions
@@ -180,6 +183,62 @@ class LibraryImageRegistry:
             token = uuid4().hex
             self._versions[token] = _Version(None, remote, refs=1)
             return PinnedLibraryImages(self, token)
+
+    def link_ranking_thumbnails(self, pin, previous) -> None:
+        """Keep page-zero listing URLs stable across immutable ranking snapshots.
+
+        An alias is owned by open pins, independently of response references.
+        Each alias is bound to one work and one thumbnail source.
+        """
+        from .remote_media import RemoteBookmarkImages
+
+        with self._lock:
+            version = self._version(pin.token)
+            remote = version.remote
+            if (pin.closed or pin.token == self._current or not isinstance(remote, RemoteBookmarkImages)
+                    or version.local is not None):
+                raise ValueError("ranking thumbnail snapshot unavailable")
+            if version.thumbnail_tokens:
+                return
+            prior = None
+            if isinstance(previous, PinnedLibraryImages) and not previous.closed and previous.registry is self:
+                prior = self._versions.get(previous.token)
+                if prior is not None and getattr(prior.remote, 'client', None) is not remote.client:
+                    prior = None
+            for work_id, record in remote.works.items():
+                token = None
+                if prior is not None:
+                    old = prior.remote.works.get(work_id)
+                    if old is not None and old.thumbnail == record.thumbnail:
+                        token = prior.thumbnail_tokens.get(work_id)
+                token = token or uuid4().hex
+                version.thumbnail_tokens[work_id] = token
+                self._thumbnail_owners.setdefault(token, {})[pin.token] = work_id
+
+    def release_pin(self, pin: PinnedLibraryImages) -> None:
+        with self._lock:
+            if pin.closed:
+                return
+            pin.closed = True
+            token = pin.token
+            version = self._versions.get(token)
+            if version is not None:
+                for alias in version.thumbnail_tokens.values():
+                    owners = self._thumbnail_owners[alias]
+                    owners.pop(token)
+                    if not owners:
+                        self._thumbnail_owners.pop(alias)
+                version.thumbnail_tokens.clear()
+            self.release(token)
+
+    def _thumbnail_version(self, token, work_id, page_no, variant):
+        owners = self._thumbnail_owners.get(token)
+        if owners is None:
+            return token
+        owner = next(reversed(owners))
+        if work_id != owners[owner] or page_no != 0 or variant != 'thumb':
+            raise ValueError('image not found')
+        return owner
 
     def acquire(self) -> PinnedLibraryImages:
         with self._lock:
@@ -344,7 +403,8 @@ class LibraryImageRegistry:
                     # Missing offline media is rendered as an HTTP error/placeholder,
                     # never an exception during construction of the entire grid.
                     return f"/media/{work_id}/{page_no}/{variant}.png?catalog={token}"
-            return provider.url(work_id, page_no, variant) + f"?catalog={token}"
+            url_token = version.thumbnail_tokens.get(work_id, token) if variant == 'thumb' and page_no == 0 else token
+            return provider.url(work_id, page_no, variant) + f"?catalog={url_token}"
 
     def bookmark_url_for(self, token: str, work_id: str) -> str:
         with self._lock:
@@ -422,7 +482,7 @@ class LibraryImageRegistry:
         if not isinstance(token, str) or not re.fullmatch(r"[a-f0-9]{32}", token):
             raise ValueError("invalid image snapshot")
         with self._lock:
-            key = token
+            key = self._thumbnail_version(token, work_id, page_no, variant)
             version = self._version(key)
             if variant == 'bookmark_thumb':
                 covers = getattr(version.local, 'supports_novel_cover', None)
@@ -456,6 +516,7 @@ class LibraryImageRegistry:
         if not isinstance(token, str) or not re.fullmatch(r"[a-f0-9]{32}", token):
             raise ValueError("invalid image snapshot")
         with self._lock:
+            token = self._thumbnail_version(token, work_id, page_no, variant)
             version = self._version(token)
             if variant == 'bookmark_thumb':
                 covers = getattr(version.local, 'supports_novel_cover', None)
@@ -508,4 +569,5 @@ class LibraryImageRegistry:
             for version in self._versions.values():
                 version.close()
             self._versions.clear()
+            self._thumbnail_owners.clear()
             self.demo.close()
