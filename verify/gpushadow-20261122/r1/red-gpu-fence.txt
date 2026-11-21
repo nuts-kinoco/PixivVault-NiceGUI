@@ -1,0 +1,94 @@
+﻿FF                                                                       [100%]
+================================== FAILURES ===================================
+_______________ test_idle_shared_release_requires_a_fresh_start _______________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-fence-review-red/test_idle_shared_release_requi0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000029513C9AB10>
+
+    def test_idle_shared_release_requires_a_fresh_start(tmp_path, monkeypatch):
+        from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
+    
+        calls = fake_ort(monkeypatch)
+        arbiter = GpuInferenceArbiter()
+        path = tmp_path / 'egara.onnx'
+        path.write_bytes(b'synthetic egara')
+        worker = VisualPreferenceWorker(store_at(tmp_path / 'shadow'), path,
+                                        model_sha=sha256(path.read_bytes()).hexdigest(), gpu_arbiter=arbiter)
+        catalog = RemoteBookmarkImages(Client(), (record('a'), record('b')))
+        try:
+            worker.start()
+            assert worker.submit_image('a', 0, catalog.get_with_variant('a'))
+            wait_for(lambda: worker.status()['indexed'] == 1)
+            active = generation(worker.store)
+            assert worker.store.publish(active, model(active).to_payload())
+            arbiter.release_all()
+>           wait_for(lambda: not worker.store.is_current(active))
+
+tests\test_visual_preference_shadow.py:397: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+predicate = <function test_idle_shared_release_requires_a_fresh_start.<locals>.<lambda> at 0x00000295150A5260>
+
+    def wait_for(predicate):
+        deadline = monotonic() + 10
+        while not predicate():
+>           assert monotonic() < deadline
+E           assert 301976.2890302 < 301976.2731713
+E            +  where 301976.2890302 = monotonic()
+
+tests\test_visual_preference_shadow.py:46: AssertionError
+_____ test_shared_release_crossing_shadow_commit_retires_the_pending_row ______
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-fence-review-red/test_shared_release_crossing_s0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000029513DD5CD0>
+
+    def test_shared_release_crossing_shadow_commit_retires_the_pending_row(tmp_path, monkeypatch):
+        from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
+    
+        arbiter = GpuInferenceArbiter()
+        fake_ort(monkeypatch)
+        store = store_at(tmp_path / 'shadow')
+        path = tmp_path / 'egara.onnx'
+        path.write_bytes(b'synthetic egara')
+        worker = VisualPreferenceWorker(store, path, model_sha=sha256(path.read_bytes()).hexdigest(), gpu_arbiter=arbiter)
+        catalog = RemoteBookmarkImages(Client(), (record('a'),))
+        entered, unblock = Event(), Event()
+        connect = store._connect
+    
+        class Connection:
+            def __init__(self, db):
+                self.db = db
+    
+            def __getattr__(self, name):
+                return getattr(self.db, name)
+    
+            def commit(self):
+                if not entered.is_set():
+                    entered.set()
+                    assert unblock.wait(10)
+                return self.db.commit()
+    
+        def connect_with_barrier(*, write, **kwargs):
+            db = connect(write=write, **kwargs)
+            return Connection(db) if write else db
+    
+        monkeypatch.setattr(store, '_connect', connect_with_barrier)
+        try:
+            worker.start()
+            assert worker.submit_image('a', 0, catalog.get_with_variant('a'))
+            assert entered.wait(10)
+            arbiter.release_all()
+            unblock.set()
+            wait_for(lambda: worker.status()['phase'] == 'paused')
+            with closing(sqlite3.connect(store.path)) as db:
+>               assert db.execute('SELECT count(*) FROM candidate_embeddings').fetchone() == (0,)
+E               assert (1,) == (0,)
+E                 
+E                 At index 0 diff: 1 != 0
+E                 Use -v to get more diff
+
+tests\test_visual_preference_shadow.py:449: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_shadow.py::test_idle_shared_release_requires_a_fresh_start
+FAILED tests/test_visual_preference_shadow.py::test_shared_release_crossing_shadow_commit_retires_the_pending_row
+2 failed, 18 deselected in 14.26s

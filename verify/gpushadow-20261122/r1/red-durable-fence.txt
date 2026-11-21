@@ -1,0 +1,83 @@
+﻿F                                                                        [100%]
+================================== FAILURES ===================================
+_______ test_revocation_replace_failure_cannot_leave_old_model_visible ________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-durable-fence-red/test_revocation_replace_failur0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001962C89EB10>
+
+    def test_revocation_replace_failure_cannot_leave_old_model_visible(tmp_path, monkeypatch):
+        from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
+    
+        root = tmp_path / 'shadow'
+        store = store_at(root)
+        reader = store_at(root)
+        worker = VisualPreferenceWorker(store, tmp_path / 'unused.onnx')
+        service = LearningService(tmp_path / 'learning', generate_demo_artworks(1), shadow_observer=worker)
+        original = store._write_record
+    
+        def fail_replacement(path, value):
+            if path == store._revocation:
+                raise OSError('synthetic control replace failure')
+            return original(path, value)
+    
+        async def exercise():
+            session = (await service.open_session()).session_id
+            work = service.artworks[0].work_id
+            judgment = Judgment(work, 'like', 'first')
+            await service.record(session, judgment)
+            active = generation(store)
+            assert store.publish(active, model(active).to_payload())
+            epoch = reader.capture_embedding_epoch()
+            monkeypatch.setattr(store, '_write_record', fail_replacement)
+            await service.revert(session, judgment, 'undo')
+            assert await service.judged_count() == 0
+            assert not reader.is_current(active)
+            assert reader.load_model(active) is None
+            assert not store_at(root).is_current(active)
+            key = EmbeddingKey(work, 0, 'view', 'c' * 64, active.model_sha, active.preprocessing_version)
+            assert not reader.put_candidate_embedding(epoch, key, (1, 0))
+            assert not reader.has_candidate_embedding(key)
+            assert reader.put_candidate_embedding(reader.capture_embedding_epoch(), key, (1, 0))
+    
+        try:
+>           asyncio.run(exercise())
+
+tests\test_visual_preference_shadow.py:157: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    async def exercise():
+        session = (await service.open_session()).session_id
+        work = service.artworks[0].work_id
+        judgment = Judgment(work, 'like', 'first')
+        await service.record(session, judgment)
+        active = generation(store)
+        assert store.publish(active, model(active).to_payload())
+        epoch = reader.capture_embedding_epoch()
+        monkeypatch.setattr(store, '_write_record', fail_replacement)
+        await service.revert(session, judgment, 'undo')
+        assert await service.judged_count() == 0
+        assert not reader.is_current(active)
+        assert reader.load_model(active) is None
+        assert not store_at(root).is_current(active)
+        key = EmbeddingKey(work, 0, 'view', 'c' * 64, active.model_sha, active.preprocessing_version)
+>       assert not reader.put_candidate_embedding(epoch, key, (1, 0))
+E       AssertionError: assert not True
+E        +  where True = put_candidate_embedding('875f5d5be1b74a9dadc75e720393730d', EmbeddingKey(work_id='demo-0001', page=0, variant='view', image_sha='ccccccccccccccccccccccccccccccccccccccccccccccccc...ccccccccccc', model_sha='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', preprocessing_version='v1'), (1, 0))
+E        +    where put_candidate_embedding = <pixivvault_nicegui.visual_preference_store.VisualPreferenceStore object at 0x0000019629B53110>.put_candidate_embedding
+
+tests\test_visual_preference_shadow.py:152: AssertionError
+------------------------------ Captured log call ------------------------------
+WARNING  pixivvault_nicegui.visual_preference_store:visual_preference_store.py:835 visual preference generation fence used database retirement
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_shadow.py::test_revocation_replace_failure_cannot_leave_old_model_visible
+1 failed, 20 deselected in 4.57s

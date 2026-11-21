@@ -1,0 +1,23 @@
+﻿worktree=S:\Work\PV\gpu-shadow-20261122
+owner=parent Codex, supervisor worktree marker retained
+branch=gpu-shadow
+base=a466487ca7618797eff3147a0180f8619552baf9
+candidate=fdf44b790533d7f8ccb4acd690625fe09888be9d
+candidate_tree=2e5ae92506e882c4b4f3c0591aaa88d580c73c58
+src_tree=625f94b0176f640159f5c3a085661b5bb8da8715
+tests_tree=01bd4ca494d7f6b57a60bae9f1a95090918f7ce7
+tools_tree=7331fd2ffed09d799cfe5652637fbd661d9bece3
+acceptance=S:/Projects/PV-DEV-20261117/work/docs/design/gpu_learning_20261121/GPU_LEARNING_INTEGRATION_PLAN.md sections 3, 4 work 4, 6, 8
+focused=118 passed on final code, green-durable-fence.txt
+independent_sol=read-only review complete on final code and focused evidence
+full_session=30591; owned launcher and pytest process: 131092 parent=131772, 134384 parent=131092
+full_stdout=S:\Work\PV\gpu-shadow-20261122/verify/gpushadow-20261122/r1/full-candidate.txt
+full_receipt=S:\Work\PV\gpu-shadow-20261122/verify/gpushadow-20261122/r1/process-ownership.txt
+next=collect the one running full pytest; reproduce failures on the candidate and base where applicable; report owned processes and prepare cleanup dry-run
+scope=one writer; S-drive generated files; mock GPU and generated GET transport; no external runners
+context=continue in current thread, preserve active job ownership, no supervisor reset
+observed=2026-11-22T06:22:57.7808194+09:00
+completed=full pytest reported 4275 passed, 1 failed, 3 skipped, 3 deselected
+bulk followup=two baseline and two candidate replays each passed, exact route files match base
+live test processes=0, see processes-final.txt
+next=supervisor collection of final candidate, evidence, and full-run timing failure

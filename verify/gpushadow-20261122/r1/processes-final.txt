@@ -1,0 +1,5 @@
+﻿checked=2026-11-22T07:02:54.7235355+09:00
+selected candidate=fdf44b790533d7f8ccb4acd690625fe09888be9d
+test processes matching owned path=0
+previously recorded launcher, interpreter and console PIDs still present=0
+pre-existing supervisor ancestry: nohup -> python host -> codex, preserved

@@ -1,0 +1,316 @@
+﻿FFFFFFFFFFF.                                                             [100%]
+================================== FAILURES ===================================
+__________ test_committed_notifications_and_generation_invalidation ___________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-red-20261122/test_committed_notifications_a0')
+
+    def test_committed_notifications_and_generation_invalidation(tmp_path):
+>       from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
+E       ModuleNotFoundError: No module named 'pixivvault_nicegui.visual_preference_worker'
+
+tests\test_visual_preference_shadow.py:41: ModuleNotFoundError
+__________ test_observer_failure_isolated_and_receipt_is_replay_safe __________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-red-20261122/test_observer_failure_isolated0')
+caplog = <_pytest.logging.LogCaptureFixture object at 0x000001D93A87CAD0>
+
+    def test_observer_failure_isolated_and_receipt_is_replay_safe(tmp_path, caplog):
+        calls = []
+    
+        def fail(*args):
+            calls.append(args)
+            raise RuntimeError('sensitive exception details')
+    
+>       service = LearningService(tmp_path / 'learning', generate_demo_artworks(1),
+                                  shadow_observer=SimpleNamespace(judgment_changed=fail))
+E       TypeError: LearningService.__init__() got an unexpected keyword argument 'shadow_observer'
+
+tests\test_visual_preference_shadow.py:92: TypeError
+_______ test_ranking_diagnostics_and_observer_preserve_frames_and_ties ________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-red-20261122/test_ranking_diagnostics_and_o0')
+
+    def test_ranking_diagnostics_and_observer_preserve_frames_and_ties(tmp_path):
+>       from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
+E       ModuleNotFoundError: No module named 'pixivvault_nicegui.visual_preference_worker'
+
+tests\test_visual_preference_shadow.py:112: ModuleNotFoundError
+_ test_prefetch_passes_existing_result_without_extra_dispatch_or_lru_touches __
+
+    def test_prefetch_passes_existing_result_without_extra_dispatch_or_lru_touches():
+        results = []
+        preferences = SimpleNamespace(snapshot=lambda: SimpleNamespace(values={
+            'discovery_cache_limit_mode': 'count', 'discovery_cache_size_count': '5'}))
+    
+        async def run(missing, on_image=None):
+            client = Client(missing=missing)
+            pin = RemoteBookmarkImages(client, (record('first', known=not missing), record('second', known=not missing)))
+            other = RemoteBookmarkImages(client, (record('other'),))
+            cache = SharedImageCache(max_bytes=2 * len(png()))
+            try:
+                pin.configure_cache(cache)
+                other.configure_cache(cache)
+                ready = []
+                kwargs = {'on_image': on_image} if on_image else {}
+                prefetch = LearningImagePrefetch(preferences, pin, on_ready=ready.append, **kwargs)
+                prefetch.set_queue(('first',))
+                assert (await prefetch.run()).fetched == 1
+                if not missing:
+                    other.get('other')
+                    pin.get('second')
+                    assert pin.peek_with_variant('first', 0, 'view') is None
+                return client.calls, ready
+            finally:
+                pin.close()
+                other.close()
+                cache.close()
+    
+        for missing in (False, True):
+            baseline = asyncio.run(run(missing))
+>           assert asyncio.run(run(missing, lambda *args: results.append(args))) == baseline
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_visual_preference_shadow.py:181: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+missing = False
+on_image = <function test_prefetch_passes_existing_result_without_extra_dispatch_or_lru_touches.<locals>.<lambda> at 0x000001D93A944B80>
+
+    async def run(missing, on_image=None):
+        client = Client(missing=missing)
+        pin = RemoteBookmarkImages(client, (record('first', known=not missing), record('second', known=not missing)))
+        other = RemoteBookmarkImages(client, (record('other'),))
+        cache = SharedImageCache(max_bytes=2 * len(png()))
+        try:
+            pin.configure_cache(cache)
+            other.configure_cache(cache)
+            ready = []
+            kwargs = {'on_image': on_image} if on_image else {}
+>           prefetch = LearningImagePrefetch(preferences, pin, on_ready=ready.append, **kwargs)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           TypeError: LearningImagePrefetch.__init__() got an unexpected keyword argument 'on_image'
+
+tests\test_visual_preference_shadow.py:166: TypeError
+____ test_worker_is_opt_in_cuda_only_records_all_image_variants_and_stops _____
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-red-20261122/test_worker_is_opt_in_cuda_onl0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001D9397AFAC0>
+
+    def test_worker_is_opt_in_cuda_only_records_all_image_variants_and_stops(tmp_path, monkeypatch):
+>       from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
+E       ModuleNotFoundError: No module named 'pixivvault_nicegui.visual_preference_worker'
+
+tests\test_visual_preference_shadow.py:187: ModuleNotFoundError
+___ test_worker_parks_on_shared_stop_or_cuda_failure_and_can_restart[False] ___
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-red-20261122/test_worker_parks_on_shared_st0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001D93A8B2650>
+cuda_error = False
+
+    @pytest.mark.parametrize('cuda_error', [False, True])
+    def test_worker_parks_on_shared_stop_or_cuda_failure_and_can_restart(tmp_path, monkeypatch, cuda_error):
+>       from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
+E       ModuleNotFoundError: No module named 'pixivvault_nicegui.visual_preference_worker'
+
+tests\test_visual_preference_shadow.py:223: ModuleNotFoundError
+___ test_worker_parks_on_shared_stop_or_cuda_failure_and_can_restart[True] ____
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-red-20261122/test_worker_parks_on_shared_st1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001D93A8B2950>
+cuda_error = True
+
+    @pytest.mark.parametrize('cuda_error', [False, True])
+    def test_worker_parks_on_shared_stop_or_cuda_failure_and_can_restart(tmp_path, monkeypatch, cuda_error):
+>       from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
+E       ModuleNotFoundError: No module named 'pixivvault_nicegui.visual_preference_worker'
+
+tests\test_visual_preference_shadow.py:223: ModuleNotFoundError
+___________ test_evaluation_aggregates_latest_rows_without_vectors ____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001D93A96C6E0>
+
+    def test_evaluation_aggregates_latest_rows_without_vectors(monkeypatch):
+        from tools import evaluate_visual_preference as evaluator
+    
+        data = evaluator.synthetic_input()
+        sample = data['training'][0]
+        data['training'] = [dict(sample, judgment='', revision=2),
+            dict(sample, vector=None, judgment='like', saved=True, revision=2),
+            dict(sample, work_id='conflict', judgment='like', revision=2),
+            dict(sample, work_id='conflict', vector=None, judgment='hate', reason='style', revision=2),
+            dict(sample, work_id='superseded', judgment='like', revision=1),
+            dict(sample, work_id='superseded', vector=None, judgment='skip', revision=2)]
+        captured = []
+        actual = evaluator.fit
+    
+        def fit(active, samples, **kwargs):
+            captured.extend(samples)
+            return actual(active, samples, **kwargs)
+    
+        monkeypatch.setattr(evaluator, 'fit', fit)
+        evaluator.evaluate(data, bootstrap_samples=2)
+>       assert len(captured) == 2
+E       AssertionError: assert 4 == 2
+E        +  where 4 = len([TrainingSample(embedding=Embedding(key=EmbeddingKey(work_id='train-like1', page=0, variant='saved_original', image_sh...version='v1'), vector=(1, 0, 0)), author_id='a', judgment='like', reason='', saved=True, bookmarked=False, revision=2)])
+
+tests\test_visual_preference_shadow.py:295: AssertionError
+____________ test_purge_does_not_revoke_before_ownership_is_proven ____________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-red-20261122/test_purge_does_not_revoke_bef0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001D93A96E5D0>
+
+    def test_purge_does_not_revoke_before_ownership_is_proven(tmp_path, monkeypatch):
+        store = store_at(tmp_path / 'shadow')
+        active = generation(store)
+        original = VisualPreferenceStore._read_database_owner
+    
+        def unexpected_owner(instance):
+            assert store.is_current(active)
+            original(instance)
+            return (-1, -1)
+    
+        monkeypatch.setattr(VisualPreferenceStore, '_read_database_owner', unexpected_owner)
+        with pytest.raises(VisualPreferenceStoreError):
+>           VisualPreferenceStore.purge_owned(store.root, profile='test-profile', account='test-account', protected_paths=())
+
+tests\test_visual_preference_shadow.py:312: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\pixivvault_nicegui\visual_preference_store.py:897: in purge_owned
+    recorded = store._read_database_owner()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+instance = <pixivvault_nicegui.visual_preference_store.VisualPreferenceStore object at 0x000001D93ABE47D0>
+
+    def unexpected_owner(instance):
+>       assert store.is_current(active)
+E       AssertionError: assert False
+E        +  where False = is_current(Generation(store_id='e1a36f9ea32f45c4bcc290fbe17dc7f0', number=4099443014311367143, model_sha='aaaaaaaaaaaaaaaaaaaaaaa...', preprocessing_version='v1', judgment_fingerprint='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'))
+E        +    where is_current = <pixivvault_nicegui.visual_preference_store.VisualPreferenceStore object at 0x000001D93A87E510>.is_current
+
+tests\test_visual_preference_shadow.py:306: AssertionError
+___________ test_resume_after_release_before_stopped_handler[tags] ____________
+
+kind = 'tags'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001D93A955D30>
+
+    @pytest.mark.parametrize('kind', ['tags', 'similarity'])
+    def test_resume_after_release_before_stopped_handler(kind, monkeypatch):
+        caught, unblock, second = Event(), Event(), Event()
+        calls = []
+        previous = DEFAULT_GPU_ARBITER.stop_scope
+    
+        @contextmanager
+        def stop_scope():
+            try:
+                with previous():
+                    yield
+            except GpuInferenceStopped:
+                caught.set()
+                assert unblock.wait(10)
+                raise
+    
+        def operation():
+            calls.append(1)
+            if len(calls) == 1:
+                with DEFAULT_GPU_ARBITER.acquire(operation):
+                    pass
+                DEFAULT_GPU_ARBITER.release_all()
+                DEFAULT_GPU_ARBITER.check_scope()
+            second.set()
+    
+        monkeypatch.setattr(DEFAULT_GPU_ARBITER, 'stop_scope', stop_scope)
+        if kind == 'tags':
+            tagger = SimpleNamespace(current_fingerprint=lambda: 'fingerprint')
+            worker = LocalTagView(tagger, None, tuple, tuple)
+            monkeypatch.setattr(worker, '_collect_entries', lambda *_: (operation(), {}))
+            future = worker.refresh_async()
+            resume, close = lambda: worker.refresh_async(resume=True), worker.close
+        else:
+            worker = SimilarityWorker(lambda: (operation(), ())[1], lambda *_: True, auto=lambda: False)
+            worker.start()
+            resume, close = worker.resume, worker.stop
+        try:
+            assert caught.wait(5)
+            resumed = resume()
+            unblock.set()
+>           assert second.wait(3)
+E           assert False
+E            +  where False = wait(3)
+E            +    where wait = <threading.Event at 0x1d93a982d50: unset>.wait
+
+tests\test_visual_preference_shadow.py:356: AssertionError
+________ test_resume_after_release_before_stopped_handler[similarity] _________
+
+kind = 'similarity'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001D93A956CF0>
+
+    @pytest.mark.parametrize('kind', ['tags', 'similarity'])
+    def test_resume_after_release_before_stopped_handler(kind, monkeypatch):
+        caught, unblock, second = Event(), Event(), Event()
+        calls = []
+        previous = DEFAULT_GPU_ARBITER.stop_scope
+    
+        @contextmanager
+        def stop_scope():
+            try:
+                with previous():
+                    yield
+            except GpuInferenceStopped:
+                caught.set()
+                assert unblock.wait(10)
+                raise
+    
+        def operation():
+            calls.append(1)
+            if len(calls) == 1:
+                with DEFAULT_GPU_ARBITER.acquire(operation):
+                    pass
+                DEFAULT_GPU_ARBITER.release_all()
+                DEFAULT_GPU_ARBITER.check_scope()
+            second.set()
+    
+        monkeypatch.setattr(DEFAULT_GPU_ARBITER, 'stop_scope', stop_scope)
+        if kind == 'tags':
+            tagger = SimpleNamespace(current_fingerprint=lambda: 'fingerprint')
+            worker = LocalTagView(tagger, None, tuple, tuple)
+            monkeypatch.setattr(worker, '_collect_entries', lambda *_: (operation(), {}))
+            future = worker.refresh_async()
+            resume, close = lambda: worker.refresh_async(resume=True), worker.close
+        else:
+            worker = SimilarityWorker(lambda: (operation(), ())[1], lambda *_: True, auto=lambda: False)
+            worker.start()
+            resume, close = worker.resume, worker.stop
+        try:
+            assert caught.wait(5)
+            resumed = resume()
+            unblock.set()
+>           assert second.wait(3)
+E           assert False
+E            +  where False = wait(3)
+E            +    where wait = <threading.Event at 0x1d93a957150: unset>.wait
+
+tests\test_visual_preference_shadow.py:356: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_shadow.py::test_committed_notifications_and_generation_invalidation
+FAILED tests/test_visual_preference_shadow.py::test_observer_failure_isolated_and_receipt_is_replay_safe
+FAILED tests/test_visual_preference_shadow.py::test_ranking_diagnostics_and_observer_preserve_frames_and_ties
+FAILED tests/test_visual_preference_shadow.py::test_prefetch_passes_existing_result_without_extra_dispatch_or_lru_touches
+FAILED tests/test_visual_preference_shadow.py::test_worker_is_opt_in_cuda_only_records_all_image_variants_and_stops
+FAILED tests/test_visual_preference_shadow.py::test_worker_parks_on_shared_stop_or_cuda_failure_and_can_restart[False]
+FAILED tests/test_visual_preference_shadow.py::test_worker_parks_on_shared_stop_or_cuda_failure_and_can_restart[True]
+FAILED tests/test_visual_preference_shadow.py::test_evaluation_aggregates_latest_rows_without_vectors
+FAILED tests/test_visual_preference_shadow.py::test_purge_does_not_revoke_before_ownership_is_proven
+FAILED tests/test_visual_preference_shadow.py::test_resume_after_release_before_stopped_handler[tags]
+FAILED tests/test_visual_preference_shadow.py::test_resume_after_release_before_stopped_handler[similarity]
+11 failed, 1 passed in 7.14s

@@ -1,0 +1,1 @@
+﻿192 synthetic comparisons: exact candidate order and frame map match a466487

@@ -1,0 +1,83 @@
+﻿......................F....F............................................ [ 85%]
+...........F                                                             [100%]
+================================== FAILURES ===================================
+_______ test_similarity_worker_parks_without_counting_cooperative_stop ________
+
+    def test_similarity_worker_parks_without_counting_cooperative_stop():
+        called = []
+    
+        def analyze(*args, **kwargs):
+            called.append(1)
+            raise GpuInferenceStopped()
+    
+        worker = SimilarityWorker(lambda: [('synthetic', 1), ('synthetic', 2)], analyze)
+        worker._phase = 'running'
+>       worker._scan_once(0)
+E       TypeError: SimilarityWorker._scan_once() missing 1 required positional argument: 'resume_request'
+
+tests\test_gpuarb_review.py:199: TypeError
+____ test_cooperative_stop_between_pages_prevents_new_gpu_work[similarity] ____
+
+worker_kind = 'similarity'
+
+    @pytest.mark.parametrize('worker_kind', ['tagger', 'similarity'])
+    def test_cooperative_stop_between_pages_prevents_new_gpu_work(worker_kind):
+        entered, resume = Event(), Event()
+        processed = []
+        owner = object()
+    
+        def analyze(work, *_args, **_kwargs):
+            if work == 'b':
+                entered.set()
+                assert resume.wait(5)
+            with DEFAULT_GPU_ARBITER.acquire(owner):
+                processed.append(work)
+            return True
+    
+        if worker_kind == 'similarity':
+            worker = SimilarityWorker(lambda: [('a', 1), ('b', 1)], analyze)
+            worker._phase = 'running'
+            scan = lambda: worker._scan_once(0)
+        else:
+            tagger = SimpleNamespace(current_fingerprint=lambda: 'synthetic')
+            worker = LocalTagView(tagger, lambda _: None, lambda: (), lambda: ())
+            worker._eligible = lambda: ['a', 'b']
+    
+            def refresh_entry(wid, _fingerprint, _old):
+                analyze(wid)
+                return None
+    
+            worker._refresh_entry = refresh_entry
+            scan = worker.refresh_now
+    
+        try:
+            with ThreadPoolExecutor(1) as pool:
+                running = pool.submit(scan)
+                try:
+>                   assert entered.wait(5)
+E                   assert False
+E                    +  where False = wait(5)
+E                    +    where wait = <threading.Event at 0x1a703ca9c70: unset>.wait
+
+tests\test_gpuarb_review.py:302: AssertionError
+________________________ test_candidate_network_routes ________________________
+
+    def test_candidate_network_routes():
+        root = Path(__file__).resolve().parents[1]
+        review = json.loads((root / 'tools' / 'p6_network_review.json').read_text(encoding='utf-8'))
+        issues = p6_network.check(p6_network.inventory(root / 'src'), review)
+>       assert not issues, '\n'.join(issues)
+E       AssertionError: pixivvault_nicegui/discovery_learning.py:328 DiscoveryLearningService._fetch_candidates client.require_identity: unreviewed
+E         pixivvault_nicegui/discovery_learning.py:334 DiscoveryLearningService._fetch_candidates client.get_following_users: unreviewed
+E         pixivvault_nicegui/ui/learning_view.py:1503 LearningView.request_image browser.set_source.source: unreviewed
+E         stale review: pixivvault_nicegui/discovery_learning.py:DiscoveryLearningService._fetch_candidates:client.get_following_users:c75aaaabea74b483:235e4fb1893a94e9:1
+E         stale review: pixivvault_nicegui/discovery_learning.py:DiscoveryLearningService._fetch_candidates:client.require_identity:c75aaaabea74b483:8356415f82ac0764:1
+E         stale review: pixivvault_nicegui/ui/learning_view.py:LearningView.request_image:browser.set_source.source:19e0a63dbb0a4dfd:1772583a655e3ccf:1
+E       assert not ['pixivvault_nicegui/discovery_learning.py:328 DiscoveryLearningService._fetch_candidates client.require_identity: unr..._nicegui/ui/learning_view.py:LearningView.request_image:browser.set_source.source:19e0a63dbb0a4dfd:1772583a655e3ccf:1']
+
+tests\test_p6_network.py:80: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_gpuarb_review.py::test_similarity_worker_parks_without_counting_cooperative_stop
+FAILED tests/test_gpuarb_review.py::test_cooperative_stop_between_pages_prevents_new_gpu_work[similarity]
+FAILED tests/test_p6_network.py::test_candidate_network_routes - AssertionErr...
+3 failed, 81 passed in 38.95s

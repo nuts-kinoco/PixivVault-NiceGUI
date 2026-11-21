@@ -1,0 +1,321 @@
+﻿..F..FF...F.....FF.                                                      [100%]
+================================== FAILURES ===================================
+_______ test_revocation_replace_failure_cannot_leave_old_model_visible ________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-review-red/test_revocation_replace_failur0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001CE78E7F410>
+
+    def test_revocation_replace_failure_cannot_leave_old_model_visible(tmp_path, monkeypatch):
+        from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
+    
+        root = tmp_path / 'shadow'
+        store = store_at(root)
+        reader = store_at(root)
+        worker = VisualPreferenceWorker(store, tmp_path / 'unused.onnx')
+        service = LearningService(tmp_path / 'learning', generate_demo_artworks(1), shadow_observer=worker)
+        original = store._write_record
+    
+        def fail_replacement(path, value):
+            if path == store._revocation:
+                raise OSError('synthetic control replace failure')
+            return original(path, value)
+    
+        async def exercise():
+            session = (await service.open_session()).session_id
+            work = service.artworks[0].work_id
+            judgment = Judgment(work, 'like', 'first')
+            await service.record(session, judgment)
+            active = generation(store)
+            assert store.publish(active, model(active).to_payload())
+            monkeypatch.setattr(store, '_write_record', fail_replacement)
+            await service.revert(session, judgment, 'undo')
+            assert await service.judged_count() == 0
+            assert not reader.is_current(active)
+            assert reader.load_model(active) is None
+            assert not store_at(root).is_current(active)
+    
+        try:
+>           asyncio.run(exercise())
+
+tests\test_visual_preference_shadow.py:151: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    async def exercise():
+        session = (await service.open_session()).session_id
+        work = service.artworks[0].work_id
+        judgment = Judgment(work, 'like', 'first')
+        await service.record(session, judgment)
+        active = generation(store)
+        assert store.publish(active, model(active).to_payload())
+        monkeypatch.setattr(store, '_write_record', fail_replacement)
+        await service.revert(session, judgment, 'undo')
+        assert await service.judged_count() == 0
+>       assert not reader.is_current(active)
+E       AssertionError: assert not True
+E        +  where True = is_current(Generation(store_id='e5bbc69f77564b8594d9734a7d871f0a', number=242051720338494331, model_sha='aaaaaaaaaaaaaaaaaaaaaaaa...', preprocessing_version='v1', judgment_fingerprint='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'))
+E        +    where is_current = <pixivvault_nicegui.visual_preference_store.VisualPreferenceStore object at 0x000001CE78C0CA50>.is_current
+
+tests\test_visual_preference_shadow.py:146: AssertionError
+------------------------------ Captured log call ------------------------------
+WARNING  pixivvault_nicegui.learning_service:learning_service.py:38 visual preference observer notification failed
+_ test_real_learning_load_and_prefetch_share_transport_with_observer_off[False] _
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-review-red/test_real_learning_load_and_pr0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001CE78E8FE50>
+missing = False
+
+    @pytest.mark.parametrize('missing', [False, True])
+    async def test_real_learning_load_and_prefetch_share_transport_with_observer_off(tmp_path, monkeypatch, missing):
+        from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
+    
+        calls = []
+        regular_url = 'https://i.pximg.net/synthetic-regular.png'
+    
+        def transport(request, *_):
+            calls.append((request.get_method(), request.full_url))
+            if '/pages' in request.full_url:
+                if missing:
+                    raise HTTPStatusRejected(404)
+                return json.dumps({'error': False, 'body': [{'urls': {'regular': regular_url}}]}).encode()
+            return png()
+    
+        client = _client(ManagedNetworkStopGate(tmp_path / 'gate.sqlite3'), transport)
+        client._cookies = CookieJar()
+        view, _, service, cleanup = await open_discovery_view(tmp_path, monkeypatch)
+        store = store_at(tmp_path / 'shadow')
+        worker = VisualPreferenceWorker(store, tmp_path / 'unused.onnx')
+        preferences = SimpleNamespace(snapshot=lambda: SimpleNamespace(values={
+            'discovery_cache_limit_mode': 'count', 'discovery_cache_size_count': '5'}))
+        before = tuple(a.work_id for a in view.state.artworks)
+        key = before[0]
+        try:
+            for observing in (False, True):
+                calls.clear()
+                cache = SharedImageCache(max_bytes=4096)
+                registry = LibraryImageRegistry(DemoImageCatalog(()), shared_cache=cache)
+                pin = registry.acquire_catalog(RemoteBookmarkImages(client, (record(key, known=not missing),)))
+                try:
+                    service.shadow_observer = worker if observing else None
+                    prefetch = LearningImagePrefetch(preferences, pin, on_image=service.shadow_image if observing else None)
+                    prefetch.set_queue((key,))
+>                   assert (await prefetch.run()).fetched == 1
+E                   AssertionError: assert 0 == 1
+E                    +  where 0 = PrefetchResult(status='failed', fetched=0, failed=1).fetched
+
+tests\test_visual_preference_shadow.py:265: AssertionError
+_ test_real_learning_load_and_prefetch_share_transport_with_observer_off[True] _
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-review-red/test_real_learning_load_and_pr1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001CE7A0A0F50>
+missing = True
+
+    @pytest.mark.parametrize('missing', [False, True])
+    async def test_real_learning_load_and_prefetch_share_transport_with_observer_off(tmp_path, monkeypatch, missing):
+        from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
+    
+        calls = []
+        regular_url = 'https://i.pximg.net/synthetic-regular.png'
+    
+        def transport(request, *_):
+            calls.append((request.get_method(), request.full_url))
+            if '/pages' in request.full_url:
+                if missing:
+                    raise HTTPStatusRejected(404)
+                return json.dumps({'error': False, 'body': [{'urls': {'regular': regular_url}}]}).encode()
+            return png()
+    
+        client = _client(ManagedNetworkStopGate(tmp_path / 'gate.sqlite3'), transport)
+        client._cookies = CookieJar()
+        view, _, service, cleanup = await open_discovery_view(tmp_path, monkeypatch)
+        store = store_at(tmp_path / 'shadow')
+        worker = VisualPreferenceWorker(store, tmp_path / 'unused.onnx')
+        preferences = SimpleNamespace(snapshot=lambda: SimpleNamespace(values={
+            'discovery_cache_limit_mode': 'count', 'discovery_cache_size_count': '5'}))
+        before = tuple(a.work_id for a in view.state.artworks)
+        key = before[0]
+        try:
+            for observing in (False, True):
+                calls.clear()
+                cache = SharedImageCache(max_bytes=4096)
+                registry = LibraryImageRegistry(DemoImageCatalog(()), shared_cache=cache)
+                pin = registry.acquire_catalog(RemoteBookmarkImages(client, (record(key, known=not missing),)))
+                try:
+                    service.shadow_observer = worker if observing else None
+                    prefetch = LearningImagePrefetch(preferences, pin, on_image=service.shadow_image if observing else None)
+                    prefetch.set_queue((key,))
+>                   assert (await prefetch.run()).fetched == 1
+E                   AssertionError: assert 0 == 1
+E                    +  where 0 = PrefetchResult(status='failed', fetched=0, failed=1).fetched
+
+tests\test_visual_preference_shadow.py:265: AssertionError
+_______________ test_idle_shared_release_requires_a_fresh_start _______________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-review-red/test_idle_shared_release_requi0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001CE78E259D0>
+
+    def test_idle_shared_release_requires_a_fresh_start(tmp_path, monkeypatch):
+        from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
+    
+        calls = fake_ort(monkeypatch)
+        arbiter = GpuInferenceArbiter()
+        path = tmp_path / 'egara.onnx'
+        path.write_bytes(b'synthetic egara')
+        worker = VisualPreferenceWorker(store_at(tmp_path / 'shadow'), path,
+                                        model_sha=sha256(path.read_bytes()).hexdigest(), gpu_arbiter=arbiter)
+        catalog = RemoteBookmarkImages(Client(), (record('a'), record('b')))
+        try:
+            worker.start()
+            assert worker.submit_image('a', 0, catalog.get_with_variant('a'))
+            wait_for(lambda: worker.status()['indexed'] == 1)
+            arbiter.release_all()
+>           assert not worker.submit_image('b', 0, catalog.get_with_variant('b'))
+E           assert not True
+E            +  where True = submit_image('b', 0, RemoteImageWithVariant(blob=ImageBlob(data=b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\xf0\x00\x00\x00\xf0\x08\x...a_type='image/png', etag='"0a16380efccb9e8ce4476255cab099923ee7772ad4897a807ee67916986d2906"'), variant='regular_view'))
+E            +    where submit_image = <pixivvault_nicegui.visual_preference_worker.VisualPreferenceWorker object at 0x000001CE7A102450>.submit_image
+E            +    and   RemoteImageWithVariant(blob=ImageBlob(data=b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\xf0\x00\x00\x00\xf0\x08\x...a_type='image/png', etag='"0a16380efccb9e8ce4476255cab099923ee7772ad4897a807ee67916986d2906"'), variant='regular_view') = get_with_variant('b')
+E            +      where get_with_variant = <pixivvault_nicegui.remote_media.RemoteBookmarkImages object at 0x000001CE78E26990>.get_with_variant
+
+tests\test_visual_preference_shadow.py:395: AssertionError
+_________ test_resume_after_release_before_stopped_handler[True-tags] _________
+
+kind = 'tags', resume_before_release = True
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001CE79EFDFD0>
+
+    @pytest.mark.parametrize('kind', ['tags', 'similarity'])
+    @pytest.mark.parametrize('resume_before_release', [False, True])
+    def test_resume_after_release_before_stopped_handler(kind, resume_before_release, monkeypatch):
+        before_release, release, caught, unblock, second = Event(), Event(), Event(), Event(), Event()
+        calls = []
+        previous = DEFAULT_GPU_ARBITER.stop_scope
+    
+        @contextmanager
+        def stop_scope():
+            try:
+                with previous():
+                    yield
+            except GpuInferenceStopped:
+                caught.set()
+                assert unblock.wait(10)
+                raise
+    
+        def operation():
+            calls.append(1)
+            if len(calls) == 1:
+                with DEFAULT_GPU_ARBITER.acquire(operation):
+                    pass
+                before_release.set()
+                assert release.wait(10)
+                DEFAULT_GPU_ARBITER.release_all()
+                DEFAULT_GPU_ARBITER.check_scope()
+            second.set()
+    
+        monkeypatch.setattr(DEFAULT_GPU_ARBITER, 'stop_scope', stop_scope)
+        if kind == 'tags':
+            tagger = SimpleNamespace(current_fingerprint=lambda: 'fingerprint')
+            worker = LocalTagView(tagger, None, tuple, tuple)
+            monkeypatch.setattr(worker, '_collect_entries', lambda *_: (operation(), {}))
+            future = worker.refresh_async()
+            resume, close = lambda: worker.refresh_async(resume=True), worker.close
+        else:
+            worker = SimilarityWorker(lambda: (operation(), ())[1], lambda *_: True, auto=lambda: False)
+            worker.start()
+            resume, close = worker.resume, worker.stop
+        try:
+            assert before_release.wait(5)
+            if resume_before_release:
+                resume()
+            release.set()
+            assert caught.wait(5)
+            resumed = None if resume_before_release else resume()
+            unblock.set()
+            if resume_before_release:
+                if kind == 'tags':
+                    future.result(3)
+>                   assert worker._gpu_paused
+E                   assert False
+E                    +  where False = <pixivvault_nicegui.local_tag_view.LocalTagView object at 0x000001CE78CD3890>._gpu_paused
+
+tests\test_visual_preference_shadow.py:532: AssertionError
+______ test_resume_after_release_before_stopped_handler[True-similarity] ______
+
+kind = 'similarity', resume_before_release = True
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001CE78C9D150>
+
+    @pytest.mark.parametrize('kind', ['tags', 'similarity'])
+    @pytest.mark.parametrize('resume_before_release', [False, True])
+    def test_resume_after_release_before_stopped_handler(kind, resume_before_release, monkeypatch):
+        before_release, release, caught, unblock, second = Event(), Event(), Event(), Event(), Event()
+        calls = []
+        previous = DEFAULT_GPU_ARBITER.stop_scope
+    
+        @contextmanager
+        def stop_scope():
+            try:
+                with previous():
+                    yield
+            except GpuInferenceStopped:
+                caught.set()
+                assert unblock.wait(10)
+                raise
+    
+        def operation():
+            calls.append(1)
+            if len(calls) == 1:
+                with DEFAULT_GPU_ARBITER.acquire(operation):
+                    pass
+                before_release.set()
+                assert release.wait(10)
+                DEFAULT_GPU_ARBITER.release_all()
+                DEFAULT_GPU_ARBITER.check_scope()
+            second.set()
+    
+        monkeypatch.setattr(DEFAULT_GPU_ARBITER, 'stop_scope', stop_scope)
+        if kind == 'tags':
+            tagger = SimpleNamespace(current_fingerprint=lambda: 'fingerprint')
+            worker = LocalTagView(tagger, None, tuple, tuple)
+            monkeypatch.setattr(worker, '_collect_entries', lambda *_: (operation(), {}))
+            future = worker.refresh_async()
+            resume, close = lambda: worker.refresh_async(resume=True), worker.close
+        else:
+            worker = SimilarityWorker(lambda: (operation(), ())[1], lambda *_: True, auto=lambda: False)
+            worker.start()
+            resume, close = worker.resume, worker.stop
+        try:
+            assert before_release.wait(5)
+            if resume_before_release:
+                resume()
+            release.set()
+            assert caught.wait(5)
+            resumed = None if resume_before_release else resume()
+            unblock.set()
+            if resume_before_release:
+                if kind == 'tags':
+                    future.result(3)
+                    assert worker._gpu_paused
+                else:
+                    wait_for(lambda: worker.status()['phase'] != 'running')
+>                   assert worker.status()['phase'] == 'paused'
+E                   AssertionError: assert 'idle' == 'paused'
+E                     
+E                     - paused
+E                     + idle
+
+tests\test_visual_preference_shadow.py:535: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_shadow.py::test_revocation_replace_failure_cannot_leave_old_model_visible
+FAILED tests/test_visual_preference_shadow.py::test_real_learning_load_and_prefetch_share_transport_with_observer_off[False]
+FAILED tests/test_visual_preference_shadow.py::test_real_learning_load_and_prefetch_share_transport_with_observer_off[True]
+FAILED tests/test_visual_preference_shadow.py::test_idle_shared_release_requires_a_fresh_start
+FAILED tests/test_visual_preference_shadow.py::test_resume_after_release_before_stopped_handler[True-tags]
+FAILED tests/test_visual_preference_shadow.py::test_resume_after_release_before_stopped_handler[True-similarity]
+6 failed, 13 passed in 9.09s

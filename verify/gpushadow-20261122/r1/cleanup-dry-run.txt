@@ -1,0 +1,28 @@
+﻿KEEP S:\Work\PV\gpu-shadow-20261122 until supervisor collection and integration. The candidate branch and verified evidence are here.
+DELETE by supervisor S:\Work\_tmp\PV\gpu-shadow-20261122 after collection. Isolated pytest profiles and base archive/extraction only. No registered worktree or protected data.
+root reparse point: false
+owned processes with test command path: 0
+dry-run operation: Remove-Item -LiteralPath <checked absolute path> -Recurse -WhatIf
+appdata written=2026-11-22T06:04:44
+baseline-a466487 written=2026-11-22T06:57:10
+baseline-a466487.tar written=2026-11-22T06:56:15
+final-collection.txt written=2026-11-22T06:54:56
+localappdata written=2026-11-22T06:42:00
+pytest-shadow-accepted-full-20261122 written=2026-11-22T06:58:14
+pytest-shadow-bulk-base-1-20261122 written=2026-11-22T06:59:32
+pytest-shadow-bulk-base-2-20261122 written=2026-11-22T07:00:15
+pytest-shadow-bulk-candidate-1-20261122 written=2026-11-22T06:59:46
+pytest-shadow-bulk-candidate-2-20261122 written=2026-11-22T07:00:00
+pytest-shadow-durable-fence-red written=2026-11-22T06:19:48
+pytest-shadow-fence-final-20261122 written=2026-11-22T06:20:57
+pytest-shadow-fence-review-red written=2026-11-22T06:14:34
+pytest-shadow-final-full-20261122 written=2026-11-22T06:19:19
+pytest-shadow-focused-20261122 written=2026-11-22T06:03:09
+pytest-shadow-focused-final-20261122 written=2026-11-22T06:16:43
+pytest-shadow-full-20261122 written=2026-11-22T06:07:13
+pytest-shadow-green-first written=2026-11-22T05:59:22
+pytest-shadow-red-20261122 written=2026-11-22T05:54:02
+pytest-shadow-review-green written=2026-11-22T06:12:59
+pytest-shadow-review-red written=2026-11-22T06:10:22
+test-temp written=2026-11-22T06:46:04
+empty stderr files placed in the same isolated temp root for supervisor cleanup

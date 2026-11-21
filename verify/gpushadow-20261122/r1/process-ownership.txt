@@ -1,0 +1,10 @@
+﻿pid=136824 start=2026-11-22T06:02:40.4038308+09:00
+pid=136824 exited=True code=
+full head=2b23eb38b5533b624ba36c5996bf61a29d38a7ee tree=8319679c3530f57b06d02f45b809d04582736eb2 pid=129636 start=2026-11-22T06:04:44.8433359+09:00 basetemp=S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-full-20261122
+superseded full pytest stopped owned worker PID 135884 under owned launcher 129636; final review requires a new candidate
+full pid=129636 exited=True code= end=2026-11-22T06:07:13.4681462+09:00
+final full head=6c5a3a9b9f8d18c6173697f45063da66baf3c264 tree=43888c044d4099e3069555f3c160b0bf5a46a801 pid=126128 start=2026-11-22T06:17:28.1816013+09:00 basetemp=S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-final-full-20261122
+superseded 6c5a3a9 full pytest stopped owned worker PID 123200 under launcher 126128 after final review uncovered the stale fallback epoch
+final full pid=126128 exited=True code=-1 end=2026-11-22T06:19:21.0097887+09:00
+candidate full head=fdf44b790533d7f8ccb4acd690625fe09888be9d tree=2e5ae92506e882c4b4f3c0591aaa88d580c73c58 pid=131092 start=2026-11-22T06:21:28.9680500+09:00 basetemp=S:/Work/_tmp/PV/gpu-shadow-20261122/pytest-shadow-accepted-full-20261122
+candidate full pid=131092 exited=True code=1 end=2026-11-22T06:58:22.5760802+09:00
