@@ -107,7 +107,7 @@ async def test_ranking_viewer_hide_writes_shared_data_keeps_viewer_and_drops_car
             assert view.gallery.state.viewer_open
             hide = ctx(view.gallery.viewer, 'hide')
             assert hide.enabled
-            await click(hide)
+            await click(hide, args=str(view.gallery._request_serial))
             assert '123' in services.recommendations.snapshot()['hidden_works']
             assert view.gallery._viewer_state.viewer_open
             assert view.gallery._viewer_state.selected_artwork.work_id == '123'
@@ -132,7 +132,7 @@ async def test_recommendation_viewer_hide_removes_work_from_shelf(tmp_path, monk
             assert viewer._viewer_state.viewer_open
             image_pin = viewer.selection.images
             assert not image_pin.closed
-            await viewer._viewer_hide()
+            await viewer._viewer_hide(NS(args=str(viewer._request_serial)))
             assert '12' in services.recommendations.snapshot()['hidden_works']
             for _ in range(100):  # 読み直しは背景処理。最大約2秒待つ。
                 await asyncio.sleep(0.02)
@@ -251,7 +251,7 @@ async def test_library_viewer_hides_the_work_and_stays_open(tmp_path, monkeypatc
             assert view._viewer_state.viewer_open
             assert entries(view.viewer) == FOUR
             assert ctx(view.viewer, 'hide').enabled
-            await click(ctx(view.viewer, 'hide'))
+            await click(ctx(view.viewer, 'hide'), args=str(view._request_serial))
             assert view._viewer_state.viewer_open
             assert view._viewer_state.selected_artwork.work_id == work.work_id
             assert work.work_id in services.recommendations.snapshot()['hidden_works']

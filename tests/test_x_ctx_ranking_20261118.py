@@ -3,6 +3,7 @@
 実 NiceGUI の部品・偽の Pixiv 書き込み/保存キュー・隔離した専用設定のみ。通信なし。
 """
 import asyncio
+from inspect import isawaitable
 from types import SimpleNamespace as NS
 
 import pytest
@@ -44,10 +45,13 @@ def by_key(card, work_id, key):
     return next(n for n in items_of(card) if n.props.get('data-testid') == f'ranking-ctx-{work_id}-{key}')
 
 
-async def click(item):
-    handler = next(e.handler for e in item._event_listeners.values() if e.type == 'click')
+async def click(item, *, args=None):
+    handler = next(e.handler for e in item._event_listeners.values()
+                   if e.type == 'click' and (args is None or e.js_handler))
     before = set(background_tasks.running_tasks)
-    handler(NS(args=None))
+    response = handler(NS(args=args))
+    if isawaitable(response):
+        await response
     pending = set(background_tasks.running_tasks) - before
     if pending:
         await asyncio.gather(*pending)

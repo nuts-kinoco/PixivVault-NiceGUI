@@ -41,7 +41,6 @@ class ViewerController:
             test_id="library-viewer" if library else "gallery-viewer",
             image_test_id="library-viewer-image" if library else "viewer-image",
         )
-        self.viewer.on_hide = lambda: self._viewer_hide()
         from ..viewer_save import ViewerSave
         self._viewer_save = ViewerSave(services)
         from .pixiv_action_buttons import PixivActionButtons
@@ -52,10 +51,14 @@ class ViewerController:
         self.viewer.author_button.on('click', self._open_author)
         self.viewer.download_button.props('data-testid=viewer-download')
         click_generation = (
-            f"event => emit(document.getElementById('{self.viewer.root.html_id}').dataset.saveGeneration)"
+            f"""event => {{
+                const root = document.getElementById('{self.viewer.root.html_id}');
+                if (root) emit(root.dataset.saveGeneration);
+            }}"""
         )
         self.viewer.download_button.on('click', self._save_visible_work, js_handler=click_generation)
         self.viewer.context_items['folder'].on('click', self._viewer_open_folder, js_handler=click_generation)
+        self.viewer.context_items['hide'].on('click', self._viewer_hide, js_handler=click_generation)
         # Capture the browser's request identity at click time. A queued click
         # from a previous page must not request the newly selected original.
         self.viewer.quality_button.on('click', self._quality_clicked,
@@ -207,7 +210,6 @@ class ViewerController:
         self.viewer.set_status("画像読込中")
 
     async def _load_viewer_gif(self,provider,art,generation):
-        import base64
         def current():
             return (self._viewer_active and not self._viewer_state.closed and self._viewer_state.viewer_open
                     and self._request_serial==generation and self._viewer_state.selected_artwork==art)
@@ -219,8 +221,7 @@ class ViewerController:
             self._displayed_gif=display
             # The exact server-owned bytes displayed here are also the save input.
             # Emit a short request identity, not the potentially large data URI.
-            self.viewer_image.set_source('data:image/gif;base64,'+base64.b64encode(display.data).decode('ascii'),
-                                         event_source=self._image_url)
+            self.viewer_image.set_gif(display.data, event_source=self._image_url)
         except Exception:
             if current():
                 self._displayed_gif=None
@@ -473,11 +474,13 @@ class ViewerController:
         self.viewer.action_status.set_text(message)
         self.viewer.action_status.set_visibility(bool(message))
 
-    async def _viewer_hide(self):
+    async def _viewer_hide(self, event):
         """右クリックの「出さない」。おすすめ・ランキングと同じ非表示データへ 1 件書く。"""
         state = self._viewer_state
         art = state.selected_artwork
-        if art is None or state.closed or not self._viewer_active or not state.viewer_open:return
+        if (event.args != str(self._request_serial) or art is None or state.closed
+                or not self._viewer_active or not state.viewer_open):
+            return
         from ..hidden_works import HideUnavailable, set_hidden
         try:hidden = await asyncio.to_thread(set_hidden, self.services, art.work_id, True)
         except HideUnavailable:

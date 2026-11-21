@@ -2,13 +2,37 @@
 
 from __future__ import annotations
 
+from uuid import uuid4
+from weakref import WeakValueDictionary
+
 from fastapi import HTTPException, Request
 from fastapi.responses import Response
 
 from .media import DemoImageCatalog
 
 
+_viewer_gifs: WeakValueDictionary[str, ViewerGif] = WeakValueDictionary()
+
+
+class ViewerGif:
+    """Loopback media retained only while a viewer owns this source."""
+
+    def __init__(self, data: bytes):
+        key = uuid4().hex
+        self.data = data
+        self.url = f'/media/viewer-gif/{key}.gif'
+        _viewer_gifs[key] = self
+
+
 def register_media_routes(app, catalog: DemoImageCatalog) -> None:
+    async def serve_viewer_gif(key: str) -> Response:
+        source = _viewer_gifs.get(key)
+        if source is None:
+            raise HTTPException(status_code=404)
+        return Response(content=source.data, media_type='image/gif',
+                        headers={'Cache-Control': 'private, no-store',
+                                 'X-Content-Type-Options': 'nosniff'})
+
     def serve(work_id: str, page_no: str, variant: str, request: Request) -> Response:
         cache_policy = (catalog.cache_control(work_id) if hasattr(catalog, "cache_control")
                         else "private, max-age=3600")
@@ -43,3 +67,4 @@ def register_media_routes(app, catalog: DemoImageCatalog) -> None:
         return Response(content=blob.data, media_type=blob.media_type, headers=headers)
 
     app.add_api_route("/media/{work_id}/{page_no}/{variant}.png", serve, methods=["GET", "HEAD"], include_in_schema=False)
+    app.add_api_route('/media/viewer-gif/{key}.gif', serve_viewer_gif, methods=['GET'], include_in_schema=False)

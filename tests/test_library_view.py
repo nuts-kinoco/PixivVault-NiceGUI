@@ -182,36 +182,34 @@ async def test_slow_auto_capacity_shows_progress_and_cleans_up(library, monkeypa
     assert view.legacy_auto_capacity_status.text == ''
 
 
-async def test_viewer_page_and_decode_only_update_the_isolated_component(library, monkeypatch):
+async def test_viewer_page_and_decode_only_update_the_isolated_component(library):
     view, _, client = library
-    batches = []
-    monkeypatch.setattr(view.viewer.page, 'run_method', lambda *args: batches.append(args))
+    client._response_built = True
     view.open_author('demo-author-01')
     view.open_page('demo-0060', 0)
     view._image_loaded(event_for(view))
     await asyncio.sleep(0)
     client.outbox.updates.clear()
-    batches.clear()
+    client.outbox.messages.clear()
 
     view.move_page(1)
     await asyncio.sleep(0)
     assert view.viewer_counter.text == '2/3'
     assert view.viewer_image.props['aria-busy'] == 'true'
     assert not client.outbox.updates
-    assert len(batches) == 1
-    method, revision, patch = batches[0]
-    assert method == 'applyViewerState'
-    assert patch[view.viewer_counter.id]['text'] == '2/3'
-    assert patch[view.viewer_image.id]['props']['aria-busy'] == 'true'
+    [(_, kind, patch)] = client.outbox.messages
+    assert kind == 'update'
+    assert patch[str(view.viewer_counter.id)]['text'] == '2/3'
+    assert patch[str(view.viewer_image.id)]['props']['aria-busy'] == 'true'
 
     view._image_loaded(event_for(view))
     await asyncio.sleep(0)
     assert view.viewer_image.props['aria-busy'] == 'false'
     assert not client.outbox.updates
-    assert len(batches) == 2
-    method, accepted_revision, patch = batches[1]
-    assert method == 'applyViewerState' and accepted_revision > revision
-    assert patch[view.viewer_image.id]['props']['aria-busy'] == 'false'
+    assert len(client.outbox.messages) == 2
+    _, kind, patch = client.outbox.messages[-1]
+    assert kind == 'update'
+    assert patch[str(view.viewer_image.id)]['props']['aria-busy'] == 'false'
 
 
 @pytest.mark.asyncio

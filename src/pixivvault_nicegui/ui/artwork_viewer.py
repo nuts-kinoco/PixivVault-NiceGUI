@@ -9,7 +9,7 @@ from nicegui import ui
 from ..models import Artwork
 from .card_context_menu import MenuEntry, build_context_menu, open_from_keyboard
 from .artwork_page import (
-    ArtworkPage, PageButton, PageColumn, PageImage, PageLabel, PageMenuItem, PageRow,
+    ArtworkPage, PageButton, PageColumn, PageImage, PageLabel, PageLink, PageMenuItem, PageRow, PageTags,
 )
 
 
@@ -26,7 +26,6 @@ class ArtworkViewer:
         image_test_id: str = "viewer-image",
         context_hide: bool = True,
     ) -> None:
-        self.on_hide = None      # 右クリックの「出さない」「保存フォルダを開く」は持ち主（ViewerController）が結線する
         self.dialog = self  # GalleryView's existing dialog.open()/close() call sites.
         self.client = ui.context.client
         self._is_open = False
@@ -48,7 +47,7 @@ class ArtworkViewer:
                     self.follow_button = self._unavailable_action("person_add", "フォロー", "作者フォロー")
                     with ui.button(icon='more_vert', color=None).props('flat round aria-label=作品メニュー'):
                         with ui.menu():
-                            self.pixiv_link = ui.link('Pixivで作品を開く', new_tab=True).classes('p-3').props(
+                            self.pixiv_link = PageLink('Pixivで作品を開く', new_tab=True).classes('p-3').props(
                                 'data-testid=viewer-pixiv-link')
                             self.pixiv_link.props['rel'] = 'noopener noreferrer'
                     self.close_button = ui.button(
@@ -105,14 +104,14 @@ class ArtworkViewer:
                             for _ in range(3):
                                 ui.element('div').classes('pv-detail-skeleton-chip').props(
                                     'data-testid=viewer-detail-skeleton-chip')
-                        self.tags = PageRow().classes("gap-1 flex-wrap").props('data-testid=viewer-detail-tags')
+                        self.tags = PageTags().classes("gap-1 flex-wrap").props('data-testid=viewer-detail-tags')
                         self.numbers = PageLabel().props('data-testid=viewer-detail-numbers')
                         self.detail_status = PageLabel().props('role=status data-testid=viewer-detail-status')
                 with ui.column().classes("pv-viewer-bottom w-full"):
                     with ui.row().classes("pv-viewer-info w-full items-center"):
-                        self.title = ui.label().classes("pv-view-title")
+                        self.title = PageLabel().classes("pv-view-title")
                         ui.element("span").classes("pv-viewer-info-separator").style("width:1px;height:14px")
-                        self.author = ui.button(color=None).classes('pv-subtitle').props(
+                        self.author = PageButton(color=None).classes('pv-subtitle').props(
                             'flat dense no-caps data-testid=viewer-author-open')
                         self.author_button = self.author
                         self.author_button.tooltip('作者の作品を表示')
@@ -134,7 +133,8 @@ class ArtworkViewer:
             self.retry_button, self.previous_page, self.next_page, self.zoom_out,
             self.zoom_in, self.zoom_reset, self.action_status, self.details_panel,
             self.description_skeleton, self.description, self.tags_skeleton, self.tags,
-            self.numbers, self.detail_status, self.details_button, *self.context_items.values(),
+            self.numbers, self.detail_status, self.details_button, self.title, self.author,
+            self.pixiv_link, *self.context_items.values(),
         )
 
     def _build_context_menu(self, with_hide: bool) -> None:
@@ -147,7 +147,7 @@ class ArtworkViewer:
         ]
         if with_hide:
             entries.append(MenuEntry('hide', '出さない',
-                                     on_click=lambda: self.on_hide() if self.on_hide else None, enabled=False,
+                                     enabled=False,
                                      testid='viewer-context-hide'))
         entries.append(MenuEntry('folder', '保存フォルダを開く',
                                  enabled=False,
@@ -350,8 +350,9 @@ class ArtworkViewer:
                 }
             });
             observer.observe(viewer, {attributes: true, attributeFilter: ['data-zoom-generation', 'aria-hidden']});
-            new ResizeObserver(paint).observe(viewport);
-            viewport.__pvZoomController = {reset};
+            const resize = new ResizeObserver(paint);
+            resize.observe(viewport);
+            viewport.__pvZoomController = {reset, dispose() { observer.disconnect(); resize.disconnect(); }};
             reset();
         })();
         """.replace("__ROOT_ID__", self.root.html_id)
@@ -366,29 +367,29 @@ class ArtworkViewer:
         self._is_open = True
         self.root.classes(remove="hidden")
         self.root.props("aria-hidden=false")
-        if self.client.has_socket_connection:
-            self.page.after_state(f"""(() => {{
-                const node = document.getElementById('{self.root.html_id}');
-                if (!node) return;
-                const generation = (node.__pvFocusGeneration || 0) + 1;
-                node.__pvFocusGeneration = generation;
-                node.__pvPreviousFocus = document.activeElement;
-                requestAnimationFrame(() => {{
-                    if (node.__pvFocusGeneration === generation && node.isConnected &&
-                        node.getClientRects().length &&
-                        !node.closest('[inert], [aria-hidden="true"]'))
-                        node.focus({{preventScroll:true}});
-                }});
-            }})()""")
-            self.page.after_state(self._zoom_script())
+        self.page.after_state(f"""(() => {{
+            const node = document.getElementById('{self.root.html_id}');
+            if (!node) return;
+            const generation = (node.__pvFocusGeneration || 0) + 1;
+            node.__pvFocusGeneration = generation;
+            node.__pvPreviousFocus = document.activeElement;
+            requestAnimationFrame(() => {{
+                if (node.__pvFocusGeneration === generation && node.isConnected &&
+                    node.getClientRects().length &&
+                    !node.closest('[inert], [aria-hidden="true"]'))
+                    node.focus({{preventScroll:true}});
+            }});
+        }})()""")
+        self.page.after_state(self._zoom_script())
 
     def close(self, *, restore_focus: bool = True) -> None:
         # A tab departure also invalidates a queued focus restoration from a prior close.
+        was_open = self._is_open
         self._is_open = False
         self.reset_zoom()
         self.root.props("aria-hidden=true")
         self.root.classes(add="hidden")
-        if self.client.has_socket_connection:
+        if was_open or self.client._response_built:
             self.page.after_state(f"""(() => {{
                 const node = document.getElementById('{self.root.html_id}');
                 if (!node) return;
@@ -408,8 +409,6 @@ class ArtworkViewer:
 
     def focus_after_close(self, target) -> None:
         """Focus a replacement opener after its containing view redraws."""
-        if not self.client.has_socket_connection:
-            return
         self.page.after_state(f"""(() => {{
             const viewer = document.getElementById('{self.root.html_id}');
             if (!viewer) return;
@@ -450,10 +449,7 @@ class ArtworkViewer:
         tags = tuple(tags)
         if tags != self._detail_tags:
             self._detail_tags = tags
-            self.tags.clear()
-            with self.tags:
-                for tag in tags:
-                    ui.label(tag).classes('pv-subtitle border rounded px-2')
+            self.tags.props['tags'] = list(tags)
         def known(value): return str(value) if value is not None else '不明'
         resolution=f'{width} × {height}' if width is not None and height is not None else '不明'
         self.numbers.set_text(f'投稿日 {known(date or None)} · ブクマ {known(bookmarks)} · 閲覧 {known(views)} · 解像度 {resolution}')
