@@ -1,6 +1,7 @@
 """Alternate both ranking UIs and export only numeric or fixed-code evidence."""
 
 from contextlib import ExitStack, contextmanager
+import argparse
 import json
 import os
 from pathlib import Path
@@ -115,6 +116,7 @@ def metadata_ready(page, side, require_transition=False):
 
 
 def image_ready(page, side):
+    decoded = None
     if side == "original":
         image = page.locator(f'flt-semantics[aria-label="{ORIGINAL_IMAGE}"]')
         image.or_(page.get_by_label(ORIGINAL_IMAGE, exact=True)).first.wait_for(
@@ -124,8 +126,14 @@ def image_ready(page, side):
             const image = document.querySelector(cardSelector + ' .pv-thumb img');
             return image && image.complete && image.naturalWidth > 0;
         }""", arg=NICE_CARD, timeout=14000)
+        decoded = page.evaluate("""async cardSelector => {
+          const image = document.querySelector(cardSelector + ' .pv-thumb img');
+          const begin = performance.now();
+          await image.decode();
+          return performance.now() - begin;
+        }""", NICE_CARD)
     two_frames(page)
-    return perf_counter()
+    return perf_counter(), decoded
 
 
 def open_page(context, side, url):
@@ -143,14 +151,40 @@ def open_page(context, side, url):
 
 
 def check_product_stop(ledger):
-    from pixivvault_nicegui.managed_network_stop_gate import ManagedNetworkGateStorageError, ManagedNetworkStopped
+    from pixivvault_nicegui.managed_network_stop_gate import (
+        ManagedNetworkGateBusy, ManagedNetworkGateStorageError, ManagedNetworkStopped,
+    )
 
-    try:
-        with nice_scope(ledger.root):
+    deadline = perf_counter() + 3
+    while True:
+        reason = ledger.snapshot()["stop"]
+        if reason:
+            raise StopRun(reason)
+        try:
+            with nice_scope(ledger.root):
+                return
+        except ManagedNetworkGateBusy:
+            if perf_counter() < deadline:
+                sleep(0.025)
+                continue
+        except (ManagedNetworkGateStorageError, ManagedNetworkStopped):
             pass
-    except (ManagedNetworkGateStorageError, ManagedNetworkStopped):
         ledger.halt("product_stop")
         raise StopRun("product_stop") from None
+
+
+def render_stages(root, side, begin, end):
+    path = root / f"{side}-render.jsonl"
+    events = [json.loads(line) for line in path.read_text(encoding="ascii").splitlines()]
+    selected = [e for e in events if begin <= e["start"] <= e["end"] <= end]
+    if not selected:
+        raise StopRun("transport")
+    return {
+        "render_ms": sum((e["end"] - e["start"]) * 1000 for e in selected),
+        "card_call_ms": sum(e["card_call_ms"] for e in selected),
+        "card_calls": sum(e["card_calls"] for e in selected),
+        "cards_created": sum(e["cards_created"] for e in selected),
+    }
 
 
 def sample(ledger, page, button, side, pair, observe_image):
@@ -166,7 +200,7 @@ def sample(ledger, page, button, side, pair, observe_image):
     begin = perf_counter()
     page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
     metadata = metadata_ready(page, side, require_transition=True)
-    paint = image_ready(page, side) if observe_image else metadata
+    paint, decode_wait = image_ready(page, side) if observe_image else (metadata, None)
     check_product_stop(ledger)
     state = ledger.snapshot()
     if state["stop"]:
@@ -181,18 +215,24 @@ def sample(ledger, page, button, side, pair, observe_image):
 
     api = [interval(e["start"], e["end"]) for e in events if e["kind"] != "image"]
     images = [interval(e["start"], e["end"]) for e in events if e["kind"] == "image"]
+    stage = render_stages(ledger.root, side, begin, metadata)
+    stage["metadata_ms"] = (metadata - begin) * 1000
+    stage["metadata_to_image_ms"] = (paint - metadata) * 1000 if observe_image else None
+    stage["decode_wait_ms"] = decode_wait
     return {
         "app": side, "pair": pair, "operation": "ranking_official", "condition": "warm",
         "start_ms": 0, "paint_ms": (paint - begin) * 1000, "network_ms": api + images,
         "api_ms": api, "image_ms": images,
         "pace_ms": [interval(e["queued"], e["start"]) for e in events],
-    }, (metadata - begin) * 1000
+    }, stage
 
 
-def measure(root, repetitions):
+def measure(root, repetitions, *, fake=False):
     from playwright.sync_api import sync_playwright
 
     ledger = Ledger(root)
+    if fake != (root / "fake-wire-only").is_file():
+        raise ValueError("fixture root requires fake transport")
     state = ledger.snapshot()
     if state["stop"]:
         raise StopRun(state["stop"])
@@ -202,10 +242,12 @@ def measure(root, repetitions):
     phase = "launch"
     blocked = 0
     image_visibility = {}
+    warmup = {}
     try:
         check_product_stop(ledger)
         with ExitStack() as stack:
-            urls = {side: stack.enter_context(server(root, side, owned)) for side in PORTS}
+            mode = "fake" if fake else "serve"
+            urls = {side: stack.enter_context(server(root, side, owned, mode)) for side in PORTS}
             playwright = stack.enter_context(sync_playwright())
             owned["playwright"] = {"pid": playwright._impl_obj._connection._transport._proc.pid}
             save(root, "owned-servers.json", owned)
@@ -233,10 +275,12 @@ def measure(root, repetitions):
                 phase = f"{side}_open"
                 page, button = pages[side] = open_page(context, side, url)
                 phase = f"{side}_warm"
-                metadata_ready(page, side)
+                metadata = metadata_ready(page, side)
                 phase = f"{side}_warm_image"
                 try:
-                    image_ready(page, side)
+                    first_paint, decode_wait = image_ready(page, side)
+                    warmup[side] = {"metadata_to_image_ms": (first_paint - metadata) * 1000,
+                                    "decode_wait_ms": decode_wait}
                     image_visibility[side] = True
                 except Exception as error:
                     if ledger.snapshot()["stop"] or type(error).__name__ != "TimeoutError":
@@ -247,9 +291,9 @@ def measure(root, repetitions):
             for index in range(repetitions):
                 for side in (("original", "nice") if index % 2 == 0 else ("nice", "original")):
                     phase = f"{side}_measure"
-                    row, metadata = sample(ledger, *pages[side], side, index + 1, observe_image)
+                    row, stage = sample(ledger, *pages[side], side, index + 1, observe_image)
                     rows.append(row)
-                    stages.append({"app": side, "pair": index + 1, "metadata_ms": metadata})
+                    stages.append({"app": side, "pair": index + 1, **stage})
                     save(root, "ranking-samples.json", rows)
                     save(root, "ranking-metadata.json", stages)
         result = {"status": "completed"}
@@ -261,6 +305,7 @@ def measure(root, repetitions):
                   "stop": ledger.snapshot()["stop"]}
     result["browser_external_denied"] = blocked
     result["first_image_observed"] = image_visibility
+    result["warmup_image"] = warmup
     result["timing_endpoint"] = "first_image" if image_visibility == {side: True for side in PORTS} else "metadata"
     save(root, "ranking-outcome.json", result)
     save(root, "ranking-summary.json", summarize_pairs(rows))
@@ -268,8 +313,12 @@ def measure(root, repetitions):
 
 
 if __name__ == "__main__":
-    root = copied_path(SCRATCH, Path(sys.argv[1]))
-    repetitions = int(sys.argv[2]) if len(sys.argv) == 3 else 10
-    if not 10 <= repetitions <= 20:
+    parser = argparse.ArgumentParser(allow_abbrev=False)
+    parser.add_argument("root", type=Path)
+    parser.add_argument("repetitions", type=int, nargs="?", default=10)
+    parser.add_argument("--fake", action="store_true")
+    args = parser.parse_args()
+    root = copied_path(SCRATCH, args.root)
+    if not (1 if args.fake else 10) <= args.repetitions <= 20:
         raise SystemExit("10 to 20 pairs required")
-    raise SystemExit(measure(root, repetitions))
+    raise SystemExit(measure(root, args.repetitions, fake=args.fake))

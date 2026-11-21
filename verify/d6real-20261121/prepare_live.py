@@ -1,6 +1,7 @@
 """Prepare a fresh, S:-isolated ranking trial from the verified backup copy."""
 
 from contextlib import closing
+import argparse
 import importlib.util
 import json
 from pathlib import Path
@@ -15,13 +16,17 @@ SOURCE = SCRATCH / "run-01" / "backup-copy"
 BACKUP = Path("S:/Projects/PV-DEV-20261117/backup/realprofile-20261121-r6")
 RUNNER = Path("S:/Work/PV/d6-perf-20261120/verify/d6d-20261120/runner.py")
 MEDIA = (("images", "artwork-originals"), ("novel", "novels"), ("ugoira", "ugoira"))
+FAKE_COOKIE = (
+    b"# Netscape HTTP Cookie File\n"
+    b".pixiv.net\tTRUE\t/\tTRUE\t4102444800\tPHPSESSID\t55_synthetic_only\n"
+)
 
 
 def selected_media(storage):
     return tuple((kind, storage / "PixivVault-NiceGUI" / name) for kind, name in MEDIA)
 
 
-def prepare(root, prior_attempts=0):
+def prepare(root, prior_attempts=0, *, fake=False):
     from pixivvault_nicegui.managed_network_stop_history_readonly import _check_marker
     from pixivvault_nicegui.managed_network_stop_profile_scope import ManagedProfileNetworkStopScope
     from pixivvault_nicegui.managed_network_stop_startup import open_or_initialize_windows_user_stop
@@ -48,11 +53,14 @@ def prepare(root, prior_attempts=0):
             "FROM native_profile_state WHERE id=1").fetchone()
     if old_save is None or db_path is not None or images_path is not None:
         raise ValueError("copied profile layout differs")
-    source_cookie = selected_cookie_copy(src, selected)
     cookie = root / "credentials" / "cookies.txt"
     cookie.parent.mkdir()
-    shutil.copyfile(source_cookie, cookie)
-    shutil.copyfile(source_cookie, original / "cookies.txt")
+    if fake:
+        cookie.write_bytes(FAKE_COOKIE)
+        (root / "fake-wire-only").write_bytes(b"D6 fake wire v1\n")
+    else:
+        shutil.copyfile(selected_cookie_copy(src, selected), cookie)
+    shutil.copyfile(cookie, original / "cookies.txt")
     # The copied settings still point at the original machine paths. Rebase
     # just the two references before any product code inspects them.
     with closing(sqlite3.connect(profile / "profile.sqlite3")) as db:
@@ -107,10 +115,15 @@ def prepare(root, prior_attempts=0):
 
 
 def main():
-    root = Path(sys.argv[1])
+    parser = argparse.ArgumentParser(allow_abbrev=False)
+    parser.add_argument("root", type=Path)
+    parser.add_argument("prior_attempts", type=int, nargs="?", default=0)
+    parser.add_argument("--fake", action="store_true")
+    args = parser.parse_args()
+    if args.fake and args.prior_attempts:
+        parser.error("fake runs have a separate request ledger")
     try:
-        prior_attempts = int(sys.argv[2]) if len(sys.argv) == 3 else 0
-        result = prepare(root, prior_attempts)
+        result = prepare(args.root, args.prior_attempts, fake=args.fake)
     except Exception as error:
         reason = getattr(error, "reason", None)
         # Only reviewed fixed product codes can be written to evidence.

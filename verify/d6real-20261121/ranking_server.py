@@ -12,6 +12,7 @@ from preflight import SCRATCH, WORKTREE, copied_path
 from live_gate import Ledger
 from prepare_live import selected_media
 from rank_adapters import RankingWire
+from rank_trace import RenderTrace, instrument_nice, instrument_original
 from timing import StopRun
 
 PORTS = {"original": 22830, "nice": 22840}
@@ -46,7 +47,7 @@ def original_server(root, mode, product_check):
     os.environ["FLET_SERVER_PORT"] = str(PORTS["original"])
     os.environ["FLET_SERVER_IP"] = "127.0.0.1"
     sys.path.insert(0, str(original))
-    wire = RankingWire(root, "original", original / "cookies.txt")
+    wire = RankingWire(root, "original", original / "cookies.txt", fake=mode == "fake")
     wire.install_original(product_check)
     import flet as ft
     from database import Database
@@ -71,6 +72,7 @@ def original_server(root, mode, product_check):
             raise StopRun("authentication")
     if mode == "auth":
         return
+    instrument_original(original, RenderTrace(root / "original-render.jsonl"))
     import gui
 
     image_init = ft.Image.__init__
@@ -100,7 +102,7 @@ def nice_server(root, mode):
     from pixivvault_nicegui.services import ApplicationServices
 
     cookie = root / "credentials" / "cookies.txt"
-    wire = RankingWire(root, "nice", cookie)
+    wire = RankingWire(root, "nice", cookie, fake=mode == "fake")
     wire.install_nice()
     with nice_scope(root) as (profile, shared):
         if mode == "auth":
@@ -115,6 +117,7 @@ def nice_server(root, mode):
         # Measure the user-triggered ranking path without startup discovery
         # refill. The isolated discovery DB is still used for ranking tags.
         ApplicationServices.start_discovery_initial_load = lambda self: None
+        instrument_nice(RenderTrace(root / "nice-render.jsonl"))
         base = root / "storage" / "PixivVault-NiceGUI"
         with closing(NativeProfileStore(profile.root)) as store:
             binding = NativeProfileBinding(store, launch_snapshot=store.snapshot())
@@ -134,9 +137,12 @@ def nice_server(root, mode):
 def main():
     root = copied_path(SCRATCH, Path(sys.argv[1]))
     side, mode = sys.argv[2:]
-    permitted = {"original": ("auth", "serve", "probe"), "nice": ("auth", "serve", "check", "probe")}
+    permitted = {"original": ("auth", "serve", "probe", "fake"),
+                 "nice": ("auth", "serve", "check", "probe", "fake")}
     if side not in permitted or mode not in permitted[side]:
         raise ValueError("invalid measurement mode")
+    if (mode == "fake") != (root / "fake-wire-only").is_file():
+        raise ValueError("fixture root requires fake transport")
     ledger = Ledger(root)
     if mode == "probe" and not ledger.snapshot()["stop"]:
         raise ValueError("screen probe requires a stopped ledger")

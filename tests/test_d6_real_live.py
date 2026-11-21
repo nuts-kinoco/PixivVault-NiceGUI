@@ -20,6 +20,18 @@ BASE = "https://www.pixiv.net"
 RANKING = BASE + "/ranking.php?mode=daily&content=illust&format=json&p=1"
 
 
+@pytest.fixture(autouse=True)
+def restore_shared_transport(monkeypatch):
+    from pixivvault_nicegui.managed_network_stop_shared_transport import (
+        SharedProfileStopTransport, _DraftAuthSharedTransport,
+    )
+    from pixivvault_nicegui.native_startup import NativeProfileBinding
+
+    monkeypatch.setattr(SharedProfileStopTransport, "__call__", SharedProfileStopTransport.__call__)
+    monkeypatch.setattr(_DraftAuthSharedTransport, "__call__", _DraftAuthSharedTransport.__call__)
+    monkeypatch.setattr(NativeProfileBinding, "_verify_auth_result", NativeProfileBinding._verify_auth_result)
+
+
 @pytest.mark.parametrize("url, method, cookie", [
     (RANKING, "POST", True),
     (RANKING + "&p=2", "GET", True),
@@ -183,3 +195,65 @@ def test_created_process_is_cleaned_up_when_receipt_save_fails(tmp_path, monkeyp
         with rank_measure.server(tmp_path, "original", {}):
             pytest.fail("untracked server yielded")
     assert calls == [["taskkill.exe", "/F", "/PID", "12345", "/T"]]
+
+
+def test_unknown_product_get_outcome_stops_peer_adapter(tmp_path, monkeypatch):
+    from pixivvault_nicegui.managed_network_stop_shared_scope import SharedGetOutcomeUncertain
+    from pixivvault_nicegui.managed_network_stop_shared_transport import SharedProfileStopTransport
+    from pixivvault_nicegui.pixiv_read_client import LivePixivReadClient, _OwnedReadTransport
+
+    def unknown(*_args):
+        raise SharedGetOutcomeUncertain()
+
+    monkeypatch.setattr(SharedProfileStopTransport, "__call__", unknown)
+    monkeypatch.setattr(_OwnedReadTransport, "__call__", _OwnedReadTransport.__call__)
+    monkeypatch.setattr(LivePixivReadClient, "get_image_bytes", LivePixivReadClient.get_image_bytes)
+    wire = object.__new__(RankingWire)
+    wire.ledger = Ledger.create(tmp_path)
+    wire.install_nice()
+    with pytest.raises(SharedGetOutcomeUncertain):
+        SharedProfileStopTransport.__call__(None)
+    with pytest.raises(StopRun, match="^product_stop$"):
+        Ledger(tmp_path).attempt("original", "ranking", lambda: pytest.fail("peer dispatched"))
+    assert wire.ledger.snapshot()["count"] == 0
+
+
+def test_startup_auth_uncertainty_latches_the_ledger_before_get(tmp_path, monkeypatch):
+    from pixivvault_nicegui.native_auth_result import NativeAuthResult
+    from pixivvault_nicegui.native_startup import NativeProfileBinding
+    from pixivvault_nicegui.pixiv_read_client import LivePixivReadClient, _OwnedReadTransport
+
+    monkeypatch.setattr(NativeProfileBinding, "_verify_auth_result",
+                        lambda *_args: NativeAuthResult("uncertain"))
+    monkeypatch.setattr(_OwnedReadTransport, "__call__", _OwnedReadTransport.__call__)
+    monkeypatch.setattr(LivePixivReadClient, "get_image_bytes", LivePixivReadClient.get_image_bytes)
+    wire = object.__new__(RankingWire)
+    wire.ledger = Ledger.create(tmp_path)
+    wire.install_nice()
+    assert NativeProfileBinding._verify_auth_result(None).code == "uncertain"
+    with pytest.raises(StopRun, match="^product_stop$"):
+        Ledger(tmp_path).attempt("original", "ranking", lambda: pytest.fail("peer dispatched"))
+    assert wire.ledger.snapshot()["count"] == 0
+
+
+def test_pre_dispatch_check_runs_after_wait_and_blocks_send(tmp_path, monkeypatch):
+    import live_gate
+
+    now = 400.0
+
+    def advance(seconds):
+        nonlocal now
+        now += seconds
+
+    def gate_stopped():
+        assert now == pytest.approx(400.875)
+        raise StopRun("product_stop")
+
+    monkeypatch.setattr(live_gate, "perf_counter", lambda: now)
+    monkeypatch.setattr(live_gate, "sleep", advance)
+    ledger = Ledger.create(tmp_path)
+    ledger.attempt("nice", "ranking", lambda: (200, False, True))
+    with pytest.raises(StopRun, match="^product_stop$"):
+        ledger.attempt("original", "ranking", lambda: pytest.fail("peer dispatched"),
+                       before_dispatch=gate_stopped)
+    assert ledger.snapshot()["events"][-1]["status"] is None

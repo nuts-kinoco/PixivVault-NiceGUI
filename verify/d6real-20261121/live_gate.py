@@ -97,7 +97,7 @@ class Ledger:
             state["stop"] = state["stop"] or StopRun(reason).reason
             self._save(state)
 
-    def attempt(self, side, kind, dispatch, *, deadline=None):
+    def attempt(self, side, kind, dispatch, *, deadline=None, before_dispatch=None):
         if side not in APPS or kind not in KINDS:
             raise RouteDenied()
         queued = perf_counter()
@@ -123,6 +123,9 @@ class Ledger:
             started = perf_counter()
             status = None
             try:
+                if before_dispatch is not None:
+                    before_dispatch()
+                    started = perf_counter()
                 if deadline is not None and started >= deadline:
                     raise StopRun("transport")
                 status, challenge, auth = dispatch()

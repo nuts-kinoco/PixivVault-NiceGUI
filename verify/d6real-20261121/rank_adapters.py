@@ -9,7 +9,7 @@ from timing import StopRun
 
 
 class RankingWire:
-    def __init__(self, root, side, cookie_path):
+    def __init__(self, root, side, cookie_path, *, fake=False):
         from pixivvault_nicegui.pixiv_read_client import _read_cookies
 
         _, self.claimed = _read_cookies(cookie_path)
@@ -17,6 +17,7 @@ class RankingWire:
             raise StopRun("authentication")
         self.ledger = Ledger(root)
         self.side = side
+        self.fake = fake
         self.fence = SocketFence()
         self.image = None
         self.image_bytes = None
@@ -81,6 +82,9 @@ class RankingWire:
         import requests
 
         send = requests.adapters.HTTPAdapter.send
+        if self.fake:
+            from fake_wire import original_response
+            send = original_response
         setup = requests.sessions.Session.__init__
 
         def session_setup(session, *args, **kwargs):
@@ -89,16 +93,19 @@ class RankingWire:
 
         def measured(adapter, request, *args, **kwargs):
             kind = self.kind(request.url, request.method, request.headers.get("Cookie"))
-            try:
-                product_check()
-            except Exception:
-                self.ledger.halt("product_stop")
-                raise StopRun("product_stop") from None
             response = None
+
+            def check_gate():
+                # Check after the ledger's pacing wait. Any inability to
+                # snapshot the isolation gate fails closed before socket I/O.
+                try:
+                    product_check()
+                except Exception:
+                    raise StopRun("product_stop") from None
 
             def dispatch():
                 nonlocal response
-                with self.fence.admitted(urlsplit(request.url).hostname):
+                with self.fence.admitted(None if self.fake else urlsplit(request.url).hostname):
                     response = send(adapter, request, *args, **kwargs)
                     if response.status_code != 200:
                         response.close()
@@ -113,7 +120,7 @@ class RankingWire:
                 return self.inspect(kind, response.status_code, response.content)
 
             try:
-                self.ledger.attempt(self.side, kind, dispatch)
+                self.ledger.attempt(self.side, kind, dispatch, before_dispatch=check_gate)
             except Exception:
                 if response is not None:
                     response.close()
@@ -124,13 +131,44 @@ class RankingWire:
         requests.adapters.HTTPAdapter.send = measured
 
     def install_nice(self):
+        from pixivvault_nicegui.managed_network_stop_gate import (
+            ManagedNetworkGateBusy, ManagedNetworkGateStorageError, ManagedNetworkStopped,
+        )
+        from pixivvault_nicegui.managed_network_stop_shared_transport import (
+            SharedProfileStopTransport, _DraftAuthSharedTransport,
+        )
+        from pixivvault_nicegui.native_startup import NativeProfileBinding
         from pixivvault_nicegui.pixiv_read_client import (
             DestinationRejected, HTTPStatusRejected, LivePixivReadClient,
             ResponseRejected, _OwnedReadTransport,
         )
 
         send = _OwnedReadTransport.__call__
+        fake = getattr(self, "fake", False)
+        if fake:
+            from fake_wire import nice_response
+            send = nice_response
         read_image = LivePixivReadClient.get_image_bytes
+        verify = NativeProfileBinding._verify_auth_result
+
+        def report_product_stop(send_with_gate):
+            def observed(transport, *args):
+                try:
+                    return send_with_gate(transport, *args)
+                except ManagedNetworkGateBusy:
+                    raise
+                except (ManagedNetworkGateStorageError, ManagedNetworkStopped):
+                    self.ledger.halt("product_stop")
+                    raise
+            return observed
+
+        def observed_verify(binding, *args):
+            result = verify(binding, *args)
+            if result.code in ("uncertain", "stopped", "local_unavailable", "owner_absent"):
+                self.ledger.halt("product_stop")
+            if result.code in ("identity_unverified", "cookie_unreadable"):
+                self.ledger.halt("authentication")
+            return result
 
         def selected_image(client, url):
             if url != self.image:
@@ -149,7 +187,7 @@ class RankingWire:
 
             def dispatch():
                 nonlocal result, error
-                with self.fence.admitted(urlsplit(request.full_url).hostname):
+                with self.fence.admitted(None if fake else urlsplit(request.full_url).hostname):
                     try:
                         result = send(transport, request, timeout, limit, deadline)
                     except HTTPStatusRejected as exc:
@@ -171,3 +209,6 @@ class RankingWire:
 
         LivePixivReadClient.get_image_bytes = selected_image
         _OwnedReadTransport.__call__ = measured
+        SharedProfileStopTransport.__call__ = report_product_stop(SharedProfileStopTransport.__call__)
+        _DraftAuthSharedTransport.__call__ = report_product_stop(_DraftAuthSharedTransport.__call__)
+        NativeProfileBinding._verify_auth_result = observed_verify
