@@ -5,6 +5,7 @@ Run with the isolated GPU interpreter and pass a CPU-only interpreter with
 array of paths relative to the manifest for saved originals. An array entry
 may instead map "original", "view", and "thumb" to local paths. Missing view
 and thumb variants use the product's local preview resize and encoding.
+Use --batch-sizes 2 4 8 to compare raw ORT batches on both providers.
 """
 from __future__ import annotations
 
@@ -26,6 +27,7 @@ import subprocess
 import sys
 from threading import Event, Thread, Timer
 import time
+from uuid import uuid4
 
 from pixivvault_nicegui.egara_inference import (
     CUDA_OPTIONS, MAX_INFERENCE_IMAGE_BYTES, PROVIDER_NAMES, EgaraInference,
@@ -39,6 +41,18 @@ GPU_RUN_LOCK = LEASE.parent.parent / "PV" / "g0-20261122" / "cuda-verifier.lock"
 VARIANTS = ("original", "view", "thumb")
 CPU = PROVIDER_NAMES["cpu"]
 CUDA = PROVIDER_NAMES["cuda"]
+LEASE_READ_ERRORS = (OSError, ValueError)
+LEASE_RECORD_LIMIT = 8192
+RELEASE_TIMEOUT = 5
+WORKER_STOP_MARGIN = 15
+
+
+class CudaLeaseUnavailable(RuntimeError):
+    pass
+
+
+class OversizedLease(ValueError):
+    pass
 
 
 def distribution(values):
@@ -130,48 +144,83 @@ def first_inference(predictor, data):
                      "usable_embedding": vectors is not None, "error": error}
 
 
-def batch_result(outputs):
+def batch_result(outputs, size=2):
     if not outputs:
         return {"status": "rejected"}
     shapes = [list(output.shape) for output in outputs]
-    return {"status": "two_rows" if all(shape and shape[0] == 2 for shape in shapes)
-            else "collapsed", "output_shapes": shapes}
+    if not all(shape and shape[0] == size for shape in shapes):
+        return {"status": "collapsed", "output_shapes": shapes}
+    return {"status": "two_rows" if size == 2 else "full_rows", "output_shapes": shapes}
 
 
-def probe_batch(predictor, data, other_data=None):
+def batch_groups(samples, sizes):
+    by_shape = {}
+    for shape, digest, tensor in samples:
+        entries = by_shape.setdefault(shape, {})
+        if len(entries) < max(sizes):
+            entries.setdefault(digest, tensor)
+    if not by_shape:
+        return {}
+    largest = max(by_shape.values(), key=len)
+    return {size: dict(list(largest.items())[:size]) for size in sizes if len(largest) >= size}
+
+
+def probe_batch(predictor, group, check_cuda=None):
     import numpy as np
+    from pixivvault_nicegui.egara_inference import unpack_outputs
 
-    tensor = preprocess(data)
+    tensors = list(group.values())
+    size = len(tensors)
     # Probe raw ORT output. EgaraInference.infer intentionally accepts one image.
-    other = (preprocess(other_data) if other_data is not None
-             else np.ascontiguousarray(tensor[:, :, :, ::-1]))
     input_name = predictor._input_name
-    batch = np.concatenate((tensor, other), axis=0)
+    batch = np.concatenate(tensors, axis=0)
+
+    def run(values):
+        if check_cuda:
+            check_cuda()
+        started = time.perf_counter()
+        output = predictor._session.run(None, {input_name: values})
+        return output, (time.perf_counter() - started) * 1000
+
     try:
-        outputs = predictor._session.run(None, {input_name: batch})
-        result = batch_result(outputs)
-        if result["status"] == "two_rows":
-            singles = [predictor._session.run(None, {input_name: one}) for one in (tensor, other)]
+        outputs, first_ms = run(batch)
+        result = batch_result(outputs, size)
+        if result["status"] in {"two_rows", "full_rows"}:
+            singles_and_ms = [run(one) for one in tensors]
+            singles = [output for output, _ in singles_and_ms]
             pairs = [(output[row:row + 1], singles[row][column])
-                     for column, output in enumerate(outputs) for row in range(2)]
+                     for column, output in enumerate(outputs) for row in range(size)]
             matches = [actual.shape == expected.shape
                        and bool(np.allclose(actual, expected, rtol=1e-5, atol=1e-6))
                        for actual, expected in pairs]
-            result["distinct_single_style_vectors"] = not np.allclose(
-                singles[0][0], singles[1][0], rtol=1e-5, atol=1e-6,
+            result["distinct_single_style_vectors"] = all(
+                not np.allclose(singles[left][0], singles[right][0], rtol=1e-5, atol=1e-6)
+                for right in range(size) for left in range(right)
             )
             result["independent_rows_match"] = all(matches) and result["distinct_single_style_vectors"]
             result["max_abs_error_by_output_and_row"] = [
                 float(np.max(np.abs(actual - expected))) if actual.shape == expected.shape else None
                 for actual, expected in pairs
             ]
+            result["vectors"] = [
+                {kind: vector.astype("<f4", copy=False).tobytes().hex() for kind, vector in
+                 unpack_outputs([out[row:row + 1] for out in outputs], predictor._backbone_index).items()}
+                for row in range(size)
+            ]
+            _, warm_ms = run(batch)
+            result.update(first_batch_ms=first_ms, warm_batch_ms=warm_ms,
+                          sequential_ms=sum(ms for _, ms in singles_and_ms))
+            result["warm_speedup_over_sequential"] = result["sequential_ms"] / warm_ms
     except Exception as exc:
-        if not isinstance(exc, (ValueError, RuntimeError)) and not type(exc).__module__.startswith("onnxruntime."):
+        if isinstance(exc, CudaLeaseUnavailable) or (
+            not isinstance(exc, (ValueError, RuntimeError)) and not type(exc).__module__.startswith("onnxruntime.")
+        ):
             raise
         result = batch_result(None) | {"error": type(exc).__name__}
         if "reshape" in str(exc).lower():
             result["error_operation"] = "Reshape"
-    return result | {"input_shape": list(batch.shape)}
+    return result | {"input_shape": list(batch.shape),
+                     "batch_input_sha256": hashlib.sha256("".join(group).encode("ascii")).hexdigest()}
 
 
 def block_network(event, _args):
@@ -256,27 +305,162 @@ def runtime(ort):
 
 
 def raw_lease():
-    try:
-        return json.loads(LEASE.with_suffix(".json").read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return None
+    for attempt in range(4):
+        try:
+            with LEASE.with_suffix(".json").open("rb") as stream:
+                data = stream.read(LEASE_RECORD_LIMIT + 1)
+            if len(data) > LEASE_RECORD_LIMIT:
+                raise OversizedLease("lease record exceeds the read limit")
+            record = json.loads(data)
+            if not isinstance(record, dict):
+                raise ValueError("invalid lease record")
+            return record
+        except FileNotFoundError:
+            return None
+        except OversizedLease:
+            raise
+        except LEASE_READ_ERRORS:
+            if attempt == 3:
+                raise
+            time.sleep(0.05)
 
 
 def worker_ancestors():
     # CPython's Windows venv redirector can be between parent and worker.
     parent = os.getppid()
     query = f"(Get-CimInstance Win32_Process -Filter 'ProcessId={parent}').ParentProcessId"
-    output = subprocess.check_output(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", query], text=True,
-    )
-    return {parent, int(output.strip())}
+    try:
+        output = subprocess.check_output(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", query],
+            text=True, timeout=5,
+        )
+        ancestor = int(output.strip())
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return {parent}
+    return {parent, ancestor} if ancestor > 0 else {parent}
 
 
 def validate_cuda_lease(current, *, expected_pid, ancestors, now):
-    if (not current or current["owner"] != "PV" or current["pid"] != expected_pid
-            or expected_pid not in ancestors or current["expires"] - now < 60):
-        raise RuntimeError("CUDA worker requires its own live PV lease with time remaining")
-    return current["expires"]
+    expires = current.get("expires") if current else None
+    if (not current or current.get("owner") != "PV" or type(current.get("pid")) is not int
+            or current["pid"] != expected_pid
+            or expected_pid not in ancestors or type(expires) not in (int, float)
+            or not math.isfinite(expires) or expires - now < 60):
+        raise CudaLeaseUnavailable("CUDA worker requires its own live PV lease with time remaining")
+    return expires
+
+
+def lease_identity(record):
+    return tuple(record.get(key) for key in ("owner", "pid", "start", "purpose", "token")) if record else None
+
+
+def windows_job_api():
+    from ctypes import WinDLL, wintypes
+
+    kernel = WinDLL("kernel32", use_last_error=True)
+    definitions = {
+        "CreateJobObjectW": (wintypes.HANDLE, (wintypes.LPVOID, wintypes.LPCWSTR)),
+        "OpenJobObjectW": (wintypes.HANDLE, (wintypes.DWORD, wintypes.BOOL, wintypes.LPCWSTR)),
+        "GetCurrentProcess": (wintypes.HANDLE, ()),
+        "AssignProcessToJobObject": (wintypes.BOOL, (wintypes.HANDLE, wintypes.HANDLE)),
+        "IsProcessInJob": (wintypes.BOOL, (wintypes.HANDLE, wintypes.HANDLE, wintypes.LPVOID)),
+        "TerminateJobObject": (wintypes.BOOL, (wintypes.HANDLE, wintypes.UINT)),
+        "SetInformationJobObject": (wintypes.BOOL, (wintypes.HANDLE, wintypes.INT,
+                                                    wintypes.LPVOID, wintypes.DWORD)),
+        "QueryInformationJobObject": (wintypes.BOOL, (wintypes.HANDLE, wintypes.INT,
+                                                      wintypes.LPVOID, wintypes.DWORD, wintypes.LPVOID)),
+        "CloseHandle": (wintypes.BOOL, (wintypes.HANDLE,)),
+    }
+    for name, (result, arguments) in definitions.items():
+        function = getattr(kernel, name)
+        function.restype = result
+        function.argtypes = arguments
+    return kernel
+
+
+class CudaWorkerStillRunning(RuntimeError):
+    pass
+
+
+@contextmanager
+def cuda_worker_job(name):
+    from ctypes import Structure, WinError, byref, c_longlong, c_size_t, c_ulonglong, sizeof, wintypes
+
+    class Accounting(Structure):
+        _fields_ = [(key, c_longlong) for key in ("user", "kernel", "period_user", "period_kernel")]
+        _fields_ += [(key, wintypes.DWORD) for key in ("faults", "total", "active", "terminated")]
+
+    class BasicLimits(Structure):
+        _fields_ = [("process_time", c_longlong), ("job_time", c_longlong),
+                    ("flags", wintypes.DWORD), ("min_working_set", c_size_t),
+                    ("max_working_set", c_size_t), ("active_limit", wintypes.DWORD),
+                    ("affinity", c_size_t), ("priority", wintypes.DWORD),
+                    ("scheduling", wintypes.DWORD)]
+
+    class ExtendedLimits(Structure):
+        _fields_ = [("basic", BasicLimits), ("io", c_ulonglong * 6),
+                    ("process_limit", c_size_t), ("job_limit", c_size_t),
+                    ("process_peak", c_size_t), ("job_peak", c_size_t)]
+
+    kernel = windows_job_api()
+    job = kernel.CreateJobObjectW(None, name)
+    if not job:
+        raise WinError()
+    limits = ExtendedLimits()
+    limits.basic.flags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+    if not kernel.SetInformationJobObject(job, 9, byref(limits), sizeof(limits)):
+        error = WinError()
+        kernel.CloseHandle(job)
+        raise error
+    stopped = False
+
+    def attach(child):
+        if not kernel.AssignProcessToJobObject(job, child._handle):
+            raise WinError()
+
+    def stop():
+        nonlocal stopped
+        if stopped:
+            return
+        stopped = True
+        if not kernel.TerminateJobObject(job, 124):
+            raise CudaWorkerStillRunning("CUDA job termination failed")
+        info = Accounting()
+        deadline = time.monotonic() + 3
+        while kernel.QueryInformationJobObject(job, 1, byref(info), sizeof(info), None):
+            if not info.active:
+                return
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(0.02)
+        raise CudaWorkerStillRunning("CUDA job stop could not be confirmed")
+
+    try:
+        yield attach, stop
+    finally:
+        try:
+            stop()
+        finally:
+            kernel.CloseHandle(job)
+
+
+def check_cuda_worker_job(name):
+    from ctypes import WinError, byref, wintypes
+
+    if not name:
+        raise RuntimeError("CUDA worker requires a parent-owned Windows job")
+    kernel = windows_job_api()
+    job = kernel.OpenJobObjectW(0x0004, False, name)  # JOB_OBJECT_QUERY
+    if not job:
+        raise WinError()
+    try:
+        member = wintypes.BOOL()
+        if not kernel.IsProcessInJob(kernel.GetCurrentProcess(), job, byref(member)):
+            raise WinError()
+        if not member.value:
+            raise CudaLeaseUnavailable("CUDA worker is outside its parent's Windows job")
+    finally:
+        kernel.CloseHandle(job)
 
 
 def benchmark(args):
@@ -284,10 +468,22 @@ def benchmark(args):
     if args.worker != "cuda":
         return benchmark_samples(args, provider)
 
-    ancestors = worker_ancestors()
+    expected = json.loads(sys.stdin.readline(LEASE_RECORD_LIMIT + 1))
+    if not isinstance(expected, list) or len(expected) != 5 or not expected[-1]:
+        raise CudaLeaseUnavailable("CUDA worker has no acquisition identity")
+    expected = tuple(expected)
+    check_cuda_worker_job(args.worker_job)
+    direct_parent = os.getppid()
+    ancestors = {direct_parent} if direct_parent == args.lease_pid else worker_ancestors()
 
     def check_cuda():
-        return validate_cuda_lease(raw_lease(), expected_pid=args.lease_pid,
+        try:
+            current = raw_lease()
+        except LEASE_READ_ERRORS as exc:
+            raise CudaLeaseUnavailable("CUDA worker lease could not be read") from exc
+        if lease_identity(current) != expected:
+            raise CudaLeaseUnavailable("CUDA worker lease changed")
+        return validate_cuda_lease(current, expected_pid=args.lease_pid,
                                    ancestors=ancestors, now=time.time())
 
     expires = check_cuda()
@@ -336,6 +532,8 @@ def benchmark_samples(args, provider, check_cuda=None):
         timings = {variant: [] for variant in VARIANTS}
         vectors = {variant: [] for variant in VARIANTS}
         fingerprints = []
+        sizes = args.batch_sizes or ((2,) if provider == "cpu" else ())
+        batch_inputs = []
         for sample in chain((first,), samples):
             row = {}
             for variant, data, source in sample:
@@ -345,15 +543,20 @@ def benchmark_samples(args, provider, check_cuda=None):
                 output = predictor.infer(data)
                 timings[variant].append((time.perf_counter() - start) * 1000)
                 vectors[variant].append({kind: bits.hex() for kind, bits in output.items()})
-                row[variant] = {"sha256": hashlib.sha256(data).hexdigest(), "source": source}
+                digest = hashlib.sha256(data).hexdigest()
+                row[variant] = {"sha256": digest, "source": source}
+                if sizes and variant == "original":
+                    tensor = preprocess(data)
+                    batch_inputs.append((tensor.shape, digest, tensor))
             fingerprints.append(row)
         result.update(steady_ms={key: distribution(values) for key, values in timings.items()},
                       fingerprints=fingerprints, vectors=vectors)
-        # This experimental two-image call is intentionally kept off CUDA, so
-        # the GPU peak measures only the supported one-image workload.
-        if provider == "cpu":
-            other = synthetic_original(3) if args.images is None and args.synthetic_count > 3 else None
-            result["batch"] = probe_batch(predictor, first[0][1], other)
+        if sizes:
+            groups = batch_groups(batch_inputs, sizes)
+            result["batch"] = {
+                str(size): probe_batch(predictor, groups[size], check_cuda) if size in groups
+                else {"status": "insufficient_distinct_equal_shape_images"} for size in sizes
+            }
     finally:
         predictor.close()
 
@@ -377,7 +580,8 @@ def benchmark_samples(args, provider, check_cuda=None):
     return result
 
 
-def run_worker(args, python, mode, *, cold_only=False, manifest=None, label="synthetic"):
+def run_worker(args, python, mode, *, cold_only=False, manifest=None, label="synthetic",
+               expected_lease=None):
     command = [str(python), "-B", str(Path(__file__).resolve()), "--model", str(args.model),
                "--output", str(args.output), "--worker", mode, "--label", label,
                "--synthetic-count", str(args.synthetic_count), "--lease-pid", str(os.getpid())]
@@ -385,8 +589,53 @@ def run_worker(args, python, mode, *, cold_only=False, manifest=None, label="syn
         command.append("--cold-only")
     if manifest is not None:
         command.extend(("--images", str(manifest)))
+    if args.batch_sizes and not cold_only and mode in {"cpu", "cuda"}:
+        command.extend(("--batch-sizes", *map(str, args.batch_sizes)))
     start = time.perf_counter()
-    process = subprocess.run(command, capture_output=True, encoding="utf-8", errors="replace")
+    if mode == "cuda":
+        pid = os.getpid()
+        current = raw_lease()
+        expires = validate_cuda_lease(current, expected_pid=pid, ancestors={pid}, now=time.time())
+        if lease_identity(current) != expected_lease:
+            raise CudaLeaseUnavailable("CUDA worker start would use a different acquisition")
+        name = f"PV-G0-{uuid4().hex}"
+        command.extend(("--worker-job", name))
+        # Preserve the venv without launching its Windows redirector. This
+        # gives the parent the real worker handle, as in multiprocessing.
+        env = os.environ | {"__PYVENV_LAUNCHER__": str(python)}
+        command[0] = sys._base_executable
+        try:
+            with cuda_worker_job(name) as (attach, stop):
+                child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE, env=env, encoding="utf-8", errors="replace")
+                try:
+                    attach(child)
+                    timeout = max(0, expires - time.time() - WORKER_STOP_MARGIN)
+                    stdout, _ = child.communicate(input=json.dumps(expected_lease) + "\n", timeout=timeout)
+                    process = subprocess.CompletedProcess(command, child.returncode, stdout)
+                except BaseException:
+                    # A child which never attached cannot pass the stdin gate.
+                    try:
+                        if child.poll() is None:
+                            child.kill()
+                        child.wait(timeout=3)
+                    except (OSError, subprocess.TimeoutExpired) as exc:
+                        raise CudaWorkerStillRunning("CUDA worker exit could not be confirmed") from exc
+                    finally:
+                        stop()
+                    raise
+                finally:
+                    # Windows communicate() uses blocking reader threads.
+                    # Closing their buffered streams before exit can wait
+                    # on a lock held by a reader whose pipe is still open.
+                    if child.returncode is not None:
+                        for stream in (child.stdin, child.stdout, child.stderr):
+                            if stream is not None:
+                                stream.close()
+        except subprocess.TimeoutExpired:
+            return {"error": "worker_timeout", "exit_code": 124}
+    else:
+        process = subprocess.run(command, capture_output=True, encoding="utf-8", errors="replace")
     elapsed = (time.perf_counter() - start) * 1000
     # Native runtime output may precede the final JSON. Refrain from forwarding
     # diagnostics containing filenames or model runtime state.
@@ -397,28 +646,36 @@ def run_worker(args, python, mode, *, cold_only=False, manifest=None, label="syn
     return {"error": "no_worker_result", "exit_code": process.returncode}
 
 
-def suite(args, mode, manifest, label):
-    run = run_worker(args, sys.executable, mode, manifest=manifest, label=label)
+def suite(args, mode, manifest, label, *, expected_lease=None):
+    run = run_worker(args, sys.executable, mode, manifest=manifest, label=label,
+                     expected_lease=expected_lease)
     if "vectors" not in run:
         return run
     cold = [run]
     for _ in range(args.cold_runs - 1):
         cold.append(run_worker(args, sys.executable, mode, cold_only=True,
-                               manifest=manifest, label=label))
+                               manifest=manifest, label=label, expected_lease=expected_lease))
     measured = [trial for trial in cold if trial.get("outcome", {}).get("usable_embedding")]
     run["cold"] = {
         "first_inference_ms": distribution([trial["outcome"]["first_inference_ms"] for trial in measured]),
         "model_check_through_first_ms": distribution([
             trial["model_check_ms"] + trial["outcome"]["first_inference_ms"] for trial in measured]),
         "trials": [{"outcome": trial.get("outcome"), "model_check_ms": trial.get("model_check_ms"),
-                    "error": trial.get("error"), "pid": trial.get("pid")} for trial in cold],
+                    "error": trial.get("error"), "pid": trial.get("pid"),
+                    "exit_code": trial.get("exit_code")} for trial in cold],
     }
     return run
 
 
+def lease_command():
+    # The helper is stdlib-only. Call the real interpreter so a release
+    # timeout kills the helper itself, without a Windows venv redirector.
+    return [sys._base_executable, "-B", "-X", "utf8", str(LEASE)]
+
+
 def lease_status():
-    result = subprocess.check_output([sys.executable, "-B", str(LEASE), "status"],
-                                     encoding="utf-8", errors="replace")
+    result = subprocess.check_output([*lease_command(), "status"],
+                                     encoding="utf-8", errors="replace", timeout=15)
     return json.loads(result)
 
 
@@ -440,24 +697,29 @@ def sample_vram(samples):
     command = ["nvidia-smi", "-i", "0", "--query-gpu=memory.used",
                "--format=csv,noheader,nounits", "--loop-ms=100"]
     initial = Event()
-    with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                          text=True, encoding="utf-8", errors="replace") as monitor:
-        def collect():
-            for line in monitor.stdout:
-                if line.strip().isdigit():
-                    samples.append(int(line))
-                    initial.set()
+    monitor = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                               text=True, encoding="utf-8", errors="replace")
 
-        reader = Thread(target=collect)
-        reader.start()
-        try:
-            if not initial.wait(5):
-                raise RuntimeError("GPU memory baseline unavailable")
-            yield
-        finally:
+    def collect():
+        for line in monitor.stdout:
+            if line.strip().isdigit():
+                samples.append(int(line))
+                initial.set()
+
+    reader = Thread(target=collect, daemon=True)
+    reader.start()
+    try:
+        if not initial.wait(5):
+            raise RuntimeError("GPU memory baseline unavailable")
+        yield
+    finally:
+        if monitor.poll() is None:
             monitor.terminate()
-            monitor.wait()
-            reader.join()
+        monitor.wait(timeout=3)
+        reader.join(timeout=1)
+        if reader.is_alive():
+            raise RuntimeError("GPU memory sampler did not close")
+        monitor.stdout.close()
 
 
 def verify_cuda(args, datasets):
@@ -466,29 +728,102 @@ def verify_cuda(args, datasets):
         return run_leased_cuda(args, datasets)
 
 
+def cleanup_lease_read():
+    for _ in range(2):
+        try:
+            return True, raw_lease()
+        except OversizedLease:
+            return False, None
+        except LEASE_READ_ERRORS:
+            time.sleep(0.05)
+    try:
+        status = lease_status()
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return False, None
+    # The shared helper also returns null on a failed read, so null following
+    # a read error cannot establish that the file or its owner disappeared.
+    record = status.get("raw")
+    return (True, record) if isinstance(record, dict) else (False, None)
+
+
+def finish_lease(evidence, matches, samples):
+    readable, previous = cleanup_lease_read()
+    if readable and matches(previous) and not evidence.get("worker_stop_unconfirmed"):
+        readable, current = cleanup_lease_read()
+        if readable and matches(current) and lease_identity(previous) == lease_identity(current):
+            expires = current.get("expires")
+            if type(expires) in (int, float) and expires - time.time() > RELEASE_TIMEOUT:
+                if samples:
+                    evidence["last_sample_before_release_mib"] = samples[-1]
+                try:
+                    released = subprocess.run(
+                        [*lease_command(), "release", "--owner", "PV", "--pid", str(current["pid"]),
+                         "--token", current["token"]], capture_output=True, timeout=RELEASE_TIMEOUT,
+                    )
+                    evidence["release_exit_code"] = released.returncode
+                except (OSError, subprocess.SubprocessError) as exc:
+                    evidence["release_error"] = type(exc).__name__
+                # A possibly completed state change is never submitted again.
+                readable, current = cleanup_lease_read()
+            else:
+                evidence["release_skipped"] = "lease_near_or_past_expiry"
+        else:
+            evidence["release_skipped"] = "ownership_changed_or_unreadable"
+    else:
+        current = previous
+        if evidence.get("worker_stop_unconfirmed"):
+            evidence["release_skipped"] = "worker_stop_unconfirmed"
+    evidence["owned_lease_remaining"] = matches(current) if readable else None
+
+
 def run_leased_cuda(args, datasets):
     status = lease_status()
     if status["lease"] and status["lease"]["owner"] == "PV":
         return {"status": "existing_pv_lease"}, {}
     gpu = subprocess.check_output(["nvidia-smi", "-i", "0",
                                    "--query-gpu=name,driver_version,compute_cap,memory.total",
-                                   "--format=csv,noheader,nounits"], text=True).strip()
-    args_id = ["--owner", "PV"]
-    command = [sys.executable, "-B", str(LEASE)]
+                                   "--format=csv,noheader,nounits"], text=True, timeout=10).strip()
     evidence = {"status": "unavailable", "gpu_name_driver_cc_total_mib": gpu,
                 "initial_free_gib": status["free_gib"], "requested_gib": args.vram_gib}
     if status["free_gib"] is None:
         return evidence | {"error": "free_vram_unavailable"}, {}
+    help_text = subprocess.check_output([*lease_command(), "--help"], encoding="utf-8", timeout=15)
+    if "--token" not in help_text:
+        return evidence | {"error": "token_release_not_supported"}, {}
     samples, runs = [], {}
+    pid = os.getpid()
+    # A per-request purpose finds our record if the acquire receipt is lost.
+    # The shared helper's own token authorizes the atomic release.
+    purpose = f"EgaraNet CUDA verification [{uuid4().hex}]"
+    requested_at = time.time()
+    acquired_identity = None
+
+    def matches(record):
+        identity = lease_identity(record)
+        if not identity:
+            return False
+        owner, holder, started, claimed_purpose, token = identity
+        return (owner == "PV" and type(holder) is int and holder == pid and claimed_purpose == purpose
+                and isinstance(token, str) and bool(token)
+                and type(started) in (int, float) and requested_at <= started <= time.time()
+                and (acquired_identity is None or identity == acquired_identity))
+
     try:
-        acquired = subprocess.run([*command, "acquire", *args_id, "--purpose",
-                                   "EgaraNet CUDA 検証", "--vram-gib", str(args.vram_gib),
+        acquired = subprocess.run([*lease_command(), "acquire", "--owner", "PV", "--purpose",
+                                   purpose, "--vram-gib", str(args.vram_gib),
                                    "--minutes", "30", "--wait", str(args.lease_wait),
-                                   "--pid", str(os.getpid())], capture_output=True)
+                                   "--pid", str(pid)], capture_output=True, encoding="utf-8", errors="replace")
         evidence["acquire_exit_code"] = acquired.returncode
         if acquired.returncode == 0:
-            validate_cuda_lease(raw_lease(), expected_pid=os.getpid(),
-                                ancestors={os.getpid()}, now=time.time())
+            line = next((line for line in acquired.stdout.splitlines() if line.startswith("acquired ")), "")
+            record = json.loads(line.removeprefix("acquired "))
+            if not isinstance(record, dict) or not matches(record):
+                raise CudaLeaseUnavailable("acquisition receipt does not match this run")
+            acquired_identity = lease_identity(record)
+            current = raw_lease()
+            if not matches(current):
+                raise CudaLeaseUnavailable("acquired lease changed before CUDA")
+            validate_cuda_lease(current, expected_pid=pid, ancestors={pid}, now=time.time())
             evidence["status"] = "acquired"
             free = lease_status()["free_gib"]
             evidence["acquired_free_gib"] = free
@@ -496,18 +831,15 @@ def run_leased_cuda(args, datasets):
                 raise RuntimeError("GPU memory margin unavailable after acquisition")
             with sample_vram(samples):
                 for label, manifest in datasets:
-                    runs[label] = suite(args, "cuda", manifest, label)
-    except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+                    try:
+                        runs[label] = suite(args, "cuda", manifest, label, expected_lease=acquired_identity)
+                    except CudaWorkerStillRunning:
+                        evidence["worker_stop_unconfirmed"] = True
+                        raise
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
         evidence["error"] = type(exc).__name__
     finally:
-        raw = raw_lease()
-        if raw and raw["owner"] == "PV" and raw["pid"] == os.getpid():
-            if samples:
-                evidence["last_sample_before_release_mib"] = samples[-1]
-            released = subprocess.run([*command, "release", *args_id], capture_output=True)
-            evidence["release_exit_code"] = released.returncode
-        raw = raw_lease()
-        evidence["owned_lease_remaining"] = bool(raw and raw["owner"] == "PV" and raw["pid"] == os.getpid())
+        finish_lease(evidence, matches, samples)
     if samples:
         evidence["adapter_vram_mib"] = {"scope": "whole adapter, 100 ms sampling",
                                         "initial": samples[0], "sampled_peak": max(samples),
@@ -524,12 +856,39 @@ def metrics(reference, candidate, k):
     ) for kind in reference[0]}
 
 
+def batch_comparison(cpu, cuda):
+    results = {}
+    for size, reference in cpu.get("batch", {}).items():
+        candidate = cuda.get("batch", {}).get(size, {})
+        if "vectors" not in reference or "vectors" not in candidate:
+            continue
+        if reference["batch_input_sha256"] != candidate["batch_input_sha256"]:
+            raise ValueError("batch providers used different images")
+        pairs = list(zip(reference["vectors"], candidate["vectors"], strict=True))
+        kinds = {}
+        for kind in pairs[0][0]:
+            cosine = []
+            max_abs_error = 0
+            for left, right in pairs:
+                a = struct.unpack("<1024f", bytes.fromhex(left[kind]))
+                b = struct.unpack("<1024f", bytes.fromhex(right[kind]))
+                cosine.append(min(1., math.sumprod(a, b) / (math.hypot(*a) * math.hypot(*b))))
+                max_abs_error = max(max_abs_error, max(abs(x - y) for x, y in zip(a, b, strict=True)))
+            kinds[kind] = {"paired_cosine": distribution(cosine), "max_abs_error": max_abs_error}
+        results[size] = {"vectors": kinds,
+                         "cpu_over_cuda_warm_batch": reference["warm_batch_ms"] / candidate["warm_batch_ms"]}
+    return results
+
+
 def write_report(args, report):
     datasets = {}
     for label, data in report["datasets"].items():
         datasets[label] = {}
         for name, run in data.items():
-            public = {key: value for key, value in run.items() if key != "fingerprints"}
+            public = {key: value for key, value in run.items() if key not in {"fingerprints", "vectors"}}
+            if "batch" in public:
+                public["batch"] = {size: {key: value for key, value in measurement.items() if key != "vectors"}
+                                   for size, measurement in public["batch"].items()}
             if "fingerprints" in run:
                 images = run["fingerprints"]
                 public["corpus_sha256"] = hashlib.sha256(
@@ -616,6 +975,8 @@ def orchestrate(args):
                 data["provider_comparison"] = {variant: metrics(cpu_vectors[label][variant],
                                                               gpu_vectors[variant], args.k)
                                                for variant in VARIANTS}
+                if args.batch_sizes:
+                    data["batch_comparison"] = batch_comparison(data["cpu"], run)
         write_report(args, report)
     return measurement_exit_code(report, skip_gpu=args.skip_gpu)
 
@@ -630,11 +991,13 @@ def main():
     parser.add_argument("--cold-runs", type=int, default=3)
     parser.add_argument("--k", type=int, default=10)
     parser.add_argument("--skip-gpu", action="store_true")
-    parser.add_argument("--vram-gib", type=float, default=4)
+    parser.add_argument("--vram-gib", type=float, default=2.5)
     parser.add_argument("--lease-wait", type=int, default=1800)
+    parser.add_argument("--batch-sizes", type=int, nargs="+", choices=(2, 4, 8))
     parser.add_argument("--worker", choices=("cpu", "cuda", "auto-unavailable", "cuda-unavailable"),
                         help=argparse.SUPPRESS)
     parser.add_argument("--lease-pid", type=int, help=argparse.SUPPRESS)
+    parser.add_argument("--worker-job", help=argparse.SUPPRESS)
     parser.add_argument("--label", choices=("synthetic", "saved"), default="synthetic", help=argparse.SUPPRESS)
     parser.add_argument("--cold-only", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
