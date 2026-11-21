@@ -1,0 +1,124 @@
+﻿..........................................................F............. [ 51%]
+..............................................F...................F      [100%]
+================================== FAILURES ===================================
+_________ test_busy_io_has_a_deadline_and_does_not_delay_invalidation _________
+
+store_api = <module 'pixivvault_nicegui.visual_preference_store' from 'S:\\Work\\PV\\gpu-shadow-20261122\\src\\pixivvault_nicegui\\visual_preference_store.py'>
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-focused-initial-20261122/test_busy_io_has_a_deadline_an0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002028AA40590>
+
+    def test_busy_io_has_a_deadline_and_does_not_delay_invalidation(store_api, tmp_path, monkeypatch):
+        root = tmp_path / 'owned'
+        store = open_store(store_api, root)
+        other = open_store(store_api, root)
+        active = generation(store)
+        monkeypatch.setattr(store_api, '_IO_TIMEOUT', .2, raising=False)
+        with ThreadPoolExecutor(max_workers=2) as threads, store._transaction():
+            busy = threads.submit(other.append_event, 'busy-test', {})
+            try:
+                with pytest.raises(store_api.VisualPreferenceStoreError):
+>                   busy.result(timeout=2)
+
+tests\test_visual_preference_store.py:453: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = None, timeout = 2
+
+    def result(self, timeout=None):
+        """Return the result of the call that the future represents.
+    
+        Args:
+            timeout: The number of seconds to wait for the result if the future
+                isn't done. If None, then there is no limit on the wait time.
+    
+        Returns:
+            The result of the call that the future represents.
+    
+        Raises:
+            CancelledError: If the future was cancelled.
+            TimeoutError: If the future didn't finish executing before the given
+                timeout.
+            Exception: If the call raised then that exception will be raised.
+        """
+        try:
+            with self._condition:
+                if self._state in [CANCELLED, CANCELLED_AND_NOTIFIED]:
+                    raise CancelledError()
+                elif self._state == FINISHED:
+                    return self.__get_result()
+    
+                self._condition.wait(timeout)
+    
+                if self._state in [CANCELLED, CANCELLED_AND_NOTIFIED]:
+                    raise CancelledError()
+                elif self._state == FINISHED:
+                    return self.__get_result()
+                else:
+>                   raise TimeoutError()
+E                   TimeoutError
+
+C:\Users\<local>\miniconda3\envs\stenv\Lib\concurrent\futures\_base.py:458: TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+store_api = <module 'pixivvault_nicegui.visual_preference_store' from 'S:\\Work\\PV\\gpu-shadow-20261122\\src\\pixivvault_nicegui\\visual_preference_store.py'>
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-focused-initial-20261122/test_busy_io_has_a_deadline_an0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002028AA40590>
+
+    def test_busy_io_has_a_deadline_and_does_not_delay_invalidation(store_api, tmp_path, monkeypatch):
+        root = tmp_path / 'owned'
+        store = open_store(store_api, root)
+        other = open_store(store_api, root)
+        active = generation(store)
+        monkeypatch.setattr(store_api, '_IO_TIMEOUT', .2, raising=False)
+>       with ThreadPoolExecutor(max_workers=2) as threads, store._transaction():
+                                                           ^^^^^^^^^^^^^^^^^^^^
+
+tests\test_visual_preference_store.py:449: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\<local>\miniconda3\envs\stenv\Lib\contextlib.py:162: in __exit__
+    self.gen.throw(value)
+src\pixivvault_nicegui\visual_preference_store.py:701: in _transaction
+    _reject()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _reject():
+>       raise VisualPreferenceStoreError('visual preference store is unavailable or unowned')
+E       pixivvault_nicegui.visual_preference_store.VisualPreferenceStoreError: visual preference store is unavailable or unowned
+
+src\pixivvault_nicegui\visual_preference_store.py:189: VisualPreferenceStoreError
+__________ test_only_an_empty_judgment_can_supply_weak_labels[None] ___________
+
+visual = <module 'pixivvault_nicegui.visual_preference' from 'S:\\Work\\PV\\gpu-shadow-20261122\\src\\pixivvault_nicegui\\visual_preference.py'>
+generation = Generation(store_id='test-store', number=1, model_sha='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', preprocessing_version='v1', judgment_fingerprint='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')
+judgment = None
+
+    @pytest.mark.parametrize('judgment', ['unknown', 'opened', None, []])
+    def test_only_an_empty_judgment_can_supply_weak_labels(visual, generation, judgment):
+        row = sample(visual, generation, 'saved', (1, 0), judgment,
+                     saved=True, bookmarked=True, variant='saved_original')
+>       assert visual.fit(generation, [row]) is None
+E       AssertionError: assert ModelSnapshot(generation=Generation(store_id='test-store', number=1, model_sha='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa...horStyle(author_id='author', vector=(1.0, 0.0), work_count=1, concentration=1.0),), embedding_space='original-view-v1') is None
+E        +  where ModelSnapshot(generation=Generation(store_id='test-store', number=1, model_sha='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa...horStyle(author_id='author', vector=(1.0, 0.0), work_count=1, concentration=1.0),), embedding_space='original-view-v1') = <function fit at 0x000002028727DA80>(Generation(store_id='test-store', number=1, model_sha='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', preprocessing_version='v1', judgment_fingerprint='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'), [TrainingSample(embedding=Embedding(key=EmbeddingKey(work_id='saved', page=0, variant='saved_original', image_sha='ccc..._version='v1'), vector=(1, 0)), author_id='author', judgment=None, reason='', saved=True, bookmarked=True, revision=0)])
+E        +    where <function fit at 0x000002028727DA80> = <module 'pixivvault_nicegui.visual_preference' from 'S:\\Work\\PV\\gpu-shadow-20261122\\src\\pixivvault_nicegui\\visual_preference.py'>.fit
+
+tests\test_visual_preference_scoring.py:157: AssertionError
+________________________ test_candidate_network_routes ________________________
+
+    def test_candidate_network_routes():
+        root = Path(__file__).resolve().parents[1]
+        review = json.loads((root / 'tools' / 'p6_network_review.json').read_text(encoding='utf-8'))
+        issues = p6_network.check(p6_network.inventory(root / 'src'), review)
+>       assert not issues, '\n'.join(issues)
+E       AssertionError: pixivvault_nicegui/discovery_learning.py:344 DiscoveryLearningService._fetch_candidates client.require_identity: unreviewed
+E         pixivvault_nicegui/discovery_learning.py:350 DiscoveryLearningService._fetch_candidates client.get_following_users: unreviewed
+E         stale review: pixivvault_nicegui/discovery_learning.py:DiscoveryLearningService._fetch_candidates:client.get_following_users:81702d4addead6b3:235e4fb1893a94e9:1
+E         stale review: pixivvault_nicegui/discovery_learning.py:DiscoveryLearningService._fetch_candidates:client.require_identity:81702d4addead6b3:8356415f82ac0764:1
+E       assert not ['pixivvault_nicegui/discovery_learning.py:344 DiscoveryLearningService._fetch_candidates client.require_identity: unr...ry_learning.py:DiscoveryLearningService._fetch_candidates:client.require_identity:81702d4addead6b3:8356415f82ac0764:1']
+
+tests\test_p6_network.py:80: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_store.py::test_busy_io_has_a_deadline_and_does_not_delay_invalidation
+FAILED tests/test_visual_preference_scoring.py::test_only_an_empty_judgment_can_supply_weak_labels[None]
+FAILED tests/test_p6_network.py::test_candidate_network_routes - AssertionErr...
+3 failed, 136 passed in 56.21s

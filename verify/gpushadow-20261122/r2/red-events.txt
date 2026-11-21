@@ -1,0 +1,59 @@
+﻿FF                                                                       [100%]
+================================== FAILURES ===================================
+____________ test_in_place_purge_discards_events_waiting_to_append ____________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-events-red-20261122/test_in_place_purge_discards_e0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001820A66E650>
+
+    def test_in_place_purge_discards_events_waiting_to_append(tmp_path, monkeypatch):
+        store = store_at(tmp_path / 'shadow')
+        worker = VisualPreferenceWorker(store, tmp_path / 'unused.onnx')
+        entered, resume = Event(), Event()
+        append = store.append_event
+    
+        def pause(*args, **kwargs):
+            entered.set()
+            assert resume.wait(10)
+            return append(*args, **kwargs)
+    
+        monkeypatch.setattr(store, 'append_event', pause)
+        worker.ranking_finalized(lambda: [{'work_id': 'before'}])
+        try:
+            assert entered.wait(5)
+            store_at(store.root).purge()
+        finally:
+            resume.set()
+            worker.flush_events()
+>       assert store.events() == ()
+E       AssertionError: assert (RankingEvent...'before'}]}),) == ()
+E         
+E         Left contains one more item: RankingEvent(sequence=1, kind='ranking', captured_at='2026-11-21 23:01:46', payload={'candidates': [{'image_available': None, 'image_variant': None, 'work_id': 'before'}]})
+E         Use -v to get more diff
+
+tests\test_visual_preference_shadow_review.py:183: AssertionError
+_______________ test_event_drain_reports_a_final_unwritten_gap ________________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-events-red-20261122/test_event_drain_reports_a_fin0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001820A66C510>
+
+    def test_event_drain_reports_a_final_unwritten_gap(tmp_path, monkeypatch):
+        store = store_at(tmp_path / 'shadow')
+        worker = VisualPreferenceWorker(store, tmp_path / 'unused.onnx')
+    
+        def fail(*args, **kwargs):
+            raise OSError('synthetic write failure')
+    
+        with monkeypatch.context() as patch:
+            patch.setattr(store, 'append_event', fail)
+            worker.ranking_finalized(lambda: [{'work_id': 'lost'}])
+>           with pytest.raises(RuntimeError, match='gap'):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_visual_preference_shadow_review.py:199: Failed
+------------------------------ Captured log call ------------------------------
+WARNING  pixivvault_nicegui.visual_preference_worker:visual_preference_worker.py:179 visual preference event append failed (ranking, OSError)
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_shadow_review.py::test_in_place_purge_discards_events_waiting_to_append
+FAILED tests/test_visual_preference_shadow_review.py::test_event_drain_reports_a_final_unwritten_gap
+2 failed, 10 deselected in 6.27s

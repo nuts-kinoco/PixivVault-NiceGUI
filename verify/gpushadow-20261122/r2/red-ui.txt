@@ -1,0 +1,65 @@
+﻿F                                                                        [100%]
+================================== FAILURES ===================================
+________ test_learning_view_prefetch_follows_live_observer_on_same_pin ________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-ui-red-20261122/test_learning_view_prefetch_fo0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001DE4EE022C0>
+
+    async def test_learning_view_prefetch_follows_live_observer_on_same_pin(tmp_path, monkeypatch):
+        fake_ort(monkeypatch)
+        path = tmp_path / 'model.onnx'
+        path.write_bytes(b'synthetic model')
+        worker = VisualPreferenceWorker(store_at(tmp_path / 'shadow'), path,
+            model_sha=sha256(path.read_bytes()).hexdigest(), gpu_arbiter=GpuInferenceArbiter())
+        view, services, service, cleanup = await open_discovery_view(tmp_path, monkeypatch, count=3)
+        works = tuple(a.work_id for a in view.state.artworks)
+        produced = png()
+        calls = []
+    
+        def transport(request, *_):
+            calls.append((request.get_method(), request.full_url))
+            if '/pages' in request.full_url:
+                return json.dumps({'error': False, 'body': [{'urls': {
+                    'regular': 'https://i.pximg.net/synthetic-regular.png'}}]}).encode()
+            return produced
+    
+        client = _client(ManagedNetworkStopGate(tmp_path / 'gate.sqlite3'), transport)
+        client._cookies = CookieJar()
+        settings = {'discovery_cache_limit_mode': 'count', 'discovery_cache_size_count': '1'}
+        services.preferences = SimpleNamespace(snapshot=lambda: SimpleNamespace(values=settings))
+        old_pin = view._discovery_pin
+        worker.start()
+        try:
+            for mixed in (False, True):
+                calls.clear()
+                cache = SharedImageCache(max_bytes=4 * len(produced))
+                registry = LibraryImageRegistry(DemoImageCatalog(()), shared_cache=cache)
+                pin = registry.acquire_catalog(RemoteBookmarkImages(client, tuple(record(w) for w in works)))
+                view._images = view._discovery_pin = pin
+                services.images = registry
+                try:
+                    for count in (1, 2, 3):
+                        service.shadow_observer = worker if mixed and count == 2 else None
+                        settings['discovery_cache_size_count'] = str(count)
+                        with view.client:
+                            view._start_prefetch()
+                        await view._prefetch_task
+                        if count == 1:
+                            same_prefetch = view._prefetch
+                        assert view._prefetch is same_prefetch
+                    assert len(calls) == 6
+                    if mixed:
+                        assert calls == baseline
+                        deadline = asyncio.get_running_loop().time() + 5
+                        while worker.status()['indexed'] != 1:
+>                           assert asyncio.get_running_loop().time() < deadline
+E                           assert 308354.3507758 < 308354.3398158
+E                            +  where 308354.3507758 = time()
+E                            +    where time = <ProactorEventLoop running=True closed=False debug=False>.time
+E                            +      where <ProactorEventLoop running=True closed=False debug=False> = <built-in function get_running_loop>()
+E                            +        where <built-in function get_running_loop> = asyncio.get_running_loop
+
+tests\test_visual_preference_shadow_review.py:245: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_shadow_review.py::test_learning_view_prefetch_follows_live_observer_on_same_pin
+1 failed in 16.27s

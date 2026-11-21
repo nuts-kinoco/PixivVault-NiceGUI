@@ -1,0 +1,395 @@
+﻿FFFFFFFFF.                                                               [100%]
+================================== FAILURES ===================================
+___ test_both_control_replacements_fail_while_fit_and_embedding_are_pending ___
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-actual-red-20261122/test_both_control_replacements0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000026CA4CD82B0>
+
+    def test_both_control_replacements_fail_while_fit_and_embedding_are_pending(tmp_path, monkeypatch):
+        invalidator = store_at(tmp_path / 'shadow')
+        fitter = store_at(invalidator.root)
+        embeddings = store_at(invalidator.root)
+        active = generation(invalidator)
+        assert invalidator.publish(active, model(active).to_payload())
+        epoch = embeddings.capture_embedding_epoch()
+        key = EmbeddingKey('synthetic', 0, 'view', 'd' * 64, active.model_sha, active.preprocessing_version)
+        write = invalidator._write_record
+    
+        def replace(path, data):
+            if path in (invalidator._revocation, invalidator._revocation_recovery):
+                raise PermissionError('synthetic replacement failure')
+            return write(path, data)
+    
+        monkeypatch.setattr(invalidator, '_write_record', replace)
+        captured, resume = Event(), Event()
+        transaction = fitter._transaction
+    
+        def pause_before_write(**kwargs):
+            if kwargs.get('write'):
+                captured.set()
+                assert resume.wait(10)
+            return transaction(**kwargs)
+    
+        with monkeypatch.context() as patch, ThreadPoolExecutor(1) as pool:
+            patch.setattr(fitter, '_transaction', pause_before_write)
+            pending = pool.submit(generation, fitter)
+            try:
+                assert captured.wait(5)
+                invalidator.invalidate('undo')
+            finally:
+                resume.set()
+>           with pytest.raises(VisualPreferenceStoreError):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE <class 'pixivvault_nicegui.visual_preference_store.VisualPreferenceStoreError'>
+
+tests\test_visual_preference_shadow_review.py:59: Failed
+------------------------------ Captured log call ------------------------------
+WARNING  pixivvault_nicegui.visual_preference_store:visual_preference_store.py:854 visual preference generation fence used database retirement
+_______ test_shadow_stop_cancels_waiter_without_releasing_another_owner _______
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-actual-red-20261122/test_shadow_stop_cancels_waite0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000026CA4AC5B50>
+
+    def test_shadow_stop_cancels_waiter_without_releasing_another_owner(tmp_path, monkeypatch):
+        fake_ort(monkeypatch)
+        path = tmp_path / 'model.onnx'
+        path.write_bytes(b'synthetic model')
+        arbiter = GpuInferenceArbiter()
+        worker = VisualPreferenceWorker(store_at(tmp_path / 'shadow'), path,
+            model_sha=sha256(path.read_bytes()).hexdigest(), gpu_arbiter=arbiter)
+        catalog = RemoteBookmarkImages(Client(), (record('synthetic'),))
+        try:
+            worker.start()
+            with arbiter.acquire(object(), priority=10) as lease:
+                assert worker.submit_image('synthetic', 0, catalog.get_with_variant('synthetic'))
+                with arbiter._condition:
+                    assert arbiter._condition.wait_for(lambda: bool(arbiter._waiting), 5)
+>               worker.stop(timeout=.5)
+
+tests\test_visual_preference_shadow_review.py:82: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\pixivvault_nicegui\visual_preference_worker.py:98: in stop
+    self._join(thread, timeout)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+thread = <Thread(pv-visual-preference, stopped daemon 121548)>, timeout = 0.5
+
+    @staticmethod
+    def _join(thread, timeout):
+        thread.join(timeout)
+        if thread.is_alive():
+>           raise TimeoutError('visual preference worker shutdown not confirmed')
+E           TimeoutError: visual preference worker shutdown not confirmed
+
+src\pixivvault_nicegui\visual_preference_worker.py:107: TimeoutError
+____ test_idle_release_publishes_fence_before_return_without_worker_wakeup ____
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-actual-red-20261122/test_idle_release_publishes_fe0')
+
+    def test_idle_release_publishes_fence_before_return_without_worker_wakeup(tmp_path):
+        arbiter = GpuInferenceArbiter()
+        store = store_at(tmp_path / 'shadow')
+        worker = VisualPreferenceWorker(store, tmp_path / 'unused.onnx', gpu_arbiter=arbiter)
+        worker.start()
+        try:
+            active = generation(store)
+            assert store.publish(active, model(active).to_payload())
+            other = store_at(store.root)
+            # Hold the state lock so the idle thread can never supply the fence.
+            with worker._condition:
+                arbiter.release_all()
+>               assert not other.is_current(active)
+E               AssertionError: assert not True
+E                +  where True = is_current(Generation(store_id='c3c25872beb845b689dc9d97f32220b3', number=751499596243522090, model_sha='aaaaaaaaaaaaaaaaaaaaaaaa...', preprocessing_version='v1', judgment_fingerprint='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'))
+E                +    where is_current = <pixivvault_nicegui.visual_preference_store.VisualPreferenceStore object at 0x0000026CA5F68170>.is_current
+
+tests\test_visual_preference_shadow_review.py:103: AssertionError
+__________ test_idle_similarity_resume_replaces_pending_older_resume __________
+
+    def test_idle_similarity_resume_replaces_pending_older_resume():
+        scanned = Event()
+        worker = SimilarityWorker(lambda: (scanned.set(), ())[1], lambda *_: True, auto=lambda: False)
+        worker.pause()
+        worker.start()
+        try:
+            with worker._lock:
+                worker.resume()
+                DEFAULT_GPU_ARBITER.release_all()
+                worker.resume()
+>           assert scanned.wait(1)
+E           assert False
+E            +  where False = wait(1)
+E            +    where wait = <threading.Event at 0x26ca4cb3750: unset>.wait
+
+tests\test_visual_preference_shadow_review.py:118: AssertionError
+_____________ test_slow_event_append_does_not_block_learning_fifo _____________
+
+fut = <coroutine object LearningService.judged_count at 0x0000026CA4E48E40>
+timeout = 1
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+C:\Users\<local>\miniconda3\envs\stenv\Lib\asyncio\tasks.py:507: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\pixivvault_nicegui\learning_service.py:387: in judged_count
+    return await self._wait(self._submit(lambda: len(self._database().get_judged_work_ids())))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+future = <Future at 0x26ca4c89370 state=finished returned int>
+
+    @staticmethod
+    async def _wait(future: Future):
+        wrapped = asyncio.wrap_future(future)
+        # Retrieve any eventual error if the UI waiter is cancelled. Shield
+        # prevents cancellation from reaching a queued executor command.
+        wrapped.add_done_callback(lambda done: None if done.cancelled() else done.exception())
+>       return await asyncio.shield(wrapped)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       asyncio.exceptions.CancelledError
+
+src\pixivvault_nicegui\learning_service.py:118: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-actual-red-20261122/test_slow_event_append_does_no0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000026CA5F22350>
+
+    def test_slow_event_append_does_not_block_learning_fifo(tmp_path, monkeypatch):
+        store = store_at(tmp_path / 'shadow')
+        worker = VisualPreferenceWorker(store, tmp_path / 'unused.onnx')
+        service = LearningService(tmp_path / 'learning', generate_demo_artworks(2), shadow_observer=worker)
+        entered, resume = Event(), Event()
+        append = store.append_event
+    
+        def slow_append(*args):
+            entered.set()
+            assert resume.wait(10)
+            return append(*args)
+    
+        monkeypatch.setattr(store, 'append_event', slow_append)
+    
+        async def exercise():
+            session = (await service.open_session()).session_id
+            receipt = service.submit_record(session, Judgment(service.artworks[0].work_id, 'like', 'one'))
+            try:
+                assert await asyncio.to_thread(entered.wait, 5)
+                assert await asyncio.wait_for(service.judged_count(), 1) == 1
+            finally:
+                resume.set()
+                await service._wait(receipt)
+    
+        try:
+>           asyncio.run(exercise())
+
+tests\test_visual_preference_shadow_review.py:148: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\<local>\miniconda3\envs\stenv\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\<local>\miniconda3\envs\stenv\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\<local>\miniconda3\envs\stenv\Lib\asyncio\base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests\test_visual_preference_shadow_review.py:142: in exercise
+    assert await asyncio.wait_for(service.judged_count(), 1) == 1
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\<local>\miniconda3\envs\stenv\Lib\asyncio\tasks.py:506: in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x0000026CA5F5D240>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is not None:
+                # Since there are no new cancel requests, we're
+                # handling this.
+                if issubclass(exc_type, exceptions.CancelledError):
+>                   raise TimeoutError from exc_val
+E                   TimeoutError
+
+C:\Users\<local>\miniconda3\envs\stenv\Lib\asyncio\timeouts.py:116: TimeoutError
+__________________ test_fetch_records_only_its_final_ranking __________________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-actual-red-20261122/test_fetch_records_only_its_fi0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000026CA5F21E50>
+
+    async def test_fetch_records_only_its_final_ranking(tmp_path, monkeypatch):
+        from pixivvault_nicegui import discovery_engine
+    
+        observed = []
+        observer = SimpleNamespace(ranking_finalized=lambda snapshot: observed.append(snapshot()))
+        service = DiscoveryLearningService(tmp_path / 'learning', SimpleNamespace(require_identity=lambda: None),
+                                           following=(), shadow_observer=observer)
+        monkeypatch.setattr(discovery_engine, 'get_next_batch', lambda **_: SimpleNamespace(
+            items=(candidate(1), candidate(2)), ok=('following',), failed=()))
+        try:
+            batch = await service.fetch_candidates()
+>           assert len(observed) == 1
+E           AssertionError: assert 2 == 1
+E            +  where 2 = len([[{'author_id': '501', 'base_rank': 1, 'base_score': 0.5, 'bookmarked': False, ...}, {'author_id': '502', 'base_rank':...e': 0.5, 'bookmarked': False, ...}, {'author_id': '502', 'base_rank': 2, 'base_score': 0.5, 'bookmarked': False, ...}]])
+
+tests\test_visual_preference_shadow_review.py:166: AssertionError
+______ test_nullable_labels_are_not_conflicts_and_exclusions_are_counted ______
+
+    def test_nullable_labels_are_not_conflicts_and_exclusions_are_counted():
+        from tools import evaluate_visual_preference as evaluator
+    
+        data = evaluator.synthetic_input()
+        row = data['training'][0]
+        data['training'] = [dict(row, work_id='null', judgment=None, reason=None, saved=False),
+            dict(row, work_id='saved', judgment=None, reason=None, saved=True),
+            dict(row, work_id='no-reason', judgment='hate', reason=None),
+            dict(row, work_id='conflict', judgment='like'),
+            dict(row, work_id='conflict', vector=None, judgment='hate', reason='style'),
+            dict(row, work_id='resolved', judgment='hate', reason=None),
+            dict(row, work_id='resolved', vector=None, judgment='hate', reason='style')]
+>       counts = evaluator.evaluate(data, bootstrap_samples=2)['training_exclusions']
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'training_exclusions'
+
+tests\test_visual_preference_shadow_review.py:184: KeyError
+_______ test_worker_observes_thumbnail_variants_without_embedding_them ________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-actual-red-20261122/test_worker_observes_thumbnail0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000026CA4E4BD90>
+
+    def test_worker_observes_thumbnail_variants_without_embedding_them(tmp_path, monkeypatch):
+        from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
+    
+        arbiter = GpuInferenceArbiter()
+        calls = fake_ort(monkeypatch)
+        store = store_at(tmp_path / 'shadow')
+        path = tmp_path / 'egara.onnx'
+        path.write_bytes(b'synthetic egara')
+        digest = sha256(path.read_bytes()).hexdigest()
+        worker = VisualPreferenceWorker(store, path, model_sha=digest, gpu_arbiter=arbiter)
+        regular = RemoteBookmarkImages(Client(), (record('a'),))
+        fallback = RemoteBookmarkImages(Client(missing=True), (record('a', known=False),))
+        assert not worker.submit_image('a', 0, regular.get_with_variant('a'))
+        assert calls == []
+        try:
+            worker.start()
+            assert worker.submit_image('a', 0, regular.get_with_variant('a'))
+>           assert not worker.submit_image('a', 0, fallback.get_with_variant('a'))
+E           assert not True
+E            +  where True = submit_image('a', 0, RemoteImageWithVariant(blob=ImageBlob(data=b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\xf0\x00\x00\x00\xf0\x08\x...age/png', etag='"0a16380efccb9e8ce4476255cab099923ee7772ad4897a807ee67916986d2906"'), variant='listing_thumb_fallback'))
+E            +    where submit_image = <pixivvault_nicegui.visual_preference_worker.VisualPreferenceWorker object at 0x0000026CA4E89E00>.submit_image
+E            +    and   RemoteImageWithVariant(blob=ImageBlob(data=b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\xf0\x00\x00\x00\xf0\x08\x...age/png', etag='"0a16380efccb9e8ce4476255cab099923ee7772ad4897a807ee67916986d2906"'), variant='listing_thumb_fallback') = get_with_variant('a')
+E            +      where get_with_variant = <pixivvault_nicegui.remote_media.RemoteBookmarkImages object at 0x0000026CA4E44E10>.get_with_variant
+
+tests\test_visual_preference_shadow.py:318: AssertionError
+___ test_explicit_tagger_cuda_load_failure_retry_after_shared_release[True] ___
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-actual-red-20261122/test_explicit_tagger_cuda_load0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000026CA4E749F0>
+transient = True
+
+    @pytest.mark.parametrize('transient', [True, False])
+    def test_explicit_tagger_cuda_load_failure_retry_after_shared_release(tmp_path, monkeypatch, transient):
+        calls = fake_ort(monkeypatch)
+        runtime = sys.modules['onnxruntime']
+        session = runtime.InferenceSession
+        attempts = []
+    
+        def load(*args, **kwargs):
+            attempts.append(1)
+            if len(attempts) == 1:
+                raise RuntimeError('CUDA out of memory' if transient else 'invalid model graph')
+            return session(*args, **kwargs)
+    
+        monkeypatch.setattr(runtime, 'InferenceSession', load)
+        arbiter = GpuInferenceArbiter()
+        providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+        tagger = make_tagger(monkeypatch, tmp_path, gpu_arbiter=arbiter, providers=providers)
+        try:
+            assert tagger.predict(b'image') == []
+            assert tagger.predict(b'image') == []
+            assert len(attempts) == 1
+            arbiter.release_all()
+>           assert tagger.predict(b'image') == ([('synthetic', .97)] if transient else [])
+E           AssertionError: assert [] == [('synthetic', 0.97)]
+E             
+E             Right contains one more item: ('synthetic', 0.97)
+E             Use -v to get more diff
+
+tests\test_visual_preference_shadow.py:629: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_shadow_review.py::test_both_control_replacements_fail_while_fit_and_embedding_are_pending
+FAILED tests/test_visual_preference_shadow_review.py::test_shadow_stop_cancels_waiter_without_releasing_another_owner
+FAILED tests/test_visual_preference_shadow_review.py::test_idle_release_publishes_fence_before_return_without_worker_wakeup
+FAILED tests/test_visual_preference_shadow_review.py::test_idle_similarity_resume_replaces_pending_older_resume
+FAILED tests/test_visual_preference_shadow_review.py::test_slow_event_append_does_not_block_learning_fifo
+FAILED tests/test_visual_preference_shadow_review.py::test_fetch_records_only_its_final_ranking
+FAILED tests/test_visual_preference_shadow_review.py::test_nullable_labels_are_not_conflicts_and_exclusions_are_counted
+FAILED tests/test_visual_preference_shadow.py::test_worker_observes_thumbnail_variants_without_embedding_them
+FAILED tests/test_visual_preference_shadow.py::test_explicit_tagger_cuda_load_failure_retry_after_shared_release[True]
+9 failed, 1 passed, 19 deselected in 8.66s

@@ -1,0 +1,24 @@
+﻿KEEP S:\Work\PV\gpu-shadow-20261122 for supervisor collection. It contains the candidate branch and evidence.
+DELETE by supervisor S:\Work\_tmp\PV\gpu-shadow-r2-20261122 after collection. All entries are generated test/profile, source extraction, or raw log material.
+root reparse point: false
+owned running processes: 0
+dry-run: checked native Remove-Item -LiteralPath <absolute root> -Recurse -WhatIf
+appdata written=2026-11-22T07:52:30
+full-final-stderr.txt written=2026-11-22T08:13:40
+full-stderr.txt written=2026-11-22T08:10:10
+localappdata written=2026-11-22T08:34:49
+pre-r2 written=2026-11-22T08:00:33
+pre-r2.tar written=2026-11-22T08:00:32
+pytest-shadow-r2-actual-red-20261122 written=2026-11-22T07:52:40
+pytest-shadow-r2-capture-skip-red-20261122 written=2026-11-22T08:11:33
+pytest-shadow-r2-events-red-20261122 written=2026-11-22T08:01:47
+pytest-shadow-r2-final-candidate-focused-20261122 written=2026-11-22T08:12:45
+pytest-shadow-r2-final-focused-20261122 written=2026-11-22T08:09:13
+pytest-shadow-r2-final-races-red-20261122 written=2026-11-22T08:07:07
+pytest-shadow-r2-focused-initial-20261122 written=2026-11-22T07:58:19
+pytest-shadow-r2-focused-second-20261122 written=2026-11-22T08:05:37
+pytest-shadow-r2-locked-candidate-full-20261122 written=2026-11-22T08:47:23
+pytest-shadow-r2-merged-full-20261122 written=2026-11-22T08:10:53
+pytest-shadow-r2-ui-red-20261122 written=2026-11-22T08:00:45
+temp written=2026-11-22T08:47:27
+Raw stdout copies with masked homes were placed in the same isolated temp root for cleanup.

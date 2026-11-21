@@ -1,0 +1,13 @@
+﻿candidate=0ff1a1486c1565064af1d37e41e70447fe781d31
+tree=5d35cbaf42af40bb1f809f3b588209765d4acc44
+baseline=7c57e1503a29ba544920f820768658e41d16d20b
+merge=d6a9f5e2f0216214dc5d5bca3831e615ee53e66e
+owner=parent Codex
+launcher_pid=23132
+start=2026-11-22T08:10:10.5556266+09:00
+basetemp=S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-merged-full-20261122
+next=collect full pytest and run the requested isolated 20000-item retry if it fails
+context=keep current thread and own the existing pytest process
+Stopped reviewed superseded candidate's owned test interpreter 136272 under launcher 23132
+finished=2026-11-22T08:10:53.4008201+09:00
+exit_code=-1

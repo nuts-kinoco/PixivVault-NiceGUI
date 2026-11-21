@@ -1,0 +1,77 @@
+﻿FF                                                                       [100%]
+================================== FAILURES ===================================
+____________ test_normal_revocation_cannot_split_job_fence_capture ____________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-final-races-red-20261122/test_normal_revocation_cannot_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001C044106C40>
+
+    def test_normal_revocation_cannot_split_job_fence_capture(tmp_path, monkeypatch):
+        revoker = store_at(tmp_path / 'shadow')
+        fitter = store_at(revoker.root)
+        captured, resume = Event(), Event()
+        read_number = fitter._generation_number
+    
+        def pause(db):
+            number = read_number(db)
+            captured.set()
+            assert resume.wait(5)
+            return number
+    
+        monkeypatch.setattr(fitter, '_generation_number', pause)
+        with ThreadPoolExecutor(1) as pool:
+            job = pool.submit(generation, fitter)
+            try:
+                assert captured.wait(5)
+                revoker.invalidate('undo')
+            finally:
+                resume.set()
+>           with pytest.raises(VisualPreferenceStoreError):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE <class 'pixivvault_nicegui.visual_preference_store.VisualPreferenceStoreError'>
+
+tests\test_visual_preference_shadow_review.py:157: Failed
+_________ test_queued_image_cannot_repopulate_visual_data_after_purge _________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-final-races-red-20261122/test_queued_image_cannot_repop0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001C042DF6520>
+
+    def test_queued_image_cannot_repopulate_visual_data_after_purge(tmp_path, monkeypatch):
+        entered, resume = Event(), Event()
+    
+        def infer(*_):
+            if not entered.is_set():
+                entered.set()
+                assert resume.wait(10)
+    
+        fake_ort(monkeypatch, run=infer)
+        path = tmp_path / 'model.onnx'
+        path.write_bytes(b'synthetic model')
+        store = store_at(tmp_path / 'shadow')
+        worker = VisualPreferenceWorker(store, path, model_sha=sha256(path.read_bytes()).hexdigest(),
+                                        gpu_arbiter=GpuInferenceArbiter())
+        works = ('running', 'queued', 'new')
+        catalog = RemoteBookmarkImages(Client(), tuple(record(work) for work in works))
+        try:
+            worker.start()
+            assert worker.submit_image('running', 0, catalog.get_with_variant('running'))
+            assert entered.wait(5)
+            assert worker.submit_image('queued', 0, catalog.get_with_variant('queued'))
+            store_at(store.root).purge()
+            assert worker.submit_image('new', 0, catalog.get_with_variant('new'))
+            resume.set()
+            with store._transaction() as db:
+                assert db.execute('SELECT count(*) FROM candidate_embeddings').fetchone()[0] <= 2
+            wait_for(lambda: worker.status()['indexed'] >= 1)
+            worker.stop()
+            with store._transaction() as db:
+>               assert db.execute('SELECT work_id FROM candidate_embeddings').fetchall() == [('new',)]
+E               AssertionError: assert [('queued',)] == [('new',)]
+E                 
+E                 At index 0 diff: ('queued',) != ('new',)
+E                 Use -v to get more diff
+
+tests\test_visual_preference_shadow_review.py:190: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_shadow_review.py::test_normal_revocation_cannot_split_job_fence_capture
+FAILED tests/test_visual_preference_shadow_review.py::test_queued_image_cannot_repopulate_visual_data_after_purge
+2 failed, 16 deselected in 8.65s
