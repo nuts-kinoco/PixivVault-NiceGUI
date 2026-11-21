@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import csv
+from contextlib import nullcontext
 import io
 import importlib.util
 import ntpath
@@ -12,9 +13,13 @@ from pathlib import Path
 from threading import RLock
 from datetime import datetime, timezone
 
+from .gpu_arbiter import DEFAULT_GPU_ARBITER, GpuInferenceStopped, check_gpu_stop
 
 DEFAULT_MODEL = r'S:\EMAKINOCO-Models\tagger\wd-swinv2-tagger-v3'
 FILES = ('model.onnx', 'selected_tags.csv')
+CUDA_PROVIDER = 'CUDAExecutionProvider'
+CPU_PROVIDER = 'CPUExecutionProvider'
+DEFAULT_GPU_MEM_LIMIT_BYTES = 2 * 1024**3  # CUDA arena only, in bytes.
 
 
 def _drive_type(root):
@@ -119,14 +124,20 @@ def prepare_image(data):
 
 
 class LocalTagger:
-    def __init__(self, folder, *, session_factory=None, tensor_factory=None, providers=None, receipt=None):
+    def __init__(self, folder, *, session_factory=None, tensor_factory=None, providers=None, receipt=None,
+                 gpu_mem_limit_bytes: int = DEFAULT_GPU_MEM_LIMIT_BYTES, gpu_arbiter=None):
+        if type(gpu_mem_limit_bytes) is not int or gpu_mem_limit_bytes <= 0:
+            raise ValueError('invalid CUDA arena limit')
         self.folder = Path(folder)
         self.session_factory = session_factory
         self.tensor_factory = tensor_factory
         self.providers = providers
+        self.gpu_mem_limit_bytes = gpu_mem_limit_bytes
+        self._gpu_arbiter = DEFAULT_GPU_ARBITER if gpu_arbiter is None else gpu_arbiter
         self.receipt = receipt
         self.status = '未検出'
         self.session = None
+        self._cuda_session = False
         self.tags = None
         self.cache = {}
         self._lock = RLock()
@@ -138,35 +149,49 @@ class LocalTagger:
         return (self.session_factory is not None and self.tensor_factory is not None) or (
             importlib.util.find_spec('onnxruntime') is not None and importlib.util.find_spec('numpy') is not None)
 
-    def verify(self, *, load_session=True):
-        with self._lock:
-            if self._closed:
-                return '読込失敗'
-            old_receipt = self.receipt
-            self.status = '検証中'
-            status, receipt = verify_model(self.folder, self.receipt, on_identity_change=self.on_identity_change)
-            self.receipt = receipt
-            if old_receipt != receipt:
-                self.session = self.tags = None
-                self.cache.clear()
-                self._load_failed = False
-            self.status = status if status != '利用可能' or self._runtime_available() else 'onnxruntime なし'
-            if self.status == '利用可能' and load_session and self.session is None and not self._load_failed:
-                try:
-                    self._load_session()
-                    status, checked = verify_model(self.folder, receipt, on_identity_change=self.on_identity_change)
-                    if checked != receipt:
-                        self.session = self.tags = None
-                        self.status = status if status != '利用可能' else '検証中'
-                        self.receipt = checked
-                except Exception:
-                    self.session = self.tags = None
-                    self._load_failed = True
-            if self.status == '利用可能' and self._load_failed:
-                self.status = '読込失敗'
-            return self.status
+    def _job(self):
+        if self.providers and not any(
+                (provider if isinstance(provider, str) else provider[0]) == CUDA_PROVIDER
+                for provider in self.providers):
+            return nullcontext()
+        return self._gpu_arbiter.acquire(self, priority=10)
 
-    def _load_session(self):
+    def verify(self, *, load_session=True):
+        job = self._job() if load_session else nullcontext()
+        with job as stop, self._lock:
+            return self._verify(load_session, stop)
+
+    def _verify(self, load_session, stop):
+        if self._closed:
+            return '読込失敗'
+        old_receipt = self.receipt
+        self.status = '検証中'
+        status, receipt = verify_model(self.folder, self.receipt, on_identity_change=self.on_identity_change)
+        self.receipt = receipt
+        if old_receipt != receipt:
+            self.release_session()
+            self.cache.clear()
+        self.status = status if status != '利用可能' or self._runtime_available() else 'onnxruntime なし'
+        if self.status == '利用可能' and load_session and self.session is None and not self._load_failed:
+            check_gpu_stop(stop)
+            try:
+                self._load_session(stop)
+                status, checked = verify_model(self.folder, receipt, on_identity_change=self.on_identity_change)
+                if checked != receipt:
+                    self.release_session()
+                    self.status = status if status != '利用可能' else '検証中'
+                    self.receipt = checked
+            except GpuInferenceStopped:
+                raise
+            except Exception:
+                self.release_session()
+                check_gpu_stop(stop)
+                self._load_failed = True
+        if self.status == '利用可能' and self._load_failed:
+            self.status = '読込失敗'
+        return self.status
+
+    def _load_session(self, stop):
         with (self.folder / 'selected_tags.csv').open(encoding='utf-8-sig', newline='') as stream:
             tags = list(csv.DictReader(stream))
         if not tags or any(not {'name', 'category'} <= row.keys() for row in tags):
@@ -174,20 +199,39 @@ class LocalTagger:
         if self.session_factory is None:
             import onnxruntime as ort
             available = ort.get_available_providers()
-            providers = self.providers or (['CUDAExecutionProvider', 'CPUExecutionProvider']
-                if 'CUDAExecutionProvider' in available else ['CPUExecutionProvider'])
-            if providers[0] not in available:
+            providers = self.providers or ([CUDA_PROVIDER, CPU_PROVIDER]
+                if CUDA_PROVIDER in available else [CPU_PROVIDER])
+            provider_names = [provider if isinstance(provider, str) else provider[0] for provider in providers]
+            if provider_names[0] not in available:
                 raise RuntimeError('requested inference provider unavailable')
+            if CUDA_PROVIDER in provider_names:
+                if hasattr(ort, 'preload_dlls'):
+                    check_gpu_stop(stop)
+                    ort.preload_dlls(directory='')
+                providers = [
+                    (name, dict({} if isinstance(provider, str) else provider[1],
+                                gpu_mem_limit=str(self.gpu_mem_limit_bytes)))
+                    if name == CUDA_PROVIDER else provider
+                    for name, provider in zip(provider_names, providers)
+                ]
+            check_gpu_stop(stop)
             session = ort.InferenceSession(str(self.folder / 'model.onnx'), providers=providers)
-            if providers[0] not in session.get_providers():
+            active = session.get_providers()
+            if provider_names[0] not in active:
                 raise RuntimeError('requested inference provider not active')
+            uses_cuda = CUDA_PROVIDER in active
         else:
+            check_gpu_stop(stop)
             session = self.session_factory(self.folder / 'model.onnx')
+            uses_cuda = hasattr(session, 'get_providers') and CUDA_PROVIDER in session.get_providers()
+        if uses_cuda:
+            self._gpu_arbiter.retain_session(self)
+        self._cuda_session = uses_cuda
         self.tags, self.session = tags, session
 
     def predict(self, data):
-        with self._lock:
-            if self.verify() != '利用可能':
+        with self._job() as stop, self._lock:
+            if self._verify(True, stop) != '利用可能':
                 return []
             key = hashlib.sha256(data).hexdigest()
             if key in self.cache:
@@ -196,30 +240,46 @@ class LocalTagger:
                 image = prepare_image(data)
             except Exception:
                 return []
+            check_gpu_stop(stop)
             try:
                 if self.tensor_factory is None:
                     import numpy as np
                     tensor = np.asarray(image, dtype=np.float32)[None, ...]
                 else:
                     tensor = self.tensor_factory(image)
-                scores = self.session.run(None, {self.session.get_inputs()[0].name: tensor})[0][0]
+                inputs = {self.session.get_inputs()[0].name: tensor}
+                check_gpu_stop(stop)
+                scores = self.session.run(None, inputs)[0][0]
                 if len(scores) != len(self.tags):
                     raise ValueError('tag count mismatch')
                 result = sorted(((row['name'], float(score)) for row, score in zip(self.tags, scores)
                     if (row['category'] == '0' and score >= .35) or (row['category'] == '4' and score >= .85)),
                     key=lambda pair: pair[1], reverse=True)
-                self.cache[key] = tuple(result)
-                return result
+            except GpuInferenceStopped:
+                raise
             except Exception:
-                self.session = self.tags = None
+                self.release_session()
+                check_gpu_stop(stop)
                 self._load_failed = True
                 self.status = '読込失敗'
                 return []
+            check_gpu_stop(stop)
+            self.cache[key] = tuple(result)
+            return result
+
+    def release_session(self):
+        """Drop the model session while retaining verification and predictions."""
+        with self._lock:
+            self.session = self.tags = None
+            self._load_failed = False
+            if self._cuda_session:
+                self._cuda_session = False
+                self._gpu_arbiter.forget_session(self)
 
     def close(self):
         with self._lock:
             self._closed = True
-            self.session = self.tags = None
+            self.release_session()
             self.cache.clear()
 
 
@@ -329,18 +389,20 @@ class TaggerManager:
 
     def predict_with_fingerprint(self, data):
         with self._lock:
-            before = self.current_fingerprint()
-            if before is None or self.status != '利用可能':
-                return None
-            epoch = self._verification_epoch
-            tags = self.tagger.predict(data)
-            self.status = self.tagger.status
-            if self.status != '利用可能':
-                self._invalidate_fingerprint()
-                return None
-            if self.current_fingerprint() != before or self._verification_epoch != epoch:
-                return None
-            return before, tags
+            arbiter = self.tagger._gpu_arbiter if self.tagger is not None else DEFAULT_GPU_ARBITER
+            with arbiter.stop_scope():
+                before = self.current_fingerprint()
+                if before is None or self.status != '利用可能':
+                    return None
+                epoch = self._verification_epoch
+                tags = self.tagger.predict(data)
+                self.status = self.tagger.status
+                if self.status != '利用可能':
+                    self._invalidate_fingerprint()
+                    return None
+                if self.current_fingerprint() != before or self._verification_epoch != epoch:
+                    return None
+                return before, tags
 
     def try_current_fingerprint(self):
         """Revalidate the current publication without waiting for inference."""
