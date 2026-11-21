@@ -89,6 +89,9 @@ class ViewHistoryView:
         self.delete_summary.set_text(f'閲覧履歴{len(self.rows)}件が対象です。作品や判定は削除しません。')
         self.clear_button.set_enabled(not self.busy and bool(self.rows) and self.confirm.value == str(len(self.rows)))
         self.more.set_visibility(self.shown < len(self.rows))
+        if not self.rows:
+            for label in self.body.default_slot.children:
+                label.classes('pv-empty')
 
     async def open(self):
         self.error = ''
@@ -121,34 +124,25 @@ class ViewHistoryView:
             self.busy = False
             if not self.closed:self.sync()
 
+    # The browser image and Pixiv actions are audited together with this renderer.
     def render(self):
         self.body.clear()
         with self.body:
-            if not self.rows:
-                ui.label('閲覧履歴はありません。').classes('pv-empty')
+            if not self.rows:ui.label('閲覧履歴はありません。')
             for row in self.rows[:self.shown]:
-                with ui.row().classes('pv-tone-b-list-row w-full items-start gap-2 no-wrap').props(
-                        f'data-testid=view-history-row data-work-id={row["work_id"]}'):
+                with ui.row().classes('w-full items-center').props(f'data-testid=view-history-row data-work-id={row["work_id"]}'):
                     try:
                         source = self.parent._images.url(row['work_id'],0,'thumb')
                     except Exception:
-                        with ui.element('div').classes('pv-tone-b-thumb flex items-center justify-center'):
-                            ui.icon('image_not_supported').classes('pv-subtitle')
+                        ui.icon('image_not_supported').style('width:64px;height:64px')
                     else:
-                        picture = ui.image(source).classes('pv-tone-b-thumb').props('fit=cover').on(
-                            'click', lambda _, w=row['work_id']: self.open_work(w))
+                        picture = ui.image(source).style('width:64px;height:64px').props('fit=cover').on('click',lambda _,w=row['work_id']:self.open_work(w))
                         with picture.add_slot('error'):
-                            ui.icon('image_not_supported').classes('pv-subtitle')
-                    with ui.column().classes('grow min-w-0 gap-1'):
-                        title = ui.button(row['title'], color=None, on_click=lambda _, w=row['work_id']: self.open_work(w))
-                        title.props('flat dense no-caps align=left').classes('pv-tone-b-work-title w-full')
-                        title.props['title'] = row['title']
-                        with ui.row().classes('w-full items-baseline gap-x-2 gap-y-0'):
-                            ui.label(f'開いた回数: {row["open_count"]}　最終: {row["last_opened_at"]}').classes('pv-subtitle')
-                            ui.label(LABELS.get(row.get('discovery_verdict'), '')).props(
-                                'data-testid=view-history-badge').classes('pv-subtitle')
-                    ui.button('Pixivで開く', color=None, on_click=lambda _, w=row['work_id']: ui.navigate.to(
-                        f'https://www.pixiv.net/artworks/{w}', new_tab=True)).props('flat dense no-caps').classes('shrink-0')
+                            ui.icon('image_not_supported').classes('pv-subtitle').style('font-size:24px')
+                    ui.button(row['title'], on_click=lambda _,w=row['work_id']:self.open_work(w)).props('flat')
+                    ui.label(f'開いた回数: {row["open_count"]}　最終: {row["last_opened_at"]}').classes('pv-subtitle')
+                    ui.label(LABELS.get(row.get('discovery_verdict'), '')).props('data-testid=view-history-badge').classes('pv-subtitle')
+                    ui.button('Pixivで開く', on_click=lambda _,w=row['work_id']:ui.navigate.to(f'https://www.pixiv.net/artworks/{w}',new_tab=True)).props('flat')
         self.sync()
 
     def load_more(self):

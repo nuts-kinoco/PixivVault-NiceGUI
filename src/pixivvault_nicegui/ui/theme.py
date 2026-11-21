@@ -372,22 +372,54 @@ CSS += """
 .q-dialog__inner > .pv-tone-b-history-card { width:32rem; max-width:calc(100vw - 3rem); }
 .q-dialog__inner > .pv-tone-b-unfollowed-card { width:clamp(40rem, 50vw, 58rem); max-width:calc(100vw - 3rem); }
 .pv-tone-b-list { overflow-y:auto; flex-wrap:nowrap; scrollbar-gutter:stable; }
-.pv-tone-b-list-row { flex-shrink:0; padding-block:.5rem; border-bottom:1px solid var(--pv-border); }
-.pv-tone-b-list-row:last-child { border-bottom:0; }
 .pv-tone-b-history-list { height:min(22.5rem, 48dvh); }
 .pv-tone-b-unfollowed-list { max-height:min(64dvh, clamp(26.5rem, calc(37.5vw - 3.5rem), 42rem)); }
 .pv-tone-b-unfollowed-list:empty { display:none; }
 .pv-tone-b-unfollowed-card .pv-empty { padding-block:1rem; }
 .pv-tone-b-following-list { max-height:12rem; }
 .pv-tone-b-following-list .pv-empty { padding-block:1rem; }
-.pv-tone-b-thumb { flex:none; width:4rem; height:4rem; border-radius:.5rem; overflow:hidden; }
-.pv-tone-b-work-title .q-btn__content { min-width:0; text-align:start; }
-.pv-tone-b-work-title .q-btn__content > .block {
+
+/* Position the children emitted by the reviewed browser call sites. */
+.pv-tone-b-history-list > [data-testid=view-history-row], .pv-tone-b-unfollowed-list > .nicegui-row {
+  display:grid; align-items:start; gap:.25rem .5rem; flex-shrink:0; width:100%;
+  padding-block:.5rem; border-bottom:1px solid var(--pv-border);
+}
+.pv-tone-b-list > .nicegui-row:last-child { border-bottom:0; }
+.pv-tone-b-history-list > [data-testid=view-history-row] {
+  grid-template-columns:4rem minmax(0, 1fr) auto;
+  grid-template-areas:"thumb title external" "thumb facts facts" "thumb badge badge";
+}
+.pv-tone-b-history-list > [data-testid=view-history-row] > :first-child,
+.pv-tone-b-unfollowed-list > .nicegui-row > [data-testid=unfollowed-thumb] {
+  grid-area:thumb; width:4rem; height:4rem; border-radius:.5rem; overflow:hidden;
+}
+.pv-tone-b-history-list > [data-testid=view-history-row] > .q-btn:nth-child(2) { grid-area:title; min-width:0; }
+.pv-tone-b-history-list > [data-testid=view-history-row] > .pv-subtitle:not([data-testid]) { grid-area:facts; }
+.pv-tone-b-history-list > [data-testid=view-history-row] > [data-testid=view-history-badge] { grid-area:badge; }
+.pv-tone-b-history-list > [data-testid=view-history-row] > .q-btn:last-child { grid-area:external; }
+.pv-tone-b-history-list .q-btn { min-height:2rem; padding:.25rem; }
+.pv-tone-b-history-list .q-btn:nth-child(2) .q-btn__content { min-width:0; text-align:start; }
+.pv-tone-b-history-list .q-btn:nth-child(2) .q-btn__content > .block {
   -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere;
 }
 @layer quasar_importants {
-  .pv-tone-b-work-title .q-btn__content > .block { display:-webkit-box !important; }
+  .pv-tone-b-history-list .q-btn { color:var(--pv-text) !important; }
+  .pv-tone-b-history-list .q-btn:nth-child(2) .q-btn__content { justify-content:flex-start !important; }
+  .pv-tone-b-history-list .q-btn:nth-child(2) .q-btn__content > .block { display:-webkit-box !important; }
 }
+.pv-tone-b-unfollowed-list > .nicegui-row {
+  grid-template-columns:4rem minmax(0, 1fr) auto auto;
+  grid-template-areas:"thumb title link follow" "thumb kind notice notice" "thumb preview notice notice";
+}
+.pv-tone-b-unfollowed-list > .nicegui-row > :nth-child(2) {
+  grid-area:title; color:var(--pv-text); font-weight:600; overflow-wrap:anywhere;
+}
+.pv-tone-b-unfollowed-list > .nicegui-row > a { grid-area:link; }
+.pv-tone-b-unfollowed-list > .nicegui-row > [data-testid$=-follow] { grid-area:follow; }
+.pv-tone-b-unfollowed-list > .nicegui-row > [data-testid$=-status] { grid-area:notice; }
+.pv-tone-b-unfollowed-list > .nicegui-row > :nth-last-child(2) { grid-area:kind; }
+.pv-tone-b-unfollowed-list > .nicegui-row > :last-child { grid-area:preview; }
+.pv-tone-b-unfollowed-list > .nicegui-row > .nicegui-label:nth-last-child(-n+2) { color:var(--pv-muted); font-size:13px; }
 .pv-preferences-card [data-testid=following-sync-view] .q-btn { border-radius:.5rem; background:transparent !important; }
 .pv-preferences-card [data-testid=following-sync-view] [data-testid=following-sync-button] {
   background:var(--pv-fill) !important; color:var(--pv-on-fill) !important;

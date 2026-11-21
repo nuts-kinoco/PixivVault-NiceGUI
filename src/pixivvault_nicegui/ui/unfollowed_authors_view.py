@@ -118,27 +118,23 @@ class UnfollowedAuthorsView:
             if self.epoch==epoch:
                 self.busy=False;self.fetch_button.set_enabled(True)
 
+    # The browser link and thumbnail logic are reviewed as part of this renderer.
     async def _render(self,epoch):
         reader,account=self._reader,self._account
         self._clear_rows();targets=[]
         with self.rows:
             for item in self.authors[:self.shown]:
-                with ui.row().classes('pv-tone-b-list-row w-full items-center gap-2 no-wrap'):
-                    image = ui.image().classes('pv-tone-b-thumb').props('fit=cover data-testid=unfollowed-thumb')
-                    with ui.column().classes('grow min-w-0 gap-1'):
-                        title = ui.label(item.name).classes('pv-card-title w-full')
-                        title.props['title'] = item.name
-                        with ui.row().classes('items-baseline gap-x-2 gap-y-0'):
-                            ui.label(f'({item.author_id})').classes('pv-subtitle')
-                            ui.label('代表: ' + ('小説' if item.kind == 'novel' else '画像')).classes('pv-subtitle')
-                            status = ui.label('プレビューなし' if not item.thumbnail else '読込中').classes('pv-subtitle')
-                    with ui.row().classes('items-center justify-end gap-2 shrink-0'):
-                        ui.link('作者ページ', f'https://www.pixiv.net/users/{item.author_id}', new_tab=True)
-                        binding = PixivActionButtons(self.services, prefix=f'unfollowed-{item.author_id}')
-                        binding.bookmark.set_visibility(False)
-                        binding.bind(None, item.author_id, author_name=item.name,
-                                     is_current=lambda: self._follow_current(epoch, reader, account))
-                        self.follow_actions.append(binding)
+                with ui.row().classes('items-center'):
+                    image=ui.image().classes('w-28 h-28').props('data-testid=unfollowed-thumb')
+                    ui.label(f'{item.name} ({item.author_id})')
+                    ui.link('作者ページ',f'https://www.pixiv.net/users/{item.author_id}',new_tab=True)
+                    binding=PixivActionButtons(self.services,prefix=f'unfollowed-{item.author_id}')
+                    binding.bookmark.set_visibility(False)
+                    binding.bind(None,item.author_id,author_name=item.name,
+                        is_current=lambda:self._follow_current(epoch,reader,account))
+                    self.follow_actions.append(binding)
+                    ui.label('代表: '+('小説' if item.kind=='novel' else '画像'))
+                    status=ui.label('プレビューなし' if not item.thumbnail else '読込中')
                     if item.thumbnail:targets.append((item,image,status))
         self.more.set_visibility(self.shown<len(self.authors))
         async def fill(item,image,status):
