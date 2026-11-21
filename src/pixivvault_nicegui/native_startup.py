@@ -171,7 +171,7 @@ class NativeProfileBinding:
                                  pick_database=self.pick_database,
                                  pick_images=self.pick_folder,
                                  pick_model=self.pick_model,
-                                  verify_auth=self.check_authentication if allow_auth else None)
+                                 verify_auth=self.check_selected_authentication if allow_auth else None)
         view.migration_factory = self.create_migration_view
         view.on_saved = self.request_cookie_check
         view.request_retry_policy = self.auth_retry_policy
@@ -220,6 +220,20 @@ class NativeProfileBinding:
 
     async def verify_auth(self, cookie_file):
         return (await self.check_authentication(cookie_file)).ok
+
+    async def check_selected_authentication(self, cookie_file):
+        """The settings check may recover startup using the saved credential."""
+        result = await self.check_authentication(cookie_file)
+        identity = self._last_identity if result.ok else None
+        services = getattr(self, '_shared_event_services', None)
+        if (identity is not None and identity[0] is not None and not self._closed
+                and getattr(services, '_scheduler_waiting_for_auth', False)
+                and Path(cookie_file) == self._configured_cookie()
+                and not self.cookie_replaced_since_launch()):
+            # Keep the settings button's bounded authentication result separate
+            # from the potentially long following fetch.
+            self._spawn(self.followup.after_confirmed(str(identity[0])))
+        return result
 
     async def check_authentication(self, cookie_file, *, _imported=False, _publish=True):
         """Bounded GET reader through the STOP fence.

@@ -75,7 +75,7 @@ class AccountFollowup:
         self.store_provider = None       # callable -> FollowingSyncStore | None
         self.reader_factory = None       # test/override: callable(cookie_file) -> reader
         self.admission_provider = None   # callable -> shared request pacing (RequestAdmission)
-        self.on_following_ready = None   # callable after verified, committed following ownership
+        self.on_following_ready = None   # (account, store) -> whether the timer was released
         # The shared GET fence admits one request at a time. Another request in
         # flight (for instance the first ranking fetch) surfaces as a failed
         # attempt; the transactional sync is simply tried again a little later.
@@ -152,12 +152,7 @@ class AccountFollowup:
         callback = self.on_following_ready
         if callback is None or self.binding._closed:
             return
-        try:
-            synced = await asyncio.to_thread(store.last_synced_account)
-        except (OSError, RuntimeError):
-            return
-        if synced == account and not self.binding._closed:
-            callback()
+        if await asyncio.to_thread(callback, account, store):
             self.on_following_ready = None
 
     def _close_dialog(self):

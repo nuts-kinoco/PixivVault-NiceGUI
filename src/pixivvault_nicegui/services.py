@@ -3348,7 +3348,9 @@ class ApplicationServices:
             if self.closing or self.managed_downloads is None or self.live_client is None:
                 raise RuntimeError('isolated managed Pixiv mode is required')
             if self.managed_scheduler is None:
-                from .managed_scheduler import ManagedScheduler, ManagedScheduleRunner, ScheduleAccountError, submit_author_batch
+                from .managed_scheduler import (
+                    ManagedScheduler, ManagedScheduleRunner, ScheduleAccountError, ScheduleRestartRequired,
+                    submit_author_batch)
                 from .managed_network_stop_gate import ManagedNetworkGateBusy, ManagedNetworkStopped
                 ledger = ManagedScheduler(self.managed_downloads.root)
                 attach = getattr(ledger, 'attach_favourites', None)
@@ -3363,69 +3365,86 @@ class ApplicationServices:
                         pass  # keep the queue handoff below rather than refuse the schedule
 
                 def dispatch(slot, cancellation):
-                    # Engine run: every ☆ author, in turn, stamped on completion, behind the same
-                    # network stop gate. Otherwise queue acceptance (not a verified saved receipt).
-                    with self._scheduler_dispatch_lock:
-                        phase = '取得停止ゲートと☆一覧の確認'
-                        try:
-                            owner = None
-                            if getattr(ledger, '_account_guard', False):
-                                for attempt in range(2):
-                                    try:
+                    phase = '取得停止ゲートと☆一覧の確認'
+                    guarded = getattr(ledger, '_account_guard', False)
+                    first_busy = None
+                    try:
+                        for attempt in range(2):
+                            with self._scheduler_dispatch_lock:
+                                if cancellation.is_set() or self.closing:
+                                    if first_busy is not None:
+                                        raise first_busy
+                                    return
+                                if ApplicationServices.scheduler_cookie_restart_required(self):
+                                    raise ScheduleRestartRequired()
+                                owner = None
+                                try:
+                                    if guarded:
                                         authors, owner = self.scheduler_favourite_authors(ledger=ledger, include_owner=True)
-                                        break
-                                    except ManagedNetworkGateBusy:
-                                        # The lookup has not reached a batch or queue admission.
-                                        if attempt or cancellation.wait(3.0) or self.closing:
-                                            raise
-                            elif book_factory is not None:
-                                authors = self.scheduler_favourite_authors(ledger=ledger)
-                            else:
-                                authors = self.scheduler_favourite_authors()
-                            phase = '☆一覧の反映'
-                            ledger._sync_favourites(authors)
-                            phase = 'チェック開始ログの記録'
-                            if authors and not cancellation.is_set() and not self.closing:
-                                _append_scheduler_output(self.shared_log, ledger,
-                                    f'☆ お気に入り自動チェックを開始します ({len(authors)}人の作者)', owner=owner)
-                            phase = 'チェックの受付・実行'
-                            dispatch_check = getattr(self, 'dispatch_author_check', None)
-                            if dispatch_check is None:
-                                submit_author_batch(self, authors, cancellation=cancellation,
-                                                    ledger=ledger, slot=slot)
-                            else:
-                                dispatch_check(ledger, slot, cancellation, authors=authors)
-                            phase = 'チェック終了ログの記録'
-                            if not cancellation.is_set() and not self.closing:
-                                message = ('定期チェックの受付処理を終了しました。保存完了は各ジョブで確認してください。'
-                                           if authors else '☆ お気に入り自動チェック: 対象の作者（☆お気に入り）が登録されていません。')
-                                _append_scheduler_output(self.shared_log, ledger, message, owner=owner)
-                        except ManagedNetworkStopped:
-                            if not cancellation.is_set() and not self.closing:
-                                self.shared_log.append('☆ お気に入り自動チェックは取得停止により中断しました。')
-                            raise
-                        except (ScheduleAccountError, AccountMismatch) as error:
-                            if not cancellation.is_set() and not self.closing:
-                                message = ('定期チェックの既存データの出所を確認できません。データを保持して停止しました。'
-                                           if getattr(error, 'reason', None) == 'unknown' else
-                                           '定期チェックの台帳は別のアカウントに紐付いています。既存データを保持して停止しました。')
-                                self.shared_log.append(message, level='error')
-                            raise
-                        except Exception as error:
-                            if not cancellation.is_set() and not self.closing:
-                                reason = ('取得停止ゲートが使用中です' if isinstance(error, ManagedNetworkGateBusy)
-                                          else f'{phase}に失敗しました')
-                                # Exception messages and tracebacks can carry account data.
-                                message = f'☆ お気に入り自動チェック中にエラーが発生しました。{reason}（{type(error).__name__}）'
-                                _LOG.error('%s', message)
-                                self.shared_log.append(message, level='error')
-                            raise
+                                    elif book_factory is not None:
+                                        authors = self.scheduler_favourite_authors(ledger=ledger)
+                                    else:
+                                        authors = self.scheduler_favourite_authors()
+                                except ManagedNetworkGateBusy as error:
+                                    if attempt or not guarded:
+                                        raise
+                                    first_busy = error
+                                else:
+                                    phase = '☆一覧の反映'
+                                    ledger._sync_favourites(authors)
+                                    phase = 'チェック開始ログの記録'
+                                    if authors and not cancellation.is_set() and not self.closing:
+                                        _append_scheduler_output(self.shared_log, ledger,
+                                            f'☆ お気に入り自動チェックを開始します ({len(authors)}人の作者)', owner=owner)
+                                    phase = 'チェックの受付・実行'
+                                    dispatch_check = getattr(self, 'dispatch_author_check', None)
+                                    if dispatch_check is None:
+                                        submit_author_batch(self, authors, cancellation=cancellation,
+                                                            ledger=ledger, slot=slot)
+                                    else:
+                                        dispatch_check(ledger, slot, cancellation, authors=authors)
+                                    phase = 'チェック終了ログの記録'
+                                    if not cancellation.is_set() and not self.closing:
+                                        message = ('定期チェックの受付処理を終了しました。保存完了は各ジョブで確認してください。'
+                                                   if authors else '☆ お気に入り自動チェック: 対象の作者（☆お気に入り）が登録されていません。')
+                                        _append_scheduler_output(self.shared_log, ledger, message, owner=owner)
+                                    return
+                            # Only a preflight failure can get here. Do not hold the
+                            # dispatch lock while waiting or retry any admission.
+                            if cancellation.wait(3.0):
+                                raise first_busy
+                    except ScheduleRestartRequired:
+                        raise  # The saved credential takes effect on restart.
+                    except ManagedNetworkStopped:
+                        if not cancellation.is_set() and not self.closing:
+                            self.shared_log.append('☆ お気に入り自動チェックは取得停止により中断しました。')
+                        raise
+                    except (ScheduleAccountError, AccountMismatch) as error:
+                        if not cancellation.is_set() and not self.closing:
+                            message = ('定期チェックの既存データの出所を確認できません。データを保持して停止しました。'
+                                       if getattr(error, 'reason', None) == 'unknown' else
+                                       '定期チェックの台帳は別のアカウントに紐付いています。既存データを保持して停止しました。')
+                            self.shared_log.append(message, level='error')
+                        raise
+                    except Exception as error:
+                        if not cancellation.is_set() and not self.closing:
+                            reason = (f'{phase}で取得停止ゲートが使用中です' if isinstance(error, ManagedNetworkGateBusy)
+                                      else f'{phase}に失敗しました')
+                            # Exception messages and tracebacks can carry account data.
+                            message = f'☆ お気に入り自動チェック中にエラーが発生しました。{reason}（{type(error).__name__}）'
+                            _LOG.error('%s', message)
+                            self.shared_log.append(message, level='error')
+                        raise
 
-                runner = ManagedScheduleRunner(ledger, dispatch,
-                                               reconcile=self.reconcile_managed_scheduler)
+                waiting = getattr(self, '_scheduler_waiting_for_auth', False)
+                native = waiting or getattr(self, 'native_profile', None) is not None
+                if ApplicationServices.scheduler_cookie_restart_required(self):
+                    self._scheduler_waiting_for_auth = waiting = True
+                admission = {'can_dispatch': lambda: not (self.closing or self.scheduler_cookie_restart_required())} if native else {}
+                runner = ManagedScheduleRunner(ledger, dispatch, reconcile=self.reconcile_managed_scheduler, **admission)
                 self.managed_scheduler = ledger
                 try:
-                    if not getattr(self, '_scheduler_waiting_for_auth', False):
+                    if not waiting:
                         runner.start()
                 except BaseException:
                     self.managed_scheduler = None
@@ -3434,14 +3453,49 @@ class ApplicationServices:
                 self.managed_schedule_runner = runner
             return self.managed_scheduler
 
-    def start_managed_scheduler_after_auth(self):
+    def scheduler_cookie_restart_required(self):
+        profile = getattr(self, 'native_profile', None)
+        replaced = getattr(profile, 'cookie_replaced_since_launch', None)
+        return replaced is not None and replaced()
+
+    def start_managed_scheduler_after_auth(self, account, following, *, reader=None):
         """Release the native timer after authentication and a committed follow owner."""
         with self._managed_scheduler_lock:
-            if self.closing or not self._scheduler_waiting_for_auth:
-                return
-            if self.managed_schedule_runner is not None:
-                self.managed_schedule_runner.start()
-            self._scheduler_waiting_for_auth = False
+            profile = getattr(self, 'native_profile', None)
+            if (self.closing or not self._scheduler_waiting_for_auth or self.following_sync is not following
+                    or getattr(profile, '_closed', False) or self.scheduler_cookie_restart_required()):
+                return False
+            with following._lock:
+                try:
+                    if account is None or account != following.last_synced_account():
+                        return False
+                except (OSError, RuntimeError):
+                    return False
+                if reader is not None and (self.live_client is not reader
+                                           or getattr(reader, '_verified_identity', None) != account):
+                    return False
+                if self.managed_schedule_runner is not None:
+                    self.managed_schedule_runner.start()
+                self._scheduler_waiting_for_auth = False
+                return True
+
+    def confirm_scheduler_account(self):
+        """Explicitly verify the live, gated reader for the schedule editor."""
+        from .managed_scheduler import ScheduleAccountError, _require_managed_network_allowed
+
+        with self._scheduler_dispatch_lock:
+            ledger, following, reader = self.managed_scheduler, self.following_sync, self.live_client
+            if self.closing or ledger is None or following is None or reader is None or self.scheduler_cookie_restart_required():
+                raise ScheduleAccountError('unknown')
+            account = following.last_synced_account()
+            if account is None:
+                raise ScheduleAccountError('unknown')
+            _require_managed_network_allowed(self)
+            require_same_account(account, reader.require_identity())
+            if self.scheduler_cookie_restart_required():
+                raise ScheduleAccountError('unknown')
+            ledger.capture_owner(self, account_id=account)
+        self.start_managed_scheduler_after_auth(account, following, reader=reader)
 
     # -- author batch runs ---------------------------------------------------------------
     def batch_run_active(self) -> bool:

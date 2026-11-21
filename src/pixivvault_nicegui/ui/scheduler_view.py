@@ -40,6 +40,9 @@ class SchedulerView:
             ui.label('新しい専用管理フォルダーにだけ保存します。旧DB、画像、Cookieは更新しません。')
             with ui.row().classes('items-center gap-3 flex-wrap'):
                 self.open_button = ui.button('管理スケジューラを開く', on_click=self.open).props('data-testid=scheduler-open')
+                self.confirm_account_button = ui.button('定期チェックの認証を確認', on_click=self.confirm_account).props(
+                    'data-testid=scheduler-confirm-account')
+                self.confirm_account_button.set_visibility(False)
                 self.interval = ui.select({'0': '自動チェックしない', '6': '6時間', '12': '12時間',
                                            '24': '24時間', '48': '48時間'}, value='24',
                                           label='自動チェック間隔').style('min-width:184px').props('data-testid=scheduler-interval')
@@ -65,6 +68,7 @@ class SchedulerView:
             self.star_notice = ui.label('').classes('text-caption').props('data-testid=scheduler-star-import role=status')
             self.action_notice = ui.label('').props('data-testid=scheduler-action-notice role=status')
         self._set_controls(False)
+        self.open_button.set_enabled(getattr(services, 'managed_scheduler', None) is None)
         self._refreshing = False
         self._background_refresh_tasks: set[asyncio.Task] = set()
         self._timer = ui.timer(5.0, self.refresh)
@@ -194,13 +198,39 @@ class SchedulerView:
 
     def _editor(self, ledger, account_id):
         try:
+            if self._cookie_restart_required():
+                return None
             owner = ledger.capture_owner(self.services, account_id=account_id)
             return ledger.read_editor(owner=owner)
         except (OSError, RuntimeError, sqlite3.Error):
             return None
 
+    def _cookie_restart_required(self):
+        check = getattr(self.services, 'scheduler_cookie_restart_required', None)
+        return check is not None and check()
+
+    async def confirm_account(self):
+        confirm = getattr(self.services, 'confirm_scheduler_account', None)
+        if self.closed or self._busy or confirm is None:
+            return
+        self._busy = True
+        self.confirm_account_button.set_enabled(False)
+        try:
+            await asyncio.to_thread(confirm)
+            if not self.closed:
+                await self.refresh(ensure_after_current=True)
+        except Exception as error:
+            if not self.closed:
+                self._hide_account_data()
+                if not self._cookie_restart_required():
+                    self.action_notice.set_text(check_failure_message(error))
+        finally:
+            self._finish_action()
+            if not self.closed:
+                self.confirm_account_button.set_enabled(self.confirm_account_button.visible)
+
     def _verify_result(self, owner):
-        if owner is None or owner != self._settings_owner:
+        if owner is None or owner != self._settings_owner or self._cookie_restart_required():
             raise AccountMismatch()
         owner.verify_current()
 
@@ -232,8 +262,12 @@ class SchedulerView:
         self._stars_unknown_in_form = True
         self.star_notice.set_text('☆一覧を読み込めません。ログイン中のアカウントと保存済みのフォロー情報を照合できるまで、履歴も非表示になります。')
         self.account_label.set_text('紐づけアカウントを確認できません')
+        restart = self._cookie_restart_required()
+        self.confirm_account_button.set_visibility(not restart and callable(getattr(self.services, 'confirm_scheduler_account', None)))
         status = ('認証・フォロー情報の確認待ち' if getattr(self.services, '_scheduler_waiting_for_auth', False)
                   else '紐づけアカウントを確認できません')
+        if restart:
+            status = 'Cookieの変更を反映するには再起動してください'
         self.status.set_text(f'定期状態: {status}')
         self.ack_button.set_enabled(False)
         self.run_button.set_enabled(False)
@@ -254,6 +288,7 @@ class SchedulerView:
             self._hide_account_data()
             return False
         self._settings_owner = self._stop_owner = editor.owner
+        self.confirm_account_button.set_visibility(False)
         account_id = editor.owner.account_id
         draft = self._hidden_star_draft
         if draft is not None and draft[0] == account_id:
@@ -354,8 +389,8 @@ class SchedulerView:
             ledger = self.services.managed_scheduler
             if ledger is None:
                 return
-            if self.open_button.enabled:
-                self.open_button.set_enabled(False)
+            self.open_button.set_enabled(False)
+            if not self.interval.enabled:
                 self._set_controls(True)
             self._load(ledger)
             owner = self._settings_owner
