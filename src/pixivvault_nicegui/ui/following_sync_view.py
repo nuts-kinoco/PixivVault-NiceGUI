@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import nullcontext
 from datetime import datetime
 import math
 import re
@@ -15,6 +16,7 @@ from ..following_sync import (FollowingSyncCancelled, FollowingSyncConflict,
     FollowingSyncError, FollowingSyncTimedOut)
 from ..pixiv_read_client import ReadDeadlineExceeded, read_deadline_scope
 from ..request_policy import request_scope
+from .action_controls import primary_button, secondary_button
 
 
 class _PinnedReader:
@@ -56,6 +58,7 @@ class FollowingSyncView:
         self._limit = self.PAGE_SIZE
         self._rows_signature = None
         self._message = ''
+        self._message_is_error = False
         self._cancel_event = self._worker = self._initial_task = None
         self._timer = ui.timer(1.0, self.refresh, active=False)
         self.client.on_delete(self.close)
@@ -98,6 +101,7 @@ class FollowingSyncView:
             self._read_generation += 1
             if not self._busy:
                 self._message = ''
+                self._message_is_error = False
         return store, reader, account
 
     def _current(self, epoch, store, reader, account=None):
@@ -106,7 +110,7 @@ class FollowingSyncView:
             and getattr(self.services, 'live_client', None) is reader
             and (account is None or self._cached_account(reader) == account))
 
-    def build(self):
+    def build(self, *, embedded=False):
         if self._closed:
             return
         self.deactivate()
@@ -114,6 +118,7 @@ class FollowingSyncView:
         epoch = self._epoch
         self._adopt_context()
         self._message = '前の同期の停止を待っています…' if self._busy else ''
+        self._message_is_error = False
         self._rows_signature = object()
 
         async def synchronize():
@@ -130,16 +135,22 @@ class FollowingSyncView:
                 self._render()
 
         with ui.column().classes('w-full gap-2').props('data-testid=following-sync-view') as self.root:
-            ui.label('フォロー中リストの同期').classes('text-subtitle1')
-            ui.label('ログイン中のアカウントの公開・非公開フォローを取得して保存します。').classes('text-caption')
-            self.summary = ui.label('').props('data-testid=following-sync-summary')
-            self.synced_at = ui.label('').props('data-testid=following-sync-time')
-            self.status = ui.label('').props('role=status data-testid=following-sync-status')
-            with ui.row():
-                self.sync_button = ui.button('Pixivから同期', icon='sync', color=None, on_click=synchronize).props('flat no-caps data-testid=following-sync-button')
-                self.cancel_button = ui.button('同期を取消', icon='close', color=None, on_click=cancel).props('flat no-caps data-testid=following-sync-cancel')
-            self.rows = ui.column().classes('w-full gap-1').props('data-testid=following-sync-rows')
-            self.more_button = ui.button('もっと見る', on_click=more).props('data-testid=following-sync-more')
+            if not embedded:
+                ui.label('フォロー中リストの同期').classes('pv-library-heading pv-serif-heading')
+            ui.label('ログイン中のアカウントの公開・非公開フォローを取得して保存します。').classes('pv-subtitle')
+            with ui.row().classes('pv-toolbar pv-compact-toolbar'):
+                self.sync_button = primary_button('Pixivから同期', synchronize, icon='sync', testid='following-sync-button')
+                self.cancel_button = secondary_button('同期を取消', cancel, icon='close', testid='following-sync-cancel')
+                self.synced_at = ui.label('').classes('pv-subtitle').props('data-testid=following-sync-time')
+            with ui.row().classes('w-full items-baseline gap-x-4 gap-y-1'):
+                self.summary = ui.label('').classes('pv-subtitle').props('data-testid=following-sync-summary')
+                self.status = ui.label('').classes('pv-subtitle pv-tone-b-notice').props(
+                    'role=status data-testid=following-sync-status')
+            disclosure = nullcontext() if embedded else ui.expansion('同期済みの作者一覧を見る').props('dense').classes('w-full')
+            with disclosure:
+                self.rows = ui.column().classes('pv-tone-b-following-list pv-tone-b-list w-full gap-1').props(
+                    'data-testid=following-sync-rows')
+                self.more_button = secondary_button('もっと見る', more, testid='following-sync-more')
         self._render()
         self._timer.active = True
         self._initial_task = background_tasks.create(self.refresh(), name='following-local-snapshot')
@@ -170,6 +181,8 @@ class FollowingSyncView:
         else:
             self.synced_at.set_text('最終同期: 未同期' if snapshot is not None else '最終同期: 未確認')
         self.status.set_text(self._message)
+        self.status.classes(add='pv-tone-b-error' if self._message_is_error else None,
+                            remove=None if self._message_is_error else 'pv-tone-b-error')
         self.sync_button.set_enabled(not self._busy and self._can_get())
         self.cancel_button.set_enabled(self._busy and self._cancel_event is not None
                                        and not self._cancel_event.is_set())
@@ -177,10 +190,12 @@ class FollowingSyncView:
         if key != self._rows_signature:
             self.rows.clear()
             with self.rows:
+                if not authors:
+                    ui.label('保存済みの作者はいません。' if snapshot is not None else '作者一覧はまだ確認できていません。').classes('pv-empty')
                 for author in authors[:self._limit]:
                     with ui.row().classes('w-full items-center gap-2').props('data-testid=following-sync-row'):
                         ui.label(author.name or author.account or '名前未取得').classes('break-all')
-                        ui.label('非公開' if author.restrict else '公開').classes('text-caption')
+                        ui.label('非公開' if author.restrict else '公開').classes('pv-subtitle')
             self._rows_signature = key
         self.more_button.set_visibility(len(authors) > self._limit)
 
@@ -204,6 +219,7 @@ class FollowingSyncView:
         except Exception:
             if self._current(epoch, store, reader, account) and generation == self._read_generation:
                 self._message = '保存済みの一覧を読み込めませんでした。'
+                self._message_is_error = True
                 self._render()
         finally:
             self._reading -= 1
@@ -244,6 +260,7 @@ class FollowingSyncView:
         if self._active and self._busy and self._cancel_event is not None:
             self._cancel_event.set()
             self._message = '同期を取り消しています…'
+            self._message_is_error = False
             self._render()
 
     def _finish_worker(self, task, abandoned=False):
@@ -259,6 +276,7 @@ class FollowingSyncView:
                     self._message = ''
                 if abandoned:
                     self._message = '処理は終了しました。保存済みの一覧を確認しています…'
+                    self._message_is_error = False
                     self._initial_task = background_tasks.create(self.refresh(), name='following-local-after-cancel')
                 self._render()
 
@@ -268,6 +286,7 @@ class FollowingSyncView:
         store, reader, account = self._adopt_context()
         if not self._can_get(store, reader):
             self._message = 'この起動ではPixivから同期できません。接続と保存先の設定を確認してください。'
+            self._message_is_error = True
             self._render()
             return False
         epoch = self._epoch
@@ -278,6 +297,7 @@ class FollowingSyncView:
         self._busy = True
         self._read_generation += 1
         self._message = 'Pixivから同期中…'
+        self._message_is_error = False
         self._render()
 
         def cancelled():
@@ -289,6 +309,7 @@ class FollowingSyncView:
         self._worker = task
         abandoned = False
         message = None
+        message_is_error = True
         try:
             result = await asyncio.shield(task)
             if not self._current(epoch, store, reader, result.account_id):
@@ -298,6 +319,7 @@ class FollowingSyncView:
             self._read_generation += 1
             prefix = '取消前に同期が完了しました' if event.is_set() else '同期完了'
             self._message = f'{prefix}（{len(result.following)}人の作者）'
+            self._message_is_error = False
             self._render()
             return True
         except asyncio.CancelledError:
@@ -308,6 +330,7 @@ class FollowingSyncView:
             message = '別の画面で一覧が更新されました。この同期は保存していません。'
         except FollowingSyncCancelled:
             message = '同期を取消しました。保存済みの一覧と最終同期日時は保持されています。'
+            message_is_error = False
         except FollowingSyncTimedOut:
             message = '同期が時間内に完了しませんでした。保存済みの一覧と最終同期日時は保持されています。'
         except Exception:
@@ -318,6 +341,7 @@ class FollowingSyncView:
                     await self.refresh(_during_sync=True)
                     if self._current(epoch, store, reader):
                         self._message = message
+                        self._message_is_error = message_is_error
                         self._render()
             finally:
                 if task.done():
