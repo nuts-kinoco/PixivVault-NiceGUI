@@ -12,6 +12,11 @@ def capture(page, base, name, _repetitions, _cases):
 
     assert name == 'nice'
     page.get_by_test_id('tab-library').click()
+    page.wait_for_function('''() => {
+        const cards = [...document.querySelectorAll(
+            '[data-testid=library-authors-scroll] [data-testid=library-author-open]')];
+        return cards.length === 50 && cards.every(card => card.getClientRects().length);
+    }''')
     page.get_by_role('button', name='Bench Author 000', exact=True).click()
     page.locator('[data-work-id="100000"][data-page-no="0"]').first.click()
     viewer = page.get_by_test_id('library-viewer')

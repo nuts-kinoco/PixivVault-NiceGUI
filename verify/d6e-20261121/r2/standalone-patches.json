@@ -1,0 +1,20 @@
+{
+  "baseline": "b83e1a9b4c22bf19550542ac71e9dbb02dde45d7",
+  "candidate": "abe317656da87cc152e841ca519457a10024e486",
+  "capacity": {
+    "applied": true,
+    "same_diff": true
+  },
+  "viewer": {
+    "applied": true,
+    "same_diff": true
+  },
+  "capacity-then-viewer": {
+    "applied": true,
+    "same_diff": true
+  },
+  "viewer-then-capacity": {
+    "applied": true,
+    "same_diff": true
+  }
+}
