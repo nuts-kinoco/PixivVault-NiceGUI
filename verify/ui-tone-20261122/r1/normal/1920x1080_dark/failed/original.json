@@ -1,0 +1,2207 @@
+{
+  "semantics": [
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_003058_767782\\normal\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixi",
+      "rect": [
+        0,
+        0,
+        1920,
+        1080
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_003058_767782\\normal\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixi",
+      "rect": [
+        0,
+        0,
+        1920,
+        1080
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_003058_767782\\normal\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixi",
+      "rect": [
+        0,
+        0,
+        1920,
+        1080
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_003058_767782\\normal\\original_copy\\p5-synthetic.sqlite",
+      "rect": [
+        18,
+        12,
+        582,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "PixivVault",
+      "rect": [
+        10,
+        38,
+        142,
+        46
+      ]
+    },
+    {
+      "role": null,
+      "text": "× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。",
+      "rect": [
+        10,
+        94,
+        519,
+        19
+      ]
+    },
+    {
+      "role": null,
+      "text": "直近のバックアップ",
+      "rect": [
+        1645,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1645,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "閲覧履歴（学習タブ・1件）",
+      "rect": [
+        1690,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1690,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "保存フォルダを開く",
+      "rect": [
+        1735,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1735,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ライトモードへ切り替え",
+      "rect": [
+        1780,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1780,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ブラウザで Pixiv を開く (ログイン状態確認・自動連携)",
+      "rect": [
+        1825,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1825,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "設定",
+      "rect": [
+        1870,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1870,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "アプリ: 切断中",
+      "rect": [
+        26,
+        134,
+        80,
+        18
+      ]
+    },
+    {
+      "role": "switch",
+      "text": "",
+      "rect": [
+        118,
+        127,
+        48,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "",
+      "rect": [
+        178,
+        135,
+        88,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "接続トークンを再発行する（旧トークンで設定済みのiOS側は再入力が必要になります）",
+      "rect": [
+        272,
+        131,
+        24,
+        24
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        272,
+        131,
+        24,
+        24
+      ]
+    },
+    {
+      "role": "switch",
+      "text": "API経路を切り替える",
+      "rect": [
+        308,
+        127,
+        48,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "API経路を切り替える API切り替え",
+      "rect": [
+        368,
+        135,
+        63,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "【Cookie未連携】",
+      "rect": [
+        55,
+        184,
+        116,
+        21
+      ]
+    },
+    {
+      "role": null,
+      "text": "PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixivを開くだけで自動的に連携されます。",
+      "rect": [
+        55,
+        207,
+        389,
+        38
+      ]
+    },
+    {
+      "role": "button",
+      "text": "Pixivを開く",
+      "rect": [
+        1711,
+        199,
+        138,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "閉じる",
+      "rect": [
+        1859,
+        195,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1859,
+        195,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "group",
+      "text": "ダウンロードキュー失敗リスト重複整理学習ランキングライブラリおすすめ",
+      "rect": [
+        10,
+        266,
+        1900,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ダウンロード",
+      "rect": [
+        10,
+        266,
+        139,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "キュー",
+      "rect": [
+        159,
+        266,
+        96,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "失敗リスト",
+      "rect": [
+        265,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "重複整理",
+      "rect": [
+        399,
+        266,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "学習",
+      "rect": [
+        530,
+        266,
+        82,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ランキング",
+      "rect": [
+        622,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ライブラリ",
+      "rect": [
+        756,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "おすすめ",
+      "rect": [
+        891,
+        266,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "group",
+      "text": "ダウンロード失敗キュー・保存品質異常リストすべて 17通信 3見つからない 3権限・年齢制限 3保存先 3形式 3その他 217件を再試行P5合成データ（ID: failure-0001）通信 ・ リトライ回数: 0再試行P5合成データ Connection: 合成の接続失敗 二行目の診断は省略せず表示します。架空の失敗作品 002（ID: failure-0002）見つからない ・ リトライ回数: 1再試行404: 合成作品が見つかりません架空の失敗作品 003（ID: failure-000",
+      "rect": [
+        20,
+        318,
+        1880,
+        742
+      ]
+    },
+    {
+      "role": null,
+      "text": "ダウンロード失敗キュー・保存品質異常リスト",
+      "rect": [
+        20,
+        330,
+        320,
+        21
+      ]
+    },
+    {
+      "role": null,
+      "text": "リスト更新",
+      "rect": [
+        350,
+        320,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        350,
+        320,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "",
+      "rect": [
+        20,
+        370,
+        360,
+        34
+      ]
+    },
+    {
+      "role": "button",
+      "text": "すべて 17",
+      "rect": [
+        394,
+        372,
+        109,
+        31
+      ]
+    },
+    {
+      "role": "button",
+      "text": "通信 3",
+      "rect": [
+        513,
+        371,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "見つからない 3",
+      "rect": [
+        633,
+        371,
+        134,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "権限・年齢制限 3",
+      "rect": [
+        777,
+        371,
+        147,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "保存先 3",
+      "rect": [
+        934,
+        371,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "形式 3",
+      "rect": [
+        1054,
+        371,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "その他 2",
+      "rect": [
+        1174,
+        371,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "17件を再試行",
+      "rect": [
+        1297,
+        370,
+        136,
+        34
+      ]
+    },
+    {
+      "role": null,
+      "text": "その他の操作",
+      "rect": [
+        1445,
+        370,
+        40,
+        34
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1445,
+        370,
+        40,
+        34
+      ]
+    },
+    {
+      "role": null,
+      "text": "P5合成データ（ID: failure-0001）",
+      "rect": [
+        34,
+        426,
+        1552,
+        19
+      ]
+    },
+    {
+      "role": null,
+      "text": "通信 ・ リトライ回数: 0",
+      "rect": [
+        1602,
+        427,
+        120,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "再試行",
+      "rect": [
+        1738,
+        419,
+        92,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "キューから削除",
+      "rect": [
+        1846,
+        415,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1846,
+        415,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "P5合成データ Connection: 合成の接続失敗 二行目の診断は省略せず表示します。",
+      "rect": [
+        34,
+        457,
+        216,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "架空の失敗作品 002（ID: failure-0002）",
+      "rect": [
+        34,
+        507,
+        1507,
+        19
+      ]
+    },
+    {
+      "role": null,
+      "text": "見つからない ・ リトライ回数: 1",
+      "rect": [
+        1557,
+        508,
+        165,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "再試行",
+      "rect": [
+        1738,
+        500,
+        92,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "キューから削除",
+      "rect": [
+        1846,
+        496,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1846,
+        496,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "404: 合成作品が見つかりません",
+      "rect": [
+        34,
+        538,
+        160,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "架空の失敗作品 003（ID: failure-0003）",
+      "rect": [
+        34,
+        572,
+        1496,
+        19
+      ]
+    },
+    {
+      "role": null,
+      "text": "権限・年齢制限 ・ リトライ回数: 2",
+      "rect": [
+        1546,
+        573,
+        176,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "再試行",
+      "rect": [
+        1738,
+        565,
+        92,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "キューから削除",
+      "rect": [
+        1846,
+        561,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1846,
+        561,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "403: 合成の権限エラー",
+      "rect": [
+        34,
+        603,
+        115,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "架空の失敗作品 004（ID: failure-0004）",
+      "rect": [
+        34,
+        637,
+        1541,
+        19
+      ]
+    },
+    {
+      "role": null,
+      "text": "保存先 ・ リトライ回数: 0",
+      "rect": [
+        1591,
+        638,
+        131,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "再試行",
+      "rect": [
+        1738,
+        630,
+        92,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "キューから削除",
+      "rect": [
+        1846,
+        626,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1846,
+        626,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "No space: 合成の保存先エラー",
+      "rect": [
+        34,
+        668,
+        155,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "架空の失敗作品 005（ID: failure-0005）",
+      "rect": [
+        34,
+        702,
+        1552,
+        19
+      ]
+    },
+    {
+      "role": null,
+      "text": "形式 ・ リトライ回数: 1",
+      "rect": [
+        1602,
+        703,
+        120,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "再試行",
+      "rect": [
+        1738,
+        695,
+        92,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "キューから削除",
+      "rect": [
+        1846,
+        691,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1846,
+        691,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ページ不足: 合成の品質検査",
+      "rect": [
+        34,
+        733,
+        141,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "架空の失敗作品 006（ID: failure-0006）",
+      "rect": [
+        34,
+        767,
+        1541,
+        19
+      ]
+    },
+    {
+      "role": null,
+      "text": "その他 ・ リトライ回数: 2",
+      "rect": [
+        1591,
+        768,
+        131,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "再試行",
+      "rect": [
+        1738,
+        760,
+        92,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "キューから削除",
+      "rect": [
+        1846,
+        756,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1846,
+        756,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "分類されていない合成エラー",
+      "rect": [
+        34,
+        798,
+        146,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "架空の失敗作品 007（ID: failure-0007）",
+      "rect": [
+        34,
+        832,
+        1552,
+        19
+      ]
+    },
+    {
+      "role": null,
+      "text": "通信 ・ リトライ回数: 0",
+      "rect": [
+        1602,
+        833,
+        120,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "再試行",
+      "rect": [
+        1738,
+        825,
+        92,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "キューから削除",
+      "rect": [
+        1846,
+        821,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1846,
+        821,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "Connection: 合成の接続失敗",
+      "rect": [
+        34,
+        863,
+        143,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "架空の失敗作品 008（ID: failure-0008）",
+      "rect": [
+        34,
+        897,
+        1507,
+        19
+      ]
+    },
+    {
+      "role": null,
+      "text": "見つからない ・ リトライ回数: 1",
+      "rect": [
+        1557,
+        898,
+        165,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "再試行",
+      "rect": [
+        1738,
+        890,
+        92,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "キューから削除",
+      "rect": [
+        1846,
+        886,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1846,
+        886,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "404: 合成作品が見つかりません",
+      "rect": [
+        34,
+        928,
+        160,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "1 / 3",
+      "rect": [
+        1780,
+        968,
+        24,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1812,
+        956,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1860,
+        956,
+        40,
+        40
+      ]
+    }
+  ],
+  "outside_viewport": [],
+  "tone": {
+    "source": "Flutter CanvasKit accessibility bounds",
+    "viewport_height": 1080,
+    "in_viewport_height": 742,
+    "semantic_extent_height": 742,
+    "semantic_extent_ratio": 0.687,
+    "scroll_height": null,
+    "scroll_ratio": null,
+    "fonts": null,
+    "buttons": null,
+    "cards": null,
+    "headings": [],
+    "spacing": null,
+    "semantic_scroll_nodes": [
+      {
+        "index": 40,
+        "parent": 39,
+        "role": null,
+        "label": "ダウンロード失敗キュー・保存品質異常リスト",
+        "rect": [
+          20,
+          330,
+          320,
+          21
+        ],
+        "tag": "flt-semantics",
+        "client_height": 21,
+        "scroll_height": 30,
+        "scroll_top": 0
+      },
+      {
+        "index": 43,
+        "parent": 39,
+        "role": null,
+        "label": "",
+        "rect": [
+          20,
+          370,
+          360,
+          34
+        ],
+        "tag": "flt-semantics",
+        "client_height": 34,
+        "scroll_height": 40,
+        "scroll_top": 0
+      },
+      {
+        "index": 54,
+        "parent": 39,
+        "role": null,
+        "label": "P5合成データ（ID: failure-0001）",
+        "rect": [
+          34,
+          426,
+          1552,
+          19
+        ],
+        "tag": "flt-semantics",
+        "client_height": 19,
+        "scroll_height": 27,
+        "scroll_top": 0
+      },
+      {
+        "index": 55,
+        "parent": 39,
+        "role": null,
+        "label": "通信 ・ リトライ回数: 0",
+        "rect": [
+          1602,
+          427,
+          120,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 59,
+        "parent": 39,
+        "role": null,
+        "label": "P5合成データ Connection: 合成の接続失敗 二行目の診断は省略せず表示します。",
+        "rect": [
+          34,
+          457,
+          216,
+          32
+        ],
+        "tag": "flt-semantics",
+        "client_height": 32,
+        "scroll_height": 45,
+        "scroll_top": 0
+      },
+      {
+        "index": 60,
+        "parent": 39,
+        "role": null,
+        "label": "架空の失敗作品 002（ID: failure-0002）",
+        "rect": [
+          34,
+          507,
+          1507,
+          19
+        ],
+        "tag": "flt-semantics",
+        "client_height": 19,
+        "scroll_height": 27,
+        "scroll_top": 0
+      },
+      {
+        "index": 61,
+        "parent": 39,
+        "role": null,
+        "label": "見つからない ・ リトライ回数: 1",
+        "rect": [
+          1557,
+          508,
+          165,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 65,
+        "parent": 39,
+        "role": null,
+        "label": "404: 合成作品が見つかりません",
+        "rect": [
+          34,
+          538,
+          160,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 66,
+        "parent": 39,
+        "role": null,
+        "label": "架空の失敗作品 003（ID: failure-0003）",
+        "rect": [
+          34,
+          572,
+          1496,
+          19
+        ],
+        "tag": "flt-semantics",
+        "client_height": 19,
+        "scroll_height": 27,
+        "scroll_top": 0
+      },
+      {
+        "index": 67,
+        "parent": 39,
+        "role": null,
+        "label": "権限・年齢制限 ・ リトライ回数: 2",
+        "rect": [
+          1546,
+          573,
+          176,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 71,
+        "parent": 39,
+        "role": null,
+        "label": "403: 合成の権限エラー",
+        "rect": [
+          34,
+          603,
+          115,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 72,
+        "parent": 39,
+        "role": null,
+        "label": "架空の失敗作品 004（ID: failure-0004）",
+        "rect": [
+          34,
+          637,
+          1541,
+          19
+        ],
+        "tag": "flt-semantics",
+        "client_height": 19,
+        "scroll_height": 27,
+        "scroll_top": 0
+      },
+      {
+        "index": 73,
+        "parent": 39,
+        "role": null,
+        "label": "保存先 ・ リトライ回数: 0",
+        "rect": [
+          1591,
+          638,
+          131,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 77,
+        "parent": 39,
+        "role": null,
+        "label": "No space: 合成の保存先エラー",
+        "rect": [
+          34,
+          668,
+          155,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 78,
+        "parent": 39,
+        "role": null,
+        "label": "架空の失敗作品 005（ID: failure-0005）",
+        "rect": [
+          34,
+          702,
+          1552,
+          19
+        ],
+        "tag": "flt-semantics",
+        "client_height": 19,
+        "scroll_height": 27,
+        "scroll_top": 0
+      },
+      {
+        "index": 79,
+        "parent": 39,
+        "role": null,
+        "label": "形式 ・ リトライ回数: 1",
+        "rect": [
+          1602,
+          703,
+          120,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 83,
+        "parent": 39,
+        "role": null,
+        "label": "ページ不足: 合成の品質検査",
+        "rect": [
+          34,
+          733,
+          141,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 84,
+        "parent": 39,
+        "role": null,
+        "label": "架空の失敗作品 006（ID: failure-0006）",
+        "rect": [
+          34,
+          767,
+          1541,
+          19
+        ],
+        "tag": "flt-semantics",
+        "client_height": 19,
+        "scroll_height": 27,
+        "scroll_top": 0
+      },
+      {
+        "index": 85,
+        "parent": 39,
+        "role": null,
+        "label": "その他 ・ リトライ回数: 2",
+        "rect": [
+          1591,
+          768,
+          131,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 89,
+        "parent": 39,
+        "role": null,
+        "label": "分類されていない合成エラー",
+        "rect": [
+          34,
+          798,
+          146,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 90,
+        "parent": 39,
+        "role": null,
+        "label": "架空の失敗作品 007（ID: failure-0007）",
+        "rect": [
+          34,
+          832,
+          1552,
+          19
+        ],
+        "tag": "flt-semantics",
+        "client_height": 19,
+        "scroll_height": 27,
+        "scroll_top": 0
+      },
+      {
+        "index": 91,
+        "parent": 39,
+        "role": null,
+        "label": "通信 ・ リトライ回数: 0",
+        "rect": [
+          1602,
+          833,
+          120,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 95,
+        "parent": 39,
+        "role": null,
+        "label": "Connection: 合成の接続失敗",
+        "rect": [
+          34,
+          863,
+          143,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 96,
+        "parent": 39,
+        "role": null,
+        "label": "架空の失敗作品 008（ID: failure-0008）",
+        "rect": [
+          34,
+          897,
+          1507,
+          19
+        ],
+        "tag": "flt-semantics",
+        "client_height": 19,
+        "scroll_height": 27,
+        "scroll_top": 0
+      },
+      {
+        "index": 97,
+        "parent": 39,
+        "role": null,
+        "label": "見つからない ・ リトライ回数: 1",
+        "rect": [
+          1557,
+          898,
+          165,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 101,
+        "parent": 39,
+        "role": null,
+        "label": "404: 合成作品が見つかりません",
+        "rect": [
+          34,
+          928,
+          160,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 102,
+        "parent": 39,
+        "role": null,
+        "label": "1 / 3",
+        "rect": [
+          1780,
+          968,
+          24,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 18,
+        "scroll_top": 0
+      }
+    ],
+    "toolbars": [
+      {
+        "container": "semantic-body",
+        "rows": [
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "index": 42,
+                "parent": 41,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  350,
+                  320,
+                  40,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 9,
+            "kinds": {
+              "button": 9
+            },
+            "controls": [
+              {
+                "index": 44,
+                "parent": 39,
+                "role": "button",
+                "label": "すべて 17",
+                "rect": [
+                  394,
+                  372,
+                  109,
+                  31
+                ],
+                "tag": "flt-semantics",
+                "client_height": 31,
+                "scroll_height": 31,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 45,
+                "parent": 39,
+                "role": "button",
+                "label": "通信 3",
+                "rect": [
+                  513,
+                  371,
+                  110,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 46,
+                "parent": 39,
+                "role": "button",
+                "label": "見つからない 3",
+                "rect": [
+                  633,
+                  371,
+                  134,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 47,
+                "parent": 39,
+                "role": "button",
+                "label": "権限・年齢制限 3",
+                "rect": [
+                  777,
+                  371,
+                  147,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 48,
+                "parent": 39,
+                "role": "button",
+                "label": "保存先 3",
+                "rect": [
+                  934,
+                  371,
+                  110,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 49,
+                "parent": 39,
+                "role": "button",
+                "label": "形式 3",
+                "rect": [
+                  1054,
+                  371,
+                  110,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 50,
+                "parent": 39,
+                "role": "button",
+                "label": "その他 2",
+                "rect": [
+                  1174,
+                  371,
+                  110,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 51,
+                "parent": 39,
+                "role": "button",
+                "label": "17件を再試行",
+                "rect": [
+                  1297,
+                  370,
+                  136,
+                  34
+                ],
+                "tag": "flt-semantics",
+                "client_height": 34,
+                "scroll_height": 34,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 53,
+                "parent": 52,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  1445,
+                  370,
+                  40,
+                  34
+                ],
+                "tag": "flt-semantics",
+                "client_height": 34,
+                "scroll_height": 34,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "index": 56,
+                "parent": 39,
+                "role": "button",
+                "label": "再試行",
+                "rect": [
+                  1738,
+                  419,
+                  92,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 58,
+                "parent": 57,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  1846,
+                  415,
+                  40,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "index": 62,
+                "parent": 39,
+                "role": "button",
+                "label": "再試行",
+                "rect": [
+                  1738,
+                  500,
+                  92,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 64,
+                "parent": 63,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  1846,
+                  496,
+                  40,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "index": 68,
+                "parent": 39,
+                "role": "button",
+                "label": "再試行",
+                "rect": [
+                  1738,
+                  565,
+                  92,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 70,
+                "parent": 69,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  1846,
+                  561,
+                  40,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "index": 74,
+                "parent": 39,
+                "role": "button",
+                "label": "再試行",
+                "rect": [
+                  1738,
+                  630,
+                  92,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 76,
+                "parent": 75,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  1846,
+                  626,
+                  40,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "index": 80,
+                "parent": 39,
+                "role": "button",
+                "label": "再試行",
+                "rect": [
+                  1738,
+                  695,
+                  92,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 82,
+                "parent": 81,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  1846,
+                  691,
+                  40,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "index": 86,
+                "parent": 39,
+                "role": "button",
+                "label": "再試行",
+                "rect": [
+                  1738,
+                  760,
+                  92,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 88,
+                "parent": 87,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  1846,
+                  756,
+                  40,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "index": 92,
+                "parent": 39,
+                "role": "button",
+                "label": "再試行",
+                "rect": [
+                  1738,
+                  825,
+                  92,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 94,
+                "parent": 93,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  1846,
+                  821,
+                  40,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "index": 98,
+                "parent": 39,
+                "role": "button",
+                "label": "再試行",
+                "rect": [
+                  1738,
+                  890,
+                  92,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 100,
+                "parent": 99,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  1846,
+                  886,
+                  40,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "index": 103,
+                "parent": 39,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  1812,
+                  956,
+                  40,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 104,
+                "parent": 39,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  1860,
+                  956,
+                  40,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "common_components": [],
+    "states": [],
+    "flet_declared": {
+      "source": "running Flet control tree, declared styles",
+      "fonts": {
+        "15": 1,
+        "12.5": 15,
+        "11": 24
+      },
+      "buttons": {
+        "icon-only": 11,
+        "filled-default-shape": 10
+      },
+      "headings": [
+        {
+          "label": "ダウンロード失敗キュー・保存品質異常リスト",
+          "size": 15,
+          "font": "Yu Mincho",
+          "weight": "FontWeight.BOLD"
+        }
+      ],
+      "common_components": [
+        {
+          "type": "IconButton",
+          "label": "リスト更新"
+        }
+      ],
+      "box_styles": [
+        {
+          "bgcolor": "#0b0b10",
+          "padding": 10,
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "scroll": "ScrollMode.AUTO",
+          "spacing": 8,
+          "type": "Column",
+          "count": 1
+        },
+        {
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 2
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 10,
+          "type": "Row",
+          "count": 8
+        },
+        {
+          "run_spacing": 8,
+          "spacing": 12,
+          "type": "Row",
+          "count": 1
+        },
+        {
+          "run_spacing": 8,
+          "spacing": 8,
+          "type": "Row",
+          "count": 1
+        },
+        {
+          "bgcolor": "#0096FA,0.25",
+          "border": "Border(top=BorderSide(width=1.5, color='#0096FA', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), right=BorderSide(width=1.5, color='#0096FA', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), bottom=BorderSide(width=1.5, color='#0096FA', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=1.5, color='#0096FA', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>))",
+          "border_radius": 8,
+          "padding": "Padding(left=12, top=0, right=10, bottom=0)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "bgcolor": "#0096FA",
+          "border_radius": 4,
+          "padding": "Padding(left=5, top=0, right=5, bottom=0)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "bgcolor": "#15161c",
+          "border": "Border(top=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), right=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), bottom=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>))",
+          "border_radius": 8,
+          "padding": "Padding(left=12, top=0, right=10, bottom=0)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 6
+        },
+        {
+          "bgcolor": "#1e202d",
+          "border_radius": 4,
+          "padding": "Padding(left=5, top=0, right=5, bottom=0)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 6
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 0,
+          "type": "Column",
+          "count": 1
+        },
+        {
+          "border": "Border(top=BorderSide(width=0.0, color=<Colors.BLACK: 'black'>, stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.NONE: 'none'>), right=BorderSide(width=0.0, color=<Colors.BLACK: 'black'>, stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.NONE: 'none'>), bottom=BorderSide(width=1.0, color='#1e202d', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=0.0, color=<Colors.BLACK: 'black'>, stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.NONE: 'none'>))",
+          "padding": "Padding(left=14, top=3, right=14, bottom=3)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 8
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 2,
+          "type": "Column",
+          "count": 8
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 16,
+          "type": "Row",
+          "count": 8
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 8,
+          "type": "Row",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "background_pixel": "#111418"
+}

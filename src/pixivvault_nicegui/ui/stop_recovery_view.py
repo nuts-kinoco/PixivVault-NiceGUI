@@ -2,6 +2,8 @@
 import asyncio
 from nicegui import ui
 
+from .action_controls import dialog_actions, dialog_card, primary_button, secondary_button
+
 STEPS = (
     '1. 保存先の設定を確認し、以前使った保存元も控えてください。元DB・Cookie・停止履歴を削除しないでください。',
     '2. 下の確認ボタンで、現在の設定にある停止履歴を読み取ります。認証不要・通信なしで使えます。確認はSTOP解除や移行の証明ではありません。',
@@ -23,16 +25,21 @@ class StopRecoveryPanel:
         self.migration_view = None
         self.help_text = '\n'.join((RATE_LIMIT_GUIDANCE, *STEPS))
         with ui.column().classes('w-full gap-2') as self.root:
-            self.entry = ui.button('停止履歴の確認と移行手順を開く', on_click=self.open).props('data-testid=stop-recovery-open')
-            with ui.dialog() as self.dialog, ui.card().classes('max-w-2xl'):
-                ui.label('通信を再開する前の確認').classes('text-h6')
-                ui.label(RATE_LIMIT_GUIDANCE).props('data-testid=stop-recovery-rate-limit-guidance')
-                for step in STEPS:
-                    ui.label(step)
-                self.result = ui.label('まだ確認していません。').props('role=status data-testid=stop-recovery-result')
-                self.check_button = ui.button('選択済み保存元の停止履歴を確認する', on_click=self.check).props('data-testid=stop-recovery-check')
-                ui.button('正式移行を実行する', on_click=self.open_migration).props('data-testid=stop-recovery-migration')
-                ui.button('閉じる', on_click=self.dialog.close)
+            self.entry = secondary_button('停止履歴の確認と移行手順を開く', self.open, testid='stop-recovery-open')
+            with ui.dialog() as self.dialog, dialog_card('通信を再開する前の確認', size='lg'):
+                ui.label(RATE_LIMIT_GUIDANCE).classes('pv-warning-banner').props(
+                    'data-testid=stop-recovery-rate-limit-guidance')
+                with ui.column().classes('w-full gap-1'):
+                    for step in STEPS:
+                        ui.label(step).classes('pv-subtitle')
+                self.result = ui.label('まだ確認していません。').classes('pv-subtitle whitespace-pre-line').props(
+                    'role=status data-testid=stop-recovery-result')
+                with dialog_actions():
+                    secondary_button('閉じる', self.dialog.close)
+                    secondary_button('正式移行を実行する', self.open_migration,
+                                     testid='stop-recovery-migration', outline=True)
+                    self.check_button = primary_button('選択済み保存元の停止履歴を確認する', self.check,
+                                                       testid='stop-recovery-check')
     def open(self):
         if not self.closed:
             self.dialog.open()

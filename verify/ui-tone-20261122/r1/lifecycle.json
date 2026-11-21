@@ -1,0 +1,78 @@
+{
+  "run_temp": "S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388",
+  "observed_by_image": {
+    "node.exe": 5,
+    "python.exe": 24,
+    "msedge.exe": 37
+  },
+  "remaining": [],
+  "owned_ports_closed": {
+    "22614": true,
+    "22615": true,
+    "22626": true,
+    "22610": true,
+    "22611": true,
+    "22629": true,
+    "22616": true,
+    "22617": true,
+    "22628": true
+  },
+  "supplemental_runs": [
+    {
+      "run_temp": "S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002309_707106",
+      "observed_by_image": {
+        "node.exe": 1,
+        "python.exe": 6,
+        "msedge.exe": 8
+      },
+      "remaining": [],
+      "owned_ports_closed": {
+        "22610": true,
+        "22611": true,
+        "22629": true
+      }
+    },
+    {
+      "run_temp": "S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002806_969930",
+      "observed_by_image": {
+        "node.exe": 1,
+        "python.exe": 6,
+        "msedge.exe": 7
+      },
+      "remaining": [],
+      "owned_ports_closed": {
+        "22616": true,
+        "22617": true,
+        "22628": true
+      }
+    },
+    {
+      "run_temp": "S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_003058_767782",
+      "observed_by_image": {
+        "node.exe": 1,
+        "python.exe": 3,
+        "msedge.exe": 7
+      },
+      "remaining": [],
+      "owned_ports_closed": {
+        "22614": true,
+        "22615": true,
+        "22626": true
+      }
+    },
+    {
+      "run_temp": "S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_003507_927357",
+      "observed_by_image": {
+        "node.exe": 1,
+        "python.exe": 3,
+        "msedge.exe": 6
+      },
+      "remaining": [],
+      "owned_ports_closed": {
+        "22614": true,
+        "22615": true,
+        "22626": true
+      }
+    }
+  ]
+}

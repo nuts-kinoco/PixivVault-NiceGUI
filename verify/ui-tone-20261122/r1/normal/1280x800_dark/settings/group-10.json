@@ -1,0 +1,157 @@
+{
+  "root": "nicegui-column",
+  "rect": [
+    320,
+    3931.39,
+    640,
+    270
+  ],
+  "in_viewport_height": 0,
+  "viewport_height": 800,
+  "client_height": 268,
+  "scroll_height": 268,
+  "scroll_ratio": 0.34,
+  "content_extent": 268,
+  "content_ratio": 0.34,
+  "document_scroll_height": 800,
+  "document_scroll_ratio": 1,
+  "viewport_insets": [
+    3931.39,
+    320,
+    0,
+    320
+  ],
+  "spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "content_spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "fonts": {
+    "16px": 3,
+    "14px": 2,
+    "12px": 2
+  },
+  "headings": [
+    {
+      "label": "Windows",
+      "font": "\"Yu Mincho\", YuMincho, serif",
+      "size": "16px",
+      "weight": "400",
+      "rect": [
+        333,
+        3944.39,
+        66.3,
+        28
+      ]
+    }
+  ],
+  "cards": [],
+  "scroll": [],
+  "states": [],
+  "toolbars": [
+    {
+      "container": "nicegui-column",
+      "rows": [
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "最小化時にタスクトレイに格納 ON arrow_drop_down",
+              "rect": [
+                333,
+                3988.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": null,
+              "enabled": false,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        },
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "通知 ON arrow_drop_down",
+              "rect": [
+                333,
+                4096.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": null,
+              "enabled": false,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "buttons": {},
+  "common_components": []
+}

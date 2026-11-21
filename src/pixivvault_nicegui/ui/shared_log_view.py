@@ -4,6 +4,7 @@ from sqlite3 import Error as SQLiteError
 
 from nicegui import ui
 
+from .action_controls import secondary_button
 from ..following_sync import subscribe_owner_on_loop
 
 
@@ -43,8 +44,8 @@ class SharedLogView:
         self.expanded = True
         self._signature = None
         with ui.column().classes('pv-shared-log-host w-full gap-0').props('data-testid=shared-log-host') as self.root:
-            self.button = ui.button('ログを折りたたむ', icon='expand_more', color=None,
-                                    on_click=self.toggle).props('flat dense no-caps data-testid=shared-log-toggle aria-expanded=true')
+            self.button = secondary_button('ログを折りたたむ', self.toggle, icon='expand_less',
+                testid='shared-log-toggle').props('aria-expanded=true')
             self.panel = ui.column().classes('pv-queue-log w-full gap-0').props('data-testid=shared-log')
         self.root.set_visibility(False)
         self.timer = ui.timer(2, self.refresh, immediate=False)
@@ -80,6 +81,7 @@ class SharedLogView:
         self.expanded = not self.expanded
         self.panel.set_visibility(self.expanded)
         self.button.set_text('ログを折りたたむ' if self.expanded else 'ログを表示')
+        self.button.set_icon('expand_less' if self.expanded else 'expand_more')
         self.button.props(f'aria-expanded={str(self.expanded).lower()}')
         if self.expanded:
             self.refresh()

@@ -6,6 +6,7 @@ re-read the saved state, restore a recorded update result, and update the accoun
 """
 import asyncio
 from nicegui import ui
+from .action_controls import outlined_input, primary_button, secondary_button
 from ..external_vault import VaultError, VAULT_INTEGRITY_ERRORS
 
 
@@ -17,20 +18,17 @@ class PremiumRecoveryPanel:
         self.busy = False
         self.closed = False
         with ui.column().classes('w-full gap-2').props('data-testid=premium-recovery') as self.root:
-            self.guide = ui.label('').props('role=status data-testid=premium-recovery-guide')
-            self.password = ui.input('保管庫のパスワード', password=True).props(
-                'outlined dense autocomplete=off data-testid=premium-recovery-password')
-            with ui.row().classes('w-full gap-2'):
-                self.reopen_button = ui.button(
-                    '保存済み状態を再確認（通信なし）', on_click=lambda: self.action('reopen_saved')).props(
-                    'data-testid=premium-recovery-reopen')
-                self.recover_button = ui.button(
-                    '記録済み更新結果を復元（通信なし）', on_click=lambda: self.action('recover_known')).props(
-                    'data-testid=premium-recovery-recover')
-                self.refresh_button = ui.button(
-                    'アカウントを更新', on_click=lambda: self.action('refresh')).props(
-                    'data-testid=premium-recovery-refresh')
-            self.result = ui.label('').props('role=status data-testid=premium-recovery-result')
+            self.guide = ui.label('').classes('pv-subtitle').props('role=status data-testid=premium-recovery-guide')
+            self.password = outlined_input('保管庫のパスワード', password=True).classes('w-full').props(
+                'autocomplete=off data-testid=premium-recovery-password')
+            with ui.row().classes('pv-toolbar pv-compact-toolbar'):
+                self.reopen_button = primary_button(
+                    '保存済み状態を再確認（通信なし）', lambda: self.action('reopen_saved'), testid='premium-recovery-reopen')
+                self.recover_button = secondary_button(
+                    '記録済み更新結果を復元（通信なし）', lambda: self.action('recover_known'), testid='premium-recovery-recover')
+                self.refresh_button = secondary_button(
+                    'アカウントを更新', lambda: self.action('refresh'), testid='premium-recovery-refresh')
+            self.result = ui.label('').classes('pv-subtitle pv-compact-status').props('role=status data-testid=premium-recovery-result')
         try:
             ui.context.client.on_delete(self.close)
         except Exception:

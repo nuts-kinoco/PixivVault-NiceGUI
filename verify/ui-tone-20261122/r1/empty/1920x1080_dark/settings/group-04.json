@@ -1,0 +1,193 @@
+{
+  "root": "nicegui-column",
+  "rect": [
+    640,
+    1419.39,
+    640,
+    256
+  ],
+  "in_viewport_height": 0,
+  "viewport_height": 1080,
+  "client_height": 254,
+  "scroll_height": 254,
+  "scroll_ratio": 0.24,
+  "content_extent": 254,
+  "content_ratio": 0.24,
+  "document_scroll_height": 1080,
+  "document_scroll_ratio": 1,
+  "viewport_insets": [
+    1419.39,
+    640,
+    0,
+    640
+  ],
+  "spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "content_spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "fonts": {
+    "16px": 2,
+    "14px": 3
+  },
+  "headings": [
+    {
+      "label": "ローカルタグ補完モデル（任意）",
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "size": "16px",
+      "weight": "400",
+      "rect": [
+        653,
+        1432.39,
+        242.25,
+        28
+      ]
+    }
+  ],
+  "cards": [],
+  "scroll": [],
+  "states": [
+    {
+      "id": "tagger-effective",
+      "label": "状態 無効",
+      "rect": [
+        653,
+        1604.39,
+        59.14,
+        21
+      ]
+    }
+  ],
+  "toolbars": [
+    {
+      "container": "nicegui-column",
+      "rows": [
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "モデルフォルダ",
+              "rect": [
+                653,
+                1476.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        },
+        {
+          "count": 1,
+          "kinds": {
+            "switch": 1
+          },
+          "controls": [
+            {
+              "id": "tagger-enabled",
+              "label": "タグ補完を自動で使う",
+              "rect": [
+                653,
+                1548.39,
+                196,
+                40
+              ],
+              "kind": "switch",
+              "button": null,
+              "shared": "switch",
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "buttons": {},
+  "common_components": [
+    {
+      "id": "tagger-enabled",
+      "label": "タグ補完を自動で使う",
+      "rect": [
+        653,
+        1548.39,
+        196,
+        40
+      ],
+      "kind": "switch",
+      "button": null,
+      "shared": "switch",
+      "enabled": true,
+      "font_size": "14px",
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "radius": [
+        "0px",
+        "0px",
+        "0px",
+        "0px"
+      ],
+      "border": "0px solid rgb(255, 255, 255)",
+      "shadow": "none",
+      "background": "rgba(0, 0, 0, 0)"
+    }
+  ]
+}

@@ -1,0 +1,926 @@
+{
+  "width": [
+    1280,
+    1280
+  ],
+  "text": [
+    {
+      "id": "c6",
+      "text": "PixivVault — 起動設定の確認",
+      "rect": [
+        328,
+        22,
+        312.39,
+        35
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "native-profile-recovery",
+      "text": "選択したCookieファイルを読み込めません。ファイルを選び直して保存し、アプリを再起動してください。",
+      "rect": [
+        328,
+        72,
+        617.56,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "native-profile-recovery",
+      "text": "選択したCookieファイルを読み込めません。ファイルを選び直して保存し、アプリを再起動してください。",
+      "rect": [
+        328,
+        93,
+        56,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c12",
+      "text": "Pixiv Cookieファイル",
+      "rect": [
+        328,
+        132,
+        156.92,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "native-profile-cookie-value",
+      "text": "未設定",
+      "rect": [
+        328,
+        174,
+        42,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "Cookieファイルを選択",
+      "rect": [
+        380,
+        218.98,
+        144.28,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "選択解除",
+      "rect": [
+        572.28,
+        218.98,
+        56,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c17",
+      "text": "作品の保存先（親フォルダ）",
+      "rect": [
+        328,
+        265,
+        209.95,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "native-profile-folder-value",
+      "text": "未設定",
+      "rect": [
+        328,
+        307,
+        42,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "保存先を選択",
+      "rect": [
+        380,
+        351.98,
+        84,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "選択解除",
+      "rect": [
+        512,
+        351.98,
+        56,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "div",
+      "text": "旧ライブラリ（任意・読取専用）",
+      "rect": [
+        400,
+        409.59,
+        210,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "div",
+      "text": "画像解析・GPU",
+      "rect": [
+        400,
+        473.59,
+        98.61,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c37",
+      "text": "保存した設定は次回起動から反映されます。実行中のジョブや保存先は変わりません。",
+      "rect": [
+        328,
+        525,
+        482.05,
+        17
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "選択したCookieの認証を確認",
+      "rect": [
+        344,
+        583.98,
+        186.28,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "保存",
+      "rect": [
+        344,
+        635.98,
+        28,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "取消",
+      "rect": [
+        420,
+        635.98,
+        28,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c44",
+      "text": "停止履歴の引き継ぎ",
+      "rect": [
+        328,
+        705,
+        162,
+        26
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c45",
+      "text": "以前の保存元を確認し、停止履歴を安全に引き継ぎます。通信・認証は行いません。",
+      "rect": [
+        328,
+        745,
+        530.19,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    }
+  ],
+  "clipped": [
+    {
+      "id": "span",
+      "text": "正式移行を実行する",
+      "rect": [
+        344,
+        786.38,
+        126,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false,
+      "by": "c3"
+    }
+  ],
+  "ellipses": [],
+  "scrolled_text_count": 0,
+  "icons": [
+    {
+      "glyph": "upload_file",
+      "font": "\"Material Icons\"",
+      "rect": [
+        344,
+        217,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "folder_open",
+      "font": "\"Material Icons\"",
+      "rect": [
+        344,
+        350,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "folder_open",
+      "font": "\"Material Icons\"",
+      "rect": [
+        344,
+        408,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "keyboard_arrow_down",
+      "font": "\"Material Icons\"",
+      "rect": [
+        626,
+        408,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "memory",
+      "font": "\"Material Icons\"",
+      "rect": [
+        344,
+        472,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "keyboard_arrow_down",
+      "font": "\"Material Icons\"",
+      "rect": [
+        514.61,
+        472,
+        24,
+        24
+      ]
+    }
+  ],
+  "styles": [
+    {
+      "id": "native-profile-pick-cookie",
+      "rect": [
+        328,
+        211,
+        212.28,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-clear-cookie",
+      "rect": [
+        556.28,
+        211,
+        88,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-pick-folder",
+      "rect": [
+        328,
+        344,
+        152,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-clear-folder",
+      "rect": [
+        496,
+        344,
+        88,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-auth-check",
+      "rect": [
+        328,
+        576,
+        218.28,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-save",
+      "rect": [
+        328,
+        628,
+        60,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-cancel",
+      "rect": [
+        404,
+        628,
+        60,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-migration",
+      "rect": [
+        328,
+        778.39,
+        158,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    }
+  ],
+  "tokens": {
+    "page": "#111418",
+    "bg-vault": "#0b0b10",
+    "bg-surface": "#15161c",
+    "bg-card": "#1e202d",
+    "border-vault": "#2a2b38",
+    "pixiv-blue": "#0096FA",
+    "text-main": "#e8e8ef",
+    "text-muted": "#8a8a99",
+    "text-elsewhere": "#b9b9c4"
+  },
+  "body_font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+  "shell": {
+    "tabs": []
+  },
+  "display_contract": {
+    "failure_categories_below_search": null,
+    "single_line_cards": null,
+    "download_table_clear_of_band": null,
+    "download_list_height": 0,
+    "download_header_to_band": null,
+    "queue_list_height": 0,
+    "queue_empty_alignment": null
+  },
+  "rendered_fonts": {},
+  "tone": {
+    "root": "nicegui-column",
+    "rect": [
+      304,
+      0,
+      672,
+      838.39
+    ],
+    "in_viewport_height": 800,
+    "viewport_height": 800,
+    "client_height": 838,
+    "scroll_height": 838,
+    "scroll_ratio": 1.05,
+    "content_extent": 838,
+    "content_ratio": 1.05,
+    "document_scroll_height": 800,
+    "document_scroll_ratio": 1,
+    "viewport_insets": [
+      0,
+      304,
+      0,
+      304
+    ],
+    "spacing": {
+      "padding": [
+        "24px",
+        "24px",
+        "24px",
+        "24px"
+      ],
+      "margin": [
+        "0px",
+        "304px",
+        "0px",
+        "304px"
+      ],
+      "gap": [
+        "16px",
+        "16px"
+      ]
+    },
+    "content_spacing": {
+      "padding": [
+        "24px",
+        "24px",
+        "24px",
+        "24px"
+      ],
+      "margin": [
+        "0px",
+        "304px",
+        "0px",
+        "304px"
+      ],
+      "gap": [
+        "16px",
+        "16px"
+      ]
+    },
+    "fonts": {
+      "24px": 1,
+      "14px": 14,
+      "16px": 2,
+      "12px": 1,
+      "18px": 1
+    },
+    "headings": [
+      {
+        "label": "PixivVault — 起動設定の確認",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "size": "24px",
+        "weight": "400",
+        "rect": [
+          328,
+          24,
+          312.39,
+          32
+        ]
+      },
+      {
+        "label": "Pixiv Cookieファイル",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "size": "16px",
+        "weight": "400",
+        "rect": [
+          328,
+          130,
+          156.92,
+          28
+        ]
+      },
+      {
+        "label": "作品の保存先（親フォルダ）",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "size": "16px",
+        "weight": "400",
+        "rect": [
+          328,
+          263,
+          209.95,
+          28
+        ]
+      },
+      {
+        "label": "停止履歴の引き継ぎ",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "size": "18px",
+        "weight": "600",
+        "rect": [
+          328,
+          704,
+          162,
+          28
+        ]
+      }
+    ],
+    "cards": [],
+    "scroll": [],
+    "states": [
+      {
+        "id": "native-profile-recovery",
+        "label": "選択したCookieファイルを読み込めません。ファイルを選び直して保存し、アプリを再起動してください。",
+        "rect": [
+          328,
+          72,
+          624,
+          42
+        ]
+      }
+    ],
+    "toolbars": [
+      {
+        "container": "nicegui-row",
+        "rows": [
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "id": "native-profile-pick-cookie",
+                "label": "upload_file Cookieファイルを選択",
+                "rect": [
+                  328,
+                  211,
+                  212.28,
+                  36
+                ],
+                "kind": "button",
+                "button": "text-link",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(225, 226, 232)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              },
+              {
+                "id": "native-profile-clear-cookie",
+                "label": "選択解除",
+                "rect": [
+                  556.28,
+                  211,
+                  88,
+                  36
+                ],
+                "kind": "button",
+                "button": "text-link",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(0, 150, 250)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "container": "nicegui-row",
+        "rows": [
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "id": "native-profile-pick-folder",
+                "label": "folder_open 保存先を選択",
+                "rect": [
+                  328,
+                  344,
+                  152,
+                  36
+                ],
+                "kind": "button",
+                "button": "text-link",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(225, 226, 232)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              },
+              {
+                "id": "native-profile-clear-folder",
+                "label": "選択解除",
+                "rect": [
+                  496,
+                  344,
+                  88,
+                  36
+                ],
+                "kind": "button",
+                "button": "text-link",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(0, 150, 250)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "container": "q-expansion-item__container",
+        "rows": [
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "id": "q-item",
+                "label": "Expand \"旧ライブラリ（任意・読取専用）\"",
+                "rect": [
+                  328,
+                  396,
+                  338,
+                  48
+                ],
+                "kind": "button",
+                "button": "outlined",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "0px",
+                  "0px",
+                  "0px",
+                  "0px"
+                ],
+                "border": "0px solid rgba(255, 255, 255, 0.28)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "container": "q-expansion-item__container",
+        "rows": [
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "id": "q-item",
+                "label": "Expand \"画像解析・GPU\"",
+                "rect": [
+                  328,
+                  460,
+                  226.61,
+                  48
+                ],
+                "kind": "button",
+                "button": "outlined",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "0px",
+                  "0px",
+                  "0px",
+                  "0px"
+                ],
+                "border": "0px solid rgba(255, 255, 255, 0.28)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "container": "nicegui-column",
+        "rows": [
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "id": "native-profile-auth-check",
+                "label": "選択したCookieの認証を確認",
+                "rect": [
+                  328,
+                  576,
+                  218.28,
+                  36
+                ],
+                "kind": "button",
+                "button": "text-link",
+                "shared": null,
+                "enabled": false,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(0, 150, 250)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "container": "nicegui-row",
+        "rows": [
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "id": "native-profile-save",
+                "label": "保存",
+                "rect": [
+                  328,
+                  628,
+                  60,
+                  36
+                ],
+                "kind": "button",
+                "button": "text-link",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(0, 150, 250)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              },
+              {
+                "id": "native-profile-cancel",
+                "label": "取消",
+                "rect": [
+                  404,
+                  628,
+                  60,
+                  36
+                ],
+                "kind": "button",
+                "button": "text-link",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(0, 150, 250)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "container": "nicegui-column",
+        "rows": [
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "id": "native-profile-migration",
+                "label": "正式移行を実行する",
+                "rect": [
+                  328,
+                  778.39,
+                  158,
+                  36
+                ],
+                "kind": "button",
+                "button": "outlined",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(0, 150, 250)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "buttons": {
+      "text-link": 7,
+      "outlined": 3
+    },
+    "common_components": []
+  },
+  "background_pixel": "#111418"
+}

@@ -1,0 +1,1196 @@
+{
+  "semantics": [
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\empty\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixiv",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\empty\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixiv",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\empty\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixiv",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\empty\\original_copy\\p5-synthetic.sqlite",
+      "rect": [
+        18,
+        12,
+        578,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "PixivVault",
+      "rect": [
+        10,
+        38,
+        142,
+        46
+      ]
+    },
+    {
+      "role": null,
+      "text": "× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。",
+      "rect": [
+        10,
+        94,
+        519,
+        19
+      ]
+    },
+    {
+      "role": null,
+      "text": "直近のバックアップ",
+      "rect": [
+        1005,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1005,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "閲覧履歴（学習タブ・0件）",
+      "rect": [
+        1050,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1050,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "保存フォルダを開く",
+      "rect": [
+        1095,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1095,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ライトモードへ切り替え",
+      "rect": [
+        1140,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1140,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ブラウザで Pixiv を開く (ログイン状態確認・自動連携)",
+      "rect": [
+        1185,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1185,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "設定",
+      "rect": [
+        1230,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1230,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "アプリ: 切断中",
+      "rect": [
+        26,
+        134,
+        80,
+        18
+      ]
+    },
+    {
+      "role": "switch",
+      "text": "",
+      "rect": [
+        118,
+        127,
+        48,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "",
+      "rect": [
+        178,
+        135,
+        88,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "接続トークンを再発行する（旧トークンで設定済みのiOS側は再入力が必要になります）",
+      "rect": [
+        272,
+        131,
+        24,
+        24
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        272,
+        131,
+        24,
+        24
+      ]
+    },
+    {
+      "role": "switch",
+      "text": "API経路を切り替える",
+      "rect": [
+        308,
+        127,
+        48,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "API経路を切り替える API切り替え",
+      "rect": [
+        368,
+        135,
+        63,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "【Cookie未連携】",
+      "rect": [
+        55,
+        184,
+        116,
+        21
+      ]
+    },
+    {
+      "role": null,
+      "text": "PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixivを開くだけで自動的に連携されます。",
+      "rect": [
+        55,
+        207,
+        389,
+        38
+      ]
+    },
+    {
+      "role": "button",
+      "text": "Pixivを開く",
+      "rect": [
+        1071,
+        199,
+        138,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "閉じる",
+      "rect": [
+        1219,
+        195,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1219,
+        195,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "group",
+      "text": "ダウンロードキュー失敗リスト重複整理学習ランキングライブラリおすすめ",
+      "rect": [
+        10,
+        266,
+        1260,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ダウンロード",
+      "rect": [
+        10,
+        266,
+        139,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "キュー",
+      "rect": [
+        159,
+        266,
+        96,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "失敗リスト",
+      "rect": [
+        265,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "重複整理",
+      "rect": [
+        399,
+        266,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "学習",
+      "rect": [
+        530,
+        266,
+        82,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ランキング",
+      "rect": [
+        622,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ライブラリ",
+      "rect": [
+        756,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "おすすめ",
+      "rect": [
+        891,
+        266,
+        110,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "現在のジョブ（アプリ連携）",
+      "rect": [
+        16,
+        326,
+        198,
+        21
+      ]
+    },
+    {
+      "role": null,
+      "text": "2秒毎に自動更新／一覧かタイトルのダブルクリックでログと切替",
+      "rect": [
+        16,
+        342,
+        318,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "",
+      "rect": [
+        16,
+        366,
+        360,
+        34
+      ]
+    },
+    {
+      "role": "button",
+      "text": "すべて 0",
+      "rect": [
+        18,
+        410,
+        109,
+        31
+      ]
+    },
+    {
+      "role": "button",
+      "text": "待機中 0",
+      "rect": [
+        137,
+        409,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "実行中 0",
+      "rect": [
+        257,
+        409,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "一時停止 0",
+      "rect": [
+        377,
+        409,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "停止中 0",
+      "rect": [
+        497,
+        409,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "完了 0",
+      "rect": [
+        617,
+        409,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "エラー 0",
+      "rect": [
+        737,
+        409,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "停止 0",
+      "rect": [
+        857,
+        409,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "選ぶ",
+      "rect": [
+        980,
+        408,
+        78,
+        34
+      ]
+    },
+    {
+      "role": "group",
+      "text": "現在のジョブはありません iOS版から送られた取得ジョブがここに並びます",
+      "rect": [
+        16,
+        450,
+        1248,
+        111
+      ]
+    },
+    {
+      "role": null,
+      "text": "現在のジョブはありません iOS版から送られた取得ジョブがここに並びます",
+      "rect": [
+        16,
+        450,
+        1248,
+        64
+      ]
+    },
+    {
+      "role": "group",
+      "text": "現在のジョブはありません iOS版から送られた取得ジョブがここに並びます",
+      "rect": [
+        16,
+        450,
+        1248,
+        64
+      ]
+    },
+    {
+      "role": null,
+      "text": "現在のジョブはありません iOS版から送られた取得ジョブがここに並びます",
+      "rect": [
+        16,
+        450,
+        1248,
+        64
+      ]
+    },
+    {
+      "role": null,
+      "text": "1 / 1",
+      "rect": [
+        1144,
+        581,
+        24,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1176,
+        569,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1224,
+        569,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ダウンロードキューログ",
+      "rect": [
+        37,
+        617,
+        146,
+        19
+      ]
+    },
+    {
+      "role": null,
+      "text": "拡張機能連携のDLはここにのみ表示",
+      "rect": [
+        189,
+        619,
+        174,
+        16
+      ]
+    },
+    {
+      "role": "group",
+      "text": "",
+      "rect": [
+        27,
+        655,
+        1226,
+        118
+      ]
+    }
+  ],
+  "outside_viewport": [],
+  "tone": {
+    "source": "Flutter CanvasKit accessibility bounds",
+    "viewport_height": 800,
+    "in_viewport_height": 310,
+    "semantic_extent_height": 447,
+    "semantic_extent_ratio": 0.559,
+    "scroll_height": null,
+    "scroll_ratio": null,
+    "fonts": null,
+    "buttons": null,
+    "cards": null,
+    "headings": [],
+    "spacing": null,
+    "semantic_scroll_nodes": [
+      {
+        "index": 39,
+        "parent": 2,
+        "role": null,
+        "label": "現在のジョブ（アプリ連携）",
+        "rect": [
+          16,
+          326,
+          198,
+          21
+        ],
+        "tag": "flt-semantics",
+        "client_height": 21,
+        "scroll_height": 30,
+        "scroll_top": 0
+      },
+      {
+        "index": 40,
+        "parent": 2,
+        "role": null,
+        "label": "2秒毎に自動更新／一覧かタイトルのダブルクリックでログと切替",
+        "rect": [
+          16,
+          342,
+          318,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 41,
+        "parent": 2,
+        "role": null,
+        "label": "",
+        "rect": [
+          16,
+          366,
+          360,
+          34
+        ],
+        "tag": "flt-semantics",
+        "client_height": 34,
+        "scroll_height": 40,
+        "scroll_top": 0
+      },
+      {
+        "index": 53,
+        "parent": 52,
+        "role": "group",
+        "label": "現在のジョブはありません iOS版から送られた取得ジョブがここに並びます",
+        "rect": [
+          16,
+          450,
+          1248,
+          64
+        ],
+        "tag": "flt-semantics",
+        "client_height": 64,
+        "scroll_height": 90,
+        "scroll_top": 0
+      },
+      {
+        "index": 54,
+        "parent": 53,
+        "role": null,
+        "label": "現在のジョブはありません iOS版から送られた取得ジョブがここに並びます",
+        "rect": [
+          16,
+          450,
+          1248,
+          64
+        ],
+        "tag": "flt-semantics",
+        "client_height": 64,
+        "scroll_height": 90,
+        "scroll_top": 0
+      },
+      {
+        "index": 55,
+        "parent": 2,
+        "role": null,
+        "label": "1 / 1",
+        "rect": [
+          1144,
+          581,
+          24,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 18,
+        "scroll_top": 0
+      },
+      {
+        "index": 58,
+        "parent": 2,
+        "role": null,
+        "label": "ダウンロードキューログ",
+        "rect": [
+          37,
+          617,
+          146,
+          19
+        ],
+        "tag": "flt-semantics",
+        "client_height": 19,
+        "scroll_height": 27,
+        "scroll_top": 0
+      },
+      {
+        "index": 59,
+        "parent": 2,
+        "role": null,
+        "label": "拡張機能連携のDLはここにのみ表示",
+        "rect": [
+          189,
+          619,
+          174,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      }
+    ],
+    "toolbars": [
+      {
+        "container": "semantic-body",
+        "rows": [
+          {
+            "count": 9,
+            "kinds": {
+              "button": 9
+            },
+            "controls": [
+              {
+                "index": 42,
+                "parent": 2,
+                "role": "button",
+                "label": "すべて 0",
+                "rect": [
+                  18,
+                  410,
+                  109,
+                  31
+                ],
+                "tag": "flt-semantics",
+                "client_height": 31,
+                "scroll_height": 31,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 43,
+                "parent": 2,
+                "role": "button",
+                "label": "待機中 0",
+                "rect": [
+                  137,
+                  409,
+                  110,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 44,
+                "parent": 2,
+                "role": "button",
+                "label": "実行中 0",
+                "rect": [
+                  257,
+                  409,
+                  110,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 45,
+                "parent": 2,
+                "role": "button",
+                "label": "一時停止 0",
+                "rect": [
+                  377,
+                  409,
+                  110,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 46,
+                "parent": 2,
+                "role": "button",
+                "label": "停止中 0",
+                "rect": [
+                  497,
+                  409,
+                  110,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 47,
+                "parent": 2,
+                "role": "button",
+                "label": "完了 0",
+                "rect": [
+                  617,
+                  409,
+                  110,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 48,
+                "parent": 2,
+                "role": "button",
+                "label": "エラー 0",
+                "rect": [
+                  737,
+                  409,
+                  110,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 49,
+                "parent": 2,
+                "role": "button",
+                "label": "停止 0",
+                "rect": [
+                  857,
+                  409,
+                  110,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 50,
+                "parent": 2,
+                "role": "button",
+                "label": "選ぶ",
+                "rect": [
+                  980,
+                  408,
+                  78,
+                  34
+                ],
+                "tag": "flt-semantics",
+                "client_height": 34,
+                "scroll_height": 34,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "index": 56,
+                "parent": 2,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  1176,
+                  569,
+                  40,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 57,
+                "parent": 2,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  1224,
+                  569,
+                  40,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "common_components": [],
+    "states": [
+      {
+        "index": 51,
+        "parent": 2,
+        "role": "group",
+        "label": "現在のジョブはありません iOS版から送られた取得ジョブがここに並びます",
+        "rect": [
+          16,
+          450,
+          1248,
+          111
+        ],
+        "tag": "flt-semantics",
+        "client_height": 111,
+        "scroll_height": 111,
+        "scroll_top": 0
+      },
+      {
+        "index": 52,
+        "parent": 51,
+        "role": null,
+        "label": "現在のジョブはありません iOS版から送られた取得ジョブがここに並びます",
+        "rect": [
+          16,
+          450,
+          1248,
+          64
+        ],
+        "tag": "flt-semantics",
+        "client_height": 64,
+        "scroll_height": 64,
+        "scroll_top": 0
+      },
+      {
+        "index": 53,
+        "parent": 52,
+        "role": "group",
+        "label": "現在のジョブはありません iOS版から送られた取得ジョブがここに並びます",
+        "rect": [
+          16,
+          450,
+          1248,
+          64
+        ],
+        "tag": "flt-semantics",
+        "client_height": 64,
+        "scroll_height": 90,
+        "scroll_top": 0
+      },
+      {
+        "index": 54,
+        "parent": 53,
+        "role": null,
+        "label": "現在のジョブはありません iOS版から送られた取得ジョブがここに並びます",
+        "rect": [
+          16,
+          450,
+          1248,
+          64
+        ],
+        "tag": "flt-semantics",
+        "client_height": 64,
+        "scroll_height": 90,
+        "scroll_top": 0
+      }
+    ],
+    "flet_declared": {
+      "source": "running Flet control tree, declared styles",
+      "fonts": {
+        "15": 1,
+        "10.5": 2,
+        "12.5": 8,
+        "11": 9,
+        "13": 2,
+        "11.5": 1
+      },
+      "buttons": {
+        "outlined": 1,
+        "icon-only": 2
+      },
+      "headings": [
+        {
+          "label": "現在のジョブ（アプリ連携）",
+          "size": 15,
+          "font": "Yu Mincho",
+          "weight": "FontWeight.BOLD"
+        },
+        {
+          "label": "ダウンロードキューログ",
+          "size": 13,
+          "font": "Yu Mincho",
+          "weight": "FontWeight.W_600"
+        }
+      ],
+      "common_components": [],
+      "box_styles": [
+        {
+          "bgcolor": "#0b0b10",
+          "padding": 6,
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 8,
+          "type": "Column",
+          "count": 1
+        },
+        {
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 4
+        },
+        {
+          "run_spacing": 8,
+          "spacing": 12,
+          "type": "Row",
+          "count": 1
+        },
+        {
+          "run_spacing": 8,
+          "spacing": 8,
+          "type": "Row",
+          "count": 1
+        },
+        {
+          "bgcolor": "#0096FA,0.25",
+          "border": "Border(top=BorderSide(width=1.5, color='#0096FA', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), right=BorderSide(width=1.5, color='#0096FA', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), bottom=BorderSide(width=1.5, color='#0096FA', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=1.5, color='#0096FA', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>))",
+          "border_radius": 8,
+          "padding": "Padding(left=12, top=0, right=10, bottom=0)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 10,
+          "type": "Row",
+          "count": 8
+        },
+        {
+          "bgcolor": "#0096FA",
+          "border_radius": 4,
+          "padding": "Padding(left=5, top=0, right=5, bottom=0)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "bgcolor": "#15161c",
+          "border": "Border(top=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), right=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), bottom=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>))",
+          "border_radius": 8,
+          "padding": "Padding(left=12, top=0, right=10, bottom=0)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 7
+        },
+        {
+          "bgcolor": "transparent",
+          "border": "Border(top=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), right=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), bottom=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>))",
+          "border_radius": 4,
+          "padding": "Padding(left=5, top=0, right=5, bottom=0)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 7
+        },
+        {
+          "run_spacing": 10,
+          "scroll": "ScrollMode.AUTO",
+          "spacing": 10,
+          "type": "Column",
+          "count": 1
+        },
+        {
+          "padding": 0,
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "spacing": 0,
+          "type": "ListView",
+          "count": 1
+        },
+        {
+          "padding": "Padding(left=12, top=24, right=0, bottom=0)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 4,
+          "type": "Column",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 8,
+          "type": "Row",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 6,
+          "type": "Row",
+          "count": 1
+        },
+        {
+          "bgcolor": "surfacecontainerhighest",
+          "border": "Border(top=BorderSide(width=1.0, color=<Colors.OUTLINE: 'outline'>, stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), right=BorderSide(width=1.0, color=<Colors.OUTLINE: 'outline'>, stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), bottom=BorderSide(width=1.0, color=<Colors.OUTLINE: 'outline'>, stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=1.0, color=<Colors.OUTLINE: 'outline'>, stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>))",
+          "border_radius": 5,
+          "padding": 10,
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "spacing": 2,
+          "type": "ListView",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "background_pixel": "#111418"
+}

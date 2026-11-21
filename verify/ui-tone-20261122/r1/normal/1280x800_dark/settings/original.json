@@ -1,0 +1,1556 @@
+{
+  "semantics": [
+    {
+      "role": null,
+      "text": "設定アカウントCookie のインポートPixivのログイン状態を引き継ぐための cookies.txt を選択してください。ファイルを選択フォロー中リストの同期Pixivからフォロー中の作者情報を取得し、DBに保存します。リストを同期保存フォルダーの設定画像のダウンロード先フォルダーを指定します（再起動後も保持）。フォルダーを選択ブラウザ拡張機能との自動連携無効 ─ 自動起動は未登録ですPixivのページから直接ダウンロード指示を送れるようになります。Cookieは拡張機能が30分ごとに自動同",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": null,
+      "text": "設定アカウントCookie のインポートPixivのログイン状態を引き継ぐための cookies.txt を選択してください。ファイルを選択フォロー中リストの同期Pixivからフォロー中の作者情報を取得し、DBに保存します。リストを同期保存フォルダーの設定画像のダウンロード先フォルダーを指定します（再起動後も保持）。フォルダーを選択ブラウザ拡張機能との自動連携無効 ─ 自動起動は未登録ですPixivのページから直接ダウンロード指示を送れるようになります。Cookieは拡張機能が30分ごとに自動同",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": null,
+      "text": "設定アカウントCookie のインポートPixivのログイン状態を引き継ぐための cookies.txt を選択してください。ファイルを選択フォロー中リストの同期Pixivからフォロー中の作者情報を取得し、DBに保存します。リストを同期保存フォルダーの設定画像のダウンロード先フォルダーを指定します（再起動後も保持）。フォルダーを選択ブラウザ拡張機能との自動連携無効 ─ 自動起動は未登録ですPixivのページから直接ダウンロード指示を送れるようになります。Cookieは拡張機能が30分ごとに自動同",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": null,
+      "text": "設定アカウントCookie のインポートPixivのログイン状態を引き継ぐための cookies.txt を選択してください。ファイルを選択フォロー中リストの同期Pixivからフォロー中の作者情報を取得し、DBに保存します。リストを同期保存フォルダーの設定画像のダウンロード先フォルダーを指定します（再起動後も保持）。フォルダーを選択ブラウザ拡張機能との自動連携無効 ─ 自動起動は未登録ですPixivのページから直接ダウンロード指示を送れるようになります。Cookieは拡張機能が30分ごとに自動同",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": "alertdialog",
+      "text": "設定アカウントCookie のインポートPixivのログイン状態を引き継ぐための cookies.txt を選択してください。ファイルを選択フォロー中リストの同期Pixivからフォロー中の作者情報を取得し、DBに保存します。リストを同期保存フォルダーの設定画像のダウンロード先フォルダーを指定します（再起動後も保持）。フォルダーを選択ブラウザ拡張機能との自動連携無効 ─ 自動起動は未登録ですPixivのページから直接ダウンロード指示を送れるようになります。Cookieは拡張機能が30分ごとに自動同",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": null,
+      "text": "Alert",
+      "rect": [
+        366,
+        98,
+        548,
+        604
+      ]
+    },
+    {
+      "role": null,
+      "text": "設定",
+      "rect": [
+        390,
+        122,
+        500,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "アカウントCookie のインポートPixivのログイン状態を引き継ぐための cookies.txt を選択してください。ファイルを選択フォロー中リストの同期Pixivからフォロー中の作者情報を取得し、DBに保存します。リストを同期保存フォルダーの設定画像のダウンロード先フォルダーを指定します（再起動後も保持）。フォルダーを選択ブラウザ拡張機能との自動連携無効 ─ 自動起動は未登録ですPixivのページから直接ダウンロード指示を送れるようになります。Cookieは拡張機能が30分ごとに自動同期し",
+      "rect": [
+        390,
+        174,
+        500,
+        480
+      ]
+    },
+    {
+      "role": "group",
+      "text": "アカウントCookie のインポートPixivのログイン状態を引き継ぐための cookies.txt を選択してください。ファイルを選択フォロー中リストの同期Pixivからフォロー中の作者情報を取得し、DBに保存します。リストを同期保存フォルダーの設定画像のダウンロード先フォルダーを指定します（再起動後も保持）。フォルダーを選択ブラウザ拡張機能との自動連携無効 ─ 自動起動は未登録ですPixivのページから直接ダウンロード指示を送れるようになります。Cookieは拡張機能が30分ごとに自動同期し",
+      "rect": [
+        390,
+        174,
+        500,
+        480
+      ]
+    },
+    {
+      "role": null,
+      "text": "アカウント",
+      "rect": [
+        401,
+        181,
+        56,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "Cookie のインポート",
+      "rect": [
+        401,
+        214,
+        115,
+        18
+      ]
+    },
+    {
+      "role": null,
+      "text": "Pixivのログイン状態を引き継ぐための cookies.txt を選択してください。",
+      "rect": [
+        401,
+        242,
+        367,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ファイルを選択",
+      "rect": [
+        401,
+        268,
+        149,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "フォロー中リストの同期",
+      "rect": [
+        401,
+        321,
+        135,
+        17
+      ]
+    },
+    {
+      "role": null,
+      "text": "Pixivからフォロー中の作者情報を取得し、DBに保存します。",
+      "rect": [
+        401,
+        348,
+        308,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "リストを同期",
+      "rect": [
+        401,
+        374,
+        135,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "保存フォルダーの設定",
+      "rect": [
+        401,
+        427,
+        123,
+        17
+      ]
+    },
+    {
+      "role": null,
+      "text": "画像のダウンロード先フォルダーを指定します（再起動後も保持）。",
+      "rect": [
+        401,
+        454,
+        349,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "フォルダーを選択",
+      "rect": [
+        401,
+        480,
+        163,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "",
+      "rect": [
+        401,
+        522,
+        478,
+        38
+      ]
+    },
+    {
+      "role": null,
+      "text": "ブラウザ拡張機能との自動連携",
+      "rect": [
+        401,
+        581,
+        171,
+        17
+      ]
+    },
+    {
+      "role": null,
+      "text": "無効 ─ 自動起動は未登録です",
+      "rect": [
+        401,
+        600,
+        152,
+        16
+      ]
+    },
+    {
+      "role": "switch",
+      "text": "",
+      "rect": [
+        819,
+        581,
+        60,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "Pixivのページから直接ダウンロード指示を送れるようになります。Cookieは拡張機能が30分ごとに自動同期します（Pixivを開くと即時同期）。",
+      "rect": [
+        401,
+        631,
+        478,
+        23
+      ]
+    },
+    {
+      "role": null,
+      "text": "保存ポリシー・通知",
+      "rect": [
+        401,
+        689,
+        101,
+        16
+      ]
+    },
+    {
+      "role": "checkbox",
+      "text": "起動時にもお気に入り新着チェックを実行する",
+      "rect": [
+        401,
+        722,
+        478,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        401,
+        772,
+        430,
+        48
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        401,
+        830,
+        430,
+        48
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        401,
+        888,
+        430,
+        48
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        401,
+        946,
+        430,
+        48
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        401,
+        1004,
+        430,
+        48
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        401,
+        1062,
+        430,
+        48
+      ]
+    },
+    {
+      "role": null,
+      "text": "作品メタデータ",
+      "rect": [
+        401,
+        1136,
+        79,
+        16
+      ]
+    },
+    {
+      "role": "checkbox",
+      "text": "メタデータ（ブックマーク数など）をバックグラウンドで自動的に埋める",
+      "rect": [
+        401,
+        1169,
+        478,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ブックマーク数・いいね数・閲覧数などは、作品ごとに詳細を1回ずつ取りに行かないと分かりません。ダウンロード中は動かず、終わるまで待ちます。",
+      "rect": [
+        401,
+        1219,
+        478,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "メタデータ: 0 / 3 件（残り 3）",
+      "rect": [
+        401,
+        1261,
+        154,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "いま埋める",
+      "rect": [
+        401,
+        1287,
+        120,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "絵柄・構図の推論",
+      "rect": [
+        401,
+        1345,
+        90,
+        16
+      ]
+    },
+    {
+      "role": "checkbox",
+      "text": "ダウンロードした画像を、バックグラウンドで自動的に推論する",
+      "rect": [
+        401,
+        1378,
+        478,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ダウンロードした画像から、絵柄と構図の特徴を取り出して保存します。ダウンロードのついでに少しずつ進み、止めても次に続きから再開します。",
+      "rect": [
+        401,
+        1428,
+        478,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "絵柄: 済 0 / 全 3 ページ（残り 2 ／ 3回試しても取れなかった 1） 構図: 済 0 / 全 3 ページ（残り 2 ／ 3回試しても取れなかった 1）",
+      "rect": [
+        401,
+        1470,
+        327,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "推論を止めました（連続5件失敗）: ファイル系: ZIPの中に見つからない （詳しい中身は gui_error_log.txt に残っています）",
+      "rect": [
+        401,
+        1512,
+        362,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "いま推論する",
+      "rect": [
+        401,
+        1554,
+        135,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "諦めたぶんを対象へ戻す",
+      "rect": [
+        544,
+        1554,
+        205,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "数え直す",
+      "rect": [
+        757,
+        1554,
+        106,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "エクスポート",
+      "rect": [
+        401,
+        1612,
+        67,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "データベースのエクスポート",
+      "rect": [
+        401,
+        1645,
+        158,
+        17
+      ]
+    },
+    {
+      "role": null,
+      "text": "データベースをZIPファイルとして保存します（画像は含まれません。約9MB）。",
+      "rect": [
+        401,
+        1672,
+        411,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "エクスポートを実行",
+      "rect": [
+        401,
+        1698,
+        176,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "詳細設定",
+      "rect": [
+        401,
+        1756,
+        45,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        401,
+        1789,
+        430,
+        48
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        401,
+        1847,
+        430,
+        48
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        401,
+        1905,
+        430,
+        48
+      ]
+    },
+    {
+      "role": "checkbox",
+      "text": "すべての作者に対しダウンロード完了後zipにする",
+      "rect": [
+        401,
+        1963,
+        478,
+        40
+      ]
+    },
+    {
+      "role": "checkbox",
+      "text": "最小化時にタスクトレイに格納する",
+      "rect": [
+        401,
+        2013,
+        478,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "アプリ全体で表示した作品・作者のサムネイル画像キャッシュを削除します。",
+      "rect": [
+        411,
+        2069,
+        392,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "キャッシュを削除する",
+      "rect": [
+        411,
+        2089,
+        207,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        401,
+        2137,
+        430,
+        48
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        401,
+        2195,
+        430,
+        48
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        401,
+        2253,
+        430,
+        48
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        401,
+        2311,
+        430,
+        48
+      ]
+    },
+    {
+      "role": null,
+      "text": "学習状況",
+      "rect": [
+        401,
+        2385,
+        45,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "学習状況のリセット",
+      "rect": [
+        401,
+        2418,
+        110,
+        17
+      ]
+    },
+    {
+      "role": null,
+      "text": "まだ判定がありません。",
+      "rect": [
+        401,
+        2445,
+        123,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "学習状況をリセット",
+      "rect": [
+        401,
+        2471,
+        177,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "ver 4.0.0 build260913-96c4f24",
+      "rect": [
+        562,
+        2522,
+        156,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "閉じる",
+      "rect": [
+        824,
+        2546,
+        66,
+        32
+      ]
+    }
+  ],
+  "outside_viewport": [
+    {
+      "role": null,
+      "text": "作品メタデータ",
+      "rect": [
+        401,
+        1136,
+        79,
+        16
+      ]
+    },
+    {
+      "role": "checkbox",
+      "text": "メタデータ（ブックマーク数など）をバックグラウンドで自動的に埋める",
+      "rect": [
+        401,
+        1169,
+        478,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ブックマーク数・いいね数・閲覧数などは、作品ごとに詳細を1回ずつ取りに行かないと分かりません。ダウンロード中は動かず、終わるまで待ちます。",
+      "rect": [
+        401,
+        1219,
+        478,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "メタデータ: 0 / 3 件（残り 3）",
+      "rect": [
+        401,
+        1261,
+        154,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "いま埋める",
+      "rect": [
+        401,
+        1287,
+        120,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "絵柄・構図の推論",
+      "rect": [
+        401,
+        1345,
+        90,
+        16
+      ]
+    },
+    {
+      "role": "checkbox",
+      "text": "ダウンロードした画像を、バックグラウンドで自動的に推論する",
+      "rect": [
+        401,
+        1378,
+        478,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ダウンロードした画像から、絵柄と構図の特徴を取り出して保存します。ダウンロードのついでに少しずつ進み、止めても次に続きから再開します。",
+      "rect": [
+        401,
+        1428,
+        478,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "絵柄: 済 0 / 全 3 ページ（残り 2 ／ 3回試しても取れなかった 1） 構図: 済 0 / 全 3 ページ（残り 2 ／ 3回試しても取れなかった 1）",
+      "rect": [
+        401,
+        1470,
+        327,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "推論を止めました（連続5件失敗）: ファイル系: ZIPの中に見つからない （詳しい中身は gui_error_log.txt に残っています）",
+      "rect": [
+        401,
+        1512,
+        362,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "いま推論する",
+      "rect": [
+        401,
+        1554,
+        135,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "諦めたぶんを対象へ戻す",
+      "rect": [
+        544,
+        1554,
+        205,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "数え直す",
+      "rect": [
+        757,
+        1554,
+        106,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "エクスポート",
+      "rect": [
+        401,
+        1612,
+        67,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "データベースのエクスポート",
+      "rect": [
+        401,
+        1645,
+        158,
+        17
+      ]
+    },
+    {
+      "role": null,
+      "text": "データベースをZIPファイルとして保存します（画像は含まれません。約9MB）。",
+      "rect": [
+        401,
+        1672,
+        411,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "エクスポートを実行",
+      "rect": [
+        401,
+        1698,
+        176,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "詳細設定",
+      "rect": [
+        401,
+        1756,
+        45,
+        16
+      ]
+    },
+    {
+      "role": "checkbox",
+      "text": "すべての作者に対しダウンロード完了後zipにする",
+      "rect": [
+        401,
+        1963,
+        478,
+        40
+      ]
+    },
+    {
+      "role": "checkbox",
+      "text": "最小化時にタスクトレイに格納する",
+      "rect": [
+        401,
+        2013,
+        478,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "アプリ全体で表示した作品・作者のサムネイル画像キャッシュを削除します。",
+      "rect": [
+        411,
+        2069,
+        392,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "キャッシュを削除する",
+      "rect": [
+        411,
+        2089,
+        207,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "学習状況",
+      "rect": [
+        401,
+        2385,
+        45,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "学習状況のリセット",
+      "rect": [
+        401,
+        2418,
+        110,
+        17
+      ]
+    },
+    {
+      "role": null,
+      "text": "まだ判定がありません。",
+      "rect": [
+        401,
+        2445,
+        123,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "学習状況をリセット",
+      "rect": [
+        401,
+        2471,
+        177,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "ver 4.0.0 build260913-96c4f24",
+      "rect": [
+        562,
+        2522,
+        156,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "閉じる",
+      "rect": [
+        824,
+        2546,
+        66,
+        32
+      ]
+    }
+  ],
+  "tone": {
+    "source": "Flutter CanvasKit accessibility bounds",
+    "viewport_height": 800,
+    "in_viewport_height": 664,
+    "semantic_extent_height": 2480,
+    "semantic_extent_ratio": 3.1,
+    "scroll_height": null,
+    "scroll_ratio": null,
+    "fonts": null,
+    "buttons": null,
+    "cards": null,
+    "headings": [],
+    "spacing": null,
+    "semantic_scroll_nodes": [
+      {
+        "index": 6,
+        "parent": 5,
+        "role": null,
+        "label": "設定",
+        "rect": [
+          390,
+          122,
+          500,
+          32
+        ],
+        "tag": "flt-semantics",
+        "client_height": 32,
+        "scroll_height": 45,
+        "scroll_top": 0
+      },
+      {
+        "index": 8,
+        "parent": 7,
+        "role": "group",
+        "label": "アカウント Cookie のインポート Pixivのログイン状態を引き継ぐための cookies.txt を選択してください。 ファイルを選択 フォロー中リストの同期 Pixivからフォロー中の作者情報を取得し、DBに保存します。 リストを同期 保存フォルダーの設定 画像のダウン",
+        "rect": [
+          390,
+          174,
+          500,
+          480
+        ],
+        "tag": "flt-semantics",
+        "client_height": 480,
+        "scroll_height": 2404,
+        "scroll_top": 0
+      },
+      {
+        "index": 9,
+        "parent": 8,
+        "role": null,
+        "label": "アカウント",
+        "rect": [
+          401,
+          181,
+          56,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 10,
+        "parent": 8,
+        "role": null,
+        "label": "Cookie のインポート",
+        "rect": [
+          401,
+          214,
+          115,
+          18
+        ],
+        "tag": "flt-semantics",
+        "client_height": 18,
+        "scroll_height": 25,
+        "scroll_top": 0
+      },
+      {
+        "index": 11,
+        "parent": 8,
+        "role": null,
+        "label": "Pixivのログイン状態を引き継ぐための cookies.txt を選択してください。",
+        "rect": [
+          401,
+          242,
+          367,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 13,
+        "parent": 8,
+        "role": null,
+        "label": "フォロー中リストの同期",
+        "rect": [
+          401,
+          321,
+          135,
+          17
+        ],
+        "tag": "flt-semantics",
+        "client_height": 17,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 14,
+        "parent": 8,
+        "role": null,
+        "label": "Pixivからフォロー中の作者情報を取得し、DBに保存します。",
+        "rect": [
+          401,
+          348,
+          308,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 16,
+        "parent": 8,
+        "role": null,
+        "label": "保存フォルダーの設定",
+        "rect": [
+          401,
+          427,
+          123,
+          17
+        ],
+        "tag": "flt-semantics",
+        "client_height": 17,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 17,
+        "parent": 8,
+        "role": null,
+        "label": "画像のダウンロード先フォルダーを指定します（再起動後も保持）。",
+        "rect": [
+          401,
+          454,
+          349,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 19,
+        "parent": 8,
+        "role": null,
+        "label": "",
+        "rect": [
+          401,
+          522,
+          478,
+          38
+        ],
+        "tag": "flt-semantics",
+        "client_height": 38,
+        "scroll_height": 44,
+        "scroll_top": 0
+      },
+      {
+        "index": 20,
+        "parent": 8,
+        "role": null,
+        "label": "ブラウザ拡張機能との自動連携",
+        "rect": [
+          401,
+          581,
+          171,
+          17
+        ],
+        "tag": "flt-semantics",
+        "client_height": 17,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 21,
+        "parent": 8,
+        "role": null,
+        "label": "無効 ─ 自動起動は未登録です",
+        "rect": [
+          401,
+          600,
+          152,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 23,
+        "parent": 8,
+        "role": null,
+        "label": "Pixivのページから直接ダウンロード指示を送れるようになります。Cookieは拡張機能が30分ごとに自動同期します（Pixivを開くと即時同期）。",
+        "rect": [
+          401,
+          631,
+          478,
+          23
+        ],
+        "tag": "flt-semantics",
+        "client_height": 23,
+        "scroll_height": 32,
+        "scroll_top": 0
+      },
+      {
+        "index": 24,
+        "parent": 8,
+        "role": null,
+        "label": "保存ポリシー・通知",
+        "rect": [
+          401,
+          689,
+          101,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      }
+    ],
+    "toolbars": [
+      {
+        "container": "semantic-body",
+        "rows": [
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "index": 12,
+                "parent": 8,
+                "role": "button",
+                "label": "ファイルを選択",
+                "rect": [
+                  401,
+                  268,
+                  149,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "index": 15,
+                "parent": 8,
+                "role": "button",
+                "label": "リストを同期",
+                "rect": [
+                  401,
+                  374,
+                  135,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "index": 18,
+                "parent": 8,
+                "role": "button",
+                "label": "フォルダーを選択",
+                "rect": [
+                  401,
+                  480,
+                  163,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 1,
+            "kinds": {
+              "switch": 1
+            },
+            "controls": [
+              {
+                "index": 22,
+                "parent": 8,
+                "role": "switch",
+                "label": "",
+                "rect": [
+                  819,
+                  581,
+                  60,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "switch"
+              }
+            ]
+          },
+          {
+            "count": 1,
+            "kinds": {
+              "switch": 1
+            },
+            "controls": [
+              {
+                "index": 25,
+                "parent": 8,
+                "role": "checkbox",
+                "label": "起動時にもお気に入り新着チェックを実行する",
+                "rect": [
+                  401,
+                  722,
+                  478,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "switch"
+              }
+            ]
+          },
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "index": 26,
+                "parent": 8,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  401,
+                  772,
+                  430,
+                  48
+                ],
+                "tag": "flt-semantics",
+                "client_height": 48,
+                "scroll_height": 48,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "common_components": [
+      {
+        "index": 22,
+        "parent": 8,
+        "role": "switch",
+        "label": "",
+        "rect": [
+          819,
+          581,
+          60,
+          40
+        ],
+        "tag": "flt-semantics",
+        "client_height": 40,
+        "scroll_height": 40,
+        "scroll_top": 0,
+        "kind": "switch"
+      },
+      {
+        "index": 25,
+        "parent": 8,
+        "role": "checkbox",
+        "label": "起動時にもお気に入り新着チェックを実行する",
+        "rect": [
+          401,
+          722,
+          478,
+          40
+        ],
+        "tag": "flt-semantics",
+        "client_height": 40,
+        "scroll_height": 40,
+        "scroll_top": 0,
+        "kind": "switch"
+      }
+    ],
+    "states": [],
+    "flet_declared": {
+      "source": "running Flet control tree, declared styles",
+      "fonts": {
+        "11": 21,
+        "12": 6,
+        "13": 1,
+        "theme-default": 1
+      },
+      "buttons": {
+        "filled-default-shape": 10,
+        "text-link": 1
+      },
+      "headings": [
+        {
+          "label": "アカウント",
+          "size": 11,
+          "font": "Yu Mincho",
+          "weight": "FontWeight.W_600"
+        },
+        {
+          "label": "保存ポリシー・通知",
+          "size": 11,
+          "font": "Yu Mincho",
+          "weight": "FontWeight.W_600"
+        },
+        {
+          "label": "作品メタデータ",
+          "size": 11,
+          "font": "Yu Mincho",
+          "weight": "FontWeight.W_600"
+        },
+        {
+          "label": "絵柄・構図の推論",
+          "size": 11,
+          "font": "Yu Mincho",
+          "weight": "FontWeight.W_600"
+        },
+        {
+          "label": "エクスポート",
+          "size": 11,
+          "font": "Yu Mincho",
+          "weight": "FontWeight.W_600"
+        },
+        {
+          "label": "詳細設定",
+          "size": 11,
+          "font": "Yu Mincho",
+          "weight": "FontWeight.W_600"
+        },
+        {
+          "label": "学習状況",
+          "size": 11,
+          "font": "Yu Mincho",
+          "weight": "FontWeight.W_600"
+        },
+        {
+          "label": "設定",
+          "size": null,
+          "font": "Yu Mincho",
+          "weight": null
+        }
+      ],
+      "common_components": [
+        {
+          "type": "Switch",
+          "label": ""
+        },
+        {
+          "type": "Checkbox",
+          "label": "起動時にもお気に入り新着チェックを実行する"
+        },
+        {
+          "type": "Dropdown",
+          "label": "Nana7mi借用アカウント自動更新間隔"
+        },
+        {
+          "type": "Checkbox",
+          "label": "メタデータ（ブックマーク数など）をバックグラウンドで自動的に埋める"
+        },
+        {
+          "type": "Checkbox",
+          "label": "ダウンロードした画像を、バックグラウンドで自動的に推論する"
+        },
+        {
+          "type": "Checkbox",
+          "label": "すべての作者に対しダウンロード完了後zipにする"
+        },
+        {
+          "type": "Checkbox",
+          "label": "最小化時にタスクトレイに格納する"
+        }
+      ],
+      "box_styles": [
+        {
+          "run_spacing": 10,
+          "scroll": "ScrollMode.AUTO",
+          "spacing": 8,
+          "type": "Column",
+          "count": 1
+        },
+        {
+          "bgcolor": "#1e202d",
+          "border": "Border(top=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), right=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), bottom=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>))",
+          "border_radius": 10,
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 7
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 0,
+          "type": "Column",
+          "count": 7
+        },
+        {
+          "border": "Border(top=BorderSide(width=0.0, color=<Colors.BLACK: 'black'>, stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.NONE: 'none'>), right=BorderSide(width=0.0, color=<Colors.BLACK: 'black'>, stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.NONE: 'none'>), bottom=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=0.0, color=<Colors.BLACK: 'black'>, stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.NONE: 'none'>))",
+          "padding": "Padding(left=10, top=6, right=10, bottom=6)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 7
+        },
+        {
+          "padding": "Padding(left=10, top=10, right=10, bottom=10)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 7
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 10,
+          "type": "Column",
+          "count": 7
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 10,
+          "type": "Row",
+          "count": 4
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 2,
+          "type": "Column",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 8,
+          "type": "Row",
+          "count": 2
+        },
+        {
+          "padding": "Padding(left=10, top=6, right=0, bottom=6)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 4,
+          "type": "Column",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "background_pixel": "#08090b"
+}

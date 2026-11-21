@@ -42,13 +42,17 @@ def retry_status_text(records):
 class RequestStatusView:
     def __init__(self,policy):
         self.policy=policy
-        self.label=ui.label('').classes('whitespace-pre-line').props('role=status data-testid=request-retry-status')
+        self.label=ui.label('').classes('pv-subtitle pv-request-status').props('role=status data-testid=request-retry-status')
         self.label.set_visibility(False)
         self.timer=ui.timer(.2,self.refresh)
 
     def refresh(self):
-        message=retry_status_text(self.policy.progress_snapshot())
-        self.label.set_text(message);self.label.set_visibility(bool(message))
+        records = self.policy.progress_snapshot()
+        message = retry_status_text(records)
+        tone = 'pv-alert-banner' if any(record['phase'] in ('stopped', 'failed') for record in records) else 'pv-warning-banner'
+        self.label.classes(remove='pv-alert-banner pv-warning-banner', add=tone)
+        self.label.set_text(message)
+        self.label.set_visibility(bool(message))
 
     def close(self):
         self.timer.deactivate()

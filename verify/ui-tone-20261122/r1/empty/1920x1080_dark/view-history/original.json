@@ -1,0 +1,328 @@
+{
+  "semantics": [
+    {
+      "role": null,
+      "text": "閲覧履歴 0件（学習タブ）削除すると元に戻せません。件数を入力すると「全件削除」が押せます。CSV出力閉じる全件削除",
+      "rect": [
+        0,
+        0,
+        1920,
+        1080
+      ]
+    },
+    {
+      "role": null,
+      "text": "閲覧履歴 0件（学習タブ）削除すると元に戻せません。件数を入力すると「全件削除」が押せます。CSV出力閉じる全件削除",
+      "rect": [
+        0,
+        0,
+        1920,
+        1080
+      ]
+    },
+    {
+      "role": null,
+      "text": "閲覧履歴 0件（学習タブ）削除すると元に戻せません。件数を入力すると「全件削除」が押せます。CSV出力閉じる全件削除",
+      "rect": [
+        0,
+        0,
+        1920,
+        1080
+      ]
+    },
+    {
+      "role": null,
+      "text": "閲覧履歴 0件（学習タブ）削除すると元に戻せません。件数を入力すると「全件削除」が押せます。CSV出力閉じる全件削除",
+      "rect": [
+        0,
+        0,
+        1920,
+        1080
+      ]
+    },
+    {
+      "role": "alertdialog",
+      "text": "閲覧履歴 0件（学習タブ）削除すると元に戻せません。件数を入力すると「全件削除」が押せます。CSV出力閉じる全件削除",
+      "rect": [
+        0,
+        0,
+        1920,
+        1080
+      ]
+    },
+    {
+      "role": null,
+      "text": "Alert",
+      "rect": [
+        716,
+        232,
+        488,
+        617
+      ]
+    },
+    {
+      "role": null,
+      "text": "閲覧履歴 0件（学習タブ）",
+      "rect": [
+        740,
+        256,
+        440,
+        22
+      ]
+    },
+    {
+      "role": null,
+      "text": "削除すると元に戻せません。件数を入力すると「全件削除」が押せます。",
+      "rect": [
+        740,
+        298,
+        440,
+        471
+      ]
+    },
+    {
+      "role": "group",
+      "text": "",
+      "rect": [
+        740,
+        298,
+        440,
+        360
+      ]
+    },
+    {
+      "role": null,
+      "text": "削除すると元に戻せません。件数を入力すると「全件削除」が押せます。",
+      "rect": [
+        740,
+        694,
+        403,
+        17
+      ]
+    },
+    {
+      "role": null,
+      "text": "",
+      "rect": [
+        740,
+        721,
+        140,
+        48
+      ]
+    },
+    {
+      "role": "button",
+      "text": "CSV出力",
+      "rect": [
+        872,
+        793,
+        121,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "閉じる",
+      "rect": [
+        1001,
+        793,
+        66,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "全件削除",
+      "rect": [
+        1076,
+        793,
+        104,
+        32
+      ]
+    }
+  ],
+  "outside_viewport": [],
+  "tone": {
+    "source": "Flutter CanvasKit accessibility bounds",
+    "viewport_height": 1080,
+    "in_viewport_height": 617,
+    "semantic_extent_height": 617,
+    "semantic_extent_ratio": 0.571,
+    "scroll_height": null,
+    "scroll_ratio": null,
+    "fonts": null,
+    "buttons": null,
+    "cards": null,
+    "headings": [],
+    "spacing": null,
+    "semantic_scroll_nodes": [
+      {
+        "index": 6,
+        "parent": 5,
+        "role": null,
+        "label": "閲覧履歴 0件（学習タブ）",
+        "rect": [
+          740,
+          256,
+          440,
+          22
+        ],
+        "tag": "flt-semantics",
+        "client_height": 22,
+        "scroll_height": 31,
+        "scroll_top": 0
+      },
+      {
+        "index": 7,
+        "parent": 5,
+        "role": null,
+        "label": "削除すると元に戻せません。件数を入力すると「全件削除」が押せます。",
+        "rect": [
+          740,
+          298,
+          440,
+          471
+        ],
+        "tag": "flt-semantics",
+        "client_height": 471,
+        "scroll_height": 477,
+        "scroll_top": 0
+      },
+      {
+        "index": 9,
+        "parent": 7,
+        "role": null,
+        "label": "削除すると元に戻せません。件数を入力すると「全件削除」が押せます。",
+        "rect": [
+          740,
+          694,
+          403,
+          17
+        ],
+        "tag": "flt-semantics",
+        "client_height": 17,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 10,
+        "parent": 7,
+        "role": null,
+        "label": "",
+        "rect": [
+          740,
+          721,
+          140,
+          48
+        ],
+        "tag": "flt-semantics",
+        "client_height": 48,
+        "scroll_height": 54,
+        "scroll_top": 0
+      }
+    ],
+    "toolbars": [
+      {
+        "container": "semantic-body",
+        "rows": [
+          {
+            "count": 3,
+            "kinds": {
+              "button": 3
+            },
+            "controls": [
+              {
+                "index": 11,
+                "parent": 5,
+                "role": "button",
+                "label": "CSV出力",
+                "rect": [
+                  872,
+                  793,
+                  121,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 12,
+                "parent": 5,
+                "role": "button",
+                "label": "閉じる",
+                "rect": [
+                  1001,
+                  793,
+                  66,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 13,
+                "parent": 5,
+                "role": "button",
+                "label": "全件削除",
+                "rect": [
+                  1076,
+                  793,
+                  104,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "common_components": [],
+    "states": [],
+    "flet_declared": {
+      "source": "running Flet control tree, declared styles",
+      "fonts": {
+        "12": 1,
+        "16": 1
+      },
+      "buttons": {
+        "outlined": 1,
+        "text-link": 1,
+        "filled-default-shape": 1
+      },
+      "headings": [
+        {
+          "label": "閲覧履歴 0件（学習タブ）",
+          "size": 16,
+          "font": null,
+          "weight": "FontWeight.BOLD"
+        }
+      ],
+      "common_components": [],
+      "box_styles": [
+        {
+          "run_spacing": 10,
+          "spacing": 10,
+          "type": "Column",
+          "count": 1
+        },
+        {
+          "spacing": 6,
+          "type": "ListView",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "background_pixel": "#08090b"
+}
