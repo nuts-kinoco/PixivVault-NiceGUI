@@ -419,7 +419,7 @@ CSS += """
 .pv-tone-b-unfollowed-list > .nicegui-row > [data-testid$=-status] { grid-area:notice; }
 .pv-tone-b-unfollowed-list > .nicegui-row > :nth-last-child(2) { grid-area:kind; }
 .pv-tone-b-unfollowed-list > .nicegui-row > :last-child { grid-area:preview; }
-.pv-tone-b-unfollowed-list > .nicegui-row > .nicegui-label:nth-last-child(-n+2) { color:var(--pv-muted); font-size:13px; }
+.pv-tone-b-unfollowed-list > .nicegui-row > :nth-last-child(-n+2) { color:var(--pv-muted); font-size:13px; }
 .pv-preferences-card [data-testid=following-sync-view] .q-btn { border-radius:.5rem; background:transparent !important; }
 .pv-preferences-card [data-testid=following-sync-view] [data-testid=following-sync-button] {
   background:var(--pv-fill) !important; color:var(--pv-on-fill) !important;
