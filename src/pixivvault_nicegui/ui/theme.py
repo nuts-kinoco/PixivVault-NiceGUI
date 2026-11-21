@@ -430,3 +430,20 @@ CSS += """
   .pv-preferences-footer { padding-inline:8px; }
 }
 """
+
+
+CSS += """
+/* tone-d-review */
+:root { --pv-action-text:var(--pv-page); }
+body.body--light {
+  --pv-error-text:var(--pv-auth-red);
+  --pv-error-bg:color-mix(in srgb, var(--pv-error-text) 10%, transparent);
+  --pv-warn-text:var(--pv-auth-yellow);
+  --pv-accent-tint:rgba(var(--pv-primary-rgb), .12);
+  --pv-action-text:var(--pv-on-fill);
+}
+/* Keep filled actions readable inside the existing view palettes. */
+.q-btn.pv-btn-primary { background:var(--pv-fill) !important; color:var(--pv-action-text) !important; }
+.q-btn.pv-btn-danger { background:var(--pv-caution-fill) !important; color:var(--pv-on-caution) !important; }
+.q-card.pv-dialog-sm { width:min(100%, 400px); max-width:400px; }
+"""

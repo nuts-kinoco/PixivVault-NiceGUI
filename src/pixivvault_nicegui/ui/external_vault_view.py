@@ -49,7 +49,8 @@ class ExternalVaultView:
                 self.legacy_notice=ui.label('選択だけでは取り込みません。旧保管庫のパスワードを入力して実行してください。').props(
                     'role=status data-testid=external-vault-legacy-status')
             with ui.row().classes('pv-toolbar pv-compact-toolbar'):
-                self.create_button=secondary_button('専用保管庫を作成', lambda:self.action('initialize'), testid='external-vault-create')
+                create = primary_button if self.gate is None else secondary_button
+                self.create_button=create('専用保管庫を作成', lambda:self.action('initialize'), testid='external-vault-create')
                 self.unlock_button=secondary_button('ロック解除', lambda:self.action('unlock'), testid='external-vault-unlock')
                 self.reopen_button=secondary_button('保存済み状態を再確認（通信なし）', lambda:self.action('reopen_saved'), testid='external-vault-reopen-saved')
                 self.recover_button=secondary_button('記録済み更新結果を復元（通信なし）', lambda:self.action('recover_known'), testid='external-vault-recover-known')

@@ -47,7 +47,7 @@ class RequestStatusView:
         records = self.policy.progress_snapshot()
         message = retry_status_text(records)
         tone = 'pv-alert-banner' if any(record['phase'] in ('stopped', 'failed') for record in records) else 'pv-warning-banner'
-        self.label.classes(replace=f'pv-request-status {tone}')
+        self.label.classes(remove='pv-alert-banner pv-warning-banner', add=tone)
         self.label.set_text(message)
         self.label.set_visibility(bool(message))
 

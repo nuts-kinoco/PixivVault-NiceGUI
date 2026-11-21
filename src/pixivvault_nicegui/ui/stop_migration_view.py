@@ -41,9 +41,11 @@ class StopMigrationView:
         with ui.dialog().props('persistent data-testid=stop-migration-dialog') as self.dialog:
             with dialog_card('停止履歴を引き継ぐ', size='lg',
                              subtitle='以前の保存元を確認し、停止履歴を共通の所有情報へ引き継ぎます。通信や認証は行いません。'):
+                self.step = ui.label('1 保存元 / 2 内容を確認 / 3 移行結果').classes('pv-field-hint')
                 with ui.column().classes('pv-migration-section'):
-                    self.step = ui.label('1. 以前使った保存元をすべて追加').classes('pv-section-heading pv-serif-heading')
-                    ui.label('現在の保存元は自動で含まれます。以前使った起動設定や、画像・小説・うごいらの保存元を追加してください。').classes('pv-subtitle')
+                    ui.label('1. 以前使った保存元をすべて追加').classes('pv-section-heading pv-serif-heading')
+                    ui.label('現在の起動設定と設定済み保存元は自動で含めます。別の起動設定や、以前使った画像・小説・うごいらの保存元も追加してください。'
+                             '旧ライブラリの画像そのものやCookieを指定する必要はありません。').classes('pv-subtitle')
                     with ui.element('div').classes('pv-settings-fields'):
                         self.kind = outlined_select(KINDS, value='images', label='保存元の種類').props('data-testid=migration-kind')
                         self.path = outlined_input('保存元フォルダの絶対パス').props('data-testid=migration-path')
@@ -57,7 +59,8 @@ class StopMigrationView:
                     ui.label('2. 内容を確認して開始').classes('pv-section-heading pv-serif-heading')
                     self.details = ui.label('まだ確認していません。').classes(
                         'w-full whitespace-pre-wrap break-all pv-migration-scroll').props('data-testid=migration-details')
-                    ui.label('停止履歴・所有情報と起動設定を引き継ぎます。元のVault・鍵・Cookieは保持され、記録済みの停止も維持されます。').classes('pv-subtitle')
+                    ui.label('対象は停止履歴・所有情報と起動設定のコピーです。元のVault・鍵・Cookieファイルは変更しません。'
+                             '停止履歴があれば、移行後も停止を維持します。').classes('pv-subtitle')
                     self.confirm = ui.checkbox(
                         '以前使ったすべての保存元を上の一覧に含め、対象と内容を確認しました。',
                         value=False, on_change=self.sync).props('dense data-testid=migration-confirm')

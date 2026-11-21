@@ -189,10 +189,15 @@ class NativeProfileView:
                     self.auth_button.set_enabled(self.draft_cookie is not None)
                 secondary_button('取消', lambda:self.cancel() if self._epoch == epoch else None,
                                  testid='native-profile-cancel')
-                save = secondary_button if embedded else primary_button
-                self.save_button = save('起動設定を保存' if embedded else '保存',
-                    lambda:self.save() if self._epoch == epoch else None,
-                    testid='native-profile-save', icon='save')
+                def save():
+                    if self._epoch == epoch:
+                        self.save()
+
+                if embedded:
+                    self.save_button = secondary_button('起動設定を保存', save, icon='save',
+                                                        testid='native-profile-save', outline=True)
+                else:
+                    self.save_button = primary_button('保存', save, icon='save', testid='native-profile-save')
                 self.save_button.set_enabled(self.snapshot is not None)
             if self.migration_factory is not None:
                 with ui.column().classes('w-full gap-2'):

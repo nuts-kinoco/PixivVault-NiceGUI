@@ -76,6 +76,9 @@ def settings_group(title, *, collapsible=False, default_open=True, heading_testi
     with ui.column().classes(f'pv-preferences-group {classes}'):
         if collapsible:
             with ui.expansion(title, value=default_open).props('dense').classes('w-full pv-settings-expansion') as expansion:
+                if heading_testid is not None:
+                    with expansion.add_slot('header'), ui.item_section():
+                        ui.label(title).classes('q-item__label').props(f'data-testid={heading_testid}')
                 yield expansion
         else:
             heading = ui.label(title).classes('pv-section-heading pv-serif-heading')
@@ -203,10 +206,18 @@ class PreferencesView:
             if 'pixiv_actions_enabled' in self.enabled_keys else
             '変更は専用設定に保存され、次の操作から使われます。')
         ui.label(application_notice + '実行中のジョブは変更しません。').classes('pv-field-hint')
-        self._build_preference_group('保存ポリシー・通知')
-        self._build_preference_group('作品メタデータ')
-        self._build_preference_group('絵柄・構図の推論')
+        groups = {}
+        for spec in SPECS:
+            if spec.group == 'local_tagger_internal' or spec.key == 'grid_card_size_mode':
+                continue
+            title = PREFERENCE_GROUP_TITLES.get(spec.key, PREFERENCE_GROUP_TITLES.get(spec.group, spec.group))
+            groups.setdefault(title, []).append(spec)
+        self._build_preference_group('保存ポリシー・通知', groups.pop('保存ポリシー・通知', ()),
+                                     hint='静止画保存: 保存元の原画像を維持します。画質を変更する設定はありません。')
+        for title in ('作品メタデータ', '絵柄・構図の推論'):
+            self._build_preference_group(title, groups.pop(title, ()))
         with settings_group('エクスポート', heading_testid='preferences-export-heading'):
+            ui.label('データベースのエクスポート').classes('pv-field-hint')
             ui.label('データベースと作品メタデータをZIPに保存します（画像は含まれません）。').classes('pv-field-hint')
             self.export_metadata_button=secondary_button('エクスポートを実行', self.run_metadata_export, icon='archive',
                 testid='preferences-export-metadata')
@@ -220,7 +231,7 @@ class PreferencesView:
                 ui.label('この起動では読取専用の旧DBと専用設定保存先の両方が必要です。').classes('pv-field-hint')
             self.export_status=ui.label(self.export_message).classes('pv-compact-status').props('data-testid=preferences-export-status role=status')
 
-        self._build_preference_group('詳細設定')
+        self._build_preference_group('詳細設定', groups.pop('詳細設定', ()))
         with settings_group('ブラウザ拡張機能', collapsible=True, default_open=False):
             if self.extension_status is not None:
                 label=EXTENSION_STATUS_LABELS.get(self.extension_status(),'拡張連携: 状態不明')
@@ -236,12 +247,14 @@ class PreferencesView:
             else:
                 ui.label('ブラウザ拡張機能の自動起動: URI起動経路が未接続です。').classes('pv-field-hint')
 
-        self._build_preference_group('キャッシュ')
+        self._build_preference_group('キャッシュ', groups.pop('キャッシュ', ()))
+        for title, specs in groups.items():
+            self._build_preference_group(title, specs)
         with settings_group('画像キャッシュ'):
             secondary_button('画像キャッシュを削除', lambda:self._clear_cache(epoch), icon='delete_outline', testid='preferences-clear-cache').set_enabled(self.clear_cache is not None)
             ui.label('アプリ全体で表示した作品・作者のサムネイル画像キャッシュを削除します。保存した作品は削除しません。').classes('pv-field-hint')
         if self.tagger is not None:
-            with settings_group('ローカルタグ補完モデル（任意）', collapsible=True, default_open=False):
+            with settings_group('ローカルタグ補完モデル（任意）', collapsible=True, default_open=False) as self.tagger_group:
                 self.tagger_path=outlined_input('モデルフォルダ', value=self.snapshot.values['local_tagger_path']).classes('w-full').props('data-testid=tagger-path')
                 self.tagger_enabled=ui.switch('タグ補完を自動で使う', value=self.snapshot.values['local_tagger_enabled']=='1').classes('pv-filter-switch').props('data-testid=tagger-enabled')
                 self.tagger_effective=ui.label('状態 検証中').props('role=status data-testid=tagger-effective')
@@ -264,11 +277,12 @@ class PreferencesView:
         if self.vault is None:
             return
         with settings_group('借用プレミアムの状態', collapsible=True, default_open=False) as group:
+            state_label = ui.label('').classes('pv-subtitle').props('data-testid=premium-vault-state')
             try:
                 state=self.vault.status()
                 message=('\u30ed\u30c3\u30af\u89e3\u9664\u6e08\u307f\u30fb\u691c\u7d22\u6642\u306b\u30c8\u30fc\u30af\u30f3\u306e\u6709\u52b9\u671f\u9650\u3092\u78ba\u8a8d\u3057\u307e\u3059\u3002' if state.get('open') else '\u30ed\u30c3\u30af\u4e2d' if state.get('initialized') else '\u4fdd\u7ba1\u5eab\u306f\u672a\u8a2d\u5b9a\u3067\u3059\u3002')
                 if state.get('oauth_review_required'): message+=' \u66f4\u65b0\u7d50\u679c\u306e\u78ba\u8a8d\u304c\u5fc5\u8981\u3067\u3059\u3002'
-                state_label=ui.label(message).classes('pv-subtitle').props('data-testid=premium-vault-state')
+                state_label.set_text(message)
                 if state.get('oauth_review_required'):
                     group.set_value(True)
                 pool=self.vault.premium_pool_status()
@@ -278,14 +292,16 @@ class PreferencesView:
                 self.vault_recovery=PremiumRecoveryPanel(self.vault,gate=getattr(self.vault,'premium_authorization',None),
                     on_change=lambda:self._vault_state_changed(state_label))
             except Exception:
-                ui.label('\u72b6\u614b\u3092\u78ba\u8a8d\u3067\u304d\u307e\u305b\u3093\u3002').props('data-testid=premium-vault-state')
+                group.open()
+                state_label.classes(add='pv-alert-banner').props('role=alert')
+                state_label.set_text('状態を確認できません。')
 
-    def _build_preference_group(self, title):
+    def _build_preference_group(self, title, specs, *, hint=None):
         with settings_group(title):
+            if hint:
+                ui.label(hint).classes('pv-field-hint')
             with ui.element('div').classes('pv-settings-fields'):
-                for spec in SPECS:
-                    if PREFERENCE_GROUP_TITLES.get(spec.key, PREFERENCE_GROUP_TITLES.get(spec.group, spec.group)) != title:
-                        continue
+                for spec in specs:
                     wide = spec.key in ('meta_backfill_enabled', 'embed_auto_on_download', 'extension_bridge_enabled')
                     with ui.column().classes('pv-settings-field' + (' pv-settings-wide' if wide else '')):
                         value = self.snapshot.values[spec.key]
@@ -355,6 +371,8 @@ class PreferencesView:
         usable = getattr(self.tagger, 'usable', configured and result == '利用可能')
         state = '検証中' if result == '検証中' else ('有効' if usable and result == '利用可能' else '無効')
         self.tagger_effective.set_text(f'状態 {state}')
+        if result == '読込失敗' and self.tagger_status.text != result:
+            self.tagger_group.open()
         self.tagger_status.set_text(result)
 
     async def _watch_tagger_status(self, epoch):

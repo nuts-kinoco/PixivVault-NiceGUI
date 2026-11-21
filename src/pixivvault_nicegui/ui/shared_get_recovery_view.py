@@ -33,7 +33,7 @@ class SharedGetRecoveryView:
                 ui.label('前の送信結果は回復後も不明です。他のPixivVaultで取得が動いていないことを確認してください。'
                          '回復は送信中の記録を退避するだけで、記録済みのHTTP 401・403・429によるSTOPは解除しません。'
                          '今回の429の設定待機・再試行や、試行上限による起動中の停止も、この操作では解除しません。'
-                         '回復後は元の画面から手動で取得をやり直してください。').classes('pv-subtitle')
+                         '自動再送は行いません。回復後に元の画面で取得をやり直してください。').classes('pv-subtitle')
                 self.acknowledge = ui.checkbox('他の取得処理が動いていないことと、前の結果が不明なままであることを確認しました',
                     on_change=lambda _: self.sync()).props('dense data-testid=shared-get-recovery-ack')
                 with dialog_actions():
