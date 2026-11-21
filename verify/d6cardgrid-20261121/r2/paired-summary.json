@@ -1,0 +1,96 @@
+{
+  "before": {
+    "initial": {
+      "card": 2.43,
+      "api": 150.52,
+      "list_ms": 201.9,
+      "image_ms": 22.85,
+      "paint_ms": 237.85,
+      "residual_ms": 87.3,
+      "screenshot_ms": 424.63
+    },
+    "refresh": {
+      "card": 2.36,
+      "api": 150.51,
+      "list_ms": 192.15,
+      "image_ms": 0.0,
+      "paint_ms": 208.55,
+      "residual_ms": 58.03,
+      "screenshot_ms": 313.99
+    },
+    "mode": {
+      "card": 2.33,
+      "api": 150.39,
+      "list_ms": 318.35,
+      "image_ms": 24.65,
+      "paint_ms": 360.35,
+      "residual_ms": 210.0,
+      "screenshot_ms": 502.49
+    },
+    "sort": {
+      "card": 2.34,
+      "api": 0.0,
+      "list_ms": 31.45,
+      "image_ms": 0.0,
+      "paint_ms": 42.65,
+      "residual_ms": 42.65,
+      "screenshot_ms": 144.66
+    },
+    "library": {
+      "card": 0.91,
+      "api": 0.0,
+      "list_ms": 287.25,
+      "image_ms": 0.0,
+      "paint_ms": 295.3,
+      "residual_ms": 295.3,
+      "screenshot_ms": 423.25
+    }
+  },
+  "after": {
+    "initial": {
+      "card": 2.67,
+      "api": 150.43,
+      "list_ms": 206.0,
+      "image_ms": 23.35,
+      "paint_ms": 239.5,
+      "residual_ms": 89.2,
+      "screenshot_ms": 430.39
+    },
+    "refresh": {
+      "card": 2.44,
+      "api": 150.32,
+      "list_ms": 192.85,
+      "image_ms": 0.0,
+      "paint_ms": 208.95,
+      "residual_ms": 58.62,
+      "screenshot_ms": 310.02
+    },
+    "mode": {
+      "card": 2.36,
+      "api": 150.36,
+      "list_ms": 322.65,
+      "image_ms": 56.15,
+      "paint_ms": 393.8,
+      "residual_ms": 243.32,
+      "screenshot_ms": 514.42
+    },
+    "sort": {
+      "card": 2.42,
+      "api": 0.0,
+      "list_ms": 38.0,
+      "image_ms": 0.0,
+      "paint_ms": 50.4,
+      "residual_ms": 50.4,
+      "screenshot_ms": 157.38
+    },
+    "library": {
+      "card": 1.08,
+      "api": 0.0,
+      "list_ms": 292.15,
+      "image_ms": 0.0,
+      "paint_ms": 302.1,
+      "residual_ms": 302.1,
+      "screenshot_ms": 422.44
+    }
+  }
+}
