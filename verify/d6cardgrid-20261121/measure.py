@@ -163,17 +163,24 @@ def check_browser_contract(page, root):
     close.click()
     expect(first).to_be_focused()
 
+    first.press('Shift+F10')
+    expect(menu).to_have_attribute('data-testid', 'ranking-ctx-40000')
     page.evaluate('window.socket.disconnect()')
     page.evaluate("""() => {
       window.socket.io.opts.query.next_message_id = window.nextMessageId;
       window.socket.connect();
     }""")
     page.wait_for_function('window.socket.connected && window.did_handshake')
+    expect(menu).to_have_attribute('data-testid', 'ranking-ctx-40000')
+    page.keyboard.press('Escape')
+    expect(first).to_be_focused()
     grid = page.locator('[data-testid=ranking-view] [data-render-epoch]')
     epoch = grid.get_attribute('data-render-epoch')
     original_card = first.element_handle()
     page.get_by_test_id('ranking-fetch').click()
-    expect(grid).not_to_have_attribute('data-render-epoch', epoch)
+    page.wait_for_function('''() => window.bench.loading &&
+        document.querySelector('[data-testid=ranking-notice]').textContent.includes('50 件')''')
+    expect(grid).to_have_attribute('data-render-epoch', epoch)
     expect(cards).to_have_count(50)
     assert original_card.evaluate('(node, selector) => node === document.querySelector(selector)', CARD)
     first.press('Shift+F10')
@@ -181,9 +188,14 @@ def check_browser_contract(page, root):
     page.keyboard.press('Escape')
     expect(first).to_be_focused()
     page.screenshot(path=root / 'contract.png')
+    page.get_by_test_id('ranking-mode').get_by_text('週間', exact=True).click()
+    expect(first).to_have_attribute('data-work-id', '40100')
+    expect(grid).not_to_have_attribute('data-render-epoch', epoch)
     (root / 'contract.json').write_text(json.dumps({
         'count': 50, 'heart': True, 'right_click': True, 'pointer_position': True,
         'keyboard_menu': True, 'reconnect_refresh_same_dom': True,
+        'reconnect_keeps_open_menu': True, 'identical_refresh_keeps_epoch': True,
+        'replaced_results_advance_epoch': True,
         'menu_focus': True, 'viewer_focus': True, 'reconnect': True,
     }, indent=2))
 

@@ -1,0 +1,197 @@
+{
+  "before": {
+    "first_thumbnail_request_positions": [
+      18,
+      18,
+      18,
+      18,
+      18,
+      18
+    ],
+    "first_requested_thumbnail_rank": [
+      18,
+      18,
+      18,
+      18,
+      18,
+      18
+    ],
+    "cases": {
+      "initial": {
+        "card": 2.26,
+        "api": 150.48,
+        "list_ms": 203.15,
+        "image_ms": 25.9,
+        "paint_ms": 240.1,
+        "residual_ms": 89.5,
+        "screenshot_ms": 414.91
+      },
+      "refresh": {
+        "card": 2.32,
+        "api": 150.41,
+        "list_ms": 186.5,
+        "image_ms": 0.0,
+        "paint_ms": 194.4,
+        "residual_ms": 43.93,
+        "screenshot_ms": 296.75
+      },
+      "mode": {
+        "card": 2.31,
+        "api": 150.5,
+        "list_ms": 319.05,
+        "image_ms": 56.25,
+        "paint_ms": 392.85,
+        "residual_ms": 242.0,
+        "screenshot_ms": 513.84
+      },
+      "sort": {
+        "card": 2.39,
+        "api": 0.0,
+        "list_ms": 35.15,
+        "image_ms": 0.0,
+        "paint_ms": 45.95,
+        "residual_ms": 45.95,
+        "screenshot_ms": 147.66
+      },
+      "library": {
+        "card": 0.88,
+        "api": 0.0,
+        "list_ms": 286.6,
+        "image_ms": 0.0,
+        "paint_ms": 297.55,
+        "residual_ms": 297.55,
+        "screenshot_ms": 430.24
+      }
+    }
+  },
+  "one-row": {
+    "first_thumbnail_request_positions": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      6
+    ],
+    "first_requested_thumbnail_rank": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      6
+    ],
+    "cases": {
+      "initial": {
+        "card": 2.1,
+        "api": 150.49,
+        "list_ms": 195.9,
+        "image_ms": 22.25,
+        "paint_ms": 223.15,
+        "residual_ms": 72.71,
+        "screenshot_ms": 395.24
+      },
+      "refresh": {
+        "card": 2.47,
+        "api": 150.3,
+        "list_ms": 190.1,
+        "image_ms": 0.0,
+        "paint_ms": 205.4,
+        "residual_ms": 55.06,
+        "screenshot_ms": 303.19
+      },
+      "mode": {
+        "card": 2.17,
+        "api": 150.42,
+        "list_ms": 317.8,
+        "image_ms": 26.05,
+        "paint_ms": 359.8,
+        "residual_ms": 209.41,
+        "screenshot_ms": 504.62
+      },
+      "sort": {
+        "card": 2.18,
+        "api": 0.0,
+        "list_ms": 32.25,
+        "image_ms": 0.0,
+        "paint_ms": 43.05,
+        "residual_ms": 43.05,
+        "screenshot_ms": 146.29
+      },
+      "library": {
+        "card": 0.89,
+        "api": 0.0,
+        "list_ms": 287.05,
+        "image_ms": 0.0,
+        "paint_ms": 296.2,
+        "residual_ms": 296.2,
+        "screenshot_ms": 432.4
+      }
+    }
+  },
+  "after": {
+    "first_thumbnail_request_positions": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "first_requested_thumbnail_rank": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "cases": {
+      "initial": {
+        "card": 2.29,
+        "api": 150.39,
+        "list_ms": 200.9,
+        "image_ms": 24.3,
+        "paint_ms": 239.5,
+        "residual_ms": 88.98,
+        "screenshot_ms": 394.76
+      },
+      "refresh": {
+        "card": 2.18,
+        "api": 150.42,
+        "list_ms": 187.9,
+        "image_ms": 0.0,
+        "paint_ms": 193.95,
+        "residual_ms": 43.57,
+        "screenshot_ms": 293.71
+      },
+      "mode": {
+        "card": 2.22,
+        "api": 150.29,
+        "list_ms": 323.75,
+        "image_ms": 22.05,
+        "paint_ms": 359.6,
+        "residual_ms": 209.38,
+        "screenshot_ms": 513.42
+      },
+      "sort": {
+        "card": 2.34,
+        "api": 0.0,
+        "list_ms": 32.8,
+        "image_ms": 0.0,
+        "paint_ms": 44.1,
+        "residual_ms": 44.1,
+        "screenshot_ms": 149.32
+      },
+      "library": {
+        "card": 0.83,
+        "api": 0.0,
+        "list_ms": 284.85,
+        "image_ms": 0.0,
+        "paint_ms": 297.65,
+        "residual_ms": 297.65,
+        "screenshot_ms": 411.37
+      }
+    }
+  }
+}
