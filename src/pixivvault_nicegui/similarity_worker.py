@@ -11,6 +11,7 @@ from threading import Event, RLock, Thread, current_thread
 from typing import Callable
 
 from .egara_inference import EgaraInferenceError, EgaraInvalidImage
+from .gpu_arbiter import DEFAULT_GPU_ARBITER, GpuInferenceStopped
 from .local_media_adapter import MediaAmbiguous, MediaMissing, MediaUnavailable
 
 
@@ -163,10 +164,21 @@ class SimilarityWorker:
                 self._signal.set()
 
     def _scan_once(self, generation: int) -> None:
+        try:
+            with DEFAULT_GPU_ARBITER.stop_scope():
+                self._scan_pages(generation)
+        except GpuInferenceStopped:
+            with self._lock:
+                if self._is_current(generation):
+                    self.pause()
+
+    def _scan_pages(self, generation: int) -> None:
         pages = None
+        cancelled = False
         try:
             pages = self._page_iterator()
             for entry in pages:
+                DEFAULT_GPU_ARBITER.check_scope()
                 if not self._is_current(generation):
                     return
                 if (type(entry) not in (tuple, list) or len(entry) != 2
@@ -181,10 +193,12 @@ class SimilarityWorker:
                     self._examined += 1
 
                 def current() -> bool:
+                    DEFAULT_GPU_ARBITER.check_scope()
                     return self._is_current(generation)
 
                 try:
                     result = self._analyze_page(work_id, page, is_current=current)
+                    DEFAULT_GPU_ARBITER.check_scope()
                     if type(result) is not bool:
                         raise ValueError('analyzer must return boolean')
                 except EgaraInvalidImage:
@@ -207,6 +221,8 @@ class SimilarityWorker:
                 except EgaraInferenceError:
                     self._record_failure('model_error', generation)
                     return
+                except GpuInferenceStopped:
+                    raise
                 except Exception:
                     self._record_failure('analysis_error', generation)
                     continue
@@ -220,6 +236,9 @@ class SimilarityWorker:
                         self._resumed += 1
                     self._consecutive_failures = 0
                     self._error_code = None
+        except GpuInferenceStopped:
+            cancelled = True
+            raise
         except EgaraInferenceError:
             self._record_failure('model_error', generation)
         except Exception:
@@ -232,7 +251,8 @@ class SimilarityWorker:
                 try:
                     close()
                 except Exception:
-                    self._record_failure('iterator_error', generation)
+                    if not cancelled:
+                        self._record_failure('iterator_error', generation)
 
     def _timed_rescan(self) -> bool:
         if self._auto is None:

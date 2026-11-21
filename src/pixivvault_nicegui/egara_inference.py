@@ -11,7 +11,6 @@ module, the UI or the ordinary saved-vector reader never loads the ONNX model.
 """
 from __future__ import annotations
 
-from contextlib import nullcontext
 import io
 from hashlib import sha256
 import math
@@ -20,7 +19,7 @@ from threading import RLock
 
 from .managed_downloads import _safe_path, MAX_PAGE_BYTES, MAX_PIXELS
 from .image_original import MAX_ORIGINAL_BYTES
-from .gpu_arbiter import DEFAULT_GPU_ARBITER, GpuInferenceStopped, check_gpu_stop
+from .gpu_arbiter import DEFAULT_GPU_ARBITER, GpuInferenceStopped, check_gpu_stop, cuda_available
 
 MODEL = 'egara_net_fp32'
 EGARA_BB_SHA256 = 'e50f28211feaef50e80b8bece55bbfae15d3319a70fbd568476bc84c8037f5af'
@@ -51,6 +50,10 @@ class EgaraBackendUnavailable(EgaraInferenceError):
 
 
 class EgaraInvalidImage(EgaraInferenceError):
+    pass
+
+
+class _RetryOnCpu(Exception):
     pass
 
 
@@ -163,6 +166,7 @@ class EgaraInference:
         self._input_name = None
         self._backbone_index = None
         self._lock = RLock()
+        self._work_lock = RLock()
         self._closed = False
 
     def _file_identity(self):
@@ -172,125 +176,141 @@ class EgaraInference:
 
     def _load(self, provider, stop):
         import onnxruntime as ort
-        if provider == 'cuda' and hasattr(ort, 'preload_dlls'):
-            # Official NVIDIA site-packages are installed in an optional,
-            # isolated runtime. This does not download drivers or data.
-            check_gpu_stop(stop)
-            ort.preload_dlls(directory='')
+
         selected = PROVIDER_NAMES[provider]
-        if selected not in ort.get_available_providers():
+        if provider == 'cpu' and selected not in ort.get_available_providers():
             raise EgaraBackendUnavailable('選択した推論バックエンドが利用できません。')
         options = ort.SessionOptions()
         options.intra_op_num_threads = self.threads
         options.inter_op_num_threads = 1
         check_gpu_stop(stop)
         if self._factory is None:
-            # Explicit CPU tail is allowed for shape ops; session or one CUDA
-            # kernel alone is not evidence that the whole graph ran on GPU.
             providers = ([(selected, dict(CUDA_OPTIONS, gpu_mem_limit=str(self.gpu_mem_limit_bytes))),
-                          PROVIDER_NAMES['cpu']] if provider == 'cuda'
-                         else [selected])
+                          PROVIDER_NAMES['cpu']] if provider == 'cuda' else [selected])
             session = ort.InferenceSession(str(self.model_path), options, providers=providers)
         else:
             session = self._factory(self.model_path, options, provider)
-        if selected not in session.get_providers():
-            raise EgaraBackendUnavailable('推論バックエンドがCPUへ切り替わりました。')
-        if hasattr(session, 'disable_fallback'):
-            session.disable_fallback()
         try:
+            if selected not in session.get_providers():
+                raise EgaraBackendUnavailable('推論バックエンドがCPUへ切り替わりました。')
+            if hasattr(session, 'disable_fallback'):
+                session.disable_fallback()
             inputs = session.get_inputs()
-            outputs = session.get_outputs()
-            names = [item.name for item in outputs]
-            if len(inputs) != 1 or not inputs[0].name or BACKBONE not in names or len(outputs) < 2:
+            names = [item.name for item in session.get_outputs()]
+            if len(inputs) != 1 or not inputs[0].name or len(names) < 2 or BACKBONE not in names:
                 raise EgaraInferenceError('互換モデルの出力を確認できません。')
             self._input_name = inputs[0].name
             self._backbone_index = names.index(BACKBONE)
-        except (AttributeError, IndexError, TypeError):
-            raise EgaraInferenceError('互換モデルの入出力を確認できません。') from None
-        return session
+            return session
+        finally:
+            session = None
 
-    def _job(self):
-        if self.provider_requested == 'cpu':
-            return nullcontext()
-        return self._gpu_arbiter.acquire(self, priority=self._gpu_priority)
-
-    def _ensure(self, stop):
-        check_gpu_stop(stop)
+    def _check_model(self):
         if self._closed:
             raise EgaraBackendUnavailable('推論は終了しています。')
-        if self._session is not None:
-            return
         if self._identity != self._file_identity():
             raise EgaraBackendUnavailable('モデルが変更されています。')
-        first = 'cpu' if self.provider_requested == 'cpu' else 'cuda'
+
+    def _execution_provider(self):
+        if self.provider_active is not None:
+            return self.provider_active
         self.fallback_reason = None
+        if self.provider_requested == 'cpu':
+            return 'cpu'
         try:
-            self._session = self._load(first, stop)
+            import onnxruntime as ort
+            if cuda_available(ort):
+                return 'cuda'
+            raise EgaraBackendUnavailable('CUDAを利用できません。')
         except GpuInferenceStopped:
             raise
         except Exception as error:
-            if self.provider_requested != 'auto':
-                raise EgaraBackendUnavailable('指定した推論バックエンドを利用できません。') from None
             self.fallback_reason = type(error).__name__
-        if self._session is not None:
-            self.provider_active = first
-            if first == 'cuda':
+        if self.provider_requested == 'auto':
+            return 'cpu'
+        raise EgaraBackendUnavailable('指定した推論バックエンドを利用できません。')
+
+    def _on_provider(self, provider, stop, array, *, infer):
+        self._check_model()
+        if self._session is None:
+            error_type = None
+            try:
+                self._session = self._load(provider, stop)
+            except GpuInferenceStopped:
+                raise
+            except Exception as error:
+                error_type = type(error).__name__
+            if error_type is not None:
+                if provider == 'cuda' and self.provider_requested == 'auto':
+                    self.fallback_reason = error_type
+                    raise _RetryOnCpu()
+                message = ('CPUによる推論も利用できません。' if self.provider_requested == 'auto'
+                           else '指定した推論バックエンドを利用できません。')
+                raise EgaraBackendUnavailable(message)
+            self.provider_active = provider
+            if provider == 'cuda':
                 self._gpu_arbiter.retain_session(self)
-            return
+        if not infer:
+            return self
+
         check_gpu_stop(stop)
+        error_type = None
         try:
-            self._session = self._load('cpu', stop)
-            self.provider_active = 'cpu'
+            outputs = self._session.run(None, {self._input_name: array})
         except GpuInferenceStopped:
             raise
-        except Exception:
-            raise EgaraBackendUnavailable('CPUによる推論も利用できません。') from None
+        except Exception as error:
+            error_type = type(error).__name__
+        if error_type is not None:
+            if provider == 'cuda':
+                self.release_session()
+                self.fallback_reason = error_type
+                check_gpu_stop(stop)
+                if self.provider_requested == 'auto' and self.allow_runtime_fallback:
+                    raise _RetryOnCpu()
+                raise EgaraInferenceError('CUDAによる推論に失敗しました。')
+            raise EgaraInferenceError('推論に失敗しました。')
+        check_gpu_stop(stop)
+        return outputs, self._backbone_index, provider
+
+    def _format_result(self, result, *, infer):
+        if not infer:
+            return self
+        outputs, backbone, provider = result
+        vectors = unpack_outputs(outputs, backbone)
+        return ({kind: vector.astype('<f4', copy=False).tobytes() for kind, vector in vectors.items()},
+                provider)
+
+    def _execute(self, data=None, *, infer=False):
+        # Release callbacks only take the session lock, never the work lock.
+        with self._work_lock:
+            with self._gpu_arbiter.stop_scope():
+                with self._lock:
+                    self._check_model()
+                array = preprocess(data) if infer else None
+                with self._lock:
+                    provider = self._execution_provider()
+                if provider == 'cuda':
+                    try:
+                        with self._gpu_arbiter.acquire(self, priority=self._gpu_priority) as stop, self._lock:
+                            result = self._on_provider('cuda', stop, array, infer=infer)
+                    except _RetryOnCpu:
+                        pass
+                    else:
+                        return self._format_result(result, infer=infer)
+            with self._lock:
+                result = self._on_provider('cpu', None, array, infer=infer)
+            return self._format_result(result, infer=infer)
 
     def ensure(self):
-        with self._job() as stop, self._lock:
-            self._ensure(stop)
-        return self
+        return self._execute()
 
     def infer(self, data: bytes):
         return self.infer_with_meta(data)[0]
 
     def infer_with_meta(self, data: bytes):
         """Return the vectors and actual session provider from the same run."""
-        with self._job() as stop, self._lock:
-            if self._closed:
-                raise EgaraBackendUnavailable('推論は終了しています。')
-            if self._identity != self._file_identity():
-                raise EgaraBackendUnavailable('モデルが変更されています。')
-            array = preprocess(data)
-            self._ensure(stop)
-            check_gpu_stop(stop)
-            try:
-                outputs = self._session.run(None, {self._input_name: array})
-            except Exception as error:
-                if self.provider_active != 'cuda':
-                    raise EgaraInferenceError('推論に失敗しました。') from None
-                self.fallback_reason = type(error).__name__
-                outputs = None
-            # Leave the except block before releasing CUDA: the traceback must
-            # not retain its session/allocations while creating a CPU session.
-            if outputs is None:
-                self.release_session()
-                check_gpu_stop(stop)
-                if self.provider_requested != 'auto' or not self.allow_runtime_fallback:
-                    raise EgaraInferenceError('CUDAによる推論に失敗しました。')
-                try:
-                    self._session = self._load('cpu', stop)
-                    self.provider_active = 'cpu'
-                    check_gpu_stop(stop)
-                    outputs = self._session.run(None, {self._input_name: array})
-                except GpuInferenceStopped:
-                    raise
-                except Exception:
-                    raise EgaraInferenceError('CPUによる再試行に失敗しました。') from None
-            check_gpu_stop(stop)
-            vectors = unpack_outputs(outputs, self._backbone_index)
-            return ({kind: vector.astype('<f4', copy=False).tobytes() for kind, vector in vectors.items()},
-                    self.provider_active)
+        return self._execute(data, infer=True)
 
     def release_session(self):
         """Drop the session and allow the next operation to load it again."""

@@ -319,13 +319,7 @@ class RemoteBookmarkImages:
             namespace = self._shared_cache
             if namespace is None:
                 return self._cache.get(key)
-            # Namespace.get() promotes shared LRU entries. Inspect the same
-            # namespace and entry under its owner lock, without promotion.
-            with namespace.owner._lock:
-                if namespace.closed or namespace.owner._closed:
-                    return None
-                cached = namespace.owner._entries.get((namespace.identity, key))
-                return self._cached_variant(cached, variant)
+            return self._cached_variant(namespace.peek_memory(key), variant)
 
     def close(self):
         with self._lock:

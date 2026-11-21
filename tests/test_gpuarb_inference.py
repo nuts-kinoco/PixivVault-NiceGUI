@@ -123,6 +123,9 @@ def test_tagger_preloads_bounds_cuda_and_reloads(monkeypatch, tmp_path):
     tagger.release_session()
     assert tagger.session is None
     assert tagger.predict(b'image') == [('synthetic', 0.97)]
+    assert tagger.session is None
+    assert tagger.predict(b'uncached image') == [('synthetic', 0.97)]
+    assert tagger.session is not None
     assert tagger.session is not first
     tagger.close()
     tagger.release_session()
@@ -255,18 +258,19 @@ def test_stop_between_tagger_manager_steps_prevents_reloading(monkeypatch, tmp_p
     manager = local_tagger.TaggerManager(preferences)
     manager.tagger = tagger
     manager._provider = 'auto'
+    assert tagger.verify() == '利用可能'
     verified, resume = Event(), Event()
-    current_fingerprint = manager.current_fingerprint
+    verify = manager._verify
 
-    def fingerprint():
-        value = current_fingerprint()
+    def fingerprint(*args, **kwargs):
+        value = verify(*args, **kwargs)
         if not verified.is_set():
             assert value is not None
             verified.set()
             assert resume.wait(5)
         return value
 
-    monkeypatch.setattr(manager, 'current_fingerprint', fingerprint)
+    monkeypatch.setattr(manager, '_verify', fingerprint)
     with ThreadPoolExecutor(1) as pool:
         running = pool.submit(manager.predict_with_fingerprint, b'image')
         try:
@@ -295,19 +299,17 @@ def test_stop_during_tagger_tensor_preparation_skips_native_run(monkeypatch, tmp
         return image
 
     tagger.tensor_factory = prepare_tensor
-    with ThreadPoolExecutor(2) as pool:
+    with ThreadPoolExecutor(1) as pool:
         prediction = pool.submit(tagger.predict, b'image')
         try:
             assert preparing.wait(5)
             with arbiter._condition:
-                stop = arbiter._active[1]
-            stopping = pool.submit(arbiter.release_all)
-            assert stop.wait(5)
+                assert arbiter._active is None
+            arbiter.release_all()
         finally:
             resume.set()
         with pytest.raises(GpuInferenceStopped):
             prediction.result(5)
-        stopping.result(5)
     assert not native_run.is_set()
     assert tagger.session is None
 
@@ -328,17 +330,15 @@ def test_stop_during_dll_preload_skips_session_creation(monkeypatch, tmp_path, m
         inference = make_egara(tmp_path, provider='cuda', gpu_arbiter=arbiter).ensure
     else:
         inference = make_tagger(monkeypatch, tmp_path, gpu_arbiter=arbiter).verify
-    with ThreadPoolExecutor(2) as pool:
+    with ThreadPoolExecutor(1) as pool:
         creating = pool.submit(inference)
         try:
             assert preloading.wait(5)
             with arbiter._condition:
-                stop = arbiter._active[1]
-            stopping = pool.submit(arbiter.release_all)
-            assert stop.wait(5)
+                assert arbiter._active is None
+            arbiter.release_all()
         finally:
             resume.set()
         with pytest.raises(GpuInferenceStopped):
             creating.result(5)
-        stopping.result(5)
     assert calls == [('preload', '')]
