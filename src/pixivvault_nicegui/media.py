@@ -145,8 +145,8 @@ class DemoImageCatalog:
 
     @property
     def closed(self) -> bool:
-        with self._lock:
-            return self._closed
+        # The UI loop can check shutdown without waiting for image generation.
+        return self._closed
 
     def close(self) -> None:
         with self._lock:

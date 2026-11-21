@@ -77,7 +77,34 @@ async def test_gif_is_unavailable_to_another_app_with_the_same_catalog(animated_
         assert (await http.get(url)).status_code == 404
 
 
-@pytest.mark.parametrize('release', ['failure', 'retry', 'close', 'page-delete', 'client-delete', 'service-close'])
+@pytest.mark.asyncio
+async def test_gif_does_not_wait_for_catalog_publication(animated_gallery):
+    services, app, _, view, art = animated_gallery
+    url = await display_gif(view, art)
+    closing, release, expired = Event(), Event(), Event()
+
+    class HeldProvider:
+        def close(self):
+            closing.set()
+            if not release.wait(3):
+                expired.set()
+
+    # Publishing the next snapshot prunes the old provider under the real
+    # registry lock. The already-rendered GIF requires no access to that work.
+    services.images.publish(HeldProvider(), None)
+    publish = asyncio.create_task(asyncio.to_thread(services.images.publish, None, None))
+    try:
+        assert await asyncio.to_thread(closing.wait, 5)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url='http://testserver') as http:
+            assert (await http.get(url)).content == GIF
+        assert not expired.is_set(), 'GET waited for the publishing thread to release the registry lock'
+    finally:
+        release.set()
+        await publish
+
+
+@pytest.mark.parametrize('release', ['failure', 'retry', 'close', 'query-change',
+                                   'page-delete', 'client-delete', 'service-close'])
 @pytest.mark.asyncio
 async def test_gif_route_expires_on_owner_lifecycle(animated_gallery, release):
     services, app, client, view, art = animated_gallery
@@ -100,6 +127,10 @@ async def test_gif_route_expires_on_owner_lifecycle(animated_gallery, release):
             assert (await http.get(image.props['src'])).status_code == 200
         elif release == 'close':
             view.close_viewer()
+            assert view._displayed_gif is None
+        elif release == 'query-change':
+            assert not view.viewer.has_opened  # Browser decode has not returned yet.
+            view.search('does-not-match')
             assert view._displayed_gif is None
         elif release == 'page-delete':
             view.viewer.page.delete()

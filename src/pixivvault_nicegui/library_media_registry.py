@@ -496,8 +496,9 @@ class LibraryImageRegistry:
 
     @property
     def closed(self) -> bool:
-        with self._lock:
-            return self._closed
+        # Shutdown only sets this flag. GIF delivery reads it on the UI loop
+        # and must not wait for provider cleanup under the catalog lock.
+        return self._closed
 
     def close(self) -> None:
         with self._lock:

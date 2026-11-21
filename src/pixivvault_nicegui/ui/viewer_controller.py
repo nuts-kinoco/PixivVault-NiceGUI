@@ -558,7 +558,7 @@ class ViewerController:
                 self.close_viewer()
 
     def close_viewer(self, *, restore_focus: bool = True) -> None:
-        if not self._viewer_state.viewer_open and not self.viewer.has_opened:
+        if self._image_token is None and not self._viewer_state.viewer_open and not self.viewer.has_opened:
             return
         self._folder_request = self._folder_target = None
         self.viewer.context_items['folder'].disable()

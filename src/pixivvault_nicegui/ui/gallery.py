@@ -121,7 +121,7 @@ class GalleryView(ViewerController):
             return
         self.state.set_query(value or "")
         if not self.state.viewer_open:
-            self.dialog.close()
+            self.close_viewer()
         self.render_gallery()
 
     def more(self) -> None:
