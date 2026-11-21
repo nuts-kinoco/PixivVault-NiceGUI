@@ -53,20 +53,26 @@ class ViewHistoryView:
         self.button = ui.button('閲覧履歴', on_click=self.open).props('flat data-testid=view-history-inner')
         self.button.set_visibility(False)
         self.button.set_enabled(storage is not None)
-        with ui.dialog().props('data-testid=view-history-dialog') as self.dialog, ui.card().classes('w-full').style('max-width:900px'):
-            ui.label('閲覧履歴（学習タブ）').classes('pv-view-title')
+        with ui.dialog().props('data-testid=view-history-dialog') as self.dialog, ui.card().classes('pv-tone-b-history-card w-full gap-2'):
+            ui.label('閲覧履歴（学習タブ）').classes('pv-dialog-title text-base font-semibold')
             ui.label('学習で開いた作品の記録です。判定とは別に回数を記録します。').classes('pv-subtitle')
-            self.notice = ui.label().props('role=status data-testid=view-history-status')
-            self.body = ui.column().classes('w-full').style('max-height:60vh;overflow-y:auto')
-            self.more = ui.button('もっと見る', on_click=self.load_more).props('flat data-testid=view-history-more')
-            with ui.row().classes('w-full items-center justify-between'):
-                ui.button('CSV出力', on_click=self.export).props('flat data-testid=view-history-export')
-                ui.button('閉じる', on_click=self.dialog.close).props('flat data-testid=view-history-close')
-            with ui.expansion('閲覧履歴を全件削除').classes('w-full').props('data-testid=view-history-danger'):
+            self.notice = ui.label().classes('pv-subtitle pv-tone-b-notice').props('role=status data-testid=view-history-status')
+            self.body = ui.column().classes('pv-tone-b-history-list pv-tone-b-list w-full gap-2')
+            self.more = ui.button('もっと見る', color=None, on_click=self.load_more).props(
+                'flat dense no-caps data-testid=view-history-more')
+            with ui.expansion('閲覧履歴を全件削除').classes('w-full').props('dense data-testid=view-history-danger'):
                 self.delete_summary = ui.label().classes('pv-subtitle')
-                self.confirm = ui.input('削除する履歴の件数を入力').props('data-testid=view-history-confirm')
-                self.clear_button = ui.button('全件削除', on_click=self.clear, color='negative').props('data-testid=view-history-clear')
-                self.confirm.on_value_change(lambda _: self.sync())
+                with ui.row().classes('w-full items-center gap-2'):
+                    self.confirm = ui.input('削除する履歴の件数を入力').props(
+                        'outlined dense inputmode=numeric data-testid=view-history-confirm')
+                    self.clear_button = ui.button('全件削除', on_click=self.clear, color='amber').props(
+                        'unelevated dense no-caps text-color=black data-testid=view-history-clear')
+                    self.confirm.on_value_change(lambda _: self.sync())
+            with ui.row().classes('w-full items-center justify-end gap-2'):
+                ui.button('CSV出力', icon='file_download', color=None, on_click=self.export).props(
+                    'outline dense no-caps data-testid=view-history-export')
+                ui.button('閉じる', color=None, on_click=self.dialog.close).props(
+                    'flat dense no-caps data-testid=view-history-close')
         self.dialog.on('hide', self.hide)
         from .recommendation_viewer import RecommendationViewer
         self.viewer = RecommendationViewer(parent.services, parent.root, on_close=lambda:None,
@@ -118,21 +124,31 @@ class ViewHistoryView:
     def render(self):
         self.body.clear()
         with self.body:
-            if not self.rows:ui.label('閲覧履歴はありません。')
+            if not self.rows:
+                ui.label('閲覧履歴はありません。').classes('pv-empty')
             for row in self.rows[:self.shown]:
-                with ui.row().classes('w-full items-center').props(f'data-testid=view-history-row data-work-id={row["work_id"]}'):
+                with ui.row().classes('pv-tone-b-list-row w-full items-start gap-2 no-wrap').props(
+                        f'data-testid=view-history-row data-work-id={row["work_id"]}'):
                     try:
                         source = self.parent._images.url(row['work_id'],0,'thumb')
                     except Exception:
-                        ui.icon('image_not_supported').style('width:64px;height:64px')
+                        with ui.element('div').classes('pv-tone-b-thumb flex items-center justify-center'):
+                            ui.icon('image_not_supported').classes('pv-subtitle')
                     else:
-                        picture = ui.image(source).style('width:64px;height:64px').props('fit=cover').on('click',lambda _,w=row['work_id']:self.open_work(w))
+                        picture = ui.image(source).classes('pv-tone-b-thumb').props('fit=cover').on(
+                            'click', lambda _, w=row['work_id']: self.open_work(w))
                         with picture.add_slot('error'):
-                            ui.icon('image_not_supported').classes('pv-subtitle').style('font-size:24px')
-                    ui.button(row['title'], on_click=lambda _,w=row['work_id']:self.open_work(w)).props('flat')
-                    ui.label(f'開いた回数: {row["open_count"]}　最終: {row["last_opened_at"]}').classes('pv-subtitle')
-                    ui.label(LABELS.get(row.get('discovery_verdict'), '')).props('data-testid=view-history-badge').classes('pv-subtitle')
-                    ui.button('Pixivで開く', on_click=lambda _,w=row['work_id']:ui.navigate.to(f'https://www.pixiv.net/artworks/{w}',new_tab=True)).props('flat')
+                            ui.icon('image_not_supported').classes('pv-subtitle')
+                    with ui.column().classes('grow min-w-0 gap-1'):
+                        title = ui.button(row['title'], color=None, on_click=lambda _, w=row['work_id']: self.open_work(w))
+                        title.props('flat dense no-caps align=left').classes('pv-tone-b-work-title w-full')
+                        title.props['title'] = row['title']
+                        with ui.row().classes('w-full items-baseline gap-x-2 gap-y-0'):
+                            ui.label(f'開いた回数: {row["open_count"]}　最終: {row["last_opened_at"]}').classes('pv-subtitle')
+                            ui.label(LABELS.get(row.get('discovery_verdict'), '')).props(
+                                'data-testid=view-history-badge').classes('pv-subtitle')
+                    ui.button('Pixivで開く', color=None, on_click=lambda _, w=row['work_id']: ui.navigate.to(
+                        f'https://www.pixiv.net/artworks/{w}', new_tab=True)).props('flat dense no-caps').classes('shrink-0')
         self.sync()
 
     def load_more(self):

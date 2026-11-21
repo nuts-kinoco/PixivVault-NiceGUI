@@ -13,6 +13,8 @@ from ..managed_scheduler import ScheduleAccountError, ScheduleConfirmationUnavai
 
 from nicegui import ui
 
+from .action_controls import refresh_button
+
 STATUS_LABELS = {
     'never': '未実行', 'saved': '完了', 'queued': '受付済み', 'running': '実行中',
     'deferred': '保留', 'failed': '失敗', 'error': 'エラー', 'empty': '対象なし',
@@ -45,46 +47,65 @@ class SchedulerView:
         self._settings_dirty = False
         self._loading_settings = False
         self._refresh_pending = False
-        with ui.column().classes('pv-scheduler-view w-full gap-3') as self.root:
-            ui.label('お気に入り作者の定期チェック').classes('text-h6')
-            ui.label('新しい専用管理フォルダーにだけ保存します。旧DB、画像、Cookieは更新しません。')
-            with ui.row().classes('items-center gap-3 flex-wrap'):
-                self.open_button = ui.button('管理スケジューラを開く', on_click=self.open).props('data-testid=scheduler-open')
+        with ui.column().classes('pv-scheduler-view w-full gap-2') as self.root:
+            ui.label('お気に入り作者の定期チェック').classes('pv-library-heading pv-serif-heading')
+            ui.label('☆を付けた作者全員をチェックします（☆はダウンロード画面で変更できます）。'
+                     '保存先は専用管理フォルダーで、旧DB・画像・Cookieは更新しません。').classes('pv-subtitle')
+            with ui.row().classes('pv-toolbar'):
+                self.open_button = ui.button('管理スケジューラを開く', on_click=self.open).props(
+                    'unelevated dense no-caps data-testid=scheduler-open')
                 self.confirm_account_button = ui.button('定期チェックの認証を確認', on_click=self.confirm_account).props(
-                    'data-testid=scheduler-confirm-account')
+                    'outline dense no-caps data-testid=scheduler-confirm-account')
                 self.confirm_account_button.set_visibility(False)
+                self.run_button = ui.button('今すぐチェック', on_click=self.run_once).props(
+                    'unelevated dense no-caps data-testid=scheduler-run')
+                self.save_button = ui.button('設定を保存', on_click=self.save).props(
+                    'outline dense no-caps data-testid=scheduler-save')
+                self.discard_button = ui.button('編集を破棄して再読込', color=None, on_click=self.discard_changes).props(
+                    'flat dense no-caps data-testid=scheduler-discard')
+                self.ack_button = ui.button('中断状態を確認して解除', color=None, on_click=self.acknowledge).props(
+                    'flat dense no-caps data-testid=scheduler-ack')
+                self.refresh_button = refresh_button(lambda: self.refresh(ensure_after_current=True),
+                                                     label='状態更新', testid='scheduler-refresh')
+            with ui.row().classes('w-full items-center gap-3'):
                 self.interval = ui.select({'0': '自動チェックしない', '6': '6時間', '12': '12時間',
                                            '24': '24時間', '48': '48時間'}, value='24',
-                                          label='自動チェック間隔').style('min-width:184px').props('data-testid=scheduler-interval')
-                self.startup = ui.checkbox('起動時にもチェック').props('data-testid=scheduler-startup')
-            ui.label('☆お気に入りにした作者全員をチェックします。').classes('pv-subtitle')
-            self.account_label = ui.label('紐づけアカウントを確認できません').classes('pv-subtitle').props(
-                'data-testid=scheduler-account')
-            self.authors = ui.input(label='お気に入り（☆）作者ID（カンマ区切り。☆はダウンロード画面でも付け外しできます）').classes('w-full').style('max-width:640px').props('data-testid=scheduler-authors')
+                                          label='自動チェック間隔').classes('w-48 max-w-full').props(
+                                              'outlined dense data-testid=scheduler-interval')
+                self.startup = ui.switch('起動時にもチェック').classes('pv-filter-switch').props(
+                    'role=checkbox data-testid=scheduler-startup')
+                self.authors = ui.input(label='お気に入り（☆）作者ID（カンマ区切り）').classes('pv-search').props(
+                    'outlined dense data-testid=scheduler-authors')
             self.interval.on_value_change(lambda _: self._mark_settings_dirty())
             self.startup.on_value_change(lambda _: self._mark_settings_dirty())
             self.authors.on_value_change(lambda _: self._mark_settings_dirty())
-            with ui.row().classes('items-center gap-2 flex-wrap'):
-                self.save_button = ui.button('設定を保存', on_click=self.save).props('data-testid=scheduler-save')
-                self.discard_button = ui.button('編集を破棄して再読込', on_click=self.discard_changes).props('data-testid=scheduler-discard')
-                self.run_button = ui.button('今すぐチェック', on_click=self.run_once).props('data-testid=scheduler-run')
-                self.refresh_button = ui.button(
-                    '状態更新', on_click=lambda: self.refresh(ensure_after_current=True)
-                ).props('data-testid=scheduler-refresh')
-                self.ack_button = ui.button('中断状態を確認して解除', on_click=self.acknowledge).props('data-testid=scheduler-ack')
             status = ('未起動' if getattr(services, 'managed_scheduler', None) is None else '状態を確認中')
-            self.status = ui.label(f'定期状態: {status}').props('data-testid=scheduler-status')
-            self.history_label = ui.label('実行履歴はありません').classes('text-caption').props('data-testid=scheduler-history')
-            self.star_notice = ui.label('').classes('text-caption').props('data-testid=scheduler-star-import role=status')
-            self.action_notice = ui.label('').props('data-testid=scheduler-action-notice role=status')
+            with ui.row().classes('w-full items-baseline gap-x-4 gap-y-1'):
+                self.status = ui.label(f'定期状態: {status}').classes('pv-subtitle').props('data-testid=scheduler-status')
+                self.history_label = ui.label('実行履歴はありません').classes('pv-subtitle').props(
+                    'data-testid=scheduler-history')
+                self.account_label = ui.label('紐づけアカウントを確認できません').classes('pv-subtitle').props(
+                    'data-testid=scheduler-account')
+            self.star_notice = ui.label('').classes('pv-subtitle pv-tone-b-notice').props(
+                'data-testid=scheduler-star-import role=status')
+            self.action_notice = ui.label('').classes('pv-subtitle pv-tone-b-notice').props(
+                'data-testid=scheduler-action-notice role=status')
         self._set_controls(False)
-        self.open_button.set_enabled(getattr(services, 'managed_scheduler', None) is None)
+        self._show_open_button(getattr(services, 'managed_scheduler', None) is None)
         self._refreshing = False
         self._background_refresh_tasks: set[asyncio.Task] = set()
         self._timer = ui.timer(5.0, self.refresh)
         self._unsubscribe_owner = None
         self._subscribe_to_owner()
         ui.context.client.on_delete(self.close)
+
+    def _show_open_button(self, visible):
+        self.open_button.set_enabled(visible)
+        self.open_button.set_visibility(visible)
+
+    def _show_status(self, text, *, error=False):
+        self.status.set_text(text)
+        self.status.classes(add='pv-tone-b-error' if error else None, remove=None if error else 'pv-tone-b-error')
 
     def _subscribe_to_owner(self):
         store = getattr(self.services, 'following_sync', None)
@@ -152,12 +173,12 @@ class SchedulerView:
             ledger = await asyncio.to_thread(self.services.enable_managed_scheduler)
             if self.closed:
                 return
-            self.open_button.set_enabled(False)
+            self._show_open_button(False)
             self._set_controls(True)
             self._load(ledger)
             await self.refresh(ensure_after_current=True)
         except Exception:
-            self.status.set_text('専用管理モードのスケジューラを開始できませんでした')
+            self._show_status('専用管理モードのスケジューラを開始できませんでした', error=True)
         finally:
             self._finish_action()
 
@@ -201,10 +222,11 @@ class SchedulerView:
         owns_history = editor is None or editor.owns_history
         self.ack_button.set_enabled(owns_history and state.last_status == 'interrupted')
         if not owns_history and (not editor.unbound or state.last_status != 'never'):
-            self.status.set_text('定期状態: 実行履歴の紐づけを確認できません')
+            self._show_status('定期状態: 実行履歴の紐づけを確認できません')
             return
         status_label = STATUS_LABELS.get(state.last_status, '状態不明')
-        self.status.set_text(f'定期状態: {status_label} / 次回UTC: {state.next_due_utc or "未設定"}')
+        self._show_status(f'定期状態: {status_label} / 次回UTC: {state.next_due_utc or "未設定"}',
+                          error=state.last_status in {'failed', 'error', 'interrupted'})
 
     def _editor(self, ledger, account_id):
         try:
@@ -304,7 +326,7 @@ class SchedulerView:
         self.confirm_account_button.set_visibility(show_confirm)
         self.confirm_account_button.set_enabled(show_confirm and not self._busy)
         status = CONFIRMATION_STATUS.get(blocker, '紐づけアカウントを確認できません')
-        self.status.set_text(f'定期状態: {status}')
+        self._show_status(f'定期状態: {status}')
         self.ack_button.set_enabled(False)
         self.run_button.set_enabled(False)
         self._hide_history()
@@ -369,7 +391,7 @@ class SchedulerView:
             self._load(self.services.managed_scheduler)
         except Exception:
             self._settings_dirty = True
-            self.status.set_text('設定を再読込できませんでした')
+            self._show_status('設定を再読込できませんでした', error=True)
 
     async def acknowledge(self):
         if self.closed or self.services.managed_scheduler is None:
@@ -406,7 +428,7 @@ class SchedulerView:
         except Exception:
             if not self.closed:
                 self._show_account(ledger)
-                self.status.set_text('未完了ジョブまたは設定更新があり中断状態を解除できません。キューを確認してください')
+                self._show_status('未完了ジョブまたは設定更新があり中断状態を解除できません。キューを確認してください', error=True)
         finally:
             self._finish_action()
 
@@ -428,7 +450,7 @@ class SchedulerView:
             ledger = self.services.managed_scheduler
             if ledger is None:
                 return
-            self.open_button.set_enabled(False)
+            self._show_open_button(False)
             if not self.interval.enabled:
                 self._set_controls(True)
             self._load(ledger)
@@ -497,7 +519,7 @@ class SchedulerView:
         except Exception:
             if not self.closed:
                 self._hide_account_data()
-                self.status.set_text('状態を取得できませんでした')
+                self._show_status('状態を取得できませんでした', error=True)
         finally:
             self._refreshing = False
             if self._refresh_pending and not self.closed:
@@ -620,7 +642,7 @@ class SchedulerView:
             self.action_notice.set_text(('停止を保存しました。' if stop_saved else '') + notice)
         except Exception:
             notice = '設定を保存できませんでした。別画面の更新や入力を確認してください'
-            self.status.set_text(('停止を保存しました。' if stop_saved else '') + notice)
+            self._show_status(('停止を保存しました。' if stop_saved else '') + notice, error=True)
         finally:
             self._finish_action()
 

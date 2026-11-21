@@ -362,3 +362,35 @@ CSS += """
   .pv-period-chips .q-btn[aria-pressed=true] { background:rgba(33,150,243,.12) !important; color:var(--pv-text) !important; }
 }
 """
+
+CSS += """
+/* tone-b */
+.pv-tone-b-notice:empty {
+  position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip-path:inset(50%);
+}
+.pv-tone-b-error { color:var(--pv-download-danger-text); font-weight:600; }
+.q-dialog__inner > .pv-tone-b-history-card { width:32rem; max-width:calc(100vw - 3rem); }
+.q-dialog__inner > .pv-tone-b-unfollowed-card { width:clamp(40rem, 50vw, 58rem); max-width:calc(100vw - 3rem); }
+.pv-tone-b-list { overflow-y:auto; flex-wrap:nowrap; scrollbar-gutter:stable; }
+.pv-tone-b-list-row { flex-shrink:0; padding-block:.5rem; border-bottom:1px solid var(--pv-border); }
+.pv-tone-b-list-row:last-child { border-bottom:0; }
+.pv-tone-b-history-list { height:min(22.5rem, 48dvh); }
+.pv-tone-b-unfollowed-list { max-height:min(60dvh, clamp(23rem, calc(37.5vw - 7rem), 38rem)); }
+.pv-tone-b-unfollowed-list:empty { display:none; }
+.pv-tone-b-unfollowed-card .pv-empty { padding-block:1rem; }
+.pv-tone-b-following-list { max-height:12rem; }
+.pv-tone-b-following-list .pv-empty { padding-block:1rem; }
+.pv-tone-b-thumb { flex:none; width:4rem; height:4rem; border-radius:.5rem; overflow:hidden; }
+.pv-tone-b-work-title .q-btn__content { min-width:0; text-align:start; }
+.pv-tone-b-work-title .q-btn__content > .block {
+  -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere;
+}
+@layer quasar_importants {
+  .pv-tone-b-work-title .q-btn__content > .block { display:-webkit-box !important; }
+}
+.pv-preferences-card [data-testid=following-sync-view] .q-btn { border-radius:.5rem; background:transparent !important; }
+.pv-preferences-card [data-testid=following-sync-view] [data-testid=following-sync-button] {
+  background:var(--pv-fill) !important; color:var(--pv-on-fill) !important;
+}
+/* tone-b */
+"""
