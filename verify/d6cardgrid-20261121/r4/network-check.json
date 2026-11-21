@@ -1,0 +1,10 @@
+{
+    "counts":  {
+                   "gated":  210,
+                   "non-network":  52,
+                   "local":  25,
+                   "manual":  16
+               },
+    "sites":  303,
+    "issues":  0
+}

@@ -11,6 +11,7 @@ from nicegui import ui
 
 from ..bookmark_state import BookmarkState, BookmarkCard
 from .grid_layout import MAX_COLUMNS
+from .card_grid import CardGrid, MoreCell
 from .action_controls import refresh_button
 
 
@@ -37,10 +38,7 @@ class BookmarkView:
         self.filter_toggle = None
         self.root = None
         self.grid = None
-        self.cards: dict[str, ui.element] = {}
-        self.checkboxes: dict[str, ui.checkbox] = {}
-        self._rendered_ids: tuple[str, ...] = ()
-        self._rendered_cards: tuple[BookmarkCard, ...] = ()
+        self.cards: dict[str, dict] = {}
         self._session = object()
         self.more_cell = None
         self.card_size = "large"
@@ -81,8 +79,10 @@ class BookmarkView:
                 self.persistence_status = ui.label("").classes("pv-subtitle").props(
                     "role=status data-testid=bookmark-cache-status")
                 with ui.element("div").classes("pv-gallery-scroll").props("data-testid=bookmark-scroll") as self.scroll:
-                    self.grid = ui.element("div").classes("pv-grid").style(
+                    self.grid = CardGrid(self._on_grid_event).classes("pv-grid").style(
                         f"--pv-max-cols:{MAX_COLUMNS[self.card_size]}")
+                    self.grid.props['layout'] = 'bookmark'
+                    self.more_cell = self.more_button = MoreCell(self.grid)
                 self.scroll.on("scroll", js_handler="""event => {
                     if (event.target.getClientRects().length)
                         event.target.__pvBookmarkScroll = event.target.scrollTop;
@@ -90,86 +90,56 @@ class BookmarkView:
         self.refresh()
         return self.root
 
-    def _make_card(self, item: BookmarkCard) -> None:
+    def _make_card(self, item: BookmarkCard) -> dict:
         art = item.artwork
-        with self.grid:
-            with ui.element("div").classes("pv-card pv-bookmark-card").props(
-                f"data-work-id={art.work_id} data-testid=bookmark-card"
-            ) as card:
-                with ui.element("div").classes("pv-library-thumb-wrap"):
-                    with ui.element("div").classes("pv-library-author-open").props(
-                        "role=button tabindex=0 aria-label=作品を開く data-testid=bookmark-open"
-                    ) as opener:
-                        if self.can_open is not None and not self.can_open(art.work_id):
-                            opener.props("aria-disabled=true tabindex=-1")
-                            ui.tooltip("表示未対応の形式、または利用できる画像接続がありません")
-                        opener.on("click", lambda _, wid=art.work_id, token=self._session:
-                                  self.open(wid, token))
-                        opener.on("keydown.enter", lambda _, wid=art.work_id,
-                                  token=self._session: self.open(wid, token))
-                        if self.image_url is not None:
-                            image = ui.image(self.image_url(art.work_id))
-                            from .image_failure import image_failure_slot
-                            image_failure_slot(image)
-                            image.props("fit=contain loading=lazy no-transition").classes("pv-thumb")
-                        else:
-                            ui.icon("image").classes("pv-thumb")
-                    if item.downloaded:
-                        ui.label("DL済み").classes("pv-bookmark-badge").props(
-                            "data-testid=bookmark-downloaded")
-                    checked = art.work_id in self.state.selected_ids
-                    choice = ui.checkbox(value=checked, on_change=lambda event,
-                        wid=art.work_id, token=self._session: self.select(wid, bool(event.value), token))
-                    choice.props("aria-label=選択 data-testid=bookmark-select").classes("pv-bookmark-select")
-                ui.label(art.title).classes("pv-card-title")
-                ui.label(art.author).classes("pv-card-author")
-                if art.bookmark_count is not None:
-                    ui.label(f"★ {art.bookmark_count:,}").classes("pv-library-card-info").props(
-                        "data-testid=bookmark-card-count")
-                if self.on_similar is not None or self.on_author is not None:
-                    with ui.context_menu().props('data-testid=bookmark-similar-context') as menu:
-                        if self.on_author is not None:
-                            ui.button('作者ページを開く',on_click=lambda _,wid=art.work_id,
-                                token=self._session,popup=menu:self.open_author(wid,token,popup)).props(
-                                'flat dense data-testid=bookmark-author-open')
-                        if self.on_similar is not None:
-                            ui.button('似た絵を探す',on_click=lambda _,wid=art.work_id,
-                                      token=self._session,popup=menu:self.search_similar(wid,token,popup)).props(
-                                'flat dense data-testid=bookmark-similar-open')
-        self.cards[art.work_id] = card
-        self.checkboxes[art.work_id] = choice
+        menu = []
+        if self.on_author is not None:
+            menu.append(dict(key='author', label='作者ページを開く', enabled=True,
+                             testid='bookmark-author-open'))
+        if self.on_similar is not None:
+            menu.append(dict(key='similar', label='似た絵を探す', enabled=True,
+                             testid='bookmark-similar-open'))
+        return dict(work_id=art.work_id, title=art.title, author=art.author, author_id=art.author_id,
+                    src=self.image_url(art.work_id) if self.image_url is not None else None,
+                    disabled=self.can_open is not None and not self.can_open(art.work_id),
+                    downloaded=item.downloaded, checked=art.work_id in self.state.selected_ids,
+                    count=f'★ {art.bookmark_count:,}' if art.bookmark_count is not None else None,
+                    menu_id='bookmark-similar-context', menu=menu)
+
+    async def _on_grid_event(self, event):
+        await self._dispatch_grid_event(event.args)
+
+    async def _dispatch_grid_event(self, args):
+        if (self.state.closed or not self.state.active or type(args) is not dict
+                or type(args.get('epoch')) is not int or args['epoch'] != self.grid.render_epoch):
+            return
+        work_id, action = args.get('work_id'), args.get('action')
+        session = self._session
+        if action == 'more' and work_id is None:
+            if self.more_cell.visible and self.more_button.enabled:
+                self.more(session)
+        elif type(work_id) is str and work_id in self.cards:
+            if action == 'open':
+                self.open(work_id, session)
+            elif action == 'select' and type(args.get('value')) is bool:
+                self.select(work_id, args['value'], session)
+            elif action == 'author':
+                await self.open_author(work_id, session)
+            elif action == 'similar':
+                await self.search_similar(work_id, session)
 
     def refresh(self, *, reset_controls: bool = False) -> None:
         if self.root is None or self.state.closed:
             return
         visible = self.state.visible_items
-        wanted = tuple(card.work_id for card in visible)
-        if (reset_controls or wanted[:len(self._rendered_ids)] != self._rendered_ids
-                or tuple(visible[:len(self._rendered_cards)]) != self._rendered_cards):
-            self.grid.clear()
-            self.cards.clear()
-            self.checkboxes.clear()
-            self.more_cell = None
-            self._rendered_ids = ()
-            self._rendered_cards = ()
+        self.cards = {item.work_id: self._make_card(item) for item in visible}
+        retired = self.grid.publish(list(self.cards.values()),
+                                    action_fields=('src', 'disabled', 'author_id', 'downloaded', 'menu'))
+        active_changed = self.grid.set_active(self.state.active)
+        if retired or active_changed:
             self._session = object()
-        for item in visible[len(self._rendered_ids):]:
-            self._make_card(item)
-        self._rendered_ids = wanted
-        self._rendered_cards = visible
-        for wid, checkbox in self.checkboxes.items():
-            if checkbox.value != (wid in self.state.selected_ids):
-                checkbox.set_value(wid in self.state.selected_ids)
-        if self.more_cell is None:
-            with self.grid:
-                with ui.element("div").classes("pv-more-cell") as self.more_cell:
-                    self.more_button = ui.button(
-                        "もっと見る",
-                        on_click=lambda _, session=self._session: self.more(session),
-                    ).props(
-                        "flat no-caps data-testid=bookmark-more")
-        else:
-            self.more_cell.move(self.grid)
+        if reset_controls or (active_changed and self.state.active):
+            self.grid.retry_failed_images()
         self.more_cell.set_visibility(self.state.has_more)
         status = self.state.status
         persistence_unconfirmed = (self.cache_persistence_unconfirmed is not None
@@ -318,13 +288,6 @@ class BookmarkView:
             # Invalidate queued controls from the previous visit. Rebuild
             # handlers with the new identity even when the work IDs are equal.
             self._session = object()
-            self._rendered_ids = ()
-            self._rendered_cards = ()
-            if self.grid is not None:
-                self.grid.clear()
-            self.cards.clear()
-            self.checkboxes.clear()
-            self.more_cell = None
         self.state.revisit(active)
         if self.root is not None:
             self.root.props["data-active"] = str(active).lower()

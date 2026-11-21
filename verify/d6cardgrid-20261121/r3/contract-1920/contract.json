@@ -1,0 +1,14 @@
+{
+  "count": 50,
+  "heart": true,
+  "right_click": true,
+  "pointer_position": true,
+  "keyboard_menu": true,
+  "reconnect_refresh_same_dom": true,
+  "reconnect_keeps_open_menu": true,
+  "identical_refresh_keeps_epoch": true,
+  "replaced_results_advance_epoch": true,
+  "menu_focus": true,
+  "viewer_focus": true,
+  "reconnect": true
+}

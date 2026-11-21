@@ -1,0 +1,62 @@
+[
+  {
+    "case": "initial",
+    "list_ms": 260.30000001192093,
+    "image_ms": 40.19999998807907,
+    "paint_ms": 329.7000000178814,
+    "screenshot_ms": 485.19010000745766,
+    "same_first": false,
+    "residual_ms": 179.47320001386106,
+    "card": 2.5639000814408064,
+    "render": 18.495399999665096,
+    "api": 150.22680000402033
+  },
+  {
+    "case": "refresh",
+    "list_ms": 195.19999998807907,
+    "image_ms": 0,
+    "paint_ms": 210.2999999821186,
+    "screenshot_ms": 329.3593999987934,
+    "same_first": true,
+    "residual_ms": 59.671499975258484,
+    "card": 2.655500080436468,
+    "render": 20.45810001436621,
+    "api": 150.62850000686012
+  },
+  {
+    "case": "mode",
+    "list_ms": 317.30000001192093,
+    "image_ms": 59.5,
+    "paint_ms": 393.09999999403954,
+    "screenshot_ms": 503.9069000049494,
+    "same_first": false,
+    "residual_ms": 242.7738999905996,
+    "card": 2.3711000685580075,
+    "render": 16.053599974839017,
+    "api": 150.32610000343993
+  },
+  {
+    "case": "sort",
+    "list_ms": 33.900000005960464,
+    "image_ms": 0,
+    "paint_ms": 43.5,
+    "screenshot_ms": 169.84300001058728,
+    "same_first": false,
+    "residual_ms": 43.5,
+    "card": 2.318499959073961,
+    "render": 15.823699999600649,
+    "api": 0
+  },
+  {
+    "case": "library",
+    "list_ms": 358.60000002384186,
+    "image_ms": 0,
+    "paint_ms": 368.40000000596046,
+    "screenshot_ms": 510.7787000015378,
+    "same_first": true,
+    "residual_ms": 368.40000000596046,
+    "card": 0.8777998737059534,
+    "render": 40.176000009523705,
+    "api": 0
+  }
+]

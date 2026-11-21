@@ -35,13 +35,14 @@ async def test_selection_more_and_stable_existing_cards(bookmark):
     view, state, opened, _ = bookmark
     assert len(view.cards) == 50
     assert view.counter.text == "120 件中 50 件を表示 / 全 120 件"
-    first_node = view.cards["synthetic-0"].id
+    first_key = view.cards["synthetic-0"]["work_id"]
     view.select("synthetic-0", True)
     assert state.selected_ids == {"synthetic-0"}
     assert view.selected_count.text == "選択中: 1件"
     view.more()
     assert len(view.cards) == 100
-    assert view.cards["synthetic-0"].id == first_node
+    assert view.cards["synthetic-0"]["work_id"] == first_key
+    assert view.cards["synthetic-0"]["checked"]
     view.open("synthetic-0")
     assert opened == ["synthetic-0"]
     view.more()
@@ -54,13 +55,14 @@ async def test_selection_more_and_stable_existing_cards(bookmark):
 async def test_refresh_updates_downloaded_badges_and_blocks_stale_sessions(bookmark):
     view, state, opened, _ = bookmark
     assert state.items[0].downloaded
-    assert view.cards["synthetic-0"].id
+    assert view.cards["synthetic-0"]["downloaded"]
     previous_session = view._session
-    previous_first_node = view.cards["synthetic-0"].id
+    previous_epoch = view.grid.render_epoch
     state.replace_local(())
     view.refresh()
     assert not state.items[0].downloaded
-    assert view.cards["synthetic-0"].id != previous_first_node
+    assert not view.cards["synthetic-0"]["downloaded"]
+    assert view.grid.render_epoch > previous_epoch
     before = state.shown_count
     view.more(previous_session)
     assert state.shown_count == before

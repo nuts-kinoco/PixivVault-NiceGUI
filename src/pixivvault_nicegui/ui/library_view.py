@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import replace
 from uuid import uuid4
 from nicegui import ui
@@ -14,6 +15,7 @@ from ..library_state import LibraryState
 from ..services import ApplicationServices
 from ..state import GalleryState
 from ..viewer_metadata import pixiv_url
+from .card_grid import CardGrid, MoreCell
 from .card_size_control import size_buttons, update_size_buttons
 from .grid_layout import MAX_COLUMNS
 from .viewer_controller import ViewerController
@@ -21,15 +23,6 @@ from .viewer_controller import ViewerController
 
 # Material image outline, matching the original Flet IMAGE_OUTLINED fallback.
 _IMAGE_OUTLINE = 'M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM5 5h14v14H5V5zm8.5 6.5-3 3.51-2-2.5L6 17h12l-4.5-5.5z'
-
-
-def _library_thumbnail(source: str):
-    image = ui.image(source).props('fit=cover loading=lazy no-transition').classes('pv-thumb')
-    with image.add_slot('error'):
-        ui.icon(_IMAGE_OUTLINE).props(
-            'role=img aria-label=画像未表示 aria-hidden=false data-testid=library-image-placeholder'
-        ).style('font-size:32px;opacity:.55;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)')
-    return image
 
 
 class _SearchImages:
@@ -97,11 +90,8 @@ class LibraryView(ViewerController):
         self.bookmarks = None
         self.state = LibraryState(LibrarySnapshot(()))
         self.author_cards = {}
-        self.author_openers = {}
-        self.author_capacity_labels = {}
         self.page_cards = {}
-        self._rendered_authors = ()
-        self._rendered_pages = ()
+        self._rendered_source = None
         # Old cards may still have queued client events after a full reload.
         # LibraryState generation starts at zero again, so also compare identity.
         self._page_session = object()
@@ -204,7 +194,8 @@ class LibraryView(ViewerController):
                 with ui.element("div").classes("pv-gallery-scroll").props(
                     "data-testid=library-authors-scroll"
                 ) as self.authors_scroll:
-                    self.author_grid = ui.element("div").classes("pv-grid")
+                    self.author_grid = CardGrid(self._on_author_grid_event).classes("pv-grid")
+                    self.author_grid.props.update(layout='library-author', library_placeholder=_IMAGE_OUTLINE)
                     self.author_more_button = ui.button("もっと見る", on_click=self.more_authors).props(
                         "flat no-caps data-testid=library-author-more")
                 self._remember_scroll(self.authors_scroll)
@@ -231,7 +222,9 @@ class LibraryView(ViewerController):
                 with ui.element("div").classes("pv-gallery-scroll").props(
                     "data-testid=library-pages-scroll"
                 ) as self.pages_scroll:
-                    self.page_grid = ui.element("div").classes("pv-grid")
+                    self.page_grid = CardGrid(self._on_page_grid_event).classes("pv-grid")
+                    self.page_grid.props.update(layout='library-page', library_placeholder=_IMAGE_OUTLINE)
+                    self.more_cell = self.more_button = MoreCell(self.page_grid)
                 self._remember_scroll(self.pages_scroll)
 
             from .bookmark_view import BookmarkView
@@ -313,6 +306,7 @@ class LibraryView(ViewerController):
         }})""")
 
     def _sync_panels(self) -> None:
+        self._sync_card_grids_active()
         if self.similarity is not None:self.similarity.set_active(self.active and not self.load_error)
         self._zip_export_epoch = uuid4().hex
         self.root.props['data-zip-export-epoch'] = self._zip_export_epoch
@@ -454,12 +448,7 @@ class LibraryView(ViewerController):
         state._by_author = {author.author_id: author for author in state._all_authors}
         state._refresh_matches()
         state._invalidate()
-        # Capacity sort may move cards. Otherwise update the existing labels.
         self.render_authors()
-        for aid, value in changed.items():
-            label = self.author_capacity_labels.get(aid)
-            if label is not None:
-                label.set_text(format_capacity(value))
         self._sync_panels()
 
     def _legacy_current(self,state,generation,epoch):
@@ -646,9 +635,8 @@ class LibraryView(ViewerController):
                 if not self.closed:self.capacity_status.set_text('')
                 return
             self._managed_capacities.update(values)
-            self.author_grid.clear();self.author_cards.clear();self.author_openers.clear()
-            self.author_capacity_labels.clear()
-            self._rendered_authors=();self._author_session=object();self.render_authors();self._sync_panels()
+            self.render_authors()
+            self._sync_panels()
             self.capacity_status.set_text(f'管理保存 {len(values)}作者を再計測。未計測 {len(targets)-len(values)}作者。')
         except Exception:
             if (not self.closed and self.active and self.subview=='downloaded' and self.state is state
@@ -692,14 +680,6 @@ class LibraryView(ViewerController):
         self.bookmark_state.set_filters(filters)
         self.close_viewer(restore_focus=False)
         self._clear_pages()
-        # A changed condition retires callbacks even when the resulting IDs
-        # happen to be identical. Appending pages still keeps existing nodes.
-        self._author_session = object()
-        self.author_grid.clear()
-        self.author_cards.clear()
-        self.author_openers.clear()
-        self.author_capacity_labels.clear()
-        self._rendered_authors = ()
         self.render_authors()
         self.bookmarks.refresh(reset_controls=True)
         self._sync_panels()
@@ -765,11 +745,9 @@ class LibraryView(ViewerController):
         if self._viewer_state.viewer_open:
             self._bookmark_projection_pending = True
             return
-        self._bookmark_open_epoch += 1
-        self._resolved_bookmark_artwork.clear()
-        self.reload(preserve=True)
+        self.reload(preserve=True, after_viewer=True)
         if self.bookmarks is not None:
-            self.bookmarks.refresh(reset_controls=True)
+            self.bookmarks.refresh()
 
     def close_viewer(self, *, restore_focus=True, apply_deferred=True):
         was_open = self._viewer_state.viewer_open
@@ -796,11 +774,16 @@ class LibraryView(ViewerController):
         if self.subview == 'bookmarks':
             target = self.bookmarks_button
         elif self.state.selected_author_id is not None:
-            target = self.page_cards.get(page_key)
-            if target is None or target.props.get('aria-disabled') == 'true':
-                target = self.detail_back
+            card = self.page_cards.get(page_key)
+            if card is not None and not card['disabled']:
+                self.viewer.focus_after_close(self.page_grid, opener=self._page_opener(page_key))
+                return
+            target = self.detail_back
         else:
-            target = self.author_openers.get(author, self.downloaded_button)
+            if author in self.author_cards:
+                self.viewer.focus_after_close(self.author_grid, opener=self._author_opener(author))
+                return
+            target = self.downloaded_button
         self.viewer.focus_after_close(target)
 
     def refresh_bookmarks(self, *, automatic=False) -> None:
@@ -838,7 +821,6 @@ class LibraryView(ViewerController):
                     self.bookmark_state.silent_fetch = True
                     with self.client:
                         self._refresh_bookmark_projection()
-                        self.bookmarks.refresh(reset_controls=True)
                 remote, local = await self.services.refresh_bookmark_cache(automatic=True)
             else:
                 remote, local = await self.services.refresh_bookmark_cache()
@@ -909,16 +891,37 @@ class LibraryView(ViewerController):
                 self.bookmarks.message.set_visibility(True)
             return
         if (self.closed or not self.active or self.subview != "bookmarks"
-                or epoch != self._bookmark_open_epoch or self._image_provider is not provider):
+                or epoch != self._bookmark_open_epoch or self._image_provider is not provider
+                or not any(card.work_id == work_id for card in self.bookmark_state.items)):
             return
         self._resolved_bookmark_artwork[work_id] = artwork
         with self.client:
             self._build_viewer_state()
             super().open(work_id, 0)
 
+    def _reload_source(self, snapshot, local_token):
+        return (snapshot, local_token, self.search_scope, self._pixiv_records, self._excluded_search_ids()
+                if self.search_scope == 'pixiv' else ())
+
     def reload(self, *, preserve: bool = False, after_viewer: bool = False) -> None:
         if self.closed or not self.active:
             return
+        if preserve and self._rendered_source is not None and not self.load_error:
+            try:
+                current = self.services.acquire_library_images()
+                try:
+                    source = self._reload_source(self.services.library_snapshot(), current.token)
+                finally:
+                    current.close()
+            except Exception:
+                source = None  # Let the normal reload path report the read failure.
+            if source == self._rendered_source:
+                self._reload_after_viewer = False
+                self.refresh_error = False
+                self.error_row.set_visibility(False)
+                if self.search_scope == 'pixiv' and self.state.selected_author_id is None:
+                    self.render_authors()
+                return
         if after_viewer and self._viewer_state.viewer_open:
             self._reload_after_viewer = True
             return
@@ -937,18 +940,13 @@ class LibraryView(ViewerController):
             self.close_viewer(restore_focus=False, apply_deferred=False)
         self.state.close()
         self._viewer_state.close()
-        self.author_grid.clear()
-        self.author_cards.clear()
-        self.author_openers.clear()
-        self.author_capacity_labels.clear()
-        self._rendered_authors = ()
         self._clear_pages()
-        self._page_session = object()
-        self._author_session = object()
+        self._bookmark_open_epoch += 1
+        self._resolved_bookmark_artwork.clear()
         self.state = LibraryState(LibrarySnapshot(()))
         self._viewer_state = GalleryState(())
         try:
-            snapshot = self.services.library_snapshot()
+            base_snapshot = snapshot = self.services.library_snapshot()
             if self.search_scope == 'pixiv' and self._pixiv_works:
                 existing = {work.work_id for work in snapshot.works} | self._excluded_search_ids()
                 snapshot = LibrarySnapshot(snapshot.works + tuple(
@@ -970,6 +968,9 @@ class LibraryView(ViewerController):
             viewer_state = GalleryState(work.artwork for work in snapshot.works)
         except Exception:
             # 読取失敗を「保存済み0件」へ置き換えない。例外内容を画面へ出さない。
+            if self.author_grid.publish([]):
+                self._author_session = object()
+            self.author_cards.clear()
             self.load_error = True
             self._sync_panels()
             return
@@ -990,9 +991,10 @@ class LibraryView(ViewerController):
             self._image_provider = _SearchImages(local, remote, remote_ids)
         else:
             self._image_provider = local
+        self._rendered_source = self._reload_source(base_snapshot, local.token)
         previous.close()
         if self.bookmarks is not None:
-            self.bookmarks.refresh(reset_controls=True)
+            self.bookmarks.refresh(reset_controls=not after_viewer)
         self._build_viewer_state()
         self.load_error = False
         self.refresh_error = False
@@ -1035,63 +1037,77 @@ class LibraryView(ViewerController):
                 if self.db_refresh_button is not None and not self.closed:
                     self.db_refresh_button.enable()
 
-    def _make_author_card(self, author: AuthorSummary) -> None:
-        with self.author_grid:
-            with ui.element("div").classes("pv-card pv-library-author-card").props(
-                f"data-author-id={author.author_id} data-representative-id={author.representative.work_id}"
-            ) as card:
-                with ui.element("div").classes("pv-library-thumb-wrap"):
-                    with ui.element("div").classes("pv-library-author-open").props(
-                        "role=button tabindex=0 data-testid=library-author-open"
-                    ) as opener:
-                        opener.props["aria-label"] = author.name
-                        session = self._author_session
-                        opener.on("click", lambda _, uid=author.author_id, owner=session: self.open_author(uid, owner))
-                        opener.on("keydown.enter", lambda _, uid=author.author_id, owner=session: self.open_author(uid, owner))
-                        _library_thumbnail(self._image_provider.url(author.representative.work_id, 0, "thumb"))
-                    profile = ui.button(icon="open_in_new", color=None).props(
-                        "flat dense round aria-label=pixivの作者ページ data-testid=library-author-profile").classes("pv-library-profile")
-                    target = pixiv_url(author.author_id, author=True)
-                    if target is None:
-                        profile.disable()
-                        profile.tooltip("Pixivの作者IDを確認できません")
-                    else:
-                        profile.props['href'] = target
-                        profile.props['target'] = '_blank'
-                        profile.props['rel'] = 'noopener noreferrer'
-                        profile.tooltip("pixivの作者ページを開く")
-                ui.label(author.name).classes("pv-library-card-title")
-                with ui.row().classes("pv-library-card-info"):
-                    ui.label(f"{author.work_count}点")
-                    ui.label(f"閲覧 {author.view_count}回")
-                    self.author_capacity_labels[author.author_id] = ui.label(format_capacity(author.capacity_bytes))
-                if author.author_id in self._managed_capacities:
-                    ui.label('管理保存 '+format_capacity(self._managed_capacities[author.author_id])).props(
-                        'data-testid=library-managed-capacity').classes('pv-library-card-info')
-                with ui.context_menu().props('data-testid=library-author-similar-context') as menu:
-                    author_button=ui.button('作者ページを開く',on_click=lambda _,aid=author.author_id,
-                        owner=session,popup=menu:self.open_remote_author(aid,owner,popup)).props(
-                        'flat dense data-testid=library-author-open-remote')
-                    author_button.set_enabled(self._viewer_reader() is not None)
-                    if self.similarity is not None:
-                        ui.button('似た絵を探す',on_click=lambda _,aid=author.author_id,
-                                  owner=self._author_session,popup=menu:self.search_similar_author(aid,owner,popup)).props(
-                            'flat dense data-testid=library-author-similar-open')
-                    saved_button=ui.button('保存先を開く',icon='folder_open',
-                        on_click=lambda _,a=author,owner=session,popup=menu:self.open_author_saved(a,owner,popup)
-                    ).props('flat dense data-testid=library-author-open-saved')
-                    saved_button.set_enabled(getattr(self.services.desktop,'launcher',None) is not None)
-        self.author_cards[author.author_id] = card
-        self.author_openers[author.author_id] = opener
+    def _make_author_card(self, author: AuthorSummary) -> dict:
+        author_id = author.author_id
+        representative = author.representative.work_id
+        menu = [
+            dict(key='author', label='作者ページを開く', enabled=self._viewer_reader() is not None,
+                 testid='library-author-open-remote'),
+            dict(key='saved', label='保存先を開く', icon='folder_open',
+                 enabled=getattr(self.services.desktop, 'launcher', None) is not None,
+                 testid='library-author-open-saved'),
+        ]
+        if self.similarity is not None:
+            menu.insert(1, dict(key='similar', label='似た絵を探す', enabled=True,
+                                testid='library-author-similar-open'))
+        return dict(work_id=author_id, representative_id=representative, title=author.name,
+                    src=self._image_provider.url(representative, 0, 'thumb'),
+                    profile=pixiv_url(author_id, author=True),
+                    work_count=author.work_count, view_count=author.view_count,
+                    capacity=format_capacity(author.capacity_bytes),
+                    managed=('管理保存 ' + format_capacity(self._managed_capacities[author_id])
+                             if author_id in self._managed_capacities else None),
+                    menu_id='library-author-similar-context', menu=menu)
+
+    async def _on_author_grid_event(self, event):
+        await self._author_grid_event(event.args)
+
+    async def _author_grid_event(self, args):
+        if (self.closed or not self.active or self.subview != 'downloaded' or self.load_error
+                or self.state.selected_author_id is not None or type(args) is not dict
+                or type(args.get('epoch')) is not int or args['epoch'] != self.author_grid.render_epoch):
+            return
+        author_id, action = args.get('work_id'), args.get('action')
+        card = self.author_cards.get(author_id) if type(author_id) is str else None
+        if card is None:
+            return
+        session = self._author_session
+        if action == 'open':
+            self.open_author(author_id, session)
+        elif any(item['key'] == action and item['enabled'] for item in card['menu']):
+            if action == 'author':
+                await self.open_remote_author(author_id, session)
+            elif action == 'similar':
+                await self.search_similar_author(author_id, session)
+            elif action == 'saved':
+                author = next((item for item in self.state.visible_authors
+                               if item.author_id == author_id), None)
+                if author is not None:
+                    await self.open_author_saved(author, session, None)
+
+    def _sync_card_grids_active(self):
+        active = self.active and not self.closed and self.subview == 'downloaded' and not self.load_error
+        has_author = self.state.selected_author_id is not None
+        for grid, enabled in ((self.author_grid, active and not has_author),
+                              (self.page_grid, active and has_author)):
+            if grid.set_active(enabled) and enabled and grid.props['cards']:
+                grid.retry_failed_images()
+
+    def _author_opener(self, author_id):
+        return (f"[...(document.getElementById('{self.author_grid.html_id}')"
+                f"?.querySelectorAll('[data-author-id]') || [])]"
+                f".find(card => card.dataset.authorId === {json.dumps(author_id)})"
+                "?.querySelector('[data-testid=library-author-open]')")
 
     async def open_author_saved(self,author,session,menu):
         provider=self._image_provider
         def current():
             return (self.active and not self.closed and self.subview=='downloaded'
                     and self._author_session is session and self._image_provider is provider
-                    and author in self.state.visible_authors)
+                    and self.author_cards.get(author.author_id, {}).get('representative_id')
+                    == author.representative.work_id)
         if not current():return
-        menu.close()
+        if menu is not None:menu.close()
         try:
             await self.services.open_external_saved(author.representative.work_id,
                 catalog_token=provider.token,author_id=author.author_id,is_current=current)
@@ -1107,17 +1123,11 @@ class LibraryView(ViewerController):
 
     def render_authors(self) -> None:
         visible = self.state.visible_authors
-        wanted = tuple(author.author_id for author in visible)
-        if wanted[:len(self._rendered_authors)] != self._rendered_authors:
-            self.author_grid.clear()
-            self.author_cards.clear()
-            self.author_openers.clear()
-            self.author_capacity_labels.clear()
-            self._rendered_authors = ()
+        self.author_cards = {author.author_id: self._make_author_card(author) for author in visible}
+        if self.author_grid.publish(list(self.author_cards.values()),
+                                    action_fields=('representative_id', 'src', 'profile', 'menu'),
+                                    context=(self.state.query, self.state.filters, self.search_scope)):
             self._author_session = object()
-        for author in visible[len(self._rendered_authors):]:
-            self._make_author_card(author)
-        self._rendered_authors = wanted
         self.author_counter.set_text(
             f"{self.state.shown_author_count} / {self.state.matched_author_count} 作者表示"
             f"（全{self.state.total_author_count}作者）")
@@ -1128,7 +1138,7 @@ class LibraryView(ViewerController):
         else:
             self.empty.set_text("保存済み作品がありません" if not self.state.total_author_count
                                 else "条件に合う作者がいません")
-        self.empty.set_visibility(not wanted)
+        self.empty.set_visibility(not visible)
         self.author_more_button.set_visibility(self.state.has_more_authors)
 
     def more_authors(self) -> None:
@@ -1138,48 +1148,60 @@ class LibraryView(ViewerController):
             self._schedule_legacy_capacity_restore()
 
     def _clear_pages(self) -> None:
-        self._more_session = object()
-        self.page_grid.clear()
         self.page_cards.clear()
-        self._rendered_pages = ()
-        self.more_cell = None
+        if self.page_grid.publish([]):
+            self._page_session = self._more_session = object()
+        self.more_cell.set_visibility(False)
 
-    def _make_page_card(self, page: PageRef) -> None:
+    def _make_page_card(self, page: PageRef) -> dict:
         work = page.work
-        generation = self.state.generation
-        with self.page_grid:
-            with ui.element("div").classes("pv-card pv-library-page-card").props(
-                f"role=button tabindex=0 data-work-id={work.work_id} data-page-no={page.page_no}"
-            ) as card:
-                if not self._image_provider.can_open(work.work_id):
-                    card.props("aria-disabled=true tabindex=-1")
-                    ui.tooltip("この形式の表示は未接続です")
-                callback = lambda _, wid=work.work_id, number=page.page_no, epoch=generation, session=self._page_session: self.open_page(
-                    wid, number, epoch, session)
-                card.on("click", callback)
-                card.on("keydown.enter", callback)
-                cover = getattr(self._image_provider, 'supports_novel_cover', None)
-                variant = 'cover' if work.work_type == 'novel' and callable(cover) and cover(work.work_id) else 'thumb'
-                _library_thumbnail(self._image_provider.url(work.work_id, page.page_no, variant))
-                ui.label(work.artwork.title).classes("pv-library-card-title")
-                saved = work.last_backup[:10] if work.last_backup else "保存日 不明"
-                ui.label(f"p.{page.page_no + 1} ／ {saved}").classes("pv-library-card-info")
-                if work.artwork.bookmark_count is not None:
-                    ui.label(f"★ {work.artwork.bookmark_count:,}").classes("pv-library-card-info").props(
-                        "data-testid=library-page-bookmark-count")
-                if getattr(self.services,'desktop',None) is not None and self._image_provider.can_open_external(work.work_id):
-                    external=ui.button('外部ビューアで開く').props('flat dense data-testid=library-external-open')
-                    async def external_event(_,wid=work.work_id,number=page.page_no,epoch=generation,session=self._page_session):
-                        await self.open_external(wid,number,epoch,session)
-                    external.on('click',external_event,js_handler='event => {event.stopPropagation();emit();}')
-                    external.on('keydown',js_handler='event => {event.stopPropagation();}')
-                if self.similarity is not None:
-                    button=ui.button('似た絵を探す').props('flat dense data-testid=library-similar-open')
-                    async def similar_event(_,wid=work.work_id,number=page.page_no,epoch=generation,session=self._page_session):
-                        await self.search_similar(wid,number,epoch,session)
-                    button.on('click',similar_event,js_handler='event => {event.stopPropagation();emit();}')
-                    button.on('keydown',js_handler='event => {event.stopPropagation();}')
-        self.page_cards[page.key] = card
+        cover = getattr(self._image_provider, 'supports_novel_cover', None)
+        variant = ('cover' if work.work_type == 'novel' and callable(cover)
+                   and cover(work.work_id) else 'thumb')
+        saved = work.last_backup[:10] if work.last_backup else '保存日 不明'
+        count = work.artwork.bookmark_count
+        return dict(work_id=f'{work.work_id}/{page.page_no}', artwork_id=work.work_id,
+                    page_no=page.page_no, title=work.artwork.title,
+                    src=self._image_provider.url(work.work_id, page.page_no, variant),
+                    disabled=not self._image_provider.can_open(work.work_id),
+                    info=f'p.{page.page_no + 1} ／ {saved}',
+                    count=f'★ {count:,}' if count is not None else None,
+                    external=(getattr(self.services, 'desktop', None) is not None
+                              and self._image_provider.can_open_external(work.work_id)),
+                    similar=self.similarity is not None)
+
+    async def _on_page_grid_event(self, event):
+        await self._page_grid_event(event.args)
+
+    async def _page_grid_event(self, args):
+        if (self.closed or not self.active or self.subview != 'downloaded' or self.load_error
+                or self.state.selected_author_id is None or type(args) is not dict
+                or type(args.get('epoch')) is not int or args['epoch'] != self.page_grid.render_epoch):
+            return
+        key, action = args.get('work_id'), args.get('action')
+        if action == 'more' and key is None:
+            if self.more_cell.visible and self.more_button.enabled:
+                self.more(self._more_session)
+            return
+        if type(key) is not str:
+            return
+        card = next((item for item in self.page_cards.values() if item['work_id'] == key), None)
+        if card is None:
+            return
+        position = (card['artwork_id'], card['page_no'], self.state.generation, self._page_session)
+        if action == 'open':
+            self.open_page(*position)
+        elif action == 'external' and card['external']:
+            await self.open_external(*position)
+        elif action == 'similar' and card['similar']:
+            await self.search_similar(*position)
+
+    def _page_opener(self, page_key):
+        work_id, page_no = page_key
+        return (f"[...(document.getElementById('{self.page_grid.html_id}')"
+                f"?.querySelectorAll('[data-work-id][data-page-no]') || [])]"
+                f".find(card => card.dataset.workId === {json.dumps(work_id)}"
+                f" && card.dataset.pageNo === {json.dumps(str(page_no))})")
 
     async def open_external(self,work_id,page_no,generation,session):
         if (self.closed or not self.active or self.subview!='downloaded' or self.load_error
@@ -1269,20 +1291,15 @@ class LibraryView(ViewerController):
         author = self.state.selected_author
         if author is None:
             return
-        wanted = tuple(page.key for page in self.state.visible_pages)
-        if wanted[:len(self._rendered_pages)] != self._rendered_pages:
-            self._clear_pages()
-        for page in self.state.visible_pages[len(self._rendered_pages):]:
-            self._make_page_card(page)
-        self._rendered_pages = wanted
-        if self.more_cell is None:
-            with self.page_grid:
-                with ui.element("div").classes("pv-more-cell pv-library-more") as self.more_cell:
-                    self.more_button = ui.button("もっと見る", icon="add_circle_outline",
-                                                 color=None, on_click=lambda _, session=self._more_session: self.more(session)).props(
-                        "flat stack no-caps data-testid=library-more")
-        else:
-            self.more_cell.move(self.page_grid)
+        cards = {}
+        for page in self.state.visible_pages:
+            previous = self.page_cards.get(page.key)
+            data = self._make_page_card(page)
+            cards[page.key] = previous if previous == data else data
+        self.page_cards = cards
+        if self.page_grid.publish(list(self.page_cards.values()),
+                                   action_fields=('src', 'disabled', 'external', 'similar')):
+            self._page_session = self._more_session = object()
         self.more_cell.set_visibility(self.state.has_more_pages)
         self.detail_title.set_text(
             f"{author.name} の作品 {author.work_count} 件・画像 {self.state.total_page_count} 枚"
@@ -1494,11 +1511,10 @@ class LibraryView(ViewerController):
         self._sync_panels()
         self._restore_scroll(self.authors_scroll)
         self._schedule_legacy_capacity_restore()
-        opener = self.author_openers.get(author_id)
-        if opener is not None and self.client.has_socket_connection:
+        if author_id in self.author_cards and self.client.has_socket_connection:
             self.client.run_javascript(f"""requestAnimationFrame(() => {{
                 const root = document.getElementById('{self.root.html_id}');
-                const node = document.getElementById('{opener.html_id}');
+                const node = {self._author_opener(author_id)};
                 if (root?.dataset.active === 'true' &&
                     root.dataset.libraryGeneration === '{self.state.generation}' &&
                     node?.isConnected && node.getClientRects().length)
@@ -1556,6 +1572,7 @@ class LibraryView(ViewerController):
                 self.db_refresh_button.enable()
         if bool(active) and not self.active:self._legacy_auto_attempted=set()
         self.active = bool(active)
+        self._sync_card_grids_active()
         if active:
             self.refresh_search_scope()
             if self._reload_after_viewer:
@@ -1568,7 +1585,8 @@ class LibraryView(ViewerController):
             and self.state.selected_author_id is not None
             and bool(getattr(self.services, 'legacy_zip_export_available', False)))
         self.root.props["data-active"] = str(self.active).lower()
-        self.set_viewer_active(active)
+        if self._viewer_active != self.active:
+            self.set_viewer_active(active)
         if self.similarity is not None:self.similarity.set_active(self.active and not self.load_error)
         if self.bookmarks is not None:
             self.bookmarks.set_active(self.active and self.subview == "bookmarks")

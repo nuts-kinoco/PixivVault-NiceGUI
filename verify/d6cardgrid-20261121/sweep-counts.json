@@ -1,0 +1,34 @@
+{
+  "heart": {
+    "elements": 28,
+    "listeners": 12
+  },
+  "plain": {
+    "elements": 26,
+    "listeners": 12
+  },
+  "gallery": {
+    "elements": 12,
+    "listeners": 3
+  },
+  "bookmark_downloaded": {
+    "elements": 15,
+    "listeners": 5
+  },
+  "library_author": {
+    "elements": 15,
+    "listeners": 4
+  },
+  "library_page": {
+    "elements": 5,
+    "listeners": 2
+  },
+  "recommend_superlike": {
+    "elements": 53,
+    "listeners": 33
+  },
+  "recommend_certain": {
+    "elements": 49,
+    "listeners": 30
+  }
+}

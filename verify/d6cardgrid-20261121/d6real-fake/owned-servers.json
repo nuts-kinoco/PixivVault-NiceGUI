@@ -1,0 +1,13 @@
+{
+  "original": {
+    "pid": 124504,
+    "port": 22830
+  },
+  "nice": {
+    "pid": 28496,
+    "port": 22840
+  },
+  "playwright": {
+    "pid": 29076
+  }
+}

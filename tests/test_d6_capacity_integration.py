@@ -86,7 +86,7 @@ async def test_search_reloads_concurrent_capacity_write_after_auto_measurement(l
         async with asyncio.timeout(3):
             while view._legacy_restore_needed:
                 await asyncio.sleep(.01)
-        assert view.author_capacity_labels[author_id].text == '2.0 KiB'
+        assert view.author_cards[author_id]['capacity'] == '2.0 KiB'
         assert scans == [author_id]
         assert view.legacy_capacity_button.enabled
 
@@ -96,7 +96,7 @@ async def test_search_reloads_concurrent_capacity_write_after_auto_measurement(l
         assert view.legacy_capacity_button.enabled
         await view.measure_legacy_capacity()
         assert service.cached(author_id) == (2, 1024)
-        assert view.author_capacity_labels[author_id].text == '1.0 KiB'
+        assert view.author_cards[author_id]['capacity'] == '1.0 KiB'
         assert scans == [author_id, author_id]
 
         with client:

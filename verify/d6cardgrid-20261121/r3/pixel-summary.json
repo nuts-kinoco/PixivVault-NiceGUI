@@ -1,0 +1,20 @@
+{
+  "1280": {
+    "size": [
+      1280,
+      800
+    ],
+    "changed_pixels": 0,
+    "fraction": 0.0,
+    "bounding_box": null
+  },
+  "1920": {
+    "size": [
+      1920,
+      1080
+    ],
+    "changed_pixels": 0,
+    "fraction": 0.0,
+    "bounding_box": null
+  }
+}

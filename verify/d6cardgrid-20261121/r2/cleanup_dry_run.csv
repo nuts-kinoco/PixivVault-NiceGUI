@@ -1,0 +1,110 @@
+action,absolute_path,bytes,modified_utc,reparse_points,reason
+DELETE,S:\Work\_tmp\PV\d6cg\r2-cardgrid-full-regression-longpath-20261121,241733869,2026-11-21T10:02:32.882364+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-baseline-regression-source,8407414,2026-11-21T09:31:59.630781+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-no-retry\chrome,8359190,2026-11-21T09:25:22.755713+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-baseline\chrome,8357610,2026-11-21T09:25:06.155766+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-retry\chrome,8357586,2026-11-21T09:25:14.550096+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\_tmp\PV\d6cg\r2-profile-probe-final,8357346,2026-11-21T09:36:26.675852+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-cardgrid-dom-retest-final-fixture,5428805,2026-11-21T09:33:21.483012+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-cardgrid-dom-regression-fixture,5428757,2026-11-21T09:31:23.252731+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-replay-before-fixes-fixture,5428653,2026-11-21T09:32:10.592114+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\d9b8a27-r2-baseline,4547132,2026-11-21T09:25:00.668674+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-cardgrid-final-focused-long-root,3619548,2026-11-21T09:29:12.563953+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-cardgrid-focused-fixture,3619420,2026-11-21T09:22:20.115881+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-cardgrid-browser-red-fixture,3619118,2026-11-21T09:18:21.162340+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-baseline-regression-source.zip,2363560,2026-11-21T09:31:53.518664+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-baseline-inactive-controls-fixture,1809609,2026-11-21T09:39:06.110075+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\d9b8a27-r2-baseline.zip,1213466,2026-11-21T09:25:00.201370+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-cardgrid-contract-1280-20261121,387072,2026-11-21T09:36:42.745977+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-cardgrid-contract-1920-20261121,384916,2026-11-21T09:36:53.707485+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-paired-cardgrid-after-2-20261121,365133,2026-11-21T10:03:20.842879+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-paired-cardgrid-before-1-20261121,364974,2026-11-21T10:02:57.134654+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-paired-cardgrid-before-2-20261121,364689,2026-11-21T10:03:32.584311+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-paired-cardgrid-after-1-20261121,362716,2026-11-21T10:03:09.132602+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-isolated-preference-profile,323720,2026-11-21T09:33:16.396123+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-isolated-preference-profile-after,323720,2026-11-21T09:36:23.562381+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-preferred-read-red-fixture,258184,2026-11-21T09:34:32.526638+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\network.json,160027,2026-11-21T09:36:59.930307+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\network-draft.json,159984,2026-11-21T09:22:11.766446+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\_tmp\PV\d6cg\r2-cardgrid-stable-1280-20261121,56025,2026-11-21T09:39:07.574891+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-cardgrid-stable-1920-20261121,55885,2026-11-21T09:39:11.183363+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\red-python.log,23800,2026-11-21T09:16:58.977944+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-baseline\server.jsonl,20536,2026-11-21T09:25:11.049887+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-final\server.jsonl,20536,2026-11-21T09:36:31.185818+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-retry\server.jsonl,20528,2026-11-21T09:25:19.248229+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-no-retry\server.jsonl,20511,2026-11-21T09:25:27.197239+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\red-browser.log,11254,2026-11-21T09:18:27.237416+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\focused-final.log,9398,2026-11-21T09:29:13.188558+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\browser-final.log,8276,2026-11-21T09:31:54.975722+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\_tmp\PV\d6cg\r2edit.py,3518,2026-11-21T09:35:13.767425+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\focused.log,2584,2026-11-21T09:22:20.631965+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\_tmp\PV\d6cg\r2append.py,2296,2026-11-21T09:28:52.259797+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-baseline\probe.jsonl,1399,2026-11-21T09:25:11.050888+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-final\probe.jsonl,1399,2026-11-21T09:36:31.186412+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-no-retry\probe.jsonl,1399,2026-11-21T09:25:27.198239+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-retry\probe.jsonl,1398,2026-11-21T09:25:19.248909+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\retest.log,1288,2026-11-21T09:30:25.381561+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\_tmp\PV\d6cg\r2pref-test.py,1209,2026-11-21T09:34:26.703200+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2browserappend.py,1173,2026-11-21T09:31:13.538982+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\red-baseline.log,1124,2026-11-21T09:30:21.054250+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\_tmp\PV\d6cg\r2network.py,1009,2026-11-21T09:29:33.818248+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\_tmp\PV\d6cg\r2-cardgrid-final-retest-fixture,889,2026-11-21T09:30:21.055751+00:00,0,"round-two source archive copy, profile, harness or test fixture"
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-baseline\server.log,47,2026-11-21T09:25:05.733351+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-final\server.log,47,2026-11-21T09:36:26.110283+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-no-retry\server.log,47,2026-11-21T09:25:22.082535+00:00,0,regenerable diagnostic; outside retained evidence
+DELETE,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-retry\server.log,47,2026-11-21T09:25:13.938100+00:00,0,regenerable diagnostic; outside retained evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\full.log,77422,2026-11-21T10:02:35.270189+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\stable-1280.png,52526,2026-11-21T09:39:07.491362+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\stable-1920.png,52388,2026-11-21T09:39:11.120152+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\red-replay.log,35578,2026-11-21T09:32:42.072220+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\RESULTS.md,8113,2026-11-21T10:04:39.766537+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe.py,8079,2026-11-21T09:35:17.339749+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\paired-after-2\raw.json,4887,2026-11-21T10:03:20.718772+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\paired-after-1\raw.json,4865,2026-11-21T10:03:09.033649+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\paired-before-2\raw.json,4811,2026-11-21T10:03:32.496264+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\red-preferences.log,4798,2026-11-21T09:34:33.108918+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\paired-before-1\raw.json,4779,2026-11-21T10:02:57.048939+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\red-inactive-controls.log,4716,2026-11-21T09:39:12.892711+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\SWEEP.md,3454,2026-11-21T09:45:42.444036+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\cleanup_inventory.py,2612,2026-11-21T10:05:19.778674+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\check-owned.ps1,2150,2026-11-21T10:04:04.655785+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\paired-summary.json,2074,2026-11-21T10:03:32.825813+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\preference_probe.py,1895,2026-11-21T09:33:10.245063+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-no-retry\result.json,1845,2026-11-21T09:25:27.690979+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-retry\result.json,1845,2026-11-21T09:25:19.806096+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-baseline\result.json,1844,2026-11-21T09:25:11.607354+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-final\result.json,1842,2026-11-21T09:36:31.679254+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\contract-1920\raw.json,1618,2026-11-21T09:36:48.368324+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\contract-1280\raw.json,1608,2026-11-21T09:36:37.125949+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\measure_pair.ps1,1405,2026-11-21T09:42:33.315659+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\pixel_compare.py,1266,2026-11-21T09:41:55.687690+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\CLEANUP.md,1235,2026-11-21T09:47:06.409918+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\browser-green.log,1124,2026-11-21T09:33:23.032511+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\contract-1280\summary.json,1086,2026-11-21T09:36:42.745977+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\contract-1920\summary.json,1086,2026-11-21T09:36:53.707485+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\aggregate_pair.py,955,2026-11-21T09:42:37.109771+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\STATE.md,835,2026-11-21T10:04:39.764443+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\preferences-sqlite.json,820,2026-11-21T09:33:16.925787+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\preferences-sqlite-after.json,799,2026-11-21T09:36:23.798248+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\pixel-summary.json,552,2026-11-21T09:42:00.332867+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\full-owned-processes.json,252,2026-11-21T09:45:03.985829+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\contract-1280\contract.json,225,2026-11-21T09:36:40.922920+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\contract-1920\contract.json,225,2026-11-21T09:36:51.849859+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\network-check.json,224,2026-11-21T09:45:34.246392+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\process-check.json,168,2026-11-21T10:04:05.513956+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\contract-1280\bookmark-contract.json,90,2026-11-21T09:36:42.658760+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\contract-1920\bookmark-contract.json,90,2026-11-21T09:36:53.596864+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\contract-1280\library-contract.json,85,2026-11-21T09:36:42.306958+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\contract-1920\library-contract.json,85,2026-11-21T09:36:53.279941+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-baseline\owned-server.json,41,2026-11-21T09:25:11.732102+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-final\owned-server.json,41,2026-11-21T09:36:31.767740+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-no-retry\owned-server.json,41,2026-11-21T09:25:27.775254+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\probe-retry\owned-server.json,40,2026-11-21T09:25:19.881426+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\contract-1920\owned-server.json,26,2026-11-21T09:36:53.706961+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\paired-before-2\owned-server.json,26,2026-11-21T10:03:32.583811+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\visual-1280-owned-server.json,26,2026-11-21T09:39:07.574891+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\visual-1920-owned-server.json,26,2026-11-21T09:39:11.182863+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\contract-1280\owned-server.json,25,2026-11-21T09:36:42.744979+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\paired-after-1\owned-server.json,25,2026-11-21T10:03:09.132602+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\paired-before-1\owned-server.json,25,2026-11-21T10:02:57.134157+00:00,0,retained candidate evidence
+KEEP,S:\Work\PV\d6-cardgrid-20261121\verify\d6cardgrid-20261121\r2\paired-after-2\owned-server.json,24,2026-11-21T10:03:20.841873+00:00,0,retained candidate evidence

@@ -1,0 +1,8 @@
+{
+    "stopped_owned_pids":  [
+                               108796,
+                               124720
+                           ],
+    "previous_session":  86654,
+    "reason":  "superseded by a regression fix"
+}

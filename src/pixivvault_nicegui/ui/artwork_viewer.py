@@ -414,14 +414,15 @@ class ArtworkViewer:
                 }});
             }})()""")
 
-    def focus_after_close(self, target) -> None:
+    def focus_after_close(self, target, *, opener=None) -> None:
         """Focus a replacement opener after its containing view redraws."""
+        lookup = opener or f"document.getElementById('{target.html_id}')"
         self.page.after_state(f"""(() => {{
             const viewer = document.getElementById('{self.root.html_id}');
             if (!viewer) return;
             const generation = viewer.__pvFocusGeneration;
             requestAnimationFrame(() => {{
-                const opener = document.getElementById('{target.html_id}');
+                const opener = {lookup};
                 if (viewer.isConnected && viewer.__pvFocusGeneration === generation &&
                     viewer.getAttribute('aria-hidden') === 'true' &&
                     opener?.isConnected && opener.getClientRects().length &&

@@ -122,6 +122,12 @@ body.body--light .pv-grid .pv-card-heart { color:var(--pv-fill); }
 .pv-menu-icon { order:-1; margin-right:12px; align-self:center; opacity:.8; }
 .pv-thumb { display:block; width:100%; aspect-ratio:1 / 1; min-width:0; background:var(--pv-surface); border-bottom:1px solid var(--pv-border); overflow:hidden; }
 .pv-thumb img { width:100%; height:100%; object-fit:contain !important; }
+.pv-grid-image { position:relative; }
+.pv-grid-image img { display:block; }
+.pv-grid-cover img { object-fit:cover !important; }
+.pv-grid-library-placeholder { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:32px; opacity:.55; }
+.pv-grid-image-error { position:absolute; inset:0; color:white; background:rgba(0,0,0,.47); }
+.pv-card-menu-anchor { position:fixed; width:0; height:0; pointer-events:none; }
 .pv-art { aspect-ratio:var(--pv-art-ratio, 1); background:var(--pv-raised); display:flex; align-items:center; justify-content:center; color:var(--pv-muted); font-size:12px; border-bottom:1px solid var(--pv-border); }
 .pv-card-meta { padding:12px; min-width:0; }
 .pv-card-title { font-size:14px; font-weight:600; color:var(--pv-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

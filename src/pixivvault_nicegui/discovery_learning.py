@@ -344,6 +344,22 @@ class DiscoveryLearningService(LearningService):
         revision = (snapshot.epoch, snapshot.fingerprint) if snapshot and local_rows else None
         return {'judged':count,'rows':tuple(rows),'ready':count >= TREND_MIN_JUDGMENTS, 'local_seed_rows':local_rows, 'local_revision':revision}
 
+    def ranking_preferred_tag_sets(self):
+        """Read the base and effective ranking tags from the same DB snapshot."""
+        from .ranking_preferred_tags import preferred_tag_set
+
+        local = self.local_tag_view
+        snapshot = local.snapshot() if local is not None else None
+
+        def read():
+            base = self._database().get_discovery_preferences()
+            base_tags = preferred_tag_set(base)
+            if snapshot is None:
+                return base_tags, base_tags
+            return base_tags, preferred_tag_set(local.merge_preferences(base, snapshot))
+
+        return self._submit(read).result()
+
     def base_preferred_tags(self):
         from .ranking_preferred_tags import preferred_tag_set
         return self._submit(lambda: preferred_tag_set(self._database().get_discovery_preferences())).result()

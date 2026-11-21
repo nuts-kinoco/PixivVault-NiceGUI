@@ -1,0 +1,57 @@
+{
+  "initial": {
+    "list_ms": 193.2,
+    "image_ms": 19.9,
+    "paint_ms": 224.3,
+    "screenshot_ms": 369.71,
+    "card": 2.09,
+    "render": 14.67,
+    "api": 150.41,
+    "residual_ms": 73.65,
+    "n": 5
+  },
+  "refresh": {
+    "list_ms": 183.7,
+    "image_ms": 0,
+    "paint_ms": 194.2,
+    "screenshot_ms": 304.51,
+    "card": 1.98,
+    "render": 14.35,
+    "api": 150.55,
+    "residual_ms": 43.41,
+    "n": 5
+  },
+  "mode": {
+    "list_ms": 323,
+    "image_ms": 20.3,
+    "paint_ms": 358.6,
+    "screenshot_ms": 502.1,
+    "card": 2.02,
+    "render": 14.43,
+    "api": 150.34,
+    "residual_ms": 208.32,
+    "n": 5
+  },
+  "sort": {
+    "list_ms": 30.6,
+    "image_ms": 0,
+    "paint_ms": 42.7,
+    "screenshot_ms": 136.63,
+    "card": 2.33,
+    "render": 15.19,
+    "api": 0,
+    "residual_ms": 42.7,
+    "n": 5
+  },
+  "library": {
+    "list_ms": 276.4,
+    "image_ms": 0,
+    "paint_ms": 285.3,
+    "screenshot_ms": 394.78,
+    "card": 0.82,
+    "render": 12.6,
+    "api": 0,
+    "residual_ms": 285.3,
+    "n": 5
+  }
+}

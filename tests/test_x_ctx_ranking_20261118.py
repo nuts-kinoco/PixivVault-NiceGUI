@@ -34,7 +34,7 @@ def make(tmp_path, source=None):
 
 
 def items_of(card):
-    return [n for n in card.descendants() if isinstance(n, ui.menu_item)]
+    return [node for node in card.descendants() if isinstance(node, ui.menu_item)]
 
 
 def label_of(item):
@@ -42,7 +42,13 @@ def label_of(item):
 
 
 def by_key(card, work_id, key):
-    return next(n for n in items_of(card) if n.props.get('data-testid') == f'ranking-ctx-{work_id}-{key}')
+    return next(item for item in card.data['menu'] if item['testid'] == f'ranking-ctx-{work_id}-{key}')
+
+
+async def card_click(view, work_id, action, *, epoch=None):
+    gallery = view.gallery
+    await gallery.dispatch_card_event(dict(work_id=work_id, action=action,
+        epoch=gallery.grid.render_epoch if epoch is None else epoch))
 
 
 async def click(item, *, args=None):
@@ -80,12 +86,9 @@ async def test_ranking_card_menu_has_the_five_original_items_in_order(tmp_path, 
             await settle(view)
             await view.load()
             card = view.gallery.cards['123']
-            assert [label_of(i) for i in items_of(card)] == MENU
-            assert by_key(card, '123', 'pixiv').props['href'] == 'https://www.pixiv.net/artworks/123'
-            assert by_key(card, '123', 'pixiv').props['target'] == '_blank'
-            assert 'noopener' in by_key(card, '123', 'pixiv').props['rel']
-            # 既存の入口は残る。
-            assert 'data-work-id=123' in str(card._props) or card.props.get('data-work-id') == '123'
+            assert [item['label'] for item in card.data['menu']] == MENU
+            assert by_key(card, '123', 'pixiv')['href'] == 'https://www.pixiv.net/artworks/123'
+            assert card.data['work_id'] == '123'
             assert view.root.props['data-testid'] == 'ranking-view'
             assert view.fetch_button.props['data-testid'] == 'ranking-fetch'
             view.close()
@@ -95,24 +98,30 @@ async def test_ranking_card_menu_has_the_five_original_items_in_order(tmp_path, 
 
 
 @pytest.mark.asyncio
-async def test_card_menu_opens_from_keyboard_context_menu_key_and_shift_f10(tmp_path, monkeypatch):
+async def test_card_menu_packet_uses_one_listener_and_rejects_stale_epoch(tmp_path, monkeypatch):
     monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
-    services, _ = make(tmp_path)
+    services, reader = make(tmp_path)
+    reader.rows = [row(123), row(124)]
     client = Client(ui.page('/_x_ctx_rank_keys'))
     try:
         with client:
             view = RankingView(services)
             view.set_active(True)
             await view.load()
-            card = view.gallery.cards['123']
-            listener = next(e for e in card._event_listeners.values()
-                            if e.type == 'keydown' and e.js_handler and 'F10' in e.js_handler)
-            assert 'ContextMenu' in listener.js_handler
-            menu = next(n for n in card.descendants() if isinstance(n, ui.context_menu))
-            opened = []
-            monkeypatch.setattr(menu, 'open', lambda: opened.append(1))
-            listener.handler(NS(args=None))
-            assert opened == [1]
+            grid = view.gallery.grid
+            assert [entry.type for entry in grid._event_listeners.values()] == ['cardAction']
+            epoch = grid.render_epoch
+            view.render()
+            assert grid.render_epoch == epoch
+
+            reader.rows = [row(124), row(123)]
+            await view.load()
+            assert tuple(view.gallery.cards) == ('124', '123')
+            assert grid.render_epoch != epoch
+            await card_click(view, '123', 'hide', epoch=epoch)
+            assert '123' in view.gallery.cards and not view.hidden_work_ids()
+            await card_click(view, '123', 'hide')
+            assert '123' not in view.gallery.cards and view.hidden_work_ids() == {'123'}
             view.close()
     finally:
         client.delete()
@@ -138,7 +147,7 @@ async def test_hide_removes_card_lists_it_and_restores_shared_with_recommend(tmp
             await view.load()
             assert set(view.gallery.cards) == {'123', '124'}
             assert not view.manage_badge.visible
-            await click(by_key(view.gallery.cards['123'], '123', 'hide'))
+            await card_click(view, '123', 'hide')
             # 同じ非表示データ（おすすめと共有）に入る。
             assert '123' in services.recommendations.snapshot()['hidden_works']
             assert set(view.gallery.cards) == {'124'}
@@ -184,7 +193,7 @@ async def test_undo_button_after_hide_and_hidden_in_recommend_filtered_from_rank
             view.set_active(True)
             await settle(view)
             await view.load()
-            await click(by_key(view.gallery.cards['124'], '124', 'hide'))
+            await card_click(view, '124', 'hide')
             assert set(view.gallery.cards) == {'123'}
             await click(view.undo_button)
             assert set(view.gallery.cards) == {'123', '124'} and not view.undo_button.visible
@@ -214,7 +223,7 @@ async def test_hide_without_writable_store_reports_and_keeps_card(tmp_path, monk
             view = RankingView(services)
             view.set_active(True)
             await view.load()
-            await click(by_key(view.gallery.cards['123'], '123', 'hide'))
+            await card_click(view, '123', 'hide')
             assert set(view.gallery.cards) == {'123'}
             assert '保存先が未指定' in view.action_status.text
             view.close()
@@ -256,15 +265,15 @@ async def test_bookmark_item_only_adds_through_pixiv_actions_and_never_removes(t
             view.set_active(True)
             await view.load()
             item = by_key(view.gallery.cards['123'], '123', 'bookmark')
-            assert item.enabled
-            await click(item)
+            assert item['enabled']
+            await card_click(view, '123', item['key'])
             assert [(i.action, i.target_id, i.author_id, i.account_id) for i in services.pixiv_actions.intents] == [
                 ('bookmark_add', '123', '91', '7')]
             assert view.action_status.text == 'ブックマークしました。'
             # 既に登録済みなら何も送らず、解除もしない。
             services.pixiv_actions = FakeActions(observed=True)
             view._hm().actions = None
-            await click(by_key(view.gallery.cards['123'], '123', 'bookmark'))
+            await card_click(view, '123', 'bookmark')
             assert services.pixiv_actions.intents == []
             assert '既に' in view.action_status.text
             view.close()
@@ -284,9 +293,9 @@ async def test_bookmark_and_queue_disabled_without_their_services(tmp_path, monk
             view.set_active(True)
             await view.load()
             card = view.gallery.cards['123']
-            assert not by_key(card, '123', 'bookmark').enabled
-            assert not by_key(card, '123', 'queue').enabled
-            assert by_key(card, '123', 'hide').enabled and by_key(card, '123', 'boost').enabled
+            assert not by_key(card, '123', 'bookmark')['enabled']
+            assert not by_key(card, '123', 'queue')['enabled']
+            assert by_key(card, '123', 'hide')['enabled'] and by_key(card, '123', 'boost')['enabled']
             view.close()
     finally:
         client.delete()
@@ -311,9 +320,9 @@ async def test_queue_item_uses_existing_explicit_save_with_stable_operation(tmp_
             view.set_active(True)
             await view.load()
             item = by_key(view.gallery.cards['123'], '123', 'queue')
-            assert item.enabled
-            await click(item)
-            await click(item)
+            assert item['enabled']
+            await card_click(view, '123', item['key'])
+            await card_click(view, '123', item['key'])
             assert [a[0] for a in accepted] == ['123', '123'] and accepted[0][1] == accepted[1][1]
             assert accepted[0][2] is True
             assert view.action_status.text == 'ダウンロードキューへ積みました。'
@@ -333,7 +342,7 @@ async def test_boost_author_registers_in_shared_recommend_boost_list(tmp_path, m
             view = RankingView(services)
             view.set_active(True)
             await view.load()
-            await click(by_key(view.gallery.cards['123'], '123', 'boost'))
+            await card_click(view, '123', 'boost')
             assert dict(services.recommendations.snapshot()['boosted']).get('91') == '作者'
             assert view.action_status.text == '「作者」をもっと見るに追加しました。'
             view.close()

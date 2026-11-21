@@ -1,0 +1,38 @@
+{
+  "original": {
+    "metadata_ms": {
+      "median": 749.94,
+      "p95": 859.873
+    },
+    "metadata_to_image_ms": {
+      "median": 37.342,
+      "p95": 40.627
+    },
+    "card_call_ms": {
+      "median": 0.128,
+      "p95": 0.151
+    },
+    "render_ms": {
+      "median": 23.971,
+      "p95": 24.246
+    }
+  },
+  "nice": {
+    "metadata_ms": {
+      "median": 650.99,
+      "p95": 693.166
+    },
+    "metadata_to_image_ms": {
+      "median": 73.945,
+      "p95": 74.087
+    },
+    "card_call_ms": {
+      "median": 1.307,
+      "p95": 1.606
+    },
+    "render_ms": {
+      "median": 6.026,
+      "p95": 7.602
+    }
+  }
+}

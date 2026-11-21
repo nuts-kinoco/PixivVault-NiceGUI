@@ -66,7 +66,7 @@ class GalleryState:
         self.generation += 1
         self._pending_token = None
 
-    def set_query(self, query: str) -> None:
+    def set_query(self, query: str, *, preserve_if_unchanged: bool = False) -> None:
         if self.closed:
             return
         if not isinstance(query, str):
@@ -74,10 +74,14 @@ class GalleryState:
         if query != self.query:
             self.query = query
             needle = query.casefold()
-            self._matching = tuple(item for item in self.artworks if not needle or any(
+            matching = tuple(item for item in self.artworks if not needle or any(
                 needle in value.casefold()
                 for value in (item.title, item.author, item.description, *item.tags)
             ))
+            if (preserve_if_unchanged and matching == self._matching
+                    and matching[:self.page_size] == self.visible_items):
+                return
+            self._matching = matching
             self._limit = self.page_size
             self.selected_id = None
             self.selected_page = 0

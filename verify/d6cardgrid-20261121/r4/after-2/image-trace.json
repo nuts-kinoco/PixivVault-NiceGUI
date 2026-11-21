@@ -1,0 +1,596 @@
+[
+  [
+    {
+      "rank": 1,
+      "request_ms": 398.34
+    },
+    {
+      "rank": 2,
+      "request_ms": 399.84
+    },
+    {
+      "rank": 3,
+      "request_ms": 402.05
+    },
+    {
+      "rank": 4,
+      "request_ms": 403.84
+    },
+    {
+      "rank": 5,
+      "request_ms": 405.86
+    },
+    {
+      "rank": 6,
+      "request_ms": 410.4
+    },
+    {
+      "rank": 7,
+      "request_ms": 411.79
+    },
+    {
+      "rank": 8,
+      "request_ms": 413.45
+    },
+    {
+      "rank": 9,
+      "request_ms": 414.86
+    },
+    {
+      "rank": 10,
+      "request_ms": 416.72
+    },
+    {
+      "rank": 11,
+      "request_ms": 418.11
+    },
+    {
+      "rank": 12,
+      "request_ms": 419.63
+    },
+    {
+      "rank": 13,
+      "request_ms": 421.64
+    },
+    {
+      "rank": 14,
+      "request_ms": 423.19
+    },
+    {
+      "rank": 15,
+      "request_ms": 424.37
+    },
+    {
+      "rank": 16,
+      "request_ms": 425.65
+    },
+    {
+      "rank": 17,
+      "request_ms": 427.0
+    },
+    {
+      "rank": 18,
+      "request_ms": 428.75
+    },
+    {
+      "rank": 19,
+      "request_ms": 433.71
+    },
+    {
+      "rank": 20,
+      "request_ms": 435.08
+    },
+    {
+      "rank": 22,
+      "request_ms": 436.56
+    },
+    {
+      "rank": 23,
+      "request_ms": 438.1
+    },
+    {
+      "rank": 24,
+      "request_ms": 439.99
+    },
+    {
+      "rank": 25,
+      "request_ms": 441.01
+    },
+    {
+      "rank": 26,
+      "request_ms": 442.87
+    },
+    {
+      "rank": 27,
+      "request_ms": 444.09
+    },
+    {
+      "rank": 28,
+      "request_ms": 445.34
+    },
+    {
+      "rank": 29,
+      "request_ms": 446.56
+    },
+    {
+      "rank": 30,
+      "request_ms": 448.08
+    },
+    {
+      "rank": 31,
+      "request_ms": 448.91
+    },
+    {
+      "rank": 32,
+      "request_ms": 450.15
+    },
+    {
+      "rank": 33,
+      "request_ms": 451.18
+    },
+    {
+      "rank": 34,
+      "request_ms": 453.8
+    },
+    {
+      "rank": 35,
+      "request_ms": 456.76
+    },
+    {
+      "rank": 36,
+      "request_ms": 459.03
+    },
+    {
+      "rank": 37,
+      "request_ms": 460.74
+    },
+    {
+      "rank": 38,
+      "request_ms": 462.11
+    },
+    {
+      "rank": 39,
+      "request_ms": 463.83
+    },
+    {
+      "rank": 40,
+      "request_ms": 464.84
+    },
+    {
+      "rank": 41,
+      "request_ms": 465.81
+    },
+    {
+      "rank": 42,
+      "request_ms": 466.83
+    },
+    {
+      "rank": 43,
+      "request_ms": 467.79
+    },
+    {
+      "rank": 44,
+      "request_ms": 469.08
+    },
+    {
+      "rank": 45,
+      "request_ms": 470.05
+    },
+    {
+      "rank": 46,
+      "request_ms": 471.04
+    },
+    {
+      "rank": 47,
+      "request_ms": 472.59
+    },
+    {
+      "rank": 48,
+      "request_ms": 473.47
+    },
+    {
+      "rank": 49,
+      "request_ms": 474.6
+    },
+    {
+      "rank": 50,
+      "request_ms": 475.63
+    }
+  ],
+  [
+    {
+      "rank": 1,
+      "request_ms": 404.01
+    },
+    {
+      "rank": 2,
+      "request_ms": 405.8
+    },
+    {
+      "rank": 3,
+      "request_ms": 407.99
+    },
+    {
+      "rank": 4,
+      "request_ms": 410.28
+    },
+    {
+      "rank": 5,
+      "request_ms": 412.62
+    },
+    {
+      "rank": 6,
+      "request_ms": 415.09
+    },
+    {
+      "rank": 7,
+      "request_ms": 418.86
+    },
+    {
+      "rank": 8,
+      "request_ms": 420.48
+    },
+    {
+      "rank": 9,
+      "request_ms": 422.69
+    },
+    {
+      "rank": 10,
+      "request_ms": 424.52
+    },
+    {
+      "rank": 11,
+      "request_ms": 426.46
+    },
+    {
+      "rank": 12,
+      "request_ms": 428.31
+    },
+    {
+      "rank": 13,
+      "request_ms": 430.38
+    },
+    {
+      "rank": 14,
+      "request_ms": 432.53
+    },
+    {
+      "rank": 15,
+      "request_ms": 434.36
+    },
+    {
+      "rank": 16,
+      "request_ms": 436.08
+    },
+    {
+      "rank": 17,
+      "request_ms": 438.03
+    },
+    {
+      "rank": 18,
+      "request_ms": 440.73
+    },
+    {
+      "rank": 19,
+      "request_ms": 444.33
+    },
+    {
+      "rank": 20,
+      "request_ms": 445.68
+    },
+    {
+      "rank": 22,
+      "request_ms": 446.74
+    },
+    {
+      "rank": 23,
+      "request_ms": 447.98
+    },
+    {
+      "rank": 24,
+      "request_ms": 450.28
+    },
+    {
+      "rank": 25,
+      "request_ms": 451.48
+    },
+    {
+      "rank": 26,
+      "request_ms": 452.63
+    },
+    {
+      "rank": 27,
+      "request_ms": 454.18
+    },
+    {
+      "rank": 28,
+      "request_ms": 455.6
+    },
+    {
+      "rank": 29,
+      "request_ms": 456.6
+    },
+    {
+      "rank": 30,
+      "request_ms": 457.65
+    },
+    {
+      "rank": 31,
+      "request_ms": 458.85
+    },
+    {
+      "rank": 32,
+      "request_ms": 459.91
+    },
+    {
+      "rank": 33,
+      "request_ms": 461.09
+    },
+    {
+      "rank": 34,
+      "request_ms": 462.72
+    },
+    {
+      "rank": 35,
+      "request_ms": 464.24
+    },
+    {
+      "rank": 36,
+      "request_ms": 466.72
+    },
+    {
+      "rank": 37,
+      "request_ms": 469.26
+    },
+    {
+      "rank": 38,
+      "request_ms": 470.25
+    },
+    {
+      "rank": 39,
+      "request_ms": 471.57
+    },
+    {
+      "rank": 40,
+      "request_ms": 472.73
+    },
+    {
+      "rank": 41,
+      "request_ms": 474.19
+    },
+    {
+      "rank": 42,
+      "request_ms": 475.46
+    },
+    {
+      "rank": 43,
+      "request_ms": 476.96
+    },
+    {
+      "rank": 44,
+      "request_ms": 479.18
+    },
+    {
+      "rank": 45,
+      "request_ms": 480.61
+    },
+    {
+      "rank": 46,
+      "request_ms": 481.91
+    },
+    {
+      "rank": 47,
+      "request_ms": 483.68
+    },
+    {
+      "rank": 48,
+      "request_ms": 486.33
+    },
+    {
+      "rank": 49,
+      "request_ms": 488.82
+    },
+    {
+      "rank": 50,
+      "request_ms": 490.28
+    }
+  ],
+  [
+    {
+      "rank": 1,
+      "request_ms": 394.69
+    },
+    {
+      "rank": 2,
+      "request_ms": 396.69
+    },
+    {
+      "rank": 3,
+      "request_ms": 400.54
+    },
+    {
+      "rank": 4,
+      "request_ms": 403.54
+    },
+    {
+      "rank": 5,
+      "request_ms": 405.66
+    },
+    {
+      "rank": 6,
+      "request_ms": 407.41
+    },
+    {
+      "rank": 7,
+      "request_ms": 410.06
+    },
+    {
+      "rank": 8,
+      "request_ms": 411.48
+    },
+    {
+      "rank": 9,
+      "request_ms": 412.92
+    },
+    {
+      "rank": 10,
+      "request_ms": 414.37
+    },
+    {
+      "rank": 11,
+      "request_ms": 415.93
+    },
+    {
+      "rank": 12,
+      "request_ms": 417.35
+    },
+    {
+      "rank": 13,
+      "request_ms": 418.78
+    },
+    {
+      "rank": 14,
+      "request_ms": 420.03
+    },
+    {
+      "rank": 15,
+      "request_ms": 421.32
+    },
+    {
+      "rank": 16,
+      "request_ms": 422.36
+    },
+    {
+      "rank": 17,
+      "request_ms": 423.51
+    },
+    {
+      "rank": 18,
+      "request_ms": 424.74
+    },
+    {
+      "rank": 19,
+      "request_ms": 427.78
+    },
+    {
+      "rank": 20,
+      "request_ms": 428.66
+    },
+    {
+      "rank": 22,
+      "request_ms": 430.23
+    },
+    {
+      "rank": 23,
+      "request_ms": 432.36
+    },
+    {
+      "rank": 24,
+      "request_ms": 435.51
+    },
+    {
+      "rank": 25,
+      "request_ms": 437.18
+    },
+    {
+      "rank": 26,
+      "request_ms": 438.67
+    },
+    {
+      "rank": 27,
+      "request_ms": 440.18
+    },
+    {
+      "rank": 28,
+      "request_ms": 441.37
+    },
+    {
+      "rank": 29,
+      "request_ms": 442.66
+    },
+    {
+      "rank": 30,
+      "request_ms": 444.21
+    },
+    {
+      "rank": 31,
+      "request_ms": 445.8
+    },
+    {
+      "rank": 32,
+      "request_ms": 447.33
+    },
+    {
+      "rank": 33,
+      "request_ms": 449.33
+    },
+    {
+      "rank": 34,
+      "request_ms": 450.36
+    },
+    {
+      "rank": 35,
+      "request_ms": 451.96
+    },
+    {
+      "rank": 36,
+      "request_ms": 454.19
+    },
+    {
+      "rank": 37,
+      "request_ms": 455.53
+    },
+    {
+      "rank": 38,
+      "request_ms": 456.66
+    },
+    {
+      "rank": 39,
+      "request_ms": 458.23
+    },
+    {
+      "rank": 40,
+      "request_ms": 459.37
+    },
+    {
+      "rank": 41,
+      "request_ms": 460.91
+    },
+    {
+      "rank": 42,
+      "request_ms": 462.35
+    },
+    {
+      "rank": 43,
+      "request_ms": 464.08
+    },
+    {
+      "rank": 44,
+      "request_ms": 466.08
+    },
+    {
+      "rank": 45,
+      "request_ms": 467.77
+    },
+    {
+      "rank": 46,
+      "request_ms": 470.02
+    },
+    {
+      "rank": 47,
+      "request_ms": 471.77
+    },
+    {
+      "rank": 48,
+      "request_ms": 488.9
+    },
+    {
+      "rank": 49,
+      "request_ms": 490.1
+    },
+    {
+      "rank": 50,
+      "request_ms": 491.25
+    }
+  ]
+]

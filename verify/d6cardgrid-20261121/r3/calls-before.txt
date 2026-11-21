@@ -1,0 +1,118 @@
+﻿172e7d7:src/pixivvault_nicegui/ui/author_browse_view.py:64:        self.close_viewer()
+172e7d7:src/pixivvault_nicegui/ui/author_browse_view.py:171:            self.gallery.render_gallery()
+172e7d7:src/pixivvault_nicegui/ui/bookmark_view.py:116:                or type(args.get('epoch')) is not int or args['epoch'] != self.grid.render_epoch):
+172e7d7:src/pixivvault_nicegui/ui/bookmark_view.py:144:            self.grid.invalidate_actions()
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:38:    <div ref="grid" :data-render-epoch="render_epoch">
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:104:                        @update:model-value="value => send(card, 'select', render_epoch, value)" />
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:144:      <span v-for="session in menuSession ? [menuSession] : []" :key="session.sequence"
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:150:                  :href="entry.enabled && grid_active && session.epoch === render_epoch ? entry.href : undefined"
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:165:    render_epoch: Number,
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:173:    return {columns: 6, resizeObserver: null, menuSession: null, menuSequence: 0,
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:177:    render_epoch() { this.menuSession = null; },
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:178:    grid_active(active) { if (!active) this.menuSession = null; },
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:198:    send(card, action, epoch = this.render_epoch, value) {
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:225:      const sequence = ++this.menuSequence;
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:226:      const epoch = this.render_epoch;
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:227:      this.menuSession = {sequence, epoch, card, opener, x, y};
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:229:      if (this.menuSession?.sequence === sequence && epoch === this.render_epoch && this.grid_active) {
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:235:      if (menu?.$el && this.menuSession) menu.hide();
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:236:      else this.menuSession = null;
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:239:      if (!entry.enabled || session.sequence !== this.menuSession?.sequence ||
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:240:          session.epoch !== this.render_epoch || !this.grid_active) {
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:248:      if (session.sequence !== this.menuSession?.sequence) return;
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:249:      if (this.grid_active && session.epoch === this.render_epoch && session.opener?.isConnected &&
+172e7d7:src/pixivvault_nicegui/ui/card_grid.js:253:      this.menuSession = null;
+172e7d7:src/pixivvault_nicegui/ui/card_grid.py:9:        self.props['render_epoch'] = 0
+172e7d7:src/pixivvault_nicegui/ui/card_grid.py:14:    def render_epoch(self):
+172e7d7:src/pixivvault_nicegui/ui/card_grid.py:15:        return self.props['render_epoch']
+172e7d7:src/pixivvault_nicegui/ui/card_grid.py:17:    def invalidate_actions(self):
+172e7d7:src/pixivvault_nicegui/ui/card_grid.py:18:        self.props['render_epoch'] += 1
+172e7d7:src/pixivvault_nicegui/ui/gallery.py:60:        self.render_gallery()
+172e7d7:src/pixivvault_nicegui/ui/gallery.py:90:                or type(args.get('epoch')) is not int or args['epoch'] != self.grid.render_epoch):
+172e7d7:src/pixivvault_nicegui/ui/gallery.py:119:    def render_gallery(self, *, retire_actions=True) -> None:
+172e7d7:src/pixivvault_nicegui/ui/gallery.py:140:            self.grid.invalidate_actions()
+172e7d7:src/pixivvault_nicegui/ui/gallery.py:147:            self.grid.invalidate_actions()
+172e7d7:src/pixivvault_nicegui/ui/gallery.py:158:            super().close_viewer()
+172e7d7:src/pixivvault_nicegui/ui/gallery.py:159:        self.render_gallery()
+172e7d7:src/pixivvault_nicegui/ui/gallery.py:165:        self.render_gallery(retire_actions=False)
+172e7d7:src/pixivvault_nicegui/ui/gallery.py:185:        self._close_viewer_controller()
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:98:        self._page_session = object()
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:99:        self._author_session = object()
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:100:        self._more_session = object()
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:675:        self._bookmark_open_epoch += 1
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:682:        self.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:686:        self._author_session = object()
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:689:        self.author_grid.invalidate_actions()
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:710:        self.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:711:        self._bookmark_open_epoch += 1
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:756:        self._bookmark_open_epoch += 1
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:762:    def close_viewer(self, *, restore_focus=True, apply_deferred=True):
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:769:        super().close_viewer(restore_focus=restore_focus and not returns_to_redraw)
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:855:                    self.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:856:                    self._bookmark_open_epoch += 1
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:887:            self._bookmark_open_epoch += 1
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:891:        self._bookmark_open_epoch += 1
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:930:            self.close_viewer(restore_focus=False, apply_deferred=False)
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:935:        self.author_grid.invalidate_actions()
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:938:        self._page_session = object()
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:939:        self._author_session = object()
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:1058:                or type(args.get('epoch')) is not int or args['epoch'] != self.author_grid.render_epoch):
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:1085:                grid.invalidate_actions()
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:1125:            self._author_session = object()
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:1126:            self.author_grid.invalidate_actions()
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:1150:        self._more_session = object()
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:1153:        self.page_grid.invalidate_actions()
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:1180:                or type(args.get('epoch')) is not int or args['epoch'] != self.page_grid.render_epoch):
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:1323:                self.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:1396:            self.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:1483:            self.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:1497:            self.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:1509:        self.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:1568:            self._bookmark_open_epoch += 1
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:1611:        self._bookmark_open_epoch += 1
+172e7d7:src/pixivvault_nicegui/ui/library_view.py:1618:        self._close_viewer_controller()
+172e7d7:src/pixivvault_nicegui/ui/personal_ranking_view.py:93:        self._local_revision_timer=ui.timer(1.0, self._sync_local_context) if getattr(services, 'local_tag_view', None) is not None else None
+172e7d7:src/pixivvault_nicegui/ui/personal_ranking_view.py:98:        self._sync_local_context()
+172e7d7:src/pixivvault_nicegui/ui/personal_ranking_view.py:100:    def _sync_local_context(self):
+172e7d7:src/pixivvault_nicegui/ui/personal_ranking_view.py:181:        self.gallery.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/personal_ranking_view.py:189:        self.gallery.render_gallery()
+172e7d7:src/pixivvault_nicegui/ui/personal_ranking_view.py:219:        task=background_tasks.create(self._refresh_context());self._context_task=task
+172e7d7:src/pixivvault_nicegui/ui/personal_ranking_view.py:226:    async def _refresh_context(self):
+172e7d7:src/pixivvault_nicegui/ui/personal_ranking_view.py:369:                context = await pending if pending is not None and not pending.done() else await self._refresh_context()
+172e7d7:src/pixivvault_nicegui/ui/personal_ranking_view.py:458:        self.gallery.close_viewer(restore_focus=False);old=self.gallery.state
+172e7d7:src/pixivvault_nicegui/ui/personal_ranking_view.py:461:        self.gallery.state=self.gallery._viewer_state=state;self.gallery.render_gallery(retire_actions=not append)
+172e7d7:src/pixivvault_nicegui/ui/ranking_card_menus.py:143:    async def refresh_hidden(self) -> bool:
+172e7d7:src/pixivvault_nicegui/ui/ranking_view.py:26:    def render_gallery(self, *, retire_actions=True):
+172e7d7:src/pixivvault_nicegui/ui/ranking_view.py:27:        super().render_gallery(retire_actions=retire_actions)
+172e7d7:src/pixivvault_nicegui/ui/ranking_view.py:41:    def close_viewer(self, *, restore_focus=True):
+172e7d7:src/pixivvault_nicegui/ui/ranking_view.py:43:        if owner is not None:owner._open_generation+=1
+172e7d7:src/pixivvault_nicegui/ui/ranking_view.py:44:        super().close_viewer(restore_focus=restore_focus)
+172e7d7:src/pixivvault_nicegui/ui/ranking_view.py:49:        if self._viewer_state is not self.state:self.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/ranking_view.py:52:        if self._viewer_state is not self.state:self.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/ranking_view.py:53:        self.owner._open_generation+=1
+172e7d7:src/pixivvault_nicegui/ui/ranking_view.py:105:        self._local_revision_timer=ui.timer(1.0, self._sync_local_revision) if getattr(services, 'local_tag_view', None) is not None else None
+172e7d7:src/pixivvault_nicegui/ui/ranking_view.py:110:        self._sync_local_revision()
+172e7d7:src/pixivvault_nicegui/ui/ranking_view.py:112:    def _sync_local_revision(self):
+172e7d7:src/pixivvault_nicegui/ui/ranking_view.py:380:        if not keep_viewer:self.gallery.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/ranking_view.py:391:        self.gallery.render_gallery(retire_actions=not append)
+172e7d7:src/pixivvault_nicegui/ui/ranking_view.py:417:        try:self._hm().task=asyncio.get_running_loop().create_task(self.refresh_hidden())
+172e7d7:src/pixivvault_nicegui/ui/recommend_view.py:277:        self._open_generation+=1
+172e7d7:src/pixivvault_nicegui/ui/recommend_view.py:326:        render_epoch = browser.gallery.grid.render_epoch
+172e7d7:src/pixivvault_nicegui/ui/recommend_view.py:330:                    and browser.gallery.grid.render_epoch == render_epoch
+172e7d7:src/pixivvault_nicegui/ui/recommend_view.py:341:        self._recommend_viewer.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/recommend_view.py:387:        if not preserve_viewer:self._recommend_viewer.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/recommendation_viewer.py:33:        super().close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/recommendation_viewer.py:55:        self.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/recommendation_viewer.py:61:    def close_viewer(self, *, restore_focus=True):
+172e7d7:src/pixivvault_nicegui/ui/recommendation_viewer.py:63:        super().close_viewer(restore_focus=restore_focus)
+172e7d7:src/pixivvault_nicegui/ui/recommendation_viewer.py:71:        self.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/recommendation_viewer.py:72:        self._close_viewer_controller()
+172e7d7:src/pixivvault_nicegui/ui/shell.py:470:            self.view_history.viewer.close_viewer(restore_focus=False)  # 履歴から開いた作品は別タブへ持ち越さない
+172e7d7:src/pixivvault_nicegui/ui/viewer_controller.py:40:            self.close_viewer, self.toggle_details, self.request_image,
+172e7d7:src/pixivvault_nicegui/ui/viewer_controller.py:87:        host.on("keydown.escape", lambda _: self.close_viewer()
+172e7d7:src/pixivvault_nicegui/ui/viewer_controller.py:96:            self.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/viewer_controller.py:541:        self.close_viewer(restore_focus=False)
+172e7d7:src/pixivvault_nicegui/ui/viewer_controller.py:558:                self.close_viewer()
+172e7d7:src/pixivvault_nicegui/ui/viewer_controller.py:560:    def close_viewer(self, *, restore_focus: bool = True) -> None:
+172e7d7:src/pixivvault_nicegui/ui/viewer_controller.py:574:        self._viewer_state.close_viewer()
+172e7d7:src/pixivvault_nicegui/ui/viewer_controller.py:580:    def _close_viewer_controller(self) -> None:

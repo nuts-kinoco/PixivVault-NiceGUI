@@ -105,12 +105,12 @@ def metadata_ready(page, side, require_transition=False):
     if side == "original":
         original_ready(page, require_transition)
     else:
-        page.wait_for_function(r"""([heading, card]) => {
+        page.wait_for_function(r"""([heading, card, requireTransition]) => {
             const status = document.querySelector(heading);
             const first = document.querySelector(card);
-            return status && /\d+\s*件/.test(status.textContent) &&
-                first && (!window.__d6PreviousCard || first !== window.__d6PreviousCard);
-        }""", arg=[NICE_STATUS, NICE_CARD], timeout=18000)
+            return status && /\d+\s*件/.test(status.textContent) && first &&
+                (!requireTransition || window.__d6SawLoading);
+        }""", arg=[NICE_STATUS, NICE_CARD, require_transition], timeout=18000)
     two_frames(page)
     return perf_counter()
 
@@ -121,6 +121,7 @@ def image_ready(page, side):
         image = page.locator(f'flt-semantics[aria-label="{ORIGINAL_IMAGE}"]')
         image.or_(page.get_by_label(ORIGINAL_IMAGE, exact=True)).first.wait_for(
             state="visible", timeout=14000)
+        two_frames(page)
     else:
         page.wait_for_function("""cardSelector => {
             const image = document.querySelector(cardSelector + ' .pv-thumb img');
@@ -130,9 +131,10 @@ def image_ready(page, side):
           const image = document.querySelector(cardSelector + ' .pv-thumb img');
           const begin = performance.now();
           await image.decode();
-          return performance.now() - begin;
+          const decodeTime = performance.now() - begin;
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          return decodeTime;
         }""", NICE_CARD)
-    two_frames(page)
     return perf_counter(), decoded
 
 
@@ -192,7 +194,18 @@ def sample(ledger, page, button, side, pair, observe_image):
     if side == "original":
         page.evaluate("() => window.__d6SawLoading = false")
     else:
-        page.evaluate("selector => window.__d6PreviousCard = document.querySelector(selector)", NICE_CARD)
+        page.evaluate("""selector => {
+            window.__d6SawLoading = false;
+            const status = document.querySelector(selector);
+            window.__d6StatusObserver?.disconnect();
+            window.__d6StatusObserver = new MutationObserver(records => {
+                if (status.textContent.trim() === '取得中…' || records.some(record =>
+                    record.oldValue?.trim() === '取得中…' || [...record.addedNodes].some(
+                        node => node.textContent.trim() === '取得中…'))) window.__d6SawLoading = true;
+            });
+            window.__d6StatusObserver.observe(status, {childList: true, subtree: true,
+                characterData: true, characterDataOldValue: true});
+        }""", NICE_STATUS)
     button.scroll_into_view_if_needed()
     box = button.bounding_box()
     if not box:

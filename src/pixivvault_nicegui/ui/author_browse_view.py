@@ -35,22 +35,15 @@ class _Services:
 
 
 class _Gallery(GalleryView):
-    def _card_menu(self, art, card):
+    def _card_menu(self, art):
         if self.owner.build_card_menu is not None:
-            self.owner.build_card_menu(art, card, self.owner)
+            return self.owner.build_card_menu(art, self.owner)
+        return None, ()
 
-    def _make_card(self, art):
-        if art.work_id not in self.owner.missing_previews:
-            return super()._make_card(art)
-        # Original author pages retain a missing preview instead of losing a work.
-        with self.grid:
-            with ui.element('div').classes('pv-card').props(f'data-work-id={art.work_id}') as card:
-                self.ranks[art.work_id] = ui.label().classes('pv-card-rank')
-                ui.label('画像を取得できません').classes('pv-thumb pv-subtitle')
-                with ui.element('div').classes('pv-card-meta'):
-                    ui.label(art.title).classes('pv-card-title')
-                    ui.label(art.author).classes('pv-card-author')
-        self.cards[art.work_id] = card
+    def _card_source(self, art):
+        if art.work_id in self.owner.missing_previews:
+            return None
+        return super()._card_source(art)
 
     def open(self, work_id, page_no=0):
         if self.owner.closed or not self.owner.visible or not self._viewer_active or self.state.closed:
@@ -130,13 +123,14 @@ class AuthorBrowseView:
     async def show(self, author_id, name):
         if self.closed or getattr(self.services, 'closing', False):
             return
-        self.epoch += 1
-        epoch = self.epoch
         cached = self.cache.get(author_id)
         reuse = (author_id == self._rendered_author_id
                  and cached is not None and cached is self._rendered_records
                  and self.pin is not None and not self.pin.closed
                  and self.proxy.images is self.pin and not self.gallery.state.closed)
+        if not reuse or not self.visible:
+            self.epoch += 1
+        epoch = self.epoch
         self.author_id, self.author_name, self.visible = author_id, name, True
         self.follow_actions.bind(None, author_id, author_name=name,
             is_current=lambda: self.visible and not self.closed and self.epoch == epoch
@@ -152,7 +146,7 @@ class AuthorBrowseView:
         self.retry.set_visibility(False)
         if reuse:
             # Keep the expanded/search state and the existing scroll/card DOM.
-            # The new epoch still invalidates every older pending viewer action.
+            # Reopening a hidden author still has a new author epoch.
             self.status.set_text('')
             self.gallery.set_viewer_active(True)
             self.gallery.root.set_visibility(True)
@@ -175,12 +169,6 @@ class AuthorBrowseView:
             self.gallery.state.close()
             self.gallery.state = self.gallery._viewer_state = state
             self.gallery.search_input.set_value('')
-            self.gallery.grid.clear()
-            self.gallery.cards.clear()
-            self.gallery.images.clear()
-            self.gallery.ranks.clear()
-            self.gallery.more_cell = None
-            self.gallery._rendered_ids = ()
             self.gallery.render_gallery()
             self.gallery.set_viewer_active(True)
             self.gallery.root.set_visibility(True)
@@ -232,15 +220,7 @@ class AuthorBrowseView:
         if (self.closed or not self.visible or epoch != self.epoch
                 or request != self.open_request or provider is not self.pin):
             return
-        old = self.gallery.state
-        state = GalleryState(tuple(art if a.work_id == work_id else a for a in old.artworks), page_size=old.page_size)
-        state.set_card_size(old.card_size)
-        state.set_query(old.query)
-        while state.shown_count < old.shown_count and state.has_more:
-            state.load_more()
-        old.close()
-        self.gallery.state = self.gallery._viewer_state = state
-        self.gallery.open(work_id)
+        self.gallery.open_resolved_artwork(art)
 
     def hide(self):
         self.epoch += 1

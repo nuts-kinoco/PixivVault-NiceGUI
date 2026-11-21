@@ -195,19 +195,10 @@ async def test_new_bookmark_card_has_current_source_after_dismissal(tmp_path, mo
             else:
                 view.set_active(False)
                 view.set_active(True)
-            def walk(node):
-                yield node
-                for child in node.default_slot.children:
-                    yield from walk(child)
             card = view.bookmarks.cards['204']
-            image = next(node for node in walk(card) if node.props.get('src') and 'pv-thumb' in node.classes)
-            opener = next(node for node in walk(card) if node.props.get('data-testid') == 'bookmark-open')
-            print(dismiss, 'same_provider', view._image_provider is old_provider,
-                  'card_current', view._image_provider.url('204',0,'thumb') == image.props['src'],
-                  'disabled', opener.props.get('aria-disabled'))
             assert view._image_provider is not old_provider
-            assert image.props['src'] == view._image_provider.url('204',0,'thumb')
-            assert not opener.props.get('aria-disabled')
+            assert card['src'] == view._image_provider.url('204', 0, 'thumb')
+            assert not card['disabled']
             view.open_bookmark('204')
             assert view._viewer_state.viewer_open
     finally:

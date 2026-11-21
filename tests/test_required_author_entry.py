@@ -87,12 +87,13 @@ async def test_gallery_context_opens_author_and_rejects_hidden_card():
     try:
         with client:
             view=GalleryView(s)
-            buttons=[x for x in view.cards[art.work_id].descendants() if x.props.get('data-testid')=='gallery-author-open']
-            assert len(buttons)==1
-            await view.open_card_author(art,view.state)
+            buttons=view.cards[art.work_id].data['menu']
+            assert [button['testid'] for button in buttons] == ['gallery-author-open']
+            event = dict(work_id=art.work_id, action='author', epoch=view.grid.render_epoch)
+            await view.dispatch_card_event(event)
             assert view._author_browser.author_id=='91'
             view._author_browser.hide();view.search('no matching generated title')
-            before=list(calls);await view.open_card_author(art,view.state)
+            before=list(calls);await view.dispatch_card_event(event)
             assert calls==before and not view._author_browser.visible
             view.close()
     finally:client.delete();s.close()
@@ -109,7 +110,7 @@ async def test_bookmark_author_context_uses_only_current_visible_card():
             state=BookmarkState(local=(),cached_remote=(art,))
             view=BookmarkView(state,on_author=lambda item:opened.append(item))
             view.render()
-            assert any(x.props.get('data-testid')=='bookmark-author-open' for x in view.cards[art.work_id].descendants())
+            assert any(item['testid'] == 'bookmark-author-open' for item in view.cards[art.work_id]['menu'])
             token=view._session
             assert await view.open_author(art.work_id,token)
             assert opened==[art]

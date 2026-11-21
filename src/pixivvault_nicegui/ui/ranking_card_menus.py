@@ -13,7 +13,7 @@ from nicegui import ui
 from ..hidden_works import HideUnavailable, read_hidden, set_hidden
 from ..viewer_metadata import pixiv_url
 from .card_actions import CardActions
-from .card_context_menu import MenuEntry, build_context_menu, open_from_keyboard
+from .card_context_menu import MenuEntry
 
 HIDE_ERROR = '出さない設定を保存できませんでした。再読込してから再試行してください。'
 HIDE_UNAVAILABLE = '出さない設定の保存先が未指定のため、変更できません。'
@@ -262,8 +262,8 @@ class RankingCardMenus:
         return True
 
     # ---- カードの右クリック ------------------------------------------
-    def build_card_menu(self, art, card) -> None:
-        """元 ranking_tab.py:763-790 の 5 項目。`with` 内（カードの子）で呼ぶ。"""
+    def ranking_card_menu(self, art):
+        """元 ranking_tab.py:763-790 の 5 項目。"""
         actions = self._card_actions()
         recommendations = getattr(self.services, 'recommendations', None)
         author_id = art.author_id or ''
@@ -283,8 +283,7 @@ class RankingCardMenus:
                       enabled=recommendations is not None and bool(author_id)),
             MenuEntry('pixiv', 'pixivで作品ページを開く', 'open_in_new', href=url, enabled=url is not None),
         ]
-        menu, _ = build_context_menu(entries, testid=f'ranking-ctx-{art.work_id}')
-        open_from_keyboard(card, menu)
+        return f'ranking-ctx-{art.work_id}', entries
 
     async def _guarded(self, coroutine):
         if not self._usable():

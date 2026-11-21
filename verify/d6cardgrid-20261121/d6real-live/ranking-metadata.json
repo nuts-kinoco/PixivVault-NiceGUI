@@ -1,0 +1,222 @@
+[
+  {
+    "app": "original",
+    "pair": 1,
+    "render_ms": 19.616000005044043,
+    "card_call_ms": 0.11319995974190533,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 1074.3632999947295,
+    "metadata_to_image_ms": 45.11489998549223,
+    "decode_wait_ms": null
+  },
+  {
+    "app": "nice",
+    "pair": 1,
+    "render_ms": 14.075999992201105,
+    "card_call_ms": 2.32439988758415,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 721.3426000089385,
+    "metadata_to_image_ms": 120.39809999987483,
+    "decode_wait_ms": 0.19999998807907104
+  },
+  {
+    "app": "nice",
+    "pair": 2,
+    "render_ms": 11.657499999273568,
+    "card_call_ms": 6.6951999615412205,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 818.3996999869123,
+    "metadata_to_image_ms": 61.44180000410415,
+    "decode_wait_ms": 6.5
+  },
+  {
+    "app": "original",
+    "pair": 2,
+    "render_ms": 31.59220001543872,
+    "card_call_ms": 0.1703999878372997,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 694.1369000123814,
+    "metadata_to_image_ms": 33.45009998884052,
+    "decode_wait_ms": null
+  },
+  {
+    "app": "original",
+    "pair": 3,
+    "render_ms": 14.353100006701425,
+    "card_call_ms": 0.15119995805434883,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 775.3149000054691,
+    "metadata_to_image_ms": 30.338100012158975,
+    "decode_wait_ms": null
+  },
+  {
+    "app": "nice",
+    "pair": 3,
+    "render_ms": 10.874100000364706,
+    "card_call_ms": 5.836300057126209,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 832.7213000156917,
+    "metadata_to_image_ms": 103.39460000977851,
+    "decode_wait_ms": 7
+  },
+  {
+    "app": "nice",
+    "pair": 4,
+    "render_ms": 9.007900021970272,
+    "card_call_ms": 2.6001000369433314,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 831.7864999989979,
+    "metadata_to_image_ms": 94.26140002324246,
+    "decode_wait_ms": 4.399999976158142
+  },
+  {
+    "app": "original",
+    "pair": 4,
+    "render_ms": 20.918199996231124,
+    "card_call_ms": 0.15489986981265247,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 709.0010999818332,
+    "metadata_to_image_ms": 32.26900001754984,
+    "decode_wait_ms": null
+  },
+  {
+    "app": "original",
+    "pair": 5,
+    "render_ms": 22.45519999996759,
+    "card_call_ms": 0.1367998484056443,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 621.5198000136297,
+    "metadata_to_image_ms": 32.46439999202266,
+    "decode_wait_ms": null
+  },
+  {
+    "app": "nice",
+    "pair": 5,
+    "render_ms": 10.389600007329136,
+    "card_call_ms": 2.9379000479821116,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 889.1268000006676,
+    "metadata_to_image_ms": 71.47120000445284,
+    "decode_wait_ms": 4
+  },
+  {
+    "app": "nice",
+    "pair": 6,
+    "render_ms": 13.5180999932345,
+    "card_call_ms": 2.247300057206303,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 792.721400008304,
+    "metadata_to_image_ms": 31.468900007894263,
+    "decode_wait_ms": 0.30000001192092896
+  },
+  {
+    "app": "original",
+    "pair": 6,
+    "render_ms": 26.94290000363253,
+    "card_call_ms": 0.1629999023862183,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 708.9472000079695,
+    "metadata_to_image_ms": 33.788700005970895,
+    "decode_wait_ms": null
+  },
+  {
+    "app": "original",
+    "pair": 7,
+    "render_ms": 21.212499996181577,
+    "card_call_ms": 0.1480999926570803,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 640.1760999870021,
+    "metadata_to_image_ms": 32.78350000618957,
+    "decode_wait_ms": null
+  },
+  {
+    "app": "nice",
+    "pair": 7,
+    "render_ms": 7.1007999940775335,
+    "card_call_ms": 2.1105000923853368,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 967.1517999959178,
+    "metadata_to_image_ms": 62.64180000289343,
+    "decode_wait_ms": 1.699999988079071
+  },
+  {
+    "app": "nice",
+    "pair": 8,
+    "render_ms": 11.995199980447069,
+    "card_call_ms": 2.5804998294916004,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 839.2511999991257,
+    "metadata_to_image_ms": 41.063300013775006,
+    "decode_wait_ms": 0.10000002384185791
+  },
+  {
+    "app": "original",
+    "pair": 8,
+    "render_ms": 27.74620000855066,
+    "card_call_ms": 0.13989987201057374,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 705.0163999956567,
+    "metadata_to_image_ms": 59.35709999175742,
+    "decode_wait_ms": null
+  },
+  {
+    "app": "original",
+    "pair": 9,
+    "render_ms": 27.577400003792718,
+    "card_call_ms": 0.14529991312883794,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 794.7351000038907,
+    "metadata_to_image_ms": 30.542799999238923,
+    "decode_wait_ms": null
+  },
+  {
+    "app": "nice",
+    "pair": 9,
+    "render_ms": 7.065200014039874,
+    "card_call_ms": 2.2849000815767795,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 1168.61739999149,
+    "metadata_to_image_ms": 123.86739999055862,
+    "decode_wait_ms": 0.09999999403953552
+  },
+  {
+    "app": "nice",
+    "pair": 10,
+    "render_ms": 7.209200004581362,
+    "card_call_ms": 1.3281000137794763,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 525.8822000178043,
+    "metadata_to_image_ms": 79.73420000053011,
+    "decode_wait_ms": 0.09999999403953552
+  },
+  {
+    "app": "original",
+    "pair": 10,
+    "render_ms": 18.772300012642518,
+    "card_call_ms": 0.14659992302767932,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 677.7442000166047,
+    "metadata_to_image_ms": 32.48729999177158,
+    "decode_wait_ms": null
+  }
+]

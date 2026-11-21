@@ -1,0 +1,34 @@
+{
+  "1280": {
+    "size": [
+      1280,
+      800
+    ],
+    "changed_pixels": 1040,
+    "fraction": 0.001015625,
+    "bounding_box": [
+      7,
+      68,
+      1273,
+      732
+    ],
+    "header_changed_pixels": 0,
+    "body_changed_pixels": 1040
+  },
+  "1920": {
+    "size": [
+      1920,
+      1080
+    ],
+    "changed_pixels": 1024,
+    "fraction": 0.0004938271604938272,
+    "bounding_box": [
+      1247,
+      20,
+      1279,
+      52
+    ],
+    "header_changed_pixels": 1024,
+    "body_changed_pixels": 0
+  }
+}

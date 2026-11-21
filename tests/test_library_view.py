@@ -36,11 +36,11 @@ def event_for(view):
 async def test_author_search_keeps_representative_and_detail_contains_all_pages(library):
     view, _, _ = library
     assert len(view.author_cards) == 4
-    representative = view.author_cards["demo-author-01"].props["data-representative-id"]
+    representative = view.author_cards["demo-author-01"]["representative_id"]
     view.search("0003")
     assert list(view.author_cards) == ["demo-author-01"]
-    assert view.author_cards["demo-author-01"].props["data-representative-id"] == representative == "demo-0060"
-    author_node = view.author_cards["demo-author-01"].id
+    assert view.author_cards["demo-author-01"]["representative_id"] == representative == "demo-0060"
+    author_before = view.author_cards["demo-author-01"]
     view.open_author("demo-author-01")
     assert view.state.selected_author.work_count == 60
     assert view.state.total_page_count == 98
@@ -50,14 +50,14 @@ async def test_author_search_keeps_representative_and_detail_contains_all_pages(
     assert ("demo-0057", 1) not in view.page_cards
     assert view.unknown_note.visible
     assert "1件" in view.unknown_note.text
-    first_nodes = {key: card.id for key, card in view.page_cards.items()}
+    first_nodes = dict(view.page_cards)
     view.more()
     assert len(view.page_cards) == 98
-    assert all(view.page_cards[key].id == value for key, value in first_nodes.items())
+    assert all(view.page_cards[key] is value for key, value in first_nodes.items())
     assert not view.more_cell.visible
     view.close_author()
     assert view.state.query == "0003"
-    assert view.author_cards["demo-author-01"].id == author_node
+    assert view.author_cards["demo-author-01"] == author_before
     assert not view.page_cards
     view.open_author("demo-author-01")
     assert len(view.page_cards) == 50
@@ -139,7 +139,7 @@ async def test_quick_auto_capacity_keeps_start_notice_out_of_ui_updates(library,
     view._schedule_unmeasured_capacity()
     assert view._legacy_capacity_busy
     await view._legacy_auto_task
-    assert view.author_capacity_labels[author.author_id].text == '1.0 KiB'
+    assert view.author_cards[author.author_id]['capacity'] == '1.0 KiB'
     assert all(not text for _, text, _ in updates)
     assert [enabled for _, _, enabled in updates] == [False, True]
     assert not view._legacy_capacity_busy
@@ -276,14 +276,13 @@ async def test_page_callback_keeps_append_valid_but_cannot_cross_reload(library)
     view, _, _ = library
     view.open_author("demo-author-01")
     card = view.page_cards[("demo-0060", 2)]
-    click = next(listener.handler for listener in card._event_listeners.values()
-                 if listener.type == "click")
+    packet = dict(work_id=card['work_id'], action='open', epoch=view.page_grid.render_epoch)
     view.more()
-    click(None)
+    await view._page_grid_event(packet)
     assert view._viewer_state.viewer_open and view._viewer_state.selected_page == 2
     view.reload()
     view.open_author("demo-author-01")
-    click(None)
+    await view._page_grid_event(packet)
     assert not view._viewer_state.viewer_open
     assert not view.viewer.is_open
 
@@ -292,19 +291,15 @@ async def test_page_callback_keeps_append_valid_but_cannot_cross_reload(library)
 async def test_old_more_button_cannot_expand_another_detail(library):
     view, _, _ = library
     view.open_author("demo-author-01")
-    old_button = view.more_button
-    old_click = next(listener.handler for listener in old_button._event_listeners.values()
-                     if listener.type == "click")
-    old_click(None)
+    packet = dict(work_id=None, action='more', epoch=view.page_grid.render_epoch)
+    await view._page_grid_event(packet)
     assert view.state.shown_page_count == 98
     view.close_author()
     view.open_author("demo-author-01")
     assert view.state.shown_page_count == 50
-    old_click(None)
+    await view._page_grid_event(packet)
     assert view.state.shown_page_count == 50
-    current_click = next(listener.handler for listener in view.more_button._event_listeners.values()
-                         if listener.type == "click")
-    current_click(None)
+    await view._page_grid_event(dict(packet, epoch=view.page_grid.render_epoch))
     assert view.state.shown_page_count == 98
 
 
@@ -313,15 +308,14 @@ async def test_more_button_event_is_valid_through_append_but_not_reload(library)
     view, _, _ = library
     view.open_author("demo-author-01")
     first_button = view.more_button
-    click = next(listener.handler for listener in first_button._event_listeners.values()
-                 if listener.type == "click")
-    click(None)
+    packet = dict(work_id=None, action='more', epoch=view.page_grid.render_epoch)
+    await view._page_grid_event(packet)
     assert view.state.shown_page_count == 98
     assert view.more_button is first_button
     view.reload()
     view.open_author("demo-author-01")
     assert view.state.shown_page_count == 50
-    click(None)
+    await view._page_grid_event(packet)
     assert view.state.shown_page_count == 50
 
 
@@ -429,9 +423,10 @@ async def test_legacy_capacity_update_reuses_cards_until_order_changes(library):
 
     view._apply_legacy_capacities(view.state, {last_id: 1024})
 
-    assert view.author_cards == original
+    assert list(view.author_cards) == list(original)
+    assert all(view.author_cards[aid]['src'] == data['src'] for aid, data in original.items())
     assert view.state.generation > generation
-    assert view.author_capacity_labels[last_id].text == "1.0 KiB"
+    assert view.author_cards[last_id]['capacity'] == "1.0 KiB"
 
     view.state.select_sort("capacity")
     view.render_authors()
@@ -442,8 +437,8 @@ async def test_legacy_capacity_update_reuses_cards_until_order_changes(library):
     view._apply_legacy_capacities(view.state, {first_id: 2048})
 
     assert next(iter(view.author_cards)) == first_id
-    assert view.author_cards[first_id] is not ordered[first_id]
-    assert view.author_capacity_labels[first_id].text == "2.0 KiB"
+    assert view.author_cards[first_id]['src'] == ordered[first_id]['src']
+    assert view.author_cards[first_id]['capacity'] == "2.0 KiB"
 
 
 @pytest.mark.asyncio
@@ -456,7 +451,6 @@ async def test_author_context_opens_pinned_saved_image(tmp_path, monkeypatch, wi
     from pixivvault_nicegui.local_media_adapter import ReadonlyLocalMediaCatalog
     from pixivvault_nicegui.models import Artwork
     from test_ac_library_cover_20261119 import png
-    from test_x_ctx_ranking_20261118 import click
 
     monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
     root = tmp_path / 'images'
@@ -481,13 +475,14 @@ async def test_author_context_opens_pinned_saved_image(tmp_path, monkeypatch, wi
         with client:
             view = LibraryView(services)
             card = view.author_cards['42']
-            action = next(node for node in card.descendants()
-                          if node.props.get('data-testid') == 'library-author-open-saved')
-            assert action.text == '保存先を開く' and action.props['icon'] == 'folder_open'
-            await click(action)
+            action = next(entry for entry in card['menu']
+                          if entry['testid'] == 'library-author-open-saved')
+            assert action['label'] == '保存先を開く' and action['icon'] == 'folder_open'
+            event = dict(work_id='42', action=action['key'], epoch=view.author_grid.render_epoch)
+            await view._author_grid_event(event)
             assert opened == [target]
             view.set_active(False)
-            await click(action)
+            await view._author_grid_event(event)
             assert opened == [target]
     finally:
         client.delete()

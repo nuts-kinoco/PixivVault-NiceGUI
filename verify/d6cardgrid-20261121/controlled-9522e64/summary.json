@@ -1,0 +1,57 @@
+{
+  "initial": {
+    "list_ms": 764.9,
+    "image_ms": 291.8,
+    "paint_ms": 1202.1,
+    "screenshot_ms": 1512.94,
+    "card": 366.27,
+    "render": 385.19,
+    "api": 150.35,
+    "residual_ms": 1051.74,
+    "n": 5
+  },
+  "refresh": {
+    "list_ms": 188.6,
+    "image_ms": 0,
+    "paint_ms": 197.2,
+    "screenshot_ms": 302.0,
+    "card": 0,
+    "render": 1.37,
+    "api": 150.32,
+    "residual_ms": 46.96,
+    "n": 5
+  },
+  "mode": {
+    "list_ms": 789.9,
+    "image_ms": 271.1,
+    "paint_ms": 1255.9,
+    "screenshot_ms": 1553.33,
+    "card": 361.76,
+    "render": 395.81,
+    "api": 150.47,
+    "residual_ms": 1105.42,
+    "n": 5
+  },
+  "sort": {
+    "list_ms": 510.7,
+    "image_ms": 106.1,
+    "paint_ms": 745.7,
+    "screenshot_ms": 1086.74,
+    "card": 363.38,
+    "render": 401.68,
+    "api": 0,
+    "residual_ms": 745.7,
+    "n": 5
+  },
+  "library": {
+    "list_ms": 574.6,
+    "image_ms": 0,
+    "paint_ms": 686,
+    "screenshot_ms": 2165.77,
+    "card": 222.99,
+    "render": 239.82,
+    "api": 0,
+    "residual_ms": 686,
+    "n": 5
+  }
+}

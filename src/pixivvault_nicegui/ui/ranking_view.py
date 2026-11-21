@@ -5,7 +5,6 @@ import json
 from uuid import uuid4
 from nicegui import ui
 from ..ranking_source import RankingQuery, RankingUnavailable, MODES, CONTENTS, SORTS, merge_pages, sorted_items
-from ..state import GalleryState
 from .gallery import GalleryView
 from .ranking_card_menus import RankingCardMenus
 from .action_controls import refresh_button
@@ -15,26 +14,27 @@ class _ViewServices:
     def __getattr__(self,name):return getattr(self.parent,name)
 
 class _RankingGallery(GalleryView):
-    def _rank_label(self,art):
-        owner=getattr(self,'owner',None)
-        if owner is None or not owner.preferred_tags_in(art.tags):return super()._rank_label(art)
-        # 元 ranking_tab.py:822-824: 順位の横に青ハート。印が無いカードの構造は他の一覧と同じに保つ。
-        with ui.row().classes('items-center no-wrap gap-1 pv-card-head'):
-            label=ui.label().classes('pv-card-rank')
-            heart=ui.icon('favorite').classes('pv-card-heart').props(f'size=12px aria-label=好みのタグを含む作品')
-            heart._props['data-testid']=f'ranking-heart-{art.work_id}'
-        return label
-    def _card_menu(self,art,card):
-        owner=getattr(self,'owner',None)
-        if owner is not None:owner.build_card_menu(art,card)
+    def _card_heart(self, art):
+        return self.owner.preferred_tags_in(art.tags)
+    def _card_menu(self, art):
+        return self.owner.ranking_card_menu(art)
     def _after_viewer_hide(self,art,hidden):
         owner=getattr(self,'owner',None)
         if owner is None:return super()._after_viewer_hide(art,hidden)
         owner.adopt_hidden(art.work_id,art.title,hidden)
     def render_gallery(self):
         super().render_gallery()
-        owner=getattr(self,'owner',None)
+        owner = getattr(self, 'owner', None)
         if owner is not None and owner.page is not None:self.more_cell.set_visibility(not owner.page.exhausted)
+    def refresh_hearts(self):
+        updated = False
+        for work_id, card in self.cards.items():
+            heart = self._card_heart(self._card_artworks[work_id])
+            if card.data['heart'] != heart:
+                card.data = dict(card.data, heart=heart)
+                updated = True
+        if updated:
+            self.grid.props['cards'] = [card.data for card in self.cards.values()]
     def more(self):
         if self.owner.active and not self.owner.busy:asyncio.create_task(self.owner.load(append=True))
     def close_viewer(self, *, restore_focus=True):
@@ -44,9 +44,6 @@ class _RankingGallery(GalleryView):
         if self._viewer_state is not self.state:
             self._viewer_state.close()
             self._viewer_state = self.state
-    def search(self,value=None):
-        if self._viewer_state is not self.state:self.close_viewer(restore_focus=False)
-        super().search(value)
     def open(self,work_id,page_no=0):
         if self._viewer_state is not self.state:self.close_viewer(restore_focus=False)
         self.owner._open_generation+=1
@@ -69,6 +66,8 @@ class RankingView(RankingCardMenus):
         self.active=False;self.closed=False;self.busy=False;self.epoch=0;self._open_generation=0;self.page=None;self.pin=None
         self._condition_task=None;self._condition_pending=False;self._syncing_controls=False
         self._calendar_token=None;self.calendar_dialog=None;self.calendar_picker=None
+        self._image_records = {}
+        self._image_reader = None
         self.client=ui.context.client
         with ui.column().classes('pv-gallery pv-ranking-view w-full').props('data-testid=ranking-view') as self.root:
             with ui.row().classes('pv-toolbar'):
@@ -112,15 +111,14 @@ class RankingView(RankingCardMenus):
             return
         if self._preferred_revision == local.revision():
             return
-        if self.page is not None:
-            self.render()
         if self._local_revision_task is None or self._local_revision_task.done():
+            self.gallery.refresh_hearts()
             self._local_revision_task = asyncio.create_task(self._refresh_local_preferred())
 
     async def _refresh_local_preferred(self):
         await asyncio.to_thread(self._rebuild_preferred)
         if not self.closed and self.active and self.page is not None:
-            self.render()
+            self.gallery.refresh_hearts()
 
     def changed(self,*,refresh=False):
         if self.closed or self._syncing_controls:return
@@ -256,6 +254,23 @@ class RankingView(RankingCardMenus):
         return any(normalize_tag(t) in preferred for t in tags or ())
     def preferred_work(self,work_id):
         return False if self.page is None else any(i.record.work_id==work_id and self.preferred_tags_in(i.record.tags) for i in self.page.items)
+    def _ranking_image_candidate(self, records):
+        from ..library_media_registry import PinnedLibraryImages
+
+        reader = getattr(self.services, 'live_client', None) or getattr(self.services, '_vault_images', None)
+        previous = self.pin
+        if (previous is not None and not previous.closed and reader is self._image_reader
+                and records == self._image_records):
+            return None, reader
+        pin = self.services.acquire_ranking_images(tuple(records.values()))
+        try:
+            if isinstance(pin, PinnedLibraryImages):
+                pin.reuse_ranking_thumbnails(previous)
+        except BaseException:
+            pin.close()
+            raise
+        return pin, reader
+
     async def load(self,*,append=False,refresh_preferences=False):
         if not self.active or self.closed or self.busy:return
         epoch=self.epoch
@@ -269,6 +284,7 @@ class RankingView(RankingCardMenus):
         if append:self.gallery.more_button.set_text('読み込み中…')
         self.notice.set_text('取得中…')
         candidate_provider=None
+        published = False
         old_pin,old_page,old_images=self.pin,self.page,self.proxy.images
         try:
             candidate=await asyncio.to_thread(self._fetch_with_hidden,query,self.page.page+1 if append else 1,
@@ -276,16 +292,17 @@ class RankingView(RankingCardMenus):
                 **({'previous':self.page} if append and getattr(self.page,'page_session',None) is not None else {}))
             if self.closed or not self.active or epoch!=self.epoch:return
             merged=merge_pages(self.page if append else None,candidate)
-            provider=self.services.acquire_ranking_images(tuple(i.record for i in merged.items))
-            candidate_provider=provider
-            old=self.pin;self.pin=provider;self.proxy.images=provider
+            records = {item.record.work_id: item.record for item in merged.items}
+            candidate_provider, reader = self._ranking_image_candidate(records)
+            if candidate_provider is not None:
+                self.pin = self.proxy.images = candidate_provider
             self.page=merged
-            if not append:
-                self.gallery.grid.clear();self.gallery.more_cell=None
-                self.gallery.cards.clear();self.gallery.images.clear();self.gallery.ranks.clear();self.gallery._rendered_ids=()
             self.render()
-            if old is not None:old.close()
+            if candidate_provider is not None and old_pin is not None:
+                old_pin.close()
+            self._image_records, self._image_reader = records, reader
             candidate_provider=None
+            published = True
             # The mode change announces that R-18 cannot be selected for
             # monthly/rookie, but the async fetch used to overwrite that
             # explanation immediately. Keep the reason visible with results.
@@ -309,8 +326,10 @@ class RankingView(RankingCardMenus):
                 self.notice.set_text(self._retained_notice(message))
         finally:
             if candidate_provider is not None:
-                self.pin,self.page,self.proxy.images=old_pin,old_page,old_images
+                self.pin,self.proxy.images=old_pin,old_images
                 candidate_provider.close()
+            if self.page is not old_page and not published:
+                self.page = old_page
             self.busy=False
             if not self.closed:
                 self.gallery.more_button.set_text('もっと見る')
@@ -324,13 +343,19 @@ class RankingView(RankingCardMenus):
     def _rebuild_preferred(self):
         # 失敗しても印を諦めるだけで、ランキング本体は止めない（元 ranking_tab.py:519-530）。作った扱いにして取得ごとに引かない。
         try:
-            local = getattr(self.services, 'local_tag_view', None) or getattr(getattr(self.services, 'discovery', None), 'local_tag_view', None)
-            base = getattr(self.services, 'preferred_ranking_tags_base', None) or getattr(getattr(self.services, 'discovery', None), 'base_preferred_tags', None)
-            self._preferred_base = frozenset(base()) if local is not None and callable(base) else None
+            discovery = getattr(self.services, 'discovery', None)
+            local = getattr(self.services, 'local_tag_view', None) or getattr(discovery, 'local_tag_view', None)
+            combined = getattr(discovery, 'ranking_preferred_tag_sets', None)
             before = local.revision() if local is not None else None
-            self._preferred = frozenset(self.services.preferred_ranking_tags())
-            if self._preferred_base is None:
-                self._preferred_base = self._preferred
+            if local is not None and callable(combined):
+                self._preferred_base, self._preferred = combined()
+            else:
+                base = (getattr(self.services, 'preferred_ranking_tags_base', None)
+                        or getattr(discovery, 'base_preferred_tags', None))
+                self._preferred_base = frozenset(base()) if local is not None and callable(base) else None
+                self._preferred = frozenset(self.services.preferred_ranking_tags())
+                if self._preferred_base is None:
+                    self._preferred_base = self._preferred
             after = local.revision() if local is not None else None
             self._preferred_revision = after if before == after else None
         except Exception:
@@ -345,19 +370,11 @@ class RankingView(RankingCardMenus):
         viewer_state=self.gallery._viewer_state
         hidden=self.hidden_work_ids()
         keep_viewer=viewer_state.viewer_open and viewer_state.selected_id in hidden
-        if not keep_viewer:self.gallery.close_viewer(restore_focus=False)
-        old=self.gallery.state
         items=self.page.items if self.page.query.tag else sorted_items(self.page.items,self.sort.value)
         if hidden:items=tuple(i for i in items if i.record.work_id not in hidden)
-        state=GalleryState(tuple(i.record.as_artwork() for i in items),page_size=max(50,len(items)))
-        state.set_card_size(old.card_size);state.set_query(old.query);state.generation=old.generation+1
-        # The hidden work leaves the ranking while its open viewer retains the selection.
-        if not keep_viewer or old is not viewer_state:old.close()
-        self.gallery.state=state
-        if not keep_viewer:self.gallery._viewer_state=state
         self.gallery.empty.set_text('取得した条件に該当する作品がありません。')
-        self.gallery.render_gallery()
-        for work_id,image in self.gallery.images.items():image.set_source(self.proxy.images.url(work_id,0,'thumb'))
+        # The hidden work leaves the ranking while its open viewer retains the selection.
+        self.gallery.replace_artworks(tuple(i.record.as_artwork() for i in items), keep_viewer=keep_viewer)
         self.gallery.more_cell.set_visibility(not self.page.exhausted)
         self._sync_result_controls()
     async def open_unknown(self,work_id,provider,epoch,request):
@@ -367,11 +384,7 @@ class RankingView(RankingCardMenus):
             return
         if (not self.active or self.closed or epoch!=self.epoch or self.pin is not provider
                 or request!=self._open_generation):return
-        old=self.gallery.state
-        state=GalleryState(tuple(artwork if a.work_id==work_id else a for a in old.artworks),page_size=old.page_size)
-        state.set_card_size(old.card_size);state.set_query(old.query);state.generation=old.generation+1;old.close()
-        self.gallery.state=self.gallery._viewer_state=state
-        self.gallery.open(work_id)
+        self.gallery.open_resolved_artwork(artwork)
     def set_viewer_active(self,active):self.set_active(active)
     def set_active(self,active):
         if self.active!=bool(active):self.epoch+=1
