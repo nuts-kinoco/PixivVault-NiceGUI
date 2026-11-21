@@ -2,6 +2,7 @@
 
 The export has model_sha and preprocessing_version plus disjoint training and
 slates arrays. Each slate is a presented candidate list in original rank order.
+Only candidates whose scores change can exchange their original slots.
 Rows have work_id, author_id, optional judgment/reason, and optional embedding
 metadata (vector, image_sha, model_sha, preprocessing_version, variant, page).
 Training rows may include saved, bookmarked and revision. Slate rows need
@@ -105,9 +106,10 @@ def _measure(slates, model, *, alpha, repetitions, seed):
         ideal = _dcg(sorted(labels, reverse=True))
         for mode in _MODES:
             entries = ranked[mode]
-            if any(corrected != base for corrected, base, _ in entries):
-                entries = sorted(entries, key=lambda entry: -entry[0])
-            ordered = [label for _, _, label in entries]
+            changed = iter(sorted((entry for entry in entries if entry[0] != entry[1]),
+                                  key=lambda entry: -entry[0]))
+            ordered = [next(changed)[2] if corrected != base else label
+                       for corrected, base, label in entries]
             if ideal:
                 metrics[mode].append(_dcg([label for label in ordered if label is not None]) / ideal)
             if ordered:

@@ -12,6 +12,9 @@ _WORK_CONFIDENCE_PRIOR = 4
 _AUTHOR_CONFIDENCE_PRIOR = 4
 _VARIANT_PRIORITY = {'saved_original': 0, 'view': 1, 'thumb': 2, 'thumb_fallback': 3}
 VARIANTS = frozenset(_VARIANT_PRIORITY)
+# G0 found 0/12 Top-10 order matches between originals and 192 px thumbnails.
+_SCORING_VARIANTS = frozenset({'saved_original', 'view'})
+_EMBEDDING_SPACE = 'original-view-v1'
 _SHA256 = re.compile(r'[0-9a-f]{64}')
 
 
@@ -116,6 +119,7 @@ class ModelSnapshot:
     positive_count: int
     negative_count: int
     authors: tuple[AuthorStyle, ...]
+    embedding_space: str = _EMBEDDING_SPACE
 
     def _signal(self, vector, reliability=1.0):
         if self.method == 'nearest':
@@ -134,7 +138,7 @@ class ModelSnapshot:
         return Signal(0.5 + 0.5 * (positive - negative), confidence)
 
     def image_signal(self, embedding: Embedding | None) -> Signal | None:
-        if (embedding is None or embedding.key.variant == 'thumb_fallback'
+        if (embedding is None or embedding.key.variant not in _SCORING_VARIANTS
                 or not embedding.key.matches(self.generation)):
             return None
         vector = _unit(embedding.vector, self.dimension)
@@ -157,6 +161,7 @@ class ModelSnapshot:
         try:
             dimension = payload['dimension']
             if (payload['generation'] != asdict(generation)
+                    or payload.get('embedding_space') != _EMBEDDING_SPACE
                     or payload['method'] not in ('nearest', 'centroid')
                     or type(dimension) is not int or dimension <= 0):
                 return None
@@ -231,7 +236,7 @@ def fit(generation: Generation, samples, *, method='nearest') -> ModelSnapshot |
         choices = []
         for row in rows:
             key = row.embedding.key
-            if key.variant == 'thumb_fallback' or not key.matches(generation):
+            if key.variant not in _SCORING_VARIANTS or not key.matches(generation):
                 continue
             vector = _unit(row.embedding.vector)
             if vector is not None:

@@ -4,6 +4,28 @@ from importlib import import_module
 import pytest
 
 
+@pytest.mark.parametrize('method', ['nearest', 'centroid'])
+def test_thumb_variants_are_excluded_from_the_original_image_space(visual, generation, method):
+    original = sample(visual, generation, 'reference', (1, 0), 'like',
+                      variant='saved_original', saved=True)
+    expected = visual.fit(generation, [original], method=method)
+    for variant in ('thumb', 'thumb_fallback'):
+        thumb = sample(visual, generation, 'thumb-only', (0, 1, 0), 'hate', 'style', variant=variant)
+        candidate = image(visual, generation, 'candidate', (1, 0), variant=variant)
+        assert visual.fit(generation, [original, thumb], method=method) == expected
+        assert expected.image_signal(candidate) is None
+        base = -0.0
+        assert visual.score(base, expected, candidate, current=generation) is base
+    assert expected.image_signal(image(visual, generation, 'candidate', (1, 0))) is not None
+
+
+def test_payload_without_embedding_space_requires_refit(visual, generation):
+    original = sample(visual, generation, 'reference', (1, 0), 'like')
+    snapshot = visual.fit(generation, [original])
+    old = {key: value for key, value in snapshot.to_payload().items() if key != 'embedding_space'}
+    assert visual.ModelSnapshot.from_payload(generation, old) is None
+
+
 @pytest.fixture
 def visual():
     return import_module('pixivvault_nicegui.visual_preference')

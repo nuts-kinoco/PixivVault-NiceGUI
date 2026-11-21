@@ -1,11 +1,15 @@
 import json
+import os
 import sqlite3
+import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from contextlib import closing, contextmanager
 from dataclasses import replace
 from importlib import import_module
 from pathlib import Path
 from threading import Event
+from time import monotonic, sleep
 
 import pytest
 
@@ -223,6 +227,7 @@ def test_unrecognized_file_and_sqlite_sidecar_are_preserved(store_api, tmp_path)
     active = generation(store)
     sidecar = Path(str(store.path) + '-journal')
     sidecar.write_bytes(b'foreign journal')
+    assert not store.is_current(active)
     with pytest.raises(store_api.VisualPreferenceStoreError):
         store.purge()
     assert sidecar.read_bytes() == b'foreign journal'
@@ -253,6 +258,7 @@ def test_invalidation_waits_for_live_writer_before_rejecting_stale_work(store_ap
         writing = threads.submit(worker)
         try:
             assert has_journal.wait(5)
+            assert other.is_current(active)
             invalidating = threads.submit(other.invalidate, 'undo')
             with pytest.raises(TimeoutError):
                 invalidating.result(timeout=0.25)
@@ -260,5 +266,174 @@ def test_invalidation_waits_for_live_writer_before_rejecting_stale_work(store_ap
             release_writer.set()
         writing.result()
         invalidating.result()
+    assert not store.is_current(active)
+    assert not store.publish(active, model(active).to_payload())
+
+
+@pytest.mark.parametrize('extra', ['same_name_trigger', 'view', 'index'])
+def test_open_rejects_every_extra_schema_object(store_api, tmp_path, extra):
+    root = tmp_path / 'owned'
+    store = open_store(store_api, root)
+    with closing(sqlite3.connect(store.path)) as db, db:
+        if extra == 'same_name_trigger':
+            create_table, = db.execute("SELECT sql FROM sqlite_schema WHERE name='preference_models'").fetchone()
+            db.execute('DROP TABLE preference_models')
+            db.execute('CREATE TRIGGER preference_models AFTER INSERT ON ranking_events '
+                       'BEGIN SELECT 1; END')
+            db.execute(create_table)
+        elif extra == 'view':
+            db.execute('CREATE VIEW extra AS SELECT number FROM generation_state')
+        else:
+            db.execute('CREATE INDEX extra ON ranking_events(kind)')
+    original = store.path.read_bytes()
+    with pytest.raises(store_api.VisualPreferenceStoreError):
+        open_store(store_api, root)
+    with pytest.raises(store_api.VisualPreferenceStoreError):
+        store.append_event('presentation', {})
+    assert store.path.read_bytes() == original
+
+
+def _crash(root, body):
+    script = '''
+import os, sys
+from pathlib import Path
+from pixivvault_nicegui.visual_preference_store import VisualPreferenceStore
+root = Path(sys.argv[1])
+def open_store():
+    return VisualPreferenceStore(root, profile='test-profile', account='test-account', protected_paths=())
+''' + body
+    run = subprocess.run([sys.executable, '-B', '-c', script, str(root)],
+                         capture_output=True, timeout=90, check=False)
+    assert run.returncode == 23, run.stderr.decode(errors='replace')
+
+
+def test_reopens_real_hot_journal_and_preserves_committed_events(store_api, tmp_path):
+    root = tmp_path / 'owned'
+    store = open_store(store_api, root)
+    active = generation(store)
+    assert store.publish(active, model(active).to_payload())
+    store.append_event('committed', {'keep': True})
+    _crash(root, '''
+store = open_store()
+with store._transaction(write=True) as db:
+    db.execute('PRAGMA cache_size=4')
+    db.execute('PRAGMA cache_spill=ON')
+    db.executemany('INSERT INTO ranking_events(kind,payload) VALUES (?,?)',
+                   [('uncommitted', 'x' * 16384)] * 24)
+    os._exit(23)
+''')
+    journal = Path(str(store.path) + '-journal')
+    with journal.open('rb') as handle:
+        assert handle.read(8) == bytes.fromhex('d9d505f920a163d7')
+    recovered = open_store(store_api, root)
+    assert [event.kind for event in recovered.events()] == ['committed']
+    assert not journal.exists()
+    recovered.purge()
+    assert recovered.events() == ()
+    assert not recovered.publish(active, model(active).to_payload())
+
+
+def test_foreign_hot_journal_is_refused_before_sqlite_replays_it(store_api, tmp_path):
+    root = tmp_path / 'owned'
+    store = open_store(store_api, root)
+    other = tmp_path / 'other-owned'
+    open_store(store_api, other)
+    _crash(other, '''
+store = open_store()
+with store._transaction(write=True) as db:
+    db.execute('PRAGMA cache_size=4')
+    db.execute('PRAGMA cache_spill=ON')
+    db.executemany('INSERT INTO ranking_events(kind,payload) VALUES (?,?)',
+                   [('uncommitted', 'x' * 16384)] * 24)
+    os._exit(23)
+''')
+    sidecar = Path(str(store.path) + '-journal')
+    recorded = (other / sidecar.name).read_bytes()
+    assert recorded.startswith(bytes.fromhex('d9d505f920a163d7'))
+    sidecar.write_bytes(recorded)
+    original = store.path.read_bytes()
+    with pytest.raises(store_api.VisualPreferenceStoreError):
+        open_store(store_api, root)
+    assert store.path.read_bytes() == original
+    assert sidecar.read_bytes() == recorded
+
+
+@pytest.mark.parametrize('stage', ['missing', 'reserved', 'spilled'])
+def test_owned_incomplete_initialization_allows_purge(store_api, tmp_path, stage):
+    root = tmp_path / 'owned'
+    sentinel = tmp_path / 'learning.sqlite3'
+    sentinel.write_bytes(b'leave untouched')
+    if stage == 'missing':
+        _crash(root, '''
+original = Path.open
+def interrupt(path, *args, **kwargs):
+    if path.name == 'visual_preference.sqlite3' and args == ('xb',):
+        os._exit(23)
+    return original(path, *args, **kwargs)
+Path.open = interrupt
+open_store()
+''')
+    elif stage == 'reserved':
+        _crash(root, '''
+VisualPreferenceStore._initialize = lambda *_: os._exit(23)
+open_store()
+''')
+    else:
+        _crash(root, '''
+class CrashAtCommit:
+    def __init__(self, db):
+        self.db = db
+    def __getattr__(self, name):
+        return getattr(self.db, name)
+    def commit(self):
+        os._exit(23)
+original = VisualPreferenceStore._initialize
+def interrupt(store, db):
+    db.execute('PRAGMA cache_size=2')
+    db.execute('PRAGMA cache_spill=ON')
+    original(store, CrashAtCommit(db))
+VisualPreferenceStore._initialize = interrupt
+open_store()
+''')
+        assert (root / 'visual_preference.sqlite3').stat().st_size > 0
+    recovered = open_store(store_api, root, protected=(sentinel,))
+    recovered.purge()
+    assert recovered.current_generation() is None
+    assert sentinel.read_bytes() == b'leave untouched'
+    assert generation(recovered) is not None
+
+
+def test_readers_share_access_to_current_generation(store_api, tmp_path):
+    root = tmp_path / 'owned'
+    store = open_store(store_api, root)
+    other = open_store(store_api, root)
+    active = generation(store)
+    with store._transaction():
+        assert other.is_current(active)
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows marker lock retry limit')
+def test_invalidation_waits_past_windows_crt_lock_retry_limit(store_api, tmp_path):
+    root = tmp_path / 'owned'
+    store = open_store(store_api, root)
+    other = open_store(store_api, root)
+    active = generation(store)
+    entered = Event()
+
+    def invalidate():
+        entered.set()
+        other.invalidate('undo')
+
+    with ThreadPoolExecutor(max_workers=1) as threads:
+        with store._transaction():
+            pending = threads.submit(invalidate)
+            assert entered.wait(5)
+            deadline = monotonic() + 3
+            while other.is_current(active) and monotonic() < deadline:
+                sleep(0.01)
+            assert not other.is_current(active)
+            with pytest.raises(TimeoutError):
+                pending.result(timeout=11.5)
+        pending.result(timeout=10)
     assert not store.is_current(active)
     assert not store.publish(active, model(active).to_payload())

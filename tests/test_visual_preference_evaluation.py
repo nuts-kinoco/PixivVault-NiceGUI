@@ -68,3 +68,18 @@ def test_missing_current_image_does_not_revive_superseded_training_label(evaluat
     result = evaluator.evaluate(data)
     assert result['coverage']['usable_image'] == 0
     assert result['separation']['auc'] is None
+
+
+def test_single_correction_cannot_reorder_unadjusted_cards(evaluator):
+    data = evaluator.synthetic_input()
+    unlabelled = {**data['slates'][0][1], 'judgment': '', 'base_score': .5}
+    data['slates'] = [[
+        {'work_id': 'fixed-hate', 'author_id': 'unknown', 'judgment': 'hate',
+         'reason': 'style', 'base_score': .1},
+        {'work_id': 'fixed-like', 'author_id': 'unknown', 'judgment': 'like', 'base_score': .9},
+        unlabelled,
+    ]]
+    report = evaluator.evaluate(data)['comparison']
+    assert report['baseline']['ndcg_at_10'] == pytest.approx(1 / 1.584962500721156)
+    assert report['A']['ndcg_at_10'] == report['baseline']['ndcg_at_10']
+    assert report['A+D']['ndcg_at_10'] == report['baseline']['ndcg_at_10']
