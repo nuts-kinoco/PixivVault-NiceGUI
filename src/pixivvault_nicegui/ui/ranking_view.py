@@ -5,7 +5,6 @@ import json
 from uuid import uuid4
 from nicegui import ui
 from ..ranking_source import RankingQuery, RankingUnavailable, MODES, CONTENTS, SORTS, merge_pages, sorted_items
-from ..state import GalleryState
 from .gallery import GalleryView
 from .ranking_card_menus import RankingCardMenus
 from .action_controls import refresh_button
@@ -385,11 +384,7 @@ class RankingView(RankingCardMenus):
             return
         if (not self.active or self.closed or epoch!=self.epoch or self.pin is not provider
                 or request!=self._open_generation):return
-        old=self.gallery.state
-        state=GalleryState(tuple(artwork if a.work_id==work_id else a for a in old.artworks),page_size=old.page_size)
-        state.set_card_size(old.card_size);state.set_query(old.query);state.generation=old.generation+1;old.close()
-        self.gallery.state=self.gallery._viewer_state=state
-        self.gallery.open(work_id)
+        self.gallery.open_resolved_artwork(artwork)
     def set_viewer_active(self,active):self.set_active(active)
     def set_active(self,active):
         if self.active!=bool(active):self.epoch+=1

@@ -27,7 +27,12 @@ class PersonalRankingView(RankingView):
         self._condition_task=None;self._condition_pending=False
         self._calendar_token=None;self.calendar_dialog=None;self.calendar_picker=None
         self.client=ui.context.client
-        self._context_snapshot={};self._context_base={};self._context_revision=None;self._context_request=0;self._context_task=None
+        self._context_snapshot = {}
+        self._context_base = {}
+        self._context_revision = None
+        self._context_request = 0
+        self._context_task = None
+        self._context_refresh_pending = False
         saved=self.vault.ranking_preferences() if self.vault else {}
         self.saved_filters=normalize_personal_filters(saved.get('filters'));self.filters=dict(self.saved_filters)
         self._selected_tags = tuple(saved.get('tags', ()))
@@ -94,13 +99,15 @@ class PersonalRankingView(RankingView):
 
     def local_tags_changed(self):
         self._context_revision = None
-        self._sync_local_context()
+        self._start_context_refresh()
 
     def _sync_local_context(self):
         local = getattr(self.services, 'local_tag_view', None)
         if self.closed or not self.active or local is None or self._context_revision == local.revision():
             return
-        self._start_context_refresh()
+        # A passive poll during a read is covered by its revision check.
+        if self._context_task is None or self._context_task.done():
+            self._start_context_refresh()
     def _apply_candidates_open(self):
         opened=self._candidates_open
         self.candidates_label.set_visibility(opened);self.candidates_box.set_visibility(opened)
@@ -203,15 +210,22 @@ class PersonalRankingView(RankingView):
         if library is not None:context['downloaded_ids']={w.work_id for w in library.artworks}
         return context
     def _start_context_refresh(self):
-        if self._context_task is not None and not self._context_task.done():return
-        from nicegui import background_tasks
-        task=background_tasks.create(self._refresh_context());self._context_task=task
-        def finished(done):
-            if self._context_task is not done:return
-            self._context_task=None
-            if done.cancelled() or done.exception() is not None:return
-            if done.result() is None and self.active and not self.closed:self._start_context_refresh()
-        task.add_done_callback(finished)
+        if self.closed or not self.active:
+            return None
+        self._context_refresh_pending = True
+        if self._context_task is None or self._context_task.done():
+            from nicegui import background_tasks
+            self._context_task = background_tasks.create(self._drain_context_refresh())
+        return self._context_task
+
+    async def _drain_context_refresh(self):
+        while self.active and not self.closed:
+            self._context_refresh_pending = False
+            context = await self._refresh_context()
+            if context is not None and not self._context_refresh_pending:
+                return context
+        return None
+
     async def _refresh_context(self):
         self._context_request+=1;request=self._context_request;epoch=self.epoch
         local = getattr(self.services, 'local_tag_view', None) or getattr(getattr(self.services, 'discovery', None), 'local_tag_view', None)
@@ -226,7 +240,9 @@ class PersonalRankingView(RankingView):
             revision = after
         except Exception:
             context, base, revision = {}, {}, None
-        if self.closed or not self.active or self.epoch!=epoch or request!=self._context_request:return None
+        if (self.closed or not self.active or self.epoch != epoch
+                or request != self._context_request or self._context_refresh_pending):
+            return None
         self._context_base = context if base is None else base
         self._context_revision = revision
         self._context_snapshot=context
@@ -355,12 +371,12 @@ class PersonalRankingView(RankingView):
         provider=None;old_pin,old_page,old_images=self.pin,self.page,self.proxy.images
         published = False
         try:
-            context = None
-            while context is None:
-                pending = self._context_task
-                context = await pending if pending is not None and not pending.done() else await self._refresh_context()
-                if self.closed or not self.active or epoch != self.epoch:
-                    return
+            pending = self._context_task
+            if pending is None or pending.done():
+                pending = self._start_context_refresh()
+            context = await asyncio.shield(pending)
+            if context is None or self.closed or not self.active or epoch != self.epoch:
+                return
             if not self._search_available():
                 self._show_search_failure('検索中に借用アカウント検索を利用できなくなりました。接続状態を確認してください。')
                 return

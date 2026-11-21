@@ -2,6 +2,9 @@
 import asyncio
 from datetime import datetime, timezone
 from types import SimpleNamespace
+from unittest.mock import patch
+
+from nicegui import core
 import pytest
 from pixivvault_nicegui.external_vault import VaultError
 from pixivvault_nicegui.external_vault_transport import ShaftTransport, VaultResponse, ACCOUNT
@@ -48,7 +51,11 @@ def run_view(error):
     v.r18=SimpleNamespace(value=False);v.ai=SimpleNamespace(value=False)
     v.fetch_button=Label();v.gallery=SimpleNamespace(more_button=Label());v.notice=Label()
     v.pin=None;v.page=None;v.proxy=SimpleNamespace(images=None);v.vault=vault;v.availability=lambda **kw:None
-    asyncio.run(v.load())
+    async def load_with_nicegui_loop():
+        with patch.object(core, 'loop', asyncio.get_running_loop()):
+            await v.load()
+
+    asyncio.run(load_with_nicegui_loop())
     return v.notice.text,calls
 
 def test_actual_personal_view_displays_known_reason_without_new_get():

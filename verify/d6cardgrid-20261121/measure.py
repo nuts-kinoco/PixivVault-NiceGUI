@@ -50,6 +50,8 @@ def serve(root):
                          title=f"作品 {index + 1:02}", tags=["猫"] if index % 2 else [],
                          url=f"https://i.pximg.net/fixture-{offset + index}.png",
                          rank=index + 1, view_count=index + 1, page_count=1) for index in range(50)]
+            if mode == 'weekly' and os.environ.get('PV_D6_FIXTURE_OVERLAP') == '1':
+                rows[20].update(illust_id=40002, url='https://i.pximg.net/fixture-2.png')
             record(dict(kind="api", start=start, end=time.perf_counter()))
             return rows
 
@@ -263,13 +265,15 @@ def stable_shot(page, path):
     page.screenshot(path=path, animations='disabled')
 
 
-def run(root, repetitions, width, contract, visual_only, all_screenshots, trace_images=False):
+def run(root, repetitions, width, contract, visual_only, all_screenshots, trace_images=False,
+        partial_overlap=False):
     from playwright.sync_api import expect, sync_playwright
 
     with socket.socket() as probe:
         probe.bind(('127.0.0.1', PORT))
     root.mkdir()
-    env = dict(os.environ, USERPROFILE=str(root), APPDATA=str(root), LOCALAPPDATA=str(root))
+    env = dict(os.environ, USERPROFILE=str(root), APPDATA=str(root), LOCALAPPDATA=str(root),
+               PV_D6_FIXTURE_OVERLAP='1' if partial_overlap else '0')
     rows = []
     image_traces = []
     with (root / "server.log").open("wb") as log:
@@ -288,7 +292,9 @@ def run(root, repetitions, width, contract, visual_only, all_screenshots, trace_
                 def trace_image(request):
                     if request.resource_type == 'image' and request.url.startswith(URL + '/media/'):
                         work_id = request.url.split('/')[4]
-                        if work_id.isascii() and work_id.isdecimal() and 40100 <= int(work_id) < 40150:
+                        if partial_overlap and work_id == '40002':
+                            image_requests.append((21, time.perf_counter()))
+                        elif work_id.isascii() and work_id.isdecimal() and 40100 <= int(work_id) < 40150:
                             image_requests.append((int(work_id) - 40099, time.perf_counter()))
 
                 if trace_images:
@@ -388,7 +394,17 @@ def run(root, repetitions, width, contract, visual_only, all_screenshots, trace_
                     observe("initial", fetch.click, CARD, 50, first="40000", screenshot=snap)
                     observe("refresh", fetch.click, CARD, 50, first="40000", screenshot=snap)
                     weekly = page.get_by_test_id("ranking-mode").get_by_text("週間", exact=True)
+                    survivor_selector = CARD + '[data-work-id="40002"] img'
+                    if partial_overlap:
+                        page.wait_for_function(
+                            'selector => document.querySelector(selector)?.naturalWidth > 0',
+                            arg=survivor_selector)
+                        survivor = page.locator(survivor_selector).element_handle()
                     observe("mode", weekly.click, CARD, 50, first="40100", screenshot=snap)
+                    if partial_overlap:
+                        rows[-1]['overlap_kept_image_node'] = survivor.evaluate(
+                            '(image, selector) => image === document.querySelector(selector)', survivor_selector)
+                        (root / 'raw.json').write_text(json.dumps(rows, indent=2))
                     observe("sort", page.get_by_text("bench sort", exact=True).click,
                             CARD, 50, first="40149", screenshot=snap)
                     ready("/library")
@@ -434,9 +450,10 @@ if __name__ == "__main__":
     parser.add_argument('--visual-only', action='store_true')
     parser.add_argument('--all-screenshots', action='store_true')
     parser.add_argument('--trace-images', action='store_true')
+    parser.add_argument('--partial-overlap', action='store_true')
     args = parser.parse_args()
     if args.serve:
         serve(args.root)
     else:
         run(args.root, args.repetitions, args.width, args.contract, args.visual_only,
-            args.all_screenshots, args.trace_images)
+            args.all_screenshots, args.trace_images, args.partial_overlap)

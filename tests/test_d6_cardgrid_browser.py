@@ -204,3 +204,31 @@ def test_retry_reloads_only_failed_thumbnail(page):
     page.wait_for_function("document.querySelector('[data-work-id=\"0\"] img')?.naturalWidth === 8")
     assert image_before.evaluate('node => node.isConnected')
     assert requests.count(True) == 2 and requests.count(False) == 1
+
+
+def test_partial_overlap_prioritizes_first_new_thumbnail_without_reloading_survivor(page):
+    from playwright.sync_api import expect
+
+    survivor = page.locator('[data-work-id="2"] img')
+    expect(page.locator('[data-work-id="2"] [role=status]')).to_be_visible()
+    old_image = survivor.element_handle()
+    requests = []
+
+    def record(request):
+        path = request.url.rsplit('/', 1)[-1]
+        if path == '2' or path.startswith('partial-'):
+            requests.append(path)
+
+    page.context.on('request', record)
+    page.evaluate('''() => {
+        const old = props.cards[2];
+        props.cards = props.cards.map((card, index) => index === 20 ? old : ({
+            ...card, work_id: 'partial-' + index, src: '/media/partial-' + index
+        }));
+    }''')
+    expect(page.locator('[data-work-id="partial-0"] [role=status]')).to_be_visible()
+    expect(page.locator('[data-work-id="partial-12"] img')).to_have_attribute('loading', 'eager')
+    expect(page.locator('[data-work-id="partial-12"] [role=status]')).to_be_visible()
+    assert requests and requests[0] == 'partial-0', requests[:6]
+    assert '2' not in requests
+    assert old_image.evaluate('node => node === document.querySelector(\'[data-work-id="2"] img\')')

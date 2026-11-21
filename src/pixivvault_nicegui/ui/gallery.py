@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from inspect import isawaitable
 
 from nicegui import ui
@@ -37,6 +37,7 @@ class GalleryView(ViewerController):
         self.cards: dict[str, GalleryCard] = {}
         self._card_artworks: dict[str, Artwork] = {}
         self._artwork_provider = services.images
+        self._resolved_page_counts: dict[str, int] = {}
         self.client = ui.context.client
         self.client.on_delete(self.close)
 
@@ -118,10 +119,40 @@ class GalleryView(ViewerController):
         if menu is not None:menu.close()
         await self._open_author_art(art)
 
+    def _use_artwork_provider(self, provider) -> bool:
+        if self._artwork_provider is provider:
+            return False
+        self._artwork_provider = provider
+        self._resolved_page_counts.clear()
+        return True
+
+    def open_resolved_artwork(self, artwork: Artwork) -> None:
+        old = self.state
+        self._use_artwork_provider(self.services.images)
+        self._resolved_page_counts[artwork.work_id] = artwork.page_count
+        state = GalleryState(
+            (artwork if item.work_id == artwork.work_id else item for item in old.artworks),
+            page_size=old.page_size,
+        )
+        state.set_card_size(old.card_size)
+        state.set_query(old.query)
+        while state.shown_count < old.shown_count and state.has_more:
+            state.load_more()
+        state.generation = old.generation + 1
+        old.close()
+        self.state = self._viewer_state = state
+        self.open(artwork.work_id)
+
     def replace_artworks(self, artworks, *, keep_viewer=False) -> None:
         old = self.state
-        provider = self.services.images
-        if old.artworks != artworks or self._artwork_provider is not provider:
+        provider_changed = self._use_artwork_provider(self.services.images)
+        resolved = self._resolved_page_counts
+        if resolved:
+            # A pin can resolve page counts independently of the listing records.
+            artworks = tuple(replace(art, page_count=resolved[art.work_id])
+                             if art.work_id in resolved and art.page_count != resolved[art.work_id]
+                             else art for art in artworks)
+        if old.artworks != artworks or provider_changed:
             if not keep_viewer:
                 self.close_viewer(restore_focus=False)
             state = GalleryState(artworks, page_size=max(50, len(artworks)))
@@ -133,7 +164,6 @@ class GalleryView(ViewerController):
             self.state = state
             if not keep_viewer:
                 self._viewer_state = state
-            self._artwork_provider = provider
         self.render_gallery()
 
     def render_gallery(self) -> None:

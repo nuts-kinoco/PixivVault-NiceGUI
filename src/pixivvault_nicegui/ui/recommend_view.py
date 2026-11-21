@@ -35,7 +35,7 @@ class RecommendView:
         self.data=None;self.undo=None;self.visible={};self.step=6
         self._certain_buttons={}
         self._pending_hide=None
-        self._save_operations={};self._saving=set();self._busy_buttons=[];self._refresh_pending=False
+        self._save_operations={};self._saving=set();self._busy_buttons=[];self._refresh_pending=None
         self._action_bindings=[];self._render_generation=0
         self._media=None;self._selection_media=None;self._open_generation=0;self._opening=None
         self._author_browser=None
@@ -105,10 +105,19 @@ class RecommendView:
     def _finish_operation(self):
         try:self._set_busy(False)
         finally:
-            # A tab re-entered during a worker must reload its committed result.
-            if self._refresh_pending and self.active and not self.closed:
-                self._refresh_pending=False
-                background_tasks.create(self.refresh())
+            pending = self._refresh_pending
+            self._refresh_pending = None
+            if pending is not None:
+                self._queue_refresh(preserve_viewer=pending)
+
+    def _queue_refresh(self, *, preserve_viewer=False):
+        if not self.active or self.closed or self.controller is None:
+            return
+        if self.busy:
+            if self._refresh_pending is None or not preserve_viewer:
+                self._refresh_pending = preserve_viewer
+        else:
+            background_tasks.create(self.refresh(preserve_viewer=preserve_viewer))
 
     def set_active(self,active):
         active=bool(active) and not self.closed
@@ -119,12 +128,14 @@ class RecommendView:
             if self._author_browser is not None:self._author_browser.hide()
             self._pending_hide=None
             self.hide_dialog.close()
-        if self.active and self.controller is not None:
-            if self.busy:self._refresh_pending=True
-            else:background_tasks.create(self.refresh())
+        if self.active:
+            self._queue_refresh()
 
     async def refresh(self, *, preserve_viewer=False):
-        if not self.active or self.busy or self.controller is None:return
+        if not self.active or self.closed or self.controller is None:return
+        if self.busy:
+            self._queue_refresh(preserve_viewer=preserve_viewer)
+            return
         epoch=self.epoch
         try:
             self._set_busy(True, text='保存済み結果を読み込んでいます…')
@@ -558,8 +569,7 @@ class RecommendView:
 
     def _viewer_hidden(self,work_id):
         # ビューアの右クリックで出さないにした。保存済みの結果を読み直して棚から外す。
-        if self.active and not self.closed and not self.busy:
-            background_tasks.create(self.refresh(preserve_viewer=True))
+        self._queue_refresh(preserve_viewer=True)
     def _card_menu(self,kind,work,generation,card,data):
         testid, entries = self._card_menu_entries(kind,work,generation,data)
         menu,_=build_context_menu(entries,testid=testid)

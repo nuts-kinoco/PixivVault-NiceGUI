@@ -220,15 +220,7 @@ class AuthorBrowseView:
         if (self.closed or not self.visible or epoch != self.epoch
                 or request != self.open_request or provider is not self.pin):
             return
-        old = self.gallery.state
-        state = GalleryState(tuple(art if a.work_id == work_id else a for a in old.artworks), page_size=old.page_size)
-        state.set_card_size(old.card_size)
-        state.set_query(old.query)
-        while state.shown_count < old.shown_count and state.has_more:
-            state.load_more()
-        old.close()
-        self.gallery.state = self.gallery._viewer_state = state
-        self.gallery.open(work_id)
+        self.gallery.open_resolved_artwork(art)
 
     def hide(self):
         self.epoch += 1

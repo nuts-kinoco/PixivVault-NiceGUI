@@ -125,7 +125,7 @@ export default {
         </div>
         <div v-else class="pv-card-rank">{{ card.rank }}</div>
         <pv-card-thumbnail v-if="card.src" :key="card.src"
-                           :src="index && deferSiblingSources ? undefined : imageSource(card.src)"
+                           :src="deferredSiblingIds?.has(card.work_id) ? undefined : imageSource(card.src)"
                            :eager="index < columns * 3" :first="index === 0" :retry="retry_epoch" />
         <div v-else class="pv-thumb pv-subtitle">画像を取得できません</div>
         <div class="pv-card-meta">
@@ -172,20 +172,23 @@ export default {
   emits: ['card-action'],
   data() {
     return {columns: 6, resizeObserver: null, menuSession: null, menuSequence: 0,
-            ready: window.path_prefix !== undefined, deferSiblingSources: false};
+            ready: window.path_prefix !== undefined, deferredSiblingIds: null};
   },
   watch: {
     cards(cards, previous) {
-      this.deferSiblingSources = false;
-      if (this.layout || !previous.length || !cards[0]?.src ||
-          previous[0].work_id === cards[0].work_id) return;
-      const oldIds = new Set(previous.map(card => card.work_id));
-      if (cards.some(card => oldIds.has(card.work_id))) return;
-      // Vue inserts disjoint keyed children from the end. Let the first
-      // thumbnail dispatch before the reverse insertion can start its siblings.
-      this.deferSiblingSources = true;
+      this.deferredSiblingIds = null;
+      const first = cards[0];
+      if (this.layout || !previous.length || !first?.src ||
+          (previous[0].work_id === first.work_id && previous[0].src === first.src)) return;
+      const previousSources = new Map(previous.map(card => [card.work_id, card.src]));
+      if (previousSources.get(first.work_id) === first.src) return;
+      // Mount the new first image before its new siblings. Reused images keep
+      // their sources even when Vue moves their cards during the keyed update.
+      this.deferredSiblingIds = new Set(cards.slice(1)
+        .filter(card => card.src && previousSources.get(card.work_id) !== card.src)
+        .map(card => card.work_id));
       this.$nextTick(() => {
-        if (this.cards === cards) this.deferSiblingSources = false;
+        if (this.cards === cards) this.deferredSiblingIds = null;
       });
     },
     render_epoch() { this.menuSession = null; },
