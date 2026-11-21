@@ -1,0 +1,54 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\gpu-verify-20261122
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 6 items
+
+tests\test_verify_visual_preference_gpu.py ...FFF                        [100%]
+
+================================== FAILURES ===================================
+________ test_batch_probe_distinguishes_rejection_and_collapsed_output ________
+
+verify = {'CPU': 'CPUExecutionProvider', 'CUDA': 'CUDAExecutionProvider', 'CUDA_OPTIONS': {'arena_extend_strategy': 'kSameAsReq...n_default_stream': '1', 'gpu_mem_limit': '8589934592', 'use_tf32': '0'}, 'Counter': <class 'collections.Counter'>, ...}
+
+    def test_batch_probe_distinguishes_rejection_and_collapsed_output(verify):
+        class Output:
+            def __init__(self, shape):
+                self.shape = shape
+    
+        classify = verify["batch_result"]
+        assert classify(None)["status"] == "rejected"
+>       assert classify([])["status"] == "rejected"
+E       AssertionError: assert 'two_rows' == 'rejected'
+E         
+E         - rejected
+E         + two_rows
+
+tests\test_verify_visual_preference_gpu.py:76: AssertionError
+_________ test_cuda_worker_requires_live_lease_from_its_process_tree __________
+
+verify = {'CPU': 'CPUExecutionProvider', 'CUDA': 'CUDAExecutionProvider', 'CUDA_OPTIONS': {'arena_extend_strategy': 'kSameAsReq...n_default_stream': '1', 'gpu_mem_limit': '8589934592', 'use_tf32': '0'}, 'Counter': <class 'collections.Counter'>, ...}
+
+    def test_cuda_worker_requires_live_lease_from_its_process_tree(verify):
+>       check = verify["validate_cuda_lease"]
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'validate_cuda_lease'
+
+tests\test_verify_visual_preference_gpu.py:82: KeyError
+_________ test_report_records_gpu_incomplete_even_when_cpu_succeeded __________
+
+verify = {'CPU': 'CPUExecutionProvider', 'CUDA': 'CUDAExecutionProvider', 'CUDA_OPTIONS': {'arena_extend_strategy': 'kSameAsReq...n_default_stream': '1', 'gpu_mem_limit': '8589934592', 'use_tf32': '0'}, 'Counter': <class 'collections.Counter'>, ...}
+
+    def test_report_records_gpu_incomplete_even_when_cpu_succeeded(verify):
+>       status = verify["measurement_exit_code"]
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'measurement_exit_code'
+
+tests\test_verify_visual_preference_gpu.py:94: KeyError
+=========================== short test summary info ===========================
+FAILED tests/test_verify_visual_preference_gpu.py::test_batch_probe_distinguishes_rejection_and_collapsed_output
+FAILED tests/test_verify_visual_preference_gpu.py::test_cuda_worker_requires_live_lease_from_its_process_tree
+FAILED tests/test_verify_visual_preference_gpu.py::test_report_records_gpu_incomplete_even_when_cpu_succeeded
+========================= 3 failed, 3 passed in 0.77s =========================

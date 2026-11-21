@@ -1,0 +1,11 @@
+﻿{
+    "checked_utc":  "2026-11-21T17:27:26.5570807Z",
+    "remaining":  0,
+    "processes":  [
+
+                  ],
+    "scope":  "S:\\Work\\PV\\gpu-verify-20261122",
+    "ignore":  "supervisor codex.exe and this status query",
+    "pv_g0_lease_remaining":  false,
+    "free_gib":  2.255859375
+}

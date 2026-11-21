@@ -1,0 +1,98 @@
+[
+  {
+    "path": "S:\\Work\\PV\\gpu-verify-20261122\\venv",
+    "last_write": "2026-11-21T16:05:17.7775652Z",
+    "disposition": "DELETE",
+    "dependency": "benchmark finished; scratch can be regenerated"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\cpu-venv",
+    "last_write": "2026-11-21T16:05:46.3039492Z",
+    "disposition": "DELETE",
+    "dependency": "benchmark finished; scratch can be regenerated"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\isolated-saved-image-corpus",
+    "last_write": "2026-11-21T16:11:35.6458753Z",
+    "disposition": "DELETE",
+    "dependency": "benchmark finished; scratch can be regenerated"
+  },
+  {
+    "path": "S:\\Work\\PV\\gpu-verify-20261122\\verify\\G0-20261122\\r1",
+    "last_write": "2026-11-21T17:16:17.3407439Z",
+    "disposition": "KEEP",
+    "dependency": "referenced raw evidence"
+  },
+  {
+    "path": "S:\\Backup\\PV\\20261122-gpu-verify\\gpu-verify.bundle",
+    "last_write": "2026-11-21T16:33:41.3082361Z",
+    "disposition": "KEEP",
+    "dependency": "verified unique commit bundle"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-controlled-sharing-workspace",
+    "last_write": "2026-11-21T17:16:16.0917437Z",
+    "disposition": "DELETE",
+    "dependency": "pytest scratch; referenced logs are stored under verify"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-final-focused-verification",
+    "last_write": "2026-11-21T16:29:12.3535305Z",
+    "disposition": "DELETE",
+    "dependency": "pytest scratch; referenced logs are stored under verify"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-full-verification-workspace",
+    "last_write": "2026-11-21T17:12:48.5889429Z",
+    "disposition": "DELETE",
+    "dependency": "pytest scratch; referenced logs are stored under verify"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-green-lease-review-workspace",
+    "last_write": "2026-11-21T16:17:47.2926320Z",
+    "disposition": "DELETE",
+    "dependency": "pytest scratch; referenced logs are stored under verify"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-green-verification-workspace",
+    "last_write": "2026-11-21T16:11:10.8130817Z",
+    "disposition": "DELETE",
+    "dependency": "pytest scratch; referenced logs are stored under verify"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-red-local-gpu-lock-workspace",
+    "last_write": "2026-11-21T16:19:20.1659777Z",
+    "disposition": "DELETE",
+    "dependency": "pytest scratch; referenced logs are stored under verify"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-repro-diagnostics-workspace",
+    "last_write": "2026-11-21T17:15:16.9682955Z",
+    "disposition": "DELETE",
+    "dependency": "pytest scratch; referenced logs are stored under verify"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-repro-verification-workspace",
+    "last_write": "2026-11-21T17:13:54.6336499Z",
+    "disposition": "DELETE",
+    "dependency": "pytest scratch; referenced logs are stored under verify"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\cuda-kernel-cache",
+    "last_write": "2026-11-21T17:18:29.852340+00:00",
+    "disposition": "DELETE",
+    "dependency": "CUDA run finished; public evidence is under verify"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\cuda-verifier.lock",
+    "last_write": "2026-11-21T17:18:04.522095+00:00",
+    "disposition": "DELETE",
+    "dependency": "CUDA run finished; public evidence is under verify"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\cuda-recheck-private-result.json",
+    "last_write": "2026-11-21T17:19:21.166950+00:00",
+    "disposition": "DELETE",
+    "dependency": "CUDA run finished; public evidence is under verify"
+  }
+]

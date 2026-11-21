@@ -1,0 +1,26 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\gpu-verify-20261122
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 7 items / 6 deselected / 1 selected
+
+tests\test_verify_visual_preference_gpu.py F                             [100%]
+
+================================== FAILURES ===================================
+______ test_gpu_run_lock_rejects_duplicate_and_releases_after_exception _______
+
+verify = {'CPU': 'CPUExecutionProvider', 'CUDA': 'CUDAExecutionProvider', 'CUDA_OPTIONS': {'arena_extend_strategy': 'kSameAsReq...n_default_stream': '1', 'gpu_mem_limit': '8589934592', 'use_tf32': '0'}, 'Counter': <class 'collections.Counter'>, ...}
+tmp_path = WindowsPath('S:/Work/_tmp/PV/g0-20261122/pytest-red-local-gpu-lock-workspace/test_gpu_run_lock_rejects_dupl0')
+
+    @pytest.mark.skipif(sys.platform != "win32", reason="the shared GPU lease runs on Windows")
+    def test_gpu_run_lock_rejects_duplicate_and_releases_after_exception(verify, tmp_path):
+>       lock = verify["gpu_run_lock"]
+               ^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'gpu_run_lock'
+
+tests\test_verify_visual_preference_gpu.py:113: KeyError
+=========================== short test summary info ===========================
+FAILED tests/test_verify_visual_preference_gpu.py::test_gpu_run_lock_rejects_duplicate_and_releases_after_exception
+======================= 1 failed, 6 deselected in 0.89s =======================

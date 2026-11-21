@@ -1,0 +1,93 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\gpu-verify-20261122
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 4 items
+
+tests\test_verify_visual_preference_gpu.py EEEE                          [100%]
+
+=================================== ERRORS ====================================
+_ ERROR at setup of test_profile_counts_unique_compute_nodes_and_separates_transfers _
+
+    @pytest.fixture
+    def verify():
+>       return runpy.run_path(str(Path(__file__).resolve().parents[1]
+                                  / "tools" / "verify_visual_preference_gpu.py"))
+
+tests\test_verify_visual_preference_gpu.py:11: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<frozen runpy>:286: in run_path
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+fname = 'S:\\Work\\PV\\gpu-verify-20261122\\tools\\verify_visual_preference_gpu.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: 'S:\\Work\\PV\\gpu-verify-20261122\\tools\\verify_visual_preference_gpu.py'
+
+<frozen runpy>:254: FileNotFoundError
+_ ERROR at setup of test_neighbor_comparison_excludes_self_and_detects_rank_swaps _
+
+    @pytest.fixture
+    def verify():
+>       return runpy.run_path(str(Path(__file__).resolve().parents[1]
+                                  / "tools" / "verify_visual_preference_gpu.py"))
+
+tests\test_verify_visual_preference_gpu.py:11: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<frozen runpy>:286: in run_path
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+fname = 'S:\\Work\\PV\\gpu-verify-20261122\\tools\\verify_visual_preference_gpu.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: 'S:\\Work\\PV\\gpu-verify-20261122\\tools\\verify_visual_preference_gpu.py'
+
+<frozen runpy>:254: FileNotFoundError
+______ ERROR at setup of test_cuda_failure_produces_no_correction_input _______
+
+    @pytest.fixture
+    def verify():
+>       return runpy.run_path(str(Path(__file__).resolve().parents[1]
+                                  / "tools" / "verify_visual_preference_gpu.py"))
+
+tests\test_verify_visual_preference_gpu.py:11: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<frozen runpy>:286: in run_path
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+fname = 'S:\\Work\\PV\\gpu-verify-20261122\\tools\\verify_visual_preference_gpu.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: 'S:\\Work\\PV\\gpu-verify-20261122\\tools\\verify_visual_preference_gpu.py'
+
+<frozen runpy>:254: FileNotFoundError
+_ ERROR at setup of test_batch_probe_distinguishes_rejection_and_collapsed_output _
+
+    @pytest.fixture
+    def verify():
+>       return runpy.run_path(str(Path(__file__).resolve().parents[1]
+                                  / "tools" / "verify_visual_preference_gpu.py"))
+
+tests\test_verify_visual_preference_gpu.py:11: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<frozen runpy>:286: in run_path
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+fname = 'S:\\Work\\PV\\gpu-verify-20261122\\tools\\verify_visual_preference_gpu.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: 'S:\\Work\\PV\\gpu-verify-20261122\\tools\\verify_visual_preference_gpu.py'
+
+<frozen runpy>:254: FileNotFoundError
+=========================== short test summary info ===========================
+ERROR tests/test_verify_visual_preference_gpu.py::test_profile_counts_unique_compute_nodes_and_separates_transfers
+ERROR tests/test_verify_visual_preference_gpu.py::test_neighbor_comparison_excludes_self_and_detects_rank_swaps
+ERROR tests/test_verify_visual_preference_gpu.py::test_cuda_failure_produces_no_correction_input
+ERROR tests/test_verify_visual_preference_gpu.py::test_batch_probe_distinguishes_rejection_and_collapsed_output
+============================== 4 errors in 0.52s ==============================

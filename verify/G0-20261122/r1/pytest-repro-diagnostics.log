@@ -1,0 +1,49 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\gpu-verify-20261122
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 3 items
+
+tests\test_w_bulk_performance_20261118.py .                              [ 33%]
+tests\test_w_round7_live.py ..                                           [100%]
+
+============================= 3 passed in 14.63s ==============================
+[
+  {
+    "action": "bulk",
+    "count": 20000,
+    "seconds": 0.507,
+    "chips": 400,
+    "outcome": "passed"
+  },
+  {
+    "action": "read",
+    "exit": 0,
+    "seconds": 3.168,
+    "win_errors": [],
+    "exception_types": []
+  },
+  {
+    "action": "fold",
+    "exit": 0,
+    "seconds": 6.561,
+    "win_errors": [],
+    "exception_types": []
+  },
+  {
+    "action": "read",
+    "exit": 0,
+    "seconds": 1.589,
+    "win_errors": [],
+    "exception_types": []
+  },
+  {
+    "action": "fold",
+    "exit": 0,
+    "seconds": 2.898,
+    "win_errors": [],
+    "exception_types": []
+  }
+]

@@ -1,0 +1,52 @@
+﻿Collecting onnxruntime-gpu==1.28.0 (from onnxruntime-gpu[cuda,cudnn]==1.28.0)
+  Downloading onnxruntime_gpu-1.28.0-cp313-cp313-win_amd64.whl.metadata (6.0 kB)
+Collecting numpy==2.3.5
+  Downloading numpy-2.3.5-cp313-cp313-win_amd64.whl.metadata (60 kB)
+Collecting Pillow==13.0.0
+  Downloading pillow-13.0.0-cp313-cp313-win_amd64.whl.metadata (9.3 kB)
+Collecting flatbuffers (from onnxruntime-gpu==1.28.0->onnxruntime-gpu[cuda,cudnn]==1.28.0)
+  Downloading flatbuffers-25.12.19-py2.py3-none-any.whl.metadata (1.0 kB)
+Collecting packaging (from onnxruntime-gpu==1.28.0->onnxruntime-gpu[cuda,cudnn]==1.28.0)
+  Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+Collecting protobuf>=4.25.8 (from onnxruntime-gpu==1.28.0->onnxruntime-gpu[cuda,cudnn]==1.28.0)
+  Downloading protobuf-7.36.2-cp310-abi3-win_amd64.whl.metadata (595 bytes)
+Collecting nvidia-cuda-nvrtc~=13.0 (from onnxruntime-gpu[cuda,cudnn]==1.28.0)
+  Downloading nvidia_cuda_nvrtc-13.5.37-py3-none-win_amd64.whl.metadata (1.8 kB)
+Collecting nvidia-cuda-runtime~=13.0 (from onnxruntime-gpu[cuda,cudnn]==1.28.0)
+  Downloading nvidia_cuda_runtime-13.5.37-py3-none-win_amd64.whl.metadata (1.8 kB)
+Collecting nvidia-cufft~=12.0 (from onnxruntime-gpu[cuda,cudnn]==1.28.0)
+  Downloading nvidia_cufft-12.5.0.14-py3-none-win_amd64.whl.metadata (1.8 kB)
+Collecting nvidia-curand~=10.0 (from onnxruntime-gpu[cuda,cudnn]==1.28.0)
+  Downloading nvidia_curand-10.4.5.25-py3-none-win_amd64.whl.metadata (1.8 kB)
+Collecting nvidia-cudnn-cu13~=9.0 (from onnxruntime-gpu[cuda,cudnn]==1.28.0)
+  Downloading nvidia_cudnn_cu13-9.28.1.4-py3-none-win_amd64.whl.metadata (938 bytes)
+Collecting nvidia-cublas (from nvidia-cudnn-cu13~=9.0->onnxruntime-gpu[cuda,cudnn]==1.28.0)
+  Downloading nvidia_cublas-13.10.0.20-py3-none-win_amd64.whl.metadata (1.8 kB)
+Collecting nvidia-nvjitlink (from nvidia-cufft~=12.0->onnxruntime-gpu[cuda,cudnn]==1.28.0)
+  Downloading nvidia_nvjitlink-13.5.37-py3-none-win_amd64.whl.metadata (1.8 kB)
+Downloading onnxruntime_gpu-1.28.0-cp313-cp313-win_amd64.whl (241.5 MB)
+   ---------------------------------------- 241.5/241.5 MB 10.0 MB/s  0:00:24
+Downloading numpy-2.3.5-cp313-cp313-win_amd64.whl (12.8 MB)
+   ---------------------------------------- 12.8/12.8 MB 14.5 MB/s  0:00:00
+Downloading pillow-13.0.0-cp313-cp313-win_amd64.whl (7.3 MB)
+   ---------------------------------------- 7.3/7.3 MB 22.1 MB/s  0:00:00
+Downloading nvidia_cuda_nvrtc-13.5.37-py3-none-win_amd64.whl (49.2 MB)
+   ---------------------------------------- 49.2/49.2 MB 6.8 MB/s  0:00:07
+Downloading nvidia_cuda_runtime-13.5.37-py3-none-win_amd64.whl (2.8 MB)
+   ---------------------------------------- 2.8/2.8 MB 3.8 MB/s  0:00:00
+Downloading nvidia_cudnn_cu13-9.28.1.4-py3-none-win_amd64.whl (407.1 MB)
+   ---------------------------------------- 407.1/407.1 MB 11.9 MB/s  0:00:37
+Downloading nvidia_cufft-12.5.0.14-py3-none-win_amd64.whl (164.5 MB)
+   ---------------------------------------- 164.5/164.5 MB 7.7 MB/s  0:00:21
+Downloading nvidia_curand-10.4.5.25-py3-none-win_amd64.whl (77.3 MB)
+   ---------------------------------------- 77.3/77.3 MB 1.6 MB/s  0:00:39
+Downloading protobuf-7.36.2-cp310-abi3-win_amd64.whl (456 kB)
+Downloading flatbuffers-25.12.19-py2.py3-none-any.whl (26 kB)
+Downloading nvidia_cublas-13.10.0.20-py3-none-win_amd64.whl (427.3 MB)
+   ---------------------------------------- 427.3/427.3 MB 7.1 MB/s  0:01:05
+Downloading nvidia_nvjitlink-13.5.37-py3-none-win_amd64.whl (41.5 MB)
+   ---------------------------------------- 41.5/41.5 MB 11.3 MB/s  0:00:03
+Downloading packaging-26.3-py3-none-any.whl (129 kB)
+Installing collected packages: flatbuffers, protobuf, Pillow, packaging, nvidia-nvjitlink, nvidia-curand, nvidia-cuda-runtime, nvidia-cuda-nvrtc, numpy, onnxruntime-gpu, nvidia-cufft, nvidia-cublas, nvidia-cudnn-cu13
+
+Successfully installed Pillow-13.0.0 flatbuffers-25.12.19 numpy-2.3.5 nvidia-cublas-13.10.0.20 nvidia-cuda-nvrtc-13.5.37 nvidia-cuda-runtime-13.5.37 nvidia-cudnn-cu13-9.28.1.4 nvidia-cufft-12.5.0.14 nvidia-curand-10.4.5.25 nvidia-nvjitlink-13.5.37 onnxruntime-gpu-1.28.0 packaging-26.3 protobuf-7.36.2

@@ -1,0 +1,7 @@
+﻿NVIDIA-SMI version  : 621.24
+NVML version        : 621.24
+DRIVER version      : Deprecated, see "KMD version" instead
+CUDA version        : Deprecated, see "CUDA UMD version" instead
+KMD version         : 621.24
+CUDA UMD version    : 13.5
+NVIDIA GeForce RTX 5080, 12.0, 621.24, 16303 MiB, 2310 MiB

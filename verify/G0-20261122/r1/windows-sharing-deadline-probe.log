@@ -1,0 +1,66 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\gpu-verify-20261122
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 2 items
+
+tests\test_w_round7_live.py FF                                           [100%]
+
+================================== FAILURES ===================================
+_ test_separate_reader_during_committed_fold_with_windows_sharing_delay[active-generations.json] _
+tests\w_round7_fixtures.py:183: in test_separate_reader_during_committed_fold_with_windows_sharing_delay
+    assert child.poll() is None
+           ^^^^^^^^^^^^^^^^^^^^
+E   AssertionError
+_ test_separate_reader_during_committed_fold_with_windows_sharing_delay[active-generations.head] _
+tests\w_round7_fixtures.py:176: in test_separate_reader_during_committed_fold_with_windows_sharing_delay
+    wait_for(lambda: floor_path.read_bytes() != old_floor)
+tests\w_round7_fixtures.py:73: in wait_for
+    if predicate():
+       ^^^^^^^^^^^
+tests\w_round7_fixtures.py:176: in <lambda>
+    wait_for(lambda: floor_path.read_bytes() != old_floor)
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\pathlib\_abc.py:625: in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\pathlib\_local.py:537: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   PermissionError: [Errno 13] Permission denied: 'S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-controlled-sharing-workspace\\test_separate_reader_during_co1\\root\\active-generations.floor'
+=========================== short test summary info ===========================
+FAILED tests/test_w_round7_live.py::test_separate_reader_during_committed_fold_with_windows_sharing_delay[active-generations.json]
+FAILED tests/test_w_round7_live.py::test_separate_reader_during_committed_fold_with_windows_sharing_delay[active-generations.head]
+============================= 2 failed in 19.40s ==============================
+{
+  "diagnostic_only": true,
+  "injected_reader_delay_seconds": 6,
+  "pytest_exit": 1,
+  "children": [
+    {
+      "action": "read",
+      "exit": 81,
+      "win_errors": [],
+      "exception_types": []
+    },
+    {
+      "action": "fold",
+      "exit": 1,
+      "win_errors": [
+        "5"
+      ],
+      "exception_types": [
+        "PermissionError",
+        "WinError"
+      ]
+    },
+    {
+      "action": "fold",
+      "exit": 0,
+      "win_errors": [],
+      "exception_types": []
+    }
+  ]
+}
