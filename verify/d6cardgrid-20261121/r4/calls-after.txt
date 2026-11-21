@@ -1,0 +1,72 @@
+﻿HEAD:src/pixivvault_nicegui/ui/author_browse_view.py:58:            asyncio.create_task(self.owner.open_unknown(work_id, provider, self.owner.epoch, request))
+HEAD:src/pixivvault_nicegui/ui/author_browse_view.py:112:            task = asyncio.create_task(asyncio.to_thread(read_author, self.reader, author_id))
+HEAD:src/pixivvault_nicegui/ui/author_browse_view.py:213:    async def open_unknown(self, work_id, provider, epoch, request):
+HEAD:src/pixivvault_nicegui/ui/author_browse_view.py:215:            art = await asyncio.to_thread(provider.prepare_artwork, work_id)
+HEAD:src/pixivvault_nicegui/ui/author_browse_view.py:223:        self.gallery.open_resolved_artwork(art)
+HEAD:src/pixivvault_nicegui/ui/bookmark_view.py:276:            background_tasks.create(result)
+HEAD:src/pixivvault_nicegui/ui/card_grid.js:5:           :fetchpriority="first ? 'high' : undefined" decoding="async"
+HEAD:src/pixivvault_nicegui/ui/card_grid.js:49:                                 :eager="index < columns * 3" :placeholder="library_placeholder" :retry="retry_epoch" />
+HEAD:src/pixivvault_nicegui/ui/card_grid.js:73:                             :eager="index < columns * 3" :placeholder="library_placeholder" :retry="retry_epoch" />
+HEAD:src/pixivvault_nicegui/ui/card_grid.js:97:                                 :eager="index < columns * 3" :retry="retry_epoch" />
+HEAD:src/pixivvault_nicegui/ui/card_grid.js:128:                           :src="deferredSiblingIds?.has(card.work_id) ? undefined : imageSource(card.src)"
+HEAD:src/pixivvault_nicegui/ui/card_grid.js:129:                           :eager="index < columns * 3" :first="index === 0" :retry="retry_epoch" />
+HEAD:src/pixivvault_nicegui/ui/card_grid.js:175:            ready: window.path_prefix !== undefined, deferredSiblingIds: null};
+HEAD:src/pixivvault_nicegui/ui/card_grid.js:179:      this.deferredSiblingIds = null;
+HEAD:src/pixivvault_nicegui/ui/card_grid.js:187:      this.deferredSiblingIds = new Set(cards.slice(1)
+HEAD:src/pixivvault_nicegui/ui/card_grid.js:191:        if (this.cards === cards) this.deferredSiblingIds = null;
+HEAD:src/pixivvault_nicegui/ui/gallery.py:40:        self._resolved_page_counts: dict[str, int] = {}
+HEAD:src/pixivvault_nicegui/ui/gallery.py:126:        self._resolved_page_counts.clear()
+HEAD:src/pixivvault_nicegui/ui/gallery.py:129:    def open_resolved_artwork(self, artwork: Artwork) -> None:
+HEAD:src/pixivvault_nicegui/ui/gallery.py:132:        self._resolved_page_counts[artwork.work_id] = artwork.page_count
+HEAD:src/pixivvault_nicegui/ui/gallery.py:149:        resolved = self._resolved_page_counts
+HEAD:src/pixivvault_nicegui/ui/library_view.py:110:        self._legacy_restore_request = None
+HEAD:src/pixivvault_nicegui/ui/library_view.py:119:        self._resolved_bookmark_artwork = {}
+HEAD:src/pixivvault_nicegui/ui/library_view.py:479:        if request==self._legacy_restore_request:return
+HEAD:src/pixivvault_nicegui/ui/library_view.py:481:        self._legacy_restore_request=request
+HEAD:src/pixivvault_nicegui/ui/library_view.py:482:        background_tasks.create(self._restore_legacy_capacities(*request))
+HEAD:src/pixivvault_nicegui/ui/library_view.py:504:            if self._legacy_restore_request==request:self._legacy_restore_request=None
+HEAD:src/pixivvault_nicegui/ui/library_view.py:524:        self._legacy_auto_task=background_tasks.create(self._measure_unmeasured_capacity(
+HEAD:src/pixivvault_nicegui/ui/library_view.py:801:            background_tasks.create(self._refresh_bookmarks_async(epoch, automatic=automatic))
+HEAD:src/pixivvault_nicegui/ui/library_view.py:846:                    self._resolved_bookmark_artwork.clear()
+HEAD:src/pixivvault_nicegui/ui/library_view.py:864:                self._resolved_bookmark_artwork.get(card.work_id, card.artwork))
+HEAD:src/pixivvault_nicegui/ui/library_view.py:878:            background_tasks.create(self._open_unknown_bookmark(work_id, epoch, provider))
+HEAD:src/pixivvault_nicegui/ui/library_view.py:884:    async def _open_unknown_bookmark(self, work_id, epoch, provider):
+HEAD:src/pixivvault_nicegui/ui/library_view.py:886:            artwork = await asyncio.to_thread(provider.prepare_artwork, work_id)
+HEAD:src/pixivvault_nicegui/ui/library_view.py:897:        self._resolved_bookmark_artwork[work_id] = artwork
+HEAD:src/pixivvault_nicegui/ui/library_view.py:945:        self._resolved_bookmark_artwork.clear()
+HEAD:src/pixivvault_nicegui/ui/library_view.py:1421:        background_tasks.create(self._search_pixiv_async(epoch, query, filters))
+HEAD:src/pixivvault_nicegui/ui/personal_ranking_view.py:34:        self._context_task = None
+HEAD:src/pixivvault_nicegui/ui/personal_ranking_view.py:35:        self._context_refresh_pending = False
+HEAD:src/pixivvault_nicegui/ui/personal_ranking_view.py:97:        self._local_revision_timer=ui.timer(1.0, self._sync_local_context) if getattr(services, 'local_tag_view', None) is not None else None
+HEAD:src/pixivvault_nicegui/ui/personal_ranking_view.py:109:        if self._context_task is None or self._context_task.done():
+HEAD:src/pixivvault_nicegui/ui/personal_ranking_view.py:215:        self._context_refresh_pending = True
+HEAD:src/pixivvault_nicegui/ui/personal_ranking_view.py:216:        if self._context_task is None or self._context_task.done():
+HEAD:src/pixivvault_nicegui/ui/personal_ranking_view.py:218:            self._context_task = background_tasks.create(self._drain_context_refresh())
+HEAD:src/pixivvault_nicegui/ui/personal_ranking_view.py:219:        return self._context_task
+HEAD:src/pixivvault_nicegui/ui/personal_ranking_view.py:223:            self._context_refresh_pending = False
+HEAD:src/pixivvault_nicegui/ui/personal_ranking_view.py:225:            if context is not None and not self._context_refresh_pending:
+HEAD:src/pixivvault_nicegui/ui/personal_ranking_view.py:244:                or request != self._context_request or self._context_refresh_pending):
+HEAD:src/pixivvault_nicegui/ui/personal_ranking_view.py:312:            try:self._condition_task=asyncio.get_running_loop().create_task(self._load_changed_conditions())
+HEAD:src/pixivvault_nicegui/ui/personal_ranking_view.py:374:            pending = self._context_task
+HEAD:src/pixivvault_nicegui/ui/ranking_view.py:39:        if self.owner.active and not self.owner.busy:asyncio.create_task(self.owner.load(append=True))
+HEAD:src/pixivvault_nicegui/ui/ranking_view.py:55:            asyncio.create_task(self.owner.open_unknown(work_id,self.services.images,self.owner.epoch,request))
+HEAD:src/pixivvault_nicegui/ui/ranking_view.py:101:        self._local_revision_timer=ui.timer(1.0, self._sync_local_revision) if getattr(services, 'local_tag_view', None) is not None else None
+HEAD:src/pixivvault_nicegui/ui/ranking_view.py:116:            self._local_revision_task = asyncio.create_task(self._refresh_local_preferred())
+HEAD:src/pixivvault_nicegui/ui/ranking_view.py:145:                self._condition_task=asyncio.create_task(self._load_changed_conditions())
+HEAD:src/pixivvault_nicegui/ui/ranking_view.py:380:    async def open_unknown(self,work_id,provider,epoch,request):
+HEAD:src/pixivvault_nicegui/ui/ranking_view.py:381:        try:artwork=await asyncio.to_thread(provider.prepare_artwork,work_id)
+HEAD:src/pixivvault_nicegui/ui/ranking_view.py:387:        self.gallery.open_resolved_artwork(artwork)
+HEAD:src/pixivvault_nicegui/ui/ranking_view.py:399:        try:self._hm().task=asyncio.get_running_loop().create_task(self.refresh_hidden())
+HEAD:src/pixivvault_nicegui/ui/ranking_view.py:407:        try:self._auto_task=asyncio.get_running_loop().create_task(self._first_load())
+HEAD:src/pixivvault_nicegui/ui/recommend_view.py:38:        self._save_operations={};self._saving=set();self._busy_buttons=[];self._refresh_pending=None
+HEAD:src/pixivvault_nicegui/ui/recommend_view.py:108:            pending = self._refresh_pending
+HEAD:src/pixivvault_nicegui/ui/recommend_view.py:109:            self._refresh_pending = None
+HEAD:src/pixivvault_nicegui/ui/recommend_view.py:117:            if self._refresh_pending is None or not preserve_viewer:
+HEAD:src/pixivvault_nicegui/ui/recommend_view.py:118:                self._refresh_pending = preserve_viewer
+HEAD:src/pixivvault_nicegui/ui/recommend_view.py:120:            background_tasks.create(self.refresh(preserve_viewer=preserve_viewer))
+HEAD:src/pixivvault_nicegui/ui/recommend_view.py:370:                artwork=await asyncio.to_thread(selection.images.prepare_artwork,work_id)
+HEAD:src/pixivvault_nicegui/ui/shell.py:83:        self._ugoira_timer = ui.timer(2, self._notify_ugoira_fallback) if owner is not None else None
+HEAD:src/pixivvault_nicegui/ui/shell.py:125:                            self._borrow_timer=ui.timer(1,self.sync_borrow)
+HEAD:src/pixivvault_nicegui/ui/viewer_controller.py:201:            self._animation_task=asyncio.create_task(self._load_viewer_gif(provider,art,self._request_serial))
+HEAD:src/pixivvault_nicegui/ui/viewer_controller.py:411:                        asyncio.create_task(self._load_detail(art,self._request_serial))
+HEAD:src/pixivvault_nicegui/ui/viewer_controller.py:475:        loop.create_task(resolve())
