@@ -21,6 +21,7 @@ import re
 from threading import RLock
 import time
 import warnings
+import zlib
 from typing import Callable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit, quote, unquote, parse_qsl
@@ -459,7 +460,7 @@ class _ReadResponse:
 def _read_response(opener, request: Request, timeout: float,
                    limit: int, deadline: float, *, owner=None,
                    observe_status=None, capture_cookies=False):
-    """Use urllib without automatic redirects, retries, proxies or decoding."""
+    """Read a bounded response without redirects, retries or proxies."""
     try:
         response = opener.open(request, timeout=timeout)
         # Capture the status BEFORE owner registration, deadline validation or
@@ -483,7 +484,13 @@ def _read_response(opener, request: Request, timeout: float,
             headers = response.headers
             if sum(len(str(k)) + len(str(v)) for k, v in headers.items()) > MAX_HEADER_BYTES:
                 raise ResponseLimitExceeded()
-            if headers.get("Content-Encoding", "").strip().lower() not in ("", "identity"):
+            encoding = headers.get("Content-Encoding", "").strip().lower()
+            if len(getattr(headers, "get_all", lambda *_: [])("Content-Encoding", [])) > 1:
+                raise ResponseRejected()
+            decoder = None
+            if encoding == "gzip" and request.get_header("Accept-encoding") == "gzip":
+                decoder = zlib.decompressobj(16 + zlib.MAX_WBITS)
+            elif encoding not in ("", "identity"):
                 raise ResponseRejected()
             length = headers.get("Content-Length")
             if length is not None:
@@ -497,19 +504,32 @@ def _read_response(opener, request: Request, timeout: float,
             if not callable(read):
                 read = response.read  # Compatibility for explicitly injected test responses.
             data = bytearray()
+            wire_bytes = 0
             while True:
                 _check_time(deadline)
                 if owner is not None:
                     owner.check()
-                chunk = read(min(65536, limit + 1 - len(data)))
+                chunk = read(min(65536, limit + 1 - wire_bytes))
                 _check_time(deadline)
                 if owner is not None:
                     owner.check()
                 if not chunk:
                     break
-                data.extend(chunk)
-                if len(data) > limit:
+                wire_bytes += len(chunk)
+                if wire_bytes > limit:
                     raise ResponseLimitExceeded()
+                if decoder is None:
+                    data.extend(chunk)
+                else:
+                    data.extend(decoder.decompress(chunk, limit + 1 - len(data)))
+                    if len(data) > limit:
+                        raise ResponseLimitExceeded()
+                    if decoder.unused_data:
+                        raise ResponseRejected()
+            if decoder is not None and not decoder.eof:
+                raise ResponseRejected()
+            if getattr(response, "length", None) not in (None, 0):
+                raise ResponseRejected()
             if not capture_cookies and not _CAPTURE_COOKIE_RESPONSE.get():
                 return bytes(data)
             get_all = getattr(headers, 'get_all', None)
@@ -522,6 +542,8 @@ def _read_response(opener, request: Request, timeout: float,
             return _ReadResponse(bytes(data), tuple(values))
     except PixivReadError:
         raise
+    except zlib.error:
+        raise ResponseRejected() from None
     except HTTPError as exc:
         status = exc.code
         if (observe_status is not None and type(status) is int
@@ -575,6 +597,9 @@ class _OwnedReadTransport(OwnedHTTPSPool):
                 or type(limit) is not int or limit <= 0):
             raise ResponseRejected()
         effective_deadline = min(deadline, time.monotonic() + MAX_REQUEST_SECONDS)
+        keep_alive = parsed.netloc == "www.pixiv.net" and port == 443
+        if keep_alive and limit == JSON_LIMIT:
+            request.add_header("Accept-Encoding", "gzip")
         fatal_status_seen = None
 
         def observe_status(status):
@@ -585,7 +610,8 @@ class _OwnedReadTransport(OwnedHTTPSPool):
         try:
             with self.session(
                     timeout=min(timeout, MAX_REQUEST_SECONDS), deadline=effective_deadline,
-                    host=parsed.hostname, port=port) as owner:
+                    host=parsed.hostname, port=port, keep_alive=keep_alive) as owner:
+                owner._http_status_observer = observe_status
                 opener = build_opener(ProxyHandler({}), _NoRedirects(), OwnedHTTPSHandler(owner))
                 token = _CAPTURE_COOKIE_RESPONSE.set(True)
                 try:
