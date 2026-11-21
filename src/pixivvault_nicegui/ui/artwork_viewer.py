@@ -29,6 +29,7 @@ class ArtworkViewer:
         self.dialog = self  # GalleryView's existing dialog.open()/close() call sites.
         self.client = ui.context.client
         self._is_open = False
+        self.has_opened = False
         self._zoom_generation = 0
         with ArtworkPage() as self.page, PageColumn().classes("pv-viewer pv-viewer-overlay hidden").props(
             "tabindex=-1 role=dialog aria-label=画集ビューア aria-modal=false aria-hidden=true "
@@ -127,6 +128,9 @@ class ArtworkViewer:
         self.set_zoom_ready(False)
         self.set_details_open(False)
         self.set_status("")
+
+    def bind_transport(self) -> None:
+        """Start ordered updates once the controller has wired the initial elements."""
         self.page.bind(
             self.root, self.counter, self.quality_button, self.download_button,
             self.bookmark_button, self.follow_button, self.image, self.image_status,
@@ -365,6 +369,7 @@ class ArtworkViewer:
         if self._is_open:
             return
         self._is_open = True
+        self.has_opened = True
         self.root.classes(remove="hidden")
         self.root.props("aria-hidden=false")
         self.page.after_state(f"""(() => {{
@@ -384,6 +389,8 @@ class ArtworkViewer:
 
     def close(self, *, restore_focus: bool = True) -> None:
         # A tab departure also invalidates a queued focus restoration from a prior close.
+        if not self.has_opened:
+            return
         was_open = self._is_open
         self._is_open = False
         self.reset_zoom()

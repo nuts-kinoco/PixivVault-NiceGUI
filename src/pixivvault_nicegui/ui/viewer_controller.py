@@ -12,7 +12,7 @@ from .artwork_viewer import ArtworkViewer
 
 class ViewerController:
     def _init_viewer(self, services: ApplicationServices, state: GalleryState, host,
-                     *, library: bool = False) -> None:
+                     *, test_id: str = 'gallery-viewer', image_test_id: str = 'viewer-image') -> None:
         self.services = services
         self._viewer_state = state
         self._viewer_active = True
@@ -38,8 +38,7 @@ class ViewerController:
         self.viewer = ArtworkViewer(
             lambda: self.move_page(-1), lambda: self.move_page(1),
             self.close_viewer, self.toggle_details, self.request_image,
-            test_id="library-viewer" if library else "gallery-viewer",
-            image_test_id="library-viewer-image" if library else "viewer-image",
+            test_id=test_id, image_test_id=image_test_id,
         )
         from ..viewer_save import ViewerSave
         self._viewer_save = ViewerSave(services)
@@ -89,6 +88,7 @@ class ViewerController:
                 if self._viewer_state.viewer_open and not self.viewer.is_open else None)
         self.viewer_image.on("load", self._image_loaded)
         self.viewer_image.on("error", self._image_failed)
+        self.viewer.bind_transport()
 
     def set_viewer_active(self, active: bool) -> None:
         self._viewer_active = bool(active)
@@ -212,6 +212,7 @@ class ViewerController:
     async def _load_viewer_gif(self,provider,art,generation):
         def current():
             return (self._viewer_active and not self._viewer_state.closed and self._viewer_state.viewer_open
+                    and not self.viewer_image.is_deleted and not self.viewer.client.is_deleted
                     and self._request_serial==generation and self._viewer_state.selected_artwork==art)
         try:
             display=await asyncio.to_thread(provider.display_animation,art.work_id)
@@ -277,6 +278,9 @@ class ViewerController:
         if (self._viewer_active and source_matches(event.args, self._image_url)
                 and self._image_token is not None):
             if self._viewer_state.finish_image(self._image_token, success=False):
+                if self._displayed_gif is not None:
+                    self._displayed_gif = None
+                    self.viewer_image.set_source('', retain_previous=False)
                 art = self._viewer_state.selected_artwork
                 retained = (art is not None and self._decoded_identity ==
                             (art.work_id, self._viewer_state.selected_page))
@@ -554,6 +558,8 @@ class ViewerController:
                 self.close_viewer()
 
     def close_viewer(self, *, restore_focus: bool = True) -> None:
+        if not self._viewer_state.viewer_open and not self.viewer.has_opened:
+            return
         self._folder_request = self._folder_target = None
         self.viewer.context_items['folder'].disable()
         self._pixiv_actions.clear()

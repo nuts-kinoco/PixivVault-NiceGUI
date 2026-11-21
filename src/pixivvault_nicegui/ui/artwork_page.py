@@ -17,6 +17,8 @@ class ArtworkPage(ui.element, component='artwork_page.js'):
         self._scheduled = None
 
     def bind(self, *controls):
+        if len(self.default_slot.children) != 1:
+            raise ValueError('ArtworkPage requires exactly one root child')
         for control in controls:
             control._artwork_page = self
 
@@ -70,11 +72,11 @@ class ArtworkPage(ui.element, component='artwork_page.js'):
             self._scheduled = None
         self._pending.clear()
         self._dom_actions.clear()
-        if self._published:
+        if self._published and not self.client.is_deleted:
             # NiceGUI also sends standard deletions ahead of replay. Retire any
             # descriptors that an earlier viewer message could reintroduce.
             self.client.outbox.enqueue_message('update', dict.fromkeys(self._published), self.client.id)
-            self._published.clear()
+        self._published.clear()
         super()._handle_delete()
 
 
@@ -121,14 +123,19 @@ class PageImage(_ViewerControl, VerifiedImage):
     _viewer_gif = None
 
     def set_gif(self, data: bytes, *, event_source: str):
-        image = ViewerGif(data)
+        image = ViewerGif(data, self.client.request.app.state.viewer_gifs)
         self.set_source(image.url, event_source=event_source)
         self._viewer_gif = image
 
+    def _release_gif(self):
+        if self._viewer_gif is not None:
+            self._viewer_gif.close()
+            self._viewer_gif = None
+
     def set_source(self, source, **kwargs):
-        self._viewer_gif = None
+        self._release_gif()
         return super().set_source(source, **kwargs)
 
     def _handle_delete(self):
-        self._viewer_gif = None
+        self._release_gif()
         super()._handle_delete()

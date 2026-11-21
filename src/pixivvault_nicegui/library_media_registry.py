@@ -494,6 +494,11 @@ class LibraryImageRegistry:
         # cache may persist sanitized images; it never stores credentials or URLs.
         return "no-store"
 
+    @property
+    def closed(self) -> bool:
+        with self._lock:
+            return self._closed
+
     def close(self) -> None:
         with self._lock:
             if self._closed:

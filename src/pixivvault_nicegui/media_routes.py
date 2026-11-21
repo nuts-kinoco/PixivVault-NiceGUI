@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from uuid import uuid4
 from weakref import WeakValueDictionary
 
@@ -11,27 +12,43 @@ from fastapi.responses import Response
 from .media import DemoImageCatalog
 
 
-_viewer_gifs: WeakValueDictionary[str, ViewerGif] = WeakValueDictionary()
+_GIF_KEY = re.compile(r'[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}')
 
 
 class ViewerGif:
     """Loopback media retained only while a viewer owns this source."""
 
-    def __init__(self, data: bytes):
-        key = uuid4().hex
+    def __init__(self, data: bytes, registry: WeakValueDictionary[str, ViewerGif]):
+        if not isinstance(data, bytes):
+            raise TypeError('viewer GIF data must be bytes')
+        self._registry = registry
+        self._key = uuid4().hex
         self.data = data
-        self.url = f'/media/viewer-gif/{key}.gif'
-        _viewer_gifs[key] = self
+        self.url = f'/media/viewer-gif/{self._key}.gif'
+        registry[self._key] = self
+
+    def close(self) -> None:
+        self._registry.pop(self._key, None)
 
 
 def register_media_routes(app, catalog: DemoImageCatalog) -> None:
-    async def serve_viewer_gif(key: str) -> Response:
-        source = _viewer_gifs.get(key)
+    viewer_gifs: WeakValueDictionary[str, ViewerGif] = WeakValueDictionary()
+    app.state.viewer_gifs = viewer_gifs
+
+    async def serve_viewer_gif(key: str, request: Request) -> Response:
+        if _GIF_KEY.fullmatch(key) is None:
+            raise HTTPException(status_code=404)
+        # The app owns the lookup and the catalog closes with its services.
+        if getattr(catalog, 'closed', False):
+            raise HTTPException(status_code=503)
+        source = viewer_gifs.get(key)
         if source is None:
             raise HTTPException(status_code=404)
-        return Response(content=source.data, media_type='image/gif',
-                        headers={'Cache-Control': 'private, no-store',
-                                 'X-Content-Type-Options': 'nosniff'})
+        headers = {'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff'}
+        if request.method == 'HEAD':
+            headers['Content-Length'] = str(len(source.data))
+            return Response(content=b'', media_type='image/gif', headers=headers)
+        return Response(content=source.data, media_type='image/gif', headers=headers)
 
     def serve(work_id: str, page_no: str, variant: str, request: Request) -> Response:
         cache_policy = (catalog.cache_control(work_id) if hasattr(catalog, "cache_control")
@@ -67,4 +84,4 @@ def register_media_routes(app, catalog: DemoImageCatalog) -> None:
         return Response(content=blob.data, media_type=blob.media_type, headers=headers)
 
     app.add_api_route("/media/{work_id}/{page_no}/{variant}.png", serve, methods=["GET", "HEAD"], include_in_schema=False)
-    app.add_api_route('/media/viewer-gif/{key}.gif', serve_viewer_gif, methods=['GET'], include_in_schema=False)
+    app.add_api_route('/media/viewer-gif/{key}.gif', serve_viewer_gif, methods=['GET', 'HEAD'], include_in_schema=False)

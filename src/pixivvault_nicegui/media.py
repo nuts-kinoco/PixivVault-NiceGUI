@@ -143,6 +143,11 @@ class DemoImageCatalog:
         with self._lock:
             return {"hits": self._hits, "misses": self._misses, "entries": len(self._cache), "bytes": self._bytes}
 
+    @property
+    def closed(self) -> bool:
+        with self._lock:
+            return self._closed
+
     def close(self) -> None:
         with self._lock:
             self._closed = True

@@ -104,9 +104,11 @@ def test_empty_values_end_loading_and_keep_existing_testid_elements():
             view.open('101')
             panel.set_details_open(True)
             elements = (panel.tags, panel.numbers, panel.detail_status)
+            panel.set_detail_values('old description', ('old tag',))
+            assert panel.tags.props['tags'] == ['old tag']
             panel.set_detail_loading(True)
             panel.set_detail_values('', ())
-            assert panel.description.text == '' and not panel.tags.default_slot.children
+            assert panel.description.text == '' and panel.tags.props['tags'] == []
             assert panel.description.visible and panel.tags.visible
             assert not panel.description_skeleton.visible and not panel.tags_skeleton.visible
             assert panel.details_panel.props['aria-busy'] == 'false'

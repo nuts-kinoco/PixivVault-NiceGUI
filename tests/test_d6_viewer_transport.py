@@ -6,6 +6,7 @@ import pytest
 from nicegui import Client, core, ui
 
 from test_library_view import event_for, library  # noqa: F401
+from pixivvault_nicegui.ui.artwork_page import ArtworkPage
 from pixivvault_nicegui.ui.artwork_viewer import ArtworkViewer
 
 
@@ -97,6 +98,34 @@ async def test_deleting_a_viewer_retires_published_ids_after_rewind(library):
     page.delete()
     client.outbox.try_rewind(0)
     assert [message[2][counter] is None for message in client.outbox.messages] == [False, True]
+
+
+@pytest.mark.asyncio
+async def test_deleted_client_does_not_receive_viewer_retirement(library, monkeypatch):
+    view, _, client = library
+    client._response_built = True
+    page = view.viewer.page
+    view.viewer.counter.set_text('2/3')
+    await asyncio.sleep(0)
+    assert page._published
+    client.outbox.messages.clear()
+    with monkeypatch.context() as context:
+        context.setattr(client, '_deleted', True)
+        page._handle_delete()
+    assert not page._published
+    assert not client.outbox.messages
+
+
+def test_artwork_page_binding_rejects_a_second_root_child():
+    client = Client(ui.page('/_d6_viewer_bad_root'))
+    try:
+        with client, ArtworkPage() as page:
+            first = ui.column()
+            ui.column()
+            with pytest.raises(ValueError, match='one root'):
+                page.bind(first)
+    finally:
+        client.delete()
 
 
 @pytest.mark.asyncio

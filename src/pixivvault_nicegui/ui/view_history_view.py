@@ -69,8 +69,8 @@ class ViewHistoryView:
                 self.confirm.on_value_change(lambda _: self.sync())
         self.dialog.on('hide', self.hide)
         from .recommendation_viewer import RecommendationViewer
-        self.viewer = RecommendationViewer(parent.services, parent.root, on_close=lambda:None)
-        self.viewer.viewer.root.props('data-testid=view-history-viewer')
+        self.viewer = RecommendationViewer(parent.services, parent.root, on_close=lambda:None,
+                                           test_id='view-history-viewer')
         self.timer = ui.timer(1, self.poll)
         self.initial = ui.timer(.1, self.refresh, once=True)
         self.sync()

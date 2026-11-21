@@ -15,15 +15,15 @@ class _ViewerServices:
 
 
 class RecommendationViewer(ViewerController):
-    def __init__(self, services, host, *, on_close, on_hidden=None, on_author=None):
+    def __init__(self, services, host, *, on_close, on_hidden=None, on_author=None,
+                 test_id='recommend-viewer'):
         self._on_selection_close = on_close
         self._on_hidden = on_hidden
         self._on_author = on_author
         self.selection = None
         self.closed = False
-        self._init_viewer(_ViewerServices(services), GalleryState(()), host)
-        self.viewer.root.props('data-testid=recommend-viewer')
-        self.viewer_image.props('data-testid=recommend-viewer-image')
+        self._init_viewer(_ViewerServices(services), GalleryState(()), host,
+                          test_id=test_id, image_test_id='recommend-viewer-image')
         self.set_viewer_active(False)
 
     def show(self, selection, *, card_size):

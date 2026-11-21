@@ -267,7 +267,8 @@ class LibraryView(ViewerController):
             self.filter_panel.register_toggle(self.filter_toggle)
             self.filter_panel.register_toggle(self.bookmarks.filter_toggle)
 
-        self._init_viewer(services, GalleryState(()), self.root, library=True)
+        self._init_viewer(services, GalleryState(()), self.root,
+                          test_id='library-viewer', image_test_id='library-viewer-image')
         if getattr(services,'similarity_source',None) is not None:
             from .similar_view import SimilarView
             self.similarity=SimilarView(
