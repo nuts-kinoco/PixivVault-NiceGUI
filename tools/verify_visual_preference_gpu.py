@@ -608,10 +608,12 @@ def run_worker(args, python, mode, *, cold_only=False, manifest=None, label="syn
             with cuda_worker_job(name) as (attach, stop):
                 child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                          stderr=subprocess.PIPE, env=env, encoding="utf-8", errors="replace")
+                safe_to_close = False
                 try:
                     attach(child)
                     timeout = max(0, expires - time.time() - WORKER_STOP_MARGIN)
                     stdout, _ = child.communicate(input=json.dumps(expected_lease) + "\n", timeout=timeout)
+                    safe_to_close = True
                     process = subprocess.CompletedProcess(command, child.returncode, stdout)
                 except BaseException:
                     # A child which never attached cannot pass the stdin gate.
@@ -623,12 +625,13 @@ def run_worker(args, python, mode, *, cold_only=False, manifest=None, label="syn
                         raise CudaWorkerStillRunning("CUDA worker exit could not be confirmed") from exc
                     finally:
                         stop()
+                    safe_to_close = True
                     raise
                 finally:
                     # Windows communicate() uses blocking reader threads.
-                    # Closing their buffered streams before exit can wait
-                    # on a lock held by a reader whose pipe is still open.
-                    if child.returncode is not None:
+                    # A Job descendant can hold a pipe open even after
+                    # the direct child has exited.
+                    if safe_to_close:
                         for stream in (child.stdin, child.stdout, child.stderr):
                             if stream is not None:
                                 stream.close()

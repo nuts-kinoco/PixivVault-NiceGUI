@@ -250,8 +250,9 @@ def test_lease_cleanup_with_fake_helper(verify, monkeypatch, scenario):
         assert result["owned_lease_remaining"] is True
 
 
-@pytest.mark.parametrize("confirmed", [True, False])
-def test_parent_bounds_cuda_worker_and_closes_its_job(verify, monkeypatch, tmp_path, confirmed):
+@pytest.mark.parametrize("confirmed, job_stopped", [(True, True), (False, True), (True, False)])
+def test_parent_bounds_cuda_worker_and_closes_its_job(verify, monkeypatch, tmp_path,
+                                                     confirmed, job_stopped):
     namespace = verify["run_worker"].__globals__
     now = 1000
     pid = namespace["os"].getpid()
@@ -267,6 +268,8 @@ def test_parent_bounds_cuda_worker_and_closes_its_job(verify, monkeypatch, tmp_p
 
         def stop():
             steps.append("kill job")
+            if not job_stopped:
+                raise verify["CudaWorkerStillRunning"]("controlled job descendant remains")
 
         try:
             yield lambda child: steps.append("attach child"), stop
@@ -298,14 +301,14 @@ def test_parent_bounds_cuda_worker_and_closes_its_job(verify, monkeypatch, tmp_p
             self.returncode = 124
 
         def close_pipe(self):
-            if self.returncode is None:
+            if not confirmed or not job_stopped:
                 pytest.fail("a blocked reader's stream must not be closed synchronously")
 
     monkeypatch.setitem(namespace, "cuda_worker_job", own_job)
     monkeypatch.setattr(subprocess, "Popen", Child)
     args = SimpleNamespace(model=tmp_path/"model", output=tmp_path, synthetic_count=4,
                            batch_sizes=None)
-    if confirmed:
+    if confirmed and job_stopped:
         result = verify["run_worker"](args, sys.executable, "cuda",
                                       expected_lease=verify["lease_identity"](lease))
         assert result["error"] == "worker_timeout"
