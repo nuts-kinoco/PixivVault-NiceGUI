@@ -1,0 +1,30 @@
+{
+  "diagnostic_only": true,
+  "injected_reader_delay_seconds": 6,
+  "pytest_exit": 1,
+  "children": [
+    {
+      "action": "read",
+      "exit": 81,
+      "win_errors": [],
+      "exception_types": []
+    },
+    {
+      "action": "fold",
+      "exit": 1,
+      "win_errors": [
+        "5"
+      ],
+      "exception_types": [
+        "PermissionError",
+        "WinError"
+      ]
+    },
+    {
+      "action": "fold",
+      "exit": 0,
+      "win_errors": [],
+      "exception_types": []
+    }
+  ]
+}

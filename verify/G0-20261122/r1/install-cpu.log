@@ -1,0 +1,24 @@
+﻿Collecting onnxruntime==1.28.0
+  Downloading onnxruntime-1.28.0-cp313-cp313-win_amd64.whl.metadata (5.7 kB)
+Collecting numpy==2.3.5
+  Downloading numpy-2.3.5-cp313-cp313-win_amd64.whl.metadata (60 kB)
+Collecting Pillow==13.0.0
+  Downloading pillow-13.0.0-cp313-cp313-win_amd64.whl.metadata (9.3 kB)
+Collecting flatbuffers (from onnxruntime==1.28.0)
+  Downloading flatbuffers-25.12.19-py2.py3-none-any.whl.metadata (1.0 kB)
+Collecting packaging (from onnxruntime==1.28.0)
+  Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+Collecting protobuf>=4.25.8 (from onnxruntime==1.28.0)
+  Downloading protobuf-7.36.2-cp310-abi3-win_amd64.whl.metadata (595 bytes)
+Downloading onnxruntime-1.28.0-cp313-cp313-win_amd64.whl (13.8 MB)
+   ---------------------------------------- 13.8/13.8 MB 2.3 MB/s  0:00:05
+Downloading numpy-2.3.5-cp313-cp313-win_amd64.whl (12.8 MB)
+   ---------------------------------------- 12.8/12.8 MB 4.5 MB/s  0:00:02
+Downloading pillow-13.0.0-cp313-cp313-win_amd64.whl (7.3 MB)
+   ---------------------------------------- 7.3/7.3 MB 5.8 MB/s  0:00:01
+Downloading protobuf-7.36.2-cp310-abi3-win_amd64.whl (456 kB)
+Downloading flatbuffers-25.12.19-py2.py3-none-any.whl (26 kB)
+Downloading packaging-26.3-py3-none-any.whl (129 kB)
+Installing collected packages: flatbuffers, protobuf, Pillow, packaging, numpy, onnxruntime
+
+Successfully installed Pillow-13.0.0 flatbuffers-25.12.19 numpy-2.3.5 onnxruntime-1.28.0 packaging-26.3 protobuf-7.36.2

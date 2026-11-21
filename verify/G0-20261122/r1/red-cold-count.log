@@ -1,0 +1,38 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\gpu-verify-20261122
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 7 items / 6 deselected / 1 selected
+
+tests\test_verify_visual_preference_gpu.py F                             [100%]
+
+================================== FAILURES ===================================
+_________ test_report_records_gpu_incomplete_even_when_cpu_succeeded __________
+
+verify = {'CPU': 'CPUExecutionProvider', 'CUDA': 'CUDAExecutionProvider', 'CUDA_OPTIONS': {'arena_extend_strategy': 'kSameAsReq...n_default_stream': '1', 'gpu_mem_limit': '8589934592', 'use_tf32': '0'}, 'Counter': <class 'collections.Counter'>, ...}
+
+    def test_report_records_gpu_incomplete_even_when_cpu_succeeded(verify):
+        status = verify["measurement_exit_code"]
+        report = {
+            "lease": {"status": "unavailable"},
+            "cold_runs_requested": 1,
+            "datasets": {"synthetic": {"cpu": {"node_placement": {"cuda_fraction": 0},
+                                                 "cold": {"first_inference_ms": {"n": 1}}}}},
+            "failure_controls": {
+                "auto-unavailable": {"outcome": {"provider_active": "cpu", "usable_embedding": True}},
+                "cuda-unavailable": {"outcome": {"provider_active": None, "usable_embedding": False}},
+            },
+        }
+        assert status(report, skip_gpu=True) == 0
+        assert status(report, skip_gpu=False) != 0
+        report["cold_runs_requested"] = 2
+>       assert status(report, skip_gpu=True) != 0
+E       AssertionError: assert 0 != 0
+E        +  where 0 = <function measurement_exit_code at 0x0000027CECC4FC40>({'cold_runs_requested': 2, 'datasets': {'synthetic': {'cpu': {'cold': {'first_inference_ms': {'n': 1}}, 'node_placemen...a-unavailable': {'outcome': {'provider_active': None, 'usable_embedding': False}}}, 'lease': {'status': 'unavailable'}}, skip_gpu=True)
+
+tests\test_verify_visual_preference_gpu.py:109: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_verify_visual_preference_gpu.py::test_report_records_gpu_incomplete_even_when_cpu_succeeded
+======================= 1 failed, 6 deselected in 1.83s =======================

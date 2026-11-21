@@ -1,0 +1,13 @@
+{
+  "harness_sha256": "d554fc0ce82fd7a83f42d6b3bd96f94d71126fc20259273ec2c22cb78aface53",
+  "lease": {
+    "status": "unavailable",
+    "gpu_name_driver_cc_total_mib": "NVIDIA GeForce RTX 5080, 621.24, 12.0, 16303",
+    "initial_free_gib": 2.267578125,
+    "requested_gib": 2.5,
+    "acquire_exit_code": 2,
+    "owned_lease_remaining": false
+  },
+  "datasets": {},
+  "written_after_wait_utc": "2026-11-21T19:09:21.593964+00:00"
+}
