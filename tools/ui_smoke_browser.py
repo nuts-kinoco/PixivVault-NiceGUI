@@ -433,7 +433,20 @@ def check_personal_tag_commit(page):
     return {'draft_committed_on_enter': True, 'ime_enter_ignored': True, 'removal_confirmed': True}
 
 
+PERSONAL_EXCLUSION_CONTROLS = (
+    'personal-exclude-downloaded', 'personal-exclude-hidden-authors',
+    'personal-exclude-hidden-works', 'personal-exclude-hated',
+)
+PERSONAL_FILTER_CONTROLS = (
+    'personal-sort', 'personal-bookmarks', 'personal-start-date', 'personal-end-date',
+    'personal-date-preset', 'personal-tags-include', 'personal-tags-exclude', 'personal-author-max',
+    *PERSONAL_EXCLUSION_CONTROLS, 'personal-save-filters', 'personal-clear-filters',
+)
+
+
 def open_personal_filters(page):
+    from playwright.sync_api import expect
+
     toggle = page.get_by_test_id('personal-filter-toggle')
     panel = page.get_by_test_id('personal-filter-panel')
     panel.wait_for(state='hidden')
@@ -442,8 +455,66 @@ def open_personal_filters(page):
     panel.wait_for(state='visible')
     assert toggle.get_attribute('aria-expanded') == 'true'
     assert toggle.get_attribute('aria-controls') == panel.get_attribute('id')
-    for testid in ('personal-sort', 'personal-bookmarks'):
-        panel.get_by_test_id(testid).wait_for(state='visible')
+    opened = page.evaluate(SNAPSHOT_JS)
+    for testid in PERSONAL_FILTER_CONTROLS:
+        control = panel.get_by_test_id(testid)
+        control.scroll_into_view_if_needed()
+        bounds, field = panel.bounding_box(), control.bounding_box()
+        assert bounds and field and bounds['y'] - 1 <= field['y'], testid
+        assert field['y'] + field['height'] <= bounds['y'] + bounds['height'] + 1, testid
+    assert panel.evaluate('el => el.scrollTop') > 0
+
+    def editor(testid):
+        field = f'[data-testid="{testid}"]'
+        return panel.locator(f':is(input,textarea){field}, {field} :is(input,textarea)')
+
+    dates = ('personal-start-date', 'personal-end-date')
+    for testid, value in zip(dates, ('2024-01-01', '2024-12-31')):
+        field = editor(testid)
+        field.scroll_into_view_if_needed(timeout=5000)
+        field.fill(value)
+        assert field.input_value() == value
+        field.fill('')
+    panel.get_by_test_id('personal-date-preset').click()
+    page.get_by_role('option', name='1週間', exact=True).click()
+    page.locator('[data-chip-key=date_preset]').wait_for(state='visible')
+    for testid, tag in (('personal-tags-include', 'smoke-include'), ('personal-tags-exclude', 'smoke-exclude')):
+        field = editor(testid)
+        field.scroll_into_view_if_needed(timeout=5000)
+        field.fill(tag)
+        page.get_by_test_id('personal-chips').get_by_text(tag, exact=False).first.wait_for(state='visible')
+    maximum = editor('personal-author-max')
+    maximum.scroll_into_view_if_needed(timeout=5000)
+    maximum.fill('3')
+    maximum.press('Tab')
+    page.locator('[data-chip-key=per_author_max]').wait_for(state='visible')
+
+    available_exclusions = 0
+    for testid in PERSONAL_EXCLUSION_CONTROLS:
+        check = panel.get_by_test_id(testid)
+        if check.is_enabled():
+            before = check.get_attribute('aria-checked')
+            assert before in ('true', 'false')
+            check.click()
+            expected = 'true' if before == 'false' else 'false'
+            expect(check).to_have_attribute('aria-checked', expected)
+            available_exclusions += 1
+    expect(panel.get_by_test_id('personal-save-filters')).to_be_enabled()
+    panel.get_by_test_id('personal-clear-filters').click()
+    page.locator('[data-chip-key=per_author_max]').wait_for(state='detached')
+    return opened, {'filter_panel_opened': True, 'filter_controls_reached': len(PERSONAL_FILTER_CONTROLS),
+                    'enabled_exclusions_operated': available_exclusions, 'filter_clear_confirmed': True}
+
+
+def close_personal_filters(page):
+    toggle = page.get_by_test_id('personal-filter-toggle')
+    toggle.focus()
+    toggle.press('Enter')
+    page.get_by_test_id('personal-filter-panel').wait_for(state='hidden')
+    assert toggle.get_attribute('aria-expanded') == 'false'
+    assert toggle.evaluate('el => document.activeElement === el')
+    closed = page.evaluate(SNAPSHOT_JS)['testids']
+    assert not set(PERSONAL_FILTER_CONTROLS).intersection(closed)
 
 
 def run_matrix(pw, url, out: Path, expectations, screens, wait_ms, get_net, startup_wait_ms, strict=False):
@@ -509,6 +580,7 @@ def run_matrix(pw, url, out: Path, expectations, screens, wait_ms, get_net, star
                     del console_errors[:], page_errors[:]
                     error = None
                     operation = None
+                    filter_snapshot = None
                     if startup:
                         snap = dict(load_snap)
                         console_errors.extend(load_errors[0])
@@ -523,11 +595,17 @@ def run_matrix(pw, url, out: Path, expectations, screens, wait_ms, get_net, star
                                 operation = check_library_pan(page)
                             elif name == "personal":
                                 operation = check_personal_tag_commit(page)
-                                open_personal_filters(page)
-                                operation['filter_panel_opened'] = True
+                                filter_snapshot, filter_operations = open_personal_filters(page)
+                                operation.update(filter_operations)
                         except Exception as e:  # missing opener / ready element: a FAIL, not a crash
                             error = f"{type(e).__name__}: {str(e).splitlines()[0][:200]}"
-                        snap = page.evaluate(SNAPSHOT_JS)
+                        snap = filter_snapshot or page.evaluate(SNAPSHOT_JS)
+                        if name == 'personal' and error is None:
+                            try:
+                                close_personal_filters(page)
+                                operation['filter_panel_closed'] = True
+                            except Exception as e:
+                                error = f"{type(e).__name__}: {str(e).splitlines()[0][:200]}"
                         seen = lap(key)
                     snap["console_errors"] = list(console_errors)
                     snap["page_errors"] = list(page_errors)

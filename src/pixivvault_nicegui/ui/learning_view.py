@@ -173,8 +173,8 @@ class LearningView:
             if self.discovery is None:
                 ui.label(description).classes("pv-subtitle")
             stage_start = len(self.root.default_slot.children)
-            with ui.element('div').classes('w-full relative') as self.candidate_header:
-                with ui.row().classes('w-full items-center gap-2'):
+            with ui.element('div').classes('pv-learning-candidate-heading w-full relative') as self.candidate_header:
+                with ui.row().classes('pv-learning-title-row w-full items-center no-wrap gap-2'):
                     self.title = ui.label().classes("pv-library-heading pv-serif-heading pv-learning-work-title")
                     self.summary_button = ui.button('概要 ▸').props(
                         'flat dense data-testid=learning-summary-toggle aria-expanded=false')
@@ -188,7 +188,7 @@ class LearningView:
                             generation:Number(button.dataset.generation),
                             summary_epoch:Number(button.dataset.summaryEpoch)});
                         }""")
-                    self.summary_status = ui.label('').classes('pv-subtitle').props(
+                    self.summary_status = ui.label('').classes('pv-subtitle pv-learning-summary-message').props(
                         'role=status data-testid=learning-summary-status')
                 with ui.card().classes('pv-learning-summary-board').props(
                         'role=region aria-label=作品の概要 data-testid=learning-summary-board').style(
@@ -254,7 +254,7 @@ class LearningView:
                     self.tagger_settings_button=ui.button('設定を開く', on_click=on_open_preferences).props('flat dense data-testid=learning-tagger-settings')
                     self.tagger_settings_button.set_enabled(on_open_preferences is not None)
             self.empty_card.set_visibility(False)
-            with ui.row().classes("items-center gap-2") as self.judgment_controls:
+            with ui.row().classes("pv-learning-judgment-controls items-center gap-2") as self.judgment_controls:
                 self.buttons = {}
                 for label, choice, *_ in self.CHOICES:
                     button = ui.button(label, color=None).props(
@@ -306,7 +306,7 @@ class LearningView:
                     self.refill_status = ui.label().classes('pv-subtitle').props('role=status data-testid=discovery-refill-status')
                     self.managed_button = ui.button('作品を保存').props('flat dense no-caps data-testid=discovery-save')
                     self.managed_button.on('click', self._on_managed_save, js_handler=self._click_js())
-                with ui.row().classes('w-full items-center') as self.trend_header:
+                with ui.row().classes('pv-learning-trend-heading w-full items-center') as self.trend_header:
                     ui.label('好みの傾向').classes('pv-card-title')
                     self.trend_label = ui.label().classes('pv-subtitle').props('data-testid=discovery-trend')
                     self.trend_button = ui.button('傾向を見る',on_click=self.toggle_trend).props(
@@ -1265,16 +1265,21 @@ class LearningView:
                     if (viewport && root.getAttribute('data-active')==='true' && root.getAttribute('data-review-open')!=='true') {{
                       const rect=root.getBoundingClientRect();
                       const layout=root.querySelector('.pv-trend-layout');
-                      const side=viewport.parentElement;
+                      let available=viewport.getBoundingClientRect().height;
                       if (layout?.dataset.mode==='rail') {{
-                        const stageHeight=Math.max(0,Math.floor(Math.min(rect.bottom,window.innerHeight)-layout.getBoundingClientRect().top));
+                        const layoutTop=layout.getBoundingClientRect().top-rect.top+root.scrollTop;
+                        const stageHeight=Math.max(0,Math.floor(root.clientHeight-layoutTop));
                         const stage=stageHeight+'px';
                         if (layout.style.getPropertyValue('--pv-learning-stage-height')!==stage)
                           layout.style.setProperty('--pv-learning-stage-height',stage);
-                        const available=Math.max(80,Math.floor(Math.min(rect.bottom,window.innerHeight)-side.getBoundingClientRect().top));
-                        const next=available+'px';
-                        if (side.style.height!==next) side.style.height=next;
-                      }} else if (side.style.height) side.style.removeProperty('height');
+                        const heading=layout.querySelector('.pv-learning-trend-heading');
+                        const title=layout.querySelector('.pv-learning-candidate-heading');
+                        const controls=layout.querySelector('.pv-learning-judgment-controls');
+                        const gap=parseFloat(getComputedStyle(layout).rowGap) || 0;
+                        const art=layout.dataset.stage==='art';
+                        const preceding=art ? (title?.offsetHeight ?? 0)+(controls?.offsetHeight ?? 0)+2*gap : 0;
+                        available=Math.max(1,stageHeight-preceding-(heading?.offsetHeight ?? 0)-gap);
+                      }}
                       if (layout?.dataset.mode==='fold') {{
                         const picture=document.getElementById('{self.picture.html_id}');
                         const imageRect=picture?.getBoundingClientRect();
@@ -1290,7 +1295,7 @@ class LearningView:
                       const image=root.querySelector('.pv-view-art img[data-pv-displayed="true"]');
                       const aspect=image?.naturalWidth && image?.naturalHeight ? image.naturalWidth/image.naturalHeight : 1;
                       root.dispatchEvent(new CustomEvent('trend-measure', {{detail: {{
-                        width:rect.width,height:rect.height,viewport:viewport.getBoundingClientRect().height,aspect
+                        width:rect.width,height:rect.height,viewport:available,aspect
                       }}}}));
                     }}
                   }};
@@ -1300,10 +1305,14 @@ class LearningView:
                   observer.observe(root);
                   const viewport=root.querySelector('.pv-trend-viewport');
                   if (viewport) observer.observe(viewport);
+                  const stage=root.querySelector('.pv-trend-layout');
+                  const stageObserver=new MutationObserver(resize);
+                  if (stage) stageObserver.observe(stage,{{attributes:true,attributeFilter:['data-stage']}});
                   resize();
                   root.addEventListener('summary-dispose',()=>{{
                     window.removeEventListener('resize',resize);
                     observer.disconnect();
+                    stageObserver.disconnect();
                     delete root.__pvSummaryResize;
                   }},{{once:true}});
                 }})"""
@@ -1394,10 +1403,14 @@ class LearningView:
         show_status = no_candidate and (failed or judged > 0 or bool(self.state.artworks))
         self.empty_card.set_visibility(no_candidate and not show_status)
         self.candidate_status_stage.set_visibility(show_status)
+        stage = ('status' if show_status else 'empty') if no_candidate else (
+            'art' if self.state.current_artwork is not None else 'loading')
+        self.trend_layout.props['data-stage'] = stage
         for element in (self.candidate_header, self.progress, self.judgment_controls, self.judgment_help,
-                        self.retry_button, self.bookmark_button, self.fetch_button, self.managed_button,
-                        self.refill_status):
-            element.set_visibility(not show_status)
+                        self.retry_button, self.bookmark_button, self.managed_button):
+            element.set_visibility(not no_candidate)
+        self.fetch_button.set_visibility(not show_status)
+        self.refill_status.set_visibility(not show_status)
         if not show_status:
             self.candidate_status_retry.set_visibility(False)
             return

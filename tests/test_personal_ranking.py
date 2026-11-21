@@ -64,12 +64,18 @@ def test_personal_filter_drawer_preserves_search_controls():
             assert all(control.parent_slot.parent is view.filter_panel for control in controls)
             previous = view.current_filters(), view._server_key()
             view._toggle_filters()
+            assert not view.filter_panel.visible and view.filter_toggle.props['aria-expanded'] == 'false'
+            view.active = True
+            view._toggle_filters()
             assert view.filter_panel.visible and view.filter_toggle.props['aria-expanded'] == 'true'
             view._toggle_filters()
             assert not view.filter_panel.visible and view.filter_toggle.props['aria-expanded'] == 'false'
             assert (view.current_filters(), view._server_key()) == previous
             assert isinstance(view.r18, ui.switch) and isinstance(view.ai, ui.switch)
             assert view.fetch_button.props['aria-label'] == '取得・更新'
+            view.close()
+            view._toggle_filters()
+            assert not view.filter_panel.visible and view.filter_toggle.props['aria-expanded'] == 'false'
     finally:
         client.delete()
         services.close()
