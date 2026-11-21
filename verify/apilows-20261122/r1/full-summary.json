@@ -1,0 +1,28 @@
+{
+  "candidate": "ef960ae72c835d8e48f1d019c6e509734d01844c",
+  "exit_code": 0,
+  "passed": 4111,
+  "skipped": 3,
+  "deselected": 3,
+  "warnings": 26,
+  "failures": 0,
+  "errors": 0,
+  "basetemp": "S:\\Work\\_tmp\\PV\\api-lows-20261122\\pytest-api-lows-20261122-full",
+  "basetemp_length": 63,
+  "pythonioencoding": null,
+  "summary": "4111 passed, 3 skipped, 3 deselected, 26 warnings in 2024.68s (0:33:44)",
+  "long_path_cases": {
+    "test_independent_long_root_get_services": {
+      "passed": true,
+      "seconds": 0.086
+    },
+    "test_rotation_handles_supplementary_unicode_in_destination[False]": {
+      "passed": true,
+      "seconds": 0.309
+    },
+    "test_rotation_handles_supplementary_unicode_in_destination[True]": {
+      "passed": true,
+      "seconds": 0.391
+    }
+  }
+}

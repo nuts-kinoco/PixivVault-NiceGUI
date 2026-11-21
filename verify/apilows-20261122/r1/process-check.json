@@ -1,0 +1,22 @@
+{
+    "candidate":  "ef960ae72c835d8e48f1d019c6e509734d01844c",
+    "full_exit_code":  0,
+    "observed_pids":  [
+                          27836,
+                          37060,
+                          53756,
+                          61468,
+                          114308,
+                          123712,
+                          126060,
+                          131932,
+                          132872,
+                          133224
+                      ],
+    "remaining":  [
+
+                  ],
+    "remaining_count":  0,
+    "live_pixiv_gets":  0,
+    "real_app_processes_started":  0
+}

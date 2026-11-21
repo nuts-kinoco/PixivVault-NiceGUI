@@ -1,0 +1,4 @@
+Command: S:\Projects\PixivVault-NiceGUI\.venv\Scripts\python.exe -B -m pytest -p required_network_guard -p no:cacheprovider -k "not dpapi" --basetemp S:\Work\_tmp\PV\api-lows-20261122\focused-run -q -r s --tb=line tests/test_d6_api_https.py tests/test_d6_api_r2.py tests/test_d6_api_r3.py tests/test_ag_z05_20261119.py tests/test_z02z05_regression.py tests/test_b3_recovery_guidance_20261116.py tests/test_b3_c2_stop_actor_20261116.py tests/test_b3_l14_integrated_20261116.py
+........................................................................ [ 67%]
+...................................                                      [100%]
+107 passed in 51.94s

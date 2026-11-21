@@ -1,0 +1,12 @@
+{
+  "candidate": "ef960ae72c835d8e48f1d019c6e509734d01844c",
+  "tool": "tools/p6_network.py",
+  "sites": 306,
+  "counts": {
+    "gated": 212,
+    "non-network": 53,
+    "local": 25,
+    "manual": 16
+  },
+  "issues": []
+}
