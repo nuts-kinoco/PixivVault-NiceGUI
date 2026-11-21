@@ -425,9 +425,11 @@ CSS += """
 .pv-tone-learning .pv-trend-layout[data-mode=rail]:has(.pv-view-art:not(.hidden)) .pv-view-art { width:100%; height:100%; max-width:none; max-height:none; }
 .pv-tone-learning .pv-trend-layout[data-mode=band] .pv-trend-side { height:112px; }
 .pv-tone-learning .pv-learning-status:empty, .pv-tone-learning .pv-counter:empty { position:absolute; }
+.pv-tone-learning [data-testid=learning-reset] { flex-flow:row wrap; align-items:center; gap:4px 8px; }
+.pv-tone-learning [data-testid=learning-reset-status]:empty { position:absolute; }
 .pv-learning-art-frame { max-width:560px; margin-inline:auto; }
 .pv-tone-learning .pv-learning-art-frame .pv-view-art { max-height:min(28dvh,420px); background:var(--pv-surface); border:1px solid var(--pv-border); border-radius:12px; }
 .pv-learning-candidate-stage { min-height:160px; }
-.pv-learning-empty { width:min(520px,100%); align-self:center; padding:16px; color:var(--pv-text); background:var(--pv-raised); border:1px solid var(--pv-border); border-radius:12px; box-shadow:none; }
+.pv-learning-empty { width:min(520px,100%); align-self:center; padding:12px 16px; color:var(--pv-text); background:var(--pv-raised); border:1px solid var(--pv-border); border-radius:12px; box-shadow:none; }
 /* /tone-c */
 """
