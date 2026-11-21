@@ -1267,6 +1267,10 @@ class LearningView:
                       const layout=root.querySelector('.pv-trend-layout');
                       const side=viewport.parentElement;
                       if (layout?.dataset.mode==='rail') {{
+                        const stageHeight=Math.max(0,Math.floor(Math.min(rect.bottom,window.innerHeight)-layout.getBoundingClientRect().top));
+                        const stage=stageHeight+'px';
+                        if (layout.style.getPropertyValue('--pv-learning-stage-height')!==stage)
+                          layout.style.setProperty('--pv-learning-stage-height',stage);
                         const available=Math.max(80,Math.floor(Math.min(rect.bottom,window.innerHeight)-side.getBoundingClientRect().top));
                         const next=available+'px';
                         if (side.style.height!==next) side.style.height=next;

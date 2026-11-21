@@ -54,6 +54,7 @@ class PersonalRankingView(RankingView):
                 self.ai=ui.switch('AI を除外',value=False).classes('pv-filter-switch').props('data-testid=personal-ai')
                 self.fetch_button=refresh_button(self.refresh,label='取得・更新',testid='personal-fetch')
                 self.fetch_button.set_text('取得・更新').props('no-caps')
+                self.fetch_button.props['aria-label'] = '取得・更新'
                 self.filter_toggle=ui.button('絞り込み',icon='filter_list',on_click=self._toggle_filters).props(
                     'flat dense no-caps aria-expanded=false data-testid=personal-filter-toggle')
                 self._build_hide_manager()
@@ -106,10 +107,6 @@ class PersonalRankingView(RankingView):
         opened = not self.filter_panel.visible
         self.filter_panel.set_visibility(opened)
         self.filter_toggle.props['aria-expanded'] = str(opened).lower()
-
-    def _set_notice(self, text, *, error=False):
-        self.notice.set_text(text)
-        self.notice.props['data-error'] = str(error).lower()
 
     def local_tags_changed(self):
         self._context_revision = None
@@ -294,11 +291,13 @@ class PersonalRankingView(RankingView):
             if self._search_failure_notice is not None:
                 self._render_search_failure()
             elif not enabled:
-                self._set_notice('借用プレミアムをONにして、借用アカウントを更新してください。' if status.get('crypto_available') else '借用アカウント検索は未設定、または暗号化依存が利用できません。')
+                self.notice.set_text('借用プレミアムをONにして、借用アカウントを更新してください。' if status.get('crypto_available') else '借用アカウント検索は未設定、または暗号化依存が利用できません。')
             elif not has_tags:
-                self._set_notice('タグを選び、取得してください。')
+                self.notice.set_text('タグを選び、取得してください。')
             elif self.page is None:
-                self._set_notice('取得で検索します。まだ結果はありません。')
+                self.notice.set_text('取得で検索します。まだ結果はありません。')
+        self.notice.props.set_bool('data-error', self._search_failure_notice is not None or (
+            self.page is not None and bool(self.page.remote_error) and self._current_page()))
         context=self.context()
         for key,context_key in EXCLUSION_CONTEXT:
             self.exclusions[key].set_enabled(context_key in context)
@@ -310,8 +309,8 @@ class PersonalRankingView(RankingView):
         self.availability(update_notice=False)
         if self.vault is not None:
             try:self.vault.save_ranking_preferences(self.selected_tags(),self.saved_filters)
-            except Exception:self._set_notice('タグ選択を保存できませんでした。',error=True);return
-        self._set_notice('検索条件が変わりました。「取得・更新」で新しい条件を反映します。' if self.selected_tags() else 'タグを選択してください。')
+            except Exception:self.notice.set_text('タグ選択を保存できませんでした。');return
+        self.notice.set_text('検索条件が変わりました。「取得・更新」で新しい条件を反映します。' if self.selected_tags() else 'タグを選択してください。')
     def server_changed(self):
         self.changed();self._research()
     def _research(self):
@@ -322,7 +321,7 @@ class PersonalRankingView(RankingView):
         """
         if self.closed or not self.active or not self.selected_tags() or not self._search_available():return
         self._condition_pending=True
-        self._set_notice('条件が変わりました。最新の一覧を取得します。')
+        self.notice.set_text('条件が変わりました。最新の一覧を取得します。')
         if self._condition_task is None or self._condition_task.done():
             try:self._condition_task=asyncio.get_running_loop().create_task(self._load_changed_conditions())
             except RuntimeError:self._condition_pending=False
@@ -351,7 +350,7 @@ class PersonalRankingView(RankingView):
     def local_changed(self):
         self._refresh_chips()
         if self.page is not None:self.render()
-        elif not self.closed:self._set_notice('取得済み結果がありません。タグを選んで取得してください。')
+        elif not self.closed:self.notice.set_text('取得済み結果がありません。タグを選んで取得してください。')
     def clear_filters(self):
         defaults=normalize_personal_filters({})
         self.bookmarks.set_value(defaults['bookmark_min']);self.sort.set_value(defaults['sort'])
@@ -365,8 +364,8 @@ class PersonalRankingView(RankingView):
             candidate=self.current_filters()
             self.vault.save_ranking_preferences(self.selected_tags(),candidate)
             self.saved_filters=candidate
-            self._set_notice('現在の条件を次回起動用に保存しました。')
-        except Exception:self._set_notice('条件を保存できませんでした。',error=True)
+            self.notice.set_text('現在の条件を次回起動用に保存しました。')
+        except Exception:self.notice.set_text('条件を保存できませんでした。')
     async def refresh(self):
         # The original personal search replaces its card cache on explicit refresh.
         await self.load(retry_thumbnails=True)
@@ -375,7 +374,7 @@ class PersonalRankingView(RankingView):
         if not self.active or self.closed or self.busy or self.source is None:return
         if append and (not self._current_page() or self.page.exhausted or self._search_failure_notice is not None):return
         epoch=self.epoch;tags=self.selected_tags();filters=self.current_filters()
-        if not tags:self._set_notice('タグを選択してください。');return
+        if not tags:self.notice.set_text('タグを選択してください。');return
         if not self._search_available():
             self.availability()
             return
@@ -383,7 +382,7 @@ class PersonalRankingView(RankingView):
         self._search_failure_notice = None
         r18, exclude_ai = bool(self.r18.value), bool(self.ai.value)
         dates = {key: value for key, value in zip(('start_date','end_date'), self._server_dates()) if value}
-        self.busy=True;self.fetch_button.disable();self.gallery.more_button.disable();self._set_notice('取得中…')
+        self.busy=True;self.fetch_button.disable();self.gallery.more_button.disable();self.notice.set_text('取得中…')
         provider=None;old_pin,old_page,old_images=self.pin,self.page,self.proxy.images
         published = False
         try:
@@ -467,7 +466,7 @@ class PersonalRankingView(RankingView):
             message += ' 直前の検索結果を表示しています。'
             self.gallery.counter.set_text('前の検索結果')
             self.gallery.more_cell.set_visibility(False)
-        self._set_notice(message,error=True)
+        self.notice.set_text(message)
 
     def render(self):
         if self.closed or self.page is None:return
@@ -481,18 +480,18 @@ class PersonalRankingView(RankingView):
         self.gallery.replace_artworks(tuple(r['item'].record.as_artwork() for r in rows))
         self.gallery.more_cell.set_visibility(current and not self.page.exhausted)
         self.gallery.empty.set_text('条件に一致する作品は0件です。条件を変更してください。')
-        self._set_notice(f'{self.page.order_label or "借用アカウント"}・{len(rows)}件表示 / {dropped}件を条件で除外'+('・これで全部' if self.page.exhausted else ''))
+        self.notice.set_text(f'{self.page.order_label or "借用アカウント"}・{len(rows)}件表示 / {dropped}件を条件で除外'+('・これで全部' if self.page.exhausted else ''))
         from ..premium_read import unavailable_message
         if self.page.remote_error:
-            self._set_notice((unavailable_message(self.page.remote_error) or 'pixivの検索結果を取得できませんでした。')
-                +' pixiv側は0件として扱います。ローカルライブラリは引き続き利用できます。',error=True)
+            self.notice.set_text((unavailable_message(self.page.remote_error) or 'pixivの検索結果を取得できませんでした。')
+                +' pixiv側は0件として扱います。ローカルライブラリは引き続き利用できます。')
         if self.page.source_warning:
             self.notice.set_text(unavailable_message(self.page.source_warning)+' '+self.notice.text)
         # 元 ranking_tab.py:1640-1642: ON の除外条件の集合が読めていないときは、読めた分だけ適用して警告を添える。
         if self._missing_exclusions(filters,context):self.notice.set_text(self.notice.text+EXCLUSION_WARNING)
         if not current:
             self.gallery.counter.set_text('前の検索結果')
-            self._set_notice('検索条件が変わりました。「取得・更新」で新しい条件を反映します。')
+            self.notice.set_text('検索条件が変わりました。「取得・更新」で新しい条件を反映します。')
         if self._search_failure_notice is not None:
             self._render_search_failure()
         self.availability(update_notice=False)

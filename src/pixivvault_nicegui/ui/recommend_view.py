@@ -435,15 +435,13 @@ class RecommendView:
                     with ui.row().classes('pv-recommend-shelf-header items-center w-full gap-1'):
                         ui.label(LABELS[kind]).classes('pv-library-heading pv-serif-heading')
                         if kind not in data['collapsed']:
+                            ui.label(_SECTION_DESCRIPTIONS[kind]).classes('pv-subtitle')
                             if kind=='trend' and not trends:
-                                description='傾向は学習済みの判定から計算します。'
+                                ui.label('まだ傾向がありません。').classes('pv-subtitle')
                             elif kind in data['unavailable']:
-                                description='保存済み結果がありません。'
+                                ui.label('保存済み結果がありません。').classes('pv-subtitle')
                             elif kind!='trend' and not any(g.works for g in groups):
-                                description='表示対象がありません。'
-                            else:
-                                description=_SECTION_DESCRIPTIONS[kind]
-                            ui.label(description).classes('pv-subtitle')
+                                ui.label('表示対象がありません。').classes('pv-subtitle')
                         if kind=='trend' and len(data.get('trends',()))>40:
                             ui.label(f"+{len(data['trends'])-40}").classes('pv-subtitle')
                         ui.space()
@@ -489,6 +487,11 @@ class RecommendView:
                         closed=kind=='certain' and group.key in data.get('certain_group_collapsed',())
                         with ui.row().classes('items-center gap-1'):
                             ui.label(group.title).classes('pv-card-title' if kind in ('certain','trend_added','boosted') else 'pv-subtitle')
+                            if kind in ('certain','trend_added','boosted'):
+                                subtitle=(f'あなたが好んで見ている『{group.title}』の作品' if kind=='certain'
+                                          else f'『{group.title}』の作品' if kind=='trend_added'
+                                          else f'「{group.title}」の新着')
+                                ui.label(subtitle).classes('pv-subtitle')
                             if kind=='certain':
                                 b=ui.button('このタグを開く' if closed else 'このタグを閉じる',on_click=lambda e,t=group.key:self.collapse_certain_group(t)).props('flat dense no-caps')
                                 self._certain_buttons[group.key]=b

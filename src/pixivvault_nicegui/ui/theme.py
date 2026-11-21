@@ -377,7 +377,7 @@ CSS += """
 .pv-personal-ranking > [data-testid=personal-chips] { flex-wrap:nowrap; overflow-x:auto; }
 .pv-personal-ranking > [data-testid=personal-chips] > * { flex-shrink:0; }
 .pv-personal-status { flex-shrink:0; }
-.pv-personal-status [data-error=true] { color:var(--pv-download-danger-text); }
+.pv-personal-status [data-error] { color:var(--pv-download-danger-text); }
 .pv-personal-body { flex:1 0 228px; min-height:228px; }
 .pv-personal-body > .pv-library-filter-panel { flex-basis:min(280px,52%); min-width:0; }
 .pv-personal-body > .pv-library-filter-panel > * { flex-shrink:0; }
@@ -420,7 +420,7 @@ CSS += """
 .pv-tone-learning .pv-trend-layout[data-mode=rail]:not(:has(.pv-view-art:not(.hidden))) .pv-trend-side { max-height:88px; }
 .pv-tone-learning .pv-trend-layout[data-mode=rail]:has(.pv-view-art:not(.hidden)) .pv-trend-main,
 .pv-tone-learning .pv-trend-layout[data-mode=rail]:has(.pv-view-art:not(.hidden)) .pv-trend-side { grid-column:2; }
-.pv-tone-learning .pv-trend-layout[data-mode=rail]:has(.pv-view-art:not(.hidden)) .pv-learning-art-stage { position:absolute; inset:0 auto 0 0; width:calc(100% - 452px); }
+.pv-tone-learning .pv-trend-layout[data-mode=rail]:has(.pv-view-art:not(.hidden)) .pv-learning-art-stage { position:absolute; inset:0 auto 0 0; width:calc(100% - 452px); max-height:var(--pv-learning-stage-height,100%); }
 .pv-tone-learning .pv-trend-layout[data-mode=rail]:has(.pv-view-art:not(.hidden)) .pv-learning-art-frame { width:100%; max-width:none; height:100%; }
 .pv-tone-learning .pv-trend-layout[data-mode=rail]:has(.pv-view-art:not(.hidden)) .pv-view-art { width:100%; height:100%; max-width:none; max-height:none; }
 .pv-tone-learning .pv-trend-layout[data-mode=band] .pv-trend-side { height:112px; }
