@@ -375,7 +375,7 @@ CSS += """
 .pv-tone-b-list-row { flex-shrink:0; padding-block:.5rem; border-bottom:1px solid var(--pv-border); }
 .pv-tone-b-list-row:last-child { border-bottom:0; }
 .pv-tone-b-history-list { height:min(22.5rem, 48dvh); }
-.pv-tone-b-unfollowed-list { max-height:min(60dvh, clamp(23rem, calc(37.5vw - 7rem), 38rem)); }
+.pv-tone-b-unfollowed-list { max-height:min(64dvh, clamp(26.5rem, calc(37.5vw - 3.5rem), 42rem)); }
 .pv-tone-b-unfollowed-list:empty { display:none; }
 .pv-tone-b-unfollowed-card .pv-empty { padding-block:1rem; }
 .pv-tone-b-following-list { max-height:12rem; }
