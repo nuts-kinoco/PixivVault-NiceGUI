@@ -11,6 +11,8 @@ from pathlib import Path
 
 from nicegui import ui
 
+from .action_controls import dialog_actions, dialog_card, outlined_select, primary_button, secondary_button
+
 from ..native_profile import NativeProfileConflict, NativeProfileError
 
 
@@ -65,12 +67,11 @@ class NativeProfileView:
         if self._closed:
             return
         self.dialog.clear()
-        with self.dialog, ui.card().classes('w-full max-w-xl'):
-            ui.label('起動と保存先の設定').classes('text-h6')
+        with self.dialog, dialog_card('起動と保存先の設定', size='lg'):
             self.build(standalone=True)
         self.dialog.open()
 
-    def build(self, *, standalone: bool = False) -> None:
+    def build(self, *, standalone: bool = False, embedded: bool = False) -> None:
         """Inline view, suitable for the application's existing settings card."""
         if self._closed:
             return
@@ -123,71 +124,81 @@ class NativeProfileView:
         self.images_button = None
         self.auth_button = None
         self.save_button = None
-        ui.label('Pixiv Cookieファイル').classes('text-subtitle1')
-        self.cookie_value = ui.label().props('data-testid=native-profile-cookie-value')
-        self.folder_value = None
-        self._sync_values()
-        with ui.row():
-            self.cookie_button = ui.button('Cookieファイルを選択', icon='upload_file', color=None, on_click=choose_cookie).props(
-                'flat no-caps data-testid=native-profile-pick-cookie')
-            self.cookie_button.set_enabled(self.pick_file is not None and self.snapshot is not None)
-            ui.button('選択解除', on_click=lambda:self.clear_cookie() if self._epoch == epoch else None).props(
-                'flat no-caps data-testid=native-profile-clear-cookie').set_enabled(self.snapshot is not None)
-        ui.label('作品の保存先（親フォルダ）').classes('text-subtitle1')
-        self.folder_value = ui.label().props('data-testid=native-profile-folder-value')
-        self._sync_values()
-        with ui.row():
-            self.folder_button = ui.button('保存先を選択', icon='folder_open', color=None, on_click=choose_folder).props(
-                'flat no-caps data-testid=native-profile-pick-folder')
-            self.folder_button.set_enabled(self.pick_folder is not None and self.snapshot is not None)
-            ui.button('選択解除', on_click=lambda:self.clear_folder() if self._epoch == epoch else None).props(
-                'flat no-caps data-testid=native-profile-clear-folder').set_enabled(self.snapshot is not None)
-        with ui.expansion('旧ライブラリ（任意・読取専用）', icon='folder_open',
-                          value=self.draft_database is not None or self.draft_images is not None).props(
-                              'data-testid=native-profile-library-section'):
-            ui.label('旧DBは凍結コピー、画像は読取専用の参照先を選択してください。元データの移行や変更は行いません。').classes('text-caption')
-            self.database_value = ui.label().props('data-testid=native-profile-database-value')
-            self.images_value = ui.label().props('data-testid=native-profile-images-value')
-            self._sync_values()
-            with ui.row():
-                self.database_button = ui.button('旧DBコピーを選択',on_click=choose_database).props(
-                    'data-testid=native-profile-pick-database')
-                self.database_button.set_enabled(self.pick_database is not None and self.snapshot is not None)
-                self.images_button = ui.button('旧画像rootを選択',on_click=choose_images).props(
-                    'data-testid=native-profile-pick-images')
-                self.images_button.set_enabled(self.pick_images is not None and self.snapshot is not None)
-                ui.button('旧ライブラリ参照を解除',
-                          on_click=lambda:self.clear_library() if self._epoch == epoch else None).props(
-                    'data-testid=native-profile-clear-library').set_enabled(self.snapshot is not None)
-        with ui.expansion('画像解析・GPU', icon='memory', value=self.draft_model is not None).props('data-testid=native-gpu-section'):
-            self.model_value = ui.label().props('data-testid=native-gpu-model')
-            self.model_button = ui.button('EgaraNetモデルを選択', on_click=choose_model).props('data-testid=native-gpu-pick-model')
-            self.model_button.set_enabled(self.pick_model is not None and self.snapshot is not None)
-            ui.button('解析モデルの選択解除', on_click=lambda:self.clear_model() if self._epoch == epoch else None).props('data-testid=native-gpu-clear-model')
-            self.provider_select = ui.select({'auto':'自動（GPU優先・利用不可ならCPU）', 'cuda':'GPU（CUDA必須）', 'cpu':'CPU'},
-                label='解析の実行先', value=self.snapshot.similarity_provider if self.snapshot else 'auto').classes('w-full').props('data-testid=native-gpu-provider')
-            ui.label('元のegara_bb.onnxを参照します。設定保存だけでは推論・モデルの取得を行いません。モデルと実行先の変更は次回起動から適用します。').classes('text-caption')
-            ui.label('自動で推論するかどうかは、この下の設定「絵柄・構図の推論」で切り替えます（すぐ反映します）。').classes('text-caption')
-            self._sync_values()
-        ui.label('保存した設定は次回起動から反映されます。実行中のジョブや保存先は変わりません。').classes('text-caption')
-        self.status = ui.label('' if self.snapshot else '設定を読み込めません。旧設定は保持されています。').props(
-            'data-testid=native-profile-status role=status')
-        if self.snapshot is not None and self.snapshot.library_readonly_db is not None:
-            ui.label('旧ライブラリを読み取り、新しい作品は選択した専用保存先へ保存します。Cookie接続と併用できます。').classes('text-caption')
-        self.auth_button = None
-        if self.verify_auth is not None:
-            self.auth_button = ui.button('選択したCookieの認証を確認', on_click=check_auth).props(
-                'flat no-caps data-testid=native-profile-auth-check')
-            self.auth_button.set_enabled(self.draft_cookie is not None)
-        with ui.row():
-            self.save_button = ui.button('保存', on_click=lambda:self.save() if self._epoch == epoch else None).props('flat no-caps data-testid=native-profile-save')
-            self.save_button.set_enabled(self.snapshot is not None)
-            ui.button('取消', on_click=lambda:self.cancel() if self._epoch == epoch else None).props('flat no-caps data-testid=native-profile-cancel')
-        if self.migration_factory is not None:
-            with ui.column().classes('w-full gap-3 mt-6'):
-                ui.label('停止履歴の引き継ぎ').classes('text-lg font-semibold')
-                ui.label('以前の保存元を確認し、停止履歴を安全に引き継ぎます。通信・認証は行いません。').style('line-height:1.6')
-                ui.button('正式移行を実行する', on_click=self.open_migration).props('outline data-testid=native-profile-migration')
+        with ui.column().classes('w-full pv-native-profile gap-2'):
+            with ui.element('div').classes('pv-settings-fields'):
+                with ui.column().classes('pv-settings-field'):
+                    ui.label('Pixiv Cookieファイル').classes('pv-section-heading pv-serif-heading')
+                    self.cookie_value = ui.label().classes('pv-field-hint').props('data-testid=native-profile-cookie-value')
+                    self.folder_value = None
+                    self._sync_values()
+                    with ui.row().classes('pv-toolbar pv-compact-toolbar'):
+                        self.cookie_button = secondary_button('Cookieファイルを選択', choose_cookie, icon='upload_file',
+                            testid='native-profile-pick-cookie')
+                        self.cookie_button.set_enabled(self.pick_file is not None and self.snapshot is not None)
+                        secondary_button('選択解除', lambda:self.clear_cookie() if self._epoch == epoch else None,
+                            testid='native-profile-clear-cookie').set_enabled(self.snapshot is not None)
+                with ui.column().classes('pv-settings-field'):
+                    ui.label('作品の保存先（親フォルダ）').classes('pv-section-heading pv-serif-heading')
+                    self.folder_value = ui.label().classes('pv-field-hint').props('data-testid=native-profile-folder-value')
+                    self._sync_values()
+                    with ui.row().classes('pv-toolbar pv-compact-toolbar'):
+                        self.folder_button = secondary_button('保存先を選択', choose_folder, icon='folder_open',
+                            testid='native-profile-pick-folder')
+                        self.folder_button.set_enabled(self.pick_folder is not None and self.snapshot is not None)
+                        secondary_button('選択解除', lambda:self.clear_folder() if self._epoch == epoch else None,
+                            testid='native-profile-clear-folder').set_enabled(self.snapshot is not None)
+            with ui.expansion('旧ライブラリ（任意・読取専用）', icon='folder_open',
+                              value=self.draft_database is not None or self.draft_images is not None).classes(
+                                  'w-full pv-settings-expansion').props('dense').props(
+                                  'data-testid=native-profile-library-section'):
+                ui.label('旧DBは凍結コピー、画像は読取専用の参照先を選択してください。元データの移行や変更は行いません。').classes('pv-field-hint')
+                self.database_value = ui.label().classes('pv-field-hint').props('data-testid=native-profile-database-value')
+                self.images_value = ui.label().classes('pv-field-hint').props('data-testid=native-profile-images-value')
+                self._sync_values()
+                with ui.row().classes('pv-toolbar pv-compact-toolbar'):
+                    self.database_button = secondary_button('旧DBコピーを選択', choose_database, testid='native-profile-pick-database')
+                    self.database_button.set_enabled(self.pick_database is not None and self.snapshot is not None)
+                    self.images_button = secondary_button('旧画像rootを選択', choose_images, testid='native-profile-pick-images')
+                    self.images_button.set_enabled(self.pick_images is not None and self.snapshot is not None)
+                    secondary_button('旧ライブラリ参照を解除',
+                        lambda:self.clear_library() if self._epoch == epoch else None, testid='native-profile-clear-library').set_enabled(self.snapshot is not None)
+            with ui.expansion('画像解析・GPU', icon='memory', value=self.draft_model is not None).classes(
+                    'w-full pv-settings-expansion').props('dense').props('data-testid=native-gpu-section'):
+                self.model_value = ui.label().classes('pv-field-hint').props('data-testid=native-gpu-model')
+                with ui.row().classes('pv-toolbar pv-compact-toolbar'):
+                    self.model_button = secondary_button('EgaraNetモデルを選択', choose_model, testid='native-gpu-pick-model')
+                    self.model_button.set_enabled(self.pick_model is not None and self.snapshot is not None)
+                    secondary_button('解析モデルの選択解除',
+                        lambda:self.clear_model() if self._epoch == epoch else None, testid='native-gpu-clear-model')
+                self.provider_select = outlined_select({'auto':'自動（GPU優先・利用不可ならCPU）', 'cuda':'GPU（CUDA必須）', 'cpu':'CPU'},
+                    label='解析の実行先', value=self.snapshot.similarity_provider if self.snapshot else 'auto').classes('w-full').props('data-testid=native-gpu-provider')
+                ui.label('元のegara_bb.onnxを参照します。モデルと実行先は次回起動から適用し、設定保存だけでは推論や取得を行いません。').classes('pv-field-hint')
+                ui.label('自動で推論するかどうかは、この下の設定「絵柄・構図の推論」で切り替えます（すぐ反映します）。').classes('pv-field-hint')
+                self._sync_values()
+            ui.label('保存した設定は次回起動から反映されます。実行中のジョブや保存先は変わりません。').classes('pv-field-hint')
+            self.status = ui.label('' if self.snapshot else '設定を読み込めません。旧設定は保持されています。').classes(
+                'pv-subtitle pv-compact-status').props(
+                'data-testid=native-profile-status role=status')
+            if self.snapshot is not None and self.snapshot.library_readonly_db is not None:
+                ui.label('旧ライブラリを読み取り、新しい作品は選択した専用保存先へ保存します。Cookie接続と併用できます。').classes('pv-field-hint')
+            self.auth_button = None
+            with dialog_actions():
+                if self.verify_auth is not None:
+                    self.auth_button = secondary_button('選択したCookieの認証を確認', check_auth,
+                        testid='native-profile-auth-check')
+                    self.auth_button.set_enabled(self.draft_cookie is not None)
+                secondary_button('取消', lambda:self.cancel() if self._epoch == epoch else None,
+                                 testid='native-profile-cancel')
+                save = secondary_button if embedded else primary_button
+                self.save_button = save('起動設定を保存' if embedded else '保存',
+                    lambda:self.save() if self._epoch == epoch else None,
+                    testid='native-profile-save', icon='save')
+                self.save_button.set_enabled(self.snapshot is not None)
+            if self.migration_factory is not None:
+                with ui.column().classes('w-full gap-2'):
+                    ui.label('停止履歴の引き継ぎ').classes('pv-section-heading pv-serif-heading')
+                    ui.label('以前の保存元を確認し、停止履歴を安全に引き継ぎます。通信・認証は行いません。').classes('pv-subtitle')
+                    secondary_button('正式移行を実行する', self.open_migration, outline=True, testid='native-profile-migration')
 
     def open_migration(self):
         if self._closed or not self._active or self.migration_factory is None:return

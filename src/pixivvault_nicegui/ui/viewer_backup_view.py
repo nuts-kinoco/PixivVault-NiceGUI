@@ -1,6 +1,7 @@
 """Original author backup history or recent managed individual exports."""
 import asyncio
 from nicegui import ui, background_tasks
+from .action_controls import refresh_button
 from .card_size_control import size_buttons,update_size_buttons
 from .grid_layout import MAX_COLUMNS
 
@@ -14,9 +15,9 @@ class ViewerBackupView:
         self._images=None
         with ui.column().classes('pv-gallery w-full').props('data-testid=backup-history') as self.root:
             with ui.row().classes('pv-toolbar'):
-                ui.label('直近のバックアップ').classes('pv-library-heading')
+                ui.label('直近のバックアップ').classes('pv-library-heading pv-serif-heading')
                 self.size_buttons=size_buttons(self.change_size,prefix='backup')
-                self.refresh_button=ui.button('更新',on_click=self.refresh).props('flat data-testid=backup-refresh')
+                self.refresh_button=refresh_button(self.refresh, label='更新', testid='backup-refresh')
             ui.label('作者フォルダ単位でサムネイルを並べています。クリックで保存先を開きます。'
                      if self.legacy_mode else
                      '個別DLで保存した作品の履歴です。作者ごとに直近の保存を表示します。').classes('pv-subtitle')
@@ -83,12 +84,19 @@ class ViewerBackupView:
                     if rows or errors else 'バックアップ日時が登録された作者はいません。')
             else:
                 self.status.set_text(f'{len(rows)} 作者' + (f'・確認できない履歴 {len(errors)} 件' if errors else ''))
+            if not rows and not errors:
+                self.status.classes(add='pv-empty pv-compact-empty')
+                if not self.legacy_mode:
+                    self.status.set_text('バックアップ履歴はありません。')
+            else:
+                self.status.classes(remove='pv-empty pv-compact-empty')
             from ..shared_events import emit_shared
             suffix = ' 確認できない履歴があります。' if errors else ''
             emit_shared(self.services, f'直近のバックアップ: {len(rows)}件の履歴を表示しました。{suffix}',
                         level='error' if errors else 'normal')
         except Exception:
             if not self.closed and self.active and epoch==self.epoch:
+                self.status.classes(remove='pv-empty pv-compact-empty')
                 self.status.set_text('直近バックアップ履歴を確認できません。')
                 from ..shared_events import emit_shared
                 emit_shared(self.services, '直近バックアップ履歴を確認できません。', level='error')

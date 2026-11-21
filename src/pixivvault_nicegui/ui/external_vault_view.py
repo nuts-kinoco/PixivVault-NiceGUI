@@ -2,6 +2,7 @@
 import asyncio
 import base64
 from nicegui import ui
+from .action_controls import outlined_input, primary_button, secondary_button
 from ..external_vault import VaultError, parse_uid_text, LIMIT, VAULT_INTEGRITY_ERRORS
 from .premium_gate_view import vault_unlock_error_message
 
@@ -18,66 +19,66 @@ class ExternalVaultView:
         self._pool_signature=None
         self._picked_uids=[];self._pick_epoch=0
         self._legacy_ciphertext=b'';self._legacy_epoch=0
-        with ui.column().classes('w-full gap-3').props('data-testid=external-vault-view') as self.root:
-            ui.label('外部連携・借用アカウント').classes('text-h6')
-            ui.label('人気順検索・タグ別ランキング・過去のランキングで使います。パスワードで有効にし、OFFでロックします。')
-            ui.label('専用の暗号化保管庫を使用し、通常の Pixiv Cookie と分離します。借用が使えないときは本人の経路へ戻り、使えない検索条件を表示します。')
+        with ui.column().classes('w-full gap-2').props('data-testid=external-vault-view') as self.root:
+            ui.label('外部連携・借用アカウント').classes('pv-library-heading pv-serif-heading')
+            ui.label('人気順検索・タグ別ランキング・過去のランキングで使う借用アカウントを専用保管庫で管理します。利用できないときは本人の経路へ戻り、使えない検索条件を表示します。').classes('pv-subtitle')
             if self.gate is not None:
                 from .premium_gate_view import PremiumGateDialog
                 self.gate_dialog=PremiumGateDialog(self.gate,on_change=self.render)
-                self.enable_borrow_button=ui.button('借用プレミアムをONにする',on_click=self.gate_dialog.request_enable).props('data-testid=premium-enable')
-                self.permission_status=ui.label('').props('role=status data-testid=premium-enabled-state')
-            self.notice=ui.label('').props('role=status data-testid=external-vault-status')
-            self.recovery=ui.label('').props('role=status data-testid=external-vault-recovery-status')
-            self.inspect_button=ui.button('停止状態を確認（通信なし）',on_click=self.inspect_recovery).props('data-testid=external-vault-inspect')
-            self.password=ui.input('保管庫パスワード',password=True,password_toggle_button=True).props('outlined autocomplete=off data-testid=external-vault-password')
-            self.uid_text=ui.textarea('登録 UID（1 行に 1 件、最大 10 件）').props('outlined data-testid=external-vault-uids')
-            self.secret=ui.input('Shaft 署名キー（必須）',password=True).props('outlined autocomplete=off data-testid=external-vault-secret')
-            ui.label('署名キーは保管庫に暗号化して保存します。借用ON状態の保存選択とは別です。').classes('text-caption')
-            ui.label('登録UIDは払い出しを要求する自分のUIDです。借用先のUIDではありません。トークンは暗号化して保存し、再利用・期限更新します。').classes('text-caption')
-            with ui.expansion('旧形式の保管庫を取り込む（通信なし）').classes('w-full') as self.legacy_panel:
+                self.enable_borrow_button=primary_button('借用プレミアムをONにする', self.gate_dialog.request_enable, testid='premium-enable')
+                self.permission_status=ui.label('').classes('pv-subtitle pv-compact-status').props('role=status data-testid=premium-enabled-state')
+            self.notice=ui.label('').classes('pv-subtitle pv-compact-status').props('role=status data-testid=external-vault-status')
+            self.recovery=ui.label('').classes('pv-subtitle pv-compact-status').props('role=status data-testid=external-vault-recovery-status')
+            self.inspect_button=secondary_button('停止状態を確認（通信なし）', self.inspect_recovery, testid='external-vault-inspect')
+            with ui.element('div').classes('pv-settings-fields'):
+                self.password=outlined_input('保管庫パスワード',password=True,password_toggle_button=True).props('autocomplete=off data-testid=external-vault-password')
+                self.secret=outlined_input('Shaft 署名キー（必須）',password=True).props('autocomplete=off data-testid=external-vault-secret')
+                self.uid_text=ui.textarea('登録 UID（1 行に 1 件、最大 10 件）').props('outlined dense rows=2 data-testid=external-vault-uids').classes('pv-settings-wide')
+            ui.label('署名キーは保管庫に暗号化して保存します。借用ON状態の保存選択とは別です。').classes('pv-field-hint')
+            ui.label('登録UIDは払い出しを要求する自分のUIDです。借用先のUIDではありません。トークンは暗号化して保存し、再利用・期限更新します。').classes('pv-field-hint')
+            with ui.expansion('旧形式の保管庫を取り込む（通信なし）').classes('w-full pv-settings-expansion').props('dense') as self.legacy_panel:
                 ui.label('旧保管庫の暗号ファイルと、旧設定の salt・verify（Base64）を指定してください。元ファイルは変更せず、未作成の専用保管庫へ取り込みます。')
-                self.legacy_password=ui.input('旧保管庫のパスワード',password=True).props(
-                    'outlined autocomplete=off data-testid=external-vault-legacy-password')
+                self.legacy_password=outlined_input('旧保管庫のパスワード',password=True).props(
+                    'autocomplete=off data-testid=external-vault-legacy-password')
                 ui.label('借用プレミアムをONにするパスワードとは別に、旧保管庫を暗号化したパスワードを入力してください。')
-                self.legacy_salt=ui.input('旧設定の salt（Base64）',password=True).props('outlined autocomplete=off')
-                self.legacy_verify=ui.input('旧設定の verify（Base64）',password=True).props('outlined autocomplete=off')
+                self.legacy_salt=outlined_input('旧設定の salt（Base64）',password=True).props('autocomplete=off')
+                self.legacy_verify=outlined_input('旧設定の verify（Base64）',password=True).props('autocomplete=off')
                 self.legacy_upload=ui.upload(on_upload=self.pick_legacy_file,on_rejected=self.reject_legacy_file,
-                    multiple=False,max_file_size=LIMIT+28,auto_upload=True,label='旧保管庫の暗号ファイルを選択')
-                self.legacy_import_button=ui.button('選択した旧保管庫を取り込む',on_click=self.import_legacy).props(
-                    'data-testid=external-vault-import-legacy')
+                    multiple=False,max_file_size=LIMIT+28,auto_upload=True,label='旧保管庫の暗号ファイルを選択').classes('pv-compact-upload')
+                self.legacy_import_button=secondary_button('選択した旧保管庫を取り込む', self.import_legacy, testid='external-vault-import-legacy')
                 self.legacy_notice=ui.label('選択だけでは取り込みません。旧保管庫のパスワードを入力して実行してください。').props(
                     'role=status data-testid=external-vault-legacy-status')
-            with ui.row():
-                self.create_button=ui.button('専用保管庫を作成',on_click=lambda:self.action('initialize')).props('data-testid=external-vault-create')
-                self.unlock_button=ui.button('ロック解除',on_click=lambda:self.action('unlock')).props('data-testid=external-vault-unlock')
-                self.reopen_button=ui.button('保存済み状態を再確認（通信なし）',on_click=lambda:self.action('reopen_saved')).props('data-testid=external-vault-reopen-saved')
-                self.recover_button=ui.button('記録済み更新結果を復元（通信なし）',on_click=lambda:self.action('recover_known')).props('data-testid=external-vault-recover-known')
-                self.lock_button=ui.button('今すぐロック（自動解錠もOFF）',on_click=self.lock).props('data-testid=external-vault-lock')
-                self.refresh_button=ui.button('アカウントを更新',on_click=lambda:self.action('refresh')).props('data-testid=external-vault-refresh')
-            self.update_secret=ui.input('新しい Shaft 署名キー（空欄なら維持）',password=True).props('outlined autocomplete=off data-testid=external-vault-update-secret')
-            self.update_uid_text=ui.textarea('新しい UID 一覧（空欄なら維持）').props('outlined data-testid=external-vault-update-uids')
+            with ui.row().classes('pv-toolbar pv-compact-toolbar'):
+                self.create_button=secondary_button('専用保管庫を作成', lambda:self.action('initialize'), testid='external-vault-create')
+                self.unlock_button=secondary_button('ロック解除', lambda:self.action('unlock'), testid='external-vault-unlock')
+                self.reopen_button=secondary_button('保存済み状態を再確認（通信なし）', lambda:self.action('reopen_saved'), testid='external-vault-reopen-saved')
+                self.recover_button=secondary_button('記録済み更新結果を復元（通信なし）', lambda:self.action('recover_known'), testid='external-vault-recover-known')
+                self.lock_button=secondary_button('今すぐロック（自動解錠もOFF）', self.lock, testid='external-vault-lock')
+                self.refresh_button=secondary_button('アカウントを更新', lambda:self.action('refresh'), testid='external-vault-refresh')
+            self.update_secret=outlined_input('新しい Shaft 署名キー（空欄なら維持）',password=True).props('autocomplete=off data-testid=external-vault-update-secret')
+            self.update_uid_text=ui.textarea('新しい UID 一覧（空欄なら維持）').props('outlined dense data-testid=external-vault-update-uids')
             self.uid_upload=ui.upload(
                 on_upload=self.pick_uid_file,
                 multiple=False,max_file_size=65536,
                 auto_upload=True,label='UID 一覧の txt ファイルを選択',
-            ).props('accept=.txt data-testid=external-vault-upload').on(
+            ).props('accept=.txt data-testid=external-vault-upload').classes('pv-compact-upload').on(
                 'rejected',self.pick_uid_rejected,
                 js_handler='rejections => emit(rejections.map(item => item.failedProp))')
             self.picked_count=ui.label('選択済み: 0 件').props('data-testid=external-vault-picked-count')
-            self.update_button=ui.button('保管庫の設定を更新',on_click=lambda:self.action('update')).props('data-testid=external-vault-update')
+            self.update_button=primary_button('保管庫の設定を更新', lambda:self.action('update'), testid='external-vault-update')
             self.auto_unlock=ui.checkbox('この端末で自動解錠を有効にする（明示的にOFFにするまで継続）',value=False).props('data-testid=external-vault-auto-unlock')
             ui.label('未選択のままでは保存済みの設定を変えません。新規はOFFです。鍵はこのWindowsユーザーのDPAPIで保護します。')
             self.legacy_auto_choice=ui.radio({'continue':'引き継いだ自動解錠を継続する','stop':'自動解錠を停止する'},value=None).props('data-testid=external-vault-auto-legacy-choice')
-            self.enable_auto_button=ui.button('選択した自動解錠を保存',on_click=self.auto_changed).props('data-testid=external-vault-auto-enable')
-            self.disable_auto_button=ui.button('自動解錠をOFFにする',on_click=self.auto_off).props('data-testid=external-vault-auto-off')
-            self.auto_unlock_notice=ui.label('').props('role=status data-testid=external-vault-auto-unlock-status')
+            with ui.row().classes('pv-toolbar pv-compact-toolbar'):
+                self.enable_auto_button=secondary_button('選択した自動解錠を保存', self.auto_changed, testid='external-vault-auto-enable')
+                self.disable_auto_button=secondary_button('自動解錠をOFFにする', self.auto_off, testid='external-vault-auto-off')
+            self.auto_unlock_notice=ui.label('').classes('pv-subtitle pv-compact-status').props('role=status data-testid=external-vault-auto-unlock-status')
             self.retention_notice=ui.label(
                 '新規の正常更新記録は累積16件まで保持します。上限後も本体の保存を続け、'
                 '失敗・未確認の記録は保全します。記録前に中断した結果は推定して復元しません。'
             ).props('data-testid=external-vault-retention')
             self.slot_status=ui.label('').props('data-testid=external-vault-slots')
-            self.request_budget_status=ui.label('').props('role=status data-testid=premium-request-budget')
+            self.request_budget_status=ui.label('').classes('pv-subtitle pv-compact-status').props('role=status data-testid=premium-request-budget')
         self.render()
         # Keep status observation per client and only while this tab is active.
         # A keeper or another client may poison the shared socket fence without
