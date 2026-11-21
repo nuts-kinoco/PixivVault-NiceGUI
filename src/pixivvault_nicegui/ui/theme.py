@@ -424,6 +424,7 @@ CSS += """
 .pv-tone-learning .pv-trend-layout[data-mode=rail]:has(.pv-view-art:not(.hidden)) .pv-learning-art-frame { width:100%; max-width:none; height:100%; }
 .pv-tone-learning .pv-trend-layout[data-mode=rail]:has(.pv-view-art:not(.hidden)) .pv-view-art { width:100%; height:100%; max-width:none; max-height:none; }
 .pv-tone-learning .pv-trend-layout[data-mode=band] .pv-trend-side { height:112px; }
+.pv-learning-work-title { min-width:0; max-width:calc(100% - 5rem); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .pv-tone-learning .pv-learning-status:empty, .pv-tone-learning .pv-counter:empty { position:absolute; }
 .pv-tone-learning [data-testid=learning-reset] { flex-flow:row wrap; align-items:center; gap:4px 8px; }
 .pv-tone-learning [data-testid=learning-reset-status]:empty { position:absolute; }

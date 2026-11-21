@@ -175,7 +175,7 @@ class LearningView:
             stage_start = len(self.root.default_slot.children)
             with ui.element('div').classes('w-full relative') as self.candidate_header:
                 with ui.row().classes('w-full items-center gap-2'):
-                    self.title = ui.label().classes("pv-library-heading pv-serif-heading")
+                    self.title = ui.label().classes("pv-library-heading pv-serif-heading pv-learning-work-title")
                     self.summary_button = ui.button('概要 ▸').props(
                         'flat dense data-testid=learning-summary-toggle aria-expanded=false')
                     self.summary_button.on('click', self._on_summary_click,
