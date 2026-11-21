@@ -246,16 +246,25 @@ def test_stop_between_tagger_manager_steps_prevents_reloading(monkeypatch, tmp_p
     arbiter = GpuInferenceArbiter()
     calls = fake_ort(monkeypatch)
     tagger = make_tagger(monkeypatch, tmp_path, gpu_arbiter=arbiter)
-    preferences = SimpleNamespace(subscribe_local_tagger_settings=lambda _: lambda: None)
+    preferences = SimpleNamespace(
+        subscribe_local_tagger_settings=lambda _: lambda: None,
+        snapshot=lambda: SimpleNamespace(values={
+            'local_tagger_path': str(tmp_path), 'local_tagger_enabled': '1',
+        }),
+    )
     manager = local_tagger.TaggerManager(preferences)
     manager.tagger = tagger
+    manager._provider = 'auto'
     verified, resume = Event(), Event()
+    current_fingerprint = manager.current_fingerprint
 
     def fingerprint():
-        assert tagger.verify() == '利用可能'
-        verified.set()
-        assert resume.wait(5)
-        return 'synthetic'
+        value = current_fingerprint()
+        if not verified.is_set():
+            assert value is not None
+            verified.set()
+            assert resume.wait(5)
+        return value
 
     monkeypatch.setattr(manager, 'current_fingerprint', fingerprint)
     with ThreadPoolExecutor(1) as pool:
@@ -266,10 +275,10 @@ def test_stop_between_tagger_manager_steps_prevents_reloading(monkeypatch, tmp_p
             assert tagger.session is None
         finally:
             resume.set()
-        with pytest.raises(GpuInferenceStopped):
-            running.result(5)
-    assert tagger.session is None
+        failure = running.exception(5)
     assert [op for op, _ in calls].count('load') == 1
+    assert tagger.session is None
+    assert isinstance(failure, GpuInferenceStopped)
 
 
 def test_stop_during_tagger_tensor_preparation_skips_native_run(monkeypatch, tmp_path):

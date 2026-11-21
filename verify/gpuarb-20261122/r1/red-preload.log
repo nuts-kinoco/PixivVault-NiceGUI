@@ -1,0 +1,20 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_________ test_stop_during_dll_preload_skips_session_creation[egara] __________
+tests\test_gpuarb_inference.py:335: in test_stop_during_dll_preload_skips_session_creation
+    assert calls == [('preload', '')]
+E   AssertionError: assert [('preload', ...ionProvider')] == [('preload', '')]
+E     
+E     Left contains 2 more items, first extra item: ('load', ('CUDAExecutionProvider', {'arena_extend_strategy': 'kSameAsRequested', 'do_copy_in_default_stream': '1', 'gpu_mem_limit': '8589934592', 'use_tf32': '0'}))
+E     Use -v to get more diff
+_________ test_stop_during_dll_preload_skips_session_creation[tagger] _________
+tests\test_gpuarb_inference.py:335: in test_stop_during_dll_preload_skips_session_creation
+    assert calls == [('preload', '')]
+E   AssertionError: assert [('preload', ...147483648'}))] == [('preload', '')]
+E     
+E     Left contains one more item: ('load', ('CUDAExecutionProvider', {'gpu_mem_limit': '2147483648'}))
+E     Use -v to get more diff
+=========================== short test summary info ===========================
+FAILED tests/test_gpuarb_inference.py::test_stop_during_dll_preload_skips_session_creation[egara]
+FAILED tests/test_gpuarb_inference.py::test_stop_during_dll_preload_skips_session_creation[tagger]
+2 failed in 2.20s

@@ -1,0 +1,26 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+________ test_queue_author_is_not_squeezed_out_at_common_window_width _________
+tests\test_fixloop2_queue_title_width.py:8: in test_queue_author_is_not_squeezed_out_at_common_window_width
+    browser = p.chromium.launch(headless=True)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\playwright\sync_api\_generated.py:4103: in launch
+    self._sync(
+S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\playwright\_impl\_browser_type.py:101: in launch
+    await self._channel.send(
+S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\playwright\_impl\_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\playwright\_impl\_connection.py:636: in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E   playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at S:\Work\_tmp\PV\gpu-arb-20261122\ms-playwright\chromium_headless_shell-1248\chrome-headless-shell-win64\chrome-headless-shell.exe
+E   \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557
+E   \u2551 Looks like Playwright was just installed or updated.       \u2551
+E   \u2551 Please run the following command to download new browsers: \u2551
+E   \u2551                                                            \u2551
+E   \u2551     playwright install                                     \u2551
+E   \u2551                                                            \u2551
+E   \u2551 <3 Playwright Team                                         \u2551
+E   \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d
+=========================== short test summary info ===========================
+FAILED tests/test_fixloop2_queue_title_width.py::test_queue_author_is_not_squeezed_out_at_common_window_width
+1 failed in 2.44s
