@@ -136,3 +136,40 @@ async def test_delayed_metadata_cannot_replace_newer_selection_or_reopen_closed_
             else:assert view.gallery.state.selected_artwork.work_id=='124'
     finally:
         release.set();client.delete();services.close()
+
+
+@pytest.mark.asyncio
+async def test_same_ranking_query_keeps_pending_metadata_open():
+    services, reader, pins = setup()
+    reader.rows = [row(123)]
+    client = Client(ui.page('/_ranking_pending_search'))
+    entered, release = Event(), Event()
+    tasks = set()
+    try:
+        with client:
+            view = RankingView(services)
+            view.set_active(True)
+            await view.load()
+            pin = pins[-1]
+            pin.needs_metadata = lambda _: True
+
+            def prepare(work_id):
+                entered.set()
+                assert release.wait(5)
+                return next(art for art in view.gallery.state.artworks if art.work_id == work_id)
+
+            pin.prepare_artwork = prepare
+            before = asyncio.all_tasks()
+            view.gallery.open('123')
+            tasks = asyncio.all_tasks() - before
+            assert await asyncio.to_thread(entered.wait, 5)
+            view.gallery.search(view.gallery.state.query)
+            pin.needs_metadata = lambda _: False
+            release.set()
+            await asyncio.gather(*tasks)
+            assert view.gallery.state.selected_id == '123'
+    finally:
+        release.set()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        client.delete()
+        services.close()
