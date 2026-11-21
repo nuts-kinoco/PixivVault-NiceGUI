@@ -259,6 +259,7 @@ class VisualPreferenceStore:
         self._intent = self.root / (OWNER_MARKER + '.sqlite-intent')
         self._database_owner = self.root / (OWNER_MARKER + '.database-owner')
         self._revocation = self.root / (OWNER_MARKER + '.revocation')
+        self._revocation_recovery = self.root / (OWNER_MARKER + '.revocation-recovery')
         self._binding = self.root / (OWNER_MARKER + '.generation')
         self._fence_failed = False
         self._scope = sha256(json.dumps([profile, account], ensure_ascii=True).encode('ascii')).hexdigest()
@@ -708,7 +709,16 @@ class VisualPreferenceStore:
         return Generation(self._store_id, *row[:4])
 
     def _epoch(self, *, deadline=None):
-        value = self._read_record(self._revocation, {'epoch'}, deadline=deadline)
+        primary = self._read_epoch(self._revocation, deadline=deadline)
+        recovery = self._read_epoch(self._revocation_recovery, deadline=deadline)
+        if recovery is None:
+            return primary
+        # Either record invalidates prior inputs, including when another
+        # handle renews the primary while recovery is being published.
+        return sha256(f'{primary or ""}:{recovery}'.encode('ascii')).hexdigest()[:32]
+
+    def _read_epoch(self, path, *, deadline):
+        value = self._read_record(path, {'epoch'}, deadline=deadline)
         if value is None:
             return None
         if type(value['epoch']) is not str or not _HEX32.fullmatch(value['epoch']):
@@ -741,7 +751,16 @@ class VisualPreferenceStore:
         self._check_owner()
         try:
             self._epoch()  # Preserve an unrecognized record.
-            self._write_record(self._revocation, {'epoch': uuid4().hex})
+            renewal = {'epoch': uuid4().hex}
+            try:
+                self._write_record(self._revocation, renewal)
+            except (OSError, ValueError, VisualPreferenceStoreError):
+                # Windows can prevent replacing a single control file while
+                # still allowing a different owned record to be published.
+                self._check_owner()
+                self._read_epoch(self._revocation_recovery, deadline=None)
+                self._write_record(self._revocation_recovery, renewal)
+                _LOG.warning('visual preference generation fence used recovery record')
         except (OSError, ValueError, VisualPreferenceStoreError):
             self._fence_failed = True
             _reject()
@@ -826,8 +845,8 @@ class VisualPreferenceStore:
         try:
             self._declare_revocation()
         except VisualPreferenceStoreError:
-            # If atomic replacement of a valid control record fails, retire the
-            # generation in the owned database. Other handles check both.
+            # If neither valid control record can be written, retire the
+            # published generation in the owned database when it is writable.
             self._epoch()
             with self._transaction(write=True) as db:
                 self._retire(db)

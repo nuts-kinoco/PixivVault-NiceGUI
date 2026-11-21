@@ -28,6 +28,7 @@ from pixivvault_nicegui.pixiv_read_client import HTTPStatusRejected
 from pixivvault_nicegui.remote_media import RemoteBookmarkImages
 from pixivvault_nicegui.shared_image_cache import SharedImageCache
 from pixivvault_nicegui.similarity_worker import SimilarityWorker
+from pixivvault_nicegui.visual_preference import EmbeddingKey
 from pixivvault_nicegui.visual_preference_store import VisualPreferenceStore, VisualPreferenceStoreError
 from test_gpuarb_inference import fake_ort, make_tagger
 from test_gpuarb_remote_media import Client, png, record
@@ -140,12 +141,17 @@ def test_revocation_replace_failure_cannot_leave_old_model_visible(tmp_path, mon
         await service.record(session, judgment)
         active = generation(store)
         assert store.publish(active, model(active).to_payload())
+        epoch = reader.capture_embedding_epoch()
         monkeypatch.setattr(store, '_write_record', fail_replacement)
         await service.revert(session, judgment, 'undo')
         assert await service.judged_count() == 0
         assert not reader.is_current(active)
         assert reader.load_model(active) is None
         assert not store_at(root).is_current(active)
+        key = EmbeddingKey(work, 0, 'view', 'c' * 64, active.model_sha, active.preprocessing_version)
+        assert not reader.put_candidate_embedding(epoch, key, (1, 0))
+        assert not reader.has_candidate_embedding(key)
+        assert reader.put_candidate_embedding(reader.capture_embedding_epoch(), key, (1, 0))
 
     try:
         asyncio.run(exercise())
