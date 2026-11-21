@@ -75,6 +75,7 @@ class AccountFollowup:
         self.store_provider = None       # callable -> FollowingSyncStore | None
         self.reader_factory = None       # test/override: callable(cookie_file) -> reader
         self.admission_provider = None   # callable -> shared request pacing (RequestAdmission)
+        self.on_following_ready = None   # callable after verified, committed following ownership
         # The shared GET fence admits one request at a time. Another request in
         # flight (for instance the first ranking fetch) surfaces as a failed
         # attempt; the transactional sync is simply tried again a little later.
@@ -134,16 +135,30 @@ class AccountFollowup:
                 self._emit('account_switch', {'new_account': account, 'old_account': old})
                 return
             snapshot = await asyncio.to_thread(store.snapshot, account)
-            if not sync_is_due(snapshot.last_synced_at) or self._running:
-                return
         except Exception:
             return
         # Inline: the startup check task (which the first ranking fetch waits
         # for) finishes after this, so the two requests are not contending.
-        self._running = True
-        from .shared_events import emit_shared
-        emit_shared(getattr(self, '_shared_event_services', None), '起動時フォローリスト自動同期を開始します...', level='info')
-        await self._sync(account, store)
+        if self._running:
+            return
+        if sync_is_due(snapshot.last_synced_at):
+            self._running = True
+            from .shared_events import emit_shared
+            emit_shared(getattr(self, '_shared_event_services', None), '起動時フォローリスト自動同期を開始します...', level='info')
+            await self._sync(account, store)
+        await self._signal_following_ready(account, store)
+
+    async def _signal_following_ready(self, account, store):
+        callback = self.on_following_ready
+        if callback is None or self.binding._closed:
+            return
+        try:
+            synced = await asyncio.to_thread(store.last_synced_account)
+        except (OSError, RuntimeError):
+            return
+        if synced == account and not self.binding._closed:
+            callback()
+            self.on_following_ready = None
 
     def _close_dialog(self):
         if self.pending is not None:
@@ -189,6 +204,7 @@ class AccountFollowup:
         self._notice(NOTICE_SWITCH_CONFIRMED.format(uid=request.new_account), 'warning')
         await self._sync(request.new_account, store, failed_notice=NOTICE_SWITCH_FETCH_FAILED,
                          first_reader=reader)
+        await self._signal_following_ready(request.new_account, store)
 
     # -- sync ------------------------------------------------------------------
 

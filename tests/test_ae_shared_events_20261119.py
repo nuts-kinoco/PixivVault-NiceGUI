@@ -38,7 +38,8 @@ def test_scheduler_empty_start_and_failure_have_fixed_safe_messages(monkeypatch,
     with pytest.raises(RuntimeError):service.managed_schedule_runner.dispatch('slot',Event())
     entries=service.shared_log.snapshot()
     assert entries[0].message=='☆ お気に入り自動チェックを開始します (2人の作者)'
-    assert entries[1].message=='☆ お気に入り自動チェック中にエラーが発生しました。'
+    assert entries[1].message == ('☆ お気に入り自動チェック中にエラーが発生しました。'
+                                  'チェックの受付・実行に失敗しました（RuntimeError）')
     assert entries[1].level=='error' and all('synthetic-secret' not in e.message for e in entries)
 
 

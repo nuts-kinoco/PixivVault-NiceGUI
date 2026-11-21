@@ -59,7 +59,8 @@ class SchedulerView:
                     '状態更新', on_click=lambda: self.refresh(ensure_after_current=True)
                 ).props('data-testid=scheduler-refresh')
                 self.ack_button = ui.button('中断状態を確認して解除', on_click=self.acknowledge).props('data-testid=scheduler-ack')
-            self.status = ui.label('定期状態: 未起動').props('data-testid=scheduler-status')
+            status = ('未起動' if getattr(services, 'managed_scheduler', None) is None else '状態を確認中')
+            self.status = ui.label(f'定期状態: {status}').props('data-testid=scheduler-status')
             self.history_label = ui.label('実行履歴はありません').classes('text-caption').props('data-testid=scheduler-history')
             self.star_notice = ui.label('').classes('text-caption').props('data-testid=scheduler-star-import role=status')
             self.action_notice = ui.label('').props('data-testid=scheduler-action-notice role=status')
@@ -229,9 +230,11 @@ class SchedulerView:
         self.authors.set_visibility(False)
         self._loaded_authors = ''
         self._stars_unknown_in_form = True
-        self.star_notice.set_text('☆の一覧を読み込めません。同期先を確認して、定期チェック画面を再読込してください。')
+        self.star_notice.set_text('☆一覧を読み込めません。ログイン中のアカウントと保存済みのフォロー情報を照合できるまで、履歴も非表示になります。')
         self.account_label.set_text('紐づけアカウントを確認できません')
-        self.status.set_text('定期状態: 紐づけアカウントを確認できません')
+        status = ('認証・フォロー情報の確認待ち' if getattr(self.services, '_scheduler_waiting_for_auth', False)
+                  else '紐づけアカウントを確認できません')
+        self.status.set_text(f'定期状態: {status}')
         self.ack_button.set_enabled(False)
         self.run_button.set_enabled(False)
         self._hide_history()
@@ -269,7 +272,10 @@ class SchedulerView:
             self.ack_button.set_enabled(False)
         self.run_button.set_enabled(not self._busy and (editor.owns_history or editor.unbound))
         self._enable_save()
-        if self._stars_unknown_in_form or not (editor.owns_history or editor.unbound):
+        if not (editor.owns_history or editor.unbound):
+            self.star_notice.set_text('定期チェックの履歴は別のアカウントに紐づいているか、作成元を確認できません。履歴を保持しています。')
+            self.account_label.set_text('紐づけアカウントを確認できません')
+        elif self._stars_unknown_in_form:
             self.account_label.set_text('紐づけアカウントを確認できません')
         elif editor.unbound:
             self.account_label.set_text(f'対象アカウント ID {account_id}（未紐づけ）')
@@ -348,6 +354,9 @@ class SchedulerView:
             ledger = self.services.managed_scheduler
             if ledger is None:
                 return
+            if self.open_button.enabled:
+                self.open_button.set_enabled(False)
+                self._set_controls(True)
             self._load(ledger)
             owner = self._settings_owner
             guarded = getattr(ledger, '_account_guard', False)
