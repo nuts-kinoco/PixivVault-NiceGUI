@@ -1,6 +1,7 @@
 """Original author backup history or recent managed individual exports."""
 import asyncio
 from nicegui import ui, background_tasks
+from .action_controls import refresh_button
 from .card_size_control import size_buttons,update_size_buttons
 from .grid_layout import MAX_COLUMNS
 
@@ -14,13 +15,13 @@ class ViewerBackupView:
         self._images=None
         with ui.column().classes('pv-gallery w-full').props('data-testid=backup-history') as self.root:
             with ui.row().classes('pv-toolbar'):
-                ui.label('直近のバックアップ').classes('pv-library-heading')
+                ui.label('直近のバックアップ').classes('pv-library-heading pv-serif-heading')
                 self.size_buttons=size_buttons(self.change_size,prefix='backup')
-                self.refresh_button=ui.button('更新',on_click=self.refresh).props('flat data-testid=backup-refresh')
+                self.refresh_button=refresh_button(self.refresh, label='更新', testid='backup-refresh')
             ui.label('作者フォルダ単位でサムネイルを並べています。クリックで保存先を開きます。'
                      if self.legacy_mode else
                      '個別DLで保存した作品の履歴です。作者ごとに直近の保存を表示します。').classes('pv-subtitle')
-            self.status=ui.label('').props('role=status data-testid=backup-status')
+            self.status=ui.label('').classes('pv-empty pv-backup-status').props('role=status data-testid=backup-status')
             with ui.element('div').classes('pv-gallery-scroll'):
                 self.grid=ui.element('div').classes('pv-grid').props('data-testid=backup-grid')
         self.apply_card_size(card_size)
