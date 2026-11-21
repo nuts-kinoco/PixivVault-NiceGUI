@@ -105,9 +105,9 @@
     },
     "scheduler": {
       "label": "定期チェック",
-      "testids": ["scheduler-open", "scheduler-interval", "scheduler-save", "scheduler-run",
+      "testids": ["scheduler-interval", "scheduler-save", "scheduler-run",
                   "scheduler-startup", "scheduler-status", "scheduler-account", "shared-log-host"],
-      "texts": ["お気に入り作者の定期チェック", "今すぐチェック", "☆お気に入りにした作者全員をチェックします。"]
+      "texts": ["お気に入り作者の定期チェック", "今すぐチェック", "☆を付けた作者全員をチェックします"]
     },
     "metadata": {
       "label": "メタデータ補完",
