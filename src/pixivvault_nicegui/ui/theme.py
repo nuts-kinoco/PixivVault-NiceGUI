@@ -501,3 +501,24 @@ CSS += """
   .pv-preferences-footer { padding-inline:8px; }
 }
 """
+
+CSS += """
+/* tone-c-r2 */
+.pv-dedup-legacy-hint { flex:1 1 min(32ch,100%); }
+.pv-dedup-undecidable-empty { padding:4px 12px 0; gap:2px; text-align:left; }
+.pv-dedup-undecidable-empty > [data-testid=duplicate-undecidable-empty] { color:var(--pv-text); }
+@media(min-width:1120px) {
+  .pv-tone-learning .pv-trend-layout[data-mode=rail]:has(
+    [data-testid=learning-empty]:not(.hidden), .pv-learning-candidate-stage:not(.hidden)
+  ) {
+    grid-template-columns:minmax(0,1fr) minmax(0,520px) minmax(0,1fr);
+  }
+  .pv-trend-layout[data-mode=rail]:has(
+    [data-testid=learning-empty]:not(.hidden), .pv-learning-candidate-stage:not(.hidden)
+  ) > .pv-trend-main { grid-column:2; }
+  .pv-trend-layout[data-mode=rail]:has(
+    [data-testid=learning-empty]:not(.hidden), .pv-learning-candidate-stage:not(.hidden)
+  ) > .pv-trend-side { grid-column:3; }
+}
+/* /tone-c-r2 */
+"""

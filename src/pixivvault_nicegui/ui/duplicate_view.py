@@ -58,21 +58,21 @@ class DuplicateView:
             with ui.row().classes('w-full items-center gap-2'):
                 self.notice=ui.label('まだスキャンしていません。').classes('pv-subtitle').props('role=status data-testid=duplicate-status')
                 self.scan_progress=ui.label('').classes('pv-subtitle').props('role=status data-testid=duplicate-progress')
-                ui.space()
+                self.legacy_notice=ui.label(
+                    '旧フォルダ・ZIPも走査し、確認後に画像を実移動して元ZIPを更新します。'
+                    '事前にImagesの兄弟quarantineへ退避するため空き容量が必要です。'
+                    if getattr(source,'legacy',None) is not None else '').classes('pv-subtitle pv-dedup-legacy-hint')
                 self.low_button=ui.button('画質の低い方を一括で選ぶ',on_click=self.select_low).props('flat dense no-caps data-testid=duplicate-bulk-low')
             self.scan_bar=ui.linear_progress(value=0).props('data-testid=duplicate-progress-bar')
             self.skipped_notice=ui.label('').classes('whitespace-pre-line').props('role=alert data-testid=duplicate-skipped-authors')
             self.scan_progress.set_visibility(False);self.scan_bar.set_visibility(False);self.skipped_notice.set_visibility(False)
             self.recovery_notice=ui.label('').classes('pv-subtitle').props('role=status data-testid=duplicate-recovery-status')
-            self.legacy_notice=ui.label(
-                '旧フォルダ・ZIPも走査します。確認後は画像を実移動し、元ZIPを更新します。'
-                '操作前の退避をImagesの兄弟quarantine内に保持します。退避分の容量が必要です。'
-                if getattr(source,'legacy',None) is not None else '').classes('pv-subtitle')
             with ui.column().classes('w-full gap-1').props('data-testid=duplicate-undecidable-panel') as self.undecidable_panel:
-                ui.label('元のファイルをどの作品に対応付けるか決められないものです。この画面は閲覧専用です。').classes('pv-subtitle')
                 with ui.row().classes('w-full items-center gap-2'):
-                    self.undecidable_notice=ui.label('未判定の台帳を確認しています…').classes('pv-subtitle').props(
-                        'role=status data-testid=duplicate-undecidable-status')
+                    with ui.column().classes('flex-1 min-w-0 gap-0'):
+                        ui.label('元のファイルに対応する作品を特定できなかった候補です。').classes('pv-subtitle')
+                        self.undecidable_notice=ui.label('未判定の台帳を確認しています…').classes('pv-subtitle').props(
+                            'role=status data-testid=duplicate-undecidable-status')
                     self.undecidable_refresh=refresh_button(self.refresh_undecidable,label='未判定の台帳を再読込',testid='duplicate-undecidable-refresh')
                 self.undecidable_rows=ui.column().classes('w-full').props('data-testid=duplicate-undecidable-rows')
             with ui.column().classes('pv-dedup-near w-full gap-1').props('data-testid=duplicate-near-panel') as self.near_panel:
@@ -523,11 +523,11 @@ class DuplicateView:
             + ('' if can_resolve else '旧データベースは読み取り専用です。対応付けを確定するには管理保存先でスキャンしてください。'))
         with self.undecidable_rows:
             if not groups:
-                if self.query:
-                    ui.label('一致する候補はありません').props('data-testid=duplicate-undecidable-empty')
-                else:
-                    ui.label('決められないものはありません').props('data-testid=duplicate-undecidable-empty')
-                    ui.label('手で判断が要る重複はありません').classes('pv-subtitle')
+                with ui.column().classes('pv-empty pv-dedup-undecidable-empty'):
+                    ui.label('一致する候補はありません' if self.query else '決められないものはありません').props(
+                        'data-testid=duplicate-undecidable-empty')
+                    if not self.query:
+                        ui.label('手で判断が要る重複はありません').classes('pv-subtitle')
             for group in shown:
                 candidates=group['candidates']
                 sample=candidates[0] if candidates else {'author_name':'','title':''}
