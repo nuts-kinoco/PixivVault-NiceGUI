@@ -80,11 +80,11 @@ async def test_legacy_thumbnail_setting_off_does_not_block_existing_bookmark_ima
         svc.preferences.set_setting('bookmark_auto_refresh','0')
         with client, TestClient(app) as http:
             view=LibraryView(svc)
-            author_url=card_src(view.author_cards['12'])
+            author_url=view.author_cards['12']['src']
             author=http.get(author_url)
             assert author.status_code==503 and reader.calls==[]
             view.show_subview('bookmarks')
-            bookmark=http.get(card_src(view.bookmarks.cards['novel:101']))
+            bookmark=http.get(view.bookmarks.cards['novel:101']['src'])
             print('private setting author/bookmark',author.status_code,bookmark.status_code)
             assert bookmark.status_code==200
             assert reader.calls==[bookmark_url]

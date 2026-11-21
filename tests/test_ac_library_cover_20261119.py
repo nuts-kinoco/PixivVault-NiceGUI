@@ -170,18 +170,14 @@ async def test_author_list_and_detail_render_same_pinned_cover(tmp_path):
     services.library = snap()
     services.images.publish(ReadonlyLocalMediaCatalog(tmp_path, services.library), None)
     client = Client(ui.page('/_ac_novel_cover'))
-    def walk(element):
-        yield element
-        for child in element.default_slot.children:
-            yield from walk(child)
     try:
         with client:
             view = LibraryView(services)
             author = view.author_cards['12']
-            author_sources = [e.props.get('src') for e in walk(author) if e.props.get('src')]
+            author_sources = [author['src']]
             view.open_author('12')
             detail = view.page_cards[('novel:101', 0)]
-            detail_sources = [e.props.get('src') for e in walk(detail) if e.props.get('src')]
+            detail_sources = [detail['src']]
             assert len(author_sources) == len(detail_sources) == 1
             assert '/cover.png?catalog=' in detail_sources[0]
             assert '/media/novel:101/0/thumb.png?catalog=' in author_sources[0]

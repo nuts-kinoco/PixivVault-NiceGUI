@@ -70,7 +70,7 @@ def serve(root):
 
         setattr(owner, method, measured)
 
-    services = ApplicationServices(1)
+    services = ApplicationServices(50)
     register_media_routes(app, services.images)
 
     @ui.page("/")
@@ -110,6 +110,16 @@ def serve(root):
         first_name = view.state.visible_authors[0].name
         view.search(first_name)
         view.search_input.value = first_name
+
+    @ui.page('/bookmarks')
+    def bookmarks():
+        from pixivvault_nicegui.bookmark_state import BookmarkState
+        from pixivvault_nicegui.ui.bookmark_view import BookmarkView
+        ui.add_css(CSS)
+        items = services.artworks[:2]
+        status = ui.label('未開封').props('data-testid=bench-opened')
+        BookmarkView(BookmarkState(local=items[:1], cached_remote=items),
+                     on_open=status.set_text, image_url=lambda wid: services.images.url(wid, 0, 'thumb')).render()
 
     ui.run(host="127.0.0.1", port=PORT, show=False, reload=False, access_log=False)
 
@@ -164,6 +174,47 @@ def check_browser_contract(page, root):
         'count': 50, 'heart': True, 'right_click': True, 'keyboard_menu': True,
         'menu_focus': True, 'viewer_focus': True, 'reconnect': True,
     }, indent=2))
+
+
+def check_library_contract(page, root):
+    from playwright.sync_api import expect
+
+    author = page.locator(AUTHOR).first
+    opener = author.get_by_test_id('library-author-open')
+    key = author.get_attribute('data-author-id')
+    opener.press('Enter')
+    detail = page.locator('[data-testid=library-pages-scroll]')
+    expect(detail).to_be_visible()
+    page.get_by_test_id('library-back').click()
+    target = page.locator(f'{AUTHOR}[data-author-id="{key}"]').get_by_test_id('library-author-open')
+    expect(target).to_be_focused()
+    page.route('**/media/**', lambda route: route.fulfill(status=404))
+    page.reload(wait_until='domcontentloaded')
+    expect(page.get_by_test_id('library-image-placeholder').first).to_have_attribute('aria-label', '画像未表示')
+    (root / 'library-contract.json').write_text(json.dumps({
+        'focus_by_author_id': True, 'image_failure_accessible': True}))
+
+
+
+def check_bookmark_contract(page, root):
+    from playwright.sync_api import expect
+
+    cards = page.get_by_test_id('bookmark-card')
+    expect(cards).to_have_count(2)
+    first = cards.first
+    choice = first.get_by_test_id('bookmark-select')
+    expect(first.get_by_test_id('bookmark-downloaded')).to_be_visible()
+    choice.click()
+    expect(choice).to_have_attribute('aria-checked', 'true')
+    expect(page.get_by_test_id('bookmark-selection')).to_have_text('選択中: 1件')
+    opened = page.get_by_test_id('bench-opened')
+    expect(opened).to_have_text('未開封')
+    first.get_by_test_id('bookmark-open').press('Enter')
+    expect(opened).to_have_text(first.get_attribute('data-work-id'))
+    choice.press('Space')
+    expect(choice).to_have_attribute('aria-checked', 'false')
+    (root / 'bookmark-contract.json').write_text(json.dumps({
+        'selection_keeps_open_separate': True, 'keyboard_toggle': True, 'downloaded_badge': True}))
 
 
 def run(root, repetitions, width, contract):
@@ -275,6 +326,13 @@ def run(root, repetitions, width, contract):
                     ready()
                     page.get_by_test_id('ranking-fetch').click()
                     check_browser_contract(page, root)
+                    if page.locator('[data-render-epoch]').count():
+                        ready('/library')
+                        if page.locator('[data-testid=library-authors-scroll] [data-render-epoch]').count():
+                            check_library_contract(page, root)
+                            page.unroute('**/media/**')
+                            ready('/bookmarks')
+                            check_bookmark_contract(page, root)
                 browser.close()
         finally:
             server.terminate()

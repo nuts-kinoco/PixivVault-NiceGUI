@@ -124,6 +124,8 @@ body.body--light .pv-grid .pv-card-heart { color:var(--pv-fill); }
 .pv-thumb img { width:100%; height:100%; object-fit:contain !important; }
 .pv-grid-image { position:relative; }
 .pv-grid-image img { display:block; }
+.pv-grid-cover img { object-fit:cover !important; }
+.pv-grid-library-placeholder { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:32px; opacity:.55; }
 .pv-grid-image-error { position:absolute; inset:0; color:white; background:rgba(0,0,0,.47); }
 .pv-card-menu-anchor { position:fixed; width:0; height:0; pointer-events:none; }
 .pv-art { aspect-ratio:var(--pv-art-ratio, 1); background:var(--pv-raised); display:flex; align-items:center; justify-content:center; color:var(--pv-muted); font-size:12px; border-bottom:1px solid var(--pv-border); }

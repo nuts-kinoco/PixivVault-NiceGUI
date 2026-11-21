@@ -110,7 +110,7 @@ async def test_bookmark_author_context_uses_only_current_visible_card():
             state=BookmarkState(local=(),cached_remote=(art,))
             view=BookmarkView(state,on_author=lambda item:opened.append(item))
             view.render()
-            assert any(x.props.get('data-testid')=='bookmark-author-open' for x in view.cards[art.work_id].descendants())
+            assert any(item['testid'] == 'bookmark-author-open' for item in view.cards[art.work_id]['menu'])
             token=view._session
             assert await view.open_author(art.work_id,token)
             assert opened==[art]

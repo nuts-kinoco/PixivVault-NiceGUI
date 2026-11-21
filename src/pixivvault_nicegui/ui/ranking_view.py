@@ -278,6 +278,7 @@ class RankingView(RankingCardMenus):
                 self.pin = self.proxy.images = candidate_provider
             self.page=merged
             self.render()
+            self.gallery.grid.retry_failed_images()
             if candidate_provider is not None and old_pin is not None:
                 old_pin.close()
             self._image_records, self._image_reader = records, reader

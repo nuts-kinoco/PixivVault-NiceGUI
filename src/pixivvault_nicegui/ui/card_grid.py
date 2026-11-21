@@ -17,6 +17,9 @@ class CardGrid(ui.element, component='card_grid.js'):
     def invalidate_actions(self):
         self.props['render_epoch'] += 1
 
+    def retry_failed_images(self):
+        self.props['retry_epoch'] = self.props.get('retry_epoch', 0) + 1
+
 
 class MoreCell:
     """State of the last cell, whose button is rendered inside CardGrid."""

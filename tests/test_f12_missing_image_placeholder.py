@@ -4,7 +4,6 @@ The actual image failures and viewer fallback are also exercised in GUI evidence
 """
 import pytest
 from nicegui import Client, ui
-from nicegui.elements.image import Image
 from pixivvault_nicegui.services import ApplicationServices
 from pixivvault_nicegui.ui.library_view import LibraryView
 
@@ -19,21 +18,10 @@ async def test_library_thumbnail_errors_have_accessible_image_outline(surface):
             view = LibraryView(services)
             if surface == 'pages':
                 view.open_author('demo-author-01')
-            cards = view.author_cards.values() if surface == 'authors' else view.page_cards.values()
-            checked = 0
-            for card in cards:
-                for image in card.descendants():
-                    if not isinstance(image, Image):
-                        continue
-                    slot = image.slots.get('error')
-                    assert slot is not None, 'failed thumbnail must not become a blank card'
-                    assert len(slot.children) == 1
-                    icon = slot.children[0]
-                    assert icon.props['role'] == 'img'
-                    assert icon.props['aria-label'] == '画像未表示'
-                    assert icon.props['name'].startswith('M21 ')
-                    checked += 1
-            assert checked > 0
+            grid = view.author_grid if surface == 'authors' else view.page_grid
+            assert grid.props['library_placeholder'].startswith('M21 ')
+            assert grid.props['layout'] == ('library-author' if surface == 'authors' else 'library-page')
+            assert grid.props['cards'] and all(card['src'] for card in grid.props['cards'])
     finally:
         client.delete()
         services.close()

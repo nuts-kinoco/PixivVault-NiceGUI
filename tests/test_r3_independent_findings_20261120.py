@@ -170,11 +170,12 @@ async def test_deferred_reload_restores_focus_to_rebuilt_original_page_card(monk
                 close(restore_focus=restore_focus)
 
             monkeypatch.setattr(view.viewer, 'close', close_recorded)
-            monkeypatch.setattr(view.viewer, 'focus_after_close', focused.append, raising=False)
+            monkeypatch.setattr(view.viewer, 'focus_after_close',
+                                lambda grid, *, opener: focused.append((grid, opener)), raising=False)
             view._on_key(SimpleNamespace(args='escape'))
             assert len(closed) == 1
             assert view.page_cards[key] is not opener
-            assert focused == [view.page_cards[key]]
+            assert focused == [(view.page_grid, view._page_opener(key))]
     finally:
         vault.release.set()
         if view is not None:
