@@ -181,14 +181,14 @@ def test_two_concurrent_gets_lease_distinct_sockets_and_retain_one(tmp_path, wir
         assert get(client) == BODY and wire.requests[-1][0] == 1
 
 
-def test_post_send_disconnect_on_reused_socket_is_never_replayed(tmp_path, wire):
+def test_post_send_disconnect_respects_single_attempt_setting(tmp_path, wire):
     scope, _, _, cookie = generated_owners(tmp_path)
     shared = generated_shared_scope(tmp_path)
     waits = []
     with create_shared_profile_reader(scope, cookie, shared.gate,
                                       shared_owner_check=shared._check_owner) as client:
         client.set_retry_policy(RequestRetryPolicy(
-            lambda: SimpleNamespace(retry_limit=3, rate_limit_wait_seconds=3.0),
+            lambda: SimpleNamespace(retry_limit=1, rate_limit_wait_seconds=3.0),
             sleep=lambda delay: (waits.append(delay), pytest.fail("retry after wire dispatch")),
             jitter=lambda *_: 0,
         ))

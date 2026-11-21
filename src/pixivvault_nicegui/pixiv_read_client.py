@@ -163,10 +163,14 @@ class TransportFailed(PixivReadError):
     retryable = True
 
 
-class _ReusedDispatchFailed(TransportFailed):
-    """A pooled GET began dispatch before the connection failed."""
+class _InterruptedRead(TransportFailed):
+    """A transport failure that the configured retry loop must not repeat."""
 
     retryable = False
+
+
+class _PooledConnectionLost(_InterruptedRead):
+    """The reused connection disconnected before any HTTP response bytes."""
 
 
 class _NoRedirects(HTTPRedirectHandler):
@@ -604,8 +608,10 @@ class _OwnedReadTransport(OwnedHTTPSPool):
                 or type(limit) is not int or limit <= 0):
             raise ResponseRejected()
         effective_deadline = min(deadline, time.monotonic() + MAX_REQUEST_SECONDS)
-        keep_alive = parsed.netloc == "www.pixiv.net" and port == 443
-        if keep_alive and limit == JSON_LIMIT:
+        from .request_policy import _FRESH_GET
+        api = parsed.netloc == "www.pixiv.net" and port == 443
+        keep_alive = api and not _FRESH_GET.get()
+        if api and limit == JSON_LIMIT:
             request.add_header("Accept-Encoding", "gzip")
         fatal_status_seen = None
         owner = None
@@ -644,9 +650,12 @@ class _OwnedReadTransport(OwnedHTTPSPool):
                 # Timeout during DNS/connect/TLS/fence checks is likewise
                 # bounded by this owner's absolute request deadline.
                 raise ReadDeadlineExceeded() from None
-            if (getattr(owner, "reused_dispatch", False)
-                    and (isinstance(error, TransportFailed) or not isinstance(error, PixivReadError))):
-                raise _ReusedDispatchFailed() from None
+            if isinstance(error, PixivReadError) and not isinstance(error, TransportFailed):
+                raise
+            if getattr(owner, "reused_disconnect", False):
+                raise _PooledConnectionLost() from None
+            if getattr(owner, "response_started", False) or getattr(owner, "reused_dispatch", False):
+                raise _InterruptedRead() from None
             if isinstance(error, PixivReadError):
                 raise
             raise TransportFailed() from None
@@ -834,20 +843,22 @@ class LivePixivReadClient:
         self._retry_policy=policy
 
     def _get(self, kind: str, url: str, *, deadline: float, capture_cookies=False):
-        from .request_policy import request_scope
+        from .request_policy import execute_single_get, request_scope
         scoped_deadline = _READ_DEADLINE.get()
         if scoped_deadline is not None:
             deadline = min(deadline, scoped_deadline)
         coordinator = getattr(self, '_expiry_coordinator', None)
         with (coordinator.lock if coordinator is not None else nullcontext()):
-            if coordinator is not None:
-                coordinator.ensure_current(self)
+            def attempt():
+                if coordinator is not None:
+                    coordinator.ensure_current(self)
+                return self._get_once(kind, url, deadline=deadline, capture_cookies=capture_cookies)
+
             with request_scope(checkpoint=self._ensure_open):
                 policy=getattr(self,'_retry_policy',None)
-                if policy is None:return self._get_once(kind,url,deadline=deadline,capture_cookies=capture_cookies)
-                return policy.execute(
-                    lambda: self._get_once(kind, url, deadline=deadline, capture_cookies=capture_cookies),
-                    deadline=deadline)
+                if policy is None:
+                    return execute_single_get(attempt, deadline=deadline)
+                return policy.execute(attempt, deadline=deadline)
 
     def _get_once(self, kind: str, url: str, *, deadline: float, capture_cookies=False):
         from .request_policy import request_checkpoint

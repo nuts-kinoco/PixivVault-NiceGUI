@@ -44,6 +44,8 @@ class HTTPSOwner:
         self._http_status_observer = None
         self.keep_alive = False
         self.reused_dispatch = False
+        self.reused_disconnect = False
+        self.response_started = False
         self.trust_epoch = _trust_epoch()
         self.idle_until = 0.0
         self.fence = SocketFence()
@@ -209,8 +211,15 @@ class _EarlyObservedHTTPResponse(http.client.HTTPResponse):
         return super().read1(size)
 
     def _read_status(self):
+        owner = self._status_owner
+        if self._method == "GET" and not owner.response_started:
+            # A single buffered read distinguishes empty EOF/reset from a
+            # partial status line whose later recv may fail.
+            if not self.fp.peek(1):
+                raise http.client.RemoteDisconnected("HTTPS peer disconnected before response")
+            owner.response_started = True
         version, status, reason = super()._read_status()
-        observer = self._status_owner._http_status_observer
+        observer = owner._http_status_observer
         if (callable(observer) and type(status) is int and 100 <= status <= 599
                 and version.startswith('HTTP/1.')):
             observer(status)
@@ -271,8 +280,14 @@ class OwnedHTTPSConnection(http.client.HTTPSConnection):
 
 class OwnedHTTPSHandler(HTTPSHandler):
     def __init__(self, owner):
-        with _context_lock:
-            context = _default_context(owner.trust_epoch if owner is not None else _trust_epoch())
+        if owner is not None and owner.connections:
+            context = owner.connections[0]._context
+        else:
+            with _context_lock:
+                epoch = _trust_epoch()
+                context = _default_context(epoch)
+            if owner is not None:
+                owner.trust_epoch = epoch
         super().__init__(context=context)
         self.owner = owner
 
@@ -299,8 +314,12 @@ class OwnedHTTPSHandler(HTTPSHandler):
             # From here a failure can follow a partially sent GET.
             owner.reused_dispatch = True
         headers["Connection"] = "keep-alive"
-        connection.request("GET", request.selector, headers=headers)
-        response = connection.getresponse()
+        try:
+            connection.request("GET", request.selector, headers=headers)
+            response = connection.getresponse()
+        except (ConnectionError, ssl.SSLEOFError, ssl.SSLZeroReturnError):
+            owner.reused_disconnect = owner.reused_dispatch and not owner.response_started
+            raise
         response.url = request.full_url
         response.msg = response.reason
         return response
@@ -340,16 +359,19 @@ class OwnedHTTPSPool:
             return len(self._owners)
 
     def close(self):
+        # Publish closure and revoke active I/O before waiting for any
+        # unrelated retirement to finish at checkout.
+        with self._lock:
+            self._closed = True
+            owners = tuple(self._owners | self._retained)
+        for owner in owners:
+            owner.abort()
         with self._checkout_lock:
             with self._lock:
-                self._closed = True
                 idle, self._idle = self._idle, None
                 if self._expiry_timer is not None:
                     self._expiry_timer.cancel()
                     self._expiry_timer = None
-                owners = tuple(self._owners | self._retained)
-            for owner in owners:
-                owner.abort()
             if idle is not None:
                 self._discard_idle(idle)
             with self._lock:
@@ -400,13 +422,15 @@ class OwnedHTTPSPool:
                 self._discard_idle(owner)
                 owner = None
             with self._lock:
-                healthy = not self.revocation_unverified
+                healthy = not self._closed and not self.revocation_unverified
                 if healthy:
                     if owner is None:
                         owner = HTTPSOwner(timeout, deadline, host, port)
                     else:
                         owner.timeout, owner.deadline = timeout, deadline
                         owner.reused_dispatch = False
+                        owner.reused_disconnect = False
+                        owner.response_started = False
                     owner.keep_alive = keep_alive
                     self._owners.add(owner)
             if not healthy:

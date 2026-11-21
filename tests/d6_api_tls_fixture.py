@@ -4,8 +4,10 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 import gzip
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import os
 import socket
 import ssl
+import struct
 from threading import Event, Lock, Thread
 
 from cryptography import x509
@@ -77,10 +79,15 @@ class Handler(BaseHTTPRequestHandler):
         self.server.requests.append((self.connection_number, self.headers["Host"],
                                      self.headers.get("Cookie"), encoding))
         self.server.header_names.append(tuple(self.headers))
-        status, disposition, body = self.server.reply
+        reply = self.server.on_request
+        status, disposition, body = reply() if reply is not None else self.server.reply
         if self.path == "/" and self.server.homepage is not None:
             status, disposition, body = 200, "identity", self.server.homepage
         if disposition == "drop":
+            self.close_connection = True
+            return
+        if disposition == "partial-status":
+            self.connection.sendall(body)
             self.close_connection = True
             return
         if disposition == "wait":
@@ -119,6 +126,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         self.wfile.write((f"{len(body):x}\r\n".encode() + body + b"\r\n0\r\n\r\n")
                          if chunked else body)
+        if disposition == "reset-after":
+            self.wfile.flush()
+            self.server.reset_ready.set()
+            if self.server.reset_release.wait(5):
+                self.server.reset_connections.add(self.connection)
+            self.close_connection = True
 
 
 class Server(ThreadingHTTPServer):
@@ -134,8 +147,11 @@ class Server(ThreadingHTTPServer):
         self.response_headers = []
         self.homepage = None
         self.reply = 200, "negotiate", BODY
+        self.on_request = None
         self.entered, self.release = Event(), Event()
         self.headers_sent, self.header_release = Event(), Event()
+        self.reset_ready, self.reset_release = Event(), Event()
+        self.reset_connections = set()
 
     @property
     def connections(self):
@@ -152,6 +168,15 @@ class Server(ThreadingHTTPServer):
 
     def handle_error(self, request, address):
         pass  # Client cancellation can interrupt a fixture write.
+
+    def shutdown_request(self, request):
+        if request in self.reset_connections:
+            self.reset_connections.remove(request)
+            linger = struct.pack("HH" if os.name == "nt" else "ii", 1, 0)
+            request.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, linger)
+            self.close_request(request)
+        else:
+            super().shutdown_request(request)
 
 
 @contextmanager
@@ -189,6 +214,7 @@ def loopback(root, patch, connect, *, use_system_ca=False, names=(HOST, CDN), tr
             scoped.setattr(ssl, "create_default_context", client_context)
             yield server
     finally:
+        server.reset_release.set()
         server.header_release.set()
         server.release.set()
         server.shutdown()

@@ -1,6 +1,7 @@
 """D6 API regression through the real owned reader, gate and loopback TLS."""
 
 import gzip
+from select import select
 import socket
 import ssl
 from threading import Thread
@@ -16,6 +17,7 @@ from pixivvault_nicegui.pixiv_read_client import (
     ClientClosed, JSON_LIMIT, ReadDeadlineExceeded, ResponseLimitExceeded, ResponseRejected,
     TransportFailed,
 )
+from pixivvault_nicegui.request_policy import request_scope
 
 
 _CONNECT = socket.socket.connect
@@ -111,7 +113,7 @@ def test_failed_reused_attempt_discards_without_implicit_replay(tmp_path, gate, 
         assert get(client) == BODY
         wire.reply = 200, disposition, b"{}"
         try:
-            with pytest.raises(error):
+            with request_scope(allow_retry=False), pytest.raises(error):
                 get(client, seconds=.25 if disposition == "wait" else 3)
         finally:
             wire.release.set()
@@ -147,8 +149,7 @@ def test_exact_gzip_limit_and_chunked_boundary(tmp_path, gate, wire):
 def test_close_revokes_reused_connection_while_waiting_for_headers(tmp_path, gate, wire):
     with create_exact_managed_read_client(write_cookie(tmp_path), gate) as client:
         assert get(client) == BODY
-        owner = client._owned_transport._idle
-        idle = owner.connections[0].sock
+        peer = wire.peers[0].connection
         wire.reply = 200, "wait", b"{}"
         result = []
 
@@ -163,17 +164,17 @@ def test_close_revokes_reused_connection_while_waiting_for_headers(tmp_path, gat
         try:
             assert wire.entered.wait(2)
             client.close()
-            assert any(row["operation"] == "shutdown-connected-duplicate"
-                       for row in owner.fence.diagnostics())
+            assert select([peer], [], [], 2)[0] and peer.recv(1) == b""
             # On Windows a read already waiting on the original TLS socket
             # can take until its absolute deadline to leave after shutdown.
             worker.join(4)
-            assert not worker.is_alive() and result == [ClientClosed], owner.fence.diagnostics()
-            assert not client.shutdown_unverified and idle.fileno() == -1
+            assert not worker.is_alive() and result == [ClientClosed]
+            assert not client.shutdown_unverified
             assert len(wire.requests) == 2 and wire.connections == 1
         finally:
             wire.release.set()
             worker.join(4)
+        assert wire.peers[0].finished.wait(2)
 
 
 def test_connection_close_response_is_accepted_and_not_parked(tmp_path, gate, wire):
