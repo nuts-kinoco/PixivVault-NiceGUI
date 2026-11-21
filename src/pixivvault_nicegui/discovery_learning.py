@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import json
 from copy import deepcopy
 from dataclasses import replace
+from .learning_prefetch import peek_learning_image
 from .learning_service import LearningService, notify_shadow, shadow_judgments
 from .legacy.database import normalize_tag
 from .bookmark_remote_adapter import RemoteBookmark, positive_id, thumbnail_url
@@ -159,8 +160,7 @@ class DiscoveryLearningService(LearningService):
         observer = self.shadow_observer
         if observer is None:
             return
-        image = (notify_shadow(lambda: pin.peek_with_variant(token.work_id, token.page_no, 'view'))
-                 if pin is not None else None)
+        image = notify_shadow(peek_learning_image, pin, token.work_id, token.page_no)
         variant = image.variant if image is not None else None
         # The accepted view queue can be a merge of several ranking results.
         # Capture the pending set and frame map at the actual exposure boundary.

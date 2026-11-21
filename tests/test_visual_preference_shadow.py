@@ -20,8 +20,10 @@ from pixivvault_nicegui.gpu_arbiter import DEFAULT_GPU_ARBITER, GpuInferenceArbi
 from pixivvault_nicegui.learning import Judgment
 from pixivvault_nicegui.learning_prefetch import LearningImagePrefetch
 from pixivvault_nicegui.learning_service import LearningService
+from pixivvault_nicegui.library_media_registry import LibraryImageRegistry
 from pixivvault_nicegui.local_tag_view import LocalTagView
 from pixivvault_nicegui.managed_network_stop_gate import ManagedNetworkStopGate
+from pixivvault_nicegui.media import DemoImageCatalog
 from pixivvault_nicegui.pixiv_read_client import HTTPStatusRejected
 from pixivvault_nicegui.remote_media import RemoteBookmarkImages
 from pixivvault_nicegui.shared_image_cache import SharedImageCache
@@ -114,6 +116,41 @@ def test_observer_failure_isolated_and_receipt_is_replay_safe(tmp_path, caplog):
     assert len(calls) == 1
     assert 'visual preference' in caplog.text.lower()
     assert 'sensitive exception details' not in caplog.text
+
+
+def test_revocation_replace_failure_cannot_leave_old_model_visible(tmp_path, monkeypatch):
+    from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
+
+    root = tmp_path / 'shadow'
+    store = store_at(root)
+    reader = store_at(root)
+    worker = VisualPreferenceWorker(store, tmp_path / 'unused.onnx')
+    service = LearningService(tmp_path / 'learning', generate_demo_artworks(1), shadow_observer=worker)
+    original = store._write_record
+
+    def fail_replacement(path, value):
+        if path == store._revocation:
+            raise OSError('synthetic control replace failure')
+        return original(path, value)
+
+    async def exercise():
+        session = (await service.open_session()).session_id
+        work = service.artworks[0].work_id
+        judgment = Judgment(work, 'like', 'first')
+        await service.record(session, judgment)
+        active = generation(store)
+        assert store.publish(active, model(active).to_payload())
+        monkeypatch.setattr(store, '_write_record', fail_replacement)
+        await service.revert(session, judgment, 'undo')
+        assert await service.judged_count() == 0
+        assert not reader.is_current(active)
+        assert reader.load_model(active) is None
+        assert not store_at(root).is_current(active)
+
+    try:
+        asyncio.run(exercise())
+    finally:
+        service.close()
 
 
 def test_ranking_diagnostics_and_observer_preserve_frames_and_ties(tmp_path):
@@ -219,8 +256,8 @@ async def test_real_learning_load_and_prefetch_share_transport_with_observer_off
         for observing in (False, True):
             calls.clear()
             cache = SharedImageCache(max_bytes=4096)
-            pin = RemoteBookmarkImages(client, (record(key, known=not missing),))
-            pin.configure_cache(cache)
+            registry = LibraryImageRegistry(DemoImageCatalog(()), shared_cache=cache)
+            pin = registry.acquire_catalog(RemoteBookmarkImages(client, (record(key, known=not missing),)))
             try:
                 service.shadow_observer = worker if observing else None
                 prefetch = LearningImagePrefetch(preferences, pin, on_image=service.shadow_image if observing else None)
@@ -228,9 +265,11 @@ async def test_real_learning_load_and_prefetch_share_transport_with_observer_off
                 assert (await prefetch.run()).fetched == 1
                 baseline = list(calls) if not observing else baseline
                 assert len(baseline) == 2
+                # Same registry entry point as the versioned HTTP media route.
+                assert registry.get_versioned(pin.token, key, 0, 'view').data
                 with view.client:
+                    view._discovery_pin = view._images = pin
                     view.request_image()
-                    view._shadow_image_source = pin
                     view._on_loaded(SimpleNamespace(args='stale-load'))
                     view._on_loaded(SimpleNamespace(args=view._image_url))
                     view._on_loaded(SimpleNamespace(args=view._image_url))
@@ -239,6 +278,7 @@ async def test_real_learning_load_and_prefetch_share_transport_with_observer_off
                 await service._wait(service._submit(lambda: None))
             finally:
                 pin.close()
+                registry.close()
                 cache.close()
         exposure, = store.events()
         assert exposure.kind == 'exposure'
@@ -339,6 +379,82 @@ def test_worker_parks_on_shared_stop_or_cuda_failure_and_can_restart(tmp_path, m
         catalog.close()
 
 
+def test_idle_shared_release_requires_a_fresh_start(tmp_path, monkeypatch):
+    from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
+
+    calls = fake_ort(monkeypatch)
+    arbiter = GpuInferenceArbiter()
+    path = tmp_path / 'egara.onnx'
+    path.write_bytes(b'synthetic egara')
+    worker = VisualPreferenceWorker(store_at(tmp_path / 'shadow'), path,
+                                    model_sha=sha256(path.read_bytes()).hexdigest(), gpu_arbiter=arbiter)
+    catalog = RemoteBookmarkImages(Client(), (record('a'), record('b')))
+    try:
+        worker.start()
+        assert worker.submit_image('a', 0, catalog.get_with_variant('a'))
+        wait_for(lambda: worker.status()['indexed'] == 1)
+        active = generation(worker.store)
+        assert worker.store.publish(active, model(active).to_payload())
+        arbiter.release_all()
+        wait_for(lambda: not worker.store.is_current(active))
+        assert not worker.submit_image('b', 0, catalog.get_with_variant('b'))
+        wait_for(lambda: worker.status()['phase'] == 'paused')
+        assert not arbiter._sessions
+        assert len([item for item in calls if item[0] == 'load']) == 1
+        worker.start()
+        assert worker.submit_image('b', 0, catalog.get_with_variant('b'))
+        wait_for(lambda: worker.status()['indexed'] == 2)
+    finally:
+        worker.stop()
+        catalog.close()
+
+
+def test_shared_release_crossing_shadow_commit_retires_the_pending_row(tmp_path, monkeypatch):
+    from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
+
+    arbiter = GpuInferenceArbiter()
+    fake_ort(monkeypatch)
+    store = store_at(tmp_path / 'shadow')
+    path = tmp_path / 'egara.onnx'
+    path.write_bytes(b'synthetic egara')
+    worker = VisualPreferenceWorker(store, path, model_sha=sha256(path.read_bytes()).hexdigest(), gpu_arbiter=arbiter)
+    catalog = RemoteBookmarkImages(Client(), (record('a'),))
+    entered, unblock = Event(), Event()
+    connect = store._connect
+
+    class Connection:
+        def __init__(self, db):
+            self.db = db
+
+        def __getattr__(self, name):
+            return getattr(self.db, name)
+
+        def commit(self):
+            if not entered.is_set():
+                entered.set()
+                assert unblock.wait(10)
+            return self.db.commit()
+
+    def connect_with_barrier(*, write, **kwargs):
+        db = connect(write=write, **kwargs)
+        return Connection(db) if write else db
+
+    monkeypatch.setattr(store, '_connect', connect_with_barrier)
+    try:
+        worker.start()
+        assert worker.submit_image('a', 0, catalog.get_with_variant('a'))
+        assert entered.wait(10)
+        arbiter.release_all()
+        unblock.set()
+        wait_for(lambda: worker.status()['phase'] == 'paused')
+        with closing(sqlite3.connect(store.path)) as db:
+            assert db.execute('SELECT count(*) FROM candidate_embeddings').fetchone() == (0,)
+    finally:
+        unblock.set()
+        worker.stop()
+        catalog.close()
+
+
 def test_evaluation_aggregates_latest_rows_without_vectors(monkeypatch):
     from tools import evaluate_visual_preference as evaluator
 
@@ -415,8 +531,9 @@ def test_recovery_purge_drains_current_reader_before_unlinking(tmp_path, monkeyp
 
 
 @pytest.mark.parametrize('kind', ['tags', 'similarity'])
-def test_resume_after_release_before_stopped_handler(kind, monkeypatch):
-    caught, unblock, second = Event(), Event(), Event()
+@pytest.mark.parametrize('resume_before_release', [False, True])
+def test_resume_after_release_before_stopped_handler(kind, resume_before_release, monkeypatch):
+    before_release, release, caught, unblock, second = Event(), Event(), Event(), Event(), Event()
     calls = []
     previous = DEFAULT_GPU_ARBITER.stop_scope
 
@@ -435,6 +552,8 @@ def test_resume_after_release_before_stopped_handler(kind, monkeypatch):
         if len(calls) == 1:
             with DEFAULT_GPU_ARBITER.acquire(operation):
                 pass
+            before_release.set()
+            assert release.wait(10)
             DEFAULT_GPU_ARBITER.release_all()
             DEFAULT_GPU_ARBITER.check_scope()
         second.set()
@@ -451,14 +570,28 @@ def test_resume_after_release_before_stopped_handler(kind, monkeypatch):
         worker.start()
         resume, close = worker.resume, worker.stop
     try:
+        assert before_release.wait(5)
+        if resume_before_release:
+            resume()
+        release.set()
         assert caught.wait(5)
-        resumed = resume()
+        resumed = None if resume_before_release else resume()
         unblock.set()
+        if resume_before_release:
+            if kind == 'tags':
+                future.result(3)
+                assert worker._gpu_paused
+            else:
+                wait_for(lambda: worker.status()['phase'] != 'running')
+                assert worker.status()['phase'] == 'paused'
+            assert not second.is_set()
+            return
         assert second.wait(3)
         if kind == 'tags':
             assert resumed is future
             resumed.result(3)
     finally:
+        release.set()
         unblock.set()
         close()
 
@@ -491,3 +624,25 @@ def test_explicit_tagger_cuda_load_failure_requires_new_tagger(tmp_path, monkeyp
         assert all(call[1][0] == 'CUDAExecutionProvider' for call in calls if call[0] == 'load')
     finally:
         recreated.close()
+
+
+def test_similarity_paused_resume_is_invalidated_by_a_later_shared_release():
+    scanned = Event()
+
+    def pages():
+        scanned.set()
+        return ()
+
+    worker = SimilarityWorker(pages, lambda *_: True, auto=lambda: False)
+    worker.pause()
+    worker.start()
+    try:
+        with worker._lock:
+            worker.resume()
+            DEFAULT_GPU_ARBITER.release_all()
+        wait_for(lambda: worker.status()['phase'] == 'paused')
+        assert not scanned.is_set()
+        worker.resume()
+        assert scanned.wait(5)
+    finally:
+        worker.stop()

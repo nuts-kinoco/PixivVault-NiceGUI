@@ -5,11 +5,52 @@ new works, polls a source or retries an unsuccessful image in the same run.
 """
 from __future__ import annotations
 import asyncio
+from contextlib import contextmanager
 from dataclasses import dataclass
 import inspect
 
 from .learning_service import notify_shadow
-from .remote_media import RemoteImageNotFound
+from .library_media_registry import PinnedLibraryImages
+from .remote_media import RemoteBookmarkImages, RemoteImageNotFound
+
+
+@contextmanager
+def _ranking_remote(pin, work_id):
+    if isinstance(pin, RemoteBookmarkImages):
+        yield pin
+        return
+    if not isinstance(pin, PinnedLibraryImages):
+        yield None
+        return
+    # Ranking pins are remote-only. Take the same temporary version reference
+    # as get_versioned(), and leave all other catalog kinds on their normal path.
+    registry, token = pin.registry, pin.token
+    with registry._lock:
+        version = registry._version(token) if not pin.closed else None
+        remote = None
+        if (version is not None and token != registry._current
+                and version.local is None and version.preview is None
+                and type(version.remote) is RemoteBookmarkImages and work_id in version.remote.works):
+            remote = version.remote
+            version.refs += 1
+    try:
+        yield remote
+    finally:
+        if remote is not None:
+            registry.release(token)
+
+
+def peek_learning_image(pin, work_id, page):
+    with _ranking_remote(pin, work_id) as remote:
+        return remote.peek_with_variant(work_id, page, 'view') if remote is not None else None
+
+
+def _fetch_learning_image(pin, work_id):
+    with _ranking_remote(pin, work_id) as remote:
+        if remote is not None:
+            return remote.get_with_variant(work_id, 0, 'view')
+    pin.get(work_id, 0, 'view')
+    return None
 
 
 @dataclass(frozen=True)
@@ -59,8 +100,11 @@ class LearningImagePrefetch:
                 attempted.add(target)
                 epoch=self._generation
                 try:
-                    get = self.pin.get if self.on_image is None else self.pin.get_with_variant
-                    image = await asyncio.to_thread(get,target,0,'view')
+                    image = None
+                    if self.on_image is None:
+                        await asyncio.to_thread(self.pin.get,target,0,'view')
+                    else:
+                        image = await asyncio.to_thread(_fetch_learning_image, self.pin, target)
                 except RemoteImageNotFound:
                     failed += 1
                     continue
@@ -69,7 +113,7 @@ class LearningImagePrefetch:
                     return PrefetchResult('failed',fetched,failed)
                 if self.closed or not self.active or epoch!=self._generation:continue
                 fetched+=1
-                if self.on_image is not None:
+                if image is not None:
                     notify_shadow(self.on_image,target,0,image)
                 if self.on_ready is not None:
                     result=self.on_ready(target)

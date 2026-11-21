@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from errno import EACCES, EAGAIN
 from hashlib import sha256
 import json
+import logging
 from math import isfinite
 import os
 from pathlib import Path
@@ -28,6 +29,7 @@ from .visual_preference import EmbeddingKey, Generation, ModelSnapshot
 
 OWNER_MARKER = '.pixivvault-visual-preference-v1'
 APPLICATION_ID = 0x50565650  # PVVP
+_LOG = logging.getLogger(__name__)
 SCHEMA_VERSION = 1
 _DATABASE = 'visual_preference.sqlite3'
 _HEX64 = re.compile(r'[0-9a-f]{64}')
@@ -620,7 +622,7 @@ class VisualPreferenceStore:
 
     @contextmanager
     def _transaction(self, *, write=False, wait=True, expected=None, after_commit=None,
-                     embedding_key=None, expected_epoch=None):
+                     embedding_key=None, expected_epoch=None, is_current=None):
         deadline = monotonic() + (_IO_TIMEOUT if wait else 0)
         try:
             with self._locked(exclusive=write, deadline=deadline):
@@ -660,11 +662,20 @@ class VisualPreferenceStore:
                             self._check_sidecars()
                             if ((expected is not None and not self._fence_allows(expected))
                                     or (expected_epoch is not None
-                                        and (self._fence_failed or self._epoch() != expected_epoch))):
+                                        and (self._fence_failed or self._epoch() != expected_epoch))
+                                    or (is_current is not None and not is_current())):
                                 db.rollback()
                             else:
                                 _busy_timeout(db, deadline)
                                 db.commit()
+                                if (pending is not None and is_current is not None and not is_current()
+                                        and self._epoch() == epoch):
+                                    # Keep the pending seal until a stop crossing
+                                    # this commit has retired the new insertion.
+                                    try:
+                                        self._declare_revocation()
+                                    except VisualPreferenceStoreError:
+                                        self._remove_unaccepted_embedding(pending, deadline)
                                 if after_commit is not None:
                                     after_commit()
                     except BaseException:
@@ -812,7 +823,16 @@ class VisualPreferenceStore:
         if reason not in _INVALIDATIONS:
             raise ValueError('unknown visual preference invalidation')
         self._check_paths()
-        self._declare_revocation()
+        try:
+            self._declare_revocation()
+        except VisualPreferenceStoreError:
+            # If atomic replacement of a valid control record fails, retire the
+            # generation in the owned database. Other handles check both.
+            self._epoch()
+            with self._transaction(write=True) as db:
+                self._retire(db)
+            self._fence_failed = False
+            _LOG.warning('visual preference generation fence used database retirement')
 
     def publish(self, expected: Generation, payload: dict) -> bool:
         """Publish a complete generation. A stale job or a different retry loses."""
@@ -862,11 +882,13 @@ class VisualPreferenceStore:
             return db.execute(f'SELECT 1 FROM candidate_embeddings WHERE {_EMBEDDING_WHERE}',
                               _key_values(key)).fetchone() is not None
 
-    def put_candidate_embedding(self, epoch: str, key: EmbeddingKey, vector) -> bool:
+    def put_candidate_embedding(self, epoch: str, key: EmbeddingKey, vector, *, is_current=None) -> bool:
         """Record content-derived features, without creating a published model generation."""
         if self.capture_embedding_epoch() != epoch:
             return False
-        return self._put_embedding(key, vector, expected_epoch=epoch) and self.capture_embedding_epoch() == epoch
+        written = self._put_embedding(key, vector, expected_epoch=epoch, is_current=is_current)
+        return (written and self.capture_embedding_epoch() == epoch
+                and (is_current is None or is_current()))
 
     def _put_embedding(self, key, vector, **fence):
         try:

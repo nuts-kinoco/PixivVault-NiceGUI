@@ -9,6 +9,7 @@ from .egara_inference import (
     EGARA_BB_SHA256, STYLE, EgaraInference, EgaraInferenceError, EgaraInvalidImage,
 )
 from .gpu_arbiter import DEFAULT_GPU_ARBITER, GpuInferenceStopped
+from .local_tag_view import _gpu_stop_generation
 from .visual_preference import EmbeddingKey
 
 
@@ -41,53 +42,80 @@ class VisualPreferenceWorker:
         self._model_sha = model_sha
         self._arbiter = DEFAULT_GPU_ARBITER if gpu_arbiter is None else gpu_arbiter
         self._condition = Condition()
+        self._lifecycle = Lock()
         self._events_lock = Lock()
         self._thread = None
         self._queue = deque()
         self._queued_bytes = 0
         self._observed = OrderedDict()
         self._phase = 'disabled'
+        self._gpu_generation = None
         self._error = None
         self._indexed = self._reused = self._invalid_images = self._dropped = 0
         self._capture_gaps = self._pending_gaps = 0
 
     def status(self):
         with self._condition:
+            if self._phase == 'running' and self._gpu_released():
+                self._condition.notify_all()
             return dict(phase=self._phase, error=self._error, indexed=self._indexed,
                         reused=self._reused, invalid_images=self._invalid_images,
                         dropped=self._dropped, pending=len(self._queue),
                         capture_gaps=self._capture_gaps)
 
     def start(self):
-        with self._condition:
-            if self._phase == 'running':
-                return
-            if self._phase == 'stopping':
-                raise RuntimeError('visual preference worker is stopping')
-            if self._thread is not None:
-                self._thread.join()  # The previous run finished its cleanup before setting a terminal phase.
-            self._error = None
-            self._phase = 'running'
-            self._thread = Thread(target=self._run, name='pv-visual-preference', daemon=True)
-            self._thread.start()
+        with self._lifecycle:
+            generation = _gpu_stop_generation(self._arbiter)
+            if generation is None:
+                raise RuntimeError('GPU sessions are being released')
+            with self._condition:
+                if self._phase == 'running' and self._gpu_generation == generation:
+                    return
+                if self._phase == 'stopping':
+                    raise RuntimeError('visual preference worker is stopping')
+                thread = self._thread
+                self._condition.notify_all()
+            if thread is not None:
+                self._join(thread, 30)
+            with self._condition:
+                self._gpu_generation = generation
+                self._error = None
+                self._phase = 'running'
+                self._thread = Thread(target=self._run, name='pv-visual-preference', daemon=True)
+                self._thread.start()
 
     def stop(self, timeout=30):
-        with self._condition:
-            thread = self._thread
-            if thread is None:
-                return
-            if thread is current_thread():
-                raise RuntimeError('visual preference worker cannot join itself')
-            self._phase = 'stopping'
-            self._condition.notify_all()
-        self._invalidate('off')
+        with self._lifecycle:
+            with self._condition:
+                thread = self._thread
+                if thread is None:
+                    return
+                if thread is current_thread():
+                    raise RuntimeError('visual preference worker cannot join itself')
+                self._phase = 'stopping'
+                self._condition.notify_all()
+            self._invalidate('off')
+            self._join(thread, timeout)
+            with self._condition:
+                self._thread = None
+                self._phase = 'stopped'
+
+    @staticmethod
+    def _join(thread, timeout):
         thread.join(timeout)
         if thread.is_alive():
             raise TimeoutError('visual preference worker shutdown not confirmed')
+
+    def _gpu_released(self):
+        return self._gpu_generation != _gpu_stop_generation(self._arbiter)
+
+    def _check_running(self, *, raise_on_release=True):
         with self._condition:
-            if self._thread is thread:
-                self._thread = None
-                self._phase = 'stopped'
+            if self._gpu_released():
+                if raise_on_release:
+                    raise GpuInferenceStopped()
+                return False
+            return self._phase == 'running'
 
     def _record_event(self, kind, snapshot, *, invalidate=False):
         # Called on the learning FIFO. A failed append creates an explicit gap
@@ -141,6 +169,9 @@ class VisualPreferenceWorker:
                 self._observed.popitem(last=False)
             if self._phase != 'running':
                 return False
+            if self._gpu_released():
+                self._condition.notify_all()
+                return False
             if (len(self._queue) >= _MAX_QUEUED_IMAGES
                     or self._queued_bytes + len(data) > _MAX_QUEUED_BYTES):
                 self._dropped += 1
@@ -162,9 +193,14 @@ class VisualPreferenceWorker:
         try:
             while True:
                 with self._condition:
-                    self._condition.wait_for(lambda: self._phase != 'running' or self._queue)
+                    # The shared arbiter wakes leases, while an idle worker
+                    # owns no lease. Check the epoch even without submissions.
+                    while self._phase == 'running' and not self._queue and not self._gpu_released():
+                        self._condition.wait(timeout=.5)
                     if self._phase != 'running':
                         return
+                    if self._gpu_released():
+                        raise GpuInferenceStopped()
                     work_id, page, variant, data = self._queue.popleft()
                     self._queued_bytes -= len(data)
                 epoch = self.store.capture_embedding_epoch()
@@ -180,9 +216,8 @@ class VisualPreferenceWorker:
                             predictor = EgaraInference(self._model_path, provider='cuda',
                                 expected_sha256=self._model_sha, allow_runtime_fallback=False,
                                 gpu_arbiter=self._arbiter, gpu_priority=_GPU_PRIORITY)
-                        with self._condition:
-                            if self._phase != 'running':
-                                return
+                        if not self._check_running():
+                            return
                         vectors, provider = predictor.infer_with_meta(data)
                         if provider != 'cuda' or len(vectors.get(STYLE, b'')) != 4096:
                             raise EgaraInferenceError('invalid CUDA style output')
@@ -191,10 +226,10 @@ class VisualPreferenceWorker:
                     with self._condition:
                         self._invalid_images += 1
                     continue
-                with self._condition:
-                    if self._phase != 'running':
-                        return
-                if self.store.put_candidate_embedding(epoch, key, vector):
+                if not self._check_running():
+                    return
+                if self.store.put_candidate_embedding(epoch, key, vector,
+                        is_current=lambda: self._check_running(raise_on_release=False)):
                     with self._condition:
                         self._indexed += 1
         except GpuInferenceStopped:
