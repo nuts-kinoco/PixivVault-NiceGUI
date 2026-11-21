@@ -36,6 +36,17 @@ async def test_search_reloads_concurrent_capacity_write_after_auto_measurement(l
     release = Event()
     scans = []
     measure = reader.measure
+    notifications = []
+    loop = asyncio.get_running_loop()
+    call_later = loop.call_later
+
+    def hold_notification(delay, callback, *args, context=None):
+        if getattr(callback, '__qualname__', '').endswith('_measure_unmeasured_capacity.<locals>.show_progress'):
+            assert delay == .09
+            handle = asyncio.TimerHandle(loop.time() + delay, callback, args, loop, context)
+            notifications.append((handle, callback))
+            return handle
+        return call_later(delay, callback, *args, context=context)
 
     def blocked_scan(aid):
         scans.append(aid)
@@ -44,6 +55,7 @@ async def test_search_reloads_concurrent_capacity_write_after_auto_measurement(l
         return measure(aid)
 
     monkeypatch.setattr(reader, 'measure', blocked_scan)
+    monkeypatch.setattr(loop, 'call_later', hold_notification)
     try:
         with client:
             view.render_authors()
@@ -58,6 +70,9 @@ async def test_search_reloads_concurrent_capacity_write_after_auto_measurement(l
         assert view.legacy_auto_capacity_status.text == ''
         with client:
             view.search('D6 capacity search')
+        [(notice, show_progress)] = notifications
+        show_progress()
+        assert view.legacy_auto_capacity_status.text == ''
         after_search_enabled = view.legacy_capacity_button.enabled
         await view.measure_legacy_capacity()
         assert scans == [author_id]
@@ -66,6 +81,7 @@ async def test_search_reloads_concurrent_capacity_write_after_auto_measurement(l
         assert MeasurementLease().publish(cache, {author_id: 2048}, {author_id: 0}) == {author_id: 2048}
         release.set()
         await worker
+        assert notice.cancelled()
         assert service.cached(author_id) == (1, 2048)
         async with asyncio.timeout(3):
             while view._legacy_restore_needed:
@@ -76,6 +92,15 @@ async def test_search_reloads_concurrent_capacity_write_after_auto_measurement(l
 
         with client:
             view.search('D6 capacity')
+        assert view._search_capacity_delay is not None
+        assert view.legacy_capacity_button.enabled
+        await view.measure_legacy_capacity()
+        assert service.cached(author_id) == (2, 1024)
+        assert view.author_capacity_labels[author_id].text == '1.0 KiB'
+        assert scans == [author_id, author_id]
+
+        with client:
+            view.search('D6')
             view.close()
         assert view._search_capacity_delay is None
         assert view._legacy_restore_request is None
