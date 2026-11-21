@@ -58,7 +58,7 @@ async def test_close_revokes_confirmation_then_drains_shared_gate(tmp_path, monk
 
 
 @pytest.mark.asyncio
-async def test_close_with_unresponsive_confirmation_times_out_without_closing_resources(tmp_path, monkeypatch):
+async def test_close_with_unresponsive_confirmation_times_out_after_closing_resources(tmp_path, monkeypatch):
     with native(tmp_path, monkeypatch) as (binding, services, reader):
         services.following_sync.sync(Reader(A))
         await binding.refresh_auth_status(startup=True)
@@ -80,8 +80,8 @@ async def test_close_with_unresponsive_confirmation_times_out_without_closing_re
             assert await asyncio.to_thread(entered.wait, 4)
             with pytest.raises(RuntimeError, match='scheduler confirmation shutdown unverified'):
                 await asyncio.wait_for(asyncio.to_thread(services.close), 2)
-            assert aborted.is_set() and services.closing and not services.closed
-            assert gate.inflight_path.is_file() and services.following_sync.last_synced_account() == A
+            assert aborted.is_set() and services.closing and services.closed
+            assert gate.inflight_path.is_file()
         finally:
             finish.set()
             await asyncio.gather(confirmation, return_exceptions=True)

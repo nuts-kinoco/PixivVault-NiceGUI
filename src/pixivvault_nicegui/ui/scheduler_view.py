@@ -25,6 +25,7 @@ CONFIRMATION_STATUS = {
     'restart': 'Cookieの変更を反映するには再起動してください',
     'closing': '終了処理中',
     'busy': '別の画面で定期チェックの認証を確認中',
+    'confirming': '定期チェックの認証を確認中',
 }
 
 
@@ -40,6 +41,7 @@ class SchedulerView:
         self._completion_notification = None
         self._hidden_star_draft = None
         self._busy = False
+        self._confirming = False
         self._settings_dirty = False
         self._loading_settings = False
         self._refresh_pending = False
@@ -232,25 +234,33 @@ class SchedulerView:
         if self.closed or self._busy or confirm is None:
             return
         if self._confirmation_blocker() is not None:
-            if self._hide_account_data() == 'busy':
-                self.action_notice.set_text(CONFIRMATION_STATUS['busy'])
+            await self._refresh_confirmation_conflict()
             return
-        self._busy = True
+        self._busy = self._confirming = True
         self.confirm_account_button.set_enabled(False)
         try:
             await asyncio.to_thread(confirm)
+        except Exception as error:
+            self._confirming = False
+            if not self.closed:
+                if isinstance(error, ScheduleConfirmationUnavailable) and error.reason == 'busy':
+                    await self._refresh_confirmation_conflict()
+                elif self._hide_account_data() != 'restart':
+                    self.action_notice.set_text(check_failure_message(error))
+        else:
+            self._confirming = False
             if not self.closed:
                 await self.refresh(ensure_after_current=True)
-        except Exception as error:
-            if not self.closed:
-                blocker = self._hide_account_data()
-                busy = isinstance(error, ScheduleConfirmationUnavailable) and error.reason == 'busy'
-                if blocker != 'restart' and (not busy or blocker == 'busy'):
-                    self.action_notice.set_text(check_failure_message(error))
         finally:
+            self._confirming = False
             self._finish_action()
             if not self.closed:
                 self.confirm_account_button.set_enabled(self.confirm_account_button.visible)
+
+    async def _refresh_confirmation_conflict(self):
+        await self.refresh(ensure_after_current=True)
+        if not self.closed and self._settings_owner is None and self._confirmation_blocker() == 'busy':
+            self.action_notice.set_text(CONFIRMATION_STATUS['busy'])
 
     def _verify_result(self, owner):
         if owner is None or owner != self._settings_owner or self._cookie_restart_required():
@@ -286,6 +296,8 @@ class SchedulerView:
         self.star_notice.set_text('☆一覧を読み込めません。ログイン中のアカウントと保存済みのフォロー情報を照合できるまで、履歴も非表示になります。')
         self.account_label.set_text('紐づけアカウントを確認できません')
         blocker = self._confirmation_blocker()
+        if self._confirming and blocker in (None, 'busy'):
+            blocker = 'confirming'
         if blocker != 'busy' and self.action_notice.text == CONFIRMATION_STATUS['busy']:
             self.action_notice.set_text('')
         show_confirm = blocker is None and callable(getattr(self.services, 'confirm_scheduler_account', None))

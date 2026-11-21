@@ -3152,7 +3152,6 @@ class ApplicationServices:
                 self._legacy_export_stop.set()
                 self._scheduler_cancel_event.set()
                 self._metadata_cancel_event.set()
-                self._drain_scheduler_confirmation()
                 if self._similarity_worker is not None:
                     self._similarity_worker.stop(timeout=150.0)
                 # 自動後埋めの待機スレッドも、台帳・通信路を閉じる前に畳む。
@@ -3178,15 +3177,11 @@ class ApplicationServices:
 
     def _drain_scheduler_confirmation(self):
         lock = self._scheduler_confirmation_lock
-        if not lock.locked():
-            return
-        if self.live_client is not None:
-            # Revoke I/O before waiting for the confirmation worker to leave
-            # the shared gate. Other workers may be waiting on this reader too.
-            self.live_client.close()
         if not lock.acquire(timeout=_SCHEDULER_CONFIRMATION_DRAIN_SECONDS):
-            raise RuntimeError('scheduler confirmation shutdown unverified')
+            _LOG.error('scheduler confirmation shutdown unverified')
+            return False
         lock.release()
+        return True
 
     def _close_pixiv_actions(self):
         actions = self.pixiv_actions
@@ -3203,6 +3198,9 @@ class ApplicationServices:
             raise RuntimeError('Pixiv action shutdown unverified') from None
 
     def _close_resources(self):
+        if self.batch_runs is not None and not self.batch_runs._shutdown(60.0):
+            # The batch worker borrows the following store and job queues.
+            raise RuntimeError('batch run shutdown unverified')
         with self._failure_actions_lock:
             if self._failure_record_actions is not None:
                 self._failure_record_actions.close()
@@ -3244,15 +3242,10 @@ class ApplicationServices:
             self.recommendations.close()
         if self.discovery is not None:
             self.discovery.close()
-        if self.batch_runs is not None:
-            # Closing marks `closing`, which the engine reads as a stop; wait for its thread.
-            self.batch_runs._shutdown(60.0)
         if self.batch_run_ledger is not None:
             self.batch_run_ledger.close()
         if self.local_tagger is not None:
             self.local_tagger.close()
-        if self.following_sync is not None:
-            self.following_sync.close()
         vault_shutdown_error = None
         if self.premium_authorization is not None:self.premium_authorization.close()
         if self.external_vault is not None:
@@ -3289,8 +3282,15 @@ class ApplicationServices:
             self.images.close()
             if self.library_repository is not None:
                 self.library_repository.close()
+            # The action, scheduler and download workers have stopped. Only
+            # now can we revoke their shared reader and drain confirmation.
             if self.live_client is not None:
                 self.live_client.close()
+            confirmation_stopped = self._drain_scheduler_confirmation()
+            # A late confirmation cannot touch these ledgers: its final
+            # lifecycle check rejects it while closing.
+            if self.following_sync is not None:
+                self.following_sync.close()
             if self._public_images is not None:
                 self._public_images.close()
             if self.managed_scheduler is not None:
@@ -3309,6 +3309,8 @@ class ApplicationServices:
             self.closed = True
         if vault_shutdown_error is not None:
             raise vault_shutdown_error
+        if not confirmation_stopped:
+            raise RuntimeError('scheduler confirmation shutdown unverified')
 
     def clear_shared_image_cache(self):
         """Clear the owned cache and record only the confirmed outcome."""
