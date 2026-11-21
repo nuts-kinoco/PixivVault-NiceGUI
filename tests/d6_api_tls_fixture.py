@@ -84,10 +84,21 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/" and self.server.homepage is not None:
             status, disposition, body = 200, "identity", self.server.homepage
         if disposition == "drop":
+            # The server's TCP shutdown sends FIN without a TLS close_notify.
             self.close_connection = True
             return
         if disposition == "partial-status":
             self.connection.sendall(body)
+            self.close_connection = True
+            return
+        if disposition == "reset":
+            if body:
+                self.connection.sendall(body)
+                # Wait for the client to read the fragment before resetting TCP.
+                if not self.server.reset_release.wait(5):
+                    self.close_connection = True
+                    return
+            self.server.reset_connections.add(self.connection)
             self.close_connection = True
             return
         if disposition == "wait":

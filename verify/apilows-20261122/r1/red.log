@@ -1,0 +1,36 @@
+...F.F.F.F                                                               [100%]
+================================== FAILURES ===================================
+________ test_reused_eof_gets_only_one_fresh_attempt[drop-configured] _________
+tests\test_d6_api_r3.py:96: in test_reused_eof_gets_only_one_fresh_attempt
+    assert (record["phase"], record["status"], record["attempt"], record["limit"]) == (
+E   AssertionError: assert ('cancelled', None, 2, 3) == ('failed', None, 2, 3)
+E     
+E     At index 0 diff: 'cancelled' != 'failed'
+E     Use -v to get more diff
+_________ test_reused_eof_gets_only_one_fresh_attempt[404-configured] _________
+tests\test_d6_api_r3.py:92: in test_reused_eof_gets_only_one_fresh_attempt
+    assert records == ()
+E   AssertionError: assert ({'attempt': ...ds': 0, ...},) == ()
+E     
+E     Left contains one more item: {'attempt': 2, 'limit': 3, 'phase': 'cancelled', 'remaining_seconds': 0, ...}
+E     Use -v to get more diff
+_________ test_reused_eof_gets_only_one_fresh_attempt[500-configured] _________
+tests\test_d6_api_r3.py:96: in test_reused_eof_gets_only_one_fresh_attempt
+    assert (record["phase"], record["status"], record["attempt"], record["limit"]) == (
+E   AssertionError: assert ('cancelled', None, 2, 3) == ('failed', 500, 2, 3)
+E     
+E     At index 0 diff: 'cancelled' != 'failed'
+E     Use -v to get more diff
+_________ test_reused_eof_gets_only_one_fresh_attempt[429-configured] _________
+tests\test_d6_api_r3.py:96: in test_reused_eof_gets_only_one_fresh_attempt
+    assert (record["phase"], record["status"], record["attempt"], record["limit"]) == (
+E   AssertionError: assert ('cancelled', None, 2, 3) == ('stopped', 429, 2, 3)
+E     
+E     At index 0 diff: 'cancelled' != 'stopped'
+E     Use -v to get more diff
+=========================== short test summary info ===========================
+FAILED tests/test_d6_api_r3.py::test_reused_eof_gets_only_one_fresh_attempt[drop-configured]
+FAILED tests/test_d6_api_r3.py::test_reused_eof_gets_only_one_fresh_attempt[404-configured]
+FAILED tests/test_d6_api_r3.py::test_reused_eof_gets_only_one_fresh_attempt[500-configured]
+FAILED tests/test_d6_api_r3.py::test_reused_eof_gets_only_one_fresh_attempt[429-configured]
+4 failed, 6 passed, 14 deselected in 23.13s

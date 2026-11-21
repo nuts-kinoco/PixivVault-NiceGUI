@@ -16,6 +16,9 @@ def retry_status_text(records):
             messages.append(f'取得を再試行中: 試行 {attempt}/{limit}')
         elif phase=='stopped' and status==429:
             cause=record.get('stop_cause')
+            if cause=='durable_gate':
+                messages.append(f'HTTP 429 の永続STOPにより取得を停止しました。試行 {attempt}/{limit}')
+                continue
             if cause=='shared_limit' or cause is None and attempt<limit:
                 message=(f'今回のHTTP 429: この操作の試行 {attempt}/{limit}（この回は送信前に停止）。'
                          '別の取得処理が同じ再試行ポリシーで429の試行上限に達したため、共有停止しました。'

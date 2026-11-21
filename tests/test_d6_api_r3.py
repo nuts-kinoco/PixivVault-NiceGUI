@@ -1,21 +1,27 @@
 """Keep-alive recovery and ownership tested with real loopback TLS."""
 
-from contextlib import contextmanager
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import ExitStack, closing, contextmanager
 from select import select
 import socket
 import ssl
-from threading import Event, Thread
+from threading import Event, Thread, current_thread
 from time import monotonic, sleep
 from types import SimpleNamespace
 
 import pytest
 
-from d6_api_tls_fixture import BODY
+from d6_api_tls_fixture import BODY, CDN, write_cookie
 from pixivvault_nicegui import owned_https, pixiv_read_client as reads
-from pixivvault_nicegui.managed_network_stop_gate import ManagedNetworkStopGate, ManagedNetworkStopped
+from pixivvault_nicegui.cookie_expiry_refresh import CookieExpiryCoordinator
+from pixivvault_nicegui.managed_network_stop_gate import (
+    ManagedNetworkGateStorageError, ManagedNetworkStopGate, ManagedNetworkStopped,
+)
 from pixivvault_nicegui.managed_network_stop_shared_scope import SharedGetOutcomeUncertain
 from pixivvault_nicegui.managed_network_stop_shared_transport import create_shared_profile_reader
+from pixivvault_nicegui.native_profile import NativeProfileStore
 from pixivvault_nicegui.request_policy import RequestRetryPolicy, request_scope
+from pixivvault_nicegui.ui.request_status_view import retry_status_text
 from stage5_generated_shared_owner import generated_shared_scope
 from test_d6_api_https import fresh_context, gate, get, wire
 from test_d6_api_r2 import reader
@@ -53,35 +59,56 @@ def dual_reader(root, monkeypatch, *, policy):
 
 
 @pytest.mark.parametrize("policy", [False, True], ids=["default", "configured"])
-@pytest.mark.parametrize("last", ["good", "drop", "429"])
-def test_reused_eof_gets_only_one_fresh_attempt(tmp_path, wire, monkeypatch, policy, last):
+@pytest.mark.parametrize(("reply", "error", "phase", "status"), [
+    ((200, "identity", BODY), None, None, None),
+    ((200, "drop", b""), reads.TransportFailed, "failed", None),
+    ((404, "identity", b""), reads.HTTPStatusRejected, None, 404),
+    ((500, "identity", b""), reads.HTTPStatusRejected, "failed", 500),
+    ((429, "identity", b""), ManagedNetworkStopped, "stopped", 429),
+], ids=["good", "drop", "404", "500", "429"])
+def test_reused_eof_gets_only_one_fresh_attempt(
+        tmp_path, wire, monkeypatch, policy, reply, error, phase, status):
     with dual_reader(tmp_path, monkeypatch, policy=policy) as (client, local, shared, admissions, waits):
         assert get(client) == BODY
-        outcomes = iter([
-            (200, "drop", b""),
-            (429, "identity", b"") if last == "429" else
-            (200, "drop", b"") if last == "drop" else (200, "identity", BODY),
-        ])
+        outcomes = iter([(200, "drop", b""), reply])
 
         def replay_reply():
             assert shared.inflight_path.is_file()
             return next(outcomes)
 
         wire.on_request = replay_reply
-        if last == "good":
+        if error is None:
             assert get(client, seconds=10) == BODY
-        elif last == "429":
-            with pytest.raises(ManagedNetworkStopped) as failure:
-                get(client, seconds=10)
-            assert failure.value.status_code == 429
         else:
-            with pytest.raises(reads.TransportFailed):
+            with pytest.raises(error) as failure:
                 get(client, seconds=10)
+            assert getattr(failure.value, "status_code", None) == status
         assert [row[0] for row in wire.requests] == [0, 0, 1]
         assert len(admissions) == 3 and not waits
-        if last != "429":
+        if status != 429:
             assert not shared.inflight_path.exists()
-        assert shared.snapshot().blocked == local.snapshot().blocked == (last == "429")
+        assert shared.snapshot().blocked == local.snapshot().blocked == (status == 429)
+        if status == 429:
+            assert shared.snapshot().status_code == local.snapshot().status_code == 429
+
+        if policy:
+            records = client._retry_policy.progress_snapshot()
+            if phase is None:
+                assert records == ()
+                assert retry_status_text(records) == ""
+            else:
+                record, = records
+                assert (record["phase"], record["status"], record["attempt"], record["limit"]) == (
+                    phase, status, 2, 3,
+                )
+                if status == 429:
+                    assert record["stop_cause"] == "durable_gate"
+                    assert "永続STOP" in retry_status_text(records)
+                    assert "試行上限" not in retry_status_text(records)
+        if status == 429:
+            with pytest.raises(ManagedNetworkStopped):
+                get(client)
+            assert len(wire.requests) == 3
 
 
 @pytest.mark.parametrize("warm", [False, True], ids=["fresh", "pooled"])
@@ -94,6 +121,148 @@ def test_partial_http_status_is_never_replayed(tmp_path, wire, monkeypatch, warm
             get(client, seconds=10)
         assert len(wire.requests) == len(admissions) == (2 if warm else 1)
         assert not waits and not shared.inflight_path.exists()
+
+
+def confirm_fragment_before_reset(monkeypatch, wire):
+    """Ensure a reset cannot discard the response fragment before TLS reads it."""
+    recv_into = ssl.SSLSocket.recv_into
+
+    def observe(sock, buffer, *args, **kwargs):
+        count = recv_into(sock, buffer, *args, **kwargs)
+        if not sock.server_side and b"cut-here" in bytes(memoryview(buffer)[:count]):
+            wire.reset_release.set()
+        return count
+
+    monkeypatch.setattr(ssl.SSLSocket, "recv_into", observe)
+
+
+@pytest.mark.parametrize("disposition", ["reset", "drop"], ids=["tcp-rst", "dirty-fin"])
+def test_zero_response_reused_socket_recovers(tmp_path, wire, monkeypatch, disposition):
+    with dual_reader(tmp_path, monkeypatch, policy=True) as (client, _, shared, admissions, waits):
+        assert get(client) == BODY
+        replies = iter([(200, disposition, b""), (200, "identity", BODY)])
+        wire.on_request = lambda: next(replies)
+        assert get(client) == BODY
+        assert [row[0] for row in wire.requests] == [0, 0, 1]
+        assert len(admissions) == 3 and not waits and not shared.inflight_path.exists()
+
+
+_PARTIAL_BODY = b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\ncut-here"
+
+
+@pytest.mark.parametrize(("disposition", "fragment"), [
+    ("reset", b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\nX-Incomplete: cut-here"),
+    ("reset", _PARTIAL_BODY),
+    ("partial-status", b"HTTP/1.1 100 Continue\r\n\r\n"),
+], ids=["header-rst", "body-rst", "continue-fin"])
+def test_response_started_on_pooled_socket_prevents_replay(
+        tmp_path, wire, monkeypatch, disposition, fragment):
+    confirm_fragment_before_reset(monkeypatch, wire)
+    with dual_reader(tmp_path, monkeypatch, policy=True) as (client, _, shared, admissions, waits):
+        assert get(client) == BODY
+        wire.reply = 200, disposition, fragment
+        with pytest.raises(reads.TransportFailed) as failure:
+            get(client)
+        assert not failure.value.retryable
+        if disposition == "reset":
+            assert wire.reset_release.is_set()
+        assert [row[0] for row in wire.requests] == [0, 0]
+        assert len(admissions) == 2 and not waits and not shared.inflight_path.exists()
+
+
+@pytest.mark.parametrize(("kind", "path"), [
+    ("image", "/fixture.png"), ("ugoira_zip", "/img-zip-ugoira/fixture.zip"),
+], ids=["image", "ugoira"])
+def test_partial_cdn_body_is_not_replayed_on_nonpersistent_connection(
+        tmp_path, wire, monkeypatch, kind, path):
+    confirm_fragment_before_reset(monkeypatch, wire)
+    with dual_reader(tmp_path, monkeypatch, policy=True) as (client, _, shared, admissions, waits):
+        wire.reply = 200, "reset", _PARTIAL_BODY
+        with pytest.raises(reads.TransportFailed) as failure:
+            client._get(kind, f"https://{CDN}{path}", deadline=monotonic() + 5)
+        assert not failure.value.retryable and wire.reset_release.is_set()
+        assert [(row[0], row[1], row[2] is None) for row in wire.requests] == [(0, CDN, True)]
+        assert len(admissions) == 1 and not waits and not shared.inflight_path.exists()
+
+
+@pytest.mark.parametrize("coordinated", [False, True], ids=["profile-gate", "coordinator"])
+def test_account_switch_after_pooled_disconnect_prevents_recovery(
+        tmp_path, wire, monkeypatch, coordinated):
+    with (dual_reader(tmp_path, monkeypatch, policy=True) as (client, _, shared, admissions, waits),
+          ExitStack() as stack):
+        profile = stack.enter_context(closing(NativeProfileStore(client._transport.profile_root)))
+        if coordinated:
+            coordinator = stack.enter_context(closing(CookieExpiryCoordinator(profile, lambda: None)))
+            coordinator.register(client)
+        assert get(client) == BODY
+        selection = profile.snapshot()
+        replacement = write_cookie(selection.cookie_file.parent, 56)
+        switched = False
+        entries = []
+        client.set_request_admission(lambda _: entries.append(1))
+
+        def switch_after_disconnect():
+            nonlocal switched
+            if not switched and len(wire.requests) == 2 and not shared.inflight_path.exists():
+                profile.update(cookie_file=replacement, expected_revision=selection.revision)
+                switched = True
+
+        wire.reply = 200, "drop", b""
+        error = reads.CookieSourceRejected if coordinated else ManagedNetworkGateStorageError
+        with request_scope(checkpoint=switch_after_disconnect), pytest.raises(error) as failure:
+            get(client, seconds=10)
+        assert type(failure.value) is error
+        assert switched and len(entries) == (1 if coordinated else 2)
+        assert [row[0] for row in wire.requests] == [0, 0]
+        assert len(admissions) == 2 and not waits and not shared.inflight_path.exists()
+
+
+@pytest.mark.parametrize("parallel_stop", [False, True], ids=["idle-parked", "rate-stop"])
+def test_other_thread_between_pooled_disconnect_and_recovery(
+        tmp_path, wire, monkeypatch, parallel_stop):
+    with (dual_reader(tmp_path, monkeypatch, policy=True) as (client, local, shared, admissions, waits),
+          ThreadPoolExecutor(max_workers=1) as worker):
+        assert get(client) == BODY
+        competitor_reply = (429, "identity", b"") if parallel_stop else (200, "identity", BODY)
+        replies = iter([(200, "drop", b""), competitor_reply, (200, "identity", BODY)])
+        wire.on_request = lambda: next(replies)
+        primary = current_thread()
+        get_once = client._get_once
+
+        def compete():
+            # One configured operation can hit its own limit without sleeping.
+            if parallel_stop:
+                with request_scope(allow_retry=False), pytest.raises(reads.HTTPStatusRejected) as failure:
+                    get(client)
+                assert failure.value.status_code == 429
+            else:
+                assert get(client) == BODY
+
+        def interleave(*args, **kwargs):
+            try:
+                return get_once(*args, **kwargs)
+            except reads._PooledConnectionLost:
+                assert current_thread() is primary and not shared.inflight_path.exists()
+                worker.submit(compete).result(timeout=5)
+                raise
+
+        monkeypatch.setattr(client, "_get_once", interleave)
+        if parallel_stop:
+            with pytest.raises(reads.HTTPStatusRejected) as failure:
+                get(client, seconds=10)
+            assert failure.value.status_code == 429
+            records = client._retry_policy.progress_snapshot()
+            assert {(r["phase"], r["status"], r["stop_cause"], r["attempt"]) for r in records} == {
+                ("stopped", 429, "own_limit", 1), ("stopped", 429, "shared_limit", 2),
+            }
+            assert [row[0] for row in wire.requests] == [0, 0, 1]
+        else:
+            assert get(client, seconds=10) == BODY
+            assert [row[0] for row in wire.requests] == [0, 0, 1, 2]
+            wire.on_request = None
+            assert get(client) == BODY and wire.requests[-1][0] == 1
+        assert len(admissions) == len(wire.requests) and not waits and not shared.inflight_path.exists()
+        assert not local.snapshot().blocked and not shared.snapshot().blocked
 
 
 def test_fresh_zero_response_keeps_existing_bounded_retry(tmp_path, wire, monkeypatch):
@@ -119,7 +288,8 @@ def test_explicit_no_retry_scope_blocks_keep_alive_recovery(tmp_path, wire, monk
 
 @pytest.mark.parametrize("block", ["stopped", "uncertain"])
 def test_recovery_reenters_gate_after_first_intent_settles(tmp_path, wire, monkeypatch, block):
-    with dual_reader(tmp_path, monkeypatch, policy=True) as (client, local, shared, admissions, waits):
+    with (dual_reader(tmp_path, monkeypatch, policy=True) as (client, local, shared, admissions, waits),
+          ThreadPoolExecutor(max_workers=1) as worker):
         assert get(client) == BODY
         wire.reply = 200, "drop", b""
         entries = []
@@ -129,7 +299,7 @@ def test_recovery_reenters_gate_after_first_intent_settles(tmp_path, wire, monke
             if len(entries) == 2:
                 assert not shared.inflight_path.exists()
                 if block == "stopped":
-                    shared.trip(403)
+                    worker.submit(shared.trip, 403).result(timeout=5)
                 else:
                     with pytest.raises(RuntimeError, match="fixture uncertainty"):
                         with shared.request():
@@ -143,6 +313,10 @@ def test_recovery_reenters_gate_after_first_intent_settles(tmp_path, wire, monke
         assert [row[0] for row in wire.requests] == [0, 0]
         if block == "uncertain":
             assert shared.inflight_path.is_file()
+        else:
+            assert (local.snapshot().status_code, shared.snapshot().status_code) == (403, 403)
+            record, = client._retry_policy.progress_snapshot()
+            assert (record["phase"], record["status"]) == ("stopped", 403)
 
 
 @pytest.mark.parametrize("status", [401, 403, 429])

@@ -1,0 +1,39 @@
+pytest: required_network_guard; no cache; not dpapi; basetemp=S:\Work\_tmp\PV\api-lows-20261122\pytest-apilows-focused-long-path
+shell_pid=131932
+...................F...............                                      [100%]
+================================== FAILURES ===================================
+_ test_account_switch_after_pooled_disconnect_prevents_recovery[profile-gate] _
+tests\test_d6_api_r3.py:210: in test_account_switch_after_pooled_disconnect_prevents_recovery
+    get(client, seconds=10)
+tests\test_d6_api_https.py:45: in get
+    return client._get("identity", EXTRA, deadline=monotonic() + seconds)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\pixiv_read_client.py:861: in _get
+    return policy.execute(attempt, deadline=deadline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\request_policy.py:250: in execute
+    try:return self._execute(operation,deadline=deadline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\request_policy.py:262: in _execute
+    try:return self._attempts(operation,deadline,token,count,rate_wait)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\request_policy.py:294: in _attempts
+    result=_recover_on_fresh_connection(operation,deadline,clock=self.clock)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\request_policy.py:197: in _recover_on_fresh_connection
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\pixiv_read_client.py:855: in attempt
+    return self._get_once(kind, url, deadline=deadline, capture_cookies=capture_cookies)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\pixiv_read_client.py:903: in _get_once
+    response = self._transport(request, timeout, limit, per_request_deadline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_shared_transport.py:122: in __call__
+    _require_selected_cookie(self.profile_root, self.cookie_path,
+src\pixivvault_nicegui\managed_network_stop_profile_scope.py:70: in _require_selected_cookie
+    raise ManagedNetworkGateStorageError(
+E   pixivvault_nicegui.managed_network_stop_gate.ManagedNetworkGateStorageError: configured owned profile credential unavailable
+=========================== short test summary info ===========================
+FAILED tests/test_d6_api_r3.py::test_account_switch_after_pooled_disconnect_prevents_recovery[profile-gate]
+1 failed, 34 passed in 17.80s

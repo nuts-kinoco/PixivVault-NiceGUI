@@ -268,6 +268,7 @@ class RequestRetryPolicy:
             raise
 
     def _attempts(self,operation,deadline,token,count,rate_wait):
+        from .managed_network_stop_gate import ManagedNetworkStopped
         from .pixiv_read_client import HTTPStatusRejected,TransportFailed,_PooledConnectionLost
         for attempt in range(count):
             request_checkpoint();_check_deadline(deadline,self.clock)
@@ -289,7 +290,21 @@ class RequestRetryPolicy:
                         self._publish(token,'stopped',attempt+2,count,status=429,stop_cause='shared_limit')
                         raise HTTPStatusRejected(429)
                     self._publish(token,'requesting',attempt+2,count)
-                result=_recover_on_fresh_connection(operation,deadline,clock=self.clock)
+                try:
+                    result=_recover_on_fresh_connection(operation,deadline,clock=self.clock)
+                except ManagedNetworkStopped as error:
+                    self._publish(token,'stopped',attempt+2,count,status=error.status_code,
+                                  stop_cause='durable_gate')
+                    raise
+                except HTTPStatusRejected as error:
+                    if error.status_code==404:
+                        with self._status_lock:self._records.pop(token,None)
+                    else:
+                        self._publish(token,'failed',attempt+2,count,status=error.status_code)
+                    raise
+                except TransportFailed:
+                    self._publish(token,'failed',attempt+2,count)
+                    raise
                 with self._status_lock:self._records.pop(token,None)
                 return result
             except (HTTPStatusRejected,TransportFailed) as error:
