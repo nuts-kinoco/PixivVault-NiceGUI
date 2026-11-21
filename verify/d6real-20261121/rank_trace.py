@@ -29,6 +29,8 @@ class RenderTrace:
                 result = function(*args, **kwargs)
                 row["card_call_ms"] += (perf_counter() - started) * 1000
                 row["card_calls"] += 1
+                if kind == 'payload':
+                    return result  # Vue keys own DOM reuse.
                 if result is not None:
                     card = id(result)
                     if card not in self.previous_card_ids:
@@ -82,5 +84,5 @@ def instrument_original(original, trace):
 def instrument_nice(trace):
     from pixivvault_nicegui.ui.ranking_view import RankingView, _RankingGallery
 
-    _RankingGallery._make_card = trace.wrap("card")(_RankingGallery._make_card)
+    _RankingGallery._card_data = trace.wrap("payload")(_RankingGallery._card_data)
     RankingView.render = trace.wrap("render")(RankingView.render)

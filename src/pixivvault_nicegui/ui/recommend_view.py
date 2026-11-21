@@ -321,12 +321,16 @@ class RecommendView:
                     build_card_menu=self._author_card_menu)
         await self._author_browser.show(author_id,author_name)
 
-    def _author_card_menu(self,art,card,browser):
+    def _author_card_menu(self,art,browser):
+        epoch = browser.epoch
+        render_epoch = browser.gallery.grid.render_epoch
         def current():
             return (browser.visible and not browser.closed and browser.reader is self._recommend_viewer._viewer_reader()
-                    and browser.gallery._viewer_active and browser.gallery.cards.get(art.work_id) is card)
+                    and browser.epoch == epoch and browser.gallery._viewer_active
+                    and browser.gallery.grid.render_epoch == render_epoch
+                    and art.work_id in browser.gallery.cards)
         work=RecommendationWork(art.work_id,art.title,art.author_id,art.author,tags=art.tags)
-        self._card_menu('author-overlay',work,None,card,self.data,card_current=current)
+        return self._card_menu_entries('author-overlay',work,None,self.data,card_current=current)
 
     async def open_work(self,work_id,*,generation):
         if (self.closed or not self.active or self.busy
@@ -556,7 +560,12 @@ class RecommendView:
         # ビューアの右クリックで出さないにした。保存済みの結果を読み直して棚から外す。
         if self.active and not self.closed and not self.busy:
             background_tasks.create(self.refresh(preserve_viewer=True))
-    def _card_menu(self,kind,work,generation,card,data,*,card_current=None):
+    def _card_menu(self,kind,work,generation,card,data):
+        testid, entries = self._card_menu_entries(kind,work,generation,data)
+        menu,_=build_context_menu(entries,testid=testid)
+        open_from_keyboard(card,menu)
+
+    def _card_menu_entries(self,kind,work,generation,data,*,card_current=None):
         """元 recommend_tab.py:815-876 の右クリック 12 項目（取り下げるは SuperLike の棚だけ）。"""
         wid=work.work_id;aid=work.author_id;name=work.author_name
         writable=bool(data['writable']);actions=self._card_actions
@@ -602,8 +611,7 @@ class RecommendView:
             MenuEntry('pixiv','pixivで作品ページを開く','open_in_new',href=target,enabled=target is not None,
                       testid=f'recommend-pixiv-link-{kind}-{wid}'),
         ]
-        menu,_=build_context_menu(entries,testid=f'recommend-pixiv-context-{kind}-{wid}')
-        open_from_keyboard(card,menu)
+        return f'recommend-pixiv-context-{kind}-{wid}', entries
     def _search_tag(self,tag):
         if tag and self._on_search_tag is not None and self.active and not self.closed:self._on_search_tag(tag)
     async def save_preferred(self,work_id,kind,*,card_current=None):

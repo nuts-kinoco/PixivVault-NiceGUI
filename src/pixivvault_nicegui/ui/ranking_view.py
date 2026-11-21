@@ -15,38 +15,17 @@ class _ViewServices:
     def __getattr__(self,name):return getattr(self.parent,name)
 
 class _RankingGallery(GalleryView):
-    def _rank_label(self,art):
-        owner=getattr(self,'owner',None)
-        if owner is None or not owner.preferred_tags_in(art.tags):return super()._rank_label(art)
-        # 元 ranking_tab.py:822-824: 順位の横に青ハート。印が無いカードの構造は他の一覧と同じに保つ。
-        with ui.row().classes('items-center no-wrap gap-1 pv-card-head'):
-            label=ui.label().classes('pv-card-rank')
-            heart=ui.icon('favorite').classes('pv-card-heart').props(f'size=12px aria-label=好みのタグを含む作品')
-            heart._props['data-testid']=f'ranking-heart-{art.work_id}'
-        return label
-    def _card_menu(self,art,card):
-        owner=getattr(self,'owner',None)
-        if owner is not None:owner.build_card_menu(art,card)
+    def _card_heart(self, art):
+        return self.owner.preferred_tags_in(art.tags)
+    def _card_menu(self, art):
+        return self.owner.ranking_card_menu(art)
     def _after_viewer_hide(self,art,hidden):
         owner=getattr(self,'owner',None)
         if owner is None:return super()._after_viewer_hide(art,hidden)
         owner.adopt_hidden(art.work_id,art.title,hidden)
     def render_gallery(self):
-        owner = getattr(self, 'owner', None)
-        visible = self.state.visible_items
-        presentation = tuple((art, bool(owner and owner.preferred_tags_in(art.tags))) for art in visible)
-        previous = getattr(self, '_presentation', ())
-        if presentation[:len(previous)] != previous:
-            self._reset_cards()
-        retained = self._rendered_ids
         super().render_gallery()
-        for work_id in retained:
-            if work_id in self.images:
-                image = self.images[work_id]
-                url = self.services.images.url(work_id, 0, 'thumb')
-                if image.props['src'] != url:
-                    image.set_source(url)
-        self._presentation = presentation
+        owner = getattr(self, 'owner', None)
         if owner is not None and owner.page is not None:self.more_cell.set_visibility(not owner.page.exhausted)
     def more(self):
         if self.owner.active and not self.owner.busy:asyncio.create_task(self.owner.load(append=True))

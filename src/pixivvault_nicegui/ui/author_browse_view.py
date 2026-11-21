@@ -35,22 +35,15 @@ class _Services:
 
 
 class _Gallery(GalleryView):
-    def _card_menu(self, art, card):
+    def _card_menu(self, art):
         if self.owner.build_card_menu is not None:
-            self.owner.build_card_menu(art, card, self.owner)
+            return self.owner.build_card_menu(art, self.owner)
+        return None, ()
 
-    def _make_card(self, art):
-        if art.work_id not in self.owner.missing_previews:
-            return super()._make_card(art)
-        # Original author pages retain a missing preview instead of losing a work.
-        with self.grid:
-            with ui.element('div').classes('pv-card').props(f'data-work-id={art.work_id}') as card:
-                self.ranks[art.work_id] = ui.label().classes('pv-card-rank')
-                ui.label('画像を取得できません').classes('pv-thumb pv-subtitle')
-                with ui.element('div').classes('pv-card-meta'):
-                    ui.label(art.title).classes('pv-card-title')
-                    ui.label(art.author).classes('pv-card-author')
-        self.cards[art.work_id] = card
+    def _card_source(self, art):
+        if art.work_id in self.owner.missing_previews:
+            return None
+        return super()._card_source(art)
 
     def open(self, work_id, page_no=0):
         if self.owner.closed or not self.owner.visible or not self._viewer_active or self.state.closed:
@@ -175,12 +168,6 @@ class AuthorBrowseView:
             self.gallery.state.close()
             self.gallery.state = self.gallery._viewer_state = state
             self.gallery.search_input.set_value('')
-            self.gallery.grid.clear()
-            self.gallery.cards.clear()
-            self.gallery.images.clear()
-            self.gallery.ranks.clear()
-            self.gallery.more_cell = None
-            self.gallery._rendered_ids = ()
             self.gallery.render_gallery()
             self.gallery.set_viewer_active(True)
             self.gallery.root.set_visibility(True)

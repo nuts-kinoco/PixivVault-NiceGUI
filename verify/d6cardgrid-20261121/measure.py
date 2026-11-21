@@ -43,13 +43,17 @@ def serve(root):
 
         def get_ranking(self, *, mode, **kwargs):
             start = time.perf_counter()
+            time.sleep(.025)  # Give both versions the same observable loading interval.
             offset = 100 if mode == "weekly" else 0
             rows = [dict(illust_id=40000 + offset + index, user_id=41, user_name="作者",
                          title=f"作品 {index + 1:02}", tags=["猫"] if index % 2 else [],
                          url=f"https://i.pximg.net/fixture-{offset + index}.png",
-                         rank=index + 1, view_count=index + 1) for index in range(50)]
+                         rank=index + 1, view_count=index + 1, page_count=1) for index in range(50)]
             record(dict(kind="api", start=start, end=time.perf_counter()))
             return rows
+
+        def get_artwork_pages(self, work_id):
+            return (f'https://i.pximg.net/fixture-{work_id}.png',)
 
         def get_image_bytes(self, *args, **kwargs):
             return image_bytes
@@ -110,7 +114,59 @@ def serve(root):
     ui.run(host="127.0.0.1", port=PORT, show=False, reload=False, access_log=False)
 
 
-def run(root, repetitions):
+def check_browser_contract(page, root):
+    from playwright.sync_api import expect
+
+    cards = page.locator(CARD)
+    expect(cards).to_have_count(50)
+    first, second = cards.nth(0), cards.nth(1)
+    expect(first.locator('.pv-card-rank')).to_have_text('#1')
+    expect(first.locator('.pv-card-head')).to_have_count(0)
+    expect(second.locator('.pv-card-head [data-testid=ranking-heart-40001]')).to_be_visible()
+    menu = page.get_by_role('menu')
+    second.click(button='right')
+    expect(menu).to_have_count(1)
+    expect(menu).to_have_attribute('data-testid', 'ranking-ctx-40001')
+    expect(menu.get_by_test_id('ranking-ctx-40001-bookmark')).to_have_attribute('aria-disabled', 'true')
+    link = menu.get_by_test_id('ranking-ctx-40001-pixiv')
+    expect(link).to_have_attribute('href', 'https://www.pixiv.net/artworks/40001')
+    expect(link).to_have_attribute('target', '_blank')
+    expect(link).to_have_attribute('rel', 'noopener noreferrer')
+    page.keyboard.press('Escape')
+    expect(menu).to_have_count(0)
+    expect(second).to_be_focused()
+    for key in ('Shift+F10', 'ContextMenu'):
+        first.press(key)
+        expect(menu).to_have_attribute('data-testid', 'ranking-ctx-40000')
+        page.keyboard.press('Escape')
+        expect(menu).to_have_count(0)
+        expect(first).to_be_focused()
+
+    first.press('Enter')
+    close = page.get_by_role('button', name='閉じる', exact=True)
+    expect(close).to_be_visible()
+    close.click()
+    expect(first).to_be_focused()
+
+    page.evaluate('window.socket.disconnect()')
+    page.evaluate("""() => {
+      window.socket.io.opts.query.next_message_id = window.nextMessageId;
+      window.socket.connect();
+    }""")
+    page.wait_for_function('window.socket.connected && window.did_handshake')
+    expect(cards).to_have_count(50)
+    first.press('Shift+F10')
+    expect(menu).to_have_attribute('data-testid', 'ranking-ctx-40000')
+    page.keyboard.press('Escape')
+    expect(first).to_be_focused()
+    page.screenshot(path=root / 'contract.png')
+    (root / 'contract.json').write_text(json.dumps({
+        'count': 50, 'heart': True, 'right_click': True, 'keyboard_menu': True,
+        'menu_focus': True, 'viewer_focus': True, 'reconnect': True,
+    }, indent=2))
+
+
+def run(root, repetitions, width, contract):
     from playwright.sync_api import expect, sync_playwright
 
     root.mkdir()
@@ -123,7 +179,7 @@ def run(root, repetitions):
             with sync_playwright() as driver:
                 browser = driver.chromium.launch(headless=True, env=env, args=[
                     "--proxy-server=http://127.0.0.1:1", "--disable-background-networking"])
-                context = browser.new_context(viewport={"width": 1280, "height": 800},
+                context = browser.new_context(viewport={'width': width, 'height': 1080 if width == 1920 else 800},
                                               service_workers="block")
                 context.route("**/*", lambda route: route.continue_()
                               if route.request.url.startswith(URL + "/") else route.abort())
@@ -144,6 +200,10 @@ def run(root, repetitions):
                     page.wait_for_function("window.did_handshake === true")
                     page.evaluate("""() => {
                         window.bench = {};
+                        const notice = document.querySelector('[data-testid=ranking-notice]');
+                        if (notice) new MutationObserver(() => {
+                          if (notice.textContent.trim() === '取得中…') window.bench.loading = true;
+                        }).observe(notice, {childList: true, subtree: true, characterData: true});
                         document.addEventListener('click', () => {
                           window.bench = {begin: performance.now()};
                         }, true);
@@ -164,7 +224,7 @@ def run(root, repetitions):
                       while (performance.now() <= deadline) {
                         const cards = document.querySelectorAll(selector);
                         const img = cards[0]?.querySelector('img');
-                        const done = !transition || notice?.textContent.includes('50 件');
+                        const done = !transition || (state.loading && notice?.textContent.includes('50 件'));
                         if (done && cards.length === total && (!first || cards[0]?.dataset.workId === first)) {
                           list ??= performance.now();
                           if (!image || (img?.complete && img.naturalWidth > 0)) {
@@ -201,11 +261,7 @@ def run(root, repetitions):
                     ready()
                     fetch = page.get_by_test_id("ranking-fetch")
                     observe("initial", fetch.click, CARD, 50, first="40000", screenshot=index == 0)
-                    # A refresh with identical IDs must finish a new request.
-                    def refresh():
-                        fetch.click()
-                        expect(fetch).to_be_enabled(timeout=12000)
-                    observe("refresh", refresh, CARD, 50, first="40000", screenshot=index == 0)
+                    observe("refresh", fetch.click, CARD, 50, first="40000", screenshot=index == 0)
                     weekly = page.get_by_test_id("ranking-mode").get_by_text("週間", exact=True)
                     observe("mode", weekly.click, CARD, 50, first="40100", screenshot=index == 0)
                     observe("sort", page.get_by_text("bench sort", exact=True).click,
@@ -215,6 +271,10 @@ def run(root, repetitions):
                     search = page.get_by_test_id("library-search")
                     observe("library", lambda: search.fill(""), AUTHOR, 50,
                             screenshot=index == 0, image=False)
+                if contract:
+                    ready()
+                    page.get_by_test_id('ranking-fetch').click()
+                    check_browser_contract(page, root)
                 browser.close()
         finally:
             server.terminate()
@@ -235,8 +295,10 @@ if __name__ == "__main__":
     parser.add_argument("root", type=Path)
     parser.add_argument("--serve", action="store_true")
     parser.add_argument("--repetitions", type=int, default=5)
+    parser.add_argument('--width', type=int, choices=(1280, 1920), default=1280)
+    parser.add_argument('--contract', action='store_true')
     args = parser.parse_args()
     if args.serve:
         serve(args.root)
     else:
-        run(args.root, args.repetitions)
+        run(args.root, args.repetitions, args.width, args.contract)

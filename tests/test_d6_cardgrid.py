@@ -29,3 +29,34 @@ async def test_identical_ranking_refresh_reuses_owned_catalog_and_card():
     finally:
         client.delete()
         services.close()
+
+@pytest.mark.asyncio
+async def test_gallery_grid_is_single_element_and_rejects_older_render_epoch():
+    services, reader, _ = setup()
+    client = Client(ui.page('/_d6_cardgrid_epoch'))
+    try:
+        with client:
+            view = RankingView(services)
+            view.set_active(True)
+            await view.load()
+            gallery = view.gallery
+            assert not list(gallery.grid.descendants())
+            assert gallery.grid.props['cards'][0]['work_id'] == '123'
+            old_epoch = gallery.grid.props['render_epoch']
+            await view.load()
+            opened = []
+            gallery.open = opened.append
+            await gallery.dispatch_card_event(dict(work_id='123', action='open', epoch=old_epoch))
+            assert opened == []
+            await gallery.dispatch_card_event(dict(
+                work_id='123', action='open', epoch=gallery.grid.props['render_epoch']))
+            assert opened == ['123']
+            view.set_active(False)
+            view.set_active(True)
+            current = gallery.grid.props['render_epoch']
+            await gallery.dispatch_card_event(dict(work_id='123', action='open', epoch=current - 1))
+            assert opened == ['123']
+            view.close()
+    finally:
+        client.delete()
+        services.close()

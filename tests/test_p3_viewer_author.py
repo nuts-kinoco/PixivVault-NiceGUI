@@ -99,10 +99,10 @@ async def test_author_overlay_50_more_revisit_pin_lifetime_and_failure():
         with client:
             await overlay.show('91','Author')
             assert overlay.gallery.state.shown_count==50
-            first_ids={wid:card.id for wid,card in overlay.gallery.cards.items()}
+            first_cards=dict(overlay.gallery.cards)
             overlay.gallery.more()
             assert overlay.gallery.state.shown_count==51
-            assert all(overlay.gallery.cards[wid].id==node for wid,node in first_ids.items())
+            assert all(overlay.gallery.cards[wid] is card for wid,card in first_cards.items())
             overlay.gallery.open('101')
             assert overlay.gallery._viewer_state.selected_artwork.work_id=='101'
             overlay.hide();await overlay.show('91','Author')
@@ -380,9 +380,9 @@ async def test_author_missing_preview_render_and_unadopted_pin_cleanup():
             assert overlay.retry.visible and not overlay.gallery.root.visible
             overlay.gallery.render_gallery = render
             await overlay.retry_load()
-            assert '102' in overlay.gallery.cards and '102' not in overlay.gallery.images
+            assert overlay.gallery.cards['102'].data['src'] is None
             assert len(overlay.gallery.cards) == 50 and overlay.gallery._viewer_active
-            assert '画像を取得できません' in [getattr(e, 'text', '') for e in overlay.gallery.cards['102'].descendants()]
+            assert overlay.gallery.cards['102'].data['menu'] == []
             overlay.gallery.open('102')
             assert not overlay.gallery.state.viewer_open
             overlay.close()

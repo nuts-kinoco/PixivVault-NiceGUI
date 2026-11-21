@@ -46,7 +46,7 @@ def make(prefs, rows=None):
 
 def hearts(view):
     return sorted(wid for wid, card in view.gallery.cards.items()
-                  if any(n.props.get('data-testid') == f'ranking-heart-{wid}' for n in card.descendants()))
+                  if card.data['heart'])
 
 
 def test_preferred_tag_set_uses_the_original_bounds_rule():
@@ -73,9 +73,7 @@ async def test_heart_is_shown_beside_the_rank_only_for_works_with_a_preferred_ta
             await view.load()
             assert hearts(view) == ['123', '124']
             card = view.gallery.cards['123']
-            heart = next(n for n in card.descendants() if n.props.get('data-testid') == 'ranking-heart-123')
-            rank = view.gallery.ranks['123']
-            assert heart.parent_slot.parent is rank.parent_slot.parent, '順位ラベルと同じ行に並べる'
+            assert card.data['rank'] == '#1' and card.data['heart']
             view.close()
     finally:
         client.delete()
@@ -95,7 +93,7 @@ async def test_no_heart_without_preference_and_the_rank_label_dom_stays_plain():
             await view.load()
             assert hearts(view) == []
             card = view.gallery.cards['123']
-            assert view.gallery.ranks['123'].parent_slot.parent is card, '印が無いカードの構造は他の一覧と同じ'
+            assert card.data['rank'] == '#1' and not card.data['heart']
             view.close()
     finally:
         client.delete()

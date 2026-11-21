@@ -249,17 +249,20 @@ async def test_author_overlay_menu_has_eleven_items_and_uses_the_overlay_card(tm
             await click(item(view, 'certain', '12', '作者の作品一覧へ飛ぶ'))
             overlay = view._author_browser
             card = overlay.gallery.cards['101']
-            menu = next(node for node in card.descendants() if isinstance(node, ui.context_menu))
-            entries = [node for node in menu.descendants() if isinstance(node, ui.menu_item)]
-            assert [label_of(node) for node in entries] == [label for label in FULL if label != '取り下げる']
-            by_label = {label_of(node): node for node in entries}
-            await click(by_label['ダウンロードキューへ積む'])
-            await click(by_label['このタグで検索'])
-            await click(by_label['出さない（理由をつける）'])
+            entries = card.data['menu']
+            assert [entry['label'] for entry in entries] == [label for label in FULL if label != '取り下げる']
+            by_label = {entry['label']: entry['key'] for entry in entries}
+            epoch = overlay.gallery.grid.render_epoch
+            async def select(label):
+                await overlay.gallery.dispatch_card_event(dict(
+                    work_id='101', action=by_label[label], epoch=epoch))
+            await select('ダウンロードキューへ積む')
+            await select('このタグで検索')
+            await select('出さない（理由をつける）')
             assert view.hide_dialog.value and view._pending_hide[0] == '101'
             assert queued == ['101'] and tags == ['blue']
             overlay.hide()
-            await click(by_label['ダウンロードキューへ積む'])
+            await select('ダウンロードキューへ積む')
             assert queued == ['101']
             view.close()
     finally:

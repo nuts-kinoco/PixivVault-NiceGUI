@@ -383,8 +383,6 @@ class PersonalRankingView(RankingView):
                 return
             provider=self.services.acquire_ranking_images(tuple(r['item'].record for r in candidate.rows))
             self.pin=provider;self.proxy.images=provider;self.page=candidate
-            if not append:
-                self.gallery.grid.clear();self.gallery.more_cell=None;self.gallery.cards.clear();self.gallery.images.clear();self.gallery.ranks.clear();self.gallery._rendered_ids=()
             self.render()
             if old_pin is not None:old_pin.close()
             provider=None
@@ -444,7 +442,6 @@ class PersonalRankingView(RankingView):
         state=GalleryState(tuple(r['item'].record.as_artwork() for r in rows),page_size=max(50,len(rows)))
         state.set_card_size(old.card_size);state.set_query(old.query);state.generation=old.generation+1;old.close()
         self.gallery.state=self.gallery._viewer_state=state;self.gallery.render_gallery()
-        for wid,image in self.gallery.images.items():image.set_source(self.proxy.images.url(wid,0,'thumb'))
         self.gallery.more_cell.set_visibility(current and not self.page.exhausted)
         self.gallery.empty.set_text('条件に一致する作品は0件です。条件を変更してください。')
         self.notice.set_text(f'{self.page.order_label or "借用アカウント"}・{len(rows)}件表示 / {dropped}件を条件で除外'+('・これで全部' if self.page.exhausted else ''))
