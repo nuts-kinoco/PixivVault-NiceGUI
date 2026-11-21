@@ -436,7 +436,7 @@ CSS += """
 /* tone-d-review */
 :root { --pv-action-text:var(--pv-page); }
 body.body--light {
-  --pv-error-text:var(--pv-auth-red);
+  --pv-error-text:var(--pv-download-danger-text);
   --pv-error-bg:color-mix(in srgb, var(--pv-error-text) 10%, transparent);
   --pv-warn-text:var(--pv-auth-yellow);
   --pv-accent-tint:rgba(var(--pv-primary-rgb), .12);
