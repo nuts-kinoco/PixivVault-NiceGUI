@@ -328,8 +328,8 @@ class VisualPreferenceStore:
                 or set(value) != {'store_id', 'database', 'initializing', 'journal'}
                 or value['store_id'] != self._store_id or type(value['initializing']) is not bool
                 or not _integer_list(value['database'], 2)
-                or (value['journal'] is not None if value['initializing']
-                    else not _integer_list(value['journal'], 3))):
+                or (not _integer_list(value['journal'], 3)
+                    and not (value['initializing'] and value['journal'] is None))):
             _reject()
         return value
 
@@ -346,10 +346,13 @@ class VisualPreferenceStore:
             os.fsync(stream.fileno())
         temporary.replace(self._intent)
 
+    def _matches_journal(self, intent, journal, *, initializing=False):
+        return (intent is not None and intent['initializing'] == initializing
+                and intent['database'] == list(self._db_id)
+                and intent['journal'] == [*journal.identity, journal.nonce])
+
     def _verify_hot_journal(self, journal):
-        intent = self._read_intent()
-        if (intent is None or intent['initializing'] or intent['database'] != list(self._db_id)
-                or intent['journal'] != [*journal.identity, journal.nonce]):
+        if not self._matches_journal(self._read_intent(), journal):
             _reject()
 
     def _connect(self, *, write, wait=True, immutable=False):
@@ -390,8 +393,7 @@ class VisualPreferenceStore:
             self._check_paths()
             intent = self._read_intent()
             interrupted_init = (journal is not None and journal.hot and journal.original_pages == 0
-                                and intent is not None and intent['initializing']
-                                and intent['database'] == list(self._db_id))
+                                and self._matches_journal(intent, journal, initializing=True))
             initialized = not interrupted_init and self._check_header(pinned, allow_empty=True)
             if initialized and journal is None:
                 if intent is not None and intent['initializing']:
@@ -409,6 +411,10 @@ class VisualPreferenceStore:
                     self._validate_schema(db)
                     db.commit()
                 else:
+                    if interrupted_init:
+                        # Consume the old journal before replacing its seal.
+                        db.execute('BEGIN IMMEDIATE')
+                        db.rollback()
                     self._initialize(db)
 
     def _initialize(self, db):
@@ -421,6 +427,7 @@ class VisualPreferenceStore:
             _reject()
         db.execute(f'PRAGMA application_id={APPLICATION_ID}')
         db.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
+        self._seal_journal(initializing=True)
         for statement in _SCHEMA.values():
             db.execute(statement)
         db.execute('INSERT INTO owner VALUES (?,?)', (self._scope, self._store_id))
@@ -437,10 +444,13 @@ class VisualPreferenceStore:
         # Touch one existing page before admitting the caller's mutations so a
         # native journal exists and its identity can be recorded before spill.
         db.execute('UPDATE owner SET rowid=-rowid')
+        self._seal_journal()
+
+    def _seal_journal(self, *, initializing=False):
         journal = self._check_sidecars()
         if journal is None or journal.hot:
             _reject()
-        self._write_intent(journal)
+        self._write_intent(journal, initializing=initializing)
 
     @contextmanager
     def _transaction(self, *, write=False, wait=True, generation_change=False):

@@ -358,6 +358,43 @@ with store._transaction(write=True) as db:
     assert sidecar.read_bytes() == recorded
 
 
+def _crash_after_initialization_spill(root):
+    _crash(root, '''
+class CrashAtCommit:
+    def __init__(self, db):
+        self.db = db
+    def __getattr__(self, name):
+        return getattr(self.db, name)
+    def commit(self):
+        os._exit(23)
+original = VisualPreferenceStore._initialize
+def interrupt(store, db):
+    db.execute('PRAGMA cache_size=2')
+    db.execute('PRAGMA cache_spill=ON')
+    original(store, CrashAtCommit(db))
+VisualPreferenceStore._initialize = interrupt
+open_store()
+''')
+    assert (root / 'visual_preference.sqlite3').stat().st_size > 0
+
+
+def test_bootstrap_rejects_replaced_initialization_journal(store_api, tmp_path):
+    root = tmp_path / 'owned'
+    other = tmp_path / 'other-owned'
+    _crash_after_initialization_spill(root)
+    _crash_after_initialization_spill(other)
+    database = root / 'visual_preference.sqlite3'
+    sidecar = root / 'visual_preference.sqlite3-journal'
+    replacement = (other / sidecar.name).read_bytes()
+    assert replacement.startswith(bytes.fromhex('d9d505f920a163d7'))
+    sidecar.write_bytes(replacement)  # Keep the local file identity, change its nonce.
+    original = database.read_bytes()
+    with pytest.raises(store_api.VisualPreferenceStoreError):
+        open_store(store_api, root)
+    assert database.read_bytes() == original
+    assert sidecar.read_bytes() == replacement
+
+
 @pytest.mark.parametrize('stage', ['missing', 'reserved', 'spilled'])
 def test_owned_incomplete_initialization_allows_purge(store_api, tmp_path, stage):
     root = tmp_path / 'owned'
@@ -379,23 +416,7 @@ VisualPreferenceStore._initialize = lambda *_: os._exit(23)
 open_store()
 ''')
     else:
-        _crash(root, '''
-class CrashAtCommit:
-    def __init__(self, db):
-        self.db = db
-    def __getattr__(self, name):
-        return getattr(self.db, name)
-    def commit(self):
-        os._exit(23)
-original = VisualPreferenceStore._initialize
-def interrupt(store, db):
-    db.execute('PRAGMA cache_size=2')
-    db.execute('PRAGMA cache_spill=ON')
-    original(store, CrashAtCommit(db))
-VisualPreferenceStore._initialize = interrupt
-open_store()
-''')
-        assert (root / 'visual_preference.sqlite3').stat().st_size > 0
+        _crash_after_initialization_spill(root)
     recovered = open_store(store_api, root, protected=(sentinel,))
     recovered.purge()
     assert recovered.current_generation() is None
