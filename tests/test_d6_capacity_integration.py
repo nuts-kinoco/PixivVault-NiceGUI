@@ -103,7 +103,10 @@ async def test_search_reloads_concurrent_capacity_write_after_auto_measurement(l
             view.search('D6')
             view.close()
         assert view._search_capacity_delay is None
-        assert view._legacy_restore_request is None
+        async with asyncio.timeout(3):
+            while view._legacy_restore_request is not None:
+                await asyncio.sleep(.01)
+        assert service.cached(author_id) == (2, 1024)
     finally:
         release.set()
         if view._legacy_auto_task is not None:
