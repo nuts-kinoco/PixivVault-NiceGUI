@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-20 22:59",
+  "updated": "2026-11-21 12:08",
   "phases": [
     {
       "id": "P0",
@@ -253,7 +253,7 @@
       "phase": "P6",
       "condition": "D6・D7 を満たす",
       "met": "未",
-      "evidence": "wt-p6 統合 20a1f0c: D7 通信 300 箇所を分類・指摘 0、Sol 検証 High0 の Medium3 を修正し Neon 再検証（既知の限界: 再起動で保留中 INVALID 報告が失われる・C ドライブ差分は Temp 1 件の作成元不明）。D6 は docs/P6_RESPONSIVENESS_2026-11-19.md"
+      "evidence": "wt-p6 統合 20a1f0c: D7 通信 300 箇所を分類・指摘 0、Sol 検証 High0 の Medium3 を修正し Neon 再検証（既知の限界: 再起動で保留中 INVALID 報告が失われる・C ドライブ差分は Temp 1 件の作成元不明）。D6: 2026-11-21 統合 3092a80（Vue 子化・容量更新の遅延・GIF 経路。Neon 3 回独立レビューで High0・Medium0）。合成データ 30 回比較で学習・作者検索・画像送りとも撮影込みで元と同等以上（学習+16ms は許容内）。原受入の匿名化実データ比較は未実施。docs/P6_RESPONSIVENESS_2026-11-19.md、verify/d6e-20261121/"
     },
     {
       "phase": "P7",
@@ -744,10 +744,10 @@
       "status": "待ち"
     },
     {
-      "topic": "【判断】GPU 学習（RTX 5080 16GB）の設計の承認",
-      "value": "Neon の設計書（tmp/neon_gpu_out.md）を読んで、方式（埋め込み＋分類器／嗜好クラスタ／微調整）を選ぶ",
+      "topic": "【判断】GPU 学習（RTX 5080 16GB）の実装時期",
+      "value": "既存機能の移植が完了し Release 前に本格実装する。それまでは元（Flet 版）の学習の仕組みを踏襲する。設計書 docs/design/GPU_LEARNING_DESIGN_NEON_20261120.md と壁打ち用プロンプトは保管",
       "set_by": "本人",
-      "status": "待ち"
+      "status": "決定（保留・Release 前に実装）"
     },
     {
       "topic": "【判断】クラッシュ証跡の保存先",
@@ -766,9 +766,8 @@
     "有": 115,
     "無": 12,
     "条件付きで有": 34,
-    "不明": 50,
-    "意図的削除": 6,
-    "弱": 1
+    "不明": 51,
+    "意図的削除": 6
   },
   "full_test": {
     "log": "full_work_7.log",
@@ -777,12 +776,12 @@
     "errors": 0,
     "seconds": 653.13
   },
-  "head": "a58e2cf P3: COS R5 PASS 6/6 を進捗に反映",
+  "head": "3092a80 D6再レビューの全数確認と再測定結果を記録する",
   "worktrees": [
     {
       "path": "work",
       "branch": "pv-dev-baseline",
-      "head": "a58e2cf"
+      "head": "3092a80"
     },
     {
       "path": "basewt",
@@ -1023,6 +1022,21 @@
       "path": "wt-z",
       "branch": "feat-z-learning-a",
       "head": "2e53a24"
+    },
+    {
+      "path": "d10-handoff-20261120",
+      "branch": "feat-d10-handoff",
+      "head": "8c93b55"
+    },
+    {
+      "path": "d6-exp-20261121",
+      "branch": "exp-d6-vue",
+      "head": "3092a80"
+    },
+    {
+      "path": "d6-perf-20261120",
+      "branch": "feat-d6-perf",
+      "head": "b83e1a9"
     }
   ],
   "stop": "07:59 に強制停止（本人指示）"

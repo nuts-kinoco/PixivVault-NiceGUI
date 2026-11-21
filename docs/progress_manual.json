@@ -203,7 +203,7 @@
         {
           "t": "D6・D7 を満たす",
           "ok": false,
-          "ev": "wt-p6 統合 20a1f0c: D7 通信 300 箇所を分類・指摘 0、Sol 検証 High0 の Medium3 を修正し Neon 再検証（既知の限界: 再起動で保留中 INVALID 報告が失われる・C ドライブ差分は Temp 1 件の作成元不明）。D6 は docs/P6_RESPONSIVENESS_2026-11-19.md"
+          "ev": "wt-p6 統合 20a1f0c: D7 通信 300 箇所を分類・指摘 0、Sol 検証 High0 の Medium3 を修正し Neon 再検証（既知の限界: 再起動で保留中 INVALID 報告が失われる・C ドライブ差分は Temp 1 件の作成元不明）。D6: 2026-11-21 統合 3092a80（Vue 子化・容量更新の遅延・GIF 経路。Neon 3 回独立レビューで High0・Medium0）。合成データ 30 回比較で学習・作者検索・画像送りとも撮影込みで元と同等以上（学習+16ms は許容内）。原受入の匿名化実データ比較は未実施。docs/P6_RESPONSIVENESS_2026-11-19.md、verify/d6e-20261121/"
         }
       ]
     },
