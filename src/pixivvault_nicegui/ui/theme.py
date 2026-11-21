@@ -410,7 +410,6 @@ CSS += """
 .pv-settings-field { min-width:0; gap:2px; }
 .pv-settings-wide { grid-column:1 / -1; }
 .pv-preferences-card .pv-filter-switch { font-size:13px; color:var(--pv-text); }
-.pv-preferences-card .q-field--dense .q-field__label { max-width:100%; }
 .pv-native-profile > *, .pv-native-profile .pv-settings-field > * { max-width:100%; overflow-wrap:anywhere; }
 .pv-settings-follow [data-testid=following-sync-view] { gap:var(--pv-gap-compact); }
 .pv-settings-follow [data-testid=following-sync-view] > .text-subtitle1 { display:none; }
