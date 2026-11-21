@@ -395,7 +395,6 @@ CSS += """
 .pv-recommend-card-actions > .q-btn { font-size:11px; }
 .pv-recommend-tile .pv-recommend-thumb-empty { display:grid; place-content:center; justify-items:center; gap:4px; }
 
-.pv-tone-dedup .pv-dedup-mode { width:min(190px,100%); }
 .pv-tone-dedup [data-testid=duplicate-recovery-status]:empty,
 .pv-tone-dedup [data-testid=duplicate-item-results]:empty { display:none; }
 .pv-dedup-near { flex:1 0 240px; min-height:240px; }

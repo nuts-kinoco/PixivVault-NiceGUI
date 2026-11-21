@@ -48,7 +48,7 @@ class DuplicateView:
                 self.mode_buttons={}
                 for label,key in (('決められないもの','undecidable'),('近似重複の候補','near')):
                     self.mode_buttons[key]=ui.button(label,color=None,on_click=lambda _,value=key:self.set_mode(value)).props(
-                        f'flat dense no-caps aria-pressed=false data-testid=duplicate-mode-{key}').classes('pv-dedup-mode')
+                        f'flat dense no-caps aria-pressed=false data-testid=duplicate-mode-{key}').style('width:190px')  # 元: 等幅2択
                 self.scan_button=refresh_button(self.scan,label='スキャンして更新',testid='duplicate-scan')
                 self.scan_button.set_text('スキャンして更新').props('no-caps')
                 self.trash_button=ui.button('ごみ箱',on_click=self.open_trash).props('flat dense no-caps data-testid=duplicate-trash')
