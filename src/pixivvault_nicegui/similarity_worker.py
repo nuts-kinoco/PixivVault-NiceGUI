@@ -120,6 +120,9 @@ class SimilarityWorker:
             if self._phase == 'running':
                 # release_all() can finish before this scan handles cancellation.
                 self._resume_request = gpu_generation
+            elif self._phase == 'idle' and gpu_generation is not None:
+                self._resume_scan_generation = gpu_generation
+                self._signal.set()
             elif self._phase in ('paused', 'failed') and gpu_generation is not None:
                 self._phase = 'idle'
                 self._resume_scan_generation = gpu_generation

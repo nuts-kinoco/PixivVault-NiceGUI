@@ -24,7 +24,7 @@ from random import Random
 from statistics import mean, quantiles
 
 from pixivvault_nicegui.visual_preference import (
-    DEFAULT_ALPHA, Embedding, EmbeddingKey, Generation, TrainingSample, agreed_judgment, blend, fit,
+    DEFAULT_ALPHA, Embedding, EmbeddingKey, Generation, TrainingSample, judgment_agreement, blend, fit,
 )
 
 
@@ -155,19 +155,27 @@ def _training_samples(training):
             raise ValueError('revision must be a nonnegative integer')
         by_work[row['work_id']].append((revision, row))
     samples = []
+    exclusions = dict(unjudged=0, missing_hate_reason=0, conflict=0, invalid=0, missing_vector=0)
     for versions in by_work.values():
         latest = max(revision for revision, _ in versions)
         rows = [row for revision, row in versions if revision == latest]
-        label = agreed_judgment((row.get('judgment', ''), row.get('reason', '')) for row in rows)
-        if label is None:
+        label, excluded = judgment_agreement((row.get('judgment', ''), row.get('reason')) for row in rows)
+        if excluded is not None:
+            exclusions[excluded] += 1
             continue
         saved = any(row.get('saved', False) for row in rows)
         bookmarked = any(row.get('bookmarked', False) for row in rows)
+        if label == ('', '') and not (saved or bookmarked):
+            exclusions['unjudged'] += 1
+            continue
+        count = len(samples)
         for row in rows:
             image = _embedding(row)
             if image is not None:
                 samples.append(TrainingSample(image, row['author_id'], *label, saved, bookmarked, latest))
-    return samples
+        if len(samples) == count:
+            exclusions['missing_vector'] += 1
+    return samples, exclusions
 
 
 def evaluate(data, *, alpha=DEFAULT_ALPHA, bootstrap_samples=1000, seed=0):
@@ -185,7 +193,7 @@ def evaluate(data, *, alpha=DEFAULT_ALPHA, bootstrap_samples=1000, seed=0):
         raise ValueError('evaluation slates must contain distinct works')
     generation = Generation('offline-evaluation', 1, data['model_sha'],
                             data['preprocessing_version'], '0' * 64)
-    samples = _training_samples(training)
+    samples, exclusions = _training_samples(training)
     summaries = {}
     for method in ('nearest', 'centroid'):
         comparison, coverage, separation, exposure = _measure(
@@ -205,7 +213,7 @@ def evaluate(data, *, alpha=DEFAULT_ALPHA, bootstrap_samples=1000, seed=0):
     return dict(**primary, method_comparison={method: dict(A=report['comparison']['A'],
                                                           separation=report['separation'])
                                              for method, report in summaries.items()},
-                alpha=alpha, alpha_basis='provisional; no empirical calibration',
+                training_exclusions=exclusions, alpha=alpha, alpha_basis='provisional; no empirical calibration',
                 ndcg_basis='labelled candidates in score order, ties by work key', warnings=warnings,
                 evaluation='preliminary; labelled available images may be selection-biased')
 

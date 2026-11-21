@@ -127,6 +127,10 @@ class _SessionLoadFailed(RuntimeError):
     pass
 
 
+class _CudaLoadMemoryPressure(_SessionLoadFailed):
+    pass
+
+
 class _ModelChanged(RuntimeError):
     pass
 
@@ -211,6 +215,7 @@ class LocalTagger:
 
     def _load_session(self, tags, use_cuda, stop):
         session = None
+        memory_pressure = False
         try:
             if self.session_factory is not None:
                 check_gpu_stop(stop)
@@ -244,12 +249,20 @@ class LocalTagger:
             return
         except GpuInferenceStopped:
             raise
-        except Exception:
+        except Exception as error:
             # Drop the native session and the original validation traceback
             # before raising or attempting a CPU load.
-            pass
+            if use_cuda and self.providers and session is None:
+                message = str(error).lower()
+                memory_pressure = isinstance(error, MemoryError) or any(marker in message for marker in (
+                    'out of memory', 'cuda_error_out_of_memory', 'cudnn_status_alloc_failed'))
         finally:
             session = None
+        if memory_pressure:
+            self._gpu_arbiter.retain_session(self)
+            self._retry_pending = True
+            self.status = '読込失敗'
+            raise _CudaLoadMemoryPressure('CUDA session creation ran out of memory')
         raise _SessionLoadFailed('tagger session could not be loaded')
 
     def _session_work(self, receipt, tags, use_cuda, stop, tensor, *, predict):
@@ -383,6 +396,8 @@ class LocalTagger:
                 self.cache.clear()
                 self._verify_model()
             return None, None
+        except _CudaLoadMemoryPressure:
+            return None, None  # The arbiter clears the pending retry on release.
         except Exception:
             with self._lock:
                 self.release_session()

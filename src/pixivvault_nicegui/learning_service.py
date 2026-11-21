@@ -29,13 +29,13 @@ MARKER_NAME = ".pixivvault-synthetic-learning.json"
 _LOG = logging.getLogger(__name__)
 
 
-def notify_shadow(callback, *args):
+def notify_shadow(callback, *args, route='observer'):
     """Observers are optional and cannot change the outcome of a learning action."""
     try:
         return callback(*args)
-    except Exception:
+    except Exception as error:
         # Exception text may come from storage, providers or URLs.
-        _LOG.warning('visual preference observer notification failed')
+        _LOG.warning('visual preference observer notification failed (%s, %s)', route, type(error).__name__)
 
 
 def shadow_judgments(db, work_ids):
@@ -338,7 +338,7 @@ class LearningService:
                 return {}
             return {'work_id': work_id, **shadow_judgments(self._database(), (work_id,))[work_id]}
 
-        notify_shadow(lambda: observer.judgment_changed(kind, snapshot))
+        notify_shadow(lambda: observer.judgment_changed(kind, snapshot), route=kind)
 
     def release_session(self, session_id: str) -> None:
         """Queue cleanup after accepted commands, without blocking the UI."""

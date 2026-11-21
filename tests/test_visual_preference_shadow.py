@@ -85,6 +85,7 @@ def test_committed_notifications_and_generation_invalidation(tmp_path):
         asyncio.run(exercise())
     finally:
         service.close()
+    observer.flush_events()
     events = store.events()
     assert [e.kind for e in events] == ['judgment', 'reason_change', 'undo', 'judgment', 'undo', 'restore', 'reset']
     assert [e.payload.get('revision') for e in events[:-1]] == [1, 2, 3, 4, 5, 6]
@@ -190,6 +191,7 @@ def test_ranking_diagnostics_and_observer_preserve_frames_and_ties(tmp_path):
         order, slots = asyncio.run(ranks())
     finally:
         service.close()
+    observer.flush_events()
     event, = store.events()
     assert event.kind == 'ranking'
     rows = event.payload['candidates']
@@ -286,6 +288,7 @@ async def test_real_learning_load_and_prefetch_share_transport_with_observer_off
                 pin.close()
                 registry.close()
                 cache.close()
+        worker.flush_events()
         exposure, = store.events()
         assert exposure.kind == 'exposure'
         assert exposure.payload['image_available']
@@ -298,7 +301,7 @@ async def test_real_learning_load_and_prefetch_share_transport_with_observer_off
         client.close()
 
 
-def test_worker_is_opt_in_cuda_only_records_all_image_variants_and_stops(tmp_path, monkeypatch):
+def test_worker_observes_thumbnail_variants_without_embedding_them(tmp_path, monkeypatch):
     from pixivvault_nicegui.visual_preference_worker import VisualPreferenceWorker
 
     arbiter = GpuInferenceArbiter()
@@ -315,9 +318,10 @@ def test_worker_is_opt_in_cuda_only_records_all_image_variants_and_stops(tmp_pat
     try:
         worker.start()
         assert worker.submit_image('a', 0, regular.get_with_variant('a'))
-        assert worker.submit_image('a', 0, fallback.get_with_variant('a'))
-        assert worker.submit_image('a', 0, regular.get_with_variant('a', variant='thumb'))
-        wait_for(lambda: worker.status()['indexed'] == 3)
+        assert not worker.submit_image('a', 0, fallback.get_with_variant('a'))
+        assert not worker.submit_image('a', 0, regular.get_with_variant('a', variant='thumb'))
+        worker.ranking_finalized(lambda: [{'work_id': 'a'}])
+        wait_for(lambda: worker.status()['indexed'] == 1)
         assert worker.status()['error'] is None
     finally:
         worker.stop()
@@ -326,7 +330,9 @@ def test_worker_is_opt_in_cuda_only_records_all_image_variants_and_stops(tmp_pat
     with closing(sqlite3.connect(store.path)) as db:
         rows = db.execute('SELECT variant, model_sha, preprocessing_version, length(vector) '
                           'FROM candidate_embeddings ORDER BY variant').fetchall()
-    assert {row[0] for row in rows} == {'view', 'thumb', 'thumb_fallback'}
+    assert {row[0] for row in rows} == {'view'}
+    worker.flush_events()
+    assert store.events()[0].payload['candidates'][0]['image_variant'] == 'view'
     assert all(row[1] == digest and row[2] and row[3] == 4096 for row in rows)
     assert len([call for call in calls if call[0] == 'load']) == 1
     assert not arbiter._sessions
@@ -602,7 +608,8 @@ def test_resume_after_release_before_stopped_handler(kind, resume_before_release
         close()
 
 
-def test_explicit_tagger_cuda_load_failure_requires_new_tagger(tmp_path, monkeypatch):
+@pytest.mark.parametrize('transient', [True, False])
+def test_explicit_tagger_cuda_load_failure_retry_after_shared_release(tmp_path, monkeypatch, transient):
     calls = fake_ort(monkeypatch)
     runtime = sys.modules['onnxruntime']
     session = runtime.InferenceSession
@@ -611,25 +618,23 @@ def test_explicit_tagger_cuda_load_failure_requires_new_tagger(tmp_path, monkeyp
     def load(*args, **kwargs):
         attempts.append(1)
         if len(attempts) == 1:
-            raise RuntimeError('synthetic CUDA load OOM')
+            raise RuntimeError('CUDA out of memory' if transient else 'invalid model graph')
         return session(*args, **kwargs)
 
     monkeypatch.setattr(runtime, 'InferenceSession', load)
     arbiter = GpuInferenceArbiter()
     providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
     tagger = make_tagger(monkeypatch, tmp_path, gpu_arbiter=arbiter, providers=providers)
-    assert tagger.predict(b'image') == []
-    arbiter.release_all()
-    assert tagger.predict(b'image') == []
-    assert len(attempts) == 1
-    tagger.close()
-    recreated = local_tagger.LocalTagger(tmp_path, gpu_arbiter=arbiter, providers=providers, tensor_factory=lambda x: x)
     try:
-        assert recreated.predict(b'image') == [('synthetic', .97)]
-        assert len(attempts) == 2
+        assert tagger.predict(b'image') == []
+        assert tagger.predict(b'image') == []
+        assert len(attempts) == 1
+        arbiter.release_all()
+        assert tagger.predict(b'image') == ([('synthetic', .97)] if transient else [])
+        assert len(attempts) == (2 if transient else 1)
         assert all(call[1][0] == 'CUDAExecutionProvider' for call in calls if call[0] == 'load')
     finally:
-        recreated.close()
+        tagger.close()
 
 
 def test_similarity_paused_resume_is_invalidated_by_a_later_shared_release():

@@ -200,20 +200,40 @@ def _valid_unit(vector, dimension):
 
 def agreed_judgment(labels):
     """Resolve compatible labels for one work at the same revision."""
+    label, excluded = judgment_agreement(labels)
+    return label if excluded is None else None
+
+
+def judgment_agreement(labels):
+    """Null verdicts are unjudged, and a null hate reason is unresolved."""
     judgments = set()
     opened = False
+    explicit_empty = False
+    incomplete_hate = False
     for judgment, reason in labels:
+        if judgment is None:
+            continue
         if type(judgment) is not str or judgment not in ('', 'opened', 'like', 'superlike', 'skip', 'hate'):
-            return None
-        if judgment == 'hate' and type(reason) is not str:
-            return None
+            return None, 'invalid'
+        if judgment == 'hate':
+            if reason is None or reason == '':
+                incomplete_hate = True
+                continue
+            if type(reason) is not str:
+                return None, 'invalid'
         if judgment == 'opened':
             opened = True
+        elif judgment == '':
+            explicit_empty = True
         elif judgment:
             judgments.add((judgment, reason if judgment == 'hate' else ''))
-    if len(judgments) > 1:
-        return None
-    return next(iter(judgments), ('opened' if opened else '', ''))
+    if len(judgments) > 1 or (incomplete_hate and any(kind != 'hate' for kind, _ in judgments)):
+        return None, 'conflict'
+    if incomplete_hate and not judgments:
+        return ('hate', ''), 'missing_hate_reason'
+    if not judgments and not opened and not explicit_empty:
+        return None, 'unjudged'
+    return next(iter(judgments), ('opened' if opened else '', '')), None
 
 
 def _weight(judgment, rows):

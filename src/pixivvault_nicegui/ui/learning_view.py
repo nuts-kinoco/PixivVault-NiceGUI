@@ -66,6 +66,7 @@ class LearningView:
         self._discovery_pin = None
         self._prefetch = None
         self._prefetch_pin = None
+        self._shadow_image_source = None
         self._prefetch_task = None
         self._refill = DiscoveryRefill()
         self._refill_epoch = 0
@@ -1465,8 +1466,8 @@ class LearningView:
         if self._prefetch is None or self._prefetch_pin is not pin:
             from ..learning_prefetch import LearningImagePrefetch
             self._stop_prefetch(close=True)
-            on_image = self.discovery.shadow_image if getattr(self.discovery, 'shadow_observer', None) is not None else None
-            self._prefetch=LearningImagePrefetch(preferences,pin,on_ready=lambda wid:self._prefetch_ready(wid,pin),on_image=on_image)
+            self._prefetch=LearningImagePrefetch(preferences,pin,on_ready=lambda wid:self._prefetch_ready(wid,pin),
+                image_observer=getattr(self.discovery, 'prefetch_shadow_observer', None))
             self._prefetch_pin=pin
         try:self._prefetch.configure()
         except Exception:return

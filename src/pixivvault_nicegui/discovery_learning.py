@@ -148,19 +148,31 @@ class DiscoveryLearningService(LearningService):
                                        frame=frames[wid], base_score=scores[wid]['score'],
                                        score_breakdown=scores[wid], **labels[wid]))
                 return result
-            notify_shadow(lambda: observer.ranking_finalized(rows))
+            notify_shadow(lambda: observer.ranking_finalized(rows), route='ranking')
         return ordered, frames
 
     def shadow_image(self, work_id, page, image):
         observer = self.shadow_observer
         if observer is not None:
-            notify_shadow(lambda: observer.submit_image(work_id, page, image))
+            notify_shadow(lambda: observer.submit_image(work_id, page, image), route='image')
+
+    def prefetch_shadow_observer(self):
+        observer = self.shadow_observer
+        if observer is None:
+            return None
+
+        def captured(work_id, page, image):
+            if self.shadow_observer is observer:
+                observer.submit_image(work_id, page, image)
+
+        return captured
 
     def shadow_exposure(self, session_id, token, artworks, index, frames, pin):
         observer = self.shadow_observer
-        if observer is None:
+        if (observer is None or not 0 <= index < len(artworks)
+                or artworks[index].work_id != token.work_id):
             return
-        image = notify_shadow(peek_learning_image, pin, token.work_id, token.page_no)
+        image = notify_shadow(peek_learning_image, pin, token.work_id, token.page_no, route='exposure_image')
         variant = image.variant if image is not None else None
         # The accepted view queue can be a merge of several ranking results.
         # Capture the pending set and frame map at the actual exposure boundary.
@@ -169,12 +181,13 @@ class DiscoveryLearningService(LearningService):
         def record():
             def row():
                 wid = token.work_id
-                return dict(session=session_id, work_id=wid, page=token.page_no, base_rank=index + 1,
+                return dict(session=session_id, work_id=wid, page=token.page_no, base_rank=1,
+                            session_position=index + 1,
                             frame=candidates[0][1], pending_candidates=candidates,
                             **shadow_judgments(self._database(), (wid,))[wid])
-            notify_shadow(lambda: observer.candidate_exposed(row, variant))
+            notify_shadow(lambda: observer.candidate_exposed(row, variant), route='exposure')
 
-        notify_shadow(self._submit, record)
+        notify_shadow(self._submit, record, route='exposure_queue')
         if image is not None:
             self.shadow_image(token.work_id, token.page_no, image)
 
@@ -277,13 +290,12 @@ class DiscoveryLearningService(LearningService):
     async def fetch_candidates(self, *, exclude_ids=(), recent_author_ids=(), is_current=None):
         # Multiple active views share one accepted source acquisition. Cancelling
         # a waiter cannot cancel the FIFO worker or start another concurrent GET.
-        snapshot = self.local_tag_view.snapshot() if self.local_tag_view else None
         claim=is_current if is_current is not None else lambda:True
         with self._lifecycle_lock:
             if self._close_future is not None:raise RuntimeError('learning service is closed')
             if self._candidate_fetch_future is None or self._candidate_fetch_future.done():
                 self._candidate_fetch_claims=[claim]
-                self._candidate_fetch_future=self._executor.submit(self._fetch_claimed,tuple(exclude_ids),tuple(recent_author_ids),snapshot)
+                self._candidate_fetch_future=self._executor.submit(self._fetch_claimed,tuple(exclude_ids))
             else:
                 self._candidate_fetch_claims.append(claim)
             future=self._candidate_fetch_future
@@ -302,9 +314,9 @@ class DiscoveryLearningService(LearningService):
             if self._candidate_fetch_future is future:
                 self._candidate_fetch_claims=[]
 
-    def _fetch_claimed(self,exclude_ids,recent_author_ids,snapshot):
+    def _fetch_claimed(self,exclude_ids):
         if not self._fetch_has_claim():return None
-        return self._fetch_candidates(exclude_ids,recent_author_ids,is_current=self._fetch_has_claim,snapshot=snapshot)
+        return self._fetch_candidates(exclude_ids,is_current=self._fetch_has_claim)
 
     def _fetch_has_claim(self):
         with self._lifecycle_lock:claims=tuple(self._candidate_fetch_claims)
@@ -327,7 +339,7 @@ class DiscoveryLearningService(LearningService):
                 {c['work_id']:self._description_for(c) for c in ordered}),all_records
         return await self._wait(self._submit(read))
 
-    def _fetch_candidates(self, exclude_ids, recent_author_ids, *, is_current=None, snapshot=None):
+    def _fetch_candidates(self, exclude_ids, *, is_current=None):
         db = self._database()
         self.reader.require_identity()
         following = self.following() if callable(self.following) else self.following
@@ -358,13 +370,11 @@ class DiscoveryLearningService(LearningService):
                     (candidate['work_id'], json.dumps(candidate,ensure_ascii=False,sort_keys=True)))
         for candidate in valid:
             if candidate['work_id'] not in self._candidates: self._accept_metadata(candidate)
-        unique = {c['work_id']:c for c in pending+valid}
-        ordered, frames = self._rank(db, list(unique.values()), snapshot, saved,
-                                     recent_author_ids=recent_author_ids)
-        records = tuple(self._record_for(c) for c in ordered)
-        return DiscoveryBatch(tuple(self._artwork_for(c) for c in ordered), records, frames,
+        unique = {c['work_id']:c for c in pending+valid}.values()
+        records = tuple(self._record_for(c) for c in unique)
+        return DiscoveryBatch(tuple(self._artwork_for(c) for c in unique), records, {},
                      tuple(result.ok), tuple(result.failed) + (('invalid_metadata',) if rejected else ()),
-                     {c['work_id']:self._description_for(c) for c in ordered})
+                     {c['work_id']:self._description_for(c) for c in unique})
 
     async def description_snapshot(self):
         """Re-read cached candidate text only; never asks the network reader."""

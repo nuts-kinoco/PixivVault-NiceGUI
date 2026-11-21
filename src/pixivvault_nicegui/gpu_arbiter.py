@@ -31,6 +31,7 @@ def cuda_available(ort):
 class _Operation:
     generation: int | None
     acquired: bool = False
+    cancel: Event | None = None
 
 
 @dataclass(eq=False)
@@ -61,15 +62,16 @@ class GpuInferenceArbiter:
         self._retaining = 0
         self._operation = ContextVar('gpu_inference_operation', default=None)
         self._sessions = WeakSet()
+        self._stop_listeners = set()
 
     @contextmanager
-    def stop_scope(self):
+    def stop_scope(self, *, cancel=None):
         """Keep separate leases in one request within the same stop generation."""
         if self._operation.get() is not None:
             yield
             return
         with self._condition:
-            operation = _Operation(None if self._stopping else self._generation)
+            operation = _Operation(None if self._stopping else self._generation, cancel=cancel)
         token = self._operation.set(operation)
         try:
             yield
@@ -80,6 +82,8 @@ class GpuInferenceArbiter:
     def check_scope(self):
         with self._condition:
             operation = self._operation.get()
+            if operation is not None:
+                check_gpu_stop(operation.cancel)
             if operation is not None and operation.acquired and operation.generation != self._generation:
                 raise GpuInferenceStopped('GPU inference stopped')
 
@@ -98,11 +102,12 @@ class GpuInferenceArbiter:
     def acquire(self, owner, *, priority: int = 0):
         if type(priority) is not int:
             raise ValueError('GPU job priority must be an integer')
-        stop = Event()
         with self._condition:
             if self._active_thread == get_ident():
                 raise RuntimeError('GPU leases cannot be nested')
             operation = self._operation.get()
+            stop = operation.cancel if operation is not None and operation.cancel is not None else Event()
+            check_gpu_stop(stop)
             if self._stopping or (operation is not None and operation.generation != self._generation):
                 raise GpuInferenceStopped('GPU inference stopped')
             waiter = _Waiter(priority, self._grants, stop)
@@ -150,6 +155,25 @@ class GpuInferenceArbiter:
         with self._condition:
             self._sessions.discard(owner)
 
+    def cancel(self, stop):
+        """Cancel a single owner's scope and wake it if waiting for a lease."""
+        with self._condition:
+            stop.set()
+            self._condition.notify_all()
+
+    def subscribe_stop(self, callback, *, generation):
+        """Run a synchronous fence callback on shared stop, outside the lease lock."""
+        with self._condition:
+            if self._stopping or generation != self._generation:
+                raise GpuInferenceStopped('GPU inference stopped')
+            self._stop_listeners.add(callback)
+
+        def unsubscribe():
+            with self._condition:
+                self._stop_listeners.discard(callback)
+
+        return unsubscribe
+
     def release_idle(self):
         """Release retained sessions if neither a job nor a waiter needs them."""
         return self._release(stop=False)
@@ -171,6 +195,7 @@ class GpuInferenceArbiter:
             self._condition.wait_for(lambda: not self._releasing)
             self._releasing = True
             self._stopping = stop
+            listeners = tuple(self._stop_listeners) if stop else ()
             if stop:
                 self._generation += 1
                 if self._active is not None:
@@ -179,11 +204,16 @@ class GpuInferenceArbiter:
                     waiter.stop.set()
                 self._condition.notify_all()
         try:
+            failures = []
+            for fence in listeners:
+                try:
+                    fence()
+                except Exception as error:
+                    failures.append(error)
             with self._condition:
                 if stop:
                     self._condition.wait_for(lambda: self._active is None and not self._waiting)
                 sessions = tuple(self._sessions)
-            failures = []
             for owner in sessions:
                 try:
                     owner.release_session()

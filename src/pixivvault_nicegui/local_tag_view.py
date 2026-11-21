@@ -133,12 +133,7 @@ class LocalTagView:
                 for a in (getattr(w, 'artwork', w),) if not a.tags and str(a.work_id) in saved}
 
     def refresh_async(self, *, resume=False):
-        """Resume a cooperative stop. An explicit CUDA load failure needs a new tagger.
-
-        CUDA session creation failures latch in LocalTagger. Changing the selected
-        tagger/provider or restarting recreates it after the cause is cleared.
-        Releasing GPU sessions only clears failures from an already retained owner.
-        """
+        """Resume cooperative stops and retry CUDA after memory pressure is released."""
         with self._lock:
             if self._closed:
                 raise RuntimeError('local seed unavailable')

@@ -61,9 +61,10 @@ class PrefetchResult:
 
 
 class LearningImagePrefetch:
-    def __init__(self,preferences,pin,*,on_ready=None,on_image=None):
+    def __init__(self,preferences,pin,*,on_ready=None,on_image=None,image_observer=None):
         self.preferences=preferences;self.pin=pin;self.on_ready=on_ready
         self.on_image=on_image
+        self.image_observer=image_observer
         self.queue=();self.active=False;self.closed=False;self.running=False
         self._generation=0
 
@@ -101,7 +102,9 @@ class LearningImagePrefetch:
                 epoch=self._generation
                 try:
                     image = None
-                    if self.on_image is None:
+                    on_image = (notify_shadow(self.image_observer, route='prefetch_observer')
+                                if self.image_observer is not None else self.on_image)
+                    if on_image is None:
                         await asyncio.to_thread(self.pin.get,target,0,'view')
                     else:
                         image = await asyncio.to_thread(_fetch_learning_image, self.pin, target)
@@ -114,7 +117,7 @@ class LearningImagePrefetch:
                 if self.closed or not self.active or epoch!=self._generation:continue
                 fetched+=1
                 if image is not None:
-                    notify_shadow(self.on_image,target,0,image)
+                    notify_shadow(on_image,target,0,image,route='prefetch_image')
                 if self.on_ready is not None:
                     result=self.on_ready(target)
                     if inspect.isawaitable(result):await result

@@ -43,6 +43,7 @@ _RETRY_INTERVAL = 0.02
 _JOURNAL_MAGIC = bytes.fromhex('d9d505f920a163d7')
 _EMBEDDING_COLUMNS = 'work_id,page,variant,image_sha,model_sha,preprocessing_version'
 _EMBEDDING_WHERE = 'work_id=? AND page=? AND variant=? AND image_sha=? AND model_sha=? AND preprocessing_version=?'
+_UNFENCED_EVENT = object()
 _INVALIDATIONS = frozenset({'judgment', 'reason_change', 'undo', 'restore', 'reset',
                             'image_change', 'model_change', 'off', 'account_change', 'gpu_failure'})
 _SCHEMA = {
@@ -159,6 +160,16 @@ class VisualPreferenceStoreError(RuntimeError):
     """Storage was unavailable or ownership could not be established."""
 
 
+class _RevocationIOError(VisualPreferenceStoreError):
+    """Both valid control records could not be written."""
+
+
+@dataclass(frozen=True, slots=True)
+class _JobFence:
+    control: str
+    number: int
+
+
 @dataclass(frozen=True, slots=True)
 class RankingEvent:
     sequence: int
@@ -260,6 +271,7 @@ class VisualPreferenceStore:
         self._database_owner = self.root / (OWNER_MARKER + '.database-owner')
         self._revocation = self.root / (OWNER_MARKER + '.revocation')
         self._revocation_recovery = self.root / (OWNER_MARKER + '.revocation-recovery')
+        self._event_purge = self.root / (OWNER_MARKER + '.event-purge')
         self._binding = self.root / (OWNER_MARKER + '.generation')
         self._fence_failed = False
         self._scope = sha256(json.dumps([profile, account], ensure_ascii=True).encode('ascii')).hexdigest()
@@ -445,7 +457,9 @@ class VisualPreferenceStore:
             _reject()
         pending = value.get('pending_embedding')
         if pending is not None and (value['initializing'] or not isinstance(pending, dict)
-                                    or set(pending) != {'key', 'epoch'} or not _digest(pending['key'])
+                                    or not {'key', 'epoch'} <= set(pending) <= {'key', 'epoch', 'rejected'}
+                                    or ('rejected' in pending and pending['rejected'] is not True)
+                                    or not _digest(pending['key'])
                                     or type(pending['epoch']) is not str or not _HEX32.fullmatch(pending['epoch'])):
             _reject()
         return value
@@ -466,7 +480,7 @@ class VisualPreferenceStore:
         if intent['database'] != list(self._db_id):
             _reject()
         pending = intent.get('pending_embedding')
-        if pending is not None and pending['epoch'] != self._epoch():
+        if pending is not None and (pending.get('rejected') or pending['epoch'] != self._epoch()):
             # An interrupted cleanup can leave a cold journal. Settle the
             # original insertion before any later transaction replaces its seal.
             self._remove_unaccepted_embedding(pending, deadline)
@@ -623,8 +637,8 @@ class VisualPreferenceStore:
 
     @contextmanager
     def _transaction(self, *, write=False, wait=True, expected=None, after_commit=None,
-                     embedding_key=None, expected_epoch=None, is_current=None):
-        deadline = monotonic() + (_IO_TIMEOUT if wait else 0)
+                     embedding_key=None, expected_epoch=None, is_current=None, timeout=None):
+        deadline = monotonic() + ((_IO_TIMEOUT if timeout is None else timeout) if wait else 0)
         try:
             with self._locked(exclusive=write, deadline=deadline):
                 if not write:
@@ -638,6 +652,7 @@ class VisualPreferenceStore:
                 with self.path.open('rb') as pinned:
                     self._check_header(pinned)
                     self._check_paths()
+                    settling_rejection = False
                     try:
                         with closing(self._connect(write=True, deadline=deadline)) as db:
                             db.execute('PRAGMA synchronous=FULL')
@@ -645,11 +660,12 @@ class VisualPreferenceStore:
                             _busy_timeout(db, deadline)
                             db.execute('BEGIN IMMEDIATE')
                             self._validate_schema(db)
-                            epoch = self._epoch() if embedding_key is not None else None
+                            epoch = self._epoch() if embedding_key is not None or expected_epoch is not None else None
                             if expected is not None and self._generation(db) != expected:
                                 yield None
                                 return
-                            if expected_epoch is not None and (self._fence_failed or epoch != expected_epoch):
+                            if expected_epoch is not None and (self._fence_failed or
+                                    _JobFence(epoch, self._generation_number(db)) != expected_epoch):
                                 yield None
                                 return
                             pending = None
@@ -663,7 +679,7 @@ class VisualPreferenceStore:
                             self._check_sidecars()
                             if ((expected is not None and not self._fence_allows(expected))
                                     or (expected_epoch is not None
-                                        and (self._fence_failed or self._epoch() != expected_epoch))
+                                        and (self._fence_failed or self._epoch() != expected_epoch.control))
                                     or (is_current is not None and not is_current())):
                                 db.rollback()
                             else:
@@ -675,13 +691,21 @@ class VisualPreferenceStore:
                                     # this commit has retired the new insertion.
                                     try:
                                         self._declare_revocation()
-                                    except VisualPreferenceStoreError:
-                                        self._remove_unaccepted_embedding(pending, deadline)
+                                    except _RevocationIOError:
+                                        # Keep a durable negative receipt even if a second
+                                        # interruption prevents physical row cleanup.
+                                        settling_rejection = True
+                                        intent = self._read_intent()
+                                        intent.pop('store_id')
+                                        intent['pending_embedding'] = dict(pending, rejected=True)
+                                        self._write_record(self._intent, intent)
+                                        settling_rejection = False
                                 if after_commit is not None:
                                     after_commit()
                     except BaseException:
                         try:
-                            self._clear_intent(deadline)
+                            if not settling_rejection:
+                                self._clear_intent(deadline)
                         except (OSError, sqlite3.Error, ValueError, VisualPreferenceStoreError):
                             pass  # Keep the seal for recovery and preserve the original error.
                         raise
@@ -707,6 +731,13 @@ class VisualPreferenceStore:
             return None
         _validate_lineage(*row[1:4])
         return Generation(self._store_id, *row[:4])
+
+    @staticmethod
+    def _generation_number(db):
+        row = db.execute('SELECT number,purging FROM generation_state WHERE singleton=1').fetchone()
+        if row is None or type(row[0]) is not int or row[0] < 0 or row[1] != 0:
+            _reject()
+        return row[0]
 
     def _epoch(self, *, deadline=None):
         primary = self._read_epoch(self._revocation, deadline=deadline)
@@ -754,13 +785,19 @@ class VisualPreferenceStore:
             renewal = {'epoch': uuid4().hex}
             try:
                 self._write_record(self._revocation, renewal)
-            except (OSError, ValueError, VisualPreferenceStoreError):
+            except OSError:
                 # Windows can prevent replacing a single control file while
                 # still allowing a different owned record to be published.
                 self._check_owner()
                 self._read_epoch(self._revocation_recovery, deadline=None)
-                self._write_record(self._revocation_recovery, renewal)
+                try:
+                    self._write_record(self._revocation_recovery, renewal)
+                except OSError:
+                    self._fence_failed = True
+                    raise _RevocationIOError('visual preference revocation records unavailable') from None
                 _LOG.warning('visual preference generation fence used recovery record')
+        except _RevocationIOError:
+            raise
         except (OSError, ValueError, VisualPreferenceStoreError):
             self._fence_failed = True
             _reject()
@@ -775,7 +812,7 @@ class VisualPreferenceStore:
             return None
         with self._transaction() as db:
             current = self._generation(db)
-        return current if current is not None and self._fence_allows(current) else None
+        return current if current is not None and self.is_current(current) else None
 
     def is_current(self, expected: Generation) -> bool:
         """Check one whole snapshot before use, without waiting on a generation change."""
@@ -808,26 +845,27 @@ class VisualPreferenceStore:
             with self._validated_read(deadline, inspect_journal=False) as db:
                 yield db
 
-    def advance_generation(self, *, model_sha, preprocessing_version, judgment_fingerprint) -> Generation:
-        """Issue a token for freshly captured inputs, for this call's epoch only."""
+    def advance_generation(self, *, model_sha, preprocessing_version, judgment_fingerprint,
+                           input_epoch: _JobFence | None = None) -> Generation:
+        """Bind new inputs. Capture input_epoch before reading labels for a delayed fit."""
         _validate_lineage(model_sha, preprocessing_version, judgment_fingerprint)
-        epoch = self._epoch()
+        epoch = input_epoch if input_epoch is not None else self.capture_embedding_epoch()
 
         def bind():
-            if not self._fence_failed and self._epoch() == epoch:
+            if not self._fence_failed and self._epoch() == epoch.control:
                 self._read_binding()
-                self._write_record(self._binding, {'database': list(self._db_id), 'epoch': epoch,
+                self._write_record(self._binding, {'database': list(self._db_id), 'epoch': epoch.control,
                                                   'number': current.number})
 
-        with self._transaction(write=True, after_commit=bind) as db:
-            if self._fence_failed or self._epoch() != epoch:
+        with self._transaction(write=True, after_commit=bind, expected_epoch=epoch) as db:
+            if db is None:
                 _reject()
             db.execute('UPDATE generation_state SET number=number+1,model_sha=?,'
                        'preprocessing_version=?,judgment_fingerprint=? WHERE singleton=1',
                        (model_sha, preprocessing_version, judgment_fingerprint))
             db.execute('DELETE FROM preference_models')
             current = self._raw_generation(db)
-        if not self._fence_allows(current):
+        if not self.is_current(current):
             _reject()
         return current
 
@@ -844,11 +882,11 @@ class VisualPreferenceStore:
         self._check_paths()
         try:
             self._declare_revocation()
-        except VisualPreferenceStoreError:
+        except _RevocationIOError:
             # If neither valid control record can be written, retire the
             # published generation in the owned database when it is writable.
             self._epoch()
-            with self._transaction(write=True) as db:
+            with self._transaction(write=True, timeout=_CONTROL_TIMEOUT) as db:
                 self._retire(db)
             self._fence_failed = False
             _LOG.warning('visual preference generation fence used database retirement')
@@ -868,7 +906,7 @@ class VisualPreferenceStore:
                        (expected.number, encoded))
             published = db.execute('SELECT payload FROM preference_models WHERE generation=?',
                                    (expected.number,)).fetchone() == (encoded,)
-        return published and self._fence_allows(expected)
+        return published and self.is_current(expected)
 
     def load_model(self, expected: Generation) -> ModelSnapshot | None:
         if not isinstance(expected, Generation) or not self._fence_allows(expected):
@@ -881,27 +919,37 @@ class VisualPreferenceStore:
             if row is None or type(row[0]) is not str:
                 return None
             model = ModelSnapshot.from_payload(expected, json.loads(row[0]))
-        return model if self._fence_allows(expected) else None
+        return model if self.is_current(expected) else None
 
     def put_embedding(self, expected: Generation, key: EmbeddingKey, vector) -> bool:
         if not key.matches(expected) or not self._fence_allows(expected):
             return False
-        return self._put_embedding(key, vector, expected=expected) and self._fence_allows(expected)
+        return self._put_embedding(key, vector, expected=expected) and self.is_current(expected)
 
-    def capture_embedding_epoch(self) -> str:
+    def capture_embedding_epoch(self) -> _JobFence:
         """Capture the revocation fence for a shadow job, without issuing a fit."""
         self._check_paths()
-        epoch = self._epoch()
-        if self._fence_failed or epoch is None:
+        if self._fence_failed:
             _reject()
-        return epoch
+        epoch = self._epoch()
+        deadline = monotonic() + _CONTROL_TIMEOUT
+        reader_lock = (self._locked(deadline=deadline, offset=_CURRENT_READ_OFFSET)
+                       if os.name == 'nt' else nullcontext())
+        try:
+            with reader_lock, self._validated_read(deadline, inspect_journal=False) as db:
+                number = self._generation_number(db)
+            if self._fence_failed or epoch is None or self._epoch() != epoch:
+                _reject()
+        except (OSError, sqlite3.Error, ValueError):
+            _reject()
+        return _JobFence(epoch, number)
 
     def has_candidate_embedding(self, key: EmbeddingKey) -> bool:
         with self._transaction() as db:
             return db.execute(f'SELECT 1 FROM candidate_embeddings WHERE {_EMBEDDING_WHERE}',
                               _key_values(key)).fetchone() is not None
 
-    def put_candidate_embedding(self, epoch: str, key: EmbeddingKey, vector, *, is_current=None) -> bool:
+    def put_candidate_embedding(self, epoch: _JobFence, key: EmbeddingKey, vector, *, is_current=None) -> bool:
         """Record content-derived features, without creating a published model generation."""
         if self.capture_embedding_epoch() != epoch:
             return False
@@ -936,14 +984,20 @@ class VisualPreferenceStore:
             if row is None or type(row[0]) is not bytes or len(row[0]) % 4:
                 return None
             values = tuple(value for (value,) in struct.iter_unpack('<f', row[0]))
-        return values if values and all(map(isfinite, values)) and self._fence_allows(expected) else None
+        return values if values and all(map(isfinite, values)) and self.is_current(expected) else None
 
-    def append_event(self, kind: str, payload: dict) -> int:
+    def capture_event_epoch(self):
+        self._check_paths()
+        return self._read_epoch(self._event_purge, deadline=None)
+
+    def append_event(self, kind: str, payload: dict, epoch=_UNFENCED_EVENT) -> int | None:
         """Append ranking/judgment metadata. The caller supplies only local, unsigned fields."""
         if type(kind) is not str or not kind:
             raise ValueError('invalid visual preference event kind')
         encoded = _json(payload)
         with self._transaction(write=True) as db:
+            if epoch is not _UNFENCED_EVENT and epoch != self.capture_event_epoch():
+                return None
             return db.execute('INSERT INTO ranking_events(kind,payload) VALUES (?,?)',
                               (kind, encoded)).lastrowid
 
@@ -959,6 +1013,8 @@ class VisualPreferenceStore:
         self._declare_revocation()
         with self._transaction(write=True) as db:
             self._declare_revocation()
+            self.capture_event_epoch()
+            self._write_record(self._event_purge, {'epoch': uuid4().hex})
             self._retire(db)
             db.execute('DELETE FROM candidate_embeddings')
             db.execute('UPDATE generation_state SET purging=1 WHERE singleton=1')
