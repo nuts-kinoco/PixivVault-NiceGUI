@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import nullcontext
 from datetime import datetime
 import math
 import re
@@ -15,6 +16,7 @@ from ..following_sync import (FollowingSyncCancelled, FollowingSyncConflict,
     FollowingSyncError, FollowingSyncTimedOut)
 from ..pixiv_read_client import ReadDeadlineExceeded, read_deadline_scope
 from ..request_policy import request_scope
+from .action_controls import primary_button, secondary_button
 
 
 class _PinnedReader:
@@ -108,7 +110,7 @@ class FollowingSyncView:
             and getattr(self.services, 'live_client', None) is reader
             and (account is None or self._cached_account(reader) == account))
 
-    def build(self):
+    def build(self, *, embedded=False):
         if self._closed:
             return
         self.deactivate()
@@ -133,23 +135,22 @@ class FollowingSyncView:
                 self._render()
 
         with ui.column().classes('w-full gap-2').props('data-testid=following-sync-view') as self.root:
-            ui.label('フォロー中リストの同期').classes('pv-library-heading pv-serif-heading')
+            if not embedded:
+                ui.label('フォロー中リストの同期').classes('pv-library-heading pv-serif-heading')
             ui.label('ログイン中のアカウントの公開・非公開フォローを取得して保存します。').classes('pv-subtitle')
-            with ui.row().classes('pv-toolbar'):
-                self.sync_button = ui.button('Pixivから同期', icon='sync', on_click=synchronize).props(
-                    'unelevated dense no-caps data-testid=following-sync-button')
-                self.cancel_button = ui.button('同期を取消', icon='close', color=None, on_click=cancel).props(
-                    'flat dense no-caps data-testid=following-sync-cancel')
+            with ui.row().classes('pv-toolbar pv-compact-toolbar'):
+                self.sync_button = primary_button('Pixivから同期', synchronize, icon='sync', testid='following-sync-button')
+                self.cancel_button = secondary_button('同期を取消', cancel, icon='close', testid='following-sync-cancel')
                 self.synced_at = ui.label('').classes('pv-subtitle').props('data-testid=following-sync-time')
             with ui.row().classes('w-full items-baseline gap-x-4 gap-y-1'):
                 self.summary = ui.label('').classes('pv-subtitle').props('data-testid=following-sync-summary')
                 self.status = ui.label('').classes('pv-subtitle pv-tone-b-notice').props(
                     'role=status data-testid=following-sync-status')
-            with ui.expansion('同期済みの作者一覧を見る').props('dense').classes('w-full'):
+            disclosure = nullcontext() if embedded else ui.expansion('同期済みの作者一覧を見る').props('dense').classes('w-full')
+            with disclosure:
                 self.rows = ui.column().classes('pv-tone-b-following-list pv-tone-b-list w-full gap-1').props(
                     'data-testid=following-sync-rows')
-                self.more_button = ui.button('もっと見る', color=None, on_click=more).props(
-                    'flat dense no-caps data-testid=following-sync-more')
+                self.more_button = secondary_button('もっと見る', more, testid='following-sync-more')
         self._render()
         self._timer.active = True
         self._initial_task = background_tasks.create(self.refresh(), name='following-local-snapshot')

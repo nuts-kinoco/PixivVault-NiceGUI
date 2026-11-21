@@ -13,13 +13,14 @@ from ..managed_scheduler import ScheduleAccountError, ScheduleConfirmationUnavai
 
 from nicegui import ui
 
-from .action_controls import refresh_button
+from .action_controls import outlined_input, outlined_select, primary_button, refresh_button, secondary_button
 
 STATUS_LABELS = {
     'never': '未実行', 'saved': '完了', 'queued': '受付済み', 'running': '実行中',
     'deferred': '保留', 'failed': '失敗', 'error': 'エラー', 'empty': '対象なし',
     'partial': '一部完了', 'unknown': '不明', 'interrupted': '中断',
 }
+FAILED_STATUSES = {'failed', 'error', 'interrupted'}
 
 CONFIRMATION_STATUS = {
     'waiting': '認証・フォロー情報の確認待ち',
@@ -52,36 +53,31 @@ class SchedulerView:
             ui.label('☆を付けた作者全員をチェックします（☆はダウンロード画面で変更できます）。'
                      '保存先は専用管理フォルダーで、旧DB・画像・Cookieは更新しません。').classes('pv-subtitle')
             with ui.row().classes('pv-toolbar'):
-                self.open_button = ui.button('管理スケジューラを開く', on_click=self.open).props(
-                    'unelevated dense no-caps data-testid=scheduler-open')
-                self.confirm_account_button = ui.button('定期チェックの認証を確認', on_click=self.confirm_account).props(
-                    'outline dense no-caps data-testid=scheduler-confirm-account')
+                self.open_button = primary_button('管理スケジューラを開く', self.open, testid='scheduler-open')
+                self.confirm_account_button = secondary_button('定期チェックの認証を確認', self.confirm_account,
+                                                               outline=True, testid='scheduler-confirm-account')
                 self.confirm_account_button.set_visibility(False)
-                self.run_button = ui.button('今すぐチェック', on_click=self.run_once).props(
-                    'unelevated dense no-caps data-testid=scheduler-run')
-                self.save_button = ui.button('設定を保存', on_click=self.save).props(
-                    'outline dense no-caps data-testid=scheduler-save')
-                self.discard_button = ui.button('編集を破棄して再読込', color=None, on_click=self.discard_changes).props(
-                    'flat dense no-caps data-testid=scheduler-discard')
-                self.ack_button = ui.button('中断状態を確認して解除', color=None, on_click=self.acknowledge).props(
-                    'flat dense no-caps data-testid=scheduler-ack')
+                self.run_button = primary_button('今すぐチェック', self.run_once, testid='scheduler-run')
+                self.save_button = secondary_button('設定を保存', self.save, outline=True, testid='scheduler-save')
+                self.discard_button = secondary_button('編集を破棄して再読込', self.discard_changes, testid='scheduler-discard')
+                self.ack_button = secondary_button('中断状態を確認して解除', self.acknowledge, testid='scheduler-ack')
                 self.refresh_button = refresh_button(lambda: self.refresh(ensure_after_current=True),
                                                      label='状態更新', testid='scheduler-refresh')
             with ui.row().classes('w-full items-center gap-3'):
-                self.interval = ui.select({'0': '自動チェックしない', '6': '6時間', '12': '12時間',
+                self.interval = outlined_select({'0': '自動チェックしない', '6': '6時間', '12': '12時間',
                                            '24': '24時間', '48': '48時間'}, value='24',
                                           label='自動チェック間隔').classes('w-48 max-w-full').props(
-                                              'outlined dense data-testid=scheduler-interval')
+                                              'data-testid=scheduler-interval')
                 self.startup = ui.switch('起動時にもチェック').classes('pv-filter-switch').props(
                     'role=checkbox data-testid=scheduler-startup')
-                self.authors = ui.input(label='お気に入り（☆）作者ID（カンマ区切り）').classes('pv-search').props(
-                    'outlined dense data-testid=scheduler-authors')
+                self.authors = outlined_input(label='お気に入り（☆）作者ID（カンマ区切り）').classes('pv-search').props(
+                    'data-testid=scheduler-authors')
             self.interval.on_value_change(lambda _: self._mark_settings_dirty())
             self.startup.on_value_change(lambda _: self._mark_settings_dirty())
             self.authors.on_value_change(lambda _: self._mark_settings_dirty())
             status = ('未起動' if getattr(services, 'managed_scheduler', None) is None else '状態を確認中')
             with ui.row().classes('w-full items-baseline gap-x-4 gap-y-1'):
-                self.status = ui.label(f'定期状態: {status}').classes('pv-subtitle').props('data-testid=scheduler-status')
+                self.status = ui.label(f'定期状態: {status}').classes('pv-subtitle').props('role=status data-testid=scheduler-status')
                 self.history_label = ui.label('実行履歴はありません').classes('pv-subtitle').props(
                     'data-testid=scheduler-history')
                 self.account_label = ui.label('紐づけアカウントを確認できません').classes('pv-subtitle').props(
@@ -104,8 +100,12 @@ class SchedulerView:
         self.open_button.set_visibility(visible)
 
     def _show_status(self, text, *, error=False):
-        self.status.set_text(text)
-        self.status.classes(add='pv-tone-b-error' if error else None, remove=None if error else 'pv-tone-b-error')
+        self._show_notice(self.status, text, error=error)
+
+    @staticmethod
+    def _show_notice(label, text, *, error=False):
+        label.set_text(text)
+        label.classes(add='pv-tone-b-error' if error else None, remove=None if error else 'pv-tone-b-error')
 
     def _subscribe_to_owner(self):
         store = getattr(self.services, 'following_sync', None)
@@ -166,7 +166,7 @@ class SchedulerView:
         if self.closed:
             return
         if self._busy:
-            self.action_notice.set_text('処理中です。完了後に設定を開いてください')
+            self._show_notice(self.action_notice, '処理中です。完了後に設定を開いてください')
             return
         self._busy = True
         try:
@@ -205,7 +205,7 @@ class SchedulerView:
                 self.interval.set_value(str(state.interval_hours))
                 self.startup.set_value(state.startup_check)
                 if self._settings_account != account_id:
-                    self.action_notice.set_text('')
+                    self._show_notice(self.action_notice, '')
                     self._hide_history()
                 self._settings_account = account_id
                 authors = editor.authors if editor is not None else (() if guarded else ledger.favourites(account_id))
@@ -214,9 +214,9 @@ class SchedulerView:
                 self._stars_unknown_in_form = guarded and editor is None
             finally:
                 self._loading_settings = False
-        self.star_notice.set_text(
+        self._show_notice(self.star_notice,
             '☆の一覧を読み込めません。読み込めるまで、☆の設定は保存できません（保留中の取得は消しません）。'
-            if self._stars_unknown_in_form else '')
+            if self._stars_unknown_in_form else '', error=self._stars_unknown_in_form)
         if guarded and not self._show_editor(editor):
             return
         owns_history = editor is None or editor.owns_history
@@ -226,7 +226,7 @@ class SchedulerView:
             return
         status_label = STATUS_LABELS.get(state.last_status, '状態不明')
         self._show_status(f'定期状態: {status_label} / 次回UTC: {state.next_due_utc or "未設定"}',
-                          error=state.last_status in {'failed', 'error', 'interrupted'})
+                          error=state.last_status in FAILED_STATUSES)
 
     def _editor(self, ledger, account_id):
         try:
@@ -268,7 +268,7 @@ class SchedulerView:
                 if isinstance(error, ScheduleConfirmationUnavailable) and error.reason == 'busy':
                     await self._refresh_confirmation_conflict()
                 elif self._hide_account_data() != 'restart':
-                    self.action_notice.set_text(check_failure_message(error))
+                    self._show_notice(self.action_notice, check_failure_message(error), error=True)
         else:
             self._confirming = False
             if not self.closed:
@@ -282,7 +282,7 @@ class SchedulerView:
     async def _refresh_confirmation_conflict(self):
         await self.refresh(ensure_after_current=True)
         if not self.closed and self._settings_owner is None and self._confirmation_blocker() == 'busy':
-            self.action_notice.set_text(CONFIRMATION_STATUS['busy'])
+            self._show_notice(self.action_notice, CONFIRMATION_STATUS['busy'])
 
     def _verify_result(self, owner):
         if owner is None or owner != self._settings_owner or self._cookie_restart_required():
@@ -296,13 +296,13 @@ class SchedulerView:
 
     def _hide_history(self):
         self._dismiss_completion()
-        self.history_label.set_text('')
+        self._show_notice(self.history_label, '')
         self.history_label.set_visibility(False)
 
     def _hide_account_data(self):
         self._settings_owner = None
         if self.authors.visible or self.history_label.visible:
-            self.action_notice.set_text('')
+            self._show_notice(self.action_notice, '')
         if self._settings_dirty and self.authors.visible and self._settings_account is not None:
             self._hidden_star_draft = (self._settings_account, self.authors.value, self._loaded_authors,
                                        self._stars_unknown_in_form)
@@ -315,13 +315,13 @@ class SchedulerView:
         self.authors.set_visibility(False)
         self._loaded_authors = ''
         self._stars_unknown_in_form = True
-        self.star_notice.set_text('☆一覧を読み込めません。ログイン中のアカウントと保存済みのフォロー情報を照合できるまで、履歴も非表示になります。')
+        self._show_notice(self.star_notice, '☆一覧を読み込めません。ログイン中のアカウントと保存済みのフォロー情報を照合できるまで、履歴も非表示になります。', error=True)
         self.account_label.set_text('紐づけアカウントを確認できません')
         blocker = self._confirmation_blocker()
         if self._confirming and blocker in (None, 'busy'):
             blocker = 'confirming'
         if blocker != 'busy' and self.action_notice.text == CONFIRMATION_STATUS['busy']:
-            self.action_notice.set_text('')
+            self._show_notice(self.action_notice, '')
         show_confirm = blocker is None and callable(getattr(self.services, 'confirm_scheduler_account', None))
         self.confirm_account_button.set_visibility(show_confirm)
         self.confirm_account_button.set_enabled(show_confirm and not self._busy)
@@ -348,7 +348,7 @@ class SchedulerView:
             return False
         self._settings_owner = self._stop_owner = editor.owner
         if self.action_notice.text == CONFIRMATION_STATUS['busy']:
-            self.action_notice.set_text('')
+            self._show_notice(self.action_notice, '')
         self.confirm_account_button.set_visibility(False)
         account_id = editor.owner.account_id
         draft = self._hidden_star_draft
@@ -359,7 +359,7 @@ class SchedulerView:
                 self._loaded_authors, self._stars_unknown_in_form = draft[2:]
                 self._hidden_star_draft = None
                 if not self._stars_unknown_in_form:
-                    self.star_notice.set_text('')
+                    self._show_notice(self.star_notice, '')
             finally:
                 self._loading_settings = False
         self.authors.set_visibility(True)
@@ -369,7 +369,7 @@ class SchedulerView:
         self.run_button.set_enabled(not self._busy and (editor.owns_history or editor.unbound))
         self._enable_save()
         if not (editor.owns_history or editor.unbound):
-            self.star_notice.set_text('定期チェックの履歴は別のアカウントに紐づいているか、作成元を確認できません。履歴を保持しています。')
+            self._show_notice(self.star_notice, '定期チェックの履歴は別のアカウントに紐づいているか、作成元を確認できません。履歴を保持しています。', error=True)
             self.account_label.set_text('紐づけアカウントを確認できません')
         elif self._stars_unknown_in_form:
             self.account_label.set_text('紐づけアカウントを確認できません')
@@ -384,7 +384,7 @@ class SchedulerView:
         if self.closed or self.services.managed_scheduler is None:
             return
         if self._busy:
-            self.action_notice.set_text('処理中です。完了後に編集を破棄してください')
+            self._show_notice(self.action_notice, '処理中です。完了後に編集を破棄してください')
             return
         self._settings_dirty = False
         try:
@@ -397,7 +397,7 @@ class SchedulerView:
         if self.closed or self.services.managed_scheduler is None:
             return
         if self._busy:
-            self.action_notice.set_text('処理中です。完了後に中断状態を確認してください')
+            self._show_notice(self.action_notice, '処理中です。完了後に中断状態を確認してください')
             return
         self._busy = True
         try:
@@ -424,7 +424,7 @@ class SchedulerView:
         except (ScheduleAccountError, AccountMismatch):
             if not self.closed:
                 self._show_account(ledger)
-                self.action_notice.set_text('同期先を確認して、定期チェック画面を再読込してください。')
+                self._show_notice(self.action_notice, '同期先を確認して、定期チェック画面を再読込してください。', error=True)
         except Exception:
             if not self.closed:
                 self._show_account(ledger)
@@ -481,7 +481,7 @@ class SchedulerView:
                     self._show_account(ledger)
                     self._hide_history()
                 return
-            self.history_label.set_text('実行履歴はありません')
+            self._show_notice(self.history_label, '実行履歴はありません')
             self.history_label.set_visibility(True)
             notification_error = False
             if pending:
@@ -507,15 +507,16 @@ class SchedulerView:
                 # The periodic schedule and a manually dispatched check have
                 # separate durable state. Show both without replacing the
                 # schedule's interrupted/running status with an old history row.
-                self.status.set_text(f'{self.status.text} / 最終チェック: {status_label}')
+                self._show_status(f'{self.status.text} / 最終チェック: {status_label}',
+                                  error=latest['status'] in FAILED_STATUSES or 'pv-tone-b-error' in self.status.classes)
                 finished = latest['finished_utc'] or ('実行中' if latest['status'] == 'running' else '完了日時なし')
-                self.history_label.set_text(
+                self._show_notice(self.history_label,
                     f'最終実行: {status_label} / 受付 {latest["accepted"]}件 / '
-                    f'保留 {latest["deferred"]}件 / {finished}')
+                    f'保留 {latest["deferred"]}件 / {finished}', error=latest['status'] in FAILED_STATUSES)
                 if latest.get('error_code') == AccountMismatch.code:
-                    self.action_notice.set_text(check_failure_message(AccountMismatch()))
+                    self._show_notice(self.action_notice, check_failure_message(AccountMismatch()), error=True)
             if notification_error and not self.closed:
-                self.action_notice.set_text('保存完了の通知を表示できませんでした。実行履歴で確認してください')
+                self._show_notice(self.action_notice, '保存完了の通知を表示できませんでした。実行履歴で確認してください', error=True)
         except Exception:
             if not self.closed:
                 self._hide_account_data()
@@ -537,10 +538,10 @@ class SchedulerView:
         if self.closed or self.revision is None:
             return
         if self._busy:
-            self.action_notice.set_text('処理中です。完了後に設定を保存してください')
+            self._show_notice(self.action_notice, '処理中です。完了後に設定を保存してください')
             return
         self._busy = True
-        self.action_notice.set_text('')
+        self._show_notice(self.action_notice, '')
         # An in-flight CAS save must not permit a Run click that the busy
         # guard would silently discard (or run under the previous settings).
         self.save_button.set_enabled(False)
@@ -575,7 +576,7 @@ class SchedulerView:
                     self._load(ledger)
                     return
                 if self._stars_unknown_in_form or (guarded and owner is None):
-                    self.action_notice.set_text('停止を保存しました。☆を変更するには再読込してください。')
+                    self._show_notice(self.action_notice, '停止を保存しました。☆を変更するには再読込してください。')
                     return
             if guarded:
                 self._verify_result(owner)
@@ -592,12 +593,12 @@ class SchedulerView:
                 if readable:
                     # The list can be read now, but this form was filled while it could not: saving it
                     # would replace every star with an empty box. Make the user reload first.
-                    self.action_notice.set_text(
+                    self._show_notice(self.action_notice,
                         '☆の一覧を読めるようになりました。「編集を破棄して再読込」してから保存してください')
                     return
                 if form[0].strip():
-                    self.action_notice.set_text(
-                        '☆の一覧を読めないため入力したIDは保存できません。復旧後に再読込してください')
+                    self._show_notice(self.action_notice,
+                        '☆の一覧を読めないため入力したIDは保存できません。復旧後に再読込してください', error=True)
                     return
                 raw = None   # still unknown: save only the interval / startup, never the stars
             loaded_authors = self._loaded_authors if raw is not None else None
@@ -632,14 +633,14 @@ class SchedulerView:
             if retained:
                 notices.append('フォローが解除された作者の☆と保留を保持しました。ID ' + ', '.join(retained))
             if notices:
-                self.action_notice.set_text(' / '.join(notices))
+                self._show_notice(self.action_notice, ' / '.join(notices))
         except (ScheduleAccountError, AccountMismatch):
             if not self.closed:
                 self._show_account(ledger)
             notice = '同期先アカウントが変わりました。「編集を破棄して再読込」してから保存してください'
             if account_id is None and form[0].strip():
                 notice = '☆の一覧を読めないため入力したIDは保存できません。復旧後に再読込してください'
-            self.action_notice.set_text(('停止を保存しました。' if stop_saved else '') + notice)
+            self._show_notice(self.action_notice, ('停止を保存しました。' if stop_saved else '') + notice, error=True)
         except Exception:
             notice = '設定を保存できませんでした。別画面の更新や入力を確認してください'
             self._show_status(('停止を保存しました。' if stop_saved else '') + notice, error=True)
@@ -650,13 +651,13 @@ class SchedulerView:
         if self.closed or self.services.closing or self.services.managed_scheduler is None:
             return
         if self._busy:
-            self.action_notice.set_text('処理中です。完了後にもう一度操作してください')
+            self._show_notice(self.action_notice, '処理中です。完了後にもう一度操作してください')
             return
         if self._settings_dirty:
-            self.action_notice.set_text('未保存の設定があります。保存または破棄してからチェックしてください')
+            self._show_notice(self.action_notice, '未保存の設定があります。保存または破棄してからチェックしてください')
             return
         self._busy = True
-        self.action_notice.set_text('作者一覧を確認中です。受付件数を集計しています…')
+        self._show_notice(self.action_notice, '作者一覧を確認中です。受付件数を集計しています…')
         self.run_button.set_enabled(False)
         self.save_button.set_enabled(False)
         try:
@@ -691,13 +692,13 @@ class SchedulerView:
             if guarded:
                 self._verify_result(owner)
             if result.get('started'):
-                self.action_notice.set_text(f'☆作者 {result["authors"]}人のチェックを始めました。進捗はダウンロード画面で確認できます')
+                self._show_notice(self.action_notice, f'☆作者 {result["authors"]}人のチェックを始めました。進捗はダウンロード画面で確認できます')
             elif not self.closed:
-                self.action_notice.set_text(
+                self._show_notice(self.action_notice,
                     f'受付 {result["accepted"]}件、保留 {result["deferred"]}件。保存結果はキューで確認してください')
             if not self.closed and not result.get('started'):
                 self.history_label.set_visibility(True)
-                self.history_label.set_text(
+                self._show_notice(self.history_label,
                     f'今回のチェック: 受付 {result["accepted"]}件 / 保留 {result["deferred"]}件 / 保存結果を確認中')
                 # Show admission immediately and release the form. Receipt
                 # reconciliation can be much slower than enqueue (e.g. a
@@ -707,7 +708,7 @@ class SchedulerView:
         except Exception as error:
             if not self.closed:
                 self._show_account(ledger)
-                self.action_notice.set_text(check_failure_message(error))
+                self._show_notice(self.action_notice, check_failure_message(error), error=True)
         finally:
             self._finish_action()
 

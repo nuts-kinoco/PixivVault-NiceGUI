@@ -175,7 +175,7 @@ class PreferencesView:
                         self.native_profile.build(embedded=True)
                 if self.following_sync is not None:
                     with settings_group('フォロー中リストの同期', collapsible=True, default_open=False, classes='pv-settings-follow'):
-                        self.following_sync.build()
+                        self.following_sync.build(embedded=True)
                 try:
                     self.snapshot = self.store.snapshot()
                 except Exception:
