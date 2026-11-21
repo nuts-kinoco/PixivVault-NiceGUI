@@ -1,0 +1,30 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ test_separate_reader_during_committed_fold_with_windows_sharing_delay[active-generations.head] _
+tests\w_round7_fixtures.py:180: in test_separate_reader_during_committed_fold_with_windows_sharing_delay
+    warm = state(writer)
+           ^^^^^^^^^^^^^
+tests\w_round7_fixtures.py:54: in state
+    return {row['work_id']: (relative, digest) for relative,row,digest in writer.saved_receipts()}
+                                                                          ^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_downloads.py:528: in saved_receipts
+    for relative, receipt, digest, _ in self.saved_receipts_with_dates(verify_pages=verify_pages,
+src\pixivvault_nicegui\managed_downloads.py:470: in saved_receipts_with_dates
+    active = self._generations.entries()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_generations.py:1249: in entries
+    self._recover_if_pending()
+src\pixivvault_nicegui\managed_generations.py:599: in _recover_if_pending
+    self._recover_head()
+src\pixivvault_nicegui\managed_generations.py:557: in _recover_head
+    self._recover_head_locked()
+src\pixivvault_nicegui\managed_generations.py:570: in _recover_head_locked
+    self._write_head(floor)
+src\pixivvault_nicegui\managed_generations.py:1915: in _write_head
+    _replace_retrying(temporary, self.root / _V5_HEAD)
+src\pixivvault_nicegui\managed_generations.py:186: in _replace_retrying
+    native_io_path(source).replace(native_io_path(target))
+C:\Users\nat\miniconda3\envs\stenv\Lib\pathlib\_local.py:780: in replace
+    os.replace(self, target)
+E   PermissionError: [WinError 5] アクセスが拒否されました。: '\\\\?\\S:\\Work\\_tmp\\PV\\gpu-arb-20261122-r2\\pytest-r2-sharing-single01-extra-long-isolation\\test_separate_reader_during_co0\\root\\generation-incomplete\\head-2d53388a750c4a82a31940b6345917c8.tmp' -> '\\\\?\\S:\\Work\\_tmp\\PV\\gpu-arb-20261122-r2\\pytest-r2-sharing-single01-extra-long-isolation\\test_separate_reader_during_co0\\root\\active-generations.head'
+1 failed in 14.83s

@@ -1,0 +1,97 @@
+FFFFFFFFFFFF                                                             [100%]
+================================== FAILURES ===================================
+_________________ test_priority_has_a_bounded_overtake_budget _________________
+tests\test_gpuarb_review.py:32: in test_priority_has_a_bounded_overtake_budget
+    assert 0 < grants.index('low') <= 8
+E   AssertionError: assert 12 <= 8
+E    +  where 12 = <built-in method index of list object at 0x0000015777EAAD00>('low')
+E    +    where <built-in method index of list object at 0x0000015777EAAD00> = ['high-0', 'high-1', 'high-2', 'high-3', 'high-4', 'high-5', ...].index
+______ test_arbiter_reports_all_failed_releases_and_attempts_all_owners _______
+tests\test_gpuarb_review.py:53: in test_arbiter_reports_all_failed_releases_and_attempts_all_owners
+    arbiter.release_all()
+src\pixivvault_nicegui\gpu_arbiter.py:119: in release_all
+    self._release(stop=True)
+src\pixivvault_nicegui\gpu_arbiter.py:143: in _release
+    owner.release_session()
+tests\test_gpuarb_review.py:46: in release_session
+    raise ValueError('synthetic release failure')
+E   ValueError: synthetic release failure
+_____________ test_tagger_recovers_after_transient_cuda_run_error _____________
+tests\test_gpuarb_review.py:77: in test_tagger_recovers_after_transient_cuda_run_error
+    assert tagger.predict(b'image') == [('synthetic', 0.97)]
+E   AssertionError: assert [] == [('synthetic', 0.97)]
+E     
+E     Right contains one more item: ('synthetic', 0.97)
+E     Use -v to get more diff
+_______________ test_auto_cpu_only_never_takes_gpu_lease[egara] _______________
+tests\test_gpuarb_review.py:94: in test_auto_cpu_only_never_takes_gpu_lease
+    assert infer(b'image')
+           ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\egara_inference.py:255: in infer
+    return self.infer_with_meta(data)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\egara_inference.py:259: in infer_with_meta
+    with self._job() as stop, self._lock:
+         ^^^^^^^^^^^
+src\pixivvault_nicegui\egara_inference.py:215: in _job
+    return self._gpu_arbiter.acquire(self, priority=self._gpu_priority)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_gpuarb_review.py:91: in unexpected
+    pytest.fail('CPU inference requested a GPU lease')
+E   Failed: CPU inference requested a GPU lease
+______________ test_auto_cpu_only_never_takes_gpu_lease[tagger] _______________
+tests\test_gpuarb_review.py:94: in test_auto_cpu_only_never_takes_gpu_lease
+    assert infer(b'image')
+           ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\local_tagger.py:233: in predict
+    with self._job() as stop, self._lock:
+         ^^^^^^^^^^^
+src\pixivvault_nicegui\local_tagger.py:157: in _job
+    return self._gpu_arbiter.acquire(self, priority=10)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_gpuarb_review.py:91: in unexpected
+    pytest.fail('CPU inference requested a GPU lease')
+E   Failed: CPU inference requested a GPU lease
+_______________ test_egara_cpu_fallback_runs_outside_cuda_lease _______________
+tests\test_gpuarb_review.py:111: in test_egara_cpu_fallback_runs_outside_cuda_lease
+    assert cpu_leases == [None, None]
+E   assert [(<pixivvault...6d50: unset>)] == [None, None]
+E     
+E     At index 0 diff: (<pixivvault_nicegui.egara_inference.EgaraInference object at 0x0000015777BDF610>, <threading.Event at 0x157780b69f0: unset>) != None
+E     Use -v to get more diff
+_____ test_preprocess_and_tagger_verification_and_cache_run_without_lease _____
+tests\test_gpuarb_review.py:134: in test_preprocess_and_tagger_verification_and_cache_run_without_lease
+    assert tagger.session is None
+E   assert <test_gpuarb_inference.fake_ort.<locals>.Session object at 0x0000015778128690> is None
+E    +  where <test_gpuarb_inference.fake_ort.<locals>.Session object at 0x0000015778128690> = <pixivvault_nicegui.local_tagger.LocalTagger object at 0x0000015777DA3C50>.session
+_ test_tagger_preloads_before_provider_check_and_fallback_is_auto_only[False] _
+tests\test_gpuarb_review.py:158: in test_tagger_preloads_before_provider_check_and_fallback_is_auto_only
+    assert bool(tagger.predict(b'image')) is not explicit
+E   AssertionError: assert False is not False
+E    +  where False = bool([])
+E    +    where [] = predict(b'image')
+E    +      where predict = <pixivvault_nicegui.local_tagger.LocalTagger object at 0x0000015777F15940>.predict
+_ test_tagger_preloads_before_provider_check_and_fallback_is_auto_only[True] __
+tests\test_gpuarb_review.py:159: in test_tagger_preloads_before_provider_check_and_fallback_is_auto_only
+    assert order[0] == 'preload'
+E   AssertionError: assert 'providers' == 'preload'
+E     
+E     - preload
+E     + providers
+________ test_failed_egara_validation_does_not_retain_session_in_error ________
+tests\test_gpuarb_review.py:184: in test_failed_egara_validation_does_not_retain_session_in_error
+    assert len(sessions) == 1 and sessions[0]() is None
+E   AssertionError: assert (1 == 1 and <test_gpuarb_review.test_failed_egara_validation_does_not_retain_session_in_error.<locals>.Session object at 0x0000015777DBEE40> is None)
+E    +  where 1 = len([<weakref at 0x00000157780B2480; to 'test_gpuarb_review.test_failed_egara_validation_does_not_retain_session_in_error.<locals>.Session' at 0x0000015777DBEE40>])
+E    +  and   <test_gpuarb_review.test_failed_egara_validation_does_not_retain_session_in_error.<locals>.Session object at 0x0000015777DBEE40> = <weakref at 0x00000157780B2480; to 'test_gpuarb_review.test_failed_egara_validation_does_not_retain_session_in_error.<locals>.Session' at 0x0000015777DBEE40>()
+_______ test_similarity_worker_parks_without_counting_cooperative_stop ________
+tests\test_gpuarb_review.py:197: in test_similarity_worker_parks_without_counting_cooperative_stop
+    assert not issubclass(GpuInferenceStopped, RuntimeError)
+E   assert not True
+E    +  where True = issubclass(GpuInferenceStopped, RuntimeError)
+______ test_local_tag_view_aborts_scan_without_publishing_partial_result ______
+tests\test_gpuarb_review.py:219: in test_local_tag_view_aborts_scan_without_publishing_partial_result
+    assert len(calls) == 1
+E   AssertionError: assert 2 == 1
+E    +  where 2 = len(['a', 'b'])
+12 failed in 0.74s

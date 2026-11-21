@@ -1,0 +1,30 @@
+FFFF                                                                     [100%]
+================================== FAILURES ===================================
+_______ test_tag_scan_with_no_missing_images_keeps_gpu_session_released _______
+tests\test_gpuarb_review.py:242: in test_tag_scan_with_no_missing_images_keeps_gpu_session_released
+    assert [op for op, _ in calls].count('load') == 1
+E   AssertionError: assert 2 == 1
+E    +  where 2 = <built-in method count of list object at 0x000002AFC85F5A00>('load')
+E    +    where <built-in method count of list object at 0x000002AFC85F5A00> = ['preload', 'load', 'disable', 'preload', 'load', 'disable'].count
+_______ test_idle_release_cannot_interrupt_initial_tagger_verification ________
+tests\test_gpuarb_review.py:263: in test_idle_release_cannot_interrupt_initial_tagger_verification
+    assert tagger.predict(b'image') == [('synthetic', 0.97)]
+E   AssertionError: assert [] == [('synthetic', 0.97)]
+E     
+E     Right contains one more item: ('synthetic', 0.97)
+E     Use -v to get more diff
+______ test_cooperative_stop_between_pages_prevents_new_gpu_work[tagger] ______
+tests\test_gpuarb_review.py:307: in test_cooperative_stop_between_pages_prevents_new_gpu_work
+    assert processed == ['a']
+E   AssertionError: assert ['a', 'b'] == ['a']
+E     
+E     Left contains one more item: 'b'
+E     Use -v to get more diff
+____ test_cooperative_stop_between_pages_prevents_new_gpu_work[similarity] ____
+tests\test_gpuarb_review.py:307: in test_cooperative_stop_between_pages_prevents_new_gpu_work
+    assert processed == ['a']
+E   AssertionError: assert ['a', 'b'] == ['a']
+E     
+E     Left contains one more item: 'b'
+E     Use -v to get more diff
+4 failed in 1.85s

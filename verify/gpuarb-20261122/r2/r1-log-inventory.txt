@@ -1,0 +1,35 @@
+Moved r1 generated logs: 33
+Delete candidate after supervisor recovery: S:\Work\_tmp\PV\gpu-arb-20261122-r2\r1-untracked
+browser-path-repro.process.txt
+browser-path-repro.stderr.log
+browser-path-retry.process.txt
+browser-path-retry.stderr.log
+collect-final.log
+collect-final.process.txt
+collect-final.stderr.log
+full-final.stderr.log
+full.log
+full.stderr.log
+green-final-boundaries.process.txt
+green-final-boundaries.stderr.log
+green-final.log
+green-final.process.txt
+green-final.stderr.log
+green-initial.process.txt
+green-initial.stderr.log
+green-rereview.process.txt
+green-rereview.stderr.log
+green.log
+green.process.txt
+green.stderr.log
+red-manager-real-path.process.txt
+red-manager-real-path.stderr.log
+red-manager.log
+red-manager.process.txt
+red-manager.stderr.log
+red-preload.process.txt
+red-preload.stderr.log
+red-tensor.process.txt
+red-tensor.stderr.log
+red.process.txt
+red.stderr.log
