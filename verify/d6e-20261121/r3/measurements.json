@@ -1,0 +1,96 @@
+{
+  "r2_revision": "261568bb452f669d39e2076a2278d129fb4eeeea",
+  "r3_revision": "a1198b7e8adfeb4f179c9358c72bb7871ba91bf5",
+  "included": {
+    "r2": {
+      "learning": {
+        "n": 30,
+        "median_ms": 139.8234,
+        "p95_ms": 190.0666
+      },
+      "viewer_next": {
+        "n": 30,
+        "median_ms": 120.2606,
+        "p95_ms": 136.0672,
+        "page_label_median_ms": 43.0488
+      },
+      "author_search": {
+        "n": 20,
+        "median_ms": 357.8219,
+        "p95_ms": 370.3886
+      }
+    },
+    "r3": {
+      "learning": {
+        "n": 30,
+        "median_ms": 140.1883,
+        "p95_ms": 188.9882
+      },
+      "viewer_next": {
+        "n": 30,
+        "median_ms": 119.85964999999999,
+        "p95_ms": 123.6215,
+        "page_label_median_ms": 41.997
+      },
+      "author_search": {
+        "n": 20,
+        "median_ms": 339.32235000000003,
+        "p95_ms": 348.7781
+      }
+    }
+  },
+  "detached": {
+    "r2": {
+      "learning": {
+        "n": 30,
+        "median_ms": 71.86474999999999,
+        "p95_ms": 114.5009
+      },
+      "viewer_next": {
+        "n": 30,
+        "median_ms": 82.55494999999999,
+        "p95_ms": 85.1605,
+        "page_label_median_ms": 53.2834
+      },
+      "author_search": {
+        "n": 20,
+        "median_ms": 295.91965,
+        "p95_ms": 303.1782
+      }
+    },
+    "r3": {
+      "learning": {
+        "n": 30,
+        "median_ms": 74.23405,
+        "p95_ms": 100.5537
+      },
+      "viewer_next": {
+        "n": 30,
+        "median_ms": 74.2986,
+        "p95_ms": 77.6401,
+        "page_label_median_ms": 44.43455
+      },
+      "author_search": {
+        "n": 20,
+        "median_ms": 283.94565,
+        "p95_ms": 288.3475
+      }
+    }
+  },
+  "viewer_only_detached": {
+    "r2": {
+      "n": 30,
+      "median_ms": 73.36930000000001,
+      "p95_ms": 78.0298,
+      "page_label_median_ms": 44.1489,
+      "key_to_dom_median_ms": 13.399999976158142
+    },
+    "r3": {
+      "n": 30,
+      "median_ms": 74.44545,
+      "p95_ms": 79.8904,
+      "page_label_median_ms": 42.7,
+      "key_to_dom_median_ms": 12.150000005960464
+    }
+  }
+}

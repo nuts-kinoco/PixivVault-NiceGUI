@@ -1,0 +1,39 @@
+{
+  "viewer-without-capacity": {
+    "applied": true,
+    "reference": "b83e1a9b4c22bf19550542ac71e9dbb02dde45d7",
+    "changed_files": [
+      "src/pixivvault_nicegui/library_media_registry.py",
+      "src/pixivvault_nicegui/media.py",
+      "src/pixivvault_nicegui/media_routes.py",
+      "src/pixivvault_nicegui/ui/artwork_page.js",
+      "src/pixivvault_nicegui/ui/artwork_page.py",
+      "src/pixivvault_nicegui/ui/artwork_tags.js",
+      "src/pixivvault_nicegui/ui/artwork_viewer.py",
+      "src/pixivvault_nicegui/ui/card_context_menu.py",
+      "src/pixivvault_nicegui/ui/gallery.py",
+      "src/pixivvault_nicegui/ui/library_view.py",
+      "src/pixivvault_nicegui/ui/recommendation_viewer.py",
+      "src/pixivvault_nicegui/ui/view_history_view.py",
+      "src/pixivvault_nicegui/ui/viewer_controller.py",
+      "tests/test_d6_viewer_creation.py",
+      "tests/test_d6_viewer_gif_http.py",
+      "tests/test_d6_viewer_transport.py",
+      "tests/test_detail_loading_placeholder.py",
+      "tests/test_ranking_ui.py",
+      "tests/test_x_ctx_ranking_20261118.py",
+      "tests/test_x_ctx_viewer_20261118.py",
+      "tools/p6_network_review.json"
+    ]
+  },
+  "viewer-then-capacity": {
+    "applied": true,
+    "reference": "a1198b7e8adfeb4f179c9358c72bb7871ba91bf5",
+    "changed_files": []
+  },
+  "capacity-then-viewer": {
+    "applied": true,
+    "reference": "a1198b7e8adfeb4f179c9358c72bb7871ba91bf5",
+    "changed_files": []
+  }
+}
