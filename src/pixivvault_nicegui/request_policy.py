@@ -189,7 +189,8 @@ class RequestRetryPolicy:
     """Read configured values once per GET; share no retry counters across calls.
 
     settings() returns RequestPreferences (retry_limit, rate_limit_wait_seconds).
-    Transport failures, 408/425, 429 and 5xx are transient candidates. Identity,
+    Transport failures before a reused dispatch, 408/425, 429 and 5xx are
+    transient candidates. Identity,
     auth 401/403, 404, redirects, invalid payload/destination/limits, operation
     deadlines and checkpoint cancellation escape immediately. A 404 is raised
     to the caller without a shared progress record. The last original
@@ -263,7 +264,11 @@ class RequestRetryPolicy:
                         else:
                             self._publish(token,'failed',attempt+1,count,status=status)
                         raise
-                else:status=None
+                else:
+                    if not error.retryable:
+                        self._publish(token,'failed',attempt+1,count)
+                        raise
+                    status=None
                 if attempt+1>=count:
                     if status==429:
                         with self._status_lock:self._rate_stopped=True

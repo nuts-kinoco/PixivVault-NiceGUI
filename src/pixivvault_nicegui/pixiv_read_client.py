@@ -160,6 +160,13 @@ class ClientClosed(PixivReadError):
 
 class TransportFailed(PixivReadError):
     message = "Pixiv transport failed"
+    retryable = True
+
+
+class _ReusedDispatchFailed(TransportFailed):
+    """A pooled GET began dispatch before the connection failed."""
+
+    retryable = False
 
 
 class _NoRedirects(HTTPRedirectHandler):
@@ -601,6 +608,7 @@ class _OwnedReadTransport(OwnedHTTPSPool):
         if keep_alive and limit == JSON_LIMIT:
             request.add_header("Accept-Encoding", "gzip")
         fatal_status_seen = None
+        owner = None
 
         def observe_status(status):
             nonlocal fatal_status_seen
@@ -636,6 +644,9 @@ class _OwnedReadTransport(OwnedHTTPSPool):
                 # Timeout during DNS/connect/TLS/fence checks is likewise
                 # bounded by this owner's absolute request deadline.
                 raise ReadDeadlineExceeded() from None
+            if (getattr(owner, "reused_dispatch", False)
+                    and (isinstance(error, TransportFailed) or not isinstance(error, PixivReadError))):
+                raise _ReusedDispatchFailed() from None
             if isinstance(error, PixivReadError):
                 raise
             raise TransportFailed() from None

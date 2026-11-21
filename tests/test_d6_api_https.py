@@ -75,12 +75,11 @@ def test_fatal_response_on_reused_connection_trips_gate_and_discards(
         tmp_path, gate, wire, status, disposition):
     with create_exact_managed_read_client(write_cookie(tmp_path), gate) as client:
         assert get(client) == BODY
-        idle = client._owned_transport._idle.connections[0].sock
         wire.reply = status, disposition, b""
         with pytest.raises(ManagedNetworkStopped) as error:
             get(client)
         assert error.value.status_code == status
-        assert idle.fileno() == -1
+        assert wire.peers[0].finished.wait(2)
         with pytest.raises(ManagedNetworkStopped):
             get(client)
         assert wire.connections == 1 and len(wire.requests) == 2
@@ -97,9 +96,8 @@ def test_pool_is_per_reader_and_cookie_free_cdn_never_reuses_api_socket(tmp_path
         ]
         assert wire.requests[0][2] == wire.requests[3][2]
         assert wire.requests[0][2] != wire.requests[1][2]
-        idle = first._owned_transport._idle.connections[0].sock
         first.close()
-        assert idle.fileno() == -1 and not first.shutdown_unverified
+        assert wire.peers[0].finished.wait(2) and not first.shutdown_unverified
         with pytest.raises(ClientClosed):
             get(first)
         assert get(second) == BODY and wire.connections == 3
@@ -111,14 +109,13 @@ def test_pool_is_per_reader_and_cookie_free_cdn_never_reuses_api_socket(tmp_path
 def test_failed_reused_attempt_discards_without_implicit_replay(tmp_path, gate, wire, disposition, error):
     with create_exact_managed_read_client(write_cookie(tmp_path), gate) as client:
         assert get(client) == BODY
-        idle = client._owned_transport._idle.connections[0].sock
         wire.reply = 200, disposition, b"{}"
         try:
             with pytest.raises(error):
                 get(client, seconds=.25 if disposition == "wait" else 3)
         finally:
             wire.release.set()
-        assert idle.fileno() == -1
+        assert wire.peers[0].finished.wait(2)
         assert len(wire.requests) == 2 and wire.connections == 1
         wire.reply = 200, "negotiate", BODY
         assert get(client) == BODY and wire.connections == 2
@@ -132,11 +129,10 @@ def test_failed_reused_attempt_discards_without_implicit_replay(tmp_path, gate, 
 def test_bad_gzip_discards_connection(tmp_path, gate, wire, payload, error):
     with create_exact_managed_read_client(write_cookie(tmp_path), gate) as client:
         assert get(client) == BODY
-        idle = client._owned_transport._idle.connections[0].sock
         wire.reply = 200, "gzip", payload
         with pytest.raises(error):
             get(client)
-        assert idle.fileno() == -1
+        assert wire.peers[0].finished.wait(2)
 
 
 def test_exact_gzip_limit_and_chunked_boundary(tmp_path, gate, wire):
@@ -184,5 +180,5 @@ def test_connection_close_response_is_accepted_and_not_parked(tmp_path, gate, wi
     with create_exact_managed_read_client(write_cookie(tmp_path), gate) as client:
         wire.reply = 200, "close", BODY
         assert get(client) == BODY
-        assert client._owned_transport._idle is None
+        assert wire.peers[0].finished.wait(2)
         assert get(client) == BODY and wire.connections == 2

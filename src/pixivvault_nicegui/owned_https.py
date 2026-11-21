@@ -20,10 +20,19 @@ from .vault_socket_fence import SocketFence, SocketFenceError
 
 
 _context_lock = RLock()
+_trust_clock = time.monotonic
+_TRUST_REFRESH_SECONDS = 300
+_IDLE_SECONDS = 30
+
+
+def _trust_epoch():
+    return int(_trust_clock() // _TRUST_REFRESH_SECONDS)
 
 
 @lru_cache(maxsize=1)
-def _default_context():
+def _default_context(trust_epoch):
+    # Cache only the current interval. SSLContexts are configured at creation
+    # and never mutated after publication.
     return ssl.create_default_context()
 
 
@@ -34,6 +43,9 @@ class HTTPSOwner:
         self.host, self.port = host, port
         self._http_status_observer = None
         self.keep_alive = False
+        self.reused_dispatch = False
+        self.trust_epoch = _trust_epoch()
+        self.idle_until = 0.0
         self.fence = SocketFence()
         self.epoch = self.fence.snapshot()
         self.connections, self.responses, self.sockets, self.registrations = [], [], [], []
@@ -125,12 +137,15 @@ class HTTPSOwner:
                 or (response.chunked and (lengths or [v.lower() for v in encodings] != ["chunked"]))
                 or (not response.chunked and (encodings or len(lengths) != 1))):
             return False
-        # isclosed() confirms the response's file alias has already closed.
-        # http.client forgets the completed response on the next getresponse().
+        # http.client retains the completed, closed response until its next
+        # request. The result has already copied any needed response metadata.
+        response.headers = response.msg = response.url = response.reason = None
         self.responses.clear()
         return True
 
     def idle_usable(self):
+        if time.monotonic() >= self.idle_until or self.trust_epoch != _trust_epoch():
+            return False
         sock = self.connections[0].sock
         try:
             # A peer close or unsolicited data makes this socket unsuitable.
@@ -180,9 +195,18 @@ class _EarlyObservedHTTPResponse(http.client.HTTPResponse):
     so waiting for getcode() silently loses a received 401/403/429.
     """
 
-    def __init__(self, *args, owner, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, sock, *args, owner, **kwargs):
+        super().__init__(sock, *args, **kwargs)
+        self._read_socket = sock
         self._status_owner = owner
+
+    def read1(self, size=-1):
+        # The response file can still own the socket after http.client or
+        # urllib drops the connection's reference. In particular on Windows,
+        # shutdown through the fence need not wake a read already in select.
+        if self.fp is not None:
+            self._read_socket.settimeout(self._status_owner.remaining())
+        return super().read1(size)
 
     def _read_status(self):
         version, status, reason = super()._read_status()
@@ -248,7 +272,7 @@ class OwnedHTTPSConnection(http.client.HTTPSConnection):
 class OwnedHTTPSHandler(HTTPSHandler):
     def __init__(self, owner):
         with _context_lock:
-            context = _default_context()
+            context = _default_context(owner.trust_epoch if owner is not None else _trust_epoch())
         super().__init__(context=context)
         self.owner = owner
 
@@ -262,7 +286,8 @@ class OwnedHTTPSHandler(HTTPSHandler):
 
     def _persistent_open(self, request):
         owner = self.owner
-        headers = {**request.headers, **request.unredirected_hdrs}
+        headers = {name.title(): value for name, value in
+                   (request.headers | request.unredirected_hdrs).items()}
         if (request.host != owner.host or headers.get("Host") != owner.host
                 or request._tunnel_host is not None):
             raise OSError("HTTPS destination unavailable")
@@ -271,6 +296,8 @@ class OwnedHTTPSHandler(HTTPSHandler):
         remaining = owner.remaining()
         if connection.sock is not None:
             connection.sock.settimeout(remaining)
+            # From here a failure can follow a partially sent GET.
+            owner.reused_dispatch = True
         headers["Connection"] = "keep-alive"
         connection.request("GET", request.selector, headers=headers)
         response = connection.getresponse()
@@ -287,8 +314,13 @@ class OwnedHTTPSPool:
     """
     def __init__(self):
         self._lock = RLock()
+        # Serialize only checkout/retirement. A replacement must wait for
+        # proof of retirement (or poison), but readers of pool state and
+        # active owners returning their lease need not wait on socket close.
+        self._checkout_lock = RLock()
         self._owners, self._retained = set(), set()
         self._idle = None
+        self._expiry_timer = None
         self._closed = self._poisoned = False
 
     @property
@@ -308,44 +340,79 @@ class OwnedHTTPSPool:
             return len(self._owners)
 
     def close(self):
-        with self._lock:
-            self._closed = True
-            if self._idle is not None:
-                self._discard_idle()
-            owners = tuple(self._owners | self._retained)
-        for owner in owners:
-            owner.abort()
-        with self._lock:
-            self._poisoned = self._poisoned or any(owner.fence.revocation_unverified
-                                                  for owner in owners)
+        with self._checkout_lock:
+            with self._lock:
+                self._closed = True
+                idle, self._idle = self._idle, None
+                if self._expiry_timer is not None:
+                    self._expiry_timer.cancel()
+                    self._expiry_timer = None
+                owners = tuple(self._owners | self._retained)
+            for owner in owners:
+                owner.abort()
+            if idle is not None:
+                self._discard_idle(idle)
+            with self._lock:
+                self._poisoned = self._poisoned or any(owner.fence.revocation_unverified
+                                                      for owner in owners)
 
-    def _discard_idle(self):
-        owner, self._idle = self._idle, None
+    def _discard_idle(self, owner):
         try:
             owner.cleanup()
         except TimeoutError:
-            self._poisoned = True
-            self._retained.add(owner)
+            with self._lock:
+                self._poisoned = True
+                self._retained.add(owner)
+
+    def _arm_expiry(self, deadline):
+        timer = Timer(max(0, deadline - time.monotonic()), self._expire_idle)
+        timer.daemon = True
+        try:
+            timer.start()
+        except RuntimeError:
+            return  # The checkout deadline and close still discard the socket.
+        self._expiry_timer = timer
+
+    def _expire_idle(self):
+        with self._checkout_lock:
+            with self._lock:
+                self._expiry_timer = None
+                idle = self._idle
+                if self._closed or idle is None:
+                    return
+                if time.monotonic() < idle.idle_until:
+                    self._arm_expiry(idle.idle_until)
+                    return
+                self._idle = None
+            self._discard_idle(idle)
 
     @contextmanager
     def session(self, *, timeout, deadline, host, port, keep_alive=False):
-        with self._lock:
-            if self._closed or self.revocation_unverified:
-                raise TimeoutError('HTTPS request interrupted')
+        with self._checkout_lock:
             owner = None
-            if (keep_alive and self._idle is not None
-                    and (self._idle.host, self._idle.port) == (host, port)):
-                if self._idle.idle_usable():
+            with self._lock:
+                if self._closed or self.revocation_unverified:
+                    raise TimeoutError('HTTPS request interrupted')
+                if (keep_alive and self._idle is not None
+                        and (self._idle.host, self._idle.port) == (host, port)):
                     owner, self._idle = self._idle, None
-                    owner.timeout, owner.deadline = timeout, deadline
-                else:
-                    self._discard_idle()
-                    if self._poisoned:
-                        raise TimeoutError('HTTPS request interrupted')
-            if owner is None:
-                owner = HTTPSOwner(timeout, deadline, host, port)
-            owner.keep_alive = keep_alive
-            self._owners.add(owner)
+            if owner is not None and not owner.idle_usable():
+                self._discard_idle(owner)
+                owner = None
+            with self._lock:
+                healthy = not self.revocation_unverified
+                if healthy:
+                    if owner is None:
+                        owner = HTTPSOwner(timeout, deadline, host, port)
+                    else:
+                        owner.timeout, owner.deadline = timeout, deadline
+                        owner.reused_dispatch = False
+                    owner.keep_alive = keep_alive
+                    self._owners.add(owner)
+            if not healthy:
+                if owner is not None:
+                    self._discard_idle(owner)
+                raise TimeoutError('HTTPS request interrupted')
         parked = False
         try:
             owner.start()
@@ -357,8 +424,13 @@ class OwnedHTTPSPool:
                     raise TimeoutError('HTTPS request interrupted')
                 if keep_alive and self._idle is None and owner.prepare_idle():
                     self._owners.remove(owner)
+                    owner.idle_until = time.monotonic() + _IDLE_SECONDS
                     self._idle = owner
                     parked = True
+                    # A running timer will observe the latest idle deadline
+                    # when it wakes, so a warm GET need not start a new thread.
+                    if self._expiry_timer is None:
+                        self._arm_expiry(owner.idle_until)
         finally:
             if not parked:
                 try:
