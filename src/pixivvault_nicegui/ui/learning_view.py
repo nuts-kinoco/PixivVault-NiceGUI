@@ -160,9 +160,9 @@ class LearningView:
         self.client = ui.context.client
         self.client.on_delete(self.close)
 
-        with ui.column().classes("pv-learning w-full gap-3") as self.root:
+        with ui.column().classes("pv-learning pv-tone-learning w-full") as self.root:
             if self.discovery is None:
-                ui.label("学習（デモ）").classes("pv-view-title")
+                ui.label("学習（デモ）").classes("pv-library-heading pv-serif-heading")
             description = (
                 "判定はデモ専用フォルダーに保存します。Undoはこの画面での直前の判定だけが対象です。"
                 if self.storage is not None else
@@ -175,7 +175,7 @@ class LearningView:
             stage_start = len(self.root.default_slot.children)
             with ui.element('div').classes('w-full relative') as self.candidate_header:
                 with ui.row().classes('w-full items-center gap-2'):
-                    self.title = ui.label().classes("pv-view-title")
+                    self.title = ui.label().classes("pv-library-heading pv-serif-heading pv-learning-work-title")
                     self.summary_button = ui.button('概要 ▸').props(
                         'flat dense data-testid=learning-summary-toggle aria-expanded=false')
                     self.summary_button.on('click', self._on_summary_click,
@@ -222,8 +222,8 @@ class LearningView:
             self.frame_label.set_visibility(False)
             self.progress = ui.label().classes("pv-counter")
             # 通知帯は画像の右下に重ねる（元 discovery_tab.py:241-244）。判定ボタンの位置は動かさない。
-            with ui.element("div").classes("w-full relative").style("min-height:96px"):
-                with ui.element('div').classes('w-full relative').style('max-width:560px'):
+            with ui.element("div").classes("pv-learning-art-stage w-full relative"):
+                with ui.element('div').classes('pv-learning-art-frame w-full relative'):
                     self.picture = VerifiedImage(alt="判定対象の作品画像").classes("pv-view-art")
                     if self.discovery is not None:
                         self.open_pixiv_button = ui.button(icon='open_in_new', color=None).props(
@@ -244,9 +244,9 @@ class LearningView:
             self.picture.on('click', self._open_learning_picture, js_handler=self._click_js('open'))
             self.status = ui.label().classes("pv-subtitle pv-learning-status").props("role=status aria-live=polite")
             # 元 discovery_tab.py:4358-4365 の空状態の案内（候補が無いとき、何をすると何が起きるか）。
-            with ui.column().classes("items-center gap-1").props("data-testid=learning-empty") as self.empty_card:
+            with ui.column().classes("pv-empty pv-learning-empty items-center gap-1").props("data-testid=learning-empty") as self.empty_card:
                 ui.icon("explore").classes("text-4xl")
-                ui.label(EMPTY_TITLE).classes("pv-view-title")
+                ui.label(EMPTY_TITLE).classes("pv-library-heading pv-serif-heading")
                 ui.label(EMPTY_BODY).classes("pv-subtitle").style("white-space:pre-line;text-align:center")
                 ui.separator().classes('w-full')
                 with ui.row().classes('items-center justify-center flex-wrap'):
@@ -269,11 +269,11 @@ class LearningView:
                     "data-testid=learning-superlike-used")
             self.superlike_used_label.set_visibility(False)
             with ui.row().classes("items-center gap-2"):
-                self.undo_button = ui.button("ひとつ戻す（Undo）", color=None).props("flat no-caps").classes("pv-undo")
+                self.undo_button = ui.button("ひとつ戻す（Undo）", color=None).props("flat dense no-caps").classes("pv-undo")
                 self.undo_button.on("click", self._on_undo, js_handler=self._click_js('block-open'))
-                self.retry_button = ui.button("画像を再読込", on_click=self.request_image).props("flat")
-                self.save_retry_button = ui.button("保存を再試行", on_click=self.retry_save).props("flat")
-                self.reload_button = ui.button("保存状態を再読込").props("flat")
+                self.retry_button = ui.button("画像を再読込", on_click=self.request_image).props("flat dense no-caps")
+                self.save_retry_button = ui.button("保存を再試行", on_click=self.retry_save).props("flat dense no-caps")
+                self.reload_button = ui.button("保存状態を再読込").props("flat dense no-caps")
                 self.reload_button.on("click", self._on_reload_click, js_handler=self._click_js('block-open'))
                 self.bookmark_button = ui.button('pixiv', icon='favorite_border').props(
                     'flat dense no-caps data-testid=learning-bookmark')
@@ -283,7 +283,7 @@ class LearningView:
             if self.discovery is not None:
                 # 元 discovery_tab.py:3295-3302 の「探索の設定 ▸」引き出し。畳んだ行だけが流れに入り、開いた板は重ね置き。
                 ui.label('判定は保存され、次に出す候補の並べ替えに反映されます。').classes('pv-subtitle')
-                with ui.element('div').classes('relative w-full'):
+                with ui.element('div').classes('relative') as settings_anchor:
                     with ui.card().classes('gap-2').props('role=region aria-label=探索の設定 data-testid=discovery-settings-panel').style(
                             'position:absolute;left:0;top:100%;z-index:25;width:min(320px,calc(100vw - 32px));'
                             'background:var(--pv-overlay);border:1px solid var(--pv-border);box-sizing:border-box;'
@@ -300,10 +300,12 @@ class LearningView:
                         ui.label('探索の設定').classes('pv-subtitle').style('flex:1 1 auto;text-align:left')
                         self.settings_arrow=ui.icon('keyboard_arrow_right').style('font-size:15px;color:var(--pv-muted)')
                         ui.tooltip('どのくらい知らないものを見るかを変えます')
-                self.fetch_button = ui.button('候補を取得', on_click=self.fetch_discovery).props('flat data-testid=discovery-fetch')
-                self.refill_status = ui.label().classes('pv-subtitle').props('role=status data-testid=discovery-refill-status')
-                self.managed_button = ui.button('作品を保存').props('flat data-testid=discovery-save')
-                self.managed_button.on('click', self._on_managed_save, js_handler=self._click_js())
+                with ui.row().classes('pv-learning-actions w-full items-center gap-2') as actions:
+                    settings_anchor.move(actions)
+                    self.fetch_button = ui.button('候補を取得', on_click=self.fetch_discovery).props('outline dense no-caps data-testid=discovery-fetch')
+                    self.refill_status = ui.label().classes('pv-subtitle').props('role=status data-testid=discovery-refill-status')
+                    self.managed_button = ui.button('作品を保存').props('flat dense no-caps data-testid=discovery-save')
+                    self.managed_button.on('click', self._on_managed_save, js_handler=self._click_js())
                 with ui.row().classes('w-full items-center') as self.trend_header:
                     ui.label('好みの傾向').classes('pv-card-title')
                     self.trend_label = ui.label().classes('pv-subtitle').props('data-testid=discovery-trend')
@@ -314,7 +316,7 @@ class LearningView:
                     'data-testid=discovery-trend-panel')
                 stage_children = tuple(self.root.default_slot.children[stage_start:])
                 with ui.element('div').classes('pv-trend-layout w-full').props('data-mode=rail') as self.trend_layout:
-                    self.trend_main = ui.column().classes('pv-trend-main w-full gap-3')
+                    self.trend_main = ui.column().classes('pv-trend-main w-full')
                     with ui.column().classes('pv-trend-side w-full gap-1') as self.trend_side:
                         self.trend_viewport = ui.element('div').classes('pv-trend-viewport w-full')
                 for element in stage_children:
@@ -325,20 +327,20 @@ class LearningView:
                     else:
                         element.move(self.trend_main)
                 self.trend_button.set_visibility(False)
-            self.review_button = ui.button('振り返り', on_click=self.open_review).props('flat data-testid=learning-review-open')
+            self.review_button = ui.button('振り返り', on_click=self.open_review).props('flat dense no-caps data-testid=learning-review-open')
             from .view_history_view import ViewHistoryView
             self.view_history = ViewHistoryView(self, self.storage)
             from .learning_reset import LearningResetView
             self.reset_view = LearningResetView(self, self.storage) if self.storage is not None else None
 
             self.review_button.set_visibility(self.storage is not None)
-            self.swipe_area = ui.column().classes('w-full gap-3')
+            self.swipe_area = ui.column().classes('pv-learning-swipe w-full')
             for element in tuple(self.root.default_slot.children):
                 if element is not self.swipe_area and element is not self.review_button:
                     element.move(self.swipe_area)
-            with ui.row().classes('w-full items-center gap-1') as self.review_modes:
+            with ui.row().classes('pv-toolbar pv-tone-toolbar gap-1') as self.review_modes:
                 self.swipe_button = ui.button('めくる', on_click=self.return_to_swipe).props(
-                    'flat no-caps aria-pressed=true data-testid=learning-swipe-mode')
+                    'flat dense no-caps aria-pressed=true data-testid=learning-swipe-mode')
                 self.review_button.props('aria-pressed=false')
                 self.review_button.move(self.review_modes)
             self.review_modes.move(self.root, 0)
@@ -1265,6 +1267,10 @@ class LearningView:
                       const layout=root.querySelector('.pv-trend-layout');
                       const side=viewport.parentElement;
                       if (layout?.dataset.mode==='rail') {{
+                        const stageHeight=Math.max(0,Math.floor(Math.min(rect.bottom,window.innerHeight)-layout.getBoundingClientRect().top));
+                        const stage=stageHeight+'px';
+                        if (layout.style.getPropertyValue('--pv-learning-stage-height')!==stage)
+                          layout.style.setProperty('--pv-learning-stage-height',stage);
                         const available=Math.max(80,Math.floor(Math.min(rect.bottom,window.innerHeight)-side.getBoundingClientRect().top));
                         const next=available+'px';
                         if (side.style.height!==next) side.style.height=next;
@@ -1366,22 +1372,18 @@ class LearningView:
         self.open_pixiv_button.set_visibility(target is not None)
 
     def _build_candidate_status_card(self) -> None:
-        with ui.element('div').classes('w-full grid place-items-center').style(
-                'min-height:min(54dvh,460px)') as self.candidate_status_stage:
-            with ui.card().classes('items-center gap-2 text-center').props(
-                    'data-testid=learning-candidate-status').style(
-                    'width:460px;max-width:100%;background:var(--pv-raised);'
-                    'border:1px solid var(--pv-border);padding:24px'):
+        with ui.element('div').classes('pv-learning-candidate-stage w-full grid place-items-center') as self.candidate_status_stage:
+            with ui.card().classes('pv-empty pv-learning-empty items-center gap-1').props(
+                    'data-testid=learning-candidate-status'):
                 self.candidate_status_spinner = ui.spinner(size='22px', thickness=2).props(
                     'data-testid=learning-candidate-spinner')
                 self.candidate_status_icon = ui.icon('search_off', size='22px').props(
                     'data-testid=learning-candidate-icon').style('color:var(--pv-muted)')
-                self.candidate_status_title = ui.label().classes('pv-dialog-title').style(
-                    'font-size:14px;font-weight:600')
+                self.candidate_status_title = ui.label().classes('pv-library-heading pv-serif-heading')
                 self.candidate_status_body = ui.label().classes('pv-subtitle').props('role=status').style('font-size:12px')
                 self.candidate_status_judged = ui.label().style('font-size:11.5px')
                 self.candidate_status_retry = ui.button('もう一度探す', on_click=self._retry_candidate_restock).props(
-                    'flat no-caps data-testid=learning-candidate-retry')
+                    'flat dense no-caps data-testid=learning-candidate-retry')
         self.candidate_status_stage.set_visibility(False)
 
     def _render_candidate_status(self) -> None:

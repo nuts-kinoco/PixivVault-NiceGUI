@@ -362,6 +362,77 @@ CSS += """
 }
 """
 
+
+CSS += """
+/* tone-c */
+.pv-tone-toolbar { padding:8px; gap:8px; }
+.pv-personal-ranking, .pv-tone-recommend, .pv-tone-dedup,
+.pv-tone-learning, .pv-learning-swipe, .pv-tone-learning .pv-trend-main { gap:6px; }
+.pv-personal-ranking > .pv-tone-toolbar { flex-wrap:nowrap; overflow-x:auto; }
+.pv-personal-tag-entry { flex:1 1 0; min-width:min(100%,12rem); }
+.pv-personal-tag-entry > .row { flex:0 1 auto; min-width:0; overflow-x:auto; }
+.pv-personal-tag-entry > .row > * { flex-shrink:0; }
+.pv-personal-tag-input { flex:1 0 10rem; }
+.pv-personal-ranking > [data-testid=personal-chips] { flex-wrap:nowrap; overflow-x:auto; }
+.pv-personal-ranking > [data-testid=personal-chips] > * { flex-shrink:0; }
+.pv-personal-status { flex-shrink:0; }
+.pv-personal-status [data-error] { color:var(--pv-download-danger-text); }
+.pv-personal-body { flex:1 0 228px; min-height:228px; }
+.pv-personal-body > .pv-library-filter-panel { flex-basis:min(280px,52%); min-width:0; }
+.pv-personal-body > .pv-library-filter-panel > * { flex-shrink:0; }
+.pv-personal-body > .pv-library-filter-panel > .q-field { width:100%; }
+.pv-personal-body > .pv-gallery > .pv-toolbar { padding:8px; gap:6px; }
+.pv-personal-body .pv-empty { padding:16px 8px; }
+
+.pv-tone-recommend > *, .pv-tone-dedup > * { flex-shrink:0; }
+.pv-recommend-shelves { gap:6px; }
+.pv-recommend-shelf { gap:4px; padding:4px 0; border-top:1px solid var(--pv-border); }
+.pv-recommend-shelf-header > .pv-subtitle { overflow-wrap:anywhere; }
+.pv-recommend-trends { max-height:80px; overflow:hidden; align-content:flex-start; }
+.pv-recommend-trends:empty, .pv-recommend-card-actions:empty { display:none; }
+.pv-recommend-card-actions { gap:2px 4px; }
+.pv-recommend-card-actions > .q-btn { font-size:11px; }
+.pv-recommend-tile .pv-recommend-thumb-empty { display:grid; place-content:center; justify-items:center; gap:4px; }
+
+.pv-tone-dedup [data-testid=duplicate-recovery-status]:empty,
+.pv-tone-dedup [data-testid=duplicate-item-results]:empty { display:none; }
+.pv-dedup-near { flex:1 0 240px; min-height:240px; }
+.pv-dedup-near > * { flex-shrink:0; }
+.pv-dedup-near > .pv-dedup-list { flex:1 1 0; min-height:0; overflow-y:auto; }
+.pv-dedup-list > * { flex-shrink:0; }
+.pv-dedup-list .pv-empty { padding:16px 8px; text-align:left; }
+.pv-dedup-selection, .pv-dedup-card { padding:8px; border:1px solid var(--pv-border); background:var(--pv-surface); }
+.pv-dedup-selection { border-radius:8px; }
+.pv-dedup-card { display:flex; flex-flow:row wrap; align-items:flex-start; gap:12px; border-radius:12px; box-shadow:none; }
+.pv-dedup-card-heading { flex:0 1 9rem; }
+.pv-dedup-card-thumbnails { flex:1 1 min(100%,22rem); min-width:0; }
+.pv-dedup-card-actions { flex:0 1 12rem; }
+.pv-dedup-card-actions > .q-btn { max-width:100%; }
+.pv-dedup-tile { max-width:min(200px,100%); overflow-wrap:anywhere; }
+.pv-dedup-card .pv-card-title { white-space:normal; overflow-wrap:anywhere; }
+.pv-dedup-list .pv-dedup-thumb-empty { display:grid; place-content:center; padding:24px 4px 4px; background:var(--pv-raised); text-align:center; }
+.pv-dedup-tile-select { position:absolute; top:4px; left:4px; padding:2px 4px; border-radius:8px; background:var(--pv-surface); }
+
+.pv-tone-learning .pv-trend-layout { gap:12px; position:relative; }
+.pv-tone-learning .pv-trend-layout[data-mode=rail]:not(:has(.pv-view-art:not(.hidden))) { grid-template-columns:minmax(0,1fr); }
+.pv-tone-learning .pv-trend-layout[data-mode=rail]:not(:has(.pv-view-art:not(.hidden))) .pv-trend-side { max-height:88px; }
+.pv-tone-learning .pv-trend-layout[data-mode=rail]:has(.pv-view-art:not(.hidden)) .pv-trend-main,
+.pv-tone-learning .pv-trend-layout[data-mode=rail]:has(.pv-view-art:not(.hidden)) .pv-trend-side { grid-column:2; }
+.pv-tone-learning .pv-trend-layout[data-mode=rail]:has(.pv-view-art:not(.hidden)) .pv-learning-art-stage { position:absolute; inset:0 auto 0 0; width:calc(100% - 452px); max-height:var(--pv-learning-stage-height,100%); }
+.pv-tone-learning .pv-trend-layout[data-mode=rail]:has(.pv-view-art:not(.hidden)) .pv-learning-art-frame { width:100%; max-width:none; height:100%; }
+.pv-tone-learning .pv-trend-layout[data-mode=rail]:has(.pv-view-art:not(.hidden)) .pv-view-art { width:100%; height:100%; max-width:none; max-height:none; }
+.pv-tone-learning .pv-trend-layout[data-mode=band] .pv-trend-side { height:112px; }
+.pv-learning-work-title { min-width:0; max-width:calc(100% - 5rem); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.pv-tone-learning .pv-learning-status:empty, .pv-tone-learning .pv-counter:empty { position:absolute; }
+.pv-tone-learning [data-testid=learning-reset] { flex-flow:row wrap; align-items:center; gap:4px 8px; }
+.pv-tone-learning [data-testid=learning-reset-status]:empty { position:absolute; }
+.pv-learning-art-frame { max-width:560px; margin-inline:auto; }
+.pv-tone-learning .pv-learning-art-frame .pv-view-art { max-height:min(28dvh,420px); background:var(--pv-surface); border:1px solid var(--pv-border); border-radius:12px; }
+.pv-learning-candidate-stage { min-height:160px; }
+.pv-learning-empty { width:min(520px,100%); align-self:center; padding:12px 16px; color:var(--pv-text); background:var(--pv-raised); border:1px solid var(--pv-border); border-radius:12px; box-shadow:none; }
+/* /tone-c */
+"""
+
 CSS += """
 /* tone-b */
 .pv-tone-b-notice:empty {
@@ -501,4 +572,25 @@ body.body--light {
   outline-offset:2px;
   box-shadow:0 0 0 2px var(--pv-page), 0 0 0 4px var(--pv-primary);
 }
+"""
+
+CSS += """
+/* tone-c-r2 */
+.pv-dedup-legacy-hint { flex:1 1 min(32ch,100%); }
+.pv-dedup-undecidable-empty { padding:4px 12px 0; gap:2px; text-align:left; }
+.pv-dedup-undecidable-empty > [data-testid=duplicate-undecidable-empty] { color:var(--pv-text); }
+@media(min-width:1120px) {
+  .pv-tone-learning .pv-trend-layout[data-mode=rail]:has(
+    [data-testid=learning-empty]:not(.hidden), .pv-learning-candidate-stage:not(.hidden)
+  ) {
+    grid-template-columns:minmax(0,1fr) minmax(0,520px) minmax(0,1fr);
+  }
+  .pv-trend-layout[data-mode=rail]:has(
+    [data-testid=learning-empty]:not(.hidden), .pv-learning-candidate-stage:not(.hidden)
+  ) > .pv-trend-main { grid-column:2; }
+  .pv-trend-layout[data-mode=rail]:has(
+    [data-testid=learning-empty]:not(.hidden), .pv-learning-candidate-stage:not(.hidden)
+  ) > .pv-trend-side { grid-column:3; }
+}
+/* /tone-c-r2 */
 """
