@@ -1,0 +1,20 @@
+{
+  "path": "S:\\Work\\_tmp\\PV\\api-lows-20261122",
+  "decision": "DELETE",
+  "reason": "regenerable test data and verification scratch",
+  "dry_run": "PowerShell Remove-Item -WhatIf was blocked by automatic policy",
+  "owner_for_deletion": "supervisor",
+  "removed": false,
+  "top_level_entries": [
+    "focused-run",
+    "full-results.xml",
+    "network-inventory.json",
+    "pytest-api-lows-20261122-full",
+    "pytest-apilows-focused-long-path",
+    "pytest-apilows-red-long-path"
+  ],
+  "files": 52595,
+  "directories": 30073,
+  "reparse_points": 0,
+  "bytes": 261067346
+}

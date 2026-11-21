@@ -1,0 +1,128 @@
+Candidate: ef960ae72c835d8e48f1d019c6e509734d01844c
+Command: S:\Projects\PixivVault-NiceGUI\.venv\Scripts\python.exe -B -m pytest -p required_network_guard -p no:cacheprovider -k "not dpapi" --basetemp S:\Work\_tmp\PV\api-lows-20261122\pytest-api-lows-20261122-full -q -r s --tb=line --junitxml S:\Work\_tmp\PV\api-lows-20261122\full-results.xml
+........................................................................ [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 26%]
+........................................................................ [ 28%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 36%]
+........................................................................ [ 38%]
+...........................................s............................ [ 40%]
+........................................................................ [ 42%]
+....................................s................................... [ 43%]
+s....................................................................... [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 78%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 91%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+........................................................................ [ 99%]
+..........                                                               [100%]
+============================== warnings summary ===============================
+..\..\..\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\fastapi\testclient.py:1
+  S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_l14_bookmark_count.py: 12 warnings
+  S:\Work\PV\api-lows-20261122\src\pixivvault_nicegui\managed_viewer_page.py:51: DeprecationWarning: pathlib.PurePath.is_reserved() is deprecated and scheduled for removal in Python 3.15. Use os.path.isreserved() to detect reserved paths on Windows.
+    value.endswith((' ', '.')) or PureWindowsPath(value).is_reserved()):
+
+tests/test_required_legacy_duplicates.py::test_unsafe_or_duplicate_zip_members_do_not_publish[same.png]
+  C:\Users\nat\miniconda3\envs\stenv\Lib\zipfile\__init__.py:1655: UserWarning: Duplicate name: 'same.png'
+    return self._open_to_write(zinfo, force_zip64=force_zip64)
+
+tests/test_vault_tls_loopback.py::test_real_tls_validates_localhost_and_uses_owned_connection
+  tests\test_vault_tls_loopback.py:158: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_real_tls_validates_localhost_and_uses_owned_connection(session_factory,record_property):
+
+tests/test_vault_tls_loopback.py::test_wrong_hostname_rejected_with_verification_enabled
+  tests\test_vault_tls_loopback.py:167: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_wrong_hostname_rejected_with_verification_enabled(session_factory,record_property):
+
+tests/test_vault_tls_loopback.py::test_old_epoch_cannot_register_after_lock_and_reunlock
+  tests\test_vault_tls_loopback.py:175: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_old_epoch_cannot_register_after_lock_and_reunlock(session_factory,record_property):
+
+tests/test_vault_tls_loopback.py::test_lock_after_registration_before_connect_returns_without_late_connect
+  tests\test_vault_tls_loopback.py:186: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_lock_after_registration_before_connect_returns_without_late_connect(session_factory,record_property):
+
+tests/test_vault_tls_loopback.py::test_lock_after_connect_before_tls_prevents_tls_and_http
+  tests\test_vault_tls_loopback.py:196: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_lock_after_connect_before_tls_prevents_tls_and_http(session_factory,record_property):
+
+tests/test_vault_tls_loopback.py::test_lock_during_real_tls_handshake_rejects_later_request
+  tests\test_vault_tls_loopback.py:205: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_lock_during_real_tls_handshake_rejects_later_request(session_factory,record_property):
+
+tests/test_vault_tls_loopback.py::test_lock_after_verified_tls_before_http_prevents_request
+  tests\test_vault_tls_loopback.py:213: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_lock_after_verified_tls_before_http_prevents_request(session_factory,record_property):
+
+tests/test_vault_tls_loopback.py::test_blocked_real_tls_send_unblocks_after_lock
+  tests\test_vault_tls_loopback.py:222: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_blocked_real_tls_send_unblocks_after_lock(session_factory,monkeypatch,record_property):
+
+tests/test_vault_tls_loopback.py::test_redirect_not_followed_and_no_external_dns
+  tests\test_vault_tls_loopback.py:237: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_redirect_not_followed_and_no_external_dns(session_factory,record_property):
+
+tests/test_vault_tls_loopback.py::test_real_tls_socket_cannot_send_after_fence_shutdown
+  tests\test_vault_tls_loopback.py:244: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_real_tls_socket_cannot_send_after_fence_shutdown(session_factory,record_property):
+
+tests/test_vault_tls_loopback.py::test_dropped_tls_connection_does_not_reconnect
+  tests\test_vault_tls_loopback.py:263: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_dropped_tls_connection_does_not_reconnect(session_factory,record_property):
+
+tests/test_vault_tls_loopback.py::test_reused_descriptor_is_not_shutdown_after_registration_exits
+  tests\test_vault_tls_loopback.py:271: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_reused_descriptor_is_not_shutdown_after_registration_exits(session_factory,record_property):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- generated xml file: S:\Work\_tmp\PV\api-lows-20261122\full-results.xml ----
+=========================== short test summary info ===========================
+SKIPPED [1] tests\test_legacy_managed_startup.py:306: symlink creation unavailable
+SKIPPED [1] tests\test_managed_downloads.py:257: symlink requires privileges
+SKIPPED [1] tests\test_managed_network_stop_gate.py:263: symlink unavailable
+4111 passed, 3 skipped, 3 deselected, 26 warnings in 2024.68s (0:33:44)

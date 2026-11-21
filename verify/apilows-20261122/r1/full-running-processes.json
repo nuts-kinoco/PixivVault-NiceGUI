@@ -1,0 +1,35 @@
+{
+    "candidate":  "ef960ae72c835d8e48f1d019c6e509734d01844c",
+    "processes":  [
+                      {
+                          "ProcessId":  27836,
+                          "ParentProcessId":  103976,
+                          "Name":  "powershell.exe"
+                      },
+                      {
+                          "ProcessId":  132872,
+                          "ParentProcessId":  27836,
+                          "Name":  "conhost.exe"
+                      },
+                      {
+                          "ProcessId":  53756,
+                          "ParentProcessId":  27836,
+                          "Name":  "python.exe"
+                      },
+                      {
+                          "ProcessId":  61468,
+                          "ParentProcessId":  53756,
+                          "Name":  "python.exe"
+                      },
+                      {
+                          "ProcessId":  133224,
+                          "ParentProcessId":  61468,
+                          "Name":  "python.exe"
+                      },
+                      {
+                          "ProcessId":  114308,
+                          "ParentProcessId":  133224,
+                          "Name":  "python.exe"
+                      }
+                  ]
+}
