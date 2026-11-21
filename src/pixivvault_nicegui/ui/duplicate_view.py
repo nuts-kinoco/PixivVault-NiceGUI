@@ -8,7 +8,7 @@ from ..duplicate_inspection import (
     visible_groups, visible_undecidable_groups,
     low_quality_keys, validate_selection, best_item_index,
 )
-from .action_controls import refresh_button
+from .action_controls import primary_button, refresh_button
 from .card_size_control import size_buttons, update_size_buttons
 
 THUMB_SIZES = {'small':88, 'medium':144, 'large':200}
@@ -76,7 +76,7 @@ class DuplicateView:
                     self.undecidable_refresh=refresh_button(self.refresh_undecidable,label='未判定の台帳を再読込',testid='duplicate-undecidable-refresh')
                 self.undecidable_rows=ui.column().classes('w-full').props('data-testid=duplicate-undecidable-rows')
             with ui.column().classes('pv-dedup-near w-full gap-1').props('data-testid=duplicate-near-panel') as self.near_panel:
-                ui.label('近似は候補です。作者ごとに比較し、各組に1枚以上残します。').classes('pv-subtitle')
+                ui.label('作者ごとに比較し、各組に1枚以上残します。移動前に退避対象を確認でき、退避と保存証拠を保持するため空き容量は増えません。').classes('pv-subtitle')
                 with ui.column().classes('pv-dedup-list w-full gap-1'):
                     self.rows=ui.column().classes('w-full gap-2')
                     self.result_rows=ui.column().classes('w-full gap-1').props('data-testid=duplicate-item-results')
@@ -84,10 +84,9 @@ class DuplicateView:
                     self.summary=ui.label('0枚選択中').classes('pv-subtitle').props('data-testid=duplicate-selection')
                     ui.space()
                     self.plan_button=ui.button('隔離計画を確認',on_click=self.plan).props('outline dense no-caps data-testid=duplicate-plan')
-                    self.move_button=ui.button('選んだものをごみ箱へ移す',on_click=lambda _:self.confirm()).props('unelevated dense no-caps data-testid=duplicate-move')
+                    self.move_button=primary_button('選んだものをごみ箱へ移す',on_click=lambda _:self.confirm(),testid='duplicate-move')
                 self.legacy_recover_button=ui.button('未完了の退避操作を復旧・再確認',on_click=self.recover_legacy).props('flat dense no-caps data-testid=duplicate-legacy-recover')
                 self.legacy_recover_button.set_visibility(False)
-                ui.label('退避対象は実行前に確認できます。退避と保存証拠を保持するため、空き容量は増えません。').classes('pv-subtitle')
         with ui.dialog().props('persistent data-testid=duplicate-confirm-dialog') as self.confirm_dialog:
             with ui.card().classes('w-full').style('max-width:640px'):
                 self.confirm_title=ui.label().classes('text-lg').props('data-testid=duplicate-confirm-title')
@@ -628,12 +627,16 @@ class DuplicateView:
                                     pixels=THUMB_SIZES[self.thumb_size]
                                     thumb.style(f'width:{pixels}px;height:{pixels}px').classes('max-w-full').props('data-testid=duplicate-thumbnail')
                                     self.thumbnails.append(thumb)
-                                    cb=ui.checkbox('隔離候補',value=item.key in self.selections[group.group_id]).classes('pv-dedup-tile-select').props(
-                                        f'dense data-testid=duplicate-select-{group.author_id}-{item.work_id}-{item.page}')
+                                filename = item.filename or f'作品 {item.work_id}・{item.page}ページ'
+                                with ui.row().classes('pv-dedup-caption w-full items-center no-wrap'):
+                                    cb=ui.checkbox(value=item.key in self.selections[group.group_id]).props(
+                                        f'dense size=xs aria-label=隔離候補 data-testid=duplicate-select-{group.author_id}-{item.work_id}-{item.page}')
+                                    cb.tooltip('隔離候補')
                                     cb.on_value_change(lambda e,gid=group.group_id,key=item.key,revision=revision:self.toggle(gid,key,e.value,revision))
-                                ui.label(item.filename or f'作品 {item.work_id}・{item.page}ページ').classes('pv-card-title')
-                                ui.label(f'{item.width}×{item.height} · {item.file_size} bytes').classes('pv-subtitle')
-                                ui.label('この組で最大' if group.items.index(item)==best_item_index(group.items) else '低画質候補').classes('pv-subtitle')
+                                    title=ui.label(filename).classes('pv-card-title')
+                                    title.props['title'] = filename
+                                quality = 'この組で最大' if group.items.index(item)==best_item_index(group.items) else '低画質候補'
+                                ui.label(f'{item.width}×{item.height} · {item.file_size} bytes · {quality}').classes('pv-subtitle')
                         if len(group.items)>5:ui.label(f'+{len(group.items)-5}枚（非表示の画像は選択しません）')
                     with ui.column().classes('pv-dedup-card-actions gap-1'):
                         self.group_move_buttons[group.group_id]=ui.button(

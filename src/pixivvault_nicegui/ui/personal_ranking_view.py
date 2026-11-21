@@ -86,7 +86,8 @@ class PersonalRankingView(RankingView):
                     ui.label('タグ・投稿日・作者上限は取得済み結果に反映します。ブクマ数と並び順を変えると再検索します。').classes('pv-subtitle')
                     self.exclusions={}
                     for key,label in (('exclude_downloaded','保存済みを除外'),('exclude_hidden_authors','非表示作者を除外'),('exclude_hidden_works','非表示作品を除外'),('exclude_hated','嫌いな作品を除外')):
-                        self.exclusions[key]=ui.checkbox(label,value=self.filters[key]).props('dense')
+                        testid = 'personal-' + key.replace('_', '-')
+                        self.exclusions[key]=ui.checkbox(label,value=self.filters[key]).props(f'dense data-testid={testid}')
                     with ui.row().classes('gap-1'):
                         ui.button('この条件を保存',on_click=self.save).props('outline dense no-caps data-testid=personal-save-filters')
                         ui.button('条件をクリア',on_click=self.clear_filters).props('flat dense no-caps data-testid=personal-clear-filters')
@@ -104,6 +105,8 @@ class PersonalRankingView(RankingView):
         self.client.on_delete(self.close);self.availability();self._refresh_chips()
 
     def _toggle_filters(self):
+        if self.closed or not self.active:
+            return
         opened = not self.filter_panel.visible
         self.filter_panel.set_visibility(opened)
         self.filter_toggle.props['aria-expanded'] = str(opened).lower()

@@ -594,3 +594,40 @@ CSS += """
 }
 /* /tone-c-r2 */
 """
+
+CSS += """
+/* tone-c-r3 */
+.pv-tone-dedup .pv-dedup-selection { padding-block:4px; }
+.pv-tone-dedup .pv-dedup-card { padding-block:6px; }
+.pv-dedup-caption { gap:4px; }
+.pv-dedup-caption > [role=checkbox] { flex:none; }
+.pv-dedup-card .pv-dedup-caption > .pv-card-title { min-width:0; white-space:nowrap; }
+.pv-dedup-tile > .pv-subtitle { font-size:11px; }
+
+.pv-learning-title-row > .pv-learning-work-title { flex:1 1 0; min-width:0; max-width:none; }
+.pv-learning-title-row > .q-btn { flex:none; }
+.pv-learning-summary-message { max-width:35%; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.pv-learning-summary-message:empty { display:none; }
+.pv-learning.pv-tone-learning .pv-trend-layout[data-mode=rail]:is([data-stage=art],[data-stage=empty],[data-stage=status]) > .pv-trend-side {
+  height:auto; min-height:0; max-height:none; overflow:visible;
+}
+.pv-tone-learning .pv-trend-layout[data-mode=rail] .pv-trend-viewport { flex:none; overflow:visible; }
+.pv-tone-learning .pv-trend-layout[data-mode=rail][data-stage=art] { grid-template-rows:auto auto auto; row-gap:6px; }
+.pv-tone-learning .pv-trend-layout[data-mode=rail][data-stage=art] > .pv-trend-main { display:contents; }
+.pv-tone-learning .pv-trend-layout[data-mode=rail][data-stage=art] > .pv-trend-main > * { grid-column:2; }
+.pv-tone-learning .pv-trend-layout[data-mode=rail][data-stage=art] .pv-learning-candidate-heading { grid-row:1; }
+.pv-tone-learning .pv-trend-layout[data-mode=rail][data-stage=art] > .pv-trend-side { grid-column:2; grid-row:2; }
+.pv-tone-learning .pv-trend-layout[data-mode=rail][data-stage=art] .pv-learning-judgment-controls { grid-row:3; }
+.pv-learning.pv-tone-learning .pv-trend-layout[data-mode=rail][data-stage=art] .pv-learning-art-stage {
+  grid-column:1 / 2; grid-row:1 / 4; position:absolute; inset:0 auto auto 0;
+  width:100%; height:var(--pv-learning-stage-height,100%); max-height:none;
+}
+@media(min-width:1120px) {
+  .pv-learning.pv-tone-learning .pv-trend-layout[data-mode=rail]:is([data-stage=empty],[data-stage=status]) {
+    grid-template-columns:minmax(0,1fr) minmax(0,520px) minmax(0,1fr);
+  }
+  .pv-learning.pv-tone-learning .pv-trend-layout[data-mode=rail]:is([data-stage=empty],[data-stage=status]) > .pv-trend-main { grid-column:2; }
+  .pv-learning.pv-tone-learning .pv-trend-layout[data-mode=rail]:is([data-stage=empty],[data-stage=status]) > .pv-trend-side { grid-column:3; }
+}
+/* /tone-c-r3 */
+"""

@@ -6,7 +6,7 @@ from nicegui import background_tasks, core, ui
 from ..recommendation_state import LABELS, ORDER, RecommendationWork
 from ..recommendation_media import RecommendationMediaSnapshot
 from ..viewer_metadata import pixiv_url
-from .action_controls import refresh_button
+from .action_controls import primary_button, refresh_button
 from .card_size_control import size_buttons, update_size_buttons
 from .grid_layout import MAX_COLUMNS
 from .recommendation_viewer import RecommendationViewer
@@ -49,7 +49,7 @@ class RecommendView:
                 self.size_buttons=size_buttons(self.change_card_size, prefix='recommend')
                 update_size_buttons(self.size_buttons,self.card_size)
                 self.refresh_button=refresh_button(self.refresh,label='保存済み結果を再読込',testid='recommend-refresh')
-                self.update_button=ui.button('おすすめを更新',on_click=self.update).props('unelevated dense no-caps data-testid=recommend-update')
+                self.update_button=primary_button('おすすめを更新',on_click=self.update,testid='recommend-update')
                 self.reset_button=ui.button('順序を既定に戻す',on_click=self.reset_order).props('flat dense no-caps data-testid=recommend-order-reset')
             ui.label('保存済み結果を表示します。更新・追加取得はボタンで行います。').classes('pv-subtitle')
             self.notice=ui.label().classes('pv-subtitle').props('role=status data-testid=recommend-notice')
@@ -484,6 +484,8 @@ class RecommendView:
                     if kind in data['unavailable']:
                         continue
                     for group in groups:
+                        if not group.works and kind == 'superlike':
+                            continue
                         closed=kind=='certain' and group.key in data.get('certain_group_collapsed',())
                         with ui.row().classes('items-center gap-1'):
                             ui.label(group.title).classes('pv-card-title' if kind in ('certain','trend_added','boosted') else 'pv-subtitle')
