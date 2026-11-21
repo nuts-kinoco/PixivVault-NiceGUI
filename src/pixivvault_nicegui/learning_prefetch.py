@@ -8,6 +8,7 @@ import asyncio
 from dataclasses import dataclass
 import inspect
 
+from .learning_service import notify_shadow
 from .remote_media import RemoteImageNotFound
 
 
@@ -19,8 +20,9 @@ class PrefetchResult:
 
 
 class LearningImagePrefetch:
-    def __init__(self,preferences,pin,*,on_ready=None):
+    def __init__(self,preferences,pin,*,on_ready=None,on_image=None):
         self.preferences=preferences;self.pin=pin;self.on_ready=on_ready
+        self.on_image=on_image
         self.queue=();self.active=False;self.closed=False;self.running=False
         self._generation=0
 
@@ -57,7 +59,8 @@ class LearningImagePrefetch:
                 attempted.add(target)
                 epoch=self._generation
                 try:
-                    await asyncio.to_thread(self.pin.get,target,0,'view')
+                    get = self.pin.get if self.on_image is None else self.pin.get_with_variant
+                    image = await asyncio.to_thread(get,target,0,'view')
                 except RemoteImageNotFound:
                     failed += 1
                     continue
@@ -66,6 +69,8 @@ class LearningImagePrefetch:
                     return PrefetchResult('failed',fetched,failed)
                 if self.closed or not self.active or epoch!=self._generation:continue
                 fetched+=1
+                if self.on_image is not None:
+                    notify_shadow(self.on_image,target,0,image)
                 if self.on_ready is not None:
                     result=self.on_ready(target)
                     if inspect.isawaitable(result):await result

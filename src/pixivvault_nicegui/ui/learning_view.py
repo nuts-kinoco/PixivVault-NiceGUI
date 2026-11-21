@@ -1463,7 +1463,8 @@ class LearningView:
         if self._prefetch is None or self._prefetch_pin is not pin:
             from ..learning_prefetch import LearningImagePrefetch
             self._stop_prefetch(close=True)
-            self._prefetch=LearningImagePrefetch(preferences,pin,on_ready=lambda wid:self._prefetch_ready(wid,pin))
+            on_image = self.discovery.shadow_image if getattr(self.discovery, 'shadow_observer', None) is not None else None
+            self._prefetch=LearningImagePrefetch(preferences,pin,on_ready=lambda wid:self._prefetch_ready(wid,pin),on_image=on_image)
             self._prefetch_pin=pin
         try:self._prefetch.configure()
         except Exception:return
@@ -1495,6 +1496,7 @@ class LearningView:
         if item is None or self.state.closed or self.services.closing or self.state.saving or not self._storage_ready or self._storage_busy:
             return
         self._image_token = self.state.begin_load()
+        self._shadow_image_source = self._discovery_pin
         self._release_refill_pins()
         self._image_url = (self._images.url(item.work_id, 0, "view")
                            + f"#learning-{self._image_token.generation}")
@@ -1507,6 +1509,9 @@ class LearningView:
             return
         if self._image_token is not None and source_matches(event.args, self._image_url):
             if self.state.finish_load(self._image_token):
+                if getattr(self.discovery, 'shadow_observer', None) is not None:
+                    self.discovery.shadow_exposure(self._session_id, self._image_token, self.state.artworks,
+                        self.state.index, self._discovery_frames, self._shadow_image_source)
                 if self.client.has_socket_connection:
                     self.client.run_javascript(f"requestAnimationFrame(() => document.getElementById('{self.root.html_id}')?.__pvSummaryResize?.())")
                 self._update_frame_badge()

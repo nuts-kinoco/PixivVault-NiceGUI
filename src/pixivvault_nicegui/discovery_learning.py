@@ -11,7 +11,7 @@ from dataclasses import dataclass
 import json
 from copy import deepcopy
 from dataclasses import replace
-from .learning_service import LearningService
+from .learning_service import LearningService, notify_shadow, shadow_judgments
 from .legacy.database import normalize_tag
 from .bookmark_remote_adapter import RemoteBookmark, positive_id, thumbnail_url
 from . import discovery_engine, discovery_ranking
@@ -54,8 +54,8 @@ class _Reader:
 
 class DiscoveryLearningService(LearningService):
     marker_name = '.pixivvault-managed-discovery.json'
-    def __init__(self, root, reader, *, following=None, saved_ids=(), seed_readonly_db=None, tagger=None, local_image=None, saved_works=None, image_token=None, local_saved_ids=None):
-        super().__init__(root, ())
+    def __init__(self, root, reader, *, following=None, saved_ids=(), seed_readonly_db=None, tagger=None, local_image=None, saved_works=None, image_token=None, local_saved_ids=None, shadow_observer=None):
+        super().__init__(root, (), shadow_observer=shadow_observer)
         if reader is None: raise ValueError('explicit discovery reader required')
         self._marker = {'format':'pixivvault-nicegui-managed-discovery-v1', 'database':'learning.sqlite3'}
         self.reader = reader
@@ -126,6 +126,57 @@ class DiscoveryLearningService(LearningService):
     def _effective_preferences(self, db, snapshot=None):
         base = db.get_discovery_preferences()
         return self.local_tag_view.merge_preferences(base, snapshot) if self.local_tag_view else base
+
+    def _rank(self, db, candidates, snapshot, saved, *, recent_author_ids=()):
+        preferences = self._effective_preferences(db, snapshot)
+        authors = db.get_discovery_author_preferences()
+        options = dict(get_setting=db.get_setting, normalize=normalize_tag,
+                       total_works=self._population_size(saved), recent_author_ids=recent_author_ids)
+        observer = self.shadow_observer
+        if observer is None:
+            return discovery_ranking.rank_candidates(candidates, preferences, authors, **options)
+        ordered, frames, scores = discovery_ranking.rank_candidates_with_diagnostics(
+            candidates, preferences, authors, **options)
+        if ordered:
+            def rows():
+                labels = shadow_judgments(db, tuple(c['work_id'] for c in ordered))
+                result = []
+                for rank, candidate in enumerate(ordered, 1):
+                    wid = candidate['work_id']
+                    result.append(dict(work_id=wid, author_id=candidate.get('author_id'), base_rank=rank,
+                                       frame=frames[wid], base_score=scores[wid]['score'],
+                                       score_breakdown=scores[wid], **labels[wid]))
+                return result
+            notify_shadow(lambda: observer.ranking_finalized(rows))
+        return ordered, frames
+
+    def shadow_image(self, work_id, page, image):
+        observer = self.shadow_observer
+        if observer is not None:
+            notify_shadow(lambda: observer.submit_image(work_id, page, image))
+
+    def shadow_exposure(self, session_id, token, artworks, index, frames, pin):
+        observer = self.shadow_observer
+        if observer is None:
+            return
+        image = (notify_shadow(lambda: pin.peek_with_variant(token.work_id, token.page_no, 'view'))
+                 if pin is not None else None)
+        variant = image.variant if image is not None else None
+        # The accepted view queue can be a merge of several ranking results.
+        # Capture the pending set and frame map at the actual exposure boundary.
+        candidates = tuple((item.work_id, frames.get(item.work_id)) for item in artworks[index:])
+
+        def record():
+            def row():
+                wid = token.work_id
+                return dict(session=session_id, work_id=wid, page=token.page_no, base_rank=index + 1,
+                            frame=candidates[0][1], pending_candidates=candidates,
+                            **shadow_judgments(self._database(), (wid,))[wid])
+            notify_shadow(lambda: observer.candidate_exposed(row, variant))
+
+        notify_shadow(self._submit, record)
+        if image is not None:
+            self.shadow_image(token.work_id, token.page_no, image)
 
     def close(self):
         if self.local_tag_view is not None:
@@ -267,10 +318,9 @@ class DiscoveryLearningService(LearningService):
             saved=self.saved_ids() if callable(self.saved_ids) else self.saved_ids
             excluded=set(str(x) for x in saved)|self._seed_saved|set(db.get_judged_work_ids())|set(db.get_hidden_work_ids())
             hidden=set(db.get_hidden_author_ids())
-            ordered,frames=discovery_ranking.rank_candidates(
+            ordered,frames=self._rank(db,
                 [c for wid,c in self._candidates.items() if wid not in excluded and c.get('author_id') not in hidden],
-                self._effective_preferences(db, snapshot),db.get_discovery_author_preferences(),
-                get_setting=db.get_setting,normalize=normalize_tag,total_works=self._population_size(saved))
+                snapshot, saved)
             records=tuple(self._record_for(c) for c in ordered)
             all_records=tuple(self._record_for(c) for c in self._candidates.values())
             return DiscoveryBatch(tuple(self._artwork_for(c) for c in ordered),records,frames,(),(),
@@ -309,10 +359,8 @@ class DiscoveryLearningService(LearningService):
         for candidate in valid:
             if candidate['work_id'] not in self._candidates: self._accept_metadata(candidate)
         unique = {c['work_id']:c for c in pending+valid}
-        ordered, frames = discovery_ranking.rank_candidates(list(unique.values()),
-             self._effective_preferences(db, snapshot), db.get_discovery_author_preferences(),
-             get_setting=db.get_setting, normalize=normalize_tag, total_works=self._population_size(saved),
-             recent_author_ids=recent_author_ids)
+        ordered, frames = self._rank(db, list(unique.values()), snapshot, saved,
+                                     recent_author_ids=recent_author_ids)
         records = tuple(self._record_for(c) for c in ordered)
         return DiscoveryBatch(tuple(self._artwork_for(c) for c in ordered), records, frames,
                      tuple(result.ok), tuple(result.failed) + (('invalid_metadata',) if rejected else ()),
@@ -391,10 +439,9 @@ class DiscoveryLearningService(LearningService):
         saved = frozenset(str(x) for x in saved) | self._seed_saved
         hidden_authors = set(db.get_hidden_author_ids())
         hidden_works = set(db.get_hidden_work_ids())
-        ordered, self.frames = discovery_ranking.rank_candidates(
+        ordered, self.frames = self._rank(db,
             [c for wid,c in self._candidates.items() if wid not in snapshot.judged_ids and wid not in saved and wid not in hidden_works and c.get('author_id') not in hidden_authors],
-            self._effective_preferences(db, local_snapshot), db.get_discovery_author_preferences(),
-            get_setting=db.get_setting, normalize=normalize_tag, total_works=self._population_size(saved))
+            local_snapshot, saved)
         remainder = [c for c in self._candidates.values() if c['work_id'] in snapshot.judged_ids]
         self.artworks = tuple(self._record_for(c).as_artwork() for c in ordered + remainder)
         return snapshot
@@ -432,10 +479,8 @@ class DiscoveryLearningService(LearningService):
         def rank():
             db=self._database()
             saved=self.saved_ids() if callable(self.saved_ids) else self.saved_ids
-            ordered,frames=discovery_ranking.rank_candidates(
-                [self._candidates[wid] for wid in work_ids],self._effective_preferences(db, snapshot),
-                db.get_discovery_author_preferences(),get_setting=db.get_setting,
-                normalize=normalize_tag,total_works=self._population_size(saved),recent_author_ids=tuple(recent_author_ids))
+            ordered,frames=self._rank(db, [self._candidates[wid] for wid in work_ids], snapshot, saved,
+                                      recent_author_ids=tuple(recent_author_ids))
             return tuple(c['work_id'] for c in ordered),frames
         return await self._wait(self._submit(rank))
 

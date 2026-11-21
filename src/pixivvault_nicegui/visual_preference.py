@@ -198,19 +198,19 @@ def _valid_unit(vector, dimension):
     return _unit(vector, dimension) is not None and abs(hypot(*vector) - 1) < 1e-6
 
 
-def _judgment(rows):
+def agreed_judgment(labels):
+    """Resolve compatible labels for one work at the same revision."""
     judgments = set()
     opened = False
-    for row in rows:
-        judgment = row.judgment
+    for judgment, reason in labels:
         if type(judgment) is not str or judgment not in ('', 'opened', 'like', 'superlike', 'skip', 'hate'):
             return None
-        if judgment == 'hate' and type(row.reason) is not str:
+        if judgment == 'hate' and type(reason) is not str:
             return None
         if judgment == 'opened':
             opened = True
         elif judgment:
-            judgments.add((judgment, row.reason if judgment == 'hate' else ''))
+            judgments.add((judgment, reason if judgment == 'hate' else ''))
     if len(judgments) > 1:
         return None
     return next(iter(judgments), ('opened' if opened else '', ''))
@@ -241,7 +241,7 @@ def fit(generation: Generation, samples, *, method='nearest') -> ModelSnapshot |
     for _, rows in sorted(by_work.items()):
         latest = max(row.revision for row in rows)
         rows = [row for row in rows if row.revision == latest]
-        judgment = _judgment(rows)
+        judgment = agreed_judgment((row.judgment, row.reason) for row in rows)
         if judgment is None:
             continue
         weight = _weight(judgment, rows)

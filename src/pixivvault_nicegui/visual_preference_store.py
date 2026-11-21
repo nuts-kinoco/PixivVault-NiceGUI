@@ -1,5 +1,5 @@
 """SQLite storage owned exclusively by one profile/account's visual learner."""
-from contextlib import closing, contextmanager
+from contextlib import closing, contextmanager, nullcontext
 from dataclasses import dataclass
 from errno import EACCES, EAGAIN
 from hashlib import sha256
@@ -34,6 +34,7 @@ _HEX64 = re.compile(r'[0-9a-f]{64}')
 _HEX32 = re.compile(r'[0-9a-f]{32}')
 _MARKER_LIMIT = 512
 _IO_OFFSET = _MARKER_LIMIT + 1
+_CURRENT_READ_OFFSET = _IO_OFFSET + 1
 _IO_TIMEOUT = 15.0
 _CONTROL_TIMEOUT = 2.0
 _RETRY_INTERVAL = 0.02
@@ -96,7 +97,7 @@ if os.name == 'nt':
 
 
 @contextmanager
-def _marker_lock(marker, *, exclusive, deadline):
+def _marker_lock(marker, *, exclusive, deadline, offset):
     if os.name != 'nt':
         flags = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
         while True:
@@ -109,7 +110,7 @@ def _marker_lock(marker, *, exclusive, deadline):
         yield  # Closing the marker releases this open-file lock.
         return
 
-    overlapped = _Overlapped(offset=_IO_OFFSET)
+    overlapped = _Overlapped(offset=offset)
     handle = msvcrt.get_osfhandle(marker.fileno())
     flags = (2 if exclusive else 0) | 1  # LOCKFILE_FAIL_IMMEDIATELY
     while not _lock_file(handle, flags, 0, 1, 0, ctypes.byref(overlapped)):
@@ -314,14 +315,14 @@ class VisualPreferenceStore:
         return identity['store_id']
 
     @contextmanager
-    def _locked(self, *, exclusive=False, deadline):
+    def _locked(self, *, exclusive=False, deadline, offset=_IO_OFFSET):
         """A bounded shared/exclusive I/O lock. Revocation does not acquire it."""
         self._check_owner()
         with self._marker.open('r+b', buffering=0) as marker:
             info = os.fstat(marker.fileno())
             if (info.st_dev, info.st_ino) != self._marker_id or info.st_nlink != 1:
                 _reject()
-            with _marker_lock(marker, exclusive=exclusive, deadline=deadline):
+            with _marker_lock(marker, exclusive=exclusive, deadline=deadline, offset=offset):
                 self._check_owner()
                 yield
 
@@ -618,7 +619,8 @@ class VisualPreferenceStore:
                 self._check_paths()
 
     @contextmanager
-    def _transaction(self, *, write=False, wait=True, expected=None, after_commit=None, embedding_key=None):
+    def _transaction(self, *, write=False, wait=True, expected=None, after_commit=None,
+                     embedding_key=None, expected_epoch=None):
         deadline = monotonic() + (_IO_TIMEOUT if wait else 0)
         try:
             with self._locked(exclusive=write, deadline=deadline):
@@ -644,6 +646,9 @@ class VisualPreferenceStore:
                             if expected is not None and self._generation(db) != expected:
                                 yield None
                                 return
+                            if expected_epoch is not None and (self._fence_failed or epoch != expected_epoch):
+                                yield None
+                                return
                             pending = None
                             if embedding_key is not None and db.execute(
                                     f'SELECT 1 FROM candidate_embeddings WHERE {_EMBEDDING_WHERE}',
@@ -653,7 +658,9 @@ class VisualPreferenceStore:
                             yield db
                             self._check_paths()
                             self._check_sidecars()
-                            if expected is not None and not self._fence_allows(expected):
+                            if ((expected is not None and not self._fence_allows(expected))
+                                    or (expected_epoch is not None
+                                        and (self._fence_failed or self._epoch() != expected_epoch))):
                                 db.rollback()
                             else:
                                 _busy_timeout(db, deadline)
@@ -748,17 +755,28 @@ class VisualPreferenceStore:
             deadline = monotonic()
             if not self._fence_allows(expected, deadline=deadline):
                 return False
-            if os.name == 'nt':
-                # SQLite can read committed values while a writer is RESERVED.
-                # Pin the same physical DB and check the external fence twice.
-                reader = self._validated_read(deadline, inspect_journal=False)
-            else:
-                reader = self._transaction(wait=False)
-            with reader as db:
+            with self._current_reader(expected, deadline) as db:
+                if db is None:
+                    return False
                 current = self._raw_generation(db)
             return current == expected and self._fence_allows(expected, deadline=deadline)
         except (VisualPreferenceStoreError, OSError, sqlite3.Error, ValueError):
             return False
+
+    @contextmanager
+    def _current_reader(self, expected, deadline):
+        if os.name != 'nt':
+            with self._transaction(wait=False) as db:
+                yield db
+            return
+        # A RESERVED SQLite writer permits readers. Use a separate byte range
+        # so recovery purge can still drain readers before unlinking any file.
+        with self._locked(deadline=deadline, offset=_CURRENT_READ_OFFSET):
+            if not self._fence_allows(expected, deadline=deadline):
+                yield None
+                return
+            with self._validated_read(deadline, inspect_journal=False) as db:
+                yield db
 
     def advance_generation(self, *, model_sha, preprocessing_version, judgment_fingerprint) -> Generation:
         """Issue a token for freshly captured inputs, for this call's epoch only."""
@@ -829,6 +847,28 @@ class VisualPreferenceStore:
     def put_embedding(self, expected: Generation, key: EmbeddingKey, vector) -> bool:
         if not key.matches(expected) or not self._fence_allows(expected):
             return False
+        return self._put_embedding(key, vector, expected=expected) and self._fence_allows(expected)
+
+    def capture_embedding_epoch(self) -> str:
+        """Capture the revocation fence for a shadow job, without issuing a fit."""
+        self._check_paths()
+        epoch = self._epoch()
+        if self._fence_failed or epoch is None:
+            _reject()
+        return epoch
+
+    def has_candidate_embedding(self, key: EmbeddingKey) -> bool:
+        with self._transaction() as db:
+            return db.execute(f'SELECT 1 FROM candidate_embeddings WHERE {_EMBEDDING_WHERE}',
+                              _key_values(key)).fetchone() is not None
+
+    def put_candidate_embedding(self, epoch: str, key: EmbeddingKey, vector) -> bool:
+        """Record content-derived features, without creating a published model generation."""
+        if self.capture_embedding_epoch() != epoch:
+            return False
+        return self._put_embedding(key, vector, expected_epoch=epoch) and self.capture_embedding_epoch() == epoch
+
+    def _put_embedding(self, key, vector, **fence):
         try:
             values = tuple(vector)
             if not values or not all(isfinite(value) for value in values):
@@ -836,12 +876,12 @@ class VisualPreferenceStore:
             encoded = struct.pack(f'<{len(values)}f', *values)
         except (OverflowError, TypeError, struct.error):
             raise ValueError('invalid FP32 embedding') from None
-        with self._transaction(write=True, expected=expected, embedding_key=_key_values(key)) as db:
+        with self._transaction(write=True, embedding_key=_key_values(key), **fence) as db:
             if db is None:
                 return False
             db.execute('INSERT INTO candidate_embeddings VALUES (?,?,?,?,?,?,?) '
                        'ON CONFLICT DO NOTHING', (*_key_values(key), encoded))
-        return self._fence_allows(expected)
+        return True
 
     def get_embedding(self, expected: Generation, key: EmbeddingKey) -> tuple[float, ...] | None:
         if not key.matches(expected) or not self._fence_allows(expected):
@@ -890,7 +930,6 @@ class VisualPreferenceStore:
         store = cls.__new__(cls)
         try:
             store._attach(root, profile, account, protected_paths, create=False)
-            store._declare_revocation()
             deadline = monotonic() + _IO_TIMEOUT
             with store._locked(exclusive=True, deadline=deadline):
                 store._db_id = _stat(store.path)
@@ -913,15 +952,18 @@ class VisualPreferenceStore:
                 if store._db_id is None and recorded is None and any(identity for _, identity in targets):
                     _reject()
                 store._declare_revocation()
-                for path, identity in targets:
-                    if identity is not None:
-                        store._check_owner()
-                        if store._db_id is not None:
-                            store._check_paths()
-                        if _stat(path) != identity:
-                            _reject()
-                        path.unlink()
-                store._database_owner.unlink(missing_ok=True)
+                readers = (store._locked(exclusive=True, deadline=deadline, offset=_CURRENT_READ_OFFSET)
+                           if os.name == 'nt' else nullcontext())
+                with readers:
+                    for path, identity in targets:
+                        if identity is not None:
+                            store._check_owner()
+                            if store._db_id is not None:
+                                store._check_paths()
+                            if _stat(path) != identity:
+                                _reject()
+                            path.unlink()
+                    store._database_owner.unlink(missing_ok=True)
         except (OSError, sqlite3.Error, ValueError):
             _reject()
 

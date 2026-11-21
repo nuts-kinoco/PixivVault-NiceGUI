@@ -60,6 +60,7 @@ class SimilarityWorker:
         self._stop_requested = False
         self._phase = 'idle'
         self._generation = 0
+        self._resume_request = 0
         self._indexed = 0
         self._resumed = 0
         self._errors = 0
@@ -111,7 +112,12 @@ class SimilarityWorker:
 
     def resume(self) -> None:
         with self._lock:
-            if not self._stop_requested and self._phase in ('paused', 'failed'):
+            if self._stop_requested:
+                return
+            if self._phase == 'running':
+                # release_all() can finish before this scan handles cancellation.
+                self._resume_request += 1
+            elif self._phase in ('paused', 'failed'):
                 self._phase = 'idle'
                 self._generation += 1
                 self._consecutive_failures = 0
@@ -164,13 +170,18 @@ class SimilarityWorker:
                 self._signal.set()
 
     def _scan_once(self, generation: int) -> None:
+        with self._lock:
+            resume_request = self._resume_request
         try:
             with DEFAULT_GPU_ARBITER.stop_scope():
                 self._scan_pages(generation)
         except GpuInferenceStopped:
             with self._lock:
                 if self._is_current(generation):
-                    self.pause()
+                    if resume_request == self._resume_request:
+                        self.pause()
+                    else:
+                        self._signal.set()
 
     def _scan_pages(self, generation: int) -> None:
         pages = None
