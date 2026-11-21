@@ -229,11 +229,16 @@ class FollowingSyncView:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     raise FollowingSyncTimedOut()
-                return store.sync(_PinnedReader(reader, actual, checkpoint),
+                result = store.sync(_PinnedReader(reader, actual, checkpoint),
                     expected_revision=revision if actual == account else None,
                     cancelled=cancelled, timeout=remaining)
         except ReadDeadlineExceeded:
             raise FollowingSyncTimedOut() from None
+        # The committed result is authoritative even if the view was dismissed.
+        release = getattr(self.services, 'start_managed_scheduler_after_auth', None)
+        if release is not None:
+            release(result.account_id, store, reader=reader)
+        return result
 
     def cancel_sync(self):
         if self._active and self._busy and self._cancel_event is not None:

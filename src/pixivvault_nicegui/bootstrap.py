@@ -394,6 +394,7 @@ def _wire_followup(native_profile, services):
     """FL-A09/A10: the following store and request pacing of this application."""
     native_profile.followup.store_provider = lambda: services.following_sync
     native_profile.followup.admission_provider = lambda: getattr(services, '_request_admission', None)
+    native_profile.followup.on_following_ready = getattr(services, 'start_managed_scheduler_after_auth', None)
     native_profile._shared_event_services = services
     native_profile.followup._shared_event_services = services
 
@@ -722,7 +723,8 @@ def register_pages(learning_sandbox: Path | None = None,
             external_vault_root=external_vault_root,image_cache_root=image_cache_root,desktop=desktop,notification_backend=notification_backend,
             following_sync_root=following_sync_root, pixiv_actions_mode=pixiv_actions_mode,
             managed_network_stop_scope=managed_network_stop_scope,
-            shared_network_stop_scope=shared_network_stop_scope, legacy_copy_root=legacy_copy_root)
+            shared_network_stop_scope=shared_network_stop_scope, legacy_copy_root=legacy_copy_root,
+            scheduler_wait_for_auth=bool(getattr(native_profile, 'auth_stop_required', False)))
     except BaseException:
         if novel_download_root is not None and novel_source is not None:
             novel_source._reader.close()

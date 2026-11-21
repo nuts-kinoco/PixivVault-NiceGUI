@@ -329,6 +329,15 @@ class CookieExpiryCoordinator:
                     and snapshot == self._snapshot)
 
     def close(self):
-        with self.lock:
+        # An open reader may still own an admitted POST or expiry commit.
+        # After native shutdown revokes all readers, a lingering GET may
+        # hold the request lock, but cannot start any new profile update.
+        readers_open = any(not reader._closed for reader in self._readers)
+        if not self.lock.acquire(blocking=readers_open):
+            self._closed = True
+            return
+        try:
             self._closed = True
             self._readers.clear()
+        finally:
+            self.lock.release()

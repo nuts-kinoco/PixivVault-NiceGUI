@@ -9,7 +9,7 @@ from uuid import uuid4
 from ..account_scope import AccountMismatch, require_same_account
 from ..following_sync import subscribe_owner_on_loop
 from ..legacy_author_sync import LegacyAuthorSourceError
-from ..managed_scheduler import ScheduleAccountError
+from ..managed_scheduler import ScheduleAccountError, ScheduleConfirmationUnavailable
 
 from nicegui import ui
 
@@ -17,6 +17,15 @@ STATUS_LABELS = {
     'never': '未実行', 'saved': '完了', 'queued': '受付済み', 'running': '実行中',
     'deferred': '保留', 'failed': '失敗', 'error': 'エラー', 'empty': '対象なし',
     'partial': '一部完了', 'unknown': '不明', 'interrupted': '中断',
+}
+
+CONFIRMATION_STATUS = {
+    'waiting': '認証・フォロー情報の確認待ち',
+    'unsynced': 'フォロー同期の完了待ち',
+    'restart': 'Cookieの変更を反映するには再起動してください',
+    'closing': '終了処理中',
+    'busy': '別の画面で定期チェックの認証を確認中',
+    'confirming': '定期チェックの認証を確認中',
 }
 
 
@@ -32,6 +41,7 @@ class SchedulerView:
         self._completion_notification = None
         self._hidden_star_draft = None
         self._busy = False
+        self._confirming = False
         self._settings_dirty = False
         self._loading_settings = False
         self._refresh_pending = False
@@ -40,6 +50,9 @@ class SchedulerView:
             ui.label('新しい専用管理フォルダーにだけ保存します。旧DB、画像、Cookieは更新しません。')
             with ui.row().classes('items-center gap-3 flex-wrap'):
                 self.open_button = ui.button('管理スケジューラを開く', on_click=self.open).props('data-testid=scheduler-open')
+                self.confirm_account_button = ui.button('定期チェックの認証を確認', on_click=self.confirm_account).props(
+                    'data-testid=scheduler-confirm-account')
+                self.confirm_account_button.set_visibility(False)
                 self.interval = ui.select({'0': '自動チェックしない', '6': '6時間', '12': '12時間',
                                            '24': '24時間', '48': '48時間'}, value='24',
                                           label='自動チェック間隔').style('min-width:184px').props('data-testid=scheduler-interval')
@@ -59,11 +72,13 @@ class SchedulerView:
                     '状態更新', on_click=lambda: self.refresh(ensure_after_current=True)
                 ).props('data-testid=scheduler-refresh')
                 self.ack_button = ui.button('中断状態を確認して解除', on_click=self.acknowledge).props('data-testid=scheduler-ack')
-            self.status = ui.label('定期状態: 未起動').props('data-testid=scheduler-status')
+            status = ('未起動' if getattr(services, 'managed_scheduler', None) is None else '状態を確認中')
+            self.status = ui.label(f'定期状態: {status}').props('data-testid=scheduler-status')
             self.history_label = ui.label('実行履歴はありません').classes('text-caption').props('data-testid=scheduler-history')
             self.star_notice = ui.label('').classes('text-caption').props('data-testid=scheduler-star-import role=status')
             self.action_notice = ui.label('').props('data-testid=scheduler-action-notice role=status')
         self._set_controls(False)
+        self.open_button.set_enabled(getattr(services, 'managed_scheduler', None) is None)
         self._refreshing = False
         self._background_refresh_tasks: set[asyncio.Task] = set()
         self._timer = ui.timer(5.0, self.refresh)
@@ -193,13 +208,62 @@ class SchedulerView:
 
     def _editor(self, ledger, account_id):
         try:
+            if self._cookie_restart_required():
+                return None
             owner = ledger.capture_owner(self.services, account_id=account_id)
             return ledger.read_editor(owner=owner)
         except (OSError, RuntimeError, sqlite3.Error):
             return None
 
+    def _cookie_restart_required(self):
+        check = getattr(self.services, 'scheduler_cookie_restart_required', None)
+        return check is not None and check()
+
+    def _confirmation_blocker(self):
+        check = getattr(self.services, 'scheduler_account_confirmation_blocker', None)
+        if check is not None:
+            return check()
+        if self._cookie_restart_required():
+            return 'restart'
+        if getattr(self.services, '_scheduler_waiting_for_auth', False):
+            return 'waiting'
+        return None
+
+    async def confirm_account(self):
+        confirm = getattr(self.services, 'confirm_scheduler_account', None)
+        if self.closed or self._busy or confirm is None:
+            return
+        if self._confirmation_blocker() is not None:
+            await self._refresh_confirmation_conflict()
+            return
+        self._busy = self._confirming = True
+        self.confirm_account_button.set_enabled(False)
+        try:
+            await asyncio.to_thread(confirm)
+        except Exception as error:
+            self._confirming = False
+            if not self.closed:
+                if isinstance(error, ScheduleConfirmationUnavailable) and error.reason == 'busy':
+                    await self._refresh_confirmation_conflict()
+                elif self._hide_account_data() != 'restart':
+                    self.action_notice.set_text(check_failure_message(error))
+        else:
+            self._confirming = False
+            if not self.closed:
+                await self.refresh(ensure_after_current=True)
+        finally:
+            self._confirming = False
+            self._finish_action()
+            if not self.closed:
+                self.confirm_account_button.set_enabled(self.confirm_account_button.visible)
+
+    async def _refresh_confirmation_conflict(self):
+        await self.refresh(ensure_after_current=True)
+        if not self.closed and self._settings_owner is None and self._confirmation_blocker() == 'busy':
+            self.action_notice.set_text(CONFIRMATION_STATUS['busy'])
+
     def _verify_result(self, owner):
-        if owner is None or owner != self._settings_owner:
+        if owner is None or owner != self._settings_owner or self._cookie_restart_required():
             raise AccountMismatch()
         owner.verify_current()
 
@@ -229,13 +293,23 @@ class SchedulerView:
         self.authors.set_visibility(False)
         self._loaded_authors = ''
         self._stars_unknown_in_form = True
-        self.star_notice.set_text('☆の一覧を読み込めません。同期先を確認して、定期チェック画面を再読込してください。')
+        self.star_notice.set_text('☆一覧を読み込めません。ログイン中のアカウントと保存済みのフォロー情報を照合できるまで、履歴も非表示になります。')
         self.account_label.set_text('紐づけアカウントを確認できません')
-        self.status.set_text('定期状態: 紐づけアカウントを確認できません')
+        blocker = self._confirmation_blocker()
+        if self._confirming and blocker in (None, 'busy'):
+            blocker = 'confirming'
+        if blocker != 'busy' and self.action_notice.text == CONFIRMATION_STATUS['busy']:
+            self.action_notice.set_text('')
+        show_confirm = blocker is None and callable(getattr(self.services, 'confirm_scheduler_account', None))
+        self.confirm_account_button.set_visibility(show_confirm)
+        self.confirm_account_button.set_enabled(show_confirm and not self._busy)
+        status = CONFIRMATION_STATUS.get(blocker, '紐づけアカウントを確認できません')
+        self.status.set_text(f'定期状態: {status}')
         self.ack_button.set_enabled(False)
         self.run_button.set_enabled(False)
         self._hide_history()
         self._enable_save()
+        return blocker
 
     def _show_account(self, ledger):
         if getattr(ledger, '_account_guard', False):
@@ -251,6 +325,9 @@ class SchedulerView:
             self._hide_account_data()
             return False
         self._settings_owner = self._stop_owner = editor.owner
+        if self.action_notice.text == CONFIRMATION_STATUS['busy']:
+            self.action_notice.set_text('')
+        self.confirm_account_button.set_visibility(False)
         account_id = editor.owner.account_id
         draft = self._hidden_star_draft
         if draft is not None and draft[0] == account_id:
@@ -269,7 +346,10 @@ class SchedulerView:
             self.ack_button.set_enabled(False)
         self.run_button.set_enabled(not self._busy and (editor.owns_history or editor.unbound))
         self._enable_save()
-        if self._stars_unknown_in_form or not (editor.owns_history or editor.unbound):
+        if not (editor.owns_history or editor.unbound):
+            self.star_notice.set_text('定期チェックの履歴は別のアカウントに紐づいているか、作成元を確認できません。履歴を保持しています。')
+            self.account_label.set_text('紐づけアカウントを確認できません')
+        elif self._stars_unknown_in_form:
             self.account_label.set_text('紐づけアカウントを確認できません')
         elif editor.unbound:
             self.account_label.set_text(f'対象アカウント ID {account_id}（未紐づけ）')
@@ -348,6 +428,9 @@ class SchedulerView:
             ledger = self.services.managed_scheduler
             if ledger is None:
                 return
+            self.open_button.set_enabled(False)
+            if not self.interval.enabled:
+                self._set_controls(True)
             self._load(ledger)
             owner = self._settings_owner
             guarded = getattr(ledger, '_account_guard', False)
@@ -621,6 +704,8 @@ def check_failure_message(error):
         return '旧DBまたは画像の保存元を確認できません。停止した旧DBのコピーと保存元を確認してください'
     from ..managed_network_stop_gate import ManagedNetworkStopped, ManagedNetworkGateBusy, ManagedNetworkGateStorageError
     from ..pixiv_read_client import HTTPStatusRejected, AuthenticationMissing
+    if isinstance(error, ScheduleConfirmationUnavailable):
+        return CONFIRMATION_STATUS.get(error.reason, '定期チェックの認証を確認できません。')
     if isinstance(error, (ScheduleAccountError, AccountMismatch)):
         if getattr(error, 'reason', None) == 'unknown':
             return '定期チェックの既存データの出所を確認できません。データを保持して停止しました。'

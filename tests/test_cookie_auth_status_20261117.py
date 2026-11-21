@@ -143,7 +143,7 @@ async def test_no_cookie_means_no_request_and_banner_status(tmp_path, monkeypatc
 @pytest.mark.asyncio
 async def test_stopped_check_shows_reason_and_sends_nothing(tmp_path, monkeypatch):
     binding, _ = make_binding(tmp_path, monkeypatch)
-    monkeypatch.setattr(binding, '_verify_auth_result', lambda path, stopped: NativeAuthResult('stopped'))
+    monkeypatch.setattr(binding, '_verify_auth_result', lambda path, stopped: (NativeAuthResult('stopped'), None))
     await binding.refresh_auth_status()
     assert FakeReader.instances == []
     assert binding.auth_status.status.level == 'stopped'
@@ -158,13 +158,13 @@ async def test_startup_check_runs_once_and_only_for_stop_gated_profiles(tmp_path
     assert FakeReader.instances == []
     binding.auth_stop_required = True
     calls = []
-    original = binding.check_authentication
+    original = binding._check_authentication_with_identity
 
     async def counted(path, **kw):
         calls.append(path)
         return await original(path, **kw)
-    monkeypatch.setattr(binding, 'check_authentication', counted)
-    monkeypatch.setattr(binding, '_verify_auth_result', lambda path, stopped: NativeAuthResult('stopped'))
+    monkeypatch.setattr(binding, '_check_authentication_with_identity', counted)
+    monkeypatch.setattr(binding, '_verify_auth_result', lambda path, stopped: (NativeAuthResult('stopped'), None))
     task = binding.start_startup_auth_check()
     assert task is not None and binding.start_startup_auth_check() is task
     await task
@@ -447,17 +447,17 @@ async def test_busy_gate_is_retried_so_the_header_does_not_stay_stopped(tmp_path
     binding, store = make_binding(tmp_path, monkeypatch)
     monkeypatch.setattr('pixivvault_nicegui.native_startup.BUSY_RETRY_DELAYS', (0.0, 0.0, 0.0))
     calls = []
-    real = binding.check_authentication
+    real = binding._check_authentication_with_identity
 
     async def flaky(cookie, **kw):
         calls.append(1)
         if len(calls) <= 2:
             result = NativeAuthResult('busy')
             binding.auth_status.publish(A.status_from_result(result))
-            return result
+            return result, None
         return await real(cookie, **kw)
 
-    monkeypatch.setattr(binding, 'check_authentication', flaky)
+    monkeypatch.setattr(binding, '_check_authentication_with_identity', flaky)
     await binding.refresh_auth_status(startup=True)
     assert len(calls) == 3
     assert binding.auth_status.status.level == 'valid'
@@ -474,9 +474,9 @@ async def test_busy_gate_gives_up_after_the_bounded_retries(tmp_path, monkeypatc
         calls.append(1)
         result = NativeAuthResult('busy')
         binding.auth_status.publish(A.status_from_result(result))
-        return result
+        return result, None
 
-    monkeypatch.setattr(binding, 'check_authentication', always_busy)
+    monkeypatch.setattr(binding, '_check_authentication_with_identity', always_busy)
     await binding.refresh_auth_status(startup=True)
     assert len(calls) == 3  # first try + two retries, then it stops
     assert binding.auth_status.status.text.startswith('▲ [通信停止中]')

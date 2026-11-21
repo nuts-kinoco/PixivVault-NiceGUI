@@ -119,7 +119,7 @@ async def test_warning_range_triggers_but_healthy_cookie_does_not(tmp_path, monk
 async def test_no_extraction_when_the_state_is_not_an_expiry(tmp_path, monkeypatch, code):
     binding, store, old = make(tmp_path, monkeypatch)
 
-    monkeypatch.setattr(binding, '_verify_auth_result', lambda path, stopped: NativeAuthResult(code))
+    monkeypatch.setattr(binding, '_verify_auth_result', lambda path, stopped: (NativeAuthResult(code), None))
     await binding.refresh_auth_status(startup=True)
     assert binding.browser_cookie_source.calls == 0
     assert store.snapshot().cookie_file == old
@@ -187,7 +187,7 @@ async def test_browser_cookie_that_pixiv_rejects_is_not_adopted(tmp_path, monkey
     binding, store, old = make(tmp_path, monkeypatch, expired=True)
     real = binding._verify_auth_result
     monkeypatch.setattr(binding, '_verify_auth_result',
-                        lambda path, stopped: (NativeAuthResult('identity_unverified')
+                        lambda path, stopped: ((NativeAuthResult('identity_unverified'), None)
                                                if str(path).endswith('cookies.txt') and 'generations' in str(path)
                                                else real(path, stopped)))
     await binding.refresh_auth_status(startup=True)
@@ -308,7 +308,7 @@ async def test_adopted_generation_passes_the_next_start_profile_validation(tmp_p
 @pytest.mark.asyncio
 async def test_empty_cookie_file_is_missing_not_expired_and_imported_startup_never_extracts(tmp_path, monkeypatch):
     binding, store, old = make(tmp_path, monkeypatch, expired=True)
-    monkeypatch.setattr(binding, '_verify_auth_result', lambda path, stopped: NativeAuthResult('cookie_unreadable'))
+    monkeypatch.setattr(binding, '_verify_auth_result', lambda path, stopped: (NativeAuthResult('cookie_unreadable'), None))
     await binding.refresh_auth_status(imported=True, startup=True)   # coalesced re-check
     assert binding.browser_cookie_source.calls == 0
     old.write_bytes(b'')                                             # original "missing"

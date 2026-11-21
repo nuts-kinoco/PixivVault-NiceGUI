@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import OrderedDict
+import logging
 from pathlib import Path
 import re
 from threading import Event, Lock, RLock
@@ -20,6 +21,8 @@ from .request_policy import job_request_runner, request_scope
 
 _CURRENT_IMAGE_READER = object()
 _FAILED_LEGACY_COPY_OWNERS = []
+_LOG = logging.getLogger(__name__)
+_SCHEDULER_CONFIRMATION_DRAIN_SECONDS = 5.0
 
 
 def _scheduler_output_owner(ledger, services, account_id):
@@ -139,7 +142,8 @@ class ApplicationServices:
                  external_vault_root=None, image_cache_root=None, discovery_following=None,
                  external_vault_transport=None, external_vault_crypto=None, desktop=None, notification_backend=None,
                  following_sync_root=None, pixiv_actions_mode='readonly',
-                 managed_network_stop_scope=None, shared_network_stop_scope=None, legacy_copy_root=None) -> None:
+                 managed_network_stop_scope=None, shared_network_stop_scope=None, legacy_copy_root=None,
+                 scheduler_wait_for_auth=False) -> None:
         failed_queue_source_db = failed_queue_readonly_db
         if (type(pixiv_actions_mode) is not str or
                 pixiv_actions_mode not in ('readonly', 'enabled', 'preferences')):
@@ -476,7 +480,9 @@ class ApplicationServices:
         self._metadata_auto_lock = Lock()
         self._metadata_total_cache = None
         self._managed_scheduler_lock = Lock()
+        self._scheduler_waiting_for_auth = scheduler_wait_for_auth
         self._scheduler_dispatch_lock = Lock()
+        self._scheduler_confirmation_lock = Lock()
         self._scheduler_cancel_event = Event()
         self._scheduler_unfinished_count = None
         self.failed_queue_readonly_db = failed_queue_readonly_db
@@ -3169,6 +3175,14 @@ class ApplicationServices:
                             with self._legacy_export_lock:
                                 self._close_resources()
 
+    def _drain_scheduler_confirmation(self):
+        lock = self._scheduler_confirmation_lock
+        if not lock.acquire(timeout=_SCHEDULER_CONFIRMATION_DRAIN_SECONDS):
+            _LOG.error('scheduler confirmation shutdown unverified')
+            return False
+        lock.release()
+        return True
+
     def _close_pixiv_actions(self):
         actions = self.pixiv_actions
         if actions is None:
@@ -3184,6 +3198,9 @@ class ApplicationServices:
             raise RuntimeError('Pixiv action shutdown unverified') from None
 
     def _close_resources(self):
+        if self.batch_runs is not None and not self.batch_runs._shutdown(60.0):
+            # The batch worker borrows the following store and job queues.
+            raise RuntimeError('batch run shutdown unverified')
         with self._failure_actions_lock:
             if self._failure_record_actions is not None:
                 self._failure_record_actions.close()
@@ -3225,15 +3242,10 @@ class ApplicationServices:
             self.recommendations.close()
         if self.discovery is not None:
             self.discovery.close()
-        if self.batch_runs is not None:
-            # Closing marks `closing`, which the engine reads as a stop; wait for its thread.
-            self.batch_runs._shutdown(60.0)
         if self.batch_run_ledger is not None:
             self.batch_run_ledger.close()
         if self.local_tagger is not None:
             self.local_tagger.close()
-        if self.following_sync is not None:
-            self.following_sync.close()
         vault_shutdown_error = None
         if self.premium_authorization is not None:self.premium_authorization.close()
         if self.external_vault is not None:
@@ -3270,8 +3282,15 @@ class ApplicationServices:
             self.images.close()
             if self.library_repository is not None:
                 self.library_repository.close()
+            # The action, scheduler and download workers have stopped. Only
+            # now can we revoke their shared reader and drain confirmation.
             if self.live_client is not None:
                 self.live_client.close()
+            confirmation_stopped = self._drain_scheduler_confirmation()
+            # A late confirmation cannot touch these ledgers: its final
+            # lifecycle check rejects it while closing.
+            if self.following_sync is not None:
+                self.following_sync.close()
             if self._public_images is not None:
                 self._public_images.close()
             if self.managed_scheduler is not None:
@@ -3290,6 +3309,8 @@ class ApplicationServices:
             self.closed = True
         if vault_shutdown_error is not None:
             raise vault_shutdown_error
+        if not confirmation_stopped:
+            raise RuntimeError('scheduler confirmation shutdown unverified')
 
     def clear_shared_image_cache(self):
         """Clear the owned cache and record only the confirmed outcome."""
@@ -3344,8 +3365,10 @@ class ApplicationServices:
             if self.closing or self.managed_downloads is None or self.live_client is None:
                 raise RuntimeError('isolated managed Pixiv mode is required')
             if self.managed_scheduler is None:
-                from .managed_scheduler import ManagedScheduler, ManagedScheduleRunner, ScheduleAccountError, submit_author_batch
-                from .managed_network_stop_gate import ManagedNetworkStopped
+                from .managed_scheduler import (
+                    ManagedScheduler, ManagedScheduleRunner, ScheduleAccountError, ScheduleRestartRequired,
+                    submit_author_batch)
+                from .managed_network_stop_gate import ManagedNetworkGateBusy, ManagedNetworkStopped
                 ledger = ManagedScheduler(self.managed_downloads.root)
                 attach = getattr(ledger, 'attach_favourites', None)
                 book_factory = getattr(self, 'favourite_book', None)
@@ -3359,58 +3382,186 @@ class ApplicationServices:
                         pass  # keep the queue handoff below rather than refuse the schedule
 
                 def dispatch(slot, cancellation):
-                    # Engine run: every ☆ author, in turn, stamped on completion, behind the same
-                    # network stop gate. Otherwise queue acceptance (not a verified saved receipt).
-                    with self._scheduler_dispatch_lock:
-                        try:
-                            owner = None
-                            if getattr(ledger, '_account_guard', False):
-                                authors, owner = self.scheduler_favourite_authors(ledger=ledger, include_owner=True)
-                            elif book_factory is not None:
-                                authors = self.scheduler_favourite_authors(ledger=ledger)
-                            else:
-                                authors = self.scheduler_favourite_authors()
-                            ledger._sync_favourites(authors)
-                            if authors and not cancellation.is_set() and not self.closing:
-                                _append_scheduler_output(self.shared_log, ledger,
-                                    f'☆ お気に入り自動チェックを開始します ({len(authors)}人の作者)', owner=owner)
-                            dispatch_check = getattr(self, 'dispatch_author_check', None)
-                            if dispatch_check is None:
-                                submit_author_batch(self, authors, cancellation=cancellation,
-                                                    ledger=ledger, slot=slot)
-                            else:
-                                dispatch_check(ledger, slot, cancellation, authors=authors)
-                        except ManagedNetworkStopped:
-                            if not cancellation.is_set() and not self.closing:
-                                self.shared_log.append('☆ お気に入り自動チェックは取得停止により中断しました。')
-                            raise
-                        except (ScheduleAccountError, AccountMismatch) as error:
-                            if not cancellation.is_set() and not self.closing:
-                                message = ('定期チェックの既存データの出所を確認できません。データを保持して停止しました。'
-                                           if getattr(error, 'reason', None) == 'unknown' else
-                                           '定期チェックの台帳は別のアカウントに紐付いています。既存データを保持して停止しました。')
-                                self.shared_log.append(message, level='error')
-                            raise
-                        except Exception:
-                            if not cancellation.is_set() and not self.closing:
-                                self.shared_log.append('☆ お気に入り自動チェック中にエラーが発生しました。', level='error')
-                            raise
+                    phase = '取得停止ゲートと☆一覧の確認'
+                    guarded = getattr(ledger, '_account_guard', False)
+                    first_busy = None
+                    try:
+                        for attempt in range(2):
+                            with self._scheduler_dispatch_lock:
+                                if cancellation.is_set() or self.closing:
+                                    if first_busy is not None:
+                                        raise first_busy
+                                    return
+                                if ApplicationServices.scheduler_cookie_restart_required(self):
+                                    raise ScheduleRestartRequired()
+                                owner = None
+                                try:
+                                    if guarded:
+                                        authors, owner = self.scheduler_favourite_authors(ledger=ledger, include_owner=True)
+                                    elif book_factory is not None:
+                                        authors = self.scheduler_favourite_authors(ledger=ledger)
+                                    else:
+                                        authors = self.scheduler_favourite_authors()
+                                except ManagedNetworkGateBusy as error:
+                                    if attempt or not guarded:
+                                        raise
+                                    first_busy = error
+                                else:
+                                    phase = '☆一覧の反映'
+                                    ledger._sync_favourites(authors)
+                                    phase = 'チェック開始ログの記録'
+                                    if authors and not cancellation.is_set() and not self.closing:
+                                        _append_scheduler_output(self.shared_log, ledger,
+                                            f'☆ お気に入り自動チェックを開始します ({len(authors)}人の作者)', owner=owner)
+                                    phase = 'チェックの受付・実行'
+                                    dispatch_check = getattr(self, 'dispatch_author_check', None)
+                                    if dispatch_check is None:
+                                        submit_author_batch(self, authors, cancellation=cancellation,
+                                                            ledger=ledger, slot=slot)
+                                    else:
+                                        dispatch_check(ledger, slot, cancellation, authors=authors)
+                                    phase = 'チェック終了ログの記録'
+                                    if not cancellation.is_set() and not self.closing:
+                                        message = ('定期チェックの受付処理を終了しました。保存完了は各ジョブで確認してください。'
+                                                   if authors else '☆ お気に入り自動チェック: 対象の作者（☆お気に入り）が登録されていません。')
+                                        _append_scheduler_output(self.shared_log, ledger, message, owner=owner)
+                                    return
+                            # Only a preflight failure can get here. Do not hold the
+                            # dispatch lock while waiting or retry any admission.
+                            if cancellation.wait(3.0):
+                                raise first_busy
+                    except ScheduleRestartRequired:
+                        raise  # The saved credential takes effect on restart.
+                    except ManagedNetworkStopped:
                         if not cancellation.is_set() and not self.closing:
-                            message = ('定期チェックの受付処理を終了しました。保存完了は各ジョブで確認してください。'
-                                       if authors else '☆ お気に入り自動チェック: 対象の作者（☆お気に入り）が登録されていません。')
-                            _append_scheduler_output(self.shared_log, ledger, message, owner=owner)
+                            self.shared_log.append('☆ お気に入り自動チェックは取得停止により中断しました。')
+                        raise
+                    except (ScheduleAccountError, AccountMismatch) as error:
+                        if not cancellation.is_set() and not self.closing:
+                            message = ('定期チェックの既存データの出所を確認できません。データを保持して停止しました。'
+                                       if getattr(error, 'reason', None) == 'unknown' else
+                                       '定期チェックの台帳は別のアカウントに紐付いています。既存データを保持して停止しました。')
+                            self.shared_log.append(message, level='error')
+                        raise
+                    except Exception as error:
+                        if not cancellation.is_set() and not self.closing:
+                            reason = (f'{phase}で取得停止ゲートが使用中です' if isinstance(error, ManagedNetworkGateBusy)
+                                      else f'{phase}に失敗しました')
+                            # Exception messages and tracebacks can carry account data.
+                            message = f'☆ お気に入り自動チェック中にエラーが発生しました。{reason}（{type(error).__name__}）'
+                            _LOG.error('%s', message)
+                            self.shared_log.append(message, level='error')
+                        raise
 
-                runner = ManagedScheduleRunner(ledger, dispatch,
-                                               reconcile=self.reconcile_managed_scheduler)
+                waiting = getattr(self, '_scheduler_waiting_for_auth', False)
+                native = waiting or getattr(self, 'native_profile', None) is not None
+                if ApplicationServices.scheduler_cookie_restart_required(self):
+                    self._scheduler_waiting_for_auth = waiting = True
+                admission = {'can_dispatch': lambda: not (self.closing or self.scheduler_cookie_restart_required())} if native else {}
+                runner = ManagedScheduleRunner(ledger, dispatch, reconcile=self.reconcile_managed_scheduler, **admission)
                 self.managed_scheduler = ledger
                 try:
-                    runner.start()
+                    if not waiting:
+                        runner.start()
                 except BaseException:
                     self.managed_scheduler = None
                     ledger.close()
                     raise
                 self.managed_schedule_runner = runner
             return self.managed_scheduler
+
+    def scheduler_cookie_restart_required(self):
+        profile = getattr(self, 'native_profile', None)
+        replaced = getattr(profile, 'cookie_replaced_since_launch', None)
+        return replaced is not None and replaced()
+
+    def start_managed_scheduler_after_auth(self, account, following, *, reader=None):
+        """Release the native timer after authentication and a committed follow owner."""
+        with self._managed_scheduler_lock:
+            profile = getattr(self, 'native_profile', None)
+            if (self.closing or not self._scheduler_waiting_for_auth or self.following_sync is not following
+                    or getattr(profile, '_closed', False) or self.scheduler_cookie_restart_required()):
+                return False
+            with following._lock:
+                try:
+                    if account is None or account != following.last_synced_account():
+                        return False
+                except (OSError, RuntimeError):
+                    return False
+                if reader is not None and (self.live_client is not reader
+                                           or getattr(reader, '_verified_identity', None) != account):
+                    return False
+                if self.managed_schedule_runner is not None:
+                    self.managed_schedule_runner.start()
+                self._scheduler_waiting_for_auth = False
+                return True
+
+    def _scheduler_account_confirmation_state(self):
+        if self.closing or self._scheduler_cancel_event.is_set():
+            return 'closing', None
+        if self.scheduler_cookie_restart_required():
+            return 'restart', None
+        profile = getattr(self, 'native_profile', None)
+        followup = getattr(profile, 'followup', None)
+        if (getattr(profile, '_refresh_running', False) or getattr(followup, '_running', False)
+                or getattr(followup, 'pending', None) is not None):
+            return 'waiting', None
+        if self.managed_scheduler is None or self.following_sync is None or self.live_client is None:
+            return 'unavailable', None
+        try:
+            account = self.following_sync.last_synced_account()
+        except (OSError, RuntimeError):
+            return 'unavailable', None
+        if account is None:
+            return 'unsynced', None
+        if self._scheduler_waiting_for_auth:
+            return 'waiting', None
+        return None, account
+
+    def scheduler_account_confirmation_blocker(self):
+        blocker, _ = self._scheduler_account_confirmation_state()
+        return blocker or ('busy' if self._scheduler_confirmation_lock.locked() else None)
+
+    def confirm_scheduler_account(self):
+        """Confirm the editor's live reader without starting the timer."""
+        from .managed_scheduler import ScheduleConfirmationUnavailable, _require_managed_network_allowed
+        from .pixiv_read_client import ClientClosed
+
+        def checkpoint():
+            if self.closing or self._scheduler_cancel_event.is_set():
+                # This may unwind inside the expiry update's shared gate.
+                raise ClientClosed()
+
+        if self.closing or self._scheduler_cancel_event.is_set():
+            raise ScheduleConfirmationUnavailable('closing')
+        if not self._scheduler_confirmation_lock.acquire(blocking=False):
+            raise ScheduleConfirmationUnavailable('busy')
+        try:
+            with self._managed_scheduler_lock:
+                blocker, account = self._scheduler_account_confirmation_state()
+                if blocker is not None:
+                    raise ScheduleConfirmationUnavailable(blocker)
+                ledger, following, reader = self.managed_scheduler, self.following_sync, self.live_client
+            # The GET must not hold a lock needed to close the live reader.
+            with request_scope(checkpoint=checkpoint):
+                checkpoint()
+                _require_managed_network_allowed(self)
+                actual = reader.require_identity()
+            with self._managed_scheduler_lock:
+                blocker, current = self._scheduler_account_confirmation_state()
+                if blocker is not None:
+                    raise ScheduleConfirmationUnavailable(blocker)
+                if self.managed_scheduler is not ledger or self.following_sync is not following or self.live_client is not reader:
+                    raise AccountMismatch()
+                require_same_account(account, current)
+                require_same_account(account, actual)
+                ledger.capture_owner(self, account_id=account)
+        except ClientClosed:
+            if self.closing or self._scheduler_cancel_event.is_set():
+                raise ScheduleConfirmationUnavailable('closing') from None
+            raise
+        finally:
+            self._scheduler_confirmation_lock.release()
 
     # -- author batch runs ---------------------------------------------------------------
     def batch_run_active(self) -> bool:
@@ -4200,7 +4351,7 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                  external_vault_transport=None, external_vault_crypto=None, desktop=None, notification_backend=None,
                  following_sync_root=None, pixiv_actions_mode=None,
                  managed_network_stop_scope=None, shared_network_stop_scope=None,
-                 legacy_copy_root=None) -> ApplicationServices:
+                 legacy_copy_root=None, scheduler_wait_for_auth=False) -> ApplicationServices:
     """Return resources scoped to the ASGI app; no-argument access is legacy."""
     global _services
     with _lock:
@@ -4224,7 +4375,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                     following_sync_root=following_sync_root,
                     pixiv_actions_mode='readonly' if pixiv_actions_mode is None else pixiv_actions_mode,
                     managed_network_stop_scope=managed_network_stop_scope,
-                    shared_network_stop_scope=shared_network_stop_scope, legacy_copy_root=legacy_copy_root)
+                    shared_network_stop_scope=shared_network_stop_scope, legacy_copy_root=legacy_copy_root,
+                    scheduler_wait_for_auth=scheduler_wait_for_auth)
             services = _services
         else:
             services = getattr(app.state, _APP_KEY, None)
@@ -4247,7 +4399,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                     following_sync_root=following_sync_root,
                     pixiv_actions_mode='readonly' if pixiv_actions_mode is None else pixiv_actions_mode,
                     managed_network_stop_scope=managed_network_stop_scope,
-                    shared_network_stop_scope=shared_network_stop_scope, legacy_copy_root=legacy_copy_root)
+                    shared_network_stop_scope=shared_network_stop_scope, legacy_copy_root=legacy_copy_root,
+                    scheduler_wait_for_auth=scheduler_wait_for_auth)
                 setattr(app.state, _APP_KEY, services)
         if services.closing:
             raise RuntimeError("application services are closed")

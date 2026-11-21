@@ -31,6 +31,16 @@ class ScheduleError(RuntimeError):
     pass
 
 
+class ScheduleRestartRequired(ScheduleError):
+    pass
+
+
+class ScheduleConfirmationUnavailable(ScheduleError):
+    def __init__(self, reason):
+        self.reason = reason
+        super().__init__('scheduler confirmation unavailable')
+
+
 class ScheduleAccountError(ScheduleError):
     def __init__(self, reason):
         if reason not in ('unknown', 'mismatch'):
@@ -1294,11 +1304,13 @@ class ManagedScheduleRunner:
 
     def __init__(self, ledger: ManagedScheduler, dispatch: Callable[[str, Event], None],
                  reconcile: Callable[[], None] | None = None,
-                 *, clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc)):
+                 *, clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+                 can_dispatch: Callable[[], bool] = lambda: True):
         self.ledger = ledger
         self.dispatch = dispatch
         self.reconcile = reconcile
         self.clock = clock
+        self.can_dispatch = can_dispatch
         self.stop_event = Event()
         self._wake_event = Event()
         self._state_lock = RLock()
@@ -1327,7 +1339,7 @@ class ManagedScheduleRunner:
 
     def _claim_reserved(self, now: datetime, *, startup: bool = False) -> str | None:
         with self._state_lock:
-            if self.stop_event.is_set():
+            if self.stop_event.is_set() or not self.can_dispatch():
                 return None
             self._claim_active = True
             try:
@@ -1426,7 +1438,7 @@ class ManagedScheduleRunner:
                         and capacity_available and self.ledger.has_deferred()
                         and not self.stop_event.is_set()):
                     with self._state_lock:
-                        if not self._claim_active:
+                        if not self._claim_active and not self.stop_event.is_set() and self.can_dispatch():
                             self._claim_active = True
                             backlog_slot = f'backlog-{uuid4().hex}'
                         else:
