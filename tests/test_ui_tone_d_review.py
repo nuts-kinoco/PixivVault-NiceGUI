@@ -98,18 +98,83 @@ def test_vault_error_opens_group_even_when_preferences_are_unreadable(client, tm
     view = PreferencesView(source, vault=vault, enabled_keys={'meta_backfill_enabled'})
     try:
         view.open()
-        group = next(item for item in view.dialog.descendants()
-                     if isinstance(item, ui.expansion) and '状態を確認できません。' in labels(item))
+        group = next(item for item in view.dialog.descendants() if isinstance(item, ui.expansion)
+                     and any(label.props.get('data-testid') == 'premium-vault-state' for label in item.descendants()))
         assert group.value
         statuses = [item for item in group.descendants() if item.props.get('data-testid') == 'premium-vault-state']
         assert len(statuses) == 1
-        assert statuses[0].text == '状態を確認できません。'
-        assert statuses[0].props['role'] == 'alert'
+        status = statuses[0]
+        if failure == 'status':
+            assert status.text == '状態を確認できません。'
+            assert status.props['role'] == 'alert'
+        else:
+            assert status.text == '保管庫は未設定です。'
+            budget = next(item for item in group.descendants()
+                          if item.props.get('data-testid') == 'premium-vault-budget-error')
+            assert budget.text == '利用回数を確認できません。'
+            assert budget.props['role'] == 'alert'
+            assert 'pv-alert-banner' in budget.classes
         if bad_snapshot:
             assert '設定を読み込めません。' in view.status.text
             save = next(item for item in view.dialog.descendants()
                         if item.props.get('data-testid') == 'preferences-save')
             assert not save.enabled
+    finally:
+        view.close()
+        store.close()
+
+
+def test_budget_error_keeps_vault_recovery_available(client, tmp_path):
+    store = PreferencesStore(tmp_path / 'prefs.sqlite3')
+    state = {'initialized': True, 'oauth_review_required': True}
+    vault = SimpleNamespace(status=lambda: state, premium_pool_status=fail_to_read)
+    view = PreferencesView(store, vault=vault)
+    try:
+        view.open()
+        state_label = next(item for item in view.dialog.descendants()
+                           if item.props.get('data-testid') == 'premium-vault-state')
+        assert '更新結果の確認が必要です。' in state_label.text
+        assert state_label.props['role'] == 'alert'
+        panel = view.vault_recovery
+        assert panel.reopen_button.enabled and panel.recover_button.enabled
+        assert not panel.refresh_button.enabled
+
+        vault.status = fail_to_read
+        panel.on_change()
+        assert state_label.text == '状態を確認できません。'
+        assert state_label.props['role'] == 'alert'
+        assert 'pv-alert-banner' in state_label.classes
+
+        vault.status = lambda: {'initialized': True}
+        panel.on_change()
+        assert state_label.text == 'ロック中'
+        assert state_label.props.get('role') is None
+        assert 'pv-alert-banner' not in state_label.classes
+    finally:
+        view.close()
+        store.close()
+
+
+def test_vault_refresh_marks_status_exception_and_clears_it_after_recovery(client, tmp_path):
+    store = PreferencesStore(tmp_path / 'prefs.sqlite3')
+    vault = SimpleNamespace(status=lambda: {'initialized': True}, premium_pool_status=lambda: [])
+    view = PreferencesView(store, vault=vault)
+    try:
+        view.open()
+        group = next(item for item in view.dialog.descendants()
+                     if isinstance(item, ui.expansion) and view.vault_recovery.root in item.descendants())
+        label = next(item for item in group.descendants() if item.props.get('data-testid') == 'premium-vault-state')
+        assert not group.value
+        assert label.props.get('role') is None
+        vault.status = fail_to_read
+        view.vault_recovery.on_change()
+        assert group.value
+        assert label.props['role'] == 'alert'
+        assert 'pv-alert-banner' in label.classes
+        vault.status = lambda: {'initialized': True}
+        view.vault_recovery.on_change()
+        assert label.props.get('role') is None
+        assert 'pv-alert-banner' not in label.classes
     finally:
         view.close()
         store.close()
@@ -129,11 +194,50 @@ async def test_tagger_read_failure_opens_once_and_allows_manual_collapse(client,
         assert view.tagger_status.text == '読込失敗'
         assert group.value
         group.set_value(False)
-        view._display_tagger_status('読込失敗')
+        view._sync_tagger_status(view._epoch)
+        assert view.tagger_status.text == '読込失敗'
+        assert view.tagger_status.props['role'] == 'alert'
+        assert 'pv-alert-banner' in view.tagger_status.classes
         assert not group.value
-        view._display_tagger_status('利用可能')
+
+        view.tagger.verify = lambda: '利用可能'
+        await view._verify_tagger(view._epoch)
+        view._sync_tagger_status(view._epoch)
+        assert view.tagger_status.text == '利用可能'
+        assert view.tagger_status.props.get('role') is None
+        assert 'pv-alert-banner' not in view.tagger_status.classes
         view._display_tagger_status('読込失敗')
         assert group.value
+    finally:
+        view.close()
+        store.close()
+
+
+@pytest.mark.parametrize('status', [
+    '読込失敗', 'SHA 不一致', '利用不可（ローカルのフォルダを指定）', 'onnxruntime なし', '未検出',
+])
+def test_tagger_polling_opens_new_alerts_and_respects_manual_collapse(client, tmp_path, status):
+    store = PreferencesStore(tmp_path / 'prefs.sqlite3')
+    tagger = SimpleNamespace(status='利用可能')
+    view = PreferencesView(store, tagger=tagger)
+    try:
+        view.open()
+        view._tagger_pending = False
+        view._sync_tagger_status(view._epoch)
+        assert not view.tagger_group.value
+        tagger.status = status
+        view._sync_tagger_status(view._epoch)
+        assert view.tagger_group.value
+        assert view.tagger_status.text == status
+        assert view.tagger_status.props['role'] == 'alert'
+        assert 'pv-alert-banner' in view.tagger_status.classes
+        view.tagger_group.close()
+        view._sync_tagger_status(view._epoch)
+        assert not view.tagger_group.value
+        tagger.status = '検証中'
+        view._sync_tagger_status(view._epoch)
+        assert view.tagger_status.props.get('role') is None
+        assert 'pv-alert-banner' not in view.tagger_status.classes
     finally:
         view.close()
         store.close()
@@ -181,13 +285,18 @@ def test_shared_control_identifiers_and_visual_contract(client):
     assert danger.props.get('unelevated') and secondary.props.get('flat')
     assert outline.props.get('outline')
     assert refresh.props['aria-label'] == '更新'
+    spaced = refresh_button(lambda: None, label='一覧を 更新', testid='fixture refresh')
+    assert spaced.props['aria-label'] == '一覧を 更新'
+    assert spaced.props['data-testid'] == 'fixture refresh'
+    with dialog_card(size='sm') as small:
+        assert 'pv-dialog-sm' in small.classes
 
 
 def test_collapsible_heading_keeps_requested_test_id(client):
-    with settings_group('設定項目', collapsible=True, default_open=False, heading_testid='fixture-heading') as group:
+    with settings_group('設定項目', collapsible=True, default_open=False, heading_testid='fixture heading') as group:
         ui.label('内容')
     assert not group.value
-    assert any(element.props.get('data-testid') == 'fixture-heading' for element in group.descendants())
+    assert any(element.props.get('data-testid') == 'fixture heading' for element in group.descendants())
 
 
 def test_request_status_retains_subtitle_when_tone_changes(client):

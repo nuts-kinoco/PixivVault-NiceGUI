@@ -78,13 +78,27 @@ def settings_group(title, *, collapsible=False, default_open=True, heading_testi
             with ui.expansion(title, value=default_open).props('dense').classes('w-full pv-settings-expansion') as expansion:
                 if heading_testid is not None:
                     with expansion.add_slot('header'), ui.item_section():
-                        ui.label(title).classes('q-item__label').props(f'data-testid={heading_testid}')
+                        heading = ui.label(title).classes('q-item__label')
+                        heading.props['data-testid'] = heading_testid
                 yield expansion
         else:
             heading = ui.label(title).classes('pv-section-heading pv-serif-heading')
             if heading_testid is not None:
                 heading.props['data-testid'] = heading_testid
             yield
+
+
+TAGGER_ALERT_STATUSES = frozenset({
+    '未検出', '読込失敗', 'SHA 不一致', '利用不可（ローカルのフォルダを指定）', 'onnxruntime なし',
+})
+
+
+def _set_status_alert(label, active):
+    if active:
+        label.classes(add='pv-alert-banner')
+    else:
+        label.classes(remove='pv-alert-banner')
+    label.props.set_optional('role', 'alert' if active else None)
 
 
 class PreferencesView:
@@ -101,6 +115,7 @@ class PreferencesView:
         self._tagger_timer=None
         self._tagger_verifying=0
         self._tagger_pending=False
+        self._tagger_verification_failed = False
         self.vault=vault
         self.enabled_keys=frozenset(enabled_keys)
         if not self.enabled_keys.issubset(SPEC_BY_KEY):
@@ -138,14 +153,23 @@ class PreferencesView:
         self.dialog=ui.dialog().props('persistent data-testid=preferences-dialog')
         self.dialog.on('keydown', self._on_dialog_key, js_handler="(event) => { if (event.key === 'Escape') emit({key: event.key}); }")
 
-    def _vault_state_changed(self,label):
-        if self.closed:return
+    def _vault_state_changed(self, label, group):
+        if self.closed:
+            return
         try:
-            state=self.vault.status()
-            message=('ロック解除済み・検索時にトークンの有効期限を確認します。' if state.get('open') else 'ロック中' if state.get('initialized') else '保管庫は未設定です。')
-            if state.get('oauth_review_required'):message+=' 更新結果の確認が必要です。'
-            label.set_text(message)
-        except Exception:label.set_text('状態を確認できません。')
+            state = self.vault.status()
+            message = ('ロック解除済み・検索時にトークンの有効期限を確認します。' if state.get('open') else
+                       'ロック中' if state.get('initialized') else '保管庫は未設定です。')
+            alert = bool(state.get('oauth_review_required'))
+            if alert:
+                message += ' 更新結果の確認が必要です。'
+        except Exception:
+            message = '状態を確認できません。'
+            alert = True
+        _set_status_alert(label, alert)
+        label.set_text(message)
+        if alert:
+            group.open()
 
     def open(self):
         if self.closed: return
@@ -157,6 +181,7 @@ class PreferencesView:
             self._tagger_timer=None
         self._tagger_verifying=0
         self._tagger_pending=False
+        self._tagger_verification_failed = False
         self.opened=True
         self._epoch+=1
         epoch=self._epoch
@@ -278,23 +303,19 @@ class PreferencesView:
             return
         with settings_group('借用プレミアムの状態', collapsible=True, default_open=False) as group:
             state_label = ui.label('').classes('pv-subtitle').props('data-testid=premium-vault-state')
+            self._vault_state_changed(state_label, group)
             try:
-                state=self.vault.status()
-                message=('\u30ed\u30c3\u30af\u89e3\u9664\u6e08\u307f\u30fb\u691c\u7d22\u6642\u306b\u30c8\u30fc\u30af\u30f3\u306e\u6709\u52b9\u671f\u9650\u3092\u78ba\u8a8d\u3057\u307e\u3059\u3002' if state.get('open') else '\u30ed\u30c3\u30af\u4e2d' if state.get('initialized') else '\u4fdd\u7ba1\u5eab\u306f\u672a\u8a2d\u5b9a\u3067\u3059\u3002')
-                if state.get('oauth_review_required'): message+=' \u66f4\u65b0\u7d50\u679c\u306e\u78ba\u8a8d\u304c\u5fc5\u8981\u3067\u3059\u3002'
-                state_label.set_text(message)
-                if state.get('oauth_review_required'):
-                    group.set_value(True)
-                pool=self.vault.premium_pool_status()
-                for slot in pool:
-                    ui.label(f"\u767b\u9332{slot['index']}\uff1a\u6255\u3044\u51fa\u30575\u6642\u9593 {slot['payouts']}/{slot['payout_limit']}\u4ef6\u30fb\u501f\u75281\u5206 {slot['borrowed']}/{slot['borrow_limit']}\u4ef6\u30fb\u5f85\u6a5f {int(slot['wait'])}\u79d2").props('data-testid=premium-request-budget')
-                # Leaving an unconfirmed Pixiv result (the "Shaft連携" tab is gone).
-                self.vault_recovery=PremiumRecoveryPanel(self.vault,gate=getattr(self.vault,'premium_authorization',None),
-                    on_change=lambda:self._vault_state_changed(state_label))
+                pool = self.vault.premium_pool_status()
             except Exception:
                 group.open()
-                state_label.classes(add='pv-alert-banner').props('role=alert')
-                state_label.set_text('状態を確認できません。')
+                ui.label('利用回数を確認できません。').classes('pv-subtitle pv-alert-banner').props(
+                    'role=alert data-testid=premium-vault-budget-error')
+            else:
+                for slot in pool:
+                    ui.label(f"登録{slot['index']}：払い出し5時間 {slot['payouts']}/{slot['payout_limit']}件・借用1分 {slot['borrowed']}/{slot['borrow_limit']}件・待機 {int(slot['wait'])}秒").props('data-testid=premium-request-budget')
+            self.vault_recovery = PremiumRecoveryPanel(
+                self.vault, gate=getattr(self.vault, 'premium_authorization', None),
+                on_change=lambda: self._vault_state_changed(state_label, group))
 
     def _build_preference_group(self, title, specs, *, hint=None):
         with settings_group(title):
@@ -353,6 +374,7 @@ class PreferencesView:
         self._tagger_pending=False
         self._tagger_verifying+=1
         self._display_tagger_status('検証中')
+        failed = False
         try:
             result = await asyncio.to_thread(self.tagger.verify)
             latest = self.store.snapshot()
@@ -360,10 +382,12 @@ class PreferencesView:
                 self.snapshot = latest
         except Exception:
             result = '読込失敗'
+            failed = True
         finally:
             if epoch == self._epoch:
                 self._tagger_verifying-=1
         if not self.closed and self.opened and epoch == self._epoch:
+            self._tagger_verification_failed = failed
             self._display_tagger_status(result)
 
     def _display_tagger_status(self, result):
@@ -371,9 +395,13 @@ class PreferencesView:
         usable = getattr(self.tagger, 'usable', configured and result == '利用可能')
         state = '検証中' if result == '検証中' else ('有効' if usable and result == '利用可能' else '無効')
         self.tagger_effective.set_text(f'状態 {state}')
-        if result == '読込失敗' and self.tagger_status.text != result:
-            self.tagger_group.open()
+        if self.tagger_status.text == result:
+            return
+        alert = result in TAGGER_ALERT_STATUSES
+        _set_status_alert(self.tagger_status, alert)
         self.tagger_status.set_text(result)
+        if alert:
+            self.tagger_group.open()
 
     async def _watch_tagger_status(self, epoch):
         while not self.closed and self.opened and epoch == self._epoch:
@@ -382,7 +410,9 @@ class PreferencesView:
 
     def _sync_tagger_status(self, epoch):
         if not self.closed and self.opened and epoch == self._epoch and not self._tagger_verifying and not self._tagger_pending:
-            self._display_tagger_status(self.tagger.status)
+            # An exception can leave the service's published status unchanged.
+            result = '読込失敗' if self._tagger_verification_failed else self.tagger.status
+            self._display_tagger_status(result)
 
     def _sync_cache_limit_visibility(self):
         # Keep both draft values and consumer capabilities. Only the selected

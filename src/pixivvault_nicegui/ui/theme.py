@@ -377,8 +377,6 @@ CSS += """
   --pv-on-caution:#191c20;
 }
 .q-btn.pv-btn-primary, .q-btn.pv-btn-secondary, .q-btn.pv-btn-danger { border-radius:var(--pv-radius-control); padding-inline:10px; }
-.q-btn.pv-btn-primary { background:var(--pv-fill); color:var(--pv-on-fill); }
-.q-btn.pv-btn-danger { background:var(--pv-caution-fill); color:var(--pv-on-caution); }
 .pv-section-heading { font-family:"Yu Mincho", "YuMincho", serif; color:var(--pv-text-main); font-size:15px; font-weight:700; }
 .pv-field-hint { color:var(--pv-muted); font-size:11.5px; line-height:1.4; }
 .pv-alert-banner, .pv-warning-banner { padding:6px 10px; line-height:1.45; border-radius:var(--pv-radius-control); }
@@ -446,4 +444,9 @@ body.body--light {
 .q-btn.pv-btn-primary { background:var(--pv-fill) !important; color:var(--pv-action-text) !important; }
 .q-btn.pv-btn-danger { background:var(--pv-caution-fill) !important; color:var(--pv-on-caution) !important; }
 .q-card.pv-dialog-sm { width:min(100%, 400px); max-width:400px; }
+.q-btn:is(.pv-btn-primary, .pv-btn-secondary, .pv-btn-danger):focus-visible {
+  outline:2px solid var(--pv-primary);
+  outline-offset:2px;
+  box-shadow:0 0 0 2px var(--pv-page), 0 0 0 4px var(--pv-primary);
+}
 """

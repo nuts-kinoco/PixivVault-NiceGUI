@@ -6,8 +6,9 @@ from nicegui import ui
 
 
 def refresh_button(on_click, *, label: str, testid: str):
-    button = ui.button(icon='refresh', color=None, on_click=on_click).props(
-        f'flat dense aria-label={label} data-testid={testid}')
+    button = ui.button(icon='refresh', color=None, on_click=on_click).props('flat dense')
+    button.props['aria-label'] = label
+    button.props['data-testid'] = testid
     button.tooltip(label)
     return button
 
