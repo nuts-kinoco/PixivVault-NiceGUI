@@ -100,7 +100,8 @@ async def test_ranking_card_menu_has_the_five_original_items_in_order(tmp_path, 
 @pytest.mark.asyncio
 async def test_card_menu_packet_uses_one_listener_and_rejects_stale_epoch(tmp_path, monkeypatch):
     monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
-    services, _ = make(tmp_path)
+    services, reader = make(tmp_path)
+    reader.rows = [row(123), row(124)]
     client = Client(ui.page('/_x_ctx_rank_keys'))
     try:
         with client:
@@ -111,8 +112,16 @@ async def test_card_menu_packet_uses_one_listener_and_rejects_stale_epoch(tmp_pa
             assert [entry.type for entry in grid._event_listeners.values()] == ['cardAction']
             epoch = grid.render_epoch
             view.render()
+            assert grid.render_epoch == epoch
+
+            reader.rows = [row(124), row(123)]
+            await view.load()
+            assert tuple(view.gallery.cards) == ('124', '123')
+            assert grid.render_epoch != epoch
             await card_click(view, '123', 'hide', epoch=epoch)
             assert '123' in view.gallery.cards and not view.hidden_work_ids()
+            await card_click(view, '123', 'hide')
+            assert '123' not in view.gallery.cards and view.hidden_work_ids() == {'123'}
             view.close()
     finally:
         client.delete()
