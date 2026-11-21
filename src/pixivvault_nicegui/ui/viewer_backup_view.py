@@ -21,7 +21,7 @@ class ViewerBackupView:
             ui.label('作者フォルダ単位でサムネイルを並べています。クリックで保存先を開きます。'
                      if self.legacy_mode else
                      '個別DLで保存した作品の履歴です。作者ごとに直近の保存を表示します。').classes('pv-subtitle')
-            self.status=ui.label('').props('role=status data-testid=backup-status')
+            self.status=ui.label('').classes('pv-empty pv-backup-status').props('role=status data-testid=backup-status')
             with ui.element('div').classes('pv-gallery-scroll'):
                 self.grid=ui.element('div').classes('pv-grid').props('data-testid=backup-grid')
         self.apply_card_size(card_size)
@@ -84,19 +84,12 @@ class ViewerBackupView:
                     if rows or errors else 'バックアップ日時が登録された作者はいません。')
             else:
                 self.status.set_text(f'{len(rows)} 作者' + (f'・確認できない履歴 {len(errors)} 件' if errors else ''))
-            if not rows and not errors:
-                self.status.classes(add='pv-empty pv-compact-empty')
-                if not self.legacy_mode:
-                    self.status.set_text('バックアップ履歴はありません。')
-            else:
-                self.status.classes(remove='pv-empty pv-compact-empty')
             from ..shared_events import emit_shared
             suffix = ' 確認できない履歴があります。' if errors else ''
             emit_shared(self.services, f'直近のバックアップ: {len(rows)}件の履歴を表示しました。{suffix}',
                         level='error' if errors else 'normal')
         except Exception:
             if not self.closed and self.active and epoch==self.epoch:
-                self.status.classes(remove='pv-empty pv-compact-empty')
                 self.status.set_text('直近バックアップ履歴を確認できません。')
                 from ..shared_events import emit_shared
                 emit_shared(self.services, '直近バックアップ履歴を確認できません。', level='error')

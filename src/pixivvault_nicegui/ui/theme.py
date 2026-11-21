@@ -424,7 +424,8 @@ CSS += """
 .pv-shared-log-host .pv-queue-log { flex-basis:124px; height:124px; border-radius:var(--pv-radius-control); }
 .pv-migration-section { width:100%; gap:var(--pv-gap-compact); border-top:1px solid var(--pv-border); padding-top:var(--pv-gap-compact); }
 .pv-migration-scroll { max-height:170px; overflow:auto; flex-wrap:nowrap; }
-.pv-compact-empty.pv-empty { padding:var(--pv-gap); }
+.pv-backup-status.pv-empty { padding:0; text-align:left; }
+.pv-gallery:has([data-testid=backup-grid]:empty) .pv-backup-status:not(:empty) { padding:var(--pv-gap); text-align:center; }
 @media(max-width:620px) {
   .pv-settings-fields { grid-template-columns:minmax(0, 1fr); }
   .pv-preferences-footer { padding-inline:8px; }
