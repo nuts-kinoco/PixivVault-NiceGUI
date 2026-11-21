@@ -116,7 +116,7 @@ class PremiumGateDialog:
         self.password_slot.clear()
         with self.password_slot:
             self.password=outlined_input('パスワード',password=True).props(
-                'autofocus autocomplete=off data-testid=premium-activation-password')
+                'autofocus autocomplete=off data-testid=premium-activation-password').classes('w-full')
             self.password.on('keydown.enter',lambda:self.password_dialog.submit(True))
     def _reset_secret(self):
         # Same reason as _reset_password: a fresh element ID per popup so the
@@ -126,7 +126,7 @@ class PremiumGateDialog:
         self.secret_slot.clear()
         with self.secret_slot:
             self.secret=outlined_input('Shaft \u7f72\u540d\u30ad\u30fc\uff08\u4efb\u610f\u30fb\u65e2\u306b\u767b\u9332\u6e08\u307f\u306a\u3089\u7a7a\u6b04\u3067\u3088\u3044\uff09',password=True).props(
-                'autocomplete=off data-testid=premium-secret')
+                'autocomplete=off data-testid=premium-secret').classes('w-full')
     def _reset_legacy(self,create=False):
         if self.legacy is not None:
             self.legacy.set_value('')
@@ -135,7 +135,7 @@ class PremiumGateDialog:
         if not create:return
         with self.legacy_slot:
             self.legacy=outlined_input('保管庫のパスワード（以前に設定したもの）',password=True).props(
-                'autofocus autocomplete=off data-testid=premium-vault-password')
+                'autofocus autocomplete=off data-testid=premium-vault-password').classes('w-full')
             self.legacy.on('keydown.enter',lambda:self.password_dialog.submit(True))
     def _show_legacy(self,visible):
         self._reset_legacy(create=visible)
