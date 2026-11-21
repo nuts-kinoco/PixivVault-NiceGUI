@@ -21,6 +21,7 @@ class _Scope:
 
 _SCOPE=ContextVar('pixivvault_request_scope',default=_Scope())
 _BOUNDED_GET_RETRY=ContextVar('pixivvault_bounded_get_retry',default=False)
+_FRESH_GET=ContextVar('pixivvault_fresh_get',default=False)
 _LANE=ContextVar('pixivvault_request_lane',default='background')
 # Original rate_coordinator.py MAX_BACKGROUND_DEFER_SECONDS: background yields to a
 # waiting interactive request, but never starves for longer than this.
@@ -185,11 +186,37 @@ class RequestAdmission:
                 with self._lock:self._interactive_waiting-=1
 
 
+def _recover_on_fresh_connection(operation, deadline, *, clock=time.monotonic):
+    """Re-enter the complete read once, with fresh admission and connection."""
+    request_checkpoint()
+    _check_deadline(deadline, clock)
+    fresh = _FRESH_GET.set(True)
+    # The recovery is a single GET. A 429 now goes to the durable gate.
+    bounded = _BOUNDED_GET_RETRY.set(False)
+    try:
+        return operation()
+    finally:
+        _BOUNDED_GET_RETRY.reset(bounded)
+        _FRESH_GET.reset(fresh)
+
+
+def execute_single_get(operation, *, deadline):
+    from .pixiv_read_client import _PooledConnectionLost
+    try:
+        return operation()
+    except _PooledConnectionLost:
+        if not _SCOPE.get().allow_retry:
+            raise
+        return _recover_on_fresh_connection(operation, deadline)
+
+
 class RequestRetryPolicy:
     """Read configured values once per GET; share no retry counters across calls.
 
     settings() returns RequestPreferences (retry_limit, rate_limit_wait_seconds).
-    Transport failures, 408/425, 429 and 5xx are transient candidates. Identity,
+    Transient transport failures, 408/425, 429 and 5xx use the configured
+    budget. A disconnected pooled GET without response bytes can spend one
+    remaining attempt on a fresh connection, with no further retries. Identity,
     auth 401/403, 404, redirects, invalid payload/destination/limits, operation
     deadlines and checkpoint cancellation escape immediately. A 404 is raised
     to the caller without a shared progress record. The last original
@@ -241,7 +268,7 @@ class RequestRetryPolicy:
             raise
 
     def _attempts(self,operation,deadline,token,count,rate_wait):
-        from .pixiv_read_client import HTTPStatusRejected,TransportFailed
+        from .pixiv_read_client import HTTPStatusRejected,TransportFailed,_PooledConnectionLost
         for attempt in range(count):
             request_checkpoint();_check_deadline(deadline,self.clock)
             with self._status_lock:
@@ -251,6 +278,18 @@ class RequestRetryPolicy:
             self._publish(token,'requesting',attempt+1,count)
             try:
                 result=operation()
+                with self._status_lock:self._records.pop(token,None)
+                return result
+            except _PooledConnectionLost:
+                if attempt+1>=count:
+                    self._publish(token,'failed',attempt+1,count)
+                    raise
+                with self._status_lock:
+                    if self._rate_stopped:
+                        self._publish(token,'stopped',attempt+2,count,status=429,stop_cause='shared_limit')
+                        raise HTTPStatusRejected(429)
+                    self._publish(token,'requesting',attempt+2,count)
+                result=_recover_on_fresh_connection(operation,deadline,clock=self.clock)
                 with self._status_lock:self._records.pop(token,None)
                 return result
             except (HTTPStatusRejected,TransportFailed) as error:
@@ -263,7 +302,11 @@ class RequestRetryPolicy:
                         else:
                             self._publish(token,'failed',attempt+1,count,status=status)
                         raise
-                else:status=None
+                else:
+                    if not error.retryable:
+                        self._publish(token,'failed',attempt+1,count)
+                        raise
+                    status=None
                 if attempt+1>=count:
                     if status==429:
                         with self._status_lock:self._rate_stopped=True

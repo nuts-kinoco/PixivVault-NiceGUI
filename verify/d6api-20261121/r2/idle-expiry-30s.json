@@ -1,0 +1,8 @@
+{
+  "pid": 128828,
+  "wire": "loopback_only",
+  "idle_close_seconds": 30.000465099990834,
+  "requests": 2,
+  "connections": 2,
+  "live_api_gets": 0
+}
