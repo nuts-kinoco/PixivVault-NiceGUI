@@ -1,0 +1,72 @@
+[
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\cuda-kernel-cache",
+    "disposition": "DELETE",
+    "reason": "Round-2 generated scratch"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\cuda-verifier.lock",
+    "disposition": "DELETE",
+    "reason": "Round-2 generated scratch"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-round2-complete-focused-verification",
+    "disposition": "DELETE",
+    "reason": "Round-2 generated scratch"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-round2-final-focused-verification",
+    "disposition": "DELETE",
+    "reason": "Round-2 generated scratch"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-round2-full-verification-workspace",
+    "disposition": "DELETE",
+    "reason": "Round-2 generated scratch"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-round2-green-verification",
+    "disposition": "DELETE",
+    "reason": "Round-2 generated scratch"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-round2-last-focused-verification",
+    "disposition": "DELETE",
+    "reason": "Round-2 generated scratch"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-round2-red-descendant-stopping",
+    "disposition": "DELETE",
+    "reason": "Round-2 generated scratch"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-round2-red-report-redaction",
+    "disposition": "DELETE",
+    "reason": "Round-2 generated scratch"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-round2-red-stop-uncertainty",
+    "disposition": "DELETE",
+    "reason": "Round-2 generated scratch"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-round2-red-verification",
+    "disposition": "DELETE",
+    "reason": "Round-2 generated scratch"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-round2-repro-verification-workspace",
+    "disposition": "DELETE",
+    "reason": "Round-2 generated scratch"
+  },
+  {
+    "path": "S:\\Work\\_tmp\\PV\\g0-20261122\\pytest-round2-token-final-verification",
+    "disposition": "DELETE",
+    "reason": "Round-2 generated scratch"
+  },
+  {
+    "path": "S:\\Work\\PV\\gpu-verify-20261122\\verify\\G0-20261122\\r2",
+    "disposition": "KEEP",
+    "reason": "Review and test evidence"
+  }
+]

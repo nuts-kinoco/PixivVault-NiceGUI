@@ -1,0 +1,2106 @@
+{
+  "started_utc": "2026-11-21T19:27:21.189835+00:00",
+  "harness_sha256": "d554fc0ce82fd7a83f42d6b3bd96f94d71126fc20259273ec2c22cb78aface53",
+  "candidate": "3a3f0158a082b31b7d09e52c18dc3ca1bc42e8c2",
+  "lease": {
+    "status": "acquired",
+    "gpu_name_driver_cc_total_mib": "NVIDIA GeForce RTX 5080, 621.24, 12.0, 16303",
+    "initial_free_gib": 15.6044921875,
+    "requested_gib": 2.5,
+    "acquire_exit_code": 0,
+    "acquired_free_gib": 15.6044921875,
+    "last_sample_before_release_mib": 0,
+    "release_exit_code": 0,
+    "owned_lease_remaining": false,
+    "adapter_vram_mib": {
+      "scope": "whole adapter, 100 ms sampling",
+      "initial": 0,
+      "sampled_peak": 5432,
+      "peak_above_initial": 5432,
+      "samples": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        12,
+        228,
+        228,
+        228,
+        228,
+        228,
+        228,
+        228,
+        228,
+        228,
+        228,
+        228,
+        228,
+        332,
+        664,
+        1004,
+        1336,
+        1700,
+        1704,
+        1704,
+        1716,
+        1720,
+        1730,
+        1730,
+        1730,
+        1730,
+        1866,
+        1866,
+        1866,
+        1994,
+        2004,
+        2004,
+        2004,
+        2004,
+        2004,
+        2004,
+        2004,
+        2004,
+        2004,
+        2004,
+        2202,
+        2202,
+        2454,
+        2454,
+        2454,
+        2454,
+        2454,
+        2454,
+        2456,
+        2456,
+        1682,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        500,
+        828,
+        1156,
+        1508,
+        1868,
+        1792,
+        234,
+        234,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        12,
+        228,
+        228,
+        228,
+        228,
+        228,
+        228,
+        228,
+        228,
+        228,
+        228,
+        228,
+        368,
+        716,
+        1044,
+        1424,
+        1706,
+        1706,
+        1722,
+        1732,
+        1732,
+        1732,
+        1884,
+        1884,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2030,
+        2280,
+        2280,
+        2572,
+        2944,
+        2944,
+        2944,
+        3528,
+        4266,
+        4266,
+        4266,
+        4266,
+        4266,
+        4266,
+        5432,
+        5432,
+        2204,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        234,
+        300,
+        560,
+        936,
+        1328,
+        1778,
+        1886,
+        300,
+        234,
+        188,
+        0
+      ]
+    }
+  },
+  "datasets": {
+    "synthetic": {
+      "cuda": {
+        "model_sha256": "e50f28211feaef50e80b8bece55bbfae15d3319a70fbd568476bc84c8037f5af",
+        "model_check_ms": 1229.177700006403,
+        "outcome": {
+          "provider_requested": "cuda",
+          "provider_active": "cuda",
+          "fallback_reason": null,
+          "first_inference_ms": 7065.591099963058,
+          "usable_embedding": true,
+          "error": null
+        },
+        "runtime": {
+          "python": "3.13.11",
+          "ort": "1.28.0",
+          "packages": {
+            "numpy": "2.3.5",
+            "nvidia-cublas": "13.10.0.20",
+            "nvidia-cuda-nvrtc": "13.5.37",
+            "nvidia-cuda-runtime": "13.5.37",
+            "nvidia-cudnn-cu13": "9.28.1.4",
+            "nvidia-cufft": "12.5.0.14",
+            "nvidia-curand": "10.4.5.25",
+            "nvidia-nvjitlink": "13.5.37",
+            "onnxruntime-gpu": "1.28.0",
+            "pillow": "13.0.0"
+          },
+          "available_providers": [
+            "TensorrtExecutionProvider",
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "ort_build_info": "ORT Build Info: git-branch=HEAD, git-commit-id=0368187f84, fp8-kv-cache=1, build type=Release"
+        },
+        "pid": 127500,
+        "cuda_options": {
+          "use_tf32": "0",
+          "gpu_mem_limit": "8589934592",
+          "arena_extend_strategy": "kSameAsRequested",
+          "do_copy_in_default_stream": "1"
+        },
+        "inputs": [
+          {
+            "name": "pixel_values",
+            "shape": [
+              "batch_size",
+              3,
+              "height",
+              "width"
+            ],
+            "type": "tensor(float)"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "style_embedding",
+            "shape": [
+              1,
+              1024
+            ],
+            "type": "tensor(float)"
+          },
+          {
+            "name": "layer_norm_48",
+            "shape": [
+              "batch_size",
+              "((height//16))*((width//16)) + 5",
+              1024
+            ],
+            "type": "tensor(float)"
+          }
+        ],
+        "steady_ms": {
+          "original": {
+            "n": 4,
+            "min": 87.77300000656396,
+            "p50": 95.79665004275739,
+            "p95": 113.54738999798428,
+            "max": 115.51949998829514,
+            "mean": 98.72145002009347
+          },
+          "view": {
+            "n": 4,
+            "min": 78.28289997996762,
+            "p50": 79.52029997250065,
+            "p95": 104.75422499002887,
+            "max": 109.11389999091625,
+            "mean": 86.6093499789713
+          },
+          "thumb": {
+            "n": 4,
+            "min": 43.690200021956116,
+            "p50": 46.22565000317991,
+            "p95": 61.806675003026605,
+            "max": 64.38120000530034,
+            "mean": 50.13067500840407
+          }
+        },
+        "batch": {
+          "2": {
+            "status": "two_rows",
+            "output_shapes": [
+              [
+                2,
+                1024
+              ],
+              [
+                2,
+                677,
+                1024
+              ]
+            ],
+            "distinct_single_style_vectors": true,
+            "independent_rows_match": false,
+            "max_abs_error_by_output_and_row": [
+              4.377216100692749e-08,
+              5.21540641784668e-08,
+              7.152557373046875e-06,
+              7.987022399902344e-06
+            ],
+            "first_batch_ms": 76.22509996872395,
+            "warm_batch_ms": 62.36710003577173,
+            "sequential_ms": 72.8808999992907,
+            "warm_speedup_over_sequential": 1.1685792662716177,
+            "input_shape": [
+              2,
+              3,
+              336,
+              512
+            ],
+            "batch_input_sha256": "c12f987206f23d38af0b59e66376a949f759cab453f7c4db7b686ca26e7aac46"
+          },
+          "4": {
+            "status": "insufficient_distinct_equal_shape_images"
+          },
+          "8": {
+            "status": "insufficient_distinct_equal_shape_images"
+          }
+        },
+        "profile": "synthetic-cuda-ort_2026-11-22_04-27-47_014.json",
+        "node_placement": {
+          "compute_by_provider": {
+            "CUDAExecutionProvider": 1482,
+            "CPUExecutionProvider": 154
+          },
+          "cuda_fraction": 0.9058679706601467,
+          "cpu_nodes": [
+            {
+              "name": "node_Cast_25",
+              "op": "Cast"
+            },
+            {
+              "name": "node_Cast_30",
+              "op": "Cast"
+            },
+            {
+              "name": "node_Concat_1053",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1056",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_107",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1164",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1167",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1275",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1278",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1386",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1389",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_14",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1497",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1500",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1608",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1611",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_165",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_168",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1719",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1722",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_181",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1830",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1833",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_19",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1941",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1944",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2052",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2055",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2163",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2166",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2274",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2277",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2385",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2388",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2496",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2499",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2607",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2610",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2718",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2721",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2759",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_276",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2782",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_279",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2893",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2899",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2904",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2914",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2919",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_387",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_390",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_41",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_498",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_501",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_57",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_609",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_612",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_720",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_723",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_78",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_831",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_834",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_90",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_942",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_945",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Reshape_104",
+              "op": "Reshape"
+            },
+            {
+              "name": "node_Reshape_13",
+              "op": "Reshape"
+            },
+            {
+              "name": "node_Reshape_2897",
+              "op": "Reshape"
+            },
+            {
+              "name": "node_Reshape_55",
+              "op": "Reshape"
+            },
+            {
+              "name": "node_Reshape_87",
+              "op": "Reshape"
+            },
+            {
+              "name": "node_Slice_1048",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1049",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1051",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1159",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1160",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1162",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1270",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1271",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1273",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1381",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1382",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1384",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1492",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1493",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1495",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_159",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1603",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1604",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1606",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_161",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_163",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1714",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1715",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1717",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1825",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1826",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1828",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1936",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1937",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1939",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2047",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2048",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2050",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2158",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2159",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2161",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2269",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2270",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2272",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2380",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2381",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2383",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2491",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2492",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2494",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2602",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2603",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2605",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_271",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2713",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2714",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2716",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_272",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_274",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_382",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_383",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_385",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_493",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_494",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_496",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_604",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_605",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_607",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_715",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_716",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_718",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_826",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_827",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_829",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_937",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_938",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_940",
+              "op": "Slice"
+            },
+            {
+              "name": "node_add_5604",
+              "op": "Add"
+            },
+            {
+              "name": "node_floordiv_2",
+              "op": "Div"
+            },
+            {
+              "name": "node_floordiv_3",
+              "op": "Div"
+            },
+            {
+              "name": "node_mul_4273",
+              "op": "Mul"
+            },
+            {
+              "name": "node_mul_43",
+              "op": "Mul"
+            },
+            {
+              "name": "node_mul_4329",
+              "op": "Mul"
+            },
+            {
+              "name": "node_sub_55",
+              "op": "Sub"
+            },
+            {
+              "name": "node_sym_size_int_6",
+              "op": "Squeeze"
+            },
+            {
+              "name": "node_sym_size_int_61",
+              "op": "Squeeze"
+            },
+            {
+              "name": "node_sym_size_int_62",
+              "op": "Squeeze"
+            },
+            {
+              "name": "node_sym_size_int_63",
+              "op": "Squeeze"
+            },
+            {
+              "name": "node_sym_size_int_7",
+              "op": "Squeeze"
+            }
+          ],
+          "transfer_nodes": [
+            {
+              "name": "Memcpy",
+              "op": "MemcpyFromHost"
+            },
+            {
+              "name": "Memcpy_token_57",
+              "op": "MemcpyFromHost"
+            }
+          ]
+        },
+        "process_wall_ms": 18089.9104999844,
+        "exit_code": 0,
+        "cold": {
+          "first_inference_ms": {
+            "n": 1,
+            "min": 7065.591099963058,
+            "p50": 7065.591099963058,
+            "p95": 7065.591099963058,
+            "max": 7065.591099963058,
+            "mean": 7065.591099963058
+          },
+          "model_check_through_first_ms": {
+            "n": 1,
+            "min": 8294.76879996946,
+            "p50": 8294.76879996946,
+            "p95": 8294.76879996946,
+            "max": 8294.76879996946,
+            "mean": 8294.76879996946
+          },
+          "trials": [
+            {
+              "outcome": {
+                "provider_requested": "cuda",
+                "provider_active": "cuda",
+                "fallback_reason": null,
+                "first_inference_ms": 7065.591099963058,
+                "usable_embedding": true,
+                "error": null
+              },
+              "model_check_ms": 1229.177700006403,
+              "error": null,
+              "pid": 127500,
+              "exit_code": 0
+            }
+          ]
+        },
+        "corpus_sha256": "99375be8b2532157b8242729479c36463147d9aa79ec61f758f73ed1c4b40b5b",
+        "variant_sources": {
+          "original": {
+            "supplied": 4
+          },
+          "view": {
+            "derived": 4
+          },
+          "thumb": {
+            "derived": 4
+          }
+        }
+      }
+    },
+    "saved": {
+      "cuda": {
+        "model_sha256": "e50f28211feaef50e80b8bece55bbfae15d3319a70fbd568476bc84c8037f5af",
+        "model_check_ms": 1135.594499995932,
+        "outcome": {
+          "provider_requested": "cuda",
+          "provider_active": "cuda",
+          "fallback_reason": null,
+          "first_inference_ms": 3253.66629997734,
+          "usable_embedding": true,
+          "error": null
+        },
+        "runtime": {
+          "python": "3.13.11",
+          "ort": "1.28.0",
+          "packages": {
+            "numpy": "2.3.5",
+            "nvidia-cublas": "13.10.0.20",
+            "nvidia-cuda-nvrtc": "13.5.37",
+            "nvidia-cuda-runtime": "13.5.37",
+            "nvidia-cudnn-cu13": "9.28.1.4",
+            "nvidia-cufft": "12.5.0.14",
+            "nvidia-curand": "10.4.5.25",
+            "nvidia-nvjitlink": "13.5.37",
+            "onnxruntime-gpu": "1.28.0",
+            "pillow": "13.0.0"
+          },
+          "available_providers": [
+            "TensorrtExecutionProvider",
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "ort_build_info": "ORT Build Info: git-branch=HEAD, git-commit-id=0368187f84, fp8-kv-cache=1, build type=Release"
+        },
+        "pid": 135740,
+        "cuda_options": {
+          "use_tf32": "0",
+          "gpu_mem_limit": "8589934592",
+          "arena_extend_strategy": "kSameAsRequested",
+          "do_copy_in_default_stream": "1"
+        },
+        "inputs": [
+          {
+            "name": "pixel_values",
+            "shape": [
+              "batch_size",
+              3,
+              "height",
+              "width"
+            ],
+            "type": "tensor(float)"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "style_embedding",
+            "shape": [
+              1,
+              1024
+            ],
+            "type": "tensor(float)"
+          },
+          {
+            "name": "layer_norm_48",
+            "shape": [
+              "batch_size",
+              "((height//16))*((width//16)) + 5",
+              1024
+            ],
+            "type": "tensor(float)"
+          }
+        ],
+        "steady_ms": {
+          "original": {
+            "n": 12,
+            "min": 62.4692999990657,
+            "p50": 67.47824998456053,
+            "p95": 76.02900001220404,
+            "max": 82.45300000999123,
+            "mean": 68.2936749944929
+          },
+          "view": {
+            "n": 12,
+            "min": 65.1674999971874,
+            "p50": 70.45984998694621,
+            "p95": 74.93148002249654,
+            "max": 77.33960001496598,
+            "mean": 70.19829167499363
+          },
+          "thumb": {
+            "n": 12,
+            "min": 42.36019996460527,
+            "p50": 44.919149979250506,
+            "p95": 47.072334989206865,
+            "max": 47.0735999988392,
+            "mean": 44.68596665052852
+          }
+        },
+        "batch": {
+          "2": {
+            "status": "two_rows",
+            "output_shapes": [
+              [
+                2,
+                1024
+              ],
+              [
+                2,
+                709,
+                1024
+              ]
+            ],
+            "distinct_single_style_vectors": true,
+            "independent_rows_match": false,
+            "max_abs_error_by_output_and_row": [
+              4.842877388000488e-08,
+              7.450580596923828e-08,
+              3.814697265625e-06,
+              6.377696990966797e-06
+            ],
+            "first_batch_ms": 118.53889998747036,
+            "warm_batch_ms": 77.72060000570491,
+            "sequential_ms": 80.21739998366684,
+            "warm_speedup_over_sequential": 1.0321253307074143,
+            "input_shape": [
+              2,
+              3,
+              512,
+              352
+            ],
+            "batch_input_sha256": "5284f95c01fa968e4c7e271c46a4255f30d8dacbe1157a9835e8b8abc0e58c08"
+          },
+          "4": {
+            "status": "full_rows",
+            "output_shapes": [
+              [
+                4,
+                1024
+              ],
+              [
+                4,
+                709,
+                1024
+              ]
+            ],
+            "distinct_single_style_vectors": true,
+            "independent_rows_match": false,
+            "max_abs_error_by_output_and_row": [
+              6.891787052154541e-08,
+              4.936009645462036e-08,
+              8.195638656616211e-08,
+              7.450580596923828e-08,
+              5.245208740234375e-06,
+              5.036592483520508e-06,
+              1.3828277587890625e-05,
+              8.821487426757812e-06
+            ],
+            "first_batch_ms": 121.08790001366287,
+            "warm_batch_ms": 122.38479999359697,
+            "sequential_ms": 145.51750000100583,
+            "warm_speedup_over_sequential": 1.1890161197192717,
+            "input_shape": [
+              4,
+              3,
+              512,
+              352
+            ],
+            "batch_input_sha256": "213761fa51c1e7a6b5af7495fc37732081bcccfebc7f38cd42b0e837b69cb444"
+          },
+          "8": {
+            "status": "full_rows",
+            "output_shapes": [
+              [
+                8,
+                1024
+              ],
+              [
+                8,
+                709,
+                1024
+              ]
+            ],
+            "distinct_single_style_vectors": true,
+            "independent_rows_match": false,
+            "max_abs_error_by_output_and_row": [
+              5.960464477539063e-08,
+              7.82310962677002e-08,
+              1.1455267667770386e-07,
+              7.636845111846924e-08,
+              1.3364478945732117e-07,
+              1.043081283569336e-07,
+              9.313225746154785e-08,
+              6.705522537231445e-08,
+              1.150369644165039e-05,
+              6.467103958129883e-06,
+              9.5367431640625e-06,
+              6.67572021484375e-06,
+              9.5367431640625e-06,
+              1.735985279083252e-05,
+              6.616115570068359e-06,
+              4.649162292480469e-06
+            ],
+            "first_batch_ms": 229.1247000102885,
+            "warm_batch_ms": 240.140900015831,
+            "sequential_ms": 283.0504999146797,
+            "warm_speedup_over_sequential": 1.178685096524665,
+            "input_shape": [
+              8,
+              3,
+              512,
+              352
+            ],
+            "batch_input_sha256": "a7466f213b251eebaa591f396603b4dcd3ac4e29008c1fc9e045926dcca39673"
+          }
+        },
+        "profile": "saved-cuda-ort_2026-11-22_04-28-04_521.json",
+        "node_placement": {
+          "compute_by_provider": {
+            "CUDAExecutionProvider": 1482,
+            "CPUExecutionProvider": 154
+          },
+          "cuda_fraction": 0.9058679706601467,
+          "cpu_nodes": [
+            {
+              "name": "node_Cast_25",
+              "op": "Cast"
+            },
+            {
+              "name": "node_Cast_30",
+              "op": "Cast"
+            },
+            {
+              "name": "node_Concat_1053",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1056",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_107",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1164",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1167",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1275",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1278",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1386",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1389",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_14",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1497",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1500",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1608",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1611",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_165",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_168",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1719",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1722",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_181",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1830",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1833",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_19",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1941",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_1944",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2052",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2055",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2163",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2166",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2274",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2277",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2385",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2388",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2496",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2499",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2607",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2610",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2718",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2721",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2759",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_276",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2782",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_279",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2893",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2899",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2904",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2914",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_2919",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_387",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_390",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_41",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_498",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_501",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_57",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_609",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_612",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_720",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_723",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_78",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_831",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_834",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_90",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_942",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Concat_945",
+              "op": "Concat"
+            },
+            {
+              "name": "node_Reshape_104",
+              "op": "Reshape"
+            },
+            {
+              "name": "node_Reshape_13",
+              "op": "Reshape"
+            },
+            {
+              "name": "node_Reshape_2897",
+              "op": "Reshape"
+            },
+            {
+              "name": "node_Reshape_55",
+              "op": "Reshape"
+            },
+            {
+              "name": "node_Reshape_87",
+              "op": "Reshape"
+            },
+            {
+              "name": "node_Slice_1048",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1049",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1051",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1159",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1160",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1162",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1270",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1271",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1273",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1381",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1382",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1384",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1492",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1493",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1495",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_159",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1603",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1604",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1606",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_161",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_163",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1714",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1715",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1717",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1825",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1826",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1828",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1936",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1937",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_1939",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2047",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2048",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2050",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2158",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2159",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2161",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2269",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2270",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2272",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2380",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2381",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2383",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2491",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2492",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2494",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2602",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2603",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2605",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_271",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2713",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2714",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_2716",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_272",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_274",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_382",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_383",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_385",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_493",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_494",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_496",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_604",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_605",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_607",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_715",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_716",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_718",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_826",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_827",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_829",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_937",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_938",
+              "op": "Slice"
+            },
+            {
+              "name": "node_Slice_940",
+              "op": "Slice"
+            },
+            {
+              "name": "node_add_5604",
+              "op": "Add"
+            },
+            {
+              "name": "node_floordiv_2",
+              "op": "Div"
+            },
+            {
+              "name": "node_floordiv_3",
+              "op": "Div"
+            },
+            {
+              "name": "node_mul_4273",
+              "op": "Mul"
+            },
+            {
+              "name": "node_mul_43",
+              "op": "Mul"
+            },
+            {
+              "name": "node_mul_4329",
+              "op": "Mul"
+            },
+            {
+              "name": "node_sub_55",
+              "op": "Sub"
+            },
+            {
+              "name": "node_sym_size_int_6",
+              "op": "Squeeze"
+            },
+            {
+              "name": "node_sym_size_int_61",
+              "op": "Squeeze"
+            },
+            {
+              "name": "node_sym_size_int_62",
+              "op": "Squeeze"
+            },
+            {
+              "name": "node_sym_size_int_63",
+              "op": "Squeeze"
+            },
+            {
+              "name": "node_sym_size_int_7",
+              "op": "Squeeze"
+            }
+          ],
+          "transfer_nodes": [
+            {
+              "name": "Memcpy",
+              "op": "MemcpyFromHost"
+            },
+            {
+              "name": "Memcpy_token_57",
+              "op": "MemcpyFromHost"
+            }
+          ]
+        },
+        "process_wall_ms": 17392.008499999065,
+        "exit_code": 0,
+        "cold": {
+          "first_inference_ms": {
+            "n": 1,
+            "min": 3253.66629997734,
+            "p50": 3253.66629997734,
+            "p95": 3253.66629997734,
+            "max": 3253.66629997734,
+            "mean": 3253.66629997734
+          },
+          "model_check_through_first_ms": {
+            "n": 1,
+            "min": 4389.260799973272,
+            "p50": 4389.260799973272,
+            "p95": 4389.260799973272,
+            "max": 4389.260799973272,
+            "mean": 4389.260799973272
+          },
+          "trials": [
+            {
+              "outcome": {
+                "provider_requested": "cuda",
+                "provider_active": "cuda",
+                "fallback_reason": null,
+                "first_inference_ms": 3253.66629997734,
+                "usable_embedding": true,
+                "error": null
+              },
+              "model_check_ms": 1135.594499995932,
+              "error": null,
+              "pid": 135740,
+              "exit_code": 0
+            }
+          ]
+        },
+        "corpus_sha256": "09a39a209d15361d3e9666d609c25b82d25fb7784fe5fc778d472933daa2ba57",
+        "variant_sources": {
+          "original": {
+            "supplied": 12
+          },
+          "view": {
+            "derived": 12
+          },
+          "thumb": {
+            "derived": 12
+          }
+        }
+      }
+    }
+  }
+}
