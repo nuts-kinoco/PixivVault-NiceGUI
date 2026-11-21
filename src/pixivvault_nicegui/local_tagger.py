@@ -545,6 +545,12 @@ class TaggerManager:
                 if before is None:
                     return None
                 epoch = self._verification_epoch
+                # Publish a verified fingerprint before the first native
+                # prediction so in-flight settings/file changes can revoke it.
+                # An already verified model can serve cache hits after release.
+                if not tagger._session_verified:
+                    if self._verify(snapshot, epoch) != before or self.status != '利用可能':
+                        return None
                 tags = tagger.predict(data)
                 self.status = tagger.status
                 if self.status != '利用可能':
