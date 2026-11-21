@@ -1,0 +1,10 @@
+Context decision: continue in the same conversation.
+Owner: this G3 r2 implementation turn, terminal exec session 5938.
+Candidate: 227b1d0522f70c0b93aca278bbfb92ca848e8e7c.
+Stdout: verify/gpuarb-20261122/r2/full-repeat.log.
+Final launcher receipt: verify/gpuarb-20261122/r2/full-repeat.process.txt.
+Completed prior full runs: d297346 stopped with exit -1; 227b1d0 finished 4139 passed, 1 failed, 3 skipped, 3 deselected.
+Next authorized action: await repeat, verify frozen trees and owned process exit.
+PID=120828 PPID=112808
+PID=85648 PPID=120828
+Final result collected. Exit 0. Product and tests unchanged. Owned test processes 0.

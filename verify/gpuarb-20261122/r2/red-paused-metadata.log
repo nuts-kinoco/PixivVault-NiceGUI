@@ -1,0 +1,10 @@
+F.                                                                       [100%]
+================================== FAILURES ===================================
+_____ test_cooperatively_paused_view_still_revalidates_published_metadata _____
+tests\test_gpuarb_review.py:411: in test_cooperatively_paused_view_still_revalidates_published_metadata
+    assert calls == ['metadata']
+E   AssertionError: assert ['refresh'] == ['metadata']
+E     
+E     At index 0 diff: 'refresh' != 'metadata'
+E     Use -v to get more diff
+1 failed, 1 passed in 2.37s

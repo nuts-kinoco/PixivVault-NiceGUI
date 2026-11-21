@@ -1,0 +1,11 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+__________ test_stop_between_tagger_manager_steps_prevents_reloading __________
+tests\test_gpuarb_inference.py:279: in test_stop_between_tagger_manager_steps_prevents_reloading
+    assert [op for op, _ in calls].count('load') == 1
+E   AssertionError: assert 2 == 1
+E    +  where 2 = <built-in method count of list object at 0x00000241EF943500>('load')
+E    +    where <built-in method count of list object at 0x00000241EF943500> = ['preload', 'load', 'preload', 'load'].count
+=========================== short test summary info ===========================
+FAILED tests/test_gpuarb_inference.py::test_stop_between_tagger_manager_steps_prevents_reloading
+1 failed in 1.46s

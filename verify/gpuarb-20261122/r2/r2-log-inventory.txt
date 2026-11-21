@@ -1,0 +1,28 @@
+Moved r2 generated auxiliary logs: 26
+Delete candidate after supervisor recovery: S:\Work\_tmp\PV\gpu-arb-20261122-r2\r2-untracked
+core-green.log
+core-green.process.txt
+focused-final.log
+focused-final.process.txt
+focused1.log
+focused1.process.txt
+full-collection.log
+full-collection.process.txt
+green-candidate.log
+green-candidate.process.txt
+green-final.log
+green-final.process.txt
+green-inflight-final.process.txt
+path-probe.process.txt
+red-automatic-resume.process.txt
+red-existing-inflight.process.txt
+red-identity-cpu.process.txt
+red-paused-metadata.process.txt
+red-paused-revalidation.log
+red-paused-revalidation.process.txt
+red-publication.process.txt
+red-review-followup.process.txt
+red.process.txt
+sharing-baseline.process.txt
+sharing-retry.process.txt
+sharing-single01.process.txt

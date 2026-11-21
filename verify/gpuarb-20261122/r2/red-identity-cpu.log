@@ -1,0 +1,32 @@
+FFF                                                                      [100%]
+================================== FAILURES ===================================
+___________ test_tagger_rejects_model_replaced_while_queued[False] ____________
+tests\test_gpuarb_review.py:339: in test_tagger_rejects_model_replaced_while_queued
+    assert [op for op, _ in calls].count('load') == int(warm)
+E   AssertionError: assert 1 == 0
+E    +  where 1 = <built-in method count of list object at 0x000001FC5842A580>('load')
+E    +    where <built-in method count of list object at 0x000001FC5842A580> = ['preload', 'load', 'disable'].count
+E    +  and   0 = int(False)
+____________ test_tagger_rejects_model_replaced_while_queued[True] ____________
+tests\test_gpuarb_review.py:337: in test_tagger_rejects_model_replaced_while_queued
+    assert prediction.result(5) == []
+E   AssertionError: assert [('cat', 0.97)] == []
+E     
+E     Left contains one more item: ('cat', 0.97)
+E     Use -v to get more diff
+_______________ test_tagger_manager_cpu_retry_survives_gpu_stop _______________
+tests\test_gpuarb_review.py:372: in test_tagger_manager_cpu_retry_survives_gpu_stop
+    assert manager.predict(b'image') == [('synthetic', 0.97)]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\local_tagger.py:478: in predict
+    result = self.predict_with_fingerprint(data)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\local_tagger.py:500: in predict_with_fingerprint
+    with tagger._gpu_arbiter.stop_scope():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:148: in __exit__
+    next(self.gen)
+src\pixivvault_nicegui\gpu_arbiter.py:77: in stop_scope
+    raise GpuInferenceStopped('GPU inference stopped')
+E   pixivvault_nicegui.gpu_arbiter.GpuInferenceStopped: GPU inference stopped
+3 failed in 1.50s

@@ -1,0 +1,21 @@
+FFF                                                                      [100%]
+================================== FAILURES ===================================
+______ test_inflight_result_discarded_if_configuration_changes[disabled] ______
+tests\test_ak_review_inflight_20261119.py:32: in test_inflight_result_discarded_if_configuration_changes
+    assert manager.try_current_fingerprint() is not None
+E   assert None is not None
+E    +  where None = try_current_fingerprint()
+E    +    where try_current_fingerprint = <pixivvault_nicegui.local_tagger.TaggerManager object at 0x000001E14D650D70>.try_current_fingerprint
+________ test_inflight_result_discarded_if_configuration_changes[path] ________
+tests\test_ak_review_inflight_20261119.py:32: in test_inflight_result_discarded_if_configuration_changes
+    assert manager.try_current_fingerprint() is not None
+E   assert None is not None
+E    +  where None = try_current_fingerprint()
+E    +    where try_current_fingerprint = <pixivvault_nicegui.local_tagger.TaggerManager object at 0x000001E14D60B9D0>.try_current_fingerprint
+_______ test_inflight_result_discarded_if_configuration_changes[digest] _______
+tests\test_ak_review_inflight_20261119.py:32: in test_inflight_result_discarded_if_configuration_changes
+    assert manager.try_current_fingerprint() is not None
+E   assert None is not None
+E    +  where None = try_current_fingerprint()
+E    +    where try_current_fingerprint = <pixivvault_nicegui.local_tagger.TaggerManager object at 0x000001E14D728A50>.try_current_fingerprint
+3 failed in 0.85s

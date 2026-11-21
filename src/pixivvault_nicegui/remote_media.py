@@ -7,6 +7,7 @@ from dataclasses import replace
 import hashlib
 from io import BytesIO
 from threading import BoundedSemaphore, RLock
+from typing import NamedTuple
 
 from PIL import Image, UnidentifiedImageError
 
@@ -17,6 +18,19 @@ from .pixiv_read_client import HTTPStatusRejected
 
 class RemoteImageNotFound(RuntimeError):
     """An individual work is missing both its page list and its listing image."""
+
+
+class RemoteImageWithVariant(NamedTuple):
+    blob: ImageBlob
+    variant: str
+
+    @property
+    def data(self):
+        return self.blob.data
+
+    @property
+    def media_type(self):
+        return self.blob.media_type
 
 
 class RemoteBookmarkImages:
@@ -126,6 +140,10 @@ class RemoteBookmarkImages:
         return f"/media/{work_id}/{page_no}/{variant}.png"
 
     def get(self, work_id: str, page_no: int = 0, variant: str = "view") -> ImageBlob:
+        return self.get_with_variant(work_id, page_no, variant).blob
+
+    def get_with_variant(self, work_id: str, page_no: int = 0,
+                         variant: str = "view") -> RemoteImageWithVariant:
         """Foreground and learning-prefetch requests share one in-flight read."""
         key=(work_id,page_no,variant)
         with self._lock:
@@ -151,14 +169,42 @@ class RemoteBookmarkImages:
             with self._lock:
                 if self._flights.get(key) is future:self._flights.pop(key)
 
-    def _get_uncached(self, work_id: str, page_no: int = 0, variant: str = "view") -> ImageBlob:
+    @staticmethod
+    def _cached_variant(cached, requested):
+        # The v1 disk cache only persists PNG thumbnails previously scaled to
+        # fit 192px. Disk promotion yields a plain ImageBlob in shared memory.
+        if isinstance(cached, RemoteImageWithVariant):
+            return cached
+        if cached is not None and requested == 'thumb':
+            return RemoteImageWithVariant(cached, 'thumb_192')
+        return None
+
+    def _remember(self, key, blob, actual, *, disk_key=None):
+        entry = RemoteImageWithVariant(blob, actual)
+        if self._shared_cache is not None:
+            self._shared_cache.put(key, entry, disk_key=disk_key)
+        else:
+            previous = self._cache.pop(key, None)
+            if previous is not None:
+                self._bytes -= len(previous.data)
+            size = len(blob.data)
+            if size <= self._limit:
+                while self._cache and self._bytes + size > self._limit:
+                    self._bytes -= len(self._cache.popitem(last=False)[1].data)
+                self._cache[key] = entry
+                self._bytes += size
+        return entry
+
+    def _get_uncached(self, work_id: str, page_no: int = 0,
+                      variant: str = "view") -> RemoteImageWithVariant:
         key = (work_id, page_no, variant)
         with self._lock:
             record = self._record(work_id, page_no, variant)
             disk_key=("remote-thumbnail-v1:"+work_id+":"+str(page_no)+":"+thumbnail_url(record.thumbnail)) if variant=="thumb" else None
             if self._shared_cache is not None:
-                cached=self._shared_cache.get(key,disk_key=disk_key)
-                if cached is not None:return cached
+                cached = self._cached_variant(self._shared_cache.get(key, disk_key=disk_key), variant)
+                if cached is not None:
+                    return cached
             elif key in self._cache:
                 self._cache.move_to_end(key)
                 return self._cache[key]
@@ -193,14 +239,7 @@ class RemoteBookmarkImages:
                     raise RuntimeError('remote original image unavailable') from None
             with self._lock:
                 self._record(work_id,page_no,variant)
-                if self._shared_cache is not None:
-                    self._shared_cache.put(key,blob)
-                elif len(blob.data)<=self._limit:
-                    while self._cache and self._bytes+len(blob.data)>self._limit:
-                        self._bytes-=len(self._cache.popitem(last=False)[1].data)
-                    self._cache[key]=blob
-                    self._bytes+=len(blob.data)
-            return blob
+                return self._remember(key, blob, 'original')
         if variant == 'view' and record.illustration_type == 2:
             from .ugoira_gif import render_ugoira_gif
             with self._decode_slots:
@@ -210,20 +249,15 @@ class RemoteBookmarkImages:
             blob=ImageBlob(rendered.data,'image/gif','"'+rendered.sha256+'"')
             with self._lock:
                 self._record(work_id,page_no,variant)
-                if self._shared_cache is not None:self._shared_cache.put(key,blob)
-                elif len(blob.data)<=self._limit:
-                    while self._cache and self._bytes+len(blob.data)>self._limit:
-                        self._bytes-=len(self._cache.popitem(last=False)[1].data)
-                    previous=self._cache.pop(key,None)
-                    if previous is not None:self._bytes-=len(previous.data)
-                    self._cache[key]=blob;self._bytes+=len(blob.data)
-            return blob
+                return self._remember(key, blob, 'ugoira_gif')
         with self._decode_slots:
             try:
                 with self._lock:
                     self._record(work_id, page_no, variant)
                 if use_listing_thumbnail or variant == "thumb" or record.kind == "novel":
                     url = record.thumbnail
+                    actual = 'thumb_192' if variant == 'thumb' else (
+                        'listing_thumb_fallback' if use_listing_thumbnail else 'novel_cover')
                 else:
                     with self._lock:
                         pages = self._pages.get(work_id)
@@ -240,6 +274,7 @@ class RemoteBookmarkImages:
                                 raise RuntimeError("image catalog closed")
                             self._pages[work_id] = pages
                     url = pages[page_no]
+                    actual = 'regular_view'
                 with self._lock:
                     self._record(work_id, page_no, variant)
                 self._before_image_fetch()
@@ -263,18 +298,7 @@ class RemoteBookmarkImages:
         with self._lock:
             if self._closed:
                 raise RuntimeError("image catalog closed")
-            if self._shared_cache is not None:
-                self._shared_cache.put(key,blob,disk_key=disk_key)
-                return blob
-            previous = self._cache.pop(key, None)
-            if previous is not None:
-                self._bytes -= len(previous.data)
-            if len(png) <= self._limit:
-                while self._cache and self._bytes + len(png) > self._limit:
-                    self._bytes -= len(self._cache.popitem(last=False)[1].data)
-                self._cache[key] = blob
-                self._bytes += len(png)
-            return blob
+            return self._remember(key, blob, actual, disk_key=disk_key)
 
     def _before_image_fetch(self):
         pass
@@ -282,7 +306,20 @@ class RemoteBookmarkImages:
     def peek(self, work_id: str, page_no: int, variant: str):
         with self._lock:
             self._record(work_id, page_no, variant)
-            return self._shared_cache.get((work_id,page_no,variant)) if self._shared_cache is not None else self._cache.get((work_id, page_no, variant))
+            key = (work_id, page_no, variant)
+            cached = self._shared_cache.get(key) if self._shared_cache is not None else self._cache.get(key)
+            return cached.blob if isinstance(cached, RemoteImageWithVariant) else cached
+
+    def peek_with_variant(self, work_id: str, page_no: int,
+                          variant: str) -> RemoteImageWithVariant | None:
+        """Read an in-memory result without changing eviction order or fetching."""
+        with self._lock:
+            self._record(work_id, page_no, variant)
+            key = (work_id, page_no, variant)
+            namespace = self._shared_cache
+            if namespace is None:
+                return self._cache.get(key)
+            return self._cached_variant(namespace.peek_memory(key), variant)
 
     def close(self):
         with self._lock:
@@ -311,10 +348,10 @@ class LegacyNovelPreviewImages(RemoteBookmarkImages):
                 raise RuntimeError('image catalog closed')
             return LegacyNovelPreviewImages(client, self._urls, self._enabled)
 
-    def get(self, work_id, page_no=0, variant='view'):
+    def get_with_variant(self, work_id, page_no=0, variant='view'):
         if variant != 'thumb' or self.client is None or not self._enabled():
             raise RuntimeError('legacy preview unavailable')
-        return super().get(work_id, page_no, variant)
+        return super().get_with_variant(work_id, page_no, variant)
 
     def _before_image_fetch(self):
         if self.client is None or not self._enabled():

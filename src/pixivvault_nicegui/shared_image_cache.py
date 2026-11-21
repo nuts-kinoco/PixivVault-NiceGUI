@@ -234,6 +234,13 @@ class ImageCacheNamespace:
                     'full':self._fifo_mode is not None and (len(self._fifo) if self._fifo_mode=='count' else size)>=self._fifo_limit}
 
 
+    def peek_memory(self, key):
+        """Read only the current memory entry without promoting its recency."""
+        with self.owner._lock:
+            if self.closed or self.owner._closed:
+                return None
+            return self.owner._entries.get((self.identity, key))
+
     def get(self,key,*,disk_key=None):
         with self.owner._lock:
             if self.closed or self.owner._closed:return None

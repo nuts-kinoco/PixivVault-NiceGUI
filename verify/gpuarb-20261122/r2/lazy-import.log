@@ -1,0 +1,3 @@
+lazy imports OK: neither ORT nor NumPy is loaded
+onnxruntime installed in test interpreter: False
+numpy installed in test interpreter: False

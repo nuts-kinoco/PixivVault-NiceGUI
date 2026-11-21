@@ -1,0 +1,9 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+______ test_cooperative_stop_between_pages_prevents_new_gpu_work[tagger] ______
+tests\test_gpuarb_review.py:313: in test_cooperative_stop_between_pages_prevents_new_gpu_work
+    assert worker.refresh_async() is completed
+E   assert <Future at 0x29fcf5b4b90 state=pending> is <Future at 0x29fcf5b4a50 state=finished returned NoneType>
+E    +  where <Future at 0x29fcf5b4b90 state=pending> = refresh_async()
+E    +    where refresh_async = <pixivvault_nicegui.local_tag_view.LocalTagView object at 0x0000029FCF3EE900>.refresh_async
+1 failed in 0.95s

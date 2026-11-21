@@ -1,0 +1,11 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_________ test_stop_during_tagger_tensor_preparation_skips_native_run _________
+tests\test_gpuarb_inference.py:297: in test_stop_during_tagger_tensor_preparation_skips_native_run
+    assert not native_run.is_set()
+E   assert not True
+E    +  where True = is_set()
+E    +    where is_set = <threading.Event at 0x1722b64afd0: set>.is_set
+=========================== short test summary info ===========================
+FAILED tests/test_gpuarb_inference.py::test_stop_during_tagger_tensor_preparation_skips_native_run
+1 failed in 2.31s

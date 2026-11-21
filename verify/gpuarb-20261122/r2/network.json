@@ -1,0 +1,2860 @@
+{
+  "counts": {
+    "gated": 212,
+    "non-network": 53,
+    "local": 25,
+    "manual": 16
+  },
+  "sites": [
+    {
+      "path": "pixivvault_nicegui/account_followup.py",
+      "line": 51,
+      "scope": "_PinnedReader.require_identity",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/account_followup.py:_PinnedReader.require_identity:client.require_identity:ef15c64a05f2b27f:8356415f82ac0764:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/account_followup.py",
+      "line": 57,
+      "scope": "_PinnedReader.get_following_users_detailed",
+      "target": "client.get_following_users_detailed",
+      "key": "pixivvault_nicegui/account_followup.py:_PinnedReader.get_following_users_detailed:client.get_following_users_detailed:793cf71deaf84944:5eda9a0ecb77f102:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/account_followup.py",
+      "line": 188,
+      "scope": "AccountFollowup.confirm_account_switch.clear_confirmed_account",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/account_followup.py:AccountFollowup.confirm_account_switch.clear_confirmed_account:client.require_identity:969f705f371f6e7d:68df0e77c61ae632:1",
+      "status": "gated",
+      "reason": "Account confirmation revalidates identity through the owner-bound follow-up reader before applying the accepted switch."
+    },
+    {
+      "path": "pixivvault_nicegui/account_followup.py",
+      "line": 312,
+      "scope": "AccountFollowup._open_reader",
+      "target": "managed_network_stop_shared_transport.create_shared_profile_reader",
+      "key": "pixivvault_nicegui/account_followup.py:AccountFollowup._open_reader:managed_network_stop_shared_transport.create_shared_profile_reader:4e678d1e8be4d9ac:7f6ca4fba2d388af:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/account_followup.py",
+      "line": 316,
+      "scope": "AccountFollowup._open_reader",
+      "target": "managed_network_stop_reader.create_exact_managed_read_client",
+      "key": "pixivvault_nicegui/account_followup.py:AccountFollowup._open_reader:managed_network_stop_reader.create_exact_managed_read_client:4e678d1e8be4d9ac:49a4010ebb57a2f8:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/author_media.py",
+      "line": 251,
+      "scope": "AuthorMediaService.preview_owned",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/author_media.py:AuthorMediaService.preview_owned:client.verify_identity:2ba1cb53c3f194c6:ec557f72cbde2d73:1",
+      "status": "gated",
+      "reason": "Author media preparation uses the service-pinned authenticated reader, whose dispatch remains under the sealed STOP binding."
+    },
+    {
+      "path": "pixivvault_nicegui/author_media.py",
+      "line": 277,
+      "scope": "AuthorMediaService.preview_owned",
+      "target": "client.get_user_works",
+      "key": "pixivvault_nicegui/author_media.py:AuthorMediaService.preview_owned:client.get_user_works:2ba1cb53c3f194c6:0fb648df19d4b206:1",
+      "status": "gated",
+      "reason": "Author media preparation uses the service-pinned authenticated reader, whose dispatch remains under the sealed STOP binding."
+    },
+    {
+      "path": "pixivvault_nicegui/author_media.py",
+      "line": 278,
+      "scope": "AuthorMediaService.preview_owned",
+      "target": "client.get_author_artworks_complete",
+      "key": "pixivvault_nicegui/author_media.py:AuthorMediaService.preview_owned:client.get_author_artworks_complete:2ba1cb53c3f194c6:8c64b7216dbdfd84:1",
+      "status": "gated",
+      "reason": "Author media preparation uses the service-pinned authenticated reader, whose dispatch remains under the sealed STOP binding."
+    },
+    {
+      "path": "pixivvault_nicegui/author_media.py",
+      "line": 320,
+      "scope": "AuthorMediaService.preview_owned",
+      "target": "client.get_user_novels",
+      "key": "pixivvault_nicegui/author_media.py:AuthorMediaService.preview_owned:client.get_user_novels:2ba1cb53c3f194c6:af53d1b3759c6e19:1",
+      "status": "gated",
+      "reason": "Author media preparation uses the service-pinned authenticated reader, whose dispatch remains under the sealed STOP binding."
+    },
+    {
+      "path": "pixivvault_nicegui/author_media.py",
+      "line": 321,
+      "scope": "AuthorMediaService.preview_owned",
+      "target": "client.get_author_novel_ids",
+      "key": "pixivvault_nicegui/author_media.py:AuthorMediaService.preview_owned:client.get_author_novel_ids:2ba1cb53c3f194c6:a492c6a75438c0a6:1",
+      "status": "gated",
+      "reason": "Author media preparation uses the service-pinned authenticated reader, whose dispatch remains under the sealed STOP binding."
+    },
+    {
+      "path": "pixivvault_nicegui/author_media.py",
+      "line": 365,
+      "scope": "AuthorMediaService._refresh_candidate",
+      "target": "client.get_artwork_update_revision",
+      "key": "pixivvault_nicegui/author_media.py:AuthorMediaService._refresh_candidate:client.get_artwork_update_revision:570694e61e52386d:bc0cd9e5e9ed1abd:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/author_media.py",
+      "line": 453,
+      "scope": "AuthorMediaService.enqueue",
+      "target": "client.get_artwork_download_record",
+      "key": "pixivvault_nicegui/author_media.py:AuthorMediaService.enqueue:client.get_artwork_download_record:a1d7ce99c676f4af:805ed10204750927:1",
+      "status": "gated",
+      "reason": "Author media preparation uses the service-pinned authenticated reader, whose dispatch remains under the sealed STOP binding."
+    },
+    {
+      "path": "pixivvault_nicegui/batch_engine.py",
+      "line": 133,
+      "scope": "ServicesPort.verified_author_account",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/batch_engine.py:ServicesPort.verified_author_account:client.verify_identity:6a1481fc528ad17a:ec557f72cbde2d73:1",
+      "status": "gated",
+      "reason": "The W batch port captures the service authenticated reader, verifies the same account and cannot construct a transport."
+    },
+    {
+      "path": "pixivvault_nicegui/bookmark_remote_adapter.py",
+      "line": 193,
+      "scope": "fetch_all_bookmarks",
+      "target": "client.get_bookmarked_works",
+      "key": "pixivvault_nicegui/bookmark_remote_adapter.py:fetch_all_bookmarks:client.get_bookmarked_works:e4bb4bf47af74c9e:494126b4f1604bfb:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/bookmark_remote_adapter.py",
+      "line": 194,
+      "scope": "fetch_all_bookmarks",
+      "target": "client.get_bookmarked_novels",
+      "key": "pixivvault_nicegui/bookmark_remote_adapter.py:fetch_all_bookmarks:client.get_bookmarked_novels:e4bb4bf47af74c9e:46b623b6719b4980:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/bootstrap.py",
+      "line": 428,
+      "scope": "_build_owned_media_readers.make_reader",
+      "target": "managed_network_stop_shared_transport.create_shared_profile_reader",
+      "key": "pixivvault_nicegui/bootstrap.py:_build_owned_media_readers.make_reader:managed_network_stop_shared_transport.create_shared_profile_reader:1c926cc4ef338413:5ef4c15f81aab2b6:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/bootstrap.py",
+      "line": 966,
+      "scope": "main",
+      "target": "pixiv_read_client.LivePixivReadClient",
+      "key": "pixivvault_nicegui/bootstrap.py:main:pixiv_read_client.LivePixivReadClient:3bc1415fd8414b50:9983108ca23eb805:1",
+      "status": "non-network",
+      "reason": "Local Cookie syntax diagnostic closes immediately without issuing a GET.",
+      "evidence": "src/pixivvault_nicegui/bootstrap.py:964"
+    },
+    {
+      "path": "pixivvault_nicegui/cookie_expiry_refresh.py",
+      "line": 151,
+      "scope": "CookieExpiryCoordinator._commit_admission",
+      "target": "reader._transport.gate.request",
+      "key": "pixivvault_nicegui/cookie_expiry_refresh.py:CookieExpiryCoordinator._commit_admission:reader._transport.gate.request:76ba0a6a2c888311:67eb36e6bd0af57e:1",
+      "status": "non-network",
+      "reason": "Local gate/ownership or admission operation.",
+      "evidence": "src/pixivvault_nicegui/cookie_expiry_refresh.py:151"
+    },
+    {
+      "path": "pixivvault_nicegui/cookie_expiry_refresh.py",
+      "line": 152,
+      "scope": "CookieExpiryCoordinator._commit_admission",
+      "target": "reader._transport.shared_gate.request",
+      "key": "pixivvault_nicegui/cookie_expiry_refresh.py:CookieExpiryCoordinator._commit_admission:reader._transport.shared_gate.request:76ba0a6a2c888311:97ef227d76ef5396:1",
+      "status": "non-network",
+      "reason": "Local gate/ownership or admission operation.",
+      "evidence": "src/pixivvault_nicegui/cookie_expiry_refresh.py:152"
+    },
+    {
+      "path": "pixivvault_nicegui/cookie_expiry_refresh.py",
+      "line": 154,
+      "scope": "CookieExpiryCoordinator._commit_admission",
+      "target": "reader._transport.gate.request",
+      "key": "pixivvault_nicegui/cookie_expiry_refresh.py:CookieExpiryCoordinator._commit_admission:reader._transport.gate.request:76ba0a6a2c888311:67eb36e6bd0af57e:2",
+      "status": "non-network",
+      "reason": "Local gate/ownership or admission operation.",
+      "evidence": "src/pixivvault_nicegui/cookie_expiry_refresh.py:154"
+    },
+    {
+      "path": "pixivvault_nicegui/cookie_expiry_refresh.py",
+      "line": 256,
+      "scope": "CookieExpiryCoordinator.observe",
+      "target": "urllib.request.Request.get_header",
+      "key": "pixivvault_nicegui/cookie_expiry_refresh.py:CookieExpiryCoordinator.observe:urllib.request.Request.get_header:cdefb40230ad87cb:6d5e0c624fe03bdd:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/cookie_expiry_refresh.py:256"
+    },
+    {
+      "path": "pixivvault_nicegui/discovery_engine.py",
+      "line": 135,
+      "scope": "_source_following",
+      "target": "client.get_following_users",
+      "key": "pixivvault_nicegui/discovery_engine.py:_source_following:client.get_following_users:06ff1099ab339175:235e4fb1893a94e9:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/discovery_engine.py",
+      "line": 193,
+      "scope": "_source_following",
+      "target": "client.get_user_works",
+      "key": "pixivvault_nicegui/discovery_engine.py:_source_following:client.get_user_works:06ff1099ab339175:b427d4ac1dd7e934:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/discovery_engine.py",
+      "line": 259,
+      "scope": "_source_ranking",
+      "target": "client.get_ranking",
+      "key": "pixivvault_nicegui/discovery_engine.py:_source_ranking:client.get_ranking:1717e665dfa778dc:dcbcef6336f90d63:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/discovery_engine.py",
+      "line": 349,
+      "scope": "_source_related_authors",
+      "target": "client.get_following_users",
+      "key": "pixivvault_nicegui/discovery_engine.py:_source_related_authors:client.get_following_users:ef5c6bd9d5ec022f:235e4fb1893a94e9:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/discovery_engine.py",
+      "line": 386,
+      "scope": "_source_related_authors",
+      "target": "client.get_recommended_users",
+      "key": "pixivvault_nicegui/discovery_engine.py:_source_related_authors:client.get_recommended_users:ef5c6bd9d5ec022f:6bba72160fdceb77:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/discovery_engine.py",
+      "line": 511,
+      "scope": "_source_tag_search",
+      "target": "client.search_illusts",
+      "key": "pixivvault_nicegui/discovery_engine.py:_source_tag_search:client.search_illusts:1ded90ead61091a4:c984d4f59c1f67b8:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/discovery_learning.py",
+      "line": 282,
+      "scope": "DiscoveryLearningService._fetch_candidates",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/discovery_learning.py:DiscoveryLearningService._fetch_candidates:client.require_identity:c75aaaabea74b483:8356415f82ac0764:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/discovery_learning.py",
+      "line": 288,
+      "scope": "DiscoveryLearningService._fetch_candidates",
+      "target": "client.get_following_users",
+      "key": "pixivvault_nicegui/discovery_learning.py:DiscoveryLearningService._fetch_candidates:client.get_following_users:c75aaaabea74b483:235e4fb1893a94e9:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/discovery_learning.py",
+      "line": 450,
+      "scope": "DiscoveryLearningService.resolve_history_candidate.resolve",
+      "target": "client.get_discovery_work",
+      "key": "pixivvault_nicegui/discovery_learning.py:DiscoveryLearningService.resolve_history_candidate.resolve:client.get_discovery_work:74f1b30a62c2aea7:7439fa2b42d3495c:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/discovery_summary_fetch.py",
+      "line": 26,
+      "scope": "fetch_summary",
+      "target": "getattr.get_artwork_metadata_raw",
+      "key": "pixivvault_nicegui/discovery_summary_fetch.py:fetch_summary:getattr.get_artwork_metadata_raw:46fe3eaf4e326045:c6f2302572304013:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/extension_application.py",
+      "line": 141,
+      "scope": "ExtensionApplication._auto_is_novel",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/extension_application.py:ExtensionApplication._auto_is_novel:client.require_identity:79f683dd0e2c7a51:68df0e77c61ae632:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/extension_application.py",
+      "line": 145,
+      "scope": "ExtensionApplication._auto_is_novel",
+      "target": "client.get_discovery_work",
+      "key": "pixivvault_nicegui/extension_application.py:ExtensionApplication._auto_is_novel:client.get_discovery_work:79f683dd0e2c7a51:f4816a452c61ba9f:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/extension_application.py",
+      "line": 289,
+      "scope": "ExtensionApplication._run_command",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/extension_application.py:ExtensionApplication._run_command:client.require_identity:117e5462c66135b1:68df0e77c61ae632:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/extension_application.py",
+      "line": 290,
+      "scope": "ExtensionApplication._run_command",
+      "target": "client.resolve_novel_author",
+      "key": "pixivvault_nicegui/extension_application.py:ExtensionApplication._run_command:client.resolve_novel_author:117e5462c66135b1:84b7caade8ff3e3b:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/extension_bridge.py",
+      "line": 35,
+      "scope": "_port_answers",
+      "target": "socket.create_connection",
+      "key": "pixivvault_nicegui/extension_bridge.py:_port_answers:socket.create_connection:d8763401a74876c7:8722ecce2e7c99f1:1",
+      "status": "local",
+      "reason": "Port probe to 127.0.0.1; the extension listener is loopback-only.",
+      "evidence": "src/pixivvault_nicegui/extension_bridge.py:35"
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault.py",
+      "line": 865,
+      "scope": "ExternalVaultService._refresh",
+      "target": "getattr.fetch_account",
+      "key": "pixivvault_nicegui/external_vault.py:ExternalVaultService._refresh:getattr.fetch_account:1578f1163acf2497:041e3f339b10657d:1",
+      "status": "gated",
+      "reason": "Delegates to the shared-gated Shaft admission. Account refresh and reporting, including those triggered by a manual read, use the same entry."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault.py",
+      "line": 1056,
+      "scope": "ExternalVaultService.keeper_tick",
+      "target": "client.online_tick",
+      "key": "pixivvault_nicegui/external_vault.py:ExternalVaultService.keeper_tick:client.online_tick:c746b9e57e51e97d:92361a2950b01974:1",
+      "status": "gated",
+      "reason": "Delegates to the shared-gated Shaft admission. Account refresh and reporting, including those triggered by a manual read, use the same entry."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault.py",
+      "line": 1102,
+      "scope": "ExternalVaultService.search",
+      "target": "self._app_read",
+      "key": "pixivvault_nicegui/external_vault.py:ExternalVaultService.search:self._app_read:555926470a03346d:8b7681cb377d5f0e:1",
+      "status": "gated",
+      "reason": "Delegates to the shared-gated Shaft admission. Account refresh and reporting, including those triggered by a manual read, use the same entry."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault.py",
+      "line": 1106,
+      "scope": "ExternalVaultService.ranking",
+      "target": "self._app_read",
+      "key": "pixivvault_nicegui/external_vault.py:ExternalVaultService.ranking:self._app_read:757df81699ec1fea:1c22c4fee5b14bdf:1",
+      "status": "gated",
+      "reason": "Delegates to the shared-gated Shaft admission. Account refresh and reporting, including those triggered by a manual read, use the same entry."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault.py",
+      "line": 1184,
+      "scope": "ExternalVaultService._app_read",
+      "target": "client.search",
+      "key": "pixivvault_nicegui/external_vault.py:ExternalVaultService._app_read:client.search:264101274d73b763:e2b37be7b8739189:1",
+      "status": "gated",
+      "reason": "Delegates to the shared-gated Shaft admission. Account refresh and reporting, including those triggered by a manual read, use the same entry."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault.py",
+      "line": 1185,
+      "scope": "ExternalVaultService._app_read",
+      "target": "client.ranking",
+      "key": "pixivvault_nicegui/external_vault.py:ExternalVaultService._app_read:client.ranking:264101274d73b763:83293748b45ca711:1",
+      "status": "gated",
+      "reason": "Delegates to the shared-gated Shaft admission. Account refresh and reporting, including those triggered by a manual read, use the same entry."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 271,
+      "scope": "ShaftTransport._request",
+      "target": "client._request_unfenced",
+      "key": "pixivvault_nicegui/external_vault_transport.py:ShaftTransport._request:client._request_unfenced:8bbac23ad6509fcd:d137752e67d788c0:1",
+      "status": "non-network",
+      "reason": "Unbound branch rejects the production UrlopenVaultRequest and serves only injected test transport fixtures.",
+      "evidence": "src/pixivvault_nicegui/external_vault_transport.py:258"
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 295,
+      "scope": "ShaftTransport._request",
+      "target": "self._pixiv_shared_stop.gate.request",
+      "key": "pixivvault_nicegui/external_vault_transport.py:ShaftTransport._request:self._pixiv_shared_stop.gate.request:8bbac23ad6509fcd:2c7f58694a2eeef1:1",
+      "status": "non-network",
+      "reason": "The gate acquires local admission; dispatch appears as a separate inventory row.",
+      "evidence": "src/pixivvault_nicegui/external_vault_transport.py:282"
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 298,
+      "scope": "ShaftTransport._request",
+      "target": "client._request_unfenced",
+      "key": "pixivvault_nicegui/external_vault_transport.py:ShaftTransport._request:client._request_unfenced:8bbac23ad6509fcd:d137752e67d788c0:2",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 362,
+      "scope": "ShaftTransport._request_unfenced",
+      "target": "getattr.fenced_request",
+      "key": "pixivvault_nicegui/external_vault_transport.py:ShaftTransport._request_unfenced:getattr.fenced_request:5955da49b66b17ca:65ce3581ad991328:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 375,
+      "scope": "ShaftTransport._request_unfenced",
+      "target": "self.request",
+      "key": "pixivvault_nicegui/external_vault_transport.py:ShaftTransport._request_unfenced:self.request:5955da49b66b17ca:350a0312b6b0c97f:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 382,
+      "scope": "ShaftTransport._signed",
+      "target": "self._request",
+      "key": "pixivvault_nicegui/external_vault_transport.py:ShaftTransport._signed:self._request:5bd74b215b8394fa:03787cecf86793ef:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 399,
+      "scope": "ShaftTransport._refresh_oauth",
+      "target": "self._request",
+      "key": "pixivvault_nicegui/external_vault_transport.py:ShaftTransport._refresh_oauth:self._request:45642661811b46a3:48d2abeccbcb6dfb:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 441,
+      "scope": "ShaftTransport.fetch_account",
+      "target": "self._signed",
+      "key": "pixivvault_nicegui/external_vault_transport.py:ShaftTransport.fetch_account:self._signed:d4f5ef289a1d2aca:b676101edbb9ec89:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 464,
+      "scope": "ShaftTransport.fetch_account",
+      "target": "client._refresh_oauth",
+      "key": "pixivvault_nicegui/external_vault_transport.py:ShaftTransport.fetch_account:client._refresh_oauth:d4f5ef289a1d2aca:29cb6ddab5dc6296:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 475,
+      "scope": "ShaftTransport.fetch_account",
+      "target": "client.online_tick",
+      "key": "pixivvault_nicegui/external_vault_transport.py:ShaftTransport.fetch_account:client.online_tick:d4f5ef289a1d2aca:0dca38449b103a5c:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 488,
+      "scope": "ShaftTransport._report_invalid",
+      "target": "self._signed",
+      "key": "pixivvault_nicegui/external_vault_transport.py:ShaftTransport._report_invalid:self._signed:cbc27a62c6092bb3:cc0dfb81fba41cf9:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 516,
+      "scope": "ShaftTransport._flush_invalid_reports",
+      "target": "self._signed",
+      "key": "pixivvault_nicegui/external_vault_transport.py:ShaftTransport._flush_invalid_reports:self._signed:c24a087d565000a3:9b9f945e0a0eb8f5:1",
+      "status": "gated",
+      "reason": "Deferred INVALID uses the same signed shared-STOP admission; retries only proven pre-send refusals.",
+      "evidence": "src/pixivvault_nicegui/external_vault_transport.py:516"
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 570,
+      "scope": "ShaftTransport.online_tick",
+      "target": "self._signed",
+      "key": "pixivvault_nicegui/external_vault_transport.py:ShaftTransport.online_tick:self._signed:5e49f528e56ec009:1b105041c86497c0:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 607,
+      "scope": "ShaftTransport.search",
+      "target": "self._app_read",
+      "key": "pixivvault_nicegui/external_vault_transport.py:ShaftTransport.search:self._app_read:df711b8682821a73:50105b04cdeb2913:1",
+      "status": "gated",
+      "reason": "Shaft direct Pixiv requests pass ShaftTransport._request under the sealed shared gate."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 609,
+      "scope": "ShaftTransport.ranking",
+      "target": "self._app_read",
+      "key": "pixivvault_nicegui/external_vault_transport.py:ShaftTransport.ranking:self._app_read:8032d198591aea41:549d3d3df14dba05:1",
+      "status": "gated",
+      "reason": "Shaft direct Pixiv requests pass ShaftTransport._request under the sealed shared gate."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 617,
+      "scope": "ShaftTransport._app_read",
+      "target": "self._request",
+      "key": "pixivvault_nicegui/external_vault_transport.py:ShaftTransport._app_read:self._request:dc87655d3a129183:59db2beb5ed4a803:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 680,
+      "scope": "UrlopenVaultRequest.fenced_request",
+      "target": "socket.getaddrinfo",
+      "key": "pixivvault_nicegui/external_vault_transport.py:UrlopenVaultRequest.fenced_request:socket.getaddrinfo:7c80a0b2129c344e:6b962a1a6b918ea2:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 685,
+      "scope": "UrlopenVaultRequest.fenced_request",
+      "target": "socket.socket",
+      "key": "pixivvault_nicegui/external_vault_transport.py:UrlopenVaultRequest.fenced_request:socket.socket:7c80a0b2129c344e:654056836dad183c:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 688,
+      "scope": "UrlopenVaultRequest.fenced_request",
+      "target": "socket.socket.settimeout",
+      "key": "pixivvault_nicegui/external_vault_transport.py:UrlopenVaultRequest.fenced_request:socket.socket.settimeout:7c80a0b2129c344e:68f309937d8153a9:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 692,
+      "scope": "UrlopenVaultRequest.fenced_request",
+      "target": "socket.socket.connect",
+      "key": "pixivvault_nicegui/external_vault_transport.py:UrlopenVaultRequest.fenced_request:socket.socket.connect:7c80a0b2129c344e:92bf6142a898d987:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 705,
+      "scope": "UrlopenVaultRequest.fenced_request",
+      "target": "http.client.HTTPSConnection",
+      "key": "pixivvault_nicegui/external_vault_transport.py:UrlopenVaultRequest.fenced_request:http.client.HTTPSConnection:7c80a0b2129c344e:14cb9c35b233cb92:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 712,
+      "scope": "UrlopenVaultRequest.fenced_request",
+      "target": "http.client.HTTPSConnection.request",
+      "key": "pixivvault_nicegui/external_vault_transport.py:UrlopenVaultRequest.fenced_request:http.client.HTTPSConnection.request:7c80a0b2129c344e:83aad0ca82de075f:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 713,
+      "scope": "UrlopenVaultRequest.fenced_request",
+      "target": "http.client.HTTPSConnection.getresponse",
+      "key": "pixivvault_nicegui/external_vault_transport.py:UrlopenVaultRequest.fenced_request:http.client.HTTPSConnection.getresponse:7c80a0b2129c344e:b297cdd6fac5efca:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 718,
+      "scope": "UrlopenVaultRequest.fenced_request",
+      "target": "http.client.HTTPSConnection.getresponse.read",
+      "key": "pixivvault_nicegui/external_vault_transport.py:UrlopenVaultRequest.fenced_request:http.client.HTTPSConnection.getresponse.read:7c80a0b2129c344e:b6dbb412d781a1ee:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 720,
+      "scope": "UrlopenVaultRequest.fenced_request",
+      "target": "http.client.HTTPSConnection.getresponse.read.decode",
+      "key": "pixivvault_nicegui/external_vault_transport.py:UrlopenVaultRequest.fenced_request:http.client.HTTPSConnection.getresponse.read.decode:7c80a0b2129c344e:47f1aa0f87ced564:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/external_vault_transport.py",
+      "line": 722,
+      "scope": "UrlopenVaultRequest.fenced_request",
+      "target": "http.client.HTTPSConnection.getresponse.getheaders",
+      "key": "pixivvault_nicegui/external_vault_transport.py:UrlopenVaultRequest.fenced_request:http.client.HTTPSConnection.getresponse.getheaders:7c80a0b2129c344e:e358aa003ed3113d:1",
+      "status": "gated",
+      "reason": "Production sends through ShaftTransport._request under sealed shared STOP, for automatic keeper work and explicit payout or App reads. Shaft quotas keep their existing response handling."
+    },
+    {
+      "path": "pixivvault_nicegui/following_sync.py",
+      "line": 376,
+      "scope": "FollowingSyncStore.sync",
+      "target": "getattr.require_identity",
+      "key": "pixivvault_nicegui/following_sync.py:FollowingSyncStore.sync:getattr.require_identity:b05bb592b2636678:6932d47b484eed40:1",
+      "status": "gated",
+      "reason": "Following sync checks the pinned account before/after remote reads; it delegates to the owner-bound reader."
+    },
+    {
+      "path": "pixivvault_nicegui/following_sync.py",
+      "line": 395,
+      "scope": "FollowingSyncStore.sync",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/following_sync.py:FollowingSyncStore.sync:client.require_identity:b05bb592b2636678:68df0e77c61ae632:1",
+      "status": "gated",
+      "reason": "Following sync checks the pinned account before/after remote reads; it delegates to the owner-bound reader."
+    },
+    {
+      "path": "pixivvault_nicegui/following_sync.py",
+      "line": 402,
+      "scope": "FollowingSyncStore.sync",
+      "target": "client.get_following_users_detailed",
+      "key": "pixivvault_nicegui/following_sync.py:FollowingSyncStore.sync:client.get_following_users_detailed:b05bb592b2636678:8812b1003fe94abc:1",
+      "status": "gated",
+      "reason": "Following sync checks the pinned account before/after remote reads; it delegates to the owner-bound reader."
+    },
+    {
+      "path": "pixivvault_nicegui/following_sync.py",
+      "line": 417,
+      "scope": "FollowingSyncStore.sync",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/following_sync.py:FollowingSyncStore.sync:client.require_identity:b05bb592b2636678:68df0e77c61ae632:2",
+      "status": "gated",
+      "reason": "Following sync checks the pinned account before/after remote reads; it delegates to the owner-bound reader."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_downloads.py",
+      "line": 874,
+      "scope": "ManagedPixivDownloads._run_locked",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/managed_downloads.py:ManagedPixivDownloads._run_locked:client.verify_identity:376147372910938a:76d69ec64cebad66:1",
+      "status": "gated",
+      "reason": "The download worker uses the same service reader for identity, original image URLs, image bytes and revision verification."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_downloads.py",
+      "line": 877,
+      "scope": "ManagedPixivDownloads._run_locked",
+      "target": "client.get_artwork_update_revision",
+      "key": "pixivvault_nicegui/managed_downloads.py:ManagedPixivDownloads._run_locked:client.get_artwork_update_revision:376147372910938a:da0d121d96924be2:1",
+      "status": "gated",
+      "reason": "The download worker uses the same service reader for identity, original image URLs, image bytes and revision verification."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_downloads.py",
+      "line": 884,
+      "scope": "ManagedPixivDownloads._run_locked",
+      "target": "client.get_artwork_original_pages",
+      "key": "pixivvault_nicegui/managed_downloads.py:ManagedPixivDownloads._run_locked:client.get_artwork_original_pages:376147372910938a:17395f9c6bcb9d29:1",
+      "status": "gated",
+      "reason": "The download worker uses the same service reader for identity, original image URLs, image bytes and revision verification."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_downloads.py",
+      "line": 916,
+      "scope": "ManagedPixivDownloads._run_locked",
+      "target": "client.get_image_bytes",
+      "key": "pixivvault_nicegui/managed_downloads.py:ManagedPixivDownloads._run_locked:client.get_image_bytes:376147372910938a:ffd343e65ba39e40:1",
+      "status": "gated",
+      "reason": "The download worker uses the same service reader for identity, original image URLs, image bytes and revision verification."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_downloads.py",
+      "line": 951,
+      "scope": "ManagedPixivDownloads._run_locked",
+      "target": "client.get_artwork_update_revision",
+      "key": "pixivvault_nicegui/managed_downloads.py:ManagedPixivDownloads._run_locked:client.get_artwork_update_revision:376147372910938a:da0d121d96924be2:2",
+      "status": "gated",
+      "reason": "The download worker uses the same service reader for identity, original image URLs, image bytes and revision verification."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_network_stop_gate.py",
+      "line": 307,
+      "scope": "ManagedNetworkStopGate.request",
+      "target": "gate.request-implementation",
+      "key": "pixivvault_nicegui/managed_network_stop_gate.py:ManagedNetworkStopGate.request:gate.request-implementation:0a037231894b1663:0a037231894b1663:1",
+      "status": "non-network",
+      "reason": "Reviewed implementation rejects a blocked state before yielding dispatch admission.",
+      "evidence": "src/pixivvault_nicegui/managed_network_stop_gate.py:307"
+    },
+    {
+      "path": "pixivvault_nicegui/managed_network_stop_integration.py",
+      "line": 69,
+      "scope": "ManagedNetworkStopIntegration.create_reader",
+      "target": "managed_network_stop_reader.create_exact_managed_read_client",
+      "key": "pixivvault_nicegui/managed_network_stop_integration.py:ManagedNetworkStopIntegration.create_reader:managed_network_stop_reader.create_exact_managed_read_client:d31f430070d76337:f0f520624402d1a4:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_network_stop_reader.py",
+      "line": 33,
+      "scope": "create_exact_managed_read_client",
+      "target": "pixiv_read_client.LivePixivReadClient",
+      "key": "pixivvault_nicegui/managed_network_stop_reader.py:create_exact_managed_read_client:pixiv_read_client.LivePixivReadClient:6e0927fbc359e178:e26ada820c45c870:1",
+      "status": "gated",
+      "reason": "Factory installs ManagedNetworkStopTransport before handing the reader to the app."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_network_stop_shared_scope.py",
+      "line": 117,
+      "scope": "ManagedUserNetworkStopGate.request",
+      "target": "super.request",
+      "key": "pixivvault_nicegui/managed_network_stop_shared_scope.py:ManagedUserNetworkStopGate.request:super.request:6034672622d88dd3:0007855e9b7e4dba:1",
+      "status": "non-network",
+      "reason": "Local gate/ownership or admission operation.",
+      "evidence": "src/pixivvault_nicegui/managed_network_stop_shared_scope.py:117"
+    },
+    {
+      "path": "pixivvault_nicegui/managed_network_stop_shared_scope.py",
+      "line": 245,
+      "scope": "ManagedUserNetworkStopScope.create_reader",
+      "target": "managed_network_stop_reader.create_exact_managed_read_client",
+      "key": "pixivvault_nicegui/managed_network_stop_shared_scope.py:ManagedUserNetworkStopScope.create_reader:managed_network_stop_reader.create_exact_managed_read_client:7bc3517a6cbb8141:f0f520624402d1a4:1",
+      "status": "gated",
+      "reason": "Dispatch uses the sealed owner and single-gate or dual-gate request context."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_network_stop_shared_scope.py",
+      "line": 333,
+      "scope": "_SealedOwnerTransport.__call__",
+      "target": "self.transport",
+      "key": "pixivvault_nicegui/managed_network_stop_shared_scope.py:_SealedOwnerTransport.__call__:self.transport:33735abec5432a51:80cf54b2f8f67493:1",
+      "status": "gated",
+      "reason": "Dispatch uses the sealed owner and single-gate or dual-gate request context."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_network_stop_shared_transport.py",
+      "line": 33,
+      "scope": "_dispatch_dual_stop",
+      "target": "local_gate.request",
+      "key": "pixivvault_nicegui/managed_network_stop_shared_transport.py:_dispatch_dual_stop:local_gate.request:b920c341b7130cb1:8b59978120ec91f6:1",
+      "status": "non-network",
+      "reason": "Local gate/ownership or admission operation.",
+      "evidence": "src/pixivvault_nicegui/managed_network_stop_shared_transport.py:33"
+    },
+    {
+      "path": "pixivvault_nicegui/managed_network_stop_shared_transport.py",
+      "line": 35,
+      "scope": "_dispatch_dual_stop",
+      "target": "shared_gate.request",
+      "key": "pixivvault_nicegui/managed_network_stop_shared_transport.py:_dispatch_dual_stop:shared_gate.request:b920c341b7130cb1:02444fc20013c7c1:1",
+      "status": "non-network",
+      "reason": "Local gate/ownership or admission operation.",
+      "evidence": "src/pixivvault_nicegui/managed_network_stop_shared_transport.py:35"
+    },
+    {
+      "path": "pixivvault_nicegui/managed_network_stop_shared_transport.py",
+      "line": 37,
+      "scope": "_dispatch_dual_stop",
+      "target": "transport",
+      "key": "pixivvault_nicegui/managed_network_stop_shared_transport.py:_dispatch_dual_stop:transport:b920c341b7130cb1:69f21cd17dfddd98:1",
+      "status": "gated",
+      "reason": "Dispatch uses the sealed owner and single-gate or dual-gate request context."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_network_stop_shared_transport.py",
+      "line": 167,
+      "scope": "create_shared_draft_auth_reader",
+      "target": "managed_network_stop_reader.create_exact_managed_read_client",
+      "key": "pixivvault_nicegui/managed_network_stop_shared_transport.py:create_shared_draft_auth_reader:managed_network_stop_reader.create_exact_managed_read_client:800b607c73386a28:64f09c38e1fb25d3:1",
+      "status": "gated",
+      "reason": "Dispatch uses the sealed owner and single-gate or dual-gate request context."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_network_stop_transport.py",
+      "line": 44,
+      "scope": "ManagedNetworkStopTransport.__call__",
+      "target": "self.gate.request",
+      "key": "pixivvault_nicegui/managed_network_stop_transport.py:ManagedNetworkStopTransport.__call__:self.gate.request:e82a7019220aeac7:9a30fb70d89a3139:1",
+      "status": "non-network",
+      "reason": "Local gate/ownership or admission operation.",
+      "evidence": "src/pixivvault_nicegui/managed_network_stop_transport.py:44"
+    },
+    {
+      "path": "pixivvault_nicegui/managed_network_stop_transport.py",
+      "line": 46,
+      "scope": "ManagedNetworkStopTransport.__call__",
+      "target": "self.transport",
+      "key": "pixivvault_nicegui/managed_network_stop_transport.py:ManagedNetworkStopTransport.__call__:self.transport:e82a7019220aeac7:80cf54b2f8f67493:1",
+      "status": "gated",
+      "reason": "Dispatch uses the sealed owner and single-gate or dual-gate request context."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_network_stop_write.py",
+      "line": 23,
+      "scope": "write_admission",
+      "target": "local.gate.request",
+      "key": "pixivvault_nicegui/managed_network_stop_write.py:write_admission:local.gate.request:98c8f72804dc8927:698646b222fadd59:1",
+      "status": "non-network",
+      "reason": "Local gate/ownership or admission operation.",
+      "evidence": "src/pixivvault_nicegui/managed_network_stop_write.py:23"
+    },
+    {
+      "path": "pixivvault_nicegui/managed_network_stop_write.py",
+      "line": 26,
+      "scope": "write_admission",
+      "target": "shared.gate.request",
+      "key": "pixivvault_nicegui/managed_network_stop_write.py:write_admission:shared.gate.request:98c8f72804dc8927:97979196992c824e:1",
+      "status": "non-network",
+      "reason": "Local gate/ownership or admission operation.",
+      "evidence": "src/pixivvault_nicegui/managed_network_stop_write.py:26"
+    },
+    {
+      "path": "pixivvault_nicegui/managed_novel_jobs.py",
+      "line": 165,
+      "scope": "PinnedNovelSource.fetch_selected",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/managed_novel_jobs.py:PinnedNovelSource.fetch_selected:client.require_identity:16055f87ec92336c:09a10aeca041fb58:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_novel_jobs.py",
+      "line": 166,
+      "scope": "PinnedNovelSource.fetch_selected",
+      "target": "client.get_novel_payload",
+      "key": "pixivvault_nicegui/managed_novel_jobs.py:PinnedNovelSource.fetch_selected:client.get_novel_payload:16055f87ec92336c:a48a7889a6ded89f:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_novel_jobs.py",
+      "line": 168,
+      "scope": "PinnedNovelSource.fetch_selected",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/managed_novel_jobs.py:PinnedNovelSource.fetch_selected:client.require_identity:16055f87ec92336c:09a10aeca041fb58:2",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_novel_jobs.py",
+      "line": 176,
+      "scope": "PinnedNovelSource.catalog",
+      "target": "client.get_author_novel_ids",
+      "key": "pixivvault_nicegui/managed_novel_jobs.py:PinnedNovelSource.catalog:client.get_author_novel_ids:3f544943a5b45449:b49b00930d17d30b:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_novel_jobs.py",
+      "line": 179,
+      "scope": "PinnedNovelSource.catalog",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/managed_novel_jobs.py:PinnedNovelSource.catalog:client.require_identity:3f544943a5b45449:09a10aeca041fb58:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_novel_jobs.py",
+      "line": 181,
+      "scope": "PinnedNovelSource.catalog",
+      "target": "client.get_bookmarked_novels",
+      "key": "pixivvault_nicegui/managed_novel_jobs.py:PinnedNovelSource.catalog:client.get_bookmarked_novels:3f544943a5b45449:27f8b7ee76c8135b:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_novel_jobs.py",
+      "line": 212,
+      "scope": "PinnedNovelSource.bundle",
+      "target": "client.get_image_bytes",
+      "key": "pixivvault_nicegui/managed_novel_jobs.py:PinnedNovelSource.bundle:client.get_image_bytes:4c01b635d3049300:c278440ae73176fc:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_novel_jobs.py",
+      "line": 220,
+      "scope": "PinnedNovelSource.bundle",
+      "target": "client.get_image_bytes",
+      "key": "pixivvault_nicegui/managed_novel_jobs.py:PinnedNovelSource.bundle:client.get_image_bytes:4c01b635d3049300:c278440ae73176fc:2",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_scheduler.py",
+      "line": 990,
+      "scope": "submit_author_batch",
+      "target": "getattr.get_author_artworks_complete",
+      "key": "pixivvault_nicegui/managed_scheduler.py:submit_author_batch:getattr.get_author_artworks_complete:f3235f08d17d09cd:77f7c84b95e585a3:1",
+      "status": "gated",
+      "reason": "Automatic and explicit author checks call submit_author_batch, which pins the authenticated reader for identity, enumeration and download metadata."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_scheduler.py",
+      "line": 994,
+      "scope": "submit_author_batch",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/managed_scheduler.py:submit_author_batch:client.verify_identity:f3235f08d17d09cd:ec557f72cbde2d73:1",
+      "status": "gated",
+      "reason": "Automatic and explicit author checks call submit_author_batch, which pins the authenticated reader for identity, enumeration and download metadata."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_scheduler.py",
+      "line": 1138,
+      "scope": "submit_author_batch",
+      "target": "client.get_artwork_download_record",
+      "key": "pixivvault_nicegui/managed_scheduler.py:submit_author_batch:client.get_artwork_download_record:f3235f08d17d09cd:8ab649fe0b954d3d:1",
+      "status": "gated",
+      "reason": "Automatic and explicit author checks call submit_author_batch, which pins the authenticated reader for identity, enumeration and download metadata."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_viewer_page.py",
+      "line": 162,
+      "scope": "save_page",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/managed_viewer_page.py:save_page:client.verify_identity:610b55d1aa0bcce6:138580f42143d3e1:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_viewer_page.py",
+      "line": 163,
+      "scope": "save_page",
+      "target": "client.get_artwork_original_pages",
+      "key": "pixivvault_nicegui/managed_viewer_page.py:save_page:client.get_artwork_original_pages:610b55d1aa0bcce6:e9f822dfc35ed59b:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/managed_viewer_page.py",
+      "line": 172,
+      "scope": "save_page",
+      "target": "client.get_image_bytes",
+      "key": "pixivvault_nicegui/managed_viewer_page.py:save_page:client.get_image_bytes:610b55d1aa0bcce6:dd221fb66571e1f2:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/metadata_auto.py",
+      "line": 78,
+      "scope": "FencedTransport.verify_identity",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/metadata_auto.py:FencedTransport.verify_identity:client.verify_identity:12010f62b550c625:de6866bd032276f9:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/metadata_runner.py",
+      "line": 53,
+      "scope": "ManagedMetadataBackfillRunner.__init__",
+      "target": "getattr.verify_identity",
+      "key": "pixivvault_nicegui/metadata_runner.py:ManagedMetadataBackfillRunner.__init__:getattr.verify_identity:6c59f411e076584c:0c89eb929bd89b74:1",
+      "status": "non-network",
+      "reason": "Capability inspection or method declaration alias.",
+      "evidence": "src/pixivvault_nicegui/metadata_runner.py:53"
+    },
+    {
+      "path": "pixivvault_nicegui/metadata_runner.py",
+      "line": 134,
+      "scope": "ManagedMetadataBackfillRunner.run_once",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/metadata_runner.py:ManagedMetadataBackfillRunner.run_once:client.verify_identity:61969fa6845cd8b2:42af7d5a5ac435e8:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/metadata_transport.py",
+      "line": 140,
+      "scope": "LivePixivMetadataTransport.verify_identity",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/metadata_transport.py:LivePixivMetadataTransport.verify_identity:client.require_identity:d7d0e989bdc70258:68e07e667312e4c5:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/metadata_transport.py",
+      "line": 143,
+      "scope": "LivePixivMetadataTransport.fetch_detail",
+      "target": "client.get_artwork_metadata_raw",
+      "key": "pixivvault_nicegui/metadata_transport.py:LivePixivMetadataTransport.fetch_detail:client.get_artwork_metadata_raw:1f4eed96838703ea:ac079945074a73e1:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/native_startup.py",
+      "line": 544,
+      "scope": "NativeProfileBinding._verify_auth_result",
+      "target": "managed_network_stop_reader.create_exact_managed_read_client",
+      "key": "pixivvault_nicegui/native_startup.py:NativeProfileBinding._verify_auth_result:managed_network_stop_reader.create_exact_managed_read_client:636bc7e0c5dc0d1d:49a4010ebb57a2f8:1",
+      "status": "gated",
+      "reason": "Automatic start checks auth_stop_required. Production constructs a dual-gate or exact managed draft reader."
+    },
+    {
+      "path": "pixivvault_nicegui/native_startup.py",
+      "line": 546,
+      "scope": "NativeProfileBinding._verify_auth_result",
+      "target": "pixiv_read_client.LivePixivReadClient",
+      "key": "pixivvault_nicegui/native_startup.py:NativeProfileBinding._verify_auth_result:pixiv_read_client.LivePixivReadClient:636bc7e0c5dc0d1d:953d7c3c9d8b5680:1",
+      "status": "non-network",
+      "reason": "Constructor parses the selected source locally. Product bootstrap requires a managed auth scope; standalone fixture fallback does not establish a product route.",
+      "evidence": "src/pixivvault_nicegui/native_startup.py:530; src/pixivvault_nicegui/bootstrap.py:930"
+    },
+    {
+      "path": "pixivvault_nicegui/native_startup.py",
+      "line": 551,
+      "scope": "NativeProfileBinding._verify_auth_result",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/native_startup.py:NativeProfileBinding._verify_auth_result:client.require_identity:636bc7e0c5dc0d1d:68df0e77c61ae632:1",
+      "status": "gated",
+      "reason": "Automatic start checks auth_stop_required. Production constructs a dual-gate or exact managed draft reader."
+    },
+    {
+      "path": "pixivvault_nicegui/owned_https.py",
+      "line": 88,
+      "scope": "HTTPSOwner.addresses.resolve",
+      "target": "socket.getaddrinfo",
+      "key": "pixivvault_nicegui/owned_https.py:HTTPSOwner.addresses.resolve:socket.getaddrinfo:00f0093c29dfb1eb:df9baee6df0c7503:1",
+      "status": "gated",
+      "reason": "Product-owned HTTPS dispatch is behind the managed authenticated reader, the public CDN binding, or write admission."
+    },
+    {
+      "path": "pixivvault_nicegui/owned_https.py",
+      "line": 219,
+      "scope": "_EarlyObservedHTTPResponse._read_status",
+      "target": "http.client.RemoteDisconnected",
+      "key": "pixivvault_nicegui/owned_https.py:_EarlyObservedHTTPResponse._read_status:http.client.RemoteDisconnected:b1e7e540878fd350:b8919d31d15270af:1",
+      "status": "non-network",
+      "reason": "Constructs a typed error when the existing admitted response reaches EOF before any HTTP bytes.",
+      "evidence": "src/pixivvault_nicegui/owned_https.py:219"
+    },
+    {
+      "path": "pixivvault_nicegui/owned_https.py",
+      "line": 249,
+      "scope": "OwnedHTTPSConnection.connect",
+      "target": "socket.socket",
+      "key": "pixivvault_nicegui/owned_https.py:OwnedHTTPSConnection.connect:socket.socket:facf6c175cad7b95:e74dbee4dce69ba8:1",
+      "status": "gated",
+      "reason": "Product-owned HTTPS dispatch is behind the managed authenticated reader, the public CDN binding, or write admission."
+    },
+    {
+      "path": "pixivvault_nicegui/owned_https.py",
+      "line": 255,
+      "scope": "OwnedHTTPSConnection.connect",
+      "target": "socket.socket.settimeout",
+      "key": "pixivvault_nicegui/owned_https.py:OwnedHTTPSConnection.connect:socket.socket.settimeout:facf6c175cad7b95:90b7759e8df1d39d:1",
+      "status": "gated",
+      "reason": "Product-owned HTTPS dispatch is behind the managed authenticated reader, the public CDN binding, or write admission."
+    },
+    {
+      "path": "pixivvault_nicegui/owned_https.py",
+      "line": 256,
+      "scope": "OwnedHTTPSConnection.connect",
+      "target": "socket.socket.connect",
+      "key": "pixivvault_nicegui/owned_https.py:OwnedHTTPSConnection.connect:socket.socket.connect:facf6c175cad7b95:6cfcc692398fef76:1",
+      "status": "gated",
+      "reason": "Product-owned HTTPS dispatch is behind the managed authenticated reader, the public CDN binding, or write admission."
+    },
+    {
+      "path": "pixivvault_nicegui/owned_https.py",
+      "line": 300,
+      "scope": "OwnedHTTPSHandler.https_open",
+      "target": "self.do_open",
+      "key": "pixivvault_nicegui/owned_https.py:OwnedHTTPSHandler.https_open:self.do_open:5178a161c13f6ecf:b6311b473e46ef35:1",
+      "status": "gated",
+      "reason": "Product-owned HTTPS dispatch is behind the managed authenticated reader, the public CDN binding, or write admission."
+    },
+    {
+      "path": "pixivvault_nicegui/owned_https.py",
+      "line": 318,
+      "scope": "OwnedHTTPSHandler._persistent_open",
+      "target": "connection.request",
+      "key": "pixivvault_nicegui/owned_https.py:OwnedHTTPSHandler._persistent_open:connection.request:74a2dfd3bcba38b1:5d9a6e49dd573666:1",
+      "status": "gated",
+      "reason": "The admitted Pixiv API GET retains the exact-host SocketFence lease. A fresh product gate admission is required per request, including on an idle connection."
+    },
+    {
+      "path": "pixivvault_nicegui/personal_ranking.py",
+      "line": 293,
+      "scope": "PersonalRankingSource.fetch",
+      "target": "client.search",
+      "key": "pixivvault_nicegui/personal_ranking.py:PersonalRankingSource.fetch:client.search:2d84d25f992c5a49:3ab712ce173d6b3a:1",
+      "status": "gated",
+      "reason": "Delegates to the shared-gated Shaft admission. Account refresh and reporting, including those triggered by a manual read, use the same entry."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_actions.py",
+      "line": 251,
+      "scope": "PixivActions._identity",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/pixiv_actions.py:PixivActions._identity:client.require_identity:04802ef2733abd64:09a10aeca041fb58:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_actions.py",
+      "line": 433,
+      "scope": "PixivActions._observe",
+      "target": "client.get_following_users",
+      "key": "pixivvault_nicegui/pixiv_actions.py:PixivActions._observe:client.get_following_users:762b50b4c58c237a:c1f9f8903997e430:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_actions.py",
+      "line": 449,
+      "scope": "PixivActions._observe",
+      "target": "client.get_artwork_metadata_raw",
+      "key": "pixivvault_nicegui/pixiv_actions.py:PixivActions._observe:client.get_artwork_metadata_raw:762b50b4c58c237a:ea311db265b3fdc6:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_actions.py",
+      "line": 451,
+      "scope": "PixivActions._observe",
+      "target": "client.get_novel_payload",
+      "key": "pixivvault_nicegui/pixiv_actions.py:PixivActions._observe:client.get_novel_payload:762b50b4c58c237a:a48a7889a6ded89f:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_actions.py",
+      "line": 525,
+      "scope": "PixivActions._execute",
+      "target": "client.execute",
+      "key": "pixivvault_nicegui/pixiv_actions.py:PixivActions._execute:client.execute:c0077d32fcd571d2:bc66e79731ce6682:1",
+      "status": "gated",
+      "reason": "ApplicationServices configures PixivActions and installs write_admission. Execute dispatches in that admission context."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_actions.py",
+      "line": 609,
+      "scope": "PixivActions._reconcile",
+      "target": "client.reconcile_from_reader",
+      "key": "pixivvault_nicegui/pixiv_actions.py:PixivActions._reconcile:client.reconcile_from_reader:3abd0c9c969a013f:e2742271d7700259:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 476,
+      "scope": "_read_response",
+      "target": "opener.open",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:_read_response:opener.open:ad59f2ddeecbfb5e:3c06ce0ae7c09c6a:1",
+      "status": "gated",
+      "reason": "Product-owned HTTPS dispatch is behind the managed authenticated reader, the public CDN binding, or write admission."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 629,
+      "scope": "_OwnedReadTransport.__call__",
+      "target": "urllib.request.build_opener",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:_OwnedReadTransport.__call__:urllib.request.build_opener:be6afef05df5df4d:6fa7db97816a6198:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:589"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 629,
+      "scope": "_OwnedReadTransport.__call__",
+      "target": "urllib.request.ProxyHandler",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:_OwnedReadTransport.__call__:urllib.request.ProxyHandler:be6afef05df5df4d:06e607f770504666:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:589"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 632,
+      "scope": "_OwnedReadTransport.__call__",
+      "target": "_read_response",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:_OwnedReadTransport.__call__:_read_response:be6afef05df5df4d:0b6a455ab57bb475:1",
+      "status": "gated",
+      "reason": "Product-owned HTTPS dispatch is behind the managed authenticated reader, the public CDN binding, or write admission."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 791,
+      "scope": "LivePixivReadClient.__init__",
+      "target": "urllib.request.build_opener",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.__init__:urllib.request.build_opener:2134346bd52850ed:9c8d6adfb8e2bc50:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:745"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 792,
+      "scope": "LivePixivReadClient.__init__",
+      "target": "urllib.request.ProxyHandler",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.__init__:urllib.request.ProxyHandler:2134346bd52850ed:06e607f770504666:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:746"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 792,
+      "scope": "LivePixivReadClient.__init__",
+      "target": "urllib.request.HTTPSHandler",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.__init__:urllib.request.HTTPSHandler:2134346bd52850ed:52bc021da2dad9e4:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:746"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 794,
+      "scope": "LivePixivReadClient.__init__",
+      "target": "urllib.request.build_opener",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.__init__:urllib.request.build_opener:2134346bd52850ed:9c8d6adfb8e2bc50:2",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:748"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 795,
+      "scope": "LivePixivReadClient.__init__",
+      "target": "urllib.request.ProxyHandler",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.__init__:urllib.request.ProxyHandler:2134346bd52850ed:06e607f770504666:2",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:749"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 795,
+      "scope": "LivePixivReadClient.__init__",
+      "target": "urllib.request.HTTPSHandler",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.__init__:urllib.request.HTTPSHandler:2134346bd52850ed:52bc021da2dad9e4:2",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:749"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 880,
+      "scope": "LivePixivReadClient._get_once",
+      "target": "urllib.request.Request.remove_header",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient._get_once:urllib.request.Request.remove_header:9823fa07ff1aa14e:728e2cbd6c9238e5:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:830"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 881,
+      "scope": "LivePixivReadClient._get_once",
+      "target": "urllib.request.Request.add_header",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient._get_once:urllib.request.Request.add_header:9823fa07ff1aa14e:81cee32a8074188e:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:831"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 889,
+      "scope": "LivePixivReadClient._get_once",
+      "target": "urllib.request.Request.get_header",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient._get_once:urllib.request.Request.get_header:9823fa07ff1aa14e:794b6d8ebeb6445e:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:839"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 893,
+      "scope": "LivePixivReadClient._get_once",
+      "target": "urllib.request.Request.get_method",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient._get_once:urllib.request.Request.get_method:9823fa07ff1aa14e:6b6b79cda68907bd:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:843"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 895,
+      "scope": "LivePixivReadClient._get_once",
+      "target": "urllib.request.Request.has_header",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient._get_once:urllib.request.Request.has_header:9823fa07ff1aa14e:bfc66c1021cfbc2e:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:845"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 903,
+      "scope": "LivePixivReadClient._get_once",
+      "target": "self._transport",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient._get_once:self._transport:9823fa07ff1aa14e:120d642c36cdbb74:1",
+      "status": "gated",
+      "reason": "Product-owned HTTPS dispatch is behind the managed authenticated reader, the public CDN binding, or write admission."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1024,
+      "scope": "LivePixivReadClient._assert_identity",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient._assert_identity:client.verify_identity:95924ba40225a40c:d51105d7fc29acee:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1237,
+      "scope": "LivePixivReadClient._get_author_artworks",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient._get_author_artworks:client.verify_identity:39fde365912f7df6:d51105d7fc29acee:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1457,
+      "scope": "LivePixivReadClient.get_ranking",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.get_ranking:client.require_identity:3c2d798c9cac9ad3:f1184552b4b77994:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1494,
+      "scope": "LivePixivReadClient.get_novel_ranking",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.get_novel_ranking:client.require_identity:72fc080a7700486f:f1184552b4b77994:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1522,
+      "scope": "LivePixivReadClient.search_illusts",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.search_illusts:client.require_identity:cfd35c995ca3eff9:f1184552b4b77994:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1549,
+      "scope": "LivePixivReadClient.search_recommendation_illusts",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.search_recommendation_illusts:client.require_identity:20a1773ebeb85638:f1184552b4b77994:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1569,
+      "scope": "LivePixivReadClient.get_recommended_users",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.get_recommended_users:client.require_identity:e0f36c57e0c7380a:f1184552b4b77994:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1586,
+      "scope": "LivePixivReadClient.get_discovery_work",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.get_discovery_work:client.require_identity:61b55da66600b452:f1184552b4b77994:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1595,
+      "scope": "LivePixivReadClient.get_recommendation_work",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.get_recommendation_work:client.require_identity:e2bc4ca33c1cc408:f1184552b4b77994:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1605,
+      "scope": "LivePixivReadClient.get_work_info",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.get_work_info:client.require_identity:e5d271ae4f97d743:f1184552b4b77994:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1614,
+      "scope": "LivePixivReadClient.get_author_novel_ids",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.get_author_novel_ids:client.require_identity:62d4e87bd1dd570d:f1184552b4b77994:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1632,
+      "scope": "LivePixivReadClient.get_user_novels",
+      "target": "client.get_author_novel_ids",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.get_user_novels:client.get_author_novel_ids:498a1cbf3477d9bf:e652c101b6ca01f0:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1714,
+      "scope": "LivePixivReadClient.get_novel_detail",
+      "target": "client.get_novel_payload",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.get_novel_detail:client.get_novel_payload:06af588c9e63cc40:c7b9c1b0e59093b7:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1827,
+      "scope": "LivePixivReadClient.get_ugoira_manifest",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.get_ugoira_manifest:client.require_identity:f383827ef7e25408:f1184552b4b77994:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1837,
+      "scope": "LivePixivReadClient.get_ugoira_archive",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:LivePixivReadClient.get_ugoira_archive:client.require_identity:0ab9e9fae799b5b4:f1184552b4b77994:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1853,
+      "scope": "PublicImageReadClient.__init__",
+      "target": "urllib.request.build_opener",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:PublicImageReadClient.__init__:urllib.request.build_opener:9b42cd5ff08b5ef9:9c8d6adfb8e2bc50:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:1803"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1853,
+      "scope": "PublicImageReadClient.__init__",
+      "target": "urllib.request.ProxyHandler",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:PublicImageReadClient.__init__:urllib.request.ProxyHandler:9b42cd5ff08b5ef9:06e607f770504666:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:1803"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1853,
+      "scope": "PublicImageReadClient.__init__",
+      "target": "urllib.request.HTTPSHandler",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:PublicImageReadClient.__init__:urllib.request.HTTPSHandler:9b42cd5ff08b5ef9:52bc021da2dad9e4:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:1803"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1861,
+      "scope": "PublicImageReadClient",
+      "target": "client.get_image_bytes",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:PublicImageReadClient:client.get_image_bytes:73cb2ad4b226dcb1:cf1618a49a7c0348:1",
+      "status": "non-network",
+      "reason": "Capability inspection or method declaration alias.",
+      "evidence": "src/pixivvault_nicegui/pixiv_read_client.py:1811"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1874,
+      "scope": "VaultImageReader.get_image_bytes",
+      "target": "client.get_image_bytes",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:VaultImageReader.get_image_bytes:client.get_image_bytes:fc029013bfeb9e95:b0b4c30acd5b5ddf:1",
+      "status": "gated",
+      "reason": "Product-owned HTTPS dispatch is behind the managed authenticated reader, the public CDN binding, or write admission."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_read_client.py",
+      "line": 1875,
+      "scope": "VaultImageReader.get_artwork_pages",
+      "target": "client.get_artwork_pages",
+      "key": "pixivvault_nicegui/pixiv_read_client.py:VaultImageReader.get_artwork_pages:client.get_artwork_pages:df5ceecee0405d4e:b4e9f257eaa363d2:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_write_client.py",
+      "line": 285,
+      "scope": "_OwnedWriteTransport.__call__",
+      "target": "urllib.request.build_opener",
+      "key": "pixivvault_nicegui/pixiv_write_client.py:_OwnedWriteTransport.__call__:urllib.request.build_opener:4ae33d9fd0fd11c4:959f8fc7e98d71ff:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_write_client.py:285"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_write_client.py",
+      "line": 285,
+      "scope": "_OwnedWriteTransport.__call__",
+      "target": "urllib.request.ProxyHandler",
+      "key": "pixivvault_nicegui/pixiv_write_client.py:_OwnedWriteTransport.__call__:urllib.request.ProxyHandler:4ae33d9fd0fd11c4:06e607f770504666:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_write_client.py:285"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_write_client.py",
+      "line": 287,
+      "scope": "_OwnedWriteTransport.__call__",
+      "target": "urllib.request.build_opener.open",
+      "key": "pixivvault_nicegui/pixiv_write_client.py:_OwnedWriteTransport.__call__:urllib.request.build_opener.open:4ae33d9fd0fd11c4:578e6bbdac524ec9:1",
+      "status": "gated",
+      "reason": "ApplicationServices configures PixivActions and installs write_admission. Execute dispatches in that admission context."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_write_client.py",
+      "line": 395,
+      "scope": "PixivWriteClient._bookmark_receipt",
+      "target": "client.get_artwork_metadata_raw",
+      "key": "pixivvault_nicegui/pixiv_write_client.py:PixivWriteClient._bookmark_receipt:client.get_artwork_metadata_raw:b16bf6f8014898c7:ea311db265b3fdc6:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_write_client.py",
+      "line": 397,
+      "scope": "PixivWriteClient._bookmark_receipt",
+      "target": "client.get_novel_payload",
+      "key": "pixivvault_nicegui/pixiv_write_client.py:PixivWriteClient._bookmark_receipt:client.get_novel_payload:b16bf6f8014898c7:a48a7889a6ded89f:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_write_client.py",
+      "line": 440,
+      "scope": "PixivWriteClient._request",
+      "target": "urllib.request.Request.get_header",
+      "key": "pixivvault_nicegui/pixiv_write_client.py:PixivWriteClient._request:urllib.request.Request.get_header:46de05625234a2a9:794b6d8ebeb6445e:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_write_client.py:440"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_write_client.py",
+      "line": 444,
+      "scope": "PixivWriteClient._request",
+      "target": "urllib.request.Request.get_method",
+      "key": "pixivvault_nicegui/pixiv_write_client.py:PixivWriteClient._request:urllib.request.Request.get_method:46de05625234a2a9:6b6b79cda68907bd:1",
+      "status": "non-network",
+      "reason": "In-memory HTTP request or opener construction.",
+      "evidence": "src/pixivvault_nicegui/pixiv_write_client.py:444"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_write_client.py",
+      "line": 520,
+      "scope": "PixivWriteClient._reconcile_observed",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/pixiv_write_client.py:PixivWriteClient._reconcile_observed:client.require_identity:6b83c16816ec2338:09a10aeca041fb58:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_write_client.py",
+      "line": 553,
+      "scope": "PixivWriteClient.reconcile_from_reader.observe",
+      "target": "client.get_following_users",
+      "key": "pixivvault_nicegui/pixiv_write_client.py:PixivWriteClient.reconcile_from_reader.observe:client.get_following_users:d0278770d347ab26:c1f9f8903997e430:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_write_client.py",
+      "line": 554,
+      "scope": "PixivWriteClient.reconcile_from_reader.observe",
+      "target": "client.get_following_users",
+      "key": "pixivvault_nicegui/pixiv_write_client.py:PixivWriteClient.reconcile_from_reader.observe:client.get_following_users:d0278770d347ab26:c1f9f8903997e430:2",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_write_client.py",
+      "line": 563,
+      "scope": "PixivWriteClient.reconcile_from_reader.observe",
+      "target": "client.get_artwork_metadata_raw",
+      "key": "pixivvault_nicegui/pixiv_write_client.py:PixivWriteClient.reconcile_from_reader.observe:client.get_artwork_metadata_raw:d0278770d347ab26:ea311db265b3fdc6:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_write_client.py",
+      "line": 565,
+      "scope": "PixivWriteClient.reconcile_from_reader.observe",
+      "target": "client.get_novel_payload",
+      "key": "pixivvault_nicegui/pixiv_write_client.py:PixivWriteClient.reconcile_from_reader.observe:client.get_novel_payload:d0278770d347ab26:a48a7889a6ded89f:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_write_client.py",
+      "line": 609,
+      "scope": "PixivWriteClient.execute",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/pixiv_write_client.py:PixivWriteClient.execute:client.require_identity:05d937d2749a3abd:09a10aeca041fb58:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_write_client.py",
+      "line": 628,
+      "scope": "PixivWriteClient.execute",
+      "target": "self._request",
+      "key": "pixivvault_nicegui/pixiv_write_client.py:PixivWriteClient.execute:self._request:05d937d2749a3abd:952d95455f960c19:1",
+      "status": "non-network",
+      "reason": "Builds an in-memory HTTP request; execute uses a separate transport under write admission.",
+      "evidence": "src/pixivvault_nicegui/pixiv_write_client.py:628; src/pixivvault_nicegui/pixiv_write_client.py:406"
+    },
+    {
+      "path": "pixivvault_nicegui/pixiv_write_client.py",
+      "line": 684,
+      "scope": "PixivWriteClient.execute",
+      "target": "self._transport",
+      "key": "pixivvault_nicegui/pixiv_write_client.py:PixivWriteClient.execute:self._transport:05d937d2749a3abd:de3691071bc879ab:1",
+      "status": "gated",
+      "reason": "ApplicationServices configures PixivActions and installs write_admission. Execute dispatches in that admission context."
+    },
+    {
+      "path": "pixivvault_nicegui/premium_read.py",
+      "line": 51,
+      "scope": "PremiumSearch.search",
+      "target": "client.search",
+      "key": "pixivvault_nicegui/premium_read.py:PremiumSearch.search:client.search:3fd0d91d448405dd:3ab712ce173d6b3a:1",
+      "status": "gated",
+      "reason": "Delegates to the shared-gated Shaft admission. Account refresh and reporting, including those triggered by a manual read, use the same entry."
+    },
+    {
+      "path": "pixivvault_nicegui/premium_read.py",
+      "line": 71,
+      "scope": "PremiumSearch.search",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/premium_read.py:PremiumSearch.search:client.require_identity:3fd0d91d448405dd:8356415f82ac0764:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/premium_read.py",
+      "line": 72,
+      "scope": "PremiumSearch.search",
+      "target": "client.search_illusts",
+      "key": "pixivvault_nicegui/premium_read.py:PremiumSearch.search:client.search_illusts:3fd0d91d448405dd:1ef7f436c4ecd69b:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/ranking_source.py",
+      "line": 220,
+      "scope": "RankingSource.fetch",
+      "target": "client.ranking",
+      "key": "pixivvault_nicegui/ranking_source.py:RankingSource.fetch:client.ranking:400e1d086c7e9ea5:eb502e4d2173965a:1",
+      "status": "gated",
+      "reason": "Delegates to the shared-gated Shaft admission. Account refresh and reporting, including those triggered by a manual read, use the same entry. H404 re-review: missing work detail only changes result handling."
+    },
+    {
+      "path": "pixivvault_nicegui/ranking_source.py",
+      "line": 230,
+      "scope": "RankingSource.fetch",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/ranking_source.py:RankingSource.fetch:client.require_identity:400e1d086c7e9ea5:8356415f82ac0764:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them. H404 re-review: missing work detail only changes result handling."
+    },
+    {
+      "path": "pixivvault_nicegui/ranking_source.py",
+      "line": 235,
+      "scope": "RankingSource.fetch",
+      "target": "client.get_novel_ranking",
+      "key": "pixivvault_nicegui/ranking_source.py:RankingSource.fetch:client.get_novel_ranking:400e1d086c7e9ea5:d79c8b815c9d3add:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them. H404 re-review: missing work detail only changes result handling."
+    },
+    {
+      "path": "pixivvault_nicegui/ranking_source.py",
+      "line": 238,
+      "scope": "RankingSource.fetch",
+      "target": "client.search_illusts",
+      "key": "pixivvault_nicegui/ranking_source.py:RankingSource.fetch:client.search_illusts:400e1d086c7e9ea5:1ef7f436c4ecd69b:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them. H404 re-review: missing work detail only changes result handling."
+    },
+    {
+      "path": "pixivvault_nicegui/ranking_source.py",
+      "line": 243,
+      "scope": "RankingSource.fetch",
+      "target": "client.get_ranking",
+      "key": "pixivvault_nicegui/ranking_source.py:RankingSource.fetch:client.get_ranking:400e1d086c7e9ea5:75a84007cd7bbcfb:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them. H404 re-review: missing work detail only changes result handling."
+    },
+    {
+      "path": "pixivvault_nicegui/ranking_source.py",
+      "line": 261,
+      "scope": "RankingSource.fetch",
+      "target": "client.get_work_info",
+      "key": "pixivvault_nicegui/ranking_source.py:RankingSource.fetch:client.get_work_info:400e1d086c7e9ea5:06f220cd0a1b9739:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them. H404 re-review: missing work detail only changes result handling."
+    },
+    {
+      "path": "pixivvault_nicegui/recommendation_acquisition.py",
+      "line": 36,
+      "scope": "PixivRecommendationAdapter.search",
+      "target": "client.search_recommendation_illusts",
+      "key": "pixivvault_nicegui/recommendation_acquisition.py:PixivRecommendationAdapter.search:client.search_recommendation_illusts:cc91ac7d97688b9c:32ca6485c1601fc6:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/recommendation_acquisition.py",
+      "line": 44,
+      "scope": "PixivRecommendationAdapter.author",
+      "target": "client.get_user_works",
+      "key": "pixivvault_nicegui/recommendation_acquisition.py:PixivRecommendationAdapter.author:client.get_user_works:564882607619c85b:a0b79fd95b620b4f:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/recommendation_acquisition.py",
+      "line": 47,
+      "scope": "PixivRecommendationAdapter.detail",
+      "target": "client.get_recommendation_work",
+      "key": "pixivvault_nicegui/recommendation_acquisition.py:PixivRecommendationAdapter.detail:client.get_recommendation_work:5dbfd51153b68c14:0fa2b88330dc6cc0:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/recommendation_media.py",
+      "line": 264,
+      "scope": "RecommendationMediaSnapshot.read_detail",
+      "target": "getattr.get_discovery_work",
+      "key": "pixivvault_nicegui/recommendation_media.py:RecommendationMediaSnapshot.read_detail:getattr.get_discovery_work:f3c178da25aa6e3e:93355d79a4d72b64:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/remote_media.py",
+      "line": 90,
+      "scope": "RemoteBookmarkImages.supports_original",
+      "target": "getattr.get_artwork_original_pages",
+      "key": "pixivvault_nicegui/remote_media.py:RemoteBookmarkImages.supports_original:getattr.get_artwork_original_pages:fa318d1b072a92bc:7521f4005ed9d227:1",
+      "status": "non-network",
+      "reason": "Capability inspection or method declaration alias.",
+      "evidence": "src/pixivvault_nicegui/remote_media.py:90"
+    },
+    {
+      "path": "pixivvault_nicegui/remote_media.py",
+      "line": 91,
+      "scope": "RemoteBookmarkImages.supports_original",
+      "target": "getattr.get_image_bytes",
+      "key": "pixivvault_nicegui/remote_media.py:RemoteBookmarkImages.supports_original:getattr.get_image_bytes:fa318d1b072a92bc:81d0e0288eee5fd9:1",
+      "status": "non-network",
+      "reason": "Capability inspection or method declaration alias.",
+      "evidence": "src/pixivvault_nicegui/remote_media.py:91"
+    },
+    {
+      "path": "pixivvault_nicegui/remote_media.py",
+      "line": 121,
+      "scope": "RemoteBookmarkImages.prepare_artwork",
+      "target": "client.get_artwork_pages",
+      "key": "pixivvault_nicegui/remote_media.py:RemoteBookmarkImages.prepare_artwork:client.get_artwork_pages:4baf5149db9d42be:182c86fde2d787ef:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them. H404 re-review: the listing-thumbnail fallback is validated and uses the same bound reader."
+    },
+    {
+      "path": "pixivvault_nicegui/remote_media.py",
+      "line": 231,
+      "scope": "RemoteBookmarkImages._get_uncached",
+      "target": "client.get_artwork_original_pages",
+      "key": "pixivvault_nicegui/remote_media.py:RemoteBookmarkImages._get_uncached:client.get_artwork_original_pages:cc6383cf884f1ac6:17395f9c6bcb9d29:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them. H404 re-review: the listing-thumbnail fallback is validated and uses the same bound reader."
+    },
+    {
+      "path": "pixivvault_nicegui/remote_media.py",
+      "line": 236,
+      "scope": "RemoteBookmarkImages._get_uncached",
+      "target": "client.get_image_bytes",
+      "key": "pixivvault_nicegui/remote_media.py:RemoteBookmarkImages._get_uncached:client.get_image_bytes:cc6383cf884f1ac6:ffd343e65ba39e40:1",
+      "status": "gated",
+      "reason": "Product-owned HTTPS dispatch is behind the managed authenticated reader, the public CDN binding, or write admission. H404 re-review: the listing-thumbnail fallback is validated and uses the same bound reader."
+    },
+    {
+      "path": "pixivvault_nicegui/remote_media.py",
+      "line": 246,
+      "scope": "RemoteBookmarkImages._get_uncached",
+      "target": "client.get_ugoira_manifest",
+      "key": "pixivvault_nicegui/remote_media.py:RemoteBookmarkImages._get_uncached:client.get_ugoira_manifest:cc6383cf884f1ac6:ce6cb77155af038d:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them. H404 re-review: the listing-thumbnail fallback is validated and uses the same bound reader."
+    },
+    {
+      "path": "pixivvault_nicegui/remote_media.py",
+      "line": 248,
+      "scope": "RemoteBookmarkImages._get_uncached",
+      "target": "client.get_ugoira_archive",
+      "key": "pixivvault_nicegui/remote_media.py:RemoteBookmarkImages._get_uncached:client.get_ugoira_archive:cc6383cf884f1ac6:9d65fc8914301e87:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them. H404 re-review: the listing-thumbnail fallback is validated and uses the same bound reader."
+    },
+    {
+      "path": "pixivvault_nicegui/remote_media.py",
+      "line": 267,
+      "scope": "RemoteBookmarkImages._get_uncached",
+      "target": "client.get_artwork_pages",
+      "key": "pixivvault_nicegui/remote_media.py:RemoteBookmarkImages._get_uncached:client.get_artwork_pages:cc6383cf884f1ac6:182c86fde2d787ef:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them. H404 re-review: the listing-thumbnail fallback is validated and uses the same bound reader."
+    },
+    {
+      "path": "pixivvault_nicegui/remote_media.py",
+      "line": 281,
+      "scope": "RemoteBookmarkImages._get_uncached",
+      "target": "client.get_image_bytes",
+      "key": "pixivvault_nicegui/remote_media.py:RemoteBookmarkImages._get_uncached:client.get_image_bytes:cc6383cf884f1ac6:ffd343e65ba39e40:2",
+      "status": "gated",
+      "reason": "Product-owned HTTPS dispatch is behind the managed authenticated reader, the public CDN binding, or write admission. H404 re-review: the listing-thumbnail fallback is validated and uses the same bound reader."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 863,
+      "scope": "ApplicationServices._initialize",
+      "target": "managed_network_stop_write.write_admission",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices._initialize:managed_network_stop_write.write_admission:5d7685ddfffc398b:41b0b0fe32c55a71:1",
+      "status": "non-network",
+      "reason": "Local setup of a sealed dispatch boundary; this line does not perform HTTP.",
+      "evidence": "src/pixivvault_nicegui/services.py:840"
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 893,
+      "scope": "ApplicationServices._initialize",
+      "target": "getattr.bind_shared_pixiv_stop",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices._initialize:getattr.bind_shared_pixiv_stop:5d7685ddfffc398b:ac7485d8e45c383a:1",
+      "status": "non-network",
+      "reason": "Local setup of a sealed dispatch boundary; this line does not perform HTTP.",
+      "evidence": "src/pixivvault_nicegui/services.py:870"
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 912,
+      "scope": "ApplicationServices._initialize",
+      "target": "pixiv_read_client.PublicImageReadClient",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices._initialize:pixiv_read_client.PublicImageReadClient:5d7685ddfffc398b:07aba460e461f25c:1",
+      "status": "non-network",
+      "reason": "Constructor allocates the cookie-free reader only. The next statement binds the sealed gate before the reader is published.",
+      "evidence": "src/pixivvault_nicegui/services.py:889; src/pixivvault_nicegui/services.py:890; src/pixivvault_nicegui/managed_network_stop_public_cdn.py:18"
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 913,
+      "scope": "ApplicationServices._initialize",
+      "target": "managed_network_stop_public_cdn.bind_public_cdn_shared_stop",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices._initialize:managed_network_stop_public_cdn.bind_public_cdn_shared_stop:5d7685ddfffc398b:9a234aee4a8a5636:1",
+      "status": "non-network",
+      "reason": "Local setup of a sealed dispatch boundary; this line does not perform HTTP.",
+      "evidence": "src/pixivvault_nicegui/services.py:890"
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 1383,
+      "scope": "ApplicationServices.refresh_discovery_context.fetch",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.refresh_discovery_context.fetch:client.require_identity:b6f6b23eb9b95f65:68df0e77c61ae632:1",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 1394,
+      "scope": "ApplicationServices.refresh_discovery_context.fetch",
+      "target": "client.get_following_users",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.refresh_discovery_context.fetch:client.get_following_users:b6f6b23eb9b95f65:f832402ad157c926:1",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 1499,
+      "scope": "ApplicationServices.save_viewer_page.save.record",
+      "target": "client.get_artwork_download_record",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.save_viewer_page.save.record:client.get_artwork_download_record:87ac78b99dd8a804:034a0abf191cd898:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 1517,
+      "scope": "ApplicationServices._export_viewer_saved.original",
+      "target": "client.get_artwork_original_pages",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices._export_viewer_saved.original:client.get_artwork_original_pages:0eef36311be0a481:f41b4f0be3c59140:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 1663,
+      "scope": "ApplicationServices.save_explicit_work",
+      "target": "client.get_discovery_work",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.save_explicit_work:client.get_discovery_work:80512fd319e3d033:ac5a88e7b904c4c9:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 2058,
+      "scope": "ApplicationServices.lookup_managed_work_id.fetch",
+      "target": "getattr.require_identity",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.lookup_managed_work_id.fetch:getattr.require_identity:0cb77ce6e5098bcc:88d81c2805fc508e:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 2062,
+      "scope": "ApplicationServices.lookup_managed_work_id.fetch",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.lookup_managed_work_id.fetch:client.verify_identity:0cb77ce6e5098bcc:40f5e65895c76d86:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 2063,
+      "scope": "ApplicationServices.lookup_managed_work_id.fetch",
+      "target": "client.get_artwork_download_record",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.lookup_managed_work_id.fetch:client.get_artwork_download_record:0cb77ce6e5098bcc:034a0abf191cd898:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 2125,
+      "scope": "ApplicationServices.lookup_managed_author.fetch",
+      "target": "getattr.require_identity",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.lookup_managed_author.fetch:getattr.require_identity:56f58c4ff3dc95a7:6932d47b484eed40:1",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 2126,
+      "scope": "ApplicationServices.lookup_managed_author.fetch",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.lookup_managed_author.fetch:client.verify_identity:56f58c4ff3dc95a7:ec557f72cbde2d73:1",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 2131,
+      "scope": "ApplicationServices.lookup_managed_author.fetch",
+      "target": "getattr.get_author_artworks_complete",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.lookup_managed_author.fetch:getattr.get_author_artworks_complete:56f58c4ff3dc95a7:77f7c84b95e585a3:1",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 2142,
+      "scope": "ApplicationServices.lookup_managed_author.fetch",
+      "target": "client.get_author_artworks",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.lookup_managed_author.fetch:client.get_author_artworks:56f58c4ff3dc95a7:58213c6659857f6f:1",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 2152,
+      "scope": "ApplicationServices.lookup_managed_author.fetch",
+      "target": "client.get_author_artworks",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.lookup_managed_author.fetch:client.get_author_artworks:56f58c4ff3dc95a7:58213c6659857f6f:2",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 2222,
+      "scope": "ApplicationServices.confirm_legacy_author_inventory.confirm",
+      "target": "getattr.get_author_artworks_complete",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.confirm_legacy_author_inventory.confirm:getattr.get_author_artworks_complete:5b3f59e55a8401fd:77f7c84b95e585a3:1",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 2225,
+      "scope": "ApplicationServices.confirm_legacy_author_inventory.confirm",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.confirm_legacy_author_inventory.confirm:client.verify_identity:5b3f59e55a8401fd:ec557f72cbde2d73:1",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 2254,
+      "scope": "ApplicationServices.followed_download_authors.fetch",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.followed_download_authors.fetch:client.verify_identity:39ec7f531f981145:ec557f72cbde2d73:1",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 2270,
+      "scope": "ApplicationServices.followed_download_authors.fetch",
+      "target": "client.get_following_users",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.followed_download_authors.fetch:client.get_following_users:39ec7f531f981145:f832402ad157c926:1",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 2930,
+      "scope": "ApplicationServices.restore_bookmark_cache.verify",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.restore_bookmark_cache.verify:client.verify_identity:24500fd5d7a4792d:ec557f72cbde2d73:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 3054,
+      "scope": "ApplicationServices.refresh_bookmark_cache.read_all",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.refresh_bookmark_cache.read_all:client.verify_identity:95fce2d9fe2ba18d:ec557f72cbde2d73:1",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 3335,
+      "scope": "ApplicationServices.scheduler_favourite_authors",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.scheduler_favourite_authors:client.verify_identity:395c1b781b515036:ec557f72cbde2d73:1",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 3419,
+      "scope": "ApplicationServices.enable_managed_scheduler.dispatch",
+      "target": "managed_scheduler.submit_author_batch",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.enable_managed_scheduler.dispatch:managed_scheduler.submit_author_batch:fab393afe1c4e401:f3689008629e74de:1",
+      "status": "gated",
+      "reason": "Automatic and explicit author checks call submit_author_batch, which pins the authenticated reader for identity, enumeration and download metadata."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 3549,
+      "scope": "ApplicationServices.confirm_scheduler_account",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.confirm_scheduler_account:client.require_identity:bf5e56e562b035bc:68df0e77c61ae632:1",
+      "status": "gated",
+      "reason": "Explicit scheduler editor confirmation is available after startup ownership is established. It checks managed network admission and the live reader, observes shutdown checkpoints and revalidates the committed following owner without starting the timer."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 3683,
+      "scope": "ApplicationServices._confirm_bookmark_run_account.verify",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices._confirm_bookmark_run_account.verify:client.verify_identity:fd3417a716feeec7:ec557f72cbde2d73:1",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 3710,
+      "scope": "ApplicationServices.resume_batch_run.verify",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.resume_batch_run.verify:client.verify_identity:fd3417a716feeec7:ec557f72cbde2d73:1",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 3763,
+      "scope": "ApplicationServices.dispatch_author_check",
+      "target": "managed_scheduler.submit_author_batch",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.dispatch_author_check:managed_scheduler.submit_author_batch:bb831e1f1705e37a:7651ee6c9c9d5b7c:1",
+      "status": "gated",
+      "reason": "Automatic and explicit author checks call submit_author_batch, which pins the authenticated reader for identity, enumeration and download metadata."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 3786,
+      "scope": "ApplicationServices.start_batch_run",
+      "target": "getattr.require_identity",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.start_batch_run:getattr.require_identity:1872c67de2dd998b:6932d47b484eed40:1",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/services.py",
+      "line": 3786,
+      "scope": "ApplicationServices.start_batch_run",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/services.py:ApplicationServices.start_batch_run:client.verify_identity:1872c67de2dd998b:ec557f72cbde2d73:1",
+      "status": "gated",
+      "reason": "Service reads through a pinned live client. Batch start/resume and author inventory retain account identity checks and use the same registered reader for dispatch."
+    },
+    {
+      "path": "pixivvault_nicegui/ugoira_mp4_worker.py",
+      "line": 151,
+      "scope": "main",
+      "target": "_request",
+      "key": "pixivvault_nicegui/ugoira_mp4_worker.py:main:_request:ce46fd626c421fb7:732ccb2d3e4904eb:1",
+      "status": "non-network",
+      "reason": "Reads job plan and paths from the local worker folder.",
+      "evidence": "src/pixivvault_nicegui/ugoira_mp4_worker.py:151; src/pixivvault_nicegui/ugoira_mp4_worker.py:38"
+    },
+    {
+      "path": "pixivvault_nicegui/ugoira_practical.py",
+      "line": 31,
+      "scope": "PinnedUgoiraSource.describe",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/ugoira_practical.py:PinnedUgoiraSource.describe:client.require_identity:7d354f81e1beb79c:8356415f82ac0764:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/ugoira_practical.py",
+      "line": 32,
+      "scope": "PinnedUgoiraSource.describe",
+      "target": "client.get_artwork_metadata_raw",
+      "key": "pixivvault_nicegui/ugoira_practical.py:PinnedUgoiraSource.describe:client.get_artwork_metadata_raw:7d354f81e1beb79c:0e5c001efce9e9b2:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/ugoira_practical.py",
+      "line": 38,
+      "scope": "PinnedUgoiraSource.describe",
+      "target": "client.get_ugoira_manifest",
+      "key": "pixivvault_nicegui/ugoira_practical.py:PinnedUgoiraSource.describe:client.get_ugoira_manifest:7d354f81e1beb79c:f6c327d9ec613696:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/ugoira_practical.py",
+      "line": 45,
+      "scope": "PinnedUgoiraSource.archive",
+      "target": "client.get_ugoira_archive",
+      "key": "pixivvault_nicegui/ugoira_practical.py:PinnedUgoiraSource.archive:client.get_ugoira_archive:d6994860b7ed4969:ee0e530e41171e1e:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/ui/artwork_page.py",
+      "line": 127,
+      "scope": "PageImage.set_gif",
+      "target": "browser.set_source.source",
+      "key": "pixivvault_nicegui/ui/artwork_page.py:PageImage.set_gif:browser.set_source.source:a08202a8609ddf46:4396949a272954b6:1",
+      "status": "local",
+      "reason": "The request app assigns a UUID URL to already-rendered GIF bytes. GET and HEAD use that app's registry and require an open image catalog.",
+      "evidence": "src/pixivvault_nicegui/media_routes.py:34"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/artwork_page.py",
+      "line": 137,
+      "scope": "PageImage.set_source",
+      "target": "browser.set_source.source",
+      "key": "pixivvault_nicegui/ui/artwork_page.py:PageImage.set_source:browser.set_source.source:eb537cb9dbe3d626:9f8384a09bac8c89:1",
+      "status": "non-network",
+      "reason": "The override revokes the old GIF URL and forwards the unchanged source to the existing verified image component.",
+      "evidence": "src/pixivvault_nicegui/ui/artwork_page.py:135"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/artwork_viewer.py",
+      "line": 147,
+      "scope": "ArtworkViewer._build_context_menu",
+      "target": "browser.href",
+      "key": "pixivvault_nicegui/ui/artwork_viewer.py:ArtworkViewer._build_context_menu:browser.href:9b8d6aad7790b456:d2f99492bfcd3d1f:1",
+      "status": "manual",
+      "reason": "The disabled menu entry becomes an explicit work-page click.",
+      "evidence": "original/artbook_viewer.py:798"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/artwork_viewer.py",
+      "line": 149,
+      "scope": "ArtworkViewer._build_context_menu",
+      "target": "browser.href",
+      "key": "pixivvault_nicegui/ui/artwork_viewer.py:ArtworkViewer._build_context_menu:browser.href:9b8d6aad7790b456:bd0a40919cc11e3b:1",
+      "status": "manual",
+      "reason": "The disabled menu entry becomes an explicit author-page click.",
+      "evidence": "original/artbook_viewer.py:807"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/artwork_viewer.py",
+      "line": 169,
+      "scope": "ArtworkViewer.set_context_target",
+      "target": "browser.href",
+      "key": "pixivvault_nicegui/ui/artwork_viewer.py:ArtworkViewer.set_context_target:browser.href:2fb61fb29a6c6864:b020bdb07fa97ee8:1",
+      "status": "manual",
+      "reason": "The viewer sets click-only work and author URLs as its artwork changes.",
+      "evidence": "original/artbook_viewer.py:798 and original/artbook_viewer.py:807"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/artwork_viewer.py",
+      "line": 448,
+      "scope": "ArtworkViewer.set_metadata",
+      "target": "browser.href",
+      "key": "pixivvault_nicegui/ui/artwork_viewer.py:ArtworkViewer.set_metadata:browser.href:09e6bd7c08c468e0:c718187be977a072:1",
+      "status": "manual",
+      "reason": "The viewer header opens the selected work only when clicked.",
+      "evidence": "original/artbook_viewer.py:793 and original/artbook_viewer.py:798"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/card_context_menu.py",
+      "line": 44,
+      "scope": "build_context_menu",
+      "target": "browser.href",
+      "key": "pixivvault_nicegui/ui/card_context_menu.py:build_context_menu:browser.href:5ae9d9b0bf5bc9a7:786256417f72de1d:1",
+      "status": "manual",
+      "reason": "The shared renderer binds the four click-only Pixiv links for viewer work and author, ranking work, and recommended work.",
+      "evidence": "original/artbook_viewer.py:798 and original/artbook_viewer.py:807 and original/ranking_tab.py:570 and original/recommend_tab.py:474"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/duplicate_view.py",
+      "line": 619,
+      "scope": "DuplicateView.render",
+      "target": "browser.image.source",
+      "key": "pixivvault_nicegui/ui/duplicate_view.py:DuplicateView.render:browser.image.source:b4c9e17d771bc840:757f6d83024a27cb:1",
+      "status": "local",
+      "reason": "Browser uses the internal media path, an inline data URI or an empty source. Server dispatch is listed separately.",
+      "evidence": "src/pixivvault_nicegui/ui/duplicate_view.py:623"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/following_sync_view.py",
+      "line": 26,
+      "scope": "_PinnedReader.require_identity",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/ui/following_sync_view.py:_PinnedReader.require_identity:client.require_identity:a961cfa6078357e1:8356415f82ac0764:1",
+      "status": "gated",
+      "reason": "Following sync checks the pinned account before/after remote reads; it delegates to the owner-bound reader."
+    },
+    {
+      "path": "pixivvault_nicegui/ui/following_sync_view.py",
+      "line": 32,
+      "scope": "_PinnedReader.get_following_users_detailed",
+      "target": "client.get_following_users_detailed",
+      "key": "pixivvault_nicegui/ui/following_sync_view.py:_PinnedReader.get_following_users_detailed:client.get_following_users_detailed:aa3df7cc7961fc40:5eda9a0ecb77f102:1",
+      "status": "gated",
+      "reason": "Following sync checks the pinned account before/after remote reads; it delegates to the owner-bound reader."
+    },
+    {
+      "path": "pixivvault_nicegui/ui/following_sync_view.py",
+      "line": 80,
+      "scope": "FollowingSyncView._can_get",
+      "target": "getattr.require_identity",
+      "key": "pixivvault_nicegui/ui/following_sync_view.py:FollowingSyncView._can_get:getattr.require_identity:b23adfbb6d30ad7a:6932d47b484eed40:1",
+      "status": "non-network",
+      "reason": "Capability inspection or method declaration alias.",
+      "evidence": "src/pixivvault_nicegui/ui/following_sync_view.py:80"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/following_sync_view.py",
+      "line": 81,
+      "scope": "FollowingSyncView._can_get",
+      "target": "getattr.get_following_users_detailed",
+      "key": "pixivvault_nicegui/ui/following_sync_view.py:FollowingSyncView._can_get:getattr.get_following_users_detailed:b23adfbb6d30ad7a:e0c879dc66bb9745:1",
+      "status": "non-network",
+      "reason": "Capability inspection or method declaration alias.",
+      "evidence": "src/pixivvault_nicegui/ui/following_sync_view.py:81"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/following_sync_view.py",
+      "line": 223,
+      "scope": "FollowingSyncView._run_sync",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/ui/following_sync_view.py:FollowingSyncView._run_sync:client.require_identity:f839b2e45d72b378:68df0e77c61ae632:1",
+      "status": "gated",
+      "reason": "Following sync checks the pinned account before/after remote reads; it delegates to the owner-bound reader."
+    },
+    {
+      "path": "pixivvault_nicegui/ui/gallery.py",
+      "line": 84,
+      "scope": "GalleryView._card_data",
+      "target": "browser.href",
+      "key": "pixivvault_nicegui/ui/gallery.py:GalleryView._card_data:browser.href:9144e64c360b6490:dcabd2c0d7afeaf9:1",
+      "status": "manual",
+      "reason": "Explicit context-menu link built by the existing Pixiv URL validator. Automatic image loading uses the media route.",
+      "evidence": "src/pixivvault_nicegui/ui/gallery.py:83, original/ranking_tab.py:763-790 and original/recommend_tab.py:815-876"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/learning_view.py",
+      "line": 577,
+      "scope": "LearningView._summary_buttons",
+      "target": "getattr.get_artwork_metadata_raw",
+      "key": "pixivvault_nicegui/ui/learning_view.py:LearningView._summary_buttons:getattr.get_artwork_metadata_raw:397829b209166c8f:c6f2302572304013:1",
+      "status": "non-network",
+      "reason": "Capability inspection or method declaration alias.",
+      "evidence": "src/pixivvault_nicegui/ui/learning_view.py:516"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/learning_view.py",
+      "line": 634,
+      "scope": "LearningView.request_summary",
+      "target": "getattr.get_artwork_metadata_raw",
+      "key": "pixivvault_nicegui/ui/learning_view.py:LearningView.request_summary:getattr.get_artwork_metadata_raw:92bddb7126171e92:c6f2302572304013:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/ui/learning_view.py",
+      "line": 683,
+      "scope": "LearningView.retry_summary",
+      "target": "getattr.get_artwork_metadata_raw",
+      "key": "pixivvault_nicegui/ui/learning_view.py:LearningView.retry_summary:getattr.get_artwork_metadata_raw:44bacdc6102c30b8:c6f2302572304013:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/ui/learning_view.py",
+      "line": 729,
+      "scope": "LearningView._on_summary_click",
+      "target": "getattr.get_artwork_metadata_raw",
+      "key": "pixivvault_nicegui/ui/learning_view.py:LearningView._on_summary_click:getattr.get_artwork_metadata_raw:e24ffa95db08a9da:7bf8fb2479cf85c9:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/ui/learning_view.py",
+      "line": 808,
+      "scope": "LearningView._render_summary",
+      "target": "browser.link.source",
+      "key": "pixivvault_nicegui/ui/learning_view.py:LearningView._render_summary:browser.link.source:350c6f164723bd27:b172076a3d6bbfe1:1",
+      "status": "manual",
+      "reason": "The original summary click hands its selected link to the browser without using the acquisition client.",
+      "evidence": "original/discovery_tab.py:3755"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/learning_view.py",
+      "line": 1365,
+      "scope": "LearningView._sync_pixiv_link",
+      "target": "browser.href",
+      "key": "pixivvault_nicegui/ui/learning_view.py:LearningView._sync_pixiv_link:browser.href:4bca84978fa0fd2e:d6f96256ab0d7acd:1",
+      "status": "manual",
+      "reason": "The icon opens the current artwork in the browser only on an explicit click, using the same artwork URL as the viewer and card menus.",
+      "evidence": "original/discovery_tab.py:2448 and original/discovery_tab.py:2454 and original/discovery_tab.py:2121"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/learning_view.py",
+      "line": 1501,
+      "scope": "LearningView.request_image",
+      "target": "browser.set_source.source",
+      "key": "pixivvault_nicegui/ui/learning_view.py:LearningView.request_image:browser.set_source.source:19e0a63dbb0a4dfd:1772583a655e3ccf:1",
+      "status": "local",
+      "reason": "Browser uses the internal media path, an inline data URI or an empty source. Server dispatch is listed separately.",
+      "evidence": "src/pixivvault_nicegui/ui/learning_view.py:1345"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/learning_view.py",
+      "line": 1703,
+      "scope": "LearningView._render_review",
+      "target": "browser.image.source",
+      "key": "pixivvault_nicegui/ui/learning_view.py:LearningView._render_review:browser.image.source:e09e98b31aa0b875:e99afbabb5cc6af3:1",
+      "status": "local",
+      "reason": "Browser uses the internal media path, an inline data URI or an empty source. Server dispatch is listed separately.",
+      "evidence": "src/pixivvault_nicegui/ui/learning_view.py:1547"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/learning_view.py",
+      "line": 1708,
+      "scope": "LearningView._render_review",
+      "target": "browser.image.source",
+      "key": "pixivvault_nicegui/ui/learning_view.py:LearningView._render_review:browser.image.source:e09e98b31aa0b875:500d264377652996:1",
+      "status": "local",
+      "reason": "Browser uses the internal media path, an inline data URI or an empty source. Server dispatch is listed separately.",
+      "evidence": "src/pixivvault_nicegui/ui/learning_view.py:1552"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/learning_view.py",
+      "line": 1910,
+      "scope": "LearningView._review_fetch_detail",
+      "target": "client.get_discovery_work",
+      "key": "pixivvault_nicegui/ui/learning_view.py:LearningView._review_fetch_detail:client.get_discovery_work:ab69363632cad595:3a836c9b3bf9c16f:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/ui/library_view.py",
+      "line": 1438,
+      "scope": "LibraryView._search_pixiv_async.read",
+      "target": "client.search",
+      "key": "pixivvault_nicegui/ui/library_view.py:LibraryView._search_pixiv_async.read:client.search:edfdbcabc7fbcdf8:1f87cef67e13dc5c:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/ui/managed_download_view.py",
+      "line": 509,
+      "scope": "ManagedDownloadView._author_add_event",
+      "target": "getattr.get_author_artworks",
+      "key": "pixivvault_nicegui/ui/managed_download_view.py:ManagedDownloadView._author_add_event:getattr.get_author_artworks:f2ef8ae7d957439b:ddea4977085abf88:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/ui/novel_save_view.py",
+      "line": 418,
+      "scope": "NovelLibraryView.read",
+      "target": "browser.image.source",
+      "key": "pixivvault_nicegui/ui/novel_save_view.py:NovelLibraryView.read:browser.image.source:f56879ccada039db:76c2a8294a1cb2a6:1",
+      "status": "local",
+      "reason": "Browser uses the internal media path, an inline data URI or an empty source. Server dispatch is listed separately.",
+      "evidence": "src/pixivvault_nicegui/ui/novel_save_view.py:415"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/ranking_card_menus.py",
+      "line": 284,
+      "scope": "RankingCardMenus.ranking_card_menu",
+      "target": "browser.href",
+      "key": "pixivvault_nicegui/ui/ranking_card_menus.py:RankingCardMenus.ranking_card_menu:browser.href:3c109c68fb230556:038a1ada5452d02c:1",
+      "status": "manual",
+      "reason": "Explicit context-menu link built by the existing Pixiv URL validator. Automatic image loading uses the media route.",
+      "evidence": "src/pixivvault_nicegui/ui/ranking_card_menus.py:284, original/ranking_tab.py:763-790"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/recommend_view.py",
+      "line": 512,
+      "scope": "RecommendView.render",
+      "target": "browser.image.source",
+      "key": "pixivvault_nicegui/ui/recommend_view.py:RecommendView.render:browser.image.source:56477c67e1982d87:636fa75b90fb2d19:1",
+      "status": "local",
+      "reason": "Browser uses the internal media path, an inline data URI or an empty source. Server dispatch is listed separately.",
+      "evidence": "src/pixivvault_nicegui/ui/recommend_view.py:494"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/recommend_view.py",
+      "line": 621,
+      "scope": "RecommendView._card_menu_entries",
+      "target": "browser.href",
+      "key": "pixivvault_nicegui/ui/recommend_view.py:RecommendView._card_menu_entries:browser.href:69f7a42f801b187c:9508459b04feab67:1",
+      "status": "manual",
+      "reason": "Explicit context-menu link built by the existing Pixiv URL validator. Automatic image loading uses the media route.",
+      "evidence": "src/pixivvault_nicegui/ui/recommend_view.py:611, original/recommend_tab.py:815-876"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/scheduler_view.py",
+      "line": 663,
+      "scope": "SchedulerView.run_once.submit",
+      "target": "managed_scheduler.submit_author_batch",
+      "key": "pixivvault_nicegui/ui/scheduler_view.py:SchedulerView.run_once.submit:managed_scheduler.submit_author_batch:7c54ea602b53e9e7:b2d21b17f9d84d74:1",
+      "status": "gated",
+      "reason": "Automatic and explicit author checks call submit_author_batch, which pins the authenticated reader for identity, enumeration and download metadata."
+    },
+    {
+      "path": "pixivvault_nicegui/ui/shell.py",
+      "line": 163,
+      "scope": "DemoShell.__init__",
+      "target": "browser.link.external-url",
+      "key": "pixivvault_nicegui/ui/shell.py:DemoShell.__init__:browser.link.external-url:a6d76b7ca41f48bc:9687bb2f87d822c3:1",
+      "status": "manual",
+      "reason": "Re-reviewed after header status removal changed the fingerprint; the network route is unchanged. Header Pixiv shortcut opens the home page on a deliberate click.",
+      "evidence": "original/gui.py:2825"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/shell.py",
+      "line": 229,
+      "scope": "DemoShell._build_cookie_banner",
+      "target": "browser.link.external-url",
+      "key": "pixivvault_nicegui/ui/shell.py:DemoShell._build_cookie_banner:browser.link.external-url:b0bfe36af9ef0b4c:9687bb2f87d822c3:1",
+      "status": "manual",
+      "reason": "The banner uses the same explicit open-Pixiv navigation as the original home-page handler.",
+      "evidence": "original/gui.py:2825"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/similar_view.py",
+      "line": 309,
+      "scope": "SimilarView.show",
+      "target": "browser.image.source",
+      "key": "pixivvault_nicegui/ui/similar_view.py:SimilarView.show:browser.image.source:18812cb3d7074eaf:84f14e42f6b4449f:1",
+      "status": "local",
+      "reason": "Browser uses the internal media path, an inline data URI or an empty source. Server dispatch is listed separately.",
+      "evidence": "src/pixivvault_nicegui/ui/similar_view.py:308"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/ugoira_view.py",
+      "line": 143,
+      "scope": "UgoiraLibraryView.read",
+      "target": "browser.image.construct",
+      "key": "pixivvault_nicegui/ui/ugoira_view.py:UgoiraLibraryView.read:browser.image.construct:2f27c16b732303f9:cca87e43fc9935e4:1",
+      "status": "non-network",
+      "reason": "Allocating an Image leaves it without a source.",
+      "evidence": "src/pixivvault_nicegui/ui/ugoira_view.py:152"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/ugoira_view.py",
+      "line": 143,
+      "scope": "UgoiraLibraryView.read",
+      "target": "browser.image.src",
+      "key": "pixivvault_nicegui/ui/ugoira_view.py:UgoiraLibraryView.read:browser.image.src:2f27c16b732303f9:cca87e43fc9935e4:1",
+      "status": "local",
+      "reason": "Playback supplies only base64 data URIs from verified local frames or exports.",
+      "evidence": "src/pixivvault_nicegui/ui/ugoira_view.py:152 and src/pixivvault_nicegui/ugoira_practical.py:233"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/unfollowed_authors_view.py",
+      "line": 13,
+      "scope": "_thumbnail",
+      "target": "client.get_image_bytes",
+      "key": "pixivvault_nicegui/ui/unfollowed_authors_view.py:_thumbnail:client.get_image_bytes:32184b05c6b91e59:84a74cb0184cd7a8:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/ui/unfollowed_authors_view.py",
+      "line": 63,
+      "scope": "UnfollowedAuthorsView._current",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/ui/unfollowed_authors_view.py:UnfollowedAuthorsView._current:client.require_identity:8fcbafca95868449:68df0e77c61ae632:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/ui/unfollowed_authors_view.py",
+      "line": 117,
+      "scope": "UnfollowedAuthorsView._render",
+      "target": "browser.link.external-url",
+      "key": "pixivvault_nicegui/ui/unfollowed_authors_view.py:UnfollowedAuthorsView._render:browser.link.external-url:c2b827ec993aca7e:a83d9ba519639d91:1",
+      "status": "manual",
+      "reason": "FL-D14 corresponds to the original unfollowed-author dialog. The new author link is click-only; the original dialog lacks this link, and the original library author card provides the explicit browser-navigation precedent.",
+      "evidence": "original/gui.py:3775 and original/library_tab.py:909 and original/library_tab.py:912"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/unfollowed_authors_view.py",
+      "line": 133,
+      "scope": "UnfollowedAuthorsView._render.fill",
+      "target": "browser.set_source.source",
+      "key": "pixivvault_nicegui/ui/unfollowed_authors_view.py:UnfollowedAuthorsView._render.fill:browser.set_source.source:e76cf9526c0cf478:a48707c11808040c:1",
+      "status": "local",
+      "reason": "Browser uses the internal media path, an inline data URI or an empty source. Server dispatch is listed separately.",
+      "evidence": "src/pixivvault_nicegui/ui/unfollowed_authors_view.py:133"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/verified_image.py",
+      "line": 15,
+      "scope": "VerifiedImage.__init__",
+      "target": "browser.set_source.source",
+      "key": "pixivvault_nicegui/ui/verified_image.py:VerifiedImage.__init__:browser.set_source.source:ac42166f0bf34728:a92729190d943a80:1",
+      "status": "local",
+      "reason": "Browser uses the internal media path, an inline data URI or an empty source. Server dispatch is listed separately.",
+      "evidence": "src/pixivvault_nicegui/ui/verified_image.py:15"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/view_history_view.py",
+      "line": 129,
+      "scope": "ViewHistoryView.render",
+      "target": "browser.image.source",
+      "key": "pixivvault_nicegui/ui/view_history_view.py:ViewHistoryView.render:browser.image.source:4c3f8204a1c9da2a:76c2a8294a1cb2a6:1",
+      "status": "local",
+      "reason": "Thumbnail source comes from the internal media registry. Any server-side fetch is separately gated.",
+      "evidence": "src/pixivvault_nicegui/ui/view_history_view.py:129; src/pixivvault_nicegui/ui/view_history_view.py:125"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/view_history_view.py",
+      "line": 135,
+      "scope": "ViewHistoryView.render",
+      "target": "browser.to.external-url",
+      "key": "pixivvault_nicegui/ui/view_history_view.py:ViewHistoryView.render:browser.to.external-url:4c3f8204a1c9da2a:dc7089cf6ab8a618:1",
+      "status": "manual",
+      "reason": "The history action opens a selected artwork in the external browser.",
+      "evidence": "original/gui.py:2578"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/viewer_backup_view.py",
+      "line": 75,
+      "scope": "ViewerBackupView.refresh",
+      "target": "browser.image.source",
+      "key": "pixivvault_nicegui/ui/viewer_backup_view.py:ViewerBackupView.refresh:browser.image.source:e79b9a6825c89a09:636fa75b90fb2d19:1",
+      "status": "local",
+      "reason": "Browser uses the internal media path, an inline data URI or an empty source. Server dispatch is listed separately.",
+      "evidence": "src/pixivvault_nicegui/ui/viewer_backup_view.py:75"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/viewer_controller.py",
+      "line": 185,
+      "scope": "ViewerController.request_image",
+      "target": "browser.set_source.source",
+      "key": "pixivvault_nicegui/ui/viewer_controller.py:ViewerController.request_image:browser.set_source.source:3c4cdf4244b11b30:fbcef23f2080bc8a:1",
+      "status": "local",
+      "reason": "Browser uses the internal media path, an inline data URI or an empty source. Server dispatch is listed separately.",
+      "evidence": "src/pixivvault_nicegui/ui/viewer_controller.py:182"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/viewer_controller.py",
+      "line": 197,
+      "scope": "ViewerController.request_image",
+      "target": "browser.set_source.source",
+      "key": "pixivvault_nicegui/ui/viewer_controller.py:ViewerController.request_image:browser.set_source.source:3c4cdf4244b11b30:fbcef23f2080bc8a:2",
+      "status": "local",
+      "reason": "Browser uses the internal media path, an inline data URI or an empty source. Server dispatch is listed separately.",
+      "evidence": "src/pixivvault_nicegui/ui/viewer_controller.py:194"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/viewer_controller.py",
+      "line": 204,
+      "scope": "ViewerController.request_image",
+      "target": "browser.set_source.source",
+      "key": "pixivvault_nicegui/ui/viewer_controller.py:ViewerController.request_image:browser.set_source.source:3c4cdf4244b11b30:39b58849996507bd:1",
+      "status": "local",
+      "reason": "Browser uses the internal media path, an inline data URI or an empty source. Server dispatch is listed separately.",
+      "evidence": "src/pixivvault_nicegui/ui/viewer_controller.py:201"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/viewer_controller.py",
+      "line": 275,
+      "scope": "ViewerController._prefetch_next_view_page",
+      "target": "browser.set_preload_source.source",
+      "key": "pixivvault_nicegui/ui/viewer_controller.py:ViewerController._prefetch_next_view_page:browser.set_preload_source.source:9dd47661420f36ca:e364d32927961bfb:1",
+      "status": "local",
+      "reason": "The accepted viewer request prepares one regular next page only through the same-origin /media/ route.",
+      "evidence": "src/pixivvault_nicegui/ui/viewer_controller.py:265 and src/pixivvault_nicegui/ui/verified_image.js:74"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/viewer_controller.py",
+      "line": 283,
+      "scope": "ViewerController._image_failed",
+      "target": "browser.set_source.source",
+      "key": "pixivvault_nicegui/ui/viewer_controller.py:ViewerController._image_failed:browser.set_source.source:3f0e191bdb18308b:fbcef23f2080bc8a:1",
+      "status": "non-network",
+      "reason": "On confirmed GIF display failure the empty source revokes the app-local URL and clears the frame.",
+      "evidence": "src/pixivvault_nicegui/ui/viewer_controller.py:283"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/viewer_controller.py",
+      "line": 578,
+      "scope": "ViewerController.close_viewer",
+      "target": "browser.set_source.source",
+      "key": "pixivvault_nicegui/ui/viewer_controller.py:ViewerController.close_viewer:browser.set_source.source:ce2ff23b1a820c4f:9472c9976be0ee7b:1",
+      "status": "non-network",
+      "reason": "Closing the viewer sets an empty source and revokes any GIF URL.",
+      "evidence": "src/pixivvault_nicegui/ui/viewer_controller.py:578"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/viewer_controller.py",
+      "line": 589,
+      "scope": "ViewerController._close_viewer_controller",
+      "target": "browser.set_source.source",
+      "key": "pixivvault_nicegui/ui/viewer_controller.py:ViewerController._close_viewer_controller:browser.set_source.source:7e75a51ae7bbb40e:9472c9976be0ee7b:1",
+      "status": "local",
+      "reason": "Browser uses the internal media path, an inline data URI or an empty source. Server dispatch is listed separately.",
+      "evidence": "src/pixivvault_nicegui/ui/viewer_controller.py:565"
+    },
+    {
+      "path": "pixivvault_nicegui/unfollowed_authors.py",
+      "line": 35,
+      "scope": "fetch_unfollowed_authors",
+      "target": "client.verify_identity",
+      "key": "pixivvault_nicegui/unfollowed_authors.py:fetch_unfollowed_authors:client.verify_identity:1347beddc2f738ce:ec557f72cbde2d73:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/unfollowed_authors.py",
+      "line": 37,
+      "scope": "fetch_unfollowed_authors.check",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/unfollowed_authors.py:fetch_unfollowed_authors.check:client.require_identity:e63dfe4224213a46:68df0e77c61ae632:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/unfollowed_authors.py",
+      "line": 47,
+      "scope": "fetch_unfollowed_authors",
+      "target": "client.get_following_users",
+      "key": "pixivvault_nicegui/unfollowed_authors.py:fetch_unfollowed_authors:client.get_following_users:1347beddc2f738ce:f832402ad157c926:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/unfollowed_authors.py",
+      "line": 51,
+      "scope": "fetch_unfollowed_authors",
+      "target": "client.get_bookmarked_works",
+      "key": "pixivvault_nicegui/unfollowed_authors.py:fetch_unfollowed_authors:client.get_bookmarked_works:1347beddc2f738ce:8da70e31675ef80a:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/unfollowed_authors.py",
+      "line": 51,
+      "scope": "fetch_unfollowed_authors",
+      "target": "client.get_bookmarked_novels",
+      "key": "pixivvault_nicegui/unfollowed_authors.py:fetch_unfollowed_authors:client.get_bookmarked_novels:1347beddc2f738ce:d4175a89f3cefe23:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/viewer_metadata.py",
+      "line": 26,
+      "scope": "read_details",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/viewer_metadata.py:read_details:client.require_identity:2e52efaaf7463dec:68df0e77c61ae632:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/viewer_metadata.py",
+      "line": 27,
+      "scope": "read_details",
+      "target": "client.get_artwork_metadata_raw",
+      "key": "pixivvault_nicegui/viewer_metadata.py:read_details:client.get_artwork_metadata_raw:2e52efaaf7463dec:24f610ad9cae7d63:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/viewer_metadata.py",
+      "line": 52,
+      "scope": "read_author",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/viewer_metadata.py:read_author:client.require_identity:725385770bd15399:68df0e77c61ae632:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/viewer_metadata.py",
+      "line": 53,
+      "scope": "read_author",
+      "target": "client.get_user_works",
+      "key": "pixivvault_nicegui/viewer_metadata.py:read_author:client.get_user_works:725385770bd15399:0fb648df19d4b206:1",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/viewer_metadata.py",
+      "line": 87,
+      "scope": "read_author",
+      "target": "client.require_identity",
+      "key": "pixivvault_nicegui/viewer_metadata.py:read_author:client.require_identity:725385770bd15399:68df0e77c61ae632:2",
+      "status": "gated",
+      "reason": "Product calls the app-bound reader or its wrapper. Bootstrap creates managed/shared stop readers before publishing them."
+    },
+    {
+      "path": "pixivvault_nicegui/ui/card_grid.js",
+      "line": 4,
+      "scope": "<asset>",
+      "target": "browser.asset.bound-source",
+      "key": "pixivvault_nicegui/ui/card_grid.js:4:browser.asset.bound-source:33758ba2d3c95714",
+      "status": "local",
+      "reason": "Card images accept same-origin /media/ paths through the existing media route or inline image bytes.",
+      "evidence": "src/pixivvault_nicegui/ui/card_grid.js:4"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/card_grid.js",
+      "line": 48,
+      "scope": "<asset>",
+      "target": "browser.asset.bound-source",
+      "key": "pixivvault_nicegui/ui/card_grid.js:48:browser.asset.bound-source:33758ba2d3c95714",
+      "status": "local",
+      "reason": "Card images accept same-origin /media/ paths through the existing media route or inline image bytes.",
+      "evidence": "src/pixivvault_nicegui/ui/card_grid.js:48"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/card_grid.js",
+      "line": 52,
+      "scope": "<asset>",
+      "target": "browser.href",
+      "key": "pixivvault_nicegui/ui/card_grid.js:52:browser.href:33758ba2d3c95714",
+      "status": "manual",
+      "reason": "Explicit context-menu link built by the existing Pixiv URL validator. Automatic image loading uses the media route.",
+      "evidence": "src/pixivvault_nicegui/ui/card_grid.js:52, original/library_tab.py:912"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/card_grid.js",
+      "line": 72,
+      "scope": "<asset>",
+      "target": "browser.asset.bound-source",
+      "key": "pixivvault_nicegui/ui/card_grid.js:72:browser.asset.bound-source:33758ba2d3c95714",
+      "status": "local",
+      "reason": "Card images accept same-origin /media/ paths through the existing media route or inline image bytes.",
+      "evidence": "src/pixivvault_nicegui/ui/card_grid.js:72"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/card_grid.js",
+      "line": 96,
+      "scope": "<asset>",
+      "target": "browser.asset.bound-source",
+      "key": "pixivvault_nicegui/ui/card_grid.js:96:browser.asset.bound-source:33758ba2d3c95714",
+      "status": "local",
+      "reason": "Card images accept same-origin /media/ paths through the existing media route or inline image bytes.",
+      "evidence": "src/pixivvault_nicegui/ui/card_grid.js:96"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/card_grid.js",
+      "line": 128,
+      "scope": "<asset>",
+      "target": "browser.asset.bound-source",
+      "key": "pixivvault_nicegui/ui/card_grid.js:128:browser.asset.bound-source:33758ba2d3c95714",
+      "status": "local",
+      "reason": "Card images accept same-origin /media/ paths through the existing media route or inline image bytes.",
+      "evidence": "src/pixivvault_nicegui/ui/card_grid.js:128"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/card_grid.js",
+      "line": 151,
+      "scope": "<asset>",
+      "target": "browser.href",
+      "key": "pixivvault_nicegui/ui/card_grid.js:151:browser.href:33758ba2d3c95714",
+      "status": "manual",
+      "reason": "Explicit context-menu link built by the existing Pixiv URL validator. Automatic image loading uses the media route.",
+      "evidence": "src/pixivvault_nicegui/ui/card_grid.js:151, original/ranking_tab.py:763-790 and original/recommend_tab.py:815-876"
+    },
+    {
+      "path": "pixivvault_nicegui/ui/verified_image.js",
+      "line": 10,
+      "scope": "<asset>",
+      "target": "browser.asset.bound-source",
+      "key": "pixivvault_nicegui/ui/verified_image.js:10:browser.asset.bound-source:bf2869319cc505ba",
+      "status": "local",
+      "reason": "Foreground images use internal media paths, inline data or an empty source. A speculative frame accepts only a same-origin /media/ path.",
+      "evidence": "src/pixivvault_nicegui/ui/verified_image.js:10 and src/pixivvault_nicegui/ui/verified_image.js:74"
+    }
+  ],
+  "issues": []
+}

@@ -1,0 +1,121 @@
+FFFFFFFFFFFFFFFFFF                                                       [100%]
+================================== FAILURES ===================================
+___ test_variant_tracks_actual_bytes[False-view-regular_view-calls0-False] ____
+tests\test_gpuarb_remote_media.py:52: in test_variant_tracks_actual_bytes
+    assert catalog.peek_with_variant('a', 0, requested) is None
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'RemoteBookmarkImages' object has no attribute 'peek_with_variant'
+____ test_variant_tracks_actual_bytes[False-view-regular_view-calls0-True] ____
+tests\test_gpuarb_remote_media.py:52: in test_variant_tracks_actual_bytes
+    assert catalog.peek_with_variant('a', 0, requested) is None
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'RemoteBookmarkImages' object has no attribute 'peek_with_variant'
+_ test_variant_tracks_actual_bytes[True-view-listing_thumb_fallback-calls1-False] _
+tests\test_gpuarb_remote_media.py:52: in test_variant_tracks_actual_bytes
+    assert catalog.peek_with_variant('a', 0, requested) is None
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'RemoteBookmarkImages' object has no attribute 'peek_with_variant'
+_ test_variant_tracks_actual_bytes[True-view-listing_thumb_fallback-calls1-True] _
+tests\test_gpuarb_remote_media.py:52: in test_variant_tracks_actual_bytes
+    assert catalog.peek_with_variant('a', 0, requested) is None
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'RemoteBookmarkImages' object has no attribute 'peek_with_variant'
+____ test_variant_tracks_actual_bytes[False-thumb-thumb_192-calls2-False] _____
+tests\test_gpuarb_remote_media.py:52: in test_variant_tracks_actual_bytes
+    assert catalog.peek_with_variant('a', 0, requested) is None
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'RemoteBookmarkImages' object has no attribute 'peek_with_variant'
+_____ test_variant_tracks_actual_bytes[False-thumb-thumb_192-calls2-True] _____
+tests\test_gpuarb_remote_media.py:52: in test_variant_tracks_actual_bytes
+    assert catalog.peek_with_variant('a', 0, requested) is None
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'RemoteBookmarkImages' object has no attribute 'peek_with_variant'
+__________ test_variant_peek_preserves_shared_lru_across_namespaces ___________
+tests\test_gpuarb_remote_media.py:74: in test_variant_peek_preserves_shared_lru_across_namespaces
+    assert first.peek_with_variant('a', 0, 'view')[1] == 'regular_view'
+           ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'RemoteBookmarkImages' object has no attribute 'peek_with_variant'
+________________ test_variant_peek_does_not_promote_disk_thumb ________________
+tests\test_gpuarb_remote_media.py:92: in test_variant_peek_does_not_promote_disk_thumb
+    assert second.peek_with_variant('a', 0, 'thumb') is None
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'RemoteBookmarkImages' object has no attribute 'peek_with_variant'
+______ test_success_result_includes_variant_even_if_cache_cannot_hold_it ______
+tests\test_gpuarb_remote_media.py:103: in test_success_result_includes_variant_even_if_cache_cannot_hold_it
+    blob, actual = catalog.get_with_variant('a')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'RemoteBookmarkImages' object has no attribute 'get_with_variant'
+__ test_cuda_runtime_failure_releases_without_implicit_cpu[cuda-True-False] ___
+tests\test_gpuarb_inference.py:77: in test_cuda_runtime_failure_releases_without_implicit_cpu
+    egara = make_egara(tmp_path, provider=provider,
+tests\test_gpuarb_inference.py:15: in make_egara
+    return egara_inference.EgaraInference(
+E   TypeError: EgaraInference.__init__() got an unexpected keyword argument 'gpu_mem_limit_bytes'
+__ test_cuda_runtime_failure_releases_without_implicit_cpu[auto-False-False] __
+tests\test_gpuarb_inference.py:77: in test_cuda_runtime_failure_releases_without_implicit_cpu
+    egara = make_egara(tmp_path, provider=provider,
+tests\test_gpuarb_inference.py:15: in make_egara
+    return egara_inference.EgaraInference(
+E   TypeError: EgaraInference.__init__() got an unexpected keyword argument 'gpu_mem_limit_bytes'
+___ test_cuda_runtime_failure_releases_without_implicit_cpu[auto-True-True] ___
+tests\test_gpuarb_inference.py:77: in test_cuda_runtime_failure_releases_without_implicit_cpu
+    egara = make_egara(tmp_path, provider=provider,
+tests\test_gpuarb_inference.py:15: in make_egara
+    return egara_inference.EgaraInference(
+E   TypeError: EgaraInference.__init__() got an unexpected keyword argument 'gpu_mem_limit_bytes'
+______ test_auto_still_falls_back_at_load_and_cpu_release_is_reloadable _______
+tests\test_gpuarb_inference.py:98: in test_auto_still_falls_back_at_load_and_cpu_release_is_reloadable
+    assert len(egara.infer(b'image')['style']) == 4096
+               ^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\egara_inference.py:243: in infer
+    vectors = unpack_outputs(outputs, self._backbone_index)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_gpuarb_inference.py:55: in <lambda>
+    lambda *_: {'style': __import__('numpy').ones(1024, dtype='float32')})
+                         ^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'numpy'
+________________ test_tagger_preloads_bounds_cuda_and_reloads _________________
+tests\test_gpuarb_inference.py:112: in test_tagger_preloads_bounds_cuda_and_reloads
+    tagger = make_tagger(monkeypatch, tmp_path, gpu_mem_limit_bytes=567890)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_gpuarb_inference.py:64: in make_tagger
+    return local_tagger.LocalTagger(tmp_path, tensor_factory=lambda x: x, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: LocalTagger.__init__() got an unexpected keyword argument 'gpu_mem_limit_bytes'
+_____________ test_explicit_cpu_does_not_preload_or_require_cuda ______________
+tests\test_gpuarb_inference.py:129: in test_explicit_cpu_does_not_preload_or_require_cuda
+    assert egara.infer_with_meta(b'image')[1] == 'cpu'
+           ^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'EgaraInference' object has no attribute 'infer_with_meta'
+_____________ test_shared_default_serializes_ort_run_and_tag_load _____________
+tests\test_gpuarb_inference.py:135: in test_shared_default_serializes_ort_run_and_tag_load
+    from pixivvault_nicegui.gpu_arbiter import DEFAULT_GPU_ARBITER
+E   ModuleNotFoundError: No module named 'pixivvault_nicegui.gpu_arbiter'
+___________________ test_priority_and_fifo_order_of_waiters ___________________
+tests\test_gpuarb_inference.py:175: in test_priority_and_fifo_order_of_waiters
+    from pixivvault_nicegui.gpu_arbiter import GpuInferenceArbiter
+E   ModuleNotFoundError: No module named 'pixivvault_nicegui.gpu_arbiter'
+_____ test_release_all_cancels_queued_and_drains_active_before_releasing ______
+tests\test_gpuarb_inference.py:200: in test_release_all_cancels_queued_and_drains_active_before_releasing
+    from pixivvault_nicegui.gpu_arbiter import GpuInferenceArbiter, GpuInferenceStopped
+E   ModuleNotFoundError: No module named 'pixivvault_nicegui.gpu_arbiter'
+=========================== short test summary info ===========================
+FAILED tests/test_gpuarb_remote_media.py::test_variant_tracks_actual_bytes[False-view-regular_view-calls0-False]
+FAILED tests/test_gpuarb_remote_media.py::test_variant_tracks_actual_bytes[False-view-regular_view-calls0-True]
+FAILED tests/test_gpuarb_remote_media.py::test_variant_tracks_actual_bytes[True-view-listing_thumb_fallback-calls1-False]
+FAILED tests/test_gpuarb_remote_media.py::test_variant_tracks_actual_bytes[True-view-listing_thumb_fallback-calls1-True]
+FAILED tests/test_gpuarb_remote_media.py::test_variant_tracks_actual_bytes[False-thumb-thumb_192-calls2-False]
+FAILED tests/test_gpuarb_remote_media.py::test_variant_tracks_actual_bytes[False-thumb-thumb_192-calls2-True]
+FAILED tests/test_gpuarb_remote_media.py::test_variant_peek_preserves_shared_lru_across_namespaces
+FAILED tests/test_gpuarb_remote_media.py::test_variant_peek_does_not_promote_disk_thumb
+FAILED tests/test_gpuarb_remote_media.py::test_success_result_includes_variant_even_if_cache_cannot_hold_it
+FAILED tests/test_gpuarb_inference.py::test_cuda_runtime_failure_releases_without_implicit_cpu[cuda-True-False]
+FAILED tests/test_gpuarb_inference.py::test_cuda_runtime_failure_releases_without_implicit_cpu[auto-False-False]
+FAILED tests/test_gpuarb_inference.py::test_cuda_runtime_failure_releases_without_implicit_cpu[auto-True-True]
+FAILED tests/test_gpuarb_inference.py::test_auto_still_falls_back_at_load_and_cpu_release_is_reloadable
+FAILED tests/test_gpuarb_inference.py::test_tagger_preloads_bounds_cuda_and_reloads
+FAILED tests/test_gpuarb_inference.py::test_explicit_cpu_does_not_preload_or_require_cuda
+FAILED tests/test_gpuarb_inference.py::test_shared_default_serializes_ort_run_and_tag_load
+FAILED tests/test_gpuarb_inference.py::test_priority_and_fifo_order_of_waiters
+FAILED tests/test_gpuarb_inference.py::test_release_all_cancels_queued_and_drains_active_before_releasing
+18 failed in 4.17s

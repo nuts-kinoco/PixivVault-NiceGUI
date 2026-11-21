@@ -14,6 +14,7 @@ from hashlib import sha256
 from threading import Event, RLock, Thread
 from types import MappingProxyType
 
+from .gpu_arbiter import DEFAULT_GPU_ARBITER, GpuInferenceStopped
 from .legacy.database import normalize_tag
 
 
@@ -47,6 +48,7 @@ class LocalTagView:
         subscribe = getattr(tagger, 'subscribe_invalidation', None)
         self._unsubscribe = subscribe(self.invalidate) if subscribe is not None else None
         self._stop = Event()
+        self._gpu_paused = False
         self._timer = Thread(target=self._periodic, name='pv-local-tag-timer', daemon=True)
         self._timer.start()
 
@@ -54,8 +56,8 @@ class LocalTagView:
         while not self._stop.wait(REFRESH_INTERVAL_SECONDS):
             try:
                 with self._lock:
-                    running = self._running
-                if running:
+                    metadata_only = self._running or self._gpu_paused
+                if metadata_only:
                     self._revalidate_published()
                 else:
                     self.refresh_async()
@@ -96,7 +98,7 @@ class LocalTagView:
 
     def refresh_now(self):
         """Wait for the same background validation used by production scans."""
-        self.refresh_async().result()
+        self.refresh_async(resume=True).result()
 
     def epoch(self):
         with self._lock:
@@ -122,10 +124,13 @@ class LocalTagView:
         return {str(a.work_id) for w in self.saved_works()
                 for a in (getattr(w, 'artwork', w),) if not a.tags and str(a.work_id) in saved}
 
-    def refresh_async(self):
+    def refresh_async(self, *, resume=False):
         with self._lock:
             if self._closed:
                 raise RuntimeError('local seed unavailable')
+            if self._gpu_paused and not resume:
+                return self._future
+            self._gpu_paused = False
             if self._running and not self._future.cancelled():
                 self._rescan = True
             else:
@@ -135,42 +140,59 @@ class LocalTagView:
 
     def _refresh_loop(self):
         try:
-            while True:
-                with self._lock:
-                    if self._closed:
-                        self._running = False
-                        return
-                    self._rescan = False
-                    previous, old = self._snapshot, self._entries
-                    retired, self._retired = self._retired, []
-                    epoch = previous.epoch
-                retired.clear()
-                fingerprint = self.tagger.current_fingerprint()
-                updated = {}
-                if fingerprint is not None:
-                    for wid in sorted(self._eligible()):
-                        if self.epoch() != epoch:
-                            break
-                        try:
-                            entry = self._refresh_entry(wid, fingerprint, old.get(wid))
-                        except (OSError, ValueError, RuntimeError):
-                            continue
-                        if entry is not None:
-                            updated[wid] = entry
-                changed = fingerprint != previous.fingerprint or updated != old
-                if changed:
-                    works, counts = self._project(updated)
-                    visible_changed = fingerprint != previous.fingerprint or works != previous.by_work
-                with self._lock:
-                    if changed and not self._closed and old is self._entries:
-                        self._publish(updated, fingerprint, works, counts, visible_changed)
-                    if not self._rescan or self._closed:
-                        self._running = False
-                        return
+            with DEFAULT_GPU_ARBITER.stop_scope():
+                self._refresh_batches()
+        except GpuInferenceStopped:
+            with self._lock:
+                self._rescan = self._running = False
+                self._gpu_paused = True
         except BaseException:
             with self._lock:
                 self._running = False
             raise
+
+    def _refresh_batches(self):
+        while True:
+            with self._lock:
+                if self._closed:
+                    self._running = False
+                    return
+                self._rescan = False
+                previous, old = self._snapshot, self._entries
+                retired, self._retired = self._retired, []
+                epoch = previous.epoch
+            retired.clear()
+            fingerprint, updated = self._collect_entries(epoch, old)
+            changed = fingerprint != previous.fingerprint or updated != old
+            if changed:
+                works, counts = self._project(updated)
+                visible_changed = fingerprint != previous.fingerprint or works != previous.by_work
+            with self._lock:
+                DEFAULT_GPU_ARBITER.check_scope()
+                if changed and not self._closed and old is self._entries:
+                    self._publish(updated, fingerprint, works, counts, visible_changed)
+                if not self._rescan or self._closed:
+                    self._running = False
+                    return
+
+    def _collect_entries(self, epoch, old):
+        fingerprint_for_scan = getattr(self.tagger, 'metadata_fingerprint', None)
+        if fingerprint_for_scan is None:
+            fingerprint_for_scan = self.tagger.current_fingerprint
+        fingerprint = fingerprint_for_scan()
+        updated = {}
+        if fingerprint is not None:
+            for wid in sorted(self._eligible()):
+                DEFAULT_GPU_ARBITER.check_scope()
+                if self.epoch() != epoch:
+                    break
+                try:
+                    entry = self._refresh_entry(wid, fingerprint, old.get(wid))
+                except (OSError, ValueError, RuntimeError):
+                    continue
+                if entry is not None:
+                    updated[wid] = entry
+        return fingerprint, updated
 
     def _publish(self, entries, fingerprint, works, counts, visible_changed):
         self._entries = entries

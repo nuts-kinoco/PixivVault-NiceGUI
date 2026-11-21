@@ -1,0 +1,15 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_________ test_metadata_only_scan_does_not_publish_unverified_backend _________
+tests\test_gpuarb_review.py:393: in test_metadata_only_scan_does_not_publish_unverified_backend
+    assert not manager.usable
+E   assert not True
+E    +  where True = <pixivvault_nicegui.local_tagger.TaggerManager object at 0x00000260A08BEA50>.usable
+_______ test_stop_before_projection_publication_discards_pending_rescan _______
+tests\test_gpuarb_review.py:430: in test_stop_before_projection_publication_discards_pending_rescan
+    assert works == ['a']
+E   AssertionError: assert ['a', 'a'] == ['a']
+E     
+E     Left contains one more item: 'a'
+E     Use -v to get more diff
+2 failed in 1.31s
