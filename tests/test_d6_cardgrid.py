@@ -3,6 +3,7 @@ import pytest
 from nicegui import Client, ui
 
 from pixivvault_nicegui.ui.ranking_view import RankingView
+from test_ranking_source import row
 from test_ranking_ui import setup
 
 
@@ -44,6 +45,10 @@ async def test_gallery_grid_is_single_element_and_rejects_older_render_epoch():
             assert gallery.grid.props['cards'][0]['work_id'] == '123'
             old_epoch = gallery.grid.props['render_epoch']
             await view.load()
+            assert gallery.grid.render_epoch == old_epoch
+            reader.rows = [row(124), row(123)]
+            await view.load()
+            assert gallery.grid.render_epoch > old_epoch
             opened = []
             gallery.open = opened.append
             await gallery.dispatch_card_event(dict(work_id='123', action='open', epoch=old_epoch))

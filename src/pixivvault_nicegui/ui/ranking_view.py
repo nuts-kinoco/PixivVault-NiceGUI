@@ -23,8 +23,8 @@ class _RankingGallery(GalleryView):
         owner=getattr(self,'owner',None)
         if owner is None:return super()._after_viewer_hide(art,hidden)
         owner.adopt_hidden(art.work_id,art.title,hidden)
-    def render_gallery(self, *, retire_actions=True):
-        super().render_gallery(retire_actions=retire_actions)
+    def render_gallery(self):
+        super().render_gallery()
         owner = getattr(self, 'owner', None)
         if owner is not None and owner.page is not None:self.more_cell.set_visibility(not owner.page.exhausted)
     def refresh_hearts(self):
@@ -45,9 +45,6 @@ class _RankingGallery(GalleryView):
         if self._viewer_state is not self.state:
             self._viewer_state.close()
             self._viewer_state = self.state
-    def search(self,value=None):
-        if self._viewer_state is not self.state:self.close_viewer(restore_focus=False)
-        super().search(value)
     def open(self,work_id,page_no=0):
         if self._viewer_state is not self.state:self.close_viewer(restore_focus=False)
         self.owner._open_generation+=1
@@ -301,10 +298,7 @@ class RankingView(RankingCardMenus):
             if candidate_provider is not None:
                 self.pin = self.proxy.images = candidate_provider
             self.page=merged
-            if append:
-                self.render(append=True)
-            else:
-                self.render()
+            self.render()
             if candidate_provider is not None and old_pin is not None:
                 old_pin.close()
             self._image_records, self._image_reader = records, reader
@@ -370,25 +364,18 @@ class RankingView(RankingCardMenus):
             logging.getLogger(__name__).warning('ランキング: 好みタグの集合を読めませんでした。',exc_info=True)
             self._preferred=frozenset()
         self._preferred_built=True
-    def render(self, *, append=False):
+    def render(self):
         if self.closed or self.page is None:return
         if not self._result_matches_conditions():
             self._sync_result_controls();return
         viewer_state=self.gallery._viewer_state
         hidden=self.hidden_work_ids()
         keep_viewer=viewer_state.viewer_open and viewer_state.selected_id in hidden
-        if not keep_viewer:self.gallery.close_viewer(restore_focus=False)
-        old=self.gallery.state
         items=self.page.items if self.page.query.tag else sorted_items(self.page.items,self.sort.value)
         if hidden:items=tuple(i for i in items if i.record.work_id not in hidden)
-        state=GalleryState(tuple(i.record.as_artwork() for i in items),page_size=max(50,len(items)))
-        state.set_card_size(old.card_size);state.set_query(old.query);state.generation=old.generation+1
-        # The hidden work leaves the ranking while its open viewer retains the selection.
-        if not keep_viewer or old is not viewer_state:old.close()
-        self.gallery.state=state
-        if not keep_viewer:self.gallery._viewer_state=state
         self.gallery.empty.set_text('取得した条件に該当する作品がありません。')
-        self.gallery.render_gallery(retire_actions=not append)
+        # The hidden work leaves the ranking while its open viewer retains the selection.
+        self.gallery.replace_artworks(tuple(i.record.as_artwork() for i in items), keep_viewer=keep_viewer)
         self.gallery.more_cell.set_visibility(not self.page.exhausted)
         self._sync_result_controls()
     async def open_unknown(self,work_id,provider,epoch,request):

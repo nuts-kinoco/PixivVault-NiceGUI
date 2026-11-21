@@ -135,7 +135,7 @@ async def test_public_catalog_keeps_overlap_urls_and_retires_removed_thumbs(clie
 
 
 
-async def test_personal_refresh_reuses_pin_without_replaying_failed_images(client, monkeypatch):
+async def test_personal_refresh_reuses_pin_and_only_explicitly_retries(client, monkeypatch):
     monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
     services, vault = make()
     vault.saved = {'tags': ['fixture']}
@@ -151,10 +151,10 @@ async def test_personal_refresh_reuses_pin_without_replaying_failed_images(clien
             assert view.pin is pin and not pin.closed
             await view.refresh()
             assert view.pin is pin and not pin.closed
-            assert grid.props.get('retry_epoch', 0) == retry
+            assert grid.props['retry_epoch'] == retry + 1
             view.set_active(False)
             view.set_active(True)
-            assert grid.props['retry_epoch'] == retry + 1
+            assert grid.props['retry_epoch'] == retry + 2
             view.close()
             assert pin.closed
     finally:

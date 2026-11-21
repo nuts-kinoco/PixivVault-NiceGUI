@@ -251,7 +251,7 @@ def stable_shot(page, path):
     page.screenshot(path=path, animations='disabled')
 
 
-def run(root, repetitions, width, contract, visual_only, all_screenshots):
+def run(root, repetitions, width, contract, visual_only, all_screenshots, trace_images=False):
     from playwright.sync_api import expect, sync_playwright
 
     with socket.socket() as probe:
@@ -259,6 +259,7 @@ def run(root, repetitions, width, contract, visual_only, all_screenshots):
     root.mkdir()
     env = dict(os.environ, USERPROFILE=str(root), APPDATA=str(root), LOCALAPPDATA=str(root))
     rows = []
+    image_traces = []
     with (root / "server.log").open("wb") as log:
         server = subprocess.Popen([sys.executable, "-B", __file__, str(root), "--serve"],
                                   env=env, stdout=log, stderr=subprocess.STDOUT)
@@ -270,6 +271,16 @@ def run(root, repetitions, width, contract, visual_only, all_screenshots):
                                               service_workers="block")
                 context.route("**/*", lambda route: route.continue_()
                               if route.request.url.startswith(URL + "/") else route.abort())
+                image_requests = []
+
+                def trace_image(request):
+                    if request.resource_type == 'image' and request.url.startswith(URL + '/media/'):
+                        work_id = request.url.split('/')[4]
+                        if work_id.isascii() and work_id.isdecimal() and 40100 <= int(work_id) < 40150:
+                            image_requests.append((int(work_id) - 40099, time.perf_counter()))
+
+                if trace_images:
+                    context.on('request', trace_image)
                 page = context.new_page()
                 page.set_default_timeout(12000)
                 for _ in range(75):
@@ -304,6 +315,8 @@ def run(root, repetitions, width, contract, visual_only, all_screenshots):
 
                 def observe(label, action, selector, total, *, first=None, screenshot=False, image=True):
                     previous = page.locator(selector).first.element_handle() if page.locator(selector).count() else None
+                    if trace_images and label == 'mode':
+                        image_requests.clear()
                     start = time.perf_counter()
                     action()
                     browser_times = page.evaluate("""async ([selector, total, first, image, transition]) => {
@@ -332,6 +345,11 @@ def run(root, repetitions, width, contract, visual_only, all_screenshots):
                       return [list - state.begin, pixels - list, performance.now() - state.begin];
                     }""", [selector, total, first, image, label in ("initial", "refresh", "mode")])
                     end = time.perf_counter()
+                    if trace_images and label == 'mode':
+                        image_traces.append([
+                            dict(rank=rank, request_ms=round((start_time - start) * 1000, 2))
+                            for rank, start_time in image_requests
+                        ])
                     click_shot = None
                     if screenshot:
                         page.screenshot(path=root / f"{label}.png")
@@ -390,6 +408,8 @@ def run(root, repetitions, width, contract, visual_only, all_screenshots):
                          for m in metrics}
         summary[case]["n"] = len(subset)
     (root / "summary.json").write_text(json.dumps(summary, indent=2))
+    if trace_images:
+        (root / 'image-trace.json').write_text(json.dumps(image_traces, indent=2))
 
 
 if __name__ == "__main__":
@@ -401,8 +421,10 @@ if __name__ == "__main__":
     parser.add_argument('--contract', action='store_true')
     parser.add_argument('--visual-only', action='store_true')
     parser.add_argument('--all-screenshots', action='store_true')
+    parser.add_argument('--trace-images', action='store_true')
     args = parser.parse_args()
     if args.serve:
         serve(args.root)
     else:
-        run(args.root, args.repetitions, args.width, args.contract, args.visual_only, args.all_screenshots)
+        run(args.root, args.repetitions, args.width, args.contract, args.visual_only,
+            args.all_screenshots, args.trace_images)

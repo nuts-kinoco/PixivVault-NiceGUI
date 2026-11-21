@@ -138,3 +138,69 @@ def test_inactive_links_and_disabled_bookmark_focus(page):
     page.evaluate("props.layout = 'library-page'")
     expect(page.get_by_test_id('library-external-open')).to_be_disabled()
     expect(page.get_by_test_id('library-similar-open')).to_be_disabled()
+
+
+def test_disabled_bookmark_replacement_restores_the_previous_card_opener(page):
+    from playwright.sync_api import expect
+
+    page.evaluate("props.layout = 'bookmark'")
+    first, disabled = page.get_by_test_id('bookmark-open').nth(0), page.get_by_test_id('bookmark-open').nth(1)
+    first.click(button='right')
+    entry = page.get_by_test_id('link-0')
+    expect(entry).to_be_visible()
+    entry.focus()
+    expect(entry).to_be_focused()
+    bounds = disabled.bounding_box()
+    page.mouse.click(bounds['x'] + bounds['width'] / 2, bounds['y'] + bounds['height'] / 2, button='right')
+    expect(page.get_by_test_id('link-1')).to_be_visible()
+    page.keyboard.press('Escape')
+    expect(first).to_be_focused()
+
+
+def test_disjoint_replacement_inserts_first_thumbnail_before_eager_siblings(page):
+    from playwright.sync_api import expect
+
+    dispatched = []
+    page.context.on('request', lambda request: dispatched.append(request.url) if '/media/shift-' in request.url else None)
+    page.evaluate('''() => {
+        props.cards = props.cards.map((card, index) => ({
+            ...card, work_id: 'shift-' + index, src: '/media/shift-' + index
+        }));
+    }''')
+    expect(page.locator('[data-work-id="shift-0"] [role=status]')).to_be_visible()
+    expect(page.locator('[data-work-id="shift-12"] img')).to_have_attribute('loading', 'eager')
+    expect(page.locator('[data-work-id="shift-12"] [role=status]')).to_be_visible()
+    assert dispatched and dispatched[0].endswith('/media/shift-0'), dispatched[:6]
+
+def test_retry_reloads_only_failed_thumbnail(page):
+    from playwright.sync_api import expect
+
+    phase = {'recover': False}
+    requests = []
+    svg = "<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'/>"
+
+    def image(route):
+        failed = route.request.url.endswith('/failing')
+        requests.append(failed)
+        if failed and not phase['recover']:
+            route.fulfill(status=503)
+        else:
+            route.fulfill(body=svg, content_type='image/svg+xml')
+
+    page.route(ORIGIN + '/media/retry/**', image)
+    page.evaluate("""
+        props.cards = [
+            {...props.cards[0], src: '/media/retry/failing'},
+            {...props.cards[1], src: '/media/retry/loaded'},
+        ];
+    """)
+    first, second = (page.locator(f'[data-work-id="{index}"]') for index in range(2))
+    expect(first.get_by_role('status')).to_be_visible()
+    page.wait_for_function("document.querySelector('[data-work-id=\"1\"] img')?.naturalWidth === 8")
+    image_before = second.locator('img').element_handle()
+    phase['recover'] = True
+    page.evaluate('props.retry_epoch = 1')
+    expect(first.get_by_role('status')).to_have_count(0)
+    page.wait_for_function("document.querySelector('[data-work-id=\"0\"] img')?.naturalWidth === 8")
+    assert image_before.evaluate('node => node.isConnected')
+    assert requests.count(True) == 2 and requests.count(False) == 1

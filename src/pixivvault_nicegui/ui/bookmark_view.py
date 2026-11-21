@@ -39,8 +39,6 @@ class BookmarkView:
         self.root = None
         self.grid = None
         self.cards: dict[str, dict] = {}
-        self._rendered_ids: tuple[str, ...] = ()
-        self._rendered_cards: tuple[BookmarkCard, ...] = ()
         self._session = object()
         self.more_cell = None
         self.card_size = "large"
@@ -101,7 +99,7 @@ class BookmarkView:
         if self.on_similar is not None:
             menu.append(dict(key='similar', label='似た絵を探す', enabled=True,
                              testid='bookmark-similar-open'))
-        return dict(work_id=art.work_id, title=art.title, author=art.author,
+        return dict(work_id=art.work_id, title=art.title, author=art.author, author_id=art.author_id,
                     src=self.image_url(art.work_id) if self.image_url is not None else None,
                     disabled=self.can_open is not None and not self.can_open(art.work_id),
                     downloaded=item.downloaded, checked=art.work_id in self.state.selected_ids,
@@ -134,20 +132,13 @@ class BookmarkView:
         if self.root is None or self.state.closed:
             return
         visible = self.state.visible_items
-        wanted = tuple(card.work_id for card in visible)
-        became_active = self.state.active and not self.grid.props['grid_active']
-        retired = (reset_controls or wanted[:len(self._rendered_ids)] != self._rendered_ids
-                   or visible[:len(self._rendered_cards)] != self._rendered_cards
-                   or self.grid.props['grid_active'] != self.state.active)
-        if retired:
-            self._session = object()
-            self.grid.invalidate_actions()
-        self._rendered_ids = wanted
-        self._rendered_cards = visible
         self.cards = {item.work_id: self._make_card(item) for item in visible}
-        self.grid.props['cards'] = list(self.cards.values())
-        self.grid.props['grid_active'] = self.state.active
-        if reset_controls or became_active:
+        retired = self.grid.publish(list(self.cards.values()),
+                                    action_fields=('src', 'disabled', 'author_id', 'downloaded', 'menu'))
+        active_changed = self.grid.set_active(self.state.active)
+        if retired or active_changed:
+            self._session = object()
+        if reset_controls or (active_changed and self.state.active):
             self.grid.retry_failed_images()
         self.more_cell.set_visibility(self.state.has_more)
         status = self.state.status

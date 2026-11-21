@@ -35,6 +35,8 @@ class GalleryView(ViewerController):
         self.state.set_card_size(card_size)
         self._on_size_change = on_size_change
         self.cards: dict[str, GalleryCard] = {}
+        self._card_artworks: dict[str, Artwork] = {}
+        self._artwork_provider = services.images
         self.client = ui.context.client
         self.client.on_delete(self.close)
 
@@ -77,7 +79,7 @@ class GalleryView(ViewerController):
         source = self._card_source(art)
         menu_id, entries = self._card_menu(art) if source else (None, ())
         return dict(work_id=art.work_id, rank=f'#{rank}', src=source, title=art.title,
-                    author=art.author, heart=self._card_heart(art), menu_id=menu_id,
+                    author=art.author, author_id=art.author_id, heart=self._card_heart(art), menu_id=menu_id,
                     menu=[dict(key=e.key, label=e.label, icon=e.icon, enabled=e.enabled,
                                href=e.href, testid=e.testid or f'{menu_id}-{e.key}')
                           for e in entries])
@@ -116,16 +118,30 @@ class GalleryView(ViewerController):
         if menu is not None:menu.close()
         await self._open_author_art(art)
 
-    def render_gallery(self, *, retire_actions=True) -> None:
+    def replace_artworks(self, artworks, *, keep_viewer=False) -> None:
+        old = self.state
+        provider = self.services.images
+        if old.artworks != artworks or self._artwork_provider is not provider:
+            if not keep_viewer:
+                self.close_viewer(restore_focus=False)
+            state = GalleryState(artworks, page_size=max(50, len(artworks)))
+            state.set_card_size(old.card_size)
+            state.set_query(old.query)
+            state.generation = old.generation + 1
+            if not keep_viewer or old is not self._viewer_state:
+                old.close()
+            self.state = state
+            if not keep_viewer:
+                self._viewer_state = state
+            self._artwork_provider = provider
+        self.render_gallery()
+
+    def render_gallery(self) -> None:
         if self.state.closed:
             return
         artworks = {art.work_id: art for art in self.state.visible_items}
         prepared = [(work_id, self._card_data(art, rank))
                     for rank, (work_id, art) in enumerate(artworks.items(), start=1)]
-        if not retire_actions:
-            prior = tuple(self.cards)
-            retire_actions = (tuple(artworks)[:len(prior)] != prior or
-                              any(self.cards[key].data != data for key, data in prepared[:len(prior)]))
         cards = {}
         for work_id, data in prepared:
             card = self.cards.get(work_id)
@@ -135,34 +151,31 @@ class GalleryView(ViewerController):
                 card.data = data
             cards[work_id] = card
         self.cards, self._card_artworks = cards, artworks
-        self.grid.props['cards'] = [card.data for card in cards.values()]
-        if retire_actions:
-            self.grid.invalidate_actions()
+        self.grid.publish([card.data for card in cards.values()], action_fields=('src', 'author_id', 'menu'))
         self.empty.set_visibility(not cards)
         self.more_cell.set_visibility(self.state.has_more)
         self.counter.set_text(f"{self.state.shown_count} / {self.state.total_count} 件表示")
 
     def set_viewer_active(self, active: bool) -> None:
-        if self._viewer_active != bool(active):
-            self.grid.invalidate_actions()
-            self.grid.props['grid_active'] = bool(active)
+        if self.grid.set_active(active):
             if active and self.cards:
                 self.grid.retry_failed_images()
-        super().set_viewer_active(active)
+            super().set_viewer_active(active)
 
     def search(self, value: str | None = None) -> None:
         if self.state.closed or not self._viewer_active:
             return
-        self.state.set_query(value or "")
-        if not self.state.viewer_open:
-            super().close_viewer()
+        generation = self.state.generation
+        self.state.set_query(value or "", preserve_if_unchanged=True)
+        if self.state.generation != generation:
+            self.close_viewer()
         self.render_gallery()
 
     def more(self) -> None:
         if self.state.closed or not self._viewer_active:
             return
         self.state.load_more()
-        self.render_gallery(retire_actions=False)
+        self.render_gallery()
 
     def change_size(self, size: str) -> None:
         if self.state.closed or not self._viewer_active:

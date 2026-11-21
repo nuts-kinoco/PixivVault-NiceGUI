@@ -4,7 +4,6 @@ from nicegui import ui
 from ..personal_ranking import (PersonalRankingSource,normalize_personal_filters,apply_personal_filters,
     active_filter_descriptors,_DATE_PRESETS,_SORT_PRESETS,_BOOKMARK_PRESETS)
 from ..external_vault import RANKING_CANDIDATES_OPEN_KEY
-from ..state import GalleryState
 from .ranking_view import RankingView,_ViewServices,_RankingGallery
 
 # 除外条件のキーと、文脈（読み込んだ集合）のキー。集合が無い条件は適用できない（元 ranking_tab.py:1436-1456）。
@@ -101,8 +100,6 @@ class PersonalRankingView(RankingView):
         local = getattr(self.services, 'local_tag_view', None)
         if self.closed or not self.active or local is None or self._context_revision == local.revision():
             return
-        self.trend_row.clear()
-        if self.page is not None:self.render()
         self._start_context_refresh()
     def _apply_candidates_open(self):
         opened=self._candidates_open
@@ -178,15 +175,7 @@ class PersonalRankingView(RankingView):
                     and status.get('transport_available'))
     def _show_unfetched(self):
         """Reset the display when there is no usable search context."""
-        self.gallery.close_viewer(restore_focus=False)
-        old=self.gallery.state
-        state=GalleryState((),page_size=50)
-        state.set_card_size(old.card_size)
-        state.set_query(old.query)
-        state.generation=old.generation+1
-        old.close()
-        self.gallery.state=self.gallery._viewer_state=state
-        self.gallery.render_gallery()
+        self.gallery.replace_artworks(())
         self.gallery.empty.set_visibility(False)
         self.gallery.more_cell.set_visibility(False)
         self.gallery.counter.set_text('未取得')
@@ -228,11 +217,13 @@ class PersonalRankingView(RankingView):
         local = getattr(self.services, 'local_tag_view', None) or getattr(getattr(self.services, 'discovery', None), 'local_tag_view', None)
         base_reader = getattr(self.services, 'personal_ranking_context_base', None)
         try:
-            base = await asyncio.to_thread(base_reader) if local is not None and callable(base_reader) else None
             before = local.revision() if local is not None else None
+            base = await asyncio.to_thread(base_reader) if local is not None and callable(base_reader) else None
             context = await asyncio.to_thread(self._read_context)
             after = local.revision() if local is not None else None
-            revision = after if before == after else None
+            if before != after:
+                return None
+            revision = after
         except Exception:
             context, base, revision = {}, {}, None
         if self.closed or not self.active or self.epoch!=epoch or request!=self._context_request:return None
@@ -345,9 +336,10 @@ class PersonalRankingView(RankingView):
             self.notice.set_text('現在の条件を次回起動用に保存しました。')
         except Exception:self.notice.set_text('条件を保存できませんでした。')
     async def refresh(self):
-        await self.load()
+        # The original personal search replaces its card cache on explicit refresh.
+        await self.load(retry_thumbnails=True)
 
-    async def load(self,*,append=False):
+    async def load(self,*,append=False,retry_thumbnails=False):
         if not self.active or self.closed or self.busy or self.source is None:return
         if append and (not self._current_page() or self.page.exhausted or self._search_failure_notice is not None):return
         epoch=self.epoch;tags=self.selected_tags();filters=self.current_filters()
@@ -392,10 +384,9 @@ class PersonalRankingView(RankingView):
             if provider is not None:
                 self.pin = self.proxy.images = provider
             self.page = candidate
-            if append:
-                self.render(append=True)
-            else:
-                self.render()
+            self.render()
+            if retry_thumbnails:
+                self.gallery.grid.retry_failed_images()
             if provider is not None and old_pin is not None:
                 old_pin.close()
             self._image_records, self._image_reader = records, reader
@@ -446,7 +437,7 @@ class PersonalRankingView(RankingView):
             self.gallery.more_cell.set_visibility(False)
         self.notice.set_text(message)
 
-    def render(self, *, append=False):
+    def render(self):
         if self.closed or self.page is None:return
         current = self._current_page()
         if not self.selected_tags() or (not current and self.page.remote_error):
@@ -455,10 +446,7 @@ class PersonalRankingView(RankingView):
             return
         context=self.context();filters=self.current_filters()
         rows,dropped=apply_personal_filters(self.page.rows,filters,**{k:context.get(k) for k in ('hidden_work_ids','hidden_author_ids','downloaded_ids','hated_ids')})
-        self.gallery.close_viewer(restore_focus=False);old=self.gallery.state
-        state=GalleryState(tuple(r['item'].record.as_artwork() for r in rows),page_size=max(50,len(rows)))
-        state.set_card_size(old.card_size);state.set_query(old.query);state.generation=old.generation+1;old.close()
-        self.gallery.state=self.gallery._viewer_state=state;self.gallery.render_gallery(retire_actions=not append)
+        self.gallery.replace_artworks(tuple(r['item'].record.as_artwork() for r in rows))
         self.gallery.more_cell.set_visibility(current and not self.page.exhausted)
         self.gallery.empty.set_text('条件に一致する作品は0件です。条件を変更してください。')
         self.notice.set_text(f'{self.page.order_label or "借用アカウント"}・{len(rows)}件表示 / {dropped}件を条件で除外'+('・これで全部' if self.page.exhausted else ''))

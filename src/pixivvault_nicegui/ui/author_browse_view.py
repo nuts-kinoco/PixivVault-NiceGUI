@@ -123,13 +123,14 @@ class AuthorBrowseView:
     async def show(self, author_id, name):
         if self.closed or getattr(self.services, 'closing', False):
             return
-        self.epoch += 1
-        epoch = self.epoch
         cached = self.cache.get(author_id)
         reuse = (author_id == self._rendered_author_id
                  and cached is not None and cached is self._rendered_records
                  and self.pin is not None and not self.pin.closed
                  and self.proxy.images is self.pin and not self.gallery.state.closed)
+        if not reuse or not self.visible:
+            self.epoch += 1
+        epoch = self.epoch
         self.author_id, self.author_name, self.visible = author_id, name, True
         self.follow_actions.bind(None, author_id, author_name=name,
             is_current=lambda: self.visible and not self.closed and self.epoch == epoch
@@ -145,7 +146,7 @@ class AuthorBrowseView:
         self.retry.set_visibility(False)
         if reuse:
             # Keep the expanded/search state and the existing scroll/card DOM.
-            # The new epoch still invalidates every older pending viewer action.
+            # Reopening a hidden author still has a new author epoch.
             self.status.set_text('')
             self.gallery.set_viewer_active(True)
             self.gallery.root.set_visibility(True)
