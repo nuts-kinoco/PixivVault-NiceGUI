@@ -1,0 +1,681 @@
+{
+  "viewer": {
+    "diag-baseline": {
+      "whole": {
+        "n": 20,
+        "median_ms": 270.203,
+        "p95_ms": 316.998
+      },
+      "page_label": {
+        "n": 20,
+        "median_ms": 190.803,
+        "p95_ms": 233.06
+      },
+      "update_job": {
+        "n": 40,
+        "median_ms": 80.1,
+        "p95_ms": 97.2
+      },
+      "updates_per_trial": {
+        "2": 20
+      },
+      "socket_kinds": {
+        "update": 40
+      },
+      "task_duration": {
+        "n": 20,
+        "median_ms": 193.428,
+        "p95_ms": 235.351
+      },
+      "style_duration": {
+        "n": 20,
+        "median_ms": 11.693,
+        "p95_ms": 13.253
+      },
+      "dom": {
+        "n": 20,
+        "median_ms": 87.2,
+        "p95_ms": 116.8
+      }
+    },
+    "diag-no-tailwind": {
+      "whole": {
+        "n": 20,
+        "median_ms": 221.501,
+        "p95_ms": 253.509
+      },
+      "page_label": {
+        "n": 20,
+        "median_ms": 148.715,
+        "p95_ms": 168.921
+      },
+      "update_job": {
+        "n": 40,
+        "median_ms": 60.7,
+        "p95_ms": 70.2
+      },
+      "updates_per_trial": {
+        "2": 20
+      },
+      "socket_kinds": {
+        "update": 40
+      },
+      "task_duration": {
+        "n": 20,
+        "median_ms": 152.764,
+        "p95_ms": 172.071
+      },
+      "style_duration": {
+        "n": 20,
+        "median_ms": 8.359,
+        "p95_ms": 10.005
+      },
+      "dom": {
+        "n": 20,
+        "median_ms": 72.6,
+        "p95_ms": 83.3
+      }
+    },
+    "diag-empty-authors": {
+      "whole": {
+        "n": 20,
+        "median_ms": 188.998,
+        "p95_ms": 220.985
+      },
+      "page_label": {
+        "n": 20,
+        "median_ms": 120.253,
+        "p95_ms": 153.004
+      },
+      "update_job": {
+        "n": 40,
+        "median_ms": 47.55,
+        "p95_ms": 61.4
+      },
+      "updates_per_trial": {
+        "2": 20
+      },
+      "socket_kinds": {
+        "update": 40
+      },
+      "task_duration": {
+        "n": 20,
+        "median_ms": 123.838,
+        "p95_ms": 156.195
+      },
+      "style_duration": {
+        "n": 20,
+        "median_ms": 8.674,
+        "p95_ms": 11.547
+      },
+      "dom": {
+        "n": 20,
+        "median_ms": 53.65,
+        "p95_ms": 75.8
+      }
+    },
+    "viewer-segments-accepted-run": {
+      "whole": {
+        "n": 20,
+        "median_ms": 121.44,
+        "p95_ms": 139.486
+      },
+      "page_label": {
+        "n": 20,
+        "median_ms": 41.834,
+        "p95_ms": 53.33
+      },
+      "update_job": {
+        "n": 0,
+        "median_ms": null,
+        "p95_ms": null
+      },
+      "updates_per_trial": {
+        "0": 20
+      },
+      "socket_kinds": {
+        "run_javascript": 40
+      },
+      "task_duration": {
+        "n": 20,
+        "median_ms": 40.495,
+        "p95_ms": 52.999
+      },
+      "style_duration": {
+        "n": 20,
+        "median_ms": 1.348,
+        "p95_ms": 1.584
+      },
+      "dom": {
+        "n": 20,
+        "median_ms": 12.9,
+        "p95_ms": 21.8
+      }
+    }
+  },
+  "search": {
+    "search-before-50-to-1": {
+      "whole": {
+        "n": 20,
+        "median_ms": 361.053,
+        "p95_ms": 446.44
+      },
+      "observed_debounce_windows": 20,
+      "capacity_resumes_in_debounce": 0,
+      "updates_per_trial": {
+        "1": 20
+      },
+      "first_ms": 354.9388
+    },
+    "search-after-50-to-1": {
+      "whole": {
+        "n": 20,
+        "median_ms": 313.268,
+        "p95_ms": 428.435
+      },
+      "observed_debounce_windows": 20,
+      "capacity_resumes_in_debounce": 0,
+      "updates_per_trial": {
+        "1": 20
+      },
+      "first_ms": 428.4345
+    },
+    "search-before-1-to-1": {
+      "whole": {
+        "n": 20,
+        "median_ms": 369.003,
+        "p95_ms": 405.998
+      },
+      "observed_debounce_windows": 20,
+      "capacity_resumes_in_debounce": 20,
+      "updates_per_trial": {
+        "4": 20
+      },
+      "first_ms": 376.6403
+    },
+    "search-after-1-to-1": {
+      "whole": {
+        "n": 20,
+        "median_ms": 286.915,
+        "p95_ms": 296.791
+      },
+      "observed_debounce_windows": 20,
+      "capacity_resumes_in_debounce": 0,
+      "updates_per_trial": {
+        "1": 20
+      },
+      "first_ms": 292.9664
+    },
+    "search-before-1-to-50-retry": {
+      "whole": {
+        "n": 20,
+        "median_ms": 1944.172,
+        "p95_ms": 2143.397
+      },
+      "observed_debounce_windows": 0,
+      "capacity_resumes_in_debounce": 0,
+      "updates_per_trial": {
+        "4": 20
+      },
+      "first_ms": 1960.328
+    },
+    "search-after-1-to-50": {
+      "whole": {
+        "n": 20,
+        "median_ms": 1806.788,
+        "p95_ms": 2028.081
+      },
+      "observed_debounce_windows": 0,
+      "capacity_resumes_in_debounce": 0,
+      "updates_per_trial": {
+        "1": 20
+      },
+      "first_ms": 1801.3356
+    }
+  },
+  "paired": {
+    "included": {
+      "fixture": {
+        "original_revision": "3ac3aa0d47a64785251593bcb09bb2d5f6df374b",
+        "nice_revision": "47ea9c6e77acf43f02435e19e72d393659649c32",
+        "variant": "baseline",
+        "pixel_timing": "included",
+        "search_pattern": "historical",
+        "db_rows_initial": {
+          "works": 2000,
+          "following_users": 200,
+          "discovery_swipe_history": 0
+        },
+        "library_images": 2034,
+        "learning_candidates": 60,
+        "learning_images": 60
+      },
+      "errors": {
+        "original": {},
+        "nice": {
+          "library_search": "TimeoutError"
+        }
+      },
+      "original": {
+        "readings": {
+          "learning": {
+            "n": 30,
+            "median_ms": 133.27675,
+            "p95_ms": 182.7985
+          },
+          "library_search": {
+            "n": 30,
+            "median_ms": 326.767,
+            "p95_ms": 342.3067
+          },
+          "viewer_next": {
+            "n": 30,
+            "median_ms": 149.51909999999998,
+            "p95_ms": 183.0374
+          }
+        },
+        "screenshot": {
+          "learning": {
+            "n": 30,
+            "median_ms": 48.845,
+            "p95_ms": 53.682
+          },
+          "library_search": {
+            "n": 30,
+            "median_ms": 0.0,
+            "p95_ms": 0
+          },
+          "viewer_next": {
+            "n": 30,
+            "median_ms": 87.56,
+            "p95_ms": 118.429
+          }
+        },
+        "paint": {
+          "learning": {
+            "n": 30,
+            "median_ms": 22.35,
+            "p95_ms": 27.824
+          },
+          "library_search": {
+            "n": 30,
+            "median_ms": 32.778,
+            "p95_ms": 33.841
+          },
+          "viewer_next": {
+            "n": 30,
+            "median_ms": 21.862,
+            "p95_ms": 26.075
+          }
+        },
+        "ready": {
+          "learning": {
+            "n": 30,
+            "median_ms": 110.024,
+            "p95_ms": 155.46
+          },
+          "library_search": {
+            "n": 30,
+            "median_ms": 289.43,
+            "p95_ms": 302.045
+          },
+          "viewer_next": {
+            "n": 30,
+            "median_ms": 126.791,
+            "p95_ms": 163.454
+          }
+        },
+        "judgments": 30,
+        "server_network": {
+          "denied": 1
+        },
+        "browser_network": {
+          "nonlocal_requests_blocked": 2
+        },
+        "page_errors": [
+          ""
+        ]
+      },
+      "nice": {
+        "readings": {
+          "learning": {
+            "n": 30,
+            "median_ms": 149.26935,
+            "p95_ms": 184.0911
+          },
+          "viewer_next": {
+            "n": 30,
+            "median_ms": 130.42705,
+            "p95_ms": 131.9976
+          }
+        },
+        "screenshot": {
+          "learning": {
+            "n": 30,
+            "median_ms": 67.311,
+            "p95_ms": 112.538
+          },
+          "viewer_next": {
+            "n": 30,
+            "median_ms": 40.538,
+            "p95_ms": 51.48
+          }
+        },
+        "paint": {
+          "learning": {
+            "n": 30,
+            "median_ms": 17.999,
+            "p95_ms": 26.495
+          },
+          "viewer_next": {
+            "n": 30,
+            "median_ms": 32.303,
+            "p95_ms": 34.607
+          }
+        },
+        "ready": {
+          "learning": {
+            "n": 30,
+            "median_ms": 119.336,
+            "p95_ms": 169.914
+          },
+          "viewer_next": {
+            "n": 30,
+            "median_ms": 96.037,
+            "p95_ms": 105.356
+          }
+        },
+        "judgments": 30,
+        "server_network": {
+          "denied": 0
+        },
+        "browser_network": {
+          "nonlocal_requests_blocked": 0
+        },
+        "page_errors": []
+      }
+    },
+    "detached": {
+      "fixture": {
+        "original_revision": "3ac3aa0d47a64785251593bcb09bb2d5f6df374b",
+        "nice_revision": "47ea9c6e77acf43f02435e19e72d393659649c32",
+        "variant": "baseline",
+        "pixel_timing": "detached",
+        "search_pattern": "historical",
+        "db_rows_initial": {
+          "works": 2000,
+          "following_users": 200,
+          "discovery_swipe_history": 0
+        },
+        "library_images": 2034,
+        "learning_candidates": 60,
+        "learning_images": 60
+      },
+      "errors": {
+        "original": {},
+        "nice": {
+          "library_search": "TimeoutError"
+        }
+      },
+      "original": {
+        "readings": {
+          "learning": {
+            "n": 30,
+            "median_ms": 87.3125,
+            "p95_ms": 92.7338
+          },
+          "library_search": {
+            "n": 30,
+            "median_ms": 326.12725,
+            "p95_ms": 340.7284
+          },
+          "viewer_next": {
+            "n": 30,
+            "median_ms": 55.48605,
+            "p95_ms": 89.3257
+          }
+        },
+        "screenshot": {
+          "learning": {
+            "n": 30,
+            "median_ms": 53.301,
+            "p95_ms": 60.674
+          },
+          "library_search": {
+            "n": 30,
+            "median_ms": 0.0,
+            "p95_ms": 0
+          },
+          "viewer_next": {
+            "n": 30,
+            "median_ms": 85.039,
+            "p95_ms": 87.585
+          }
+        },
+        "paint": {
+          "learning": {
+            "n": 30,
+            "median_ms": 25.646,
+            "p95_ms": 28.847
+          },
+          "library_search": {
+            "n": 30,
+            "median_ms": 32.45,
+            "p95_ms": 33.455
+          },
+          "viewer_next": {
+            "n": 30,
+            "median_ms": 27.231,
+            "p95_ms": 30.785
+          }
+        },
+        "ready": {
+          "learning": {
+            "n": 30,
+            "median_ms": 59.108,
+            "p95_ms": 64.938
+          },
+          "library_search": {
+            "n": 30,
+            "median_ms": 288.506,
+            "p95_ms": 302.945
+          },
+          "viewer_next": {
+            "n": 30,
+            "median_ms": 26.722,
+            "p95_ms": 56.322
+          }
+        },
+        "judgments": 30,
+        "server_network": {
+          "denied": 1
+        },
+        "browser_network": {
+          "nonlocal_requests_blocked": 2
+        },
+        "page_errors": [
+          ""
+        ]
+      },
+      "nice": {
+        "readings": {
+          "learning": {
+            "n": 30,
+            "median_ms": 68.024,
+            "p95_ms": 105.929
+          },
+          "viewer_next": {
+            "n": 30,
+            "median_ms": 74.37935,
+            "p95_ms": 84.4318
+          }
+        },
+        "screenshot": {
+          "learning": {
+            "n": 30,
+            "median_ms": 59.296,
+            "p95_ms": 79.016
+          },
+          "viewer_next": {
+            "n": 30,
+            "median_ms": 42.04,
+            "p95_ms": 45.498
+          }
+        },
+        "paint": {
+          "learning": {
+            "n": 30,
+            "median_ms": 20.51,
+            "p95_ms": 66.907
+          },
+          "viewer_next": {
+            "n": 30,
+            "median_ms": 28.048,
+            "p95_ms": 32.921
+          }
+        },
+        "ready": {
+          "learning": {
+            "n": 30,
+            "median_ms": 43.975,
+            "p95_ms": 52.441
+          },
+          "viewer_next": {
+            "n": 30,
+            "median_ms": 47.45,
+            "p95_ms": 53.121
+          }
+        },
+        "judgments": 30,
+        "server_network": {
+          "denied": 0
+        },
+        "browser_network": {
+          "nonlocal_requests_blocked": 0
+        },
+        "page_errors": []
+      }
+    }
+  },
+  "paired_search_retries": {
+    "included": {
+      "fixture": {
+        "original_revision": "3ac3aa0d47a64785251593bcb09bb2d5f6df374b",
+        "nice_revision": "47ea9c6e77acf43f02435e19e72d393659649c32",
+        "variant": "baseline",
+        "pixel_timing": "included",
+        "search_pattern": "historical",
+        "db_rows_initial": {
+          "works": 2000,
+          "following_users": 200,
+          "discovery_swipe_history": 0
+        },
+        "library_images": 2034,
+        "learning_candidates": 60,
+        "learning_images": 60
+      },
+      "errors": {
+        "original": {},
+        "nice": {
+          "library_search": "TimeoutError"
+        }
+      },
+      "original": {
+        "n": 30,
+        "median_ms": 336.73935,
+        "p95_ms": 341.6091
+      },
+      "nice": null,
+      "server_network": {
+        "original": {
+          "denied": 1
+        },
+        "nice": {
+          "denied": 0
+        }
+      },
+      "browser_network": {
+        "original": {
+          "nonlocal_requests_blocked": 1
+        },
+        "nice": {
+          "nonlocal_requests_blocked": 0
+        }
+      }
+    },
+    "detached": {
+      "fixture": {
+        "original_revision": "3ac3aa0d47a64785251593bcb09bb2d5f6df374b",
+        "nice_revision": "47ea9c6e77acf43f02435e19e72d393659649c32",
+        "variant": "baseline",
+        "pixel_timing": "detached",
+        "search_pattern": "historical",
+        "db_rows_initial": {
+          "works": 2000,
+          "following_users": 200,
+          "discovery_swipe_history": 0
+        },
+        "library_images": 2034,
+        "learning_candidates": 60,
+        "learning_images": 60
+      },
+      "errors": {
+        "original": {},
+        "nice": {}
+      },
+      "original": {
+        "n": 30,
+        "median_ms": 327.9633,
+        "p95_ms": 341.1543
+      },
+      "nice": {
+        "n": 30,
+        "median_ms": 292.0743,
+        "p95_ms": 303.9846
+      },
+      "server_network": {
+        "original": {
+          "denied": 1
+        },
+        "nice": {
+          "denied": 0
+        }
+      },
+      "browser_network": {
+        "original": {
+          "nonlocal_requests_blocked": 1
+        },
+        "nice": {
+          "nonlocal_requests_blocked": 0
+        }
+      }
+    }
+  },
+  "viewer_contract": [
+    "forward, back, zoom reset",
+    "rapid forward, failed page, retry, verified pixels",
+    "normal/original exact page, explicit download exact page",
+    "keyboard context menu and saved folder",
+    "two-step Esc and focus restoration"
+  ],
+  "viewer_layouts": {
+    "1280x800": {
+      "changed_bbox": [
+        637,
+        22,
+        798,
+        38
+      ],
+      "changed_pixels": 1420
+    },
+    "1920x1080": {
+      "changed_bbox": [
+        637,
+        22,
+        798,
+        38
+      ],
+      "changed_pixels": 1420
+    }
+  }
+}
