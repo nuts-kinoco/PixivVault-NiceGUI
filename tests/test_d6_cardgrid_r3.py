@@ -139,8 +139,12 @@ async def test_identical_background_library_reload_keeps_navigation_and_actions(
             view = LibraryView(services)
             author = next(iter(view.author_cards))
             author_epoch = view.author_grid.render_epoch
+            view.refresh_error = True
+            view._sync_panels()
+            assert view.error_row.visible
             view.reload(preserve=True, after_viewer=True)
             assert view.author_grid.render_epoch == author_epoch
+            assert not view.error_row.visible
             view.open_author(author)
             page_epoch, page_session = view.page_grid.render_epoch, view._page_session
             view.reload(preserve=True, after_viewer=True)

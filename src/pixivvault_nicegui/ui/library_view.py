@@ -918,6 +918,9 @@ class LibraryView(ViewerController):
             if source == self._rendered_source:
                 self._reload_after_viewer = False
                 self.refresh_error = False
+                self.error_row.set_visibility(False)
+                if self.search_scope == 'pixiv' and self.state.selected_author_id is None:
+                    self.render_authors()
                 return
         if after_viewer and self._viewer_state.viewer_open:
             self._reload_after_viewer = True
