@@ -32,8 +32,21 @@ class _RankingGallery(GalleryView):
         if owner is None:return super()._after_viewer_hide(art,hidden)
         owner.adopt_hidden(art.work_id,art.title,hidden)
     def render_gallery(self):
+        owner = getattr(self, 'owner', None)
+        visible = self.state.visible_items
+        presentation = tuple((art, bool(owner and owner.preferred_tags_in(art.tags))) for art in visible)
+        previous = getattr(self, '_presentation', ())
+        if presentation[:len(previous)] != previous:
+            self._reset_cards()
+        retained = self._rendered_ids
         super().render_gallery()
-        owner=getattr(self,'owner',None)
+        for work_id in retained:
+            if work_id in self.images:
+                image = self.images[work_id]
+                url = self.services.images.url(work_id, 0, 'thumb')
+                if image.props['src'] != url:
+                    image.set_source(url)
+        self._presentation = presentation
         if owner is not None and owner.page is not None:self.more_cell.set_visibility(not owner.page.exhausted)
     def more(self):
         if self.owner.active and not self.owner.busy:asyncio.create_task(self.owner.load(append=True))
@@ -69,6 +82,8 @@ class RankingView(RankingCardMenus):
         self.active=False;self.closed=False;self.busy=False;self.epoch=0;self._open_generation=0;self.page=None;self.pin=None
         self._condition_task=None;self._condition_pending=False;self._syncing_controls=False
         self._calendar_token=None;self.calendar_dialog=None;self.calendar_picker=None
+        self._image_records = {}
+        self._image_reader = None
         self.client=ui.context.client
         with ui.column().classes('pv-gallery pv-ranking-view w-full').props('data-testid=ranking-view') as self.root:
             with ui.row().classes('pv-toolbar'):
@@ -269,6 +284,7 @@ class RankingView(RankingCardMenus):
         if append:self.gallery.more_button.set_text('読み込み中…')
         self.notice.set_text('取得中…')
         candidate_provider=None
+        published = False
         old_pin,old_page,old_images=self.pin,self.page,self.proxy.images
         try:
             candidate=await asyncio.to_thread(self._fetch_with_hidden,query,self.page.page+1 if append else 1,
@@ -276,16 +292,18 @@ class RankingView(RankingCardMenus):
                 **({'previous':self.page} if append and getattr(self.page,'page_session',None) is not None else {}))
             if self.closed or not self.active or epoch!=self.epoch:return
             merged=merge_pages(self.page if append else None,candidate)
-            provider=self.services.acquire_ranking_images(tuple(i.record for i in merged.items))
-            candidate_provider=provider
-            old=self.pin;self.pin=provider;self.proxy.images=provider
+            records = {item.record.work_id: item.record for item in merged.items}
+            reader = getattr(self.services, 'live_client', None) or getattr(self.services, '_vault_images', None)
+            if self.pin is None or reader is not self._image_reader or records != self._image_records:
+                candidate_provider = self.services.acquire_ranking_images(tuple(records.values()))
+                self.pin = self.proxy.images = candidate_provider
             self.page=merged
-            if not append:
-                self.gallery.grid.clear();self.gallery.more_cell=None
-                self.gallery.cards.clear();self.gallery.images.clear();self.gallery.ranks.clear();self.gallery._rendered_ids=()
             self.render()
-            if old is not None:old.close()
+            if candidate_provider is not None and old_pin is not None:
+                old_pin.close()
+            self._image_records, self._image_reader = records, reader
             candidate_provider=None
+            published = True
             # The mode change announces that R-18 cannot be selected for
             # monthly/rookie, but the async fetch used to overwrite that
             # explanation immediately. Keep the reason visible with results.
@@ -309,8 +327,10 @@ class RankingView(RankingCardMenus):
                 self.notice.set_text(self._retained_notice(message))
         finally:
             if candidate_provider is not None:
-                self.pin,self.page,self.proxy.images=old_pin,old_page,old_images
+                self.pin,self.proxy.images=old_pin,old_images
                 candidate_provider.close()
+            if self.page is not old_page and not published:
+                self.page = old_page
             self.busy=False
             if not self.closed:
                 self.gallery.more_button.set_text('もっと見る')
@@ -357,7 +377,6 @@ class RankingView(RankingCardMenus):
         if not keep_viewer:self.gallery._viewer_state=state
         self.gallery.empty.set_text('取得した条件に該当する作品がありません。')
         self.gallery.render_gallery()
-        for work_id,image in self.gallery.images.items():image.set_source(self.proxy.images.url(work_id,0,'thumb'))
         self.gallery.more_cell.set_visibility(not self.page.exhausted)
         self._sync_result_controls()
     async def open_unknown(self,work_id,provider,epoch,request):

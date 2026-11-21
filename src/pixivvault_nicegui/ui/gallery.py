@@ -87,6 +87,14 @@ class GalleryView(ViewerController):
         if menu is not None:menu.close()
         await self._open_author_art(art)
 
+    def _reset_cards(self) -> None:
+        self.grid.clear()
+        self.more_cell = None
+        self.cards.clear()
+        self.images.clear()
+        self.ranks.clear()
+        self._rendered_ids = ()
+
     def render_gallery(self) -> None:
         if self.state.closed:
             return
@@ -94,12 +102,7 @@ class GalleryView(ViewerController):
         wanted = tuple(item.work_id for item in visible)
         # 同じ列の追加なら既存要素のIDを保つ。検索で順序が変わるときだけ再構成。
         if wanted[:len(self._rendered_ids)] != self._rendered_ids:
-            self.grid.clear()
-            self.more_cell = None
-            self.cards.clear()
-            self.images.clear()
-            self.ranks.clear()
-            self._rendered_ids = ()
+            self._reset_cards()
         for art in visible[len(self._rendered_ids):]:
             self._make_card(art)
         for rank, art in enumerate(visible, start=1):
