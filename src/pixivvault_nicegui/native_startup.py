@@ -223,8 +223,7 @@ class NativeProfileBinding:
 
     async def check_selected_authentication(self, cookie_file):
         """The settings check may recover startup using the saved credential."""
-        result = await self.check_authentication(cookie_file)
-        identity = self._last_identity if result.ok else None
+        result, identity = await self._check_authentication_with_identity(cookie_file)
         services = getattr(self, '_shared_event_services', None)
         if (identity is not None and identity[0] is not None and not self._closed
                 and getattr(services, '_scheduler_waiting_for_auth', False)
@@ -243,19 +242,24 @@ class NativeProfileBinding:
         and Cookie expiry observed by the same check are published only to the
         header status (restoring the original login-status line).
         """
+        result, _ = await self._check_authentication_with_identity(cookie_file, imported=_imported, publish=_publish)
+        return result
+
+    async def _check_authentication_with_identity(self, cookie_file, *, imported=False, publish=True):
         async with self._auth_lock:
             if self._closed:
                 from .native_auth_result import NativeAuthResult
-                return NativeAuthResult('closed')
+                return NativeAuthResult('closed'), None
             stopped = Event()
             with self._reader_lock:
                 self._requests[stopped] = None
                 self._last_identity = None
             try:
                 result = await asyncio.to_thread(self._verify_auth_result, Path(cookie_file), stopped)
-                if _publish:
-                    self._publish_auth(result, _imported)
-                return result
+                identity = self._last_identity if result.ok else None
+                if publish:
+                    self._publish_auth(result, imported, identity=identity)
+                return result, identity
             except asyncio.CancelledError:
                 stopped.set()
                 with self._reader_lock:

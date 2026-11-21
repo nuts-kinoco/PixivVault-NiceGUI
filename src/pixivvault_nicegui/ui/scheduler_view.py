@@ -9,7 +9,7 @@ from uuid import uuid4
 from ..account_scope import AccountMismatch, require_same_account
 from ..following_sync import subscribe_owner_on_loop
 from ..legacy_author_sync import LegacyAuthorSourceError
-from ..managed_scheduler import ScheduleAccountError
+from ..managed_scheduler import ScheduleAccountError, ScheduleConfirmationUnavailable
 
 from nicegui import ui
 
@@ -17,6 +17,14 @@ STATUS_LABELS = {
     'never': '未実行', 'saved': '完了', 'queued': '受付済み', 'running': '実行中',
     'deferred': '保留', 'failed': '失敗', 'error': 'エラー', 'empty': '対象なし',
     'partial': '一部完了', 'unknown': '不明', 'interrupted': '中断',
+}
+
+CONFIRMATION_STATUS = {
+    'waiting': '認証・フォロー情報の確認待ち',
+    'unsynced': 'フォロー同期の完了待ち',
+    'restart': 'Cookieの変更を反映するには再起動してください',
+    'closing': '終了処理中',
+    'busy': '別の画面で定期チェックの認証を確認中',
 }
 
 
@@ -209,9 +217,22 @@ class SchedulerView:
         check = getattr(self.services, 'scheduler_cookie_restart_required', None)
         return check is not None and check()
 
+    def _confirmation_blocker(self):
+        check = getattr(self.services, 'scheduler_account_confirmation_blocker', None)
+        if check is not None:
+            return check()
+        if self._cookie_restart_required():
+            return 'restart'
+        if getattr(self.services, '_scheduler_waiting_for_auth', False):
+            return 'waiting'
+        return None
+
     async def confirm_account(self):
         confirm = getattr(self.services, 'confirm_scheduler_account', None)
         if self.closed or self._busy or confirm is None:
+            return
+        if self._confirmation_blocker() is not None:
+            self._hide_account_data()
             return
         self._busy = True
         self.confirm_account_button.set_enabled(False)
@@ -262,12 +283,11 @@ class SchedulerView:
         self._stars_unknown_in_form = True
         self.star_notice.set_text('☆一覧を読み込めません。ログイン中のアカウントと保存済みのフォロー情報を照合できるまで、履歴も非表示になります。')
         self.account_label.set_text('紐づけアカウントを確認できません')
-        restart = self._cookie_restart_required()
-        self.confirm_account_button.set_visibility(not restart and callable(getattr(self.services, 'confirm_scheduler_account', None)))
-        status = ('認証・フォロー情報の確認待ち' if getattr(self.services, '_scheduler_waiting_for_auth', False)
-                  else '紐づけアカウントを確認できません')
-        if restart:
-            status = 'Cookieの変更を反映するには再起動してください'
+        blocker = self._confirmation_blocker()
+        show_confirm = blocker is None and callable(getattr(self.services, 'confirm_scheduler_account', None))
+        self.confirm_account_button.set_visibility(show_confirm)
+        self.confirm_account_button.set_enabled(show_confirm and not self._busy)
+        status = CONFIRMATION_STATUS.get(blocker, '紐づけアカウントを確認できません')
         self.status.set_text(f'定期状態: {status}')
         self.ack_button.set_enabled(False)
         self.run_button.set_enabled(False)
@@ -665,6 +685,8 @@ def check_failure_message(error):
         return '旧DBまたは画像の保存元を確認できません。停止した旧DBのコピーと保存元を確認してください'
     from ..managed_network_stop_gate import ManagedNetworkStopped, ManagedNetworkGateBusy, ManagedNetworkGateStorageError
     from ..pixiv_read_client import HTTPStatusRejected, AuthenticationMissing
+    if isinstance(error, ScheduleConfirmationUnavailable):
+        return CONFIRMATION_STATUS.get(error.reason, '定期チェックの認証を確認できません。')
     if isinstance(error, (ScheduleAccountError, AccountMismatch)):
         if getattr(error, 'reason', None) == 'unknown':
             return '定期チェックの既存データの出所を確認できません。データを保持して停止しました。'

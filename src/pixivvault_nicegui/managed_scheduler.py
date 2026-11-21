@@ -35,6 +35,12 @@ class ScheduleRestartRequired(ScheduleError):
     pass
 
 
+class ScheduleConfirmationUnavailable(ScheduleError):
+    def __init__(self, reason):
+        self.reason = reason
+        super().__init__('scheduler confirmation unavailable')
+
+
 class ScheduleAccountError(ScheduleError):
     def __init__(self, reason):
         if reason not in ('unknown', 'mismatch'):

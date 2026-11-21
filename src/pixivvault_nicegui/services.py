@@ -481,6 +481,7 @@ class ApplicationServices:
         self._managed_scheduler_lock = Lock()
         self._scheduler_waiting_for_auth = scheduler_wait_for_auth
         self._scheduler_dispatch_lock = Lock()
+        self._scheduler_confirmation_lock = Lock()
         self._scheduler_cancel_event = Event()
         self._scheduler_unfinished_count = None
         self.failed_queue_readonly_db = failed_queue_readonly_db
@@ -3479,23 +3480,64 @@ class ApplicationServices:
                 self._scheduler_waiting_for_auth = False
                 return True
 
-    def confirm_scheduler_account(self):
-        """Explicitly verify the live, gated reader for the schedule editor."""
-        from .managed_scheduler import ScheduleAccountError, _require_managed_network_allowed
+    def _scheduler_account_confirmation_state(self):
+        if self.closing or self._scheduler_cancel_event.is_set():
+            return 'closing', None
+        if self.scheduler_cookie_restart_required():
+            return 'restart', None
+        profile = getattr(self, 'native_profile', None)
+        followup = getattr(profile, 'followup', None)
+        if (getattr(profile, '_refresh_running', False) or getattr(followup, '_running', False)
+                or getattr(followup, 'pending', None) is not None):
+            return 'waiting', None
+        if self.managed_scheduler is None or self.following_sync is None or self.live_client is None:
+            return 'unavailable', None
+        try:
+            account = self.following_sync.last_synced_account()
+        except (OSError, RuntimeError):
+            return 'unavailable', None
+        if account is None:
+            return 'unsynced', None
+        if self._scheduler_waiting_for_auth:
+            return 'waiting', None
+        return None, account
 
-        with self._scheduler_dispatch_lock:
-            ledger, following, reader = self.managed_scheduler, self.following_sync, self.live_client
-            if self.closing or ledger is None or following is None or reader is None or self.scheduler_cookie_restart_required():
-                raise ScheduleAccountError('unknown')
-            account = following.last_synced_account()
-            if account is None:
-                raise ScheduleAccountError('unknown')
-            _require_managed_network_allowed(self)
-            require_same_account(account, reader.require_identity())
-            if self.scheduler_cookie_restart_required():
-                raise ScheduleAccountError('unknown')
-            ledger.capture_owner(self, account_id=account)
-        self.start_managed_scheduler_after_auth(account, following, reader=reader)
+    def scheduler_account_confirmation_blocker(self):
+        return self._scheduler_account_confirmation_state()[0]
+
+    def confirm_scheduler_account(self):
+        """Confirm the editor's live reader without starting the timer."""
+        from .managed_scheduler import ScheduleConfirmationUnavailable, _require_managed_network_allowed
+
+        def checkpoint():
+            if self.closing or self._scheduler_cancel_event.is_set():
+                raise ScheduleConfirmationUnavailable('closing')
+
+        checkpoint()
+        if not self._scheduler_confirmation_lock.acquire(blocking=False):
+            raise ScheduleConfirmationUnavailable('busy')
+        try:
+            with self._managed_scheduler_lock:
+                blocker, account = self._scheduler_account_confirmation_state()
+                if blocker is not None:
+                    raise ScheduleConfirmationUnavailable(blocker)
+                ledger, following, reader = self.managed_scheduler, self.following_sync, self.live_client
+            # The GET must not hold a lock needed to close the live reader.
+            with request_scope(checkpoint=checkpoint):
+                checkpoint()
+                _require_managed_network_allowed(self)
+                actual = reader.require_identity()
+            with self._managed_scheduler_lock:
+                blocker, current = self._scheduler_account_confirmation_state()
+                if blocker is not None:
+                    raise ScheduleConfirmationUnavailable(blocker)
+                if self.managed_scheduler is not ledger or self.following_sync is not following or self.live_client is not reader:
+                    raise AccountMismatch()
+                require_same_account(account, current)
+                require_same_account(account, actual)
+                ledger.capture_owner(self, account_id=account)
+        finally:
+            self._scheduler_confirmation_lock.release()
 
     # -- author batch runs ---------------------------------------------------------------
     def batch_run_active(self) -> bool:
