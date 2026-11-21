@@ -33,6 +33,10 @@ def make(tmp_path, source=None):
     return services, reader
 
 
+def items_of(card):
+    return [node for node in card.descendants() if isinstance(node, ui.menu_item)]
+
+
 def label_of(item):
     return next(n.text for n in item.descendants() if isinstance(n, ui.item_section))
 
