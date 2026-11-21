@@ -11,6 +11,19 @@ import re
 
 from nicegui import ui
 
+from .action_controls import outlined_input, primary_button, refresh_button, secondary_button
+
+
+def _feedback(label, text, *, error=False):
+    label.set_text(text)
+    label.classes(add='pv-tone-b-error' if error else None, remove=None if error else 'pv-tone-b-error')
+
+
+def _run_failed(summary):
+    return bool(summary.work_error or (summary.stopped and summary.stopped not in {
+        'cancelled', 'download_busy', 'already_running', 'disabled',
+    }))
+
 
 class MetadataView:
     """Per-client view backed by an application-owned managed side-ledger.
@@ -38,52 +51,55 @@ class MetadataView:
         self._busy = False
         self._status_busy = False
         self.revision = None
-        with ui.column().classes('pv-metadata-view w-full gap-3').props('data-testid=metadata-view') as self.root:
-            ui.label('メタデータ後埋め').classes('text-h6')
-            ui.label('専用管理フォルダーにのみ設定を保存します。元DBや既存画像は変更しません。')
-            ui.label('ブックマーク数・いいね数・閲覧数などは、作品ごとに詳細を1回ずつ取りに行かないと分かりません。'
-                     '自動で埋めるかどうかは、設定の「作品メタデータ」で切り替えます（既定はON）。')
-            ui.label('ダウンロード中・取得停止中は動かず、終わるまで待ちます。停止は通信完了待ちです。')
-            self.meta_status = ui.label('メタデータ: 状態を確認しています…').props(
-                'data-testid=metadata-status-line role=status')
-            with ui.row().classes('items-center'):
-                self.run_all_button = ui.button('いま埋める', on_click=self.run_all).props(
-                    'data-testid=metadata-run-all')
-                self.retry_button = ui.button('取れなかったものをもう一度試す', on_click=self.retry_gave_up).props(
-                    'data-testid=metadata-retry')
+        with ui.column().classes('pv-metadata-view w-full gap-2').props('data-testid=metadata-view') as self.root:
+            ui.label('メタデータ後埋め').classes('pv-library-heading pv-serif-heading')
+            ui.label('作品ごとにブックマーク数などを取得して専用管理フォルダーに保存し、元DB・既存画像は変更しません。'
+                     '自動実行は設定の「作品メタデータ」で切り替えられます（既定ON、ダウンロード中・取得停止中は待機し、停止要求時は通信完了待ち）。').classes('pv-subtitle')
+            with ui.row().classes('pv-toolbar'):
+                self.run_all_button = primary_button('いま埋める', self.run_all, testid='metadata-run-all')
+                self.retry_button = secondary_button('取れなかったものをもう一度試す', self.retry_gave_up,
+                                                     icon='replay', testid='metadata-retry')
                 self.retry_button.set_visibility(False)
-                self.stop_button = ui.button('取得の停止を要求', on_click=self.stop_run).props(
-                    'data-testid=metadata-stop')
-            self.run_status = ui.label('取得処理: 未実行').props(
-                'data-testid=metadata-run-status role=status')
-            self.action_notice = ui.label('').props(
+                self.stop_button = secondary_button('取得の停止を要求', self.stop_run, outline=True, testid='metadata-stop')
+            with ui.row().classes('w-full items-baseline gap-x-4 gap-y-1'):
+                self.meta_status = ui.label('メタデータ: 状態を確認しています…').classes('pv-subtitle').props(
+                    'data-testid=metadata-status-line role=status')
+                self.run_status = ui.label('取得処理: 未実行').classes('pv-subtitle').props(
+                    'data-testid=metadata-run-status role=status')
+            self.action_notice = ui.label('').classes('pv-subtitle pv-tone-b-notice').props(
                 'data-testid=metadata-action-notice role=status')
-            with ui.expansion('台帳の詳細・保留と中断の確認', icon='fact_check').classes('w-full'):
-                self.open_button = ui.button('専用メタデータ台帳を開く', on_click=self.open).props(
-                    'data-testid=metadata-open')
-                with ui.row().classes('items-center'):
-                    self.refresh_button = ui.button('状態更新', on_click=self.refresh).props(
-                        'data-testid=metadata-refresh')
-                self.status = ui.label('専用メタデータ台帳は未起動です').props(
-                    'data-testid=metadata-status role=status')
-                self.progress_label = ui.label('台帳の作品状態: 未読込').props(
-                    'data-testid=metadata-progress role=status')
-                ui.label('保留・中断作品の確認（操作は指定した1作品のみ、通信・自動再試行なし）')
-                self.work_id = ui.input(label='台帳の作品ID（数字）').props(
-                    'data-testid=metadata-work-id')
-                with ui.row().classes('items-center'):
-                    self.inspect_button = ui.button('作品の台帳状態を確認', on_click=self.inspect).props(
-                        'data-testid=metadata-inspect')
-                    self.ack_button = ui.button('以前の中断を確認済みにする', on_click=self.acknowledge).props(
-                        'data-testid=metadata-ack-interrupted')
-                    self.resume_interrupted_button = ui.button('中断不明から待機へ戻す',
-                        on_click=self.resume_interrupted).props('data-testid=metadata-resume-interrupted')
-                    self.resume_blocked_button = ui.button('保留から待機へ戻す',
-                        on_click=self.resume_blocked).props('data-testid=metadata-resume-blocked')
-                self.entry_status = ui.label('指定した作品の状態: 未確認').props(
-                    'data-testid=metadata-entry-status role=status')
-                self.run_button = ui.button('指定した保存済み1作品を取得', on_click=self.run_one).props(
-                    'data-testid=metadata-run-one')
+            with ui.expansion('台帳の詳細・保留と中断の確認', icon='fact_check').props('dense').classes('w-full'):
+                with ui.column().classes('w-full gap-2'):
+                    with ui.row().classes('w-full items-center gap-x-3 gap-y-1'):
+                        self.open_button = secondary_button('専用メタデータ台帳を開く', self.open, outline=True,
+                                                            testid='metadata-open')
+                        self.refresh_button = refresh_button(self.refresh, label='状態更新', testid='metadata-refresh')
+                        self.status = ui.label('専用メタデータ台帳は未起動です').classes('pv-subtitle').props(
+                            'data-testid=metadata-status role=status')
+                        self.progress_label = ui.label('台帳の作品状態: 未読込').classes('pv-subtitle').props(
+                            'data-testid=metadata-progress role=status')
+                    ui.separator()
+                    self.work_id = outlined_input(label='台帳の作品ID（数字）').props('inputmode=numeric data-testid=metadata-work-id')
+                    with ui.element('div').classes('w-full pv-tone-b-metadata-operations'):
+                        with ui.column().classes('min-w-0 gap-1').props('data-testid=metadata-ledger-local'):
+                            ui.label('台帳の確認・状態変更').classes('pv-section-heading')
+                            ui.label('この欄の操作は通信や自動再試行を行いません。').classes('pv-subtitle')
+                            with ui.row().classes('items-center gap-x-3 gap-y-1'):
+                                self.inspect_button = secondary_button('作品の台帳状態を確認', self.inspect,
+                                                                       testid='metadata-inspect')
+                                self.ack_button = secondary_button('以前の中断を確認済みにする', self.acknowledge,
+                                                                   testid='metadata-ack-interrupted')
+                                self.resume_interrupted_button = secondary_button('中断不明から待機へ戻す', self.resume_interrupted,
+                                                                                  testid='metadata-resume-interrupted')
+                                self.resume_blocked_button = secondary_button('保留から待機へ戻す', self.resume_blocked,
+                                                                              testid='metadata-resume-blocked')
+                            self.entry_status = ui.label('指定した作品の状態: 未確認').classes('pv-subtitle').props(
+                                'data-testid=metadata-entry-status role=status')
+                        with ui.column().classes('min-w-0 gap-1 pv-tone-b-metadata-remote').props('data-testid=metadata-ledger-remote'):
+                            ui.label('Pixivから取得（通信あり）').classes('pv-section-heading')
+                            ui.label('上で指定した作品IDを使います。').classes('pv-subtitle')
+                            self.run_button = secondary_button('指定した保存済み1作品を取得', self.run_one, icon='cloud_download',
+                                                               testid='metadata-run-one')
             self.stop_button.set_enabled(False)
         self._set_controls(False)
         self._timer = ui.timer(5.0, self._tick)
@@ -107,11 +123,11 @@ class MetadataView:
             status = await asyncio.to_thread(self.services.managed_metadata_status)
             if self.closed:
                 return
-            self.meta_status.set_text(status.text + (f'  {extra}' if extra else ''))
+            _feedback(self.meta_status, status.text + (f'  {extra}' if extra else ''))
             self.retry_button.set_visibility(bool(status.gave_up) and not self._busy)
         except Exception:
             if not self.closed:
-                self.meta_status.set_text('メタデータ: 状態を読めませんでした')
+                _feedback(self.meta_status, 'メタデータ: 状態を読めませんでした', error=True)
         finally:
             self._status_busy = False
 
@@ -135,19 +151,22 @@ class MetadataView:
         self.run_all_button.set_enabled(False)
         self.retry_button.set_visibility(False)
         self.stop_button.set_enabled(True)
-        self.run_status.set_text('メタデータを埋めています…（ダウンロード中・取得停止中は動きません）')
+        _feedback(self.run_status, 'メタデータを埋めています…（ダウンロード中・取得停止中は動きません）')
         tail = ''
+        error = False
         try:
             summary = await asyncio.to_thread(self.services.run_managed_metadata_all)
             tail = self._summary_text(summary)
+            error = _run_failed(summary)
         except Exception:
             tail = '取得不可。保存先と通信の状態を確認してください。'
+            error = True
         finally:
             self._busy = False
             if not self.closed:
                 self.run_all_button.set_enabled(True)
                 self.stop_button.set_enabled(False)
-                self.run_status.set_text('取得結果: ' + tail)
+                _feedback(self.run_status, '取得結果: ' + tail, error=error)
         await self.refresh_status()
 
     async def retry_gave_up(self):
@@ -160,10 +179,10 @@ class MetadataView:
         try:
             count = await asyncio.to_thread(self.services.reset_managed_metadata_gave_up)
             if not self.closed:
-                self.run_status.set_text(f'{count} 件を対象へ戻しました。')
+                _feedback(self.run_status, f'{count} 件を対象へ戻しました。')
         except Exception:
             if not self.closed:
-                self.run_status.set_text('対象へ戻せませんでした。')
+                _feedback(self.run_status, '対象へ戻せませんでした。', error=True)
         finally:
             self._busy = False
         await self.refresh_status()
@@ -174,16 +193,16 @@ class MetadataView:
         # A separate notice survives the periodic settings/progress refresh.
         self.action_notice.set_text(message)
         if target == 'entry':
-            self.entry_status.set_text(message)
+            _feedback(self.entry_status, message)
         elif target == 'run':
-            self.run_status.set_text(message)
+            _feedback(self.run_status, message)
         else:
-            self.status.set_text(message)
+            _feedback(self.status, message)
 
     def _load(self, settings):
         # 台帳の enabled は内部の門。自動実行の入切は設定画面が持つ。
         self.revision = settings.revision
-        self.status.set_text('専用メタデータ台帳: 開いています')
+        _feedback(self.status, '専用メタデータ台帳: 開いています')
 
     def _load_progress(self, counts):
         if counts is None:
@@ -216,7 +235,7 @@ class MetadataView:
                 self._load_progress(counts)
         except Exception:
             if not self.closed:
-                self.status.set_text('専用メタデータ台帳を開けませんでした')
+                _feedback(self.status, '専用メタデータ台帳を開けませんでした', error=True)
         finally:
             self._busy = False
 
@@ -233,7 +252,7 @@ class MetadataView:
                     self._load_progress(counts)
         except Exception:
             if not self.closed:
-                self.status.set_text('後埋め設定の状態を取得できませんでした')
+                _feedback(self.status, '後埋め設定の状態を取得できませんでした', error=True)
         finally:
             self._busy = False
 
@@ -256,14 +275,14 @@ class MetadataView:
             entry = await asyncio.to_thread(self.services.managed_metadata_entry, wid)
             if not self.closed:
                 if entry is None:
-                    self.entry_status.set_text('台帳に指定作品の記録はありません')
+                    _feedback(self.entry_status, '台帳に指定作品の記録はありません')
                 else:
-                    self.entry_status.set_text(
+                    _feedback(self.entry_status,
                         f'台帳状態: {entry.state} / 試行回数: {entry.attempts} '
                         '（現在の保存世代と照合済みではありません）')
         except Exception:
             if not self.closed:
-                self.entry_status.set_text('作品IDが無効か、台帳を読み取れませんでした')
+                _feedback(self.entry_status, '作品IDが無効か、台帳を読み取れませんでした', error=True)
         finally:
             self._busy = False
 
@@ -301,12 +320,12 @@ class MetadataView:
             if self.closed:
                 return
             self._load_progress(counts)
-            self.entry_status.set_text('指定作品の操作を記録しました。この操作自体は通信しません。')
+            _feedback(self.entry_status, '指定作品の操作を記録しました。この操作自体は通信しません。')
         except Exception:
             if not self.closed:
-                self.entry_status.set_text(
+                _feedback(self.entry_status,
                     '処理できませんでした。古い改訂番号、現在の保存世代、'
-                    'または中断の状態を確認してください')
+                    'または中断の状態を確認してください', error=True)
         finally:
             self._busy = False
             if not self.closed:
@@ -334,22 +353,23 @@ class MetadataView:
             wid = self._selected_work_id()
             self.stop_button.set_enabled(True)
             self.run_all_button.set_enabled(False)
-            self.run_status.set_text('明示取得の処理中（新規ダウンロード受付はGET完了まで待つことがあります）')
+            _feedback(self.run_status, '明示取得の処理中（新規ダウンロード受付はGET完了まで待つことがあります）')
             summary = await asyncio.to_thread(
                 self.services.run_managed_metadata_one, wid,
                 expected_revision=self.revision)
             if self.closed:
                 return
             # Stop reasons and counts contain no artwork titles, URLs, or credentials.
-            self.run_status.set_text(
+            _feedback(self.run_status,
                 f'取得結果: 完了 {summary.filled} / 対象 {summary.target} / '
-                f'保留理由 {summary.stopped or "なし"}')
+                f'保留理由 {summary.stopped or "なし"}'
+                + (f' / 失敗 {summary.work_error} 件' if summary.work_error else ''), error=_run_failed(summary))
             counts = await asyncio.to_thread(self.services.managed_metadata_progress)
             if not self.closed:
                 self._load_progress(counts)
         except Exception:
             if not self.closed:
-                self.run_status.set_text('取得不可。設定、保存済み作品とキューの状態を確認してください')
+                _feedback(self.run_status, '取得不可。設定、保存済み作品とキューの状態を確認してください', error=True)
         finally:
             self._busy = False
             if not self.closed:
@@ -363,7 +383,7 @@ class MetadataView:
         # Does not close an in-flight socket or tamper with the durable receipt;
         # bounded GET is allowed to drain before service shutdown.
         self.services.stop_managed_metadata()
-        self.run_status.set_text('停止を要求しました。通信中のGETは完了待ちです')
+        _feedback(self.run_status, '停止を要求しました。通信中のGETは完了待ちです')
 
     def close(self):
         self.closed = True

@@ -165,7 +165,7 @@ def seed_all(base: Path) -> dict:
 
 
 # --------------------------------------------------------------------------- server
-def make_stopped_reader(base, fake):
+def make_stopped_reader(base, fake, *, stop_status=429, transport_body=None):
     """Use the product reader and durable stop with generated data only."""
     import hashlib
     from pixivvault_nicegui.managed_network_stop_gate import ManagedNetworkStopGate, _file_identity
@@ -182,13 +182,16 @@ def make_stopped_reader(base, fake):
         'history_proof': hashlib.sha256(b'generated-only-no-real-historical-proof').hexdigest(),
     }), encoding='utf-8')
     scope = ManagedUserNetworkStopScope(root)
-    scope.gate.trip(429)
+    if stop_status is not None:
+        scope.gate.trip(stop_status)
     cookie = base / 'generated-cookie.txt'
     cookie.write_text('# Netscape HTTP Cookie File\n'
                       '.pixiv.net\tTRUE\t/\tTRUE\t4102444800\tPHPSESSID\t55_generatedonly\n',
                       encoding='utf-8')
     def transport(*_args):
         fake._hit('transport')
+        if transport_body is not None:
+            return transport_body
         raise RuntimeError('unexpected synthetic transport')
     return scope.create_reader(cookie, transport=transport), scope
 
@@ -430,6 +433,19 @@ def check_personal_tag_commit(page):
     return {'draft_committed_on_enter': True, 'ime_enter_ignored': True, 'removal_confirmed': True}
 
 
+def open_personal_filters(page):
+    toggle = page.get_by_test_id('personal-filter-toggle')
+    panel = page.get_by_test_id('personal-filter-panel')
+    panel.wait_for(state='hidden')
+    assert toggle.get_attribute('aria-expanded') == 'false'
+    toggle.click()
+    panel.wait_for(state='visible')
+    assert toggle.get_attribute('aria-expanded') == 'true'
+    assert toggle.get_attribute('aria-controls') == panel.get_attribute('id')
+    for testid in ('personal-sort', 'personal-bookmarks'):
+        panel.get_by_test_id(testid).wait_for(state='visible')
+
+
 def run_matrix(pw, url, out: Path, expectations, screens, wait_ms, get_net, startup_wait_ms, strict=False):
     """The whole tour.  Returns (cells, foreign requests, testids per screen, call log).
 
@@ -507,6 +523,8 @@ def run_matrix(pw, url, out: Path, expectations, screens, wait_ms, get_net, star
                                 operation = check_library_pan(page)
                             elif name == "personal":
                                 operation = check_personal_tag_commit(page)
+                                open_personal_filters(page)
+                                operation['filter_panel_opened'] = True
                         except Exception as e:  # missing opener / ready element: a FAIL, not a crash
                             error = f"{type(e).__name__}: {str(e).splitlines()[0][:200]}"
                         snap = page.evaluate(SNAPSHOT_JS)

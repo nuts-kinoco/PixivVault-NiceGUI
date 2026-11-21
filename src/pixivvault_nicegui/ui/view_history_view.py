@@ -5,6 +5,8 @@ from io import StringIO
 from types import SimpleNamespace
 from nicegui import ui
 
+from .action_controls import dialog_actions, outlined_input, secondary_button
+
 LABELS = {'like':'いいね','superLike':'SuperLike','skip':'見送り','hate':'合わない'}
 
 class _NoticeStatus:
@@ -53,20 +55,23 @@ class ViewHistoryView:
         self.button = ui.button('閲覧履歴', on_click=self.open).props('flat data-testid=view-history-inner')
         self.button.set_visibility(False)
         self.button.set_enabled(storage is not None)
-        with ui.dialog().props('data-testid=view-history-dialog') as self.dialog, ui.card().classes('w-full').style('max-width:900px'):
-            ui.label('閲覧履歴（学習タブ）').classes('pv-view-title')
+        with ui.dialog().props('data-testid=view-history-dialog') as self.dialog, ui.card().classes('pv-tone-b-history-card w-full gap-2'):
+            ui.label('閲覧履歴（学習タブ）').classes('pv-dialog-title text-base font-semibold')
             ui.label('学習で開いた作品の記録です。判定とは別に回数を記録します。').classes('pv-subtitle')
-            self.notice = ui.label().props('role=status data-testid=view-history-status')
-            self.body = ui.column().classes('w-full').style('max-height:60vh;overflow-y:auto')
-            self.more = ui.button('もっと見る', on_click=self.load_more).props('flat data-testid=view-history-more')
-            with ui.row().classes('w-full items-center justify-between'):
-                ui.button('CSV出力', on_click=self.export).props('flat data-testid=view-history-export')
-                ui.button('閉じる', on_click=self.dialog.close).props('flat data-testid=view-history-close')
-            with ui.expansion('閲覧履歴を全件削除').classes('w-full').props('data-testid=view-history-danger'):
+            self.notice = ui.label().classes('pv-subtitle pv-tone-b-notice').props('role=status data-testid=view-history-status')
+            self.body = ui.column().classes('pv-tone-b-history-list pv-tone-b-list w-full gap-2')
+            self.more = secondary_button('もっと見る', self.load_more, testid='view-history-more')
+            with ui.expansion('閲覧履歴を全件削除').classes('w-full').props('dense data-testid=view-history-danger'):
                 self.delete_summary = ui.label().classes('pv-subtitle')
-                self.confirm = ui.input('削除する履歴の件数を入力').props('data-testid=view-history-confirm')
-                self.clear_button = ui.button('全件削除', on_click=self.clear, color='negative').props('data-testid=view-history-clear')
-                self.confirm.on_value_change(lambda _: self.sync())
+                with ui.row().classes('w-full items-center gap-2'):
+                    self.confirm = outlined_input('削除する履歴の件数を入力').props(
+                        'inputmode=numeric data-testid=view-history-confirm')
+                    self.clear_button = ui.button('全件削除', on_click=self.clear, color='amber').props(
+                        'unelevated dense no-caps text-color=black data-testid=view-history-clear')
+                    self.confirm.on_value_change(lambda _: self.sync())
+            with dialog_actions().classes('justify-end'):
+                secondary_button('CSV出力', self.export, icon='file_download', outline=True, testid='view-history-export')
+                secondary_button('閉じる', self.dialog.close, testid='view-history-close')
         self.dialog.on('hide', self.hide)
         from .recommendation_viewer import RecommendationViewer
         self.viewer = RecommendationViewer(parent.services, parent.root, on_close=lambda:None,
@@ -83,6 +88,10 @@ class ViewHistoryView:
         self.delete_summary.set_text(f'閲覧履歴{len(self.rows)}件が対象です。作品や判定は削除しません。')
         self.clear_button.set_enabled(not self.busy and bool(self.rows) and self.confirm.value == str(len(self.rows)))
         self.more.set_visibility(self.shown < len(self.rows))
+
+    def _show_notice(self, text, *, error=False):
+        self.notice.set_text(text)
+        self.notice.classes(add='pv-tone-b-error' if error else None, remove=None if error else 'pv-tone-b-error')
 
     async def open(self):
         self.error = ''
@@ -108,9 +117,10 @@ class ViewHistoryView:
                 self.rows = rows
                 self.confirm.set_value('')
                 self.render()
-            self.notice.set_text(self.error or f'{len(rows)}件')
+            self._show_notice(self.error or f'{len(rows)}件', error=bool(self.error))
         except Exception:
-            if not self.closed:self.notice.set_text('閲覧履歴を読み込めません。保存先を確認して再度開いてください。')
+            if not self.closed:
+                self._show_notice('閲覧履歴を読み込めません。保存先を確認して再度開いてください。', error=True)
         finally:
             self.busy = False
             if not self.closed:self.sync()
@@ -118,21 +128,23 @@ class ViewHistoryView:
     def render(self):
         self.body.clear()
         with self.body:
-            if not self.rows:ui.label('閲覧履歴はありません。')
+            if not self.rows:
+                ui.label('閲覧履歴はありません。').classes('pv-empty')
             for row in self.rows[:self.shown]:
-                with ui.row().classes('w-full items-center').props(f'data-testid=view-history-row data-work-id={row["work_id"]}'):
+                with ui.row().classes('pv-tone-b-history-row').props(f'data-testid=view-history-row data-work-id={row["work_id"]}'):
                     try:
                         source = self.parent._images.url(row['work_id'],0,'thumb')
                     except Exception:
-                        ui.icon('image_not_supported').style('width:64px;height:64px')
+                        ui.icon('image_not_supported').classes('pv-tone-b-thumb pv-tone-b-history-placeholder')
                     else:
-                        picture = ui.image(source).style('width:64px;height:64px').props('fit=cover').on('click',lambda _,w=row['work_id']:self.open_work(w))
+                        picture = ui.image(source).classes('pv-tone-b-thumb').props('fit=cover').on('click',lambda _,w=row['work_id']:self.open_work(w))
                         with picture.add_slot('error'):
-                            ui.icon('image_not_supported').classes('pv-subtitle').style('font-size:24px')
-                    ui.button(row['title'], on_click=lambda _,w=row['work_id']:self.open_work(w)).props('flat')
-                    ui.label(f'開いた回数: {row["open_count"]}　最終: {row["last_opened_at"]}').classes('pv-subtitle')
-                    ui.label(LABELS.get(row.get('discovery_verdict'), '')).props('data-testid=view-history-badge').classes('pv-subtitle')
-                    ui.button('Pixivで開く', on_click=lambda _,w=row['work_id']:ui.navigate.to(f'https://www.pixiv.net/artworks/{w}',new_tab=True)).props('flat')
+                            ui.icon('image_not_supported').classes('pv-subtitle pv-tone-b-history-placeholder')
+                    with secondary_button('', lambda _,w=row['work_id']:self.open_work(w)).props('align=left').classes('pv-tone-b-history-title'):
+                        ui.label(row['title']).classes('pv-tone-b-history-title-text')
+                    ui.label(f'開いた回数: {row["open_count"]}　最終: {row["last_opened_at"]}').classes('pv-subtitle pv-tone-b-history-facts')
+                    ui.label(LABELS.get(row.get('discovery_verdict'), '')).props('data-testid=view-history-badge').classes('pv-subtitle pv-tone-b-history-badge')
+                    ui.button('Pixivで開く', color=None, on_click=lambda _,w=row['work_id']:ui.navigate.to(f'https://www.pixiv.net/artworks/{w}',new_tab=True)).props('flat dense no-caps').classes('pv-tone-b-history-external')
         self.sync()
 
     def load_more(self):
@@ -159,9 +171,10 @@ class ViewHistoryView:
         finally:
             self.busy = False
             self.confirm.set_value('')
-        await self.refresh()
         self.error = '閲覧履歴が変更されたか、削除できませんでした。再読込して件数を確認してください。' if failed else ''
-        if self.error:self.notice.set_text(self.error)
+        await self.refresh()
+        if self.error:
+            self._show_notice(self.error, error=True)
 
     async def record_open(self, wid):
         if self.closed or self.storage is None:

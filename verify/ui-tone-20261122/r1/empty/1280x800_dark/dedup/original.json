@@ -1,0 +1,1102 @@
+{
+  "semantics": [
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\empty\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixiv",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\empty\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixiv",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\empty\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixiv",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\empty\\original_copy\\p5-synthetic.sqlite",
+      "rect": [
+        18,
+        12,
+        578,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "PixivVault",
+      "rect": [
+        10,
+        38,
+        142,
+        46
+      ]
+    },
+    {
+      "role": null,
+      "text": "× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。",
+      "rect": [
+        10,
+        94,
+        519,
+        19
+      ]
+    },
+    {
+      "role": null,
+      "text": "直近のバックアップ",
+      "rect": [
+        1005,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1005,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "閲覧履歴（学習タブ・0件）",
+      "rect": [
+        1050,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1050,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "保存フォルダを開く",
+      "rect": [
+        1095,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1095,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ライトモードへ切り替え",
+      "rect": [
+        1140,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1140,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ブラウザで Pixiv を開く (ログイン状態確認・自動連携)",
+      "rect": [
+        1185,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1185,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "設定",
+      "rect": [
+        1230,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1230,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "アプリ: 切断中",
+      "rect": [
+        26,
+        134,
+        80,
+        18
+      ]
+    },
+    {
+      "role": "switch",
+      "text": "",
+      "rect": [
+        118,
+        127,
+        48,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "",
+      "rect": [
+        178,
+        135,
+        88,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "接続トークンを再発行する（旧トークンで設定済みのiOS側は再入力が必要になります）",
+      "rect": [
+        272,
+        131,
+        24,
+        24
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        272,
+        131,
+        24,
+        24
+      ]
+    },
+    {
+      "role": "switch",
+      "text": "API経路を切り替える",
+      "rect": [
+        308,
+        127,
+        48,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "API経路を切り替える API切り替え",
+      "rect": [
+        368,
+        135,
+        63,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "【Cookie未連携】",
+      "rect": [
+        55,
+        184,
+        116,
+        21
+      ]
+    },
+    {
+      "role": null,
+      "text": "PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixivを開くだけで自動的に連携されます。",
+      "rect": [
+        55,
+        207,
+        389,
+        38
+      ]
+    },
+    {
+      "role": "button",
+      "text": "Pixivを開く",
+      "rect": [
+        1071,
+        199,
+        138,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "閉じる",
+      "rect": [
+        1219,
+        195,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1219,
+        195,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "group",
+      "text": "ダウンロードキュー失敗リスト重複整理学習ランキングライブラリおすすめ",
+      "rect": [
+        10,
+        266,
+        1260,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ダウンロード",
+      "rect": [
+        10,
+        266,
+        139,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "キュー",
+      "rect": [
+        159,
+        266,
+        96,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "失敗リスト",
+      "rect": [
+        265,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "重複整理",
+      "rect": [
+        399,
+        266,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "学習",
+      "rect": [
+        530,
+        266,
+        82,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ランキング",
+      "rect": [
+        622,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ライブラリ",
+      "rect": [
+        756,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "おすすめ",
+      "rect": [
+        891,
+        266,
+        110,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "重複整理",
+      "rect": [
+        20,
+        330,
+        61,
+        21
+      ]
+    },
+    {
+      "role": null,
+      "text": "",
+      "rect": [
+        20,
+        370,
+        360,
+        34
+      ]
+    },
+    {
+      "role": "button",
+      "text": "決められないもの 0",
+      "rect": [
+        394,
+        372,
+        187,
+        31
+      ]
+    },
+    {
+      "role": null,
+      "text": "近似重複の候補",
+      "rect": [
+        603,
+        378,
+        89,
+        18
+      ]
+    },
+    {
+      "role": null,
+      "text": "–",
+      "rect": [
+        752,
+        379,
+        7,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "スキャンして更新",
+      "rect": [
+        792,
+        370,
+        162,
+        34
+      ]
+    },
+    {
+      "role": null,
+      "text": "未実行",
+      "rect": [
+        966,
+        379,
+        34,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "🗑 ごみ箱 0件・0B",
+      "rect": [
+        1012,
+        371,
+        133,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "1組ずつ開かずに、この一覧のまま選んで移せます。",
+      "rect": [
+        20,
+        420,
+        275,
+        17
+      ]
+    },
+    {
+      "role": "button",
+      "text": "画質の低い方を一括で選ぶ",
+      "rect": [
+        883,
+        412,
+        193,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "小",
+      "rect": [
+        1088,
+        412,
+        56,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "小",
+      "rect": [
+        1088,
+        412,
+        56,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "中",
+      "rect": [
+        1146,
+        412,
+        56,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "中",
+      "rect": [
+        1146,
+        412,
+        56,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "大",
+      "rect": [
+        1204,
+        412,
+        56,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "大",
+      "rect": [
+        1204,
+        412,
+        56,
+        32
+      ]
+    },
+    {
+      "role": "group",
+      "text": "決められないものはありません手で判断が要る重複はありません",
+      "rect": [
+        20,
+        452,
+        197,
+        328
+      ]
+    },
+    {
+      "role": null,
+      "text": "決められないものはありません",
+      "rect": [
+        32,
+        476,
+        185,
+        19
+      ]
+    },
+    {
+      "role": null,
+      "text": "手で判断が要る重複はありません",
+      "rect": [
+        32,
+        499,
+        176,
+        16
+      ]
+    }
+  ],
+  "outside_viewport": [],
+  "tone": {
+    "source": "Flutter CanvasKit accessibility bounds",
+    "viewport_height": 800,
+    "in_viewport_height": 450,
+    "semantic_extent_height": 450,
+    "semantic_extent_ratio": 0.562,
+    "scroll_height": null,
+    "scroll_ratio": null,
+    "fonts": null,
+    "buttons": null,
+    "cards": null,
+    "headings": [],
+    "spacing": null,
+    "semantic_scroll_nodes": [
+      {
+        "index": 39,
+        "parent": 2,
+        "role": null,
+        "label": "重複整理",
+        "rect": [
+          20,
+          330,
+          61,
+          21
+        ],
+        "tag": "flt-semantics",
+        "client_height": 21,
+        "scroll_height": 30,
+        "scroll_top": 0
+      },
+      {
+        "index": 40,
+        "parent": 2,
+        "role": null,
+        "label": "",
+        "rect": [
+          20,
+          370,
+          360,
+          34
+        ],
+        "tag": "flt-semantics",
+        "client_height": 34,
+        "scroll_height": 40,
+        "scroll_top": 0
+      },
+      {
+        "index": 42,
+        "parent": 2,
+        "role": null,
+        "label": "近似重複の候補",
+        "rect": [
+          603,
+          378,
+          89,
+          18
+        ],
+        "tag": "flt-semantics",
+        "client_height": 18,
+        "scroll_height": 25,
+        "scroll_top": 0
+      },
+      {
+        "index": 43,
+        "parent": 2,
+        "role": null,
+        "label": "–",
+        "rect": [
+          752,
+          379,
+          7,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 18,
+        "scroll_top": 0
+      },
+      {
+        "index": 45,
+        "parent": 2,
+        "role": null,
+        "label": "未実行",
+        "rect": [
+          966,
+          379,
+          34,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 47,
+        "parent": 2,
+        "role": null,
+        "label": "1組ずつ開かずに、この一覧のまま選んで移せます。",
+        "rect": [
+          20,
+          420,
+          275,
+          17
+        ],
+        "tag": "flt-semantics",
+        "client_height": 17,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 56,
+        "parent": 55,
+        "role": null,
+        "label": "決められないものはありません",
+        "rect": [
+          32,
+          476,
+          185,
+          19
+        ],
+        "tag": "flt-semantics",
+        "client_height": 19,
+        "scroll_height": 27,
+        "scroll_top": 0
+      },
+      {
+        "index": 57,
+        "parent": 55,
+        "role": null,
+        "label": "手で判断が要る重複はありません",
+        "rect": [
+          32,
+          499,
+          176,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      }
+    ],
+    "toolbars": [
+      {
+        "container": "semantic-body",
+        "rows": [
+          {
+            "count": 3,
+            "kinds": {
+              "button": 3
+            },
+            "controls": [
+              {
+                "index": 41,
+                "parent": 2,
+                "role": "button",
+                "label": "決められないもの 0",
+                "rect": [
+                  394,
+                  372,
+                  187,
+                  31
+                ],
+                "tag": "flt-semantics",
+                "client_height": 31,
+                "scroll_height": 31,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 44,
+                "parent": 2,
+                "role": "button",
+                "label": "スキャンして更新",
+                "rect": [
+                  792,
+                  370,
+                  162,
+                  34
+                ],
+                "tag": "flt-semantics",
+                "client_height": 34,
+                "scroll_height": 34,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 46,
+                "parent": 2,
+                "role": "button",
+                "label": "🗑 ごみ箱 0件・0B",
+                "rect": [
+                  1012,
+                  371,
+                  133,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 4,
+            "kinds": {
+              "button": 4
+            },
+            "controls": [
+              {
+                "index": 48,
+                "parent": 2,
+                "role": "button",
+                "label": "画質の低い方を一括で選ぶ",
+                "rect": [
+                  883,
+                  412,
+                  193,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 50,
+                "parent": 49,
+                "role": "button",
+                "label": "小",
+                "rect": [
+                  1088,
+                  412,
+                  56,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 52,
+                "parent": 51,
+                "role": "button",
+                "label": "中",
+                "rect": [
+                  1146,
+                  412,
+                  56,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 54,
+                "parent": 53,
+                "role": "button",
+                "label": "大",
+                "rect": [
+                  1204,
+                  412,
+                  56,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "common_components": [
+      {
+        "index": 44,
+        "parent": 2,
+        "role": "button",
+        "label": "スキャンして更新",
+        "rect": [
+          792,
+          370,
+          162,
+          34
+        ],
+        "tag": "flt-semantics",
+        "client_height": 34,
+        "scroll_height": 34,
+        "scroll_top": 0,
+        "kind": "button"
+      }
+    ],
+    "states": [
+      {
+        "index": 45,
+        "parent": 2,
+        "role": null,
+        "label": "未実行",
+        "rect": [
+          966,
+          379,
+          34,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 55,
+        "parent": 2,
+        "role": "group",
+        "label": "決められないものはありません 手で判断が要る重複はありません",
+        "rect": [
+          20,
+          452,
+          197,
+          328
+        ],
+        "tag": "flt-semantics",
+        "client_height": 328,
+        "scroll_height": 328,
+        "scroll_top": 0
+      },
+      {
+        "index": 56,
+        "parent": 55,
+        "role": null,
+        "label": "決められないものはありません",
+        "rect": [
+          32,
+          476,
+          185,
+          19
+        ],
+        "tag": "flt-semantics",
+        "client_height": 19,
+        "scroll_height": 27,
+        "scroll_top": 0
+      },
+      {
+        "index": 57,
+        "parent": 55,
+        "role": null,
+        "label": "手で判断が要る重複はありません",
+        "rect": [
+          32,
+          499,
+          176,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      }
+    ],
+    "flet_declared": {
+      "source": "running Flet control tree, declared styles",
+      "fonts": {
+        "15": 1,
+        "12.5": 2,
+        "11": 3,
+        "11.5": 2,
+        "9": 3,
+        "13": 1
+      },
+      "buttons": {
+        "filled-default-shape": 1,
+        "text-link": 5
+      },
+      "headings": [
+        {
+          "label": "重複整理",
+          "size": 15,
+          "font": "Yu Mincho",
+          "weight": "FontWeight.BOLD"
+        }
+      ],
+      "common_components": [
+        {
+          "type": "Button",
+          "label": "スキャンして更新"
+        }
+      ],
+      "box_styles": [
+        {
+          "bgcolor": "#0b0b10",
+          "padding": 10,
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 8,
+          "type": "Column",
+          "count": 1
+        },
+        {
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 2
+        },
+        {
+          "run_spacing": 8,
+          "spacing": 12,
+          "type": "Row",
+          "count": 1
+        },
+        {
+          "run_spacing": 8,
+          "spacing": 8,
+          "type": "Row",
+          "count": 1
+        },
+        {
+          "bgcolor": "#0096FA,0.25",
+          "border": "Border(top=BorderSide(width=1.5, color='#0096FA', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), right=BorderSide(width=1.5, color='#0096FA', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), bottom=BorderSide(width=1.5, color='#0096FA', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=1.5, color='#0096FA', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>))",
+          "border_radius": 8,
+          "padding": "Padding(left=12, top=0, right=10, bottom=0)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 10,
+          "type": "Row",
+          "count": 2
+        },
+        {
+          "bgcolor": "#0096FA",
+          "border_radius": 4,
+          "padding": "Padding(left=5, top=0, right=5, bottom=0)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "bgcolor": "#15161c",
+          "border": "Border(top=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), right=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), bottom=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>))",
+          "border_radius": 8,
+          "padding": "Padding(left=12, top=0, right=10, bottom=0)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "bgcolor": "transparent",
+          "border": "Border(top=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), right=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), bottom=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>))",
+          "border_radius": 4,
+          "padding": "Padding(left=5, top=0, right=5, bottom=0)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 12,
+          "type": "Row",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 2,
+          "type": "Row",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 0,
+          "type": "Column",
+          "count": 3
+        },
+        {
+          "run_spacing": 10,
+          "scroll": "ScrollMode.AUTO",
+          "spacing": 8,
+          "type": "Column",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 12,
+          "type": "Column",
+          "count": 1
+        },
+        {
+          "padding": "Padding(left=12, top=24, right=0, bottom=0)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 4,
+          "type": "Column",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "background_pixel": "#111418"
+}

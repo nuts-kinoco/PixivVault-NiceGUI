@@ -6,6 +6,7 @@ from threading import Event
 from PIL import Image
 from nicegui import ui
 from ..unfollowed_authors import fetch_unfollowed_authors
+from .action_controls import dialog_actions, outlined_select, primary_button, secondary_button
 from .pixiv_action_buttons import PixivActionButtons
 
 
@@ -28,20 +29,29 @@ class UnfollowedAuthorsView:
         self._account=None;self._reader=None
         self.follow_actions=[]
         with ui.dialog().props('data-testid=unfollowed-dialog') as self.dialog:
-            with ui.card().classes('w-full').style('max-width:900px'):
-                ui.label('ブックマークの未フォロー作者').classes('text-lg')
-                ui.label('選んだ公開範囲・媒体のブックマークから、公開／非公開ともフォローしていない作者を確認します。').classes('pv-subtitle')
-                with ui.row():
-                    self.kind=ui.select({'both':'全媒体','illustration':'イラスト・漫画・うごいら','novel':'小説'},value='both',label='媒体')
-                    self.visibility=ui.select({'both':'公開・非公開','show':'公開','hide':'非公開'},value='both',label='ブックマーク')
-                    self.fetch_button=ui.button('取得して確認',on_click=self.refresh).props('data-testid=unfollowed-fetch')
-                self.notice=ui.label('未取得です。').props('role=status data-testid=unfollowed-status')
-                self.rows=ui.column().classes('w-full').style('max-height:60vh;overflow:auto')
-                self.more=ui.button('次の50作者を表示',on_click=self.show_more)
-                self.more.set_visibility(False)
-                ui.button('閉じる',on_click=self.hide)
+            with ui.card().classes('pv-tone-b-unfollowed-card w-full gap-2'):
+                ui.label('ブックマークの未フォロー作者').classes('pv-dialog-title text-base font-semibold')
+                ui.label('選んだ媒体・公開範囲から、公開・非公開のどちらでもフォローしていない作者を確認します。').classes('pv-subtitle')
+                with ui.row().classes('pv-toolbar'):
+                    self.kind = outlined_select({'both': '全媒体', 'illustration': 'イラスト・漫画・うごいら', 'novel': '小説'},
+                                                value='both', label='媒体')
+                    self.visibility = outlined_select({'both': '公開・非公開', 'show': '公開', 'hide': '非公開'},
+                                                      value='both', label='ブックマーク')
+                    self.fetch_button = primary_button('取得して確認', self.refresh, testid='unfollowed-fetch')
+                self.notice = ui.label('未取得です。').classes('pv-subtitle pv-empty').props(
+                    'role=status data-testid=unfollowed-status')
+                self.rows = ui.column().classes('pv-tone-b-unfollowed-list pv-tone-b-list w-full gap-2')
+                with dialog_actions():
+                    self.more = secondary_button('次の50作者を表示', self.show_more).classes('mr-auto')
+                    self.more.set_visibility(False)
+                    secondary_button('閉じる', self.hide)
         self.dialog.on('hide',self.hide)
         self.client.on_delete(self.close)
+
+    def _set_notice(self, text, *, empty=False, error=False):
+        self.notice.set_text(text)
+        self.notice.classes(add='pv-empty' if empty else None, remove=None if empty else 'pv-empty')
+        self.notice.classes(add='pv-tone-b-error' if error else None, remove=None if error else 'pv-tone-b-error')
 
     def show(self):
         if self.closed:return
@@ -51,7 +61,7 @@ class UnfollowedAuthorsView:
         self._cancel.set();self.epoch+=1;self.visible=False;self.busy=False
         self.authors=();self._account=None;self._reader=None
         self._clear_rows();self.more.set_visibility(False)
-        self.notice.set_text('未取得です。')
+        self._set_notice('未取得です。', empty=True)
         self.fetch_button.set_enabled(True)
         if self.dialog.value:self.dialog.close()
 
@@ -82,25 +92,26 @@ class UnfollowedAuthorsView:
         if self.closed or not self.visible or self.busy:return False
         reader=getattr(self.services,'live_client',None)
         if reader is None:
-            self.notice.set_text('認証済みの読取接続が必要です。');return False
+            self._set_notice('認証済みの読取接続が必要です。', error=True);return False
         self.epoch+=1;epoch=self.epoch
         self._cancel.set();cancel=Event();self._cancel=cancel
         kinds=('illustration','novel') if self.kind.value=='both' else (self.kind.value,)
         rests=('show','hide') if self.visibility.value=='both' else (self.visibility.value,)
         self.busy=True;self.authors=();self._clear_rows();self.more.set_visibility(False)
-        self.fetch_button.set_enabled(False);self.notice.set_text('取得しています…')
+        self.fetch_button.set_enabled(False);self._set_notice('取得しています…')
         try:
             result=await asyncio.to_thread(fetch_unfollowed_authors,reader,kinds=kinds,
                 visibilities=rests,is_current=lambda:not cancel.is_set() and self.services.live_client is reader)
             if not self._current(epoch,reader,result.account_id):return False
             self.authors=result.authors;self._account=result.account_id;self._reader=reader;self.shown=50
-            self.notice.set_text(f'未フォロー作者 {len(self.authors)} 人')
+            self._set_notice(f'未フォロー作者 {len(self.authors)} 人', empty=not self.authors)
             await self._render(epoch)
             return self._current(epoch,reader,result.account_id)
         except Exception:
             if self._current(epoch,reader):
                 self.authors=();self._clear_rows()
-                self.notice.set_text('全件を取得できませんでした。接続・利用枠を確認してから再度操作してください。')
+                self._set_notice('全件を取得できませんでした。接続・利用枠を確認してから再度操作してください。',
+                                 error=True)
             return False
         finally:
             if self.epoch==epoch:
@@ -111,17 +122,19 @@ class UnfollowedAuthorsView:
         self._clear_rows();targets=[]
         with self.rows:
             for item in self.authors[:self.shown]:
-                with ui.row().classes('items-center'):
-                    image=ui.image().classes('w-28 h-28').props('data-testid=unfollowed-thumb')
-                    ui.label(f'{item.name} ({item.author_id})')
-                    ui.link('作者ページ',f'https://www.pixiv.net/users/{item.author_id}',new_tab=True)
+                with ui.row().classes('pv-tone-b-author-row'):
+                    image=ui.image().classes('pv-tone-b-thumb').props('data-testid=unfollowed-thumb')
+                    ui.label(f'{item.name} ({item.author_id})').classes('pv-tone-b-author-name')
+                    ui.link('作者ページ',f'https://www.pixiv.net/users/{item.author_id}',new_tab=True).classes('pv-tone-b-author-link')
                     binding=PixivActionButtons(self.services,prefix=f'unfollowed-{item.author_id}')
+                    binding.follow.classes('pv-tone-b-author-follow')
+                    binding.notice.classes('pv-tone-b-author-notice')
                     binding.bookmark.set_visibility(False)
                     binding.bind(None,item.author_id,author_name=item.name,
                         is_current=lambda:self._follow_current(epoch,reader,account))
                     self.follow_actions.append(binding)
-                    ui.label('代表: '+('小説' if item.kind=='novel' else '画像'))
-                    status=ui.label('プレビューなし' if not item.thumbnail else '読込中')
+                    ui.label('代表: '+('小説' if item.kind=='novel' else '画像')).classes('pv-subtitle pv-tone-b-author-kind')
+                    status=ui.label('プレビューなし' if not item.thumbnail else '読込中').classes('pv-subtitle pv-tone-b-author-preview')
                     if item.thumbnail:targets.append((item,image,status))
         self.more.set_visibility(self.shown<len(self.authors))
         async def fill(item,image,status):

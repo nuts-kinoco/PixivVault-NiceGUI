@@ -1,0 +1,1375 @@
+{
+  "semantics": [
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002806_969930\\normal\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixi",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002806_969930\\normal\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixi",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002806_969930\\normal\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixi",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002806_969930\\normal\\original_copy\\p5-synthetic.sqlite",
+      "rect": [
+        18,
+        12,
+        582,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "PixivVault",
+      "rect": [
+        10,
+        38,
+        142,
+        46
+      ]
+    },
+    {
+      "role": null,
+      "text": "× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。",
+      "rect": [
+        10,
+        94,
+        519,
+        19
+      ]
+    },
+    {
+      "role": null,
+      "text": "直近のバックアップ",
+      "rect": [
+        1005,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1005,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "閲覧履歴（学習タブ・1件）",
+      "rect": [
+        1050,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1050,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "保存フォルダを開く",
+      "rect": [
+        1095,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1095,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ライトモードへ切り替え",
+      "rect": [
+        1140,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1140,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ブラウザで Pixiv を開く (ログイン状態確認・自動連携)",
+      "rect": [
+        1185,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1185,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "設定",
+      "rect": [
+        1230,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1230,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "アプリ: 切断中",
+      "rect": [
+        26,
+        134,
+        80,
+        18
+      ]
+    },
+    {
+      "role": "switch",
+      "text": "",
+      "rect": [
+        118,
+        127,
+        48,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "",
+      "rect": [
+        178,
+        135,
+        88,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "接続トークンを再発行する（旧トークンで設定済みのiOS側は再入力が必要になります）",
+      "rect": [
+        272,
+        131,
+        24,
+        24
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        272,
+        131,
+        24,
+        24
+      ]
+    },
+    {
+      "role": "switch",
+      "text": "API経路を切り替える",
+      "rect": [
+        308,
+        127,
+        48,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "API経路を切り替える API切り替え",
+      "rect": [
+        368,
+        135,
+        63,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "【Cookie未連携】",
+      "rect": [
+        55,
+        184,
+        116,
+        21
+      ]
+    },
+    {
+      "role": null,
+      "text": "PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixivを開くだけで自動的に連携されます。",
+      "rect": [
+        55,
+        207,
+        389,
+        38
+      ]
+    },
+    {
+      "role": "button",
+      "text": "Pixivを開く",
+      "rect": [
+        1071,
+        199,
+        138,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "閉じる",
+      "rect": [
+        1219,
+        195,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1219,
+        195,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "group",
+      "text": "ダウンロードキュー失敗リスト重複整理学習ランキングライブラリおすすめ",
+      "rect": [
+        10,
+        266,
+        1260,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ダウンロード",
+      "rect": [
+        10,
+        266,
+        139,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "キュー",
+      "rect": [
+        159,
+        266,
+        96,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "失敗リスト",
+      "rect": [
+        265,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "重複整理",
+      "rect": [
+        399,
+        266,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "学習",
+      "rect": [
+        530,
+        266,
+        82,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ランキング",
+      "rect": [
+        622,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ライブラリ",
+      "rect": [
+        756,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "おすすめ",
+      "rect": [
+        891,
+        266,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "世間",
+      "rect": [
+        20,
+        324,
+        56,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "自分",
+      "rect": [
+        78,
+        324,
+        56,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "大",
+      "rect": [
+        1030,
+        324,
+        56,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "大",
+      "rect": [
+        1030,
+        324,
+        56,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "中",
+      "rect": [
+        1088,
+        324,
+        56,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "中",
+      "rect": [
+        1088,
+        324,
+        56,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "小",
+      "rect": [
+        1146,
+        324,
+        56,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "小",
+      "rect": [
+        1146,
+        324,
+        56,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "出さない一覧の管理",
+      "rect": [
+        1212,
+        322,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1212,
+        322,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "自分のランキング",
+      "rect": [
+        20,
+        370,
+        122,
+        21
+      ]
+    },
+    {
+      "role": "group",
+      "text": "合成タグ",
+      "rect": [
+        31,
+        400,
+        898,
+        38
+      ]
+    },
+    {
+      "role": null,
+      "text": "合成タグ",
+      "rect": [
+        40,
+        411,
+        45,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        87,
+        409,
+        20,
+        20
+      ]
+    },
+    {
+      "role": null,
+      "text": "",
+      "rect": [
+        118,
+        403,
+        811,
+        32
+      ]
+    },
+    {
+      "role": "switch",
+      "text": "R-18を含める",
+      "rect": [
+        956,
+        403,
+        48,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "R-18",
+      "rect": [
+        1012,
+        411,
+        23,
+        16
+      ]
+    },
+    {
+      "role": "switch",
+      "text": "AI作品を除外",
+      "rect": [
+        1051,
+        403,
+        48,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "AI除外",
+      "rect": [
+        1107,
+        411,
+        33,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "絞り込み › (1)",
+      "rect": [
+        1150,
+        403,
+        110,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "よく効くタグ:",
+      "rect": [
+        20,
+        455,
+        67,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "よく効くタグを隠す",
+      "rect": [
+        1109,
+        447,
+        151,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "出さない作品を除外 ✕",
+      "rect": [
+        20,
+        491,
+        132,
+        24
+      ]
+    },
+    {
+      "role": "button",
+      "text": "すべて解除",
+      "rect": [
+        158,
+        487,
+        93,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "取得時刻: 00:28 1件（これ以上はありません）",
+      "rect": [
+        20,
+        527,
+        254,
+        17
+      ]
+    },
+    {
+      "role": null,
+      "text": "クリックで画集ビューアを開く #1 P5合成データ synthetic authorこれで全部",
+      "rect": [
+        20,
+        552,
+        1240,
+        228
+      ]
+    },
+    {
+      "role": "group",
+      "text": "クリックで画集ビューアを開く #1 P5合成データ synthetic authorこれで全部",
+      "rect": [
+        20,
+        552,
+        1240,
+        228
+      ]
+    },
+    {
+      "role": "button",
+      "text": "クリックで画集ビューアを開く #1 P5合成データ synthetic author",
+      "rect": [
+        20,
+        552,
+        197,
+        197
+      ]
+    },
+    {
+      "role": null,
+      "text": "これで全部",
+      "rect": [
+        229,
+        552,
+        197,
+        197
+      ]
+    }
+  ],
+  "outside_viewport": [],
+  "tone": {
+    "source": "Flutter CanvasKit accessibility bounds",
+    "viewport_height": 800,
+    "in_viewport_height": 458,
+    "semantic_extent_height": 458,
+    "semantic_extent_ratio": 0.573,
+    "scroll_height": null,
+    "scroll_ratio": null,
+    "fonts": null,
+    "buttons": null,
+    "cards": null,
+    "headings": [],
+    "spacing": null,
+    "semantic_scroll_nodes": [
+      {
+        "index": 49,
+        "parent": 2,
+        "role": null,
+        "label": "自分のランキング",
+        "rect": [
+          20,
+          370,
+          122,
+          21
+        ],
+        "tag": "flt-semantics",
+        "client_height": 21,
+        "scroll_height": 30,
+        "scroll_top": 0
+      },
+      {
+        "index": 50,
+        "parent": 2,
+        "role": "group",
+        "label": "合成タグ",
+        "rect": [
+          31,
+          400,
+          898,
+          38
+        ],
+        "tag": "flt-semantics",
+        "client_height": 38,
+        "scroll_height": 41,
+        "scroll_top": 0
+      },
+      {
+        "index": 51,
+        "parent": 50,
+        "role": null,
+        "label": "合成タグ",
+        "rect": [
+          40,
+          411,
+          45,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 53,
+        "parent": 50,
+        "role": null,
+        "label": "",
+        "rect": [
+          118,
+          403,
+          811,
+          32
+        ],
+        "tag": "flt-semantics",
+        "client_height": 32,
+        "scroll_height": 38,
+        "scroll_top": 0
+      },
+      {
+        "index": 55,
+        "parent": 2,
+        "role": null,
+        "label": "R-18",
+        "rect": [
+          1012,
+          411,
+          23,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 18,
+        "scroll_top": 0
+      },
+      {
+        "index": 57,
+        "parent": 2,
+        "role": null,
+        "label": "AI除外",
+        "rect": [
+          1107,
+          411,
+          33,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 59,
+        "parent": 2,
+        "role": null,
+        "label": "よく効くタグ:",
+        "rect": [
+          20,
+          455,
+          67,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 61,
+        "parent": 2,
+        "role": "button",
+        "label": "出さない作品を除外 ✕",
+        "rect": [
+          20,
+          491,
+          132,
+          24
+        ],
+        "tag": "flt-semantics",
+        "client_height": 24,
+        "scroll_height": 48,
+        "scroll_top": 0
+      },
+      {
+        "index": 63,
+        "parent": 2,
+        "role": null,
+        "label": "取得時刻: 00:28 1件（これ以上はありません）",
+        "rect": [
+          20,
+          527,
+          254,
+          17
+        ],
+        "tag": "flt-semantics",
+        "client_height": 17,
+        "scroll_height": 24,
+        "scroll_top": 0
+      },
+      {
+        "index": 65,
+        "parent": 64,
+        "role": "group",
+        "label": "クリックで画集ビューアを開く #1 P5合成データ synthetic author これで全部",
+        "rect": [
+          20,
+          552,
+          1240,
+          228
+        ],
+        "tag": "flt-semantics",
+        "client_height": 228,
+        "scroll_height": 278,
+        "scroll_top": 0
+      },
+      {
+        "index": 67,
+        "parent": 65,
+        "role": null,
+        "label": "これで全部",
+        "rect": [
+          229,
+          552,
+          197,
+          197
+        ],
+        "tag": "flt-semantics",
+        "client_height": 197,
+        "scroll_height": 278,
+        "scroll_top": 0
+      }
+    ],
+    "toolbars": [
+      {
+        "container": "semantic-body",
+        "rows": [
+          {
+            "count": 6,
+            "kinds": {
+              "button": 6
+            },
+            "controls": [
+              {
+                "index": 39,
+                "parent": 2,
+                "role": "button",
+                "label": "世間",
+                "rect": [
+                  20,
+                  324,
+                  56,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 40,
+                "parent": 2,
+                "role": "button",
+                "label": "自分",
+                "rect": [
+                  78,
+                  324,
+                  56,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 42,
+                "parent": 41,
+                "role": "button",
+                "label": "大",
+                "rect": [
+                  1030,
+                  324,
+                  56,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 44,
+                "parent": 43,
+                "role": "button",
+                "label": "中",
+                "rect": [
+                  1088,
+                  324,
+                  56,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 46,
+                "parent": 45,
+                "role": "button",
+                "label": "小",
+                "rect": [
+                  1146,
+                  324,
+                  56,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 48,
+                "parent": 47,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  1212,
+                  322,
+                  40,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 4,
+            "kinds": {
+              "button": 2,
+              "switch": 2
+            },
+            "controls": [
+              {
+                "index": 52,
+                "parent": 50,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  87,
+                  409,
+                  20,
+                  20
+                ],
+                "tag": "flt-semantics",
+                "client_height": 20,
+                "scroll_height": 20,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 54,
+                "parent": 2,
+                "role": "switch",
+                "label": "R-18を含める",
+                "rect": [
+                  956,
+                  403,
+                  48,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "switch"
+              },
+              {
+                "index": 56,
+                "parent": 2,
+                "role": "switch",
+                "label": "AI作品を除外",
+                "rect": [
+                  1051,
+                  403,
+                  48,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "switch"
+              },
+              {
+                "index": 58,
+                "parent": 2,
+                "role": "button",
+                "label": "絞り込み › (1)",
+                "rect": [
+                  1150,
+                  403,
+                  110,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "index": 60,
+                "parent": 2,
+                "role": "button",
+                "label": "よく効くタグを隠す",
+                "rect": [
+                  1109,
+                  447,
+                  151,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "index": 61,
+                "parent": 2,
+                "role": "button",
+                "label": "出さない作品を除外 ✕",
+                "rect": [
+                  20,
+                  491,
+                  132,
+                  24
+                ],
+                "tag": "flt-semantics",
+                "client_height": 24,
+                "scroll_height": 48,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 62,
+                "parent": 2,
+                "role": "button",
+                "label": "すべて解除",
+                "rect": [
+                  158,
+                  487,
+                  93,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "index": 66,
+                "parent": 65,
+                "role": "button",
+                "label": "クリックで画集ビューアを開く #1 P5合成データ synthetic author",
+                "rect": [
+                  20,
+                  552,
+                  197,
+                  197
+                ],
+                "tag": "flt-semantics",
+                "client_height": 197,
+                "scroll_height": 197,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "common_components": [
+      {
+        "index": 54,
+        "parent": 2,
+        "role": "switch",
+        "label": "R-18を含める",
+        "rect": [
+          956,
+          403,
+          48,
+          32
+        ],
+        "tag": "flt-semantics",
+        "client_height": 40,
+        "scroll_height": 40,
+        "scroll_top": 0,
+        "kind": "switch"
+      },
+      {
+        "index": 56,
+        "parent": 2,
+        "role": "switch",
+        "label": "AI作品を除外",
+        "rect": [
+          1051,
+          403,
+          48,
+          32
+        ],
+        "tag": "flt-semantics",
+        "client_height": 40,
+        "scroll_height": 40,
+        "scroll_top": 0,
+        "kind": "switch"
+      }
+    ],
+    "states": [
+      {
+        "index": 63,
+        "parent": 2,
+        "role": null,
+        "label": "取得時刻: 00:28 1件（これ以上はありません）",
+        "rect": [
+          20,
+          527,
+          254,
+          17
+        ],
+        "tag": "flt-semantics",
+        "client_height": 17,
+        "scroll_height": 24,
+        "scroll_top": 0
+      }
+    ],
+    "flet_declared": {
+      "source": "running Flet control tree, declared styles",
+      "fonts": {
+        "9": 3,
+        "15": 1,
+        "11": 6,
+        "10.5": 2,
+        "10": 2,
+        "11.5": 1
+      },
+      "buttons": {
+        "text-link": 8,
+        "filled-default-shape": 1,
+        "icon-only": 1
+      },
+      "headings": [
+        {
+          "label": "自分のランキング",
+          "size": 15,
+          "font": "Yu Mincho",
+          "weight": "FontWeight.BOLD"
+        }
+      ],
+      "common_components": [
+        {
+          "type": "Switch",
+          "label": "R-18を含める"
+        },
+        {
+          "type": "Switch",
+          "label": "AI作品を除外"
+        }
+      ],
+      "box_styles": [
+        {
+          "bgcolor": "#0b0b10",
+          "padding": 10,
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 8,
+          "type": "Column",
+          "count": 2
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 10,
+          "type": "Row",
+          "count": 2
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 2,
+          "type": "Row",
+          "count": 5
+        },
+        {
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 2
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 0,
+          "type": "Column",
+          "count": 3
+        },
+        {
+          "padding": "Padding(left=0, top=4, right=8, bottom=0)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "bgcolor": "#15161c",
+          "border": "Border(top=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), right=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), bottom=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>))",
+          "border_radius": 8,
+          "padding": "Padding(left=10, top=0, right=10, bottom=0)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "scroll": "ScrollMode.AUTO",
+          "spacing": 6,
+          "type": "Row",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 6,
+          "type": "Row",
+          "count": 5
+        },
+        {
+          "bgcolor": "#1e202d",
+          "border": "Border(top=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), right=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), bottom=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>))",
+          "border_radius": 999,
+          "padding": "Padding(left=8, top=2, right=4, bottom=2)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "bgcolor": "#1e202d",
+          "border": "Border(top=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), right=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), bottom=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>))",
+          "border_radius": 8,
+          "padding": "Padding(left=9, top=3, right=9, bottom=3)",
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 12,
+          "type": "Row",
+          "count": 1
+        },
+        {
+          "run_spacing": 12,
+          "spacing": 12,
+          "type": "GridView",
+          "count": 1
+        },
+        {
+          "border": "Border(top=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), right=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), bottom=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>))",
+          "border_radius": 12,
+          "padding": 6,
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 2
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 3,
+          "type": "Column",
+          "count": 1
+        },
+        {
+          "bgcolor": "#15161c",
+          "border_radius": 12,
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 6,
+          "type": "Column",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "background_pixel": "#111418"
+}

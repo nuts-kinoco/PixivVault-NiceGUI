@@ -142,7 +142,10 @@ def test_preferences_view_shows_original_labels_without_relabeling_other_items(t
         assert control.options == {'1': '1時間ごと', '6': '6時間ごと', '12': '12時間ごと',
                                    '24': '24時間ごと (1日)', '48': '48時間ごと (2日)'}
         assert view.controls['api_retry_count'].options['1'] == '1'
-        assert view.controls['use_work_folder'].options == {'0': 'OFF', '1': 'ON'}
+        folder = view.controls['use_work_folder']
+        assert isinstance(folder, ui.switch)
+        assert (folder.props['false-value'], folder.props['true-value']) == ('0', '1')
+        assert folder.text == '作品ごとのフォルダーを使う'
         control.set_value('6')
         assert view.save()
         assert view.store.snapshot().values[key] == '6'

@@ -45,6 +45,36 @@ def test_premium_does_not_require_main_cookie_or_silent_fallback():
     with pytest.raises(RankingReadFailed):source.fetch(RankingQuery(tag='tag'))
 
 
+def test_personal_filter_drawer_preserves_search_controls():
+    from nicegui import Client, ui
+    from pixivvault_nicegui.services import ApplicationServices
+    from pixivvault_nicegui.ui.personal_ranking_view import PersonalRankingView
+
+    services = ApplicationServices(1)
+    client = Client(ui.page('/_personal_filter_drawer'))
+    try:
+        with client:
+            view = PersonalRankingView(services)
+            assert not view.filter_panel.visible
+            assert view.filter_toggle.props['aria-expanded'] == 'false'
+            assert view.filter_toggle.props['aria-controls'] == view.filter_panel.html_id
+            assert view.filter_panel.parent_slot.parent is view.gallery.root.parent_slot.parent
+            controls = [view.bookmarks, view.sort, view.start_date, view.end_date,
+                        view.date, view.include, view.exclude, view.author_max, *view.exclusions.values()]
+            assert all(control.parent_slot.parent is view.filter_panel for control in controls)
+            previous = view.current_filters(), view._server_key()
+            view._toggle_filters()
+            assert view.filter_panel.visible and view.filter_toggle.props['aria-expanded'] == 'true'
+            view._toggle_filters()
+            assert not view.filter_panel.visible and view.filter_toggle.props['aria-expanded'] == 'false'
+            assert (view.current_filters(), view._server_key()) == previous
+            assert isinstance(view.r18, ui.switch) and isinstance(view.ai, ui.switch)
+            assert view.fetch_button.props['aria-label'] == '取得・更新'
+    finally:
+        client.delete()
+        services.close()
+
+
 @pytest.mark.asyncio
 async def test_personal_context_wait_is_off_loop_and_late_result_is_discarded(monkeypatch):
     import asyncio

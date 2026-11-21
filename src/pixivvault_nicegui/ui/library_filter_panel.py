@@ -98,6 +98,13 @@ class _BookmarkSlider(ui.slider):
 class LibraryFilterPanel:
     """One panel and one condition set shared by the two library subviews."""
 
+    @staticmethod
+    def container(*, testid: str, label: str):
+        panel = ui.column().classes('pv-library-filter-panel')
+        panel.props['data-testid'] = testid
+        panel.props['aria-label'] = label
+        return panel
+
     def __init__(self, *, get_filters: Callable[[], LibraryFilters],
                  on_change: Callable[[LibraryFilters], bool],
                  can_edit: Callable[[], bool], body, now_parent, get_authors=lambda: {}) -> None:
@@ -121,8 +128,7 @@ class LibraryFilterPanel:
             self.now = ui.row().classes("pv-library-filter-now w-full").props(
                 "data-testid=library-filter-now")
         with body:
-            with ui.column().classes("pv-library-filter-panel").props(
-                "data-testid=library-filter-panel aria-label=ライブラリの絞り込み") as self.root:
+            with self.container(testid='library-filter-panel', label='ライブラリの絞り込み') as self.root:
                 with ui.row().classes("items-center justify-between w-full"):
                     ui.label("絞り込み").classes("pv-library-heading")
                     self.clear_button = ui.button("条件をクリア").props(

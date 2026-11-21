@@ -1,0 +1,455 @@
+{
+  "root": "nicegui-column",
+  "rect": [
+    320,
+    108,
+    640,
+    710.39
+  ],
+  "in_viewport_height": 692,
+  "viewport_height": 800,
+  "client_height": 708,
+  "scroll_height": 708,
+  "scroll_ratio": 0.89,
+  "content_extent": 708,
+  "content_ratio": 0.89,
+  "document_scroll_height": 800,
+  "document_scroll_ratio": 1,
+  "viewport_insets": [
+    108,
+    320,
+    0,
+    320
+  ],
+  "spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "content_spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "fonts": {
+    "16px": 2,
+    "14px": 13,
+    "12px": 1,
+    "18px": 1
+  },
+  "headings": [
+    {
+      "label": "Pixiv Cookieファイル",
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "size": "16px",
+      "weight": "400",
+      "rect": [
+        333,
+        121,
+        156.92,
+        28
+      ]
+    },
+    {
+      "label": "作品の保存先（親フォルダ）",
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "size": "16px",
+      "weight": "400",
+      "rect": [
+        333,
+        254,
+        209.95,
+        28
+      ]
+    },
+    {
+      "label": "停止履歴の引き継ぎ",
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "size": "18px",
+      "weight": "600",
+      "rect": [
+        333,
+        695,
+        162,
+        28
+      ]
+    }
+  ],
+  "cards": [],
+  "scroll": [],
+  "states": [],
+  "toolbars": [
+    {
+      "container": "nicegui-row",
+      "rows": [
+        {
+          "count": 2,
+          "kinds": {
+            "button": 2
+          },
+          "controls": [
+            {
+              "id": "native-profile-pick-cookie",
+              "label": "upload_file Cookieファイルを選択",
+              "rect": [
+                333,
+                202,
+                212.28,
+                36
+              ],
+              "kind": "button",
+              "button": "pill",
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "999px",
+                "999px",
+                "999px",
+                "999px"
+              ],
+              "border": "0px none rgb(232, 232, 239)",
+              "shadow": "none",
+              "background": "rgba(33, 150, 243, 0.1)"
+            },
+            {
+              "id": "native-profile-clear-cookie",
+              "label": "選択解除",
+              "rect": [
+                561.28,
+                202,
+                88,
+                36
+              ],
+              "kind": "button",
+              "button": "pill",
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "999px",
+                "999px",
+                "999px",
+                "999px"
+              ],
+              "border": "0px none rgb(0, 150, 250)",
+              "shadow": "none",
+              "background": "rgba(33, 150, 243, 0.1)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "container": "nicegui-row",
+      "rows": [
+        {
+          "count": 2,
+          "kinds": {
+            "button": 2
+          },
+          "controls": [
+            {
+              "id": "native-profile-pick-folder",
+              "label": "folder_open 保存先を選択",
+              "rect": [
+                333,
+                335,
+                152,
+                36
+              ],
+              "kind": "button",
+              "button": "pill",
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "999px",
+                "999px",
+                "999px",
+                "999px"
+              ],
+              "border": "0px none rgb(232, 232, 239)",
+              "shadow": "none",
+              "background": "rgba(33, 150, 243, 0.1)"
+            },
+            {
+              "id": "native-profile-clear-folder",
+              "label": "選択解除",
+              "rect": [
+                501,
+                335,
+                88,
+                36
+              ],
+              "kind": "button",
+              "button": "pill",
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "999px",
+                "999px",
+                "999px",
+                "999px"
+              ],
+              "border": "0px none rgb(0, 150, 250)",
+              "shadow": "none",
+              "background": "rgba(33, 150, 243, 0.1)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "container": "q-expansion-item__container",
+      "rows": [
+        {
+          "count": 1,
+          "kinds": {
+            "button": 1
+          },
+          "controls": [
+            {
+              "id": "q-item",
+              "label": "Expand \"旧ライブラリ（任意・読取専用）\"",
+              "rect": [
+                333,
+                387,
+                338,
+                48
+              ],
+              "kind": "button",
+              "button": "outlined",
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgba(255, 255, 255, 0.28)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "container": "q-expansion-item__container",
+      "rows": [
+        {
+          "count": 1,
+          "kinds": {
+            "button": 1
+          },
+          "controls": [
+            {
+              "id": "q-item",
+              "label": "Expand \"画像解析・GPU\"",
+              "rect": [
+                333,
+                451,
+                226.61,
+                48
+              ],
+              "kind": "button",
+              "button": "outlined",
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgba(255, 255, 255, 0.28)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "container": "nicegui-column",
+      "rows": [
+        {
+          "count": 1,
+          "kinds": {
+            "button": 1
+          },
+          "controls": [
+            {
+              "id": "native-profile-auth-check",
+              "label": "選択したCookieの認証を確認",
+              "rect": [
+                333,
+                567,
+                218.28,
+                36
+              ],
+              "kind": "button",
+              "button": "pill",
+              "shared": null,
+              "enabled": false,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "999px",
+                "999px",
+                "999px",
+                "999px"
+              ],
+              "border": "0px none rgb(0, 150, 250)",
+              "shadow": "none",
+              "background": "rgba(33, 150, 243, 0.1)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "container": "nicegui-row",
+      "rows": [
+        {
+          "count": 2,
+          "kinds": {
+            "button": 2
+          },
+          "controls": [
+            {
+              "id": "native-profile-save",
+              "label": "保存",
+              "rect": [
+                333,
+                619,
+                60,
+                36
+              ],
+              "kind": "button",
+              "button": "pill",
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "999px",
+                "999px",
+                "999px",
+                "999px"
+              ],
+              "border": "0px none rgb(0, 150, 250)",
+              "shadow": "none",
+              "background": "rgba(33, 150, 243, 0.1)"
+            },
+            {
+              "id": "native-profile-cancel",
+              "label": "取消",
+              "rect": [
+                409,
+                619,
+                60,
+                36
+              ],
+              "kind": "button",
+              "button": "pill",
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "999px",
+                "999px",
+                "999px",
+                "999px"
+              ],
+              "border": "0px none rgb(0, 150, 250)",
+              "shadow": "none",
+              "background": "rgba(33, 150, 243, 0.1)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "container": "nicegui-column",
+      "rows": [
+        {
+          "count": 1,
+          "kinds": {
+            "button": 1
+          },
+          "controls": [
+            {
+              "id": "native-profile-migration",
+              "label": "正式移行を実行する",
+              "rect": [
+                333,
+                769.39,
+                158,
+                36
+              ],
+              "kind": "button",
+              "button": "pill",
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "999px",
+                "999px",
+                "999px",
+                "999px"
+              ],
+              "border": "0px none rgb(0, 150, 250)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "buttons": {
+    "pill": 8,
+    "outlined": 2
+  },
+  "common_components": []
+}

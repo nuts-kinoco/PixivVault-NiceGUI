@@ -1,0 +1,943 @@
+{
+  "width": [
+    1920,
+    1920
+  ],
+  "text": [
+    {
+      "id": "c6",
+      "text": "PixivVault — 起動設定の確認",
+      "rect": [
+        648,
+        22,
+        312.39,
+        35
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "native-profile-recovery",
+      "text": "前の取得結果が不確かなため通信を停止しています。取得停止の確認・回復を開いて手順を確認してください。",
+      "rect": [
+        648,
+        72,
+        613.77,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "native-profile-recovery",
+      "text": "前の取得結果が不確かなため通信を停止しています。取得停止の確認・回復を開いて手順を確認してください。",
+      "rect": [
+        648,
+        93,
+        83.59,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "取得停止の確認・回復",
+      "rect": [
+        664,
+        137.98,
+        140,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "shared-get-recovery-summary",
+      "text": "過去のHTTP 429（アクセス制限）によるSTOPが記録されています。この回復では解除できません。今回の429の設定待機・再試行とは別の永続停止履歴で、再起動しても残ります。停止履歴・所有情報を削除せず、確認を依頼してください。保存元の正式移行が必要な場合は、起動時の「停止履歴の確認と移行手順を開く」で確認してくださ",
+      "rect": [
+        648,
+        182,
+        598.14,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "shared-get-recovery-summary",
+      "text": "過去のHTTP 429（アクセス制限）によるSTOPが記録されています。この回復では解除できません。今回の429の設定待機・再試行とは別の永続停止履歴で、再起動しても残ります。停止履歴・所有情報を削除せず、確認を依頼してください。保存元の正式移行が必要な場合は、起動時の「停止履歴の確認と移行手順を開く」で確認してくださ",
+      "rect": [
+        648,
+        203,
+        622.23,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "shared-get-recovery-summary",
+      "text": "過去のHTTP 429（アクセス制限）によるSTOPが記録されています。この回復では解除できません。今回の429の設定待機・再試行とは別の永続停止履歴で、再起動しても残ります。停止履歴・所有情報を削除せず、確認を依頼してください。保存元の正式移行が必要な場合は、起動時の「停止履歴の確認と移行手順を開く」で確認してくださ",
+      "rect": [
+        648,
+        224,
+        614.19,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "shared-get-recovery-summary",
+      "text": "過去のHTTP 429（アクセス制限）によるSTOPが記録されています。この回復では解除できません。今回の429の設定待機・再試行とは別の永続停止履歴で、再起動しても残ります。停止履歴・所有情報を削除せず、確認を依頼してください。保存元の正式移行が必要な場合は、起動時の「停止履歴の確認と移行手順を開く」で確認してくださ",
+      "rect": [
+        648,
+        245,
+        564.98,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c25",
+      "text": "Pixiv Cookieファイル",
+      "rect": [
+        648,
+        284,
+        156.92,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "native-profile-cookie-value",
+      "text": "未設定",
+      "rect": [
+        648,
+        326,
+        42,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "Cookieファイルを選択",
+      "rect": [
+        700,
+        370.98,
+        144.28,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "選択解除",
+      "rect": [
+        892.28,
+        370.98,
+        56,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c30",
+      "text": "作品の保存先（親フォルダ）",
+      "rect": [
+        648,
+        417,
+        209.95,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "native-profile-folder-value",
+      "text": "未設定",
+      "rect": [
+        648,
+        459,
+        42,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "保存先を選択",
+      "rect": [
+        700,
+        503.98,
+        84,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "選択解除",
+      "rect": [
+        832,
+        503.98,
+        56,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "div",
+      "text": "旧ライブラリ（任意・読取専用）",
+      "rect": [
+        720,
+        561.59,
+        210,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "div",
+      "text": "画像解析・GPU",
+      "rect": [
+        720,
+        625.59,
+        98.61,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c50",
+      "text": "保存した設定は次回起動から反映されます。実行中のジョブや保存先は変わりません。",
+      "rect": [
+        648,
+        677,
+        482.05,
+        17
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "保存",
+      "rect": [
+        664,
+        735.98,
+        28,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "取消",
+      "rect": [
+        740,
+        735.98,
+        28,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c56",
+      "text": "停止履歴の引き継ぎ",
+      "rect": [
+        648,
+        805,
+        162,
+        26
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c57",
+      "text": "以前の保存元を確認し、停止履歴を安全に引き継ぎます。通信・認証は行いません。",
+      "rect": [
+        648,
+        845,
+        530.19,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "正式移行を実行する",
+      "rect": [
+        664,
+        886.38,
+        126,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c13",
+      "text": "前の取得が中断された場合の回復",
+      "rect": [
+        640,
+        371,
+        303.75,
+        29
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "shared-get-recovery-notice",
+      "text": "過去のHTTP 429（アクセス制限）によるSTOPが記録されています。この回復では解除できません。今回の429の設定待機・再試行とは別の永続停止履歴で、再起動しても残ります。停止履歴・所有情報を削除せず、確認を依頼してください。保存元の正式移行が必要な場合は、起動時の「停止履歴の確認と移行手順を開く」で確認してくださ",
+      "rect": [
+        640,
+        418,
+        626.14,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "shared-get-recovery-notice",
+      "text": "過去のHTTP 429（アクセス制限）によるSTOPが記録されています。この回復では解除できません。今回の429の設定待機・再試行とは別の永続停止履歴で、再起動しても残ります。停止履歴・所有情報を削除せず、確認を依頼してください。保存元の正式移行が必要な場合は、起動時の「停止履歴の確認と移行手順を開く」で確認してくださ",
+      "rect": [
+        640,
+        439,
+        636.23,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "shared-get-recovery-notice",
+      "text": "過去のHTTP 429（アクセス制限）によるSTOPが記録されています。この回復では解除できません。今回の429の設定待機・再試行とは別の永続停止履歴で、再起動しても残ります。停止履歴・所有情報を削除せず、確認を依頼してください。保存元の正式移行が必要な場合は、起動時の「停止履歴の確認と移行手順を開く」で確認してくださ",
+      "rect": [
+        640,
+        460,
+        628.19,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "shared-get-recovery-notice",
+      "text": "過去のHTTP 429（アクセス制限）によるSTOPが記録されています。この回復では解除できません。今回の429の設定待機・再試行とは別の永続停止履歴で、再起動しても残ります。停止履歴・所有情報を削除せず、確認を依頼してください。保存元の正式移行が必要な場合は、起動時の「停止履歴の確認と移行手順を開く」で確認してくださ",
+      "rect": [
+        640,
+        481,
+        508.98,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c15",
+      "text": "前の送信結果は回復後も不明です。他のPixivVaultで取得が動いていないことを確認してください。回復は送信中の記録を退避するだけで、記録済みのHTTP 401・403・429によるSTOPは解除しません。今回の429の設定待機・再試行や、試行上限による起動中の停止も、この操作では解除しません。自動再送は行いません。",
+      "rect": [
+        640,
+        518,
+        635.3,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c15",
+      "text": "前の送信結果は回復後も不明です。他のPixivVaultで取得が動いていないことを確認してください。回復は送信中の記録を退避するだけで、記録済みのHTTP 401・403・429によるSTOPは解除しません。今回の429の設定待機・再試行や、試行上限による起動中の停止も、この操作では解除しません。自動再送は行いません。",
+      "rect": [
+        640,
+        539,
+        632.72,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c15",
+      "text": "前の送信結果は回復後も不明です。他のPixivVaultで取得が動いていないことを確認してください。回復は送信中の記録を退避するだけで、記録済みのHTTP 401・403・429によるSTOPは解除しません。今回の429の設定待機・再試行や、試行上限による起動中の停止も、この操作では解除しません。自動再送は行いません。",
+      "rect": [
+        640,
+        560,
+        637.64,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c15",
+      "text": "前の送信結果は回復後も不明です。他のPixivVaultで取得が動いていないことを確認してください。回復は送信中の記録を退避するだけで、記録済みのHTTP 401・403・429によるSTOPは解除しません。今回の429の設定待機・再試行や、試行上限による起動中の停止も、この操作では解除しません。自動再送は行いません。",
+      "rect": [
+        640,
+        581,
+        432.75,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "div",
+      "text": "他の取得処理が動いていないことと、前の結果が不明なままであることを確認しました",
+      "rect": [
+        680,
+        627.5,
+        544.89,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "確認して取得待ちの記録を退避する",
+      "rect": [
+        656,
+        681.98,
+        223.59,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "閉じる",
+      "rect": [
+        927.59,
+        681.98,
+        42,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    }
+  ],
+  "clipped": [],
+  "ellipses": [],
+  "scrolled_text_count": 0,
+  "icons": [
+    {
+      "glyph": "upload_file",
+      "font": "\"Material Icons\"",
+      "rect": [
+        664,
+        369,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "folder_open",
+      "font": "\"Material Icons\"",
+      "rect": [
+        664,
+        502,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "folder_open",
+      "font": "\"Material Icons\"",
+      "rect": [
+        664,
+        560,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "keyboard_arrow_down",
+      "font": "\"Material Icons\"",
+      "rect": [
+        946,
+        560,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "memory",
+      "font": "\"Material Icons\"",
+      "rect": [
+        664,
+        624,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "keyboard_arrow_down",
+      "font": "\"Material Icons\"",
+      "rect": [
+        834.61,
+        624,
+        24,
+        24
+      ]
+    }
+  ],
+  "styles": [
+    {
+      "id": "shared-get-recovery-open",
+      "rect": [
+        648,
+        130,
+        172,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-pick-cookie",
+      "rect": [
+        648,
+        363,
+        212.28,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-clear-cookie",
+      "rect": [
+        876.28,
+        363,
+        88,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-pick-folder",
+      "rect": [
+        648,
+        496,
+        152,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-clear-folder",
+      "rect": [
+        816,
+        496,
+        88,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-save",
+      "rect": [
+        648,
+        728,
+        60,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-cancel",
+      "rect": [
+        724,
+        728,
+        60,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-migration",
+      "rect": [
+        648,
+        878.39,
+        158,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "shared-get-recovery-dialog",
+      "rect": [
+        0,
+        0,
+        1920,
+        1080
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "0px"
+    },
+    {
+      "id": "c12",
+      "rect": [
+        624,
+        354,
+        672,
+        372
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(29, 29, 29)",
+      "color": "rgb(255, 255, 255)",
+      "radius": "4px"
+    },
+    {
+      "id": "shared-get-recovery-confirm",
+      "rect": [
+        640,
+        674,
+        255.59,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(0, 150, 250)",
+      "color": "rgb(255, 255, 255)",
+      "radius": "3px"
+    },
+    {
+      "id": "shared-get-recovery-cancel",
+      "rect": [
+        911.59,
+        674,
+        74,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    }
+  ],
+  "tokens": {
+    "page": "#111418",
+    "bg-vault": "#0b0b10",
+    "bg-surface": "#15161c",
+    "bg-card": "#1e202d",
+    "border-vault": "#2a2b38",
+    "pixiv-blue": "#0096FA",
+    "text-main": "#e8e8ef",
+    "text-muted": "#8a8a99",
+    "text-elsewhere": "#b9b9c4"
+  },
+  "body_font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+  "shell": {
+    "tabs": []
+  },
+  "display_contract": {
+    "failure_categories_below_search": null,
+    "single_line_cards": null,
+    "download_table_clear_of_band": null,
+    "download_list_height": 0,
+    "download_header_to_band": null,
+    "queue_list_height": 0,
+    "queue_empty_alignment": null
+  },
+  "rendered_fonts": {},
+  "tone": {
+    "root": "q-card",
+    "rect": [
+      624,
+      354,
+      672,
+      372
+    ],
+    "in_viewport_height": 372,
+    "viewport_height": 1080,
+    "client_height": 372,
+    "scroll_height": 372,
+    "scroll_ratio": 0.34,
+    "content_extent": 372,
+    "content_ratio": 0.34,
+    "document_scroll_height": 1080,
+    "document_scroll_ratio": 1,
+    "viewport_insets": [
+      354,
+      624,
+      354,
+      624
+    ],
+    "spacing": {
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "margin": [
+        "0px",
+        "0px",
+        "0px",
+        "0px"
+      ],
+      "gap": [
+        "16px",
+        "16px"
+      ]
+    },
+    "content_spacing": {
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "margin": [
+        "0px",
+        "0px",
+        "0px",
+        "0px"
+      ],
+      "gap": [
+        "16px",
+        "16px"
+      ]
+    },
+    "fonts": {
+      "20px": 1,
+      "14px": 5
+    },
+    "headings": [
+      {
+        "label": "前の取得が中断された場合の回復",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "size": "20px",
+        "weight": "500",
+        "rect": [
+          640,
+          370,
+          303.75,
+          32
+        ]
+      }
+    ],
+    "cards": [
+      {
+        "radius": [
+          "4px",
+          "4px",
+          "4px",
+          "4px"
+        ],
+        "border": "0px solid rgba(255, 255, 255, 0.28)",
+        "shadow": "rgba(255, 255, 255, 0.2) 0px 1px 5px 0px, rgba(255, 255, 255, 0.14) 0px 2px 2px 0px, rgba(255, 255, 255, 0.12) 0px 3px 1px -2px",
+        "padding": [
+          "16px",
+          "16px",
+          "16px",
+          "16px"
+        ],
+        "margin": [
+          "0px",
+          "0px",
+          "0px",
+          "0px"
+        ],
+        "gap": [
+          "16px",
+          "16px"
+        ],
+        "count": 1
+      }
+    ],
+    "scroll": [],
+    "states": [
+      {
+        "id": "shared-get-recovery-notice",
+        "label": "過去のHTTP 429（アクセス制限）によるSTOPが記録されています。この回復では解除できません。今回の429の設定待機・再試行とは別の永続停止履歴で、再起動しても残ります。停止履歴・所有情報を削除",
+        "rect": [
+          640,
+          418,
+          640,
+          84
+        ]
+      }
+    ],
+    "toolbars": [
+      {
+        "container": "q-card",
+        "rows": [
+          {
+            "count": 1,
+            "kinds": {
+              "switch": 1
+            },
+            "controls": [
+              {
+                "id": "shared-get-recovery-ack",
+                "label": "他の取得処理が動いていないことと、前の結果が不明なままであることを確認しました",
+                "rect": [
+                  640,
+                  618,
+                  584.89,
+                  40
+                ],
+                "kind": "switch",
+                "button": null,
+                "shared": "switch",
+                "enabled": false,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "0px",
+                  "0px",
+                  "0px",
+                  "0px"
+                ],
+                "border": "0px solid rgb(255, 255, 255)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "container": "nicegui-row",
+        "rows": [
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "id": "shared-get-recovery-confirm",
+                "label": "確認して取得待ちの記録を退避する",
+                "rect": [
+                  640,
+                  674,
+                  255.59,
+                  36
+                ],
+                "kind": "button",
+                "button": "filled-square",
+                "shared": null,
+                "enabled": false,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(255, 255, 255)",
+                "shadow": "none",
+                "background": "rgb(0, 150, 250)"
+              },
+              {
+                "id": "shared-get-recovery-cancel",
+                "label": "閉じる",
+                "rect": [
+                  911.59,
+                  674,
+                  74,
+                  36
+                ],
+                "kind": "button",
+                "button": "text-link",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(0, 150, 250)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "buttons": {
+      "filled-square": 1,
+      "text-link": 1
+    },
+    "common_components": [
+      {
+        "id": "shared-get-recovery-ack",
+        "label": "他の取得処理が動いていないことと、前の結果が不明なままであることを確認しました",
+        "rect": [
+          640,
+          618,
+          584.89,
+          40
+        ],
+        "kind": "switch",
+        "button": null,
+        "shared": "switch",
+        "enabled": false,
+        "font_size": "14px",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "radius": [
+          "0px",
+          "0px",
+          "0px",
+          "0px"
+        ],
+        "border": "0px solid rgb(255, 255, 255)",
+        "shadow": "none",
+        "background": "rgba(0, 0, 0, 0)"
+      }
+    ]
+  },
+  "background_pixel": "#0a0c0e"
+}

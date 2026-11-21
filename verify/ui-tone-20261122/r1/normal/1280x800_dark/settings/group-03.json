@@ -1,0 +1,283 @@
+{
+  "root": "nicegui-column",
+  "rect": [
+    320,
+    1180.39,
+    640,
+    272
+  ],
+  "in_viewport_height": 0,
+  "viewport_height": 800,
+  "client_height": 270,
+  "scroll_height": 270,
+  "scroll_ratio": 0.34,
+  "content_extent": 270,
+  "content_ratio": 0.34,
+  "document_scroll_height": 800,
+  "document_scroll_ratio": 1,
+  "viewport_insets": [
+    1180.39,
+    320,
+    0,
+    320
+  ],
+  "spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "content_spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "fonts": {
+    "16px": 1,
+    "14px": 6
+  },
+  "headings": [
+    {
+      "label": "借用プレミアムの状態",
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "size": "16px",
+      "weight": "400",
+      "rect": [
+        333,
+        1193.39,
+        160.39,
+        28
+      ]
+    }
+  ],
+  "cards": [],
+  "scroll": [],
+  "states": [
+    {
+      "id": "premium-recovery-guide",
+      "label": "未確認の更新結果はありません。必要なときだけアカウントを更新できます。",
+      "rect": [
+        333,
+        1274.39,
+        488.19,
+        21
+      ]
+    }
+  ],
+  "toolbars": [
+    {
+      "container": "premium-recovery",
+      "rows": [
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "保管庫のパスワード",
+              "rect": [
+                333,
+                1303.39,
+                212,
+                40
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "container": "nicegui-row",
+      "rows": [
+        {
+          "count": 2,
+          "kinds": {
+            "button": 2
+          },
+          "controls": [
+            {
+              "id": "premium-recovery-reopen",
+              "label": "保存済み状態を再確認（通信なし）",
+              "rect": [
+                333,
+                1351.39,
+                256,
+                36
+              ],
+              "kind": "button",
+              "button": "pill",
+              "shared": null,
+              "enabled": false,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "999px",
+                "999px",
+                "999px",
+                "999px"
+              ],
+              "border": "0px none rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgb(0, 150, 250)"
+            },
+            {
+              "id": "premium-recovery-recover",
+              "label": "記録済み更新結果を復元（通信なし）",
+              "rect": [
+                597,
+                1351.39,
+                270,
+                36
+              ],
+              "kind": "button",
+              "button": "pill",
+              "shared": "refresh",
+              "enabled": false,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "999px",
+                "999px",
+                "999px",
+                "999px"
+              ],
+              "border": "0px none rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgb(0, 150, 250)"
+            }
+          ]
+        },
+        {
+          "count": 1,
+          "kinds": {
+            "button": 1
+          },
+          "controls": [
+            {
+              "id": "premium-recovery-refresh",
+              "label": "アカウントを更新",
+              "rect": [
+                333,
+                1395.39,
+                144,
+                36
+              ],
+              "kind": "button",
+              "button": "pill",
+              "shared": "refresh",
+              "enabled": false,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "999px",
+                "999px",
+                "999px",
+                "999px"
+              ],
+              "border": "0px none rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgb(0, 150, 250)"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "buttons": {
+    "pill": 3
+  },
+  "common_components": [
+    {
+      "id": "premium-recovery-recover",
+      "label": "記録済み更新結果を復元（通信なし）",
+      "rect": [
+        597,
+        1351.39,
+        270,
+        36
+      ],
+      "kind": "button",
+      "button": "pill",
+      "shared": "refresh",
+      "enabled": false,
+      "font_size": "14px",
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "radius": [
+        "999px",
+        "999px",
+        "999px",
+        "999px"
+      ],
+      "border": "0px none rgb(255, 255, 255)",
+      "shadow": "none",
+      "background": "rgb(0, 150, 250)"
+    },
+    {
+      "id": "premium-recovery-refresh",
+      "label": "アカウントを更新",
+      "rect": [
+        333,
+        1395.39,
+        144,
+        36
+      ],
+      "kind": "button",
+      "button": "pill",
+      "shared": "refresh",
+      "enabled": false,
+      "font_size": "14px",
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "radius": [
+        "999px",
+        "999px",
+        "999px",
+        "999px"
+      ],
+      "border": "0px none rgb(255, 255, 255)",
+      "shadow": "none",
+      "background": "rgb(0, 150, 250)"
+    }
+  ]
+}
