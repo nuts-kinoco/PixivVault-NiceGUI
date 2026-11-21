@@ -56,7 +56,8 @@
 - 右クリック、ContextMenu／Shift+F10、Esc後のフォーカス、Enterで開く、ビューアを閉じた後のフォーカス、再接続、青ハートと Pixiv リンク属性を隔離 Chromium で確認。作者一覧の復帰と画像失敗時の代替表示、ブックマークのチェックと開く操作の分離、キーボード選択とDL済みバッジも確認。 [1280×800](paired-a3/contract.json) [1920×1080](final-browser-1920/contract.json) [ライブラリ](final-browser-1920/library-contract.json) [ブックマーク](final-browser-1920/bookmark-contract.json)
 - 通信棚卸し303サイト、未レビュー0。画像は既存の同一オリジンのメディアルートまたはインライン画像。Pixiv へのリンクは明示操作。 [通信棚卸し](network-final.json)
 - A1回帰18件、A3の関連試験149件。回帰では古い Vue イベント、互換メニューの既存操作、pin 解放、容量順、保存・類似ボタンと選択を照合。 [A1試験](green-a1.log) [A3試験](focused-a3.log)
-- 全体試験は [A2](full-a2r2.log)・[A3](full-a3.log)。長パス試験の単独再実行は [基点](baseline-longpath.log) と [A3](final-longpath.log)。
+- 製品候補の全体 pytest は 3,957 件合格、1 件失敗、3 件スキップ、3 件除外。失敗は `--basetemp` から作ったパスが171文字で、フィクスチャの最小180文字の表明に達しなかったため。長さを満たす S: のパスで同じ試験は基点・A3とも1件合格。スキップはシンボリックリンク作成権限、除外は指定の `not dpapi`。全体は26分01秒。 [全体試験](full-a3.log) [基点の個別再実行](baseline-longpath.log) [A3の個別再実行](final-longpath.log)
+- 自分が起動した作業プロセスの残存は0、測定専用ポートの待受も0。監督プロセスは独立の所有者として識別した。 [終了確認](process-check.json)
 
 ## 逸脱と残る作業
 

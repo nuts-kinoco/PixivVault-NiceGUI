@@ -21,6 +21,8 @@ $stillRunning = @(Get-CimInstance Win32_Process | Where-Object {
     if ($pidRecords.ContainsKey([int]$item.ProcessId) -and
         $item.CreationDate -le $pidRecords[[int]$item.ProcessId]) { return $true }
     $command = [string]$item.CommandLine -replace '/', '\'
+    $ownedCommand = '(?i)(?:-m\s+pytest|(?:rank_measure|ranking_server|prepare_live|measure)\.py|playwright_chromiumdev_profile|--user-data-dir=)'
+    if ($command -notmatch $ownedCommand) { return $false }
     foreach ($marker in $markers) {
         if ($command.IndexOf($marker, [StringComparison]::OrdinalIgnoreCase) -ge 0) { return $true }
     }
