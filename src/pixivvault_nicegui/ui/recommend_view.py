@@ -6,6 +6,7 @@ from nicegui import background_tasks, core, ui
 from ..recommendation_state import LABELS, ORDER, RecommendationWork
 from ..recommendation_media import RecommendationMediaSnapshot
 from ..viewer_metadata import pixiv_url
+from .action_controls import refresh_button
 from .card_size_control import size_buttons, update_size_buttons
 from .grid_layout import MAX_COLUMNS
 from .recommendation_viewer import RecommendationViewer
@@ -41,21 +42,22 @@ class RecommendView:
         self._author_browser=None
         self.client=ui.context.client
         self._card_actions=CardActions(services,lambda text:self.notice.set_text(text),lambda:self.active and not self.closed)
-        with ui.column().classes('pv-metadata-view w-full gap-3').props('data-testid=recommend-view data-busy=false') as self.root:
-            with ui.row().classes('items-center w-full'):
-                ui.label('おすすめ').classes('pv-view-title')
+        with ui.column().classes('pv-metadata-view pv-tone-recommend w-full').props('data-testid=recommend-view data-busy=false') as self.root:
+            with ui.row().classes('pv-toolbar pv-tone-toolbar'):
+                ui.label('おすすめ').classes('pv-library-heading pv-serif-heading')
+                ui.space()
                 self.size_buttons=size_buttons(self.change_card_size, prefix='recommend')
                 update_size_buttons(self.size_buttons,self.card_size)
-                self.refresh_button=ui.button('保存済み結果を再読込',on_click=self.refresh).props('flat data-testid=recommend-refresh')
-                self.update_button=ui.button('おすすめを更新',on_click=self.update).props('outline data-testid=recommend-update')
-                self.reset_button=ui.button('順序を既定に戻す',on_click=self.reset_order).props('flat data-testid=recommend-order-reset')
-            ui.label('初回は保存済み結果を表示します。更新・追加取得は明示操作時のみ行います。').classes('pv-subtitle')
-            self.notice=ui.label().props('role=status data-testid=recommend-notice')
-            self.busy_notice=ui.label('処理中…').props('role=status data-testid=recommend-busy-status')
+                self.refresh_button=refresh_button(self.refresh,label='保存済み結果を再読込',testid='recommend-refresh')
+                self.update_button=ui.button('おすすめを更新',on_click=self.update).props('unelevated dense no-caps data-testid=recommend-update')
+                self.reset_button=ui.button('順序を既定に戻す',on_click=self.reset_order).props('flat dense no-caps data-testid=recommend-order-reset')
+            ui.label('保存済み結果を表示します。更新・追加取得はボタンで行います。').classes('pv-subtitle')
+            self.notice=ui.label().classes('pv-subtitle').props('role=status data-testid=recommend-notice')
+            self.busy_notice=ui.label('処理中…').classes('pv-subtitle').props('role=status data-testid=recommend-busy-status')
             self.busy_notice.set_visibility(False)
-            self.undo_button=ui.button('出さないを取り消す',on_click=self.undo_hide).props('flat data-testid=recommend-undo')
+            self.undo_button=ui.button('出さないを取り消す',on_click=self.undo_hide).props('flat dense no-caps data-testid=recommend-undo')
             self.undo_button.set_visibility(False)
-            self.body=ui.column().classes('w-full gap-4')
+            self.body=ui.column().classes('pv-recommend-shelves w-full')
             with ui.dialog().props('data-testid=recommend-hide-reason-dialog') as self.hide_dialog:
                 with ui.card():
                     ui.label('出さない理由（任意）')
@@ -419,29 +421,40 @@ class RecommendView:
             elif not data.get('can_acquire'):ui.label('取得元が未接続です。保存済み結果と登録設定を操作できます。').classes('pv-subtitle')
             if self._all_empty(data):  # render() は読み込み完了後だけ呼ばれる（元の「読込中は出さない」と同じ）
                 # 元 recommend_tab.py:2894-2900 empty_all_panel（節は出さずこの案内だけ）。
-                with ui.column().classes('gap-2').props('data-testid=recommend-empty-all'):
-                    ui.label('おすすめの材料がまだありません').classes('pv-view-title')
+                with ui.column().classes('pv-empty items-center gap-2').props('data-testid=recommend-empty-all'):
+                    ui.label('おすすめの材料がまだありません').classes('pv-library-heading pv-serif-heading')
                     ui.label('学習タブで好み・嫌いを判定すると、ここにおすすめが表示されます。').classes('pv-subtitle')
                     if self._on_navigate_to_learning is not None:
                         ui.button('学習タブへ',on_click=lambda e=None:self._on_navigate_to_learning()).props(
                             'outline data-testid=recommend-go-learning')
                 return
             for kind in data['order']:
-                with ui.column().classes('w-full gap-2').props(f'data-testid=recommend-section-{kind}'):
-                    with ui.row().classes('items-center'):
-                        ui.label(LABELS[kind]).classes('pv-library-heading')
+                groups=data['sections'].get(kind,())
+                trends=data.get('trends',()) if kind=='trend' else ()
+                with ui.column().classes('pv-recommend-shelf w-full').props(f'data-testid=recommend-section-{kind}'):
+                    with ui.row().classes('pv-recommend-shelf-header items-center w-full gap-1'):
+                        ui.label(LABELS[kind]).classes('pv-library-heading pv-serif-heading')
+                        if kind not in data['collapsed']:
+                            if kind=='trend' and not trends:
+                                description='傾向は学習済みの判定から計算します。'
+                            elif kind in data['unavailable']:
+                                description='保存済み結果がありません。'
+                            elif kind!='trend' and not any(g.works for g in groups):
+                                description='表示対象がありません。'
+                            else:
+                                description=_SECTION_DESCRIPTIONS[kind]
+                            ui.label(description).classes('pv-subtitle')
                         if kind=='trend' and len(data.get('trends',()))>40:
                             ui.label(f"+{len(data['trends'])-40}").classes('pv-subtitle')
-                        button=ui.button('展開' if kind in data['collapsed'] else '折りたたむ',on_click=lambda e,k=kind:self.collapse(k)).props('flat')
+                        ui.space()
+                        button=ui.button('展開' if kind in data['collapsed'] else '折りたたむ',on_click=lambda e,k=kind:self.collapse(k)).props('flat dense no-caps')
                         button.set_enabled(data['writable'])
                         for label,delta in (('上へ',-1),('下へ',1)):
-                            b=ui.button(label,on_click=lambda e,k=kind,d=delta:self.move(k,d)).props('flat')
+                            b=ui.button(label,on_click=lambda e,k=kind,d=delta:self.move(k,d)).props('flat dense no-caps')
                             b.set_enabled(data['writable'] and 0<=list(data['order']).index(kind)+delta<len(data['order']))
                     if kind in data['collapsed']:continue
-                    ui.label(_SECTION_DESCRIPTIONS[kind]).classes('pv-subtitle')
                     if kind=='trend':
-                        trends=data.get('trends',())
-                        with ui.row().classes('gap-2 w-full').style('max-height: 80px; overflow: hidden; align-content: flex-start') as trend_box:
+                        with ui.row().classes('pv-recommend-trends gap-1 w-full') as trend_box:
                             added={r['tag'] for r in data.get('added_tags',())}
                             for index,trend in enumerate(trends[:40]):
                                 tag=trend['tag'];display=trend.get('display') or tag
@@ -461,38 +474,30 @@ class RecommendView:
                               }};
                               const observer=new ResizeObserver(update); observer.observe(box); update();
                             }});""")
-                        if not data.get('trends'):ui.label('表示できる傾向がまだありません。学習済みの判定から計算します。')
                         continue
                     if kind=='trend_added':
                         for row in data.get('added_tags',()):
-                            b=ui.button(row['display']+' を外す',on_click=lambda e,t=row['tag'],d=row['display']:self.toggle_trend(t,d)).props('flat')
+                            b=ui.button(row['display']+' を外す',on_click=lambda e,t=row['tag'],d=row['display']:self.toggle_trend(t,d)).props('flat dense no-caps')
                             b.set_enabled(data['writable'])
                     if kind=='boosted':
                         for aid,name in data.get('boosted',()):
-                            b=ui.button((name or aid)+' のもっと見る登録を解除',on_click=lambda e,a=aid,n=name:self.boost(a,n,False)).props('flat')
+                            b=ui.button((name or aid)+' のもっと見る登録を解除',on_click=lambda e,a=aid,n=name:self.boost(a,n,False)).props('flat dense no-caps')
                             b.set_enabled(data['writable'])
                     if kind in data['unavailable']:
-                        ui.label('この節の保存済み結果がありません。').classes('pv-subtitle')
                         continue
-                    groups=data['sections'].get(kind,())
-                    if not any(g.works for g in groups):ui.label('表示対象がありません。').classes('pv-subtitle')
                     for group in groups:
-                        if kind in ('certain','trend_added','boosted'):
-                            ui.label(group.title+('（傾向から追加）' if kind=='trend_added' else '')).classes('pv-library-heading')
-                        subtitle=(f'あなたが好んで見ている『{group.title}』の作品' if kind=='certain'
-                                  else f'『{group.title}』の作品' if kind=='trend_added'
-                                  else f'「{group.title}」の新着' if kind=='boosted' else group.title)
-                        ui.label(subtitle).classes('pv-subtitle')
-                        if kind=='certain':
-                            closed=group.key in data.get('certain_group_collapsed',())
-                            b=ui.button('このタグを開く' if closed else 'このタグを閉じる',on_click=lambda e,t=group.key:self.collapse_certain_group(t)).props('flat')
-                            self._certain_buttons[group.key]=b
-                            b.set_enabled(data['writable'])
-                            if closed:continue
+                        closed=kind=='certain' and group.key in data.get('certain_group_collapsed',())
+                        with ui.row().classes('items-center gap-1'):
+                            ui.label(group.title).classes('pv-card-title' if kind in ('certain','trend_added','boosted') else 'pv-subtitle')
+                            if kind=='certain':
+                                b=ui.button('このタグを開く' if closed else 'このタグを閉じる',on_click=lambda e,t=group.key:self.collapse_certain_group(t)).props('flat dense no-caps')
+                                self._certain_buttons[group.key]=b
+                                b.set_enabled(data['writable'])
+                        if closed:continue
                         key=(kind,group.key);count=self.visible.get(key,self.step)
                         with ui.element("div").classes("pv-grid w-full").style(f"--pv-max-cols:{MAX_COLUMNS[self.card_size]}"):
                             for work in group.works[:count]:
-                                with ui.column().classes('w-full gap-1').style('min-width:0').props(f'data-testid=recommend-work-{kind}-{work.work_id}'):
+                                with ui.column().classes('pv-recommend-tile w-full min-w-0 gap-1').props(f'data-testid=recommend-work-{kind}-{work.work_id}'):
                                     with ui.element('div').classes('pv-card w-full').props(
                                             f'tabindex=0 role=button data-testid=recommend-open-{kind}-{work.work_id}') as preview:
                                         if not work.deleted:
@@ -512,7 +517,7 @@ class RecommendView:
                                             ui.image(thumbnail).props(
                                                 f'fit=contain loading=lazy no-transition data-testid=recommend-thumb-{kind}-{work.work_id}').classes('pv-thumb')
                                         else:
-                                            with ui.element('div').classes('pv-thumb flex flex-col items-center justify-center'):
+                                            with ui.element('div').classes('pv-thumb pv-recommend-thumb-empty'):
                                                 ui.icon('image_not_supported')
                                                 ui.label(caption).classes('pv-subtitle')
                                         with ui.element('div').classes('pv-card-meta'):
@@ -520,32 +525,33 @@ class RecommendView:
                                             ui.label(work.author_name or work.author_id).classes('pv-card-author')
                                             if work.deleted:ui.label('⚠ 表示できません').classes('pv-subtitle').props(f'data-testid=recommend-unavailable-{work.work_id}')
                                     self._card_menu(kind,work,generation,preview,data)
-                                    if self.on_open is not None:ui.button('保存済みを開く',
-                                        on_click=lambda e,w=work.work_id,g=generation:self.open_saved_work(w,generation=g)).props('flat dense')
-                                    if self.on_enqueue is not None:ui.button('キューに追加',on_click=lambda e,w=work:self.save_work(w.work_id)).props('flat')
-                                    from .pixiv_action_buttons import PixivActionButtons
-                                    controls=PixivActionButtons(self.services,
-                                        prefix=f'recommend-action-{kind}-{work.work_id}')
-                                    controls.bind(work.work_id,work.author_id,author_name=work.author_name,
-                                        is_current=lambda g=generation: (self.active and not self.closed
-                                            and not self.busy and self._render_generation==g))
-                                    self._action_bindings.append(controls)
-                                    if kind=='superlike':
-                                        dismiss=ui.button('SuperLikeを取り下げる',on_click=lambda e,w=work.work_id,g=generation:
-                                            self.dismiss_superlike(w,generation=g)).props(
-                                            f'flat data-testid=recommend-dismiss-superlike-{work.work_id}')
-                                        dismiss.set_enabled(data['writable'])
-                                    b=ui.button('出さない',on_click=lambda e,w=work:self.ask_hide_reason(w.work_id)).props('flat');b.set_enabled(data['writable'])
-                                    if work.author_id:
-                                        b=ui.button('作者を出さない',on_click=lambda e,w=work:self.hide('author',w.author_id)).props('flat');b.set_enabled(data['writable'])
-                                        registered=work.author_id in dict(data.get('boosted',()))
-                                        b=ui.button('登録解除' if registered else '作者をもっと見る',on_click=lambda e,w=work,v=not registered:self.boost(w.author_id,w.author_name,v)).props('flat');b.set_enabled(data['writable'])
+                                    with ui.row().classes('pv-recommend-card-actions w-full items-center'):
+                                        if self.on_open is not None:ui.button('保存済みを開く',
+                                            on_click=lambda e,w=work.work_id,g=generation:self.open_saved_work(w,generation=g)).props('flat dense no-caps')
+                                        if self.on_enqueue is not None:ui.button('キューに追加',on_click=lambda e,w=work:self.save_work(w.work_id)).props('flat dense no-caps')
+                                        from .pixiv_action_buttons import PixivActionButtons
+                                        controls=PixivActionButtons(self.services,
+                                            prefix=f'recommend-action-{kind}-{work.work_id}')
+                                        controls.bind(work.work_id,work.author_id,author_name=work.author_name,
+                                            is_current=lambda g=generation: (self.active and not self.closed
+                                                and not self.busy and self._render_generation==g))
+                                        self._action_bindings.append(controls)
+                                        if kind=='superlike':
+                                            dismiss=ui.button('SuperLikeを取り下げる',on_click=lambda e,w=work.work_id,g=generation:
+                                                self.dismiss_superlike(w,generation=g)).props(
+                                                f'flat dense no-caps data-testid=recommend-dismiss-superlike-{work.work_id}')
+                                            dismiss.set_enabled(data['writable'])
+                                        b=ui.button('出さない',on_click=lambda e,w=work:self.ask_hide_reason(w.work_id)).props('flat dense no-caps');b.set_enabled(data['writable'])
+                                        if work.author_id:
+                                            b=ui.button('作者を出さない',on_click=lambda e,w=work:self.hide('author',w.author_id)).props('flat dense no-caps');b.set_enabled(data['writable'])
+                                            registered=work.author_id in dict(data.get('boosted',()))
+                                            b=ui.button('登録解除' if registered else '作者をもっと見る',on_click=lambda e,w=work,v=not registered:self.boost(w.author_id,w.author_name,v)).props('flat dense no-caps');b.set_enabled(data['writable'])
                         if count>self.step:
                             ui.button('畳む',on_click=lambda e,k=key:self.fold(k)).props(
-                                'flat data-testid=recommend-collapse')
+                                'flat dense no-caps data-testid=recommend-collapse')
                         if len(group.works)>count:
                             ui.button('もっと見る',on_click=lambda e,k=key:self.more(k)).props(
-                                'outline data-testid=recommend-expand')
+                                'outline dense no-caps data-testid=recommend-expand')
                         elif kind=='boosted' and count < self.controller.acquisition.visible_limit*3:
                             limit=self.controller.acquisition.visible_limit
                             next_limit=limit*2 if count<limit*2 else limit*3
