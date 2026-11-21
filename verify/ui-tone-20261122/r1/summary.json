@@ -5105,6 +5105,64 @@
         "port": []
       },
       "temporary_run": "S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_003058_767782"
+    },
+    {
+      "screens": [
+        "learning"
+      ],
+      "conditions": [
+        "normal/1280x800_dark",
+        "normal/1920x1080_dark"
+      ],
+      "capture_head": "7ba5c196a1023c1bef97bf09bfbf1d04ae43d477",
+      "profiles": [
+        "normal"
+      ],
+      "network": {
+        "normal": {
+          "calls": [
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport"
+          ],
+          "sites": [
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__"
+          ],
+          "denied": 0,
+          "missing_attributes": []
+        }
+      },
+      "foreign_blocked": {
+        "original": [
+          "cdn.jsdelivr.net/npm/@rive-app/flutter-native-wasm@38.0.0/wasm/rive_native.js"
+        ],
+        "port": []
+      },
+      "temporary_run": "S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_003507_927357"
     }
   ]
 }

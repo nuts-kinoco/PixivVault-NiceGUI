@@ -6,6 +6,7 @@ from collections import Counter
 import json
 from pathlib import Path
 from shutil import copytree
+import subprocess
 
 from PIL import Image
 
@@ -53,7 +54,10 @@ def supplement(root, source, selected):
     incoming = read(source/'summary.json')
     lifecycle = read(root/'lifecycle.json')
     receipt = read(source/'lifecycle.json')
-    if (any(summary[k]!=incoming[k] for k in ('port_revision','original_revision'))
+    product_paths = subprocess.check_output(['git','diff','--name-only','-z',
+        summary['port_revision'],incoming['port_revision'],'--','.',':(exclude)tools',':(exclude)verify'],
+        cwd=Path(__file__).resolve().parents[1]) if summary['port_revision'] != incoming['port_revision'] else b''
+    if (product_paths or summary['original_revision'] != incoming['original_revision']
             or not set(incoming['matrix']).issubset(summary['matrix'])
             or receipt['remaining'] or not all(receipt['owned_ports_closed'].values())
             or any(net['denied'] for net in incoming['network'].values())):
@@ -72,6 +76,7 @@ def supplement(root, source, selected):
             summary['matrix'][condition][key] = incoming['matrix'][condition][key]
     summary['screens'] = list(dict.fromkeys([*summary['screens'],*selected]))
     summary.setdefault('supplemental_runs',[]).append(dict(screens=list(selected),conditions=list(incoming['matrix']),
+        capture_head=incoming['port_revision'],
         profiles=incoming['profiles'],
         network=incoming['network'],foreign_blocked=incoming['foreign_blocked'],temporary_run=receipt['run_temp']))
     lifecycle.setdefault('supplemental_runs',[]).append(receipt)

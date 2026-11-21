@@ -86,9 +86,9 @@
       "reference": "学習",
       "port": {
         "height": 418.52,
-        "rows": 8,
+        "rows": 9,
         "max_row": 4,
-        "extent": 778
+        "extent": 793
       },
       "reference_values": {
         "height": 433,
@@ -98,9 +98,9 @@
       },
       "delta": {
         "height": -14.48,
-        "rows": 2,
+        "rows": 3,
         "max_row": 0,
-        "extent": 345
+        "extent": 360
       },
       "paired": true
     },
@@ -770,7 +770,7 @@
       "reference": "学習",
       "port": {
         "height": 736.52,
-        "rows": 8,
+        "rows": 9,
         "max_row": 4,
         "extent": 837
       },
@@ -782,7 +782,7 @@
       },
       "delta": {
         "height": 23.52,
-        "rows": 2,
+        "rows": 3,
         "max_row": 0,
         "extent": 124
       },

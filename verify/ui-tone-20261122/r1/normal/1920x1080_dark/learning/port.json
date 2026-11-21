@@ -6,7 +6,7 @@
   "text": [
     {
       "id": "db-status-banner",
-      "text": "⚠️⚠️ 本番DBを使用中: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_003058_767782\\normal\\port_data\\managed",
+      "text": "⚠️⚠️ 本番DBを使用中: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_003507_927357\\normal\\port_data\\managed",
       "rect": [
         18,
         18,
@@ -281,7 +281,7 @@
       "serif": false
     },
     {
-      "id": "c611",
+      "id": "c385",
       "text": "P5合成データ",
       "rect": [
         10,
@@ -305,24 +305,24 @@
       "serif": false
     },
     {
-      "id": "c625",
-      "text": "0 / 1 件判定済み",
+      "id": "learning-frame-badge",
+      "text": "新しい絵柄を試しています",
       "rect": [
-        10,
-        425.47,
-        93.27,
-        19
+        19,
+        429.47,
+        119.7,
+        15
       ],
       "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
       "serif": false
     },
     {
-      "id": "c643",
-      "text": "画像を読み込めませんでした。再読込してください。",
+      "id": "c399",
+      "text": "0 / 1 件判定済み",
       "rect": [
         10,
-        628.97,
-        310.19,
+        460.47,
+        93.27,
         19
       ],
       "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
@@ -333,7 +333,7 @@
       "text": "見送る",
       "rect": [
         27,
-        668.45,
+        683.95,
         42,
         20
       ],
@@ -345,7 +345,7 @@
       "text": "合わない",
       "rect": [
         111,
-        668.45,
+        683.95,
         56,
         20
       ],
@@ -357,7 +357,7 @@
       "text": "いいね",
       "rect": [
         209,
-        668.45,
+        683.95,
         42,
         20
       ],
@@ -369,7 +369,7 @@
       "text": "SuperLike",
       "rect": [
         293,
-        668.45,
+        683.95,
         67.09,
         20
       ],
@@ -381,7 +381,7 @@
       "text": "ひとつ戻す（Undo）",
       "rect": [
         26,
-        748.45,
+        763.95,
         133.45,
         20
       ],
@@ -393,7 +393,7 @@
       "text": "画像を再読込",
       "rect": [
         199.45,
-        748.45,
+        763.95,
         84,
         20
       ],
@@ -405,7 +405,7 @@
       "text": "保存状態を再読込",
       "rect": [
         323.45,
-        748.45,
+        763.95,
         112,
         20
       ],
@@ -414,22 +414,22 @@
     },
     {
       "id": "span",
-      "text": "絵が表示されてから押せます",
+      "text": "pixivでブックマーク（pixiv側に書き込みます）",
       "rect": [
         493.44,
-        748.45,
-        181.59,
+        763.95,
+        301.77,
         20
       ],
       "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
       "serif": false
     },
     {
-      "id": "c666",
+      "id": "c440",
       "text": "矢印キー / WASD / 1〜4 で判定。画面を選択して操作してください。",
       "rect": [
         10,
-        788.47,
+        803.97,
         399.03,
         19
       ],
@@ -437,11 +437,11 @@
       "serif": false
     },
     {
-      "id": "c667",
+      "id": "c441",
       "text": "判定は保存され、次に出す候補の並べ替えに反映されます。",
       "rect": [
         10,
-        819.97,
+        835.47,
         349.84,
         19
       ],
@@ -449,11 +449,11 @@
       "serif": false
     },
     {
-      "id": "c681",
+      "id": "c455",
       "text": "探索の設定",
       "rect": [
         13.98,
-        857.45,
+        872.95,
         65,
         19
       ],
@@ -465,7 +465,7 @@
       "text": "候補を取得",
       "rect": [
         26,
-        903.44,
+        918.94,
         70,
         20
       ],
@@ -477,7 +477,7 @@
       "text": "次の候補を取得しています。",
       "rect": [
         10,
-        943.45,
+        958.95,
         167.31,
         19
       ],
@@ -489,7 +489,7 @@
       "text": "作品を保存",
       "rect": [
         26,
-        982.94,
+        998.44,
         70,
         20
       ],
@@ -497,7 +497,7 @@
       "serif": false
     },
     {
-      "id": "c688",
+      "id": "c462",
       "text": "好みの傾向",
       "rect": [
         1470,
@@ -521,7 +521,7 @@
       "serif": false
     },
     {
-      "id": "c829",
+      "id": "c596",
       "text": "いまはあなたの保存から出しています",
       "rect": [
         1470,
@@ -738,11 +738,21 @@
       ]
     },
     {
+      "glyph": "open_in_new",
+      "font": "\"Material Icons\"",
+      "rect": [
+        548.64,
+        499.61,
+        13.72,
+        13.72
+      ]
+    },
+    {
       "glyph": "favorite_border",
       "font": "\"Material Icons\"",
       "rect": [
         463.44,
-        746.45,
+        761.95,
         24,
         24
       ]
@@ -752,7 +762,7 @@
       "font": "\"Material Icons\"",
       "rect": [
         78.98,
-        859.95,
+        875.45,
         15,
         15
       ]
@@ -1043,10 +1053,10 @@
       "radius": "3px"
     },
     {
-      "id": "c653",
+      "id": "c427",
       "rect": [
         10,
-        660.47,
+        675.97,
         76,
         36
       ],
@@ -1056,10 +1066,10 @@
       "radius": "8px"
     },
     {
-      "id": "c654",
+      "id": "c428",
       "rect": [
         94,
-        660.47,
+        675.97,
         90,
         36
       ],
@@ -1069,10 +1079,10 @@
       "radius": "8px"
     },
     {
-      "id": "c655",
+      "id": "c429",
       "rect": [
         192,
-        660.47,
+        675.97,
         76,
         36
       ],
@@ -1082,10 +1092,10 @@
       "radius": "8px"
     },
     {
-      "id": "c656",
+      "id": "c430",
       "rect": [
         276,
-        660.47,
+        675.97,
         101.09,
         36
       ],
@@ -1095,10 +1105,10 @@
       "radius": "8px"
     },
     {
-      "id": "c660",
+      "id": "c434",
       "rect": [
         10,
-        740.47,
+        755.97,
         165.45,
         36
       ],
@@ -1108,10 +1118,10 @@
       "radius": "3px"
     },
     {
-      "id": "c661",
+      "id": "c435",
       "rect": [
         183.45,
-        740.47,
+        755.97,
         116,
         36
       ],
@@ -1121,10 +1131,10 @@
       "radius": "3px"
     },
     {
-      "id": "c663",
+      "id": "c437",
       "rect": [
         307.45,
-        740.47,
+        755.97,
         144,
         36
       ],
@@ -1137,8 +1147,8 @@
       "id": "learning-bookmark",
       "rect": [
         459.45,
-        742.47,
-        219.56,
+        757.97,
+        339.73,
         31.98
       ],
       "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
@@ -1150,7 +1160,7 @@
       "id": "discovery-settings-open",
       "rect": [
         10,
-        851.47,
+        866.97,
         87.97,
         31.98
       ],
@@ -1163,7 +1173,7 @@
       "id": "discovery-fetch",
       "rect": [
         10,
-        895.45,
+        910.95,
         102,
         36
       ],
@@ -1176,7 +1186,7 @@
       "id": "discovery-save",
       "rect": [
         10,
-        974.95,
+        990.45,
         102,
         36
       ],
@@ -1505,8 +1515,6 @@
     ],
     ".pv-dialog-title": [],
     ".pv-serif-heading": [],
-    ".pv-failure-heading": [],
-    "[data-testid=failed-reason]": [],
     "[data-testid=queue-log-heading] .pv-library-heading": []
   },
   "tone": {
@@ -1571,7 +1579,8 @@
     "fonts": {
       "14px": 16,
       "20px": 1,
-      "13px": 9
+      "10px": 1,
+      "13px": 8
     },
     "headings": [
       {
@@ -1603,21 +1612,11 @@
     ],
     "states": [
       {
-        "id": "pv-subtitle",
-        "label": "画像を読み込めませんでした。再読込してください。",
-        "rect": [
-          10,
-          628.97,
-          310.19,
-          19.5
-        ]
-      },
-      {
         "id": "discovery-refill-status",
         "label": "次の候補を取得しています。",
         "rect": [
           10,
-          943.45,
+          958.95,
           167.31,
           19.5
         ]
@@ -1726,6 +1725,44 @@
         ]
       },
       {
+        "container": "w-full",
+        "rows": [
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "id": "learning-open-pixiv",
+                "label": "pixivで作品ページを開く",
+                "rect": [
+                  545,
+                  495.97,
+                  21,
+                  21
+                ],
+                "kind": "button",
+                "button": "icon-only",
+                "shared": null,
+                "enabled": true,
+                "font_size": "8px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "50%",
+                  "50%",
+                  "50%",
+                  "50%"
+                ],
+                "border": "0px none rgb(138, 138, 153)",
+                "shadow": "none",
+                "background": "rgb(30, 32, 45)"
+              }
+            ]
+          }
+        ]
+      },
+      {
         "container": "nicegui-row",
         "rows": [
           {
@@ -1739,14 +1776,14 @@
                 "label": "見送る",
                 "rect": [
                   10,
-                  660.47,
+                  675.97,
                   76,
                   36
                 ],
                 "kind": "button",
                 "button": "outlined",
                 "shared": null,
-                "enabled": false,
+                "enabled": true,
                 "font_size": "14px",
                 "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
                 "radius": [
@@ -1764,14 +1801,14 @@
                 "label": "合わない",
                 "rect": [
                   94,
-                  660.47,
+                  675.97,
                   90,
                   36
                 ],
                 "kind": "button",
                 "button": "outlined",
                 "shared": null,
-                "enabled": false,
+                "enabled": true,
                 "font_size": "14px",
                 "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
                 "radius": [
@@ -1789,14 +1826,14 @@
                 "label": "いいね",
                 "rect": [
                   192,
-                  660.47,
+                  675.97,
                   76,
                   36
                 ],
                 "kind": "button",
                 "button": "filled-square",
                 "shared": null,
-                "enabled": false,
+                "enabled": true,
                 "font_size": "14px",
                 "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
                 "radius": [
@@ -1814,14 +1851,14 @@
                 "label": "SuperLike",
                 "rect": [
                   276,
-                  660.47,
+                  675.97,
                   101.09,
                   36
                 ],
                 "kind": "button",
                 "button": "outlined",
                 "shared": null,
-                "enabled": false,
+                "enabled": true,
                 "font_size": "14px",
                 "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
                 "radius": [
@@ -1852,7 +1889,7 @@
                 "label": "ひとつ戻す（Undo）",
                 "rect": [
                   10,
-                  740.47,
+                  755.97,
                   165.45,
                   36
                 ],
@@ -1877,7 +1914,7 @@
                 "label": "画像を再読込",
                 "rect": [
                   183.45,
-                  740.47,
+                  755.97,
                   116,
                   36
                 ],
@@ -1902,7 +1939,7 @@
                 "label": "保存状態を再読込",
                 "rect": [
                   307.45,
-                  740.47,
+                  755.97,
                   144,
                   36
                 ],
@@ -1924,11 +1961,11 @@
               },
               {
                 "id": "learning-bookmark",
-                "label": "favorite_border 絵が表示されてから押せます",
+                "label": "favorite_border pixivでブックマーク（pixiv側に書き込みます）",
                 "rect": [
                   459.45,
-                  742.47,
-                  219.56,
+                  757.97,
+                  339.73,
                   31.98
                 ],
                 "kind": "button",
@@ -1965,7 +2002,7 @@
                 "label": "探索の設定 keyboard_arrow_right",
                 "rect": [
                   10,
-                  851.47,
+                  866.97,
                   87.97,
                   31.98
                 ],
@@ -2003,7 +2040,7 @@
                 "label": "候補を取得",
                 "rect": [
                   10,
-                  895.45,
+                  910.95,
                   102,
                   36
                 ],
@@ -2036,7 +2073,7 @@
                 "label": "作品を保存",
                 "rect": [
                   10,
-                  974.95,
+                  990.45,
                   102,
                   36
                 ],
@@ -2101,6 +2138,7 @@
     ],
     "buttons": {
       "text-link": 11,
+      "icon-only": 1,
       "outlined": 3,
       "filled-square": 1
     },
@@ -2110,7 +2148,7 @@
         "label": "画像を再読込",
         "rect": [
           183.45,
-          740.47,
+          755.97,
           116,
           36
         ],
@@ -2135,7 +2173,7 @@
         "label": "保存状態を再読込",
         "rect": [
           307.45,
-          740.47,
+          755.97,
           144,
           36
         ],

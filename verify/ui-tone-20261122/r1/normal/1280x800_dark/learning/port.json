@@ -6,7 +6,7 @@
   "text": [
     {
       "id": "db-status-banner",
-      "text": "⚠️⚠️ 本番DBを使用中: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\normal\\port_data\\managed",
+      "text": "⚠️⚠️ 本番DBを使用中: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_003507_927357\\normal\\port_data\\managed",
       "rect": [
         18,
         18,
@@ -281,7 +281,7 @@
       "serif": false
     },
     {
-      "id": "c611",
+      "id": "c385",
       "text": "P5合成データ",
       "rect": [
         10,
@@ -305,24 +305,24 @@
       "serif": false
     },
     {
-      "id": "c625",
-      "text": "0 / 1 件判定済み",
+      "id": "learning-frame-badge",
+      "text": "新しい絵柄を試しています",
       "rect": [
-        10,
-        463.47,
-        93.27,
-        19
+        19,
+        467.47,
+        119.7,
+        15
       ],
       "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
       "serif": false
     },
     {
-      "id": "c643",
-      "text": "画像を読み込めませんでした。再読込してください。",
+      "id": "c399",
+      "text": "0 / 1 件判定済み",
       "rect": [
         10,
-        666.97,
-        310.19,
+        498.47,
+        93.27,
         19
       ],
       "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
@@ -333,7 +333,7 @@
       "text": "見送る",
       "rect": [
         27,
-        706.45,
+        721.95,
         42,
         20
       ],
@@ -345,7 +345,7 @@
       "text": "合わない",
       "rect": [
         111,
-        706.45,
+        721.95,
         56,
         20
       ],
@@ -357,7 +357,7 @@
       "text": "いいね",
       "rect": [
         209,
-        706.45,
+        721.95,
         42,
         20
       ],
@@ -369,7 +369,7 @@
       "text": "SuperLike",
       "rect": [
         293,
-        706.45,
+        721.95,
         67.09,
         20
       ],
@@ -377,7 +377,7 @@
       "serif": false
     },
     {
-      "id": "c688",
+      "id": "c462",
       "text": "好みの傾向",
       "rect": [
         830,
@@ -401,7 +401,7 @@
       "serif": false
     },
     {
-      "id": "c829",
+      "id": "c596",
       "text": "いまはあなたの保存から出しています",
       "rect": [
         830,
@@ -618,11 +618,21 @@
       ]
     },
     {
+      "glyph": "open_in_new",
+      "font": "\"Material Icons\"",
+      "rect": [
+        548.64,
+        537.61,
+        13.72,
+        13.72
+      ]
+    },
+    {
       "glyph": "favorite_border",
       "font": "\"Material Icons\"",
       "rect": [
         463.44,
-        784.45,
+        799.95,
         24,
         24
       ]
@@ -632,7 +642,7 @@
       "font": "\"Material Icons\"",
       "rect": [
         78.98,
-        897.95,
+        913.45,
         15,
         15
       ]
@@ -642,7 +652,7 @@
       "font": "\"Material Icons\"",
       "rect": [
         26,
-        1115.45,
+        1130.95,
         24,
         24
       ]
@@ -923,10 +933,10 @@
       "radius": "3px"
     },
     {
-      "id": "c653",
+      "id": "c427",
       "rect": [
         10,
-        698.47,
+        713.97,
         76,
         36
       ],
@@ -936,10 +946,10 @@
       "radius": "8px"
     },
     {
-      "id": "c654",
+      "id": "c428",
       "rect": [
         94,
-        698.47,
+        713.97,
         90,
         36
       ],
@@ -949,10 +959,10 @@
       "radius": "8px"
     },
     {
-      "id": "c655",
+      "id": "c429",
       "rect": [
         192,
-        698.47,
+        713.97,
         76,
         36
       ],
@@ -962,10 +972,10 @@
       "radius": "8px"
     },
     {
-      "id": "c656",
+      "id": "c430",
       "rect": [
         276,
-        698.47,
+        713.97,
         101.09,
         36
       ],
@@ -975,10 +985,10 @@
       "radius": "8px"
     },
     {
-      "id": "c660",
+      "id": "c434",
       "rect": [
         10,
-        778.47,
+        793.97,
         165.45,
         36
       ],
@@ -988,10 +998,10 @@
       "radius": "3px"
     },
     {
-      "id": "c661",
+      "id": "c435",
       "rect": [
         183.45,
-        778.47,
+        793.97,
         116,
         36
       ],
@@ -1001,10 +1011,10 @@
       "radius": "3px"
     },
     {
-      "id": "c663",
+      "id": "c437",
       "rect": [
         307.45,
-        778.47,
+        793.97,
         144,
         36
       ],
@@ -1017,8 +1027,8 @@
       "id": "learning-bookmark",
       "rect": [
         459.45,
-        780.47,
-        219.56,
+        795.97,
+        339.73,
         31.98
       ],
       "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
@@ -1030,7 +1040,7 @@
       "id": "discovery-settings-open",
       "rect": [
         10,
-        889.47,
+        904.97,
         87.97,
         31.98
       ],
@@ -1043,7 +1053,7 @@
       "id": "discovery-fetch",
       "rect": [
         10,
-        933.45,
+        948.95,
         102,
         36
       ],
@@ -1056,7 +1066,7 @@
       "id": "discovery-save",
       "rect": [
         10,
-        1012.95,
+        1028.45,
         102,
         36
       ],
@@ -1069,7 +1079,7 @@
       "id": "learning-reset-open",
       "rect": [
         10,
-        1109.45,
+        1124.95,
         194,
         36
       ],
@@ -1385,8 +1395,6 @@
     ],
     ".pv-dialog-title": [],
     ".pv-serif-heading": [],
-    ".pv-failure-heading": [],
-    "[data-testid=failed-reason]": [],
     "[data-testid=queue-log-heading] .pv-library-heading": []
   },
   "tone": {
@@ -1402,8 +1410,8 @@
     "client_height": 419,
     "scroll_height": 419,
     "scroll_ratio": 0.52,
-    "content_extent": 778,
-    "content_ratio": 0.97,
+    "content_extent": 793,
+    "content_ratio": 0.99,
     "document_scroll_height": 800,
     "document_scroll_ratio": 1,
     "viewport_insets": [
@@ -1451,7 +1459,8 @@
     "fonts": {
       "14px": 16,
       "20px": 1,
-      "13px": 9
+      "10px": 1,
+      "13px": 8
     },
     "headings": [
       {
@@ -1478,26 +1487,16 @@
           418.52
         ],
         "client_height": 419,
-        "scroll_height": 778
+        "scroll_height": 793
       }
     ],
     "states": [
-      {
-        "id": "pv-subtitle",
-        "label": "画像を読み込めませんでした。再読込してください。",
-        "rect": [
-          10,
-          666.97,
-          310.19,
-          19.5
-        ]
-      },
       {
         "id": "discovery-refill-status",
         "label": "次の候補を取得しています。",
         "rect": [
           10,
-          981.45,
+          996.95,
           167.31,
           19.5
         ]
@@ -1606,6 +1605,44 @@
         ]
       },
       {
+        "container": "w-full",
+        "rows": [
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "id": "learning-open-pixiv",
+                "label": "pixivで作品ページを開く",
+                "rect": [
+                  545,
+                  533.97,
+                  21,
+                  21
+                ],
+                "kind": "button",
+                "button": "icon-only",
+                "shared": null,
+                "enabled": true,
+                "font_size": "8px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "50%",
+                  "50%",
+                  "50%",
+                  "50%"
+                ],
+                "border": "0px none rgb(138, 138, 153)",
+                "shadow": "none",
+                "background": "rgb(30, 32, 45)"
+              }
+            ]
+          }
+        ]
+      },
+      {
         "container": "nicegui-row",
         "rows": [
           {
@@ -1619,14 +1656,14 @@
                 "label": "見送る",
                 "rect": [
                   10,
-                  698.47,
+                  713.97,
                   76,
                   36
                 ],
                 "kind": "button",
                 "button": "outlined",
                 "shared": null,
-                "enabled": false,
+                "enabled": true,
                 "font_size": "14px",
                 "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
                 "radius": [
@@ -1644,14 +1681,14 @@
                 "label": "合わない",
                 "rect": [
                   94,
-                  698.47,
+                  713.97,
                   90,
                   36
                 ],
                 "kind": "button",
                 "button": "outlined",
                 "shared": null,
-                "enabled": false,
+                "enabled": true,
                 "font_size": "14px",
                 "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
                 "radius": [
@@ -1669,14 +1706,14 @@
                 "label": "いいね",
                 "rect": [
                   192,
-                  698.47,
+                  713.97,
                   76,
                   36
                 ],
                 "kind": "button",
                 "button": "filled-square",
                 "shared": null,
-                "enabled": false,
+                "enabled": true,
                 "font_size": "14px",
                 "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
                 "radius": [
@@ -1694,14 +1731,14 @@
                 "label": "SuperLike",
                 "rect": [
                   276,
-                  698.47,
+                  713.97,
                   101.09,
                   36
                 ],
                 "kind": "button",
                 "button": "outlined",
                 "shared": null,
-                "enabled": false,
+                "enabled": true,
                 "font_size": "14px",
                 "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
                 "radius": [
@@ -1732,7 +1769,7 @@
                 "label": "ひとつ戻す（Undo）",
                 "rect": [
                   10,
-                  778.47,
+                  793.97,
                   165.45,
                   36
                 ],
@@ -1757,7 +1794,7 @@
                 "label": "画像を再読込",
                 "rect": [
                   183.45,
-                  778.47,
+                  793.97,
                   116,
                   36
                 ],
@@ -1782,7 +1819,7 @@
                 "label": "保存状態を再読込",
                 "rect": [
                   307.45,
-                  778.47,
+                  793.97,
                   144,
                   36
                 ],
@@ -1804,11 +1841,11 @@
               },
               {
                 "id": "learning-bookmark",
-                "label": "favorite_border 絵が表示されてから押せます",
+                "label": "favorite_border pixivでブックマーク（pixiv側に書き込みます）",
                 "rect": [
                   459.45,
-                  780.47,
-                  219.56,
+                  795.97,
+                  339.73,
                   31.98
                 ],
                 "kind": "button",
@@ -1845,7 +1882,7 @@
                 "label": "探索の設定 keyboard_arrow_right",
                 "rect": [
                   10,
-                  889.47,
+                  904.97,
                   87.97,
                   31.98
                 ],
@@ -1883,7 +1920,7 @@
                 "label": "候補を取得",
                 "rect": [
                   10,
-                  933.45,
+                  948.95,
                   102,
                   36
                 ],
@@ -1916,7 +1953,7 @@
                 "label": "作品を保存",
                 "rect": [
                   10,
-                  1012.95,
+                  1028.45,
                   102,
                   36
                 ],
@@ -1954,7 +1991,7 @@
                 "label": "restart_alt 学習状況をリセット",
                 "rect": [
                   10,
-                  1109.45,
+                  1124.95,
                   194,
                   36
                 ],
@@ -1981,6 +2018,7 @@
     ],
     "buttons": {
       "text-link": 11,
+      "icon-only": 1,
       "outlined": 3,
       "filled-square": 1
     },
@@ -1990,7 +2028,7 @@
         "label": "画像を再読込",
         "rect": [
           183.45,
-          778.47,
+          793.97,
           116,
           36
         ],
@@ -2015,7 +2053,7 @@
         "label": "保存状態を再読込",
         "rect": [
           307.45,
-          778.47,
+          793.97,
           144,
           36
         ],

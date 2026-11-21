@@ -246,6 +246,9 @@ class P5Fixture:
             raise ValueError("unexpected fixture image")
         return self.image
 
+    def get_artwork_pages(self, work_id):
+        return {'101':(RANKING_FIXTURE_URL,), '301':(LEARNING_FIXTURE_URL,)}[str(work_id)]
+
     def thumbnail_data_uri(self, url):
         return "data:image/png;base64," + base64.b64encode(self.get_image_bytes(url)).decode("ascii")
 
@@ -673,6 +676,10 @@ def capture_view(page, target, kind, path, specs, profile, tone_key=None, origin
             page.get_by_test_id("duplicate-mode-near").click(timeout=5000)
     if kind == 'port' and tone_key == 'settings':
         tone.expand_settings(page)
+    if kind == 'port' and tone_key == 'learning' and profile != 'empty':
+        page.wait_for_function("""() => [...document.querySelectorAll('.pv-learning img')]
+            .some(image => image.complete && image.naturalWidth > 0 && image.src.includes('/media/'))""",
+            timeout=8000)
     page.mouse.move(0, 0)
     page.wait_for_timeout(1400 if target in {"ranking", "learning"} else 500)
     page.evaluate("document.fonts.ready")
