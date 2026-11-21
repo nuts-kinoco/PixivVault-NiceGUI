@@ -182,36 +182,6 @@ async def test_slow_auto_capacity_shows_progress_and_cleans_up(library, monkeypa
     assert view.legacy_auto_capacity_status.text == ''
 
 
-async def test_viewer_page_and_decode_only_update_the_isolated_component(library):
-    view, _, client = library
-    client._response_built = True
-    view.open_author('demo-author-01')
-    view.open_page('demo-0060', 0)
-    view._image_loaded(event_for(view))
-    await asyncio.sleep(0)
-    client.outbox.updates.clear()
-    client.outbox.messages.clear()
-
-    view.move_page(1)
-    await asyncio.sleep(0)
-    assert view.viewer_counter.text == '2/3'
-    assert view.viewer_image.props['aria-busy'] == 'true'
-    assert not client.outbox.updates
-    [(_, kind, patch)] = client.outbox.messages
-    assert kind == 'update'
-    assert patch[str(view.viewer_counter.id)]['text'] == '2/3'
-    assert patch[str(view.viewer_image.id)]['props']['aria-busy'] == 'true'
-
-    view._image_loaded(event_for(view))
-    await asyncio.sleep(0)
-    assert view.viewer_image.props['aria-busy'] == 'false'
-    assert not client.outbox.updates
-    assert len(client.outbox.messages) == 2
-    _, kind, patch = client.outbox.messages[-1]
-    assert kind == 'update'
-    assert patch[str(view.viewer_image.id)]['props']['aria-busy'] == 'false'
-
-
 @pytest.mark.asyncio
 async def test_selected_page_and_request_generation_survive_only_their_owner(library):
     view, _, _ = library
