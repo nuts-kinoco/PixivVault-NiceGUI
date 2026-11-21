@@ -8,8 +8,7 @@ from contextlib import closing, contextmanager
 from dataclasses import replace
 from importlib import import_module
 from pathlib import Path
-from threading import Event
-from time import monotonic, sleep
+from threading import Barrier, Event, Lock
 
 import pytest
 
@@ -239,11 +238,13 @@ def test_unrecognized_file_and_sqlite_sidecar_are_preserved(store_api, tmp_path)
     assert json.loads(unrelated.read_text(encoding='utf-8')) == {'important': True}
 
 
-def test_invalidation_waits_for_live_writer_before_rejecting_stale_work(store_api, tmp_path):
+def test_invalidation_fences_all_generation_apis_during_a_live_writer(store_api, tmp_path):
     root = tmp_path / 'owned'
     store = open_store(store_api, root)
     other = open_store(store_api, root)
     active = generation(store)
+    key = store_api.EmbeddingKey('test-work', 0, 'view', 'c' * 64, MODEL, 'v1')
+    assert store.put_embedding(active, key, (1., 0.))
     has_journal = Event()
     release_writer = Event()
 
@@ -260,8 +261,13 @@ def test_invalidation_waits_for_live_writer_before_rejecting_stale_work(store_ap
             assert has_journal.wait(5)
             assert other.is_current(active)
             invalidating = threads.submit(other.invalidate, 'undo')
-            with pytest.raises(TimeoutError):
-                invalidating.result(timeout=0.25)
+            invalidating.result(timeout=2)
+            assert other.current_generation() is None
+            assert not other.is_current(active)
+            assert other.load_model(active) is None
+            assert other.get_embedding(active, key) is None
+            assert not other.publish(active, model(active).to_payload())
+            assert not other.put_embedding(active, key, (1., 0.))
         finally:
             release_writer.set()
         writing.result()
@@ -328,6 +334,7 @@ with store._transaction(write=True) as db:
     recovered = open_store(store_api, root)
     assert [event.kind for event in recovered.events()] == ['committed']
     assert not journal.exists()
+    assert not (root / (store_api.OWNER_MARKER + '.sqlite-intent')).exists()
     recovered.purge()
     assert recovered.events() == ()
     assert not recovered.publish(active, model(active).to_payload())
@@ -433,28 +440,291 @@ def test_readers_share_access_to_current_generation(store_api, tmp_path):
         assert other.is_current(active)
 
 
-@pytest.mark.skipif(os.name != 'nt', reason='Windows marker lock retry limit')
-def test_invalidation_waits_past_windows_crt_lock_retry_limit(store_api, tmp_path):
+def test_busy_io_has_a_deadline_and_does_not_delay_invalidation(store_api, tmp_path, monkeypatch):
     root = tmp_path / 'owned'
     store = open_store(store_api, root)
     other = open_store(store_api, root)
     active = generation(store)
-    entered = Event()
-
-    def invalidate():
-        entered.set()
-        other.invalidate('undo')
-
-    with ThreadPoolExecutor(max_workers=1) as threads:
-        with store._transaction():
-            pending = threads.submit(invalidate)
-            assert entered.wait(5)
-            deadline = monotonic() + 3
-            while other.is_current(active) and monotonic() < deadline:
-                sleep(0.01)
-            assert not other.is_current(active)
-            with pytest.raises(TimeoutError):
-                pending.result(timeout=11.5)
-        pending.result(timeout=10)
+    monkeypatch.setattr(store_api, '_IO_TIMEOUT', .2, raising=False)
+    with ThreadPoolExecutor(max_workers=2) as threads, store._transaction():
+        busy = threads.submit(other.append_event, 'busy-test', {})
+        try:
+            with pytest.raises(store_api.VisualPreferenceStoreError):
+                busy.result(timeout=2)
+            threads.submit(other.invalidate, 'undo').result(timeout=2)
+        finally:
+            assert not busy.cancelled()
     assert not store.is_current(active)
-    assert not store.publish(active, model(active).to_payload())
+    assert open_store(store_api, root).current_generation() is None
+
+
+def test_regular_commits_leave_owner_unchanged_and_remove_intent(store_api, tmp_path):
+    root = tmp_path / 'owned'
+    store = open_store(store_api, root)
+    with closing(sqlite3.connect(store.path)) as db:
+        original = db.execute('SELECT rowid,* FROM owner').fetchall()
+    store.append_event('example', {})
+    with closing(sqlite3.connect(store.path)) as db:
+        assert db.execute('SELECT rowid,* FROM owner').fetchall() == original
+    assert not (root / (store_api.OWNER_MARKER + '.sqlite-intent')).exists()
+
+
+def test_recovery_does_not_check_torn_main_header_before_owned_rollback(store_api, tmp_path):
+    root = tmp_path / 'owned'
+    store = open_store(store_api, root)
+    store.append_event('committed', {})
+    _crash(root, '''
+store = open_store()
+with store._transaction(write=True) as db:
+    db.execute('PRAGMA user_version=1')
+    db.execute('PRAGMA cache_size=4')
+    db.execute('PRAGMA cache_spill=ON')
+    db.executemany('INSERT INTO ranking_events(kind,payload) VALUES (?,?)',
+                   [('uncommitted', 'x' * 16384)] * 24)
+    os._exit(23)
+''')
+    sidecar = Path(str(store.path) + '-journal')
+    assert sidecar.read_bytes().startswith(bytes.fromhex('d9d505f920a163d7'))
+    with store.path.open('r+b') as stream:
+        stream.seek(68)
+        stream.write(b'\x00' * 4)
+    recovered = open_store(store_api, root)
+    assert [event.kind for event in recovered.events()] == ['committed']
+    assert not sidecar.exists()
+
+
+def test_purge_owned_can_reset_without_open_and_retains_unrelated_paths(store_api, tmp_path):
+    root = tmp_path / 'owned'
+    store = open_store(store_api, root)
+    old = generation(store)
+    store.append_event('erase', {})
+    (root / 'keep.txt').write_bytes(b'untouched')
+    sidecar = Path(str(store.path) + '-journal')
+    sidecar.write_bytes(b'unrecognized journal')
+    with pytest.raises(store_api.VisualPreferenceStoreError):
+        open_store(store_api, root)
+    store_api.VisualPreferenceStore.purge_owned(root, profile='test-profile',
+                                               account='test-account', protected_paths=())
+    reopened = open_store(store_api, root)
+    assert reopened.events() == ()
+    assert not sidecar.exists()
+    assert not reopened.is_current(old)
+    assert (root / 'keep.txt').read_bytes() == b'untouched'
+    assert generation(reopened) is not None
+
+
+def test_simultaneous_initial_open_claims_one_scope(store_api, tmp_path, monkeypatch):
+    root = tmp_path / 'owned'
+    observed = Barrier(2)
+    guard = Lock()
+    arrivals = 0
+    original = store_api._directories
+
+    def synchronized(path):
+        nonlocal arrivals
+        result = original(path)
+        with guard:
+            entering = path.name == root.name and arrivals < 2
+            if entering:
+                arrivals += 1
+        if entering:
+            observed.wait(5)
+        return result
+
+    monkeypatch.setattr(store_api, '_directories', synchronized)
+    with ThreadPoolExecutor(max_workers=2) as threads:
+        first, second = [threads.submit(open_store, store_api, root) for _ in range(2)]
+        active = generation(first.result(timeout=10))
+        assert second.result(timeout=10).is_current(active)
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows committed read path')
+def test_windows_current_generation_reuses_pinned_header_check(store_api, tmp_path, monkeypatch):
+    store = open_store(store_api, tmp_path / 'owned')
+    active = generation(store)
+    calls = []
+    original = store._check_header
+
+    def observed(stream, **options):
+        calls.append(stream.closed)
+        return original(stream, **options)
+
+    monkeypatch.setattr(store, '_check_header', observed)
+    assert store.is_current(active)
+    assert calls == [False]
+
+
+def test_generation_waiter_cannot_bind_inputs_captured_before_invalidation(store_api, tmp_path, monkeypatch):
+    root = tmp_path / 'owned'
+    store = open_store(store_api, root)
+    old = generation(store)
+    waiter = open_store(store_api, root)
+    captured = Event()
+    get_epoch = waiter._epoch
+
+    def observe_epoch(**options):
+        value = get_epoch(**options)
+        captured.set()
+        return value
+
+    monkeypatch.setattr(waiter, '_epoch', observe_epoch)
+    with ThreadPoolExecutor(max_workers=1) as worker:
+        with store._transaction():
+            pending = worker.submit(generation, waiter)
+            assert captured.wait(5)
+            store.invalidate('undo')
+        with pytest.raises(store_api.VisualPreferenceStoreError):
+            pending.result(timeout=5)
+    assert waiter.current_generation() is None
+    assert not waiter.is_current(old)
+    assert not (root / (store_api.OWNER_MARKER + '.sqlite-intent')).exists()
+    assert waiter.is_current(generation(waiter))
+
+
+def test_recovery_purge_refuses_a_replacement_database(store_api, tmp_path):
+    root = tmp_path / 'owned'
+    store = open_store(store_api, root)
+    replacement = open_store(store_api, tmp_path / 'other', account='another-test-account')
+    store.path.rename(root / 'keep.sqlite3')
+    store.path.write_bytes(replacement.path.read_bytes())
+    original = store.path.read_bytes()
+    with pytest.raises(store_api.VisualPreferenceStoreError):
+        store_api.VisualPreferenceStore.purge_owned(root, profile='test-profile',
+                                                   account='test-account', protected_paths=())
+    assert store.path.read_bytes() == original
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows shared-delete file replacement')
+def test_revocation_can_publish_while_a_reader_holds_old_control_record(store_api, tmp_path):
+    sharing = import_module('pixivvault_nicegui.managed_generations')._open_shared
+    root = tmp_path / 'owned'
+    store = open_store(store_api, root)
+    store.invalidate('undo')
+    active = generation(store)
+    with sharing(store._revocation) as reader:
+        before = reader.read()
+        store.invalidate('undo')
+        reader.seek(0)
+        assert reader.read() == before
+        assert not store.is_current(active)
+
+
+def test_recovery_purge_keeps_a_db_replaced_after_ownership_probe(store_api, tmp_path, monkeypatch):
+    root = tmp_path / 'owned'
+    store = open_store(store_api, root)
+    other = open_store(store_api, tmp_path / 'other', account='another-test-account')
+    replacement = other.path.read_bytes()
+    read_owner = store_api.VisualPreferenceStore._read_database_owner
+
+    def replace_after_read(instance):
+        owner = read_owner(instance)
+        instance.path.rename(root / 'keep.sqlite3')
+        instance.path.write_bytes(replacement)
+        return owner
+
+    monkeypatch.setattr(store_api.VisualPreferenceStore, '_read_database_owner', replace_after_read)
+    with pytest.raises(store_api.VisualPreferenceStoreError):
+        store_api.VisualPreferenceStore.purge_owned(root, profile='test-profile',
+                                                   account='test-account', protected_paths=())
+    assert store.path.read_bytes() == replacement
+
+
+def test_embedding_commit_that_crosses_revocation_is_not_reused(store_api, tmp_path, monkeypatch):
+    root = tmp_path / 'owned'
+    store = open_store(store_api, root)
+    other = open_store(store_api, root)
+    active = generation(store)
+    old_key = store_api.EmbeddingKey('committed', 0, 'view', 'c' * 64, MODEL, 'v1')
+    late_key = replace(old_key, work_id='late')
+    assert store.put_embedding(active, old_key, (1., 0.))
+    original = store._connect
+    armed = True
+
+    class RevokingCommit:
+        def __init__(self, db):
+            self.db = db
+
+        def __getattr__(self, name):
+            return getattr(self.db, name)
+
+        def commit(self):
+            nonlocal armed
+            if armed:
+                armed = False
+                other.invalidate('undo')
+            self.db.commit()
+
+    def connect(**options):
+        db = original(**options)
+        return RevokingCommit(db) if options['write'] else db
+
+    monkeypatch.setattr(store, '_connect', connect)
+    assert not store.put_embedding(active, late_key, (0., 1.))
+    new = generation(other)
+    assert other.get_embedding(new, old_key) == (1., 0.)
+    assert other.get_embedding(new, late_key) is None
+
+
+def _crash_embedding_after_revocation(root):
+    _crash(root, '''
+from pixivvault_nicegui.visual_preference_store import EmbeddingKey
+store = open_store()
+active = store.current_generation()
+original = store._connect
+class ExitAfterCommit:
+    def __init__(self, db):
+        self.db = db
+    def __getattr__(self, name):
+        return getattr(self.db, name)
+    def commit(self):
+        store.invalidate('undo')
+        self.db.commit()
+        os._exit(23)
+def connect(**options):
+    db = original(**options)
+    return ExitAfterCommit(db) if options['write'] else db
+store._connect = connect
+key = EmbeddingKey('crashed-write', 0, 'view', 'c' * 64, active.model_sha, active.preprocessing_version)
+store.put_embedding(active, key, (0., 1.))
+''')
+
+
+@pytest.mark.parametrize('interrupt_cleanup', [False, True])
+def test_reopen_cleans_revoked_embedding_if_writer_crashed_after_commit(store_api, tmp_path, interrupt_cleanup):
+    root = tmp_path / 'owned'
+    store = open_store(store_api, root)
+    current = generation(store)
+    keep = store_api.EmbeddingKey('keep', 0, 'view', 'c' * 64, MODEL, 'v1')
+    assert store.put_embedding(current, keep, (1., 0.))
+    _crash_embedding_after_revocation(root)
+    if interrupt_cleanup:
+        _crash(root, '''
+original = VisualPreferenceStore._seal_journal
+def interrupt(store, **options):
+    if options.get('pending') is not None:
+        assert Path(str(store.path) + '-journal').is_file()
+        os._exit(23)
+    original(store, **options)
+VisualPreferenceStore._seal_journal = interrupt
+open_store()
+''')
+    reopened = open_store(store_api, root)
+    active = generation(reopened)
+    assert reopened.get_embedding(active, keep) == (1., 0.)
+    assert reopened.get_embedding(active, replace(keep, work_id='crashed-write')) is None
+
+
+def test_first_generation_is_hidden_if_its_binding_cannot_be_published(store_api, tmp_path, monkeypatch):
+    root = tmp_path / 'owned'
+    store = open_store(store_api, root)
+    original = store._write_record
+
+    def fail_binding(path, value):
+        if path == store._binding:
+            raise OSError('injected interruption before generation publication')
+        original(path, value)
+
+    monkeypatch.setattr(store, '_write_record', fail_binding)
+    with pytest.raises(store_api.VisualPreferenceStoreError):
+        generation(store)
+    assert open_store(store_api, root).current_generation() is None

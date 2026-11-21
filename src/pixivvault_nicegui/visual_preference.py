@@ -1,5 +1,5 @@
 """Pure visual preference fitting and scoring for an immutable generation."""
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from math import fsum, hypot, isfinite
 from numbers import Real
@@ -198,20 +198,30 @@ def _valid_unit(vector, dimension):
     return _unit(vector, dimension) is not None and abs(hypot(*vector) - 1) < 1e-6
 
 
-def _weight(rows):
-    judgments = {(row.judgment, row.reason if row.judgment == 'hate' else '')
-                 for row in rows if row.judgment and row.judgment != 'opened'}
+def _judgment(rows):
+    judgments = set()
+    opened = False
+    for row in rows:
+        judgment = row.judgment
+        if type(judgment) is not str or judgment not in ('', 'opened', 'like', 'superlike', 'skip', 'hate'):
+            return None
+        if judgment == 'hate' and type(row.reason) is not str:
+            return None
+        if judgment == 'opened':
+            opened = True
+        elif judgment:
+            judgments.add((judgment, row.reason if judgment == 'hate' else ''))
     if len(judgments) > 1:
-        return 0.0  # Conflicting judgments at the same revision are ambiguous.
-    judgment, reason = next(iter(judgments), ('', ''))
-    if (judgment, reason) == ('hate', 'style'):
+        return None
+    return next(iter(judgments), ('opened' if opened else '', ''))
+
+
+def _weight(judgment, rows):
+    if judgment == ('hate', 'style'):
         return -1.0
-    explicit = {'superlike': 1.0, 'like': 0.8}.get(judgment)
-    if explicit is not None:
-        return explicit
-    if judgment in ('skip', 'hate'):
-        return 0.0
-    return 0.35 if any(row.saved or row.bookmarked for row in rows) else 0.0
+    if judgment == ('', '') and any(row.saved or row.bookmarked for row in rows):
+        return 0.35
+    return {('superlike', ''): 1.0, ('like', ''): 0.8}.get(judgment, 0.0)
 
 
 def fit(generation: Generation, samples, *, method='nearest') -> ModelSnapshot | None:
@@ -226,13 +236,18 @@ def fit(generation: Generation, samples, *, method='nearest') -> ModelSnapshot |
     for row in samples:
         by_work[row.embedding.key.work_id].append(row)
 
-    positive, negative = [], []
-    author_vectors = defaultdict(list)
-    dimension = None
+    works = []
+    dimensions = Counter()
     for _, rows in sorted(by_work.items()):
         latest = max(row.revision for row in rows)
         rows = [row for row in rows if row.revision == latest]
-        weight = _weight(rows)
+        judgment = _judgment(rows)
+        if judgment is None:
+            continue
+        weight = _weight(judgment, rows)
+        author_eligible = weight >= 0 and any(row.saved for row in rows)
+        if not weight and not author_eligible:
+            continue
         choices = []
         for row in rows:
             key = row.embedding.key
@@ -241,25 +256,32 @@ def fit(generation: Generation, samples, *, method='nearest') -> ModelSnapshot |
             vector = _unit(row.embedding.vector)
             if vector is not None:
                 choices.append((_VARIANT_PRIORITY[key.variant], key.page, key.image_sha,
-                                vector, row.author_id))
+                                vector, row.author_id if type(row.author_id) is str else ''))
         if not choices:
             continue
-        _, _, _, vector, _ = min(choices)
-        if weight or any(row.saved for row in rows):
-            if dimension is None:
-                dimension = len(vector)
-            elif dimension != len(vector):
-                return None
+        choices.sort()
+        if weight > 0:
+            dimensions[len(choices[0][3])] += 1
+        works.append((weight, author_eligible, choices))
+
+    if not dimensions:
+        return None
+    dimension = min(dimensions, key=lambda size: (-dimensions[size], size))
+    positive, negative = [], []
+    author_vectors = defaultdict(list)
+    for weight, author_eligible, choices in works:
+        compatible = [choice for choice in choices if len(choice[3]) == dimension]
+        if not compatible:
+            continue
+        _, _, _, vector, _ = compatible[0]
         if weight > 0:
             positive.append((vector, weight))
         elif weight < 0:
             negative.append((vector, -weight))
-        if any(row.saved for row in rows):
-            originals = [choice for choice in choices if choice[0] == 0]
-            if originals:
-                _, _, _, original, author = min(originals)
-                if author:
-                    author_vectors[author].append(original)
+        if author_eligible and compatible[0][0] == _VARIANT_PRIORITY['saved_original']:
+            author = compatible[0][4]
+            if author:
+                author_vectors[author].append(vector)
 
     if not positive:
         return None

@@ -148,3 +148,32 @@ def test_alpha_zero_does_not_compute_visual_signal(visual, generation, monkeypat
     monkeypatch.setattr(visual.ModelSnapshot, 'image_signal',
                         lambda *args: pytest.fail('computed a visual score while disabled'))
     assert visual.score(.5, learned, ready, current=generation, alpha=0) == .5
+
+
+@pytest.mark.parametrize('judgment', ['unknown', 'opened', None, []])
+def test_only_an_empty_judgment_can_supply_weak_labels(visual, generation, judgment):
+    row = sample(visual, generation, 'saved', (1, 0), judgment,
+                 saved=True, bookmarked=True, variant='saved_original')
+    assert visual.fit(generation, [row]) is None
+
+
+def test_negative_and_unknown_saved_works_do_not_enter_author_bank(visual, generation):
+    rows = [sample(visual, generation, 'positive', (1, 0), 'like', author='good',
+                   saved=True, variant='saved_original'),
+            sample(visual, generation, 'negative', (0, 1), 'hate', 'style', author='bad',
+                   saved=True, variant='saved_original'),
+            sample(visual, generation, 'unknown', (1, 0), 'unknown', author='unknown',
+                   saved=True, variant='saved_original')]
+    result = visual.fit(generation, rows)
+    assert result.positive_count == result.negative_count == 1
+    assert result.author_signal('good') is not None
+    assert result.author_signal('bad') is None
+    assert result.author_signal('unknown') is None
+
+
+def test_unneeded_or_mismatched_vectors_do_not_discard_the_valid_model(visual, generation):
+    good = [sample(visual, generation, f'positive-{i}', vector, 'like')
+            for i, vector in enumerate(((1, 0), (0, 1)))]
+    irrelevant = sample(visual, generation, 'a-irrelevant', (1, 0, 0), 'skip', saved=True)
+    wrong_dim = sample(visual, generation, 'b-wrong', (1, 0, 0), 'like')
+    assert visual.fit(generation, [irrelevant, wrong_dim, *good]) == visual.fit(generation, good)

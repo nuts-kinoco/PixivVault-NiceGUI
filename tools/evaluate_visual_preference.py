@@ -2,7 +2,8 @@
 
 The export has model_sha and preprocessing_version plus disjoint training and
 slates arrays. Each slate is a presented candidate list in original rank order.
-Only candidates whose scores change can exchange their original slots.
+Score comparisons sort the same candidates by score and then by work ID.
+Presentation order contributes only to the separate exposure report.
 Rows have work_id, author_id, optional judgment/reason, and optional embedding
 metadata (vector, image_sha, model_sha, preprocessing_version, variant, page).
 Training rows may include saved, bookmarked and revision. Slate rows need
@@ -74,11 +75,13 @@ def _measure(slates, model, *, alpha, repetitions, seed):
     contamination = {mode: [] for mode in _MODES}
     top_labelled = {mode: [] for mode in _MODES}
     coverage = dict(presented=0, labelled=0, image_ready=0, usable_image=0, author_ready=0,
-                    image_ready_by_variant={})
+                    image_ready_by_variant={}, thumb_only_slates=0)
+    exposed_hate, exposed_labelled = [], []
+    matched_orders = 0
     positive, negative = [], []
     for slate in slates:
         ranked = {mode: [] for mode in _MODES}
-        labels = []
+        presented_labels, variants = [], set()
         for row in slate:
             base = row['base_score']
             if type(base) not in (int, float) or not 0 <= base <= 1:
@@ -94,22 +97,28 @@ def _measure(slates, model, *, alpha, repetitions, seed):
             if image is not None:
                 by_variant = coverage['image_ready_by_variant']
                 variant = image.key.variant
+                variants.add(variant)
                 by_variant[variant] = by_variant.get(variant, 0) + 1
+            presented_labels.append(label)
             if label is not None:
                 coverage['labelled'] += 1
-                labels.append(label)
                 if a is not None:
                     (positive if label else negative).append(a.value)
             signals = (None, d, a, a if a is not None else d)
             for mode, signal in zip(_MODES, signals):
-                ranked[mode].append((blend(base, signal, alpha=alpha), base, label))
-        ideal = _dcg(sorted(labels, reverse=True))
+                ranked[mode].append((blend(base, signal, alpha=alpha), row['work_id'], label))
+        coverage['thumb_only_slates'] += bool(variants) and variants <= {'thumb', 'thumb_fallback'}
+        if slate:
+            presented_top = presented_labels[:10]
+            exposed_hate.append(presented_top.count(0) / len(presented_top))
+            exposed_labelled.append(1 - presented_top.count(None) / len(presented_top))
+        ideal = _dcg(sorted((label for label in presented_labels if label is not None), reverse=True))
         for mode in _MODES:
             entries = ranked[mode]
-            changed = iter(sorted((entry for entry in entries if entry[0] != entry[1]),
-                                  key=lambda entry: -entry[0]))
-            ordered = [next(changed)[2] if corrected != base else label
-                       for corrected, base, label in entries]
+            ranked_entries = sorted(entries, key=lambda entry: (-entry[0], entry[1]))
+            if mode == 'baseline' and slate:
+                matched_orders += entries == ranked_entries
+            ordered = [label for _, _, label in ranked_entries]
             if ideal:
                 metrics[mode].append(_dcg([label for label in ordered if label is not None]) / ideal)
             if ordered:
@@ -130,7 +139,11 @@ def _measure(slates, model, *, alpha, repetitions, seed):
                                 if top_labelled[mode] else None)
     coverage['image_rate'] = (coverage['image_ready'] / coverage['presented']
                               if coverage['presented'] else None)
-    return comparison, coverage, _separation(positive, negative)
+    exposure = dict(slates=len(exposed_hate), base_order_matches=matched_orders,
+                    base_order_match_rate=matched_orders / len(exposed_hate) if exposed_hate else None,
+                    hate_style_top_10=mean(exposed_hate) if exposed_hate else None,
+                    top_10_labelled_rate=mean(exposed_labelled) if exposed_labelled else None)
+    return comparison, coverage, _separation(positive, negative), exposure
 
 
 def evaluate(data, *, alpha=DEFAULT_ALPHA, bootstrap_samples=1000, seed=0):
@@ -140,6 +153,8 @@ def evaluate(data, *, alpha=DEFAULT_ALPHA, bootstrap_samples=1000, seed=0):
         raise ValueError('invalid alpha or bootstrap sample count')
     training, slates = data['training'], data['slates']
     held_out = [row['work_id'] for slate in slates for row in slate]
+    if any(type(work) is not str or not work for work in held_out):
+        raise ValueError('evaluation work keys must be nonempty strings')
     if set(held_out) & {row['work_id'] for row in training}:
         raise ValueError('training and evaluation work IDs overlap')
     if len(set(held_out)) != len(held_out):
@@ -163,16 +178,25 @@ def evaluate(data, *, alpha=DEFAULT_ALPHA, bootstrap_samples=1000, seed=0):
                                           row.get('bookmarked', False), row.get('revision', 0)))
     summaries = {}
     for method in ('nearest', 'centroid'):
-        comparison, coverage, separation = _measure(
+        comparison, coverage, separation, exposure = _measure(
             slates, fit(generation, samples, method=method), alpha=alpha,
             repetitions=bootstrap_samples, seed=seed)
-        summaries[method] = dict(comparison=comparison, coverage=coverage, separation=separation)
+        summaries[method] = dict(comparison=comparison, coverage=coverage,
+                                 separation=separation, exposure=exposure)
     primary = summaries['nearest']
+    warnings = {}
+    if primary['comparison']['baseline']['slates'] < 5:
+        warnings['small_paired_sample'] = 'Fewer than five evaluable slates. Treat the result as descriptive.'
+    if any(ci is not None and ci[0] == ci[1] for mode, metrics in primary['comparison'].items()
+           if mode != 'baseline' for ci in [metrics['paired_delta_ci95']]):
+        warnings['degenerate_paired_ci'] = 'At least one paired interval collapsed to a point. This is not evidence of precision.'
+    if primary['coverage']['thumb_only_slates']:
+        warnings['thumb_only_slates'] = 'Thumbnail-only image inputs are excluded from A. D may still apply.'
     return dict(**primary, method_comparison={method: dict(A=report['comparison']['A'],
                                                           separation=report['separation'])
                                              for method, report in summaries.items()},
                 alpha=alpha, alpha_basis='provisional; no empirical calibration',
-                ndcg_basis='labelled candidates in ranked order',
+                ndcg_basis='labelled candidates in score order, ties by work key', warnings=warnings,
                 evaluation='preliminary; labelled available images may be selection-biased')
 
 
