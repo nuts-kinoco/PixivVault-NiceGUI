@@ -1,0 +1,46 @@
+[
+  {
+    "app": "original",
+    "pair": 1,
+    "render_ms": 23.697099997662008,
+    "card_call_ms": 0.10449992259964347,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 859.8730000085197,
+    "metadata_to_image_ms": 40.62700000940822,
+    "decode_wait_ms": null
+  },
+  {
+    "app": "nice",
+    "pair": 1,
+    "render_ms": 4.449900006875396,
+    "card_call_ms": 1.0070999269373715,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 693.1658000103198,
+    "metadata_to_image_ms": 73.80209999973886,
+    "decode_wait_ms": 8.799999982118607
+  },
+  {
+    "app": "nice",
+    "pair": 2,
+    "render_ms": 7.601999997859821,
+    "card_call_ms": 1.6064000956248492,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 608.8136999751441,
+    "metadata_to_image_ms": 74.08730001770891,
+    "decode_wait_ms": 1.5999999940395355
+  },
+  {
+    "app": "original",
+    "pair": 2,
+    "render_ms": 24.245700013125315,
+    "card_call_ms": 0.15110010281205177,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 640.0075000128709,
+    "metadata_to_image_ms": 34.05729998485185,
+    "decode_wait_ms": null
+  }
+]

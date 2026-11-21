@@ -1,0 +1,84 @@
+{
+  "case": {
+    "operation": "ranking_official",
+    "condition": "warm"
+  },
+  "complete_pairs": 10,
+  "minimum_met": true,
+  "apps": {
+    "original": {
+      "total": {
+        "n": 10,
+        "median": 742.003,
+        "p95": 1119.478
+      },
+      "network": {
+        "n": 10,
+        "median": 62.593,
+        "p95": 97.042
+      },
+      "api": {
+        "n": 10,
+        "median": 62.593,
+        "p95": 97.042
+      },
+      "image": {
+        "n": 10,
+        "median": 0.0,
+        "p95": 0
+      },
+      "pace": {
+        "n": 10,
+        "median": 498.347,
+        "p95": 668.994
+      },
+      "remaining": {
+        "n": 10,
+        "median": 188.679,
+        "p95": 523.721
+      },
+      "after_network": {
+        "n": 10,
+        "median": 175.212,
+        "p95": 369.34
+      }
+    },
+    "nice": {
+      "total": {
+        "n": 10,
+        "median": 903.181,
+        "p95": 1292.485
+      },
+      "network": {
+        "n": 10,
+        "median": 215.936,
+        "p95": 258.842
+      },
+      "api": {
+        "n": 10,
+        "median": 215.936,
+        "p95": 258.842
+      },
+      "image": {
+        "n": 10,
+        "median": 0.0,
+        "p95": 0
+      },
+      "pace": {
+        "n": 10,
+        "median": 430.641,
+        "p95": 539.343
+      },
+      "remaining": {
+        "n": 10,
+        "median": 274.891,
+        "p95": 551.918
+      },
+      "after_network": {
+        "n": 10,
+        "median": 233.587,
+        "p95": 502.078
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "status": "completed",
+  "browser_external_denied": 1,
+  "first_image_observed": {
+    "original": true,
+    "nice": true
+  },
+  "warmup_image": {
+    "original": {
+      "metadata_to_image_ms": 1811.7548000009265,
+      "decode_wait_ms": null
+    },
+    "nice": {
+      "metadata_to_image_ms": 843.3859999931883,
+      "decode_wait_ms": 0.20000001788139343
+    }
+  },
+  "timing_endpoint": "first_image"
+}

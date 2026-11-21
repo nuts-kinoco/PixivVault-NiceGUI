@@ -3,6 +3,7 @@ import argparse
 import io
 import json
 import os
+import socket
 from pathlib import Path
 import statistics
 import subprocess
@@ -43,7 +44,7 @@ def serve(root):
 
         def get_ranking(self, *, mode, **kwargs):
             start = time.perf_counter()
-            time.sleep(.025)  # Give both versions the same observable loading interval.
+            time.sleep(.150)  # Keep loading observable while capture or pytest shares the host.
             offset = 100 if mode == "weekly" else 0
             rows = [dict(illust_id=40000 + offset + index, user_id=41, user_name="作者",
                          title=f"作品 {index + 1:02}", tags=["猫"] if index % 2 else [],
@@ -134,9 +135,13 @@ def check_browser_contract(page, root):
     expect(first.locator('.pv-card-head')).to_have_count(0)
     expect(second.locator('.pv-card-head [data-testid=ranking-heart-40001]')).to_be_visible()
     menu = page.get_by_role('menu')
-    second.click(button='right')
+    origin = second.bounding_box()
+    second.click(button='right', position={'x': 28, 'y': 34})
     expect(menu).to_have_count(1)
     expect(menu).to_have_attribute('data-testid', 'ranking-ctx-40001')
+    popup = menu.bounding_box()
+    assert abs(popup['x'] - origin['x'] - 28) <= 4
+    assert abs(popup['y'] - origin['y'] - 34) <= 4
     expect(menu.get_by_test_id('ranking-ctx-40001-bookmark')).to_have_attribute('aria-disabled', 'true')
     link = menu.get_by_test_id('ranking-ctx-40001-pixiv')
     expect(link).to_have_attribute('href', 'https://www.pixiv.net/artworks/40001')
@@ -164,14 +169,21 @@ def check_browser_contract(page, root):
       window.socket.connect();
     }""")
     page.wait_for_function('window.socket.connected && window.did_handshake')
+    grid = page.locator('[data-testid=ranking-view] [data-render-epoch]')
+    epoch = grid.get_attribute('data-render-epoch')
+    original_card = first.element_handle()
+    page.get_by_test_id('ranking-fetch').click()
+    expect(grid).not_to_have_attribute('data-render-epoch', epoch)
     expect(cards).to_have_count(50)
+    assert original_card.evaluate('(node, selector) => node === document.querySelector(selector)', CARD)
     first.press('Shift+F10')
     expect(menu).to_have_attribute('data-testid', 'ranking-ctx-40000')
     page.keyboard.press('Escape')
     expect(first).to_be_focused()
     page.screenshot(path=root / 'contract.png')
     (root / 'contract.json').write_text(json.dumps({
-        'count': 50, 'heart': True, 'right_click': True, 'keyboard_menu': True,
+        'count': 50, 'heart': True, 'right_click': True, 'pointer_position': True,
+        'keyboard_menu': True, 'reconnect_refresh_same_dom': True,
         'menu_focus': True, 'viewer_focus': True, 'reconnect': True,
     }, indent=2))
 
@@ -185,6 +197,12 @@ def check_library_contract(page, root):
     opener.press('Enter')
     detail = page.locator('[data-testid=library-pages-scroll]')
     expect(detail).to_be_visible()
+    detail_card = detail.locator('.pv-library-page-card').first
+    detail_card.press('Enter')
+    close = page.get_by_role('button', name='閉じる', exact=True)
+    expect(close).to_be_visible()
+    close.click()
+    expect(detail_card).to_be_focused()
     page.get_by_test_id('library-back').click()
     target = page.locator(f'{AUTHOR}[data-author-id="{key}"]').get_by_test_id('library-author-open')
     expect(target).to_be_focused()
@@ -192,7 +210,7 @@ def check_library_contract(page, root):
     page.reload(wait_until='domcontentloaded')
     expect(page.get_by_test_id('library-image-placeholder').first).to_have_attribute('aria-label', '画像未表示')
     (root / 'library-contract.json').write_text(json.dumps({
-        'focus_by_author_id': True, 'image_failure_accessible': True}))
+        'focus_by_author_id': True, 'focus_by_page': True, 'image_failure_accessible': True}))
 
 
 
@@ -217,9 +235,27 @@ def check_bookmark_contract(page, root):
         'selection_keeps_open_separate': True, 'keyboard_toggle': True, 'downloaded_badge': True}))
 
 
-def run(root, repetitions, width, contract):
+def stable_shot(page, path):
+    page.mouse.move(0, 0)
+    page.wait_for_function("""selector => {
+        const cards = [...document.querySelectorAll(selector)];
+        return cards.length === 50 && cards.filter(card => {
+            const rect = card.getBoundingClientRect();
+            return rect.bottom > 0 && rect.top < window.innerHeight;
+        }).every(card => {
+            const img = card.querySelector('img');
+            return img?.complete && img.naturalWidth > 0;
+        });
+    }""", arg=CARD)
+    page.evaluate("() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
+    page.screenshot(path=path, animations='disabled')
+
+
+def run(root, repetitions, width, contract, visual_only, all_screenshots):
     from playwright.sync_api import expect, sync_playwright
 
+    with socket.socket() as probe:
+        probe.bind(('127.0.0.1', PORT))
     root.mkdir()
     env = dict(os.environ, USERPROFILE=str(root), APPDATA=str(root), LOCALAPPDATA=str(root))
     rows = []
@@ -236,7 +272,6 @@ def run(root, repetitions, width, contract):
                               if route.request.url.startswith(URL + "/") else route.abort())
                 page = context.new_page()
                 page.set_default_timeout(12000)
-                import socket
                 for _ in range(75):
                     if server.poll() is not None:
                         raise RuntimeError("isolated server exited")
@@ -252,9 +287,13 @@ def run(root, repetitions, width, contract):
                     page.evaluate("""() => {
                         window.bench = {};
                         const notice = document.querySelector('[data-testid=ranking-notice]');
-                        if (notice) new MutationObserver(() => {
-                          if (notice.textContent.trim() === '取得中…') window.bench.loading = true;
-                        }).observe(notice, {childList: true, subtree: true, characterData: true});
+                        if (notice) new MutationObserver(records => {
+                          if (notice.textContent.trim() === '取得中…' || records.some(record =>
+                            record.oldValue?.trim() === '取得中…' ||
+                            [...record.addedNodes, ...record.removedNodes].some(
+                              node => node.textContent.trim() === '取得中…'))) window.bench.loading = true;
+                        }).observe(notice, {childList: true, subtree: true, characterData: true,
+                                           characterDataOldValue: true});
                         document.addEventListener('click', () => {
                           window.bench = {begin: performance.now()};
                         }, true);
@@ -308,20 +347,25 @@ def run(root, repetitions, width, contract):
                                      residual_ms=browser_times[2] - stage["api"], **stage))
                     (root / "raw.json").write_text(json.dumps(rows, indent=2))
 
-                for index in range(repetitions):
+                if visual_only:
+                    ready()
+                    page.get_by_test_id('ranking-fetch').click()
+                    stable_shot(page, root / 'stable.png')
+                for index in range(0 if visual_only else repetitions):
+                    snap = all_screenshots or index == 0
                     ready()
                     fetch = page.get_by_test_id("ranking-fetch")
-                    observe("initial", fetch.click, CARD, 50, first="40000", screenshot=index == 0)
-                    observe("refresh", fetch.click, CARD, 50, first="40000", screenshot=index == 0)
+                    observe("initial", fetch.click, CARD, 50, first="40000", screenshot=snap)
+                    observe("refresh", fetch.click, CARD, 50, first="40000", screenshot=snap)
                     weekly = page.get_by_test_id("ranking-mode").get_by_text("週間", exact=True)
-                    observe("mode", weekly.click, CARD, 50, first="40100", screenshot=index == 0)
+                    observe("mode", weekly.click, CARD, 50, first="40100", screenshot=snap)
                     observe("sort", page.get_by_text("bench sort", exact=True).click,
-                            CARD, 50, first="40149", screenshot=index == 0)
+                            CARD, 50, first="40149", screenshot=snap)
                     ready("/library")
                     expect(page.locator(AUTHOR)).to_have_count(1)
                     search = page.get_by_test_id("library-search")
                     observe("library", lambda: search.fill(""), AUTHOR, 50,
-                            screenshot=index == 0, image=False)
+                            screenshot=snap)
                 if contract:
                     ready()
                     page.get_by_test_id('ranking-fetch').click()
@@ -355,8 +399,10 @@ if __name__ == "__main__":
     parser.add_argument("--repetitions", type=int, default=5)
     parser.add_argument('--width', type=int, choices=(1280, 1920), default=1280)
     parser.add_argument('--contract', action='store_true')
+    parser.add_argument('--visual-only', action='store_true')
+    parser.add_argument('--all-screenshots', action='store_true')
     args = parser.parse_args()
     if args.serve:
         serve(args.root)
     else:
-        run(args.root, args.repetitions, args.width, args.contract)
+        run(args.root, args.repetitions, args.width, args.contract, args.visual_only, args.all_screenshots)

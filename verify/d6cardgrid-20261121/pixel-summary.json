@@ -1,0 +1,32 @@
+{
+  "1280": {
+    "size": [
+      1280,
+      800
+    ],
+    "different": 1040,
+    "percent": 0.1016,
+    "mean_abs_channel_error": 0.041126,
+    "bounds": [
+      7,
+      68,
+      1273,
+      732
+    ]
+  },
+  "1920": {
+    "size": [
+      1920,
+      1080
+    ],
+    "different": 1698,
+    "percent": 0.0819,
+    "mean_abs_channel_error": 0.02692,
+    "bounds": [
+      10,
+      17,
+      1910,
+      928
+    ]
+  }
+}

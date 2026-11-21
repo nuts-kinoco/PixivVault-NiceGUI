@@ -1,0 +1,17 @@
+{
+  "total_get": 14,
+  "additional_get": 14,
+  "prior_get": 0,
+  "stopped": null,
+  "in_flight": false,
+  "kinds": {
+    "identity": 4,
+    "ranking": 6,
+    "image": 2,
+    "identity_extra": 2
+  },
+  "codes": {
+    "200": 14
+  },
+  "minimum_after_response_ms": 877.227
+}
