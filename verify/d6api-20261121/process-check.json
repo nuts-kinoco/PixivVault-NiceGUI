@@ -1,0 +1,34 @@
+{
+    "full01_canceled":  true,
+    "full02_exit_code":  0,
+    "observed_owned_pids":  [
+                                1340,
+                                2384,
+                                13872,
+                                17280,
+                                22144,
+                                24808,
+                                26532,
+                                26776,
+                                29340,
+                                39080,
+                                39524,
+                                45756,
+                                56140,
+                                80804,
+                                86148,
+                                101432,
+                                120044,
+                                128772,
+                                128988
+                            ],
+    "remaining_pids":  [
+
+                       ],
+    "matching_active_process_pids":  [
+
+                                     ],
+    "residual":  0,
+    "live_api_gets":  0,
+    "live_servers_started":  0
+}
