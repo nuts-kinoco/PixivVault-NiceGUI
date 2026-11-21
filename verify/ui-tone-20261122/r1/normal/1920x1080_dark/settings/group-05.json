@@ -1,0 +1,315 @@
+{
+  "root": "nicegui-column",
+  "rect": [
+    640,
+    1787.39,
+    640,
+    666
+  ],
+  "in_viewport_height": 0,
+  "viewport_height": 1080,
+  "client_height": 664,
+  "scroll_height": 664,
+  "scroll_ratio": 0.61,
+  "content_extent": 664,
+  "content_ratio": 0.61,
+  "document_scroll_height": 1080,
+  "document_scroll_ratio": 1,
+  "viewport_insets": [
+    1787.39,
+    640,
+    0,
+    640
+  ],
+  "spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "content_spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "fonts": {
+    "16px": 7,
+    "14px": 6,
+    "12px": 5
+  },
+  "headings": [
+    {
+      "label": "保存",
+      "font": "\"Yu Mincho\", YuMincho, serif",
+      "size": "16px",
+      "weight": "400",
+      "rect": [
+        653,
+        1800.39,
+        32.31,
+        28
+      ]
+    }
+  ],
+  "cards": [],
+  "scroll": [],
+  "states": [],
+  "toolbars": [
+    {
+      "container": "nicegui-column",
+      "rows": [
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "作品ごとのフォルダーを使う OFF arrow_drop_down",
+              "rect": [
+                653,
+                1844.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": null,
+              "enabled": false,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        },
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "Nana7mi借用アカウント自動更新間隔 24時間ごと (1日) arrow_drop_down",
+              "rect": [
+                653,
+                1952.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": "refresh",
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        },
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "小説の保存形式 EPUBのみ arrow_drop_down",
+              "rect": [
+                653,
+                2024.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": null,
+              "enabled": false,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        },
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "うごイラの保存形式 GIF動画 arrow_drop_down",
+              "rect": [
+                653,
+                2132.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": null,
+              "enabled": false,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        },
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "作者のダウンロード完了後ZIPにする OFF arrow_drop_down",
+              "rect": [
+                653,
+                2240.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": null,
+              "enabled": false,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        },
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "ブックマークの保存方法 直下にフラット配置 arrow_drop_down",
+              "rect": [
+                653,
+                2348.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": null,
+              "enabled": false,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "buttons": {},
+  "common_components": [
+    {
+      "id": "q-field",
+      "label": "Nana7mi借用アカウント自動更新間隔 24時間ごと (1日) arrow_drop_down",
+      "rect": [
+        653,
+        1952.39,
+        614,
+        56
+      ],
+      "kind": "input",
+      "button": null,
+      "shared": "refresh",
+      "enabled": true,
+      "font_size": "14px",
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "radius": [
+        "0px",
+        "0px",
+        "0px",
+        "0px"
+      ],
+      "border": "0px solid rgb(255, 255, 255)",
+      "shadow": "none",
+      "background": "rgba(0, 0, 0, 0)"
+    }
+  ]
+}

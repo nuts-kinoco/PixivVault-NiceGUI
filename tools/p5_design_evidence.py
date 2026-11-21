@@ -23,6 +23,7 @@ import zipfile
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
+TONE_TEMP = Path('S:/Work/_tmp/PV/codex-ui-tone')
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -135,7 +136,7 @@ def seed_download_following(base, authors):
         store.close()
 
 
-def seed_profile(base, copy, profile):
+def seed_profile(base, copy, profile, *, tone_mode=False):
     paths = smoke.seed_all(base)
     label = SENTINEL + (" " + LONG if profile == "long" else "")
     with sqlite3.connect(paths["db"]) as con:
@@ -144,6 +145,10 @@ def seed_profile(base, copy, profile):
                 con.execute(f"DELETE FROM {table}")
         else:
             con.execute("UPDATE works SET title=?, is_bookmarked=1", (label,))
+            if tone_mode:
+                con.execute("INSERT INTO discovery_view_history "
+                            "(work_id,open_count,first_opened_at,last_opened_at) "
+                            "VALUES ('101',2,'2026-10-22T00:00:00','2026-10-22T01:00:00')")
             con.execute("UPDATE failed_queue SET title=?, error_reason=? || error_reason WHERE rowid=("
                         "SELECT rowid FROM failed_queue ORDER BY failed_at DESC LIMIT 1)",
                         (label, label + " "))
@@ -244,6 +249,13 @@ class P5Fixture:
     def thumbnail_data_uri(self, url):
         return "data:image/png;base64," + base64.b64encode(self.get_image_bytes(url)).decode("ascii")
 
+    def personal_search(self, *_args, **_kw):
+        rows = [] if self.data['profile'] == 'empty' else [dict(
+            id=101, title=self.data['title'], user=dict(id=12, name='synthetic author'),
+            type='illust', image_urls=dict(medium=RANKING_FIXTURE_URL), tags=[dict(name='合成タグ')],
+            page_count=1, total_bookmarks=24, create_date='2026-10-22T00:00:00+00:00')]
+        return dict(illusts=rows, next_url=None)
+
 
 def serve_original(port):
     from tools.check_library_calendar_slider_owned import deny_external_connections
@@ -276,12 +288,31 @@ def serve_original(port):
         ranking.get_image_bytes(url) if url == LEARNING_FIXTURE_URL
         else original_memory_image(self, url, *args, **kw))
     PixivClient.get_ranking = lambda _, *args, **kw: ranking.get_ranking(*args, **kw)
+    if os.environ.get('PV_UI_TONE_PERSONAL_FIXTURE') == '1':
+        import nana7mi_vault
+
+        nana7mi_vault.session.is_open = lambda: True
+        nana7mi_vault.session.get_active_client_mode = lambda: 'nana7mi'
+        nana7mi_vault.session.get = lambda *_: None
+        nana7mi_vault.session.record_token_success = lambda: None
+        nana7mi_vault.session.record_token_failure = lambda: None
+        PixivClient.search_illust_by_bookmark_count = lambda _, *a, **kw: ranking.personal_search(*a, **kw)
+        with sqlite3.connect('p5-synthetic.sqlite') as db:
+            db.execute('INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)',
+                       ('ranking_personal_tags',json.dumps(['合成タグ'],ensure_ascii=False)))
     original_thumbnail = PixivClient.download_thumbnail_as_data_uri
     PixivClient.download_thumbnail_as_data_uri = lambda self, url, *args, **kw: (
         ranking.thumbnail_data_uri(url) if url == RANKING_FIXTURE_URL
         else original_thumbnail(self, url, *args, **kw))
     run = flet.run
-    flet.run = lambda target, **kw: run(target, **kw, host="127.0.0.1", no_cdn=True)
+    def run_fixture(target, **kw):
+        if os.environ.get('PV_UI_TONE_CAPTURE') == '1':
+            from tools.ui_tone_evidence import original_controls
+
+            target = original_controls(target, Path.cwd())
+        return run(target, **kw, host='127.0.0.1', no_cdn=True)
+
+    flet.run = run_fixture
     main.main()
 
 
@@ -297,6 +328,15 @@ def serve_port(port, nonce):
     register_pages = bootstrap.register_pages
     get_services = services.get_services
     ranking = P5Fixture(Path.cwd())
+    tone_mode = os.environ.get('PV_UI_TONE_CAPTURE') == '1'
+    if tone_mode:
+        from tools.ui_tone_evidence import install_retry_fixture
+
+        install_retry_fixture()
+    if os.environ.get('PV_UI_TONE_PERSONAL_FIXTURE') == '1':
+        from tools.ui_tone_evidence import install_personal_fixture
+
+        install_personal_fixture(ranking)
     stopped_reader = smoke.make_stopped_reader
     record = RemoteBookmark("101", "illustration", "show", ranking.data["title"], "12",
                             "synthetic author", ("a",), RANKING_FIXTURE_URL, "2026-10-22", 1, 0, 0)
@@ -304,9 +344,14 @@ def serve_port(port, nonce):
 
     def register_fixture_pages(**kw):
         register_pages(**kw, startup_tab="queue")
+        if tone_mode:
+            from tools import ui_tone_evidence as tone
+
+            tone.register_recovery_pages(Path.cwd())
 
     def make_fixture_reader(base, fake):
-        reader, scope = stopped_reader(base, fake)
+        reader, scope = stopped_reader(base, fake, stop_status=None if tone_mode else 429,
+                                       transport_body=b'{}' if tone_mode else None)
         # The isolated reader already knows its synthetic account. The production
         # cache validation/restoration path still loads through its real store.
         reader._verified_identity = "12"
@@ -324,6 +369,13 @@ def serve_port(port, nonce):
         if getattr(instance, "_p5_visual_fixture", False):
             return instance
         instance._p5_visual_fixture = True
+        instance.default_uid_path = Path.cwd() / 'unused-synthetic-uid.txt'
+        if tone_mode and ranking.data['profile'] != 'empty':
+            instance.shared_log.append('P5 合成ログ: 定期チェックの結果を表示', level='info')
+            instance.shared_log.append('P5 合成ログ: 取得を保留', level='warning')
+            from pixivvault_nicegui.metadata_auto import MetadataStatus
+
+            instance.managed_metadata_status = lambda: MetadataStatus(1, 3, 1, 1)
         instance.jobs.snapshot = lambda: tuple(
             JobSnapshot(row["jobId"], "pixiv-illust", row["id"], row["author_name"],
                         state=row["state"], done=row["done"], total=row["total"])
@@ -338,6 +390,8 @@ def serve_port(port, nonce):
                             "INSERT OR IGNORE INTO managed_discovery_candidate VALUES (?,?)",
                             (candidate["work_id"], json.dumps(candidate, ensure_ascii=False)))
                         discovery._accept_metadata(candidate)
+                if tone_mode and ranking.data['profile'] != 'empty':
+                    db.record_discovery_open('101')
 
             discovery._submit(seed_candidates).result(timeout=10)
         # The archive reads saved counts from its isolated legacy DB. The port
@@ -367,11 +421,15 @@ def separate_environment(base):
 
 
 @contextmanager
-def running_app(kind, python, base, port, nonce=None):
+def running_app(kind, python, base, port, nonce=None, *, tone_mode=False, personal_fixture=False):
     if not smoke.port_free(port):
         raise RuntimeError(f"port in use: {port}")
     env = separate_environment(base)
     env.update(NICEGUI_STORAGE_PATH=str(base / ".nicegui"))
+    if tone_mode:
+        env['PV_UI_TONE_CAPTURE'] = '1'
+    if personal_fixture:
+        env['PV_UI_TONE_PERSONAL_FIXTURE'] = '1'
     if kind == "original":
         # Do not inherit Flet's host/port or open the machine's default browser.
         env.update(PV_WEB_PORT=str(port), PV_LOCK_PORT=str(port + 1), PV_SERVER_PORT=str(port + 2),
@@ -419,11 +477,14 @@ def running_app(kind, python, base, port, nonce=None):
 
 
 def write_json(path, value):
-    path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
 
 
-def navigate_port(page, key, specs):
-    if key == "bookmarks":
+def navigate_port(page, key, specs, *, tone_mode=False):
+    if tone_mode and key == 'learning':
+        page.get_by_test_id('tab-learning').click(timeout=5000)
+        page.locator('.pv-content .pv-learning').wait_for(state='visible', timeout=5000)
+    elif key == "bookmarks":
         smoke.open_screen(page, "library", specs["library"], 0)
         page.get_by_test_id("library-subview-bookmarks").click(timeout=5000)
         page.get_by_test_id("bookmark-view").wait_for(state="visible", timeout=5000)
@@ -494,7 +555,8 @@ DOM_AUDIT = r"""() => {
 
 def audit_port(page):
     data = page.evaluate(DOM_AUDIT)
-    data["shell"] = page.evaluate(shell_measure.MEASURE_JS)
+    data["shell"] = (page.evaluate(shell_measure.MEASURE_JS) if page.locator('.pv-shell').count()
+                     else {'tabs': []})
     data["display_contract"] = page.evaluate("""() => {
       const rect = selector => document.querySelector(selector)?.getBoundingClientRect();
       const search = rect('[data-testid=failed-search]');
@@ -578,11 +640,16 @@ def new_page(browser, url, size, theme, foreign, japanese_font):
     return page
 
 
-def capture_view(page, target, kind, path, specs, profile):
-    if kind == "original":
+def capture_view(page, target, kind, path, specs, profile, tone_key=None, original_dir=None):
+    from tools import ui_tone_evidence as tone
+
+    handled = tone_key and tone.navigate_extra(page, tone_key, kind)
+    if handled:
+        pass
+    elif kind == "original":
         original.open_screen(page, target)
     else:
-        navigate_port(page, target, specs)
+        navigate_port(page, target, specs, tone_mode=bool(tone_key))
     if target == "dedup" and profile != "empty":
         if kind == "original":
             original.click_label(page, "スキャンして更新")
@@ -604,11 +671,19 @@ def capture_view(page, target, kind, path, specs, profile):
                 "?.textContent.includes('\u679a\u3092\u78ba\u8a8d')",
                 timeout=8000)
             page.get_by_test_id("duplicate-mode-near").click(timeout=5000)
+    if kind == 'port' and tone_key == 'settings':
+        tone.expand_settings(page)
     page.mouse.move(0, 0)
     page.wait_for_timeout(1400 if target in {"ranking", "learning"} else 500)
     page.evaluate("document.fonts.ready")
     audit = audit_original(page) if kind == "original" else audit_port(page)
+    if tone_key:
+        audit['tone'] = tone.measure(page, tone_key, kind)
+        if kind == 'original':
+            audit['tone']['flet_declared'] = tone.read_original_styles(original_dir)
     page.screenshot(path=path, timeout=10000)
+    if tone_key == 'settings' and kind == 'port':
+        audit['settings_groups'] = tone.capture_settings(page, path.parent)
     audit["background_pixel"] = shell_measure.pixel(path, 4, 4)
     if kind == "port":
         for tab in audit["shell"]["tabs"]:
@@ -671,8 +746,10 @@ def mechanics(audits, theme, key):
     return sorted(set(flags))
 
 
-def tour(browser, urls, output, specs, size, theme, screens, foreign, japanese_font, profile):
+def tour(browser, urls, output, specs, size, theme, screens, foreign, japanese_font, profile,
+         tone_mode=False, original_dir=None):
     from playwright.sync_api import Error
+    from tools import ui_tone_evidence as tone
 
     pages = {}
     startup_errors = {}
@@ -697,7 +774,7 @@ def tour(browser, urls, output, specs, size, theme, screens, foreign, japanese_f
             folder.mkdir()
             cell = result[key] = {"errors": {}}
             audits = {}
-            for kind, target in (("original", SCREENS[key]), ("port", key)):
+            for kind, target in (("original", tone.ORIGINAL.get(key, SCREENS.get(key))), ("port", key)):
                 if target is None:
                     cell[kind] = None
                     continue
@@ -706,7 +783,8 @@ def tour(browser, urls, output, specs, size, theme, screens, foreign, japanese_f
                     continue
                 page = pages[kind]
                 try:
-                    audit = capture_view(page, target, kind, folder / f"{kind}.png", specs, profile)
+                    audit = capture_view(page, target, kind, folder / f"{kind}.png", specs, profile,
+                                         tone_key=key if tone_mode else None, original_dir=original_dir)
                     audits[kind] = audit
                     rows = audit["semantics"] if kind == "original" else audit["text"]
                     shown = "\n".join(e["text"] for e in rows)
@@ -730,6 +808,8 @@ def tour(browser, urls, output, specs, size, theme, screens, foreign, japanese_f
                     if kind == "original":
                         write_json(folder / "original-incomplete.json", audit_original(page))
                 finally:
+                    if tone_mode:
+                        tone.close_extra(page, key, kind)
                     if key == "settings":
                         # Close via the UI for subsequent tab navigation in this session.
                         if kind == "port":
@@ -752,19 +832,27 @@ def tour(browser, urls, output, specs, size, theme, screens, foreign, japanese_f
 def capture(args):
     from playwright.sync_api import sync_playwright
     import hashlib
+    from tools import ui_tone_evidence as tone
 
-    screens = selected_screens(args.only, include_download=args.include_download)
+    screens = (args.only or [*SCREENS, *tone.EXTRA]) if args.tone_out else selected_screens(
+        args.only, include_download=args.include_download)
+    if any(key not in SCREENS and key not in (*tone.EXTRA, *tone.OPTIONAL) for key in screens):
+        raise ValueError('unknown tone screen')
     japanese_font = ORIGINAL_JAPANESE_FONT.read_bytes()
     specs = helpers.load_expectations()["screens"]
     revision = git(ORIGINAL_REPO, "rev-parse", "HEAD").decode().strip()
     port_revision = git(ROOT, "rev-parse", "HEAD").decode().strip()
-    out = smoke.VERIFY_ROOT / datetime.now().strftime("p5_design_%Y%m%d_%H%M%S_%f")
+    out = args.tone_out or smoke.VERIFY_ROOT / datetime.now().strftime("p5_design_%Y%m%d_%H%M%S_%f")
+    if args.tone_out and not any(out.resolve().is_relative_to(root.resolve())
+                                 for root in (ROOT / 'verify', TONE_TEMP)):
+        raise ValueError('tone evidence must be inside the assigned verify or scratch directory')
     out.mkdir(parents=True)
-    temp = out / "tmp"
-    temp.mkdir()
+    temp = (TONE_TEMP if args.tone_out else out) / datetime.now().strftime('capture-%Y%m%d_%H%M%S_%f')
+    temp.mkdir(parents=True)
     os.environ.update(TEMP=str(temp), TMP=str(temp), PYTHONDONTWRITEBYTECODE="1")
     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(temp / "browsers")
-    profiles = args.profile or PROFILES
+    profiles = args.profile or (('normal', 'empty') if args.tone_out else PROFILES)
+    sizes = [tuple(map(int,args.tone_size.split('x')))] if args.tone_size else helpers.SIZES
     foreign = {"original": set(), "port": set()}
     summary = {"original_revision": revision, "port_revision": port_revision,
                "port_dirty": bool(git(ROOT, "status", "--porcelain")), "screens": screens,
@@ -772,28 +860,34 @@ def capture(args):
                "original_local_font": {"path": str(ORIGINAL_JAPANESE_FONT),
                                        "sha256": hashlib.sha256(japanese_font).hexdigest()}}
     print(out, flush=True)
+    owned = tone.OwnedProcesses() if args.tone_out else None
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(channel="msedge", headless=True,
-            args=["--disable-background-networking", "--no-proxy-server",
-                  "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1"])
+        browser_flags = ["--disable-background-networking", "--no-proxy-server",
+                         "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1"]
+        if owned:
+            browser_flags.append(f'--pv-tone-capture={temp.name}')
+        browser = playwright.chromium.launch(channel='msedge',headless=True,args=browser_flags)
         try:
             for profile in profiles:
-                base = out / profile
+                base = (temp if args.tone_out else out) / profile
                 source = base / "original_copy"
                 product = base / "port_data"
                 source.mkdir(parents=True)
                 copy_original(revision, source)
-                seed_profile(product, source, profile)
+                seed_profile(product, source, profile, tone_mode=bool(args.tone_out))
                 nonce = secrets.token_urlsafe(24)
-                with running_app("original", args.original_python, source, args.original_port) as old_url:
-                    with running_app("port", sys.executable, product, args.port, nonce) as new_url:
+                with running_app("original", args.original_python, source, args.original_port,
+                                 tone_mode=bool(args.tone_out), personal_fixture='personal-results' in screens) as old_url:
+                    with running_app("port", sys.executable, product, args.port, nonce,
+                                     tone_mode=bool(args.tone_out), personal_fixture='personal-results' in screens) as new_url:
                         urls = {"original": old_url, "port": new_url}
-                        for size in helpers.SIZES:
-                            for theme in helpers.THEMES:
+                        for size in sizes:
+                            for theme in (('dark',) if args.tone_out else helpers.THEMES):
                                 key = f"{profile}/{size[0]}x{size[1]}_{theme}"
                                 folder = out / key
-                                folder.mkdir()
-                                cells = tour(browser, urls, folder, specs, size, theme, screens, foreign, japanese_font, profile)
+                                folder.mkdir(parents=True)
+                                cells = tour(browser, urls, folder, specs, size, theme, screens, foreign, japanese_font,
+                                             profile, tone_mode=bool(args.tone_out), original_dir=source)
                                 summary["matrix"][key] = cells
                                 summary["foreign_blocked"] = {k: sorted(v) for k, v in foreign.items()}
                                 write_json(out / "summary.json", summary)
@@ -801,11 +895,18 @@ def capture(args):
                                       f"{sum(bool(v['errors']) for v in cells.values())} incomplete", flush=True)
                         network = smoke.network_state(new_url, nonce)
                         summary["network"][profile] = network
+                        if owned:
+                            owned.observe()
         finally:
+            if owned:
+                owned.observe()
             browser.close()
             write_json(out / "summary.json", summary)
+    if owned:
+        write_json(out / 'lifecycle.json', owned.result(temp, (args.original_port, args.original_port + 1, args.port)))
     return int(any(cell["errors"] for row in summary["matrix"].values() for cell in row.values()) or
-               any(net["denied"] or net["calls"] for net in summary["network"].values()))
+               any(net['denied'] or any(call != 'transport' or not args.tone_out for call in net['calls'])
+                   for net in summary['network'].values()))
 
 
 def main():
@@ -813,6 +914,8 @@ def main():
     parser.add_argument("--only", nargs="+")
     parser.add_argument("--include-download", action="store_true")
     parser.add_argument("--profile", choices=PROFILES, action="append")
+    parser.add_argument('--tone-out', type=Path)
+    parser.add_argument('--tone-size', choices=('1280x800','1920x1080'))
     parser.add_argument("--original-port", type=int, default=22610, choices=range(22610, 22618))
     parser.add_argument("--port", type=int, default=22620, choices=range(22620, 22630))
     parser.add_argument("--original-python", type=Path, default=ORIGINAL_PYTHON)
@@ -820,8 +923,10 @@ def main():
     parser.add_argument("--serve-port", type=int, choices=range(22620, 22630), help=argparse.SUPPRESS)
     parser.add_argument("--nonce", help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.tone_size and not args.tone_out:
+        parser.error('--tone-size requires --tone-out')
     if args.serve_original or args.serve_port:
-        if not (Path.cwd().resolve().is_relative_to(smoke.VERIFY_ROOT.resolve())
+        if not (any(Path.cwd().resolve().is_relative_to(root.resolve()) for root in (smoke.VERIFY_ROOT, TONE_TEMP))
                 and (Path.cwd() / "fixture.json").is_file()):
             parser.error("server entry points require an isolated P5 run folder")
     if args.serve_original:

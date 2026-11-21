@@ -1,0 +1,1720 @@
+{
+  "width": [
+    1920,
+    1920
+  ],
+  "text": [
+    {
+      "id": "c6",
+      "text": "PixivVault — 起動設定の確認",
+      "rect": [
+        648,
+        22,
+        312.39,
+        35
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "native-profile-recovery",
+      "text": "認証・通信の停止履歴と保存先の所有状態を安全に照合できません。通信は停止しています。保存済みデータを削除せず、停止履歴の確認と正式な移行を行ってください。",
+      "rect": [
+        648,
+        72,
+        613.77,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "native-profile-recovery",
+      "text": "認証・通信の停止履歴と保存先の所有状態を安全に照合できません。通信は停止しています。保存済みデータを削除せず、停止履歴の確認と正式な移行を行ってください。",
+      "rect": [
+        648,
+        93,
+        459.91,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "停止履歴の確認と移行手順を開く",
+      "rect": [
+        664,
+        137.98,
+        210,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c27",
+      "text": "Pixiv Cookieファイル",
+      "rect": [
+        648,
+        184,
+        156.92,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "native-profile-cookie-value",
+      "text": "未設定",
+      "rect": [
+        648,
+        226,
+        42,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "Cookieファイルを選択",
+      "rect": [
+        700,
+        270.98,
+        144.28,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "選択解除",
+      "rect": [
+        892.28,
+        270.98,
+        56,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c32",
+      "text": "作品の保存先（親フォルダ）",
+      "rect": [
+        648,
+        317,
+        209.95,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "native-profile-folder-value",
+      "text": "未設定",
+      "rect": [
+        648,
+        359,
+        42,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "保存先を選択",
+      "rect": [
+        700,
+        403.98,
+        84,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "選択解除",
+      "rect": [
+        832,
+        403.98,
+        56,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "div",
+      "text": "旧ライブラリ（任意・読取専用）",
+      "rect": [
+        720,
+        461.59,
+        210,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "div",
+      "text": "画像解析・GPU",
+      "rect": [
+        720,
+        525.59,
+        98.61,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c52",
+      "text": "保存した設定は次回起動から反映されます。実行中のジョブや保存先は変わりません。",
+      "rect": [
+        648,
+        577,
+        482.05,
+        17
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "保存",
+      "rect": [
+        664,
+        635.98,
+        28,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "取消",
+      "rect": [
+        740,
+        635.98,
+        28,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c58",
+      "text": "停止履歴の引き継ぎ",
+      "rect": [
+        648,
+        705,
+        162,
+        26
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c59",
+      "text": "以前の保存元を確認し、停止履歴を安全に引き継ぎます。通信・認証は行いません。",
+      "rect": [
+        648,
+        745,
+        530.19,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "正式移行を実行する",
+      "rect": [
+        664,
+        786.38,
+        126,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c13",
+      "text": "通信を再開する前の確認",
+      "rect": [
+        640,
+        220.5,
+        222.75,
+        29
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "stop-recovery-rate-limit-guidance",
+      "text": "過去のHTTP 429による永続STOP履歴と、今回の429の設定待機・再試行は別です。現在のGET再試行ポリシーが扱う429は、設定した総試行回数（初回を含む）と待機時間に従い、共有STOP履歴には記録しません。上限に達すると、同じポリシーを共有する取得をこの起動中は停止します。再起動後に取得を明示的にやり直せますが",
+      "rect": [
+        640,
+        267.5,
+        634.7,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "stop-recovery-rate-limit-guidance",
+      "text": "過去のHTTP 429による永続STOP履歴と、今回の429の設定待機・再試行は別です。現在のGET再試行ポリシーが扱う429は、設定した総試行回数（初回を含む）と待機時間に従い、共有STOP履歴には記録しません。上限に達すると、同じポリシーを共有する取得をこの起動中は停止します。再起動後に取得を明示的にやり直せますが",
+      "rect": [
+        640,
+        288.5,
+        632.55,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "stop-recovery-rate-limit-guidance",
+      "text": "過去のHTTP 429による永続STOP履歴と、今回の429の設定待機・再試行は別です。現在のGET再試行ポリシーが扱う429は、設定した総試行回数（初回を含む）と待機時間に従い、共有STOP履歴には記録しません。上限に達すると、同じポリシーを共有する取得をこの起動中は停止します。再起動後に取得を明示的にやり直せますが",
+      "rect": [
+        640,
+        309.5,
+        627.63,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "stop-recovery-rate-limit-guidance",
+      "text": "過去のHTTP 429による永続STOP履歴と、今回の429の設定待機・再試行は別です。現在のGET再試行ポリシーが扱う429は、設定した総試行回数（初回を含む）と待機時間に従い、共有STOP履歴には記録しません。上限に達すると、同じポリシーを共有する取得をこの起動中は停止します。再起動後に取得を明示的にやり直せますが",
+      "rect": [
+        640,
+        330.5,
+        621.13,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "stop-recovery-rate-limit-guidance",
+      "text": "過去のHTTP 429による永続STOP履歴と、今回の429の設定待機・再試行は別です。現在のGET再試行ポリシーが扱う429は、設定した総試行回数（初回を含む）と待機時間に従い、共有STOP履歴には記録しません。上限に達すると、同じポリシーを共有する取得をこの起動中は停止します。再起動後に取得を明示的にやり直せますが",
+      "rect": [
+        640,
+        351.5,
+        28,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c15",
+      "text": "1. 保存先の設定を確認し、以前使った保存元も控えてください。元DB・Cookie・停止履歴を削除しないでください。",
+      "rect": [
+        640,
+        388.5,
+        637.75,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c15",
+      "text": "1. 保存先の設定を確認し、以前使った保存元も控えてください。元DB・Cookie・停止履歴を削除しないでください。",
+      "rect": [
+        640,
+        409.5,
+        97.59,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c16",
+      "text": "2. 下の確認ボタンで、現在の設定にある停止履歴を読み取ります。認証不要・通信なしで使えます。確認はSTOP解除や移行の証明ではありません。",
+      "rect": [
+        640,
+        446.5,
+        627.03,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c16",
+      "text": "2. 下の確認ボタンで、現在の設定にある停止履歴を読み取ります。認証不要・通信なしで使えます。確認はSTOP解除や移行の証明ではありません。",
+      "rect": [
+        640,
+        467.5,
+        300.81,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c17",
+      "text": "3. 保存元の正式移行が必要な場合は、「正式移行を実行する」で以前のすべての保存元を追加し、内容を確認してから明示的に開始してください。アプリがロック・コピー・照合を行います。正式移行は履歴と所有情報を引き継ぐ操作で、STOP解除ではありません。履歴や所有ファイルを自分で作り直さないでください。",
+      "rect": [
+        640,
+        504.5,
+        636.27,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c17",
+      "text": "3. 保存元の正式移行が必要な場合は、「正式移行を実行する」で以前のすべての保存元を追加し、内容を確認してから明示的に開始してください。アプリがロック・コピー・照合を行います。正式移行は履歴と所有情報を引き継ぐ操作で、STOP解除ではありません。履歴や所有ファイルを自分で作り直さないでください。",
+      "rect": [
+        640,
+        525.5,
+        627.06,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c17",
+      "text": "3. 保存元の正式移行が必要な場合は、「正式移行を実行する」で以前のすべての保存元を追加し、内容を確認してから明示的に開始してください。アプリがロック・コピー・照合を行います。正式移行は履歴と所有情報を引き継ぐ操作で、STOP解除ではありません。履歴や所有ファイルを自分で作り直さないでください。",
+      "rect": [
+        640,
+        546.5,
+        636.25,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c17",
+      "text": "3. 保存元の正式移行が必要な場合は、「正式移行を実行する」で以前のすべての保存元を追加し、内容を確認してから明示的に開始してください。アプリがロック・コピー・照合を行います。正式移行は履歴と所有情報を引き継ぐ操作で、STOP解除ではありません。履歴や所有ファイルを自分で作り直さないでください。",
+      "rect": [
+        640,
+        567.5,
+        111.59,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c18",
+      "text": "4. 正式移行が完了したらアプリを終了し、起動し直してください。起動時の検証が通るまで認証・取得は無効のままです。記録済みのSTOPは移行・再起動後も維持されます。STOPが記録されている場合は、元データを保持して確認を依頼してください。",
+      "rect": [
+        640,
+        604.5,
+        629.97,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c18",
+      "text": "4. 正式移行が完了したらアプリを終了し、起動し直してください。起動時の検証が通るまで認証・取得は無効のままです。記録済みのSTOPは移行・再起動後も維持されます。STOPが記録されている場合は、元データを保持して確認を依頼してください。",
+      "rect": [
+        640,
+        625.5,
+        627.23,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c18",
+      "text": "4. 正式移行が完了したらアプリを終了し、起動し直してください。起動時の検証が通るまで認証・取得は無効のままです。記録済みのSTOPは移行・再起動後も維持されます。STOPが記録されている場合は、元データを保持して確認を依頼してください。",
+      "rect": [
+        640,
+        646.5,
+        334.75,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "stop-recovery-result",
+      "text": "まだ確認していません。",
+      "rect": [
+        640,
+        683.5,
+        153.17,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "選択済み保存元の停止履歴を確認する",
+      "rect": [
+        656,
+        728.48,
+        238,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "正式移行を実行する",
+      "rect": [
+        656,
+        780.48,
+        126,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "閉じる",
+      "rect": [
+        656,
+        832.48,
+        42,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c65",
+      "text": "停止履歴を引き継ぐ",
+      "rect": [
+        608,
+        54,
+        216,
+        35
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c66",
+      "text": "以前のすべての保存元を確認し、停止履歴を共通の所有情報へ引き継ぎます。通信や認証は行いません。",
+      "rect": [
+        608,
+        112,
+        700.64,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c66",
+      "text": "以前のすべての保存元を確認し、停止履歴を共通の所有情報へ引き継ぎます。通信や認証は行いません。",
+      "rect": [
+        608,
+        137.59,
+        48,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c67",
+      "text": "1  保存元  /  2  内容を確認  /  3  移行結果",
+      "rect": [
+        608,
+        187.19,
+        258.14,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c69",
+      "text": "1. 以前使った保存元をすべて追加",
+      "rect": [
+        608,
+        237.78,
+        270.58,
+        26
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c70",
+      "text": "現在の起動設定と設定済み保存元は自動で含めます。別の起動設定や、以前使った画像・小説・うごいらの保存元も追加してください。旧ライブラリの画像そのものやCookieを指定する必要はありません。",
+      "rect": [
+        608,
+        276.78,
+        701.92,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c70",
+      "text": "現在の起動設定と設定済み保存元は自動で含めます。別の起動設定や、以前使った画像・小説・うごいらの保存元も追加してください。旧ライブラリの画像そのものやCookieを指定する必要はありません。",
+      "rect": [
+        608,
+        302.38,
+        690.75,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c70",
+      "text": "現在の起動設定と設定済み保存元は自動で含めます。別の起動設定や、以前使った画像・小説・うごいらの保存元も追加してください。旧ライブラリの画像そのものやCookieを指定する必要はありません。",
+      "rect": [
+        608,
+        327.97,
+        79.53,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "div",
+      "text": "保存元の種類",
+      "rect": [
+        608,
+        374.06,
+        72.68,
+        18
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "画像の保存元",
+      "rect": [
+        608,
+        391.56,
+        84.8,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "div",
+      "text": "保存元フォルダの絶対パス",
+      "rect": [
+        608,
+        449.56,
+        193.81,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "フォルダを選ぶ",
+      "rect": [
+        624,
+        509.55,
+        98,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "一覧へ追加",
+      "rect": [
+        766,
+        509.55,
+        70,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "内容を確認",
+      "rect": [
+        624,
+        569.55,
+        70,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c79",
+      "text": "2. 内容を確認して開始",
+      "rect": [
+        608,
+        622.56,
+        182.03,
+        26
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "migration-details",
+      "text": "まだ確認していません。",
+      "rect": [
+        608,
+        661.56,
+        175.05,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c81",
+      "text": "対象は停止履歴・所有情報と起動設定のコピーです。元のVault・鍵・Cookieファイルは変更しません。停止履歴があれば、移行後も停止を維持します。",
+      "rect": [
+        608,
+        699.16,
+        695.2,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c81",
+      "text": "対象は停止履歴・所有情報と起動設定のコピーです。元のVault・鍵・Cookieファイルは変更しません。停止履歴があれば、移行後も停止を維持します。",
+      "rect": [
+        608,
+        724.75,
+        398.41,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "div",
+      "text": "以前使ったすべての保存元を上の一覧に含め、対象と内容を確認しました。",
+      "rect": [
+        648,
+        769.55,
+        542.25,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "確認した内容で正式移行を実行",
+      "rect": [
+        624,
+        822.33,
+        196,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c85",
+      "text": "3. 移行結果",
+      "rect": [
+        608,
+        875.34,
+        92.56,
+        26
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "migration-status",
+      "text": "移行はまだ始まっていません。",
+      "rect": [
+        608,
+        914.34,
+        222.09,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c88",
+      "text": "0",
+      "rect": [
+        956.11,
+        951.74,
+        7.78,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "中断した移行を確認",
+      "rect": [
+        624,
+        1003.92,
+        126,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    }
+  ],
+  "clipped": [],
+  "ellipses": [],
+  "scrolled_text_count": 2,
+  "icons": [
+    {
+      "glyph": "upload_file",
+      "font": "\"Material Icons\"",
+      "rect": [
+        664,
+        269,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "folder_open",
+      "font": "\"Material Icons\"",
+      "rect": [
+        664,
+        402,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "folder_open",
+      "font": "\"Material Icons\"",
+      "rect": [
+        664,
+        460,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "keyboard_arrow_down",
+      "font": "\"Material Icons\"",
+      "rect": [
+        946,
+        460,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "memory",
+      "font": "\"Material Icons\"",
+      "rect": [
+        664,
+        524,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "keyboard_arrow_down",
+      "font": "\"Material Icons\"",
+      "rect": [
+        834.61,
+        524,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "arrow_drop_down",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1288,
+        381.56,
+        24,
+        24
+      ]
+    }
+  ],
+  "styles": [
+    {
+      "id": "stop-recovery-open",
+      "rect": [
+        648,
+        130,
+        242,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(0, 150, 250)",
+      "color": "rgb(255, 255, 255)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-pick-cookie",
+      "rect": [
+        648,
+        263,
+        212.28,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-clear-cookie",
+      "rect": [
+        876.28,
+        263,
+        88,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-pick-folder",
+      "rect": [
+        648,
+        396,
+        152,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-clear-folder",
+      "rect": [
+        816,
+        396,
+        88,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-save",
+      "rect": [
+        648,
+        628,
+        60,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-cancel",
+      "rect": [
+        724,
+        628,
+        60,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "native-profile-migration",
+      "rect": [
+        648,
+        778.39,
+        158,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "c10",
+      "rect": [
+        0,
+        0,
+        1920,
+        1080
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "0px"
+    },
+    {
+      "id": "c12",
+      "rect": [
+        624,
+        203.5,
+        672,
+        673
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(29, 29, 29)",
+      "color": "rgb(255, 255, 255)",
+      "radius": "4px"
+    },
+    {
+      "id": "stop-recovery-check",
+      "rect": [
+        640,
+        720.5,
+        270,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(0, 150, 250)",
+      "color": "rgb(255, 255, 255)",
+      "radius": "3px"
+    },
+    {
+      "id": "stop-recovery-migration",
+      "rect": [
+        640,
+        772.5,
+        158,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(0, 150, 250)",
+      "color": "rgb(255, 255, 255)",
+      "radius": "3px"
+    },
+    {
+      "id": "c22",
+      "rect": [
+        640,
+        824.5,
+        74,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(0, 150, 250)",
+      "color": "rgb(255, 255, 255)",
+      "radius": "3px"
+    },
+    {
+      "id": "stop-migration-dialog",
+      "rect": [
+        0,
+        0,
+        1920,
+        1080
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "0px"
+    },
+    {
+      "id": "c64",
+      "rect": [
+        576,
+        24,
+        768,
+        1032
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(29, 29, 29)",
+      "color": "rgb(255, 255, 255)",
+      "radius": "4px"
+    },
+    {
+      "id": "migration-pick",
+      "rect": [
+        608,
+        501.56,
+        130,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "migration-add",
+      "rect": [
+        750,
+        501.56,
+        102,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "migration-preview",
+      "rect": [
+        608,
+        561.56,
+        102,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(0, 150, 250)",
+      "color": "rgb(255, 255, 255)",
+      "radius": "3px"
+    },
+    {
+      "id": "migration-execute",
+      "rect": [
+        608,
+        814.34,
+        228,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(0, 150, 250)",
+      "color": "rgb(255, 255, 255)",
+      "radius": "3px"
+    },
+    {
+      "id": "migration-recover",
+      "rect": [
+        608,
+        995.94,
+        158,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "migration-cancel",
+      "rect": [
+        1138,
+        1043.94,
+        88,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "migration-close",
+      "rect": [
+        1238,
+        1043.94,
+        74,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    }
+  ],
+  "tokens": {
+    "page": "#111418",
+    "bg-vault": "#0b0b10",
+    "bg-surface": "#15161c",
+    "bg-card": "#1e202d",
+    "border-vault": "#2a2b38",
+    "pixiv-blue": "#0096FA",
+    "text-main": "#e8e8ef",
+    "text-muted": "#8a8a99",
+    "text-elsewhere": "#b9b9c4"
+  },
+  "body_font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+  "shell": {
+    "tabs": []
+  },
+  "display_contract": {
+    "failure_categories_below_search": null,
+    "single_line_cards": null,
+    "download_table_clear_of_band": null,
+    "download_list_height": 0,
+    "download_header_to_band": null,
+    "queue_list_height": 0,
+    "queue_empty_alignment": null
+  },
+  "rendered_fonts": {},
+  "tone": {
+    "root": "q-card",
+    "rect": [
+      576,
+      24,
+      768,
+      1032
+    ],
+    "in_viewport_height": 1032,
+    "viewport_height": 1080,
+    "client_height": 1032,
+    "scroll_height": 1088,
+    "scroll_ratio": 1.01,
+    "content_extent": 1088,
+    "content_ratio": 1.01,
+    "document_scroll_height": 1080,
+    "document_scroll_ratio": 1,
+    "viewport_insets": [
+      24,
+      576,
+      24,
+      576
+    ],
+    "spacing": {
+      "padding": [
+        "32px",
+        "32px",
+        "32px",
+        "32px"
+      ],
+      "margin": [
+        "0px",
+        "0px",
+        "0px",
+        "0px"
+      ],
+      "gap": [
+        "24px",
+        "24px"
+      ]
+    },
+    "content_spacing": {
+      "padding": [
+        "32px",
+        "32px",
+        "32px",
+        "32px"
+      ],
+      "margin": [
+        "0px",
+        "0px",
+        "0px",
+        "0px"
+      ],
+      "gap": [
+        "24px",
+        "24px"
+      ]
+    },
+    "fonts": {
+      "24px": 1,
+      "16px": 9,
+      "18px": 3,
+      "14px": 9
+    },
+    "headings": [
+      {
+        "label": "停止履歴を引き継ぐ",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "size": "24px",
+        "weight": "600",
+        "rect": [
+          608,
+          56,
+          216,
+          32
+        ]
+      },
+      {
+        "label": "1. 以前使った保存元をすべて追加",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "size": "18px",
+        "weight": "600",
+        "rect": [
+          608,
+          236.78,
+          270.58,
+          28
+        ]
+      },
+      {
+        "label": "2. 内容を確認して開始",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "size": "18px",
+        "weight": "600",
+        "rect": [
+          608,
+          621.56,
+          182.03,
+          28
+        ]
+      },
+      {
+        "label": "3. 移行結果",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "size": "18px",
+        "weight": "600",
+        "rect": [
+          608,
+          874.34,
+          92.56,
+          28
+        ]
+      }
+    ],
+    "cards": [
+      {
+        "radius": [
+          "4px",
+          "4px",
+          "4px",
+          "4px"
+        ],
+        "border": "0px solid rgba(255, 255, 255, 0.28)",
+        "shadow": "rgba(255, 255, 255, 0.2) 0px 1px 5px 0px, rgba(255, 255, 255, 0.14) 0px 2px 2px 0px, rgba(255, 255, 255, 0.12) 0px 3px 1px -2px",
+        "padding": [
+          "32px",
+          "32px",
+          "32px",
+          "32px"
+        ],
+        "margin": [
+          "0px",
+          "0px",
+          "0px",
+          "0px"
+        ],
+        "gap": [
+          "24px",
+          "24px"
+        ],
+        "count": 1
+      }
+    ],
+    "scroll": [
+      {
+        "id": "q-card",
+        "rect": [
+          576,
+          24,
+          768,
+          1032
+        ],
+        "client_height": 1032,
+        "scroll_height": 1088
+      }
+    ],
+    "states": [
+      {
+        "id": "migration-status",
+        "label": "移行はまだ始まっていません。",
+        "rect": [
+          608,
+          914.34,
+          222.09,
+          25.59
+        ]
+      }
+    ],
+    "toolbars": [
+      {
+        "container": "nicegui-column",
+        "rows": [
+          {
+            "count": 1,
+            "kinds": {
+              "input": 1
+            },
+            "controls": [
+              {
+                "id": "q-field",
+                "label": "保存元の種類 画像の保存元 arrow_drop_down",
+                "rect": [
+                  608,
+                  365.56,
+                  704,
+                  56
+                ],
+                "kind": "input",
+                "button": null,
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "0px",
+                  "0px",
+                  "0px",
+                  "0px"
+                ],
+                "border": "0px solid rgb(255, 255, 255)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          },
+          {
+            "count": 1,
+            "kinds": {
+              "input": 1
+            },
+            "controls": [
+              {
+                "id": "q-field",
+                "label": "保存元フォルダの絶対パス",
+                "rect": [
+                  608,
+                  433.56,
+                  704,
+                  56
+                ],
+                "kind": "input",
+                "button": null,
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "0px",
+                  "0px",
+                  "0px",
+                  "0px"
+                ],
+                "border": "0px solid rgb(255, 255, 255)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          },
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "id": "migration-preview",
+                "label": "内容を確認",
+                "rect": [
+                  608,
+                  561.56,
+                  102,
+                  36
+                ],
+                "kind": "button",
+                "button": "filled-square",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(255, 255, 255)",
+                "shadow": "none",
+                "background": "rgb(0, 150, 250)"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "container": "nicegui-row",
+        "rows": [
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "id": "migration-pick",
+                "label": "フォルダを選ぶ",
+                "rect": [
+                  608,
+                  501.56,
+                  130,
+                  36
+                ],
+                "kind": "button",
+                "button": "outlined",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(0, 150, 250)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              },
+              {
+                "id": "migration-add",
+                "label": "一覧へ追加",
+                "rect": [
+                  750,
+                  501.56,
+                  102,
+                  36
+                ],
+                "kind": "button",
+                "button": "outlined",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(0, 150, 250)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "container": "nicegui-column",
+        "rows": [
+          {
+            "count": 1,
+            "kinds": {
+              "switch": 1
+            },
+            "controls": [
+              {
+                "id": "migration-confirm",
+                "label": "以前使ったすべての保存元を上の一覧に含め、対象と内容を確認しました。",
+                "rect": [
+                  608,
+                  762.34,
+                  582.25,
+                  40
+                ],
+                "kind": "switch",
+                "button": null,
+                "shared": "switch",
+                "enabled": true,
+                "font_size": "16px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "0px",
+                  "0px",
+                  "0px",
+                  "0px"
+                ],
+                "border": "0px solid rgb(255, 255, 255)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          },
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "id": "migration-execute",
+                "label": "確認した内容で正式移行を実行",
+                "rect": [
+                  608,
+                  814.34,
+                  228,
+                  36
+                ],
+                "kind": "button",
+                "button": "filled-square",
+                "shared": null,
+                "enabled": false,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(255, 255, 255)",
+                "shadow": "none",
+                "background": "rgb(0, 150, 250)"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "container": "nicegui-column",
+        "rows": [
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "id": "migration-recover",
+                "label": "中断した移行を確認",
+                "rect": [
+                  608,
+                  995.94,
+                  158,
+                  36
+                ],
+                "kind": "button",
+                "button": "outlined",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(0, 150, 250)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "container": "nicegui-row",
+        "rows": [
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "id": "migration-cancel",
+                "label": "中止する",
+                "rect": [
+                  1138,
+                  1043.94,
+                  88,
+                  36
+                ],
+                "kind": "button",
+                "button": "outlined",
+                "shared": null,
+                "enabled": false,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(0, 150, 250)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              },
+              {
+                "id": "migration-close",
+                "label": "閉じる",
+                "rect": [
+                  1238,
+                  1043.94,
+                  74,
+                  36
+                ],
+                "kind": "button",
+                "button": "text-link",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(0, 150, 250)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "buttons": {
+      "outlined": 4,
+      "filled-square": 2,
+      "text-link": 1
+    },
+    "common_components": [
+      {
+        "id": "migration-confirm",
+        "label": "以前使ったすべての保存元を上の一覧に含め、対象と内容を確認しました。",
+        "rect": [
+          608,
+          762.34,
+          582.25,
+          40
+        ],
+        "kind": "switch",
+        "button": null,
+        "shared": "switch",
+        "enabled": true,
+        "font_size": "16px",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "radius": [
+          "0px",
+          "0px",
+          "0px",
+          "0px"
+        ],
+        "border": "0px solid rgb(255, 255, 255)",
+        "shadow": "none",
+        "background": "rgba(0, 0, 0, 0)"
+      }
+    ]
+  },
+  "background_pixel": "#060708"
+}

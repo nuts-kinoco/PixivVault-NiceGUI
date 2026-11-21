@@ -1,0 +1,708 @@
+{
+  "semantics": [
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\empty\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixiv",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\empty\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixiv",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\empty\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixiv",
+      "rect": [
+        0,
+        0,
+        1280,
+        800
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\empty\\original_copy\\p5-synthetic.sqlite",
+      "rect": [
+        18,
+        12,
+        578,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "PixivVault",
+      "rect": [
+        10,
+        38,
+        142,
+        46
+      ]
+    },
+    {
+      "role": null,
+      "text": "× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。",
+      "rect": [
+        10,
+        94,
+        519,
+        19
+      ]
+    },
+    {
+      "role": null,
+      "text": "直近のバックアップ",
+      "rect": [
+        1005,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1005,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "閲覧履歴（学習タブ・0件）",
+      "rect": [
+        1050,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1050,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "保存フォルダを開く",
+      "rect": [
+        1095,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1095,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ライトモードへ切り替え",
+      "rect": [
+        1140,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1140,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ブラウザで Pixiv を開く (ログイン状態確認・自動連携)",
+      "rect": [
+        1185,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1185,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "設定",
+      "rect": [
+        1230,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1230,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "アプリ: 切断中",
+      "rect": [
+        26,
+        134,
+        80,
+        18
+      ]
+    },
+    {
+      "role": "switch",
+      "text": "",
+      "rect": [
+        118,
+        127,
+        48,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "",
+      "rect": [
+        178,
+        135,
+        88,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "接続トークンを再発行する（旧トークンで設定済みのiOS側は再入力が必要になります）",
+      "rect": [
+        272,
+        131,
+        24,
+        24
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        272,
+        131,
+        24,
+        24
+      ]
+    },
+    {
+      "role": "switch",
+      "text": "API経路を切り替える",
+      "rect": [
+        308,
+        127,
+        48,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "API経路を切り替える API切り替え",
+      "rect": [
+        368,
+        135,
+        63,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "【Cookie未連携】",
+      "rect": [
+        55,
+        184,
+        116,
+        21
+      ]
+    },
+    {
+      "role": null,
+      "text": "PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixivを開くだけで自動的に連携されます。",
+      "rect": [
+        55,
+        207,
+        389,
+        38
+      ]
+    },
+    {
+      "role": "button",
+      "text": "Pixivを開く",
+      "rect": [
+        1071,
+        199,
+        138,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "閉じる",
+      "rect": [
+        1219,
+        195,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1219,
+        195,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "group",
+      "text": "ダウンロードキュー失敗リスト重複整理学習ランキングライブラリおすすめ",
+      "rect": [
+        10,
+        266,
+        1260,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ダウンロード",
+      "rect": [
+        10,
+        266,
+        139,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "キュー",
+      "rect": [
+        159,
+        266,
+        96,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "失敗リスト",
+      "rect": [
+        265,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "重複整理",
+      "rect": [
+        399,
+        266,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "学習",
+      "rect": [
+        530,
+        266,
+        82,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ランキング",
+      "rect": [
+        622,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ライブラリ",
+      "rect": [
+        756,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "おすすめ",
+      "rect": [
+        891,
+        266,
+        110,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "直近のバックアップ",
+      "rect": [
+        20,
+        328,
+        137,
+        21
+      ]
+    },
+    {
+      "role": null,
+      "text": "大",
+      "rect": [
+        1038,
+        322,
+        56,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "大",
+      "rect": [
+        1038,
+        322,
+        56,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "中",
+      "rect": [
+        1096,
+        322,
+        56,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "中",
+      "rect": [
+        1096,
+        322,
+        56,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "小",
+      "rect": [
+        1154,
+        322,
+        56,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "小",
+      "rect": [
+        1154,
+        322,
+        56,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "更新",
+      "rect": [
+        1220,
+        318,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1220,
+        318,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "作者フォルダ単位でサムネイルを並べています。クリックで保存先を開きます。",
+      "rect": [
+        20,
+        364,
+        420,
+        16
+      ]
+    },
+    {
+      "role": "group",
+      "text": "",
+      "rect": [
+        20,
+        386,
+        1240,
+        394
+      ]
+    }
+  ],
+  "outside_viewport": [],
+  "tone": {
+    "source": "Flutter CanvasKit accessibility bounds",
+    "viewport_height": 800,
+    "in_viewport_height": 62,
+    "semantic_extent_height": 462,
+    "semantic_extent_ratio": 0.578,
+    "scroll_height": null,
+    "scroll_ratio": null,
+    "fonts": null,
+    "buttons": null,
+    "cards": null,
+    "headings": [],
+    "spacing": null,
+    "semantic_scroll_nodes": [
+      {
+        "index": 39,
+        "parent": 2,
+        "role": null,
+        "label": "直近のバックアップ",
+        "rect": [
+          20,
+          328,
+          137,
+          21
+        ],
+        "tag": "flt-semantics",
+        "client_height": 21,
+        "scroll_height": 30,
+        "scroll_top": 0
+      },
+      {
+        "index": 48,
+        "parent": 2,
+        "role": null,
+        "label": "作者フォルダ単位でサムネイルを並べています。クリックで保存先を開きます。",
+        "rect": [
+          20,
+          364,
+          420,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      }
+    ],
+    "toolbars": [
+      {
+        "container": "semantic-body",
+        "rows": [
+          {
+            "count": 4,
+            "kinds": {
+              "button": 4
+            },
+            "controls": [
+              {
+                "index": 41,
+                "parent": 40,
+                "role": "button",
+                "label": "大",
+                "rect": [
+                  1038,
+                  322,
+                  56,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 43,
+                "parent": 42,
+                "role": "button",
+                "label": "中",
+                "rect": [
+                  1096,
+                  322,
+                  56,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 45,
+                "parent": 44,
+                "role": "button",
+                "label": "小",
+                "rect": [
+                  1154,
+                  322,
+                  56,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 47,
+                "parent": 46,
+                "role": "button",
+                "label": "",
+                "rect": [
+                  1220,
+                  318,
+                  40,
+                  40
+                ],
+                "tag": "flt-semantics",
+                "client_height": 40,
+                "scroll_height": 40,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "common_components": [],
+    "states": [],
+    "flet_declared": {
+      "source": "running Flet control tree, declared styles",
+      "fonts": {
+        "15": 1,
+        "9": 3,
+        "11.5": 1
+      },
+      "buttons": {
+        "text-link": 3,
+        "icon-only": 1
+      },
+      "headings": [
+        {
+          "label": "直近のバックアップ",
+          "size": 15,
+          "font": "Yu Mincho",
+          "weight": "FontWeight.BOLD"
+        }
+      ],
+      "common_components": [
+        {
+          "type": "IconButton",
+          "label": "更新"
+        }
+      ],
+      "box_styles": [
+        {
+          "padding": 10,
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 6,
+          "type": "Column",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 10,
+          "type": "Row",
+          "count": 1
+        },
+        {
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 2,
+          "type": "Row",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 0,
+          "type": "Column",
+          "count": 3
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 10,
+          "type": "GridView",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "background_pixel": "#111418"
+}

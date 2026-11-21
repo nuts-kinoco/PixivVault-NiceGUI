@@ -1,0 +1,18 @@
+{
+    "checked_at":  "2026-11-22T00:32:54.5709249+09:00",
+    "method":  "Win32_Process exact scratch marker and audit script plus reserved serve arguments, then loopback probes",
+    "remaining":  [
+
+                  ],
+    "owned_ports_closed":  {
+                               "22610":  true,
+                               "22611":  true,
+                               "22614":  true,
+                               "22615":  true,
+                               "22616":  true,
+                               "22617":  true,
+                               "22626":  true,
+                               "22628":  true,
+                               "22629":  true
+                           }
+}

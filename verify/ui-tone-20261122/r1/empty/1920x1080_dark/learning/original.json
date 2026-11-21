@@ -1,0 +1,681 @@
+{
+  "semantics": [
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\empty\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixiv",
+      "rect": [
+        0,
+        0,
+        1920,
+        1080
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\empty\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixiv",
+      "rect": [
+        0,
+        0,
+        1920,
+        1080
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\empty\\original_copy\\p5-synthetic.sqlitePixivVault× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。アプリ: 切断中API経路を切り替える API切り替え【Cookie未連携】PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixiv",
+      "rect": [
+        0,
+        0,
+        1920,
+        1080
+      ]
+    },
+    {
+      "role": null,
+      "text": "DB: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002135_749388\\empty\\original_copy\\p5-synthetic.sqlite",
+      "rect": [
+        18,
+        12,
+        578,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "PixivVault",
+      "rect": [
+        10,
+        38,
+        142,
+        46
+      ]
+    },
+    {
+      "role": null,
+      "text": "× [未認証/期限切れ] cookies.txt が見つかりません。設定からインポートしてください。",
+      "rect": [
+        10,
+        94,
+        519,
+        19
+      ]
+    },
+    {
+      "role": null,
+      "text": "直近のバックアップ",
+      "rect": [
+        1645,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1645,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "閲覧履歴（学習タブ・0件）",
+      "rect": [
+        1690,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1690,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "保存フォルダを開く",
+      "rect": [
+        1735,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1735,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ライトモードへ切り替え",
+      "rect": [
+        1780,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1780,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "ブラウザで Pixiv を開く (ログイン状態確認・自動連携)",
+      "rect": [
+        1825,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1825,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "設定",
+      "rect": [
+        1870,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1870,
+        81,
+        40,
+        40
+      ]
+    },
+    {
+      "role": null,
+      "text": "アプリ: 切断中",
+      "rect": [
+        26,
+        134,
+        80,
+        18
+      ]
+    },
+    {
+      "role": "switch",
+      "text": "",
+      "rect": [
+        118,
+        127,
+        48,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "",
+      "rect": [
+        178,
+        135,
+        88,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "接続トークンを再発行する（旧トークンで設定済みのiOS側は再入力が必要になります）",
+      "rect": [
+        272,
+        131,
+        24,
+        24
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        272,
+        131,
+        24,
+        24
+      ]
+    },
+    {
+      "role": "switch",
+      "text": "API経路を切り替える",
+      "rect": [
+        308,
+        127,
+        48,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "API経路を切り替える API切り替え",
+      "rect": [
+        368,
+        135,
+        63,
+        16
+      ]
+    },
+    {
+      "role": null,
+      "text": "【Cookie未連携】",
+      "rect": [
+        55,
+        184,
+        116,
+        21
+      ]
+    },
+    {
+      "role": null,
+      "text": "PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。 ブラウザでPixivを開くだけで自動的に連携されます。",
+      "rect": [
+        55,
+        207,
+        389,
+        38
+      ]
+    },
+    {
+      "role": "button",
+      "text": "Pixivを開く",
+      "rect": [
+        1711,
+        199,
+        138,
+        32
+      ]
+    },
+    {
+      "role": null,
+      "text": "閉じる",
+      "rect": [
+        1859,
+        195,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "button",
+      "text": "",
+      "rect": [
+        1859,
+        195,
+        40,
+        40
+      ]
+    },
+    {
+      "role": "group",
+      "text": "ダウンロードキュー失敗リスト重複整理学習ランキングライブラリおすすめ",
+      "rect": [
+        10,
+        266,
+        1900,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ダウンロード",
+      "rect": [
+        10,
+        266,
+        139,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "キュー",
+      "rect": [
+        159,
+        266,
+        96,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "失敗リスト",
+      "rect": [
+        265,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "重複整理",
+      "rect": [
+        399,
+        266,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "学習",
+      "rect": [
+        530,
+        266,
+        82,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ランキング",
+      "rect": [
+        622,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "ライブラリ",
+      "rect": [
+        756,
+        266,
+        124,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "おすすめ",
+      "rect": [
+        891,
+        266,
+        110,
+        32
+      ]
+    },
+    {
+      "role": "button",
+      "text": "めくる",
+      "rect": [
+        34,
+        332,
+        66,
+        30
+      ]
+    },
+    {
+      "role": "button",
+      "text": "振り返り",
+      "rect": [
+        102,
+        332,
+        80,
+        30
+      ]
+    },
+    {
+      "role": null,
+      "text": "表示できる候補がありません",
+      "rect": [
+        868,
+        431,
+        185,
+        20
+      ]
+    },
+    {
+      "role": null,
+      "text": "作品を「見送る」「合わない」「いいね」「SuperLike」で判定していくと、 好みの傾向を学習し、次第に精度の高いおすすめが表示されるようになります。",
+      "rect": [
+        740,
+        459,
+        440,
+        35
+      ]
+    },
+    {
+      "role": null,
+      "text": "画像からのタグ補完にはローカルモデルの導入（任意）が利用できます。",
+      "rect": [
+        775,
+        511,
+        370,
+        16
+      ]
+    },
+    {
+      "role": "button",
+      "text": "設定を開く",
+      "rect": [
+        913,
+        537,
+        94,
+        32
+      ]
+    }
+  ],
+  "outside_viewport": [],
+  "tone": {
+    "source": "Flutter CanvasKit accessibility bounds",
+    "viewport_height": 1080,
+    "in_viewport_height": 237,
+    "semantic_extent_height": 237,
+    "semantic_extent_ratio": 0.219,
+    "scroll_height": null,
+    "scroll_ratio": null,
+    "fonts": null,
+    "buttons": null,
+    "cards": null,
+    "headings": [],
+    "spacing": null,
+    "semantic_scroll_nodes": [
+      {
+        "index": 41,
+        "parent": 2,
+        "role": null,
+        "label": "表示できる候補がありません",
+        "rect": [
+          868,
+          431,
+          185,
+          20
+        ],
+        "tag": "flt-semantics",
+        "client_height": 20,
+        "scroll_height": 28,
+        "scroll_top": 0
+      },
+      {
+        "index": 42,
+        "parent": 2,
+        "role": null,
+        "label": "作品を「見送る」「合わない」「いいね」「SuperLike」で判定していくと、 好みの傾向を学習し、次第に精度の高いおすすめが表示されるようになります。",
+        "rect": [
+          740,
+          459,
+          440,
+          35
+        ],
+        "tag": "flt-semantics",
+        "client_height": 35,
+        "scroll_height": 49,
+        "scroll_top": 0
+      },
+      {
+        "index": 43,
+        "parent": 2,
+        "role": null,
+        "label": "画像からのタグ補完にはローカルモデルの導入（任意）が利用できます。",
+        "rect": [
+          775,
+          511,
+          370,
+          16
+        ],
+        "tag": "flt-semantics",
+        "client_height": 16,
+        "scroll_height": 24,
+        "scroll_top": 0
+      }
+    ],
+    "toolbars": [
+      {
+        "container": "semantic-body",
+        "rows": [
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "index": 39,
+                "parent": 2,
+                "role": "button",
+                "label": "めくる",
+                "rect": [
+                  34,
+                  332,
+                  66,
+                  30
+                ],
+                "tag": "flt-semantics",
+                "client_height": 30,
+                "scroll_height": 30,
+                "scroll_top": 0,
+                "kind": "button"
+              },
+              {
+                "index": 40,
+                "parent": 2,
+                "role": "button",
+                "label": "振り返り",
+                "rect": [
+                  102,
+                  332,
+                  80,
+                  30
+                ],
+                "tag": "flt-semantics",
+                "client_height": 30,
+                "scroll_height": 30,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          },
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "index": 44,
+                "parent": 2,
+                "role": "button",
+                "label": "設定を開く",
+                "rect": [
+                  913,
+                  537,
+                  94,
+                  32
+                ],
+                "tag": "flt-semantics",
+                "client_height": 32,
+                "scroll_height": 32,
+                "scroll_top": 0,
+                "kind": "button"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "common_components": [],
+    "states": [
+      {
+        "index": 41,
+        "parent": 2,
+        "role": null,
+        "label": "表示できる候補がありません",
+        "rect": [
+          868,
+          431,
+          185,
+          20
+        ],
+        "tag": "flt-semantics",
+        "client_height": 20,
+        "scroll_height": 28,
+        "scroll_top": 0
+      }
+    ],
+    "flet_declared": {
+      "source": "running Flet control tree, declared styles",
+      "fonts": {
+        "theme-default": 2,
+        "14": 1,
+        "12": 1,
+        "11": 1
+      },
+      "buttons": {
+        "text-link": 3
+      },
+      "headings": [
+        {
+          "label": "表示できる候補がありません",
+          "size": 14,
+          "font": "Yu Mincho",
+          "weight": "FontWeight.W_600"
+        }
+      ],
+      "common_components": [],
+      "box_styles": [
+        {
+          "bgcolor": "#0b0b10",
+          "padding": 24,
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 0,
+          "type": "Column",
+          "count": 1
+        },
+        {
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 3
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 2,
+          "type": "Row",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 8,
+          "type": "Column",
+          "count": 2
+        },
+        {
+          "bgcolor": "#1e202d",
+          "border": "Border(top=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), right=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), bottom=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>), left=BorderSide(width=1.0, color='#2a2b38', stroke_align=<BorderSideStrokeAlign.INSIDE: -1.0>, style=<BorderStyle.SOLID: 'solid'>))",
+          "border_radius": 12,
+          "padding": 24,
+          "shape": "BoxShape.RECTANGLE",
+          "type": "Container",
+          "count": 1
+        },
+        {
+          "run_spacing": 10,
+          "spacing": 10,
+          "type": "Row",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "background_pixel": "#111418"
+}

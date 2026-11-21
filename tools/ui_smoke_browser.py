@@ -165,7 +165,7 @@ def seed_all(base: Path) -> dict:
 
 
 # --------------------------------------------------------------------------- server
-def make_stopped_reader(base, fake):
+def make_stopped_reader(base, fake, *, stop_status=429, transport_body=None):
     """Use the product reader and durable stop with generated data only."""
     import hashlib
     from pixivvault_nicegui.managed_network_stop_gate import ManagedNetworkStopGate, _file_identity
@@ -182,13 +182,16 @@ def make_stopped_reader(base, fake):
         'history_proof': hashlib.sha256(b'generated-only-no-real-historical-proof').hexdigest(),
     }), encoding='utf-8')
     scope = ManagedUserNetworkStopScope(root)
-    scope.gate.trip(429)
+    if stop_status is not None:
+        scope.gate.trip(stop_status)
     cookie = base / 'generated-cookie.txt'
     cookie.write_text('# Netscape HTTP Cookie File\n'
                       '.pixiv.net\tTRUE\t/\tTRUE\t4102444800\tPHPSESSID\t55_generatedonly\n',
                       encoding='utf-8')
     def transport(*_args):
         fake._hit('transport')
+        if transport_body is not None:
+            return transport_body
         raise RuntimeError('unexpected synthetic transport')
     return scope.create_reader(cookie, transport=transport), scope
 

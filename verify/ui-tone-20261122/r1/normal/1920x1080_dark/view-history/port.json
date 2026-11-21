@@ -1,0 +1,2365 @@
+{
+  "width": [
+    1920,
+    1920
+  ],
+  "text": [
+    {
+      "id": "db-status-banner",
+      "text": "⚠️⚠️ 本番DBを使用中: S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_003058_767782\\normal\\port_data\\managed",
+      "rect": [
+        18,
+        18,
+        814.72,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c10",
+      "text": "PixivVault",
+      "rect": [
+        10,
+        57,
+        158.03,
+        46
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "auth-status",
+      "text": "× [未認証/期限切れ] Cookieファイルが設定されていません。設定から選んでください。",
+      "rect": [
+        10,
+        111,
+        516.72,
+        19
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "div",
+      "text": "API切り替え",
+      "rect": [
+        65,
+        156.98,
+        66.42,
+        17
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "取得停止の確認・回復",
+      "rect": [
+        153.42,
+        155.97,
+        140,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c70",
+      "text": "1",
+      "rect": [
+        1720.33,
+        95.48,
+        6.67,
+        17
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c85",
+      "text": "【Cookie未連携】",
+      "rect": [
+        61,
+        207.48,
+        117.56,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c86",
+      "text": "PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。\n拡張機能の受信が動いていません。自動連携は使えません。設定からcookies.txtを選んでください。",
+      "rect": [
+        61,
+        228.48,
+        410.34,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c86",
+      "text": "PV拡張機能をご利用中の場合、cookies.txtの手動DLは不要です。\n拡張機能の受信が動いていません。自動連携は使えません。設定からcookies.txtを選んでください。",
+      "rect": [
+        61,
+        249.48,
+        627.64,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c89",
+      "text": "Pixivを開く",
+      "rect": [
+        1752.17,
+        228.48,
+        72.83,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "ダウンロード",
+      "rect": [
+        64,
+        297.47,
+        84,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "キュー",
+      "rect": [
+        255,
+        297.47,
+        42,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "失敗リスト",
+      "rect": [
+        411,
+        297.47,
+        70,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "重複整理",
+      "rect": [
+        588,
+        297.47,
+        56,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "学習",
+      "rect": [
+        772,
+        297.47,
+        28,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "ランキング",
+      "rect": [
+        921.2,
+        297.47,
+        69.59,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "自分のランキング",
+      "rect": [
+        1070.2,
+        297.47,
+        111.59,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "ライブラリ",
+      "rect": [
+        1261,
+        297.47,
+        70,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "おすすめ",
+      "rect": [
+        1438,
+        297.47,
+        56,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "定期チェック",
+      "rect": [
+        1594,
+        297.47,
+        84,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "メタデータ補完",
+      "rect": [
+        1757,
+        297.47,
+        98,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1608",
+      "text": "ダウンロード",
+      "rect": [
+        341,
+        342.98,
+        114,
+        27
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1609",
+      "text": "作者を選ぶか、IDを入れて実行します",
+      "rect": [
+        467,
+        348.23,
+        186.25,
+        16
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1613",
+      "text": "作品単位で選ぶ（詳細）",
+      "rect": [
+        717.25,
+        345.98,
+        154,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1618",
+      "text": "フォロー中の作者",
+      "rect": [
+        482.5,
+        414.98,
+        112,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1620",
+      "text": "マイブックマーク",
+      "rect": [
+        855.5,
+        414.98,
+        112,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "div",
+      "text": "絞り込み（数字はID指定）",
+      "rect": [
+        366,
+        464.48,
+        193.66,
+        24
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1630",
+      "text": "表示中を全部選ぶ",
+      "rect": [
+        394,
+        511.98,
+        112,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1633",
+      "text": "選択を全部外す",
+      "rect": [
+        564,
+        511.98,
+        98,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1637",
+      "text": "☆のみ",
+      "rect": [
+        725,
+        511.98,
+        42,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1640",
+      "text": "フォロー登録順",
+      "rect": [
+        922,
+        513.48,
+        84,
+        17
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "unified-count",
+      "text": "1-4 / 4 人",
+      "rect": [
+        354,
+        546.48,
+        44.84,
+        16
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1667",
+      "text": "作者名",
+      "rect": [
+        416,
+        578.23,
+        33,
+        16
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1668",
+      "text": "ID",
+      "rect": [
+        634,
+        578.23,
+        10.8,
+        16
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1669",
+      "text": "保存済み",
+      "rect": [
+        780,
+        578.23,
+        44,
+        16
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1670",
+      "text": "最後に取得した日",
+      "rect": [
+        1000,
+        578.23,
+        88,
+        16
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1771",
+      "text": "P5合成データ",
+      "rect": [
+        416,
+        616.61,
+        77.36,
+        19
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1772",
+      "text": "2001",
+      "rect": [
+        634,
+        619.36,
+        25.3,
+        14
+      ],
+      "font": "Consolas, monospace",
+      "serif": false
+    },
+    {
+      "id": "unified-row-count",
+      "text": "2",
+      "rect": [
+        817.67,
+        619.36,
+        6.33,
+        14
+      ],
+      "font": "Consolas, monospace",
+      "serif": false
+    },
+    {
+      "id": "unified-row-last",
+      "text": "－",
+      "rect": [
+        1076,
+        619.36,
+        12,
+        14
+      ],
+      "font": "Consolas, monospace",
+      "serif": false
+    },
+    {
+      "id": "c1780",
+      "text": "synthetic author",
+      "rect": [
+        416,
+        654.61,
+        95.72,
+        19
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1781",
+      "text": "12",
+      "rect": [
+        634,
+        657.36,
+        12.66,
+        14
+      ],
+      "font": "Consolas, monospace",
+      "serif": false
+    },
+    {
+      "id": "unified-row-count",
+      "text": "1",
+      "rect": [
+        817.67,
+        657.36,
+        6.33,
+        14
+      ],
+      "font": "Consolas, monospace",
+      "serif": false
+    },
+    {
+      "id": "unified-row-last",
+      "text": "－",
+      "rect": [
+        1076,
+        657.36,
+        12,
+        14
+      ],
+      "font": "Consolas, monospace",
+      "serif": false
+    },
+    {
+      "id": "c1789",
+      "text": "synthetic author C",
+      "rect": [
+        416,
+        692.61,
+        106.5,
+        19
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1790",
+      "text": "2003",
+      "rect": [
+        634,
+        695.36,
+        25.3,
+        14
+      ],
+      "font": "Consolas, monospace",
+      "serif": false
+    },
+    {
+      "id": "unified-row-count",
+      "text": "0",
+      "rect": [
+        817.67,
+        695.36,
+        6.33,
+        14
+      ],
+      "font": "Consolas, monospace",
+      "serif": false
+    },
+    {
+      "id": "unified-row-last",
+      "text": "－",
+      "rect": [
+        1076,
+        695.36,
+        12,
+        14
+      ],
+      "font": "Consolas, monospace",
+      "serif": false
+    },
+    {
+      "id": "c1798",
+      "text": "synthetic author D",
+      "rect": [
+        416,
+        730.61,
+        107.13,
+        19
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1799",
+      "text": "2004",
+      "rect": [
+        634,
+        733.36,
+        25.3,
+        14
+      ],
+      "font": "Consolas, monospace",
+      "serif": false
+    },
+    {
+      "id": "unified-row-count",
+      "text": "0",
+      "rect": [
+        817.67,
+        733.36,
+        6.33,
+        14
+      ],
+      "font": "Consolas, monospace",
+      "serif": false
+    },
+    {
+      "id": "unified-row-last",
+      "text": "－",
+      "rect": [
+        1076,
+        733.36,
+        12,
+        14
+      ],
+      "font": "Consolas, monospace",
+      "serif": false
+    },
+    {
+      "id": "c1699",
+      "text": "この回の対象",
+      "rect": [
+        1140,
+        404.48,
+        78,
+        19
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "unified-target-count",
+      "text": "0 人",
+      "rect": [
+        1226,
+        407.23,
+        25.2,
+        14
+      ],
+      "font": "Consolas, monospace",
+      "serif": false
+    },
+    {
+      "id": "unified-targets-empty",
+      "text": "左の一覧でチェックすると、ここに積まれます",
+      "rect": [
+        1152,
+        441.98,
+        241.05,
+        16
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1710",
+      "text": "自動監視",
+      "rect": [
+        1156,
+        890.38,
+        46,
+        16
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "unified-favorite-count",
+      "text": "1 人",
+      "rect": [
+        1208,
+        891.25,
+        28.3,
+        15
+      ],
+      "font": "Consolas, monospace",
+      "serif": false
+    },
+    {
+      "id": "c1715",
+      "text": "☆を対象にする",
+      "rect": [
+        1461.86,
+        888.5,
+        98.14,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c1722",
+      "text": "実行",
+      "rect": [
+        1326,
+        945.5,
+        28,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "unified-band-status",
+      "text": "待機中",
+      "rect": [
+        348,
+        997,
+        39,
+        19
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "unified-band-summary",
+      "text": "差分DL · 両方 · 保存先 専用管理フォルダー",
+      "rect": [
+        348,
+        1022,
+        214.2,
+        16
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "unified-band-hint",
+      "text": "クリックで詳細を開く",
+      "rect": [
+        1467,
+        1022.38,
+        105,
+        15
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c220",
+      "text": "閲覧履歴（学習タブ）",
+      "rect": [
+        526,
+        390.75,
+        200,
+        29
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c221",
+      "text": "学習で開いた作品の記録です。判定とは別に回数を記録します。",
+      "rect": [
+        526,
+        436.75,
+        374.41,
+        19
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "view-history-status",
+      "text": "1件",
+      "rect": [
+        526,
+        472.25,
+        21.78,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "101",
+      "rect": [
+        622,
+        531.23,
+        23.95,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "c379",
+      "text": "開いた回数: 3　最終: 2026-11-22T00:31:12.930930",
+      "rect": [
+        677.95,
+        531.5,
+        296.22,
+        19
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "Pixivで開く",
+      "rect": [
+        1022.17,
+        531.23,
+        74.14,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "CSV出力",
+      "rect": [
+        542,
+        597.23,
+        53.44,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "span",
+      "text": "閉じる",
+      "rect": [
+        1336,
+        597.23,
+        42,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    },
+    {
+      "id": "div",
+      "text": "閲覧履歴を全件削除",
+      "rect": [
+        542,
+        654.84,
+        126,
+        20
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "serif": false
+    }
+  ],
+  "clipped": [],
+  "ellipses": [],
+  "scrolled_text_count": 0,
+  "icons": [
+    {
+      "glyph": "history",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1653,
+        108.48,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "visibility",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1698,
+        108.48,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "folder_open",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1743,
+        108.48,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "light_mode",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1788,
+        108.48,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "public",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1833,
+        108.48,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "settings",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1878,
+        108.48,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "info_outline",
+      "font": "\"Material Icons\"",
+      "rect": [
+        25,
+        226.98,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "open_in_browser",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1726.17,
+        229.98,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "close",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1863,
+        226.98,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "download",
+      "font": "\"Material Icons\"",
+      "rect": [
+        34,
+        298.48,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "queue",
+      "font": "\"Material Icons\"",
+      "rect": [
+        225,
+        298.48,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "report_problem",
+      "font": "\"Material Icons\"",
+      "rect": [
+        381,
+        298.48,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "content_copy",
+      "font": "\"Material Icons\"",
+      "rect": [
+        558,
+        298.48,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "explore",
+      "font": "\"Material Icons\"",
+      "rect": [
+        742,
+        298.48,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "leaderboard",
+      "font": "\"Material Icons\"",
+      "rect": [
+        891.2,
+        298.48,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "military_tech",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1040.2,
+        298.48,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "photo_library",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1231,
+        298.48,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "recommend",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1408,
+        298.48,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "schedule",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1564,
+        298.48,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "edit_note",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1727,
+        298.48,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "tune",
+      "font": "\"Material Icons\"",
+      "rect": [
+        691.25,
+        347.48,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "check_box",
+      "font": "\"Material Icons\"",
+      "rect": [
+        368,
+        513.48,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "check_box_outline_blank",
+      "font": "\"Material Icons\"",
+      "rect": [
+        538,
+        513.48,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "star_border",
+      "font": "\"Material Icons\"",
+      "rect": [
+        699,
+        513.48,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "arrow_drop_down",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1008,
+        514.48,
+        16,
+        16
+      ]
+    },
+    {
+      "glyph": "arrow_upward",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1043,
+        515.48,
+        14,
+        14
+      ]
+    },
+    {
+      "glyph": "arrow_downward",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1075,
+        515.48,
+        14,
+        14
+      ]
+    },
+    {
+      "glyph": "star_border",
+      "font": "\"Material Icons\"",
+      "rect": [
+        389.5,
+        619.48,
+        15,
+        15
+      ]
+    },
+    {
+      "glyph": "star",
+      "font": "\"Material Icons\"",
+      "rect": [
+        389.5,
+        657.48,
+        15,
+        15
+      ]
+    },
+    {
+      "glyph": "star_border",
+      "font": "\"Material Icons\"",
+      "rect": [
+        389.5,
+        695.48,
+        15,
+        15
+      ]
+    },
+    {
+      "glyph": "star_border",
+      "font": "\"Material Icons\"",
+      "rect": [
+        389.5,
+        733.48,
+        15,
+        15
+      ]
+    },
+    {
+      "glyph": "star",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1136,
+        892,
+        14,
+        14
+      ]
+    },
+    {
+      "glyph": "playlist_add",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1435.86,
+        890,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "library_books",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1136,
+        947,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "play_arrow",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1300,
+        947,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "pause",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1500,
+        947,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "stop",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1552,
+        947,
+        18,
+        18
+      ]
+    },
+    {
+      "glyph": "keyboard_arrow_up",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1450,
+        1023.75,
+        13,
+        13
+      ]
+    },
+    {
+      "glyph": "image_not_supported",
+      "font": "\"Material Icons\"",
+      "rect": [
+        526,
+        509.45,
+        24,
+        24
+      ]
+    },
+    {
+      "glyph": "keyboard_arrow_down",
+      "font": "\"Material Icons\"",
+      "rect": [
+        1354,
+        653.25,
+        24,
+        24
+      ]
+    }
+  ],
+  "styles": [
+    {
+      "id": "shared-get-recovery-open",
+      "rect": [
+        137.42,
+        147.98,
+        172,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "tab-history",
+      "rect": [
+        1645,
+        100.48,
+        40,
+        40
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(195, 198, 207)",
+      "radius": "50%"
+    },
+    {
+      "id": "view-history-open",
+      "rect": [
+        1690,
+        100.48,
+        40,
+        40
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(195, 198, 207)",
+      "radius": "50%"
+    },
+    {
+      "id": "saved-folder-open",
+      "rect": [
+        1735,
+        100.48,
+        40,
+        40
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(195, 198, 207)",
+      "radius": "50%"
+    },
+    {
+      "id": "theme-toggle",
+      "rect": [
+        1780,
+        100.48,
+        40,
+        40
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(195, 198, 207)",
+      "radius": "50%"
+    },
+    {
+      "id": "preferences-open",
+      "rect": [
+        1870,
+        100.48,
+        40,
+        40
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(195, 198, 207)",
+      "radius": "50%"
+    },
+    {
+      "id": "cookie-banner-close",
+      "rect": [
+        1855,
+        218.98,
+        40,
+        40
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(195, 198, 207)",
+      "radius": "50%"
+    },
+    {
+      "id": "tab-download",
+      "rect": [
+        10,
+        291.48,
+        162,
+        32
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(45, 56, 68)",
+      "color": "rgb(158, 199, 249)",
+      "radius": "20px"
+    },
+    {
+      "id": "tab-queue",
+      "rect": [
+        180,
+        291.48,
+        162,
+        32
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "20px"
+    },
+    {
+      "id": "tab-failed",
+      "rect": [
+        350,
+        291.48,
+        162,
+        32
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "20px"
+    },
+    {
+      "id": "tab-dedup",
+      "rect": [
+        520,
+        291.48,
+        162,
+        32
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "20px"
+    },
+    {
+      "id": "tab-learning",
+      "rect": [
+        690,
+        291.48,
+        162,
+        32
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "20px"
+    },
+    {
+      "id": "tab-ranking",
+      "rect": [
+        860,
+        291.48,
+        162,
+        32
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "20px"
+    },
+    {
+      "id": "tab-personal",
+      "rect": [
+        1030,
+        291.48,
+        162,
+        32
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "20px"
+    },
+    {
+      "id": "tab-library",
+      "rect": [
+        1200,
+        291.48,
+        162,
+        32
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "20px"
+    },
+    {
+      "id": "tab-recommend",
+      "rect": [
+        1370,
+        291.48,
+        162,
+        32
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "20px"
+    },
+    {
+      "id": "tab-scheduler",
+      "rect": [
+        1540,
+        291.48,
+        162,
+        32
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "20px"
+    },
+    {
+      "id": "tab-metadata",
+      "rect": [
+        1710,
+        291.48,
+        162,
+        32
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "20px"
+    },
+    {
+      "id": "unified-details-open",
+      "rect": [
+        677.25,
+        340.48,
+        208,
+        32
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(158, 199, 249)",
+      "radius": "16px"
+    },
+    {
+      "id": "unified-mode-followed",
+      "rect": [
+        354,
+        404.48,
+        369,
+        42
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(0, 150, 250)",
+      "color": "rgb(11, 11, 16)",
+      "radius": "8px"
+    },
+    {
+      "id": "unified-mode-bookmark",
+      "rect": [
+        727,
+        404.48,
+        369,
+        42
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(30, 32, 45)",
+      "color": "rgb(232, 232, 239)",
+      "radius": "8px"
+    },
+    {
+      "id": "unified-select-all",
+      "rect": [
+        354,
+        506.48,
+        166,
+        32
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(158, 199, 249)",
+      "radius": "16px"
+    },
+    {
+      "id": "unified-deselect-all",
+      "rect": [
+        524,
+        506.48,
+        152,
+        32
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(158, 199, 249)",
+      "radius": "16px"
+    },
+    {
+      "id": "unified-star-only",
+      "rect": [
+        685,
+        506.48,
+        96,
+        32
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(158, 199, 249)",
+      "radius": "16px"
+    },
+    {
+      "id": "unified-sort",
+      "rect": [
+        914,
+        508.48,
+        118,
+        28
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(232, 232, 239)",
+      "radius": "0px"
+    },
+    {
+      "id": "unified-sort-asc",
+      "rect": [
+        1036,
+        508.48,
+        28,
+        28
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "14px"
+    },
+    {
+      "id": "unified-sort-desc",
+      "rect": [
+        1068,
+        508.48,
+        28,
+        28
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(138, 138, 153)",
+      "radius": "14px"
+    },
+    {
+      "id": "unified-favorite-add",
+      "rect": [
+        1421.86,
+        883,
+        152.14,
+        32
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(158, 199, 249)",
+      "radius": "16px"
+    },
+    {
+      "id": "unified-type",
+      "rect": [
+        1123,
+        934,
+        44,
+        44
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(0, 150, 250)",
+      "color": "rgb(11, 11, 16)",
+      "radius": "8px"
+    },
+    {
+      "id": "unified-run",
+      "rect": [
+        1175,
+        934,
+        304,
+        44
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(21, 22, 28)",
+      "color": "rgb(138, 138, 153)",
+      "radius": "8px"
+    },
+    {
+      "id": "unified-pause",
+      "rect": [
+        1487,
+        934,
+        44,
+        44
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(30, 32, 45)",
+      "color": "rgb(232, 232, 239)",
+      "radius": "8px"
+    },
+    {
+      "id": "unified-stop",
+      "rect": [
+        1539,
+        934,
+        44,
+        44
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(30, 32, 45)",
+      "color": "rgb(232, 232, 239)",
+      "radius": "8px"
+    },
+    {
+      "id": "view-history-dialog",
+      "rect": [
+        0,
+        0,
+        1920,
+        1080
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(225, 226, 232)",
+      "radius": "0px"
+    },
+    {
+      "id": "c219",
+      "rect": [
+        510,
+        374.75,
+        900,
+        330.5
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgb(29, 29, 29)",
+      "color": "rgb(255, 255, 255)",
+      "radius": "4px"
+    },
+    {
+      "id": "c378",
+      "rect": [
+        606,
+        523.25,
+        55.95,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "c381",
+      "rect": [
+        1006.17,
+        523.25,
+        106.14,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "view-history-export",
+      "rect": [
+        526,
+        589.25,
+        85.44,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    },
+    {
+      "id": "view-history-close",
+      "rect": [
+        1320,
+        589.25,
+        74,
+        36
+      ],
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "background": "rgba(0, 0, 0, 0)",
+      "color": "rgb(0, 150, 250)",
+      "radius": "3px"
+    }
+  ],
+  "tokens": {
+    "page": "#111418",
+    "bg-vault": "#0b0b10",
+    "bg-surface": "#15161c",
+    "bg-card": "#1e202d",
+    "border-vault": "#2a2b38",
+    "pixiv-blue": "#0096FA",
+    "text-main": "#e8e8ef",
+    "text-muted": "#8a8a99",
+    "text-elsewhere": "#b9b9c4"
+  },
+  "body_font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+  "shell": {
+    "base": 47,
+    "title": {
+      "x": 10,
+      "y": 57,
+      "w": 158,
+      "h": 46,
+      "color": "rgb(225, 226, 232)",
+      "size": "32px",
+      "weight": "700",
+      "font": "\"Noto Sans JP\", system-ui, -apple-system"
+    },
+    "auth": {
+      "x": 10,
+      "y": 113,
+      "w": 516.7,
+      "h": 15.6,
+      "color": "rgb(239, 83, 80)",
+      "size": "13px"
+    },
+    "conn": {
+      "x": 10,
+      "y": 148,
+      "w": 299.4,
+      "h": 36,
+      "items": [
+        "premium-permission-status",
+        "premium-borrow-toggle",
+        "premium-recovery-shell",
+        "shared-get-recovery-open",
+        "shared-get-recovery-summary"
+      ]
+    },
+    "icons": [
+      {
+        "id": "tab-history",
+        "x": 1645,
+        "y": 100.5,
+        "w": 40,
+        "h": 40,
+        "color": "rgb(195, 198, 207)"
+      },
+      {
+        "id": "view-history-open",
+        "x": 1690,
+        "y": 100.5,
+        "w": 40,
+        "h": 40,
+        "color": "rgb(195, 198, 207)"
+      },
+      {
+        "id": "saved-folder-open",
+        "x": 1735,
+        "y": 100.5,
+        "w": 40,
+        "h": 40,
+        "color": "rgb(195, 198, 207)"
+      },
+      {
+        "id": "theme-toggle",
+        "x": 1780,
+        "y": 100.5,
+        "w": 40,
+        "h": 40,
+        "color": "rgb(195, 198, 207)"
+      },
+      {
+        "id": "pixiv-home-link",
+        "x": 1825,
+        "y": 100.5,
+        "w": 40,
+        "h": 40,
+        "color": "rgb(195, 198, 207)"
+      },
+      {
+        "id": "preferences-open",
+        "x": 1870,
+        "y": 100.5,
+        "w": 40,
+        "h": 40,
+        "color": "rgb(195, 198, 207)"
+      }
+    ],
+    "tabs": [
+      {
+        "key": "download",
+        "x": 10,
+        "y": 291.5,
+        "w": 162,
+        "h": 32,
+        "color": "rgb(158, 199, 249)",
+        "bg": "rgb(45, 56, 68)",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system",
+        "icon": "download",
+        "active": true
+      },
+      {
+        "key": "queue",
+        "x": 180,
+        "y": 291.5,
+        "w": 162,
+        "h": 32,
+        "color": "rgb(225, 226, 232)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system",
+        "icon": "queue",
+        "active": false
+      },
+      {
+        "key": "failed",
+        "x": 350,
+        "y": 291.5,
+        "w": 162,
+        "h": 32,
+        "color": "rgb(225, 226, 232)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system",
+        "icon": "report_problem",
+        "active": false
+      },
+      {
+        "key": "dedup",
+        "x": 520,
+        "y": 291.5,
+        "w": 162,
+        "h": 32,
+        "color": "rgb(225, 226, 232)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system",
+        "icon": "content_copy",
+        "active": false
+      },
+      {
+        "key": "learning",
+        "x": 690,
+        "y": 291.5,
+        "w": 162,
+        "h": 32,
+        "color": "rgb(225, 226, 232)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system",
+        "icon": "explore",
+        "active": false
+      },
+      {
+        "key": "ranking",
+        "x": 860,
+        "y": 291.5,
+        "w": 162,
+        "h": 32,
+        "color": "rgb(225, 226, 232)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system",
+        "icon": "leaderboard",
+        "active": false
+      },
+      {
+        "key": "personal",
+        "x": 1030,
+        "y": 291.5,
+        "w": 162,
+        "h": 32,
+        "color": "rgb(225, 226, 232)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system",
+        "icon": "military_tech",
+        "active": false
+      },
+      {
+        "key": "library",
+        "x": 1200,
+        "y": 291.5,
+        "w": 162,
+        "h": 32,
+        "color": "rgb(225, 226, 232)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system",
+        "icon": "photo_library",
+        "active": false
+      },
+      {
+        "key": "recommend",
+        "x": 1370,
+        "y": 291.5,
+        "w": 162,
+        "h": 32,
+        "color": "rgb(225, 226, 232)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system",
+        "icon": "recommend",
+        "active": false
+      },
+      {
+        "key": "scheduler",
+        "x": 1540,
+        "y": 291.5,
+        "w": 162,
+        "h": 32,
+        "color": "rgb(225, 226, 232)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system",
+        "icon": "schedule",
+        "active": false
+      },
+      {
+        "key": "metadata",
+        "x": 1710,
+        "y": 291.5,
+        "w": 162,
+        "h": 32,
+        "color": "rgb(225, 226, 232)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system",
+        "icon": "edit_note",
+        "active": false
+      }
+    ],
+    "banner": {
+      "x": 10,
+      "y": 196.5,
+      "w": 1900,
+      "h": 85,
+      "bg": "rgb(50, 53, 58)",
+      "border": "rgb(66, 165, 245)"
+    },
+    "nav": {
+      "x": 10,
+      "y": 291.5,
+      "w": 1900,
+      "h": 32,
+      "scrollWidth": 1900,
+      "clientWidth": 1900
+    },
+    "tab_icon": {
+      "x": 34,
+      "y": 298.5,
+      "w": 18,
+      "h": 18
+    },
+    "banner_icon": {
+      "x": 25,
+      "y": 227,
+      "w": 24,
+      "h": 24
+    },
+    "toggle": {
+      "x": 16,
+      "y": 153,
+      "w": 43,
+      "h": 26
+    },
+    "page": {
+      "bg": "rgb(17, 20, 24)",
+      "scrollWidth": 1920,
+      "clientWidth": 1920
+    },
+    "content_top": 333.5
+  },
+  "display_contract": {
+    "failure_categories_below_search": null,
+    "single_line_cards": null,
+    "download_table_clear_of_band": true,
+    "download_list_height": 350.515625,
+    "download_header_to_band": 383.515625,
+    "queue_list_height": 0,
+    "queue_empty_alignment": null
+  },
+  "rendered_fonts": {
+    ".pv-title": [
+      {
+        "familyName": "Noto Sans JP",
+        "postScriptName": "Noto-Sans-JP-Bold",
+        "isCustomFont": false,
+        "glyphCount": 10
+      }
+    ],
+    ".pv-tab .q-icon": [
+      {
+        "familyName": "Material Icons",
+        "postScriptName": "MaterialIcons-Regular",
+        "isCustomFont": true,
+        "glyphCount": 1
+      }
+    ],
+    ".pv-tab .q-btn__content span.block": [
+      {
+        "familyName": "Noto Sans JP",
+        "postScriptName": "Noto-Sans-JP-Medium",
+        "isCustomFont": false,
+        "glyphCount": 6
+      }
+    ],
+    ".pv-dialog-title": [],
+    ".pv-serif-heading": [],
+    ".pv-failure-heading": [],
+    "[data-testid=failed-reason]": [],
+    "[data-testid=queue-log-heading] .pv-library-heading": []
+  },
+  "tone": {
+    "root": "q-card",
+    "rect": [
+      510,
+      374.75,
+      900,
+      330.5
+    ],
+    "in_viewport_height": 330.5,
+    "viewport_height": 1080,
+    "client_height": 331,
+    "scroll_height": 331,
+    "scroll_ratio": 0.31,
+    "content_extent": 331,
+    "content_ratio": 0.31,
+    "document_scroll_height": 1080,
+    "document_scroll_ratio": 1,
+    "viewport_insets": [
+      374.75,
+      510,
+      374.75,
+      510
+    ],
+    "spacing": {
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "margin": [
+        "0px",
+        "0px",
+        "0px",
+        "0px"
+      ],
+      "gap": [
+        "16px",
+        "16px"
+      ]
+    },
+    "content_spacing": {
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "margin": [
+        "0px",
+        "0px",
+        "0px",
+        "0px"
+      ],
+      "gap": [
+        "16px",
+        "16px"
+      ]
+    },
+    "fonts": {
+      "20px": 1,
+      "13px": 2,
+      "14px": 6
+    },
+    "headings": [
+      {
+        "label": "閲覧履歴（学習タブ）",
+        "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "size": "20px",
+        "weight": "400",
+        "rect": [
+          526,
+          390.75,
+          200,
+          30
+        ]
+      }
+    ],
+    "cards": [
+      {
+        "radius": [
+          "4px",
+          "4px",
+          "4px",
+          "4px"
+        ],
+        "border": "0px solid rgba(255, 255, 255, 0.28)",
+        "shadow": "rgba(255, 255, 255, 0.2) 0px 1px 5px 0px, rgba(255, 255, 255, 0.14) 0px 2px 2px 0px, rgba(255, 255, 255, 0.12) 0px 3px 1px -2px",
+        "padding": [
+          "16px",
+          "16px",
+          "16px",
+          "16px"
+        ],
+        "margin": [
+          "0px",
+          "0px",
+          "0px",
+          "0px"
+        ],
+        "gap": [
+          "16px",
+          "16px"
+        ],
+        "count": 1
+      }
+    ],
+    "scroll": [],
+    "states": [
+      {
+        "id": "view-history-status",
+        "label": "1件",
+        "rect": [
+          526,
+          472.25,
+          21.78,
+          21
+        ]
+      }
+    ],
+    "toolbars": [
+      {
+        "container": "view-history-row",
+        "rows": [
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "id": "q-btn",
+                "label": "101",
+                "rect": [
+                  606,
+                  523.25,
+                  55.95,
+                  36
+                ],
+                "kind": "button",
+                "button": "text-link",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(0, 150, 250)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              },
+              {
+                "id": "q-btn",
+                "label": "Pixivで開く",
+                "rect": [
+                  1006.17,
+                  523.25,
+                  106.14,
+                  36
+                ],
+                "kind": "button",
+                "button": "text-link",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(0, 150, 250)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "container": "nicegui-row",
+        "rows": [
+          {
+            "count": 2,
+            "kinds": {
+              "button": 2
+            },
+            "controls": [
+              {
+                "id": "view-history-export",
+                "label": "CSV出力",
+                "rect": [
+                  526,
+                  589.25,
+                  85.44,
+                  36
+                ],
+                "kind": "button",
+                "button": "text-link",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(0, 150, 250)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              },
+              {
+                "id": "view-history-close",
+                "label": "閉じる",
+                "rect": [
+                  1320,
+                  589.25,
+                  74,
+                  36
+                ],
+                "kind": "button",
+                "button": "text-link",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "3px",
+                  "3px",
+                  "3px",
+                  "3px"
+                ],
+                "border": "0px none rgb(0, 150, 250)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "container": "q-expansion-item__container",
+        "rows": [
+          {
+            "count": 1,
+            "kinds": {
+              "button": 1
+            },
+            "controls": [
+              {
+                "id": "q-item",
+                "label": "Expand \"閲覧履歴を全件削除\"",
+                "rect": [
+                  526,
+                  641.25,
+                  868,
+                  48
+                ],
+                "kind": "button",
+                "button": "outlined",
+                "shared": null,
+                "enabled": true,
+                "font_size": "14px",
+                "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+                "radius": [
+                  "0px",
+                  "0px",
+                  "0px",
+                  "0px"
+                ],
+                "border": "0px solid rgba(255, 255, 255, 0.28)",
+                "shadow": "none",
+                "background": "rgba(0, 0, 0, 0)"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "buttons": {
+      "text-link": 4,
+      "outlined": 1
+    },
+    "common_components": []
+  },
+  "background_pixel": "#0a0c0e",
+  "active_tab_pixel": "#1b2229"
+}

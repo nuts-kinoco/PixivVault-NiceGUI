@@ -1,0 +1,124 @@
+{
+  "root": "nicegui-column",
+  "rect": [
+    320,
+    3121.39,
+    640,
+    182
+  ],
+  "in_viewport_height": 0,
+  "viewport_height": 800,
+  "client_height": 180,
+  "scroll_height": 180,
+  "scroll_ratio": 0.23,
+  "content_extent": 180,
+  "content_ratio": 0.23,
+  "document_scroll_height": 800,
+  "document_scroll_ratio": 1,
+  "viewport_insets": [
+    3121.39,
+    320,
+    0,
+    320
+  ],
+  "spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "content_spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "fonts": {
+    "16px": 2,
+    "14px": 1,
+    "12px": 1
+  },
+  "headings": [
+    {
+      "label": "作品メタデータ",
+      "font": "\"Yu Mincho\", YuMincho, serif",
+      "size": "16px",
+      "weight": "400",
+      "rect": [
+        333,
+        3134.39,
+        113.06,
+        28
+      ]
+    }
+  ],
+  "cards": [],
+  "scroll": [],
+  "states": [],
+  "toolbars": [
+    {
+      "container": "nicegui-column",
+      "rows": [
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "メタデータ（ブックマーク数など）をバックグラウンドで自動的に埋める ON arrow_drop_down",
+              "rect": [
+                333,
+                3178.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "buttons": {},
+  "common_components": []
+}

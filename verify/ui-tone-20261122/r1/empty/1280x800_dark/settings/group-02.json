@@ -1,0 +1,151 @@
+{
+  "root": "nicegui-column",
+  "rect": [
+    320,
+    851.39,
+    640,
+    200
+  ],
+  "in_viewport_height": 0,
+  "viewport_height": 800,
+  "client_height": 198,
+  "scroll_height": 198,
+  "scroll_ratio": 0.25,
+  "content_extent": 198,
+  "content_ratio": 0.25,
+  "document_scroll_height": 800,
+  "document_scroll_ratio": 1,
+  "viewport_insets": [
+    851.39,
+    320,
+    0,
+    320
+  ],
+  "spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "content_spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "fonts": {
+    "16px": 1,
+    "12px": 1,
+    "14px": 4
+  },
+  "headings": [
+    {
+      "label": "フォロー中リストの同期",
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "size": "16px",
+      "weight": "400",
+      "rect": [
+        333,
+        864.39,
+        177.66,
+        28
+      ]
+    }
+  ],
+  "cards": [],
+  "scroll": [],
+  "states": [],
+  "toolbars": [
+    {
+      "container": "nicegui-row",
+      "rows": [
+        {
+          "count": 2,
+          "kinds": {
+            "button": 2
+          },
+          "controls": [
+            {
+              "id": "following-sync-button",
+              "label": "sync Pixivから同期",
+              "rect": [
+                333,
+                994.39,
+                156.14,
+                36
+              ],
+              "kind": "button",
+              "button": "pill",
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "999px",
+                "999px",
+                "999px",
+                "999px"
+              ],
+              "border": "0px none rgb(232, 232, 239)",
+              "shadow": "none",
+              "background": "rgba(33, 150, 243, 0.1)"
+            },
+            {
+              "id": "following-sync-cancel",
+              "label": "close 同期を取消",
+              "rect": [
+                505.14,
+                994.39,
+                138,
+                36
+              ],
+              "kind": "button",
+              "button": "pill",
+              "shared": null,
+              "enabled": false,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "999px",
+                "999px",
+                "999px",
+                "999px"
+              ],
+              "border": "0px none rgb(232, 232, 239)",
+              "shadow": "none",
+              "background": "rgba(33, 150, 243, 0.1)"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "buttons": {
+    "pill": 2
+  },
+  "common_components": []
+}

@@ -1,0 +1,5110 @@
+{
+  "original_revision": "3ac3aa0d47a64785251593bcb09bb2d5f6df374b",
+  "port_revision": "0ff4d7572221485833fa4438628256e4a9c46fed",
+  "port_dirty": true,
+  "screens": [
+    "queue",
+    "failed",
+    "dedup",
+    "learning",
+    "ranking",
+    "library",
+    "bookmarks",
+    "recommend",
+    "history",
+    "settings",
+    "personal",
+    "scheduler",
+    "metadata",
+    "download",
+    "view-history",
+    "metadata-ledger",
+    "shared-log",
+    "shared-log-collapsed",
+    "stop-recovery",
+    "stop-uncertain",
+    "startup-reference",
+    "startup-cookie-rejected",
+    "startup-lock-busy",
+    "startup-legacy-uncertain",
+    "startup-legacy-copy-error",
+    "startup-stop-migration",
+    "stop-history-guide",
+    "stop-migration-dialog",
+    "request-wait",
+    "request-limit",
+    "personal-results"
+  ],
+  "profiles": [
+    "normal",
+    "empty"
+  ],
+  "matrix": {
+    "normal/1280x800_dark": {
+      "queue": {
+        "errors": {},
+        "original": {
+          "image": "queue/original.png",
+          "audit": "queue/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "queue/port.png",
+          "audit": "queue/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "paired": "queue/paired.png",
+        "mechanical_flags": []
+      },
+      "failed": {
+        "errors": {},
+        "original": {
+          "image": "failed/original.png",
+          "audit": "failed/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "failed/port.png",
+          "audit": "failed/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", serif"
+          ]
+        },
+        "paired": "failed/paired.png",
+        "mechanical_flags": []
+      },
+      "dedup": {
+        "errors": {},
+        "original": {
+          "image": "dedup/original.png",
+          "audit": "dedup/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "dedup/port.png",
+          "audit": "dedup/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "paired": "dedup/paired.png",
+        "mechanical_flags": []
+      },
+      "learning": {
+        "errors": {},
+        "original": {
+          "image": "learning/original.png",
+          "audit": "learning/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "learning/port.png",
+          "audit": "learning/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "learning/paired.png",
+        "mechanical_flags": []
+      },
+      "ranking": {
+        "errors": {},
+        "original": {
+          "image": "ranking/original.png",
+          "audit": "ranking/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "ranking/port.png",
+          "audit": "ranking/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#4c5a69",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "ranking/paired.png",
+        "mechanical_flags": [
+          "selected tab pixel"
+        ]
+      },
+      "library": {
+        "errors": {},
+        "original": {
+          "image": "library/original.png",
+          "audit": "library/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "library/port.png",
+          "audit": "library/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#4c5a69",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "library/paired.png",
+        "mechanical_flags": [
+          "selected tab pixel"
+        ]
+      },
+      "bookmarks": {
+        "errors": {},
+        "original": {
+          "image": "bookmarks/original.png",
+          "audit": "bookmarks/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "bookmarks/port.png",
+          "audit": "bookmarks/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "bookmarks/paired.png",
+        "mechanical_flags": []
+      },
+      "recommend": {
+        "errors": {},
+        "original": {
+          "image": "recommend/original.png",
+          "audit": "recommend/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "recommend/port.png",
+          "audit": "recommend/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "recommend/paired.png",
+        "mechanical_flags": []
+      },
+      "history": {
+        "errors": {},
+        "original": {
+          "image": "history/original.png",
+          "audit": "history/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "history/port.png",
+          "audit": "history/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "history/paired.png",
+        "mechanical_flags": []
+      },
+      "settings": {
+        "errors": {},
+        "original": {
+          "image": "settings/original.png",
+          "audit": "settings/original.json",
+          "background_pixel": "#08090b",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "settings/port.png",
+          "audit": "settings/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "paired": "settings/paired.png",
+        "mechanical_flags": []
+      },
+      "personal": {
+        "errors": {},
+        "original": {
+          "image": "personal/original.png",
+          "audit": "personal/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "personal/port.png",
+          "audit": "personal/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 1,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "personal/paired.png",
+        "mechanical_flags": []
+      },
+      "scheduler": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "scheduler/port.png",
+          "audit": "scheduler/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "metadata": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "metadata/port.png",
+          "audit": "metadata/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "download": {
+        "errors": {},
+        "original": {
+          "image": "download/original.png",
+          "audit": "download/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "download/port.png",
+          "audit": "download/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "Consolas, monospace"
+          ]
+        },
+        "paired": "download/paired.png",
+        "mechanical_flags": []
+      },
+      "view-history": {
+        "errors": {},
+        "original": {
+          "image": "view-history/original.png",
+          "audit": "view-history/original.json",
+          "background_pixel": "#08090b",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "view-history/port.png",
+          "audit": "view-history/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#1b2229",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "Consolas, monospace"
+          ]
+        },
+        "paired": "view-history/paired.png",
+        "mechanical_flags": [
+          "page pixel original",
+          "page pixel port",
+          "selected tab pixel",
+          "text font"
+        ]
+      },
+      "metadata-ledger": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "metadata-ledger/port.png",
+          "audit": "metadata-ledger/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "shared-log": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "shared-log/port.png",
+          "audit": "shared-log/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "shared-log-collapsed": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "shared-log-collapsed/port.png",
+          "audit": "shared-log-collapsed/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "stop-recovery": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "stop-recovery/port.png",
+          "audit": "stop-recovery/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 3,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "clipped text",
+          "page pixel port"
+        ]
+      },
+      "stop-uncertain": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "stop-uncertain/port.png",
+          "audit": "stop-uncertain/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 2,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "clipped text",
+          "page pixel port"
+        ]
+      },
+      "startup-reference": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-reference/port.png",
+          "audit": "startup-reference/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 1,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "clipped text"
+        ]
+      },
+      "startup-cookie-rejected": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-cookie-rejected/port.png",
+          "audit": "startup-cookie-rejected/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 1,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "clipped text"
+        ]
+      },
+      "startup-lock-busy": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-lock-busy/port.png",
+          "audit": "startup-lock-busy/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "startup-legacy-uncertain": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-legacy-uncertain/port.png",
+          "audit": "startup-legacy-uncertain/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "startup-legacy-copy-error": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-legacy-copy-error/port.png",
+          "audit": "startup-legacy-copy-error/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 1,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "clipped text"
+        ]
+      },
+      "startup-stop-migration": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-stop-migration/port.png",
+          "audit": "startup-stop-migration/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 1,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "clipped text"
+        ]
+      },
+      "stop-history-guide": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "stop-history-guide/port.png",
+          "audit": "stop-history-guide/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 1,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "clipped text",
+          "page pixel port"
+        ]
+      },
+      "stop-migration-dialog": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "stop-migration-dialog/port.png",
+          "audit": "stop-migration-dialog/port.json",
+          "background_pixel": "#060708",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 1,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "clipped text",
+          "page pixel port"
+        ]
+      },
+      "request-wait": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "request-wait/port.png",
+          "audit": "request-wait/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "request-limit": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "request-limit/port.png",
+          "audit": "request-limit/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "personal-results": {
+        "errors": {},
+        "original": {
+          "image": "personal-results/original.png",
+          "audit": "personal-results/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "personal-results/port.png",
+          "audit": "personal-results/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 1,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "personal-results/paired.png",
+        "mechanical_flags": []
+      }
+    },
+    "normal/1920x1080_dark": {
+      "queue": {
+        "errors": {},
+        "original": {
+          "image": "queue/original.png",
+          "audit": "queue/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "queue/port.png",
+          "audit": "queue/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "paired": "queue/paired.png",
+        "mechanical_flags": []
+      },
+      "failed": {
+        "errors": {},
+        "original": {
+          "image": "failed/original.png",
+          "audit": "failed/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "failed/port.png",
+          "audit": "failed/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", serif"
+          ]
+        },
+        "paired": "failed/paired.png",
+        "mechanical_flags": []
+      },
+      "dedup": {
+        "errors": {},
+        "original": {
+          "image": "dedup/original.png",
+          "audit": "dedup/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "dedup/port.png",
+          "audit": "dedup/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "paired": "dedup/paired.png",
+        "mechanical_flags": []
+      },
+      "learning": {
+        "errors": {},
+        "original": {
+          "image": "learning/original.png",
+          "audit": "learning/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "learning/port.png",
+          "audit": "learning/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "learning/paired.png",
+        "mechanical_flags": []
+      },
+      "ranking": {
+        "errors": {},
+        "original": {
+          "image": "ranking/original.png",
+          "audit": "ranking/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "ranking/port.png",
+          "audit": "ranking/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#4c5a69",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "ranking/paired.png",
+        "mechanical_flags": [
+          "selected tab pixel"
+        ]
+      },
+      "library": {
+        "errors": {},
+        "original": {
+          "image": "library/original.png",
+          "audit": "library/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "library/port.png",
+          "audit": "library/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#4c5a69",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "library/paired.png",
+        "mechanical_flags": [
+          "selected tab pixel"
+        ]
+      },
+      "bookmarks": {
+        "errors": {},
+        "original": {
+          "image": "bookmarks/original.png",
+          "audit": "bookmarks/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "bookmarks/port.png",
+          "audit": "bookmarks/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "bookmarks/paired.png",
+        "mechanical_flags": []
+      },
+      "recommend": {
+        "errors": {},
+        "original": {
+          "image": "recommend/original.png",
+          "audit": "recommend/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "recommend/port.png",
+          "audit": "recommend/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "recommend/paired.png",
+        "mechanical_flags": []
+      },
+      "history": {
+        "errors": {},
+        "original": {
+          "image": "history/original.png",
+          "audit": "history/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "history/port.png",
+          "audit": "history/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "history/paired.png",
+        "mechanical_flags": []
+      },
+      "settings": {
+        "errors": {},
+        "original": {
+          "image": "settings/original.png",
+          "audit": "settings/original.json",
+          "background_pixel": "#08090b",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "settings/port.png",
+          "audit": "settings/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "paired": "settings/paired.png",
+        "mechanical_flags": []
+      },
+      "personal": {
+        "errors": {},
+        "original": {
+          "image": "personal/original.png",
+          "audit": "personal/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "personal/port.png",
+          "audit": "personal/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 1,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "personal/paired.png",
+        "mechanical_flags": []
+      },
+      "scheduler": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "scheduler/port.png",
+          "audit": "scheduler/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "metadata": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "metadata/port.png",
+          "audit": "metadata/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "download": {
+        "errors": {},
+        "original": {
+          "image": "download/original.png",
+          "audit": "download/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "download/port.png",
+          "audit": "download/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "Consolas, monospace"
+          ]
+        },
+        "paired": "download/paired.png",
+        "mechanical_flags": []
+      },
+      "view-history": {
+        "errors": {},
+        "original": {
+          "image": "view-history/original.png",
+          "audit": "view-history/original.json",
+          "background_pixel": "#08090b",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "view-history/port.png",
+          "audit": "view-history/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#1b2229",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "Consolas, monospace"
+          ]
+        },
+        "paired": "view-history/paired.png",
+        "mechanical_flags": [
+          "page pixel original",
+          "page pixel port",
+          "selected tab pixel",
+          "text font"
+        ]
+      },
+      "metadata-ledger": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "metadata-ledger/port.png",
+          "audit": "metadata-ledger/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "shared-log": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "shared-log/port.png",
+          "audit": "shared-log/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "shared-log-collapsed": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "shared-log-collapsed/port.png",
+          "audit": "shared-log-collapsed/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "stop-recovery": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "stop-recovery/port.png",
+          "audit": "stop-recovery/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "page pixel port"
+        ]
+      },
+      "stop-uncertain": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "stop-uncertain/port.png",
+          "audit": "stop-uncertain/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "page pixel port"
+        ]
+      },
+      "startup-reference": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-reference/port.png",
+          "audit": "startup-reference/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "startup-cookie-rejected": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-cookie-rejected/port.png",
+          "audit": "startup-cookie-rejected/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "startup-lock-busy": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-lock-busy/port.png",
+          "audit": "startup-lock-busy/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "startup-legacy-uncertain": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-legacy-uncertain/port.png",
+          "audit": "startup-legacy-uncertain/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "startup-legacy-copy-error": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-legacy-copy-error/port.png",
+          "audit": "startup-legacy-copy-error/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "startup-stop-migration": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-stop-migration/port.png",
+          "audit": "startup-stop-migration/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "stop-history-guide": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "stop-history-guide/port.png",
+          "audit": "stop-history-guide/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "page pixel port"
+        ]
+      },
+      "stop-migration-dialog": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "stop-migration-dialog/port.png",
+          "audit": "stop-migration-dialog/port.json",
+          "background_pixel": "#060708",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "page pixel port"
+        ]
+      },
+      "request-wait": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "request-wait/port.png",
+          "audit": "request-wait/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "request-limit": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "request-limit/port.png",
+          "audit": "request-limit/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "personal-results": {
+        "errors": {},
+        "original": {
+          "image": "personal-results/original.png",
+          "audit": "personal-results/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true
+        },
+        "port": {
+          "image": "personal-results/port.png",
+          "audit": "personal-results/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": true,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": true,
+          "clipped": 0,
+          "ellipses": 1,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "personal-results/paired.png",
+        "mechanical_flags": []
+      }
+    },
+    "empty/1280x800_dark": {
+      "queue": {
+        "errors": {},
+        "original": {
+          "image": "queue/original.png",
+          "audit": "queue/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "queue/port.png",
+          "audit": "queue/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "paired": "queue/paired.png",
+        "mechanical_flags": []
+      },
+      "failed": {
+        "errors": {},
+        "original": {
+          "image": "failed/original.png",
+          "audit": "failed/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "failed/port.png",
+          "audit": "failed/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", serif"
+          ]
+        },
+        "paired": "failed/paired.png",
+        "mechanical_flags": []
+      },
+      "dedup": {
+        "errors": {},
+        "original": {
+          "image": "dedup/original.png",
+          "audit": "dedup/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "dedup/port.png",
+          "audit": "dedup/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "paired": "dedup/paired.png",
+        "mechanical_flags": []
+      },
+      "learning": {
+        "errors": {},
+        "original": {
+          "image": "learning/original.png",
+          "audit": "learning/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "learning/port.png",
+          "audit": "learning/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "paired": "learning/paired.png",
+        "mechanical_flags": []
+      },
+      "ranking": {
+        "errors": {},
+        "original": {
+          "image": "ranking/original.png",
+          "audit": "ranking/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "ranking/port.png",
+          "audit": "ranking/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#4c5a69",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "ranking/paired.png",
+        "mechanical_flags": [
+          "selected tab pixel"
+        ]
+      },
+      "library": {
+        "errors": {},
+        "original": {
+          "image": "library/original.png",
+          "audit": "library/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "library/port.png",
+          "audit": "library/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#4c5a69",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "library/paired.png",
+        "mechanical_flags": [
+          "selected tab pixel"
+        ]
+      },
+      "bookmarks": {
+        "errors": {},
+        "original": {
+          "image": "bookmarks/original.png",
+          "audit": "bookmarks/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "bookmarks/port.png",
+          "audit": "bookmarks/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "bookmarks/paired.png",
+        "mechanical_flags": []
+      },
+      "recommend": {
+        "errors": {},
+        "original": {
+          "image": "recommend/original.png",
+          "audit": "recommend/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "recommend/port.png",
+          "audit": "recommend/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "recommend/paired.png",
+        "mechanical_flags": []
+      },
+      "history": {
+        "errors": {},
+        "original": {
+          "image": "history/original.png",
+          "audit": "history/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "history/port.png",
+          "audit": "history/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "history/paired.png",
+        "mechanical_flags": []
+      },
+      "settings": {
+        "errors": {},
+        "original": {
+          "image": "settings/original.png",
+          "audit": "settings/original.json",
+          "background_pixel": "#08090b",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "settings/port.png",
+          "audit": "settings/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "paired": "settings/paired.png",
+        "mechanical_flags": []
+      },
+      "personal": {
+        "errors": {},
+        "original": {
+          "image": "personal/original.png",
+          "audit": "personal/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "personal/port.png",
+          "audit": "personal/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 1,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "personal/paired.png",
+        "mechanical_flags": []
+      },
+      "scheduler": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "scheduler/port.png",
+          "audit": "scheduler/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 1,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "metadata": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "metadata/port.png",
+          "audit": "metadata/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "download": {
+        "errors": {},
+        "original": {
+          "image": "download/original.png",
+          "audit": "download/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "download/port.png",
+          "audit": "download/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "Consolas, monospace"
+          ]
+        },
+        "paired": "download/paired.png",
+        "mechanical_flags": []
+      },
+      "view-history": {
+        "errors": {},
+        "original": {
+          "image": "view-history/original.png",
+          "audit": "view-history/original.json",
+          "background_pixel": "#08090b",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "view-history/port.png",
+          "audit": "view-history/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#1b2229",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "Consolas, monospace"
+          ]
+        },
+        "paired": "view-history/paired.png",
+        "mechanical_flags": [
+          "page pixel original",
+          "page pixel port",
+          "selected tab pixel",
+          "text font"
+        ]
+      },
+      "metadata-ledger": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "metadata-ledger/port.png",
+          "audit": "metadata-ledger/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "shared-log": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "shared-log/port.png",
+          "audit": "shared-log/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 1,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "shared-log-collapsed": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "shared-log-collapsed/port.png",
+          "audit": "shared-log-collapsed/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 1,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "stop-recovery": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "stop-recovery/port.png",
+          "audit": "stop-recovery/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 3,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "clipped text",
+          "page pixel port"
+        ]
+      },
+      "stop-uncertain": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "stop-uncertain/port.png",
+          "audit": "stop-uncertain/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 2,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "clipped text",
+          "page pixel port"
+        ]
+      },
+      "startup-reference": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-reference/port.png",
+          "audit": "startup-reference/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 1,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "clipped text"
+        ]
+      },
+      "startup-cookie-rejected": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-cookie-rejected/port.png",
+          "audit": "startup-cookie-rejected/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 1,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "clipped text"
+        ]
+      },
+      "startup-lock-busy": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-lock-busy/port.png",
+          "audit": "startup-lock-busy/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "startup-legacy-uncertain": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-legacy-uncertain/port.png",
+          "audit": "startup-legacy-uncertain/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "startup-legacy-copy-error": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-legacy-copy-error/port.png",
+          "audit": "startup-legacy-copy-error/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 1,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "clipped text"
+        ]
+      },
+      "startup-stop-migration": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-stop-migration/port.png",
+          "audit": "startup-stop-migration/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 1,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "clipped text"
+        ]
+      },
+      "stop-history-guide": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "stop-history-guide/port.png",
+          "audit": "stop-history-guide/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 1,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "clipped text",
+          "page pixel port"
+        ]
+      },
+      "stop-migration-dialog": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "stop-migration-dialog/port.png",
+          "audit": "stop-migration-dialog/port.json",
+          "background_pixel": "#060708",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 1,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "clipped text",
+          "page pixel port"
+        ]
+      },
+      "request-wait": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "request-wait/port.png",
+          "audit": "request-wait/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "request-limit": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "request-limit/port.png",
+          "audit": "request-limit/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "personal-results": {
+        "errors": {},
+        "original": {
+          "image": "personal-results/original.png",
+          "audit": "personal-results/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "personal-results/port.png",
+          "audit": "personal-results/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 1,
+          "width": [
+            1280,
+            1280
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "personal-results/paired.png",
+        "mechanical_flags": []
+      }
+    },
+    "empty/1920x1080_dark": {
+      "queue": {
+        "errors": {},
+        "original": {
+          "image": "queue/original.png",
+          "audit": "queue/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "queue/port.png",
+          "audit": "queue/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "paired": "queue/paired.png",
+        "mechanical_flags": []
+      },
+      "failed": {
+        "errors": {},
+        "original": {
+          "image": "failed/original.png",
+          "audit": "failed/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "failed/port.png",
+          "audit": "failed/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", serif"
+          ]
+        },
+        "paired": "failed/paired.png",
+        "mechanical_flags": []
+      },
+      "dedup": {
+        "errors": {},
+        "original": {
+          "image": "dedup/original.png",
+          "audit": "dedup/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "dedup/port.png",
+          "audit": "dedup/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "paired": "dedup/paired.png",
+        "mechanical_flags": []
+      },
+      "learning": {
+        "errors": {},
+        "original": {
+          "image": "learning/original.png",
+          "audit": "learning/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "learning/port.png",
+          "audit": "learning/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "paired": "learning/paired.png",
+        "mechanical_flags": []
+      },
+      "ranking": {
+        "errors": {},
+        "original": {
+          "image": "ranking/original.png",
+          "audit": "ranking/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "ranking/port.png",
+          "audit": "ranking/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#4c5a69",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "ranking/paired.png",
+        "mechanical_flags": [
+          "selected tab pixel"
+        ]
+      },
+      "library": {
+        "errors": {},
+        "original": {
+          "image": "library/original.png",
+          "audit": "library/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "library/port.png",
+          "audit": "library/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#4c5a69",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "library/paired.png",
+        "mechanical_flags": [
+          "selected tab pixel"
+        ]
+      },
+      "bookmarks": {
+        "errors": {},
+        "original": {
+          "image": "bookmarks/original.png",
+          "audit": "bookmarks/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "bookmarks/port.png",
+          "audit": "bookmarks/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "bookmarks/paired.png",
+        "mechanical_flags": []
+      },
+      "recommend": {
+        "errors": {},
+        "original": {
+          "image": "recommend/original.png",
+          "audit": "recommend/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "recommend/port.png",
+          "audit": "recommend/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "recommend/paired.png",
+        "mechanical_flags": []
+      },
+      "history": {
+        "errors": {},
+        "original": {
+          "image": "history/original.png",
+          "audit": "history/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "history/port.png",
+          "audit": "history/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "history/paired.png",
+        "mechanical_flags": []
+      },
+      "settings": {
+        "errors": {},
+        "original": {
+          "image": "settings/original.png",
+          "audit": "settings/original.json",
+          "background_pixel": "#08090b",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "settings/port.png",
+          "audit": "settings/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "paired": "settings/paired.png",
+        "mechanical_flags": []
+      },
+      "personal": {
+        "errors": {},
+        "original": {
+          "image": "personal/original.png",
+          "audit": "personal/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "personal/port.png",
+          "audit": "personal/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 1,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "personal/paired.png",
+        "mechanical_flags": []
+      },
+      "scheduler": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "scheduler/port.png",
+          "audit": "scheduler/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 1,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "metadata": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "metadata/port.png",
+          "audit": "metadata/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "download": {
+        "errors": {},
+        "original": {
+          "image": "download/original.png",
+          "audit": "download/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "download/port.png",
+          "audit": "download/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "Consolas, monospace"
+          ]
+        },
+        "paired": "download/paired.png",
+        "mechanical_flags": []
+      },
+      "view-history": {
+        "errors": {},
+        "original": {
+          "image": "view-history/original.png",
+          "audit": "view-history/original.json",
+          "background_pixel": "#08090b",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "view-history/port.png",
+          "audit": "view-history/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#1b2229",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "Consolas, monospace"
+          ]
+        },
+        "paired": "view-history/paired.png",
+        "mechanical_flags": [
+          "page pixel original",
+          "page pixel port",
+          "selected tab pixel",
+          "text font"
+        ]
+      },
+      "metadata-ledger": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "metadata-ledger/port.png",
+          "audit": "metadata-ledger/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "shared-log": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "shared-log/port.png",
+          "audit": "shared-log/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 1,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "shared-log-collapsed": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "shared-log-collapsed/port.png",
+          "audit": "shared-log-collapsed/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 1,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "stop-recovery": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "stop-recovery/port.png",
+          "audit": "stop-recovery/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "page pixel port"
+        ]
+      },
+      "stop-uncertain": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "stop-uncertain/port.png",
+          "audit": "stop-uncertain/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "page pixel port"
+        ]
+      },
+      "startup-reference": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-reference/port.png",
+          "audit": "startup-reference/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "startup-cookie-rejected": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-cookie-rejected/port.png",
+          "audit": "startup-cookie-rejected/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "startup-lock-busy": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-lock-busy/port.png",
+          "audit": "startup-lock-busy/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "startup-legacy-uncertain": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-legacy-uncertain/port.png",
+          "audit": "startup-legacy-uncertain/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "startup-legacy-copy-error": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-legacy-copy-error/port.png",
+          "audit": "startup-legacy-copy-error/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "startup-stop-migration": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "startup-stop-migration/port.png",
+          "audit": "startup-stop-migration/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "stop-history-guide": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "stop-history-guide/port.png",
+          "audit": "stop-history-guide/port.json",
+          "background_pixel": "#0a0c0e",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "page pixel port"
+        ]
+      },
+      "stop-migration-dialog": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "stop-migration-dialog/port.png",
+          "audit": "stop-migration-dialog/port.json",
+          "background_pixel": "#060708",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": null,
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "mechanical_flags": [
+          "page pixel port"
+        ]
+      },
+      "request-wait": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "request-wait/port.png",
+          "audit": "request-wait/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "request-limit": {
+        "errors": {},
+        "original": null,
+        "port": {
+          "image": "request-limit/port.png",
+          "audit": "request-limit/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 0,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "\"Yu Mincho\", YuMincho, serif"
+          ]
+        },
+        "mechanical_flags": []
+      },
+      "personal-results": {
+        "errors": {},
+        "original": {
+          "image": "personal-results/original.png",
+          "audit": "personal-results/original.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false
+        },
+        "port": {
+          "image": "personal-results/port.png",
+          "audit": "personal-results/port.json",
+          "background_pixel": "#111418",
+          "fixture_text_visible": false,
+          "long_text_visible": false,
+          "fixture_text_in_visible_or_ellipsized_element": false,
+          "clipped": 0,
+          "ellipses": 1,
+          "width": [
+            1920,
+            1920
+          ],
+          "tokens": {
+            "page": "#111418",
+            "bg-vault": "#0b0b10",
+            "bg-surface": "#15161c",
+            "bg-card": "#1e202d",
+            "border-vault": "#2a2b38",
+            "pixiv-blue": "#0096FA",
+            "text-main": "#e8e8ef",
+            "text-muted": "#8a8a99",
+            "text-elsewhere": "#b9b9c4"
+          },
+          "active_tab_pixel": "#2d3844",
+          "text_fonts": [
+            "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+          ]
+        },
+        "paired": "personal-results/paired.png",
+        "mechanical_flags": []
+      }
+    }
+  },
+  "network": {
+    "normal": {
+      "calls": [
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport"
+      ],
+      "sites": [
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__"
+      ],
+      "denied": 0,
+      "missing_attributes": []
+    },
+    "empty": {
+      "calls": [
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport",
+        "transport"
+      ],
+      "sites": [
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+        "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__"
+      ],
+      "denied": 0,
+      "missing_attributes": []
+    }
+  },
+  "original_local_font": {
+    "path": "C:\\WINDOWS\\Fonts\\NotoSansJP-VF.ttf",
+    "sha256": "5113756f8a3b5d01b2211025e267c50121e3b36f465b7bbaf3cdaf4c3430bfd0"
+  },
+  "foreign_blocked": {
+    "original": [
+      "cdn.jsdelivr.net/npm/@rive-app/flutter-native-wasm@38.0.0/wasm/rive_native.js"
+    ],
+    "port": []
+  },
+  "supplemental_runs": [
+    {
+      "screens": [
+        "request-wait",
+        "request-limit"
+      ],
+      "profiles": [
+        "normal",
+        "empty"
+      ],
+      "network": {
+        "normal": {
+          "calls": [
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport"
+          ],
+          "sites": [
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__"
+          ],
+          "denied": 0,
+          "missing_attributes": []
+        },
+        "empty": {
+          "calls": [
+            "transport"
+          ],
+          "sites": [
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__"
+          ],
+          "denied": 0,
+          "missing_attributes": []
+        }
+      },
+      "foreign_blocked": {
+        "original": [
+          "cdn.jsdelivr.net/npm/@rive-app/flutter-native-wasm@38.0.0/wasm/rive_native.js"
+        ],
+        "port": []
+      },
+      "temporary_run": "S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002309_707106"
+    },
+    {
+      "screens": [
+        "personal-results"
+      ],
+      "profiles": [
+        "normal",
+        "empty"
+      ],
+      "network": {
+        "normal": {
+          "calls": [
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport"
+          ],
+          "sites": [
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__"
+          ],
+          "denied": 0,
+          "missing_attributes": []
+        },
+        "empty": {
+          "calls": [
+            "transport"
+          ],
+          "sites": [
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__"
+          ],
+          "denied": 0,
+          "missing_attributes": []
+        }
+      },
+      "foreign_blocked": {
+        "original": [
+          "cdn.jsdelivr.net/npm/@rive-app/flutter-native-wasm@38.0.0/wasm/rive_native.js"
+        ],
+        "port": []
+      },
+      "temporary_run": "S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_002806_969930"
+    },
+    {
+      "screens": [
+        "failed",
+        "dedup",
+        "learning",
+        "ranking",
+        "library",
+        "bookmarks",
+        "recommend",
+        "history",
+        "settings",
+        "personal",
+        "download",
+        "view-history"
+      ],
+      "conditions": [
+        "normal/1920x1080_dark"
+      ],
+      "profiles": [
+        "normal"
+      ],
+      "network": {
+        "normal": {
+          "calls": [
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport",
+            "transport"
+          ],
+          "sites": [
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__",
+            "pixiv_read_client.attempt > pixiv_read_client._get_once > managed_network_stop_shared_scope.__call__ > managed_network_stop_transport.__call__"
+          ],
+          "denied": 0,
+          "missing_attributes": []
+        }
+      },
+      "foreign_blocked": {
+        "original": [
+          "cdn.jsdelivr.net/npm/@rive-app/flutter-native-wasm@38.0.0/wasm/rive_native.js"
+        ],
+        "port": []
+      },
+      "temporary_run": "S:\\Work\\_tmp\\PV\\codex-ui-tone\\capture-20261122_003058_767782"
+    }
+  ]
+}

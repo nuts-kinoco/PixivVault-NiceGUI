@@ -1,0 +1,3000 @@
+{
+  "counts": {
+    "original": 56,
+    "port": 124,
+    "paired": 56,
+    "settings_groups": 44,
+    "settings_all": 4
+  },
+  "errors": [],
+  "screens": [
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "queue",
+      "reference": "キュー",
+      "port": {
+        "height": 418.52,
+        "rows": 6,
+        "max_row": 8,
+        "extent": 518
+      },
+      "reference_values": {
+        "height": 310,
+        "rows": 4,
+        "max_row": 9,
+        "extent": 447
+      },
+      "delta": {
+        "height": 108.52,
+        "rows": 2,
+        "max_row": -1,
+        "extent": 71
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "failed",
+      "reference": "失敗リスト",
+      "port": {
+        "height": 418.52,
+        "rows": 12,
+        "max_row": 9,
+        "extent": 814
+      },
+      "reference_values": {
+        "height": 482,
+        "rows": 8,
+        "max_row": 9,
+        "extent": 720
+      },
+      "delta": {
+        "height": -63.48,
+        "rows": 4,
+        "max_row": 0,
+        "extent": 94
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "dedup",
+      "reference": "重複整理",
+      "port": {
+        "height": 418.52,
+        "rows": 7,
+        "max_row": 5,
+        "extent": 1029
+      },
+      "reference_values": {
+        "height": 440,
+        "rows": 4,
+        "max_row": 4,
+        "extent": 440
+      },
+      "delta": {
+        "height": -21.48,
+        "rows": 3,
+        "max_row": 1,
+        "extent": 589
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "learning",
+      "reference": "学習",
+      "port": {
+        "height": 418.52,
+        "rows": 8,
+        "max_row": 4,
+        "extent": 778
+      },
+      "reference_values": {
+        "height": 433,
+        "rows": 6,
+        "max_row": 4,
+        "extent": 433
+      },
+      "delta": {
+        "height": -14.48,
+        "rows": 2,
+        "max_row": 0,
+        "extent": 345
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "ranking",
+      "reference": "ランキング",
+      "port": {
+        "height": 418.52,
+        "rows": 4,
+        "max_row": 10,
+        "extent": 492
+      },
+      "reference_values": {
+        "height": 458,
+        "rows": 3,
+        "max_row": 10,
+        "extent": 458
+      },
+      "delta": {
+        "height": -39.48,
+        "rows": 1,
+        "max_row": 0,
+        "extent": 34
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "library",
+      "reference": "ライブラリ",
+      "port": {
+        "height": 418.52,
+        "rows": 2,
+        "max_row": 13,
+        "extent": 419
+      },
+      "reference_values": {
+        "height": 461,
+        "rows": 4,
+        "max_row": 9,
+        "extent": 462
+      },
+      "delta": {
+        "height": -42.48,
+        "rows": -2,
+        "max_row": 4,
+        "extent": -43
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "bookmarks",
+      "reference": "マイブックマーク",
+      "port": {
+        "height": 418.52,
+        "rows": 3,
+        "max_row": 7,
+        "extent": 419
+      },
+      "reference_values": {
+        "height": 461,
+        "rows": 4,
+        "max_row": 6,
+        "extent": 462
+      },
+      "delta": {
+        "height": -42.48,
+        "rows": -1,
+        "max_row": 1,
+        "extent": -43
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "recommend",
+      "reference": "おすすめ",
+      "port": {
+        "height": 418.52,
+        "rows": 15,
+        "max_row": 6,
+        "extent": 1290
+      },
+      "reference_values": {
+        "height": 460,
+        "rows": 5,
+        "max_row": 6,
+        "extent": 613
+      },
+      "delta": {
+        "height": -41.48,
+        "rows": 10,
+        "max_row": 0,
+        "extent": 677
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "history",
+      "reference": "直近のバックアップ",
+      "port": {
+        "height": 418.52,
+        "rows": 1,
+        "max_row": 4,
+        "extent": 419
+      },
+      "reference_values": {
+        "height": 462,
+        "rows": 2,
+        "max_row": 4,
+        "extent": 462
+      },
+      "delta": {
+        "height": -43.48,
+        "rows": -1,
+        "max_row": 0,
+        "extent": -43
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "settings",
+      "reference": "設定",
+      "port": {
+        "height": 720,
+        "rows": 39,
+        "max_row": 3,
+        "extent": 4923
+      },
+      "reference_values": {
+        "height": 664,
+        "rows": 6,
+        "max_row": 1,
+        "extent": 2480
+      },
+      "delta": {
+        "height": 56,
+        "rows": 33,
+        "max_row": 2,
+        "extent": 2443
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "personal",
+      "reference": "自分のランキング",
+      "port": {
+        "height": 418.52,
+        "rows": 6,
+        "max_row": 8,
+        "extent": 699
+      },
+      "reference_values": {
+        "height": 221,
+        "rows": 4,
+        "max_row": 6,
+        "extent": 458
+      },
+      "delta": {
+        "height": 197.52,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 241
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "scheduler",
+      "reference": "設定・保存ポリシー・通知（参考）",
+      "port": {
+        "height": 236.53,
+        "rows": 3,
+        "max_row": 5,
+        "extent": 369
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 447
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": -78
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "metadata",
+      "reference": "設定・作品メタデータ（参考）",
+      "port": {
+        "height": 236.53,
+        "rows": 2,
+        "max_row": 3,
+        "extent": 317
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 209
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 108
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "download",
+      "reference": "ダウンロード",
+      "port": {
+        "height": 418.52,
+        "rows": 11,
+        "max_row": 6,
+        "extent": 434
+      },
+      "reference_values": {
+        "height": 419,
+        "rows": 9,
+        "max_row": 6,
+        "extent": 419
+      },
+      "delta": {
+        "height": -0.48,
+        "rows": 2,
+        "max_row": 0,
+        "extent": 15
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "view-history",
+      "reference": "閲覧履歴",
+      "port": {
+        "height": 330.5,
+        "rows": 3,
+        "max_row": 2,
+        "extent": 331
+      },
+      "reference_values": {
+        "height": 617,
+        "rows": 2,
+        "max_row": 3,
+        "extent": 617
+      },
+      "delta": {
+        "height": -286.5,
+        "rows": 1,
+        "max_row": -1,
+        "extent": -286
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "metadata-ledger",
+      "reference": "設定・作品メタデータ（参考）",
+      "port": {
+        "height": 236.53,
+        "rows": 7,
+        "max_row": 4,
+        "extent": 761
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 209
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 552
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "shared-log",
+      "reference": "キュー内ログ（参考）",
+      "port": {
+        "height": 171.98,
+        "rows": 1,
+        "max_row": 1,
+        "extent": 172
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 156
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 16
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "shared-log-collapsed",
+      "reference": "キュー内ログ（参考）",
+      "port": {
+        "height": 31.98,
+        "rows": 1,
+        "max_row": 1,
+        "extent": 32
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 156
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": -124
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "stop-recovery",
+      "reference": null,
+      "port": {
+        "height": 372,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 372
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "stop-uncertain",
+      "reference": null,
+      "port": {
+        "height": 330,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 330
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "startup-reference",
+      "reference": null,
+      "port": {
+        "height": 800,
+        "rows": 7,
+        "max_row": 2,
+        "extent": 838
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "startup-cookie-rejected",
+      "reference": null,
+      "port": {
+        "height": 800,
+        "rows": 7,
+        "max_row": 2,
+        "extent": 838
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "startup-lock-busy",
+      "reference": null,
+      "port": {
+        "height": 786.39,
+        "rows": 6,
+        "max_row": 2,
+        "extent": 786
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "startup-legacy-uncertain",
+      "reference": null,
+      "port": {
+        "height": 765.39,
+        "rows": 6,
+        "max_row": 2,
+        "extent": 765
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "startup-legacy-copy-error",
+      "reference": null,
+      "port": {
+        "height": 800,
+        "rows": 7,
+        "max_row": 2,
+        "extent": 838
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "startup-stop-migration",
+      "reference": null,
+      "port": {
+        "height": 800,
+        "rows": 7,
+        "max_row": 2,
+        "extent": 838
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "stop-history-guide",
+      "reference": null,
+      "port": {
+        "height": 673,
+        "rows": 3,
+        "max_row": 1,
+        "extent": 673
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "stop-migration-dialog",
+      "reference": null,
+      "port": {
+        "height": 752,
+        "rows": 8,
+        "max_row": 2,
+        "extent": 1088
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "request-wait",
+      "reference": null,
+      "port": {
+        "height": 178.98,
+        "rows": 1,
+        "max_row": 2,
+        "extent": 179
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "request-limit",
+      "reference": null,
+      "port": {
+        "height": 262.98,
+        "rows": 1,
+        "max_row": 2,
+        "extent": 263
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "personal-results",
+      "reference": "自分のランキング（検索結果）",
+      "port": {
+        "height": 418.52,
+        "rows": 6,
+        "max_row": 8,
+        "extent": 701
+      },
+      "reference_values": {
+        "height": 458,
+        "rows": 5,
+        "max_row": 6,
+        "extent": 458
+      },
+      "delta": {
+        "height": -39.48,
+        "rows": 1,
+        "max_row": 2,
+        "extent": 243
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "queue",
+      "reference": "キュー",
+      "port": {
+        "height": 736.52,
+        "rows": 6,
+        "max_row": 8,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 590,
+        "rows": 4,
+        "max_row": 9,
+        "extent": 727
+      },
+      "delta": {
+        "height": 146.52,
+        "rows": 2,
+        "max_row": -1,
+        "extent": 10
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "failed",
+      "reference": "失敗リスト",
+      "port": {
+        "height": 736.52,
+        "rows": 12,
+        "max_row": 9,
+        "extent": 814
+      },
+      "reference_values": {
+        "height": 742,
+        "rows": 11,
+        "max_row": 9,
+        "extent": 742
+      },
+      "delta": {
+        "height": -5.48,
+        "rows": 1,
+        "max_row": 0,
+        "extent": 72
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "dedup",
+      "reference": "重複整理",
+      "port": {
+        "height": 736.52,
+        "rows": 7,
+        "max_row": 5,
+        "extent": 1045
+      },
+      "reference_values": {
+        "height": 720,
+        "rows": 3,
+        "max_row": 4,
+        "extent": 720
+      },
+      "delta": {
+        "height": 16.52,
+        "rows": 4,
+        "max_row": 1,
+        "extent": 325
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "learning",
+      "reference": "学習",
+      "port": {
+        "height": 736.52,
+        "rows": 8,
+        "max_row": 4,
+        "extent": 837
+      },
+      "reference_values": {
+        "height": 713,
+        "rows": 6,
+        "max_row": 4,
+        "extent": 713
+      },
+      "delta": {
+        "height": 23.52,
+        "rows": 2,
+        "max_row": 0,
+        "extent": 124
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "ranking",
+      "reference": "ランキング",
+      "port": {
+        "height": 736.52,
+        "rows": 3,
+        "max_row": 13,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 738,
+        "rows": 3,
+        "max_row": 10,
+        "extent": 738
+      },
+      "delta": {
+        "height": -1.48,
+        "rows": 0,
+        "max_row": 3,
+        "extent": -1
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "library",
+      "reference": "ライブラリ",
+      "port": {
+        "height": 736.52,
+        "rows": 2,
+        "max_row": 13,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 741,
+        "rows": 4,
+        "max_row": 9,
+        "extent": 742
+      },
+      "delta": {
+        "height": -4.48,
+        "rows": -2,
+        "max_row": 4,
+        "extent": -5
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "bookmarks",
+      "reference": "マイブックマーク",
+      "port": {
+        "height": 736.52,
+        "rows": 3,
+        "max_row": 7,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 741,
+        "rows": 4,
+        "max_row": 6,
+        "extent": 742
+      },
+      "delta": {
+        "height": -4.48,
+        "rows": -1,
+        "max_row": 1,
+        "extent": -5
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "recommend",
+      "reference": "おすすめ",
+      "port": {
+        "height": 736.52,
+        "rows": 15,
+        "max_row": 6,
+        "extent": 1396
+      },
+      "reference_values": {
+        "height": 740,
+        "rows": 6,
+        "max_row": 6,
+        "extent": 740
+      },
+      "delta": {
+        "height": -3.48,
+        "rows": 9,
+        "max_row": 0,
+        "extent": 656
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "history",
+      "reference": "直近のバックアップ",
+      "port": {
+        "height": 736.52,
+        "rows": 1,
+        "max_row": 4,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 742,
+        "rows": 2,
+        "max_row": 4,
+        "extent": 742
+      },
+      "delta": {
+        "height": -5.48,
+        "rows": -1,
+        "max_row": 0,
+        "extent": -5
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "settings",
+      "reference": "設定",
+      "port": {
+        "height": 972,
+        "rows": 39,
+        "max_row": 3,
+        "extent": 4923
+      },
+      "reference_values": {
+        "height": 664,
+        "rows": 8,
+        "max_row": 1,
+        "extent": 2480
+      },
+      "delta": {
+        "height": 308,
+        "rows": 31,
+        "max_row": 2,
+        "extent": 2443
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "personal",
+      "reference": "自分のランキング",
+      "port": {
+        "height": 736.52,
+        "rows": 5,
+        "max_row": 9,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 221,
+        "rows": 4,
+        "max_row": 6,
+        "extent": 738
+      },
+      "delta": {
+        "height": 515.52,
+        "rows": 1,
+        "max_row": 3,
+        "extent": -1
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "scheduler",
+      "reference": "設定・保存ポリシー・通知（参考）",
+      "port": {
+        "height": 554.53,
+        "rows": 3,
+        "max_row": 5,
+        "extent": 555
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 447
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 108
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "metadata",
+      "reference": "設定・作品メタデータ（参考）",
+      "port": {
+        "height": 554.53,
+        "rows": 2,
+        "max_row": 3,
+        "extent": 555
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 209
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 346
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "download",
+      "reference": "ダウンロード",
+      "port": {
+        "height": 736.52,
+        "rows": 12,
+        "max_row": 6,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 699,
+        "rows": 10,
+        "max_row": 6,
+        "extent": 699
+      },
+      "delta": {
+        "height": 37.52,
+        "rows": 2,
+        "max_row": 0,
+        "extent": 38
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "view-history",
+      "reference": "閲覧履歴",
+      "port": {
+        "height": 330.5,
+        "rows": 3,
+        "max_row": 2,
+        "extent": 331
+      },
+      "reference_values": {
+        "height": 617,
+        "rows": 2,
+        "max_row": 3,
+        "extent": 617
+      },
+      "delta": {
+        "height": -286.5,
+        "rows": 1,
+        "max_row": -1,
+        "extent": -286
+      },
+      "paired": true
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "metadata-ledger",
+      "reference": "設定・作品メタデータ（参考）",
+      "port": {
+        "height": 554.53,
+        "rows": 7,
+        "max_row": 4,
+        "extent": 761
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 209
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 552
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "shared-log",
+      "reference": "キュー内ログ（参考）",
+      "port": {
+        "height": 171.98,
+        "rows": 1,
+        "max_row": 1,
+        "extent": 172
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 156
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 16
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "shared-log-collapsed",
+      "reference": "キュー内ログ（参考）",
+      "port": {
+        "height": 31.98,
+        "rows": 1,
+        "max_row": 1,
+        "extent": 32
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 156
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": -124
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "stop-recovery",
+      "reference": null,
+      "port": {
+        "height": 372,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 372
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "stop-uncertain",
+      "reference": null,
+      "port": {
+        "height": 330,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 330
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "startup-reference",
+      "reference": null,
+      "port": {
+        "height": 838.39,
+        "rows": 7,
+        "max_row": 2,
+        "extent": 838
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "startup-cookie-rejected",
+      "reference": null,
+      "port": {
+        "height": 838.39,
+        "rows": 7,
+        "max_row": 2,
+        "extent": 838
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "startup-lock-busy",
+      "reference": null,
+      "port": {
+        "height": 786.39,
+        "rows": 6,
+        "max_row": 2,
+        "extent": 786
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "startup-legacy-uncertain",
+      "reference": null,
+      "port": {
+        "height": 765.39,
+        "rows": 6,
+        "max_row": 2,
+        "extent": 765
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "startup-legacy-copy-error",
+      "reference": null,
+      "port": {
+        "height": 838.39,
+        "rows": 7,
+        "max_row": 2,
+        "extent": 838
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "startup-stop-migration",
+      "reference": null,
+      "port": {
+        "height": 838.39,
+        "rows": 7,
+        "max_row": 2,
+        "extent": 838
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "stop-history-guide",
+      "reference": null,
+      "port": {
+        "height": 673,
+        "rows": 3,
+        "max_row": 1,
+        "extent": 673
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "stop-migration-dialog",
+      "reference": null,
+      "port": {
+        "height": 1032,
+        "rows": 8,
+        "max_row": 2,
+        "extent": 1088
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "request-wait",
+      "reference": null,
+      "port": {
+        "height": 157.98,
+        "rows": 1,
+        "max_row": 2,
+        "extent": 158
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "request-limit",
+      "reference": null,
+      "port": {
+        "height": 220.98,
+        "rows": 1,
+        "max_row": 2,
+        "extent": 221
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "personal-results",
+      "reference": "自分のランキング（検索結果）",
+      "port": {
+        "height": 736.52,
+        "rows": 5,
+        "max_row": 10,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 738,
+        "rows": 5,
+        "max_row": 6,
+        "extent": 738
+      },
+      "delta": {
+        "height": -1.48,
+        "rows": 0,
+        "max_row": 4,
+        "extent": -1
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "queue",
+      "reference": "キュー",
+      "port": {
+        "height": 418.52,
+        "rows": 4,
+        "max_row": 8,
+        "extent": 518
+      },
+      "reference_values": {
+        "height": 310,
+        "rows": 2,
+        "max_row": 9,
+        "extent": 447
+      },
+      "delta": {
+        "height": 108.52,
+        "rows": 2,
+        "max_row": -1,
+        "extent": 71
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "failed",
+      "reference": "失敗リスト",
+      "port": {
+        "height": 418.52,
+        "rows": 4,
+        "max_row": 9,
+        "extent": 419
+      },
+      "reference_values": {
+        "height": 462,
+        "rows": 3,
+        "max_row": 9,
+        "extent": 462
+      },
+      "delta": {
+        "height": -43.48,
+        "rows": 1,
+        "max_row": 0,
+        "extent": -43
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "dedup",
+      "reference": "重複整理",
+      "port": {
+        "height": 418.52,
+        "rows": 3,
+        "max_row": 5,
+        "extent": 500
+      },
+      "reference_values": {
+        "height": 450,
+        "rows": 2,
+        "max_row": 4,
+        "extent": 450
+      },
+      "delta": {
+        "height": -31.48,
+        "rows": 1,
+        "max_row": 1,
+        "extent": 50
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "learning",
+      "reference": "学習",
+      "port": {
+        "height": 418.52,
+        "rows": 5,
+        "max_row": 2,
+        "extent": 748
+      },
+      "reference_values": {
+        "height": 237,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 237
+      },
+      "delta": {
+        "height": 181.52,
+        "rows": 3,
+        "max_row": 0,
+        "extent": 511
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "ranking",
+      "reference": "ランキング",
+      "port": {
+        "height": 418.52,
+        "rows": 3,
+        "max_row": 10,
+        "extent": 419
+      },
+      "reference_values": {
+        "height": 150,
+        "rows": 2,
+        "max_row": 10,
+        "extent": 458
+      },
+      "delta": {
+        "height": 268.52,
+        "rows": 1,
+        "max_row": 0,
+        "extent": -39
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "library",
+      "reference": "ライブラリ",
+      "port": {
+        "height": 418.52,
+        "rows": 2,
+        "max_row": 13,
+        "extent": 419
+      },
+      "reference_values": {
+        "height": 144,
+        "rows": 2,
+        "max_row": 9,
+        "extent": 462
+      },
+      "delta": {
+        "height": 274.52,
+        "rows": 0,
+        "max_row": 4,
+        "extent": -43
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "bookmarks",
+      "reference": "マイブックマーク",
+      "port": {
+        "height": 418.52,
+        "rows": 3,
+        "max_row": 7,
+        "extent": 419
+      },
+      "reference_values": {
+        "height": 144,
+        "rows": 2,
+        "max_row": 6,
+        "extent": 462
+      },
+      "delta": {
+        "height": 274.52,
+        "rows": 1,
+        "max_row": 1,
+        "extent": -43
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "recommend",
+      "reference": "おすすめ",
+      "port": {
+        "height": 418.52,
+        "rows": 7,
+        "max_row": 6,
+        "extent": 741
+      },
+      "reference_values": {
+        "height": 142,
+        "rows": 2,
+        "max_row": 6,
+        "extent": 142
+      },
+      "delta": {
+        "height": 276.52,
+        "rows": 5,
+        "max_row": 0,
+        "extent": 599
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "history",
+      "reference": "直近のバックアップ",
+      "port": {
+        "height": 418.52,
+        "rows": 1,
+        "max_row": 4,
+        "extent": 419
+      },
+      "reference_values": {
+        "height": 62,
+        "rows": 1,
+        "max_row": 4,
+        "extent": 462
+      },
+      "delta": {
+        "height": 356.52,
+        "rows": 0,
+        "max_row": 0,
+        "extent": -43
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "settings",
+      "reference": "設定",
+      "port": {
+        "height": 720,
+        "rows": 39,
+        "max_row": 3,
+        "extent": 4827
+      },
+      "reference_values": {
+        "height": 664,
+        "rows": 6,
+        "max_row": 1,
+        "extent": 2438
+      },
+      "delta": {
+        "height": 56,
+        "rows": 33,
+        "max_row": 2,
+        "extent": 2389
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "personal",
+      "reference": "自分のランキング",
+      "port": {
+        "height": 418.52,
+        "rows": 6,
+        "max_row": 8,
+        "extent": 699
+      },
+      "reference_values": {
+        "height": 221,
+        "rows": 4,
+        "max_row": 6,
+        "extent": 458
+      },
+      "delta": {
+        "height": 197.52,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 241
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "scheduler",
+      "reference": "設定・保存ポリシー・通知（参考）",
+      "port": {
+        "height": 236.53,
+        "rows": 3,
+        "max_row": 5,
+        "extent": 369
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 447
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": -78
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "metadata",
+      "reference": "設定・作品メタデータ（参考）",
+      "port": {
+        "height": 236.53,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 317
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 209
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 108
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "download",
+      "reference": "ダウンロード",
+      "port": {
+        "height": 418.52,
+        "rows": 8,
+        "max_row": 6,
+        "extent": 434
+      },
+      "reference_values": {
+        "height": 419,
+        "rows": 6,
+        "max_row": 6,
+        "extent": 419
+      },
+      "delta": {
+        "height": -0.48,
+        "rows": 2,
+        "max_row": 0,
+        "extent": 15
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "view-history",
+      "reference": "閲覧履歴",
+      "port": {
+        "height": 287.5,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 288
+      },
+      "reference_values": {
+        "height": 617,
+        "rows": 1,
+        "max_row": 3,
+        "extent": 617
+      },
+      "delta": {
+        "height": -329.5,
+        "rows": 1,
+        "max_row": -1,
+        "extent": -329
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "metadata-ledger",
+      "reference": "設定・作品メタデータ（参考）",
+      "port": {
+        "height": 236.53,
+        "rows": 7,
+        "max_row": 4,
+        "extent": 761
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 209
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 552
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "shared-log",
+      "reference": "キュー内ログ（参考）",
+      "port": {
+        "height": 171.98,
+        "rows": 1,
+        "max_row": 1,
+        "extent": 172
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 156
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 16
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "shared-log-collapsed",
+      "reference": "キュー内ログ（参考）",
+      "port": {
+        "height": 31.98,
+        "rows": 1,
+        "max_row": 1,
+        "extent": 32
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 156
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": -124
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "stop-recovery",
+      "reference": null,
+      "port": {
+        "height": 372,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 372
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "stop-uncertain",
+      "reference": null,
+      "port": {
+        "height": 330,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 330
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "startup-reference",
+      "reference": null,
+      "port": {
+        "height": 800,
+        "rows": 7,
+        "max_row": 2,
+        "extent": 838
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "startup-cookie-rejected",
+      "reference": null,
+      "port": {
+        "height": 800,
+        "rows": 7,
+        "max_row": 2,
+        "extent": 838
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "startup-lock-busy",
+      "reference": null,
+      "port": {
+        "height": 786.39,
+        "rows": 6,
+        "max_row": 2,
+        "extent": 786
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "startup-legacy-uncertain",
+      "reference": null,
+      "port": {
+        "height": 765.39,
+        "rows": 6,
+        "max_row": 2,
+        "extent": 765
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "startup-legacy-copy-error",
+      "reference": null,
+      "port": {
+        "height": 800,
+        "rows": 7,
+        "max_row": 2,
+        "extent": 838
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "startup-stop-migration",
+      "reference": null,
+      "port": {
+        "height": 800,
+        "rows": 7,
+        "max_row": 2,
+        "extent": 838
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "stop-history-guide",
+      "reference": null,
+      "port": {
+        "height": 673,
+        "rows": 3,
+        "max_row": 1,
+        "extent": 673
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "stop-migration-dialog",
+      "reference": null,
+      "port": {
+        "height": 752,
+        "rows": 8,
+        "max_row": 2,
+        "extent": 1088
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "request-wait",
+      "reference": null,
+      "port": {
+        "height": 178.98,
+        "rows": 1,
+        "max_row": 2,
+        "extent": 179
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "request-limit",
+      "reference": null,
+      "port": {
+        "height": 262.98,
+        "rows": 1,
+        "max_row": 2,
+        "extent": 263
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "personal-results",
+      "reference": "自分のランキング（検索結果）",
+      "port": {
+        "height": 418.52,
+        "rows": 6,
+        "max_row": 8,
+        "extent": 701
+      },
+      "reference_values": {
+        "height": 222,
+        "rows": 4,
+        "max_row": 6,
+        "extent": 458
+      },
+      "delta": {
+        "height": 196.52,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 243
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "queue",
+      "reference": "キュー",
+      "port": {
+        "height": 736.52,
+        "rows": 4,
+        "max_row": 8,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 590,
+        "rows": 2,
+        "max_row": 9,
+        "extent": 727
+      },
+      "delta": {
+        "height": 146.52,
+        "rows": 2,
+        "max_row": -1,
+        "extent": 10
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "failed",
+      "reference": "失敗リスト",
+      "port": {
+        "height": 736.52,
+        "rows": 4,
+        "max_row": 9,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 742,
+        "rows": 3,
+        "max_row": 9,
+        "extent": 742
+      },
+      "delta": {
+        "height": -5.48,
+        "rows": 1,
+        "max_row": 0,
+        "extent": -5
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "dedup",
+      "reference": "重複整理",
+      "port": {
+        "height": 736.52,
+        "rows": 3,
+        "max_row": 5,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 730,
+        "rows": 2,
+        "max_row": 4,
+        "extent": 730
+      },
+      "delta": {
+        "height": 6.52,
+        "rows": 1,
+        "max_row": 1,
+        "extent": 7
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "learning",
+      "reference": "学習",
+      "port": {
+        "height": 736.52,
+        "rows": 5,
+        "max_row": 2,
+        "extent": 837
+      },
+      "reference_values": {
+        "height": 237,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 237
+      },
+      "delta": {
+        "height": 499.52,
+        "rows": 3,
+        "max_row": 0,
+        "extent": 600
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "ranking",
+      "reference": "ランキング",
+      "port": {
+        "height": 736.52,
+        "rows": 2,
+        "max_row": 13,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 150,
+        "rows": 2,
+        "max_row": 10,
+        "extent": 738
+      },
+      "delta": {
+        "height": 586.52,
+        "rows": 0,
+        "max_row": 3,
+        "extent": -1
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "library",
+      "reference": "ライブラリ",
+      "port": {
+        "height": 736.52,
+        "rows": 2,
+        "max_row": 13,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 144,
+        "rows": 2,
+        "max_row": 9,
+        "extent": 742
+      },
+      "delta": {
+        "height": 592.52,
+        "rows": 0,
+        "max_row": 4,
+        "extent": -5
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "bookmarks",
+      "reference": "マイブックマーク",
+      "port": {
+        "height": 736.52,
+        "rows": 3,
+        "max_row": 7,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 144,
+        "rows": 2,
+        "max_row": 6,
+        "extent": 742
+      },
+      "delta": {
+        "height": 592.52,
+        "rows": 1,
+        "max_row": 1,
+        "extent": -5
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "recommend",
+      "reference": "おすすめ",
+      "port": {
+        "height": 736.52,
+        "rows": 7,
+        "max_row": 6,
+        "extent": 741
+      },
+      "reference_values": {
+        "height": 142,
+        "rows": 2,
+        "max_row": 6,
+        "extent": 142
+      },
+      "delta": {
+        "height": 594.52,
+        "rows": 5,
+        "max_row": 0,
+        "extent": 599
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "history",
+      "reference": "直近のバックアップ",
+      "port": {
+        "height": 736.52,
+        "rows": 1,
+        "max_row": 4,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 62,
+        "rows": 1,
+        "max_row": 4,
+        "extent": 742
+      },
+      "delta": {
+        "height": 674.52,
+        "rows": 0,
+        "max_row": 0,
+        "extent": -5
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "settings",
+      "reference": "設定",
+      "port": {
+        "height": 972,
+        "rows": 39,
+        "max_row": 3,
+        "extent": 4827
+      },
+      "reference_values": {
+        "height": 664,
+        "rows": 8,
+        "max_row": 1,
+        "extent": 2438
+      },
+      "delta": {
+        "height": 308,
+        "rows": 31,
+        "max_row": 2,
+        "extent": 2389
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "personal",
+      "reference": "自分のランキング",
+      "port": {
+        "height": 736.52,
+        "rows": 5,
+        "max_row": 9,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 221,
+        "rows": 4,
+        "max_row": 6,
+        "extent": 738
+      },
+      "delta": {
+        "height": 515.52,
+        "rows": 1,
+        "max_row": 3,
+        "extent": -1
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "scheduler",
+      "reference": "設定・保存ポリシー・通知（参考）",
+      "port": {
+        "height": 554.53,
+        "rows": 3,
+        "max_row": 5,
+        "extent": 555
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 447
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 108
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "metadata",
+      "reference": "設定・作品メタデータ（参考）",
+      "port": {
+        "height": 554.53,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 555
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 209
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 346
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "download",
+      "reference": "ダウンロード",
+      "port": {
+        "height": 736.52,
+        "rows": 8,
+        "max_row": 6,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 699,
+        "rows": 6,
+        "max_row": 6,
+        "extent": 699
+      },
+      "delta": {
+        "height": 37.52,
+        "rows": 2,
+        "max_row": 0,
+        "extent": 38
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "view-history",
+      "reference": "閲覧履歴",
+      "port": {
+        "height": 287.5,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 288
+      },
+      "reference_values": {
+        "height": 617,
+        "rows": 1,
+        "max_row": 3,
+        "extent": 617
+      },
+      "delta": {
+        "height": -329.5,
+        "rows": 1,
+        "max_row": -1,
+        "extent": -329
+      },
+      "paired": true
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "metadata-ledger",
+      "reference": "設定・作品メタデータ（参考）",
+      "port": {
+        "height": 554.53,
+        "rows": 7,
+        "max_row": 4,
+        "extent": 761
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 209
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 552
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "shared-log",
+      "reference": "キュー内ログ（参考）",
+      "port": {
+        "height": 171.98,
+        "rows": 1,
+        "max_row": 1,
+        "extent": 172
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 156
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 16
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "shared-log-collapsed",
+      "reference": "キュー内ログ（参考）",
+      "port": {
+        "height": 31.98,
+        "rows": 1,
+        "max_row": 1,
+        "extent": 32
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 156
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": -124
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "stop-recovery",
+      "reference": null,
+      "port": {
+        "height": 372,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 372
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "stop-uncertain",
+      "reference": null,
+      "port": {
+        "height": 330,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 330
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "startup-reference",
+      "reference": null,
+      "port": {
+        "height": 838.39,
+        "rows": 7,
+        "max_row": 2,
+        "extent": 838
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "startup-cookie-rejected",
+      "reference": null,
+      "port": {
+        "height": 838.39,
+        "rows": 7,
+        "max_row": 2,
+        "extent": 838
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "startup-lock-busy",
+      "reference": null,
+      "port": {
+        "height": 786.39,
+        "rows": 6,
+        "max_row": 2,
+        "extent": 786
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "startup-legacy-uncertain",
+      "reference": null,
+      "port": {
+        "height": 765.39,
+        "rows": 6,
+        "max_row": 2,
+        "extent": 765
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "startup-legacy-copy-error",
+      "reference": null,
+      "port": {
+        "height": 838.39,
+        "rows": 7,
+        "max_row": 2,
+        "extent": 838
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "startup-stop-migration",
+      "reference": null,
+      "port": {
+        "height": 838.39,
+        "rows": 7,
+        "max_row": 2,
+        "extent": 838
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "stop-history-guide",
+      "reference": null,
+      "port": {
+        "height": 673,
+        "rows": 3,
+        "max_row": 1,
+        "extent": 673
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "stop-migration-dialog",
+      "reference": null,
+      "port": {
+        "height": 1032,
+        "rows": 8,
+        "max_row": 2,
+        "extent": 1088
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "request-wait",
+      "reference": null,
+      "port": {
+        "height": 157.98,
+        "rows": 1,
+        "max_row": 2,
+        "extent": 158
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "request-limit",
+      "reference": null,
+      "port": {
+        "height": 220.98,
+        "rows": 1,
+        "max_row": 2,
+        "extent": 221
+      },
+      "reference_values": null,
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": null
+      },
+      "paired": false
+    },
+    {
+      "condition": "empty/1920x1080_dark",
+      "screen": "personal-results",
+      "reference": "自分のランキング（検索結果）",
+      "port": {
+        "height": 736.52,
+        "rows": 5,
+        "max_row": 10,
+        "extent": 737
+      },
+      "reference_values": {
+        "height": 222,
+        "rows": 4,
+        "max_row": 6,
+        "extent": 738
+      },
+      "delta": {
+        "height": 514.52,
+        "rows": 1,
+        "max_row": 4,
+        "extent": -1
+      },
+      "paired": true
+    }
+  ],
+  "largest_extent_changes": [
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "settings",
+      "reference": "設定",
+      "port": {
+        "height": 720,
+        "rows": 39,
+        "max_row": 3,
+        "extent": 4923
+      },
+      "reference_values": {
+        "height": 664,
+        "rows": 6,
+        "max_row": 1,
+        "extent": 2480
+      },
+      "delta": {
+        "height": 56,
+        "rows": 33,
+        "max_row": 2,
+        "extent": 2443
+      },
+      "paired": true,
+      "extent_delta_pp": 305.38
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "recommend",
+      "reference": "おすすめ",
+      "port": {
+        "height": 418.52,
+        "rows": 15,
+        "max_row": 6,
+        "extent": 1290
+      },
+      "reference_values": {
+        "height": 460,
+        "rows": 5,
+        "max_row": 6,
+        "extent": 613
+      },
+      "delta": {
+        "height": -41.48,
+        "rows": 10,
+        "max_row": 0,
+        "extent": 677
+      },
+      "paired": true,
+      "extent_delta_pp": 84.62
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "dedup",
+      "reference": "重複整理",
+      "port": {
+        "height": 418.52,
+        "rows": 7,
+        "max_row": 5,
+        "extent": 1029
+      },
+      "reference_values": {
+        "height": 440,
+        "rows": 4,
+        "max_row": 4,
+        "extent": 440
+      },
+      "delta": {
+        "height": -21.48,
+        "rows": 3,
+        "max_row": 1,
+        "extent": 589
+      },
+      "paired": true,
+      "extent_delta_pp": 73.62
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "metadata-ledger",
+      "reference": "設定・作品メタデータ（参考）",
+      "port": {
+        "height": 236.53,
+        "rows": 7,
+        "max_row": 4,
+        "extent": 761
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 209
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 552
+      },
+      "paired": false,
+      "extent_delta_pp": 69.0
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "learning",
+      "reference": "学習",
+      "port": {
+        "height": 418.52,
+        "rows": 5,
+        "max_row": 2,
+        "extent": 748
+      },
+      "reference_values": {
+        "height": 237,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 237
+      },
+      "delta": {
+        "height": 181.52,
+        "rows": 3,
+        "max_row": 0,
+        "extent": 511
+      },
+      "paired": true,
+      "extent_delta_pp": 63.88
+    },
+    {
+      "condition": "empty/1280x800_dark",
+      "screen": "view-history",
+      "reference": "閲覧履歴",
+      "port": {
+        "height": 287.5,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 288
+      },
+      "reference_values": {
+        "height": 617,
+        "rows": 1,
+        "max_row": 3,
+        "extent": 617
+      },
+      "delta": {
+        "height": -329.5,
+        "rows": 1,
+        "max_row": -1,
+        "extent": -329
+      },
+      "paired": true,
+      "extent_delta_pp": -41.12
+    },
+    {
+      "condition": "normal/1920x1080_dark",
+      "screen": "metadata",
+      "reference": "設定・作品メタデータ（参考）",
+      "port": {
+        "height": 554.53,
+        "rows": 2,
+        "max_row": 3,
+        "extent": 555
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 209
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 346
+      },
+      "paired": false,
+      "extent_delta_pp": 32.04
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "personal-results",
+      "reference": "自分のランキング（検索結果）",
+      "port": {
+        "height": 418.52,
+        "rows": 6,
+        "max_row": 8,
+        "extent": 701
+      },
+      "reference_values": {
+        "height": 458,
+        "rows": 5,
+        "max_row": 6,
+        "extent": 458
+      },
+      "delta": {
+        "height": -39.48,
+        "rows": 1,
+        "max_row": 2,
+        "extent": 243
+      },
+      "paired": true,
+      "extent_delta_pp": 30.38
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "personal",
+      "reference": "自分のランキング",
+      "port": {
+        "height": 418.52,
+        "rows": 6,
+        "max_row": 8,
+        "extent": 699
+      },
+      "reference_values": {
+        "height": 221,
+        "rows": 4,
+        "max_row": 6,
+        "extent": 458
+      },
+      "delta": {
+        "height": 197.52,
+        "rows": 2,
+        "max_row": 2,
+        "extent": 241
+      },
+      "paired": true,
+      "extent_delta_pp": 30.12
+    },
+    {
+      "condition": "normal/1280x800_dark",
+      "screen": "shared-log-collapsed",
+      "reference": "キュー内ログ（参考）",
+      "port": {
+        "height": 31.98,
+        "rows": 1,
+        "max_row": 1,
+        "extent": 32
+      },
+      "reference_values": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": 156
+      },
+      "delta": {
+        "height": null,
+        "rows": null,
+        "max_row": null,
+        "extent": -124
+      },
+      "paired": false,
+      "extent_delta_pp": -15.5
+    }
+  ]
+}

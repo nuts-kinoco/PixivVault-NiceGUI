@@ -1,0 +1,159 @@
+{
+  "root": "nicegui-column",
+  "rect": [
+    640,
+    4442.39,
+    640,
+    338
+  ],
+  "in_viewport_height": 0,
+  "viewport_height": 1080,
+  "client_height": 336,
+  "scroll_height": 336,
+  "scroll_ratio": 0.31,
+  "content_extent": 336,
+  "content_ratio": 0.31,
+  "document_scroll_height": 1080,
+  "document_scroll_ratio": 1,
+  "viewport_insets": [
+    4442.39,
+    640,
+    0,
+    640
+  ],
+  "spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "content_spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "fonts": {
+    "16px": 1,
+    "12px": 4,
+    "14px": 2
+  },
+  "headings": [
+    {
+      "label": "エクスポート",
+      "font": "\"Yu Mincho\", YuMincho, serif",
+      "size": "16px",
+      "weight": "400",
+      "rect": [
+        653,
+        4455.39,
+        96.91,
+        28
+      ]
+    }
+  ],
+  "cards": [],
+  "scroll": [],
+  "states": [],
+  "toolbars": [
+    {
+      "container": "nicegui-column",
+      "rows": [
+        {
+          "count": 1,
+          "kinds": {
+            "button": 1
+          },
+          "controls": [
+            {
+              "id": "preferences-export-metadata",
+              "label": "archive エクスポートを実行",
+              "rect": [
+                653,
+                4571.39,
+                193.59,
+                36
+              ],
+              "kind": "button",
+              "button": "pill",
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "999px",
+                "999px",
+                "999px",
+                "999px"
+              ],
+              "border": "0px none rgb(232, 232, 239)",
+              "shadow": "none",
+              "background": "rgba(33, 150, 243, 0.1)"
+            }
+          ]
+        },
+        {
+          "count": 1,
+          "kinds": {
+            "button": 1
+          },
+          "controls": [
+            {
+              "id": "preferences-export-db",
+              "label": "archive DBと画像をZIPへ保存",
+              "rect": [
+                653,
+                4715.39,
+                207.03,
+                36
+              ],
+              "kind": "button",
+              "button": "pill",
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "999px",
+                "999px",
+                "999px",
+                "999px"
+              ],
+              "border": "0px none rgb(232, 232, 239)",
+              "shadow": "none",
+              "background": "rgba(33, 150, 243, 0.1)"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "buttons": {
+    "pill": 2
+  },
+  "common_components": []
+}

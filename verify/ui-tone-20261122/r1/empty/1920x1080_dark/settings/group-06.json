@@ -1,0 +1,348 @@
+{
+  "root": "nicegui-column",
+  "rect": [
+    640,
+    2373.39,
+    640,
+    650
+  ],
+  "in_viewport_height": 0,
+  "viewport_height": 1080,
+  "client_height": 648,
+  "scroll_height": 648,
+  "scroll_ratio": 0.6,
+  "content_extent": 648,
+  "content_ratio": 0.6,
+  "document_scroll_height": 1080,
+  "document_scroll_ratio": 1,
+  "viewport_insets": [
+    2373.39,
+    640,
+    0,
+    640
+  ],
+  "spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "content_spacing": {
+    "padding": [
+      "12px",
+      "12px",
+      "12px",
+      "12px"
+    ],
+    "margin": [
+      "0px",
+      "0px",
+      "0px",
+      "0px"
+    ],
+    "gap": [
+      "16px",
+      "16px"
+    ]
+  },
+  "fonts": {
+    "16px": 8,
+    "14px": 7,
+    "12px": 2
+  },
+  "headings": [
+    {
+      "label": "通信",
+      "font": "\"Yu Mincho\", YuMincho, serif",
+      "size": "16px",
+      "weight": "400",
+      "rect": [
+        653,
+        2386.39,
+        32.31,
+        28
+      ]
+    }
+  ],
+  "cards": [],
+  "scroll": [],
+  "states": [],
+  "toolbars": [
+    {
+      "container": "nicegui-column",
+      "rows": [
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "マイブックマークを開いた時に自動更新 ON arrow_drop_down",
+              "rect": [
+                653,
+                2430.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": "refresh",
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        },
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "旧ライブラリの小説サムネイルを自動取得 ON arrow_drop_down",
+              "rect": [
+                653,
+                2502.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        },
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "Pixiv操作（ブクマ・フォロー） OFF arrow_drop_down",
+              "rect": [
+                653,
+                2574.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": null,
+              "enabled": false,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        },
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "ブラウザ拡張機能の受信（Pixivページからの保存指示・Cookie同期） ON arrow_drop_down",
+              "rect": [
+                653,
+                2682.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        },
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "ダウンロード待機時間（秒） 0.6 arrow_drop_down",
+              "rect": [
+                653,
+                2810.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        },
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "通信エラー時リトライ上限回数 3 arrow_drop_down",
+              "rect": [
+                653,
+                2882.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        },
+        {
+          "count": 1,
+          "kinds": {
+            "input": 1
+          },
+          "controls": [
+            {
+              "id": "q-field",
+              "label": "429レート制限時待機時間（秒） 5.0 arrow_drop_down",
+              "rect": [
+                653,
+                2954.39,
+                614,
+                56
+              ],
+              "kind": "input",
+              "button": null,
+              "shared": null,
+              "enabled": true,
+              "font_size": "14px",
+              "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+              "radius": [
+                "0px",
+                "0px",
+                "0px",
+                "0px"
+              ],
+              "border": "0px solid rgb(255, 255, 255)",
+              "shadow": "none",
+              "background": "rgba(0, 0, 0, 0)"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "buttons": {},
+  "common_components": [
+    {
+      "id": "q-field",
+      "label": "マイブックマークを開いた時に自動更新 ON arrow_drop_down",
+      "rect": [
+        653,
+        2430.39,
+        614,
+        56
+      ],
+      "kind": "input",
+      "button": null,
+      "shared": "refresh",
+      "enabled": true,
+      "font_size": "14px",
+      "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "radius": [
+        "0px",
+        "0px",
+        "0px",
+        "0px"
+      ],
+      "border": "0px solid rgb(255, 255, 255)",
+      "shadow": "none",
+      "background": "rgba(0, 0, 0, 0)"
+    }
+  ]
+}
