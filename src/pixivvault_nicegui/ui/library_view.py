@@ -121,7 +121,6 @@ class LibraryView(ViewerController):
         self._legacy_cached_ids = set()
         self._legacy_auto_attempted = set()
         self._legacy_auto_task = None
-        self._legacy_auto_progress = False
         self._search_capacity_delay = None
         self._managed_capacities = {}
         self._bookmark_refreshing = False
@@ -321,11 +320,9 @@ class LibraryView(ViewerController):
         self.root.props["data-library-generation"] = str(self.state.generation)
         downloaded = self.subview == "downloaded"
         self.capacity_button.set_enabled(downloaded and not selected and self.active and not self.closed and not self.load_error and not self._capacity_busy and self.services.managed_downloads is not None)
-        legacy_busy_visible = self._legacy_capacity_busy and (
-            self._legacy_auto_task is None or self._legacy_auto_progress)
         self.legacy_capacity_button.set_enabled(
             downloaded and not selected and self.active and not self.closed and not self.load_error
-            and not legacy_busy_visible and getattr(self.services, 'legacy_capacity', None) is not None)
+            and not self._legacy_capacity_busy and getattr(self.services, 'legacy_capacity', None) is not None)
         self.authors_panel.set_visibility(downloaded and not selected and not self.load_error)
         self.pages_panel.set_visibility(downloaded and selected and not self.load_error)
         enabled = (bool(getattr(self.services, 'legacy_zip_export_available', False))
@@ -533,6 +530,7 @@ class LibraryView(ViewerController):
         if not targets:return
         from nicegui import background_tasks
         self._legacy_capacity_busy=True
+        self.legacy_capacity_button.disable()
         self._legacy_auto_task=background_tasks.create(self._measure_unmeasured_capacity(
             service,state,state.generation,self._capacity_epoch,targets,self._legacy_auto_attempted))
 
@@ -545,8 +543,6 @@ class LibraryView(ViewerController):
 
         def show_progress():
             if current():
-                self._legacy_auto_progress = True
-                self.legacy_capacity_button.disable()
                 self.legacy_auto_capacity_status.set_text('未計測の作者保存先容量を確認しています…')
 
         progress = asyncio.get_running_loop().call_later(0.09, show_progress)
@@ -593,7 +589,6 @@ class LibraryView(ViewerController):
                     if failed else '')
         finally:
             progress.cancel()
-            self._legacy_auto_progress = False
             self._legacy_auto_task=None
             self._legacy_capacity_busy=False
             if not self.closed:

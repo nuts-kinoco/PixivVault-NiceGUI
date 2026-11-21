@@ -140,7 +140,8 @@ async def test_quick_auto_capacity_keeps_start_notice_out_of_ui_updates(library,
     assert view._legacy_capacity_busy
     await view._legacy_auto_task
     assert view.author_capacity_labels[author.author_id].text == '1.0 KiB'
-    assert all(not text and enabled for _, text, enabled in updates)
+    assert all(not text for _, text, _ in updates)
+    assert [enabled for _, _, enabled in updates] == [False, True]
     assert not view._legacy_capacity_busy
 
 
@@ -168,9 +169,8 @@ async def test_slow_auto_capacity_shows_progress_and_cleans_up(library, monkeypa
     try:
         async with asyncio.timeout(1):
             await entered.wait()
-            assert view.legacy_capacity_button.enabled
+            assert not view.legacy_capacity_button.enabled
             assert view.legacy_auto_capacity_status.text == ''
-            # The pending visual state does not change the measurement gate.
             await view.measure_legacy_capacity()
             while not view.legacy_auto_capacity_status.text:
                 await asyncio.sleep(.01)
