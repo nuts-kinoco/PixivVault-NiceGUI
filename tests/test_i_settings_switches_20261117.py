@@ -25,7 +25,7 @@ async def test_metadata_switch_in_settings_has_original_label_description_and_sa
             view.open()
             control = view.controls["meta_backfill_enabled"]
             assert control.value == "1" and control.enabled
-            assert control.props["label"] == "メタデータ（ブックマーク数など）をバックグラウンドで自動的に埋める"
+            assert control.text == "メタデータ（ブックマーク数など）をバックグラウンドで自動的に埋める"
             texts = descendants_text(view)
             assert "作品メタデータ" in texts
             assert DESCRIPTIONS["meta_backfill_enabled"] in texts
