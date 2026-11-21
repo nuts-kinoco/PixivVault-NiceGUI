@@ -141,9 +141,9 @@ async def test_replaced_cookie_holds_timer_until_relaunch(tmp_path, monkeypatch,
         else:
             async def adopt():
                 save_cookie()
-                return 'adopted'
+                return 'adopted', (A, 20)
             monkeypatch.setattr(binding, '_extraction_wanted', lambda *_: True)
-            monkeypatch.setattr(binding, 'adopt_browser_cookies', adopt)
+            monkeypatch.setattr(binding, '_adopt_browser_cookies', adopt)
             await binding.refresh_auth_status(startup=True)
         assert binding.cookie_replaced_since_launch()
         assert services._scheduler_waiting_for_auth and services.managed_schedule_runner._thread is None

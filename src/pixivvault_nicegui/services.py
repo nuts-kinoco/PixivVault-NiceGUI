@@ -22,6 +22,7 @@ from .request_policy import job_request_runner, request_scope
 _CURRENT_IMAGE_READER = object()
 _FAILED_LEGACY_COPY_OWNERS = []
 _LOG = logging.getLogger(__name__)
+_SCHEDULER_CONFIRMATION_DRAIN_SECONDS = 5.0
 
 
 def _scheduler_output_owner(ledger, services, account_id):
@@ -3151,6 +3152,7 @@ class ApplicationServices:
                 self._legacy_export_stop.set()
                 self._scheduler_cancel_event.set()
                 self._metadata_cancel_event.set()
+                self._drain_scheduler_confirmation()
                 if self._similarity_worker is not None:
                     self._similarity_worker.stop(timeout=150.0)
                 # 自動後埋めの待機スレッドも、台帳・通信路を閉じる前に畳む。
@@ -3173,6 +3175,18 @@ class ApplicationServices:
                         with self._viewer_page_lock:
                             with self._legacy_export_lock:
                                 self._close_resources()
+
+    def _drain_scheduler_confirmation(self):
+        lock = self._scheduler_confirmation_lock
+        if not lock.locked():
+            return
+        if self.live_client is not None:
+            # Revoke I/O before waiting for the confirmation worker to leave
+            # the shared gate. Other workers may be waiting on this reader too.
+            self.live_client.close()
+        if not lock.acquire(timeout=_SCHEDULER_CONFIRMATION_DRAIN_SECONDS):
+            raise RuntimeError('scheduler confirmation shutdown unverified')
+        lock.release()
 
     def _close_pixiv_actions(self):
         actions = self.pixiv_actions
@@ -3503,17 +3517,21 @@ class ApplicationServices:
         return None, account
 
     def scheduler_account_confirmation_blocker(self):
-        return self._scheduler_account_confirmation_state()[0]
+        blocker, _ = self._scheduler_account_confirmation_state()
+        return blocker or ('busy' if self._scheduler_confirmation_lock.locked() else None)
 
     def confirm_scheduler_account(self):
         """Confirm the editor's live reader without starting the timer."""
         from .managed_scheduler import ScheduleConfirmationUnavailable, _require_managed_network_allowed
+        from .pixiv_read_client import ClientClosed
 
         def checkpoint():
             if self.closing or self._scheduler_cancel_event.is_set():
-                raise ScheduleConfirmationUnavailable('closing')
+                # This may unwind inside the expiry update's shared gate.
+                raise ClientClosed()
 
-        checkpoint()
+        if self.closing or self._scheduler_cancel_event.is_set():
+            raise ScheduleConfirmationUnavailable('closing')
         if not self._scheduler_confirmation_lock.acquire(blocking=False):
             raise ScheduleConfirmationUnavailable('busy')
         try:
@@ -3536,6 +3554,10 @@ class ApplicationServices:
                 require_same_account(account, current)
                 require_same_account(account, actual)
                 ledger.capture_owner(self, account_id=account)
+        except ClientClosed:
+            if self.closing or self._scheduler_cancel_event.is_set():
+                raise ScheduleConfirmationUnavailable('closing') from None
+            raise
         finally:
             self._scheduler_confirmation_lock.release()
 

@@ -34,8 +34,7 @@ async def test_native_dispatch_waits_for_auth_and_committed_following(tmp_path, 
     def verify_auth(_file, _stop):
         auth_entered.set()
         assert release_auth.wait(5)
-        binding._last_identity = (A, 20)
-        return NativeAuthResult('verified')
+        return NativeAuthResult('verified'), (A, 20)
 
     class FollowReader(Reader):
         def get_following_users_detailed(self, account, visibility):

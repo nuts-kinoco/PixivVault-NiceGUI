@@ -95,7 +95,6 @@ class NativeProfileBinding:
         self._loop = None
         self._refresh_running = False
         self._refresh_again = None
-        self._last_identity = None
         self._background_tasks = set()
         # FL-A08: replaceable browser Cookie source and the factory of the
         # credential store that adopts what it finds. Both stay None for a bare
@@ -253,10 +252,8 @@ class NativeProfileBinding:
             stopped = Event()
             with self._reader_lock:
                 self._requests[stopped] = None
-                self._last_identity = None
             try:
-                result = await asyncio.to_thread(self._verify_auth_result, Path(cookie_file), stopped)
-                identity = self._last_identity if result.ok else None
+                result, identity = await asyncio.to_thread(self._verify_auth_result, Path(cookie_file), stopped)
                 if publish:
                     self._publish_auth(result, imported, identity=identity)
                 return result, identity
@@ -270,11 +267,11 @@ class NativeProfileBinding:
                     reader.close()
                 raise
 
-    def _publish_auth(self, result, imported, *, identity=None, notice=None):
+    def _publish_auth(self, result, imported, *, identity, notice=None):
         from .auth_status import status_from_result, NOTICE_UPDATED
         if self._closed or result.code == 'closed':
             return
-        uid, days = identity or self._last_identity or (None, None)
+        uid, days = identity or (None, None)
         status = status_from_result(result, uid, days)
         if notice is None and imported and status.ok:
             notice = NOTICE_UPDATED
@@ -282,7 +279,7 @@ class NativeProfileBinding:
 
     # -- FL-A08: automatic extraction from the browser -------------------------
 
-    def _extraction_wanted(self, result, cookie=None):
+    def _extraction_wanted(self, result, cookie, identity):
         """Original check_login_status: expired, or 1 week or less left.
 
         Never for a missing setting (original "missing"), a communication
@@ -299,7 +296,7 @@ class NativeProfileBinding:
                 return False
             return True
         if code == 'verified':
-            days = (self._last_identity or (None, None))[1]
+            days = identity[1] if identity is not None else None
             return days is not None and days <= 7
         return False
 
@@ -338,20 +335,20 @@ class NativeProfileBinding:
         button; the startup path is its only caller. The profile changes only
         after the candidate file passed the same gated authentication check.
         """
-        outcome = await self._adopt_browser_cookies()
+        outcome, _ = await self._adopt_browser_cookies()
         self.last_cookie_adoption = outcome
         return outcome
 
     async def _adopt_browser_cookies(self):
         source = self.browser_cookie_source
         if source is None or self.cookie_store_factory is None or self._closed:
-            return 'unavailable'
+            return 'unavailable', None
         try:
             found = await asyncio.to_thread(source.extract)
         except Exception:
-            return 'error'
+            return 'error', None
         if found is None:
-            return 'not_found'
+            return 'not_found', None
         candidate = store = None
         try:
             store = await asyncio.to_thread(self._open_cookie_store)
@@ -359,13 +356,13 @@ class NativeProfileBinding:
             candidate = await asyncio.to_thread(store.prepare, found.cookies, expected_revision=revision)
             if not candidate.changed:
                 store.discard(candidate)
-                return 'unchanged'
-            result = await self.check_authentication(candidate.cookie_file, _publish=False)
-            identity = self._last_identity
+                return 'unchanged', None
+            result, identity = await self._check_authentication_with_identity(candidate.cookie_file, publish=False)
             if result.code != 'verified' or self._closed:
                 store.discard(candidate)
-                return ('rejected' if result.code in ('identity_unverified', 'cookie_unreadable',
-                                                     'remote_denied') else 'blocked')
+                outcome = ('rejected' if result.code in ('identity_unverified', 'cookie_unreadable',
+                                                        'remote_denied') else 'blocked')
+                return outcome, None
             await asyncio.to_thread(store.commit, candidate)
         except asyncio.CancelledError:
             if candidate is not None:
@@ -374,11 +371,11 @@ class NativeProfileBinding:
         except Exception:
             if candidate is not None and store is not None:
                 store.discard(candidate)
-            return 'error'
+            return 'error', None
         self._publish_auth(result, True, identity=identity,
                            notice=f'ブラウザ ({found.browser}) からの Cookie 自動抽出・更新に成功しました！'
                                   '取得・更新の通信は再起動後に新しい Cookie で行われます。')
-        return 'adopted'
+        return 'adopted', identity
 
     def cookie_replaced_since_launch(self):
         """True when the saved Cookie differs from the one the readers were built with."""
@@ -419,7 +416,7 @@ class NativeProfileBinding:
                     from .auth_status import missing_status
                     self.auth_status.publish(missing_status())
                 else:
-                    result = await self.check_authentication(cookie, _imported=imported)
+                    result, identity = await self._check_authentication_with_identity(cookie, imported=imported)
                     # The shared stop gate is briefly busy while another request holds it
                     # (seen on the real app at startup). It is transient, so retry a few
                     # times instead of leaving the header on the busy message.
@@ -427,16 +424,16 @@ class NativeProfileBinding:
                         if result.code != 'busy' or self._closed:
                             break
                         await asyncio.sleep(delay)
-                        result = await self.check_authentication(cookie, _imported=imported)
-                    identity = self._last_identity if result.code == 'verified' else None
+                        result, identity = await self._check_authentication_with_identity(cookie, imported=imported)
                     if (startup and not imported and not self._startup_extract_done
-                            and self._extraction_wanted(result, cookie)):
+                            and self._extraction_wanted(result, cookie, identity)):
                         # Original: only the startup check tries the browser, once.
                         self._startup_extract_done = True
                         from .shared_events import emit_shared
                         event_owner = getattr(self, '_shared_event_services', None)
                         emit_shared(event_owner, 'Cookie 有効期限チェック: ブラウザから自動抽出を試行します。', level='info')
-                        outcome = await self.adopt_browser_cookies()
+                        outcome, adopted_identity = await self._adopt_browser_cookies()
+                        self.last_cookie_adoption = outcome
                         message, level = {
                             'adopted': ('ブラウザからの Cookie 自動抽出・更新に成功しました。', 'success'),
                             'unchanged': ('ブラウザの Cookie に変更はありません。', 'normal'),
@@ -448,7 +445,7 @@ class NativeProfileBinding:
                         }.get(outcome, ('Cookie 自動抽出の結果を確認できません。', 'normal'))
                         emit_shared(event_owner, message, level=level)
                         if outcome == 'adopted':
-                            identity = self._last_identity
+                            identity = adopted_identity
                     if identity is not None and identity[0] is not None and not self._closed:
                         await self.followup.after_confirmed(str(identity[0]))
                 if self._refresh_again is None:
@@ -499,7 +496,8 @@ class NativeProfileBinding:
         # Keep the historical bool interface for non-UI callers.
         from .test_owner_runtime import require_inside
         require_inside(cookie_file)
-        return self._verify_auth_result(cookie_file, stopped).ok
+        result, _ = self._verify_auth_result(cookie_file, stopped)
+        return result.ok
 
     def _verify_auth_result(self, cookie_file, stopped):
         from .test_owner_runtime import require_inside
@@ -515,13 +513,13 @@ class NativeProfileBinding:
         try:
             with self._reader_lock:
                 if self._closed or stopped.is_set():
-                    return NativeAuthResult('closed')
+                    return NativeAuthResult('closed'), None
                 scope = self.managed_network_stop_scope
                 if self.auth_stop_required:
                     if scope is None:
                         # A configured historical profile with unknown root
                         # stop history must never send an authentication GET.
-                        return NativeAuthResult('local_unavailable')
+                        return NativeAuthResult('local_unavailable'), None
                     # Reject revoked/replaced profile owners as well as an
                     # already-latched 401/403/429 before the candidate Cookie
                     # is parsed. The reader's actual HTTP transport below is
@@ -532,11 +530,11 @@ class NativeProfileBinding:
                     _owned_marker(scope.root, PROFILE_MARKER, PROFILE_IDENTITY)
                     _owned_marker(scope.root, _SCOPE_MARKER, _SCOPE_IDENTITY)
                     if _file_identity(scope.root / PROFILE_DB) != scope.profile_identity:
-                        return NativeAuthResult('local_unavailable')
+                        return NativeAuthResult('local_unavailable'), None
                     scope.require_allowed()
                     if self.auth_shared_stop_required:
                         if self.shared_network_stop_scope is None:
-                            return NativeAuthResult('owner_absent')
+                            return NativeAuthResult('owner_absent'), None
                         self.shared_network_stop_scope.require_allowed()
                         from .managed_network_stop_shared_transport import create_shared_draft_auth_reader
                         reader = create_shared_draft_auth_reader(
@@ -549,35 +547,35 @@ class NativeProfileBinding:
                 reader.set_retry_policy(self.auth_retry_policy)
                 self._requests[stopped] = reader
                 if stopped.is_set():
-                    return NativeAuthResult('closed')
+                    return NativeAuthResult('closed'), None
             uid = reader.require_identity()
             with self._reader_lock:
-                if not self._closed and not stopped.is_set():
-                    from .auth_status import cookie_days_left
-                    self._last_identity = (uid, cookie_days_left(cookie_file))
-                return NativeAuthResult('verified' if not self._closed and not stopped.is_set() else 'closed')
+                if self._closed or stopped.is_set():
+                    return NativeAuthResult('closed'), None
+                from .auth_status import cookie_days_left
+                return NativeAuthResult('verified'), (uid, cookie_days_left(cookie_file))
         except CookieSourceRejected:
-            return NativeAuthResult('cookie_unreadable')
+            return NativeAuthResult('cookie_unreadable'), None
         except SharedStopOwnerAbsent:
-            return NativeAuthResult('owner_absent')
+            return NativeAuthResult('owner_absent'), None
         except SharedGetOutcomeUncertain:
-            return NativeAuthResult('uncertain')
+            return NativeAuthResult('uncertain'), None
         except ManagedNetworkGateBusy:
-            return NativeAuthResult('busy')
+            return NativeAuthResult('busy'), None
         except ManagedNetworkGateStorageError:
-            return NativeAuthResult('local_unavailable')
+            return NativeAuthResult('local_unavailable'), None
         except ManagedNetworkStopped as error:
             return NativeAuthResult('rate_limited' if error.status_code == 429 else
                                     'remote_denied' if getattr(error, 'observed_response', False)
-                                    else 'stopped', error.status_code)
+                                    else 'stopped', error.status_code), None
         except HTTPStatusRejected as error:
             return NativeAuthResult('rate_limited' if error.status_code == 429 else
                                     'remote_denied' if error.status_code in (401, 403) else
-                                    'communication_failed', error.status_code)
+                                    'communication_failed', error.status_code), None
         except (AuthenticationMissing, ApiRejected):
-            return NativeAuthResult('identity_unverified')
+            return NativeAuthResult('identity_unverified'), None
         except Exception:
-            return NativeAuthResult('communication_failed')
+            return NativeAuthResult('communication_failed'), None
         finally:
             with self._reader_lock:
                 self._requests.pop(stopped, None)

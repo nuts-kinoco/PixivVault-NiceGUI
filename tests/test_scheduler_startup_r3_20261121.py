@@ -97,8 +97,7 @@ async def test_selected_auth_keeps_its_proof_if_another_check_runs_after_unlock(
         def verify(_file, _stop):
             nonlocal calls
             calls += 1
-            binding._last_identity = ((A if calls == 1 else B), 20)
-            return NativeAuthResult('verified')
+            return NativeAuthResult('verified'), (A if calls == 1 else B, 20)
 
         monkeypatch.setattr(binding, '_auth_lock', InterleavedLock())
         monkeypatch.setattr(binding, '_verify_auth_result', verify)
@@ -161,7 +160,7 @@ async def test_two_views_and_repeated_click_use_one_confirmation(tmp_path, monke
 
 
 @pytest.mark.asyncio
-async def test_close_does_not_wait_for_editor_confirmation_transport(tmp_path, monkeypatch):
+async def test_close_revokes_editor_confirmation_transport_before_waiting(tmp_path, monkeypatch):
     with native(tmp_path, monkeypatch) as (binding, services, reader):
         services.following_sync.sync(Reader(A))
         await binding.refresh_auth_status(startup=True)
@@ -174,16 +173,17 @@ async def test_close_does_not_wait_for_editor_confirmation_transport(tmp_path, m
             return require()
 
         monkeypatch.setattr(reader, 'require_identity', blocked)
+        monkeypatch.setattr(reader, 'close', release.set)
         confirmation = asyncio.create_task(asyncio.to_thread(services.confirm_scheduler_account))
         closing = None
         try:
             assert await asyncio.to_thread(entered.wait, 5)
             closing = asyncio.create_task(asyncio.to_thread(services.close))
             done, _ = await asyncio.wait((closing,), timeout=2)
-            assert closing in done and services.closed and not confirmation.done()
+            assert closing in done and services.closed and release.is_set()
+            assert not services._scheduler_confirmation_lock.locked()
             with pytest.raises(ScheduleError):
                 await asyncio.to_thread(services.confirm_scheduler_account)
-            release.set()
             with pytest.raises(ScheduleError):
                 await confirmation
             assert not services.managed_schedule_runner._thread.is_alive()

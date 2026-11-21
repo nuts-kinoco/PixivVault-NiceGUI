@@ -232,7 +232,8 @@ class SchedulerView:
         if self.closed or self._busy or confirm is None:
             return
         if self._confirmation_blocker() is not None:
-            self._hide_account_data()
+            if self._hide_account_data() == 'busy':
+                self.action_notice.set_text(CONFIRMATION_STATUS['busy'])
             return
         self._busy = True
         self.confirm_account_button.set_enabled(False)
@@ -242,8 +243,9 @@ class SchedulerView:
                 await self.refresh(ensure_after_current=True)
         except Exception as error:
             if not self.closed:
-                self._hide_account_data()
-                if not self._cookie_restart_required():
+                blocker = self._hide_account_data()
+                busy = isinstance(error, ScheduleConfirmationUnavailable) and error.reason == 'busy'
+                if blocker != 'restart' and (not busy or blocker == 'busy'):
                     self.action_notice.set_text(check_failure_message(error))
         finally:
             self._finish_action()
@@ -284,6 +286,8 @@ class SchedulerView:
         self.star_notice.set_text('☆一覧を読み込めません。ログイン中のアカウントと保存済みのフォロー情報を照合できるまで、履歴も非表示になります。')
         self.account_label.set_text('紐づけアカウントを確認できません')
         blocker = self._confirmation_blocker()
+        if blocker != 'busy' and self.action_notice.text == CONFIRMATION_STATUS['busy']:
+            self.action_notice.set_text('')
         show_confirm = blocker is None and callable(getattr(self.services, 'confirm_scheduler_account', None))
         self.confirm_account_button.set_visibility(show_confirm)
         self.confirm_account_button.set_enabled(show_confirm and not self._busy)
@@ -293,6 +297,7 @@ class SchedulerView:
         self.run_button.set_enabled(False)
         self._hide_history()
         self._enable_save()
+        return blocker
 
     def _show_account(self, ledger):
         if getattr(ledger, '_account_guard', False):
@@ -308,6 +313,8 @@ class SchedulerView:
             self._hide_account_data()
             return False
         self._settings_owner = self._stop_owner = editor.owner
+        if self.action_notice.text == CONFIRMATION_STATUS['busy']:
+            self.action_notice.set_text('')
         self.confirm_account_button.set_visibility(False)
         account_id = editor.owner.account_id
         draft = self._hidden_star_draft
