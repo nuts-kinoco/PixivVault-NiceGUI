@@ -192,6 +192,43 @@ def test_queued_image_cannot_repopulate_visual_data_after_purge(tmp_path, monkey
         catalog.close()
 
 
+def test_undo_during_worker_fence_capture_only_skips_that_image(tmp_path, monkeypatch):
+    fake_ort(monkeypatch)
+    store = store_at(tmp_path / 'shadow')
+    revoker = store_at(store.root)
+    path = tmp_path / 'model.onnx'
+    path.write_bytes(b'synthetic model')
+    worker = VisualPreferenceWorker(store, path, model_sha=sha256(path.read_bytes()).hexdigest(),
+                                    gpu_arbiter=GpuInferenceArbiter())
+    catalog = RemoteBookmarkImages(Client(), (record('first'), record('next')))
+    captured, resume = Event(), Event()
+    read_number = store._generation_number
+
+    def pause_one_capture(db):
+        number = read_number(db)
+        if not captured.is_set():
+            captured.set()
+            assert resume.wait(10)
+        return number
+
+    monkeypatch.setattr(store, '_generation_number', pause_one_capture)
+    try:
+        worker.start()
+        assert worker.submit_image('first', 0, catalog.get_with_variant('first'))
+        assert captured.wait(5)
+        assert worker.submit_image('next', 0, catalog.get_with_variant('next'))
+        revoker.invalidate('undo')
+        resume.set()
+        wait_for(lambda: worker.status()['indexed'] == 1 or worker.status()['phase'] == 'failed')
+        assert worker.status()['phase'] == 'running'
+        with store._transaction() as db:
+            assert db.execute('SELECT work_id FROM candidate_embeddings').fetchall() == [('next',)]
+    finally:
+        resume.set()
+        worker.stop()
+        catalog.close()
+
+
 def test_shadow_stop_cancels_waiter_without_releasing_another_owner(tmp_path, monkeypatch):
     fake_ort(monkeypatch)
     path = tmp_path / 'model.onnx'

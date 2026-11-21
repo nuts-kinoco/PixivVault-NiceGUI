@@ -160,6 +160,10 @@ class VisualPreferenceStoreError(RuntimeError):
     """Storage was unavailable or ownership could not be established."""
 
 
+class VisualPreferenceFenceChanged(VisualPreferenceStoreError):
+    """A concurrent revocation superseded the inputs being captured."""
+
+
 class _RevocationIOError(VisualPreferenceStoreError):
     """Both valid control records could not be written."""
 
@@ -938,8 +942,10 @@ class VisualPreferenceStore:
         try:
             with reader_lock, self._validated_read(deadline, inspect_journal=False) as db:
                 number = self._generation_number(db)
-            if self._fence_failed or epoch is None or self._epoch() != epoch:
+            if self._fence_failed or epoch is None:
                 _reject()
+            if self._epoch() != epoch:
+                raise VisualPreferenceFenceChanged('visual preference inputs were superseded')
         except (OSError, sqlite3.Error, ValueError):
             _reject()
         return _JobFence(epoch, number)

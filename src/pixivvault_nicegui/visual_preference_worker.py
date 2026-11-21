@@ -11,6 +11,7 @@ from .egara_inference import (
 from .gpu_arbiter import DEFAULT_GPU_ARBITER, GpuInferenceStopped
 from .local_tag_view import _gpu_stop_generation
 from .visual_preference import EmbeddingKey
+from .visual_preference_store import VisualPreferenceFenceChanged
 
 
 _LOG = logging.getLogger(__name__)
@@ -297,7 +298,12 @@ class VisualPreferenceWorker:
                         raise GpuInferenceStopped()
                     work_id, page, variant, data, purge_epoch = self._queue.popleft()
                     self._queued_bytes -= len(data)
-                epoch = self.store.capture_embedding_epoch()
+                try:
+                    epoch = self.store.capture_embedding_epoch()
+                except VisualPreferenceFenceChanged:
+                    with self._condition:
+                        self._dropped += 1
+                    continue
                 if purge_epoch != self.store.capture_event_epoch():
                     continue
                 key = EmbeddingKey(work_id, page, variant, sha256(data).hexdigest(),
@@ -324,8 +330,14 @@ class VisualPreferenceWorker:
                     continue
                 if not self._check_running():
                     return
-                if self.store.put_candidate_embedding(epoch, key, vector,
-                        is_current=lambda: self._check_running(raise_on_release=False)):
+                try:
+                    written = self.store.put_candidate_embedding(epoch, key, vector,
+                        is_current=lambda: self._check_running(raise_on_release=False))
+                except VisualPreferenceFenceChanged:
+                    with self._condition:
+                        self._dropped += 1
+                    continue
+                if written:
                     with self._condition:
                         self._indexed += 1
         except GpuInferenceStopped:
