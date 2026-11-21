@@ -433,6 +433,19 @@ def check_personal_tag_commit(page):
     return {'draft_committed_on_enter': True, 'ime_enter_ignored': True, 'removal_confirmed': True}
 
 
+def open_personal_filters(page):
+    toggle = page.get_by_test_id('personal-filter-toggle')
+    panel = page.get_by_test_id('personal-filter-panel')
+    panel.wait_for(state='hidden')
+    assert toggle.get_attribute('aria-expanded') == 'false'
+    toggle.click()
+    panel.wait_for(state='visible')
+    assert toggle.get_attribute('aria-expanded') == 'true'
+    assert toggle.get_attribute('aria-controls') == panel.get_attribute('id')
+    for testid in ('personal-sort', 'personal-bookmarks'):
+        panel.get_by_test_id(testid).wait_for(state='visible')
+
+
 def run_matrix(pw, url, out: Path, expectations, screens, wait_ms, get_net, startup_wait_ms, strict=False):
     """The whole tour.  Returns (cells, foreign requests, testids per screen, call log).
 
@@ -510,6 +523,8 @@ def run_matrix(pw, url, out: Path, expectations, screens, wait_ms, get_net, star
                                 operation = check_library_pan(page)
                             elif name == "personal":
                                 operation = check_personal_tag_commit(page)
+                                open_personal_filters(page)
+                                operation['filter_panel_opened'] = True
                         except Exception as e:  # missing opener / ready element: a FAIL, not a crash
                             error = f"{type(e).__name__}: {str(e).splitlines()[0][:200]}"
                         snap = page.evaluate(SNAPSHOT_JS)
