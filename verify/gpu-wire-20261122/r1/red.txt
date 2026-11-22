@@ -1,0 +1,62 @@
+FFFFFFFFFF                                                               [100%]
+================================== FAILURES ===================================
+____________ test_visual_preference_round_trip_and_legacy_defaults ____________
+tests\test_visual_preference_wiring.py:20: in test_visual_preference_round_trip_and_legacy_defaults
+    assert existing.values['visual_preference_enabled'] == '0'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'visual_preference_enabled'
+_____________ test_first_capture_failure_after_purge_is_recorded ______________
+tests\test_visual_preference_wiring.py:51: in test_first_capture_failure_after_purge_is_recorded
+    assert [event.kind for event in store.events()] == ['capture_gap', 'ranking']
+E   AssertionError: assert ['ranking'] == ['capture_gap', 'ranking']
+E
+E     At index 0 diff: 'ranking' != 'capture_gap'
+E     Right contains one more item: 'ranking'
+E     Use -v to get more diff
+________ test_saved_unjudged_events_normalize_both_existing_spellings _________
+tests\test_visual_preference_wiring.py:62: in test_saved_unjudged_events_normalize_both_existing_spellings
+    assert [r['judgment'] for r in store.events()[0].payload['candidates']] == ['', '', None]
+E   AssertionError: assert [None, '', None] == ['', '', None]
+E
+E     At index 0 diff: None != ''
+E     Use -v to get more diff
+______ test_cuda_memory_pressure_from_ort[CUDA failure 2: out of memory] ______
+tests\test_visual_preference_wiring.py:73: in test_cuda_memory_pressure_from_ort
+    from pixivvault_nicegui.gpu_arbiter import cuda_memory_pressure
+E   ImportError: cannot import name 'cuda_memory_pressure' from 'pixivvault_nicegui.gpu_arbiter' (S:\Work\PV\gpu-wire-20261122\src\pixivvault_nicegui\gpu_arbiter.py)
+________ test_cuda_memory_pressure_from_ort[CUDNN_STATUS_ALLOC_FAILED] ________
+tests\test_visual_preference_wiring.py:73: in test_cuda_memory_pressure_from_ort
+    from pixivvault_nicegui.gpu_arbiter import cuda_memory_pressure
+E   ImportError: cannot import name 'cuda_memory_pressure' from 'pixivvault_nicegui.gpu_arbiter' (S:\Work\PV\gpu-wire-20261122\src\pixivvault_nicegui\gpu_arbiter.py)
+_ test_cuda_memory_pressure_from_ort[BFCArena::AllocateRawInternal Failed to allocate memory for requested buffer of size 15728896] _
+tests\test_visual_preference_wiring.py:73: in test_cuda_memory_pressure_from_ort
+    from pixivvault_nicegui.gpu_arbiter import cuda_memory_pressure
+E   ImportError: cannot import name 'cuda_memory_pressure' from 'pixivvault_nicegui.gpu_arbiter' (S:\Work\PV\gpu-wire-20261122\src\pixivvault_nicegui\gpu_arbiter.py)
+_ test_cuda_memory_pressure_from_ort[Available memory of 1024 is smaller than requested bytes of 4096] _
+tests\test_visual_preference_wiring.py:73: in test_cuda_memory_pressure_from_ort
+    from pixivvault_nicegui.gpu_arbiter import cuda_memory_pressure
+E   ImportError: cannot import name 'cuda_memory_pressure' from 'pixivvault_nicegui.gpu_arbiter' (S:\Work\PV\gpu-wire-20261122\src\pixivvault_nicegui\gpu_arbiter.py)
+_ test_cuda_memory_pressure_from_ort[Failed to find a free memory block despite calling Extend. rounded_bytes=4096] _
+tests\test_visual_preference_wiring.py:73: in test_cuda_memory_pressure_from_ort
+    from pixivvault_nicegui.gpu_arbiter import cuda_memory_pressure
+E   ImportError: cannot import name 'cuda_memory_pressure' from 'pixivvault_nicegui.gpu_arbiter' (S:\Work\PV\gpu-wire-20261122\src\pixivvault_nicegui\gpu_arbiter.py)
+______________ test_shared_lease_releases_only_its_token[False] _______________
+tests\test_visual_preference_wiring.py:82: in test_shared_lease_releases_only_its_token
+    from pixivvault_nicegui.gpu_arbiter import SharedGpuLease
+E   ImportError: cannot import name 'SharedGpuLease' from 'pixivvault_nicegui.gpu_arbiter' (S:\Work\PV\gpu-wire-20261122\src\pixivvault_nicegui\gpu_arbiter.py)
+_______________ test_shared_lease_releases_only_its_token[True] _______________
+tests\test_visual_preference_wiring.py:82: in test_shared_lease_releases_only_its_token
+    from pixivvault_nicegui.gpu_arbiter import SharedGpuLease
+E   ImportError: cannot import name 'SharedGpuLease' from 'pixivvault_nicegui.gpu_arbiter' (S:\Work\PV\gpu-wire-20261122\src\pixivvault_nicegui\gpu_arbiter.py)
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_wiring.py::test_visual_preference_round_trip_and_legacy_defaults
+FAILED tests/test_visual_preference_wiring.py::test_first_capture_failure_after_purge_is_recorded
+FAILED tests/test_visual_preference_wiring.py::test_saved_unjudged_events_normalize_both_existing_spellings
+FAILED tests/test_visual_preference_wiring.py::test_cuda_memory_pressure_from_ort[CUDA failure 2: out of memory]
+FAILED tests/test_visual_preference_wiring.py::test_cuda_memory_pressure_from_ort[CUDNN_STATUS_ALLOC_FAILED]
+FAILED tests/test_visual_preference_wiring.py::test_cuda_memory_pressure_from_ort[BFCArena::AllocateRawInternal Failed to allocate memory for requested buffer of size 15728896]
+FAILED tests/test_visual_preference_wiring.py::test_cuda_memory_pressure_from_ort[Available memory of 1024 is smaller than requested bytes of 4096]
+FAILED tests/test_visual_preference_wiring.py::test_cuda_memory_pressure_from_ort[Failed to find a free memory block despite calling Extend. rounded_bytes=4096]
+FAILED tests/test_visual_preference_wiring.py::test_shared_lease_releases_only_its_token[False]
+FAILED tests/test_visual_preference_wiring.py::test_shared_lease_releases_only_its_token[True]
+10 failed in 14.58s

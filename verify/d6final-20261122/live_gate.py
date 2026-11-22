@@ -18,6 +18,14 @@ APPS = ("original", "nice")
 KINDS = ("identity", "identity_extra", "ranking", "image")
 RANKING_QUERY = {"mode": "daily", "content": "illust", "format": "json", "p": "1"}
 MAX_NEW_GETS = 85
+ROUND_THREE_PRIOR = 134
+RUN_CAPS = {83: MAX_NEW_GETS, ROUND_THREE_PRIOR: 40}
+QUIET_FLAG = Path("S:/Work/_tmp/PV/sup/D6_QUIET.flag")
+
+
+def require_quiet_window():
+    if not QUIET_FLAG.is_file():
+        raise StopRun("quiet_window")
 
 
 class RouteDenied(ValueError):
@@ -99,6 +107,38 @@ class Ledger:
             state["stop"] = state["stop"] or StopRun(reason).reason
             self._save(state)
 
+    def _check_window(self, state):
+        try:
+            require_quiet_window()
+        except StopRun as error:
+            state["stop"] = error.reason
+            self._save(state)
+            raise
+
+    def check_quiet_window(self):
+        with self._exclusive():
+            state = self._load()
+            if state["stop"]:
+                raise StopRun(state["stop"])
+            self._check_window(state)
+
+    def wait_before_click(self):
+        began = perf_counter()
+        while True:
+            state = self.snapshot()
+            if state["stop"]:
+                raise StopRun(state["stop"])
+            if state["inflight"]:
+                raise StopRun("transport")
+            if state["prior_attempts"] == ROUND_THREE_PRIOR:
+                self.check_quiet_window()
+            if not state["events"]:
+                return (perf_counter() - began) * 1000
+            wait = state["events"][-1]["end"] + RequestBudget.MIN_SECONDS - perf_counter()
+            if wait <= 0:
+                return (perf_counter() - began) * 1000
+            sleep(wait)
+
     def attempt(self, side, kind, dispatch, *, deadline=None):
         if side not in APPS or kind not in KINDS:
             raise RouteDenied()
@@ -107,7 +147,8 @@ class Ledger:
             state = self._load()
             if state["stop"]:
                 raise StopRun(state["stop"])
-            cap = min(RequestBudget.CAP, state["prior_attempts"] + MAX_NEW_GETS)
+            prior = state["prior_attempts"]
+            cap = min(RequestBudget.CAP, prior + RUN_CAPS.get(prior, MAX_NEW_GETS))
             if state["inflight"] or state["count"] >= cap:
                 state["stop"] = "transport" if state["inflight"] else "budget"
                 self._save(state)
@@ -120,6 +161,8 @@ class Ledger:
                     if deadline is not None and earliest >= deadline:
                         raise StopRun("transport")
                     sleep(wait)
+            if prior == ROUND_THREE_PRIOR:
+                self._check_window(state)
             state["count"] += 1
             state["inflight"] = True
             self._save(state)
@@ -128,6 +171,8 @@ class Ledger:
             try:
                 if deadline is not None and started >= deadline:
                     raise StopRun("transport")
+                if prior == ROUND_THREE_PRIOR:
+                    require_quiet_window()
                 status, challenge, auth = dispatch()
                 DispatchObservation(status, challenge, auth).validate()
             except StopRun as error:
@@ -151,8 +196,10 @@ def require_operator_confirmation(ledger):
     now = datetime.now().astimezone()
     state = ledger.snapshot()
     if (at.utcoffset() is None or at.astimezone().date() != now.date()
-            or at > now or state["prior_attempts"] != 83):
+            or at > now or state["prior_attempts"] not in RUN_CAPS):
         raise ValueError("current operator confirmation and shared count required")
+    if state["prior_attempts"] == ROUND_THREE_PRIOR:
+        ledger.check_quiet_window()
     if state["stop"]:
         raise StopRun(state["stop"])
     if state["inflight"]:

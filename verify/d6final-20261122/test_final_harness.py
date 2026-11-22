@@ -48,6 +48,55 @@ def test_final_cap_is_85_gets_above_prior_count(tmp_path, monkeypatch):
     assert ledger.snapshot()['count'] == 168
 
 
+def test_round_three_cap_and_quiet_flag(tmp_path, monkeypatch):
+    now = 100.0
+
+    def advance(seconds):
+        nonlocal now
+        now += seconds
+
+    window = tmp_path / 'supervisor.flag'
+    window.touch()
+    monkeypatch.setattr(live_gate, 'QUIET_FLAG', window, raising=False)
+    monkeypatch.setattr(live_gate, 'perf_counter', lambda: now)
+    monkeypatch.setattr(live_gate, 'sleep', advance)
+    ledger = Ledger.create(tmp_path, prior_attempts=134)
+    for _ in range(40):
+        ledger.attempt('nice', 'ranking', lambda: (200, False, None))
+    with pytest.raises(StopRun, match='^budget$'):
+        ledger.attempt('original', 'ranking', lambda: pytest.fail('sent past cap'))
+    assert ledger.snapshot()['count'] == 174
+    other = tmp_path / 'other'
+    other.mkdir()
+    ledger = Ledger.create(other, prior_attempts=134)
+    window.unlink()
+    with pytest.raises(StopRun, match='^quiet_window$'):
+        ledger.attempt('original', 'ranking', lambda: pytest.fail('sent after the window'))
+    assert ledger.snapshot()['count'] == 134
+    assert ledger.snapshot()['stop'] == 'quiet_window'
+    window.touch()
+    with pytest.raises(StopRun, match='^quiet_window$'):
+        ledger.attempt('nice', 'ranking', lambda: pytest.fail('resumed a closed window'))
+
+
+def test_both_clicks_wait_until_ledger_spacing_has_elapsed(tmp_path, monkeypatch):
+    now = 100.0
+
+    def advance(seconds):
+        nonlocal now
+        now += seconds
+
+    monkeypatch.setattr(live_gate, 'perf_counter', lambda: now)
+    monkeypatch.setattr(live_gate, 'sleep', advance)
+    ledger = Ledger.create(tmp_path)
+    for side in ('original', 'nice'):
+        ledger.wait_before_click()
+        click_at = now
+        ledger.attempt(side, 'ranking', lambda: (200, False, None))
+        assert ledger.snapshot()['events'][-1]['start'] == click_at
+    assert now == pytest.approx(100.875)
+
+
 def test_unexpected_server_error_is_latched_with_status(tmp_path):
     ledger = Ledger.create(tmp_path)
     with pytest.raises(StopRun, match='^http_5xx$'):

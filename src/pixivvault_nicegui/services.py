@@ -143,7 +143,7 @@ class ApplicationServices:
                  external_vault_transport=None, external_vault_crypto=None, desktop=None, notification_backend=None,
                  following_sync_root=None, pixiv_actions_mode='readonly',
                  managed_network_stop_scope=None, shared_network_stop_scope=None, legacy_copy_root=None,
-                 scheduler_wait_for_auth=False) -> None:
+                 scheduler_wait_for_auth=False, startup_stop_deadline=None) -> None:
         failed_queue_source_db = failed_queue_readonly_db
         if (type(pixiv_actions_mode) is not str or
                 pixiv_actions_mode not in ('readonly', 'enabled', 'preferences')):
@@ -280,6 +280,15 @@ class ApplicationServices:
         self._egara_model_path = None
         self._egara_provider = 'auto'
         self._egara_inference = None
+        self.visual_preference_worker = None
+        self._visual_retiring = None
+        self._visual_lock = RLock()
+        self._visual_settings = None
+        self._visual_error = None
+        self._visual_model = None
+        self._visual_worker_account = None
+        self._visual_user_paused_account = None
+        self._visual_catalog_lock = Lock()
         self._similarity_legacy_inputs = None
         self._similarity_run_lock = RLock()
         self._similarity_stop = Event()
@@ -614,8 +623,11 @@ class ApplicationServices:
                 return
             from .managed_network_stop_gate import ManagedNetworkGateStorageError
             if managed_network_stop_scope is not None:
+                from .managed_network_stop_startup import retry_startup_lock
                 from .managed_stop_migration_binding import verified_media
-                if verified_media(managed_network_stop_scope,root):return
+                if retry_startup_lock(lambda: verified_media(managed_network_stop_scope, root),
+                                      deadline=startup_stop_deadline):
+                    return
             for suffix in ('', '.lock', '-journal', '-wal', '-shm'):
                 path = Path(root) / ('.pixivvault-network-stop.sqlite3' + suffix)
                 if path.exists() or path.is_symlink():
@@ -996,6 +1008,7 @@ class ApplicationServices:
             self._egara_provider = provider
             if self.local_tagger is not None and provider_changed:
                 self.local_tagger.invalidate()
+        self.sync_visual_preference(account_only=True)
 
     @property
     def similarity_analysis_enabled(self):
@@ -1305,6 +1318,9 @@ class ApplicationServices:
             enabled.add('meta_backfill_enabled')
         if self.preferences is not None and self.similarity_analysis_enabled:
             enabled.add('embed_auto_on_download')
+        if self.visual_preference_available:
+            enabled.update(('visual_preference_enabled', 'visual_preference_mode',
+                            'visual_preference_thumb_prefetch'))
         if self.notifications is not None and self.notifications.available:enabled.add('enable_notifications')
         if self.tray is not None and self.tray.available:enabled.add('minimize_to_tray')
         return enabled
@@ -1314,12 +1330,255 @@ class ApplicationServices:
             return
         self._sync_metadata_auto()
         self._sync_similarity_auto()
+        self.sync_visual_preference(snapshot)
         if self.discovery is not None and self.local_tag_view is not None:
             self.discovery.refresh_saved_seeds()
         if self.shared_image_cache is not None:
             self.shared_image_cache.configure(int(self.preferences.get_setting('pixiv_shared_image_cache_size_mb','1024'))*1024**2)
             if self.shared_image_cache.disk is not None:
                 self.shared_image_cache.disk.configure(int(self.preferences.get_setting('pixiv_disk_thumbnail_cache_size_gb','12'))*1024**3)
+
+    @property
+    def visual_preference_available(self):
+        return self.preferences is not None and self.discovery is not None
+
+    def _verified_visual_account(self):
+        reader = self.live_client
+        account = getattr(reader, '_verified_identity', None)
+        if type(account) is str and re.fullmatch(r'[1-9][0-9]{0,19}', account):
+            return reader, account
+        return None
+
+    def _visual_identity_is_current(self, identity):
+        reader, account = identity
+        return self.live_client is reader and getattr(reader, '_verified_identity', None) == account
+
+    def _visual_store_scope(self, account):
+        from hashlib import sha256
+
+        profile = str(Path(self.preferences_root).resolve()).casefold()
+        discovery = str(self.discovery.sandbox_root.resolve()).casefold()
+        scope = sha256(f'{profile}\0{discovery}\0{account}'.encode('utf-8')).hexdigest()
+        root = Path(self.preferences_root) / f'visual-preference-{scope}'
+        protected = (
+            self.preferences.path, self.discovery.sandbox_root, self.learning_sandbox,
+            self.library_readonly_db, self.library_source_db, self.library_image_root,
+            self.legacy_diff_image_root, self.failed_queue_readonly_db,
+            self.novel_fixture_root, self.ugoira_root, self.legacy_zip_export_root,
+            self.image_cache_root, self.external_vault_root, self.following_sync_root,
+            self.recommendation_preferences_root, getattr(self.similarity_index, 'root', None),
+            getattr(self.managed_downloads, 'root', None), getattr(self.save_exports, 'root', None),
+        )
+        return root, dict(profile=f'{profile}\0{discovery}', account=account,
+                          protected_paths=tuple(path for path in protected if path is not None))
+
+    def _open_visual_worker(self, reader, account):
+        from .gpu_arbiter import SharedGpuLease
+        from .visual_preference_store import VisualPreferenceStore
+        from .visual_preference_worker import VisualPreferenceWorker
+
+        root, scope = self._visual_store_scope(account)
+        model_path, requested = self._egara_model_path, self._egara_provider
+        provider = 'cpu' if requested == 'cpu' else 'cuda'
+        worker = VisualPreferenceWorker(
+            VisualPreferenceStore(root, **scope), model_path,
+            provider=provider, shared_lease=SharedGpuLease() if provider == 'cuda' else None,
+            scope_current=lambda: self._visual_identity_is_current((reader, account)),
+            saved_ids=self._visual_saved_library_ids,
+        )
+        if not worker.scope_is_current():
+            return None
+        self._visual_model = (model_path, requested)
+        self._visual_worker_account = account
+        self.visual_preference_worker = self.discovery.shadow_observer = worker
+        return worker
+
+    def _detach_visual_worker(self):
+        worker = self.visual_preference_worker
+        if worker is not None:
+            self._visual_retiring = worker
+            self.visual_preference_worker = None
+            self._visual_settings = None
+            worker.retire()
+            self._visual_model = None
+            self._visual_worker_account = None
+            if self.discovery is not None and self.discovery.shadow_observer is worker:
+                self.discovery.shadow_observer = None
+
+    def _retire_visual_worker(self, *, require_complete=True, reason='off'):
+        self._detach_visual_worker()
+        worker = self._visual_retiring
+        if worker is None:
+            return
+        errors = []
+        try:
+            worker.stop(pause=True, invalidate_reason=reason)
+        except Exception as error:
+            errors.append(error)
+        try:
+            worker.flush_events(require_complete=require_complete)
+        except Exception as error:
+            errors.append(error)
+        if not any(isinstance(error, TimeoutError) for error in errors):
+            self._visual_retiring = None
+        if len(errors) == 1:
+            raise errors[0]
+        if errors:
+            raise ExceptionGroup('visual preference shutdown unverified', errors)
+
+    def sync_visual_preference(self, snapshot=None, *, account_only=False):
+        """Bind the passive observer to a verified local account and apply the execution mode."""
+        if self.closing or not self.visual_preference_available:
+            return
+        with self._visual_lock:
+            if self.closing:
+                return
+            identity = self._verified_visual_account()
+            worker = self.visual_preference_worker
+            try:
+                if self._visual_retiring is not None:
+                    self._retire_visual_worker(require_complete=False)
+                if worker is not None and not worker.scope_is_current():
+                    self._retire_visual_worker(require_complete=False, reason='account_change')
+                    worker = None
+                if identity is None:
+                    self._visual_error = None
+                    return
+                reader, account = identity
+                if self._visual_user_paused_account != account:
+                    self._visual_user_paused_account = None
+                user_paused = self._visual_user_paused_account is not None
+                if worker is not None and self._visual_model != (self._egara_model_path, self._egara_provider):
+                    self._retire_visual_worker(require_complete=False, reason='model_change')
+                    worker = None
+                if (worker is not None and account_only and self._visual_settings is not None
+                        and self._visual_error is None):
+                    return
+                snapshot = snapshot if snapshot is not None else self.preferences.snapshot()
+                selected = (snapshot.values['visual_preference_enabled'], snapshot.values['visual_preference_mode'])
+                previous = self._visual_settings
+                if worker is None:
+                    worker = self._open_visual_worker(reader, account)
+                    if worker is None:
+                        return
+                if previous is None and selected[0] == '0':
+                    worker.store.invalidate('off')
+                if previous is None and user_paused:
+                    worker.request_pause()
+                elif previous is not None and (
+                        (previous[0] == '1' and selected[0] == '0') or (previous[1] == 'idle' and selected[1] == 'manual')):
+                    worker.request_pause(reason='disabled' if previous[0] != selected[0] else 'manual')
+                elif (not user_paused and selected[1] == 'idle' and previous != selected
+                      and self._egara_model_path is not None):
+                    worker.start(idle_seconds=5)
+                self._visual_settings = selected
+                self._visual_error = None
+            except Exception as error:
+                if self._visual_error is None:
+                    _LOG.warning('visual preference configuration failed (%s)', type(error).__name__)
+                self._visual_error = 'scope_failure'
+
+    def visual_preference_enabled(self):
+        """Gate correction before the caller computes or applies a score."""
+        worker = self.visual_preference_worker
+        if (self.closing or self._visual_error or worker is None or not worker.scope_is_current()
+                or self._visual_model != (self._egara_model_path, self._egara_provider)):
+            return False
+        state = worker.status()
+        if state['phase'] in ('paused', 'pausing', 'stopping', 'stopped', 'failed') or state['waiting_for_lease']:
+            return False
+        try:
+            return (self.preferences.get_setting('visual_preference_enabled') == '1'
+                    and worker.scope_is_current() and not self.closing)
+        except Exception:
+            return False
+
+    def visual_preference_status(self):
+        worker = self.visual_preference_worker
+        state = dict(phase='disabled', error=self._visual_error, indexed=0, pending=0, generation=0,
+                     worker_available=False, can_clear=False, clear_target=None, waiting_for_lease=False,
+                     provider='cpu' if self._egara_provider == 'cpu' else 'cuda')
+        if self.closing:
+            return state
+        if worker is not None and worker.scope_is_current():
+            status = worker.status()
+            try:
+                indexed, generation = worker.store.progress()
+            except Exception:
+                indexed, generation = 0, 0
+                status['error'] = 'scope_failure'
+            if self.visual_preference_worker is worker and worker.scope_is_current():
+                status['error'] = status['error'] or self._visual_error
+                state.update(status, indexed=indexed, generation=generation,
+                             worker_available=self._egara_model_path is not None,
+                             can_clear=True, clear_target=worker, provider=worker.provider)
+        elif self._visual_error and self._visual_retiring is None:
+            from .visual_preference_store import OWNER_MARKER
+
+            identity = self._verified_visual_account()
+            if identity is not None:
+                root, _scope = self._visual_store_scope(identity[1])
+                if (root / OWNER_MARKER).is_file() and self._visual_identity_is_current(identity):
+                    state.update(can_clear=True, clear_target=identity)
+        return state
+
+    def _active_visual_worker(self):
+        worker = self.visual_preference_worker
+        if self.closing or worker is None or not worker.scope_is_current():
+            raise RuntimeError('visual preference scope unavailable')
+        return worker
+
+    def start_visual_preference(self):
+        self.sync_visual_preference()
+        with self._visual_lock:
+            self._active_visual_worker().start()
+            self._visual_user_paused_account = None
+
+    def pause_visual_preference(self):
+        with self._visual_lock:
+            worker = self._active_visual_worker()
+            self._visual_user_paused_account = self._visual_worker_account
+            worker.request_pause()
+
+    def clear_visual_preference(self, expected):
+        from .fs_paths import logical_path
+        from .visual_preference_store import VisualPreferenceStore, VisualPreferenceStoreError
+
+        with self._visual_lock:
+            identity = self._verified_visual_account()
+            if self.closing or identity is None or self._visual_retiring is not None:
+                raise RuntimeError('visual preference scope changed')
+            reader, account = identity
+            worker = self.visual_preference_worker
+            root, scope = self._visual_store_scope(account)
+            if worker is not None:
+                if (worker is not expected or not worker.scope_is_current()
+                        or logical_path(worker.store.root) != root.absolute()):
+                    raise RuntimeError('visual preference scope changed')
+            elif (not self._visual_error or type(expected) is not tuple or len(expected) != 2
+                  or not self._visual_identity_is_current(expected)):
+                raise RuntimeError('visual preference scope changed')
+            snapshot = self.preferences.snapshot()
+            selected = (snapshot.values['visual_preference_enabled'], snapshot.values['visual_preference_mode'])
+            try:
+                self._retire_visual_worker(require_complete=False)
+            except VisualPreferenceStoreError:
+                # The dedicated purge checks marker and inode ownership even
+                # when the obsolete worker cannot reopen its store.
+                if self._visual_retiring is not None:
+                    raise
+            if self.closing or not self._visual_identity_is_current(identity):
+                raise RuntimeError('visual preference scope changed')
+            try:
+                VisualPreferenceStore.purge_owned(root, **scope)
+            finally:
+                replacement = None
+                if not self.closing and self._visual_identity_is_current(identity):
+                    replacement = self._open_visual_worker(reader, account)
+                if replacement is not None:
+                    replacement.request_pause(reason='cleared')
+                    self._visual_settings = selected
+                    self._visual_error = None
 
     def discovery_following_snapshot(self):
         """Read the latest local account snapshot without an identity/list GET."""
@@ -1353,6 +1612,7 @@ class ApplicationServices:
             return
         async def initialize():
             try:
+                await asyncio.to_thread(self.sync_visual_preference)
                 await self.discovery.initialize_once(self.refresh_discovery_context,
                     is_current=lambda: not self.closing and not self._startup_discovery_stop.is_set())
             except Exception:
@@ -1398,10 +1658,20 @@ class ApplicationServices:
         checkpoint()
         require_current_account(self, reader, account)
         self._following_snapshot = (reader, account, value)
+        await asyncio.to_thread(self.sync_visual_preference)
 
     def saved_discovery_ids(self):
         if self.closing:
             return frozenset()
+        return self._saved_library_ids()
+
+    def _visual_saved_library_ids(self):
+        if self.closing:
+            return frozenset()
+        with self._visual_catalog_lock:
+            return frozenset() if self.closing else self._saved_library_ids()
+
+    def _saved_library_ids(self):
         source = self._legacy_library_snapshot or self.library
         saved={work.work_id for work in source.works}
         if self.managed_downloads is not None:
@@ -3138,6 +3408,9 @@ class ApplicationServices:
 
     def close(self) -> None:
         with self._close_lock:
+            if self.closed and self._visual_retiring is not None:
+                with self._visual_lock:
+                    self._retire_visual_worker(require_complete=False)
             if not self.closed:
                 # The same lifecycle lock guards enable-vs-close. Once close
                 # marks `closing`, no new runner can be published.
@@ -3152,28 +3425,58 @@ class ApplicationServices:
                 self._legacy_export_stop.set()
                 self._scheduler_cancel_event.set()
                 self._metadata_cancel_event.set()
-                if self._similarity_worker is not None:
-                    self._similarity_worker.stop(timeout=150.0)
-                # 自動後埋めの待機スレッドも、台帳・通信路を閉じる前に畳む。
-                if self._metadata_auto is not None:
-                    self._metadata_auto.stop(timeout=150.0)
-                # A synchronous close waits for action workers (including
-                # local follow commits) without depending on the UI loop.
-                self._close_pixiv_actions()
-                if self.managed_schedule_runner is not None:
-                    # No provider/SQLite resource may close while its GET
-                    # dispatch worker still uses it. A bounded network read
-                    # may legally outlive the runner's short stop timeout.
-                    self.managed_schedule_runner.stop(timeout=150.0)
-                # Manual dispatch and the timer share this barrier. Do not
-                # close JobService/CAS/HTTP while either still uses them.
-                with self._scheduler_dispatch_lock:
-                    # Metadata GET is bounded by the explicit Pixiv transport;
-                    # never close its client/ledger while a request is active.
-                    with self._metadata_run_lock:
-                        with self._viewer_page_lock:
-                            with self._legacy_export_lock:
-                                self._close_resources()
+                with self._visual_lock:
+                    self._detach_visual_worker()
+                runtime_error = None
+                try:
+                    if self._similarity_worker is not None:
+                        self._similarity_worker.stop(timeout=150.0)
+                    # 自動後埋めの待機スレッドも、台帳・通信路を閉じる前に畳む。
+                    if self._metadata_auto is not None:
+                        self._metadata_auto.stop(timeout=150.0)
+                    # A synchronous close waits for action workers (including
+                    # local follow commits) without depending on the UI loop.
+                    self._close_pixiv_actions()
+                    if self.managed_schedule_runner is not None:
+                        # No provider/SQLite resource may close while its GET
+                        # dispatch worker still uses it. A bounded network read
+                        # may legally outlive the runner's short stop timeout.
+                        self.managed_schedule_runner.stop(timeout=150.0)
+                except Exception as error:
+                    runtime_error = error
+
+                visual_error = None
+                try:
+                    with self._visual_lock:
+                        self._retire_visual_worker(require_complete=False)
+                except Exception as error:
+                    visual_error = error
+
+                if runtime_error is None:
+                    if self._visual_catalog_lock.acquire(blocking=False):
+                        self._visual_catalog_lock.release()
+                    else:
+                        runtime_error = RuntimeError('visual saved catalog shutdown unverified')
+                if runtime_error is None:
+                    try:
+                        # Manual dispatch and the timer share this barrier. Do not
+                        # close JobService/CAS/HTTP while either still uses them.
+                        with self._scheduler_dispatch_lock:
+                            # Metadata GET is bounded by the explicit Pixiv transport;
+                            # never close its client/ledger while a request is active.
+                            with self._metadata_run_lock:
+                                with self._viewer_page_lock:
+                                    with self._legacy_export_lock:
+                                        self._close_resources()
+                    except Exception as error:
+                        runtime_error = error
+
+                if visual_error is not None and runtime_error is not None:
+                    raise ExceptionGroup('application shutdown unverified', [visual_error, runtime_error])
+                if runtime_error is not None:
+                    raise runtime_error
+                if visual_error is not None:
+                    raise visual_error
 
     def _drain_scheduler_confirmation(self):
         lock = self._scheduler_confirmation_lock
@@ -4351,7 +4654,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                  external_vault_transport=None, external_vault_crypto=None, desktop=None, notification_backend=None,
                  following_sync_root=None, pixiv_actions_mode=None,
                  managed_network_stop_scope=None, shared_network_stop_scope=None,
-                 legacy_copy_root=None, scheduler_wait_for_auth=False) -> ApplicationServices:
+                 legacy_copy_root=None, scheduler_wait_for_auth=False,
+                 startup_stop_deadline=None) -> ApplicationServices:
     """Return resources scoped to the ASGI app; no-argument access is legacy."""
     global _services
     with _lock:
@@ -4376,7 +4680,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                     pixiv_actions_mode='readonly' if pixiv_actions_mode is None else pixiv_actions_mode,
                     managed_network_stop_scope=managed_network_stop_scope,
                     shared_network_stop_scope=shared_network_stop_scope, legacy_copy_root=legacy_copy_root,
-                    scheduler_wait_for_auth=scheduler_wait_for_auth)
+                    scheduler_wait_for_auth=scheduler_wait_for_auth,
+                    startup_stop_deadline=startup_stop_deadline)
             services = _services
         else:
             services = getattr(app.state, _APP_KEY, None)
@@ -4400,7 +4705,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                     pixiv_actions_mode='readonly' if pixiv_actions_mode is None else pixiv_actions_mode,
                     managed_network_stop_scope=managed_network_stop_scope,
                     shared_network_stop_scope=shared_network_stop_scope, legacy_copy_root=legacy_copy_root,
-                    scheduler_wait_for_auth=scheduler_wait_for_auth)
+                    scheduler_wait_for_auth=scheduler_wait_for_auth,
+                    startup_stop_deadline=startup_stop_deadline)
                 setattr(app.state, _APP_KEY, services)
         if services.closing:
             raise RuntimeError("application services are closed")

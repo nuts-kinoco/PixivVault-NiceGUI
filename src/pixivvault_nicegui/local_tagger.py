@@ -13,7 +13,7 @@ from pathlib import Path
 from threading import RLock
 from datetime import datetime, timezone
 
-from .gpu_arbiter import DEFAULT_GPU_ARBITER, GpuInferenceStopped, check_gpu_stop, cuda_available
+from .gpu_arbiter import cuda_memory_pressure, DEFAULT_GPU_ARBITER, GpuInferenceStopped, check_gpu_stop, cuda_available
 
 DEFAULT_MODEL = r'S:\EMAKINOCO-Models\tagger\wd-swinv2-tagger-v3'
 FILES = ('model.onnx', 'selected_tags.csv')
@@ -253,9 +253,7 @@ class LocalTagger:
             # Drop the native session and the original validation traceback
             # before raising or attempting a CPU load.
             if use_cuda and self.providers and session is None:
-                message = str(error).lower()
-                memory_pressure = isinstance(error, MemoryError) or any(marker in message for marker in (
-                    'out of memory', 'cuda_error_out_of_memory', 'cudnn_status_alloc_failed'))
+                memory_pressure = cuda_memory_pressure(error)
         finally:
             session = None
         if memory_pressure:

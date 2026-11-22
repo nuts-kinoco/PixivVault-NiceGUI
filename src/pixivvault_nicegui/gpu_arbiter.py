@@ -3,7 +3,14 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from contextvars import ContextVar
+from collections.abc import Callable
 from dataclasses import dataclass
+import json
+from math import isfinite
+from pathlib import Path
+import subprocess
+import sys
+from time import time
 from threading import Condition, Event, get_ident
 from weakref import WeakSet
 
@@ -15,6 +22,126 @@ class GpuInferenceStopped(Exception):
 def check_gpu_stop(stop):
     if stop is not None and stop.is_set():
         raise GpuInferenceStopped('GPU inference stopped')
+
+
+_LEASE_CALL_TIMEOUT = 8
+_LEASE_RETRY_SECONDS = 2
+_SHARED_LEASE_SCRIPT = Path(r'S:\Work\_tmp\_gpu_lease\lease.py')
+
+
+def cuda_memory_pressure(error):
+    message = str(error).lower()
+    return isinstance(error, MemoryError) or any(marker in message for marker in (
+        'out of memory', 'cuda_error_out_of_memory', 'cudaerrormemoryallocation',
+        'cudnn_status_alloc_failed',
+        'cublas_status_alloc_failed', 'failed to allocate memory for requested buffer of size',
+        'failed to find a free memory block despite calling extend',
+    )) or ('available memory of ' in message and ' is smaller than requested bytes of ' in message)
+
+
+class SharedGpuLeaseError(RuntimeError):
+    """The shared lease helper failed or returned an invalid response."""
+
+
+class _SharedGpuLeaseCallTimedOut(SharedGpuLeaseError):
+    """The bounded helper invocation timed out before a usable reply."""
+
+
+class SharedGpuLeaseReleaseError(SharedGpuLeaseError):
+    """A granted lease's final release could not be confirmed."""
+
+
+class SharedGpuLease:
+    """Use the v2 helper off the UI thread. Never log the helper's output."""
+
+    def __init__(self, script=_SHARED_LEASE_SCRIPT):
+        self._script = script
+
+    @contextmanager
+    def _owner_pid(self):
+        # The v2 helper can publish a grant before stdout delivers its token.
+        # Use a lease-lifetime PID so a lost receipt cannot leave a live lease
+        # owned by the long-running app. Parent death also closes stdin.
+        try:
+            process = subprocess.Popen(
+                [sys._base_executable, '-B', '-c', 'import sys; sys.stdin.buffer.read()'],
+                stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
+            )
+        except OSError:
+            raise SharedGpuLeaseError('shared GPU lease owner unavailable') from None
+        try:
+            yield process.pid
+        finally:
+            process.stdin.close()
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=2)
+
+    def _call(self, *arguments, timeout, owner_pid):
+        try:
+            return subprocess.run(
+                [sys._base_executable, '-B', '-X', 'utf8', str(self._script), *arguments,
+                 '--owner', 'PV', '--pid', str(owner_pid)],
+                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                encoding='utf-8', errors='replace', timeout=timeout,
+                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
+            )
+        except subprocess.TimeoutExpired:
+            raise _SharedGpuLeaseCallTimedOut('shared GPU lease helper timed out') from None
+        except (OSError, subprocess.SubprocessError):
+            raise SharedGpuLeaseError('shared GPU lease helper unavailable') from None
+
+    @contextmanager
+    def acquire(self, cancel):
+        while True:
+            check_gpu_stop(cancel)
+            with self._owner_pid() as owner_pid:
+                while True:
+                    check_gpu_stop(cancel)
+                    try:
+                        result = self._call('acquire', '--vram-gib', '6', '--minutes', '30',
+                                            '--wait', '0', timeout=_LEASE_CALL_TIMEOUT, owner_pid=owner_pid)
+                    except _SharedGpuLeaseCallTimedOut:
+                        # A lost reply may have published a lease. End that
+                        # owner's lifetime before the next bounded attempt.
+                        break
+                    if result.returncode != 2:
+                        with self._granted(result, owner_pid, cancel) as expires:
+                            yield expires
+                        return
+                    cancel.wait(_LEASE_RETRY_SECONDS)
+            cancel.wait(_LEASE_RETRY_SECONDS)
+
+    @contextmanager
+    def _granted(self, result, owner_pid, cancel):
+        prefix = 'acquired '
+        if result.returncode != 0 or not result.stdout.startswith(prefix):
+            raise SharedGpuLeaseError('shared GPU lease could not be acquired')
+        try:
+            record = json.loads(result.stdout[len(prefix):])
+            token = record['token']
+            if type(token) is not str or not token:
+                raise ValueError()
+        except (ValueError, KeyError, TypeError):
+            raise SharedGpuLeaseError('invalid shared GPU lease response') from None
+        try:
+            check_gpu_stop(cancel)
+            expires = record.get('expires')
+            if type(expires) not in (int, float) or not isfinite(expires) or expires <= time():
+                raise SharedGpuLeaseError('shared GPU lease deadline unavailable')
+            yield expires
+        finally:
+            try:
+                released = self._call('release', '--token', token, timeout=_LEASE_CALL_TIMEOUT,
+                                      owner_pid=owner_pid)
+            except SharedGpuLeaseError:
+                raise SharedGpuLeaseReleaseError('shared GPU lease release unconfirmed') from None
+            if (released.returncode and not
+                    released.stdout.startswith(('token mismatch', 'not holder'))):
+                raise SharedGpuLeaseReleaseError('shared GPU lease release unconfirmed')
 
 
 def cuda_available(ort):
@@ -32,6 +159,7 @@ class _Operation:
     generation: int | None
     acquired: bool = False
     cancel: Event | None = None
+    checkpoint: Callable[[], None] | None = None
 
 
 @dataclass(eq=False)
@@ -65,13 +193,13 @@ class GpuInferenceArbiter:
         self._stop_listeners = set()
 
     @contextmanager
-    def stop_scope(self, *, cancel=None):
+    def stop_scope(self, *, cancel=None, checkpoint=None):
         """Keep separate leases in one request within the same stop generation."""
         if self._operation.get() is not None:
             yield
             return
         with self._condition:
-            operation = _Operation(None if self._stopping else self._generation, cancel=cancel)
+            operation = _Operation(None if self._stopping else self._generation, cancel=cancel, checkpoint=checkpoint)
         token = self._operation.set(operation)
         try:
             yield
@@ -86,6 +214,8 @@ class GpuInferenceArbiter:
                 check_gpu_stop(operation.cancel)
             if operation is not None and operation.acquired and operation.generation != self._generation:
                 raise GpuInferenceStopped('GPU inference stopped')
+        if operation is not None and operation.checkpoint is not None:
+            operation.checkpoint()
 
     @contextmanager
     def keep_sessions(self):
@@ -113,19 +243,27 @@ class GpuInferenceArbiter:
             waiter = _Waiter(priority, self._grants, stop)
             self._waiting.append(waiter)
             self._condition.notify_all()
-            try:
-                self._condition.wait_for(lambda: stop.is_set() or (
-                    self._active is None and not self._releasing and
-                    self._next_waiter() is waiter))
-                check_gpu_stop(stop)
-                self._active = (owner, stop)
-                self._active_thread = get_ident()
-                self._grants += 1
-            finally:
+        # A shared lease can approach its deadline while a local engine
+        # holds this arbiter. Evaluate the checkpoint outside this lock.
+        check_interval = 1 if operation is not None and operation.checkpoint is not None else None
+        try:
+            while True:
+                self.check_scope()
+                with self._condition:
+                    check_gpu_stop(stop)
+                    if self._active is None and not self._releasing and self._next_waiter() is waiter:
+                        self._active = (owner, stop)
+                        self._active_thread = get_ident()
+                        self._grants += 1
+                        break
+                    self._condition.wait(check_interval)
+        finally:
+            with self._condition:
                 self._waiting.remove(waiter)
                 self._condition.notify_all()
         completed = False
         try:
+            self.check_scope()
             yield stop
             completed = True
         finally:

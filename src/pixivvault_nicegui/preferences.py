@@ -45,6 +45,9 @@ SPECS = (
     PreferenceSpec('meta_backfill_enabled', 'メタデータ（ブックマーク数など）をバックグラウンドで自動的に埋める', '1', ('0','1'), '作品メタデータ'),
     # 既定は ON（元 gui.py:2032 の embed_auto_on_download も既定 ON）。通信はしない。
     PreferenceSpec('embed_auto_on_download', 'ダウンロードした画像を、バックグラウンドで自動的に推論する', '1', ('0','1'), '絵柄・構図の推論'),
+    PreferenceSpec('visual_preference_enabled', '視覚学習で候補の並び順を補正する', '0', ('0','1'), '絵柄・構図の推論'),
+    PreferenceSpec('visual_preference_mode', '視覚学習の実行タイミング', 'manual', ('idle','manual'), '絵柄・構図の推論'),
+    PreferenceSpec('visual_preference_thumb_prefetch', '未表示候補のサムネイルを先読みして解析する', '0', ('0','1'), '絵柄・構図の推論'),
     PreferenceSpec('discovery_cache_limit_mode', '学習: 先読みキャッシュ上限指定方法', 'bytes', ('bytes','count'), 'キャッシュ'),
     PreferenceSpec('discovery_cache_size_mb', '学習: 先読みキャッシュ上限（MB）', '512', ('512','1024','2048','4096'), 'キャッシュ'),
     PreferenceSpec('discovery_cache_size_count', '学習: 先読みキャッシュ上限（枚）', '100', ('50','100','200','500','1000'), 'キャッシュ'),

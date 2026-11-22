@@ -1,0 +1,92 @@
+FFFFFFFFFFF                                                              [100%]
+================================== FAILURES ===================================
+_____________ test_busy_helper_uses_zero_wait_and_worker_can_stop _____________
+tests\test_visual_preference_review_r2.py:47: in test_busy_helper_uses_zero_wait_and_worker_can_stop
+    worker.stop(timeout=1, pause=True)
+src\pixivvault_nicegui\visual_preference_worker.py:169: in stop
+    self._join(thread, timeout)
+src\pixivvault_nicegui\visual_preference_worker.py:180: in _join
+    raise TimeoutError('visual preference worker shutdown not confirmed')
+E   TimeoutError: visual preference worker shutdown not confirmed
+__________________ test_acquire_timeout_leaves_no_live_owner __________________
+tests\test_visual_preference_review_r2.py:73: in test_acquire_timeout_leaves_no_live_owner
+    assert len(owners) == 1 and owners[0] != os.getpid()
+E   assert (1 == 1 and 137912 != 137912)
+E    +  where 1 = len([137912])
+E    +  and   137912 = <built-in function getpid>()
+E    +    where <built-in function getpid> = os.getpid
+________ test_cancel_after_grant_releases_token_without_entering_body _________
+tests\test_visual_preference_review_r2.py:95: in test_cancel_after_grant_releases_token_without_entering_body
+    assert sum(timeout for _, timeout in calls) < 30
+E   assert 100 < 30
+E    +  where 100 = sum(<generator object test_cancel_after_grant_releases_token_without_entering_body.<locals>.<genexpr> at <address>>)
+________ test_crossing_expiry_reserve_reacquires_without_invalidating _________
+tests\test_visual_preference_review_r2.py:134: in test_crossing_expiry_reserve_reacquires_without_invalidating
+    assert worker.status()['indexed'] == 1
+E   assert 0 == 1
+_____________ test_sync_failure_visible_and_account_poll_retries ______________
+tests\test_visual_preference_review_r2.py:157: in test_sync_failure_visible_and_account_poll_retries
+    assert services.visual_preference_status()['error'] == 'scope_failure'
+E   AssertionError: assert None == 'scope_failure'
+------------------------------ Captured log call ------------------------------
+WARNING  pixivvault_nicegui.services:services.py:1457 visual preference configuration failed (RuntimeError)
+_______ test_manual_pause_survives_saving_correction_and_model_changes ________
+tests\test_visual_preference_review_r2.py:172: in test_manual_pause_survives_saving_correction_and_model_changes
+    assert first.status()['phase'] == 'paused'
+E   AssertionError: assert 'running' == 'paused'
+E
+E     - paused
+E     + running
+_________ test_default_off_invalidates_prior_generation_on_first_sync _________
+tests\test_visual_preference_review_r2.py:191: in test_default_off_invalidates_prior_generation_on_first_sync
+    assert not store.is_current(expected)
+E   AssertionError: assert not True
+E    +  where True = is_current(Generation(store_id='<synthetic-id>', number=2033190861616190275, model_sha='aaaaaaaaaaaaaaaaaaaaaaa...', preprocessing_version='v1', judgment_fingerprint='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'))
+E    +    where is_current = <pixivvault_nicegui.visual_preference_store.VisualPreferenceStore object at <address>>.is_current
+_____________ test_saved_projection_covers_new_managed_and_ugoira _____________
+tests\test_visual_preference_review_r2.py:206: in test_saved_projection_covers_new_managed_and_ugoira
+    assert [(row.get('saved', False), row['judgment']) for row in rows] == [
+E   AssertionError: assert [(False, None...(False, None)] == [(True, ''), ...(False, None)]
+E
+E     At index 0 diff: (False, None) != (True, '')
+E     Use -v to get more diff
+_________ test_omitted_judgment_normalizes_only_first_saved_revision __________
+tests\test_visual_preference_review_r2.py:218: in test_omitted_judgment_normalizes_only_first_saved_revision
+    assert first.payload['judgment'] == ''
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'judgment'
+___________________ test_close_with_unresolved_gap_finishes ___________________
+tests\test_visual_preference_review_r2.py:231: in test_close_with_unresolved_gap_finishes
+    services.close()
+src\pixivvault_nicegui\services.py:3424: in close
+    raise visual_shutdown_error
+src\pixivvault_nicegui\services.py:3396: in close
+    self._retire_visual_worker()
+src\pixivvault_nicegui\services.py:1418: in _retire_visual_worker
+    raise errors[0]
+src\pixivvault_nicegui\services.py:1412: in _retire_visual_worker
+    worker.flush_events(require_complete=require_complete)
+src\pixivvault_nicegui\visual_preference_worker.py:289: in flush_events
+    raise RuntimeError('visual preference event capture has an unresolved gap')
+E   RuntimeError: visual preference event capture has an unresolved gap
+____________ test_close_reports_visual_and_other_shutdown_failures ____________
+tests\test_visual_preference_review_r2.py:259: in test_close_reports_visual_and_other_shutdown_failures
+    services.close()
+src\pixivvault_nicegui\services.py:3413: in close
+    self.managed_schedule_runner.stop(timeout=150.0)
+tests\test_visual_preference_review_r2.py:253: in stop
+    raise RuntimeError('synthetic scheduler failure')
+E   RuntimeError: synthetic scheduler failure
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_review_r2.py::test_busy_helper_uses_zero_wait_and_worker_can_stop
+FAILED tests/test_visual_preference_review_r2.py::test_acquire_timeout_leaves_no_live_owner
+FAILED tests/test_visual_preference_review_r2.py::test_cancel_after_grant_releases_token_without_entering_body
+FAILED tests/test_visual_preference_review_r2.py::test_crossing_expiry_reserve_reacquires_without_invalidating
+FAILED tests/test_visual_preference_review_r2.py::test_sync_failure_visible_and_account_poll_retries
+FAILED tests/test_visual_preference_review_r2.py::test_manual_pause_survives_saving_correction_and_model_changes
+FAILED tests/test_visual_preference_review_r2.py::test_default_off_invalidates_prior_generation_on_first_sync
+FAILED tests/test_visual_preference_review_r2.py::test_saved_projection_covers_new_managed_and_ugoira
+FAILED tests/test_visual_preference_review_r2.py::test_omitted_judgment_normalizes_only_first_saved_revision
+FAILED tests/test_visual_preference_review_r2.py::test_close_with_unresolved_gap_finishes
+FAILED tests/test_visual_preference_review_r2.py::test_close_reports_visual_and_other_shutdown_failures
+11 failed in 7.48s

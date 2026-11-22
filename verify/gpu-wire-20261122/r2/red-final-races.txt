@@ -1,0 +1,25 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_____________ test_pause_remembers_bound_account_during_auth_race _____________
+tests\test_visual_preference_review_r2.py:489: in test_pause_remembers_bound_account_during_auth_race
+    assert services.visual_preference_worker.status()['phase'] == 'paused'
+E   AssertionError: assert 'running' == 'paused'
+E
+E     - paused
+E     + running
+________________ test_acquire_timeout_retries_with_fresh_owner ________________
+tests\test_visual_preference_review_r2.py:515: in test_acquire_timeout_retries_with_fresh_owner
+    with gpu_arbiter.SharedGpuLease(tmp_path / 'fake.py').acquire(Event()):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\<user>\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gpu_arbiter.py:98: in acquire
+    result = self._call('acquire', '--vram-gib', '6', '--minutes', '30',
+src\pixivvault_nicegui\gpu_arbiter.py:89: in _call
+    raise SharedGpuLeaseError('shared GPU lease helper unavailable') from None
+E   pixivvault_nicegui.gpu_arbiter.SharedGpuLeaseError: shared GPU lease helper unavailable
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_review_r2.py::test_pause_remembers_bound_account_during_auth_race
+FAILED tests/test_visual_preference_review_r2.py::test_acquire_timeout_retries_with_fresh_owner
+2 failed, 18 deselected in 2.52s

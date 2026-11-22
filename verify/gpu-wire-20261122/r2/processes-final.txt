@@ -1,0 +1,6 @@
+owned_worker_matches=0
+existing_supervisor_job_hosts=1 (run_job.py)
+scope=Python/Node/browser worktree command lines or the dedicated liveness command; supervisor host excluded
+D6_QUIET.flag=True
+completed=all owned pytest terminal sessions; force-exit fixtures joined; no browser or real GPU started
+checked_at=2026-11-22T12:39:18.7229938+09:00

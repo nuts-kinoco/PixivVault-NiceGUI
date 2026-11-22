@@ -1,0 +1,33 @@
+Dry run only. Removal is delegated to the supervisor.
+KEEP until supervisor pickup: S:\Work\PV\gpu-wire-20261122 (candidate branch and tracked evidence)
+DELETE candidate after supervisor pickup: S:\Work\_tmp\PV\gpu-wire (isolated pytest and interim outputs)
+  attempt-browser.txt
+  attempt-green-first.txt
+  attempt-green-wiring.txt
+  attempt-green.txt
+  attempt-network.txt
+  attempt-red-lifecycle.txt
+  attempt-shadow-audit-regression.txt
+  attempt-shadow-regression.txt
+  attempt-wiring-final.txt
+  attempt-wiring.txt
+  pytest-isolated-browser
+  pytest-isolated-browser-final
+  pytest-isolated-gpu-arbiter
+  pytest-isolated-green
+  pytest-isolated-green-final
+  pytest-isolated-green-first
+  pytest-isolated-green-wiring
+  pytest-isolated-network
+  pytest-isolated-network-final
+  pytest-isolated-red
+  pytest-isolated-red-release-race
+  pytest-isolated-scheduler
+  pytest-isolated-shadow-audit-final
+  pytest-isolated-shadow-audit-regression
+  pytest-isolated-shadow-final
+  pytest-isolated-shadow-regression
+  pytest-isolated-store
+  pytest-isolated-tone-d
+  pytest-isolated-wiring
+  pytest-isolated-wiring-final
