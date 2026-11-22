@@ -1,10 +1,13 @@
+from collections import Counter
 from dataclasses import replace
 from functools import partial
+from hashlib import sha256
+import json
+from random import Random
 
 import pytest
 
 from pixivvault_nicegui import discovery_ranking as ranking, visual_preference as visual
-from test_visual_preference_shadow_review import rank_parity_digest
 
 
 GENERATION = visual.Generation('synthetic', 2, 'a' * 64, 'v1', 'judgments')
@@ -97,23 +100,53 @@ def test_clipped_tie_uses_work_id_even_with_different_evidence_counts(inputs):
     assert _ids(ordered) == ['80', '10', '90', '20', '30', '40']
 
 
+def test_neutral_scores_preserve_the_baseline_evidence_tie_break(inputs):
+    candidates, tags, authors = inputs
+    authors['10'] = {'superlike_count': 10}
+    snapshot = _snapshot({'10': NEUTRAL, '20': NEUTRAL, '40': POSITIVE})
+    baseline, _, breakdown = ranking.rank_candidates_with_diagnostics(candidates, tags, authors)
+    assert breakdown['10']['score'] == breakdown['20']['score']
+    assert breakdown['10']['n'] < breakdown['20']['n']
+    assert _ids(baseline).index('20') < _ids(baseline).index('10')
+    ordered, _ = ranking.rank_candidates(candidates, tags, authors, visual_snapshot=snapshot)
+    assert _ids(ordered).index('20') < _ids(ordered).index('10')
+    assert _ids(ordered).index('40') < _ids(ordered).index('20')
+
+
+def test_absent_model_falls_back_with_prepared_embeddings(inputs, monkeypatch):
+    snapshot = replace(_snapshot({'10': NEGATIVE, '30': POSITIVE}), model=None)
+
+    def reject_visual_scoring(*args, **kwargs):
+        pytest.fail('missing model must not invoke visual scoring')
+
+    monkeypatch.setattr(visual, 'score', reject_visual_scoring)
+    assert ranking.rank_candidates(*inputs, visual_snapshot=snapshot) == ranking.rank_candidates(*inputs)
+
+
 @pytest.mark.parametrize('condition', ['missing', 'stale', 'gpu-failed', 'wrong-model',
-                                      'nonfinite', 'zero-alpha', 'wrong-work'])
+                                      'nonfinite', 'zero-alpha', 'wrong-work', 'thumb',
+                                      'thumb_fallback', 'wrong-preprocessing', 'wrong-dimension',
+                                      'zero-vector'])
 def test_ineligible_snapshot_returns_the_complete_original_order(inputs, condition, monkeypatch):
-    snapshot = _snapshot({} if condition == 'missing' else dict.fromkeys(
-        ('10', '20', '30', '40'), (float('nan'), float('inf'), 0) if condition == 'nonfinite' else POSITIVE))
-    if condition in {'stale', 'gpu-failed', 'zero-alpha'}:
-        snapshot = replace(snapshot, **{
-            'stale': {'current': replace(GENERATION, number=3)},
-            'gpu-failed': {'gpu_ok': False},
-            'zero-alpha': {'alpha': 0},
-        }[condition])
-    if condition in {'wrong-model', 'wrong-work'}:
-        embeddings = {work: visual.Embedding(
-            replace(embedding.key, **({'model_sha': 'f' * 64} if condition == 'wrong-model'
-                                      else {'work_id': 'different-work'})), embedding.vector)
-            for work, embedding in snapshot.embeddings.items()}
-        snapshot = replace(snapshot, embeddings=embeddings)
+    vector = {'nonfinite': (float('nan'), float('inf'), 0), 'wrong-dimension': (1, 0),
+              'zero-vector': (0, 0, 0)}.get(condition, POSITIVE)
+    works = () if condition == 'missing' else ('10', '20', '30', '40')
+    snapshot = _snapshot(dict.fromkeys(works, vector))
+    snapshot = replace(snapshot, **{
+        'stale': {'current': replace(GENERATION, number=3)},
+        'gpu-failed': {'gpu_ok': False},
+        'zero-alpha': {'alpha': 0},
+    }.get(condition, {}))
+    key_changes = {
+        'wrong-model': {'model_sha': 'f' * 64},
+        'wrong-work': {'work_id': 'different-work'},
+        'thumb': {'variant': 'thumb'},
+        'thumb_fallback': {'variant': 'thumb_fallback'},
+        'wrong-preprocessing': {'preprocessing_version': 'old'},
+    }.get(condition)
+    if key_changes:
+        snapshot = replace(snapshot, embeddings={
+            work: _embedding(work, vector, **key_changes) for work in works})
 
     original = visual.blend
 
@@ -131,6 +164,11 @@ def test_protected_and_missing_slots_hold_with_partial_coverage(inputs):
     ordered, frames = ranking.rank_candidates(*inputs, visual_snapshot=snapshot)
     assert _ids(ordered) == ['80', '30', '90', '20', '10', '40']
     assert frames == ranking.rank_candidates(*inputs)[1]
+
+
+def test_integer_protection_id_matches_the_candidate_string(inputs):
+    snapshot = _snapshot({'10': NEGATIVE, '30': POSITIVE}, protected_work_ids=frozenset({10}))
+    assert ranking.rank_candidates(*inputs, visual_snapshot=snapshot) == ranking.rank_candidates(*inputs)
 
 
 def test_first_sure_card_stays_even_when_its_visual_score_is_lowest(inputs):
@@ -172,12 +210,102 @@ def test_confirmed_author_rejection_still_defers_a_strong_visual_match(inputs):
     assert _ids(ordered) == ['80', '30', '90', '20', '10', '40', '00']
 
 
+def test_deferred_tier_one_does_not_take_a_normal_sure_slot():
+    candidates = [{'work_id': work, 'author_id': work, 'tags': [tag]}
+                  for work, tag in [('10', 'known'), ('20', 'known'), ('30', 'known'),
+                                    ('40', 'known'), ('80', 'novel')]]
+    tags = {'known': {'like_count': 20}}
+    authors = {'10': {'skip_count': 23}, '20': {'hate_count': 1},
+               '30': {'skip_count': 25}, '40': {'skip_count': 26}, '80': {'like_count': 20}}
+    baseline, frames = ranking.rank_candidates(candidates, tags, authors)
+    assert _ids(baseline) == ['80', '10', '30', '40', '20']
+    snapshot = _snapshot({'10': NEUTRAL, '20': NEGATIVE, '40': POSITIVE})
+    ordered, corrected_frames = ranking.rank_candidates(candidates, tags, authors, visual_snapshot=snapshot)
+    assert corrected_frames == frames
+    assert _ids(ordered) == ['80', '40', '30', '10', '20']
+
+
+def parity_cases():
+    rand = Random(20261122)
+    tags = ['shape', 'terrain', 'warm', 'blue', 'unknown']
+    authors = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+    for case in range(192):
+        works = [
+            {'work_id': str(100 + i), 'author_id': rand.choice(authors),
+             'tags': rand.sample(tags, rand.randrange(4)),
+             'source': 'related_author' if i % 5 == 0 else 'search'}
+            for i in range(case % 39)
+        ]
+        rand.shuffle(works)
+        prefs = {
+            tag: {'like_count': rand.randrange(8, 22), 'skip_count': rand.randrange(1, 12),
+                  'seed_saved': rand.randrange(2, 9)}
+            for tag in tags[:-1]
+        } if case % 8 else {}
+        author_prefs = {
+            'a': {'like_count': 100},
+            'b': {'like_count': 80},
+            'c': {'like_count': 16, 'hate_count': 1},
+            'd': {'hate_count': 1},
+            'e': {'like_count': 10, 'hate_count': 2},
+            'f': {'seed_following': 2, 'seed_bookmarked': 4},
+        }
+        settings = {'discovery_ratio_subject': case % 55, 'discovery_ratio_style': case % 18}
+        # The full history puts a at its quota outside cooldown, and b in cooldown.
+        history = ('a',) * 5 + ('history',) * 21 + ('b', 'history', 'history')
+        yield (works, prefs, author_prefs), dict(
+            get_setting=settings.get, limit=(None, 0, 7, 18)[case % 4],
+            total_works=case * 3 or None, recent_author_ids=((), history)[case % 2],
+        )
+
+
+def parity_outputs(rank):
+    results = []
+    for args, options in parity_cases():
+        ordered, frames = rank(*args, **options)[:2]
+        results.append((_ids(ordered), frames))
+    return results
+
+
+def parity_digest(results):
+    return sha256(json.dumps(results, sort_keys=True).encode('ascii')).hexdigest()
+
+
 def test_explicit_off_matches_the_frozen_192_case_baseline_and_observer_rank(monkeypatch):
     def reject_visual_scoring(*args, **kwargs):
         pytest.fail('OFF must not invoke visual scoring')
 
     monkeypatch.setattr(visual, 'score', reject_visual_scoring)
-    expected = '2a262d5b30ff47e52d2312bf777413bf8e30972b992942809d63dae746c05fd0'
-    assert rank_parity_digest(partial(ranking.rank_candidates, visual_snapshot=None)) == expected
-    assert rank_parity_digest(ranking.rank_candidates) == expected
-    assert rank_parity_digest(ranking.rank_candidates_with_diagnostics) == expected
+    # Derived by running parity_outputs against discovery_ranking.py from 254b70e.
+    expected = 'b358bc68cb0bc246d0bdb154e294a66b61c7af6141fa308f4a22400ba6fafca7'
+    baseline_route = parity_outputs(ranking.rank_candidates)
+    assert len(baseline_route) == 192
+    assert parity_digest(baseline_route) == expected
+    assert parity_outputs(partial(ranking.rank_candidates, visual_snapshot=None)) == baseline_route
+    frame_counts = Counter()
+    reject_tiers = Counter()
+    author_reorderings = Counter()
+    original_quota = ranking.apply_author_quota
+
+    def observe_quota(candidates, *, recent_author_ids, cooldown):
+        options = dict(recent_author_ids=recent_author_ids, cooldown=cooldown)
+        result = original_quota(candidates, **options)
+        if result != original_quota(candidates, **options, ratio=1):
+            author_reorderings['quota'] += 1
+        if result != original_quota(candidates, recent_author_ids=recent_author_ids, cooldown=0):
+            author_reorderings['cooldown'] += 1
+        return result
+
+    def observe(*args, **kwargs):
+        ordered, frames, breakdown = ranking.rank_candidates_with_diagnostics(*args, **kwargs)
+        frame_counts.update(frames.values())
+        reject_tiers.update(row['author_reject_tier'] for row in breakdown.values())
+        return ordered, frames
+
+    monkeypatch.setattr(ranking, 'apply_author_quota', observe_quota)
+    assert parity_outputs(observe) == baseline_route
+    assert all(frame_counts[key] > 0 for key in ('sure', 'subject', 'style')), frame_counts
+    assert all(reject_tiers[key] > 0 for key in (0, 1, 2)), reject_tiers
+    assert all(author_reorderings[key] > 0 for key in ('quota', 'cooldown')), author_reorderings
+    print(f'192 cases: frames={dict(frame_counts)}, reject_tiers={dict(reject_tiers)}, '
+          f'author_reorderings={dict(author_reorderings)}')

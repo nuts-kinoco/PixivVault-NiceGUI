@@ -866,6 +866,7 @@ def _rank_candidates(candidates, preferences, author_preferences, get_setting, n
         ordered = rerank_sure_tail(
             frames["sure"], ordered, visual_snapshot, sort_key=_sure_sort_key,
             finalize=lambda sure: finish({**frames, "sure": sure}),
+            is_deferred=lambda author_id: _author_reject_deferred(author_id, author_preferences),
         )
     # 上限は整形後に適用する。先に切ると繰り上げられる通常候補を失う。
     if limit is not None:
