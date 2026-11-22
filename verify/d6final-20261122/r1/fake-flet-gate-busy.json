@@ -1,0 +1,15 @@
+{
+  "status": "stopped",
+  "phase": "original_warm_image",
+  "classification": "TimeoutError",
+  "stop": "product_stop",
+  "date": "2026-11-22",
+  "viewport": [
+    1280,
+    1000
+  ],
+  "browser_external_denied": 1,
+  "first_image_observed": {},
+  "warmup_image": {},
+  "timing_endpoint": "metadata"
+}

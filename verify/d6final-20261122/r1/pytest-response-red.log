@@ -1,0 +1,33 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\d6-final-20261122
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 6 items / 4 deselected / 2 selected
+
+verify\d6final-20261122\test_final_harness.py FF                         [100%]
+
+================================== FAILURES ===================================
+___________ test_unexpected_success_status_stops_before_further_get ___________
+
+    def test_unexpected_success_status_stops_before_further_get():
+>       with pytest.raises(StopRun, match='^transport$'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'timing.StopRun'>
+
+verify\d6final-20261122\test_final_harness.py:61: Failed
+________________ test_non_image_200_cannot_keep_the_wire_open _________________
+
+    def test_non_image_200_cannot_keep_the_wire_open():
+        wire = object.__new__(RankingWire)
+        wire.side = 'nice'
+>       with pytest.raises(StopRun, match='^transport$'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'timing.StopRun'>
+
+verify\d6final-20261122\test_final_harness.py:68: Failed
+=========================== short test summary info ===========================
+FAILED verify/d6final-20261122/test_final_harness.py::test_unexpected_success_status_stops_before_further_get
+FAILED verify/d6final-20261122/test_final_harness.py::test_non_image_200_cannot_keep_the_wire_open
+======================= 2 failed, 4 deselected in 0.35s =======================

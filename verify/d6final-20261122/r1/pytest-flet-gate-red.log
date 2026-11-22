@@ -1,0 +1,71 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\d6-final-20261122
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 4 items / 3 deselected / 1 selected
+
+verify\d6final-20261122\test_final_harness.py F                          [100%]
+
+================================== FAILURES ===================================
+____________ test_original_holds_product_request_during_transport _____________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/d6-final-20261122/pytest/paired-ranking-flet-gate-red-confirmed/test_original_holds_product_re0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000021BD8E8FBB0>
+
+    def test_original_holds_product_request_during_transport(tmp_path, monkeypatch):
+        from contextlib import nullcontext
+        import sys
+        from types import SimpleNamespace
+
+        sequence = []
+        wire = object.__new__(RankingWire)
+        wire.ledger = Ledger.create(tmp_path)
+        wire.side, wire.fake, wire.image = 'original', True, None
+        wire.fence = type('Fence', (), {'admitted': lambda *_: nullcontext()})()
+        wire.inspect = lambda *_: (200, False, None)
+
+        def fake_response(*args, **kwargs):
+            assert sequence == ['gate entered']
+            sequence.append('sent')
+            return SimpleNamespace(status_code=200, iter_content=lambda **_: [b'{}'],
+                                   content=b'{}', close=lambda: None)
+
+        def product_request(_url, dispatch):
+            sequence.append('gate entered')
+            reply = dispatch()
+            sequence.append('gate left')
+            return reply
+
+        monkeypatch.setattr('fake_wire.original_response', fake_response)
+        adapter = type('Adapter', (), {'send': fake_response})
+        requests = SimpleNamespace(sessions=SimpleNamespace(Session=type('Session', (), {})),
+                                   adapters=SimpleNamespace(HTTPAdapter=adapter))
+        monkeypatch.setitem(sys.modules, 'requests', requests)
+        wire.install_original(product_request)
+        request = SimpleNamespace(url='[fixture-url]', method='GET', headers={'[fixture-header]': '[fixture-value]'})
+>       assert adapter().send(request).status_code == 200
+               ^^^^^^^^^^^^^^^^^^^^^^^
+
+verify\d6final-20261122\test_final_harness.py:91:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+verify\d6final-20261122\rank_adapters.py:123: in measured
+    self.ledger.attempt(self.side, kind, dispatch, before_dispatch=check_gate)
+verify\d6final-20261122\live_gate.py:129: in attempt
+    before_dispatch()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def check_gate():
+        # Check after the ledger's pacing wait. Any inability to
+        # snapshot the isolation gate fails closed before socket I/O.
+        try:
+            product_check()
+        except Exception:
+>           raise StopRun("product_stop") from None
+E           timing.StopRun: product_stop
+
+verify\d6final-20261122\rank_adapters.py:104: StopRun
+=========================== short test summary info ===========================
+FAILED verify/d6final-20261122/test_final_harness.py::test_original_holds_product_request_during_transport
+======================= 1 failed, 3 deselected in 0.27s =======================

@@ -1,0 +1,52 @@
+{
+    "observed_at":  "2026-11-22T09:12:59.5381080+09:00",
+    "sample_seconds":  3.87,
+    "cpu_pct":  5,
+    "cpu_method":  "summed_sampled_process_cpu",
+    "ema_cpu_pct":  0,
+    "ordinary_browser_cpu_pct":  3.23,
+    "other_heavy_processes":  [
+                                  {
+                                      "kind":  "agent_job",
+                                      "pid":  16976,
+                                      "cpu_pct":  0
+                                  },
+                                  {
+                                      "kind":  "agent_job",
+                                      "pid":  81400,
+                                      "cpu_pct":  0
+                                  }
+                              ],
+    "quiet":  false,
+    "owned_running":  [
+                          {
+                              "pid":  134108,
+                              "name":  "python.exe",
+                              "started":  "2026-11-22T00:12:36.4826620Z"
+                          },
+                          {
+                              "pid":  129304,
+                              "name":  "python.exe",
+                              "started":  "2026-11-22T00:12:39.0974530Z"
+                          },
+                          {
+                              "pid":  43928,
+                              "name":  "python.exe",
+                              "started":  "2026-11-22T00:12:39.1240070Z"
+                          },
+                          {
+                              "pid":  24424,
+                              "name":  "node.exe",
+                              "started":  "2026-11-22T00:12:41.0596440Z"
+                          },
+                          {
+                              "pid":  17352,
+                              "name":  "chrome-headless-shell.exe",
+                              "started":  "2026-11-22T00:12:41.3632090Z"
+                          }
+                      ],
+    "measurement_ports_listening":  [
+                                        22830,
+                                        22840
+                                    ]
+}

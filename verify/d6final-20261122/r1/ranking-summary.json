@@ -1,0 +1,10 @@
+{
+  "scope": "live",
+  "complete_pairs": 0,
+  "minimum_met": false,
+  "status": "not_started",
+  "apps": {
+    "original": {},
+    "nice": {}
+  }
+}

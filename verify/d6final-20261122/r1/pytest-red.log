@@ -1,0 +1,135 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\d6-final-20261122
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 3 items
+
+verify\d6final-20261122\test_final_harness.py FFF                        [100%]
+
+================================== FAILURES ===================================
+____________________ test_startup_auth_tuple_latches_stop _____________________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/d6-final-20261122/pytest/paired-ranking-harness-red-verification/test_startup_auth_tuple_latche0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002BDCEA9FBB0>
+
+    def test_startup_auth_tuple_latches_stop(tmp_path, monkeypatch):
+        from pixivvault_nicegui.managed_network_stop_shared_transport import (
+            SharedProfileStopTransport, _DraftAuthSharedTransport,
+        )
+        from pixivvault_nicegui.native_auth_result import NativeAuthResult
+        from pixivvault_nicegui.native_startup import NativeProfileBinding
+        from pixivvault_nicegui.pixiv_read_client import LivePixivReadClient, _OwnedReadTransport
+
+        result = NativeAuthResult('uncertain'), None
+        monkeypatch.setattr(NativeProfileBinding, '_verify_auth_result', lambda *_: result)
+        for owner, method in ((SharedProfileStopTransport, '__call__'),
+                              (_DraftAuthSharedTransport, '__call__'),
+                              (LivePixivReadClient, 'get_image_bytes'),
+                              (_OwnedReadTransport, '__call__')):
+            monkeypatch.setattr(owner, method, getattr(owner, method))
+        wire = object.__new__(RankingWire)
+        wire.ledger = Ledger.create(tmp_path)
+        wire.install_nice()
+>       assert NativeProfileBinding._verify_auth_result(None) == result
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+verify\d6final-20261122\test_final_harness.py:29:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+binding = None, args = ()
+result = (NativeAuthResult(code='uncertain', status_code=None), None)
+
+    def observed_verify(binding, *args):
+        result = verify(binding, *args)
+>       if result.code in ("uncertain", "stopped", "local_unavailable", "owner_absent"):
+           ^^^^^^^^^^^
+E       AttributeError: 'tuple' object has no attribute 'code'
+
+verify\d6final-20261122\rank_adapters.py:167: AttributeError
+_________________ test_final_cap_is_85_gets_above_prior_count _________________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/d6-final-20261122/pytest/paired-ranking-harness-red-verification/test_final_cap_is_85_gets_abov0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002BDCEA9DCD0>
+
+    def test_final_cap_is_85_gets_above_prior_count(tmp_path, monkeypatch):
+        now = 100.0
+
+        def advance(seconds):
+            nonlocal now
+            now += seconds
+
+        monkeypatch.setattr(live_gate, 'perf_counter', lambda: now)
+        monkeypatch.setattr(live_gate, 'sleep', advance)
+        ledger = Ledger.create(tmp_path, prior_attempts=83)
+        for _ in range(85):
+            ledger.attempt('nice', 'ranking', lambda: (200, False, None))
+        with pytest.raises(StopRun, match='^budget$'):
+>           ledger.attempt('original', 'ranking', lambda: pytest.fail('sent past cap'))
+
+verify\d6final-20261122\test_final_harness.py:47:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+verify\d6final-20261122\live_gate.py:131: in attempt
+    status, challenge, auth = dispatch()
+                              ^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+>   ledger.attempt('original', 'ranking', lambda: pytest.fail('sent past cap'))
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: sent past cap
+
+verify\d6final-20261122\test_final_harness.py:47: Failed
+_____________ test_unexpected_server_error_is_latched_with_status _____________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/d6-final-20261122/pytest/paired-ranking-harness-red-verification/test_unexpected_server_error_i0')
+
+    def test_unexpected_server_error_is_latched_with_status(tmp_path):
+        ledger = Ledger.create(tmp_path)
+        with pytest.raises(StopRun, match='^http_5xx$'):
+>           ledger.attempt('nice', 'ranking', lambda: (503, False, None))
+
+verify\d6final-20261122\test_final_harness.py:54:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+verify\d6final-20261122\live_gate.py:132: in attempt
+    DispatchObservation(status, challenge, auth).validate()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = DispatchObservation(status=503, challenge=False, authenticated=None)
+
+    def validate(self):
+        if (type(self.status) is not int or type(self.challenge) is not bool
+                or (self.authenticated is not None and type(self.authenticated) is not bool)):
+            raise StopRun("transport")
+        if self.status in (401, 403, 429):
+            raise StopRun(f"http_{self.status}")
+        if self.challenge:
+            raise StopRun("captcha")
+        if self.authenticated is False:
+            raise StopRun("authentication")
+        if 300 <= self.status < 400:
+            raise StopRun("destination")
+        if not 200 <= self.status < 300:
+>           raise StopRun("transport")
+E           timing.StopRun: transport
+
+verify\d6final-20261122\timing.py:47: StopRun
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/d6-final-20261122/pytest/paired-ranking-harness-red-verification/test_unexpected_server_error_i0')
+
+    def test_unexpected_server_error_is_latched_with_status(tmp_path):
+        ledger = Ledger.create(tmp_path)
+>       with pytest.raises(StopRun, match='^http_5xx$'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError:
+E       - transport
+E       + http_5xx
+
+verify\d6final-20261122\test_final_harness.py:53: AssertionError
+=========================== short test summary info ===========================
+FAILED verify/d6final-20261122/test_final_harness.py::test_startup_auth_tuple_latches_stop
+FAILED verify/d6final-20261122/test_final_harness.py::test_final_cap_is_85_gets_above_prior_count
+FAILED verify/d6final-20261122/test_final_harness.py::test_unexpected_server_error_is_latched_with_status
+============================== 3 failed in 2.34s ==============================

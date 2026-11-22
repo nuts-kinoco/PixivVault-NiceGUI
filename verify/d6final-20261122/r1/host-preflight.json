@@ -1,0 +1,33 @@
+{
+    "observed_at":  "2026-11-22T09:04:27.4662419+09:00",
+    "sample_seconds":  4.67,
+    "cpu_pct":  56,
+    "cpu_method":  "summed_sampled_process_cpu",
+    "ema_cpu_pct":  0,
+    "ordinary_browser_cpu_pct":  2.68,
+    "other_heavy_processes":  [
+                                  {
+                                      "kind":  "agent_job",
+                                      "pid":  16976,
+                                      "cpu_pct":  0
+                                  },
+                                  {
+                                      "kind":  "agent_job",
+                                      "pid":  81400,
+                                      "cpu_pct":  0
+                                  },
+                                  {
+                                      "kind":  "other_cpu_worker",
+                                      "pid":  123256,
+                                      "cpu_pct":  45.54
+                                  }
+                              ],
+    "quiet":  false,
+    "owned_running":  [
+
+                      ],
+    "measurement_ports_listening":  [
+                                        22830,
+                                        22840
+                                    ]
+}
