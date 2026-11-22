@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>PixivVault｜ナビゲーション再編ワイヤーフレーム</title>
+<style>
+  :root {
+    color-scheme: dark light;
+    --page: #141a23; --surface: #1d2633; --raised: #273548;
+    --text: #eff3fa; --muted: #b5c0cf; --line: #64768c;
+    --accent: #9edaff; --selected: #304a64; --warning: #ffd092; --danger: #ffb2a8;
+    --ok: #a8e4c0; --focus: #91d5ff;
+    font: 15px/1.5 "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme]) {
+      --page: #eef2f7; --surface: #fcfdff; --raised: #e8eef6;
+      --text: #202e40; --muted: #485b72; --line: #718299;
+      --accent: #004e7d; --selected: #d8e8f7; --warning: #6f3a00; --danger: #922519;
+      --ok: #1d623e; --focus: #006697;
+    }
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --page: #eef2f7; --surface: #fcfdff; --raised: #e8eef6;
+    --text: #202e40; --muted: #485b72; --line: #718299;
+    --accent: #004e7d; --selected: #d8e8f7; --warning: #6f3a00; --danger: #922519;
+    --ok: #1d623e; --focus: #006697;
+  }
+  :root[data-theme="dark"] { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; color: var(--text); background: var(--page); }
+  h1, h2, h3, p { margin: 0; }
+  button, input { font: inherit; color: inherit; }
+  button {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    min-height: 32px; padding: 4px 10px; cursor: pointer;
+  }
+  button:hover, button[aria-pressed="true"] { background: var(--selected); }
+  button:disabled { opacity: .65; cursor: default; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  input { min-width: 0; max-width: 100%; padding: 6px 8px; background: var(--page); border: 1px solid var(--line); border-radius: 6px; }
+  .frame { display: flex; flex-direction: column; height: 100dvh; }
+  .banner { background: #982d36; color: #fff; padding: 3px 16px; font-size: 13px; }
+  .masthead, .identity, .utilities, .toolbar, .controls, .dialog-top {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .masthead { justify-content: space-between; padding: 6px 12px; }
+  h1 { font-size: 22px; letter-spacing: -.025em; }
+  h2 { font: 650 19px/1.4 "Yu Mincho", "Meiryo", serif; }
+  h3 { font-size: 16px; }
+  .identity, .utilities, .main-nav, .toolbar, main { min-width: 0; }
+  .utilities { gap: 4px; margin-inline-start: auto; }
+  .utility {
+    display: grid; place-items: center; position: relative; padding: 0;
+    width: 40px; height: 40px; border-color: transparent; border-radius: 50%; font-size: 21px;
+  }
+  .badge {
+    position: absolute; top: -1px; right: -2px; display: grid; place-items: center;
+    min-width: 16px; height: 16px; padding-inline: 2px; border-radius: 20px;
+    background: var(--warning); color: var(--page); font-size: 11px; font-weight: 700;
+    border: 1px solid var(--page);
+  }
+  .badge[data-state="failed"] { background: var(--danger); }
+  .badge[data-state="running"] { background: var(--accent); }
+  .badge[data-state="stopped"] { background: var(--muted); }
+  .minor { color: var(--muted); font-size: 13px; }
+  .auth { color: var(--ok); }
+  .main-nav {
+    display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px;
+    padding: 4px 12px 8px; border-bottom: 1px solid var(--line);
+  }
+  .nav-button {
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    min-width: 0; padding: 4px; background: transparent; border-color: transparent;
+    border-radius: 20px; font-size: 13px; white-space: nowrap;
+  }
+  .nav-button[aria-current="page"], [role="tab"][aria-selected="true"] {
+    background: var(--selected); color: var(--accent); border-color: var(--line);
+  }
+  @media (max-width: 1159px) { .main-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+  @media (max-width: 639px) { .main-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  main { flex: 1; overflow: auto; display: flex; flex-direction: column; }
+  .toolbar { padding: 8px 16px; }
+  .toolbar h2 { margin-inline-end: 8px; }
+  .primary { background: var(--selected); color: var(--accent); }
+  .chip { border-radius: 20px; white-space: nowrap; }
+  .filter-body { padding: 8px 16px; background: var(--surface); border-block: 1px solid var(--line); }
+  .tag-row {
+    display: flex; align-items: center; gap: 6px; height: 40px;
+    min-width: 0; white-space: nowrap;
+  }
+  .tag-row strong { flex: 0 0 auto; font-size: 13px; }
+  .inline-tags { display: flex; align-items: center; gap: 4px; min-width: 0; }
+  .measure-tags { position: fixed; display: flex; gap: 4px; visibility: hidden; left: -20000px; }
+  .tag-popover {
+    position: fixed; inset: auto; margin: 0; padding: 8px; width: max-content;
+    max-width: min(440px, calc(100vw - 24px)); max-height: min(248px, 60dvh);
+    color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    overflow: auto; box-shadow: 0 8px 24px #0005;
+  }
+  .popover-items { display: flex; flex-wrap: wrap; gap: 6px; }
+  .popover-items button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+  .gallery {
+    padding: 8px 16px 16px; flex: 1; display: grid; gap: 12px; min-height: 0;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 168px), 1fr));
+    align-content: start; overflow: auto;
+  }
+  .specimen { overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); margin: 0; }
+  .sample {
+    aspect-ratio: 1.15; background:
+      radial-gradient(ellipse at 34% 26%, var(--tint) 0 12%, transparent 13%),
+      linear-gradient(150deg, transparent 40%, #182434 41% 58%, transparent 59%),
+      linear-gradient(32deg, #263b52 30%, var(--tint));
+  }
+  .specimen figcaption { padding: 6px 8px; font-size: 13px; }
+  .status-line { margin: 0 16px 4px; color: var(--muted); }
+  dialog {
+    width: min(760px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 24px);
+    padding: 0; color: var(--text); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 12px 40px #0006;
+  }
+  dialog::backdrop { background: #080e17a8; }
+  .dialog-frame { max-height: calc(100dvh - 28px); display: flex; flex-direction: column; }
+  .dialog-top { justify-content: space-between; padding: 12px 16px 8px; }
+  .dialog-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 16px 8px; border-bottom: 1px solid var(--line); }
+  .dialog-body { overflow: auto; padding: 12px 16px 16px; display: grid; gap: 12px; }
+  .panel { display: grid; gap: 8px; min-width: 0; }
+  .panel p { overflow-wrap: anywhere; }
+  .preview-box { display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--raised); }
+  .option { display: inline-flex; align-items: center; gap: 4px; }
+  details > summary { cursor: pointer; }
+  .state { color: var(--accent); font-weight: 650; }
+</style>
+</head>
+<body>
+<div class="frame">
+  <p class="banner">ワイヤーフレーム · 合成サンプルで表示</p>
+  <header class="masthead">
+    <div class="identity">
+      <h1>PixivVault</h1>
+      <span class="minor auth">ログイン済み</span>
+      <span class="minor">API切り替え · 取得可能</span>
+    </div>
+    <div class="utilities" aria-label="ヘッダーの操作">
+      <button class="utility" disabled aria-label="直近のバックアップ" title="直近のバックアップ"><span aria-hidden="true">↶</span></button>
+      <button class="utility" disabled aria-label="閲覧履歴" title="閲覧履歴"><span aria-hidden="true">◉</span></button>
+      <button class="utility" id="automation-open" data-testid="automation-open" aria-label="自動処理" aria-haspopup="dialog" aria-controls="automation" title="自動処理">
+        <span aria-hidden="true">◴</span><span id="automation-badge" class="badge" aria-hidden="true" hidden></span>
+      </button>
+      <button class="utility" disabled aria-label="保存フォルダー" title="保存フォルダー"><span aria-hidden="true">▱</span></button>
+      <button class="utility" id="theme" aria-label="テーマ切り替え" title="テーマ切り替え"><span aria-hidden="true">☼</span></button>
+      <button class="utility" disabled aria-label="ブラウザでPixivを開く" title="ブラウザでPixivを開く"><span aria-hidden="true">◎</span></button>
+      <button class="utility" id="preferences-open" data-testid="preferences-open" aria-label="設定" aria-haspopup="dialog" title="設定"><span aria-hidden="true">⚙</span></button>
+    </div>
+  </header>
+  <nav id="nav" class="main-nav" aria-label="メインナビゲーション"></nav>
+  <p id="startup-status" class="status-line" role="status" hidden></p>
+  <main id="main" aria-labelledby="screen-title">
+    <div class="toolbar">
+      <h2 id="screen-title" tabindex="-1"></h2>
+      <span id="selected-tag" class="minor" data-testid="selected-tag" hidden></span>
+      <button id="refresh" class="primary" hidden>取得・更新</button>
+      <button id="toolbar-toggle" data-testid="toolbar-toggle" aria-expanded="false" aria-controls="filters" hidden>絞り込み</button>
+    </div>
+    <div id="filters" class="filter-body" hidden>
+      <div id="personal-candidates" class="tag-row" data-testid="personal-candidates-row">
+        <strong>よく効くタグ</strong>
+        <div id="inline-tags" class="inline-tags"></div>
+        <button id="more-tags" class="chip" data-testid="personal-candidates-more" popovertarget="tag-popover" aria-controls="tag-popover" aria-expanded="false" hidden></button>
+      </div>
+      <div class="controls">
+        <label for="search" id="search-label">一覧を検索</label><input id="search" type="search">
+      </div>
+    </div>
+    <div id="feedback" class="status-line" role="status" hidden></div>
+    <div id="gallery" class="gallery" aria-label="合成カード一覧" hidden></div>
+  </main>
+</div>
+
+<div id="tag-popover" class="tag-popover" popover aria-label="残りのよく効くタグ" data-testid="personal-candidates-popover">
+  <div id="popover-items" class="popover-items"></div>
+</div>
+
+<dialog id="automation" aria-labelledby="automation-title" data-testid="automation-dialog">
+  <div class="dialog-frame">
+    <div class="dialog-top">
+      <h2 id="automation-title">自動処理</h2>
+      <button id="automation-close" data-close="automation">閉じる</button>
+    </div>
+    <div class="dialog-tabs" role="tablist" aria-label="自動処理の種類">
+      <button id="auto-scheduler" role="tab" aria-selected="true" aria-controls="scheduler-panel" data-testid="automation-scheduler">定期チェック</button>
+      <button id="auto-metadata" role="tab" aria-selected="false" aria-controls="metadata-panel" tabindex="-1" data-testid="automation-metadata">メタデータ補完</button>
+    </div>
+    <div id="automation-content" class="dialog-body">
+      <section id="scheduler-panel" class="panel" role="tabpanel" aria-labelledby="auto-scheduler" data-testid="scheduler-view">
+        <div class="preview-box"><h3>実行状態</h3><p id="scheduler-status" class="state">待機中</p><p class="minor">お気に入り作者の更新を確認</p></div>
+        <div class="controls"><label>間隔 <input type="number" min="0" value="24" aria-label="間隔（時間）" size="3"></label><span>時間</span>
+          <label class="option"><input type="checkbox">起動時にもチェック</label>
+          <button data-simulate="scheduler">いまチェック</button>
+        </div>
+        <details><summary>実行履歴</summary><p class="minor">前回のチェックは完了しました</p></details>
+      </section>
+      <section id="metadata-panel" class="panel" role="tabpanel" aria-labelledby="auto-metadata" data-testid="metadata-view" hidden>
+        <div class="preview-box"><h3>補完の進捗</h3><p id="metadata-status" class="state">待機中</p><p class="minor">8 / 12 件 · 残り 4 件</p></div>
+        <div class="controls"><button data-simulate="metadata">いま埋める</button><button id="metadata-stop" disabled>取得の停止を要求</button></div>
+        <details><summary>専用メタデータ台帳</summary><p class="minor">台帳の状態・指定作品の確認と回復</p></details>
+      </section>
+      <details><summary>共有ログ</summary><p id="sample-log" class="minor">表示例 · 自動処理の結果がここに表示されます。</p></details>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="preferences" aria-labelledby="preferences-title">
+  <div class="dialog-frame">
+    <div class="dialog-top"><h2 id="preferences-title">設定</h2><button data-close="preferences">閉じる</button></div>
+    <div class="dialog-body">
+      <h3>自動処理</h3>
+      <div class="controls">
+        <button data-open-auto="scheduler" data-testid="preferences-automation-scheduler">定期チェックを開く</button>
+        <button data-open-auto="metadata" data-testid="preferences-automation-metadata">メタデータ補完を開く</button>
+      </div>
+      <h3>作品メタデータ</h3>
+      <label class="option"><input type="checkbox" checked>メタデータをバックグラウンドで自動的に埋める</label>
+    </div>
+  </div>
+</dialog>
+
+<script>
+  const byId = (id) => document.getElementById(id);
+  const tabs = [
+    ["download", "ダウンロード", "↓"], ["queue", "キュー", "▤"], ["failed", "失敗リスト", "△"],
+    ["dedup", "重複整理", "▣"], ["learning", "学習", "◇"], ["ranking", "ランキング", "▥"],
+    ["personal", "自分のランキング", "★"], ["library", "ライブラリ", "▧"],
+    ["bookmarks", "マイブックマーク", "♡"], ["recommend", "おすすめ", "✦"],
+  ];
+  const nav = byId("nav");
+  const gallery = byId("gallery");
+  const tags = [
+    "風景", "雨上がり", "夜景", "逆光", "水彩", "街角", "海辺", "青空", "建築", "森林", "黄昏",
+    "静かな朝", "窓辺の光", "遠くの山並み", "雪の街並み", "夏の日差し", "季節の色彩", "星空と夜の散歩",
+    "遠景のシルエット", "夕暮れの街と雲", "早朝の海岸を描いた風景画", "遠くに灯りが見える雨上がりの街",
+  ];
+  const personalRow = byId("personal-candidates");
+  const inline = byId("inline-tags");
+  const more = byId("more-tags");
+  const popover = byId("tag-popover");
+  const popoverItems = byId("popover-items");
+  const filters = byId("filters");
+  const toggle = byId("toolbar-toggle");
+  const feedback = byId("feedback");
+  const search = byId("search");
+  const selectedTag = byId("selected-tag");
+  const state = { scheduler: "waiting", metadata: "waiting" };
+  const states = {
+    waiting: ["待機中", ""], running: ["実行中", "▶"], failed: ["失敗", "!"], stopped: ["停止", "Ⅱ"],
+  };
+  const automation = byId("automation");
+  const autoButton = byId("automation-open");
+  const preferences = byId("preferences");
+  const preferencesButton = byId("preferences-open");
+  const autoTabs = [byId("auto-scheduler"), byId("auto-metadata")];
+  const toolbarState = new Map();
+  const searches = new Map();
+  let activeTab;
+  let restoreAutomation;
+  let transferringSettings = false;
+  let tagSplit = -1;
+
+  function say(message) {
+    feedback.hidden = !message;
+    feedback.textContent = message;
+  }
+
+  function renderCards(tab) {
+    const caption = tab === "library" ? "保存作品" : tab === "bookmarks" ? "ブックマーク" : "ランキング作品";
+    gallery.replaceChildren();
+    for (const [index, color] of ["#9fb8d0", "#e3a68a", "#a8bfaa", "#baacc8", "#e0c18b", "#85babb", "#b4b5e3", "#d0a2a4"].entries()) {
+      const figure = document.createElement("figure");
+      figure.className = "specimen";
+      const sample = document.createElement("div");
+      sample.className = "sample";
+      sample.style.setProperty("--tint", color);
+      sample.setAttribute("aria-hidden", "true");
+      const title = document.createElement("figcaption");
+      title.textContent = caption + " " + (index + 1);
+      figure.append(sample, title);
+      gallery.append(figure);
+    }
+  }
+
+  function selectTab(key) {
+    if (popover.matches(":popover-open")) popover.hidePopover();
+    activeTab = key;
+    for (const button of nav.children) {
+      if (button.dataset.key === key) button.setAttribute("aria-current", "page");
+      else button.removeAttribute("aria-current");
+    }
+    byId("screen-title").textContent = tabs.find(([id]) => id === key)[1];
+    const cards = ["personal", "library", "bookmarks", "ranking"].includes(key);
+    toggle.hidden = !cards;
+    byId("refresh").hidden = !["personal", "bookmarks", "ranking"].includes(key);
+    selectedTag.hidden = key !== "personal" || !selectedTag.textContent;
+    personalRow.hidden = key !== "personal";
+    search.value = searches.get(key) ?? "";
+    filters.hidden = !cards || !toolbarState.get(key);
+    toggle.setAttribute("aria-expanded", String(!filters.hidden));
+    gallery.hidden = !cards;
+    if (cards) renderCards(key);
+    say("");
+    fitTags();
+  }
+
+  for (const [key, label, icon] of tabs) {
+    const button = document.createElement("button");
+    button.className = "nav-button";
+    button.dataset.key = key;
+    button.dataset.testid = "tab-" + key;
+    const glyph = document.createElement("span");
+    glyph.setAttribute("aria-hidden", "true");
+    glyph.textContent = icon;
+    button.append(glyph, document.createTextNode(label));
+    button.addEventListener("click", () => selectTab(key));
+    nav.append(button);
+  }
+
+  toggle.addEventListener("click", () => {
+    const opened = filters.hidden;
+    if (!opened && popover.matches(":popover-open")) popover.hidePopover();
+    filters.hidden = !opened;
+    toolbarState.set(activeTab, opened);
+    toggle.setAttribute("aria-expanded", String(opened));
+    fitTags();
+  });
+  filters.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !event.isComposing && !popover.matches(":popover-open")) {
+      toggle.click();
+      toggle.focus();
+    }
+  });
+  search.addEventListener("input", () => searches.set(activeTab, search.value));
+  byId("refresh").addEventListener("click", () => say("合成サンプルを表示しています。"));
+
+  function tagButton(tag) {
+    const button = document.createElement("button");
+    button.className = "chip";
+    button.textContent = tag;
+    button.addEventListener("click", () => {
+      selectedTag.textContent = tag;
+      selectedTag.hidden = false;
+      if (popover.matches(":popover-open")) {
+        popover.hidePopover();
+        more.focus();
+      }
+    });
+    return button;
+  }
+
+  const tagButtons = tags.map(tagButton);
+  const measure = document.createElement("div");
+  measure.className = "measure-tags";
+  measure.inert = true;
+  measure.setAttribute("aria-hidden", "true");
+  const samples = tags.map(tagButton);
+  const reserve = tagButton("+" + tags.length);
+  measure.append(...samples, reserve);
+  document.body.append(measure);
+
+  function positionPopover() {
+    const anchor = more.getBoundingClientRect();
+    const box = popover.getBoundingClientRect();
+    const above = anchor.top - box.height - 4;
+    const below = anchor.bottom + 4;
+    const top = below + box.height <= innerHeight - 12 ? below : Math.max(12, above);
+    popover.style.top = top + "px";
+    popover.style.left = Math.max(12, Math.min(anchor.right - box.width, innerWidth - box.width - 12)) + "px";
+  }
+
+  function fitTags() {
+    if (!personalRow.clientWidth) return;
+    const heading = personalRow.firstElementChild.getBoundingClientRect().width;
+    const gap = 4;
+    const budget = personalRow.clientWidth - heading - 6;
+    const widths = samples.map(button => button.getBoundingClientRect().width);
+    const total = widths.reduce((sum, width) => sum + width, 0) + gap * (widths.length - 1);
+    let split = widths.length;
+    if (total > budget) {
+      const available = budget - reserve.getBoundingClientRect().width - 6;
+      let used = 0;
+      split = 0;
+      while (split < widths.length && used + widths[split] <= available) {
+        used += widths[split] + gap;
+        split++;
+      }
+    }
+    if (split !== tagSplit) {
+      const focusedTag = tagButtons.indexOf(document.activeElement);
+      const restoreMore = document.activeElement === more || popover.matches(":popover-open");
+      if (popover.matches(":popover-open")) popover.hidePopover();
+      inline.replaceChildren(...tagButtons.slice(0, split));
+      popoverItems.replaceChildren(...tagButtons.slice(split));
+      more.hidden = split === tags.length;
+      more.textContent = "+" + (tags.length - split);
+      more.setAttribute("aria-label", "残り " + (tags.length - split) + " 件のよく効くタグを表示");
+      tagSplit = split;
+      if (focusedTag >= 0 && focusedTag < split) tagButtons[focusedTag].focus();
+      else if (focusedTag >= 0 || restoreMore) (more.hidden ? toggle : more).focus();
+    }
+    if (popover.matches(":popover-open")) positionPopover();
+  }
+
+  popover.addEventListener("toggle", (event) => {
+    more.setAttribute("aria-expanded", String(event.newState === "open"));
+    if (event.newState === "open") {
+      positionPopover();
+      popoverItems.firstElementChild?.focus();
+    }
+  });
+  popover.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !event.isComposing) {
+      event.preventDefault();
+      popover.hidePopover();
+      more.focus();
+    }
+  });
+  new ResizeObserver(fitTags).observe(personalRow);
+  document.fonts.ready.then(fitTags);
+  byId("main").addEventListener("scroll", () => {
+    if (popover.matches(":popover-open")) positionPopover();
+  });
+
+  function updateAutomation() {
+    const relevant = ["failed", "running", "stopped"].find(value => Object.values(state).includes(value));
+    for (const [key, value] of Object.entries(state)) byId(key + "-status").textContent = states[value][0];
+    const badge = byId("automation-badge");
+    badge.hidden = !relevant;
+    badge.dataset.state = relevant ?? "";
+    badge.textContent = relevant ? states[relevant][1] : "";
+    const summary = "自動処理、定期チェック " + states[state.scheduler][0] + "、メタデータ補完 " + states[state.metadata][0];
+    autoButton.setAttribute("aria-label", summary);
+    autoButton.title = summary;
+    byId("metadata-stop").disabled = state.metadata !== "running";
+  }
+
+  function selectProcess(key, focus = true) {
+    for (const button of autoTabs) {
+      const selected = button.id === "auto-" + key;
+      button.setAttribute("aria-selected", String(selected));
+      button.tabIndex = selected ? 0 : -1;
+      byId(button.getAttribute("aria-controls")).hidden = !selected;
+      if (selected && focus) button.focus();
+    }
+    byId("automation-content").scrollTop = 0;
+  }
+
+  autoTabs.forEach((button, index) => {
+    button.addEventListener("click", () => selectProcess(button.id.slice(5)));
+    button.addEventListener("keydown", (event) => {
+      const destination = { ArrowLeft: 1 - index, ArrowRight: 1 - index, Home: 0, End: 1 }[event.key];
+      if (destination === undefined || event.isComposing) return;
+      event.preventDefault();
+      selectProcess(autoTabs[destination].id.slice(5));
+    });
+  });
+
+  function openAutomation(key, opener) {
+    restoreAutomation = opener;
+    if (!automation.open) {
+      selectProcess(key, false);
+      automation.showModal();
+    }
+    selectProcess(key);
+  }
+
+  autoButton.addEventListener("click", () => {
+    const key = Object.keys(state).find(name => state[name] === "failed")
+      ?? Object.keys(state).find(name => state[name] === "running")
+      ?? "scheduler";
+    openAutomation(key, autoButton);
+  });
+  preferencesButton.addEventListener("click", () => preferences.showModal());
+  document.querySelectorAll("[data-open-auto]").forEach(button => button.addEventListener("click", () => {
+    transferringSettings = true;
+    preferences.close();
+    openAutomation(button.dataset.openAuto, preferencesButton);
+  }));
+  document.querySelectorAll("[data-close]").forEach(button => button.addEventListener("click", () => byId(button.dataset.close).close()));
+  automation.addEventListener("close", () => (restoreAutomation?.isConnected ? restoreAutomation : autoButton).focus());
+  preferences.addEventListener("close", () => {
+    if (!transferringSettings) preferencesButton.focus();
+    transferringSettings = false;
+  });
+  for (const dialog of [automation, preferences]) {
+    dialog.addEventListener("keydown", (event) => {
+      if (event.key === "Tab") {
+        const controls = Array.from(dialog.querySelectorAll("button, input, summary"))
+          .filter(element => !element.disabled && element.tabIndex >= 0 && element.getClientRects().length);
+        const first = controls[0];
+        const last = controls.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      } else if (event.key === "Escape" && event.isComposing) {
+        event.preventDefault();
+      }
+    });
+  }
+  document.querySelectorAll("[data-simulate]").forEach(button => button.addEventListener("click", () => {
+    const key = button.dataset.simulate;
+    state[key] = state[key] === "running" ? (key === "scheduler" ? "failed" : "waiting") : "running";
+    byId("sample-log").textContent = "表示例 · " + byId("auto-" + key).textContent + " " + states[state[key]][0];
+    updateAutomation();
+  }));
+  byId("metadata-stop").addEventListener("click", () => {
+    state.metadata = "stopped";
+    updateAutomation();
+    document.querySelector('[data-simulate="metadata"]').focus();
+  });
+  byId("theme").addEventListener("click", () => {
+    const current = document.documentElement.dataset.theme
+      ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.dataset.theme = current === "dark" ? "light" : "dark";
+  });
+
+  updateAutomation();
+  const requested = new URLSearchParams(location.search).get("tab") ?? "unified";
+  const alias = { unified: "download", discovery: "learning" };
+  const target = Object.hasOwn(alias, requested) ? alias[requested] : requested;
+  if (tabs.some(([key]) => key === target)) selectTab(target);
+  else {
+    selectTab("download");
+    if (autoTabs.some(button => button.id === "auto-" + target)) openAutomation(target, autoButton);
+    else {
+      const warning = byId("startup-status");
+      warning.textContent = "不明な起動先です。ダウンロードを開きました。";
+      warning.hidden = false;
+    }
+  }
+</script>
+</body>
+</html>
