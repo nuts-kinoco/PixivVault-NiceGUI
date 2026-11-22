@@ -1,5 +1,7 @@
 """既存のナビゲーションを維持する、ページ単位のデモシェル。"""
 
+import asyncio
+
 from nicegui import app, ui
 
 from ..services import ApplicationServices, get_services
@@ -199,6 +201,8 @@ class DemoShell:
             # 閲覧履歴（元 gui.py の閲覧履歴ボタン）は学習タブを開かずに、起動時から件数を出してダイアログを開く。
             self._build_view_history()
         self._attach_auth_status()
+        self._visual_timer = (ui.timer(1.0, self._sync_visual_preference)
+                              if getattr(services, 'visual_preference_available', False) else None)
         # 起動直後のタブは元 TAB_INITIAL（ダウンロード）。--tab で変えられる。
         # ランキングは開いたときに初回取得する（元 on_tab_open）ので、先に有効化しない。
         initial = getattr(services, 'startup_tab', None) or shell_tab_key(TAB_INITIAL)
@@ -210,6 +214,10 @@ class DemoShell:
         else:
             self.gallery.set_viewer_active(True)
             self._update_tabs()
+
+    async def _sync_visual_preference(self):
+        if not self.closed:
+            await asyncio.to_thread(self.services.sync_visual_preference, account_only=True)
 
     def _log_pixiv_open(self, *_):
         if not self.closed:
@@ -344,7 +352,8 @@ class DemoShell:
                 on_tagger_change=self._tagger_settings_changed,
                 pixiv_actions_mode=getattr(self.services, 'pixiv_actions_mode', 'readonly'),
                 similarity_status=(self.services.similarity_analysis_status if self.services.similarity_analysis_enabled else None),
-                resume_similarity=(self.services.rescan_similarity_analysis if self.services.similarity_analysis_enabled else None))
+                resume_similarity=(self.services.rescan_similarity_analysis if self.services.similarity_analysis_enabled else None),
+                visual_service=(self.services if getattr(self.services, 'visual_preference_available', False) else None))
         self.preferences_view.open()
 
     def _build_view_history(self):
@@ -667,6 +676,8 @@ class DemoShell:
             return
         self.closed = True
         self.shared_log_view.close()
+        if self._visual_timer is not None:
+            self._visual_timer.cancel()
         if self._borrow_timer is not None:self._borrow_timer.deactivate()
         if self._ugoira_timer is not None:self._ugoira_timer.deactivate()
         if self.borrow_dialog is not None:self.borrow_dialog.close()

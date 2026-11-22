@@ -1,0 +1,6 @@
+owned_worker_matches=0
+existing_supervisor_job_hosts=1 (run_job.py)
+scope=Python/Node/browser process command lines matching gpu-wire; supervisor hosts excluded
+D6_QUIET.flag=True
+completed=all owned pytest terminal sessions; browser and real GPU were not started
+checked_at=2026-11-22T11:29:23.7503079+09:00

@@ -1,0 +1,43 @@
+FFFFF                                                                    [100%]
+================================== FAILURES ===================================
+_________ test_no_second_native_call_when_load_crosses_lease_deadline _________
+tests\test_visual_preference_review_r2.py:386: in test_no_second_native_call_when_load_crosses_lease_deadline
+    engine._on_provider('cuda', stop, None, infer=True)
+src\pixivvault_nicegui\egara_inference.py:276: in _on_provider
+    return outputs, self._backbone_index, provider
+                    ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'EgaraInference' object has no attribute '_backbone_index'
+___________ test_lease_checkpoint_wakes_while_local_arbiter_is_busy ___________
+tests\test_visual_preference_review_r2.py:416: in test_lease_checkpoint_wakes_while_local_arbiter_is_busy
+    assert stopped.wait(2.5)
+E   assert False
+E    +  where False = wait(2.5)
+E    +    where wait = <threading.Event at <address>: unset>.wait
+_________ test_event_catalog_borrow_blocks_provider_close_until_retry _________
+tests\test_visual_preference_review_r2.py:441: in test_event_catalog_borrow_blocks_provider_close_until_retry
+    assert not closed.is_set()
+E   assert not True
+E    +  where True = is_set()
+E    +    where is_set = <threading.Event at <address>: set>.is_set
+_______________ test_bad_saved_catalog_keeps_core_shadow_event ________________
+tests\test_visual_preference_review_r2.py:456: in test_bad_saved_catalog_keeps_core_shadow_event
+    worker.flush_events()
+src\pixivvault_nicegui\visual_preference_worker.py:296: in flush_events
+    raise RuntimeError('visual preference event capture has an unresolved gap')
+E   RuntimeError: visual preference event capture has an unresolved gap
+------------------------------ Captured log call ------------------------------
+WARNING  pixivvault_nicegui.visual_preference_worker:visual_preference_worker.py:287 visual preference event append failed (ranking, OSError)
+___________ test_transient_unverified_account_keeps_explicit_pause ____________
+tests\test_visual_preference_review_r2.py:469: in test_transient_unverified_account_keeps_explicit_pause
+    assert services.visual_preference_worker.status()['phase'] == 'paused'
+E   AssertionError: assert 'running' == 'paused'
+E
+E     - paused
+E     + running
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_review_r2.py::test_no_second_native_call_when_load_crosses_lease_deadline
+FAILED tests/test_visual_preference_review_r2.py::test_lease_checkpoint_wakes_while_local_arbiter_is_busy
+FAILED tests/test_visual_preference_review_r2.py::test_event_catalog_borrow_blocks_provider_close_until_retry
+FAILED tests/test_visual_preference_review_r2.py::test_bad_saved_catalog_keeps_core_shadow_event
+FAILED tests/test_visual_preference_review_r2.py::test_transient_unverified_account_keeps_explicit_pause
+5 failed, 13 deselected in 4.98s

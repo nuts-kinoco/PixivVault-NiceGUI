@@ -19,7 +19,7 @@ from threading import RLock
 
 from .managed_downloads import _safe_path, MAX_PAGE_BYTES, MAX_PIXELS
 from .image_original import MAX_ORIGINAL_BYTES
-from .gpu_arbiter import DEFAULT_GPU_ARBITER, GpuInferenceStopped, check_gpu_stop, cuda_available
+from .gpu_arbiter import cuda_memory_pressure, DEFAULT_GPU_ARBITER, GpuInferenceStopped, check_gpu_stop, cuda_available
 
 MODEL = 'egara_net_fp32'
 EGARA_BB_SHA256 = 'e50f28211feaef50e80b8bece55bbfae15d3319a70fbd568476bc84c8037f5af'
@@ -233,13 +233,16 @@ class EgaraInference:
     def _on_provider(self, provider, stop, array, *, infer):
         self._check_model()
         if self._session is None:
+            if provider == 'cuda':
+                self._gpu_arbiter.check_scope()
             error_type = None
             try:
                 self._session = self._load(provider, stop)
             except GpuInferenceStopped:
                 raise
             except Exception as error:
-                error_type = type(error).__name__
+                error_type = ('cuda_memory_pressure' if provider == 'cuda' and cuda_memory_pressure(error)
+                              else type(error).__name__)
             if error_type is not None:
                 if provider == 'cuda' and self.provider_requested == 'auto':
                     self.fallback_reason = error_type
@@ -254,13 +257,16 @@ class EgaraInference:
             return self
 
         check_gpu_stop(stop)
+        if provider == 'cuda':
+            self._gpu_arbiter.check_scope()
         error_type = None
         try:
             outputs = self._session.run(None, {self._input_name: array})
         except GpuInferenceStopped:
             raise
         except Exception as error:
-            error_type = type(error).__name__
+            error_type = ('cuda_memory_pressure' if provider == 'cuda' and cuda_memory_pressure(error)
+                          else type(error).__name__)
         if error_type is not None:
             if provider == 'cuda':
                 self.release_session()
