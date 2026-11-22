@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>自分のランキングの折りたたみツールバー</title>
+<style>
+  * {box-sizing:border-box}
+  body {margin:24px;background:#111724;color:#e9edf6;font:15px/1.55 system-ui,sans-serif}
+  main {max-width:1340px;margin:auto}
+  h1 {font-family:"Yu Mincho",serif;font-size:24px;margin:0 0 12px}
+  .window {height:800px;border:1px solid #586379;border-radius:12px;overflow:hidden;
+    background:#182031;display:flex;flex-direction:column}
+  .banner {min-height:28px;padding:2px 16px;background:#ad2629;color:white;font-weight:600}
+  .header,.tabs,.toolbar {padding-inline:16px;display:flex;align-items:center;gap:8px}
+  .header {min-height:48px;flex-wrap:wrap;padding-block:4px}
+  .header strong {font-size:24px}
+  .logged-in {color:#a2dcb6}
+  .actions {margin-inline-start:auto;display:flex;gap:4px}
+  .tabs {min-height:44px;display:grid;grid-template-columns:repeat(11,minmax(0,1fr));border-bottom:1px solid #45546a}
+  button {font:inherit;color:inherit;background:transparent;border:1px solid transparent;
+    border-radius:8px;min-height:32px;padding:4px 8px;cursor:pointer}
+  button:hover {background:#303e54}
+  button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible {outline:2px solid #81c8ff;outline-offset:2px}
+  .active {background:#30435c;border-color:#526884}
+  .toolbar {min-height:56px;flex-wrap:wrap;padding-block:8px}
+  .toolbar h2 {font:600 18px "Yu Mincho",serif;margin:0 12px 0 0}
+  .chip {padding:3px 11px;border:1px solid #6c7f9b;border-radius:18px}
+  .primary {background:#12395a;border-color:#5589ab}
+  output {margin-inline-start:auto;color:#bccbdf}
+  .filters {padding:8px 16px 12px;background:#25334a;border-block:1px solid #526884}
+  .fields {display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  input[type=search],select {padding:6px;border:1px solid #8194ae;border-radius:6px;background:#12192a;color:inherit}
+  .gallery {flex:1;min-height:0;overflow:auto;padding:8px 16px 16px;display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(165px,1fr));align-content:start;gap:12px}
+  .card {border:1px solid #566783;border-radius:10px;padding:8px;background:#26344a}
+  .artwork {aspect-ratio:4/3;border-radius:6px;background:
+    radial-gradient(circle at 71% 25%,#f5c573 0 10%,transparent 10.5%),
+    linear-gradient(148deg,transparent 54%,#78ac9b 54% 74%,transparent 74%),
+    linear-gradient(36deg,#82baab 0 44%,#435b90 44%)}
+  .dimensions {display:flex;flex-wrap:wrap;gap:8px 20px;margin:12px 0}
+  .dimensions div {display:flex;gap:6px}
+  dd {margin:0;color:#bddded}
+  @media(max-width:950px) {.tabs {grid-template-columns:repeat(6,minmax(0,1fr))}}
+  @media(max-width:650px) {
+    body {margin:8px}
+    .actions {flex-wrap:wrap;margin:0}
+    .tabs {grid-template-columns:repeat(3,minmax(0,1fr))}
+    output {margin-inline-start:0}
+  }
+</style>
+<main>
+  <h1>自分のランキング</h1>
+  <div class="window">
+    <div class="banner" role="status">⚠ 本番DBを使用中　保存先を確認</div>
+    <header class="header">
+      <strong>PixivVault</strong>
+      <span class="logged-in">● ログイン中</span>
+      <button type="button">API切り替え</button>
+      <button type="button">取得停止の確認</button>
+      <div class="actions">
+        <button type="button" aria-label="直近のバックアップ" title="直近のバックアップ">◷</button>
+        <button type="button" aria-label="閲覧履歴" title="閲覧履歴">◉</button>
+        <button type="button" aria-label="保存フォルダー" title="保存フォルダー">□</button>
+        <button type="button" aria-label="配色を切り替える" title="配色を切り替える">☼</button>
+        <button type="button" aria-label="ブラウザでPixivを開く" title="ブラウザでPixivを開く">↗</button>
+        <button type="button" aria-label="設定" title="設定">⚙</button>
+      </div>
+    </header>
+    <nav class="tabs" aria-label="メインナビゲーション">
+      <button type="button" aria-label="ダウンロード" title="ダウンロード">保存</button>
+      <button type="button">キュー</button>
+      <button type="button" aria-label="失敗リスト" title="失敗リスト">失敗</button>
+      <button type="button">重複整理</button>
+      <button type="button">学習</button>
+      <button type="button">ランキング</button>
+      <button type="button" class="active" aria-current="page" aria-label="自分のランキング">自分</button>
+      <button type="button">ライブラリ</button>
+      <button type="button">おすすめ</button>
+      <button type="button">定期チェック</button>
+      <button type="button" aria-label="メタデータ補完" title="メタデータ補完">メタデータ</button>
+    </nav>
+    <div class="toolbar">
+      <h2>自分のランキング</h2>
+      <span class="chip">選択タグ　合成タグ</span>
+      <button type="button" class="primary">取得・更新</button>
+      <button type="button" id="toggle" aria-expanded="false" aria-controls="filters">絞り込み ▾</button>
+      <output>人気順　30 / 30 件表示</output>
+    </div>
+    <div class="filters" id="filters" hidden>
+      <div class="fields">
+        <label><input type="checkbox"> R-18</label>
+        <label><input type="checkbox"> AI を除外</label>
+        <span>よく効くタグ　<button type="button" class="chip">合成タグ</button></span>
+        <label>検索 <input type="search"></label>
+        <label>カードサイズ <select><option>大</option><option>中</option><option>小</option></select></label>
+      </div>
+    </div>
+    <div class="gallery" tabindex="0" aria-label="作品一覧"></div>
+  </div>
+  <dl class="dimensions">
+    <div><dt>設計寸法</dt><dd>1280 × 800 CSS px</dd></div>
+    <div><dt>警告帯</dt><dd>28 px</dd></div>
+    <div><dt>ヘッダー</dt><dd>48 px</dd></div>
+    <div><dt>タブ</dt><dd>44 px</dd></div>
+    <div><dt>ツールバー</dt><dd>56 px</dd></div>
+    <div><dt>一覧開始の設計上限</dt><dd>y=196 px</dd></div>
+  </dl>
+</main>
+<script>
+  const gallery = document.querySelector('.gallery');
+  for (let i = 1; i <= 30; i++) {
+    const card = document.createElement('article');
+    card.className = 'card';
+    card.innerHTML = '<div class="artwork" aria-hidden="true"></div>';
+    card.append('合成作品 ' + i);
+    gallery.append(card);
+  }
+  const toggle = document.querySelector('#toggle');
+  const filters = document.querySelector('#filters');
+  function setExpanded(expanded) {
+    filters.hidden = !expanded;
+    toggle.textContent = expanded ? '絞り込み ▴' : '絞り込み ▾';
+    toggle.setAttribute('aria-expanded', String(expanded));
+  }
+  toggle.addEventListener('click', () => setExpanded(filters.hidden));
+  filters.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !event.isComposing) {
+      setExpanded(false);
+      toggle.focus();
+    }
+  });
+</script>
+</html>
