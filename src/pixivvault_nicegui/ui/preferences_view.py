@@ -55,6 +55,7 @@ CHOICE_LABELS = {
 # 値だけのラベル表（CHOICE_LABELS）は '1' '6' '12' '24' を ON/OFF・回数・容量の項目と共有するため、
 # 項目ごとの表示は別に持つ（元 gui.py:1290-1297 の文言）。
 KEY_CHOICE_LABELS = {
+    'visual_preference_mode': {'idle': 'アイドル時に少しずつ', 'manual': '手動のみ'},
     'nana7mi_shaft_refresh_interval_hours': {
         '1':'1時間ごと', '6':'6時間ごと', '12':'12時間ごと', '24':'24時間ごと (1日)', '48':'48時間ごと (2日)',
     },
@@ -93,6 +94,40 @@ TAGGER_ALERT_STATUSES = frozenset({
 })
 
 
+def visual_status_text(*, phase, error, indexed, pending, generation, worker_available,
+                       waiting_for_lease, provider='cuda', analyzing=False, pause_reason=None, **_):
+    reasons = {
+        'scope_failure': '視覚学習データを読み込めません',
+        'lease_failure': '共有 GPU リースを取得できません',
+        'lease_release_failure': '共有 GPU リースの解放を確認できません',
+        'cuda_failure': 'CUDA 推論に失敗しました',
+        'cpu_failure': 'CPU 推論に失敗しました',
+        'worker_failure': '視覚学習の解析に失敗しました',
+        'thread_start': '解析を開始できません',
+    }
+    reason = reasons.get(error)
+    if waiting_for_lease and phase == 'running':
+        reason = '共有 GPU の空き待ち'
+    elif phase in ('paused', 'pausing'):
+        reason = reason or {
+            'disabled': '視覚補正をオフにしました',
+            'manual': '実行タイミングを手動に変更しました',
+            'cleared': '視覚学習データを削除しました',
+            'shared_stop': '共有 GPU の解放が要求されました',
+            'user': '停止ボタンで停止しました',
+        }.get(pause_reason, '解析を停止しました')
+    elif not worker_available:
+        reason = reason or '確認済みのアカウントと推論モデルが必要です'
+    text = ('一時停止中' if phase in ('paused', 'pausing') else
+            '解析中' if phase == 'running' and analyzing and not waiting_for_lease else '待機中')
+    device = 'CPU' if provider == 'cpu' else 'GPU（CUDA）'
+    parts = [text, f'解析済み {indexed} 件（残り {pending} 件）', f'学習世代 {generation}',
+             f'実行先 {device}', '追加 GET 0 件']
+    if reason:
+        parts.append(reason)
+    return ' ／ '.join(parts)
+
+
 def _set_status_alert(label, active):
     if active:
         label.classes(add='pv-alert-banner')
@@ -102,7 +137,7 @@ def _set_status_alert(label, active):
 
 
 class PreferencesView:
-    def __init__(self, store, *, enabled_keys=(), unavailable_reasons=None, on_change=None, desktop=None, clear_cache=None, extension_status=None, export_legacy=None, export_metadata=None, native_profile=None, following_sync=None, pixiv_actions_mode='readonly', extension_counts=None, extension_reasons=None, extension_snapshot=None, vault=None, similarity_status=None, resume_similarity=None, tagger=None, on_tagger_change=None):
+    def __init__(self, store, *, enabled_keys=(), unavailable_reasons=None, on_change=None, desktop=None, clear_cache=None, extension_status=None, export_legacy=None, export_metadata=None, native_profile=None, following_sync=None, pixiv_actions_mode='readonly', extension_counts=None, extension_reasons=None, extension_snapshot=None, vault=None, similarity_status=None, resume_similarity=None, tagger=None, on_tagger_change=None, visual_service=None):
         if pixiv_actions_mode not in ('readonly', 'enabled', 'preferences'):
             raise ValueError('invalid Pixiv action policy')
         self.pixiv_actions_mode=pixiv_actions_mode
@@ -112,6 +147,12 @@ class PreferencesView:
         self.similarity_status=similarity_status
         self.resume_similarity=resume_similarity
         self._similarity_timer=None
+        self.visual_service = visual_service
+        self._visual_timer = None
+        self._visual_confirm = None
+        self._visual_clear_target = None
+        self._visual_busy = False
+        self._visual_action_error = None
         self._tagger_timer=None
         self._tagger_verifying=0
         self._tagger_pending=False
@@ -173,6 +214,8 @@ class PreferencesView:
 
     def open(self):
         if self.closed: return
+        self._close_visual_controls()
+        self._visual_action_error = None
         if self._similarity_timer is not None:
             self._similarity_timer.cancel()
             self._similarity_timer=None
@@ -318,12 +361,14 @@ class PreferencesView:
                 on_change=lambda: self._vault_state_changed(state_label, group))
 
     def _build_preference_group(self, title, specs, *, hint=None):
-        with settings_group(title):
+        visual = title == '絵柄・構図の推論' and self.visual_service is not None
+        with settings_group(title, collapsible=visual) as group:
             if hint:
                 ui.label(hint).classes('pv-field-hint')
             with ui.element('div').classes('pv-settings-fields'):
                 for spec in specs:
-                    wide = spec.key in ('meta_backfill_enabled', 'embed_auto_on_download', 'extension_bridge_enabled')
+                    wide = (spec.key in ('meta_backfill_enabled', 'embed_auto_on_download', 'extension_bridge_enabled')
+                            or spec.key.startswith('visual_preference_'))
                     with ui.column().classes('pv-settings-field' + (' pv-settings-wide' if wide else '')):
                         value = self.snapshot.values[spec.key]
                         if spec.key == 'pixiv_actions_enabled' and self.pixiv_actions_mode != 'preferences':
@@ -352,6 +397,8 @@ class PreferencesView:
                             self.similarity_resume_button=secondary_button('いま推論する', self._resume_similarity, testid='preferences-similarity-resume')
                             self._refresh_similarity_status()
                             self._similarity_timer=ui.timer(1.0, self._refresh_similarity_status)
+                        if spec.key == 'visual_preference_thumb_prefetch':
+                            ui.label('追加取得はまだ利用できません。現在の解析に使うのは取得済みの画像です。').classes('pv-field-hint')
                         if spec.key == 'pixiv_actions_enabled':
                             notice=('変更は次回の通常起動から適用されます。Cookieの参照先が必要です。'
                                     if spec.key in self.enabled_keys else self.reasons[spec.key])
@@ -367,6 +414,115 @@ class PreferencesView:
                                 f'data-testid=preference-unavailable-{spec.key}')
                             if spec.key in CACHE_LIMIT_FIELDS.values():
                                 self._cache_limit_notes[spec.key]=note
+
+            if visual:
+                self._build_visual_controls(group, self._epoch)
+
+    def _build_visual_controls(self, group, epoch):
+        self.visual_status_label = ui.label('待機中').classes('pv-subtitle').props(
+            'data-testid=preferences-visual-status role=status aria-live=polite')
+        self._visual_group = group
+        with dialog_actions():
+            self.visual_start = primary_button('いま解析する', self._start_visual,
+                                               testid='preferences-visual-start')
+            self.visual_pause = secondary_button('解析を停止', self._pause_visual,
+                                                 testid='preferences-visual-pause')
+            self.visual_clear = secondary_button('視覚学習データを削除', self._confirm_visual_clear,
+                                                 testid='preferences-visual-clear').props('aria-haspopup=dialog')
+        for button in (self.visual_start, self.visual_pause, self.visual_clear):
+            button.set_enabled(False)
+
+        async def refresh():
+            await self._refresh_visual_status(epoch)
+
+        self._visual_timer = ui.timer(1.0, refresh)
+
+    async def _refresh_visual_status(self, epoch):
+        if self.closed or not self.opened or epoch != self._epoch:
+            return
+        state = await asyncio.to_thread(self.visual_service.visual_preference_status)
+        if self.closed or not self.opened or epoch != self._epoch:
+            return
+        text = visual_status_text(**state)
+        if self._visual_action_error:
+            text += ' ／ ' + self._visual_action_error
+        if self.visual_status_label.text != text:
+            self.visual_status_label.set_text(text)
+            alert = bool(state['error'] or self._visual_action_error)
+            self.visual_status_label.classes(add='pv-alert-banner' if alert else '',
+                                             remove='' if alert else 'pv-alert-banner')
+            self.visual_status_label.style(replace=(
+                'color:var(--pv-text);border-color:var(--pv-error-text)' if alert else ''))
+            if alert:
+                self._visual_group.open()
+        phase = state['phase']
+        self._visual_clear_target = state['clear_target']
+        can_start = phase not in ('running', 'pausing', 'stopping') or (
+            phase == 'running' and state.get('automatic', False))
+        self.visual_start.set_enabled(not self._visual_busy and state['worker_available'] and can_start)
+        self.visual_pause.set_enabled(not self._visual_busy and state['can_clear'] and phase == 'running')
+        self.visual_clear.set_enabled(not self._visual_busy and state['can_clear'])
+
+    async def _visual_action(self, action, error, *args):
+        if self.closed or not self.opened or self._visual_busy:
+            return
+        epoch = self._epoch
+        self._visual_busy = True
+        self._visual_action_error = None
+        try:
+            await asyncio.to_thread(action, *args)
+        except Exception:
+            if self._epoch == epoch:
+                self._visual_action_error = error
+        finally:
+            self._visual_busy = False
+            await self._refresh_visual_status(epoch)
+
+    async def _start_visual(self):
+        await self._visual_action(self.visual_service.start_visual_preference, '解析を開始できませんでした。')
+
+    async def _pause_visual(self):
+        await self._visual_action(self.visual_service.pause_visual_preference, '解析の停止を確認できませんでした。')
+
+    def _confirm_visual_clear(self):
+        if self._visual_busy or self._visual_confirm is not None:
+            return
+        expected = self._visual_clear_target
+        if expected is None:
+            return
+        epoch = self._epoch
+        with ui.dialog() as dialog, dialog_card('視覚学習データを削除', size='sm'):
+            dialog.props['data-testid'] = 'preferences-visual-clear-dialog'
+            dialog.props['aria-label'] = '視覚学習データを削除'
+            ui.label('保存した作品・判定履歴・「似た絵を探す」の解析台帳は削除しません。').classes('pv-subtitle')
+            with dialog_actions():
+                secondary_button('キャンセル', dialog.close, testid='preferences-visual-clear-cancel').props('autofocus')
+
+                async def clear():
+                    dialog.close()
+                    if self._epoch == epoch:
+                        await self._visual_action(self.visual_service.clear_visual_preference,
+                                                  '視覚学習データの削除を確認できませんでした。', expected)
+
+                primary_button('削除する', clear, testid='preferences-visual-clear-confirm')
+
+        def on_hide():
+            if self._visual_confirm is dialog:
+                self._visual_confirm = None
+            dialog.delete()
+
+        dialog.on('hide', on_hide)
+        self._visual_confirm = dialog
+        dialog.open()
+
+    def _close_visual_controls(self):
+        self._visual_clear_target = None
+        if self._visual_timer is not None:
+            self._visual_timer.cancel()
+            self._visual_timer = None
+        if self._visual_confirm is not None:
+            self._visual_confirm.close()
+            self._visual_confirm = None
 
     async def _verify_tagger(self, epoch):
         if self.closed or not self.opened or epoch != self._epoch or self.tagger is None:
@@ -530,7 +686,8 @@ class PreferencesView:
         dialog.open()
 
     def _on_dialog_key(self, event):
-        if self.opened and not self.closed and not self.export_busy and event.args == {'key': 'Escape'}:
+        if (self.opened and not self.closed and not self.export_busy
+                and self._visual_confirm is None and event.args == {'key': 'Escape'}):
             self.close_dialog()
 
     def _refresh_similarity_status(self):
@@ -564,6 +721,7 @@ class PreferencesView:
             if not self.save():
                 return
         self.opened=False
+        self._close_visual_controls()
         if self._tagger_timer is not None:
             self._tagger_timer.cancel()
             self._tagger_timer=None

@@ -996,11 +996,30 @@ class VisualPreferenceStore:
         self._check_paths()
         return self._read_epoch(self._event_purge, deadline=None)
 
+    @staticmethod
+    def _normalize_event_payload(kind, payload):
+        def normalize(row):
+            if (isinstance(row, dict) and 'judgment' in row and row['judgment'] is None
+                    and row.get('revision', 0) == 0
+                    and (row.get('saved') is True or row.get('bookmarked') is True)):
+                return dict(row, judgment='')
+            return row
+
+        if kind == 'ranking' and isinstance(payload, dict) and isinstance(payload.get('candidates'), list):
+            return dict(payload, candidates=[normalize(row) for row in payload['candidates']])
+        return normalize(payload)
+
+    def progress(self):
+        """Read durable counters for the settings status."""
+        with self._transaction() as db:
+            count = db.execute('SELECT count(*) FROM candidate_embeddings').fetchone()[0]
+            return count, self._generation_number(db)
+
     def append_event(self, kind: str, payload: dict, epoch=_UNFENCED_EVENT) -> int | None:
         """Append ranking/judgment metadata. The caller supplies only local, unsigned fields."""
         if type(kind) is not str or not kind:
             raise ValueError('invalid visual preference event kind')
-        encoded = _json(payload)
+        encoded = _json(self._normalize_event_payload(kind, payload))
         with self._transaction(write=True) as db:
             if epoch is not _UNFENCED_EVENT and epoch != self.capture_event_epoch():
                 return None
@@ -1010,7 +1029,7 @@ class VisualPreferenceStore:
     def events(self) -> tuple[RankingEvent, ...]:
         with self._transaction() as db:
             rows = db.execute('SELECT sequence,kind,captured_at,payload FROM ranking_events ORDER BY sequence')
-            return tuple(RankingEvent(sequence, kind, at, json.loads(payload))
+            return tuple(RankingEvent(sequence, kind, at, self._normalize_event_payload(kind, json.loads(payload)))
                          for sequence, kind, at, payload in rows)
 
     def purge(self):
