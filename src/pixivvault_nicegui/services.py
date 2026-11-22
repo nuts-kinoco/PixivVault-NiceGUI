@@ -143,7 +143,7 @@ class ApplicationServices:
                  external_vault_transport=None, external_vault_crypto=None, desktop=None, notification_backend=None,
                  following_sync_root=None, pixiv_actions_mode='readonly',
                  managed_network_stop_scope=None, shared_network_stop_scope=None, legacy_copy_root=None,
-                 scheduler_wait_for_auth=False) -> None:
+                 scheduler_wait_for_auth=False, startup_stop_deadline=None) -> None:
         failed_queue_source_db = failed_queue_readonly_db
         if (type(pixiv_actions_mode) is not str or
                 pixiv_actions_mode not in ('readonly', 'enabled', 'preferences')):
@@ -614,8 +614,11 @@ class ApplicationServices:
                 return
             from .managed_network_stop_gate import ManagedNetworkGateStorageError
             if managed_network_stop_scope is not None:
+                from .managed_network_stop_startup import retry_startup_lock
                 from .managed_stop_migration_binding import verified_media
-                if verified_media(managed_network_stop_scope,root):return
+                if retry_startup_lock(lambda: verified_media(managed_network_stop_scope, root),
+                                      deadline=startup_stop_deadline):
+                    return
             for suffix in ('', '.lock', '-journal', '-wal', '-shm'):
                 path = Path(root) / ('.pixivvault-network-stop.sqlite3' + suffix)
                 if path.exists() or path.is_symlink():
@@ -4351,7 +4354,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                  external_vault_transport=None, external_vault_crypto=None, desktop=None, notification_backend=None,
                  following_sync_root=None, pixiv_actions_mode=None,
                  managed_network_stop_scope=None, shared_network_stop_scope=None,
-                 legacy_copy_root=None, scheduler_wait_for_auth=False) -> ApplicationServices:
+                 legacy_copy_root=None, scheduler_wait_for_auth=False,
+                 startup_stop_deadline=None) -> ApplicationServices:
     """Return resources scoped to the ASGI app; no-argument access is legacy."""
     global _services
     with _lock:
@@ -4376,7 +4380,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                     pixiv_actions_mode='readonly' if pixiv_actions_mode is None else pixiv_actions_mode,
                     managed_network_stop_scope=managed_network_stop_scope,
                     shared_network_stop_scope=shared_network_stop_scope, legacy_copy_root=legacy_copy_root,
-                    scheduler_wait_for_auth=scheduler_wait_for_auth)
+                    scheduler_wait_for_auth=scheduler_wait_for_auth,
+                    startup_stop_deadline=startup_stop_deadline)
             services = _services
         else:
             services = getattr(app.state, _APP_KEY, None)
@@ -4400,7 +4405,8 @@ def get_services(app=None, *, learning_sandbox: Path | None = None,
                     pixiv_actions_mode='readonly' if pixiv_actions_mode is None else pixiv_actions_mode,
                     managed_network_stop_scope=managed_network_stop_scope,
                     shared_network_stop_scope=shared_network_stop_scope, legacy_copy_root=legacy_copy_root,
-                    scheduler_wait_for_auth=scheduler_wait_for_auth)
+                    scheduler_wait_for_auth=scheduler_wait_for_auth,
+                    startup_stop_deadline=startup_stop_deadline)
                 setattr(app.state, _APP_KEY, services)
         if services.closing:
             raise RuntimeError("application services are closed")
