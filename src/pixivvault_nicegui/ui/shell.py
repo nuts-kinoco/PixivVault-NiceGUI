@@ -387,6 +387,8 @@ class DemoShell:
         finally:self._syncing_borrow=False
         if self.borrow_setup_button is not None:
             self.borrow_setup_button.set_visibility(self.borrow_dialog.setup_required())
+            if not status['enabled']:
+                self.borrow_dialog.off_choices.set_visibility(False)
         if self.borrow_recovery_button is not None and self.borrow_dialog is not None:
             self.borrow_recovery_button.set_visibility(self.borrow_dialog.recovery_visible())
         library = self.library
@@ -404,16 +406,7 @@ class DemoShell:
             if event.value:
                 await self.borrow_dialog.request_enable()
             else:
-                import asyncio
-                try:
-                    await asyncio.to_thread(gate.disable, session_only=True)
-                except Exception:
-                    ui.notify('借用アカウントの停止を確認できません。設定の借用プレミアムの状態を確認してください。',type='warning')
-                else:
-                    message = '借用プレミアムをこの起動中は OFF にしました。'
-                    if gate.status()['remembered']:
-                        message += '次回起動時は ON に戻ります。'
-                    self.borrow_dialog.notice.set_text(message)
+                self.borrow_dialog.off_choices.set_visibility(not self.borrow_dialog.off_choices.visible)
             self.sync_borrow();return
         if bool(event.value)==bool(vault.status().get('open')):return
         if event.value:

@@ -28,6 +28,7 @@ async def test_header_off_is_for_current_launch_and_saved_borrow_restores(tmp_pa
             try:
                 assert shell.borrow_switch.value
                 await shell.borrow_changed(SimpleNamespace(value=False))
+                await shell.borrow_dialog.request_disable(session_only=True)
                 assert not shell.borrow_switch.value
                 assert not vault.status()['open']
                 assert '次回起動時は ON に戻ります' in shell.borrow_dialog.notice.text

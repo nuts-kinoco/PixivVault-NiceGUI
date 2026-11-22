@@ -77,10 +77,42 @@ class PremiumGateDialog:
         if self.setup_required() and not message:
             message = '借用プレミアムを使うには初期設定が必要です。'
         self.notice=ui.label(message or '').props('role=status data-testid=premium-permission-status')
+        with ui.row().classes('items-center gap-2').props(
+                'role=group aria-label=借用プレミアムをOFFにする data-testid=premium-off-choices') as self.off_choices:
+            secondary_button('今回だけ OFF', lambda: self.request_disable(session_only=True),
+                             testid='premium-off-session')
+            secondary_button('ずっと OFF', lambda: self.request_disable(session_only=False),
+                             testid='premium-off-persistent')
+        self.off_choices.set_visibility(False)
         ui.context.client.on_delete(self.close)
+
     def setup_required(self):
-        status = self.gate.vault.status()
-        return not status.get('initialized') and not status.get('inspection_error')
+        vault_status = self.gate.vault.status()
+        gate_status = self.gate.status()
+        return (not vault_status.get('inspection_error')
+                and not gate_status['enabled'] and not gate_status['remembered']
+                and not (vault_status.get('initialized') and self.gate.startup_suppressed))
+
+    async def request_disable(self, *, session_only):
+        if self.closed or not self.off_choices.visible:
+            return
+        self.off_choices.set_visibility(False)
+        try:
+            await asyncio.to_thread(self.gate.disable, session_only=session_only)
+        except Exception:
+            message = '借用アカウントの停止を確認できません。設定の借用プレミアムの状態を確認してください。'
+        else:
+            if session_only:
+                message = '借用プレミアムをこの起動中は OFF にしました。'
+                if self.gate.status()['remembered']:
+                    message += '次回起動時は ON に戻ります。'
+            else:
+                message = '借用プレミアムを OFF にしました。次回起動も OFF のままです。'
+        if not self.closed:
+            self.notice.set_text(message)
+            if self.on_change:
+                self.on_change()
+
 
     def recovery_visible(self):
         return bool(self.recovery is not None and self.recovery.unconfirmed())
@@ -207,6 +239,27 @@ class PremiumGateDialog:
             return apply_uid_file(self.gate.vault,self.default_uid_path)
         except Exception:return 'failed'
     async def request_enable(self):
+        if self.closed:
+            return
+        if self.gate.status()['remembered'] or self.gate.startup_suppressed:
+            try:
+                resumed = await asyncio.to_thread(self.gate.resume_saved)
+            except VaultError as error:
+                if not self.closed:
+                    self.notice.set_text(vault_unlock_error_message(error.code)
+                                         or '借用プレミアムの再開を確認できません。')
+                    if self.on_change:
+                        self.on_change()
+                return
+            if self.closed:
+                return
+            if resumed:
+                review = self.gate.vault.status().get('oauth_review_required')
+                self.notice.set_text('借用プレミアムは ON です。' +
+                                     ('未確認の通信結果があるため、通信は停止しています。' if review else ''))
+                if self.on_change:
+                    self.on_change()
+                return
         epoch=self.gate.begin_prompt()
         if epoch is None:return
         password='';legacy_password=''
