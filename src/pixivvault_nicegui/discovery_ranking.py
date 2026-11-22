@@ -618,6 +618,18 @@ def _author_reject_deferred(author_id, author_preferences):
     return author_bounds(counts)[0] - AUTHOR_REJECT_PENALTY < NEUTRAL
 
 
+def _sure_sort_key(item, *, visual_score=None):
+    c, info = item
+    tier = info.get("author_reject_tier") or 0
+    # 確定拒否だけを最後尾へ固定し、暫定拒否は減点したスコアの順に残す。
+    # 減点と視覚補正はキーにだけ使い、info["score"] は保持する。
+    score = info["score"] if visual_score is None else visual_score
+    adjusted = score - (AUTHOR_REJECT_PENALTY if tier == 1 else 0.0)
+    evidence = -info["n"] if visual_score is None else 0
+    return (1 if tier >= AUTHOR_REJECT_CONFIRMED else 0,
+            -adjusted, evidence, str(c.get("work_id") or ""))
+
+
 def assign_frames(candidates, tag_bounds, author_bounds, author_preferences=None,
                   normalize=None, subject_n_threshold=SUBJECT_UNKNOWN_THRESHOLD):
     """候補を3つの枠へ振り分け、それぞれ枠ごとの並びで返します（合意書§11-2）。
@@ -642,7 +654,7 @@ def assign_frames(candidates, tag_bounds, author_bounds, author_preferences=None
         info["author_rejected"] = info["author_reject_tier"] > 0
         if info["author_rejected"]:
             # tier1・tier2 とも探索枠からは外す（合意書§11-2 条件2）。差が出るのは
-            # 確実枠の中の順位（下の `_key_lower`）と最終列での扱い（`finalize_display_order`）。
+            # 確実枠の中の順位（`_sure_sort_key`）と最終列での扱い（`finalize_display_order`）。
             sure.append((c, info))
             continue
         # 好きな作者の隣から来た候補は、作者が未評価でも「絵柄は担保されている」扱い。
@@ -664,20 +676,11 @@ def assign_frames(candidates, tag_bounds, author_bounds, author_preferences=None
             continue
         sure.append((c, info))
 
-    def _key_lower(item):
-        c, info = item
-        tier = info.get("author_reject_tier") or 0
-        # 確定拒否だけを最後尾へ固定し、暫定拒否は減点したスコアの順に残す。
-        # ⚠️ 減点は**このキーの中だけ**。`info["score"]` は書き換えない。
-        adjusted = info["score"] - (AUTHOR_REJECT_PENALTY if tier == 1 else 0.0)
-        return (1 if tier >= AUTHOR_REJECT_CONFIRMED else 0,
-                -adjusted, -info["n"], str(c.get("work_id") or ""))
-
     def _key_upper(item):
         c, info = item
         return (-info["upside"], -info["n"], str(c.get("work_id") or ""))
 
-    sure.sort(key=_key_lower)
+    sure.sort(key=_sure_sort_key)
     subject.sort(key=_key_upper)
     style.sort(key=_key_upper)
     return {"sure": sure, "subject": subject, "style": style}
@@ -801,7 +804,7 @@ def apply_author_cooldown(candidates, recent_author_ids=(), cooldown=3):
 
 def rank_candidates(candidates, preferences, author_preferences,
                     get_setting=None, normalize=None, limit=None, total_works=None,
-                    recent_author_ids=()):
+                    recent_author_ids=(), *, visual_snapshot=None):
     """候補を並べ替えて返します。**これがモジュールの入口。**
 
     ネットワークは1本も使わない（メモリ上の操作なので完全に無料）。判定のたびに
@@ -809,9 +812,11 @@ def rank_candidates(candidates, preferences, author_preferences,
 
     戻り値は (並べ替え済みの候補リスト, {work_id: 枠名}) のタプル。枠名は
     カード端の「これは冒険枠です」バッジ（合意書§11-2の条件1）に使う。
+    visual_snapshot を渡すと、確実枠の未提示候補だけに視覚補正を試みる。
     """
     ordered, frames, _ = _rank_candidates(candidates, preferences, author_preferences,
-        get_setting, normalize, limit, total_works, recent_author_ids, diagnostics=False)
+        get_setting, normalize, limit, total_works, recent_author_ids, diagnostics=False,
+        visual_snapshot=visual_snapshot)
     return ordered, frames
 
 
@@ -824,7 +829,7 @@ def rank_candidates_with_diagnostics(candidates, preferences, author_preferences
 
 
 def _rank_candidates(candidates, preferences, author_preferences, get_setting, normalize,
-                     limit, total_works, recent_author_ids, *, diagnostics):
+                     limit, total_works, recent_author_ids, *, diagnostics, visual_snapshot=None):
     if not candidates:
         return [], {}, {}
     # ⚠️ 薄めるのはタグ側だけ（フェーズ3-3）。作者側は total_works を渡さない
@@ -847,11 +852,21 @@ def _rank_candidates(candidates, preferences, author_preferences, get_setting, n
 
     # 枠内の順位だけでは、確実枠の在庫が拒否済みだけのときに先頭へ出る
     # （`_interleave` は枠の割合で選ぶのでスコアを見ない）。最終整形へ渡して仕分ける。
-    ordered = finalize_display_order(
-        [c for c, _info in _interleave(frames, ratios)],
-        recent_author_ids=recent_author_ids,
-        author_preferences=author_preferences,
-    )
+    def finish(frame_items):
+        return finalize_display_order(
+            [c for c, _info in _interleave(frame_items, ratios)],
+            recent_author_ids=recent_author_ids,
+            author_preferences=author_preferences,
+        )
+
+    ordered = finish(frames)
+    if visual_snapshot is not None:
+        from .visual_rank_adapter import rerank_sure_tail
+
+        ordered = rerank_sure_tail(
+            frames["sure"], ordered, visual_snapshot, sort_key=_sure_sort_key,
+            finalize=lambda sure: finish({**frames, "sure": sure}),
+        )
     # 上限は整形後に適用する。先に切ると繰り上げられる通常候補を失う。
     if limit is not None:
         ordered = ordered[:max(0, limit)]
