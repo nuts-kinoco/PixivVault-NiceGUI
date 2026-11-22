@@ -1,0 +1,19 @@
+﻿D6_QUIET.flag present=True
+Owned R2 pytest processes=0
+DELETE (supervisor, WhatIf checked): S:\Work\_tmp\PV\gpu-reco\test-pytest-r2-neon-dev-20261122
+DELETE (supervisor, WhatIf checked): S:\Work\_tmp\PV\gpu-reco\test-pytest-r2-neon-exit-20261122-green
+DELETE (supervisor, WhatIf checked): S:\Work\_tmp\PV\gpu-reco\test-pytest-r2-neon-exit-20261122-p6-network
+DELETE (supervisor, WhatIf checked): S:\Work\_tmp\PV\gpu-reco\test-pytest-r2-neon-exit-20261122-reco-certain
+DELETE (supervisor, WhatIf checked): S:\Work\_tmp\PV\gpu-reco\test-pytest-r2-neon-exit-20261122-reco-context
+DELETE (supervisor, WhatIf checked): S:\Work\_tmp\PV\gpu-reco\test-pytest-r2-neon-exit-20261122-reco-races
+DELETE (supervisor, WhatIf checked): S:\Work\_tmp\PV\gpu-reco\test-pytest-r2-neon-exit-20261122-remote-variants
+DELETE (supervisor, WhatIf checked): S:\Work\_tmp\PV\gpu-reco\test-pytest-r2-neon-final-20261122-green
+DELETE (supervisor, WhatIf checked): S:\Work\_tmp\PV\gpu-reco\test-pytest-r2-neon-final-20261122-p6-network
+DELETE (supervisor, WhatIf checked): S:\Work\_tmp\PV\gpu-reco\test-pytest-r2-neon-final-20261122-reco-certain
+DELETE (supervisor, WhatIf checked): S:\Work\_tmp\PV\gpu-reco\test-pytest-r2-neon-final-20261122-reco-context
+DELETE (supervisor, WhatIf checked): S:\Work\_tmp\PV\gpu-reco\test-pytest-r2-neon-final-20261122-reco-races
+DELETE (supervisor, WhatIf checked): S:\Work\_tmp\PV\gpu-reco\test-pytest-r2-neon-final-20261122-remote-variants
+DELETE (supervisor, WhatIf checked): S:\Work\_tmp\PV\gpu-reco\test-pytest-r2-neon-late-red-20261122
+DELETE (supervisor, WhatIf checked): S:\Work\_tmp\PV\gpu-reco\test-pytest-r2-neon-lineage-red-20261122
+DELETE (supervisor, WhatIf checked): S:\Work\_tmp\PV\gpu-reco\test-pytest-r2-neon-red-20261122
+KEEP until supervisor collects: branch gpu-reco and verify/gpu-reco-20261122/r2

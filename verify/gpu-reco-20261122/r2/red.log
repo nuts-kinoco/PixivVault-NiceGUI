@@ -1,0 +1,50 @@
+﻿FFFFFF.                                                                  [100%]
+================================== FAILURES ===================================
+_ test_view_projected_order_keeps_normal_thumbnail_urls_and_protected_positions _
+tests\test_recommendation_visual.py:250: in test_view_projected_order_keeps_normal_thumbnail_urls_and_protected_positions
+    assert [node.props['data-testid'] for node in _rendered(view)] == original_ids
+E   AssertionError: assert ['recommend-t...mb-certain-6'] == ['recommend-t...mb-certain-6']
+E     
+E     At index 0 diff: 'recommend-thumb-certain-2' != 'recommend-thumb-certain-1'
+E     Use -v to get more diff
+______ test_on_miss_keeps_only_the_active_operation_in_position[viewer] _______
+tests\test_recommendation_visual.py:340: in test_on_miss_keeps_only_the_active_operation_in_position
+    assert [_suffix(node) for node in _rendered(view)] == list('213456')
+E   AssertionError: assert ['1', '2', '3', '4', '5', '6'] == ['2', '1', '3', '4', '5', '6']
+E     
+E     At index 0 diff: '1' != '2'
+E     Use -v to get more diff
+_______ test_on_miss_keeps_only_the_active_operation_in_position[save] ________
+tests\test_recommendation_visual.py:340: in test_on_miss_keeps_only_the_active_operation_in_position
+    assert [_suffix(node) for node in _rendered(view)] == list('213456')
+E   AssertionError: assert ['1', '2', '3', '4', '5', '6'] == ['2', '1', '3', '4', '5', '6']
+E     
+E     At index 0 diff: '1' != '2'
+E     Use -v to get more diff
+_______ test_on_miss_keeps_only_the_active_operation_in_position[hide] ________
+tests\test_recommendation_visual.py:340: in test_on_miss_keeps_only_the_active_operation_in_position
+    assert [_suffix(node) for node in _rendered(view)] == list('213456')
+E   AssertionError: assert ['1', '2', '3', '4', '5', '6'] == ['2', '1', '3', '4', '5', '6']
+E     
+E     At index 0 diff: '1' != '2'
+E     Use -v to get more diff
+_ test_managed_thumb_revoked_between_route_validation_and_cache_capture_is_not_exposed _
+tests\test_recommendation_visual.py:387: in test_managed_thumb_revoked_between_route_validation_and_cache_capture_is_not_exposed
+    assert slate[0].slots[0].image is None
+E   assert ImageBlob(data=b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10\x00\x00\x00\x0c\x08\x02\x00\x00\x00\xe4\x85\xaa\x...\x00IEND\xaeB`\x82', media_type='image/png', etag='"211f24cb4d19fee58970bdd6052ba796ee252e1a7621c839b4dfc27d42b02a7c"') is None
+E    +  where ImageBlob(data=b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10\x00\x00\x00\x0c\x08\x02\x00\x00\x00\xe4\x85\xaa\x...\x00IEND\xaeB`\x82', media_type='image/png', etag='"211f24cb4d19fee58970bdd6052ba796ee252e1a7621c839b4dfc27d42b02a7c"') = RecommendationDisplaySlot(base=RecommendationWork(work_id='1', title='1', author_id='101', author_name='', thumbnail_u...70bdd6052ba796ee252e1a7621c839b4dfc27d42b02a7c"'), image_available=True, image_variant='saved_thumb', regular_sha=None).image
+_ test_view_exposure_record_failure_stays_off_ui_thread[capture_event_epoch] __
+tests\test_recommendation_visual.py:418: in test_view_exposure_record_failure_stays_off_ui_thread
+    assert all(tid != get_ident() for tid in threads)
+E   assert False
+E    +  where False = all(<generator object test_view_exposure_record_failure_stays_off_ui_thread.<locals>.<genexpr> at 0x000001F61196D560>)
+------------------------------ Captured log call ------------------------------
+WARNING  pixivvault_nicegui.learning_service:learning_service.py:38 visual preference observer notification failed (recommendation_exposure, RuntimeError)
+=========================== short test summary info ===========================
+FAILED tests/test_recommendation_visual.py::test_view_projected_order_keeps_normal_thumbnail_urls_and_protected_positions
+FAILED tests/test_recommendation_visual.py::test_on_miss_keeps_only_the_active_operation_in_position[viewer]
+FAILED tests/test_recommendation_visual.py::test_on_miss_keeps_only_the_active_operation_in_position[save]
+FAILED tests/test_recommendation_visual.py::test_on_miss_keeps_only_the_active_operation_in_position[hide]
+FAILED tests/test_recommendation_visual.py::test_managed_thumb_revoked_between_route_validation_and_cache_capture_is_not_exposed
+FAILED tests/test_recommendation_visual.py::test_view_exposure_record_failure_stays_off_ui_thread[capture_event_epoch]
+6 failed, 1 passed, 18 deselected in 8.80s

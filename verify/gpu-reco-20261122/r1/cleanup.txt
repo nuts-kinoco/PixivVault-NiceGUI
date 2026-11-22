@@ -1,0 +1,28 @@
+﻿D6_QUIET.flag present=True
+Owned pytest processes=0
+DELETE (supervisor): S:\Work\_tmp\PV\gpu-reco
+test-pytest-dev01-20261122
+test-pytest-dev02-20261122
+test-pytest-dev03-20261122
+test-pytest-evidence-20261122-green
+test-pytest-evidence-20261122-p6-network
+test-pytest-evidence-20261122-reco-certain
+test-pytest-evidence-20261122-reco-context
+test-pytest-evidence-20261122-reco-races
+test-pytest-evidence-20261122-remote-variants
+test-pytest-exit-20261122-green
+test-pytest-exit-20261122-p6-network
+test-pytest-exit-20261122-reco-certain
+test-pytest-exit-20261122-reco-context
+test-pytest-exit-20261122-reco-races
+test-pytest-exit-20261122-remote-variants
+test-pytest-final-20261122-green
+test-pytest-final-20261122-p6-network
+test-pytest-final-20261122-reco-certain
+test-pytest-final-20261122-reco-context
+test-pytest-final-20261122-reco-races
+test-pytest-final-20261122-remote-variants
+test-pytest-green-candidate-20261122
+test-pytest-p6-gpu-reco-20261122
+test-pytest-red-20261122
+KEEP until supervisor collects: branch gpu-reco and verify/gpu-reco-20261122/r1

@@ -1,0 +1,171 @@
+﻿Integrated full suite
+........................................................................ [  1%]
+........................................................................ [  3%]
+........................................................................ [  4%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 12%]
+......F................................................................. [ 14%]
+........................................................................ [ 16%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 20%]
+...................................F.................................... [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 36%]
+...............s........................................................ [ 38%]
+........................................................................ [ 40%]
+........s...................................s........................... [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 48%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+.F...................................................................... [ 61%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+........................................................................ [ 69%]
+........................................................................ [ 70%]
+........................................................................ [ 72%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 78%]
+........................................................................ [ 80%]
+...............................F........................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................F............... [ 89%]
+........................................................................ [ 91%]
+........................................................................ [ 93%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 97%]
+........................................................................ [ 99%]
+....................                                                     [100%]
+================================== FAILURES ===================================
+_________ test_open_learning_trend_removes_stale_projection[disabled] _________
+tests\test_ak_r6_race_failure_20261119.py:217: in test_open_learning_trend_removes_stale_projection
+    DemoShell.apply_preferences(shell)
+src\pixivvault_nicegui\ui\shell.py:429: in apply_preferences
+    self.services.apply_preferences(snapshot)
+tests\test_ak_r6_race_failure_20261119.py:214: in <lambda>
+    app.apply_preferences = lambda snapshot: ApplicationServices.apply_preferences(app, snapshot)
+                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\services.py:1333: in apply_preferences
+    self.sync_visual_preference(snapshot)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'FakeServices' object has no attribute 'sync_visual_preference'
+_____ test_recommendation_viewer_change_is_applied_after_inflight_refresh _____
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\locks.py:213: in wait
+    await fut
+E   asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+tests\test_d6_cardgrid_r4.py:115: in test_recommendation_viewer_change_is_applied_after_inflight_refresh
+    await asyncio.wait_for(done.wait(), 2)
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\tasks.py:506: in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\timeouts.py:116: in __aexit__
+    raise TimeoutError from exc_val
+E   TimeoutError
+__ test_recommendation_lazy_media_and_dismissals_with_actual_work7_settings ___
+tests\test_recommendation_visual_browser.py:88: in test_recommendation_lazy_media_and_dismissals_with_actual_work7_settings
+    assert server.is_alive()
+E   assert False
+E    +  where False = is_alive()
+E    +    where is_alive = <Thread(Thread-1237 (<lambda>), stopped 141544)>.is_alive
+______________ test_visual_settings_dialog_keyboard_and_contrast ______________
+tests\test_visual_preference_browser.py:41: in test_visual_settings_dialog_keyboard_and_contrast
+    previous_server = Server.instance
+                      ^^^^^^^^^^^^^^^
+E   AttributeError: type object 'Server' has no attribute 'instance'
+____________ test_select_many_targets_has_bounded_rendering[20000] ____________
+tests\test_w_bulk_performance_20261118.py:25: in test_select_many_targets_has_bounded_rendering
+    assert elapsed < 1.0
+E   assert 1.0648240000009537 < 1.0
+---------------------------- Captured stdout call -----------------------------
+count=20000 select=1.065s chips=400
+============================== warnings summary ===============================
+..\..\..\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\fastapi\testclient.py:1
+  S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_l14_bookmark_count.py: 12 warnings
+  S:\Work\PV\gpu-reco-20261122\src\pixivvault_nicegui\managed_viewer_page.py:51: DeprecationWarning: pathlib.PurePath.is_reserved() is deprecated and scheduled for removal in Python 3.15. Use os.path.isreserved() to detect reserved paths on Windows.
+    value.endswith((' ', '.')) or PureWindowsPath(value).is_reserved()):
+
+tests/test_recommendation_visual_browser.py::test_recommendation_lazy_media_and_dismissals_with_actual_work7_settings
+  S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-1237 (<lambda>)
+  
+  Traceback (most recent call last):
+    File "C:\Users\nat\miniconda3\envs\stenv\Lib\threading.py", line 1044, in _bootstrap_inner
+      self.run()
+      ~~~~~~~~^^
+    File "C:\Users\nat\miniconda3\envs\stenv\Lib\threading.py", line 995, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "S:\Work\PV\gpu-reco-20261122\tests\test_recommendation_visual_browser.py", line 77, in <lambda>
+      server = Thread(target=lambda: ui.run(host='127.0.0.1', port=0, show=False, reload=False,
+                                     ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                            show_welcome_message=False))
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\nicegui\ui_run.py", line 138, in run
+      raise RuntimeError(
+      ...<2 lines>...
+      )
+  RuntimeError: ui.page cannot be used in NiceGUI scripts when UI is defined in the global scope.
+  To use multiple pages, either move all UI into page functions or use ui.sub_pages.
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_required_legacy_duplicates.py::test_unsafe_or_duplicate_zip_members_do_not_publish[same.png]
+  C:\Users\nat\miniconda3\envs\stenv\Lib\zipfile\__init__.py:1655: UserWarning: Duplicate name: 'same.png'
+    return self._open_to_write(zinfo, force_zip64=force_zip64)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================= slowest 8 durations =============================
+76.02s call     tests/test_cookie_auto_extract_20261117.py::test_no_extraction_when_the_state_is_not_an_expiry[busy]
+39.66s call     tests/test_ah_physical_20261119.py::test_physical_zip_removal_preserves_archives_above_zip32_member_limit
+30.98s call     tests/test_t_dl_capacity_20261117.py::test_first_run_of_12000_works_does_not_overflow_the_operation_ledger
+19.90s call     tests/test_v_dl_integrity_20261117.py::test_d3_a_reader_never_sees_a_spurious_rejection_while_a_writer_saves_and_folds
+19.67s call     tests/test_v_dl_cap_20261117.py::test_an_index_larger_than_the_old_2mib_limit_loads_and_keeps_publishing
+16.50s call     tests/test_ag_sol_cookie_retention_20261119.py::test_repeated_expiry_extensions_bound_and_prune_generations
+13.35s call     tests/test_v_dl_cap_20261117.py::test_calls_do_not_reverify_every_receipt
+11.25s call     tests/test_w_review_bookmark_resume_20261118.py::test_interrupted_bookmark_run_restores_list_before_finishing
+=========================== short test summary info ===========================
+SKIPPED [1] tests\test_legacy_managed_startup.py:306: symlink creation unavailable
+SKIPPED [1] tests\test_managed_downloads.py:257: symlink requires privileges
+SKIPPED [1] tests\test_managed_network_stop_gate.py:263: symlink unavailable
+FAILED tests/test_ak_r6_race_failure_20261119.py::test_open_learning_trend_removes_stale_projection[disabled]
+FAILED tests/test_d6_cardgrid_r4.py::test_recommendation_viewer_change_is_applied_after_inflight_refresh
+FAILED tests/test_recommendation_visual_browser.py::test_recommendation_lazy_media_and_dismissals_with_actual_work7_settings
+FAILED tests/test_visual_preference_browser.py::test_visual_settings_dialog_keyboard_and_contrast
+FAILED tests/test_w_bulk_performance_20261118.py::test_select_many_targets_has_bounded_rendering[20000]
+5 failed, 4476 passed, 3 skipped, 3 deselected, 15 warnings in 2071.68s (0:34:31)
+pytest exit=1

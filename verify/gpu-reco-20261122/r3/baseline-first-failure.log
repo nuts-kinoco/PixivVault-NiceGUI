@@ -1,0 +1,17 @@
+﻿F                                                                        [100%]
+================================== FAILURES ===================================
+_________ test_open_learning_trend_removes_stale_projection[disabled] _________
+tests\test_ak_r6_race_failure_20261119.py:217: in test_open_learning_trend_removes_stale_projection
+    DemoShell.apply_preferences(shell)
+src\pixivvault_nicegui\ui\shell.py:429: in apply_preferences
+    self.services.apply_preferences(snapshot)
+tests\test_ak_r6_race_failure_20261119.py:214: in <lambda>
+    app.apply_preferences = lambda snapshot: ApplicationServices.apply_preferences(app, snapshot)
+                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\services.py:1333: in apply_preferences
+    self.sync_visual_preference(snapshot)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'FakeServices' object has no attribute 'sync_visual_preference'
+=========================== short test summary info ===========================
+FAILED tests/test_ak_r6_race_failure_20261119.py::test_open_learning_trend_removes_stale_projection[disabled]
+1 failed in 2.86s
