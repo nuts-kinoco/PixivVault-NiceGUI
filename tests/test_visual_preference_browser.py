@@ -7,7 +7,9 @@ from types import SimpleNamespace
 import pytest
 
 
-def test_visual_settings_dialog_keyboard_and_contrast(tmp_path):
+def test_visual_settings_dialog_keyboard_and_contrast(tmp_path, monkeypatch):
+    # NiceGUI 3.x reads this port under pytest; port 0 lets the OS pick a free one.
+    monkeypatch.setenv('NICEGUI_SCREEN_TEST_PORT', '0')
     quiet = Path(r'S:\Work\_tmp\PV\sup\D6_QUIET.flag')
     if quiet.is_file():
         pytest.skip('D6 quiet window')
@@ -38,7 +40,7 @@ def test_visual_settings_dialog_keyboard_and_contrast(tmp_path):
         ui.button('ライト', on_click=theme.disable).props('data-testid=light-theme')
         ui.context.client.on_delete(view.close)
 
-    previous_server = Server.instance
+    previous_server = getattr(Server, 'instance', None)
     server = Thread(target=lambda: ui.run(host='127.0.0.1', port=0, show=False, reload=False,
                                           show_welcome_message=False))
     started = False
@@ -48,7 +50,10 @@ def test_visual_settings_dialog_keyboard_and_contrast(tmp_path):
         server.start()
         started = True
         deadline = monotonic() + 10
-        while (Server.instance is previous_server or not Server.instance.started) and server.is_alive():
+        while server.is_alive():
+            active_server = getattr(Server, 'instance', None)
+            if active_server is not previous_server and active_server is not None and active_server.started:
+                break
             assert monotonic() < deadline, 'test web server did not start'
             sleep(0.05)
         assert server.is_alive()
@@ -95,8 +100,9 @@ def test_visual_settings_dialog_keyboard_and_contrast(tmp_path):
             finally:
                 context.close()
     finally:
-        if started and Server.instance is not previous_server:
-            Server.instance.should_exit = True
+        active_server = getattr(Server, 'instance', None)
+        if started and active_server is not None and active_server is not previous_server:
+            active_server.should_exit = True
             server.join(10)
             assert not server.is_alive()
         app.remove_route(route)

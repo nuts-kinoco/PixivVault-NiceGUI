@@ -210,6 +210,7 @@ async def test_open_learning_trend_removes_stale_projection(tmp_path, fixture, m
             app.preferences = store
             app._sync_metadata_auto = lambda: None
             app._sync_similarity_auto = lambda: None
+            app.sync_visual_preference = lambda *a, **k: None
             app.shared_image_cache = None
             app.apply_preferences = lambda snapshot: ApplicationServices.apply_preferences(app, snapshot)
             shell = SimpleNamespace(services=app, learning=view, gallery=None,
