@@ -245,9 +245,13 @@ class FailedRecordsView:
         self._retry_unaccepted_tip.set_visibility(not opted_in)
         self.cancel_retry_button.set_visibility(self._retry_busy)
         self.cancel_retry_button.set_enabled(self._retry_busy and self._allowed())
-        self.retry_all.set_text(
-            f'全 {len(matched)} 件中 {eligible_count} 件を再試行（{len(matched) - eligible_count} 件は対象外）'
-            if self._loaded else '失敗記録は未取得です')
+        if not self._loaded:
+            self.retry_all.set_text('失敗記録は未取得です')
+        elif not matched:
+            self.retry_all.set_text('再試行できる対応作品がありません')
+        else:
+            self.retry_all.set_text(
+                f'全 {len(matched)} 件中 {eligible_count} 件を再試行（{len(matched) - eligible_count} 件は対象外）')
         show_summary = self._loaded and bool(matched) and eligible_count == 0
         self.retry_exclusions.set_visibility(show_summary)
         if show_summary:
@@ -368,16 +372,15 @@ class FailedRecordsView:
         from ..services import ApplicationServices
         return ApplicationServices._supported_failed_original(item)
 
-    @staticmethod
-    def _retry_exclusion_reason(item) -> str:
+    def _retry_exclusion_reason(self, item) -> str:
         # Display only: the service predicate still decides whether a row can be retried.
         if item.work_type not in ('illust', 'manga', 'novel'):
             return '対応していない作品種別です'
-        if re.fullmatch(r'[1-9][0-9]{0,19}', item.work_id) is None:
+        if type(item.work_id) is not str or re.fullmatch(r'[1-9][0-9]{0,19}', item.work_id) is None:
             return '作品 ID が有効な数字ではありません'
-        if re.fullmatch(r'[1-9][0-9]{0,19}', item.user_id) is None:
+        if type(item.user_id) is not str or re.fullmatch(r'[1-9][0-9]{0,19}', item.user_id) is None:
             return 'ユーザー ID が有効な数字ではありません'
-        if item.work_type == 'novel':
+        if item.work_type == 'novel' and getattr(self.services, 'novel_jobs', None) is None:
             return '小説の保存先が設定されていません'
         return 'この作品を安全に再試行できません'
 

@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pytest
 from nicegui import Client, ui
 from pixivvault_nicegui.failed_records_state import FailureRecord, FailedRecordsState, PAGE_SIZE
@@ -68,6 +70,39 @@ async def test_retry_counts_use_filtered_records_and_rows_explain_exclusions(mon
                 assert view.retry_all.text == '全 8 件中 8 件を再試行（0 件は対象外）'
                 assert not view.retry_exclusions.visible
                 assert not row_guidance(view)
+            finally:
+                view.close()
+    finally:
+        client.delete()
+
+
+@pytest.mark.parametrize(('work', 'user', 'reason'), [
+    (None, '7', '作品 ID が有効な数字ではありません'),
+    ('2', 0, 'ユーザー ID が有効な数字ではありません'),
+], ids=['work-type', 'user-type'])
+def test_exclusion_explains_non_text_identity(work, user, reason):
+    view = object.__new__(FailedRecordsView)
+    view.services = RetryConnection()
+    item = SimpleNamespace(work_type='illust', work_id=work, user_id=user)
+    assert view._retry_exclusion_reason(item) == reason
+
+
+def test_other_exclusion_does_not_claim_novel_path_missing():
+    view = object.__new__(FailedRecordsView)
+    view.services = SimpleNamespace(novel_jobs=object())
+    assert view._retry_exclusion_reason(record('2', kind='novel')) == 'この作品を安全に再試行できません'
+
+
+@pytest.mark.asyncio
+async def test_empty_filter_shows_disabled_retry_message():
+    client = Client(ui.page('/review-empty-retry'))
+    try:
+        with client:
+            view = FailedRecordsView(RetryConnection())
+            try:
+                view.search('一致しない試験文字列')
+                assert not view.retry_all.enabled
+                assert view.retry_all.text == '再試行できる対応作品がありません'
             finally:
                 view.close()
     finally:
