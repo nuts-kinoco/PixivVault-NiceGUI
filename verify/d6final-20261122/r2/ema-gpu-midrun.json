@@ -1,0 +1,8 @@
+{
+    "observed_at":  "2026-11-22T12:12:19.0443428+09:00",
+    "source":  "Win32 GPU engine performance counters",
+    "provider_available":  true,
+    "ema_processes_seen":  9,
+    "ema_counters_seen":  16,
+    "ema_active_engine_pct_max":  28
+}

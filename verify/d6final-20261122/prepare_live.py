@@ -11,7 +11,7 @@ import sqlite3
 import sys
 
 from preflight import SCRATCH, WORKTREE, copied_path, open_snapshot, selected_cookie_copy
-from live_gate import Ledger
+from live_gate import Ledger, ROUND_THREE_PRIOR, RUN_CAPS, require_quiet_window
 
 BACKUP = Path("S:/Projects/PV-DEV-20261117/backup/realprofile-20261122-r8")
 RUNNER = WORKTREE / "verify" / "d6e-20261121" / "measure.py"
@@ -27,7 +27,9 @@ def selected_media(storage):
 
 
 def prepare(root, prior_attempts=0, *, fake=False, owner_open_at=None):
-    from pixivvault_nicegui.managed_network_stop_history_readonly import _check_marker
+    from pixivvault_nicegui.managed_network_stop_history_readonly import (
+        _check_marker, read_existing_stop_history_readonly,
+    )
     from pixivvault_nicegui.managed_network_stop_profile_scope import ManagedProfileNetworkStopScope
     from pixivvault_nicegui.managed_network_stop_startup import open_or_initialize_windows_user_stop
     from pixivvault_nicegui.native_profile import NativeProfileStore
@@ -36,8 +38,10 @@ def prepare(root, prior_attempts=0, *, fake=False, owner_open_at=None):
     if not fake:
         if (owner_open_at is None or owner_open_at.utcoffset() is None
                 or owner_open_at.astimezone().date() != datetime.now().date()
-                or owner_open_at > datetime.now().astimezone() or prior_attempts != 83):
+                or owner_open_at > datetime.now().astimezone() or prior_attempts not in RUN_CAPS):
             raise ValueError("current operator confirmation and shared count required")
+        if prior_attempts == ROUND_THREE_PRIOR:
+            require_quiet_window()
     copied_path(SCRATCH, root)
     if root == SCRATCH:
         raise ValueError("use a dedicated run directory")
@@ -54,6 +58,15 @@ def prepare(root, prior_attempts=0, *, fake=False, owner_open_at=None):
         for entry in old.rglob("*"):
             copied_path(src, entry)
         shutil.copytree(old, new)
+    if prior_attempts == ROUND_THREE_PRIOR:
+        observation = read_existing_stop_history_readonly(profile, owner_kind="native")
+        evidence = {"observed_at": datetime.now().astimezone().isoformat(),
+                    "state": observation.state, "status": observation.status_code,
+                    "revision": observation.revision,
+                    "blocked": {"observed_unblocked": 0, "observed_stopped": 1}.get(observation.state)}
+        (root / "prepare-profile-stop.json").write_text(json.dumps(evidence), encoding="ascii")
+        if observation.state != "observed_unblocked":
+            return {"status": observation.state, "scope": "profile", "http_code": observation.status_code}
     with open_snapshot(root, profile / "profile.sqlite3") as db:
         selected, old_save, db_path, images_path = db.execute(
             "SELECT cookie_file,save_parent,library_readonly_db,library_image_root "

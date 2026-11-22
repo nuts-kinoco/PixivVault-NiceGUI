@@ -1,0 +1,75 @@
+{
+    "observed_at":  "2026-11-22T12:27:38.0048011+09:00",
+    "sample_seconds":  4.1,
+    "cpu_pct":  14,
+    "cpu_method":  "summed_sampled_process_cpu",
+    "ema_cpu_pct":  0,
+    "ema_core_equivalents":  0,
+    "ema_gpu_counters_seen":  0,
+    "ema_gpu_max_engine_pct":  null,
+    "ordinary_browser_cpu_pct":  3.05,
+    "other_heavy_processes":  [
+                                  {
+                                      "kind":  "other_cpu_worker",
+                                      "pid":  115556,
+                                      "cpu_pct":  6.1
+                                  },
+                                  {
+                                      "kind":  "browser_automation",
+                                      "pid":  86612,
+                                      "cpu_pct":  null
+                                  },
+                                  {
+                                      "kind":  "browser_automation",
+                                      "pid":  131140,
+                                      "cpu_pct":  null
+                                  },
+                                  {
+                                      "kind":  "browser_automation",
+                                      "pid":  36776,
+                                      "cpu_pct":  null
+                                  },
+                                  {
+                                      "kind":  "browser_automation",
+                                      "pid":  136972,
+                                      "cpu_pct":  null
+                                  }
+                              ],
+    "idle_agent_processes":  [
+                                 {
+                                     "pid":  16976,
+                                     "cpu_pct":  0
+                                 },
+                                 {
+                                     "pid":  41164,
+                                     "cpu_pct":  0
+                                 },
+                                 {
+                                     "pid":  135172,
+                                     "cpu_pct":  0
+                                 },
+                                 {
+                                     "pid":  19384,
+                                     "cpu_pct":  0
+                                 },
+                                 {
+                                     "pid":  126060,
+                                     "cpu_pct":  0
+                                 },
+                                 {
+                                     "pid":  137412,
+                                     "cpu_pct":  0
+                                 },
+                                 {
+                                     "pid":  3460,
+                                     "cpu_pct":  0
+                                 }
+                             ],
+    "quiet":  false,
+    "owned_running":  [
+
+                      ],
+    "measurement_ports_listening":  [
+
+                                    ]
+}

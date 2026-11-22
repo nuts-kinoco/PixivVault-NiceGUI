@@ -1,0 +1,87 @@
+{
+    "observed_at":  "2026-11-22T11:56:20.1863486+09:00",
+    "sample_seconds":  5.36,
+    "cpu_pct":  71,
+    "cpu_method":  "summed_sampled_process_cpu",
+    "ema_cpu_pct":  52.53,
+    "ema_core_equivalents":  8.4,
+    "ordinary_browser_cpu_pct":  3.5,
+    "other_heavy_processes":  [
+                                  {
+                                      "kind":  "agent_job",
+                                      "pid":  19384,
+                                      "cpu_pct":  9.34
+                                  },
+                                  {
+                                      "kind":  "browser_automation",
+                                      "pid":  132972,
+                                      "cpu_pct":  0
+                                  },
+                                  {
+                                      "kind":  "browser_automation",
+                                      "pid":  81568,
+                                      "cpu_pct":  0
+                                  },
+                                  {
+                                      "kind":  "browser_automation",
+                                      "pid":  28760,
+                                      "cpu_pct":  0
+                                  },
+                                  {
+                                      "kind":  "browser_automation",
+                                      "pid":  136768,
+                                      "cpu_pct":  3.5
+                                  },
+                                  {
+                                      "kind":  "other_cpu_worker",
+                                      "pid":  100672,
+                                      "cpu_pct":  5.84
+                                  }
+                              ],
+    "idle_agent_processes":  [
+                                 {
+                                     "pid":  16976,
+                                     "cpu_pct":  0
+                                 },
+                                 {
+                                     "pid":  41164,
+                                     "cpu_pct":  0
+                                 },
+                                 {
+                                     "pid":  135172,
+                                     "cpu_pct":  0
+                                 }
+                             ],
+    "quiet":  false,
+    "owned_running":  [
+                          {
+                              "pid":  110940,
+                              "name":  "python.exe",
+                              "started":  "2026-11-22T02:55:39.3951510Z"
+                          },
+                          {
+                              "pid":  137380,
+                              "name":  "python.exe",
+                              "started":  "2026-11-22T02:55:45.2753030Z"
+                          },
+                          {
+                              "pid":  126480,
+                              "name":  "python.exe",
+                              "started":  "2026-11-22T02:55:45.3248900Z"
+                          },
+                          {
+                              "pid":  137892,
+                              "name":  "node.exe",
+                              "started":  "2026-11-22T02:55:51.6095350Z"
+                          },
+                          {
+                              "pid":  135460,
+                              "name":  "chrome-headless-shell.exe",
+                              "started":  "2026-11-22T02:55:53.2242780Z"
+                          }
+                      ],
+    "measurement_ports_listening":  [
+                                        22830,
+                                        22840
+                                    ]
+}

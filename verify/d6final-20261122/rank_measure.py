@@ -13,7 +13,7 @@ import sys
 from time import perf_counter, sleep
 from urllib.parse import urlsplit
 
-from live_gate import Ledger, require_operator_confirmation
+from live_gate import Ledger, ROUND_THREE_PRIOR, require_operator_confirmation
 from preflight import SCRATCH, copied_path
 from ranking_server import ORIGINAL_IMAGE, PORTS, nice_scope
 from timing import StopRun, summarize_pairs
@@ -190,9 +190,12 @@ def render_stages(root, side, begin, end):
     }
 
 
-def inspect_host(root, phase, path, *, deadline=None):
+def inspect_host(root, phase, path, *, deadline=None, strict_quiet=False):
     """Take load readings between timing intervals, pausing on external work."""
+    window = Ledger(root) if strict_quiet else None
     while True:
+        if window is not None:
+            window.check_quiet_window()
         subprocess.run(
             ["powershell.exe", "-NoProfile", "-File", str(HERE / "host_check.ps1"),
              "-EvidencePath", str(path), "-RunRoot", str(root)],
@@ -205,7 +208,12 @@ def inspect_host(root, phase, path, *, deadline=None):
         result["wait_expired"] = not result["quiet"] and deadline is not None and remaining <= 0
         with (root / "host-observations.jsonl").open("a", encoding="ascii") as trace:
             trace.write(json.dumps(result, ensure_ascii=True) + "\n")
-        if result["quiet"] or remaining <= 0:
+        if result["quiet"]:
+            return
+        if remaining <= 0:
+            if window is not None:
+                window.halt("host_busy")
+                raise StopRun("host_busy")
             return
         sleep(min(20, remaining))
 
@@ -217,6 +225,7 @@ def recheck_profile_gate(root):
     save(root, "runtime-profile-stop.json", {
         "observed_at": datetime.now().astimezone().isoformat(), "state": snapshot.state,
         "status": snapshot.status_code, "revision": snapshot.revision,
+        "blocked": {"observed_unblocked": 0, "observed_stopped": 1}.get(snapshot.state),
     })
     if snapshot.state != "observed_unblocked":
         raise StopRun("product_stop")
@@ -243,6 +252,7 @@ def sample(ledger, page, button, side, pair, observe_image):
     box = button.bounding_box()
     if not box:
         raise StopRun("transport")
+    preclick_wait = ledger.wait_before_click()
     begin = perf_counter()
     page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
     metadata = metadata_ready(page, side, require_transition=True)
@@ -265,6 +275,7 @@ def sample(ledger, page, button, side, pair, observe_image):
     stage["metadata_ms"] = (metadata - begin) * 1000
     stage["metadata_to_image_ms"] = (paint - metadata) * 1000 if observe_image else None
     stage["decode_wait_ms"] = decode_wait
+    stage["preclick_wait_ms"] = preclick_wait
     if side == "original":
         status = page.evaluate(ORIGINAL_STATUS)
     else:
@@ -292,6 +303,7 @@ def measure(root, repetitions, *, fake=False, wait_until=None):
         raise ValueError("measurement requires an unused ledger")
     if state["stop"]:
         raise StopRun(state["stop"])
+    strict_quiet = state["prior_attempts"] == ROUND_THREE_PRIOR
     paths = {side: urlsplit(f"http://127.0.0.1:{port}").netloc for side, port in PORTS.items()}
     os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", str(Path(os.environ["LOCALAPPDATA"]) / "ms-playwright"))
     os.environ.update(TEMP=str(root), TMP=str(root), TMPDIR=str(root))
@@ -306,7 +318,8 @@ def measure(root, repetitions, *, fake=False, wait_until=None):
             if wait_until is None:
                 wait_until = datetime.now().astimezone() + timedelta(hours=1)
             phase = "before_launch"
-            inspect_host(root, phase, root / "host-latest.json", deadline=wait_until)
+            inspect_host(root, phase, root / "host-latest.json", deadline=wait_until,
+                         strict_quiet=strict_quiet)
             recheck_profile_gate(root)
         phase = "launch"
         check_product_stop(ledger)
@@ -355,11 +368,13 @@ def measure(root, repetitions, *, fake=False, wait_until=None):
                 check_product_stop(ledger)
             observe_image = all(image_visibility.values())
             phase = "process_inventory"
-            inspect_host(root, phase, root / "processes-running.json", deadline=wait_until)
+            inspect_host(root, phase, root / "processes-running.json", deadline=wait_until,
+                         strict_quiet=strict_quiet)
             for index in range(repetitions):
                 if index and not fake:
                     phase = f"before_pair_{index + 1}"
-                    inspect_host(root, phase, root / "host-latest.json", deadline=wait_until)
+                    inspect_host(root, phase, root / "host-latest.json", deadline=wait_until,
+                                 strict_quiet=strict_quiet)
                 for side in (("original", "nice") if index % 2 == 0 else ("nice", "original")):
                     if date.today() != measurement_date:
                         raise StopRun("transport")
