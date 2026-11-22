@@ -1,0 +1,4 @@
+............F                                                            [100%]
+=========================== short test summary info ===========================
+FAILED tests/test_premium_popup_recovery.py::test_messages_no_longer_point_to_removed_shaft_tab
+1 failed, 12 passed in 11.54s

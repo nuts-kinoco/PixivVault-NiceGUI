@@ -1,0 +1,48 @@
+FFFFFFF                                                                  [100%]
+================================== FAILURES ===================================
+_______ test_header_off_is_for_current_launch_and_saved_borrow_restores _______
+tests\test_smalldec_borrow_startup_20261122.py:33: in test_header_off_is_for_current_launch_and_saved_borrow_restores
+    assert '次回起動時は ON に戻ります' in shell.borrow_dialog.notice.text
+E   AssertionError: assert '次回起動時は ON に戻ります' in ''
+E    +  where '' = <nicegui.elements.label.Label object at 0x0000023FD0EEBD40>.text
+E    +    where <nicegui.elements.label.Label object at 0x0000023FD0EEBD40> = <pixivvault_nicegui.ui.premium_gate_view.PremiumGateDialog object at 0x0000023FD11F9550>.notice
+E    +      where <pixivvault_nicegui.ui.premium_gate_view.PremiumGateDialog object at 0x0000023FD11F9550> = <pixivvault_nicegui.ui.shell.DemoShell object at 0x0000023FD11F8980>.borrow_dialog
+____ test_benchmark_startup_override_preserves_saved_borrow_configuration _____
+tests\test_smalldec_borrow_startup_20261122.py:63: in test_benchmark_startup_override_preserves_saved_borrow_configuration
+    assert not gate.status()['enabled']
+E   assert not True
+_______ test_missing_configuration_shows_an_entry_without_opening_popup _______
+tests\test_smalldec_borrow_startup_20261122.py:97: in test_missing_configuration_shows_an_entry_without_opening_popup
+    assert '借用プレミアムを使うには初期設定が必要です' in dialog.notice.text
+E   AssertionError: assert '借用プレミアムを使うには初期設定が必要です' in ''
+E    +  where '' = <nicegui.elements.label.Label object at 0x0000023FD0E56F90>.text
+E    +    where <nicegui.elements.label.Label object at 0x0000023FD0E56F90> = <pixivvault_nicegui.ui.premium_gate_view.PremiumGateDialog object at 0x0000023FD0C2A5D0>.notice
+________ test_busy_and_budget_guidance_asks_user_to_retry_later[busy] _________
+tests\test_smalldec_borrow_startup_20261122.py:112: in test_busy_and_budget_guidance_asks_user_to_retry_later
+    assert 'しばらくしてから再試行' in unavailable_message(code)
+E   AssertionError: assert 'しばらくしてから再試行' in '借用アカウントの準備中です。しばらく待ってからもう一度「取得・更新」を押してください。'
+E    +  where '借用アカウントの準備中です。しばらく待ってからもう一度「取得・更新」を押してください。' = unavailable_message('busy')
+____ test_busy_and_budget_guidance_asks_user_to_retry_later[payout-limit] _____
+tests\test_smalldec_borrow_startup_20261122.py:112: in test_busy_and_budget_guidance_asks_user_to_retry_later
+    assert 'しばらくしてから再試行' in unavailable_message(code)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: argument of type 'NoneType' is not iterable
+__ test_busy_and_budget_guidance_asks_user_to_retry_later[account-cooldown] ___
+tests\test_smalldec_borrow_startup_20261122.py:112: in test_busy_and_budget_guidance_asks_user_to_retry_later
+    assert 'しばらくしてから再試行' in unavailable_message(code)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: argument of type 'NoneType' is not iterable
+_ test_busy_and_budget_guidance_asks_user_to_retry_later[borrow-accounts-cooling-down] _
+tests\test_smalldec_borrow_startup_20261122.py:112: in test_busy_and_budget_guidance_asks_user_to_retry_later
+    assert 'しばらくしてから再試行' in unavailable_message(code)
+E   AssertionError: assert 'しばらくしてから再試行' in 'すべての借用アカウントが待機中です。通信を止めました。設定の借用プレミアムの状態で再開までの時間を確認してください。'
+E    +  where 'すべての借用アカウントが待機中です。通信を止めました。設定の借用プレミアムの状態で再開までの時間を確認してください。' = unavailable_message('borrow-accounts-cooling-down')
+=========================== short test summary info ===========================
+FAILED tests/test_smalldec_borrow_startup_20261122.py::test_header_off_is_for_current_launch_and_saved_borrow_restores
+FAILED tests/test_smalldec_borrow_startup_20261122.py::test_benchmark_startup_override_preserves_saved_borrow_configuration
+FAILED tests/test_smalldec_borrow_startup_20261122.py::test_missing_configuration_shows_an_entry_without_opening_popup
+FAILED tests/test_smalldec_borrow_startup_20261122.py::test_busy_and_budget_guidance_asks_user_to_retry_later[busy]
+FAILED tests/test_smalldec_borrow_startup_20261122.py::test_busy_and_budget_guidance_asks_user_to_retry_later[payout-limit]
+FAILED tests/test_smalldec_borrow_startup_20261122.py::test_busy_and_budget_guidance_asks_user_to_retry_later[account-cooldown]
+FAILED tests/test_smalldec_borrow_startup_20261122.py::test_busy_and_budget_guidance_asks_user_to_retry_later[borrow-accounts-cooling-down]
+7 failed in 5.83s
