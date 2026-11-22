@@ -49,8 +49,9 @@
   }
 </style>
 <main>
+  <p><strong>統合済み・参照用</strong> · <a href="UI_NAV_RESTRUCTURE_20261122.html">統合ワイヤーフレームを開く</a></p>
   <h1>カスタムランキング</h1>
-  <div class="window">
+  <div class="window" inert>
     <div class="banner" role="status">⚠ 本番DBを使用中　保存先を確認</div>
     <header class="header">
       <strong>PixivVault</strong>
@@ -67,13 +68,13 @@
       </div>
     </header>
     <nav class="tabs" aria-label="メインナビゲーション">
-      <button type="button" aria-label="ダウンロード" title="ダウンロード">保存</button>
+      <button type="button">ダウンロード</button>
       <button type="button">キュー</button>
-      <button type="button" aria-label="失敗リスト" title="失敗リスト">失敗</button>
+      <button type="button">失敗リスト</button>
       <button type="button">重複整理</button>
       <button type="button">学習</button>
       <button type="button">ランキング</button>
-      <button type="button" class="active" aria-current="page" aria-label="カスタムランキング">自分</button>
+      <button type="button" class="active" aria-current="page">カスタムランキング</button>
       <button type="button">ライブラリ</button>
       <button type="button">おすすめ</button>
       <button type="button">定期チェック</button>
@@ -115,19 +116,5 @@
     card.append('合成作品 ' + i);
     gallery.append(card);
   }
-  const toggle = document.querySelector('#toggle');
-  const filters = document.querySelector('#filters');
-  function setExpanded(expanded) {
-    filters.hidden = !expanded;
-    toggle.textContent = expanded ? '絞り込み ▴' : '絞り込み ▾';
-    toggle.setAttribute('aria-expanded', String(expanded));
-  }
-  toggle.addEventListener('click', () => setExpanded(filters.hidden));
-  filters.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && !event.isComposing) {
-      setExpanded(false);
-      toggle.focus();
-    }
-  });
 </script>
 </html>
