@@ -49,6 +49,11 @@ do {
 $ema = @()
 $other = @()
 $browsers = @()
+$idleAgents = @()
+$emaPids = @($snapshot | Where-Object {
+    $_.Name -match '^(python|node|llama).*\.exe$' -and
+    ([string]$_.CommandLine) -match '(?i)emakino|emakinoco|comfyui|[\\/]ema[\\/]'
+} | Select-Object -ExpandProperty ProcessId)
 foreach ($entry in $snapshot) {
     $processId = [int]$entry.ProcessId
     if ($processId -in $parents -or $owned.ContainsKey($processId)) { continue }
@@ -61,13 +66,27 @@ foreach ($entry in $snapshot) {
         } else {
             $browsers += $used
         }
+    } elseif ($processId -in $emaPids) {
+        $ema += $used
     } elseif ($entry.Name -match '^(python|node|codex|claude).*\.exe$') {
         if ($command -match '\bpytest\b') {
             $kind = 'pytest'
         } elseif ($command -match '(?i)codex(?:\.exe)?[" ]+exec|sol[-_ ]checker|job_runner') {
-            $kind = 'agent_job'
-        } elseif ($command -match '(?i)emakino|emakinoco|comfyui') {
-            $ema += $used
+            $tree = @($processId)
+            do {
+                $treeSize = $tree.Count
+                $tree += @($snapshot | Where-Object {
+                    $_.ParentProcessId -in $tree -and $_.ProcessId -notin $tree
+                } | Select-Object -ExpandProperty ProcessId)
+            } while ($tree.Count -gt $treeSize)
+            $used = [Math]::Round((($tree | Where-Object { $_ -notin $emaPids } |
+                ForEach-Object { $cpu[[int]$_] } |
+                Measure-Object -Sum).Sum), 2)
+            if ($used -ge 1) {
+                $kind = 'agent_job'
+            } else {
+                $idleAgents += [ordered]@{pid = $processId; cpu_pct = $used}
+            }
         } elseif ($used -ge 5) {
             $kind = 'other_cpu_worker'
         }
@@ -109,15 +128,20 @@ if ($RunRoot) {
 $ports = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties()
 $systemCpu = [Math]::Round((($cpu.GetEnumerator() | Where-Object Key -ne 0 |
     ForEach-Object Value | Measure-Object -Sum).Sum), 2)
+# A single logical CPU is low host load on this host. Round the sampled
+# core-equivalent to allow for timer quantization at one fully used core.
+$emaCores = $emaCpu * $cores / 100
 $result = [ordered]@{
     observed_at = [DateTimeOffset]::Now.ToString('o')
     sample_seconds = [Math]::Round($seconds, 2)
     cpu_pct = [Math]::Min(100, $systemCpu)
     cpu_method = 'summed_sampled_process_cpu'
     ema_cpu_pct = $emaCpu
+    ema_core_equivalents = [Math]::Round($emaCores, 2)
     ordinary_browser_cpu_pct = $browserCpu
     other_heavy_processes = $other
-    quiet = ($other.Count -eq 0 -and $emaCpu -lt 5 -and $browserCpu -lt 5)
+    idle_agent_processes = $idleAgents
+    quiet = ($other.Count -eq 0 -and [Math]::Round($emaCores) -le 1 -and $browserCpu -lt 5)
     owned_running = $runProcesses
     measurement_ports_listening = @($ports.GetActiveTcpListeners() |
         Where-Object { $_.Port -in 22830,22840 } | Select-Object -ExpandProperty Port -Unique)

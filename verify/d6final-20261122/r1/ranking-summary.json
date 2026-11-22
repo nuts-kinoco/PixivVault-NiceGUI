@@ -1,10 +1,302 @@
 {
-  "scope": "live",
-  "complete_pairs": 0,
-  "minimum_met": false,
-  "status": "not_started",
+  "case": {
+    "operation": "ranking_official",
+    "condition": "warm"
+  },
+  "complete_pairs": 20,
+  "minimum_met": true,
   "apps": {
-    "original": {},
-    "nice": {}
+    "original": {
+      "total": {
+        "n": 20,
+        "median": 642.554,
+        "p95": 923.764
+      },
+      "network": {
+        "n": 20,
+        "median": 62.587,
+        "p95": 89.271
+      },
+      "api": {
+        "n": 20,
+        "median": 62.587,
+        "p95": 89.271
+      },
+      "image": {
+        "n": 20,
+        "median": 0.0,
+        "p95": 0
+      },
+      "pace": {
+        "n": 20,
+        "median": 8.089,
+        "p95": 518.669
+      },
+      "remaining": {
+        "n": 20,
+        "median": 303.754,
+        "p95": 846.648
+      },
+      "after_network": {
+        "n": 20,
+        "median": 194.823,
+        "p95": 210.814
+      },
+      "click_to_list": {
+        "n": 20,
+        "median": 609.205,
+        "p95": 888.033
+      },
+      "list_to_image": {
+        "n": 20,
+        "median": 33.919,
+        "p95": 49.939
+      },
+      "card": {
+        "n": 20,
+        "median": 0.178,
+        "p95": 0.299
+      },
+      "render": {
+        "n": 20,
+        "median": 30.446,
+        "p95": 39.459
+      },
+      "pace_adjusted": {
+        "n": 20,
+        "median": 369.091,
+        "p95": 919.377
+      }
+    },
+    "nice": {
+      "total": {
+        "n": 20,
+        "median": 420.957,
+        "p95": 851.732
+      },
+      "network": {
+        "n": 20,
+        "median": 60.887,
+        "p95": 281.97
+      },
+      "api": {
+        "n": 20,
+        "median": 60.887,
+        "p95": 281.97
+      },
+      "image": {
+        "n": 20,
+        "median": 0.0,
+        "p95": 0
+      },
+      "pace": {
+        "n": 20,
+        "median": 168.256,
+        "p95": 489.374
+      },
+      "remaining": {
+        "n": 20,
+        "median": 189.822,
+        "p95": 224.152
+      },
+      "after_network": {
+        "n": 20,
+        "median": 147.838,
+        "p95": 176.165
+      },
+      "click_to_list": {
+        "n": 20,
+        "median": 387.98,
+        "p95": 818.091
+      },
+      "list_to_image": {
+        "n": 20,
+        "median": 33.893,
+        "p95": 76.828
+      },
+      "card": {
+        "n": 20,
+        "median": 2.508,
+        "p95": 3.031
+      },
+      "render": {
+        "n": 20,
+        "median": 7.972,
+        "p95": 11.701
+      },
+      "pace_adjusted": {
+        "n": 20,
+        "median": 258.461,
+        "p95": 520.288
+      }
+    }
+  },
+  "paired_nice_minus_flet": {
+    "total": {
+      "n": 20,
+      "median_difference": -270.269,
+      "nice_faster": 12,
+      "nice_slower": 8,
+      "sign_test_p": 0.503445,
+      "median_ci_at_least_95": [
+        -457.994,
+        224.13
+      ]
+    },
+    "pace_adjusted": {
+      "n": 20,
+      "median_difference": -122.853,
+      "nice_faster": 19,
+      "nice_slower": 1,
+      "sign_test_p": 4e-05,
+      "median_ci_at_least_95": [
+        -154.959,
+        -78.72
+      ]
+    },
+    "api": {
+      "n": 20,
+      "median_difference": 1.517,
+      "nice_faster": 10,
+      "nice_slower": 10,
+      "sign_test_p": 1,
+      "median_ci_at_least_95": [
+        -6.279,
+        17.904
+      ]
+    },
+    "remaining": {
+      "n": 20,
+      "median_difference": -134.553,
+      "nice_faster": 20,
+      "nice_slower": 0,
+      "sign_test_p": 2e-06,
+      "median_ci_at_least_95": [
+        -172.255,
+        -75.789
+      ]
+    },
+    "list_to_image": {
+      "n": 20,
+      "median_difference": -0.043,
+      "nice_faster": 10,
+      "nice_slower": 10,
+      "sign_test_p": 1,
+      "median_ci_at_least_95": [
+        -4.123,
+        10.855
+      ]
+    }
+  },
+  "by_load_before_pair": {
+    "quiet": {
+      "pairs": 4,
+      "flet": {
+        "n": 4,
+        "median": 551.724,
+        "p95": 843.551
+      },
+      "nice": {
+        "n": 4,
+        "median": 460.071,
+        "p95": 1967.987
+      },
+      "paired_total_difference": {
+        "n": 4,
+        "median_difference": -91.653,
+        "nice_faster": 2,
+        "nice_slower": 2,
+        "sign_test_p": 1,
+        "median_ci_at_least_95": null
+      }
+    },
+    "busy": {
+      "pairs": 16,
+      "flet": {
+        "n": 16,
+        "median": 642.554,
+        "p95": 1017.168
+      },
+      "nice": {
+        "n": 16,
+        "median": 420.957,
+        "p95": 851.732
+      },
+      "paired_total_difference": {
+        "n": 16,
+        "median_difference": -270.269,
+        "nice_faster": 10,
+        "nice_slower": 6,
+        "sign_test_p": 0.454498,
+        "median_ci_at_least_95": [
+          -457.994,
+          224.13
+        ]
+      }
+    },
+    "unobserved": {
+      "pairs": 0,
+      "flet": {
+        "n": 0,
+        "median": null,
+        "p95": null
+      },
+      "nice": {
+        "n": 0,
+        "median": null,
+        "p95": null
+      },
+      "paired_total_difference": {}
+    }
+  },
+  "by_first_app": {
+    "original": {
+      "total": {
+        "n": 10,
+        "median_difference": 235.265,
+        "nice_faster": 2,
+        "nice_slower": 8,
+        "sign_test_p": 0.109375,
+        "median_ci_at_least_95": [
+          -165.436,
+          382.867
+        ]
+      },
+      "pace_adjusted": {
+        "n": 10,
+        "median_difference": -122.853,
+        "nice_faster": 9,
+        "nice_slower": 1,
+        "sign_test_p": 0.021484,
+        "median_ci_at_least_95": [
+          -487.09,
+          -17.393
+        ]
+      }
+    },
+    "nice": {
+      "total": {
+        "n": 10,
+        "median_difference": -463.166,
+        "nice_faster": 10,
+        "nice_slower": 0,
+        "sign_test_p": 0.001953,
+        "median_ci_at_least_95": [
+          -637.021,
+          -345.319
+        ]
+      },
+      "pace_adjusted": {
+        "n": 10,
+        "median_difference": -125.081,
+        "nice_faster": 10,
+        "nice_slower": 0,
+        "sign_test_p": 0.001953,
+        "median_ci_at_least_95": [
+          -270.689,
+          -36.651
+        ]
+      }
+    }
   }
 }

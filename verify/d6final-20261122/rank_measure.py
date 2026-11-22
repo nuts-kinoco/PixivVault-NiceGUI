@@ -2,7 +2,7 @@
 
 from contextlib import ExitStack, contextmanager
 import argparse
-from datetime import date
+from datetime import date, datetime, timedelta
 import json
 import os
 from pathlib import Path
@@ -190,6 +190,38 @@ def render_stages(root, side, begin, end):
     }
 
 
+def inspect_host(root, phase, path, *, deadline=None):
+    """Take load readings between timing intervals, pausing on external work."""
+    while True:
+        subprocess.run(
+            ["powershell.exe", "-NoProfile", "-File", str(HERE / "host_check.ps1"),
+             "-EvidencePath", str(path), "-RunRoot", str(root)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20,
+            creationflags=subprocess.CREATE_NO_WINDOW, check=True,
+        )
+        result = json.loads(path.read_text(encoding="ascii"))
+        result["phase"] = phase
+        remaining = (deadline - datetime.now().astimezone()).total_seconds() if deadline else 0
+        result["wait_expired"] = not result["quiet"] and deadline is not None and remaining <= 0
+        with (root / "host-observations.jsonl").open("a", encoding="ascii") as trace:
+            trace.write(json.dumps(result, ensure_ascii=True) + "\n")
+        if result["quiet"] or remaining <= 0:
+            return
+        sleep(min(20, remaining))
+
+
+def recheck_profile_gate(root):
+    from pixivvault_nicegui.managed_network_stop_history_readonly import read_existing_stop_history_readonly
+
+    snapshot = read_existing_stop_history_readonly(root / "profile", owner_kind="native")
+    save(root, "runtime-profile-stop.json", {
+        "observed_at": datetime.now().astimezone().isoformat(), "state": snapshot.state,
+        "status": snapshot.status_code, "revision": snapshot.revision,
+    })
+    if snapshot.state != "observed_unblocked":
+        raise StopRun("product_stop")
+
+
 def sample(ledger, page, button, side, pair, observe_image):
     check_product_stop(ledger)
     if side == "original":
@@ -249,7 +281,7 @@ def sample(ledger, page, button, side, pair, observe_image):
     }, stage
 
 
-def measure(root, repetitions, *, fake=False):
+def measure(root, repetitions, *, fake=False, wait_until=None):
     from playwright.sync_api import sync_playwright
 
     ledger = Ledger(root)
@@ -270,6 +302,13 @@ def measure(root, repetitions, *, fake=False):
     warmup = {}
     measurement_date = date.today()
     try:
+        if not fake:
+            if wait_until is None:
+                wait_until = datetime.now().astimezone() + timedelta(hours=1)
+            phase = "before_launch"
+            inspect_host(root, phase, root / "host-latest.json", deadline=wait_until)
+            recheck_profile_gate(root)
+        phase = "launch"
         check_product_stop(ledger)
         with ExitStack() as stack:
             mode = "fake" if fake else "serve"
@@ -316,13 +355,11 @@ def measure(root, repetitions, *, fake=False):
                 check_product_stop(ledger)
             observe_image = all(image_visibility.values())
             phase = "process_inventory"
-            subprocess.run(
-                ["powershell.exe", "-NoProfile", "-File", str(HERE / "host_check.ps1"),
-                 "-EvidencePath", str(root / "processes-running.json"), "-RunRoot", str(root)],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20,
-                creationflags=subprocess.CREATE_NO_WINDOW, check=True,
-            )
+            inspect_host(root, phase, root / "processes-running.json", deadline=wait_until)
             for index in range(repetitions):
+                if index and not fake:
+                    phase = f"before_pair_{index + 1}"
+                    inspect_host(root, phase, root / "host-latest.json", deadline=wait_until)
                 for side in (("original", "nice") if index % 2 == 0 else ("nice", "original")):
                     if date.today() != measurement_date:
                         raise StopRun("transport")
@@ -359,8 +396,12 @@ if __name__ == "__main__":
     parser.add_argument("root", type=Path)
     parser.add_argument("repetitions", type=int, nargs="?", default=10)
     parser.add_argument("--fake", action="store_true")
+    parser.add_argument("--host-wait-until", type=datetime.fromisoformat)
     args = parser.parse_args()
     root = copied_path(SCRATCH, args.root)
     if not (1 if args.fake else 10) <= args.repetitions <= 20:
         raise SystemExit("10 to 20 pairs required")
-    raise SystemExit(measure(root, args.repetitions, fake=args.fake))
+    if args.host_wait_until is not None and args.host_wait_until.utcoffset() is None:
+        parser.error("host wait deadline must have its time zone")
+    raise SystemExit(measure(root, args.repetitions, fake=args.fake,
+                             wait_until=args.host_wait_until))
