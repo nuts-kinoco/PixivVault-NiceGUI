@@ -1,0 +1,50 @@
+[
+  {
+    "app": "original",
+    "pair": 1,
+    "render_ms": 24.161299981642514,
+    "card_call_ms": 0.14970003394410014,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 160.3453000425361,
+    "metadata_to_image_ms": 34.28579994942993,
+    "decode_wait_ms": null,
+    "result_count": 50
+  },
+  {
+    "app": "nice",
+    "pair": 1,
+    "render_ms": 7.4946999666281044,
+    "card_call_ms": 2.9587997123599052,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 603.1821999931708,
+    "metadata_to_image_ms": 33.82080001756549,
+    "decode_wait_ms": 0,
+    "result_count": 50
+  },
+  {
+    "app": "nice",
+    "pair": 2,
+    "render_ms": 3.790399990975857,
+    "card_call_ms": 1.0309999343007803,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 704.316999996081,
+    "metadata_to_image_ms": 33.45200000330806,
+    "decode_wait_ms": 0.09999996423721313,
+    "result_count": 50
+  },
+  {
+    "app": "original",
+    "pair": 2,
+    "render_ms": 15.147700032684952,
+    "card_call_ms": 0.08310005068778992,
+    "card_calls": 50,
+    "cards_created": 0,
+    "metadata_ms": 793.8377999817021,
+    "metadata_to_image_ms": 33.65569998277351,
+    "decode_wait_ms": null,
+    "result_count": 50
+  }
+]

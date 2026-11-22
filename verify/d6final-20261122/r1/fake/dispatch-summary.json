@@ -1,0 +1,25 @@
+{
+    "fake":  true,
+    "simulated_requests":  14,
+    "stop":  null,
+    "inflight":  false,
+    "shortest_end_to_start_ms":  876.874,
+    "destinations":  [
+                         {
+                             "kind":  "identity",
+                             "count":  4
+                         },
+                         {
+                             "kind":  "ranking",
+                             "count":  6
+                         },
+                         {
+                             "kind":  "image",
+                             "count":  2
+                         },
+                         {
+                             "kind":  "identity_extra",
+                             "count":  2
+                         }
+                     ]
+}

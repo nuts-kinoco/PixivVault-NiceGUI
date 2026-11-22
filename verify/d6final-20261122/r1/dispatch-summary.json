@@ -1,0 +1,32 @@
+{
+  "scope": "live",
+  "status": "completed",
+  "stop": null,
+  "get_used": 51,
+  "get_remaining": 46,
+  "previous_gets": 83,
+  "shared_cap": 180,
+  "planned_run_cap": 85,
+  "shortest_end_to_start_ms": 876.824,
+  "destinations": [
+    {
+      "kind": "identity",
+      "count": 4
+    },
+    {
+      "kind": "identity_extra",
+      "count": 2
+    },
+    {
+      "kind": "image",
+      "count": 2
+    },
+    {
+      "kind": "ranking",
+      "count": 43
+    }
+  ],
+  "response_status_counts": {
+    "200": 51
+  }
+}

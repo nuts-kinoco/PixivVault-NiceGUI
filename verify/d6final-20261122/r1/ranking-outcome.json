@@ -1,0 +1,24 @@
+{
+  "status": "completed",
+  "date": "2026-11-22",
+  "viewport": [
+    1280,
+    1000
+  ],
+  "browser_external_denied": 1,
+  "first_image_observed": {
+    "original": true,
+    "nice": true
+  },
+  "warmup_image": {
+    "original": {
+      "metadata_to_image_ms": 3399.3053000303917,
+      "decode_wait_ms": null
+    },
+    "nice": {
+      "metadata_to_image_ms": 959.0281000128016,
+      "decode_wait_ms": 1
+    }
+  },
+  "timing_endpoint": "first_image"
+}

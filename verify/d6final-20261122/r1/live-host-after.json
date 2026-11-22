@@ -1,0 +1,29 @@
+{
+    "observed_at":  "2026-11-22T10:27:33.9281518+09:00",
+    "sample_seconds":  5.04,
+    "cpu_pct":  56,
+    "cpu_method":  "summed_sampled_process_cpu",
+    "ema_cpu_pct":  48.37,
+    "ema_core_equivalents":  7.74,
+    "ordinary_browser_cpu_pct":  3.72,
+    "other_heavy_processes":  [
+
+                              ],
+    "idle_agent_processes":  [
+                                 {
+                                     "pid":  16976,
+                                     "cpu_pct":  0
+                                 },
+                                 {
+                                     "pid":  41164,
+                                     "cpu_pct":  0
+                                 }
+                             ],
+    "quiet":  false,
+    "owned_running":  [
+
+                      ],
+    "measurement_ports_listening":  [
+
+                                    ]
+}
