@@ -17,7 +17,9 @@ import sqlite3
 from threading import Event, Lock
 import uuid
 
-from .managed_network_stop_gate import ManagedNetworkStopGate, _file_identity, _reject_links
+from .managed_network_stop_gate import (
+    ManagedNetworkStopGate, _byte_lock_contended, _file_identity, _reject_links, _set_stop_byte_lock,
+)
 from .managed_network_stop_history_readonly import _check_marker, _read_gate_immutable
 from .managed_network_stop_shared_scope import (
     ManagedUserNetworkStopScope, _windows_local_app_data, _file_identity_directory,
@@ -77,6 +79,10 @@ class MigrationResult:
     stopped: bool = False
 
 
+class _FileLockBusy(OSError):
+    """The OS refused a nonblocking byte lock held by another owner."""
+
+
 class _FileLock:
     def __init__(self, path, *, create=False):
         self.path, self.stream = Path(path), None
@@ -91,15 +97,21 @@ class _FileLock:
                 except FileExistsError:
                     self.stream = self.path.open('r+b')
             else: self.stream = self.path.open('r+b')
+            # A concurrent creator may still be writing the initial byte.
+            # Never lock an empty existing file ahead of that write.
+            if os.fstat(self.stream.fileno()).st_size == 0:
+                raise MigrationRejected('source_unverified')
+            try:
+                _set_stop_byte_lock(self.stream, lock=True)
+            except OSError as error:
+                if _byte_lock_contended(error):
+                    raise _FileLockBusy('STOP file lock is busy') from None
+                raise
+            # Windows denies reads of a locked byte. Validate content while
+            # holding the lock so such a read failure cannot look like damage.
             self.stream.seek(0)
-            if self.stream.read(2) != b'0': raise MigrationRejected('source_unverified')
-            self.stream.seek(0)
-            if os.name == 'nt':
-                import msvcrt
-                msvcrt.locking(self.stream.fileno(), msvcrt.LK_NBLCK, 1)
-            else:
-                import fcntl
-                fcntl.flock(self.stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            if self.stream.read(2) != b'0':
+                raise MigrationRejected('source_unverified')
             opened = os.fstat(self.stream.fileno())
             if (opened.st_dev, opened.st_ino) != _file_identity(self.path):
                 raise MigrationRejected('source_changed')

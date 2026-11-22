@@ -32,6 +32,46 @@ _THREAD_LOCK = RLock()
 _THREAD_LOCK_TIMEOUT_SECONDS = 0.5
 
 
+if os.name == 'nt':
+    import ctypes
+    from ctypes import wintypes
+    import msvcrt
+
+    class _Overlapped(ctypes.Structure):
+        _fields_ = [('internal', ctypes.c_size_t), ('internal_high', ctypes.c_size_t),
+                    ('offset', wintypes.DWORD), ('offset_high', wintypes.DWORD),
+                    ('event', wintypes.HANDLE)]
+
+    _kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    _lock_file = _kernel.LockFileEx
+    _lock_file.argtypes = (wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD,
+                           wintypes.DWORD, ctypes.POINTER(_Overlapped))
+    _lock_file.restype = wintypes.BOOL
+    _unlock_file = _kernel.UnlockFileEx
+    _unlock_file.argtypes = (wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD,
+                             ctypes.POINTER(_Overlapped))
+    _unlock_file.restype = wintypes.BOOL
+else:
+    import fcntl
+
+
+def _set_stop_byte_lock(stream, *, lock):
+    """Exclusively lock the first byte without waiting, or release that byte."""
+    if os.name == 'nt':
+        handle = msvcrt.get_osfhandle(stream.fileno())
+        position = ctypes.byref(_Overlapped())
+        if lock:
+            # LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY
+            success = _lock_file(handle, 3, 0, 1, 0, position)
+        else:
+            success = _unlock_file(handle, 0, 1, 0, position)
+        if not success:
+            raise ctypes.WinError(ctypes.get_last_error())
+    else:
+        flags = (fcntl.LOCK_EX | fcntl.LOCK_NB) if lock else fcntl.LOCK_UN
+        fcntl.flock(stream.fileno(), flags)
+
+
 class ManagedNetworkStopped(PixivReadError):
     def __init__(self, status_code: int):
         self.status_code = status_code
@@ -49,7 +89,15 @@ class ManagedNetworkGateStorageError(PixivReadError):
 
 
 class ManagedNetworkGateBusy(ManagedNetworkGateStorageError):
-    """Temporary gate ownership contention; no permission to issue a GET."""
+    """A local lock is contended; the durable STOP state is still unknown."""
+
+
+def _byte_lock_contended(error: OSError) -> bool:
+    # Call only for the nonblocking lock syscall. Opening or reading a file
+    # can also report EACCES and does not establish lock contention.
+    if os.name == 'nt':
+        return getattr(error, 'winerror', None) == 33  # ERROR_LOCK_VIOLATION
+    return error.errno in (errno.EAGAIN, errno.EACCES)
 
 
 @contextmanager
@@ -167,21 +215,13 @@ class ManagedNetworkStopGate:
                         lock_file.flush()
                         os.fsync(lock_file.fileno())
                     lock_file.seek(0)
-                    if os.name == "nt":
-                        import msvcrt
-                        msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
-                    else:
-                        import fcntl
-                        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                except OSError as error:
-                    # A second process may hold the byte lock across its GET.
-                    # Its lifetime is not evidence of corrupt durable state.
-                    # Permission/open errors remain an ordinary fatal storage
-                    # error, and neither class authorizes any network I/O.
-                    if error.errno in (errno.EAGAIN, errno.EACCES):
-                        raise ManagedNetworkGateBusy("managed gate lock busy") from None
-                    raise ManagedNetworkGateStorageError("managed gate lock unavailable") from None
-                except ValueError:
+                    try:
+                        _set_stop_byte_lock(lock_file, lock=True)
+                    except OSError as error:
+                        if _byte_lock_contended(error):
+                            raise ManagedNetworkGateBusy("managed gate lock busy") from None
+                        raise
+                except (OSError, ValueError):
                     raise ManagedNetworkGateStorageError("managed gate lock unavailable") from None
                 try:
                     metadata = os.fstat(lock_file.fileno())
@@ -204,11 +244,7 @@ class ManagedNetworkStopGate:
                     yield
                 finally:
                     try:
-                        lock_file.seek(0)
-                        if os.name == "nt":
-                            msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
-                        else:
-                            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                        _set_stop_byte_lock(lock_file, lock=False)
                     except (OSError, ValueError):
                         raise ManagedNetworkGateStorageError("managed gate unlock failed") from None
 

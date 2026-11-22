@@ -403,7 +403,8 @@ def _build_owned_media_readers(*, pixiv_cookie_file, pixiv_download_root,
                                novel_download_root, novel_fixture_root,
                                novel_source, ugoira_root, ugoira_fixture_root,
                                live_client, managed_network_stop_scope,
-                               shared_network_stop_scope=None, cookie_expiry_coordinator=None):
+                               shared_network_stop_scope=None, cookie_expiry_coordinator=None,
+                               startup_stop_deadline=None):
     """Construct all authenticated readers as one fail-closed ownership unit.
 
     A partial failure before ApplicationServices assumes the readers must not
@@ -424,12 +425,13 @@ def _build_owned_media_readers(*, pixiv_cookie_file, pixiv_download_root,
                 raise ManagedNetworkGateStorageError(
                     "sealed shared Pixiv GET stop owner required")
             if managed_network_stop_scope is not None:
+                from .managed_network_stop_startup import retry_startup_lock
                 from .managed_network_stop_shared_transport import create_shared_profile_reader
-                reader = create_shared_profile_reader(
+                reader = retry_startup_lock(lambda: create_shared_profile_reader(
                     managed_network_stop_scope, pixiv_cookie_file,
                     shared_network_stop_scope.gate,
                     shared_owner_check=shared_network_stop_scope._check_owner,
-                )
+                ), deadline=startup_stop_deadline)
             else:
                 reader = shared_network_stop_scope.create_reader(pixiv_cookie_file)
             owned.callback(reader.close)
@@ -525,7 +527,7 @@ def register_pages(learning_sandbox: Path | None = None,
                    managed_network_stop_scope=None, shared_network_stop_scope=None,
                    similarity_index_root=None, similarity_model_file=None,
                    similarity_provider='auto', similarity_auto=False, extension_bridge_auto=False,
-                   startup_tab=None, legacy_copy_root=None) -> None:
+                   startup_tab=None, legacy_copy_root=None, startup_stop_deadline=None) -> None:
     """NiceGUIのHTTPルートを登録する。呼ぶだけではサーバーを起動しない。"""
     global _registered
     if _registered:
@@ -589,10 +591,10 @@ def register_pages(learning_sandbox: Path | None = None,
         ugoira_fixture_root or ugoira_root,pixiv_download_root,legacy_zip_export_root,
         learning_sandbox,download_sandbox,following_sync_root)
     if shared_network_stop_scope is not None:
-        from .managed_network_stop_startup import attach_selected_histories
-        attach_selected_histories(shared_network_stop_scope, (
-            ('images', pixiv_download_root), ('novel', novel_download_root),
-            ('ugoira', ugoira_root)))
+        from .managed_network_stop_startup import attach_selected_histories, retry_startup_lock
+        retry_startup_lock(lambda: attach_selected_histories(shared_network_stop_scope, (
+            ('images', pixiv_download_root), ('novel', novel_download_root), ('ugoira', ugoira_root))),
+            deadline=startup_stop_deadline)
     for sidecar in (preferences_root,discovery_root,external_vault_root,image_cache_root,following_sync_root):
         if sidecar is not None:
             if pixiv_cookie_file is not None:_validate_managed_paths(sidecar,pixiv_cookie_file)
@@ -704,6 +706,7 @@ def register_pages(learning_sandbox: Path | None = None,
         live_client=live_client,
         managed_network_stop_scope=managed_network_stop_scope,
         shared_network_stop_scope=shared_network_stop_scope,
+        startup_stop_deadline=startup_stop_deadline,
         cookie_expiry_coordinator=(native_profile.cookie_expiry_coordinator()
             if native_profile is not None and pixiv_cookie_file is not None
             and managed_network_stop_scope is not None
@@ -898,6 +901,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     stop_recovery_required = False
     stop_gate_busy = False
     shared_network_stop_scope = None
+    shared_stop_recheck = None
     if config.profile_root is not None:
         from .native_profile import (NativeProfileStore, NativeProfileReferenceUnavailable,
                                      NativeProfileSourceUnavailable, native_kwargs, provision_storage)
@@ -1013,18 +1017,29 @@ def main(argv: Sequence[str] | None = None) -> int:
                 from .native_auth_result import NativeAuthResult
                 print(NativeAuthResult('cookie_unreadable').message, file=sys.stderr)
                 return 2
-        from .managed_network_stop_startup import open_or_initialize_windows_user_stop
+        from .managed_network_stop_startup import open_or_initialize_windows_user_stop, startup_lock_deadline
         from .managed_network_stop_shared_scope import SharedStopOwnerAbsent
         from .managed_network_stop_gate import ManagedNetworkGateStorageError, ManagedNetworkGateBusy
-        try:
-            shared_network_stop_scope = open_or_initialize_windows_user_stop(
+        profile_stop_scope = registration.get('managed_network_stop_scope')
+
+        def open_shared_stop(*, deadline=None):
+            return open_or_initialize_windows_user_stop(
                 selected_roots=(('images', config.pixiv_download_root),
                                 ('novel', config.novel_download_root),
                                 ('ugoira', config.ugoira_root)),
-                profile_scope=registration.get('managed_network_stop_scope'))
+                profile_scope=profile_stop_scope, deadline=deadline)
+
+        if (profile_stop_scope is not None and not stop_recovery_required
+                and not config.profile_reference_unavailable):
+            shared_stop_recheck = open_shared_stop
+
+        try:
+            deadline = startup_lock_deadline()
+            shared_network_stop_scope = open_shared_stop(deadline=deadline)
             registration['shared_network_stop_scope'] = shared_network_stop_scope
-            if registration.get('managed_network_stop_scope') is not None:
-                registration['managed_network_stop_scope'].shared_owner = shared_network_stop_scope
+            registration['startup_stop_deadline'] = deadline
+            if profile_stop_scope is not None:
+                profile_stop_scope.shared_owner = shared_network_stop_scope
             if native_profile is not None:
                 native_profile.shared_network_stop_scope = shared_network_stop_scope
         except ManagedNetworkGateStorageError as gate_error:
@@ -1039,6 +1054,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(NativeAuthResult(code).message, file=sys.stderr)
                 return 2
             native_profile.auth_startup_result = NativeAuthResult(code)
+            if code == 'busy':
+                native_profile.recheck_startup_stop = shared_stop_recheck
             stop_recovery_required = True
             stop_gate_busy = isinstance(gate_error, ManagedNetworkGateBusy)
     try:
@@ -1178,6 +1195,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 # never turn this into a live GET or an unhandled silent exit.
                 from .native_startup import register_profile_recovery
                 if isinstance(gate_error, ManagedNetworkGateBusy):
+                    native_profile.recheck_startup_stop = shared_stop_recheck
                     register_profile_recovery(native_profile, stop_gate_busy=True)
                 elif (isinstance(gate_error, SharedGetOutcomeUncertain)
                       and native_profile.shared_network_stop_scope is not None):

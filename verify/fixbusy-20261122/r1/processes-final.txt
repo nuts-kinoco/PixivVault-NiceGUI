@@ -1,0 +1,5 @@
+﻿observed=2026-11-22T11:20:43.7604117+09:00
+owned_python_processes=0
+D6_QUIET_flag_present=True
+child_processes=waited in subprocess context
+application_browser_started=false

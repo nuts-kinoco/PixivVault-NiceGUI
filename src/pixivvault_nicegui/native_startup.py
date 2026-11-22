@@ -88,6 +88,7 @@ class NativeProfileBinding:
         self.auth_shared_stop_required = False
         self.shared_network_stop_scope = None
         self.auth_startup_result = None
+        self.recheck_startup_stop = None
         # Header login status shared by every client of this process.
         from .auth_status import AuthStatusHolder
         self.auth_status = AuthStatusHolder()
@@ -514,6 +515,9 @@ class NativeProfileBinding:
             with self._reader_lock:
                 if self._closed or stopped.is_set():
                     return NativeAuthResult('closed'), None
+                if (self.recheck_startup_stop is not None
+                        and self.store.snapshot().revision != self.launch_snapshot.revision):
+                    return NativeAuthResult('profile_changed'), None
                 scope = self.managed_network_stop_scope
                 if self.auth_stop_required:
                     if scope is None:
@@ -624,10 +628,13 @@ def register_profile_recovery(binding, *, cookie_rejected=False,
             ui.label('PixivVault — 起動設定の確認').classes('text-h5')
             from .native_auth_result import NativeAuthResult
             startup_result = getattr(binding, 'auth_startup_result', None)
-            ui.label('保管領域の状態を確認できません（旧形式の判別不能）。バックアップから復元してください。'
+            recheck_stop = stop_gate_busy and getattr(binding, 'recheck_startup_stop', None)
+            notice = ui.label('保管領域の状態を確認できません（旧形式の判別不能）。バックアップから復元してください。'
                      if legacy_v5_uncertain else
                      '\u65e7DB\u306e\u8907\u88fd\u4f5c\u6210\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002\u4fdd\u5b58\u5148\u30fb\u5bb9\u91cf\u30fb\u65e7DB\u306e\u4f7f\u7528\u72b6\u614b\u3092\u78ba\u8a8d\u3057\u3066\u518d\u8d77\u52d5\u3057\u3066\u304f\u3060\u3055\u3044\u3002'
                      if legacy_copy_error else
+                     '通信記録が使用中です。ほかの処理が終わってから「再確認」を押してください。'
+                     if recheck_stop else
                      startup_result.message if type(startup_result) is NativeAuthResult else
                      '前の取得結果が不確かなため通信を停止しています。取得停止の確認・回復を開いて手順を確認してください。'
                      if stop_get_uncertain else
@@ -649,6 +656,12 @@ def register_profile_recovery(binding, *, cookie_rejected=False,
                 recovery = SharedGetRecoveryView(binding.shared_network_stop_scope)
                 ui.context.client.on_delete(recovery.close)
             view = binding.create_view(allow_auth=not (stop_migration_required or stop_gate_busy or stop_get_uncertain or legacy_v5_uncertain))
+            if recheck_stop:
+                from .ui.stop_recovery_view import build_startup_stop_recheck
+                notice.classes('pv-warning-banner')
+                view.reserve_auth_button = True
+                view.on_saved = None
+                build_startup_stop_recheck(binding, recheck_stop, notice, view)
             view.build()
             ui.context.client.on_delete(view.close)
 

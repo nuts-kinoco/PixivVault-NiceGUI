@@ -32,6 +32,7 @@ class NativeProfileView:
         self.provider_select = None
         self.auto_switch = None
         self.verify_auth = verify_auth
+        self.reserve_auth_button = False
         # Called (no arguments) after a successful save; the application then
         # rechecks the saved Cookie and updates the header login status.
         self.on_saved = None
@@ -183,10 +184,11 @@ class NativeProfileView:
                 ui.label('旧ライブラリを読み取り、新しい作品は選択した専用保存先へ保存します。Cookie接続と併用できます。').classes('pv-field-hint')
             self.auth_button = None
             with dialog_actions():
-                if self.verify_auth is not None:
+                if self.verify_auth is not None or self.reserve_auth_button:
                     self.auth_button = secondary_button('選択したCookieの認証を確認', check_auth,
                         testid='native-profile-auth-check')
-                    self.auth_button.set_enabled(self.draft_cookie is not None)
+                    self.auth_button.set_visibility(self.verify_auth is not None)
+                    self.auth_button.set_enabled(self.verify_auth is not None and self.draft_cookie is not None)
                 secondary_button('取消', lambda:self.cancel() if self._epoch == epoch else None,
                                  testid='native-profile-cancel')
                 def save():
@@ -210,6 +212,12 @@ class NativeProfileView:
         if self.migration_view is None:
             self.migration_view = self.migration_factory()
         self.migration_view.open()
+
+    def set_auth_verifier(self, verify_auth):
+        self.verify_auth = verify_auth
+        if self.auth_button is not None:
+            self.auth_button.set_visibility(verify_auth is not None)
+        self._sync_values()
 
     def _sync_values(self) -> None:
         if self.cookie_value is not None:
