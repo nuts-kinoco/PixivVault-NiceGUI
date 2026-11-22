@@ -1,0 +1,12 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_____ test_retry_counts_use_filtered_records_and_rows_explain_exclusions ______
+tests\test_smalldec_failed_retry_20261122.py:44: in test_retry_counts_use_filtered_records_and_rows_explain_exclusions
+    assert view.retry_all.text == '全 12 件中 8 件を再試行（4 件は対象外）'
+E   AssertionError: assert '対応作品 8 件を管理キューへ再投入' == '全 12 件中 8 件を再試行（4 件は対象外）'
+E
+E     - 全 12 件中 8 件を再試行（4 件は対象外）
+E     + 対応作品 8 件を管理キューへ再投入
+=========================== short test summary info ===========================
+FAILED tests/test_smalldec_failed_retry_20261122.py::test_retry_counts_use_filtered_records_and_rows_explain_exclusions
+1 failed in 3.71s

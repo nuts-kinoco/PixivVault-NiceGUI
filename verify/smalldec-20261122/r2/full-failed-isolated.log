@@ -1,0 +1,123 @@
+.FFFFFFFFFF                                                              [100%]
+================================== FAILURES ===================================
+____ test_personal_view_busy_and_generic_codes_are_visible_without_secrets ____
+tests\test_known_nonpremium_reason_20261114.py:73: in test_personal_view_busy_and_generic_codes_are_visible_without_secrets
+    assert text=='\u501f\u7528\u30a2\u30ab\u30a6\u30f3\u30c8\u306e\u6e96\u5099\u4e2d\u3067\u3059\u3002\u3057\u3070\u3089\u304f\u5f85\u3063\u3066\u304b\u3089\u3082\u3046\u4e00\u5ea6\u300c\u53d6\u5f97\u30fb\u66f4\u65b0\u300d\u3092\u62bc\u3057\u3066\u304f\u3060\u3055\u3044\u3002'
+E   AssertionError: assert '借用アカウントの準備中で...てから再試行してください。' == '借用アカウントの準備中で...・更新」を押してください。'
+E
+E     - 借用アカウントの準備中です。しばらく待ってからもう一度「取得・更新」を押してください。
+E     + 借用アカウントの準備中です。しばらくしてから再試行してください。
+________________________ test_candidate_network_routes ________________________
+tests\test_p6_network.py:80: in test_candidate_network_routes
+    assert not issues, '\n'.join(issues)
+E   AssertionError: pixivvault_nicegui/bootstrap.py:976 main pixiv_read_client.LivePixivReadClient: unreviewed
+E     pixivvault_nicegui/ui/shell.py:167 DemoShell.__init__ browser.link.external-url: unreviewed
+E     stale review: pixivvault_nicegui/bootstrap.py:main:pixiv_read_client.LivePixivReadClient:3bc1415fd8414b50:9983108ca23eb805:1
+E     stale review: pixivvault_nicegui/ui/shell.py:DemoShell.__init__:browser.link.external-url:a6d76b7ca41f48bc:9687bb2f87d822c3:1
+E   assert not ['pixivvault_nicegui/bootstrap.py:976 main pixiv_read_client.LivePixivReadClient: unreviewed', 'pixivvault_nicegui/ui/...view: pixivvault_nicegui/ui/shell.py:DemoShell.__init__:browser.link.external-url:a6d76b7ca41f48bc:9687bb2f87d822c3:1']
+_____ test_legacy_local_unlock_after_saved_confirmation_never_writes_key ______
+tests\test_premium_f2_session_keys.py:63: in test_legacy_local_unlock_after_saved_confirmation_never_writes_key
+    assert g.status()['enabled'] and not v.status()['open']
+E   assert (False)
+_______ test_wrong_password_shows_message_under_field_and_keeps_inputs ________
+tests\test_premium_popup_parity.py:49: in test_wrong_password_shows_message_under_field_and_keeps_inputs
+    assert d.notice.text == ''
+E   AssertionError: assert '借用プレミアムを使うには初期設定が必要です。' == ''
+E
+E     + 借用プレミアムを使うには初期設定が必要です。
+____________ test_gate_on_exposes_separate_masked_legacy_password _____________
+tests\test_z01_legacy_import_gate.py:35: in test_gate_on_exposes_separate_masked_legacy_password
+    view = ExternalVaultView(SimpleNamespace(external_vault=vault, premium_authorization=EnabledGate()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\external_vault_view.py:27: in __init__
+    self.gate_dialog=PremiumGateDialog(self.gate,on_change=self.render)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\premium_gate_view.py:77: in __init__
+    if self.setup_required() and not message:
+       ^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\premium_gate_view.py:90: in setup_required
+    vault_status = self.gate.vault.status()
+                   ^^^^^^^^^^^^^^^
+E   AttributeError: 'EnabledGate' object has no attribute 'vault'
+_______ test_gate_on_form_then_file_imports_and_reopens_without_network _______
+tests\test_z01_legacy_import_gate.py:54: in test_gate_on_form_then_file_imports_and_reopens_without_network
+    view = ExternalVaultView(SimpleNamespace(external_vault=vault, premium_authorization=EnabledGate()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\external_vault_view.py:27: in __init__
+    self.gate_dialog=PremiumGateDialog(self.gate,on_change=self.render)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\premium_gate_view.py:77: in __init__
+    if self.setup_required() and not message:
+       ^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\premium_gate_view.py:90: in setup_required
+    vault_status = self.gate.vault.status()
+                   ^^^^^^^^^^^^^^^
+E   AttributeError: 'EnabledGate' object has no attribute 'vault'
+_________ test_empty_import_password_explains_and_never_calls_service _________
+tests\test_z01_legacy_import_gate.py:90: in test_empty_import_password_explains_and_never_calls_service
+    view = ExternalVaultView(SimpleNamespace(external_vault=vault, premium_authorization=EnabledGate()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\external_vault_view.py:27: in __init__
+    self.gate_dialog=PremiumGateDialog(self.gate,on_change=self.render)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\premium_gate_view.py:77: in __init__
+    if self.setup_required() and not message:
+       ^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\premium_gate_view.py:90: in setup_required
+    vault_status = self.gate.vault.status()
+                   ^^^^^^^^^^^^^^^
+E   AttributeError: 'EnabledGate' object has no attribute 'vault'
+_ test_gate_on_import_rejects_invalid_input_and_scrubs_password[wrong-password] _
+tests\test_z01_legacy_import_gate.py:117: in test_gate_on_import_rejects_invalid_input_and_scrubs_password
+    view = ExternalVaultView(SimpleNamespace(external_vault=vault, premium_authorization=EnabledGate()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\external_vault_view.py:27: in __init__
+    self.gate_dialog=PremiumGateDialog(self.gate,on_change=self.render)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\premium_gate_view.py:77: in __init__
+    if self.setup_required() and not message:
+       ^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\premium_gate_view.py:90: in setup_required
+    vault_status = self.gate.vault.status()
+                   ^^^^^^^^^^^^^^^
+E   AttributeError: 'EnabledGate' object has no attribute 'vault'
+___ test_gate_on_import_rejects_invalid_input_and_scrubs_password[corrupt] ____
+tests\test_z01_legacy_import_gate.py:117: in test_gate_on_import_rejects_invalid_input_and_scrubs_password
+    view = ExternalVaultView(SimpleNamespace(external_vault=vault, premium_authorization=EnabledGate()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\external_vault_view.py:27: in __init__
+    self.gate_dialog=PremiumGateDialog(self.gate,on_change=self.render)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\premium_gate_view.py:77: in __init__
+    if self.setup_required() and not message:
+       ^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\premium_gate_view.py:90: in setup_required
+    vault_status = self.gate.vault.status()
+                   ^^^^^^^^^^^^^^^
+E   AttributeError: 'EnabledGate' object has no attribute 'vault'
+__ test_gate_on_import_rejects_invalid_input_and_scrubs_password[truncated] ___
+tests\test_z01_legacy_import_gate.py:117: in test_gate_on_import_rejects_invalid_input_and_scrubs_password
+    view = ExternalVaultView(SimpleNamespace(external_vault=vault, premium_authorization=EnabledGate()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\external_vault_view.py:27: in __init__
+    self.gate_dialog=PremiumGateDialog(self.gate,on_change=self.render)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\premium_gate_view.py:77: in __init__
+    if self.setup_required() and not message:
+       ^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\premium_gate_view.py:90: in setup_required
+    vault_status = self.gate.vault.status()
+                   ^^^^^^^^^^^^^^^
+E   AttributeError: 'EnabledGate' object has no attribute 'vault'
+=========================== short test summary info ===========================
+FAILED tests/test_known_nonpremium_reason_20261114.py::test_personal_view_busy_and_generic_codes_are_visible_without_secrets
+FAILED tests/test_p6_network.py::test_candidate_network_routes - AssertionErr...
+FAILED tests/test_premium_f2_session_keys.py::test_legacy_local_unlock_after_saved_confirmation_never_writes_key
+FAILED tests/test_premium_popup_parity.py::test_wrong_password_shows_message_under_field_and_keeps_inputs
+FAILED tests/test_z01_legacy_import_gate.py::test_gate_on_exposes_separate_masked_legacy_password
+FAILED tests/test_z01_legacy_import_gate.py::test_gate_on_form_then_file_imports_and_reopens_without_network
+FAILED tests/test_z01_legacy_import_gate.py::test_empty_import_password_explains_and_never_calls_service
+FAILED tests/test_z01_legacy_import_gate.py::test_gate_on_import_rejects_invalid_input_and_scrubs_password[wrong-password]
+FAILED tests/test_z01_legacy_import_gate.py::test_gate_on_import_rejects_invalid_input_and_scrubs_password[corrupt]
+FAILED tests/test_z01_legacy_import_gate.py::test_gate_on_import_rejects_invalid_input_and_scrubs_password[truncated]
+10 failed, 1 passed in 19.61s

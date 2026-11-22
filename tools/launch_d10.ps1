@@ -47,7 +47,8 @@ if (-not (Test-Path -LiteralPath $entry -PathType Leaf)) {
 }
 if (-not $PythonRoot) { $PythonRoot = Join-Path $CodeRoot '.venv' }
 if (-not $ProfileRoot) { $ProfileRoot = Join-Path $CodeRoot 'profile' }
-if (-not $LogRoot) { $LogRoot = Join-Path $CodeRoot 'logs' }
+$explicitLogRoot = [bool]$LogRoot
+if (-not $explicitLogRoot) { $LogRoot = Join-Path $ProfileRoot 'logs' }
 if (-not $TempRoot) { $TempRoot = Join-Path $CodeRoot 'temp' }
 $python = Get-SPath (Join-Path (Get-SPath $PythonRoot) 'Scripts\python.exe')
 if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
@@ -109,7 +110,9 @@ $envChanges = @{
     PYTHONUTF8 = '1'
     NICEGUI_STORAGE_PATH = (Get-SPath (Join-Path $TempRoot 'nicegui'))
     WEBVIEW2_USER_DATA_FOLDER = (Get-SPath (Join-Path $TempRoot 'webview2'))
-    PIXIVVAULT_CRASH_LOG_PATH = "$logPrefix.crash.log"
+}
+if ($explicitLogRoot -and -not $env:PIXIVVAULT_CRASH_LOG_PATH) {
+    $envChanges.PIXIVVAULT_CRASH_LOG_PATH = "$logPrefix.crash.log"
 }
 if ($IsolatedWorkspace) {
     $envChanges['APPDATA'] = Get-SPath (Join-Path $TempRoot 'roaming')
@@ -134,22 +137,26 @@ from pixivvault_nicegui.native_profile import NativeProfileStore
 from pixivvault_nicegui.test_owner_runtime import isolated_test_workspace
 
 try:
-    profile = Path(sys.argv[1])
-    workspace = Path(sys.argv[2]) if len(sys.argv) > 2 else None
+    profile, logs = map(Path, sys.argv[1:3])
+    workspace = Path(sys.argv[3]) if len(sys.argv) > 3 else None
     if profile.parent.resolve().drive.upper() != 'S:':
         raise ValueError
     with (isolated_test_workspace(workspace) if workspace else nullcontext()):
         snapshot = NativeProfileStore.peek(profile)
-    if workspace and snapshot.cookie_file is not None:
-        raise ValueError
-    for path in (snapshot.cookie_file, snapshot.save_parent, snapshot.library_readonly_db,
-                 snapshot.library_image_root, snapshot.similarity_model_file):
-        if path is not None and path.resolve().drive.upper() != 'S:':
+        if workspace and snapshot.cookie_file is not None:
             raise ValueError
+        for path in (snapshot.cookie_file, snapshot.save_parent, snapshot.library_readonly_db,
+                     snapshot.library_image_root, snapshot.similarity_model_file):
+            if path is not None and path.resolve().drive.upper() != 'S:':
+                raise ValueError
+        if logs.is_relative_to(profile) and not profile.exists():
+            # Create an owned profile before log redirection creates child directories.
+            profile.parent.mkdir(parents=True, exist_ok=True)
+            NativeProfileStore(profile).close()
 except Exception:
     sys.exit(2)
 '@
-    $preflightArgs = @($ProfileRoot)
+    $preflightArgs = @($ProfileRoot, $LogRoot)
     if ($IsolatedWorkspace) { $preflightArgs += $IsolatedWorkspace }
     $preflight | & $python -B - @preflightArgs
     if ($LASTEXITCODE -ne 0) {

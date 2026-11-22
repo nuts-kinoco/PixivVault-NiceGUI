@@ -1,0 +1,3 @@
+count=20000 select=0.520s chips=400
+.
+1 passed in 3.02s

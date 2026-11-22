@@ -1,0 +1,10 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+___ test_pool_quota_guidance_survives_when_only_the_pool_error_is_available ___
+tests\test_smalldec_borrow_startup_20261122.py:117: in test_pool_quota_guidance_survives_when_only_the_pool_error_is_available
+    assert 'しばらくしてから再試行' in unavailable_message('borrow-accounts-unavailable')
+E   AssertionError: assert 'しばらくしてから再試行' in '借用アカウントの取得枠またはトークンが利用できません。通信を止めました。設定の借用プレミアムの状態で各登録の待ち時間を確認してください。'
+E    +  where '借用アカウントの取得枠またはトークンが利用できません。通信を止めました。設定の借用プレミアムの状態で各登録の待ち時間を確認してください。' = unavailable_message('borrow-accounts-unavailable')
+=========================== short test summary info ===========================
+FAILED tests/test_smalldec_borrow_startup_20261122.py::test_pool_quota_guidance_survives_when_only_the_pool_error_is_available
+1 failed in 1.76s

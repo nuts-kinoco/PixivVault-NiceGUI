@@ -70,7 +70,7 @@ def test_stop_does_not_become_nonpremium_or_trigger_own_get():
 
 def test_personal_view_busy_and_generic_codes_are_visible_without_secrets():
     text,calls=run_view(VaultError('busy'))
-    assert text=='\u501f\u7528\u30a2\u30ab\u30a6\u30f3\u30c8\u306e\u6e96\u5099\u4e2d\u3067\u3059\u3002\u3057\u3070\u3089\u304f\u5f85\u3063\u3066\u304b\u3089\u3082\u3046\u4e00\u5ea6\u300c\u53d6\u5f97\u30fb\u66f4\u65b0\u300d\u3092\u62bc\u3057\u3066\u304f\u3060\u3055\u3044\u3002'
+    assert text == '借用アカウントの準備中です。しばらくしてから再試行してください。'
     assert calls==['borrow']
     text,_=run_view(VaultError('search-failed'))
     assert '\uff08\u7406\u7531: search-failed\uff09' in text

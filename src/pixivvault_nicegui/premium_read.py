@@ -7,11 +7,24 @@ FALLBACK_CODES=frozenset(('locked','rate-limited','backoff','token-unavailable',
     'payout-failed','expired-payout','short-payout','oauth-failed','not-premium',
     'transport-unavailable','invalid-payout','refresh-token-rejected','premium-read-rejected'))
 
+def borrow_wait_message(code):
+    if code == 'busy':
+        return '借用アカウントの準備中です。しばらくしてから再試行してください。'
+    if code in ('account-cooldown', 'borrowed-rate-limited', 'borrow-accounts-cooling-down'):
+        return ('借用アカウントの利用枠が空くまで通信を止めました。しばらくしてから再試行してください。'
+                '設定の「借用プレミアムの状態」で待ち時間を確認できます。')
+    if code in ('payout-limit', 'rate-limited', 'backoff'):
+        return ('借用アカウントの取得枠が空くまで通信を止めました。しばらくしてから再試行してください。'
+                '設定の「借用プレミアムの状態」で待ち時間を確認できます。')
+    return None
+
 def unavailable_message(code, *, reason=None):
+    waiting = borrow_wait_message(reason if code == 'borrow-accounts-unavailable' else code)
+    if waiting:
+        return waiting
     if code == 'borrow-accounts-unavailable' and reason == 'not-premium':
         return '利用可能な借用アカウントがありません。候補に非プレミアムのアカウントが含まれています。設定の借用プレミアムの状態を確認してください。'
     return {
-        'busy':'\u501f\u7528\u30a2\u30ab\u30a6\u30f3\u30c8\u306e\u6e96\u5099\u4e2d\u3067\u3059\u3002\u3057\u3070\u3089\u304f\u5f85\u3063\u3066\u304b\u3089\u3082\u3046\u4e00\u5ea6\u300c\u53d6\u5f97\u30fb\u66f4\u65b0\u300d\u3092\u62bc\u3057\u3066\u304f\u3060\u3055\u3044\u3002',
         'not-premium':'返された借用アカウントは非プレミアムです。設定の借用プレミアムの状態を確認してください。',
         'expired-payout':'Shaftが失効済みアカウントを返しました。借用プレミアムのON画面と設定の借用プレミアムの状態を確認してから再試行してください。',
         'fallback-date-range-unavailable':'本人の経路では期間指定を適用できません。借用プレミアムを有効にしてください。',
@@ -19,8 +32,9 @@ def unavailable_message(code, *, reason=None):
         'paging-account-unavailable':'この検索で使用した借用アカウントを利用できないため、続きの取得を止めました。先頭から再検索してください。',
         'stale-page':'検索条件または保管庫の状態が変わりました。先頭から再検索してください。',
         'premium-disabled':'借用プレミアムはOFFです。ONにする場合はパスワードを確認してください。',
-        'borrow-accounts-unavailable':'借用アカウントの取得枠またはトークンが利用できません。通信を止めました。設定の借用プレミアムの状態で各登録の待ち時間を確認してください。',
-        'borrow-accounts-cooling-down':'すべての借用アカウントが待機中です。通信を止めました。設定の借用プレミアムの状態で再開までの時間を確認してください。',
+        'borrow-accounts-unavailable': (
+            '借用アカウントの取得枠またはトークンが利用できないため、通信を止めました。'
+            '設定の「借用プレミアムの状態」で待ち時間を確認し、しばらくしてから再試行してください。'),
         'premium-budget-unavailable':'利用回数の保管状態を確認できないため、通信を止めました。保管庫を確認してください。',
         'pixiv-network-stopped':'通信の停止状態を確認しました。設定の借用プレミアムの状態で停止状態を確認してください。自動で再送しません。',
         'pixiv-outcome-uncertain':'通信結果を確認できないため、追加の通信を止めました。保管された状態を確認できるまで借用の通信は停止したままです（保管データは変更していません）。設定の借用プレミアムの状態を確認してください。',

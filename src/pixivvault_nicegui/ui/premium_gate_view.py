@@ -6,6 +6,9 @@ from .action_controls import dialog_actions, dialog_card, outlined_input, primar
 from ..external_vault import VaultError, VAULT_INTEGRITY_ERRORS
 from .premium_recovery_view import PremiumRecoveryPanel
 from ..premium_uid_file import DEFAULT_UID_PATH, read_uid_file, uid_text_errors, apply_uid_file
+from ..premium_read import borrow_wait_message
+
+SETUP_GUIDANCE = '借用プレミアムを使うには初期設定が必要です。'
 
 def vault_unlock_error_message(code):
     if code == 'pixiv-outcome-uncertain':
@@ -27,7 +30,7 @@ def vault_unlock_error_message(code):
         return '保管庫の読み取りでI/Oエラーが発生しました。ファイルを保持してください。'
     if code in ('unlock-failed','premium-password-rejected'):
         return 'パスワードが一致しません。入力を確認して、もう一度試してください。'
-    return None
+    return borrow_wait_message(code)
 
 def dialog_error_message(code):
     """In-dialog wording; the original says the password is wrong (gui.py:947)."""
@@ -72,8 +75,51 @@ class PremiumGateDialog:
                 with dialog_actions():
                     secondary_button('閉じる', self.recovery_dialog.close, testid='premium-recovery-close')
         self.recovery_open.set_visibility(self.recovery_visible())
-        self.notice=ui.label(vault_unlock_error_message(gate.status().get('error')) or '').props('role=status data-testid=premium-permission-status')
+        message = vault_unlock_error_message(gate.status().get('error'))
+        if not message and self.setup_required():
+            message = SETUP_GUIDANCE
+        self.notice=ui.label(message or '').props('role=status data-testid=premium-permission-status')
+        with ui.row().classes('items-center gap-2').props(
+                'role=group aria-label=借用プレミアムをOFFにする data-testid=premium-off-choices') as self.off_choices:
+            secondary_button('今回だけ OFF', lambda: self.request_disable(session_only=True),
+                             testid='premium-off-session')
+            secondary_button('ずっと OFF', lambda: self.request_disable(session_only=False),
+                             testid='premium-off-persistent')
+        self.off_choices.set_visibility(False)
         ui.context.client.on_delete(self.close)
+
+    def setup_required(self):
+        gate_status = self.gate.status()
+        if gate_status['enabled'] or gate_status['remembered']:
+            return False
+        vault = getattr(self.gate, 'vault', None)
+        if vault is None:
+            return False
+        vault_status = vault.status()
+        return (not vault_status.get('inspection_error')
+                and not (vault_status.get('initialized') and self.gate.startup_suppressed))
+
+    async def request_disable(self, *, session_only):
+        if self.closed or not self.off_choices.visible:
+            return
+        self.off_choices.set_visibility(False)
+        try:
+            await asyncio.to_thread(self.gate.disable, session_only=session_only)
+        except Exception:
+            message = '借用アカウントの停止を確認できません。設定の借用プレミアムの状態を確認してください。'
+        else:
+            if session_only:
+                message = '借用プレミアムをこの起動中は OFF にしました。'
+                if self.gate.status()['remembered']:
+                    message += '次回起動時は ON に戻ります。'
+            else:
+                message = '借用プレミアムを OFF にしました。次回起動も OFF のままです。'
+        if not self.closed:
+            self.notice.set_text(message)
+            if self.on_change:
+                self.on_change()
+
+
     def recovery_visible(self):
         return bool(self.recovery is not None and self.recovery.unconfirmed())
     def open_recovery(self):
@@ -199,8 +245,31 @@ class PremiumGateDialog:
             return apply_uid_file(self.gate.vault,self.default_uid_path)
         except Exception:return 'failed'
     async def request_enable(self):
+        if self.closed:
+            return
+        if self.gate.status()['remembered'] or self.gate.startup_suppressed:
+            try:
+                resumed = await asyncio.to_thread(self.gate.resume_saved)
+            except VaultError as error:
+                if not self.closed:
+                    self.notice.set_text(vault_unlock_error_message(error.code)
+                                         or '借用プレミアムの再開を確認できません。')
+                    if self.on_change:
+                        self.on_change()
+                return
+            if self.closed:
+                return
+            if resumed:
+                review = self.gate.vault.status().get('oauth_review_required')
+                self.notice.set_text('借用プレミアムは ON です。' +
+                                     ('未確認の通信結果があるため、通信は停止しています。' if review else ''))
+                if self.on_change:
+                    self.on_change()
+                return
         epoch=self.gate.begin_prompt()
         if epoch is None:return
+        if self.notice.text == SETUP_GUIDANCE:
+            self.notice.set_text('')
         password='';legacy_password=''
         try:
             state=self.gate.status()
@@ -298,6 +367,8 @@ class PremiumGateDialog:
                 self._close_password_dialog();self._set_dialog_error('')
                 self._show_legacy(False);self._clear_uids();self._reset_password();self._reset_legacy();self._reset_secret()
             self.gate.end_prompt()
+            if not self.closed and not self.notice.text and self.setup_required():
+                self.notice.set_text(SETUP_GUIDANCE)
             if not self.closed:self.recovery_open.set_visibility(self.recovery_visible())
             if not self.closed and self.recovery is not None:self.recovery.render()
             if self.on_change and not self.closed:self.on_change()

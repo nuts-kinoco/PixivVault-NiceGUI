@@ -5,6 +5,8 @@ Explicit retries enter the isolated managed queue. The original DB stays intact.
 from __future__ import annotations
 
 import asyncio
+from collections import Counter
+import re
 from uuid import uuid4
 
 from nicegui import background_tasks, ui
@@ -126,6 +128,8 @@ class FailedRecordsView:
                             "disable role=menuitem data-testid=failed-clear-all")
                         self.clear_all_item.tooltip("一覧から除外します。元DB・作品ファイルは変更しません")
             self.counter = ui.label().classes("pv-counter").props("data-testid=failed-count")
+            self.retry_exclusions = ui.label().classes('pv-failure-reason').props(
+                'role=status data-testid=failed-retry-exclusions')
             self.status = ui.label().classes("pv-subtitle").props("role=status data-testid=failed-status")
             self.retry_notice = ui.label().classes('pv-subtitle').props(
                 'role=status data-testid=failed-managed-retry-status')
@@ -225,11 +229,6 @@ class FailedRecordsView:
             self.category_counts[key].set_text(str(counts[key]) if self._loaded else "?")
             button.props["aria-pressed"] = str(state.category == key).lower()
             button.set_enabled(self._loaded)
-        if self._loaded:
-            self.retry_all.set_text(f"{len(matched)}件を再試行" if matched
-                                    else "再試行できるものがありません")
-        else:
-            self.retry_all.set_text("失敗記録は未取得です")
         opted_in = getattr(self.services, 'legacy_failed_retry_available', False)
         can_retry = (opted_in and self._loaded and not state.loading
                      and not state.error and not self._retry_busy
@@ -239,14 +238,26 @@ class FailedRecordsView:
                       and not state.loading and not state.error and not self._retry_busy
                       and not self._remove_busy and self._allowed())
         self.clear_all_item.set_enabled(can_remove and bool(state.records))
-        eligible = tuple(item for item in matched if self._retry_supported(item))
-        self.retry_all.set_enabled(can_retry and bool(eligible))
+        excluded = {item: self._retry_exclusion_reason(item) for item in matched
+                    if not self._retry_supported(item)}
+        eligible_count = sum(item not in excluded for item in matched)
+        self.retry_all.set_enabled(can_retry and eligible_count > 0)
         self._retry_unaccepted_tip.set_visibility(not opted_in)
         self.cancel_retry_button.set_visibility(self._retry_busy)
         self.cancel_retry_button.set_enabled(self._retry_busy and self._allowed())
-        if opted_in and self._loaded:
-            self.retry_all.set_text(f'対応作品 {len(eligible)} 件を管理キューへ再投入'
-                                    if eligible else '再試行できる対応作品がありません')
+        if not self._loaded:
+            self.retry_all.set_text('失敗記録は未取得です')
+        elif not matched:
+            self.retry_all.set_text('再試行できる対応作品がありません')
+        else:
+            self.retry_all.set_text(
+                f'全 {len(matched)} 件中 {eligible_count} 件を再試行（{len(matched) - eligible_count} 件は対象外）')
+        show_summary = self._loaded and bool(matched) and eligible_count == 0
+        self.retry_exclusions.set_visibility(show_summary)
+        if show_summary:
+            reasons = Counter(excluded[item] for item in matched)
+            detail = '、'.join(f'{reason}（{count} 件）' for reason, count in reasons.items())
+            self.retry_exclusions.set_text(f'再試行できる対応作品がありません。{detail}。')
         self.export_label.set_text(f"表示中の{len(matched)}件をCSV出力")
         self.export_item.set_enabled(self._loaded and not state.loading and not state.error)
         self.status.set_text("読み込み中です" if state.loading else "")
@@ -276,7 +287,7 @@ class FailedRecordsView:
                         category = self._category_labels[classify_reason(record.error_reason)]
                         ui.label(f"{category} ・ リトライ回数: {record.retry_count}").classes("pv-failure-meta")
                         retry = retry_button(testid="failed-row-retry")
-                        if can_retry and self._retry_supported(record):
+                        if can_retry and record not in excluded:
                             self._wire(retry, 'click', lambda row=record: self.request_retry((row,)))
                         else:
                             retry.disable()
@@ -286,6 +297,9 @@ class FailedRecordsView:
                         else:
                             remove.disable()
                     ui.label(record.error_reason or "不明エラー").classes("pv-failure-reason").props("data-testid=failed-reason")
+                    if record in excluded:
+                        ui.label(f'再試行の対象外: {excluded[record]}').classes('pv-failure-reason').props(
+                            'data-testid=failed-row-retry-exclusion')
                     self._retry_state_labels[self._retry_key(record)] = ui.label().classes(
                         'pv-failure-meta').props('role=status data-testid=failed-row-retry-state')
         self._refresh_retry_states()
@@ -357,6 +371,18 @@ class FailedRecordsView:
             return supported(item)
         from ..services import ApplicationServices
         return ApplicationServices._supported_failed_original(item)
+
+    def _retry_exclusion_reason(self, item) -> str:
+        # Display only: the service predicate still decides whether a row can be retried.
+        if item.work_type not in ('illust', 'manga', 'novel'):
+            return '対応していない作品種別です'
+        if type(item.work_id) is not str or re.fullmatch(r'[1-9][0-9]{0,19}', item.work_id) is None:
+            return '作品 ID が有効な数字ではありません'
+        if type(item.user_id) is not str or re.fullmatch(r'[1-9][0-9]{0,19}', item.user_id) is None:
+            return 'ユーザー ID が有効な数字ではありません'
+        if item.work_type == 'novel' and getattr(self.services, 'novel_jobs', None) is None:
+            return '小説の保存先が設定されていません'
+        return 'この作品を安全に再試行できません'
 
     def request_retry(self, rows=None) -> None:
         """Start the explicit managed retry; never delete or update old rows."""

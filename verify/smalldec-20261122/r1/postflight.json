@@ -1,0 +1,16 @@
+{
+    "branch":  "small-dec",
+    "base":  "961caa2cd3b4d785eb3357eca320b01d4c1e7d61",
+    "code_candidate":  "08a6fb4d57eab6a255166337ded7227bb210ed26",
+    "checked_local":  "2026-11-22T11:37:37.3006699+09:00",
+    "owned_pytest_processes":  0,
+    "quiet_flag_present":  true,
+    "quiet_flag_path":  "S:\\Work\\_tmp\\PV\\sup\\D6_QUIET.flag",
+    "source_crash_log_present":  false,
+    "temporary_directory":  "S:\\Work\\_tmp\\PV\\small-dec",
+    "temporary_top_level_items":  46,
+    "cleanup_execution":  "supervisor",
+    "cleanup_dry_run":  true,
+    "backup_hash_matches":  true,
+    "backup_lines":  12
+}

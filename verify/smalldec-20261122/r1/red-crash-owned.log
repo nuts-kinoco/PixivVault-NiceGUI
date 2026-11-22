@@ -1,0 +1,28 @@
+FFF                                                                      [100%]
+================================== FAILURES ===================================
+_____________ test_crash_entry_uses_profile_logs_before_bootstrap _____________
+tests\test_smalldec_crash_log_20261122.py:25: in test_crash_entry_uses_profile_logs_before_bootstrap
+    assert crash_entry.main() == 0
+           ^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\crash_entry.py:25: in main
+    return bootstrap_main()
+           ^^^^^^^^^^^^^^^^
+tests\test_smalldec_crash_log_20261122.py:20: in application
+    assert expected.is_file()
+E   AssertionError: assert False
+E    +  where False = is_file()
+E    +    where is_file = WindowsPath('S:/Work/_tmp/PV/small-dec/red-crash-owned-isolated-pytest/isolated-fixture-bases/test_crash_entry_uses_profile_0/profile/logs/crash_log.txt').is_file
+___________________ test_crash_log_path_override_precedence ___________________
+tests\test_smalldec_crash_log_20261122.py:39: in test_crash_log_path_override_precedence
+    assert capture is not None
+E   assert None is not None
+_____________ test_uncreatable_crash_log_warns_and_app_continues ______________
+tests\test_smalldec_crash_log_20261122.py:61: in test_uncreatable_crash_log_warns_and_app_continues
+    assert sys.excepthook is old_hook
+E   assert sys_hook is <built-in function excepthook>
+E    +  where sys_hook = sys.excepthook
+=========================== short test summary info ===========================
+FAILED tests/test_smalldec_crash_log_20261122.py::test_crash_entry_uses_profile_logs_before_bootstrap
+FAILED tests/test_smalldec_crash_log_20261122.py::test_crash_log_path_override_precedence
+FAILED tests/test_smalldec_crash_log_20261122.py::test_uncreatable_crash_log_warns_and_app_continues
+3 failed in 0.59s
