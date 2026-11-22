@@ -103,9 +103,9 @@ def nice_server(root, mode):
         return None
 
     cookie = root / "credentials" / "cookies.txt"
-    wire = RankingWire(root, "nice", cookie, fake=mode == "fake")
-    wire.install_nice()
     with nice_scope(root) as (profile, shared):
+        wire = RankingWire(root, "nice", cookie, fake=mode == "fake")
+        wire.install_nice()
         # Measure the user-triggered ranking path without startup discovery
         # refill. The isolated discovery DB is still used for ranking tags.
         ApplicationServices.start_discovery_initial_load = lambda self: None
@@ -123,6 +123,7 @@ def nice_server(root, mode):
             binding._startup_extract_done = True
             register_pages(pixiv_cookie_file=cookie, managed_network_stop_scope=profile,
                            shared_network_stop_scope=shared, native_profile=binding,
+                           external_vault_root=None,
                            startup_tab="ranking", discovery_root=base / "discovery",
                            preferences_root=root / "ranking-preferences",
                            image_cache_root=root / "ranking-image-cache")

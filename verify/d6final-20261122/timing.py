@@ -18,7 +18,8 @@ CONDITIONS = frozenset(("warm", "cold", "prefetched", "refill", "local"))
 class StopRun(RuntimeError):
     """Only fixed diagnostic codes may be exported."""
     REASONS = frozenset(("budget", "http_401", "http_403", "http_429", "http_5xx", "captcha",
-                         "authentication", "transport", "destination", "product_stop"))
+                         "authentication", "transport", "destination", "product_stop",
+                         "quiet_window", "host_busy"))
 
     def __init__(self, reason):
         self.reason = reason if reason in self.REASONS else "transport"

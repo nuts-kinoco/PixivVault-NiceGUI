@@ -1,0 +1,4829 @@
+[
+  {
+    "observed_at": "2026-11-22T11:57:08.0776099+09:00",
+    "sample_seconds": 5.42,
+    "cpu_pct": 71,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 55.3,
+    "ema_core_equivalents": 8.85,
+    "ordinary_browser_cpu_pct": 4.61,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 5.76
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 33660,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 124308,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 27836,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 126868,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "other_cpu_worker",
+        "pid": 134880,
+        "cpu_pct": 5.76
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T11:57:35.8172300+09:00",
+    "sample_seconds": 4.81,
+    "cpu_pct": 72,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 54.6,
+    "ema_core_equivalents": 8.74,
+    "ordinary_browser_cpu_pct": 2.6,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 10.4
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 33660,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 124308,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 27836,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 126868,
+        "cpu_pct": 3.9
+      },
+      {
+        "kind": "other_cpu_worker",
+        "pid": 134880,
+        "cpu_pct": 6.5
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T11:58:03.1429594+09:00",
+    "sample_seconds": 5.08,
+    "cpu_pct": 60,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 44.34,
+    "ema_core_equivalents": 7.09,
+    "ordinary_browser_cpu_pct": 2.46,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 7.39
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 30240,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 20940,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 136156,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 97752,
+        "cpu_pct": 2.46
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T11:58:31.5425091+09:00",
+    "sample_seconds": 5.61,
+    "cpu_pct": 68,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 56.84,
+    "ema_core_equivalents": 9.09,
+    "ordinary_browser_cpu_pct": 3.34,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 1.11
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 30240,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 20940,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 136156,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 97752,
+        "cpu_pct": 1.11
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T11:58:59.4931312+09:00",
+    "sample_seconds": 5.4,
+    "cpu_pct": 59,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 52.1,
+    "ema_core_equivalents": 8.34,
+    "ordinary_browser_cpu_pct": 3.47,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T11:59:27.3871502+09:00",
+    "sample_seconds": 5.42,
+    "cpu_pct": 62,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 53.06,
+    "ema_core_equivalents": 8.49,
+    "ordinary_browser_cpu_pct": 3.46,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T11:59:55.3766584+09:00",
+    "sample_seconds": 5.19,
+    "cpu_pct": 61,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 53,
+    "ema_core_equivalents": 8.48,
+    "ordinary_browser_cpu_pct": 3.61,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:00:22.9787829+09:00",
+    "sample_seconds": 5.33,
+    "cpu_pct": 61,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 52.78,
+    "ema_core_equivalents": 8.44,
+    "ordinary_browser_cpu_pct": 3.52,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:00:50.7731630+09:00",
+    "sample_seconds": 5.2,
+    "cpu_pct": 59,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 49.25,
+    "ema_core_equivalents": 7.88,
+    "ordinary_browser_cpu_pct": 3.6,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:01:18.6604659+09:00",
+    "sample_seconds": 5.37,
+    "cpu_pct": 63,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 48.86,
+    "ema_core_equivalents": 7.82,
+    "ordinary_browser_cpu_pct": 4.65,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:01:46.2134504+09:00",
+    "sample_seconds": 5.08,
+    "cpu_pct": 63,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 52.89,
+    "ema_core_equivalents": 8.46,
+    "ordinary_browser_cpu_pct": 3.69,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:02:13.9906883+09:00",
+    "sample_seconds": 5.13,
+    "cpu_pct": 61,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 53.57,
+    "ema_core_equivalents": 8.57,
+    "ordinary_browser_cpu_pct": 3.65,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:02:41.9891755+09:00",
+    "sample_seconds": 5.47,
+    "cpu_pct": 71,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 51.43,
+    "ema_core_equivalents": 8.23,
+    "ordinary_browser_cpu_pct": 3.43,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 9.14
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 94508,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 106636,
+        "cpu_pct": 1.14
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 88448,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 129052,
+        "cpu_pct": 2.29
+      },
+      {
+        "kind": "other_cpu_worker",
+        "pid": 91424,
+        "cpu_pct": 5.71
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:03:09.4732199+09:00",
+    "sample_seconds": 5.27,
+    "cpu_pct": 64,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 54.52,
+    "ema_core_equivalents": 8.72,
+    "ordinary_browser_cpu_pct": 3.56,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 94508,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 106636,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 88448,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 129052,
+        "cpu_pct": 0
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:03:37.0189101+09:00",
+    "sample_seconds": 5.08,
+    "cpu_pct": 70,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 55.38,
+    "ema_core_equivalents": 8.86,
+    "ordinary_browser_cpu_pct": 3.69,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 94508,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 106636,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 88448,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 129052,
+        "cpu_pct": 0
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:04:05.1056323+09:00",
+    "sample_seconds": 5.38,
+    "cpu_pct": 58,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 47.62,
+    "ema_core_equivalents": 7.62,
+    "ordinary_browser_cpu_pct": 3.48,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 134316,
+        "cpu_pct": null
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 133524,
+        "cpu_pct": null
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 129652,
+        "cpu_pct": null
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 118900,
+        "cpu_pct": null
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:04:33.5728317+09:00",
+    "sample_seconds": 5.89,
+    "cpu_pct": 64,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 50.97,
+    "ema_core_equivalents": 8.16,
+    "ordinary_browser_cpu_pct": 3.19,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 135172,
+        "cpu_pct": 3.19
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 134316,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 133524,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 129652,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 118900,
+        "cpu_pct": 0
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:05:01.3976472+09:00",
+    "sample_seconds": 5.19,
+    "cpu_pct": 66,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 57.78,
+    "ema_core_equivalents": 9.24,
+    "ordinary_browser_cpu_pct": 3.61,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 134316,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 133524,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 129652,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 118900,
+        "cpu_pct": 0
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:05:29.1350082+09:00",
+    "sample_seconds": 5.34,
+    "cpu_pct": 62,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 52.7,
+    "ema_core_equivalents": 8.43,
+    "ordinary_browser_cpu_pct": 3.51,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:05:54.3129567+09:00",
+    "sample_seconds": 3.87,
+    "cpu_pct": 13,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 6.46,
+    "ema_core_equivalents": 1.03,
+    "ordinary_browser_cpu_pct": 3.23,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": true,
+    "owned_running": [],
+    "measurement_ports_listening": [],
+    "phase": "before_launch",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:06:25.9297749+09:00",
+    "sample_seconds": 4.41,
+    "cpu_pct": 57,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 50.97,
+    "ema_core_equivalents": 8.16,
+    "ordinary_browser_cpu_pct": 2.83,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "process_inventory",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:06:52.5594240+09:00",
+    "sample_seconds": 4.66,
+    "cpu_pct": 59,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 49.59,
+    "ema_core_equivalents": 7.93,
+    "ordinary_browser_cpu_pct": 2.68,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "process_inventory",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:07:18.8984922+09:00",
+    "sample_seconds": 4.45,
+    "cpu_pct": 59,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 53.35,
+    "ema_core_equivalents": 8.54,
+    "ordinary_browser_cpu_pct": 2.81,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 134232,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 109720,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 118900,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 128260,
+        "cpu_pct": 0
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "process_inventory",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:07:45.4178891+09:00",
+    "sample_seconds": 4.5,
+    "cpu_pct": 60,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 47.26,
+    "ema_core_equivalents": 7.56,
+    "ordinary_browser_cpu_pct": 2.78,
+    "other_heavy_processes": [
+      {
+        "kind": "other_cpu_worker",
+        "pid": 46508,
+        "cpu_pct": 5.56
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 134232,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 109720,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 118900,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 128260,
+        "cpu_pct": 0
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "process_inventory",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:08:11.7053660+09:00",
+    "sample_seconds": 4.42,
+    "cpu_pct": 61,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 52.3,
+    "ema_core_equivalents": 8.37,
+    "ordinary_browser_cpu_pct": 2.83,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 134232,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 109720,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 118900,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 128260,
+        "cpu_pct": 0
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "process_inventory",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:08:36.9357609+09:00",
+    "sample_seconds": 3.86,
+    "cpu_pct": 13,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 8.09,
+    "ema_core_equivalents": 1.29,
+    "ordinary_browser_cpu_pct": 3.23,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 134232,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 109720,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 118900,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 128260,
+        "cpu_pct": 0
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "process_inventory",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:09:02.0070534+09:00",
+    "sample_seconds": 3.83,
+    "cpu_pct": 13,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 8.15,
+    "ema_core_equivalents": 1.3,
+    "ordinary_browser_cpu_pct": 3.26,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 134232,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 109720,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 118900,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 128260,
+        "cpu_pct": 0
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "process_inventory",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:09:27.2635141+09:00",
+    "sample_seconds": 3.92,
+    "cpu_pct": 10,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 4.78,
+    "ema_core_equivalents": 0.76,
+    "ordinary_browser_cpu_pct": 3.19,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 134232,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 109720,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 118900,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 128260,
+        "cpu_pct": 0
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "process_inventory",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:09:52.6469742+09:00",
+    "sample_seconds": 3.92,
+    "cpu_pct": 14,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 4.79,
+    "ema_core_equivalents": 0.77,
+    "ordinary_browser_cpu_pct": 3.19,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 134232,
+        "cpu_pct": null
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 109720,
+        "cpu_pct": null
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 118900,
+        "cpu_pct": null
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 128260,
+        "cpu_pct": null
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "process_inventory",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:10:17.9851352+09:00",
+    "sample_seconds": 3.9,
+    "cpu_pct": 11,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 6.41,
+    "ema_core_equivalents": 1.03,
+    "ordinary_browser_cpu_pct": 3.2,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": true,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "process_inventory",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:10:25.0951578+09:00",
+    "sample_seconds": 3.95,
+    "cpu_pct": 14,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 6.34,
+    "ema_core_equivalents": 1.01,
+    "ordinary_browser_cpu_pct": 3.17,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": true,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_2",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:10:31.8592397+09:00",
+    "sample_seconds": 3.85,
+    "cpu_pct": 13,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 6.5,
+    "ema_core_equivalents": 1.04,
+    "ordinary_browser_cpu_pct": 3.25,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": true,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_3",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:10:38.5303623+09:00",
+    "sample_seconds": 3.95,
+    "cpu_pct": 11,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 6.33,
+    "ema_core_equivalents": 1.01,
+    "ordinary_browser_cpu_pct": 3.16,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": true,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_4",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:10:45.5882948+09:00",
+    "sample_seconds": 3.92,
+    "cpu_pct": 37,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 19.14,
+    "ema_core_equivalents": 3.06,
+    "ordinary_browser_cpu_pct": 3.19,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 9.57
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 124156,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 127440,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 43004,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 127888,
+        "cpu_pct": 3.19
+      },
+      {
+        "kind": "other_cpu_worker",
+        "pid": 133312,
+        "cpu_pct": 6.38
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:11:13.5057533+09:00",
+    "sample_seconds": 5.29,
+    "cpu_pct": 68,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 56.66,
+    "ema_core_equivalents": 9.07,
+    "ordinary_browser_cpu_pct": 3.54,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 2.36
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 124156,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 127440,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 43004,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 127888,
+        "cpu_pct": 2.36
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:11:41.4740560+09:00",
+    "sample_seconds": 5.45,
+    "cpu_pct": 63,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 53.89,
+    "ema_core_equivalents": 8.62,
+    "ordinary_browser_cpu_pct": 3.44,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:12:08.7340690+09:00",
+    "sample_seconds": 5.15,
+    "cpu_pct": 56,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 46.14,
+    "ema_core_equivalents": 7.38,
+    "ordinary_browser_cpu_pct": 4.85,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:12:37.0710571+09:00",
+    "sample_seconds": 5.39,
+    "cpu_pct": 61,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 49.84,
+    "ema_core_equivalents": 7.97,
+    "ordinary_browser_cpu_pct": 3.48,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 130400,
+        "cpu_pct": null
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 130648,
+        "cpu_pct": null
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 124176,
+        "cpu_pct": null
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 18064,
+        "cpu_pct": null
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:13:05.0399500+09:00",
+    "sample_seconds": 4.59,
+    "cpu_pct": 60,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 51.74,
+    "ema_core_equivalents": 8.28,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 28,
+    "ordinary_browser_cpu_pct": 4.09,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 130400,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 130648,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 124176,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 18064,
+        "cpu_pct": 0
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:13:33.5409305+09:00",
+    "sample_seconds": 5.22,
+    "cpu_pct": 63,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 56.23,
+    "ema_core_equivalents": 9,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 20,
+    "ordinary_browser_cpu_pct": 3.59,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 1.2
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 130400,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 130648,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 124176,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 18064,
+        "cpu_pct": 1.2
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:14:02.3001646+09:00",
+    "sample_seconds": 5.17,
+    "cpu_pct": 64,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 54.35,
+    "ema_core_equivalents": 8.7,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 20,
+    "ordinary_browser_cpu_pct": 3.62,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 136140,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 65868,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 30116,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 127092,
+        "cpu_pct": null
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:14:30.9999077+09:00",
+    "sample_seconds": 5.48,
+    "cpu_pct": 66,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 54.75,
+    "ema_core_equivalents": 8.76,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 27,
+    "ordinary_browser_cpu_pct": 3.42,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 1.14
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 136140,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 65868,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 30116,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 127092,
+        "cpu_pct": 1.14
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:14:59.6686988+09:00",
+    "sample_seconds": 5.31,
+    "cpu_pct": 74,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 57.66,
+    "ema_core_equivalents": 9.23,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 20,
+    "ordinary_browser_cpu_pct": 3.53,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 1.18
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 136140,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 65868,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 30116,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 127092,
+        "cpu_pct": 1.18
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:15:29.1876361+09:00",
+    "sample_seconds": 5.95,
+    "cpu_pct": 66,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 46.21,
+    "ema_core_equivalents": 7.39,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 20,
+    "ordinary_browser_cpu_pct": 3.15,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 136140,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 65868,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 30116,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 127092,
+        "cpu_pct": 0
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:15:58.1480923+09:00",
+    "sample_seconds": 5.49,
+    "cpu_pct": 67,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 47.83,
+    "ema_core_equivalents": 7.65,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 18,
+    "ordinary_browser_cpu_pct": 3.42,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:16:26.5573204+09:00",
+    "sample_seconds": 5.23,
+    "cpu_pct": 64,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 46.6,
+    "ema_core_equivalents": 7.46,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 32,
+    "ordinary_browser_cpu_pct": 3.58,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:16:54.2541556+09:00",
+    "sample_seconds": 4.67,
+    "cpu_pct": 58,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 48.21,
+    "ema_core_equivalents": 7.71,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 20,
+    "ordinary_browser_cpu_pct": 2.68,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:17:22.8915037+09:00",
+    "sample_seconds": 5.41,
+    "cpu_pct": 67,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 52,
+    "ema_core_equivalents": 8.32,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 27,
+    "ordinary_browser_cpu_pct": 3.47,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 6.94
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 131868,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 135880,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 22260,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 134140,
+        "cpu_pct": 1.16
+      },
+      {
+        "kind": "other_cpu_worker",
+        "pid": 124816,
+        "cpu_pct": 5.78
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:17:50.6061326+09:00",
+    "sample_seconds": 5.52,
+    "cpu_pct": 26,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 11.32,
+    "ema_core_equivalents": 1.81,
+    "ema_gpu_counters_seen": 0,
+    "ema_gpu_max_engine_pct": null,
+    "ordinary_browser_cpu_pct": 3.4,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 3.39
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 131868,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 135880,
+        "cpu_pct": 1.13
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 22260,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 134140,
+        "cpu_pct": 2.26
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:18:18.6675650+09:00",
+    "sample_seconds": 4.84,
+    "cpu_pct": 65,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 52.91,
+    "ema_core_equivalents": 8.47,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 36,
+    "ordinary_browser_cpu_pct": 3.87,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:18:46.6682354+09:00",
+    "sample_seconds": 4.71,
+    "cpu_pct": 68,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 53.04,
+    "ema_core_equivalents": 8.49,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 29,
+    "ordinary_browser_cpu_pct": 2.65,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 6.63
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 110840,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 135512,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 15836,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 37676,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "other_cpu_worker",
+        "pid": 18200,
+        "cpu_pct": 6.63
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:19:15.4145833+09:00",
+    "sample_seconds": 5.28,
+    "cpu_pct": 51,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 30.76,
+    "ema_core_equivalents": 4.92,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 29,
+    "ordinary_browser_cpu_pct": 3.55,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 1.18
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 110840,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 135512,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 15836,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 37676,
+        "cpu_pct": 1.18
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:19:43.6870699+09:00",
+    "sample_seconds": 4.99,
+    "cpu_pct": 55,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 46.37,
+    "ema_core_equivalents": 7.42,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 28,
+    "ordinary_browser_cpu_pct": 3.76,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 110840,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 135512,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 15836,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 37676,
+        "cpu_pct": 0
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:20:11.7142517+09:00",
+    "sample_seconds": 5.21,
+    "cpu_pct": 62,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 51.6,
+    "ema_core_equivalents": 8.26,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 21,
+    "ordinary_browser_cpu_pct": 3.6,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:20:40.0271311+09:00",
+    "sample_seconds": 4.77,
+    "cpu_pct": 58,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 49.77,
+    "ema_core_equivalents": 7.96,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 14,
+    "ordinary_browser_cpu_pct": 3.93,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 121452,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 38528,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 125080,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 136488,
+        "cpu_pct": 0
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:21:08.7770060+09:00",
+    "sample_seconds": 5.35,
+    "cpu_pct": 62,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 51.37,
+    "ema_core_equivalents": 8.22,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 36,
+    "ordinary_browser_cpu_pct": 3.5,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 2.34
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 121452,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 38528,
+        "cpu_pct": 1.17
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 125080,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 136488,
+        "cpu_pct": 1.17
+      },
+      {
+        "kind": "pytest",
+        "pid": 44140,
+        "cpu_pct": null
+      },
+      {
+        "kind": "pytest",
+        "pid": 110772,
+        "cpu_pct": null
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:21:37.2462658+09:00",
+    "sample_seconds": 4.91,
+    "cpu_pct": 59,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 47.09,
+    "ema_core_equivalents": 7.53,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 7,
+    "ordinary_browser_cpu_pct": 3.82,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 121452,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 38528,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 125080,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 136488,
+        "cpu_pct": 0
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:22:05.5287426+09:00",
+    "sample_seconds": 5.3,
+    "cpu_pct": 58,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 49.53,
+    "ema_core_equivalents": 7.92,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 28,
+    "ordinary_browser_cpu_pct": 3.54,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:22:34.0646367+09:00",
+    "sample_seconds": 5.3,
+    "cpu_pct": 64,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 51.87,
+    "ema_core_equivalents": 8.3,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 14,
+    "ordinary_browser_cpu_pct": 3.54,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 37724,
+        "cpu_pct": null
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 117960,
+        "cpu_pct": null
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 34012,
+        "cpu_pct": null
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 2156,
+        "cpu_pct": null
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:23:00.8343876+09:00",
+    "sample_seconds": 4.16,
+    "cpu_pct": 27,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 12.02,
+    "ema_core_equivalents": 1.92,
+    "ema_gpu_counters_seen": 0,
+    "ema_gpu_max_engine_pct": null,
+    "ordinary_browser_cpu_pct": 3.01,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 6.01
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 37724,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 117960,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 34012,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 2156,
+        "cpu_pct": 0
+      },
+      {
+        "kind": "other_cpu_worker",
+        "pid": 21928,
+        "cpu_pct": 6.01
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:23:27.1971268+09:00",
+    "sample_seconds": 4.12,
+    "cpu_pct": 18,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 12.13,
+    "ema_core_equivalents": 1.94,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 0,
+    "ordinary_browser_cpu_pct": 3.03,
+    "other_heavy_processes": [
+      {
+        "kind": "browser_automation",
+        "pid": 37724,
+        "cpu_pct": null
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 117960,
+        "cpu_pct": null
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 34012,
+        "cpu_pct": null
+      },
+      {
+        "kind": "browser_automation",
+        "pid": 2156,
+        "cpu_pct": null
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:23:53.3763965+09:00",
+    "sample_seconds": 4.1,
+    "cpu_pct": 35,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 25.92,
+    "ema_core_equivalents": 4.15,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 74,
+    "ordinary_browser_cpu_pct": 3.05,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:24:20.1529178+09:00",
+    "sample_seconds": 4.29,
+    "cpu_pct": 47,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 34.96,
+    "ema_core_equivalents": 5.59,
+    "ema_gpu_counters_seen": 16,
+    "ema_gpu_max_engine_pct": 87,
+    "ordinary_browser_cpu_pct": 2.91,
+    "other_heavy_processes": [
+      {
+        "kind": "agent_job",
+        "pid": 19384,
+        "cpu_pct": 5.83
+      },
+      {
+        "kind": "other_cpu_worker",
+        "pid": 130320,
+        "cpu_pct": 5.83
+      }
+    ],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": false,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:24:46.1843501+09:00",
+    "sample_seconds": 3.99,
+    "cpu_pct": 11,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 6.26,
+    "ema_core_equivalents": 1,
+    "ema_gpu_counters_seen": 0,
+    "ema_gpu_max_engine_pct": null,
+    "ordinary_browser_cpu_pct": 3.13,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": true,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_5",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:24:53.8690134+09:00",
+    "sample_seconds": 3.96,
+    "cpu_pct": 14,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 6.32,
+    "ema_core_equivalents": 1.01,
+    "ema_gpu_counters_seen": 0,
+    "ema_gpu_max_engine_pct": null,
+    "ordinary_browser_cpu_pct": 3.16,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": true,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_6",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:25:01.4648457+09:00",
+    "sample_seconds": 3.94,
+    "cpu_pct": 14,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 6.35,
+    "ema_core_equivalents": 1.02,
+    "ema_gpu_counters_seen": 0,
+    "ema_gpu_max_engine_pct": null,
+    "ordinary_browser_cpu_pct": 3.17,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": true,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_7",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:25:09.2913078+09:00",
+    "sample_seconds": 4.06,
+    "cpu_pct": 14,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 4.62,
+    "ema_core_equivalents": 0.74,
+    "ema_gpu_counters_seen": 0,
+    "ema_gpu_max_engine_pct": null,
+    "ordinary_browser_cpu_pct": 3.08,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": true,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_8",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:25:16.9183638+09:00",
+    "sample_seconds": 4.1,
+    "cpu_pct": 11,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 4.57,
+    "ema_core_equivalents": 0.73,
+    "ema_gpu_counters_seen": 0,
+    "ema_gpu_max_engine_pct": null,
+    "ordinary_browser_cpu_pct": 3.05,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": true,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_9",
+    "wait_expired": false
+  },
+  {
+    "observed_at": "2026-11-22T12:25:24.1925406+09:00",
+    "sample_seconds": 3.99,
+    "cpu_pct": 11,
+    "cpu_method": "summed_sampled_process_cpu",
+    "ema_cpu_pct": 0,
+    "ema_core_equivalents": 0,
+    "ema_gpu_counters_seen": 0,
+    "ema_gpu_max_engine_pct": null,
+    "ordinary_browser_cpu_pct": 3.13,
+    "other_heavy_processes": [],
+    "idle_agent_processes": [
+      {
+        "pid": 16976,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 41164,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 135172,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 19384,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 126060,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 137412,
+        "cpu_pct": 0
+      },
+      {
+        "pid": 3460,
+        "cpu_pct": 0
+      }
+    ],
+    "quiet": true,
+    "owned_running": [
+      {
+        "pid": 67548,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:54.5928400Z"
+      },
+      {
+        "pid": 129652,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5110640Z"
+      },
+      {
+        "pid": 129296,
+        "name": "python.exe",
+        "started": "2026-11-22T03:05:58.5407020Z"
+      },
+      {
+        "pid": 37956,
+        "name": "node.exe",
+        "started": "2026-11-22T03:06:00.4751640Z"
+      },
+      {
+        "pid": 129560,
+        "name": "chrome-headless-shell.exe",
+        "started": "2026-11-22T03:06:00.7832490Z"
+      }
+    ],
+    "measurement_ports_listening": [
+      22830,
+      22840
+    ],
+    "phase": "before_pair_10",
+    "wait_expired": false
+  }
+]
