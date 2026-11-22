@@ -1,0 +1,12 @@
+﻿F                                                                        [100%]
+================================== FAILURES ===================================
+___ test_viewer_only_pin_cannot_submit_a_reader_with_unproven_shelf_lineage ___
+tests\test_recommendation_visual.py:362: in test_viewer_only_pin_cannot_submit_a_reader_with_unproven_shelf_lineage
+    assert received == []
+E   assert [('1', 0, Rem...gular_view'))] == []
+E     
+E     Left contains one more item: ('1', 0, RemoteImageWithVariant(blob=ImageBlob(data=b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\xf0\x00\x00\x00\..._type='image/png', etag='"0a16380efccb9e8ce4476255cab099923ee7772ad4897a807ee67916986d2906"'), variant='regular_view'))
+E     Use -v to get more diff
+=========================== short test summary info ===========================
+FAILED tests/test_recommendation_visual.py::test_viewer_only_pin_cannot_submit_a_reader_with_unproven_shelf_lineage
+1 failed, 18 deselected in 4.07s

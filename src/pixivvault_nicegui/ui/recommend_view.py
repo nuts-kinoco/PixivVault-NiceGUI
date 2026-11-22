@@ -1,10 +1,13 @@
 """Recommendation shelves with explicit refresh, paging and sidecar preferences."""
 from __future__ import annotations
 import asyncio
+from base64 import b64encode
+from dataclasses import replace
 from uuid import uuid4
 from nicegui import background_tasks, core, ui
+from ..learning_service import notify_shadow
 from ..recommendation_state import LABELS, ORDER, RecommendationWork
-from ..recommendation_media import RecommendationMediaSnapshot
+from ..recommendation_media import RecommendationDisplayGroup, RecommendationMediaSnapshot, RecommendationVisual
 from ..viewer_metadata import pixiv_url
 from .action_controls import primary_button, refresh_button
 from .card_size_control import size_buttons, update_size_buttons
@@ -39,6 +42,7 @@ class RecommendView:
         self._save_operations={};self._saving=set();self._busy_buttons=[];self._refresh_pending=None
         self._action_bindings=[];self._render_generation=0
         self._media=None;self._selection_media=None;self._open_generation=0;self._opening=None
+        self._visual_display=None;self._visual_shadow=None
         self._author_browser=None
         self.client=ui.context.client
         self._card_actions=CardActions(services,lambda text:self.notice.set_text(text),lambda:self.active and not self.closed)
@@ -127,6 +131,7 @@ class RecommendView:
         self.active=active;self.epoch+=1
         self._recommend_viewer.set_viewer_active(active)
         if not active:
+            self._visual_display=None
             if self._author_browser is not None:self._author_browser.hide()
             self._pending_hide=None
             self.hide_dialog.close()
@@ -143,7 +148,7 @@ class RecommendView:
             self._set_busy(True, text='保存済み結果を読み込んでいます…')
             data=await asyncio.to_thread(self.controller.refresh)
             if self.active and self.epoch==epoch:
-                self.data=data;self.render(preserve_viewer=preserve_viewer)
+                if not await self._publish(data,epoch,preserve_viewer=preserve_viewer):return
                 unavailable=data.get('unavailable', ())
                 if unavailable:
                     message = '保存結果を確認できない項目があります：' + '・'.join(LABELS.get(k,k) for k in unavailable)
@@ -163,7 +168,7 @@ class RecommendView:
             self._set_busy(True, text=busy_text)
             data=await asyncio.to_thread(callback)
             if self.active and self.epoch==epoch:
-                self.data=data;self.render()
+                if not await self._publish(data,epoch):return False
                 message = '一部を取得できませんでした。保存済み結果を保持しています。再操作で再試行できます。' if data.get('errors') else '専用設定に保存しました。'
                 if show_count:
                     groups = [group for rows in data['sections'].values() for group in rows]
@@ -176,7 +181,7 @@ class RecommendView:
                 try:
                     data=await asyncio.to_thread(self.controller.snapshot)
                     if self.active and not self.closed and self.epoch==epoch:
-                        self.data=data;self.render()
+                        await self._publish(data,epoch)
                 except Exception:pass
                 if self.active and not self.closed and self.epoch==epoch:
                     self.notice.set_text('取得または保存に失敗しました。前の結果とページを保持しています。再読込後に再試行できます。')
@@ -296,17 +301,121 @@ class RecommendView:
         self._selection_media=None
         if media is not None and media is not self._media:media.close()
 
-    def _visible_works(self):
-        if self.data is None:return ()
+    def _visible_groups(self, data):
+        if data is None:return ()
         result=[]
-        for kind in self.data['order']:
-            if (kind=='trend' or kind in self.data['collapsed']
-                    or kind in self.data['unavailable']):continue
-            for group in self.data['sections'].get(kind,()):
-                if kind=='certain' and group.key in self.data.get('certain_group_collapsed',()):continue
+        for kind in data['order']:
+            if kind=='trend' or kind in data['collapsed'] or kind in data['unavailable']:continue
+            for group in data['sections'].get(kind,()):
+                if kind=='certain' and group.key in data.get('certain_group_collapsed',()):continue
                 count=self.visible.get((kind,group.key),self.step)
-                result.extend(group.works[:count])
+                if group.works:
+                    result.append(RecommendationDisplayGroup(kind,group.key,group.works[:count]))
         return tuple(result)
+
+    def _visible_works(self):
+        return tuple(work for group in self._visible_groups(self.data) for work in group.works)
+
+    def _visual_binding(self):
+        visual=getattr(self.services,'recommendation_visual',None)
+        if visual is not None:return visual
+        observer=getattr(getattr(self.services,'discovery',None),'shadow_observer',None)
+        if observer is None:return None
+        if self._visual_shadow is None or self._visual_shadow.observer is not observer:
+            self._visual_shadow=RecommendationVisual(observer)
+        return self._visual_shadow
+
+    async def _publish(self,data,epoch,*,preserve_viewer=False):
+        visual=self._visual_binding()
+        media=self._media
+        generation=self._render_generation
+        preparation=None
+        if visual is not None and media is not None and notify_shadow(visual.enabled,route='recommendation_enabled'):
+            groups=self._visible_groups(data)
+            works=tuple(work for group in groups for work in group.works)
+            if notify_shadow(media.matches,works,route='recommendation_media'):
+                captured=notify_shadow(lambda:media.capture_display(groups,lineage=True),route='recommendation_capture')
+                if captured:
+                    prepared=await asyncio.to_thread(notify_shadow,visual.prepare,captured,route='recommendation_prepare')
+                    if (generation==self._render_generation and self._media is media
+                            and self._visual_binding() is visual):
+                        preparation=(visual,media,groups,captured,prepared)
+        if self.closed or not self.active or self.epoch!=epoch:
+            return False
+        self.data=data
+        self.render(preserve_viewer=preserve_viewer,visual_preparation=preparation)
+        return True
+
+    def _visual_slots(self, visual, groups, old_media, protected, preparation):
+        prior,self._visual_display=self._visual_display,None
+        if visual is None or not self.active:return {}, ()
+        current_source=self._media is not None and self._media.projection_source_current()
+        if current_source and preparation is not None and preparation[:3]==(visual,self._media,groups):
+            captured,prepared=preparation[3:]
+        else:
+            media_capture=self._media.capture_display if current_source else RecommendationMediaSnapshot.empty_display
+            captured=notify_shadow(media_capture,groups,route='recommendation_capture')
+            prepared=None
+        if captured is None:captured=RecommendationMediaSnapshot.empty_display(groups)
+        previous=()
+        operation_protected=frozenset(protected)
+        same_sources=(current_source and old_media is not None
+                      and self._media.local_token==old_media.local_token
+                      and self._media.remote_reader is old_media.remote_reader)
+        if prior is not None and same_sources and prior[0] is visual:
+            previous=prior[2]
+            if (preparation is None and prior[1] is not None and prior[3] is self.data
+                    and notify_shadow(visual.is_current,prior[1][0],route='recommendation_generation')):
+                prepared=prior[1]
+                protected.update(slot.work.work_id for unit in previous for slot in unit.slots)
+        if (prepared is None
+                and notify_shadow(visual.enabled,route='recommendation_enabled') is not False):
+            previous=()
+        slate=notify_shadow(lambda:visual.project(captured,prepared,previous=previous,protected=protected),
+                            route='recommendation_project')
+        if slate is None:slate=captured
+        registered=dict(self.data.get('boosted',()))
+        slate=tuple(unit if self._visual_unit_current(unit,registered) else base
+                    for base,unit in zip(captured,slate))
+        generation_current=(prepared is None or
+                            notify_shadow(visual.is_current,prepared[0],route='recommendation_generation'))
+        binding_current=self._visual_binding() is visual
+        source_current=current_source and self._media.projection_source_current()
+        if not generation_current or not binding_current or not source_current:
+            # A generation or binding can change during the source checks.
+            # OFF can preserve a still-authorized card already being operated.
+            slate=captured
+            if (binding_current and source_current
+                    and notify_shadow(visual.enabled,route='recommendation_enabled') is False):
+                anchored=notify_shadow(lambda:visual.project(
+                    captured,None,previous=previous,protected=operation_protected),route='recommendation_restore')
+                if anchored is not None:
+                    slate=tuple(unit if self._visual_unit_current(unit,registered) else base
+                                for base,unit in zip(captured,anchored))
+            prepared=None
+        retained=tuple(unit if any(slot.base!=slot.work for slot in unit.slots)
+                       else replace(unit,slots=tuple(replace(slot,image=None) for slot in unit.slots))
+                       for unit in slate)
+        self._visual_display=(visual,prepared,retained,self.data)
+        return {(unit.kind,unit.key,tuple(slot.base for slot in unit.slots)):unit.slots for unit in slate}, slate
+
+    def _visual_unit_current(self, unit, registered):
+        moved=tuple(slot for slot in unit.slots if slot.base!=slot.work)
+        if not moved:return True
+        # A wrapped action row changes the vertical position of later lazy
+        # loaders. Dynamic Pixiv action labels cannot promise stable geometry.
+        if (self._media is None or not self._media.projection_source_current()
+                or getattr(self.services,'pixiv_actions',None) is not None):
+            return False
+        def layout(work):
+            return (bool(work.author_id), bool((work.author_name or work.author_id).strip()),
+                    work.author_id in registered)
+        for slot in moved:
+            if layout(slot.base)!=layout(slot.work):
+                return False
+            if not notify_shadow(self._media.thumbnail_url,slot.work.work_id,route='recommendation_held_source'):
+                return False
+        return True
 
     def open_saved_work(self,work_id,*,generation):
         if (self.closed or not self.active or self.busy or self.on_open is None
@@ -395,24 +504,37 @@ class RecommendView:
         return (not data.get('unavailable') and not data.get('trends') and not data.get('added_tags') and not data.get('boosted')
                 and not any(g.works for groups in data['sections'].values() for g in groups))
 
-    def render(self, *, preserve_viewer=False):
+    def render(self, *, preserve_viewer=False, visual_preparation=None):
         if self.data is None or self.closed:return
+        protected=set(self._saving)
+        if self._opening is not None:protected.add(self._opening[0])
+        if self._pending_hide is not None:protected.add(self._pending_hide[0])
+        selection=self._recommend_viewer.selection
+        if selection is not None:protected.add(selection.artwork.work_id)
         if not preserve_viewer:self._recommend_viewer.close_viewer(restore_focus=False)
         old_media=self._media
+        groups=self._visible_groups(self.data)
+        visual=self._visual_binding()
         try:
-            visible=self._visible_works()
+            visible=tuple(work for group in groups for work in group.works)
             if old_media is None or not old_media.matches(visible):
                 self._media=RecommendationMediaSnapshot(self.services,visible)
         except Exception:
             # An unavailable catalog must not authorize remote fallback for an
             # identity whose saved/excluded state could not be inspected.
             self._media=None
+        if self._media is not None and (visual is not None or self._visual_display is not None):
+            media=self._media
+            observer=(lambda wid,page,image: visual.observer.submit_image(wid,page,image)
+                      if media.projection_source_current() and self._visual_binding() is visual else None) if visual is not None else None
+            notify_shadow(media.bind_view_observer,observer,route='recommendation_image_binding')
         if old_media is not None and old_media is not self._media and old_media is not self._selection_media:
             old_media.close()
         for controls in self._action_bindings:controls.close()
         self._action_bindings.clear()
         self._render_generation+=1
         generation=self._render_generation
+        slots,slate=self._visual_slots(visual,groups,old_media,protected,visual_preparation)
         data=self.data;self.body.clear();self._certain_buttons={}
         self.update_button.set_enabled(data.get('can_acquire',False))
         self.reset_button.set_enabled(bool(data.get('writable') and tuple(data['order'])!=ORDER and not self.busy))
@@ -427,6 +549,8 @@ class RecommendView:
                     if self._on_navigate_to_learning is not None:
                         ui.button('学習タブへ',on_click=lambda e=None:self._on_navigate_to_learning()).props(
                             'outline data-testid=recommend-go-learning')
+                if visual is not None and self.active and self._visual_binding() is visual:
+                    notify_shadow(visual.record,slate,route='recommendation_exposure')
                 return
             for kind in data['order']:
                 groups=data['sections'].get(kind,())
@@ -500,8 +624,12 @@ class RecommendView:
                                 b.set_enabled(data['writable'])
                         if closed:continue
                         key=(kind,group.key);count=self.visible.get(key,self.step)
+                        visible_works=group.works[:count]
+                        unit=slots.get((*key,visible_works))
                         with ui.element("div").classes("pv-grid w-full").style(f"--pv-max-cols:{MAX_COLUMNS[self.card_size]}"):
-                            for work in group.works[:count]:
+                            for rank,base in enumerate(visible_works):
+                                slot=unit[rank] if unit is not None else None
+                                work=slot.work if slot is not None else base
                                 with ui.column().classes('pv-recommend-tile w-full min-w-0 gap-1').props(f'data-testid=recommend-work-{kind}-{work.work_id}'):
                                     with ui.element('div').classes('pv-card w-full').props(
                                             f'tabindex=0 role=button data-testid=recommend-open-{kind}-{work.work_id}') as preview:
@@ -515,12 +643,20 @@ class RecommendView:
                                         caption='サムネイル未取得'
                                         try:
                                             if self._media is not None:
-                                                thumbnail=self._media.thumbnail_url(work.work_id)
+                                                thumbnail=self._media.thumbnail_url(base.work_id)
                                         except Exception:
                                             caption='画像を表示できません'
                                         if thumbnail:
-                                            ui.image(thumbnail).props(
+                                            image=ui.image(thumbnail).props(
                                                 f'fit=contain loading=lazy no-transition data-testid=recommend-thumb-{kind}-{work.work_id}').classes('pv-thumb')
+                                            if work!=base:
+                                                # Keep the original lazy URL in its original box so
+                                                # image demand and shared LRU recency stay equivalent.
+                                                data_url=b64encode(slot.image.data).decode('ascii')
+                                                image.props['img-style']={'opacity':0}
+                                                image.props('no-spinner')
+                                                image.style('background-size:contain;background-position:center;background-repeat:no-repeat')
+                                                image.style['background-image']=f'url(data:image/png;base64,{data_url})'
                                         else:
                                             with ui.element('div').classes('pv-thumb pv-recommend-thumb-empty'):
                                                 ui.icon('image_not_supported')
@@ -577,6 +713,8 @@ class RecommendView:
         if self.busy:
             self._lock_rendered_buttons()
             self.update_button.disable()
+        if visual is not None and self.active and self._visual_binding() is visual:
+            notify_shadow(visual.record,slate,route='recommendation_exposure')
 
     def _viewer_hidden(self,work_id):
         # ビューアの右クリックで出さないにした。保存済みの結果を読み直して棚から外す。
@@ -675,6 +813,7 @@ class RecommendView:
     def close(self):
         if self.closed:return
         self.closed=True;self.active=False;self.epoch+=1;self._pending_hide=None
+        self._visual_display=self._visual_shadow=None
         self._recommend_viewer.close()
         if self._author_browser is not None:self._author_browser.close()
         if self._media is not None:self._media.close();self._media=None
