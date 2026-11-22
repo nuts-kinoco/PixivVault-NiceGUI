@@ -1,6 +1,6 @@
 # Dots 用レビュー依頼（UI/UX の独立レビュー）— ナビゲーション再編と画像表示面積の設計
 
-使い方: 「--- ここから ---」から「--- ここまで ---」までを Dots に貼る。Dots がファイルを開けない場合は、下の「資料」の各ファイルの中身を、続けて貼る（先に本文、その後に設計書）。返信ブロックを私（Claude Code 監督）に貼る。
+使い方: 「--- ここから ---」から「--- ここまで ---」までを Dots に貼る。資料は GitHub の公開 URL で渡す（Dots はローカルのパスを読めない）。URL を開けない場合は、設計書の中身を続けて貼る。返信ブロックを私（Claude Code 監督）に貼る。
 
 --- ここから ---
 
@@ -13,11 +13,14 @@
 - 結果のタブ: ダウンロード・キュー・失敗リスト・重複整理・学習・ランキング・カスタムランキング・ライブラリ・マイブックマーク・おすすめ（11 個 → 10 個）。右上のアイコン列: バックアップ履歴・閲覧履歴・保存先・テーマ・Web・設定 ＋ 新しい「自動処理」。
 - 元 Flet のデザイン（配色・書体・部品の様式）は保つ方針。構成・密度の変更は、画像の表示面積のために許可されている。基準は Apple の Human Interface Guidelines（階層・調和・一貫性、コントラスト 4.5:1、操作領域、キーボード操作、控えめさ）。
 
-## 資料（読んでください）
-- 設計書（日本語）: `S:\Projects\PV-DEV-20261117\work\docs\design\UI_NAV_RESTRUCTURE_20261122.md`
-- **操作できるワイヤーフレーム**（ブラウザで開く。新しいタブの並び、右上の「自動処理」ダイアログと状態バッジ、「よく効くタグ」の +N、ライト・ダーク）: `S:\Projects\PV-DEV-20261117\work\docs\design\UI_NAV_RESTRUCTURE_20261122.html`
-- 画像の表示面積の計測と設計（折りたたみツールバー、ヘッダーの詰め方、スクロールで隠す案の比較）: `S:\Projects\PV-DEV-20261117\work\docs\design\UI_IMAGE_AREA_20261122.md` と同名の `.html`
-- UI 監査の仕様（基準）: `S:\Projects\PV-DEV-20261117\work\docs\UIUX_AUDIT_SPEC_20261122.md`
+## 資料（GitHub の公開リポジトリ nuts-kinoco/PixivVault-NiceGUI、ブランチ pv-dev-baseline。URL を開いて読んでください）
+- 設計書（日本語、Markdown。生の本文）: https://raw.githubusercontent.com/nuts-kinoco/PixivVault-NiceGUI/pv-dev-baseline/docs/design/UI_NAV_RESTRUCTURE_20261122.md
+  （通常の表示: https://github.com/nuts-kinoco/PixivVault-NiceGUI/blob/pv-dev-baseline/docs/design/UI_NAV_RESTRUCTURE_20261122.md ）
+- **操作できるワイヤーフレーム**（ブラウザで開く。新しいタブの並び、右上の「自動処理」ダイアログと状態バッジ、「よく効くタグ」の +N、ライト・ダーク）: https://htmlpreview.github.io/?https://github.com/nuts-kinoco/PixivVault-NiceGUI/blob/pv-dev-baseline/docs/design/UI_NAV_RESTRUCTURE_20261122.html
+  （HTML の生のソース: https://raw.githubusercontent.com/nuts-kinoco/PixivVault-NiceGUI/pv-dev-baseline/docs/design/UI_NAV_RESTRUCTURE_20261122.html ）
+- 画像の表示面積の計測と設計（折りたたみツールバー、ヘッダーの詰め方、スクロールで隠す案の比較）: https://raw.githubusercontent.com/nuts-kinoco/PixivVault-NiceGUI/pv-dev-baseline/docs/design/UI_IMAGE_AREA_20261122.md 、ワイヤーフレーム: https://htmlpreview.github.io/?https://github.com/nuts-kinoco/PixivVault-NiceGUI/blob/pv-dev-baseline/docs/design/UI_IMAGE_AREA_20261122.html
+- UI 監査の仕様（基準）: https://raw.githubusercontent.com/nuts-kinoco/PixivVault-NiceGUI/pv-dev-baseline/docs/UIUX_AUDIT_SPEC_20261122.md
+- **URL を開けない場合**: 開けなかった資料の名前を返信ブロックの「見なかった資料」に書き、依頼した人に「中身を貼ってほしい」と伝えてください（推測でレビューしない）。
 
 ## レビューしてほしい観点（それぞれ、賛成／条件付き賛成／反対 と理由）
 1. **タブ構成と並び（10 個）**: 並び順は妥当か。主要機能が埋もれていないか。1280px 幅でタブが 1 行に収まる設計（収まらないときは等幅 2 段）の判断は妥当か。アイコン＋ラベルの密度。
