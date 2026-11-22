@@ -111,3 +111,7 @@ async def test_missing_configuration_shows_an_entry_without_opening_popup(tmp_pa
 def test_busy_and_budget_guidance_asks_user_to_retry_later(code):
     assert 'しばらくしてから再試行' in unavailable_message(code)
     assert 'しばらくしてから再試行' in vault_unlock_error_message(code)
+
+
+def test_pool_quota_guidance_survives_when_only_the_pool_error_is_available():
+    assert 'しばらくしてから再試行' in unavailable_message('borrow-accounts-unavailable')
