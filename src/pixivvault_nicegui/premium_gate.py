@@ -50,7 +50,7 @@ class PremiumAuthorization:
         result=json.loads(raw)
         if type(result) is not dict:raise PremiumGateError('premium-record-invalid')
         return result
-    def _restore(self):
+    def _restore(self, *, require_open=False):
         try:
             fence=self._path('activation-state')
             try:
@@ -70,7 +70,8 @@ class PremiumAuthorization:
             self._enabled=self._remembered=True
             self._load_material()
             try:
-                if not self.restore_vault():
+                opened = self.restore_vault()
+                if require_open and not opened:
                     self._enabled=self._remembered=False
             except VaultError as error:
                 if error.code!='unlock-failed':raise
@@ -227,7 +228,7 @@ class PremiumAuthorization:
                 return False
             self._remembered = False
             self._error = None
-            self._restore()
+            self._restore(require_open=True)
             if not self._enabled:
                 return False
             if not self.vault.status().get('oauth_review_required'):

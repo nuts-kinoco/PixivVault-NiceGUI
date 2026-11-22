@@ -8,6 +8,8 @@ from .premium_recovery_view import PremiumRecoveryPanel
 from ..premium_uid_file import DEFAULT_UID_PATH, read_uid_file, uid_text_errors, apply_uid_file
 from ..premium_read import borrow_wait_message
 
+SETUP_GUIDANCE = '借用プレミアムを使うには初期設定が必要です。'
+
 def vault_unlock_error_message(code):
     if code == 'pixiv-outcome-uncertain':
         return ('前回の通信の結果を確認できていない登録があります。保管された状態を確認できるまで、借用プレミアムはOFFのままです。'
@@ -74,8 +76,8 @@ class PremiumGateDialog:
                     secondary_button('閉じる', self.recovery_dialog.close, testid='premium-recovery-close')
         self.recovery_open.set_visibility(self.recovery_visible())
         message = vault_unlock_error_message(gate.status().get('error'))
-        if self.setup_required() and not message:
-            message = '借用プレミアムを使うには初期設定が必要です。'
+        if not message and self.setup_required():
+            message = SETUP_GUIDANCE
         self.notice=ui.label(message or '').props('role=status data-testid=premium-permission-status')
         with ui.row().classes('items-center gap-2').props(
                 'role=group aria-label=借用プレミアムをOFFにする data-testid=premium-off-choices') as self.off_choices:
@@ -87,10 +89,14 @@ class PremiumGateDialog:
         ui.context.client.on_delete(self.close)
 
     def setup_required(self):
-        vault_status = self.gate.vault.status()
         gate_status = self.gate.status()
+        if gate_status['enabled'] or gate_status['remembered']:
+            return False
+        vault = getattr(self.gate, 'vault', None)
+        if vault is None:
+            return False
+        vault_status = vault.status()
         return (not vault_status.get('inspection_error')
-                and not gate_status['enabled'] and not gate_status['remembered']
                 and not (vault_status.get('initialized') and self.gate.startup_suppressed))
 
     async def request_disable(self, *, session_only):
@@ -262,6 +268,8 @@ class PremiumGateDialog:
                 return
         epoch=self.gate.begin_prompt()
         if epoch is None:return
+        if self.notice.text == SETUP_GUIDANCE:
+            self.notice.set_text('')
         password='';legacy_password=''
         try:
             state=self.gate.status()
@@ -359,6 +367,8 @@ class PremiumGateDialog:
                 self._close_password_dialog();self._set_dialog_error('')
                 self._show_legacy(False);self._clear_uids();self._reset_password();self._reset_legacy();self._reset_secret()
             self.gate.end_prompt()
+            if not self.closed and not self.notice.text and self.setup_required():
+                self.notice.set_text(SETUP_GUIDANCE)
             if not self.closed:self.recovery_open.set_visibility(self.recovery_visible())
             if not self.closed and self.recovery is not None:self.recovery.render()
             if self.on_change and not self.closed:self.on_change()

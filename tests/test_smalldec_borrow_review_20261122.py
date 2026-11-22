@@ -27,6 +27,11 @@ class PayoutTransport(FixtureTransport):
         return result
 
 
+async def wait_for_payout_completion(vault):
+    while vault.status()['busy']:
+        await asyncio.sleep(0.01)
+
+
 @pytest.fixture
 def app_vault(tmp_path, monkeypatch):
     root = tmp_path / 'vault'
@@ -65,6 +70,7 @@ async def test_shell_off_choice_stops_real_service_keeper_and_controls_restart(a
     try:
         assert keeper is not None
         assert await asyncio.to_thread(transport.paid.wait, 5)
+        await asyncio.wait_for(wait_for_payout_completion(vault), 5)
         assert vault._request_budget.payout_limit == 10
         assert vault._request_budget.payout_window == 5 * 3600
         with client:
