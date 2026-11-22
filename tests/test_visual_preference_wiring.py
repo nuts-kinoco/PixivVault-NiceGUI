@@ -102,7 +102,7 @@ args = parser.parse_args()
 assert args.owner == 'PV'
 state = Path(__file__).with_suffix('.state')
 if args.command == 'acquire':
-    assert int(args.pid) > 0 and args.vram_gib == 6 and 0 < args.minutes <= 30 and args.wait > 0
+    assert int(args.pid) > 0 and args.vram_gib == 6 and 0 < args.minutes <= 30 and args.wait == 0
     state.write_text('first')
     print('acquired', json.dumps(dict(token='first', expires=time.time() + 60)))
 elif args.command == 'release':

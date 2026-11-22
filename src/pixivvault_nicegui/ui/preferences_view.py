@@ -2,7 +2,9 @@
 import asyncio
 from contextlib import contextmanager
 from nicegui import ui
-from .action_controls import dialog_actions, dialog_card, outlined_input, outlined_select, primary_button, secondary_button
+from .action_controls import (
+    danger_button, dialog_actions, dialog_card, outlined_input, outlined_select, primary_button, secondary_button,
+)
 from .premium_recovery_view import PremiumRecoveryPanel
 from .. import __version__
 from ..preferences import SPECS, SPEC_BY_KEY, PreferencesError
@@ -128,12 +130,12 @@ def visual_status_text(*, phase, error, indexed, pending, generation, worker_ava
     return ' ／ '.join(parts)
 
 
-def _set_status_alert(label, active):
+def _set_status_alert(label, active, *, normal_role=None):
     if active:
         label.classes(add='pv-alert-banner')
     else:
         label.classes(remove='pv-alert-banner')
-    label.props.set_optional('role', 'alert' if active else None)
+    label.props.set_optional('role', 'alert' if active else normal_role)
 
 
 class PreferencesView:
@@ -362,7 +364,7 @@ class PreferencesView:
 
     def _build_preference_group(self, title, specs, *, hint=None):
         visual = title == '絵柄・構図の推論' and self.visual_service is not None
-        with settings_group(title, collapsible=visual) as group:
+        with settings_group(title):
             if hint:
                 ui.label(hint).classes('pv-field-hint')
             with ui.element('div').classes('pv-settings-fields'):
@@ -416,7 +418,8 @@ class PreferencesView:
                                 self._cache_limit_notes[spec.key]=note
 
             if visual:
-                self._build_visual_controls(group, self._epoch)
+                with settings_group('視覚学習の操作', collapsible=True) as group:
+                    self._build_visual_controls(group, self._epoch)
 
     def _build_visual_controls(self, group, epoch):
         self.visual_status_label = ui.label('待機中').classes('pv-subtitle').props(
@@ -449,8 +452,7 @@ class PreferencesView:
         if self.visual_status_label.text != text:
             self.visual_status_label.set_text(text)
             alert = bool(state['error'] or self._visual_action_error)
-            self.visual_status_label.classes(add='pv-alert-banner' if alert else '',
-                                             remove='' if alert else 'pv-alert-banner')
+            _set_status_alert(self.visual_status_label, alert, normal_role='status')
             self.visual_status_label.style(replace=(
                 'color:var(--pv-text);border-color:var(--pv-error-text)' if alert else ''))
             if alert:
@@ -504,7 +506,7 @@ class PreferencesView:
                         await self._visual_action(self.visual_service.clear_visual_preference,
                                                   '視覚学習データの削除を確認できませんでした。', expected)
 
-                primary_button('削除する', clear, testid='preferences-visual-clear-confirm')
+                danger_button('削除する', clear, testid='preferences-visual-clear-confirm')
 
         def on_hide():
             if self._visual_confirm is dialog:

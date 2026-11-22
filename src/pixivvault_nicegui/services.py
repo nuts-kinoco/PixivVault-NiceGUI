@@ -285,6 +285,10 @@ class ApplicationServices:
         self._visual_lock = RLock()
         self._visual_settings = None
         self._visual_error = None
+        self._visual_model = None
+        self._visual_worker_account = None
+        self._visual_user_paused_account = None
+        self._visual_catalog_lock = Lock()
         self._similarity_legacy_inputs = None
         self._similarity_run_lock = RLock()
         self._similarity_stop = Event()
@@ -1001,6 +1005,7 @@ class ApplicationServices:
             self._egara_provider = provider
             if self.local_tagger is not None and provider_changed:
                 self.local_tagger.invalidate()
+        self.sync_visual_preference(account_only=True)
 
     @property
     def similarity_analysis_enabled(self):
@@ -1370,42 +1375,41 @@ class ApplicationServices:
         from .visual_preference_worker import VisualPreferenceWorker
 
         root, scope = self._visual_store_scope(account)
-        provider = 'cpu' if self._egara_provider == 'cpu' else 'cuda'
-        saved_snapshot = None
-
-        def saved_ids():
-            nonlocal saved_snapshot
-            snapshot = self.library
-            if saved_snapshot is None or saved_snapshot[0] is not snapshot:
-                saved_snapshot = snapshot, frozenset(work.work_id for work in snapshot.works)
-            return saved_snapshot[1]
-
+        model_path, requested = self._egara_model_path, self._egara_provider
+        provider = 'cpu' if requested == 'cpu' else 'cuda'
         worker = VisualPreferenceWorker(
-            VisualPreferenceStore(root, **scope), self._egara_model_path,
+            VisualPreferenceStore(root, **scope), model_path,
             provider=provider, shared_lease=SharedGpuLease() if provider == 'cuda' else None,
             scope_current=lambda: self._visual_identity_is_current((reader, account)),
-            saved_ids=saved_ids,
+            saved_ids=self._visual_saved_library_ids,
         )
         if not worker.scope_is_current():
             return None
+        self._visual_model = (model_path, requested)
+        self._visual_worker_account = account
         self.visual_preference_worker = self.discovery.shadow_observer = worker
         return worker
 
-    def _retire_visual_worker(self, *, require_complete=True):
+    def _detach_visual_worker(self):
         worker = self.visual_preference_worker
         if worker is not None:
             self._visual_retiring = worker
             self.visual_preference_worker = None
             self._visual_settings = None
             worker.retire()
+            self._visual_model = None
+            self._visual_worker_account = None
             if self.discovery is not None and self.discovery.shadow_observer is worker:
                 self.discovery.shadow_observer = None
+
+    def _retire_visual_worker(self, *, require_complete=True, reason='off'):
+        self._detach_visual_worker()
         worker = self._visual_retiring
         if worker is None:
             return
         errors = []
         try:
-            worker.stop(pause=True)
+            worker.stop(pause=True, invalidate_reason=reason)
         except Exception as error:
             errors.append(error)
         try:
@@ -1429,14 +1433,23 @@ class ApplicationServices:
             identity = self._verified_visual_account()
             worker = self.visual_preference_worker
             try:
-                if self._visual_retiring is not None or (worker is not None and not worker.scope_is_current()):
-                    self._retire_visual_worker()
+                if self._visual_retiring is not None:
+                    self._retire_visual_worker(require_complete=False)
+                if worker is not None and not worker.scope_is_current():
+                    self._retire_visual_worker(require_complete=False, reason='account_change')
                     worker = None
                 if identity is None:
                     self._visual_error = None
                     return
                 reader, account = identity
-                if worker is not None and account_only and self._visual_settings is not None:
+                if self._visual_user_paused_account != account:
+                    self._visual_user_paused_account = None
+                user_paused = self._visual_user_paused_account is not None
+                if worker is not None and self._visual_model != (self._egara_model_path, self._egara_provider):
+                    self._retire_visual_worker(require_complete=False, reason='model_change')
+                    worker = None
+                if (worker is not None and account_only and self._visual_settings is not None
+                        and self._visual_error is None):
                     return
                 snapshot = snapshot if snapshot is not None else self.preferences.snapshot()
                 selected = (snapshot.values['visual_preference_enabled'], snapshot.values['visual_preference_mode'])
@@ -1445,10 +1458,15 @@ class ApplicationServices:
                     worker = self._open_visual_worker(reader, account)
                     if worker is None:
                         return
-                if previous is not None and (
+                if previous is None and selected[0] == '0':
+                    worker.store.invalidate('off')
+                if previous is None and user_paused:
+                    worker.request_pause()
+                elif previous is not None and (
                         (previous[0] == '1' and selected[0] == '0') or (previous[1] == 'idle' and selected[1] == 'manual')):
                     worker.request_pause(reason='disabled' if previous[0] != selected[0] else 'manual')
-                elif (selected[1] == 'idle' and previous != selected and self._egara_model_path is not None):
+                elif (not user_paused and selected[1] == 'idle' and previous != selected
+                      and self._egara_model_path is not None):
                     worker.start(idle_seconds=5)
                 self._visual_settings = selected
                 self._visual_error = None
@@ -1460,7 +1478,8 @@ class ApplicationServices:
     def visual_preference_enabled(self):
         """Gate correction before the caller computes or applies a score."""
         worker = self.visual_preference_worker
-        if self.closing or self._visual_error or worker is None or not worker.scope_is_current():
+        if (self.closing or self._visual_error or worker is None or not worker.scope_is_current()
+                or self._visual_model != (self._egara_model_path, self._egara_provider)):
             return False
         state = worker.status()
         if state['phase'] in ('paused', 'pausing', 'stopping', 'stopped', 'failed') or state['waiting_for_lease']:
@@ -1486,6 +1505,7 @@ class ApplicationServices:
                 indexed, generation = 0, 0
                 status['error'] = 'scope_failure'
             if self.visual_preference_worker is worker and worker.scope_is_current():
+                status['error'] = status['error'] or self._visual_error
                 state.update(status, indexed=indexed, generation=generation,
                              worker_available=self._egara_model_path is not None,
                              can_clear=True, clear_target=worker, provider=worker.provider)
@@ -1509,10 +1529,13 @@ class ApplicationServices:
         self.sync_visual_preference()
         with self._visual_lock:
             self._active_visual_worker().start()
+            self._visual_user_paused_account = None
 
     def pause_visual_preference(self):
         with self._visual_lock:
-            self._active_visual_worker().request_pause()
+            worker = self._active_visual_worker()
+            self._visual_user_paused_account = self._visual_worker_account
+            worker.request_pause()
 
     def clear_visual_preference(self, expected):
         from .fs_paths import logical_path
@@ -1637,6 +1660,15 @@ class ApplicationServices:
     def saved_discovery_ids(self):
         if self.closing:
             return frozenset()
+        return self._saved_library_ids()
+
+    def _visual_saved_library_ids(self):
+        if self.closing:
+            return frozenset()
+        with self._visual_catalog_lock:
+            return frozenset() if self.closing else self._saved_library_ids()
+
+    def _saved_library_ids(self):
         source = self._legacy_library_snapshot or self.library
         saved={work.work_id for work in source.works}
         if self.managed_downloads is not None:
@@ -3375,7 +3407,7 @@ class ApplicationServices:
         with self._close_lock:
             if self.closed and self._visual_retiring is not None:
                 with self._visual_lock:
-                    self._retire_visual_worker()
+                    self._retire_visual_worker(require_complete=False)
             if not self.closed:
                 # The same lifecycle lock guards enable-vs-close. Once close
                 # marks `closing`, no new runner can be published.
@@ -3390,38 +3422,58 @@ class ApplicationServices:
                 self._legacy_export_stop.set()
                 self._scheduler_cancel_event.set()
                 self._metadata_cancel_event.set()
-                visual_shutdown_error = None
+                with self._visual_lock:
+                    self._detach_visual_worker()
+                runtime_error = None
+                try:
+                    if self._similarity_worker is not None:
+                        self._similarity_worker.stop(timeout=150.0)
+                    # 自動後埋めの待機スレッドも、台帳・通信路を閉じる前に畳む。
+                    if self._metadata_auto is not None:
+                        self._metadata_auto.stop(timeout=150.0)
+                    # A synchronous close waits for action workers (including
+                    # local follow commits) without depending on the UI loop.
+                    self._close_pixiv_actions()
+                    if self.managed_schedule_runner is not None:
+                        # No provider/SQLite resource may close while its GET
+                        # dispatch worker still uses it. A bounded network read
+                        # may legally outlive the runner's short stop timeout.
+                        self.managed_schedule_runner.stop(timeout=150.0)
+                except Exception as error:
+                    runtime_error = error
+
+                visual_error = None
                 try:
                     with self._visual_lock:
-                        self._retire_visual_worker()
+                        self._retire_visual_worker(require_complete=False)
                 except Exception as error:
-                    # The visual worker owns its native session and per-operation
-                    # store handles. Its cancellation fence prevents new writes.
-                    visual_shutdown_error = error
-                if self._similarity_worker is not None:
-                    self._similarity_worker.stop(timeout=150.0)
-                # 自動後埋めの待機スレッドも、台帳・通信路を閉じる前に畳む。
-                if self._metadata_auto is not None:
-                    self._metadata_auto.stop(timeout=150.0)
-                # A synchronous close waits for action workers (including
-                # local follow commits) without depending on the UI loop.
-                self._close_pixiv_actions()
-                if self.managed_schedule_runner is not None:
-                    # No provider/SQLite resource may close while its GET
-                    # dispatch worker still uses it. A bounded network read
-                    # may legally outlive the runner's short stop timeout.
-                    self.managed_schedule_runner.stop(timeout=150.0)
-                # Manual dispatch and the timer share this barrier. Do not
-                # close JobService/CAS/HTTP while either still uses them.
-                with self._scheduler_dispatch_lock:
-                    # Metadata GET is bounded by the explicit Pixiv transport;
-                    # never close its client/ledger while a request is active.
-                    with self._metadata_run_lock:
-                        with self._viewer_page_lock:
-                            with self._legacy_export_lock:
-                                self._close_resources()
-                if visual_shutdown_error is not None:
-                    raise visual_shutdown_error
+                    visual_error = error
+
+                if runtime_error is None:
+                    if self._visual_catalog_lock.acquire(blocking=False):
+                        self._visual_catalog_lock.release()
+                    else:
+                        runtime_error = RuntimeError('visual saved catalog shutdown unverified')
+                if runtime_error is None:
+                    try:
+                        # Manual dispatch and the timer share this barrier. Do not
+                        # close JobService/CAS/HTTP while either still uses them.
+                        with self._scheduler_dispatch_lock:
+                            # Metadata GET is bounded by the explicit Pixiv transport;
+                            # never close its client/ledger while a request is active.
+                            with self._metadata_run_lock:
+                                with self._viewer_page_lock:
+                                    with self._legacy_export_lock:
+                                        self._close_resources()
+                    except Exception as error:
+                        runtime_error = error
+
+                if visual_error is not None and runtime_error is not None:
+                    raise ExceptionGroup('application shutdown unverified', [visual_error, runtime_error])
+                if runtime_error is not None:
+                    raise runtime_error
+                if visual_error is not None:
+                    raise visual_error
 
     def _drain_scheduler_confirmation(self):
         lock = self._scheduler_confirmation_lock

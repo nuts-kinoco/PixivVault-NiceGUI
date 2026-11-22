@@ -233,6 +233,8 @@ class EgaraInference:
     def _on_provider(self, provider, stop, array, *, infer):
         self._check_model()
         if self._session is None:
+            if provider == 'cuda':
+                self._gpu_arbiter.check_scope()
             error_type = None
             try:
                 self._session = self._load(provider, stop)
@@ -255,6 +257,8 @@ class EgaraInference:
             return self
 
         check_gpu_stop(stop)
+        if provider == 'cuda':
+            self._gpu_arbiter.check_scope()
         error_type = None
         try:
             outputs = self._session.run(None, {self._input_name: array})

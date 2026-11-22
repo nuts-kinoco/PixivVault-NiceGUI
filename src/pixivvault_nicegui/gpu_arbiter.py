@@ -7,7 +7,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 import json
 from math import isfinite
-import os
 from pathlib import Path
 import subprocess
 import sys
@@ -25,6 +24,8 @@ def check_gpu_stop(stop):
         raise GpuInferenceStopped('GPU inference stopped')
 
 
+_LEASE_CALL_TIMEOUT = 8
+_LEASE_RETRY_SECONDS = 2
 _SHARED_LEASE_SCRIPT = Path(r'S:\Work\_tmp\_gpu_lease\lease.py')
 
 
@@ -42,6 +43,10 @@ class SharedGpuLeaseError(RuntimeError):
     """The shared lease helper failed or returned an invalid response."""
 
 
+class _SharedGpuLeaseCallTimedOut(SharedGpuLeaseError):
+    """The bounded helper invocation timed out before a usable reply."""
+
+
 class SharedGpuLeaseReleaseError(SharedGpuLeaseError):
     """A granted lease's final release could not be confirmed."""
 
@@ -52,28 +57,66 @@ class SharedGpuLease:
     def __init__(self, script=_SHARED_LEASE_SCRIPT):
         self._script = script
 
-    def _call(self, *arguments, timeout):
+    @contextmanager
+    def _owner_pid(self):
+        # The v2 helper can publish a grant before stdout delivers its token.
+        # Use a lease-lifetime PID so a lost receipt cannot leave a live lease
+        # owned by the long-running app. Parent death also closes stdin.
+        try:
+            process = subprocess.Popen(
+                [sys._base_executable, '-B', '-c', 'import sys; sys.stdin.buffer.read()'],
+                stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
+            )
+        except OSError:
+            raise SharedGpuLeaseError('shared GPU lease owner unavailable') from None
+        try:
+            yield process.pid
+        finally:
+            process.stdin.close()
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=2)
+
+    def _call(self, *arguments, timeout, owner_pid):
         try:
             return subprocess.run(
                 [sys._base_executable, '-B', '-X', 'utf8', str(self._script), *arguments,
-                 '--owner', 'PV', '--pid', str(os.getpid())],
-                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                 '--owner', 'PV', '--pid', str(owner_pid)],
+                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                 encoding='utf-8', errors='replace', timeout=timeout,
                 creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
             )
+        except subprocess.TimeoutExpired:
+            raise _SharedGpuLeaseCallTimedOut('shared GPU lease helper timed out') from None
         except (OSError, subprocess.SubprocessError):
             raise SharedGpuLeaseError('shared GPU lease helper unavailable') from None
 
     @contextmanager
     def acquire(self, cancel):
-        # v2 polls every 20s. Let the helper return its token before handling
-        # cancellation so a grant concurrent with stop can still be released.
         while True:
             check_gpu_stop(cancel)
-            result = self._call('acquire', '--vram-gib', '6', '--minutes', '30',
-                                '--wait', '1', timeout=65)
-            if result.returncode != 2:
-                break
+            with self._owner_pid() as owner_pid:
+                while True:
+                    check_gpu_stop(cancel)
+                    try:
+                        result = self._call('acquire', '--vram-gib', '6', '--minutes', '30',
+                                            '--wait', '0', timeout=_LEASE_CALL_TIMEOUT, owner_pid=owner_pid)
+                    except _SharedGpuLeaseCallTimedOut:
+                        # A lost reply may have published a lease. End that
+                        # owner's lifetime before the next bounded attempt.
+                        break
+                    if result.returncode != 2:
+                        with self._granted(result, owner_pid, cancel) as expires:
+                            yield expires
+                        return
+                    cancel.wait(_LEASE_RETRY_SECONDS)
+            cancel.wait(_LEASE_RETRY_SECONDS)
+
+    @contextmanager
+    def _granted(self, result, owner_pid, cancel):
         prefix = 'acquired '
         if result.returncode != 0 or not result.stdout.startswith(prefix):
             raise SharedGpuLeaseError('shared GPU lease could not be acquired')
@@ -92,7 +135,8 @@ class SharedGpuLease:
             yield expires
         finally:
             try:
-                released = self._call('release', '--token', token, timeout=35)
+                released = self._call('release', '--token', token, timeout=_LEASE_CALL_TIMEOUT,
+                                      owner_pid=owner_pid)
             except SharedGpuLeaseError:
                 raise SharedGpuLeaseReleaseError('shared GPU lease release unconfirmed') from None
             if (released.returncode and not
@@ -199,15 +243,22 @@ class GpuInferenceArbiter:
             waiter = _Waiter(priority, self._grants, stop)
             self._waiting.append(waiter)
             self._condition.notify_all()
-            try:
-                self._condition.wait_for(lambda: stop.is_set() or (
-                    self._active is None and not self._releasing and
-                    self._next_waiter() is waiter))
-                check_gpu_stop(stop)
-                self._active = (owner, stop)
-                self._active_thread = get_ident()
-                self._grants += 1
-            finally:
+        # A shared lease can approach its deadline while a local engine
+        # holds this arbiter. Evaluate the checkpoint outside this lock.
+        check_interval = 1 if operation is not None and operation.checkpoint is not None else None
+        try:
+            while True:
+                self.check_scope()
+                with self._condition:
+                    check_gpu_stop(stop)
+                    if self._active is None and not self._releasing and self._next_waiter() is waiter:
+                        self._active = (owner, stop)
+                        self._active_thread = get_ident()
+                        self._grants += 1
+                        break
+                    self._condition.wait(check_interval)
+        finally:
+            with self._condition:
                 self._waiting.remove(waiter)
                 self._condition.notify_all()
         completed = False

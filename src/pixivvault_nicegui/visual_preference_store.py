@@ -999,7 +999,7 @@ class VisualPreferenceStore:
     @staticmethod
     def _normalize_event_payload(kind, payload):
         def normalize(row):
-            if (isinstance(row, dict) and 'judgment' in row and row['judgment'] is None
+            if (isinstance(row, dict) and row.get('judgment') is None
                     and row.get('revision', 0) == 0
                     and (row.get('saved') is True or row.get('bookmarked') is True)):
                 return dict(row, judgment='')

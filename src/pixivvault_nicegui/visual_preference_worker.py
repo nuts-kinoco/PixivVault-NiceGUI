@@ -34,6 +34,10 @@ _VARIANTS = {
 _VARIANT_RANK = {'thumb': 0, 'thumb_fallback': 1, 'view': 2}
 
 
+class _LeaseRefreshRequired(Exception):
+    """Refresh a lease before spending its reserved cleanup window."""
+
+
 class VisualPreferenceWorker:
     """Opt-in observer. Inference begins only after an explicit start().
 
@@ -134,7 +138,7 @@ class VisualPreferenceWorker:
                     self._phase, self._error = 'failed', 'thread_start'
                     raise
 
-    def _request_stop(self, pause, reason):
+    def _request_stop(self, pause, reason, invalidate_reason='off'):
         with self._condition:
             thread = self._thread
             if thread is current_thread():
@@ -151,19 +155,19 @@ class VisualPreferenceWorker:
             self._queue.clear()
             self._queued_bytes = 0
             self._condition.notify_all()
-        self.store.invalidate('off')
+        self.store.invalidate(invalidate_reason)
 
     def request_pause(self, *, reason='user'):
         with self._lifecycle:
             self._request_stop(True, reason)
 
-    def stop(self, timeout=30, *, pause=False):
+    def stop(self, timeout=30, *, pause=False, invalidate_reason='off'):
         with self._lifecycle:
             thread = self._thread
             if thread is None and not pause:
                 return
             try:
-                self._request_stop(pause, 'shutdown')
+                self._request_stop(pause, 'shutdown', invalidate_reason)
             finally:
                 if thread is not None:
                     self._join(thread, timeout)
@@ -270,6 +274,8 @@ class VisualPreferenceWorker:
                     with self._events_ready:
                         if epoch == self._events_epoch:
                             self._pending_gaps -= gaps
+                if self._saved_ids is not None:
+                    payload = self._include_saved(kind, payload)
                 self.store.append_event(kind, payload, epoch)
             except Exception as error:
                 with self._events_ready:
@@ -285,26 +291,38 @@ class VisualPreferenceWorker:
         with self._events_ready:
             if not self._events_ready.wait_for(lambda: self._event_thread is None, timeout):
                 raise TimeoutError('visual preference event drain not confirmed')
-            if require_complete and self._pending_gaps:
-                raise RuntimeError('visual preference event capture has an unresolved gap')
+            if self._pending_gaps:
+                if require_complete:
+                    raise RuntimeError('visual preference event capture has an unresolved gap')
+                _LOG.warning('visual preference event capture has unresolved gaps at shutdown')
 
     def judgment_changed(self, kind, snapshot):
-        self._record_event(kind, lambda _: self._with_saved(snapshot()), invalidate=True)
+        self._record_event(kind, lambda _: snapshot(), invalidate=True)
 
-    def _with_saved(self, row, saved=None):
-        if self._saved_ids is not None and row.get('work_id') is not None:
-            if saved is None:
-                saved = self._saved_ids()
-            if row['work_id'] in saved:
-                row = dict(row, saved=True)
-        return row
+    def _include_saved(self, kind, payload):
+        # The saved catalog may read local receipts. Keep this off the learning FIFO.
+        if kind != 'ranking' and 'work_id' not in payload:
+            return payload
+        if self._scope_current is not None and not self._scope_current():
+            return payload
+        try:
+            saved = self._saved_ids()
+        except Exception as error:
+            _LOG.warning('visual preference saved catalog unavailable (%s)', type(error).__name__)
+            return payload
+        if self._scope_current is not None and not self._scope_current():
+            return payload
+
+        def row_with_saved(row):
+            return dict(row, saved=True) if row.get('work_id') in saved else row
+
+        if kind == 'ranking':
+            return dict(payload, candidates=[row_with_saved(row) for row in payload['candidates']])
+        return row_with_saved(payload)
 
     def ranking_finalized(self, snapshot):
         def payload(epoch):
             candidates = snapshot()
-            if self._saved_ids is not None:
-                saved = self._saved_ids()
-                candidates = [self._with_saved(row, saved) for row in candidates]
             with self._condition:
                 for row in candidates:
                     variant = (self._observed.get((row['work_id'], 0))
@@ -318,7 +336,7 @@ class VisualPreferenceWorker:
         self._record_event('ranking', payload)
 
     def candidate_exposed(self, snapshot, actual_variant):
-        self._record_event('exposure', lambda _: dict(self._with_saved(snapshot()), image_available=True,
+        self._record_event('exposure', lambda _: dict(snapshot(), image_available=True,
                            image_variant=_VARIANTS.get(actual_variant)))
 
     def submit_image(self, work_id, page, image):
@@ -372,7 +390,7 @@ class VisualPreferenceWorker:
             if not self._check_running():
                 raise GpuInferenceStopped()
             if expires is not None and time() + 60 >= expires:
-                raise SharedGpuLeaseError('shared GPU lease has insufficient time remaining')
+                raise _LeaseRefreshRequired()
 
         try:
             while True:
@@ -409,26 +427,38 @@ class VisualPreferenceWorker:
                         self._reused += 1
                     continue
                 try:
-                    if predictor is None and self._lease is not None:
-                        with self._condition:
-                            self._waiting_for_lease = True
+                    while True:
                         try:
-                            expires = resources.enter_context(self._lease.acquire(self._cancel))
-                        finally:
-                            with self._condition:
-                                self._waiting_for_lease = False
-                    with self._arbiter.stop_scope(cancel=self._cancel, checkpoint=checkpoint):
-                        if predictor is None:
-                            checkpoint()
-                            predictor = EgaraInference(self._model_path, provider=self.provider,
-                                expected_sha256=self._model_sha, allow_runtime_fallback=False,
-                                gpu_arbiter=self._arbiter, gpu_priority=_GPU_PRIORITY)
-                            resources.callback(predictor.close)
-                        checkpoint()
-                        vectors, provider = predictor.infer_with_meta(data)
-                        if provider != self.provider or len(vectors.get(STYLE, b'')) != 4096:
-                            raise EgaraInferenceError('invalid visual style output')
-                        vector = struct.unpack('<1024f', vectors[STYLE])
+                            if predictor is None and self._lease is not None:
+                                with self._condition:
+                                    self._waiting_for_lease = True
+                                try:
+                                    expires = resources.enter_context(self._lease.acquire(self._cancel))
+                                finally:
+                                    with self._condition:
+                                        self._waiting_for_lease = False
+                            with self._arbiter.stop_scope(cancel=self._cancel, checkpoint=checkpoint):
+                                if predictor is None:
+                                    checkpoint()
+                                    predictor = EgaraInference(self._model_path, provider=self.provider,
+                                        expected_sha256=self._model_sha, allow_runtime_fallback=False,
+                                        gpu_arbiter=self._arbiter, gpu_priority=_GPU_PRIORITY)
+                                    resources.callback(predictor.close)
+                                checkpoint()
+                                vectors, provider = predictor.infer_with_meta(data)
+                                if provider != self.provider or len(vectors.get(STYLE, b'')) != 4096:
+                                    raise EgaraInferenceError('invalid visual style output')
+                                vector = struct.unpack('<1024f', vectors[STYLE])
+                            break
+                        except _LeaseRefreshRequired:
+                            resources.close()
+                            predictor, expires = None, None
+                            if purge_epoch != self.store.capture_event_epoch():
+                                raise VisualPreferenceFenceChanged()
+                except VisualPreferenceFenceChanged:
+                    with self._condition:
+                        self._dropped += 1
+                    continue
                 except EgaraInvalidImage:
                     with self._condition:
                         self._invalid_images += 1
