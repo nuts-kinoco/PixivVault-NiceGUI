@@ -17,6 +17,8 @@ class ViewerBackupView:
             with ui.row().classes('pv-toolbar'):
                 ui.label('直近のバックアップ').classes('pv-library-heading pv-serif-heading')
                 self.size_buttons=size_buttons(self.change_size,prefix='backup')
+                for size_button in self.size_buttons.values():
+                    size_button.classes('pv-hit28')
                 self.refresh_button=refresh_button(self.refresh, label='更新', testid='backup-refresh')
             ui.label('作者フォルダ単位でサムネイルを並べています。クリックで保存先を開きます。'
                      if self.legacy_mode else
@@ -55,14 +57,14 @@ class ViewerBackupView:
                     thumbnail = row.thumbnail if self.legacy_mode else row['thumbnail']
                     with ui.element('div').classes('pv-card pv-backup-card').props(
                             'data-testid=backup-author-'+author_id):
-                        opener=ui.element('div').classes('pv-backup-tile').props(
+                        opener=ui.element('div').classes('pv-backup-tile pv-focus-ring').props(
                             'role=button data-testid=backup-open-'+author_id)
                         opener.props['title']=f'{author_name} ({author_id})\nクリックして開く'
+                        opener.props['aria-label'] = f'保存先を開く：{author_name} ({author_id})…'
                         if getattr(self.services,'desktop',None) is None:
                             opener.props('aria-disabled=true tabindex=-1')
                         else:
                             opener.props('tabindex=0')
-                            opener.props['aria-label']=f'{author_name} ({author_id}) クリックして開く'
                             if self.legacy_mode:
                                 async def open_event(_,selected=row,captured=epoch):
                                     await self.open_legacy(selected,captured)

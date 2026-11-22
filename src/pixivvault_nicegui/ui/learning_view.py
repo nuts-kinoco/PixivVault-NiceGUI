@@ -18,6 +18,8 @@ from ..discovery_summary_fetch import fetch_summary, SummaryFetchFailed
 
 from nicegui import background_tasks, ui
 
+from .management_dialog import dismiss_focus_js
+
 from ..image_events import source_matches
 from ..learning import LearningState, MemoryJudgmentLedger, SaveCommand
 from ..services import ApplicationServices
@@ -161,7 +163,7 @@ class LearningView:
         self.client = ui.context.client
         self.client.on_delete(self.close)
 
-        with ui.column().classes("pv-learning pv-tone-learning w-full") as self.root:
+        with ui.column().classes("pv-learning pv-tone-learning pv-focus-ring w-full") as self.root:
             if self.discovery is None:
                 ui.label("学習（デモ）").classes("pv-library-heading pv-serif-heading")
             description = (
@@ -199,8 +201,10 @@ class LearningView:
                         'overflow:hidden;box-sizing:border-box;padding:10px;gap:4px;') as self.summary_board:
                     with ui.row().classes('w-full items-center justify-between'):
                         ui.label('概要').classes('pv-card-title')
-                        self.summary_close_button=ui.button('閉じる',on_click=self.close_summary).props(
+                        self.summary_close_button=ui.button('閉じる').props(
                             'flat dense data-testid=learning-summary-close')
+                        self.summary_close_button.on('click', self.close_summary, js_handler=dismiss_focus_js(
+                            self.summary_board, return_focus=self.summary_button, fallback='.pv-learning'))
                     self.summary_body=ui.element('div').classes(
                         'w-full flex-1 min-h-0 overflow-hidden').props(
                         'data-testid=learning-summary-body')
@@ -230,7 +234,7 @@ class LearningView:
                         self.open_pixiv_button = ui.button(icon='open_in_new', color=None).props(
                             'flat dense round target=_blank rel="noopener noreferrer" '
                             'aria-label="pixivで作品ページを開く" data-testid=learning-open-pixiv'
-                        ).style('position:absolute;top:4px;right:4px;min-width:21px;min-height:21px;'
+                        ).classes('pv-hit28').style('position:absolute;top:4px;right:4px;min-width:21px;min-height:21px;'
                                 'width:21px;height:21px;font-size:8px;'
                                 'background:var(--pv-raised);color:var(--pv-muted)')
                         self.open_pixiv_button.tooltip('クリックでpixivの作品ページを開く')
@@ -241,7 +245,7 @@ class LearningView:
                         self.open_pixiv_button.set_visibility(False)
                 if self.discovery is not None:
                     self._build_candidate_status_card()
-                self.toast = LearningToast(on_expired_undo=self._on_expired_undo)
+                self.toast = LearningToast(on_expired_undo=self._on_expired_undo, return_focus=self.root)
             self.picture.on('click', self._open_learning_picture, js_handler=self._click_js('open'))
             self.status = ui.label().classes("pv-subtitle pv-learning-status").props("role=status aria-live=polite")
             # 元 discovery_tab.py:4358-4365 の空状態の案内（候補が無いとき、何をすると何が起きるか）。
@@ -257,10 +261,19 @@ class LearningView:
             self.empty_card.set_visibility(False)
             with ui.row().classes("pv-learning-judgment-controls items-center gap-2") as self.judgment_controls:
                 self.buttons = {}
-                for label, choice, *_ in self.CHOICES:
+                arrow_keys = {
+                    'arrowleft': ('ArrowLeft', '←'), 'arrowdown': ('ArrowDown', '↓'),
+                    'arrowright': ('ArrowRight', '→'), 'arrowup': ('ArrowUp', '↑'),
+                }
+                for label, choice, arrow, letter, number in self.CHOICES:
+                    arrow_key, glyph = arrow_keys[arrow]
                     button = ui.button(label, color=None).props(
                         "no-caps" if choice == "like" else "outline no-caps"
-                    ).classes(f"pv-judgment pv-judgment-{choice}")
+                    ).classes(f"pv-judgment pv-judgment-{choice} pv-focus-ring")
+                    button.props['data-testid'] = f'learning-judgment-{choice}'
+                    button.props['aria-label'] = label
+                    button.props['aria-keyshortcuts'] = f'{arrow_key} {letter.upper()} {number}'
+                    button.style(f'--pv-judgment-glyph:"{glyph}"')
                     button.on("click", lambda event, c=choice: self._on_judgment(c, event),
                               js_handler=self._click_js('block-open'))
                     self.buttons[choice] = button
@@ -1440,6 +1453,7 @@ class LearningView:
             self._update_frame_badge()
             self._sync_pixiv_link(item)
             self._render_candidate_status()
+        self.title.props['title'] = item.title if item else None
         self.title.set_text(item.title if item else ("現在の候補がありません" if self._refill.armed else "初回候補を読み込んでいます") if self.discovery is not None else "判定が完了しました")
         self.progress.set_text(f"{self._baseline_count + self.state.index} / {len(self._artworks)} 件判定済み")
         if item is None:
@@ -2032,6 +2046,7 @@ class LearningView:
             value_text=ui.label('0%').style('font-size:11px;color:var(--pv-muted)')
         slider=ui.slider(min=0,max=100,step=1,value=0,on_change=lambda e,t=value_text:t.set_text(f"{int(round(e.value or 0))}%")).props(
             f'data-testid={testid}').classes('w-full')
+        slider.props['aria-label'] = label
         # 離したときの値は change イベントの値を使う（モデル更新は間引かれて最後の値が遅れることがある）。
         slider.on('change',lambda e,s=slider:self._settings_commit(s,e.args))
         return slider,value_text

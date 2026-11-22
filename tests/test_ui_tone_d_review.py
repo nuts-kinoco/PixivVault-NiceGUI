@@ -306,10 +306,14 @@ def test_request_status_retains_subtitle_when_tone_changes(client):
         records.append(dict(phase='waiting', status=429, attempt=1, limit=3, remaining_seconds=5, wait_seconds=5))
         view.refresh()
         assert {'pv-subtitle', 'pv-warning-banner'} <= set(view.label.classes)
+        assert view.label.props['role'] == 'status'
         records[0].update(phase='stopped', attempt=3)
         view.refresh()
         assert {'pv-subtitle', 'pv-alert-banner'} <= set(view.label.classes)
         assert 'pv-warning-banner' not in view.label.classes
+        assert view.label.props['role'] == 'alert'
+        records[0].update(phase='waiting', attempt=1)
+        view.refresh()
         assert view.label.props['role'] == 'status'
         records.clear()
         view.refresh()

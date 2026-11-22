@@ -3,6 +3,8 @@ import asyncio
 import json
 from uuid import uuid4
 from nicegui import ui
+
+from .management_dialog import managed_dialog
 from ..ugoira_practical import FORMATS
 
 TIMING='GIFは10ms単位へ切捨て。MP4は原版どおり平均FPS（1〜60）、色はmp4v圧縮・アルファ除去。元のdelayと色を保つ保存はフォルダーを選択。'
@@ -91,14 +93,26 @@ class UgoiraLibraryView:
                 ui.button('保存結果を確認',on_click=self.refresh).props('flat data-testid=ugoira-library-refresh')
             self.notice=ui.label().props('role=status data-testid=ugoira-library-notice')
             self.rows=ui.column().classes('pv-jobs-scroll w-full')
-        with ui.dialog().props('data-testid=ugoira-player') as self.dialog,ui.card().classes('w-full').style('max-width:900px;background:var(--pv-surface)'):
+        with managed_dialog().props('data-testid=ugoira-player') as self.dialog,ui.card().classes('w-full').style('max-width:900px;background:var(--pv-surface)'):
             self.title=ui.label().classes('pv-library-heading')
             ui.label('保存形式の検証済みフレームを再生します。GIFは10ms単位、MP4は変換後の色・平均FPSです。全コマ0msのGIFは静止表示します。').classes('pv-subtitle')
             self.canvas=ui.element('canvas').style('width:100%;max-height:60vh;object-fit:contain').props('data-testid=ugoira-canvas')
             with ui.row():
                 ui.button('再生 / 一時停止',on_click=self.toggle).props('flat data-testid=ugoira-play-toggle')
                 ui.button('閉じる',on_click=self.dialog.close).props('flat data-testid=ugoira-player-close')
-        self.dialog.on('hide',js_handler=f"() => {{const c=document.getElementById('{self.canvas.html_id}');if(c?.pv){{c.pv.stop();delete c.pv;}}const r=document.getElementById('{self.root.html_id}');if(r)r.dataset.playbackGeneration='retired';const b=document.getElementById(r?.dataset.trigger);if(r?.dataset.active==='true'&&b?.isConnected)b.focus({{preventScroll:true}});}}")
+        self.dialog.on('hide', js_handler=f'''() => {{
+            const canvas = document.getElementById('{self.canvas.html_id}');
+            if (canvas?.pv) {{
+                canvas.pv.stop();
+                delete canvas.pv;
+            }}
+            const root = document.getElementById('{self.root.html_id}');
+            if (!root) return;
+            root.dataset.playbackGeneration = 'retired';
+            const button = document.getElementById(root.dataset.trigger ?? '');
+            if (root.dataset.active === 'true' && root.contains(button))
+                window.pvFocus.restore({{origin: button, near: root}});
+        }}''')
     async def refresh(self):
         if not self.active or self.closed or self.busy:return
         self.busy=True; epoch=self.epoch

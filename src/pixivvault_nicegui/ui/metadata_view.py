@@ -56,8 +56,8 @@ class MetadataView:
             ui.label('作品ごとにブックマーク数などを取得して専用管理フォルダーに保存し、元DB・既存画像は変更しません。'
                      '自動実行は設定の「作品メタデータ」で切り替えられます（既定ON、ダウンロード中・取得停止中は待機し、停止要求時は通信完了待ち）。').classes('pv-subtitle')
             with ui.row().classes('pv-toolbar'):
-                self.run_all_button = primary_button('いま埋める', self.run_all, testid='metadata-run-all')
-                self.retry_button = secondary_button('取れなかったものをもう一度試す', self.retry_gave_up,
+                self.run_all_button = primary_button('取得を実行', self.run_all, testid='metadata-run-all')
+                self.retry_button = secondary_button('再試行（取得に失敗した作品）', self.retry_gave_up,
                                                      icon='replay', testid='metadata-retry')
                 self.retry_button.set_visibility(False)
                 self.stop_button = secondary_button('取得の停止を要求', self.stop_run, outline=True, testid='metadata-stop')
@@ -79,7 +79,7 @@ class MetadataView:
                         self.progress_label = ui.label('台帳の作品状態: 未読込').classes('pv-subtitle').props(
                             'data-testid=metadata-progress role=status')
                     ui.separator()
-                    self.work_id = outlined_input(label='台帳の作品ID（数字）').props('inputmode=numeric data-testid=metadata-work-id')
+                    self.work_id = outlined_input(label='台帳の作品ID（数字）').classes('pv-metadata-work-id').props('inputmode=numeric data-testid=metadata-work-id')
                     with ui.element('div').classes('w-full pv-tone-b-metadata-operations'):
                         with ui.column().classes('min-w-0 gap-1').props('data-testid=metadata-ledger-local'):
                             ui.label('台帳の確認・状態変更').classes('pv-section-heading')

@@ -144,8 +144,13 @@ def _check_browser(tmp_path):
                                 lambda: dialog.get_by_role('button', name='キャンセル').click()):
                     hide.click()
                     playwright.expect(dialog).to_be_visible()
+                    browser.wait_for_function('document.activeElement.closest(".q-dialog__inner") !== null')
+                    for key in ('Tab', 'Shift+Tab'):
+                        browser.keyboard.press(key)
+                        assert dialog.evaluate('e => e.contains(document.activeElement)')
                     dismiss()
                     playwright.expect(dialog).to_be_hidden()
+                    playwright.expect(hide).to_be_focused()
                     deadline = monotonic() + 5
                     while views[-1]._pending_hide is not None:
                         assert monotonic() < deadline, 'the server did not clear the dismissed dialog'

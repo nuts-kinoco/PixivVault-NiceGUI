@@ -2,6 +2,8 @@
 import asyncio
 from pathlib import Path
 from nicegui import ui
+
+from .management_dialog import managed_dialog
 from .action_controls import dialog_actions, dialog_card, outlined_input, primary_button, secondary_button
 from ..external_vault import VaultError, VAULT_INTEGRITY_ERRORS
 from .premium_recovery_view import PremiumRecoveryPanel
@@ -9,6 +11,7 @@ from ..premium_uid_file import DEFAULT_UID_PATH, read_uid_file, uid_text_errors,
 from ..premium_read import borrow_wait_message
 
 SETUP_GUIDANCE = '借用プレミアムを使うには初期設定が必要です。'
+SETUP_REQUIREMENTS = '初期設定には、Shaft 署名キーと UID 一覧の両方が必要です。'
 
 def vault_unlock_error_message(code):
     if code == 'pixiv-outcome-uncertain':
@@ -43,9 +46,12 @@ class PremiumGateDialog:
         self.gate=gate;self.on_change=on_change;self.closed=False
         self.default_uid_path=default_uid_path;self._uids=[];self._pick_epoch=0;self._uid_error=False
         self._uid_explicit=False
-        with ui.dialog().props('persistent') as self.password_dialog:
-            with dialog_card('借用プレミアムをONにする',
-                             subtitle='パスワードを確認して有効にします。入力内容は保存しません。'):
+        with managed_dialog().props('persistent no-shake data-testid=premium-activation-dialog') as self.password_dialog:
+            self.password_dialog.on('keydown.esc.stop', self.cancel_password_prompt)
+            with dialog_card(classes='pv-settings-modal'):
+                title = ui.label('借用プレミアムをONにする').classes('pv-dialog-title').props('role=heading aria-level=1')
+                self.password_dialog.props['aria-labelledby'] = title.html_id
+                ui.label('パスワードを確認して有効にします。パスワードは保存しません。').classes('pv-subtitle')
                 with ui.column().classes('w-full') as self.password_slot:
                     self.password=None
                     self._reset_password()
@@ -58,19 +64,35 @@ class PremiumGateDialog:
                         self.legacy=None  # the input exists only while it is needed
                 self.legacy_box.set_visibility(False)
                 with ui.column().classes('w-full gap-2') as self.main_box:
+                    self.setup_note = ui.label(SETUP_REQUIREMENTS + ' UID 一覧が未読込の場合は、下の操作でテキストファイルを選んでください。').classes('pv-subtitle').props('data-testid=premium-setup-guidance')
+                    self.setup_note.set_visibility(False)
                     with ui.column().classes('w-full') as self.secret_slot:
                         self.secret=None
                         self._reset_secret()
                     self.uid_upload=ui.upload(on_upload=self.pick_uid_file,on_rejected=self.reject_uid_file,
                         multiple=False,max_file_size=65536,auto_upload=True,label='UID\u4e00\u89a7 txt \u3092\u9078\u629e').props('accept=.txt data-testid=premium-uid-upload').classes('pv-compact-upload')
+                    self.uid_upload.on('vnode-mounted', js_handler='''({el}) => {
+                        const namePicker = () => {
+                            const input = el.querySelector('input[type=file]');
+                            input?.setAttribute('aria-label', 'UID一覧ファイル');
+                            input?.closest('[role=button], button')?.setAttribute('aria-label', 'UID一覧のテキストファイルを選ぶ');
+                        };
+                        namePicker();
+                        // QUploader recreates the picker after an upload.
+                        new MutationObserver(namePicker).observe(el, {childList:true, subtree:true});
+                    }''')
                     self.uid_notice=ui.label('').classes('pv-field-hint pv-compact-status').props('role=status data-testid=premium-uid-count')
                 # Leaving an unconfirmed Pixiv result (the old "Shaft連携" tab is gone).
                 self.recovery_open=secondary_button('未確認の通信結果を確認する', self.open_recovery, testid='premium-recovery-open')
                 with dialog_actions():
-                    secondary_button('キャンセル', lambda:self.password_dialog.submit(False))
+                    secondary_button('キャンセル', self.cancel_password_prompt)
                     self.confirm_button=primary_button('有効にする', lambda:self.password_dialog.submit(True), testid='premium-password-confirm')
-        with ui.dialog() as self.recovery_dialog:
-            with dialog_card('通信結果の確認', size='lg'):
+        with managed_dialog().props('data-testid=premium-recovery-dialog') as self.recovery_dialog:
+
+            with dialog_card(size='lg', classes='pv-settings-modal'):
+                title = ui.label('通信結果の確認').classes('pv-dialog-title').props(
+                    'role=heading aria-level=1 tabindex=-1 data-autofocus')
+                self.recovery_dialog.props['aria-labelledby'] = title.html_id
                 self.recovery=PremiumRecoveryPanel(gate.vault,gate=gate,on_change=self._recovery_changed) if getattr(gate,'vault',None) is not None else None
                 with dialog_actions():
                     secondary_button('閉じる', self.recovery_dialog.close, testid='premium-recovery-close')
@@ -82,9 +104,9 @@ class PremiumGateDialog:
         with ui.row().classes('items-center gap-2').props(
                 'role=group aria-label=借用プレミアムをOFFにする data-testid=premium-off-choices') as self.off_choices:
             secondary_button('今回だけ OFF', lambda: self.request_disable(session_only=True),
-                             testid='premium-off-session')
+                             testid='premium-off-session').tooltip('この起動中だけ停止します。次回起動時の設定はそのままです。')
             secondary_button('ずっと OFF', lambda: self.request_disable(session_only=False),
-                             testid='premium-off-persistent')
+                             testid='premium-off-persistent').tooltip('次回起動後も OFF のままにします。')
         self.off_choices.set_visibility(False)
         ui.context.client.on_delete(self.close)
 
@@ -153,6 +175,9 @@ class PremiumGateDialog:
         return result is True and not self.closed
     def _close_password_dialog(self):
         if not self.closed:self.password_dialog.close()
+    def cancel_password_prompt(self):
+        if not self.closed and self.confirm_button.enabled:
+            self.password_dialog.submit(False)
     def _reset_password(self):
         # QDialog unmount can restore QInput's last inputValue on the client
         # after set_value('') was sent. A new element ID cannot inherit that
@@ -162,17 +187,19 @@ class PremiumGateDialog:
         self.password_slot.clear()
         with self.password_slot:
             self.password=outlined_input('パスワード',password=True).props(
-                'autofocus autocomplete=off data-testid=premium-activation-password').classes('w-full')
+                'autofocus data-autofocus autocomplete=off input-class=pv-focus-ring '
+                'data-testid=premium-activation-password').classes('w-full')
             self.password.on('keydown.enter',lambda:self.password_dialog.submit(True))
-    def _reset_secret(self):
+    def _reset_secret(self, *, setup=False):
         # Same reason as _reset_password: a fresh element ID per popup so the
         # browser cannot restore the previously typed signing key.
         if self.secret is not None:
             self.secret.set_value('')
         self.secret_slot.clear()
         with self.secret_slot:
-            self.secret=outlined_input('Shaft \u7f72\u540d\u30ad\u30fc\uff08\u4efb\u610f\u30fb\u65e2\u306b\u767b\u9332\u6e08\u307f\u306a\u3089\u7a7a\u6b04\u3067\u3088\u3044\uff09',password=True).props(
-                'autocomplete=off data-testid=premium-secret').classes('w-full')
+            label = 'Shaft 署名キー（初期設定）' if setup else 'Shaft 署名キー（登録済みなら空欄でよい）'
+            self.secret=outlined_input(label,password=True).props(
+                'autocomplete=off input-class=pv-focus-ring data-testid=premium-secret').classes('w-full')
     def _reset_legacy(self,create=False):
         if self.legacy is not None:
             self.legacy.set_value('')
@@ -181,7 +208,7 @@ class PremiumGateDialog:
         if not create:return
         with self.legacy_slot:
             self.legacy=outlined_input('保管庫のパスワード（以前に設定したもの）',password=True).props(
-                'autofocus autocomplete=off data-testid=premium-vault-password').classes('w-full')
+                'autofocus autocomplete=off input-class=pv-focus-ring data-testid=premium-vault-password').classes('w-full')
             self.legacy.on('keydown.enter',lambda:self.password_dialog.submit(True))
     def _show_legacy(self,visible):
         self._reset_legacy(create=visible)
@@ -276,10 +303,16 @@ class PremiumGateDialog:
             if state['retry_after']>0:
                 self.notice.set_text(f"しばらく待ってから操作してください（あと{int(state['retry_after'])+1}秒）。")
                 return
-            self._show_legacy(False);self._reset_password();self._reset_secret();self._set_dialog_error('')
+            vault = getattr(self.gate, 'vault', None)
+            vault_state = vault.status() if vault is not None else {}
+            setup = not vault_state.get('initialized', True) and not vault_state.get('inspection_error')
+            self._show_legacy(False);self._reset_password();self._reset_secret(setup=setup);self._set_dialog_error('')
+            self.setup_note.set_visibility(setup)
             self.recovery_open.set_visibility(self.recovery_visible())
             # The fixed UID file is read every time the popup opens (original).
             self._load_default_uids()
+            if setup and not self._uids and not self._uid_error:
+                self._set_uid_notice('UID一覧: 未読み込み（初期設定に必要です）')
             while True:
                 if not await self._wait_password():return
                 self._set_dialog_error('')
@@ -301,7 +334,7 @@ class PremiumGateDialog:
                     if not self.closed:self.confirm_button.enable()
                 if not self.gate.vault.status()['initialized'] and (not str(self.secret.value or '').strip() or not self._uids):
                     # The password itself was right; keep the dialog and everything typed.
-                    self._set_dialog_error('初期設定には Shaft 署名キーと UID 一覧の両方が必要です。');continue
+                    self._set_dialog_error(SETUP_REQUIREMENTS);continue
                 break
             # The password was accepted: take the remaining inputs and leave the dialog.
             self._reset_password()
@@ -322,7 +355,7 @@ class PremiumGateDialog:
                 await asyncio.to_thread(self.gate.unlock_legacy,legacy_password,expected_epoch=epoch)
                 legacy_password=''
             if not self.gate.vault.status()['initialized'] and (not secret or not uid_text):
-                self.notice.set_text('\u521d\u671f\u8a2d\u5b9a\u306b\u306f Shaft \u7f72\u540d\u30ad\u30fc\u3068 UID \u4e00\u89a7\u306e\u4e21\u65b9\u304c\u5fc5\u8981\u3067\u3059\u3002')
+                self.notice.set_text(SETUP_REQUIREMENTS)
                 return
             if self.closed:return
             # The original always keeps ON for the next launch: no separate question.

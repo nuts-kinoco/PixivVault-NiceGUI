@@ -4,7 +4,10 @@ from datetime import date as calendar_date, datetime
 import json
 from uuid import uuid4
 from nicegui import ui
+
+from .management_dialog import focus_after_dialog, managed_dialog
 from ..ranking_source import RankingQuery, RankingUnavailable, MODES, CONTENTS, SORTS, merge_pages, sorted_items
+from .artwork_page import PageLabel
 from .gallery import GalleryView
 from .ranking_card_menus import RankingCardMenus
 from .action_controls import refresh_button
@@ -14,6 +17,14 @@ class _ViewServices:
     def __getattr__(self,name):return getattr(self.parent,name)
 
 class _RankingGallery(GalleryView):
+    def __init__(self, services, *, card_size='large', on_size_change=None):
+        super().__init__(services, card_size=card_size, on_size_change=on_size_change)
+        with self.viewer.details_panel:
+            title = PageLabel().classes('pv-ranking-detail-title pv-focus-ring').props(
+                'tabindex=0 data-testid=ranking-viewer-full-title')
+            title.bind_text_from(self.viewer.title, 'text')
+        self.viewer.page.bind(title)
+
     def _card_heart(self, art):
         return self.owner.preferred_tags_in(art.tags)
     def _card_menu(self, art):
@@ -75,12 +86,12 @@ class RankingView(RankingCardMenus):
                     'unelevated no-caps rounded data-testid=ranking-mode').classes('pv-period-chips')
                 self.content=ui.select(CONTENTS,value='illust',label='作品種別').props(
                     'outlined dense data-testid=ranking-content').style('min-width:165px')
-                self.date_button=ui.button('今日',icon='calendar_month',on_click=self.open_calendar).props(
-                    'flat no-caps data-testid=ranking-date-calendar aria-label=ランキングの日付を選ぶ')
+                self.date_button=ui.button('今日…',icon='calendar_month',on_click=self.open_calendar).props(
+                    'flat no-caps data-testid=ranking-date-calendar aria-label=ランキングの日付を選ぶ… aria-haspopup=dialog').classes('pv-hit28')
                 self.date=ui.input('日付 YYYYMMDD（空欄は今日）').props(
                     'outlined dense data-testid=ranking-date').style('min-width:270px')
-                self.r18=ui.switch('R-18',value=False).props('data-testid=ranking-r18').classes('pv-filter-switch')
-                self.ai=ui.switch('AIを除外',value=False).props('data-testid=ranking-exclude-ai').classes('pv-filter-switch')
+                self.r18=ui.switch('R-18',value=False).props('data-testid=ranking-r18').classes('pv-filter-switch pv-focus-ring')
+                self.ai=ui.switch('AIを除外',value=False).props('data-testid=ranking-exclude-ai').classes('pv-filter-switch pv-focus-ring')
                 self.tag=ui.input('タグ検索').props('outlined dense data-testid=ranking-tag')
                 self.fetch_button=refresh_button(self.refresh,label='取得・更新',testid='ranking-fetch')
                 self.sort=ui.select(SORTS,value='rank',label='並び順',on_change=lambda _:self.render()).props('outlined dense data-testid=ranking-sort')
@@ -169,8 +180,8 @@ class RankingView(RankingCardMenus):
     def _sync_date_button(self):
         try:selected=self._selected_date()
         except ValueError:
-            self.date_button.set_text('日付を確認');return
-        self.date_button.set_text(selected.isoformat() if selected else '今日')
+            self.date_button.set_text('日付を確認…');return
+        self.date_button.set_text(f'{selected.isoformat()}…' if selected else '今日…')
     def _close_calendar(self):
         dialog=self.calendar_dialog
         self._calendar_token=None
@@ -178,7 +189,9 @@ class RankingView(RankingCardMenus):
         if dialog is not None and not dialog.is_deleted:
             dialog.close();dialog.delete()
     def _dismiss_calendar(self,token):
-        if token==self._calendar_token:self._close_calendar()
+        if token==self._calendar_token:
+            self._close_calendar()
+            focus_after_dialog(self.client, f'#{self.date_button.html_id}')
     def open_calendar(self):
         if self.closed or not self.active:return
         self._close_calendar()
@@ -187,10 +200,11 @@ class RankingView(RankingCardMenus):
         except ValueError:initial=None
         today=calendar_date.today()
         with self.root:
-            dialog=ui.dialog().props('data-testid=ranking-date-dialog')
+            dialog=managed_dialog().props(
+                'data-testid=ranking-date-dialog aria-label=ランキングの日付を選択 transition-duration=150')
         self.calendar_dialog=dialog
         with dialog,ui.card():
-            ui.label('ランキングの日付を選択')
+            ui.label('ランキングの日付を選択').classes('pv-dialog-title')
             picker=ui.date(initial.isoformat() if initial else None,mask='YYYY-MM-DD').props(
                 'data-testid=ranking-date-picker')
             self.calendar_picker=picker
@@ -203,7 +217,7 @@ class RankingView(RankingCardMenus):
                 ui.button('今日',on_click=lambda _e,t=token:self._calendar_pick(t,
                     {'epoch':t[0],'nonce':t[1],'value':None})).props('flat data-testid=ranking-date-today')
                 ui.button('キャンセル',on_click=lambda _e,t=token:self._dismiss_calendar(t)).props(
-                    'flat data-testid=ranking-date-cancel')
+                    'flat data-autofocus data-testid=ranking-date-cancel').classes('pv-hit28')
         pinned=json.dumps(dict(epoch=token[0],nonce=token[1]),separators=(',',':'))
         picker.on('update:model-value',lambda event,t=token:self._calendar_pick(t,event.args),
             js_handler=f'value => {{const opened={pinned};emit({{...opened,value}});}}')
@@ -223,6 +237,7 @@ class RankingView(RankingCardMenus):
             if selected.isoformat()!=value or not calendar_date(2007,1,1)<=selected<=calendar_date.today():return
             raw=selected.strftime('%Y%m%d')
         self._close_calendar()
+        focus_after_dialog(self.client, f'#{self.date_button.html_id}')
         previous=self.date.value
         self.date.set_value(raw)
         if previous==raw:self.changed(refresh=True)
