@@ -1,0 +1,20 @@
+﻿FF                                                                       [100%]
+================================== FAILURES ===================================
+_ test_view_rechecks_at_publication_of_a_prepared_snapshot[purge_during_projection] _
+tests\test_recommendation_visual.py:799: in test_view_rechecks_at_publication_of_a_prepared_snapshot
+    assert worker.store.events() == ()
+E   AssertionError: assert (RankingEvent...id': '6'}]}),) == ()
+E     
+E     Left contains one more item: RankingEvent(sequence=2, kind='recommendation_exposure', captured_at='2026-11-22 03:31:55', payload={'candidates': [{'... 'image_variant': 'thumb', 'rank': 6, 'section': 'certain', 'signal': None, 'view_available': False, 'work_id': '6'}]})
+E     Use -v to get more diff
+_____ test_saved_overlay_revoked_after_model_projection_does_not_publish ______
+tests\test_recommendation_visual.py:856: in test_saved_overlay_revoked_after_model_projection_does_not_publish
+    assert [_suffix(node) for node in _rendered(view)] == ['1']
+E   AssertionError: assert ['2'] == ['1']
+E     
+E     At index 0 diff: '2' != '1'
+E     Use -v to get more diff
+=========================== short test summary info ===========================
+FAILED tests/test_recommendation_visual.py::test_view_rechecks_at_publication_of_a_prepared_snapshot[purge_during_projection]
+FAILED tests/test_recommendation_visual.py::test_saved_overlay_revoked_after_model_projection_does_not_publish
+2 failed, 36 deselected in 2.88s

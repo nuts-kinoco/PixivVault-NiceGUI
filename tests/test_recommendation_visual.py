@@ -2,7 +2,7 @@
 
 import asyncio
 from dataclasses import replace
-from threading import Event
+from threading import Event, get_ident
 from types import SimpleNamespace
 from urllib.parse import parse_qs, urlsplit
 
@@ -66,7 +66,7 @@ def test_projected_slots_keep_exact_fake_transport_trace(tmp_path, scenario):
         cache = SharedImageCache(max_bytes=len(image_bytes) * 12)
         registry = LibraryImageRegistry(DemoImageCatalog(()), shared_cache=cache)
         reader = PublicImageReadClient(transport=transport)
-        visual, worker, _ = _visual(tmp_path / ('on' if on else 'off'), lambda: on)
+        visual, worker, generation = _visual(tmp_path / ('on' if on else 'off'), lambda: on)
         works = tuple(_work(n) for n in range(1, 8))
         source = SimpleNamespace(load=lambda: RecommendationSnapshot(
             sections=(('certain', (RecommendationGroup('tag', 'label', works),)),),
@@ -104,10 +104,13 @@ def test_projected_slots_keep_exact_fake_transport_trace(tmp_path, scenario):
             worker.flush_events()
             event, = worker.store.events()
             assert event.kind == 'recommendation_exposure'
+            applied = on and scenario in {'warm', 'after_hold'}
             assert event.payload['candidates'] == [
                 dict(work_id=slot.work.work_id, section='certain', group='tag',
                      base_rank=display.works.index(slot.work) + 1, rank=rank,
-                     image_available=slot.image_available, image_variant=slot.image_variant)
+                     image_available=slot.image_available, image_variant=slot.image_variant,
+                     view_available=False, analysis_variant=None,
+                     signal='D' if applied else None, generation=generation.number if applied else None)
                 for rank, slot in enumerate(slate[0].slots, 1)
             ]
             assert controller.snapshot()['sections']['certain'][0].works == works
@@ -190,6 +193,14 @@ async def test_view_projected_order_keeps_normal_thumbnail_urls_and_protected_po
     enabled = False
     visual, worker, _ = _visual(tmp_path / 'visual', lambda: enabled)
     sent = []
+    model_check_threads = set()
+    is_current = worker.store.is_current
+
+    def check_generation(generation):
+        model_check_threads.add(get_ident())
+        return is_current(generation)
+
+    monkeypatch.setattr(worker.store, 'is_current', check_generation)
 
     def transport(request, *_):
         sent.append((request.get_method(), request.full_url))
@@ -233,6 +244,7 @@ async def test_view_projected_order_keeps_normal_thumbnail_urls_and_protected_po
             favorites = [node.props['data-testid'] for node in view.body.descendants()
                          if str(node.props.get('data-testid', '')).startswith('recommend-work-superlike-')]
             assert favorites == ['recommend-work-superlike-2', 'recommend-work-superlike-1']
+            view.render()
 
             await view.open_work('2', generation=view._render_generation)
             selection = view._recommend_viewer.selection
@@ -245,15 +257,18 @@ async def test_view_projected_order_keeps_normal_thumbnail_urls_and_protected_po
             assert [node.props['data-testid'] for node in restored] == [original_ids[1], original_ids[0], *original_ids[2:]]
             assert [node.props['src'] for node in restored] == base_urls
             assert 'background-image' in restored[0].style
-            view._recommend_viewer.close_viewer()
-            view.render()
+            await view.refresh()
+            assert view._recommend_viewer.selection is None
             assert [node.props['data-testid'] for node in _rendered(view)] == original_ids
             assert all('background-image' not in node.style for node in _rendered(view))
             assert len(sent) == 6
-            worker.flush_events()
+            assert model_check_threads and get_ident() not in model_check_threads
+            if view._visual_event_task is not None:
+                await view._visual_event_task
             events = worker.store.events()
-            assert len(events) == 5
+            assert len(events) == 6
             assert [row['base_rank'] for row in events[2].payload['candidates'] if row['section'] == 'certain'] == [2, 3, 4, 5, 6, 1]
+            assert events[3].payload == events[2].payload
             assert not any(row['image_available'] for row in events[0].payload['candidates'])
     finally:
         client.delete()
@@ -297,14 +312,360 @@ def test_ready_image_supersedes_author_and_wrong_model_bypasses_correction(tmp_p
         RecommendationDisplaySlot(work, work, image, True, 'thumb', a_sha),
         RecommendationDisplaySlot(rival, rival, image, True, 'thumb'),
     )),)
-    assert visual.project(captured, visual.prepare(captured))[0].slots[0].work == rival
+    author_prepared = visual.prepare(captured)
+    assert visual.project(captured, author_prepared)[0].slots[0].work == rival
     assert worker.store.put_embedding(generation, EmbeddingKey(
         work.work_id, 0, 'view', a_sha, SHA, _PREPROCESSING_VERSION), (1., 0.))
     assert visual.project(captured, visual.prepare(captured))[0].slots[0].work == work
-    prepared = visual.prepare(captured)
     worker._model_sha = 'e' * 64
-    assert visual.project(captured, prepared)[0].slots[0].work == work
+    assert visual.project(captured, author_prepared)[0].slots[0].work == work
     assert visual.prepare(captured) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('protected', ['viewer', 'save', 'hide'])
+async def test_on_miss_keeps_only_the_active_operation_in_position(tmp_path, monkeypatch, protected):
+    monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
+    visual, worker, _ = _visual(tmp_path / 'visual', lambda: True)
+    services = make(tmp_path)
+    cache = SharedImageCache(max_bytes=len(png()) * 16)
+    services.images.bind_shared_cache(cache)
+    services.live_client = PublicImageReadClient(transport=lambda *_: png())
+    services.recommendation_visual = visual
+    works = tuple(_work(n) for n in range(1, 7))
+    base = RecommendationSnapshot(
+        sections=(('certain', (RecommendationGroup('tag', 'label', works),)),
+                  ('superlike', (RecommendationGroup('favorites', 'favorites', (_work(7),)),))), unavailable=())
+    services.recommendations.source.load = lambda: base
+    client = Client(ui.page('/_gpu_recommend_active_operation'))
+    try:
+        with client:
+            view = await open_view(services)
+            _load_rendered(services.images, _rendered(view))
+            await view.refresh()
+            assert [_suffix(node) for node in _rendered(view)] == list('234561')
+            if protected == 'viewer':
+                await view.open_work('2', generation=view._render_generation)
+                assert view._recommend_viewer.selection.artwork.work_id == '2'
+            elif protected == 'save':
+                view._saving.add('2')
+            else:
+                view.ask_hide_reason('2')
+                assert view._pending_hide[0] == '2'
+            if protected == 'hide':
+                services.recommendations.source.load = lambda: replace(base, sections=base.sections[:1])
+            else:
+                cache.configure(len(png()) * 2)
+            await view.refresh(preserve_viewer=protected == 'viewer')
+            assert [_suffix(node) for node in _rendered(view)] == list('213456')
+            worker.store.invalidate('undo')
+            await view.refresh(preserve_viewer=protected == 'viewer')
+            assert [_suffix(node) for node in _rendered(view)] == list('123456')
+            if view._visual_event_task is not None:
+                await view._visual_event_task
+    finally:
+        client.delete()
+        services.close()
+        worker.flush_events()
+        cache.close()
+
+
+def _suffix(node):
+    return node.props['data-testid'].rsplit('-', 1)[1]
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('scenario', ['cold', 'warm', 'missing', 'evicted', 'after_hold', 'expanded'])
+async def test_real_view_urls_drive_identical_transport_across_modes(tmp_path, monkeypatch, scenario):
+    monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
+    image = png()
+
+    async def exercise(enabled):
+        sent = []
+        def transport(request, *_):
+            sent.append((request.get_method(), request.full_url))
+            if scenario == 'missing' and request.full_url.endswith('/3.png'):
+                raise HTTPStatusRejected(404)
+            return image
+
+        root = tmp_path / ('on' if enabled else 'off')
+        root.mkdir()
+        services = make(root)
+        visual, worker, _ = _visual(root / 'visual', lambda: enabled)
+        reader = PublicImageReadClient(transport=transport)
+        services.live_client = reader
+        services.recommendation_visual = visual
+        cache = SharedImageCache(max_bytes=len(image) * 18)
+        services.images.bind_shared_cache(cache)
+        works = tuple(_work(n) for n in range(1, 14))
+        services.recommendations.source.load = lambda: RecommendationSnapshot(
+            sections=(('certain', (RecommendationGroup('tag', 'label', works),)),), unavailable=())
+        client = Client(ui.page('/_gpu_recommend_actual_urls'))
+        try:
+            with client:
+                view = await open_view(services)
+                assert [_suffix(node) for node in _rendered(view)] == list('123456')
+                if scenario != 'cold':
+                    for node in _rendered(view):
+                        if scenario == 'missing' and _suffix(node) == '3':
+                            with pytest.raises(RuntimeError):
+                                _load_rendered(services.images, (node,))
+                        else:
+                            _load_rendered(services.images, (node,))
+                if scenario == 'evicted':
+                    cache.configure(len(image) * 2)
+                await view.refresh()
+                if scenario == 'after_hold':
+                    cache.configure(len(image) * 2)
+                if scenario == 'expanded':
+                    assert len(sent) == 6
+                    view.more(('certain', 'tag'))
+                    assert len(_rendered(view)) == 12
+                    _load_rendered(services.images, _rendered(view))
+                    await view.refresh()
+                actual = _rendered(view)
+                for node in actual:
+                    if scenario == 'missing' and _suffix(node) == '3':
+                        with pytest.raises(RuntimeError):
+                            _load_rendered(services.images, (node,))
+                    else:
+                        _load_rendered(services.images, (node,))
+                if getattr(view, '_visual_event_task', None) is not None:
+                    await view._visual_event_task
+                assert not any(url.endswith('/13.png') for _, url in sent)
+                return [_suffix(node) for node in actual], sent
+        finally:
+            client.delete()
+            services.close()
+            worker.flush_events()
+            cache.close()
+
+    off, off_calls = await exercise(False)
+    on, on_calls = await exercise(True)
+    assert on_calls == off_calls
+    assert sorted(on) == sorted(off)
+    if scenario in {'warm', 'after_hold', 'expanded'}:
+        assert on != off
+    else:
+        assert on == off
+
+
+def test_managed_thumb_revoked_between_route_validation_and_cache_capture_is_not_exposed(tmp_path, monkeypatch):
+    from pixivvault_nicegui.managed_download_catalog import build_managed_library
+    from pixivvault_nicegui.recommendation_media import RecommendationDisplayGroup
+    from test_managed_download_catalog import FakeWriter
+
+    writer = FakeWriter()
+    denied = False
+
+    def guard(*_):
+        if denied:
+            raise ValueError('synthetic managed page exclusion')
+
+    writer.assert_page_visible = guard
+    _, catalog, _ = build_managed_library(writer)
+    cache = SharedImageCache(max_bytes=50_000)
+    registry = LibraryImageRegistry(DemoImageCatalog(()), shared_cache=cache)
+    registry.publish(catalog, None)
+    services = SimpleNamespace(images=registry, acquire_library_images=registry.acquire)
+    work = _work(1)
+    media = RecommendationMediaSnapshot(services, (work,))
+    visual, worker, _ = _visual(tmp_path / 'visual', lambda: False)
+    try:
+        media.local_pin.get(work.work_id, 0, 'thumb')
+        ensure = media.ensure_source
+
+        def revoke_after_route(wid):
+            nonlocal denied
+            ensure(wid)
+            denied = True
+
+        monkeypatch.setattr(media, 'ensure_source', revoke_after_route)
+        slate = media.capture_display((RecommendationDisplayGroup('certain', 'tag', (work,)),))
+        visual.record(slate)
+        worker.flush_events()
+        event, = worker.store.events()
+        assert slate[0].slots[0].image is None
+        assert event.payload['candidates'][0]['image_available'] is False
+    finally:
+        media.close()
+        registry.close()
+        cache.close()
+
+
+def test_saved_original_embedding_is_a_with_receipt_lineage_only(tmp_path):
+    from pixivvault_nicegui.managed_download_catalog import build_managed_library
+    from pixivvault_nicegui.recommendation_media import RecommendationDisplayGroup
+    from test_managed_download_catalog import FakeWriter
+
+    writer = FakeWriter()
+    _, catalog, _ = build_managed_library(writer)
+    registry = LibraryImageRegistry(DemoImageCatalog(()))
+    registry.publish(catalog, None)
+    services = SimpleNamespace(images=registry, acquire_library_images=registry.acquire)
+    works = (_work(1), _work(2))
+    media = RecommendationMediaSnapshot(services, works)
+    visual, worker, generation = _visual(tmp_path / 'visual', lambda: True)
+    try:
+        for work in works:
+            media.local_pin.get(work.work_id, 0, 'thumb')
+        sha = writer.rows[0][1]['files'][0]['sha256']
+        assert worker.store.put_embedding(generation, EmbeddingKey(
+            '1', 0, 'saved_original', sha, SHA, _PREPROCESSING_VERSION), (1., 0.))
+        captured = media.capture_display((RecommendationDisplayGroup('certain', 'tag', works),), lineage=True)
+        projected = visual.project(captured, visual.prepare(captured))
+        visual.record(projected)
+        worker.flush_events()
+        event, = worker.store.events()
+        first, _ = event.payload['candidates']
+        assert first['work_id'] == '1' and first['signal'] == 'A'
+        assert first['analysis_variant'] == 'saved_original'
+        assert first['generation'] == generation.number
+    finally:
+        media.close()
+        registry.close()
+
+
+def test_invalid_regular_digest_does_not_disable_the_other_candidate(tmp_path):
+    from pixivvault_nicegui.media import ImageBlob
+    from pixivvault_nicegui.recommendation_media import RecommendationDisplaySlot, RecommendationDisplayUnit
+
+    visual, _, _ = _visual(tmp_path / 'visual', lambda: True)
+    left, right = _work(1), _work(2)
+    thumb = ImageBlob(png(), 'image/png', '"test"')
+    captured = (RecommendationDisplayUnit('certain', 'tag', (
+        RecommendationDisplaySlot(left, left, thumb, True, 'thumb', 'invalid-etag'),
+        RecommendationDisplaySlot(right, right, thumb, True, 'thumb'),
+    )),)
+    assert visual.project(captured, visual.prepare(captured))[0].slots[0].work == right
+
+
+def test_rank_prior_has_same_spacing_after_expansion(tmp_path):
+    from pixivvault_nicegui.media import ImageBlob
+    from pixivvault_nicegui.recommendation_media import RecommendationDisplaySlot, RecommendationDisplayUnit
+
+    visual, _, _ = _visual(tmp_path / 'visual', lambda: True)
+    thumb = ImageBlob(png(), 'image/png', '"test"')
+    works = tuple(_work(n) for n in range(2, 14))
+    slots = tuple(RecommendationDisplaySlot(work, work, thumb, True, 'thumb') for work in works)
+    def scores(count):
+        return visual.prepare((RecommendationDisplayUnit('certain', 'tag', slots[:count]),))[1]
+
+    two, twelve = scores(2), scores(12)
+    assert [two['tag', wid] for wid in ('2', '3')] == [twelve['tag', wid] for wid in ('2', '3')]
+
+
+def test_regular_lineage_survives_namespace_renewal_only_for_the_same_source(tmp_path):
+    from pixivvault_nicegui.recommendation_media import RecommendationDisplayGroup
+    from test_gpuarb_remote_media import Client as ImageReader
+
+    reader = ImageReader()
+    registry = LibraryImageRegistry(DemoImageCatalog(()))
+    visual, worker, generation = _visual(tmp_path / 'visual', lambda: True)
+    works = (_work(1), _work(2))
+    services = SimpleNamespace(images=registry, acquire_library_images=registry.acquire, live_client=reader)
+    services.acquire_recommendation_images = lambda records: registry.acquire_catalog(
+        RecommendationRemoteImages(RemoteBookmarkImages(services.live_client, records), registry))
+    first = RecommendationMediaSnapshot(services, works)
+    try:
+        first.bind_view_observer(lambda wid, page, image: visual.observe_view(first, wid, page, image))
+        regular = first.remote_pin.get('1', 0, 'view')
+        assert worker.store.put_embedding(generation, EmbeddingKey(
+            '1', 0, 'view', regular.etag[1:-1], SHA, _PREPROCESSING_VERSION), (1., 0.))
+    finally:
+        first.close()
+
+    def capture(current_works, *, warm=True):
+        media = RecommendationMediaSnapshot(services, current_works)
+        try:
+            if warm:
+                for work in current_works:
+                    media.remote_pin.get(work.work_id, 0, 'thumb')
+            groups = (RecommendationDisplayGroup('certain', 'tag', current_works),)
+            return media.capture_display(groups, view_lookup=visual.observed_view_sha)
+        finally:
+            media.close()
+
+    try:
+        cold = capture(works, warm=False)
+        first_slot = cold[0].slots[0]
+        assert first_slot.image is None and first_slot.regular_sha == regular.etag[1:-1]
+        captured = capture(works)
+        slate = visual.project(captured, visual.prepare(captured))
+        assert slate[0].slots[0].work == works[0] and slate[0].slots[0].signal == 'A'
+        replaced = replace(works[0], thumbnail_url='https://i.pximg.net/replacement.png')
+        assert capture((replaced, works[1]))[0].slots[0].regular_sha is None
+        services.live_client = ImageReader()
+        assert capture(works)[0].slots[0].regular_sha is None
+    finally:
+        registry.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('failure_at', ['capture_event_epoch', 'append_event'])
+async def test_view_exposure_record_failure_stays_off_ui_thread(tmp_path, monkeypatch, failure_at):
+    monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
+    visual, worker, _ = _visual(tmp_path / 'visual', lambda: False)
+    services = make(tmp_path)
+    services.recommendation_visual = visual
+    started = Event()
+    threads = []
+
+    def fail(*_):
+        threads.append(get_ident())
+        started.set()
+        raise RuntimeError('synthetic record failure')
+
+    monkeypatch.setattr(worker.store, failure_at, fail)
+    client = Client(ui.page('/_gpu_recommend_record_failure'))
+    try:
+        with client:
+            view = await open_view(services)
+            assert any(node.props.get('data-testid') == 'recommend-work-certain-12'
+                       for node in view.body.descendants())
+            assert await asyncio.to_thread(started.wait, 5)
+            assert all(tid != get_ident() for tid in threads)
+            if view._visual_event_task is not None:
+                await view._visual_event_task
+    finally:
+        client.delete()
+        services.close()
+
+
+@pytest.mark.asyncio
+async def test_queued_exposure_cannot_be_appended_after_purge(tmp_path, monkeypatch):
+    monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
+    visual, worker, _ = _visual(tmp_path / 'visual', lambda: False)
+    services = make(tmp_path)
+    services.recommendation_visual = visual
+    store = worker.store
+    capture = store.capture_event_epoch
+    started, resume = Event(), Event()
+
+    def wait_before_read():
+        if not started.is_set():
+            started.set()
+            assert resume.wait(6)
+        return capture()
+
+    monkeypatch.setattr(store, 'capture_event_epoch', wait_before_read)
+    client = Client(ui.page('/_gpu_recommend_purge'))
+    try:
+        with client:
+            view = await open_view(services)
+            assert await asyncio.to_thread(started.wait, 6)
+            pending = view._visual_event_task
+            assert not pending.done()
+            await asyncio.to_thread(store.purge)
+            resume.set()
+            await pending
+            assert store.events() == ()
+            await view.refresh()
+            await view._visual_event_task
+            assert [event.kind for event in store.events()] == ['recommendation_exposure']
+    finally:
+        resume.set()
+        client.delete()
+        services.close()
 
 
 def test_existing_regular_response_supplies_exact_embedding_lineage():
@@ -369,7 +730,7 @@ def test_viewer_only_pin_cannot_submit_a_reader_with_unproven_shelf_lineage():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('boundary', ['delayed_account_binding', 'undo_during_projection', 'source_revoked',
-                                      'new_local_catalog'])
+                                      'new_local_catalog', 'purge_during_projection'])
 async def test_view_rechecks_at_publication_of_a_prepared_snapshot(tmp_path, monkeypatch, boundary):
     monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
     visual, worker, _ = _visual(tmp_path / 'visual', lambda: True)
@@ -388,6 +749,8 @@ async def test_view_rechecks_at_publication_of_a_prepared_snapshot(tmp_path, mon
             view = await open_view(services)
             original = [node.props['data-testid'] for node in _rendered(view)]
             _load_rendered(services.images, _rendered(view))
+            if view._visual_event_task is not None:
+                await view._visual_event_task
             if boundary == 'delayed_account_binding':
                 prepare = visual.prepare
 
@@ -405,6 +768,8 @@ async def test_view_rechecks_at_publication_of_a_prepared_snapshot(tmp_path, mon
                 services.recommendation_visual = other
                 release.set()
                 await refresh
+                if view._visual_event_task is not None:
+                    await view._visual_event_task
                 other_worker.flush_events()
             else:
                 project = visual.project
@@ -415,6 +780,8 @@ async def test_view_rechecks_at_publication_of_a_prepared_snapshot(tmp_path, mon
                     assert slate[0].slots[0].work.work_id == '2'
                     if boundary == 'undo_during_projection':
                         worker.store.invalidate('undo')
+                    elif boundary == 'purge_during_projection':
+                        worker.store.purge()
                     elif boundary == 'new_local_catalog':
                         services.images.publish(None, None)
                     else:
@@ -431,10 +798,74 @@ async def test_view_rechecks_at_publication_of_a_prepared_snapshot(tmp_path, mon
                     original.remove('recommend-thumb-certain-2')
             assert [node.props['data-testid'] for node in _rendered(view)] == original
             assert all('background-image' not in node.style for node in _rendered(view))
+            if view._visual_event_task is not None:
+                await view._visual_event_task
             worker.flush_events()
+            if boundary == 'purge_during_projection':
+                assert worker.store.events() == ()
     finally:
         release.set()
         if refresh is not None:
             await refresh
+        client.delete()
+        services.close()
+
+
+@pytest.mark.asyncio
+async def test_saved_overlay_revoked_after_model_projection_does_not_publish(tmp_path, monkeypatch):
+    from pixivvault_nicegui.managed_download_catalog import build_managed_library
+    from test_managed_download_catalog import FakeWriter
+
+    monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
+    visual, worker, _ = _visual(tmp_path / 'visual', lambda: True)
+    writer = FakeWriter()
+    writer.rows = writer.rows[1:]
+    denied = False
+    projected = False
+
+    def guard(*_):
+        if denied:
+            raise ValueError('synthetic managed page exclusion')
+
+    writer.assert_page_visible = guard
+    _, catalog, _ = build_managed_library(writer)
+    services = make(tmp_path)
+    services.images.publish(catalog, None)
+    services.live_client = PublicImageReadClient(transport=lambda *_: png())
+    services.recommendation_visual = visual
+    works = (_work(1), _work(2))
+    services.recommendations.source.load = lambda: RecommendationSnapshot(
+        sections=(('certain', (RecommendationGroup('tag', 'label', works),)),), unavailable=())
+    client = Client(ui.page('/_gpu_recommend_saved_publication'))
+    try:
+        with client:
+            view = await open_view(services)
+            _load_rendered(services.images, _rendered(view))
+            project, is_current = visual.project, visual.is_current
+
+            def project_first(*args, **kwargs):
+                nonlocal projected
+                slate = project(*args, **kwargs)
+                assert slate[0].slots[0].work == works[1]
+                projected = True
+                return slate
+
+            def revoke_after_projection(generation):
+                nonlocal denied
+                if projected:
+                    denied = True
+                return is_current(generation)
+
+            monkeypatch.setattr(visual, 'project', project_first)
+            monkeypatch.setattr(visual, 'is_current', revoke_after_projection)
+            await view.refresh()
+            assert [_suffix(node) for node in _rendered(view)] == ['1']
+            assert all('background-image' not in node.style for node in _rendered(view))
+            if view._visual_event_task is not None:
+                await view._visual_event_task
+            saved = worker.store.events()[-1].payload['candidates'][1]
+            assert saved['work_id'] == '2' and saved['image_available'] is False
+            assert saved['analysis_variant'] is None
+    finally:
         client.delete()
         services.close()

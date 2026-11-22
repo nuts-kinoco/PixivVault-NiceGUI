@@ -1,0 +1,24 @@
+﻿FF                                                                       [100%]
+================================== FAILURES ===================================
+________ test_saved_original_embedding_is_a_with_receipt_lineage_only _________
+tests\test_recommendation_visual.py:492: in test_saved_original_embedding_is_a_with_receipt_lineage_only
+    assert first['work_id'] == '1' and first['signal'] == 'A'
+E   AssertionError: assert ('2' == '1'
+E     
+E     - 1
+E     + 2)
+______ test_invalid_regular_digest_does_not_disable_the_other_candidate _______
+tests\test_recommendation_visual.py:511: in test_invalid_regular_digest_does_not_disable_the_other_candidate
+    assert visual.project(captured, visual.prepare(captured))[0].slots[0].work == right
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\recommendation_media.py:557: in prepare
+    key = EmbeddingKey(work.work_id, 0, 'view', slot.regular_sha,
+<string>:9: in __init__
+    ???
+src\pixivvault_nicegui\visual_preference.py:46: in __post_init__
+    raise ValueError('invalid embedding identity')
+E   ValueError: invalid embedding identity
+=========================== short test summary info ===========================
+FAILED tests/test_recommendation_visual.py::test_saved_original_embedding_is_a_with_receipt_lineage_only
+FAILED tests/test_recommendation_visual.py::test_invalid_regular_digest_does_not_disable_the_other_candidate
+2 failed, 31 deselected in 2.65s
