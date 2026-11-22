@@ -2,7 +2,7 @@
 <html lang="ja">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>自分のランキングの折りたたみツールバー</title>
+<title>カスタムランキングの折りたたみツールバー</title>
 <style>
   * {box-sizing:border-box}
   body {margin:24px;background:#111724;color:#e9edf6;font:15px/1.55 system-ui,sans-serif}
@@ -49,7 +49,7 @@
   }
 </style>
 <main>
-  <h1>自分のランキング</h1>
+  <h1>カスタムランキング</h1>
   <div class="window">
     <div class="banner" role="status">⚠ 本番DBを使用中　保存先を確認</div>
     <header class="header">
@@ -73,14 +73,14 @@
       <button type="button">重複整理</button>
       <button type="button">学習</button>
       <button type="button">ランキング</button>
-      <button type="button" class="active" aria-current="page" aria-label="自分のランキング">自分</button>
+      <button type="button" class="active" aria-current="page" aria-label="カスタムランキング">自分</button>
       <button type="button">ライブラリ</button>
       <button type="button">おすすめ</button>
       <button type="button">定期チェック</button>
       <button type="button" aria-label="メタデータ補完" title="メタデータ補完">メタデータ</button>
     </nav>
     <div class="toolbar">
-      <h2>自分のランキング</h2>
+      <h2>カスタムランキング</h2>
       <span class="chip">選択タグ　合成タグ</span>
       <button type="button" class="primary">取得・更新</button>
       <button type="button" id="toggle" aria-expanded="false" aria-controls="filters">絞り込み ▾</button>
