@@ -1,0 +1,12 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_________ test_no_second_native_call_when_load_crosses_lease_deadline _________
+tests\test_visual_preference_review_r2.py:388: in test_no_second_native_call_when_load_crosses_lease_deadline
+    assert events == ['load']
+E   AssertionError: assert ['load', 'run'] == ['load']
+E
+E     Left contains one more item: 'run'
+E     Use -v to get more diff
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_review_r2.py::test_no_second_native_call_when_load_crosses_lease_deadline
+1 failed in 1.89s
