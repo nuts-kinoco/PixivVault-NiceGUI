@@ -1,0 +1,9 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_______________ test_start_rechecks_release_outcome_after_join ________________
+tests\test_visual_preference_wiring.py:527: in test_start_rechecks_release_outcome_after_join
+    assert errors and worker.status()['phase'] != 'running'
+E   assert ([])
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_wiring.py::test_start_rechecks_release_outcome_after_join
+1 failed in 4.86s
