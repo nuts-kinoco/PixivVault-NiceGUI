@@ -84,10 +84,12 @@
   .badge[data-state="blocked"] { background: var(--warning); }
   .minor { color: var(--muted); font-size: 13px; }
   .auth { color: var(--ok); }
+  .navigation { position: relative; border-bottom: 1px solid var(--line); }
   .main-nav {
     display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px;
-    padding: 4px 8px 8px; border-bottom: 1px solid var(--line);
+    padding: 4px 8px 8px;
   }
+  .nav-toggle { margin: 2px 8px 5px; text-align: start; }
   .nav-button {
     display: inline-flex; align-items: center; justify-content: center; gap: 4px;
     min-width: 0; padding: 4px; background: transparent; border-color: transparent;
@@ -105,10 +107,30 @@
     .utilities { margin-inline-start: 0; }
     .masthead { gap: 4px 8px; }
   }
+  @media (min-width: 741px) and (max-width: 1159px) {
+    .alert-controls { display: grid; justify-items: start; gap: 0; }
+  }
+  @media (max-width: 640px) {
+    .main-nav {
+      position: absolute; inset: 100% 4px auto; z-index: 2;
+      max-height: min(120px, 30dvh); overflow: auto;
+      background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    }
+    .identity { display: flex; align-items: baseline; gap: 6px; }
+    .header-status {
+      position: absolute; width: 1px; height: 1px; padding: 0;
+      clip-path: inset(50%); overflow: hidden; white-space: nowrap;
+    }
+    .nav-toggle { margin-block: 2px; }
+  }
   main { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
   .toolbar { padding: 5px 16px; }
   .toolbar-section, .filter-body, .learning-ratings { flex: 0 0 auto; }
   .toolbar h2 { margin-inline-end: 8px; }
+  @media (max-width: 640px) {
+    .toolbar { column-gap: 4px; padding-inline: 12px; }
+    .toolbar h2 { margin-inline-end: 0; }
+  }
   .screen-description { padding: 0 16px 6px; }
   .primary { background: var(--selected); color: var(--accent); }
   .chip { border-radius: 20px; white-space: nowrap; }
@@ -170,6 +192,7 @@
   .dialog-body { overflow: auto; padding: 12px 16px 16px; display: grid; gap: 12px; }
   .panel { display: grid; gap: 8px; min-width: 0; }
   .panel p { overflow-wrap: anywhere; }
+  .panel > [data-open-safety] { justify-self: start; }
   .auto-summaries { padding: 4px 16px; background: var(--raised); }
   .auto-summary-line { font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
   .auto-summary-line + .auto-summary-line { margin-top: 3px; }
@@ -210,8 +233,8 @@
       </button>
     </div>
     <div class="alert-controls" id="alert-controls" hidden>
-      <button class="danger" id="needs-review" aria-haspopup="dialog" aria-controls="automation"></button>
-      <small class="minor" id="reviewed-count" hidden></small>
+      <button class="danger" id="needs-review" aria-haspopup="dialog" aria-controls="automation" aria-describedby="reviewed-count"></button>
+      <small class="minor" id="reviewed-count"></small>
     </div>
   </header>
   <p id="automation-announcement" class="header-status" role="status" aria-atomic="true"></p>
@@ -220,7 +243,10 @@
     <details><summary>タブの案内</summary><p>キューは取得の進捗、失敗リストは再試行、学習は作品の判定を開きます。</p></details>
     <button id="dismiss-hint" aria-label="自動処理の案内を閉じる">閉じる</button>
   </div>
-  <nav id="nav" class="main-nav" aria-label="メインナビゲーション"></nav>
+  <nav class="navigation" aria-label="メインナビゲーション">
+    <button id="nav-toggle" class="nav-toggle" aria-controls="nav" aria-expanded="false" hidden><strong id="nav-current"></strong> ／ <span id="nav-action">全画面の一覧を開く</span></button>
+    <div id="nav" class="main-nav"></div>
+  </nav>
   <p id="startup-status" class="status-line" role="status" hidden></p>
   <main id="main" aria-labelledby="screen-title">
     <div class="toolbar-section">
@@ -280,17 +306,22 @@
     <div id="automation-content" class="dialog-body">
       <section id="scheduler-panel" class="panel" role="tabpanel" aria-labelledby="auto-scheduler" data-testid="scheduler-view">
         <div class="preview-box"><h3>実行状態</h3><p id="scheduler-status" class="state">待機中</p><p class="minor">お気に入り作者の更新を確認</p></div>
+        <label class="option"><input id="scheduler-enabled" type="checkbox" checked>定期チェックを自動で実行する</label>
         <div class="controls"><label>間隔 <input type="number" min="0" value="24" aria-label="間隔（時間）" size="3"></label><span>時間</span>
           <label class="option"><input type="checkbox">起動時にもチェック</label>
           <button data-simulate="scheduler">いまチェック</button>
+          <button id="scheduler-stop" disabled>取得の停止を要求</button>
+          <button id="scheduler-finish" hidden>停止成立を再現</button>
         </div>
         <div class="process-actions" data-process-actions="scheduler"></div>
+        <button id="scheduler-reopen-gate" data-open-safety hidden>取得停止の確認・回復</button>
         <details><summary>実行履歴</summary><p class="minor">前回のチェックは完了しました</p></details>
       </section>
       <section id="metadata-panel" class="panel" role="tabpanel" aria-labelledby="auto-metadata" data-testid="metadata-view" hidden>
         <div class="preview-box"><h3>補完の進捗</h3><p id="metadata-status" class="state">待機中</p><p class="minor">8 / 12 件 · 残り 4 件</p></div>
         <div class="controls"><button data-simulate="metadata">いま埋める</button><button id="metadata-stop" disabled>取得の停止を要求</button><button id="metadata-finish" hidden>停止成立を再現</button></div>
         <div class="process-actions" data-process-actions="metadata"></div>
+        <button id="metadata-reopen-gate" data-open-safety hidden>取得停止の確認・回復</button>
         <details><summary>専用メタデータ台帳</summary><p class="minor">台帳の状態・指定作品の確認と回復</p></details>
       </section>
       <details><summary>共有ログ</summary><ol id="sample-log" class="minor sample-log"></ol></details>
@@ -344,6 +375,8 @@
     ["bookmarks", "マイブックマーク", "♡"], ["recommend", "おすすめ", "✦"],
   ];
   const nav = byId("nav");
+  const navToggle = byId("nav-toggle");
+  const narrowNav = matchMedia("(max-width: 640px)");
   const gallery = byId("gallery");
   const tags = [
     "風景", "雨上がり", "夜景", "逆光", "水彩", "街角", "海辺", "青空", "建築", "森林", "黄昏",
@@ -385,7 +418,18 @@
   const toolbarState = JSON.parse(localStorage.getItem(toolbarKey) ?? "{}");
   const candidateKey = "pv-wireframe-ranking_personal_candidates_open";
   toolbarState.personal = localStorage.getItem(candidateKey) !== "false";
-  const listStates = new Map(tabs.map(([key]) => [key, { query: "", scroll: 0, choice: null, detail: false, remote: false }]));
+  const listStates = new Map(tabs.map(([key]) => [key, {
+    query: "", scroll: 0, selectedKey: null, focusKey: null, detail: false, remote: false,
+  }]));
+  const sampleRecords = (kind, count = 32) => Array.from({ length: count }, (_, index) => ({
+    key: kind + "-" + (index + 1), kind, number: index + 1,
+  }));
+  const samplesByTab = new Map(tabs.map(([key]) => [key, sampleRecords(key)]));
+  const authors = sampleRecords("author");
+  const savedWorks = sampleRecords("saved-work");
+  const remoteWorks = sampleRecords("remote-work", 8);
+  samplesByTab.set("bookmarks", samplesByTab.get("bookmarks").map(
+    (record, index) => record.number % 2 === 1 ? savedWorks[index] : record));
   let activeTab;
   let restoreAutomation;
   let transferringSettings = false;
@@ -396,23 +440,30 @@
     feedback.textContent = message;
   }
 
-  function renderCards(tab) {
+  function renderCards(tab, restoreFocus = false) {
     const listState = listStates.get(tab);
     const title = {
       download: "作者", library: listState.detail ? "作品" : "保存作品",
       bookmarks: "ブックマーク", dedup: "重複候補", recommend: "おすすめ作品",
     }[tab] ?? "ランキング作品";
+    let records = samplesByTab.get(tab);
+    if (tab === "library") {
+      records = listState.detail ? savedWorks : authors;
+      // Mock results replace the first eight records and reorder a surviving record.
+      if (listState.remote) records = [...remoteWorks, ...records.slice(9), records[8]];
+    }
+    restoreFocus ||= gallery.contains(document.activeElement);
     gallery.replaceChildren();
     const colors = ["#9fb8d0", "#e3a68a", "#a8bfaa", "#baacc8", "#e0c18b", "#85babb", "#b4b5e3", "#d0a2a4"];
-    for (let index = 0; index < 32; index++) {
-      const remote = tab === "library" && listState.remote && index < 8;
-      const caption = (remote ? "Pixiv作品" : title) + " " + (index + 1);
+    for (const { key: workKey, kind, number } of records) {
+      const remote = kind === "remote-work";
+      const caption = (remote ? "Pixiv作品" : title) + " " + number;
       if (listState.query && !caption.includes(listState.query)) continue;
       const figure = document.createElement("figure");
       figure.className = "specimen";
       const sample = document.createElement("div");
       sample.className = "sample";
-      sample.style.setProperty("--tint", colors[index % colors.length]);
+      sample.style.setProperty("--tint", colors[(number - 1) % colors.length]);
       sample.setAttribute("aria-hidden", "true");
       const text = document.createElement("span");
       text.className = "card-caption";
@@ -420,20 +471,22 @@
       if (tab === "library" || tab === "bookmarks") {
         const saved = document.createElement("span");
         saved.className = "saved-label";
-        saved.textContent = (tab === "library" ? !remote : index % 2 === 0) ? "保存済み" : "未保存";
+        saved.textContent = kind === "saved-work" || kind === "author" ? "保存済み" : "未保存";
         text.append(saved);
       }
       const card = document.createElement("button");
-      card.dataset.index = String(index);
-      card.setAttribute("aria-pressed", String(listState.choice === index));
+      card.dataset.workKey = workKey;
+      card.setAttribute("aria-pressed", String(listState.selectedKey === workKey));
       card.addEventListener("click", () => {
-        listState.choice = index;
-        if (tab === "library" && !listState.detail) {
+        if (kind === "author") {
           listState.detail = true;
+          listState.selectedKey = null;
+          listState.focusKey = null;
+          listState.scroll = 0;
           byId("library-back").hidden = false;
-          renderCards(tab);
-          gallery.querySelector('[data-index="' + index + '"]')?.focus();
+          renderCards(tab, true);
         } else {
+          listState.selectedKey = workKey;
           gallery.querySelectorAll("[aria-pressed]").forEach(button => {
             button.setAttribute("aria-pressed", String(button === card));
           });
@@ -444,7 +497,52 @@
       gallery.append(figure);
     }
     gallery.scrollTop = listState.scroll;
+    const cardFor = key => key === null ? null : gallery.querySelector('[data-work-key="' + key + '"]');
+    const lostSelection = listState.selectedKey !== null && !cardFor(listState.selectedKey);
+    if (lostSelection) {
+      listState.selectedKey = null;
+      listState.focusKey = null;
+    }
+    const focusedCard = cardFor(listState.focusKey);
+    const lostFocus = listState.focusKey !== null && !focusedCard;
+    if (lostFocus) listState.focusKey = null;
+    if (lostSelection || restoreFocus) {
+      const target = lostFocus ? null : focusedCard ?? cardFor(listState.selectedKey);
+      if (target) target.focus();
+      else byId("screen-title").focus();
+    }
   }
+
+  gallery.addEventListener("focusin", (event) => {
+    listStates.get(activeTab).focusKey = event.target.dataset.workKey;
+  });
+
+  function setNavOpen(open) {
+    nav.hidden = narrowNav.matches && !open;
+    navToggle.setAttribute("aria-expanded", String(open));
+    byId("nav-action").textContent = open ? "全画面の一覧を閉じる" : "全画面の一覧を開く";
+  }
+
+  function syncNavigation() {
+    if (narrowNav.matches) {
+      navToggle.hidden = false;
+      if (nav.contains(document.activeElement)) navToggle.focus();
+    } else if (document.activeElement === navToggle) {
+      nav.hidden = false;
+      nav.querySelector('[aria-current="page"]').focus();
+    }
+    navToggle.hidden = !narrowNav.matches;
+    setNavOpen(false);
+  }
+
+  narrowNav.addEventListener("change", syncNavigation);
+  navToggle.addEventListener("click", () => setNavOpen(nav.hidden));
+  nav.parentElement.addEventListener("keydown", (event) => {
+    if (narrowNav.matches && !nav.hidden && event.key === "Escape" && !event.isComposing) {
+      setNavOpen(false);
+      navToggle.focus();
+    }
+  });
 
   function reflectToolbar() {
     const opened = Boolean(toolbarState[activeTab]);
@@ -465,7 +563,9 @@
       if (button.dataset.key === key) button.setAttribute("aria-current", "page");
       else button.removeAttribute("aria-current");
     }
-    byId("screen-title").textContent = tabs.find(([id]) => id === key)[1];
+    const label = tabs.find(([id]) => id === key)[1];
+    byId("screen-title").textContent = label;
+    byId("nav-current").textContent = label;
     const description = { library: "このPCに保存した作品", bookmarks: "Pixivでブックマークした作品" }[key];
     byId("screen-description").hidden = !description;
     byId("screen-description").textContent = description ?? "";
@@ -482,11 +582,12 @@
     byId("learning-stage").hidden = key !== "learning";
     byId("learning-ratings").hidden = key !== "learning";
     gallery.hidden = !cards;
-    if (cards) renderCards(key);
     say(key === "bookmarks" && gateStopped ? "取得停止中です。保存済みのブックマークを表示しています。" : "");
     reflectToolbar();
-    if (restoreFocus && listState.choice !== null) {
-      gallery.querySelector('[data-index="' + listState.choice + '"]')?.focus({ preventScroll: true });
+    if (cards) renderCards(key, restoreFocus);
+    if (narrowNav.matches) {
+      setNavOpen(false);
+      if (!cards && restoreFocus) byId("screen-title").focus();
     }
   }
 
@@ -545,7 +646,8 @@
     byId("search-pixiv").hidden = !event.target.checked;
     if (!event.target.checked) {
       listStates.get("library").remote = false;
-      renderCards("library");
+      const listState = listStates.get("library");
+      renderCards("library", listState.selectedKey !== null || listState.focusKey !== null);
       say("");
     }
   });
@@ -554,8 +656,9 @@
       say("取得停止中です。");
       return;
     }
-    listStates.get("library").remote = true;
-    renderCards("library");
+    const listState = listStates.get("library");
+    listState.remote = true;
+    renderCards("library", listState.selectedKey !== null || listState.focusKey !== null);
     say("Pixiv本体の検索結果（表示例）");
   });
   byId("card-size").addEventListener("change", event => {
@@ -684,20 +787,23 @@
   function updateAutomation(notice = "") {
     const failures = Object.entries(processState).filter(([, process]) => process.failed);
     const reviewed = failures.filter(([, process]) => process.seen).length;
+    const unseen = failures.length - reviewed;
     const gated = gateStopped && Object.values(processState).some(process => process.phase === "waiting");
     const relevant = failures.length ? "failed" : gated ? "blocked" : "";
     const badge = byId("automation-badge");
     badge.hidden = !relevant;
     badge.dataset.state = relevant;
     badge.textContent = relevant === "failed" ? "!" : relevant === "blocked" ? "Ⅱ" : "";
-    const summary = "自動処理、" + Object.keys(processState).map(key => processNames[key] + " " + processLabel(key)).join("、");
+    const total = "自動処理：未解消 " + failures.length;
+    const counts = "未確認 " + unseen + "／確認済み " + reviewed;
+    const summary = [failures.length ? total + "、" + counts : "自動処理",
+      ...Object.keys(processState).map(key => processNames[key] + " " + processLabel(key))].join("、");
     autoButton.setAttribute("aria-label", summary);
     autoButton.title = summary;
     const review = byId("needs-review");
     byId("alert-controls").hidden = !failures.length;
-    review.textContent = "自動処理：要確認 " + failures.length;
-    byId("reviewed-count").hidden = !reviewed;
-    byId("reviewed-count").textContent = "確認済み " + reviewed;
+    review.textContent = total;
+    byId("reviewed-count").textContent = counts;
     const status = byId("automation-announcement");
     const message = failures.length ? failures.map(([key, process]) => processNames[key] + " 失敗（"
       + (process.seen ? "確認済み・未解消" : "未確認") + "）").join(" ／ ") : notice;
@@ -705,9 +811,10 @@
     for (const [key, process] of Object.entries(processState)) {
       byId(key + "-status").textContent = processLabel(key);
       byId(key + "-ack").hidden = !process.failed || process.seen;
+      byId(key + "-stop").disabled = process.phase !== "running";
+      byId(key + "-finish").hidden = process.phase !== "requesting";
+      byId(key + "-reopen-gate").hidden = !gateStopped || process.phase !== "waiting";
     }
-    byId("metadata-stop").disabled = processState.metadata.phase !== "running";
-    byId("metadata-finish").hidden = processState.metadata.phase !== "requesting";
     renderSummaries();
   }
 
@@ -792,8 +899,16 @@
   const safety = byId("safety");
   const preview = byId("utility-preview");
   let previewOpener;
-  byId("stop-open").addEventListener("click", () => safety.showModal());
-  safety.addEventListener("close", () => byId("stop-open").focus());
+  let safetyOpener;
+  for (const button of [byId("stop-open"), ...document.querySelectorAll("[data-open-safety]")]) {
+    button.addEventListener("click", () => {
+      safetyOpener = button;
+      safety.showModal();
+    });
+  }
+  safety.addEventListener("close", () => {
+    (safetyOpener?.getClientRects().length ? safetyOpener : automation.querySelector('[aria-selected="true"]')).focus();
+  });
   document.querySelectorAll("[data-utility]").forEach(button => button.addEventListener("click", () => {
     previewOpener = button;
     byId("utility-title").textContent = button.dataset.utility;
@@ -837,7 +952,8 @@
         byId(key + "-recover").focus();
       }],
       ["recover", "次の成功を再現", () => transition(key,
-        { phase: "waiting", failed: false, seen: false, last: "今回（成功）" }, "解消")],
+        { phase: processState[key].phase === "off" ? "off" : "waiting",
+          failed: false, seen: false, last: "今回（成功）" }, "解消")],
     ];
     for (const [suffix, label, action] of actions) {
       const button = document.createElement("button");
@@ -847,18 +963,20 @@
       wrapper.append(button);
     }
   }
-  byId("metadata-stop").addEventListener("click", () => {
-    transition("metadata", { phase: "requesting" }, "停止を要求");
-    byId("metadata-finish").focus();
-  });
-  byId("metadata-finish").addEventListener("click", () => {
-    transition("metadata", { phase: "manual" }, "停止成立");
-    document.querySelector('[data-simulate="metadata"]').focus();
-  });
-  byId("metadata-enabled").addEventListener("change", event => {
-    const enabled = event.target.checked;
-    transition("metadata", { phase: enabled ? "waiting" : "off", failed: false, seen: false }, "設定を変更");
-  });
+  for (const key of Object.keys(processState)) {
+    byId(key + "-stop").addEventListener("click", () => {
+      transition(key, { phase: "requesting" }, "停止を要求");
+      byId(key + "-finish").focus();
+    });
+    byId(key + "-finish").addEventListener("click", () => {
+      transition(key, { phase: "manual" }, "停止成立");
+      document.querySelector('[data-simulate="' + key + '"]').focus();
+    });
+    byId(key + "-enabled").addEventListener("change", event => {
+      const enabled = event.target.checked;
+      transition(key, { phase: enabled ? "waiting" : "off", failed: false, seen: false }, "設定を変更");
+    });
+  }
   byId("db-control").addEventListener("change", event => { dbCase = event.target.value; updateSafety(); });
   byId("stop-control").addEventListener("change", event => { gateStopped = event.target.checked; updateSafety(); });
   byId("toggle-stop").addEventListener("click", () => { gateStopped = !gateStopped; updateSafety(); });
@@ -900,6 +1018,7 @@
       warning.hidden = false;
     }
   }
+  syncNavigation();
 </script>
 </body>
 </html>

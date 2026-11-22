@@ -1,0 +1,17 @@
+{
+  "h1": {
+    "result": "FAIL",
+    "replacement_unselected_after_search": false,
+    "heading_focused_after_search": false,
+    "replacement_unselected_after_enter_return": false,
+    "heading_focused_after_enter_return": false
+  },
+  "wireframe_sha256": "994c593bb9df4cb1ae3bfa0d003662e584d7b102f0443964c4efa544841da4e4",
+  "external_requests": 0,
+  "page_errors": 0,
+  "isolated_profile_removed": true,
+  "profile_cleanup": {
+    "files": 168,
+    "bytes": 8979851
+  }
+}
