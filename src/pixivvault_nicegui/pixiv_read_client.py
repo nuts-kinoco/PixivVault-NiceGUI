@@ -635,30 +635,40 @@ class _OwnedReadTransport(OwnedHTTPSPool):
                 finally:
                     _CAPTURE_COOKIE_RESPONSE.reset(token)
         except Exception as error:
+            from .managed_network_stop_gate import (
+                ManagedNetworkGateStorageError, _attach_gate_cleanup, _carry_gate_cleanup,
+            )
             if fatal_status_seen is not None:
                 # This takes priority over ClientClosed, cleanup uncertainty,
                 # and deadline errors: an already-observed fatal HTTP response
                 # must reach the durable STOP gate, even if teardown fails.
-                raise HTTPStatusRejected(fatal_status_seen) from None
+                if isinstance(error, HTTPStatusRejected) and error.status_code == fatal_status_seen:
+                    raise
+                rejected = _carry_gate_cleanup(error, HTTPStatusRejected(fatal_status_seen))
+                if isinstance(error, ManagedNetworkGateStorageError):
+                    _attach_gate_cleanup(rejected, error)
+                raise rejected from None
+            if isinstance(error, ManagedNetworkGateStorageError) and error.authority is not None:
+                raise
             if self.closed:
-                raise ClientClosed() from None
+                raise _carry_gate_cleanup(error, ClientClosed()) from None
             if self.revocation_unverified:
                 # Cleanup uncertainty is not a transient GET eligible for retry.
-                raise ResponseRejected() from None
+                raise _carry_gate_cleanup(error, ResponseRejected()) from None
             _check_time(effective_deadline)
             if isinstance(error, TimeoutError):
                 # Timeout during DNS/connect/TLS/fence checks is likewise
                 # bounded by this owner's absolute request deadline.
-                raise ReadDeadlineExceeded() from None
+                raise _carry_gate_cleanup(error, ReadDeadlineExceeded()) from None
             if isinstance(error, PixivReadError) and not isinstance(error, TransportFailed):
                 raise
             if getattr(owner, "reused_disconnect", False):
-                raise _PooledConnectionLost() from None
+                raise _carry_gate_cleanup(error, _PooledConnectionLost()) from None
             if getattr(owner, "response_started", False) or getattr(owner, "reused_dispatch", False):
-                raise _InterruptedRead() from None
+                raise _carry_gate_cleanup(error, _InterruptedRead()) from None
             if isinstance(error, PixivReadError):
                 raise
-            raise TransportFailed() from None
+            raise _carry_gate_cleanup(error, TransportFailed()) from None
 
 
 
@@ -909,7 +919,10 @@ class LivePixivReadClient:
             except Exception:pass
             if type(status) is int and 100<=status<=599:raise HTTPStatusRejected(status) from None
             raise ResponseRejected() from None
-        except Exception:
+        except Exception as error:
+            if getattr(error, 'gate_cleanup_errors', ()):
+                from .managed_network_stop_gate import _carry_gate_cleanup
+                raise _carry_gate_cleanup(error, TransportFailed()) from None
             raise TransportFailed() from None
         _check_time(per_request_deadline)
         if type(response) is bytes:

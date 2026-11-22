@@ -11,6 +11,7 @@ them. Profile-less CLI has a separate, conservative ownership boundary.
 
 from __future__ import annotations
 
+import hashlib
 import os
 from pathlib import Path
 
@@ -18,6 +19,9 @@ from .managed_network_stop_gate import (
     ManagedNetworkGateStorageError,
     ManagedNetworkStopGate,
     _file_identity,
+    _gate_storage_io,
+    _run_gate_cleanup,
+    _report_stop_authority,
 )
 from .managed_network_stop_integration import ManagedNetworkStopIntegration
 from .managed_network_stop_transport import ManagedNetworkStopTransport
@@ -38,6 +42,34 @@ _SCOPE_IDENTITY = b'{"application":"pixivvault-nicegui","purpose":"network-stop-
 _GATE_NAME = ".pixivvault-network-stop.sqlite3"
 
 
+@_report_stop_authority('local')
+@_gate_storage_io('native STOP owner unavailable')
+def _require_native_stop_owner(root: Path, profile_identity: tuple[int, int]) -> None:
+    _owned_marker(root, PROFILE_MARKER, PROFILE_IDENTITY)
+    _owned_marker(root, _SCOPE_MARKER, _SCOPE_IDENTITY)
+    if _file_identity(root / PROFILE_DB) != profile_identity:
+        raise ManagedNetworkGateStorageError("native profile database changed")
+
+
+def _selection_proof(profile_identity: tuple[int, int], path: Path) -> bytes:
+    """Compare references without opening the file or publishing its path."""
+    return hashlib.sha256(os.fsencode(f'{profile_identity}\0{os.path.normcase(path)}')).digest()
+
+
+def _read_stop_profile(root: Path, profile_identity: tuple[int, int]):
+    """Read and validate saved references identically for GET and observation."""
+    try:
+        snapshot = NativeProfileStore.peek(root)
+        if _file_identity(root / PROFILE_DB) != profile_identity:
+            raise ManagedNetworkGateStorageError("native profile database changed")
+        return snapshot
+    except (NativeProfileError, OSError, ValueError, TypeError, UnicodeError):
+        raise ManagedNetworkGateStorageError(
+            "configured owned profile unavailable"
+        ) from None
+
+
+@_report_stop_authority('local')
 def _require_selected_cookie(root: Path, cookie_path: Path,
                              profile_identity: tuple[int, int]) -> Path:
     """Never dispatch a profile-scoped GET with an unsaved/stale credential.
@@ -47,28 +79,23 @@ def _require_selected_cookie(root: Path, cookie_path: Path,
     reader after native settings are changed; it does not rely on a replaceable
     request-admission callback.
     """
+    expected_selection = None
     try:
-        _owned_marker(root, PROFILE_MARKER, PROFILE_IDENTITY)
-        # An already-open reader must not outlive the dedicated network-stop
-        # scope. Checking only the native profile marker would admit further
-        # GETs after the stop-scope identity was deleted or replaced.
-        _owned_marker(root, _SCOPE_MARKER, _SCOPE_IDENTITY)
-        # A replaced native SQLite DB may retain an identical Cookie path and
-        # revision, yet belong to a different settings owner. A previously
-        # opened reader must not adopt that replacement at the same pathname.
-        if _file_identity(root / PROFILE_DB) != profile_identity:
-            raise ManagedNetworkGateStorageError("native profile database changed")
-        selected = _absolute(cookie_path, kind="file")
-        snapshot = NativeProfileStore.peek(root)
-        if _file_identity(root / PROFILE_DB) != profile_identity:
-            raise ManagedNetworkGateStorageError("native profile database changed")
-        if (snapshot.revision < 1 or snapshot.cookie_file is None
-                or snapshot.cookie_file != selected):
-            raise NativeProfileError("native credential selection missing")
-        return selected
+        # Bind refusal to the reader before inspecting the filesystem: an
+        # unreadable old reference may differ from today's healthy selection.
+        selected = Path(cookie_path)
+        expected_selection = _selection_proof(profile_identity, selected)
+        _require_native_stop_owner(root, profile_identity)
+        snapshot = _read_stop_profile(root, profile_identity)
+        if snapshot.revision < 1 or snapshot.cookie_file != selected:
+            raise ManagedNetworkGateStorageError("configured owned profile credential unavailable")
+        return _absolute(cookie_path, kind="file")
+    except ManagedNetworkGateStorageError as error:
+        error.expected_selection = expected_selection
+        raise
     except (NativeProfileError, OSError, ValueError, TypeError, UnicodeError):
         raise ManagedNetworkGateStorageError(
-            "configured owned profile credential unavailable"
+            "configured owned profile credential unavailable", expected_selection=expected_selection,
         ) from None
 
 
@@ -193,7 +220,7 @@ class ManagedProfileNetworkStopScope(ManagedNetworkStopIntegration):
             client._transport = _ProfileBoundTransport(
                 self.root, selected, self.profile_identity, client._transport,
             )
-        except BaseException:
-            client.close()
+        except BaseException as error:
+            _run_gate_cleanup(client.close, 'managed reader close failed', primary=error, authority='local')
             raise
         return client

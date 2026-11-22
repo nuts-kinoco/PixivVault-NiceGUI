@@ -103,7 +103,7 @@ def test_reused_eof_gets_only_one_fresh_attempt(
                 )
                 if status == 429:
                     assert record["stop_cause"] == "durable_gate"
-                    assert "永続STOP" in retry_status_text(records)
+                    assert "通信を止めています。アクセスが制限されました。" in retry_status_text(records)
                     assert "試行上限" not in retry_status_text(records)
         if status == 429:
             with pytest.raises(ManagedNetworkStopped):

@@ -13,7 +13,9 @@ from urllib.error import HTTPError
 from .managed_network_stop_gate import (
     ManagedNetworkStopGate,
     ManagedNetworkStopped,
-    STOP_STATUSES,
+    _carry_gate_cleanup,
+    _http_gate_rejection,
+    _report_stop_authority,
 )
 from .pixiv_read_client import HTTPStatusRejected
 
@@ -40,27 +42,22 @@ class ManagedNetworkStopTransport:
     def __call__(self, request, timeout: float, limit: int, deadline: float) -> bytes:
         if (request.get_method() != "GET" or request.data is not None):
             raise ValueError("managed network transport accepts GET only")
+        authority = 'shared' if hasattr(self.gate, 'inflight_path') else 'local'
         try:
-            with self.gate.request():
+            with _report_stop_authority(authority), self.gate.request():
                 try:
                     return self.transport(request, timeout, limit, deadline)
                 except HTTPError as error:
                     # Raw urllib transports may raise HTTPError before the
                     # caller can convert it. Persist fatal status inside the
                     # durable gate even when a higher layer handles errors.
-                    status = error.code
-                    if type(status) is int and status in STOP_STATUSES:
-                        try:
-                            error.close()
-                        except Exception:
-                            pass
-                        raise HTTPStatusRejected(status) from None
-                    raise
+                    raise _http_gate_rejection(error) from None
         except HTTPStatusRejected as error:
             from .request_policy import durable_stop_status
             if durable_stop_status(error.status_code):
                 # The gate has persisted this status before leaving request().
                 # A plain, exact-type LivePixivReadClient must not enter the
                 # legacy retry policy's 429 wait or issue a second GET.
-                raise ManagedNetworkStopped(error.status_code) from None
+                stopped = ManagedNetworkStopped(error.status_code, authority=authority)
+                raise _carry_gate_cleanup(error, stopped) from None
             raise
