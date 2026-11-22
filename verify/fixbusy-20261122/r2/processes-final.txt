@@ -1,0 +1,5 @@
+﻿observed=2026-11-22T12:37:32.6821604+09:00
+owned_python_processes=0
+D6_QUIET_flag_present=True
+application_browser_started=false
+test_children=waited

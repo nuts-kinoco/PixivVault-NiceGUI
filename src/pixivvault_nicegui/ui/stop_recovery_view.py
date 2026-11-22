@@ -1,14 +1,10 @@
 """Offline stop-history guidance and explicit verified migration entry."""
 import asyncio
+from threading import Event
 from nicegui import ui
 
 from .action_controls import dialog_actions, dialog_card, primary_button, secondary_button
-from ..managed_network_stop_gate import (
-    ManagedNetworkGateBusy, ManagedNetworkGateStorageError, ManagedNetworkStopped,
-)
-from ..managed_network_stop_shared_scope import SharedGetOutcomeUncertain, SharedStopOwnerAbsent
 from ..native_auth_result import NativeAuthResult
-from ..native_profile import NativeProfileError
 
 STEPS = (
     '1. 保存先の設定を確認し、以前使った保存元も控えてください。元DB・Cookie・停止履歴を削除しないでください。',
@@ -25,36 +21,17 @@ RATE_LIMIT_GUIDANCE = (
 )
 
 
-def build_startup_stop_recheck(binding, open_scope, notice, view):
+def build_startup_stop_recheck(binding, notice, view):
     """Re-open the startup fence locally and restore only the manual auth check."""
     client = ui.context.client
+    active = None
 
-    def profile_changed():
-        return binding.store.snapshot().revision != binding.launch_snapshot.revision
+    def cancel_active():
+        if active is not None:
+            active.set()
 
-    def probe():
-        scope = None
-        try:
-            if profile_changed():
-                return None, 'profile_changed'
-            scope = open_scope()
-            # This preview checks both the STOP row and the in-flight marker
-            # under the ordinary GET lock. A running GET reports Busy.
-            if scope.preview_uncertain_get_recovery() is not None:
-                return scope, 'uncertain'
-            if profile_changed():
-                return None, 'profile_changed'
-        except ManagedNetworkGateBusy:
-            return None, 'busy'
-        except ManagedNetworkStopped:
-            return None, 'stopped'
-        except SharedGetOutcomeUncertain:
-            return scope, 'uncertain'
-        except SharedStopOwnerAbsent:
-            return None, 'owner_absent'
-        except (ManagedNetworkGateStorageError, NativeProfileError, OSError):
-            return None, 'local_unavailable'
-        return scope, 'stop_rechecked'
+    client.on_disconnect(cancel_active)
+    client.on_delete(cancel_active)
 
     async def verify_auth(cookie_file):
         result = await binding.check_authentication(cookie_file, _publish=False)
@@ -63,21 +40,11 @@ def build_startup_stop_recheck(binding, open_scope, notice, view):
             notice.set_text(result.message)
         return result
 
-    async def check():
-        if not button.enabled:
-            return
-        button.disable()
-        notice.set_text('通信記録を確認しています。')
-        scope, code = await asyncio.to_thread(probe)
-        if button.is_deleted or client.is_deleted:
-            return
+    def render(scope, code):
         notice.set_text(NativeAuthResult(code).message)
-        if code == 'busy':
-            button.enable()
-        elif code == 'stop_rechecked':
+        button.set_enabled(code == 'busy')
+        if code == 'stop_rechecked':
             notice.classes(remove='pv-warning-banner', add='pv-subtitle')
-            binding.managed_network_stop_scope.shared_owner = scope
-            binding.shared_network_stop_scope = scope
             view.set_auth_verifier(verify_auth)
         elif code == 'uncertain' and scope is not None:
             from .shared_get_recovery_view import SharedGetRecoveryView
@@ -85,9 +52,26 @@ def build_startup_stop_recheck(binding, open_scope, notice, view):
                 recovery = SharedGetRecoveryView(scope)
             client.on_delete(recovery.close)
 
+    async def check():
+        nonlocal active
+        if not button.enabled:
+            return
+        button.disable()
+        notice.set_text('通信記録を確認しています。')
+        cancel = active = Event()
+        try:
+            scope, code = await binding.check_startup_stop(cancel)
+        finally:
+            active = None
+        if not button.is_deleted and not client.is_deleted:
+            render(scope, 'busy' if cancel.is_set() and code == 'closed' else code)
+
     with ui.column().classes('w-full gap-2') as actions:
         button = secondary_button('再確認', check, icon='refresh', outline=True,
                                   testid='startup-stop-recheck')
+    scope, code = binding.startup_stop_recheck_result()
+    if code != 'busy':
+        render(scope, code)
 
 
 class StopRecoveryPanel:

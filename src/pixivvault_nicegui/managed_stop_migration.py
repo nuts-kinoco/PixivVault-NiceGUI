@@ -18,7 +18,9 @@ from threading import Event, Lock
 import uuid
 
 from .managed_network_stop_gate import (
-    ManagedNetworkStopGate, _byte_lock_contended, _file_identity, _reject_links, _set_stop_byte_lock,
+    ManagedNetworkGateStorageError, ManagedNetworkStopGate,
+    _byte_lock_contended, _file_identity, _lock_open_contended,
+    _open_existing_stop_lock, _reject_links, _set_stop_byte_lock,
 )
 from .managed_network_stop_history_readonly import _check_marker, _read_gate_immutable
 from .managed_network_stop_shared_scope import (
@@ -95,8 +97,14 @@ class _FileLock:
                     self.stream.write(b'0'); self.stream.flush(); os.fsync(self.stream.fileno())
                     self.created = True
                 except FileExistsError:
-                    self.stream = self.path.open('r+b')
-            else: self.stream = self.path.open('r+b')
+                    pass
+            if self.stream is None:
+                try:
+                    self.stream = _open_existing_stop_lock(self.path)
+                except OSError as error:
+                    if _lock_open_contended(error):
+                        raise _FileLockBusy('STOP file lock shared by another process') from None
+                    raise
             # A concurrent creator may still be writing the initial byte.
             # Never lock an empty existing file ahead of that write.
             if os.fstat(self.stream.fileno()).st_size == 0:
@@ -120,7 +128,18 @@ class _FileLock:
             raise
     def close(self):
         if self.stream is not None:
-            self.stream.close(); self.stream = None  # Closing releases the OS lock.
+            stream, self.stream = self.stream, None
+            try:
+                _set_stop_byte_lock(stream, lock=False)
+            except (OSError, ValueError):
+                # Closing the handle releases its locks even if explicit
+                # unlock failed. Never turn a completed GET into a retry.
+                pass
+            finally:
+                try:
+                    stream.close()
+                except (OSError, ValueError):
+                    raise ManagedNetworkGateStorageError('STOP lock close failed') from None
 
 
 def _write_new(path, data):
@@ -137,18 +156,24 @@ def _journal(path, data):
 
 def _rename_new(source, destination, *, directory=False):
     """No replacement of even an empty foreign destination."""
+    if directory or os.name == 'nt':
+        _rename_atomic_new(source, destination)
+    else:
+        os.link(source, destination)
+        source.unlink()  # Move of a newly generated staging file, never old data.
+
+
+def _rename_atomic_new(source, destination):
+    """Publish without replacing a destination or exposing a second link."""
     if os.name == 'nt':
         os.rename(source, destination)  # Windows rename is no-replace.
-    elif directory:
+    else:
         import ctypes
         libc = ctypes.CDLL(None, use_errno=True)
         rename = getattr(libc, 'renameat2', None)
         if rename is None: raise MigrationRejected('atomic_publish_unavailable')
         if rename(-100, os.fsencode(source), -100, os.fsencode(destination), 1):
             raise OSError(ctypes.get_errno(), 'migration publish unavailable')
-    else:
-        os.link(source, destination)
-        source.unlink()  # Move of a newly generated staging file, never old data.
 
 
 def _fingerprint(path, ticket=None):
@@ -257,11 +282,24 @@ class StopMigrationService:
     def _exclusive(self):
         if not _SERIAL.acquire(blocking=False): raise MigrationRejected('source_busy')
         try:
+            from .managed_network_stop_gate import ManagedNetworkGateBusy
+            from .managed_network_stop_startup import _ANCHOR, shared_startup_ticket
             parent = self.target_root.parent
             _reject_links(parent); parent.mkdir(parents=True, exist_ok=True)
-            lock = _FileLock(parent / '.pixivvault-stop-migration.lock', create=True)
-            try: yield lock.created
-            finally: lock.close()
+            try:
+                publication_ticket = shared_startup_ticket(parent)
+            except ManagedNetworkGateBusy:
+                raise MigrationRejected('source_busy') from None
+            try:
+                anchor = parent / _ANCHOR
+                _reject_links(anchor)
+                if anchor.exists() and not self.target_root.exists():
+                    raise MigrationRejected('history_unverified')
+                lock = _FileLock(parent / '.pixivvault-stop-migration.lock', create=True)
+                try: yield lock.created
+                finally: lock.close()
+            finally:
+                publication_ticket.close()
         finally: _SERIAL.release()
     def _records(self):
         base=self.target_root.parent/'.pixivvault-stop-migrations'

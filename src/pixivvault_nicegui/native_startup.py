@@ -89,6 +89,8 @@ class NativeProfileBinding:
         self.shared_network_stop_scope = None
         self.auth_startup_result = None
         self.recheck_startup_stop = None
+        self._stop_recheck_worker = None
+        self._stop_recheck_result = (None, 'busy')
         # Header login status shared by every client of this process.
         from .auth_status import AuthStatusHolder
         self.auth_status = AuthStatusHolder()
@@ -586,13 +588,91 @@ class NativeProfileBinding:
             if reader is not None:
                 reader.close()
 
+    def startup_stop_recheck_result(self):
+        with self._reader_lock:
+            return self._stop_recheck_result
+
+    async def check_startup_stop(self, cancel):
+        with self._reader_lock:
+            if self._closed or cancel.is_set():
+                return None, 'closed'
+            if self._stop_recheck_worker is not None or self._stop_recheck_result[1] != 'busy':
+                return self._stop_recheck_result
+            finished = Event()
+            self._stop_recheck_worker = (cancel, finished)
+        worker = asyncio.create_task(asyncio.to_thread(self._probe_startup_stop, cancel, finished))
+        try:
+            return await asyncio.shield(worker)
+        except asyncio.CancelledError:
+            cancel.set()
+            raise
+
+    def _probe_startup_stop(self, cancel, finished):
+        from .managed_network_stop_gate import (
+            ManagedNetworkGateBusy, ManagedNetworkGateStorageError, ManagedNetworkStopped,
+        )
+        from .managed_network_stop_shared_scope import SharedGetOutcomeUncertain, SharedStopOwnerAbsent
+        from .managed_network_stop_startup import (
+            StartupStopCancelled, StartupStopProfileChanged, retry_startup_lock, startup_lock_deadline,
+        )
+        from .native_profile import NativeProfileError
+
+        scope = profile_scope = None
+        try:
+            try:
+                deadline = startup_lock_deadline()
+                if self.store.snapshot().revision != self.launch_snapshot.revision:
+                    code = 'profile_changed'
+                else:
+                    profile_scope, scope = self.recheck_startup_stop(deadline=deadline, cancel=cancel)
+                    plan = retry_startup_lock(scope.preview_uncertain_get_recovery,
+                                              deadline=deadline, cancel=cancel)
+                    code = 'uncertain' if plan is not None else 'stop_rechecked'
+            except StartupStopCancelled:
+                return None, 'closed'
+            except StartupStopProfileChanged:
+                code = 'profile_changed'
+            except ManagedNetworkGateBusy:
+                return None, 'busy'
+            except ManagedNetworkStopped:
+                code = 'stopped'
+            except SharedGetOutcomeUncertain:
+                code = 'uncertain'
+            except SharedStopOwnerAbsent:
+                code = 'owner_absent'
+            except (ManagedNetworkGateStorageError, NativeProfileError, OSError):
+                code = 'local_unavailable'
+            with self._reader_lock:
+                if self._closed or cancel.is_set():
+                    return None, 'closed'
+                if code == 'stop_rechecked':
+                    try:
+                        if self.store.snapshot().revision != self.launch_snapshot.revision:
+                            code = 'profile_changed'
+                    except NativeProfileError:
+                        code = 'local_unavailable'
+                    if code == 'stop_rechecked':
+                        profile_scope.shared_owner = scope
+                        self.managed_network_stop_scope = profile_scope
+                        self.shared_network_stop_scope = scope
+                self._stop_recheck_result = (scope if code == 'uncertain' else None, code)
+                return self._stop_recheck_result
+        finally:
+            with self._reader_lock:
+                self._stop_recheck_worker = None
+                finished.set()
+
     def close(self):
         with self._reader_lock:
             if self._closed:
                 return
             self._closed = True
-        with self._reader_lock:
             requests = tuple(self._requests.items())
+            stop_recheck = self._stop_recheck_worker
+        if stop_recheck is not None:
+            cancel, finished = stop_recheck
+            cancel.set()
+            finished.wait()
         for stopped, reader in requests:
             stopped.set()
             if reader is not None:
@@ -661,7 +741,7 @@ def register_profile_recovery(binding, *, cookie_rejected=False,
                 notice.classes('pv-warning-banner')
                 view.reserve_auth_button = True
                 view.on_saved = None
-                build_startup_stop_recheck(binding, recheck_stop, notice, view)
+                build_startup_stop_recheck(binding, notice, view)
             view.build()
             ui.context.client.on_delete(view.close)
 
@@ -674,4 +754,10 @@ def register_profile_recovery(binding, *, cookie_rejected=False,
         from nicegui import Client
         return {'ui_connected': any(c.has_socket_connection for c in Client.instances.values())}
 
-    app.on_shutdown(binding.close)
+    if stop_gate_busy and getattr(binding, 'recheck_startup_stop', None):
+        async def close_busy_recovery():
+            await asyncio.to_thread(binding.close)
+
+        app.on_shutdown(close_busy_recovery)
+    else:
+        app.on_shutdown(binding.close)

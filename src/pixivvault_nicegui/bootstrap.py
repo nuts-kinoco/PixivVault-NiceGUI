@@ -727,6 +727,7 @@ def register_pages(learning_sandbox: Path | None = None,
             following_sync_root=following_sync_root, pixiv_actions_mode=pixiv_actions_mode,
             managed_network_stop_scope=managed_network_stop_scope,
             shared_network_stop_scope=shared_network_stop_scope, legacy_copy_root=legacy_copy_root,
+            startup_stop_deadline=startup_stop_deadline,
             scheduler_wait_for_auth=bool(getattr(native_profile, 'auth_stop_required', False)))
     except BaseException:
         if novel_download_root is not None and novel_source is not None:
@@ -900,8 +901,29 @@ def main(argv: Sequence[str] | None = None) -> int:
     cookie_rejected_for_recovery = False
     stop_recovery_required = False
     stop_gate_busy = False
+    profile_stop_scope = None
     shared_network_stop_scope = None
-    shared_stop_recheck = None
+    observed_shared_stop = None
+    startup_stop_recheck = None
+    deadline = None
+    from .managed_network_stop_gate import ManagedNetworkGateStorageError, ManagedNetworkGateBusy
+    from .managed_network_stop_startup import (
+        StartupStopProfileChanged, check_startup_cancel, open_or_initialize_windows_user_stop,
+        retry_startup_lock, startup_lock_deadline,
+    )
+
+    def open_shared_stop(profile_scope, *, deadline, cancel=None, validate_profile=None):
+        def remember(scope):
+            nonlocal observed_shared_stop
+            observed_shared_stop = scope
+
+        return open_or_initialize_windows_user_stop(
+            selected_roots=(('images', config.pixiv_download_root),
+                            ('novel', config.novel_download_root),
+                            ('ugoira', config.ugoira_root)),
+            profile_scope=profile_scope, deadline=deadline, cancel=cancel,
+            previous_scope=observed_shared_stop, on_open=remember, validate_profile=validate_profile)
+
     if config.profile_root is not None:
         from .native_profile import (NativeProfileStore, NativeProfileReferenceUnavailable,
                                      NativeProfileSourceUnavailable, native_kwargs, provision_storage)
@@ -945,13 +967,66 @@ def main(argv: Sequence[str] | None = None) -> int:
             # remains available without inventing network authority.
             from .managed_network_stop_profile_scope import ManagedProfileNetworkStopScope
             from .managed_network_stop_profile_scope import _SCOPE_MARKER
-            from .managed_network_stop_gate import ManagedNetworkGateStorageError, ManagedNetworkGateBusy
+            from .managed_network_stop_gate import _bounded_thread_lock
+
+            def open_profile_stop(*, deadline, cancel=None):
+                nonlocal profile_stop_scope
+                check_startup_cancel(cancel)
+                if profile_stop_scope is not None:
+                    return profile_stop_scope
+                # First-use marker and gate creation must not be separated by
+                # a Busy from another thread in this process.
+                def open_scope():
+                    with _bounded_thread_lock():
+                        check_startup_cancel(cancel)
+                        return ManagedProfileNetworkStopScope(store.root)
+
+                profile_stop_scope = retry_startup_lock(open_scope, deadline=deadline, cancel=cancel)
+                return profile_stop_scope
+
+            storage_ready = False
+
+            def check_launch_revision():
+                if store.snapshot().revision != snapshot.revision:
+                    raise StartupStopProfileChanged()
+
+            def prepare_profile_storage(scope, *, deadline, cancel=None):
+                nonlocal storage_ready
+                from .managed_network_stop_storage_binding import (
+                    prepare_native_storage_binding, bind_new_native_storage,
+                )
+
+                def step(operation):
+                    if cancel is not None:
+                        check_launch_revision()
+                    return operation()
+
+                save_parent = snapshot.save_parent
+                if save_parent is not None and scope is not None:
+                    retry_startup_lock(lambda: step(lambda: prepare_native_storage_binding(scope, save_parent)),
+                                       deadline=deadline, cancel=cancel)
+                check_startup_cancel(cancel)
+                if not storage_ready:
+                    step(lambda: provision_storage(snapshot, config.profile_root))
+                if save_parent is not None and scope is not None:
+                    retry_startup_lock(lambda: step(lambda: bind_new_native_storage(scope, save_parent)),
+                                       deadline=deadline, cancel=cancel)
+                storage_ready = True
+
+            def recheck_native_stop(*, deadline, cancel):
+                profile_scope = open_profile_stop(deadline=deadline, cancel=cancel)
+                check_launch_revision()
+                prepare_profile_storage(profile_scope, deadline=deadline, cancel=cancel)
+                return profile_scope, open_shared_stop(profile_scope, deadline=deadline, cancel=cancel,
+                                                        validate_profile=check_launch_revision)
+
+            deadline = startup_lock_deadline()
             if (not unavailable and
                     (snapshot.revision == 0 or snapshot.cookie_file is not None
                      or (store.root / _SCOPE_MARKER).exists())):
+                startup_stop_recheck = recheck_native_stop
                 try:
-                    registration['managed_network_stop_scope'] = ManagedProfileNetworkStopScope(
-                        store.root)
+                    registration['managed_network_stop_scope'] = open_profile_stop(deadline=deadline)
                     native_profile.managed_network_stop_scope = registration[
                         'managed_network_stop_scope']
                 except ManagedNetworkGateStorageError as gate_error:
@@ -975,24 +1050,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                             stop_recovery_required = True
             if not unavailable and not cookie_rejected_for_recovery and not stop_recovery_required:
                 try:
-                    if (snapshot.save_parent is not None
-                            and 'managed_network_stop_scope' in registration):
-                        from .managed_network_stop_storage_binding import (
-                            prepare_native_storage_binding, bind_new_native_storage,
-                        )
-                        prepare_native_storage_binding(
-                            registration['managed_network_stop_scope'], snapshot.save_parent)
-                    provision_storage(snapshot, config.profile_root)
-                    if (snapshot.save_parent is not None
-                            and 'managed_network_stop_scope' in registration):
-                        bind_new_native_storage(
-                            registration['managed_network_stop_scope'], snapshot.save_parent)
+                    prepare_profile_storage(registration.get('managed_network_stop_scope'),
+                                            deadline=deadline)
                 except ManagedNetworkGateStorageError as gate_error:
                     # Missing/unknown prior stop ownership must never launch
                     # an authenticated reader. Show only the offline settings
                     # view; an explicit reviewed migration remains necessary.
                     stop_recovery_required = True
                     stop_gate_busy = isinstance(gate_error, ManagedNetworkGateBusy)
+            if stop_gate_busy:
+                native_profile.recheck_startup_stop = startup_stop_recheck
         except BaseException:
             try:
                 if native_instance is not None:
@@ -1002,7 +1069,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise
     # Normal first use establishes the durable shared owner. Existing owner
     # loss, STOP and uncertain outcomes retain their original repair boundary.
-    if (not cookie_rejected_for_recovery and
+    if (not cookie_rejected_for_recovery and not stop_recovery_required and
             (config.pixiv_cookie_file is not None or config.external_vault_root is not None or
              (config.profile_root is not None and
               registration.get('managed_network_stop_scope') is not None))):
@@ -1017,25 +1084,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 from .native_auth_result import NativeAuthResult
                 print(NativeAuthResult('cookie_unreadable').message, file=sys.stderr)
                 return 2
-        from .managed_network_stop_startup import open_or_initialize_windows_user_stop, startup_lock_deadline
         from .managed_network_stop_shared_scope import SharedStopOwnerAbsent
-        from .managed_network_stop_gate import ManagedNetworkGateStorageError, ManagedNetworkGateBusy
         profile_stop_scope = registration.get('managed_network_stop_scope')
-
-        def open_shared_stop(*, deadline=None):
-            return open_or_initialize_windows_user_stop(
-                selected_roots=(('images', config.pixiv_download_root),
-                                ('novel', config.novel_download_root),
-                                ('ugoira', config.ugoira_root)),
-                profile_scope=profile_stop_scope, deadline=deadline)
-
-        if (profile_stop_scope is not None and not stop_recovery_required
-                and not config.profile_reference_unavailable):
-            shared_stop_recheck = open_shared_stop
-
         try:
-            deadline = startup_lock_deadline()
-            shared_network_stop_scope = open_shared_stop(deadline=deadline)
+            if deadline is None:
+                deadline = startup_lock_deadline()
+            shared_network_stop_scope = open_shared_stop(profile_stop_scope, deadline=deadline)
             registration['shared_network_stop_scope'] = shared_network_stop_scope
             registration['startup_stop_deadline'] = deadline
             if profile_stop_scope is not None:
@@ -1055,7 +1109,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 2
             native_profile.auth_startup_result = NativeAuthResult(code)
             if code == 'busy':
-                native_profile.recheck_startup_stop = shared_stop_recheck
+                native_profile.recheck_startup_stop = startup_stop_recheck
             stop_recovery_required = True
             stop_gate_busy = isinstance(gate_error, ManagedNetworkGateBusy)
     try:
@@ -1188,6 +1242,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 register_profile_recovery(native_profile, legacy_v5_uncertain=True)
             except ManagedNetworkGateStorageError as gate_error:
                 if native_profile is None:
+                    if isinstance(gate_error, ManagedNetworkGateBusy):
+                        from .native_auth_result import NativeAuthResult
+                        print(NativeAuthResult('busy').message, file=sys.stderr)
+                        return 2
                     raise
                 # An existing per-root STOP, absent owner, or busy gate may
                 # be discovered during actual reader/service registration.
@@ -1195,7 +1253,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 # never turn this into a live GET or an unhandled silent exit.
                 from .native_startup import register_profile_recovery
                 if isinstance(gate_error, ManagedNetworkGateBusy):
-                    native_profile.recheck_startup_stop = shared_stop_recheck
+                    native_profile.shared_network_stop_scope = None
+                    if profile_stop_scope is not None:
+                        profile_stop_scope.shared_owner = None
+                    native_profile.recheck_startup_stop = startup_stop_recheck
                     register_profile_recovery(native_profile, stop_gate_busy=True)
                 elif (isinstance(gate_error, SharedGetOutcomeUncertain)
                       and native_profile.shared_network_stop_scope is not None):

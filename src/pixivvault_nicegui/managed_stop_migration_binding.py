@@ -1,7 +1,9 @@
 """Read-only consumption of an atomically published migration association."""
 import json,hashlib
 from pathlib import Path
-from .managed_network_stop_gate import _file_identity,_reject_links,ManagedNetworkGateStorageError
+from .managed_network_stop_gate import (
+    _file_identity, _reject_links, ManagedNetworkGateBusy, ManagedNetworkGateStorageError,
+)
 from .managed_network_stop_shared_scope import open_existing_windows_user_stop,_OWNER_FILE,_file_identity_directory
 from .native_profile import STORAGE_MARKER,STORAGE_IDENTITY,_owned_marker
 
@@ -22,6 +24,8 @@ def _association(scope,base,*,strict=False):
                 and value['base']==str(Path(base).resolve()) and tuple(value['base_identity'])==_file_identity_directory(Path(base))):
                 _owned_marker(Path(base),STORAGE_MARKER,STORAGE_IDENTITY)
                 return owner,proof,value
+    except ManagedNetworkGateBusy:
+        raise
     except Exception:
         if strict:raise ManagedNetworkGateStorageError('migration association unverified') from None
         return None
@@ -38,6 +42,7 @@ def verified_media(scope,root):
     records=[x for x in association['roots'] if x['root']==str(root.resolve())]
     if len(records)!=1:return False
     record=records[0]
+    from .managed_stop_migration import _FileLock, _FileLockBusy, _fingerprint
     try:
         _reject_links(root)
         if not record['absent'] and tuple(record['identity'])!=_file_identity_directory(root):raise ValueError()
@@ -45,9 +50,10 @@ def verified_media(scope,root):
         _check_marker(root,record['kind'])
         gate=root/'.pixivvault-network-stop.sqlite3'
         sidecars=[gate.with_name(gate.name+s) for s in ('-journal','-wal','-shm')]
-        if any(p.exists() or p.is_symlink() for p in sidecars):raise ValueError()
         if not gate.exists():
-            if record['absent'] and not gate.with_name(gate.name+'.lock').exists():return True
+            if (record['absent'] and not gate.with_name(gate.name+'.lock').exists()
+                    and not any(p.exists() or p.is_symlink() for p in sidecars)):
+                return True
             raise ValueError()
         lock=gate.with_name(gate.name+'.lock')
         root_identity=_file_identity_directory(root)
@@ -57,7 +63,6 @@ def verified_media(scope,root):
             source=next(x for x in proof['sources'] if x['root']==str(root.resolve()))
             for f in source['files']:
                 if f['name'] in (gate.name,gate.name+'.lock') and _file_identity(root/f['name'])!=tuple(f['identity']):raise ValueError()
-        from .managed_stop_migration import _FileLock,_fingerprint
         ticket=_FileLock(lock)
         try:
             def check_identity():
@@ -83,5 +88,9 @@ def verified_media(scope,root):
                 scope.gate.trip(state[1]);owner.gate.trip(state[1])
             return True
         finally:ticket.close()
+    except _FileLockBusy:
+        raise ManagedNetworkGateBusy('migrated media history is busy') from None
+    except ManagedNetworkGateBusy:
+        raise
     except Exception:raise ManagedNetworkGateStorageError('migrated media history unverified') from None
 

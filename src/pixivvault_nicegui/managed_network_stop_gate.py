@@ -43,6 +43,13 @@ if os.name == 'nt':
                     ('event', wintypes.HANDLE)]
 
     _kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    _create_file = _kernel.CreateFileW
+    _create_file.argtypes = (wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
+                             wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE)
+    _create_file.restype = wintypes.HANDLE
+    _close_handle = _kernel.CloseHandle
+    _close_handle.argtypes = (wintypes.HANDLE,)
+    _close_handle.restype = wintypes.BOOL
     _lock_file = _kernel.LockFileEx
     _lock_file.argtypes = (wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD,
                            wintypes.DWORD, ctypes.POINTER(_Overlapped))
@@ -53,6 +60,30 @@ if os.name == 'nt':
     _unlock_file.restype = wintypes.BOOL
 else:
     import fcntl
+
+
+def _open_existing_stop_lock(path):
+    if os.name != 'nt':
+        return path.open('r+b')
+    # OPEN_EXISTING, read/write and normal read/write sharing. Open the link
+    # itself if a reparse point raced the preceding path validation.
+    handle = _create_file(str(path), 0xC0000000, 3, None, 3, 0x00200080, None)
+    if handle == ctypes.c_void_p(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        fd = msvcrt.open_osfhandle(handle, os.O_RDWR | os.O_BINARY | os.O_NOINHERIT)
+    except BaseException:
+        _close_handle(handle)
+        raise
+    try:
+        return os.fdopen(fd, 'r+b')
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _lock_open_contended(error):
+    return getattr(error, 'winerror', None) == 32  # ERROR_SHARING_VIOLATION
 
 
 def _set_stop_byte_lock(stream, *, lock):
@@ -198,8 +229,13 @@ class ManagedNetworkStopGate:
                 # lock and permits a previously open reader to dispatch GET
                 # without the historical process-wide exclusion guarantee.
                 # x+b also refuses concurrent first creators, fail closed.
-                lock_file = self.lock_path.open("x+b" if initializing else "r+b")
-            except (OSError, ValueError):
+                lock_file = (self.lock_path.open('x+b') if initializing
+                             else _open_existing_stop_lock(self.lock_path))
+            except OSError as error:
+                if _lock_open_contended(error):
+                    raise ManagedNetworkGateBusy("managed gate lock shared by another process") from None
+                raise ManagedNetworkGateStorageError("managed gate lock unavailable") from None
+            except ValueError:
                 raise ManagedNetworkGateStorageError("managed gate lock unavailable") from None
             with lock_file:
                 try:

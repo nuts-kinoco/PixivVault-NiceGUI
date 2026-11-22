@@ -74,7 +74,7 @@ def _acquire_file_lock(path):
 
 def _seed_startup_lock(path):
     """Publish a complete sentinel; a competing launcher never sees it empty."""
-    from .managed_stop_migration import MigrationRejected, _rename_new
+    from .managed_stop_migration import MigrationRejected, _rename_atomic_new
     _reject_links(path)
     if path.exists():
         return
@@ -87,8 +87,7 @@ def _seed_startup_lock(path):
                 stream.flush()
                 os.fsync(stream.fileno())
             try:
-                # Use the existing atomic no-replace rename, including on POSIX.
-                _rename_new(stage, path, directory=True)
+                _rename_atomic_new(stage, path)
             except FileExistsError:
                 pass  # Another launcher published a complete sentinel first.
         finally:
@@ -101,20 +100,47 @@ def startup_lock_deadline():
     return monotonic() + _STARTUP_LOCK_RETRY_SECONDS
 
 
-def retry_startup_lock(operation, *, deadline):
+class StartupStopCancelled(Exception):
+    """The local startup probe was cancelled before its next operation."""
+
+
+class StartupStopProfileChanged(Exception):
+    """The profile saved another configuration during an offline probe."""
+
+
+def check_startup_cancel(cancel):
+    if cancel is not None and cancel.is_set():
+        raise StartupStopCancelled()
+
+
+def retry_startup_lock(operation, *, deadline, cancel=None):
     """Retry local lock contention within this startup's shared time budget."""
+    check_startup_cancel(cancel)
     while True:
         try:
             return operation()
         except ManagedNetworkGateBusy:
-            if deadline is None or monotonic() + _STARTUP_LOCK_POLL_SECONDS >= deadline:
+            check_startup_cancel(cancel)
+            remaining = 0 if deadline is None else deadline - monotonic()
+            if remaining <= 0:
                 raise
-            sleep(_STARTUP_LOCK_POLL_SECONDS)
-            if monotonic() >= deadline:
-                raise
+            pause = min(_STARTUP_LOCK_POLL_SECONDS, remaining)
+            if cancel is None:
+                sleep(pause)
+            else:
+                cancel.wait(pause)
+                check_startup_cancel(cancel)
 
 
-def open_or_initialize_windows_user_stop(*, selected_roots=(), profile_scope=None, deadline=None):
+def shared_startup_ticket(parent):
+    lock = parent / '.pixivvault-user-stop-startup.lock'
+    _seed_startup_lock(lock)
+    return _acquire_file_lock(lock)
+
+
+def open_or_initialize_windows_user_stop(*, selected_roots=(), profile_scope=None,
+                                         deadline=None, cancel=None, previous_scope=None,
+                                         on_open=None, validate_profile=None):
     """Product startup only: serialize first creation; never replace an owner.
 
     The durable parent anchor is written before publication. Interruption or
@@ -123,16 +149,31 @@ def open_or_initialize_windows_user_stop(*, selected_roots=(), profile_scope=Non
     """
     if deadline is None:
         deadline = startup_lock_deadline()
-    retry_lock = partial(retry_startup_lock, deadline=deadline)
+    retry_lock = partial(retry_startup_lock, deadline=deadline, cancel=cancel)
+
+    def validate_startup():
+        check_startup_cancel(cancel)
+        if validate_profile is not None:
+            validate_profile()
 
     def prepare(scope):
         if type(scope) is shared.ManagedUserNetworkStopScope:
+            if on_open is not None:
+                on_open(scope)
+            validate_startup()
             retry_lock(lambda: attach_selected_histories(scope, selected_roots))
             if profile_scope is not None:
                 state = retry_lock(profile_scope.gate.snapshot)
                 if state.blocked:
                     retry_lock(lambda: scope.gate.trip(state.status_code))
         return scope
+
+    if previous_scope is not None:
+        # Re-confirm the same sealed owner and retain previously observed STOP
+        # evidence even when no scope was published to the offline binding.
+        check_startup_cancel(cancel)
+        previous_scope._check_owner()
+        return prepare(previous_scope)
     try:
         return prepare(retry_lock(shared.open_existing_windows_user_stop))
     except shared.SharedStopOwnerAbsent:
@@ -148,9 +189,7 @@ def open_or_initialize_windows_user_stop(*, selected_roots=(), profile_scope=Non
         parent.mkdir(parents=True, exist_ok=True)
     except OSError:
         raise ManagedNetworkGateStorageError('shared STOP setup directory unavailable') from None
-    lock = parent / '.pixivvault-user-stop-startup.lock'
-    _seed_startup_lock(lock)
-    ticket = retry_lock(lambda: _acquire_file_lock(lock))
+    ticket = retry_lock(lambda: shared_startup_ticket(parent))
     try:
         # A competing launcher may have published while we were waiting.
         try:
@@ -180,23 +219,27 @@ def open_or_initialize_windows_user_stop(*, selected_roots=(), profile_scope=Non
                 statuses.append(state.status_code)
         with ExitStack() as histories:
             retry_lock(lambda: histories.enter_context(selected_history_guard(history)))
+            check_startup_cancel(cancel)
             stage = parent / ('.pv-stop-' + uuid4().hex)
             stage.mkdir()
             payload = _json_bytes({'schema': 'pixivvault-normal-start-v1',
                                    'operation': 'initialize-user-stop'})
             proof = hashlib.sha256(payload).hexdigest()
             _write_new(stage / _PROVENANCE, payload)
-            # Formal migration has a different lock. If it started during our
-            # wait, do not write an anchor that could invalidate its owner.
+            # Keep earlier records even when written by a pre-update launcher.
             require_no_prior_setup()
+            validate_startup()
             # This intent survives crashes even before gate initialization.
             _write_new(anchor, _json_bytes({'schema': 1,
                         'root_identity': list(shared._file_identity_directory(stage)),
                         'history_proof': proof}))
             try:
-                gate = retry_lock(lambda: ManagedNetworkStopGate(stage / shared._GATE_FILE))
+                # Finish the durable commit after the anchor is written. The
+                # shared publication ticket still excludes formal migration.
+                finish_lock = partial(retry_startup_lock, deadline=deadline)
+                gate = finish_lock(lambda: ManagedNetworkStopGate(stage / shared._GATE_FILE))
                 if statuses:
-                    retry_lock(lambda: gate.trip(statuses[0]))
+                    finish_lock(lambda: gate.trip(statuses[0]))
             except ManagedNetworkGateBusy:
                 # First-use intent is already durable. Exhausting the lock
                 # budget here requires repair of the interrupted setup.
