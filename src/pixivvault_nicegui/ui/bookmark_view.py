@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime
 import inspect
+import json
 from uuid import uuid4
 
 from nicegui import ui
@@ -13,6 +14,26 @@ from ..bookmark_state import BookmarkState, BookmarkCard
 from .grid_layout import MAX_COLUMNS
 from .card_grid import CardGrid, MoreCell
 from .action_controls import refresh_button
+
+
+def add_library_card_titles(grid, *, caption, action):
+    """Attach full text and action names to the library layouts of the shared grid."""
+    script = f"""({{el}}) => {{
+        for (const card of el.querySelectorAll('.pv-card')) {{
+            const title = card.querySelector({json.dumps(caption)});
+            const opener = card.matches('[role=button]') ? card : card.querySelector('[role=button]');
+            if (!title || !opener) continue;
+            title.title = title.textContent;
+            opener.classList.add('pv-focus-ring');
+            opener.setAttribute('aria-label', {json.dumps(action)} + '：' + title.textContent + '…');
+            const author = card.querySelector('.pv-card-author');
+            if (author) author.title = author.textContent;
+        }}
+        for (const button of el.querySelectorAll('.pv-library-profile, [data-testid=library-external-open], [data-testid=library-similar-open], [data-testid=library-more], [data-testid=bookmark-more]'))
+            button.classList.add('pv-hit28');
+    }}"""
+    for hook in (':onVnodeMounted', ':onVnodeUpdated'):
+        grid.props[hook] = script
 
 
 class BookmarkView:
@@ -55,7 +76,7 @@ class BookmarkView:
             ) as self.root:
                 with ui.row().classes("pv-library-summary w-full items-center"):
                     if self.with_filter_toggle:
-                        self.filter_toggle = ui.button("絞り込み ›").props(
+                        self.filter_toggle = ui.button("絞り込み ›").classes('pv-hit28').props(
                             "flat dense no-caps data-testid=bookmark-filter-toggle")
                     ui.label("マイブックマーク").classes("pv-library-heading")
                     ui.space()
@@ -63,7 +84,7 @@ class BookmarkView:
                     self.selected_count = ui.label().classes("pv-counter").props(
                         "data-testid=bookmark-selection")
                     self.download_button = ui.button("選択をダウンロード", color=None,
-                        on_click=self.download_selected).props(
+                        on_click=self.download_selected).classes('pv-hit28').props(
                         "flat dense data-testid=bookmark-download")
                     self.download_button.disable()
                     if self.on_enqueue is None:
@@ -82,7 +103,27 @@ class BookmarkView:
                     self.grid = CardGrid(self._on_grid_event).classes("pv-grid").style(
                         f"--pv-max-cols:{MAX_COLUMNS[self.card_size]}")
                     self.grid.props['layout'] = 'bookmark'
+                    add_library_card_titles(self.grid, caption='.pv-card-title', action='ブックマークを開く')
                     self.more_cell = self.more_button = MoreCell(self.grid)
+                preview = ui.label().classes('pv-bookmark-title-preview').props('popover=manual aria-hidden=true')
+                preview_node = f"document.getElementById('{preview.html_id}')"
+                self.scroll.on('focusin', js_handler=f"""event => {{
+                    const title = event.target.closest('[data-testid=bookmark-card]')?.querySelector('.pv-card-title');
+                    const preview = {preview_node};
+                    if (preview && event.target.matches(':focus-visible') &&
+                        title && title.scrollWidth > title.clientWidth) {{
+                        preview.textContent = title.textContent;
+                        preview.showPopover();
+                    }}
+                }}""")
+                self.scroll.on('focusout', js_handler=f"() => {preview_node}?.hidePopover()")
+                self.scroll.on('keydown.escape', js_handler=f"""event => {{
+                    const preview = {preview_node};
+                    if (preview?.matches(':popover-open')) {{
+                        preview.hidePopover();
+                        event.stopPropagation();
+                    }}
+                }}""")
                 self.scroll.on("scroll", js_handler="""event => {
                     if (event.target.getClientRects().length)
                         event.target.__pvBookmarkScroll = event.target.scrollTop;
@@ -94,7 +135,7 @@ class BookmarkView:
         art = item.artwork
         menu = []
         if self.on_author is not None:
-            menu.append(dict(key='author', label='作者ページを開く', enabled=True,
+            menu.append(dict(key='author', label='作者を開く…', enabled=True,
                              testid='bookmark-author-open'))
         if self.on_similar is not None:
             menu.append(dict(key='similar', label='似た絵を探す', enabled=True,

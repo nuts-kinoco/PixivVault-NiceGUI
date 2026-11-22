@@ -13,7 +13,7 @@ from test_p3_viewer_author import Reader, services as viewer_services
 from test_x_ctx_ranking_20261118 import click, label_of, make
 from test_x_ctx_recommend_20261118 import make as make_recommend, open_view, item as rec_item
 
-FOUR = ['pixivで作品ページを開く', '作者ページを開く', '出さない', '保存フォルダを開く']
+FOUR = ['Pixivで作品ページを開く…', '作者ページを開く…', '出さない', '保存フォルダを開く…']
 
 
 def entries(viewer):

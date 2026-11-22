@@ -7,6 +7,8 @@ from collections import deque
 from dataclasses import replace
 from uuid import uuid4
 from nicegui import background_tasks, core, ui
+
+from .management_dialog import managed_dialog
 from ..learning_service import notify_shadow
 from ..recommendation_state import LABELS, ORDER, RecommendationWork
 from ..recommendation_media import RecommendationDisplayGroup, RecommendationMediaSnapshot, RecommendationVisual
@@ -66,7 +68,7 @@ class RecommendView:
             self.undo_button=ui.button('出さないを取り消す',on_click=self.undo_hide).props('flat dense no-caps data-testid=recommend-undo')
             self.undo_button.set_visibility(False)
             self.body=ui.column().classes('pv-recommend-shelves w-full')
-            with ui.dialog().props('data-testid=recommend-hide-reason-dialog') as self.hide_dialog:
+            with managed_dialog().props('data-testid=recommend-hide-reason-dialog') as self.hide_dialog:
                 self.hide_dialog.on_value_change(self._hide_reason_visibility_changed)
                 with ui.card():
                     ui.label('出さない理由（任意）')
@@ -674,7 +676,7 @@ class RecommendView:
                                           else f'「{group.title}」の新着')
                                 ui.label(subtitle).classes('pv-subtitle')
                             if kind=='certain':
-                                b=ui.button('このタグを開く' if closed else 'このタグを閉じる',on_click=lambda e,t=group.key:self.collapse_certain_group(t)).props('flat dense no-caps')
+                                b=ui.button('このタグを開く' if closed else 'このタグを閉じる',on_click=lambda e,t=group.key:self.collapse_certain_group(t)).props('flat dense no-caps').classes('pv-hit28')
                                 self._certain_buttons[group.key]=b
                                 b.set_enabled(data['writable'])
                         if closed:continue
@@ -686,7 +688,7 @@ class RecommendView:
                                 slot=unit[rank] if unit is not None else None
                                 work=slot.work if slot is not None else base
                                 with ui.column().classes('pv-recommend-tile w-full min-w-0 gap-1').props(f'data-testid=recommend-work-{kind}-{work.work_id}'):
-                                    with ui.element('div').classes('pv-card w-full').props(
+                                    with ui.element('div').classes('pv-card pv-focus-ring w-full').props(
                                             f'tabindex=0 role=button data-testid=recommend-open-{kind}-{work.work_id}') as preview:
                                         if not work.deleted:
                                             preview.props['aria-label']='画集ビューアで開く: '+(work.title or 'ID '+work.work_id)
@@ -721,11 +723,13 @@ class RecommendView:
                                                 ui.icon('image_not_supported')
                                                 ui.label(caption).classes('pv-subtitle')
                                         with ui.element('div').classes('pv-card-meta'):
-                                            ui.label(work.title or 'ID '+work.work_id).classes('pv-card-title')
-                                            ui.label(work.author_name or work.author_id).classes('pv-card-author')
+                                            title = work.title or 'ID '+work.work_id
+                                            author = work.author_name or work.author_id
+                                            ui.label(title).classes('pv-card-title').props['title'] = title
+                                            ui.label(author).classes('pv-card-author').props['title'] = author
                                             if work.deleted:ui.label('⚠ 表示できません').classes('pv-subtitle').props(f'data-testid=recommend-unavailable-{work.work_id}')
                                     self._card_menu(kind,work,generation,preview,data)
-                                    with ui.row().classes('pv-recommend-card-actions w-full items-center'):
+                                    with ui.row().classes('pv-recommend-card-actions w-full items-center') as actions:
                                         if self.on_open is not None:ui.button('保存済みを開く',
                                             on_click=lambda e,w=work.work_id,g=generation:self.open_saved_work(w,generation=g)).props('flat dense no-caps')
                                         if self.on_enqueue is not None:ui.button('キューに追加',on_click=lambda e,w=work:self.save_work(w.work_id)).props('flat dense no-caps')
@@ -746,6 +750,9 @@ class RecommendView:
                                             b=ui.button('作者を出さない',on_click=lambda e,w=work:self.hide('author',w.author_id)).props('flat dense no-caps');b.set_enabled(data['writable'])
                                             registered=work.author_id in dict(data.get('boosted',()))
                                             b=ui.button('登録解除' if registered else '作者をもっと見る',on_click=lambda e,w=work,v=not registered:self.boost(w.author_id,w.author_name,v)).props('flat dense no-caps');b.set_enabled(data['writable'])
+                                    for action in actions.default_slot.children:
+                                        if isinstance(action, ui.button):
+                                            action.classes('pv-hit28')
                         if count>self.step:
                             ui.button('畳む',on_click=lambda e,k=key:self.fold(k)).props(
                                 'flat dense no-caps data-testid=recommend-collapse')

@@ -20,7 +20,7 @@ class PremiumRecoveryPanel:
         with ui.column().classes('w-full gap-2').props('data-testid=premium-recovery') as self.root:
             self.guide = ui.label('').classes('pv-subtitle').props('role=status data-testid=premium-recovery-guide')
             self.password = outlined_input('保管庫のパスワード', password=True).classes('w-full').props(
-                'autocomplete=off data-testid=premium-recovery-password')
+                'autocomplete=off input-class=pv-focus-ring data-testid=premium-recovery-password')
             with ui.row().classes('pv-toolbar pv-compact-toolbar'):
                 self.reopen_button = primary_button(
                     '保存済み状態を再確認（通信なし）', lambda: self.action('reopen_saved'), testid='premium-recovery-reopen')

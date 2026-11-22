@@ -7,6 +7,8 @@ from uuid import uuid4
 
 from nicegui import ui
 
+from .management_dialog import managed_dialog
+
 from ..novel_save_presentation import FORMATS, NovelSavePresentation
 from .job_views import _accepted_call, _browser_event
 
@@ -298,7 +300,7 @@ class NovelLibraryView:
                 self.refresh_button.on("click", self._refresh_event, js_handler=self._js())
             self.notice = ui.label().props("role=status data-testid=novel-library-notice")
             self.list = ui.column().classes("pv-jobs-scroll w-full").props("data-testid=novel-library-list")
-        with ui.dialog().props("data-testid=novel-reader") as self.dialog, ui.card().classes("pv-novel-reader"):
+        with managed_dialog().props("data-testid=novel-reader") as self.dialog, ui.card().classes("pv-novel-reader"):
             self.reader_title = ui.label().classes("pv-library-heading")
             self.reader_body = ui.label().classes("pv-novel-text pv-novel-reader-text").props("data-testid=novel-reader-text")
             self.reader_images = ui.row().classes("w-full pv-novel-reader-images")

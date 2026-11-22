@@ -37,8 +37,13 @@ body.body--light { --pv-page:#f8f9ff; --pv-bg-vault:#f3f5fb; --pv-bg-surface:#ff
 
 html, body { width:100%; height:100%; overflow:hidden; }
 body { background: var(--pv-page); color: var(--pv-on-surface); font-family:var(--pv-ui-font); }
+body {
+  --pv-focus-ring-outline:2px solid var(--pv-primary);
+  --pv-focus-ring-shadow:0 0 0 2px var(--pv-page), 0 0 0 4px var(--pv-primary);
+}
 .nicegui-content { height:100dvh; min-height:0; padding:0 !important; overflow:hidden; }
-.pv-shell { height:100dvh; min-height:0; width:100%; max-width:100%; padding:10px; gap:10px; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
+.pv-shell { height:100dvh; min-height:0; width:100%; max-width:100%; padding:10px; gap:10px; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden auto; scroll-padding-block:4px; }
+.pv-shell-chrome { display:contents; }
 .pv-content { position:relative; width:100%; min-width:0; min-height:0; flex:1 1 0; display:flex; flex-direction:column; overflow:hidden; }
 .pv-metadata-view, .pv-scheduler-view { flex:1 1 0; min-height:0; min-width:0; max-width:100%; overflow-y:auto; overflow-x:hidden; padding-right:8px; box-sizing:border-box; }
 .pv-gallery { flex:1 1 0; min-height:0; min-width:0; overflow:hidden; display:flex; flex-direction:column; }
@@ -57,6 +62,7 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family:var(
 .pv-auth[data-tone=primary] { color:var(--pv-auth-primary); }
 .pv-conn-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px; min-height:32px; margin-top:9.4px; font-size:12px; color:var(--pv-on-surface-variant); }
 .pv-conn-row .q-toggle__label, .pv-conn-row .q-toggle { font-size:12px; color:var(--pv-on-surface-variant); }
+.pv-conn-row .q-toggle { min-height:28px; }
 /* 元の Flet Switch の実測 43x26（トラック）。 */
 .pv-conn-row .q-toggle__inner { width:43px; min-width:43px; height:26px; padding:0; font-size:26px; }
 .pv-conn-row .q-toggle__track { height:26px; border-radius:13px; }
@@ -79,6 +85,23 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family:var(
 /* キーボードフォーカスは主色の 2px 枠。Quasar の .no-outline（レイヤ内の outline:0 !important）は outline では上書きできないので、
    同じ見た目の box-shadow 輪も重ねる（<a> は outline が効く）。 */
 .pv-tab:focus-visible, .pv-hbtn:focus-visible { outline:2px solid var(--pv-primary); outline-offset:2px; box-shadow:0 0 0 2px var(--pv-page), 0 0 0 4px var(--pv-primary); }
+/* Use the same ring on opt-in controls and the shell's link and switch. */
+:is(.pv-pill, .pv-hit28, .pv-focus-ring, .pv-conn-row .q-toggle):focus-visible,
+.pv-management-input:has(input:focus-visible) .q-field__control {
+  outline:var(--pv-focus-ring-outline);
+  outline-offset:2px;
+  box-shadow:var(--pv-focus-ring-shadow);
+}
+/* Quasar's button ::before draws the base style. Keep the invisible hit area on ::after. */
+:where(.pv-hit28) { position:relative; }
+:where(.pv-hit28):not(:disabled, .disabled, [aria-disabled=true])::after {
+  content:"";
+  position:absolute;
+  inset:50% auto auto 50%;
+  width:var(--pv-hit28-width, max(100%, var(--pv-hit28-size, 28px)));
+  height:max(100%, var(--pv-hit28-size, 28px));
+  transform:translate(-50%, -50%);
+}
 .pv-nav .q-btn.pv-tab { background:transparent !important; border:0 !important; color:var(--pv-on-surface) !important; }
 .pv-nav .q-btn.pv-tab.pv-tab-active { background:var(--pv-tab-selected) !important; color:var(--pv-primary) !important; }
 .pv-tab-disabled { opacity:.48; cursor:not-allowed; }
@@ -117,7 +140,7 @@ body.body--light .pv-grid .pv-card-heart { color:var(--pv-fill); }
 .pv-chip { display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border-radius:8px; background:var(--pv-raised); border:1px solid var(--pv-border); color:var(--pv-text); font-size:11px; cursor:pointer; }
 .pv-chip:hover { background:var(--pv-border); }
 .pv-chip:focus-visible { outline:2px solid var(--pv-primary); outline-offset:2px; }
-.pv-chip .pv-chip-x { font-size:10px; color:var(--pv-muted); }
+.pv-chip .pv-chip-x { font-size:10px; color:var(--pv-on-surface-variant); }
 .pv-card:hover { background:var(--pv-border); }
 .pv-menu-icon { order:-1; margin-right:12px; align-self:center; opacity:.8; }
 .pv-thumb { display:block; width:100%; aspect-ratio:1 / 1; min-width:0; background:var(--pv-surface); border-bottom:1px solid var(--pv-border); overflow:hidden; }
@@ -540,8 +563,17 @@ CSS += """
 .pv-native-profile > *, .pv-native-profile .pv-settings-field > * { max-width:100%; overflow-wrap:anywhere; }
 .pv-settings-follow [data-testid=following-sync-view] { gap:var(--pv-gap-compact); }
 [data-testid=native-profile-recovery] { color:var(--pv-error-text); background:var(--pv-error-bg); padding:6px 10px; border-radius:var(--pv-radius-control); }
-.pv-request-status { width:100%; white-space:pre-line; padding:4px 8px; }
-.pv-shared-log-host .pv-queue-log { flex-basis:124px; height:124px; border-radius:var(--pv-radius-control); }
+.pv-request-status { width:100%; white-space:pre-line; overflow-wrap:anywhere; line-height:1.5; padding:4px 8px; }
+.pv-shared-log-host { flex-shrink:0; }
+.pv-shared-log-host .pv-queue-log {
+  flex-basis:124px; height:124px; border-radius:var(--pv-radius-control);
+  flex-wrap:nowrap; overflow-x:hidden;
+}
+.pv-shared-log-host .pv-queue-log:focus-visible {
+  outline-offset:-2px; box-shadow:none;
+}
+.pv-shared-log-host .pv-queue-log-line { line-height:1.5; overflow-wrap:anywhere; }
+.pv-log-empty { color:var(--pv-muted); font-size:13px; line-height:1.5; }
 .pv-migration-section { width:100%; gap:var(--pv-gap-compact); border-top:1px solid var(--pv-border); padding-top:var(--pv-gap-compact); }
 .pv-migration-scroll { max-height:170px; overflow:auto; flex-wrap:nowrap; }
 .pv-backup-status.pv-empty { padding:0; text-align:left; }
@@ -630,4 +662,284 @@ CSS += """
   .pv-learning.pv-tone-learning .pv-trend-layout[data-mode=rail]:is([data-stage=empty],[data-stage=status]) > .pv-trend-side { grid-column:3; }
 }
 /* /tone-c-r3 */
+"""
+
+CSS += """
+/* ux-4 */
+@media (max-height:560px) {
+  .pv-library:has(.pv-bookmarks:not(.hidden)) .pv-library-body { overflow:hidden auto; }
+  .pv-library:has(.pv-bookmarks:not(.hidden)) .pv-library-filter-content { min-height:300px; }
+  .pv-library .pv-bookmarks { gap:4px; }
+  .pv-bookmarks > [data-testid=bookmark-status] { padding:4px 8px; }
+  .pv-bookmarks .pv-gallery-scroll { min-height:144px; }
+}
+.pv-bookmark-title-preview {
+  position:fixed; inset:auto 16px 16px; margin:0 auto; width:max-content;
+  max-width:min(36rem, calc(100% - 32px)); max-height:calc(100% - 32px);
+  overflow:auto; overflow-wrap:anywhere; pointer-events:none;
+  padding:8px 12px; border:1px solid var(--pv-border); border-radius:8px;
+  background:var(--pv-surface); color:var(--pv-text); font-size:13px; line-height:1.5;
+}
+body.body--dark .pv-library .pv-library-subview-selected.q-btn {
+  background:color-mix(in srgb, var(--pv-fill) 65%, #000) !important;
+  color:#fff !important;
+}
+.pv-library .pv-library-error { color:var(--pv-download-danger-text); }
+.pv-library .pv-library-unknown { color:var(--pv-auth-yellow); font-size:11px; }
+.pv-library :is(.pv-library-filter-state, .pv-library-filter-reason, [data-testid=library-page-bookmark-count],
+  [data-testid=bookmark-card-count], [data-testid=library-managed-capacity]) { font-size:11px; }
+.pv-library .pv-library-profile { min-width:22px; }
+.pv-viewer .pv-viewer-info { flex-wrap:nowrap; }
+.pv-viewer-info .pv-view-title { flex:0 1 auto; }
+.pv-viewer-info .q-btn.pv-subtitle { flex:0 0 auto; max-width:30%; }
+.pv-viewer-info .q-btn.pv-subtitle .q-btn__content { display:block; overflow:hidden; text-overflow:ellipsis; }
+.pv-viewer .pv-viewer-info .q-btn:not(.pv-subtitle) { flex:none; }
+.pv-tone-b-history-external.q-btn { color:var(--pv-text); }
+/* /ux-4 */
+/* ux-1 */
+[data-testid=db-status-banner] { flex-shrink:0; max-width:100%; overflow-wrap:anywhere; }
+.pv-cookie-banner .pv-pill:is(:hover, :active) { opacity:.9; }
+.q-tooltip { background:#666; font-size:11px; }
+.pv-cookie-banner .pv-banner-body { overflow-wrap:anywhere; }
+.pv-hbtn .q-badge { color:var(--pv-action-text) !important; }
+.pv-hidden, .pv-hide-empty:empty { display:none !important; }
+
+.q-notification.pv-toast { overflow-wrap:anywhere; }
+.pv-toast.pv-toast-positive { background:#176d36 !important; color:white !important; }
+.pv-toast.pv-toast-negative { background:#a52132 !important; color:white !important; }
+.pv-toast.pv-toast-info { background:#135b88 !important; color:white !important; }
+.pv-toast.pv-toast-warning { color:var(--pv-on-caution) !important; }
+.q-notification.pv-toast .q-notification__actions { color:inherit !important; }
+.pv-toast .q-btn { color:inherit !important; min-height:28px; }
+.pv-toast .q-btn:focus-visible { outline:2px solid currentColor; outline-offset:-2px;
+  box-shadow:inset 0 0 0 2px currentColor; }
+.pv-toast .q-btn:focus-visible > .q-focus-helper { opacity:0; }
+.pv-dialog-alert { width:100%; box-sizing:border-box; align-items:center; gap:8px; padding:8px 12px;
+  border-radius:var(--pv-radius-control); }
+.pv-dialog-alert.pv-toast-warning { background:var(--q-warning); }
+.pv-dialog-alert-message { flex:1 1 0; min-width:0; overflow-wrap:anywhere; }
+
+@media (max-width:540px) {
+  .pv-header { flex-wrap:wrap; }
+  .pv-header-main { flex-basis:100%; }
+  .pv-header-actions { flex-wrap:wrap; }
+  .pv-cookie-banner { flex-wrap:wrap !important; }
+}
+@media (max-height:560px) {
+  .pv-shell-chrome { display:flex; flex:0 0 auto; flex-direction:column; gap:10px;
+    width:100%; max-height:clamp(64px, calc(100dvh - 310px), 34dvh);
+    overflow:hidden auto; box-sizing:border-box;
+    padding:4px; scroll-padding-block:4px; }
+  .pv-shared-log-host .pv-queue-log { flex-basis:min(124px, 22dvh); height:min(124px, 22dvh); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .q-notification.pv-toast { animation:none !important; transition-duration:0s !important; }
+}
+/* /ux-1 */
+"""
+
+
+CSS += """
+/* ux-2 */
+.pv-settings-modal :is(.q-btn:is(.disabled, :disabled), .q-toggle.disabled, .q-checkbox.disabled),
+.pv-settings-modal .q-field--disabled .q-field__control > div { opacity:1 !important; }
+.pv-settings-modal :is(.q-toggle.disabled .q-toggle__label,
+                      .q-checkbox.disabled .q-checkbox__label, .q-field--disabled .q-field__native,
+                      .q-field--disabled .q-field__label) { color:var(--pv-on-surface-variant) !important; }
+.pv-settings-modal .q-btn:is(.disabled, :disabled) { color:var(--pv-text) !important; }
+.pv-settings-modal .q-btn.pv-btn-primary:is(.disabled, :disabled) {
+  background:color-mix(in srgb, var(--pv-fill) 25%, var(--pv-surface)) !important;
+}
+.pv-settings-modal .q-btn.pv-btn-danger:is(.disabled, :disabled) {
+  background:color-mix(in srgb, var(--pv-caution-fill) 25%, var(--pv-surface)) !important;
+}
+.pv-migration-progress-value {
+  background:var(--pv-surface);
+  color:var(--pv-text);
+  font-size:.875rem;
+  border-radius:2px;
+  padding-inline:4px;
+}
+[data-testid=stop-recovery-rate-limit-guidance] { line-height:1.5; }
+/* NiceGUI imports Quasar's important rules in this layer. */
+@layer quasar_importants {
+  .pv-settings-modal .q-toggle.pv-hit28.disabled,
+  .pv-settings-modal .q-field--disabled .q-field__control > .q-field__control-container { opacity:1 !important; }
+}
+.pv-settings-modal .q-toggle.pv-hit28.disabled .q-toggle__inner { opacity:.75; }
+/* /ux-2 */
+"""
+
+
+CSS += """
+/* ux-3 */
+.pv-dedup-candidate { z-index:1; }
+.pv-job-chips .q-btn { min-height:28px !important; }
+@layer overrides {
+    .pv-tone-dedup .q-btn:is([data-testid=duplicate-group-move],
+                            [data-testid=duplicate-plan],
+                            [data-testid=duplicate-move],
+                            [data-testid=duplicate-trash],
+                            [data-testid=duplicate-bulk-low]):disabled {
+        background:var(--pv-surface) !important;
+        color:var(--pv-muted) !important;
+        opacity:1 !important;
+    }
+    .pv-trash-count-input.q-field--disabled .q-field__inner,
+    .pv-trash-count-input.q-field--disabled .q-field__control > div {
+        opacity:1 !important;
+    }
+    .pv-trash-count-input.q-field--disabled .q-field__label {
+        color:var(--pv-muted) !important;
+        opacity:1 !important;
+    }
+    .q-btn.pv-btn-danger[data-testid=duplicate-trash-empty]:disabled {
+        background:var(--pv-surface) !important;
+        color:var(--pv-muted) !important;
+        opacity:1 !important;
+    }
+    [data-testid=duplicate-progress-bar] > .absolute-center {
+        color:var(--pv-text) !important;
+        background:var(--pv-surface);
+        padding-inline:4px;
+        border-radius:var(--pv-radius-control);
+    }
+}
+.pv-queue-view .pv-jobs-scroll { padding-top:3px; }
+.pv-queue-view .pv-job-head { overflow:visible; position:relative; z-index:1; }
+.pv-queue-view .pv-job-actions .q-btn { z-index:1; }
+.pv-managed-mode { background:var(--pv-raised) !important; color:var(--pv-text) !important; border:1px solid var(--pv-border); }
+.pv-managed-mode[data-selected=true] { background:var(--pv-fill) !important; color:var(--pv-action-text) !important; border-color:var(--pv-fill); }
+.pv-managed-star-filter { background:transparent !important; color:var(--pv-text) !important; border:1px solid var(--pv-border); }
+.pv-managed-star-filter[data-selected=true] { background:var(--pv-tab-selected) !important; color:var(--pv-text) !important; border-color:var(--pv-primary); }
+.pv-managed-star-btn { min-width:28px !important; min-height:28px !important; }
+@layer overrides {
+  .pv-managed-star-filter:disabled { opacity:1 !important; color:var(--pv-muted) !important; }
+}
+@layer overrides {
+    .pv-metadata-work-id.q-field--disabled .q-field__inner,
+    .pv-metadata-work-id.q-field--disabled .q-field__control > div { opacity:1 !important; }
+    .pv-metadata-work-id.q-field--disabled .q-field__label { color:var(--pv-muted) !important; opacity:1 !important; }
+}
+.pv-scheduler-authors { flex:1 1 280px; min-width:min(100%, 280px); }
+.pv-ud-search .q-field__label { line-height:22px; min-height:22px; top:10px; }
+.pv-ud-hintrow.pv-hit28 { --pv-hit28-width:100%; }
+.pv-ud-list { scroll-padding-block:4px; }
+.pv-management-follow-search { flex:1 1 244px; min-width:min(100%, 244px); }
+@layer overrides {
+  .pv-ud-run:disabled { background:var(--pv-surface) !important; color:var(--pv-muted) !important; opacity:1 !important; }
+}
+@media (max-width:720px) {
+  .pv-queue-view .pv-job-head .pv-job-title { min-width:0; }
+  .pv-queue-view .pv-job-id-seat { min-width:0; }
+  .pv-ud :is(.pv-ud-header, .pv-ud-tools) { flex:0 0 auto; flex-wrap:wrap; height:auto; }
+  .pv-ud .pv-ud-body { flex:0 0 auto; flex-direction:column; }
+  .pv-ud :is(.pv-ud-left, .pv-ud-right, .pv-ud-pane, .pv-ud-bm) { flex:0 0 auto; }
+  .pv-ud .pv-ud-list { flex:0 0 auto; min-height:112px; max-height:210px; }
+  .pv-ud .pv-ud-chips { min-height:74px; max-height:220px; }
+}
+/* /ux-3 */
+"""
+
+
+CSS += """
+/* ux-5 */
+:root { --pv-ux5-blue-fill:#0066aa; }
+:is(.pv-ranking-view, .pv-learning, .pv-tone-recommend, [data-testid=ranking-date-dialog],
+    [data-testid=learning-reset-dialog]) .q-btn.text-primary {
+  color:var(--pv-primary) !important;
+}
+.pv-learning .q-btn.pv-judgment-like {
+  background:var(--pv-ux5-blue-fill) !important;
+  border-color:var(--pv-ux5-blue-fill) !important;
+}
+:is(.pv-ranking-view, .pv-learning, .pv-tone-recommend, [data-testid=ranking-date-dialog],
+    [data-testid=learning-reset-dialog]) .q-btn:disabled,
+.pv-ranking-view .pv-filter-switch[aria-disabled=true],
+[data-testid=discovery-settings-panel] .q-field--disabled :is(.q-field__native, .q-field__label, .q-field__bottom) {
+  color:var(--pv-muted) !important;
+}
+@layer quasar_importants {
+  body.body--dark .pv-ranking-view .pv-gallery .pv-toolbar .q-btn.bg-primary:not(:disabled),
+  [data-testid=ranking-date-picker] .q-btn.bg-primary:not(:disabled) {
+    background:var(--pv-ux5-blue-fill) !important;
+    color:white !important;
+  }
+  :is(.pv-ranking-view, .pv-learning, .pv-tone-recommend, [data-testid=ranking-date-dialog],
+      [data-testid=learning-reset-dialog]) .q-btn:disabled,
+  .pv-ranking-view .pv-filter-switch[aria-disabled=true],
+  [data-testid=discovery-settings-panel] .q-field--disabled .q-field__control > div {
+    opacity:1 !important;
+  }
+}
+:is(.pv-learning .q-btn.pv-judgment, .pv-tone-recommend .q-btn.pv-btn-primary,
+    [data-testid=ranking-date-picker] .q-btn.bg-primary,
+    [data-testid=learning-reset-execute].q-btn):disabled {
+  background:var(--pv-raised) !important;
+  border-color:var(--pv-border) !important;
+}
+.pv-ranking-view .pv-period-chips .q-btn,
+.pv-ranking-view .pv-filter-switch,
+.pv-personal-ranking .pv-chip[role=button],
+[data-testid=ranking-date-picker] .q-date__navigation .q-btn {
+  min-width:28px;
+  min-height:28px;
+}
+.pv-personal-tag-entry > .row { padding-block:2px; margin-block:-2px; }
+[data-testid=personal-remove-tag].pv-hit28 { --pv-hit28-size:29px; }
+.pv-learning .pv-judgment.q-btn { min-width:44px; min-height:44px; }
+.pv-learning .pv-judgment .q-btn__content { flex-direction:column; }
+.pv-learning .pv-judgment .q-btn__content::before {
+  content:var(--pv-judgment-glyph) / "";
+  font-size:10px;
+  line-height:1.2;
+}
+/* These controls are generated by Quasar and CardGrid, beyond the Python element classes. */
+:is(.pv-period-chips, [data-testid=ranking-date-picker]) .q-btn:focus-visible {
+  box-shadow:var(--pv-focus-ring-shadow);
+}
+.pv-ranking-view .pv-grid .pv-card[role=button]:focus-visible {
+  outline:var(--pv-focus-ring-outline) !important;
+  outline-offset:-2px;
+}
+:is(.pv-learning, .pv-recommend-tile .pv-card, .pv-ranking-detail-title).pv-focus-ring:focus-visible {
+  outline-offset:-2px;
+  box-shadow:none;
+}
+:is(.pv-ranking-view, .pv-tone-recommend) .pv-grid .pv-card-title { overflow-wrap:anywhere; }
+.pv-recommend-shelf .pv-card-title:not(.pv-card-meta > .pv-card-title) {
+  white-space:normal;
+  overflow-wrap:anywhere;
+  line-height:1.5;
+}
+[data-testid=ranking-date-picker] { max-width:100%; }
+[data-testid=ranking-date-picker] .q-date__header {
+  background:var(--pv-ux5-blue-fill);
+  color:white;
+}
+[data-testid=ranking-date-picker] .q-date__header-link { opacity:.9; }
+[data-testid=ranking-date-picker] .q-date__header-link--active { opacity:1; }
+[data-testid=ranking-date-picker] :is(.q-date__calendar-weekdays, .q-date__calendar-item--out) {
+  color:color-mix(in srgb, var(--pv-muted) 90%, var(--pv-text));
+  opacity:1;
+}
+[data-testid=ranking-date-picker] .q-date__calendar-weekdays > div { opacity:1; }
+.pv-ranking-detail-title {
+  order:-1;
+  width:100%;
+  overflow-wrap:anywhere;
+  white-space:pre-wrap;
+}
+[data-testid=recommend-section-certain] .pv-grid .pv-card-author { font-size:9.5px; }
+.pv-recommend-card-actions { row-gap:4px; }
+.pv-ranking-view .q-field--disabled:has([data-testid=ranking-sort]) :is(.q-field__label, .q-field__native) {
+  color:var(--pv-muted) !important;
+}
+@layer quasar_importants {
+  .pv-ranking-view .q-field--disabled:has([data-testid=ranking-sort]) .q-field__control > div {
+    opacity:1 !important;
+  }
+}
+[data-testid=personal-remove-tag].q-btn { scroll-margin-inline:5px; }
+/* /ux-5 */
 """

@@ -5,6 +5,8 @@ from io import BytesIO
 from threading import Event
 from PIL import Image
 from nicegui import ui
+
+from .management_dialog import managed_dialog
 from ..unfollowed_authors import fetch_unfollowed_authors
 from .action_controls import dialog_actions, outlined_select, primary_button, secondary_button
 from .pixiv_action_buttons import PixivActionButtons
@@ -28,7 +30,7 @@ class UnfollowedAuthorsView:
         self._semaphore=asyncio.Semaphore(8)
         self._account=None;self._reader=None
         self.follow_actions=[]
-        with ui.dialog().props('data-testid=unfollowed-dialog') as self.dialog:
+        with managed_dialog().props('data-testid=unfollowed-dialog') as self.dialog:
             with ui.card().classes('pv-tone-b-unfollowed-card w-full gap-2'):
                 ui.label('ブックマークの未フォロー作者').classes('pv-dialog-title text-base font-semibold')
                 ui.label('選んだ媒体・公開範囲から、公開・非公開のどちらでもフォローしていない作者を確認します。').classes('pv-subtitle')
