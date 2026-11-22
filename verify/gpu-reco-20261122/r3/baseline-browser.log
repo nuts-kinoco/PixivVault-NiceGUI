@@ -1,0 +1,10 @@
+﻿F                                                                        [100%]
+================================== FAILURES ===================================
+______________ test_visual_settings_dialog_keyboard_and_contrast ______________
+tests\test_visual_preference_browser.py:41: in test_visual_settings_dialog_keyboard_and_contrast
+    previous_server = Server.instance
+                      ^^^^^^^^^^^^^^^
+E   AttributeError: type object 'Server' has no attribute 'instance'
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_browser.py::test_visual_settings_dialog_keyboard_and_contrast
+1 failed in 4.32s

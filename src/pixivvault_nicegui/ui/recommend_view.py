@@ -67,6 +67,7 @@ class RecommendView:
             self.undo_button.set_visibility(False)
             self.body=ui.column().classes('pv-recommend-shelves w-full')
             with ui.dialog().props('data-testid=recommend-hide-reason-dialog') as self.hide_dialog:
+                self.hide_dialog.on_value_change(self._hide_reason_visibility_changed)
                 with ui.card():
                     ui.label('出さない理由（任意）')
                     ui.label('次回からこの作品を表示しません。理由があれば教えてください。').classes('pv-subtitle')
@@ -238,6 +239,9 @@ class RecommendView:
         if not self._has_action_card(work_id,card_current):return
         self._pending_hide=(work_id,self.epoch,card_current)
         self.hide_dialog.open()
+    def _hide_reason_visibility_changed(self,event):
+        # Quasar updates the same value for Escape, the backdrop and close().
+        if not event.value:self._pending_hide=None
     async def choose_hide_reason(self,reason):
         pending=self._pending_hide;self._pending_hide=None
         self.hide_dialog.close()
@@ -325,9 +329,13 @@ class RecommendView:
         visual=getattr(self.services,'recommendation_visual',None)
         if visual is not None:return visual
         observer=getattr(getattr(self.services,'discovery',None),'shadow_observer',None)
-        if observer is None:return None
+        if observer is None:
+            self._visual_shadow=None
+            return None
         if self._visual_shadow is None or self._visual_shadow.observer is not observer:
-            self._visual_shadow=RecommendationVisual(observer)
+            enabled=getattr(self.services,'visual_preference_enabled',None)
+            self._visual_shadow=(RecommendationVisual(observer,enabled=enabled) if callable(enabled)
+                                 else RecommendationVisual(observer))
         return self._visual_shadow
 
     async def _publish(self,data,epoch,*,preserve_viewer=False):
@@ -340,8 +348,9 @@ class RecommendView:
             works=tuple(work for group in groups for work in group.works)
             if notify_shadow(media.matches,works,route='recommendation_media'):
                 def prepare_display():
+                    exposure_epoch=visual.exposure_epoch()
                     captured=media.capture_display(groups,view_lookup=visual.observed_view_sha)
-                    return captured,visual.prepare(captured)
+                    return exposure_epoch,captured,visual.prepare(captured)
                 result=await asyncio.to_thread(notify_shadow,prepare_display,route='recommendation_prepare')
                 if (result is not None and generation==self._render_generation and self._media is media
                         and self._visual_binding() is visual):
@@ -349,15 +358,19 @@ class RecommendView:
         if self.closed or not self.active or self.epoch!=epoch:
             return False
         self.data=data
-        self.render(preserve_viewer=preserve_viewer,visual_preparation=preparation)
+        if preparation is None:
+            self.render(preserve_viewer=preserve_viewer)
+        else:
+            self.render(preserve_viewer=preserve_viewer,visual_preparation=preparation)
         return True
 
-    def _visual_slots(self, visual, groups, old_media, protected, preparation):
+    def _visual_slots(self, visual, groups, old_media, protected, preparation, stamp):
         prior,self._visual_display=self._visual_display,None
         if visual is None or not self.active:return {}, ()
         current_source=self._media is not None and self._media.projection_source_current()
-        if current_source and preparation is not None and preparation[:3]==(visual,self._media,groups):
-            captured,prepared=preparation[3:]
+        if (current_source and preparation is not None and stamp is not None
+                and preparation[:4]==(visual,self._media,groups,stamp[0])):
+            captured,prepared=preparation[4:]
         else:
             captured=(notify_shadow(lambda:self._media.capture_display(groups,view_lookup=visual.observed_view_sha),
                                     route='recommendation_capture') if current_source else None)
@@ -547,7 +560,8 @@ class RecommendView:
         if not preserve_viewer:self._recommend_viewer.close_viewer(restore_focus=False)
         protected=set(self._saving)
         if self._opening is not None:protected.add(self._opening[0])
-        if self._pending_hide is not None:protected.add(self._pending_hide[0])
+        if self.hide_dialog.value and self._pending_hide is not None:
+            protected.add(self._pending_hide[0])
         selection=self._recommend_viewer.selection
         if selection is not None and not selection.closed:protected.add(selection.artwork.work_id)
         old_media=self._media
@@ -576,7 +590,7 @@ class RecommendView:
         self._action_bindings.clear()
         self._render_generation+=1
         generation=self._render_generation
-        slots,slate=self._visual_slots(visual,groups,old_media,protected,visual_preparation)
+        slots,slate=self._visual_slots(visual,groups,old_media,protected,visual_preparation,stamp)
         data=self.data;self.body.clear();self._certain_buttons={}
         self.update_button.set_enabled(data.get('can_acquire',False))
         self.reset_button.set_enabled(bool(data.get('writable') and tuple(data['order'])!=ORDER and not self.busy))

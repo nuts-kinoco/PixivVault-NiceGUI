@@ -12,6 +12,7 @@ from hashlib import sha256
 import re
 from threading import Lock
 from time import monotonic
+from weakref import ref
 
 from .bookmark_remote_adapter import RemoteBookmark
 from .learning_service import notify_shadow
@@ -385,11 +386,15 @@ class RecommendationMediaSnapshot:
                     return (thumb, 'saved_thumb', proof) if _display_png(thumb) else (None, None, proof)
                 if isinstance(provider, RecommendationRemoteImages):
                     found = provider.observed_image(work.work_id, 'thumb')
-                    regular = provider.observed_image(work.work_id, 'view') if lineage else None
-                    digest = (_etag_digest(regular.blob) if regular is not None
-                              and regular.variant == 'regular_view' else None)
-                    if digest is None and lineage and view_lookup is not None:
+                    digest = None
+                    if lineage and view_lookup is not None:
+                        # The ordinary media cache survives a visual-data purge.
+                        # Only the epoch-bound observation can supply its proof.
                         digest = view_lookup(self, work)
+                    elif lineage:
+                        regular = provider.observed_image(work.work_id, 'view')
+                        if regular is not None and regular.variant == 'regular_view':
+                            digest = _etag_digest(regular.blob)
                     proof = (digest, 'view', 0) if digest is not None else None
                     return (found.blob, 'thumb', proof) if found is not None and _display_png(found.blob) else (None, None, proof)
         except (ValueError, RuntimeError, KeyError):
@@ -564,18 +569,42 @@ class RecommendationVisual:
         self._enabled = enabled
         self._view_lock = Lock()
         self._view_hashes = OrderedDict()
+        self._view_epoch = None
+
+    def _sync_view_epoch(self):
+        """Refresh the purge marker while holding the observation lock."""
+        try:
+            epoch = self.exposure_epoch()
+        except Exception:
+            self._view_hashes.clear()
+            raise
+        if epoch != self._view_epoch:
+            self._view_hashes.clear()
+            self._view_epoch = epoch
+        return epoch
 
     def observe_view(self, media, work_id, page, image):
+        if not self.observer.scope_is_current():
+            return False
         if page == 0 and image.variant == 'regular_view' and media.remote_reader is not None:
             work = media.works.get(work_id)
             if work is not None:
                 key = (id(media.remote_reader), media.local_token, work)
-                digest = _etag_digest(image.blob) or sha256(image.data).hexdigest()
                 with self._view_lock:
-                    self._view_hashes[key] = (media.remote_reader, digest)
-                    self._view_hashes.move_to_end(key)
-                    if len(self._view_hashes) > 1024:
-                        self._view_hashes.popitem(last=False)
+                    epoch = self._sync_view_epoch()
+                digest = _etag_digest(image.blob) or sha256(image.data).hexdigest()
+                try:
+                    reader = ref(media.remote_reader)
+                except TypeError:
+                    reader = None
+                with self._view_lock:
+                    if self._sync_view_epoch() != epoch:
+                        return False
+                    if reader is not None:
+                        self._view_hashes[key] = (reader, digest)
+                        self._view_hashes.move_to_end(key)
+                        if len(self._view_hashes) > 1024:
+                            self._view_hashes.popitem(last=False)
         return self.observer.submit_image(work_id, page, image)
 
     def observed_view_sha(self, media, work):
@@ -583,8 +612,11 @@ class RecommendationVisual:
         if reader is None:
             return None
         with self._view_lock:
+            if not self._view_hashes:
+                return None
+            self._sync_view_epoch()
             observed = self._view_hashes.get((id(reader), media.local_token, work))
-        return observed[1] if observed is not None and observed[0] is reader else None
+        return observed[1] if observed is not None and observed[0]() is reader else None
 
     def enabled(self):
         return self._enabled() is True
