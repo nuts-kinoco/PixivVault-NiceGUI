@@ -47,7 +47,11 @@
   .banner {
     background: #982d36; color: #fff; padding: 4px 16px; font-size: 13px;
     min-height: 28px; line-height: 20px; overflow-wrap: anywhere;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
   }
+  .banner:has(#db-detail-open:not([hidden])) { padding-block: 0; }
+  #db-detail-open { flex: none; min-height: 28px; padding: 1px 8px; }
+  #db-detail-open:focus-visible { outline-offset: -3px; }
   .masthead, .identity, .utilities, .toolbar, .controls, .dialog-top {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   }
@@ -130,6 +134,7 @@
   @media (max-width: 640px) {
     .toolbar { column-gap: 4px; padding-inline: 12px; }
     .toolbar h2 { margin-inline-end: 0; }
+    .toolbar-section { position: sticky; top: 0; z-index: 1; background: var(--page); }
   }
   .screen-description { padding: 0 16px 6px; }
   .primary { background: var(--selected); color: var(--accent); }
@@ -210,7 +215,10 @@
 </head>
 <body>
 <div class="frame">
-  <p id="db-banner" class="banner">本番DBを使用中 · 保存先「PixivVault」（表示例）</p>
+  <div id="db-banner" class="banner">
+    <p id="db-message">本番DBを使用中 · 保存先「PixivVault」（表示例）</p>
+    <button id="db-detail-open" aria-label="本番DB警告の詳細" aria-haspopup="dialog" aria-controls="db-detail" hidden>詳細</button>
+  </div>
   <header class="masthead">
     <div class="identity">
       <h1>PixivVault</h1>
@@ -359,6 +367,13 @@
   </div>
 </dialog>
 
+<dialog id="db-detail" aria-labelledby="db-detail-title">
+  <div class="dialog-frame">
+    <div class="dialog-top"><h2 id="db-detail-title">本番DBの警告</h2><button data-close="db-detail">閉じる</button></div>
+    <p id="db-full-warning" class="dialog-body"></p>
+  </div>
+</dialog>
+
 <dialog id="utility-preview" aria-labelledby="utility-title">
   <div class="dialog-frame">
     <div class="dialog-top"><h2 id="utility-title"></h2><button data-close="utility-preview">閉じる</button></div>
@@ -376,6 +391,7 @@
   ];
   const nav = byId("nav");
   const navToggle = byId("nav-toggle");
+  const navigation = nav.closest("nav");
   const narrowNav = matchMedia("(max-width: 640px)");
   const gallery = byId("gallery");
   const tags = [
@@ -403,10 +419,12 @@
     waiting: "待機中", running: "実行中", requesting: "停止を要求中", manual: "停止済み（手動）",
     off: "停止（設定で OFF）", blocked: "停止済み（取得停止ゲート）",
   };
-  const displayCases = {
-    short: "本番DBを使用中 · 保存先「PixivVault」（表示例）",
-    long: "本番DBを使用中 · 保存先「PixivVault／作品とメタデータを保管する共有フォルダー／ダウンロード済み作品の保管領域」。保存済み作品と設定に操作が反映されます。続ける前に保存先を確認してください。（合成の長文例）",
-  };
+  const shortWarning = "本番DBを使用中 · 保存先「PixivVault」（表示例）";
+  const longDestination = ["PixivVault", "作品とメタデータを保管する共有フォルダー", "ダウンロード済み作品の保管領域"];
+  const longWarning = "本番DBを使用中 · 保存先「" + longDestination.join("／")
+    + "」。保存済み作品と設定に操作が反映されます。続ける前に保存先を確認してください。（合成の長文例）";
+  const dbDetails = byId("db-detail");
+  const dbDetailButton = byId("db-detail-open");
   let gateStopped = params.get("stop") === "on";
   let dbCase = ["long", "off"].includes(params.get("db")) ? params.get("db") : "short";
   const automation = byId("automation");
@@ -537,22 +555,29 @@
 
   narrowNav.addEventListener("change", syncNavigation);
   navToggle.addEventListener("click", () => setNavOpen(nav.hidden));
-  nav.parentElement.addEventListener("keydown", (event) => {
+  navigation.addEventListener("focusout", (event) => {
+    if (narrowNav.matches && !nav.hidden && !navigation.contains(event.relatedTarget)) setNavOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
     if (narrowNav.matches && !nav.hidden && event.key === "Escape" && !event.isComposing) {
+      event.preventDefault();
+      event.stopPropagation();
       setNavOpen(false);
       navToggle.focus();
     }
-  });
+  }, true);
 
   function reflectToolbar() {
     const opened = Boolean(toolbarState[activeTab]);
     filters.hidden = toggle.hidden || !opened;
     toggle.setAttribute("aria-expanded", String(!filters.hidden));
+    toggle.textContent = opened && narrowNav.matches ? "絞り込みを畳む" : "絞り込み";
     byId("candidate-entry").hidden = activeTab !== "personal" || opened;
     personalRow.hidden = activeTab !== "personal";
     byId("candidate-entry").setAttribute("aria-expanded", String(opened));
     fitTags();
   }
+  narrowNav.addEventListener("change", reflectToolbar);
 
   function selectTab(key, restoreFocus = false) {
     if (popover.matches(":popover-open")) popover.hidePopover();
@@ -827,10 +852,21 @@
       ? "自動処理の未解消の失敗はありません。" : "");
   }
 
+  function updateDbWarning() {
+    byId("db-banner").hidden = dbCase === "off";
+    const showDetails = dbCase === "long" && narrowNav.matches;
+    dbDetailButton.hidden = !showDetails;
+    byId("db-message").textContent = showDetails
+      ? "本番DBを使用中 · 保存先「" + longDestination[0] + "／…／" + longDestination.at(-1) + "」"
+      : (dbCase === "long" ? longWarning : shortWarning);
+  }
+  narrowNav.addEventListener("change", updateDbWarning);
+  byId("db-full-warning").textContent = longWarning;
+  dbDetailButton.addEventListener("click", () => dbDetails.showModal());
+  dbDetails.addEventListener("close", () => (dbDetailButton.hidden ? byId("stop-open") : dbDetailButton).focus());
+
   function updateSafety() {
-    const banner = byId("db-banner");
-    banner.hidden = dbCase === "off";
-    banner.textContent = displayCases[dbCase] ?? "";
+    updateDbWarning();
     byId("db-control").value = dbCase;
     byId("stop-control").checked = gateStopped;
     byId("stop-indicator").textContent = gateStopped ? "取得停止中" : "取得可能";
@@ -915,7 +951,7 @@
     preview.showModal();
   }));
   preview.addEventListener("close", () => previewOpener.focus());
-  for (const dialog of [automation, preferences, safety, preview]) {
+  for (const dialog of [automation, preferences, safety, dbDetails, preview]) {
     dialog.addEventListener("keydown", (event) => {
       if (event.key === "Tab") {
         const controls = Array.from(dialog.querySelectorAll("button, input, summary"))

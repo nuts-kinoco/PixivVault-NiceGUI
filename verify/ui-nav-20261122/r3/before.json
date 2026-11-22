@@ -1,0 +1,2803 @@
+{
+  "browser": "157.0.0.0",
+  "wireframe_sha256": "4a46ea0048e8cb7b55f750a8d88c818d7a42da3aee660233d9b627b67cf1a641",
+  "external_requests": 0,
+  "page_errors": 0,
+  "profile_cleanup": {
+    "files": 174,
+    "bytes": 9218273
+  },
+  "baseline_copy_cleanup": {
+    "files": 1,
+    "bytes": 52828
+  },
+  "runs": {
+    "dark": {
+      "fixed_640x400": {
+        "navigation": {
+          "normal": {
+            "tab-download": {
+              "expected": "[data-testid=\"tab-download\"]",
+              "active": "tab-download",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-queue": {
+              "expected": "[data-testid=\"tab-queue\"]",
+              "active": "tab-queue",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-failed": {
+              "expected": "[data-testid=\"tab-failed\"]",
+              "active": "tab-failed",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-dedup": {
+              "expected": "[data-testid=\"tab-dedup\"]",
+              "active": "tab-dedup",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-learning": {
+              "expected": "[data-testid=\"tab-learning\"]",
+              "active": "tab-learning",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-ranking": {
+              "expected": "[data-testid=\"tab-ranking\"]",
+              "active": "tab-ranking",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-personal": {
+              "expected": "[data-testid=\"tab-personal\"]",
+              "active": "tab-personal",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-library": {
+              "expected": "[data-testid=\"tab-library\"]",
+              "active": "tab-library",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-bookmarks": {
+              "expected": "[data-testid=\"tab-bookmarks\"]",
+              "active": "tab-bookmarks",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-recommend": {
+              "expected": "[data-testid=\"tab-recommend\"]",
+              "active": "tab-recommend",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab_out": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "#nav",
+              "focus_matches": true,
+              "center_uncovered": false,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            },
+            "escape_after_tab": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "#nav",
+              "focus_matches": true,
+              "center_uncovered": false,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            },
+            "reverse_to_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-action",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "shift_tab_out": {
+              "expected": "#automation-open",
+              "active": "#automation-open",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            },
+            "escape_inside": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_at_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_header": {
+              "expected": "#nav-toggle",
+              "active": "#stop-open",
+              "top": "stop-open",
+              "focus_matches": false,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            },
+            "escape_outside_body": {
+              "expected": "#nav-toggle",
+              "active": "#refresh",
+              "top": "#nav",
+              "focus_matches": false,
+              "center_uncovered": false,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            }
+          },
+          "stress": {
+            "tab-download": {
+              "expected": "[data-testid=\"tab-download\"]",
+              "active": "tab-download",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-queue": {
+              "expected": "[data-testid=\"tab-queue\"]",
+              "active": "tab-queue",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-failed": {
+              "expected": "[data-testid=\"tab-failed\"]",
+              "active": "tab-failed",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-dedup": {
+              "expected": "[data-testid=\"tab-dedup\"]",
+              "active": "tab-dedup",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-learning": {
+              "expected": "[data-testid=\"tab-learning\"]",
+              "active": "tab-learning",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-ranking": {
+              "expected": "[data-testid=\"tab-ranking\"]",
+              "active": "tab-ranking",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-personal": {
+              "expected": "[data-testid=\"tab-personal\"]",
+              "active": "tab-personal",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-library": {
+              "expected": "[data-testid=\"tab-library\"]",
+              "active": "tab-library",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-bookmarks": {
+              "expected": "[data-testid=\"tab-bookmarks\"]",
+              "active": "tab-bookmarks",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-recommend": {
+              "expected": "[data-testid=\"tab-recommend\"]",
+              "active": "tab-recommend",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab_out": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "#nav",
+              "focus_matches": true,
+              "center_uncovered": false,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            },
+            "escape_after_tab": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "#nav",
+              "focus_matches": true,
+              "center_uncovered": false,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            },
+            "reverse_to_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-action",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "shift_tab_out": {
+              "expected": "#needs-review",
+              "active": "#needs-review",
+              "top": "needs-review",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            },
+            "escape_inside": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_at_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_header": {
+              "expected": "#nav-toggle",
+              "active": "#stop-open",
+              "top": "stop-open",
+              "focus_matches": false,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            },
+            "escape_outside_body": {
+              "expected": "#nav-toggle",
+              "active": "#refresh",
+              "top": "#nav",
+              "focus_matches": false,
+              "center_uncovered": false,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            }
+          }
+        },
+        "measurements": [
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 1,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.75,
+                27.5
+              ],
+              ".safety-controls": [
+                277.125,
+                32,
+                350.875,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.25,
+                26.594
+              ],
+              "#refresh": [
+                186.25,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.75,
+                155,
+                75.594,
+                32.5
+              ],
+              "#candidate-entry": [
+                359.344,
+                155,
+                150.5,
+                32.5
+              ],
+              "#screen-count": [
+                513.844,
+                161.5,
+                100.938,
+                19.5
+              ],
+              "#filters": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#gallery": [
+                12,
+                192.5,
+                616,
+                199.5
+              ],
+              ".sample": [
+                17,
+                197.5,
+                192.656,
+                167.516
+              ]
+            },
+            "gallery_client": [
+              616,
+              200
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 3,
+            "full_cards": 0,
+            "first_image_full": true,
+            "variant": "original",
+            "stress": false,
+            "expanded": false,
+            "learning": [
+              225.203125,
+              168.890625
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 1,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.75,
+                27.5
+              ],
+              ".safety-controls": [
+                277.125,
+                32,
+                350.875,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.25,
+                26.594
+              ],
+              "#refresh": [
+                186.25,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.75,
+                155,
+                75.594,
+                32.5
+              ],
+              "#candidate-entry": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#screen-count": [
+                359.344,
+                161.5,
+                100.938,
+                19.5
+              ],
+              "#filters": [
+                0,
+                192.5,
+                640,
+                40
+              ],
+              "#gallery": [
+                12,
+                232.5,
+                616,
+                159.5
+              ],
+              ".sample": [
+                17,
+                237.5,
+                192.656,
+                167.516
+              ]
+            },
+            "gallery_client": [
+              616,
+              160
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 0,
+            "full_cards": 0,
+            "first_image_full": false,
+            "variant": "original",
+            "stress": false,
+            "expanded": true,
+            "learning": [
+              225.203125,
+              168.890625
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 1,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                48
+              ],
+              ".masthead": [
+                0,
+                48,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                54.5,
+                176.75,
+                27.5
+              ],
+              ".safety-controls": [
+                264.125,
+                52,
+                363.875,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                88.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                344.125,
+                92.25,
+                283.875,
+                32.5
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                132.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                170,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                177.953,
+                170.25,
+                26.594
+              ],
+              "#refresh": [
+                186.25,
+                175,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.75,
+                175,
+                75.594,
+                32.5
+              ],
+              "#candidate-entry": [
+                359.344,
+                175,
+                150.5,
+                32.5
+              ],
+              "#screen-count": [
+                513.844,
+                181.5,
+                100.938,
+                19.5
+              ],
+              "#filters": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#gallery": [
+                12,
+                212.5,
+                616,
+                179.5
+              ],
+              ".sample": [
+                17,
+                217.5,
+                192.656,
+                167.516
+              ]
+            },
+            "gallery_client": [
+              616,
+              180
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 3,
+            "full_cards": 0,
+            "first_image_full": true,
+            "variant": "original",
+            "stress": true,
+            "expanded": false,
+            "learning": [
+              198.53125,
+              148.890625
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 1,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                48
+              ],
+              ".masthead": [
+                0,
+                48,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                54.5,
+                176.75,
+                27.5
+              ],
+              ".safety-controls": [
+                264.125,
+                52,
+                363.875,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                88.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                344.125,
+                92.25,
+                283.875,
+                32.5
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                132.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                170,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                177.953,
+                170.25,
+                26.594
+              ],
+              "#refresh": [
+                186.25,
+                175,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.75,
+                175,
+                75.594,
+                32.5
+              ],
+              "#candidate-entry": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#screen-count": [
+                359.344,
+                181.5,
+                100.938,
+                19.5
+              ],
+              "#filters": [
+                0,
+                212.5,
+                640,
+                40
+              ],
+              "#gallery": [
+                12,
+                252.5,
+                616,
+                139.5
+              ],
+              ".sample": [
+                17,
+                257.5,
+                192.656,
+                167.516
+              ]
+            },
+            "gallery_client": [
+              616,
+              140
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 0,
+            "full_cards": 0,
+            "first_image_full": false,
+            "variant": "original",
+            "stress": true,
+            "expanded": true,
+            "learning": [
+              198.53125,
+              148.890625
+            ],
+            "ratings_reached": 4
+          }
+        ]
+      },
+      "page_zoom_200": {
+        "navigation": {
+          "normal": {
+            "tab-download": {
+              "expected": "[data-testid=\"tab-download\"]",
+              "active": "tab-download",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-queue": {
+              "expected": "[data-testid=\"tab-queue\"]",
+              "active": "tab-queue",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-failed": {
+              "expected": "[data-testid=\"tab-failed\"]",
+              "active": "tab-failed",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-dedup": {
+              "expected": "[data-testid=\"tab-dedup\"]",
+              "active": "tab-dedup",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-learning": {
+              "expected": "[data-testid=\"tab-learning\"]",
+              "active": "tab-learning",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-ranking": {
+              "expected": "[data-testid=\"tab-ranking\"]",
+              "active": "tab-ranking",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-personal": {
+              "expected": "[data-testid=\"tab-personal\"]",
+              "active": "tab-personal",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-library": {
+              "expected": "[data-testid=\"tab-library\"]",
+              "active": "tab-library",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-bookmarks": {
+              "expected": "[data-testid=\"tab-bookmarks\"]",
+              "active": "tab-bookmarks",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-recommend": {
+              "expected": "[data-testid=\"tab-recommend\"]",
+              "active": "tab-recommend",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab_out": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "#nav",
+              "focus_matches": true,
+              "center_uncovered": false,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            },
+            "escape_after_tab": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "#nav",
+              "focus_matches": true,
+              "center_uncovered": false,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            },
+            "reverse_to_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-action",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "shift_tab_out": {
+              "expected": "#automation-open",
+              "active": "#automation-open",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            },
+            "escape_inside": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_at_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_header": {
+              "expected": "#nav-toggle",
+              "active": "#stop-open",
+              "top": "stop-open",
+              "focus_matches": false,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            },
+            "escape_outside_body": {
+              "expected": "#nav-toggle",
+              "active": "#refresh",
+              "top": "#nav",
+              "focus_matches": false,
+              "center_uncovered": false,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            }
+          },
+          "stress": {
+            "tab-download": {
+              "expected": "[data-testid=\"tab-download\"]",
+              "active": "tab-download",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-queue": {
+              "expected": "[data-testid=\"tab-queue\"]",
+              "active": "tab-queue",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-failed": {
+              "expected": "[data-testid=\"tab-failed\"]",
+              "active": "tab-failed",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-dedup": {
+              "expected": "[data-testid=\"tab-dedup\"]",
+              "active": "tab-dedup",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-learning": {
+              "expected": "[data-testid=\"tab-learning\"]",
+              "active": "tab-learning",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-ranking": {
+              "expected": "[data-testid=\"tab-ranking\"]",
+              "active": "tab-ranking",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-personal": {
+              "expected": "[data-testid=\"tab-personal\"]",
+              "active": "tab-personal",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-library": {
+              "expected": "[data-testid=\"tab-library\"]",
+              "active": "tab-library",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-bookmarks": {
+              "expected": "[data-testid=\"tab-bookmarks\"]",
+              "active": "tab-bookmarks",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-recommend": {
+              "expected": "[data-testid=\"tab-recommend\"]",
+              "active": "tab-recommend",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab_out": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "#nav",
+              "focus_matches": true,
+              "center_uncovered": false,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            },
+            "escape_after_tab": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "#nav",
+              "focus_matches": true,
+              "center_uncovered": false,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            },
+            "reverse_to_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-action",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "shift_tab_out": {
+              "expected": "#needs-review",
+              "active": "#needs-review",
+              "top": "needs-review",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            },
+            "escape_inside": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_at_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_header": {
+              "expected": "#nav-toggle",
+              "active": "#stop-open",
+              "top": "stop-open",
+              "focus_matches": false,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            },
+            "escape_outside_body": {
+              "expected": "#nav-toggle",
+              "active": "#refresh",
+              "top": "#nav",
+              "focus_matches": false,
+              "center_uncovered": false,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": false
+            }
+          }
+        },
+        "measurements": [
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 2,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.742,
+                27.5
+              ],
+              ".safety-controls": [
+                277.133,
+                32,
+                350.867,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.242,
+                26.594
+              ],
+              "#refresh": [
+                186.242,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.742,
+                155,
+                75.586,
+                32.5
+              ],
+              "#candidate-entry": [
+                359.328,
+                155,
+                150.5,
+                32.5
+              ],
+              "#screen-count": [
+                513.828,
+                161.5,
+                100.93,
+                19.5
+              ],
+              "#filters": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#gallery": [
+                12,
+                192.5,
+                616,
+                199.5
+              ],
+              ".sample": [
+                17,
+                197.5,
+                192.664,
+                167.531
+              ]
+            },
+            "gallery_client": [
+              616,
+              200
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 3,
+            "full_cards": 0,
+            "first_image_full": true,
+            "variant": "original",
+            "stress": false,
+            "expanded": false,
+            "learning": [
+              225.203125,
+              168.8984375
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 2,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.742,
+                27.5
+              ],
+              ".safety-controls": [
+                277.133,
+                32,
+                350.867,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.242,
+                26.594
+              ],
+              "#refresh": [
+                186.242,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.742,
+                155,
+                75.586,
+                32.5
+              ],
+              "#candidate-entry": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#screen-count": [
+                359.328,
+                161.5,
+                100.93,
+                19.5
+              ],
+              "#filters": [
+                0,
+                192.5,
+                640,
+                40
+              ],
+              "#gallery": [
+                12,
+                232.5,
+                616,
+                159.5
+              ],
+              ".sample": [
+                17,
+                237.5,
+                192.664,
+                167.531
+              ]
+            },
+            "gallery_client": [
+              616,
+              160
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 0,
+            "full_cards": 0,
+            "first_image_full": false,
+            "variant": "original",
+            "stress": false,
+            "expanded": true,
+            "learning": [
+              225.203125,
+              168.8984375
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 2,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                48
+              ],
+              ".masthead": [
+                0,
+                48,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                54.5,
+                176.742,
+                27.5
+              ],
+              ".safety-controls": [
+                264.133,
+                52,
+                363.867,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                88.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                344.133,
+                92.25,
+                283.867,
+                32.5
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                132.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                170,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                177.953,
+                170.242,
+                26.594
+              ],
+              "#refresh": [
+                186.242,
+                175,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.742,
+                175,
+                75.586,
+                32.5
+              ],
+              "#candidate-entry": [
+                359.328,
+                175,
+                150.5,
+                32.5
+              ],
+              "#screen-count": [
+                513.828,
+                181.5,
+                100.93,
+                19.5
+              ],
+              "#filters": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#gallery": [
+                12,
+                212.5,
+                616,
+                179.5
+              ],
+              ".sample": [
+                17,
+                217.5,
+                192.664,
+                167.531
+              ]
+            },
+            "gallery_client": [
+              616,
+              180
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 3,
+            "full_cards": 0,
+            "first_image_full": true,
+            "variant": "original",
+            "stress": true,
+            "expanded": false,
+            "learning": [
+              198.5390625,
+              148.8984375
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 2,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                48
+              ],
+              ".masthead": [
+                0,
+                48,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                54.5,
+                176.742,
+                27.5
+              ],
+              ".safety-controls": [
+                264.133,
+                52,
+                363.867,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                88.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                344.133,
+                92.25,
+                283.867,
+                32.5
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                132.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                170,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                177.953,
+                170.242,
+                26.594
+              ],
+              "#refresh": [
+                186.242,
+                175,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.742,
+                175,
+                75.586,
+                32.5
+              ],
+              "#candidate-entry": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#screen-count": [
+                359.328,
+                181.5,
+                100.93,
+                19.5
+              ],
+              "#filters": [
+                0,
+                212.5,
+                640,
+                40
+              ],
+              "#gallery": [
+                12,
+                252.5,
+                616,
+                139.5
+              ],
+              ".sample": [
+                17,
+                257.5,
+                192.664,
+                167.531
+              ]
+            },
+            "gallery_client": [
+              616,
+              140
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 0,
+            "full_cards": 0,
+            "first_image_full": false,
+            "variant": "original",
+            "stress": true,
+            "expanded": true,
+            "learning": [
+              198.5390625,
+              148.8984375
+            ],
+            "ratings_reached": 4
+          }
+        ]
+      }
+    },
+    "compact_comparison": {
+      "fixed_640x400": {
+        "navigation": {},
+        "measurements": [
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 1,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.75,
+                27.5
+              ],
+              ".safety-controls": [
+                277.125,
+                32,
+                350.875,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                38.5
+              ],
+              "#screen-title": [
+                12,
+                155.953,
+                170.25,
+                26.594
+              ],
+              "#refresh": [
+                186.25,
+                153,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.75,
+                153,
+                75.594,
+                32.5
+              ],
+              "#candidate-entry": [
+                359.344,
+                153,
+                150.5,
+                32.5
+              ],
+              "#screen-count": [
+                513.844,
+                159.5,
+                100.938,
+                19.5
+              ],
+              "#filters": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#gallery": [
+                8,
+                188.5,
+                624,
+                207.5
+              ],
+              ".sample": [
+                11,
+                191.5,
+                147,
+                127.813
+              ]
+            },
+            "gallery_client": [
+              624,
+              208
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 4,
+            "full_cards": 4,
+            "first_image_full": true,
+            "variant": "compact",
+            "stress": false,
+            "expanded": false,
+            "learning": [
+              230.53125,
+              172.890625
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 1,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.75,
+                27.5
+              ],
+              ".safety-controls": [
+                277.125,
+                32,
+                350.875,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                38.5
+              ],
+              "#screen-title": [
+                12,
+                155.953,
+                170.25,
+                26.594
+              ],
+              "#refresh": [
+                186.25,
+                153,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.75,
+                153,
+                75.594,
+                32.5
+              ],
+              "#candidate-entry": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#screen-count": [
+                359.344,
+                159.5,
+                100.938,
+                19.5
+              ],
+              "#filters": [
+                0,
+                188.5,
+                640,
+                40
+              ],
+              "#gallery": [
+                8,
+                228.5,
+                624,
+                167.5
+              ],
+              ".sample": [
+                11,
+                231.5,
+                147,
+                127.813
+              ]
+            },
+            "gallery_client": [
+              624,
+              168
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 4,
+            "full_cards": 4,
+            "first_image_full": true,
+            "variant": "compact",
+            "stress": false,
+            "expanded": true,
+            "learning": [
+              230.53125,
+              172.890625
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 1,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                48
+              ],
+              ".masthead": [
+                0,
+                48,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                54.5,
+                176.75,
+                27.5
+              ],
+              ".safety-controls": [
+                264.125,
+                52,
+                363.875,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                88.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                344.125,
+                92.25,
+                283.875,
+                32.5
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                132.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                170,
+                640,
+                38.5
+              ],
+              "#screen-title": [
+                12,
+                175.953,
+                170.25,
+                26.594
+              ],
+              "#refresh": [
+                186.25,
+                173,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.75,
+                173,
+                75.594,
+                32.5
+              ],
+              "#candidate-entry": [
+                359.344,
+                173,
+                150.5,
+                32.5
+              ],
+              "#screen-count": [
+                513.844,
+                179.5,
+                100.938,
+                19.5
+              ],
+              "#filters": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#gallery": [
+                8,
+                208.5,
+                624,
+                187.5
+              ],
+              ".sample": [
+                11,
+                211.5,
+                147,
+                127.813
+              ]
+            },
+            "gallery_client": [
+              624,
+              188
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 4,
+            "full_cards": 4,
+            "first_image_full": true,
+            "variant": "compact",
+            "stress": true,
+            "expanded": false,
+            "learning": [
+              203.875,
+              152.90625
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 1,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                48
+              ],
+              ".masthead": [
+                0,
+                48,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                54.5,
+                176.75,
+                27.5
+              ],
+              ".safety-controls": [
+                264.125,
+                52,
+                363.875,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                88.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                344.125,
+                92.25,
+                283.875,
+                32.5
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                132.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                170,
+                640,
+                38.5
+              ],
+              "#screen-title": [
+                12,
+                175.953,
+                170.25,
+                26.594
+              ],
+              "#refresh": [
+                186.25,
+                173,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.75,
+                173,
+                75.594,
+                32.5
+              ],
+              "#candidate-entry": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#screen-count": [
+                359.344,
+                179.5,
+                100.938,
+                19.5
+              ],
+              "#filters": [
+                0,
+                208.5,
+                640,
+                40
+              ],
+              "#gallery": [
+                8,
+                248.5,
+                624,
+                147.5
+              ],
+              ".sample": [
+                11,
+                251.5,
+                147,
+                127.813
+              ]
+            },
+            "gallery_client": [
+              624,
+              148
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 4,
+            "full_cards": 0,
+            "first_image_full": true,
+            "variant": "compact",
+            "stress": true,
+            "expanded": true,
+            "learning": [
+              203.875,
+              152.90625
+            ],
+            "ratings_reached": 4
+          }
+        ]
+      },
+      "page_zoom_200": {
+        "navigation": {},
+        "measurements": [
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 2,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.742,
+                27.5
+              ],
+              ".safety-controls": [
+                277.133,
+                32,
+                350.867,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                38.5
+              ],
+              "#screen-title": [
+                12,
+                155.953,
+                170.242,
+                26.594
+              ],
+              "#refresh": [
+                186.242,
+                153,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.742,
+                153,
+                75.586,
+                32.5
+              ],
+              "#candidate-entry": [
+                359.328,
+                153,
+                150.5,
+                32.5
+              ],
+              "#screen-count": [
+                513.828,
+                159.5,
+                100.93,
+                19.5
+              ],
+              "#filters": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#gallery": [
+                8,
+                188.5,
+                624,
+                207.5
+              ],
+              ".sample": [
+                11,
+                191.5,
+                147,
+                127.82
+              ]
+            },
+            "gallery_client": [
+              624,
+              208
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 4,
+            "full_cards": 4,
+            "first_image_full": true,
+            "variant": "compact",
+            "stress": false,
+            "expanded": false,
+            "learning": [
+              230.5390625,
+              172.8984375
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 2,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.742,
+                27.5
+              ],
+              ".safety-controls": [
+                277.133,
+                32,
+                350.867,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                38.5
+              ],
+              "#screen-title": [
+                12,
+                155.953,
+                170.242,
+                26.594
+              ],
+              "#refresh": [
+                186.242,
+                153,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.742,
+                153,
+                75.586,
+                32.5
+              ],
+              "#candidate-entry": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#screen-count": [
+                359.328,
+                159.5,
+                100.93,
+                19.5
+              ],
+              "#filters": [
+                0,
+                188.5,
+                640,
+                40
+              ],
+              "#gallery": [
+                8,
+                228.5,
+                624,
+                167.5
+              ],
+              ".sample": [
+                11,
+                231.5,
+                147,
+                127.82
+              ]
+            },
+            "gallery_client": [
+              624,
+              168
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 4,
+            "full_cards": 4,
+            "first_image_full": true,
+            "variant": "compact",
+            "stress": false,
+            "expanded": true,
+            "learning": [
+              230.5390625,
+              172.8984375
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 2,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                48
+              ],
+              ".masthead": [
+                0,
+                48,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                54.5,
+                176.742,
+                27.5
+              ],
+              ".safety-controls": [
+                264.133,
+                52,
+                363.867,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                88.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                344.133,
+                92.25,
+                283.867,
+                32.5
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                132.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                170,
+                640,
+                38.5
+              ],
+              "#screen-title": [
+                12,
+                175.953,
+                170.242,
+                26.594
+              ],
+              "#refresh": [
+                186.242,
+                173,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.742,
+                173,
+                75.586,
+                32.5
+              ],
+              "#candidate-entry": [
+                359.328,
+                173,
+                150.5,
+                32.5
+              ],
+              "#screen-count": [
+                513.828,
+                179.5,
+                100.93,
+                19.5
+              ],
+              "#filters": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#gallery": [
+                8,
+                208.5,
+                624,
+                187.5
+              ],
+              ".sample": [
+                11,
+                211.5,
+                147,
+                127.82
+              ]
+            },
+            "gallery_client": [
+              624,
+              188
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 4,
+            "full_cards": 4,
+            "first_image_full": true,
+            "variant": "compact",
+            "stress": true,
+            "expanded": false,
+            "learning": [
+              203.875,
+              152.90625
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 2,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                48
+              ],
+              ".masthead": [
+                0,
+                48,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                54.5,
+                176.742,
+                27.5
+              ],
+              ".safety-controls": [
+                264.133,
+                52,
+                363.867,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                88.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                344.133,
+                92.25,
+                283.867,
+                32.5
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                132.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                170,
+                640,
+                38.5
+              ],
+              "#screen-title": [
+                12,
+                175.953,
+                170.242,
+                26.594
+              ],
+              "#refresh": [
+                186.242,
+                173,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.742,
+                173,
+                75.586,
+                32.5
+              ],
+              "#candidate-entry": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#screen-count": [
+                359.328,
+                179.5,
+                100.93,
+                19.5
+              ],
+              "#filters": [
+                0,
+                208.5,
+                640,
+                40
+              ],
+              "#gallery": [
+                8,
+                248.5,
+                624,
+                147.5
+              ],
+              ".sample": [
+                11,
+                251.5,
+                147,
+                127.82
+              ]
+            },
+            "gallery_client": [
+              624,
+              148
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 4,
+            "full_cards": 0,
+            "first_image_full": true,
+            "variant": "compact",
+            "stress": true,
+            "expanded": true,
+            "learning": [
+              203.875,
+              152.90625
+            ],
+            "ratings_reached": 4
+          }
+        ]
+      }
+    }
+  },
+  "regression": {}
+}

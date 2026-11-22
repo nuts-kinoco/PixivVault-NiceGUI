@@ -1,0 +1,26 @@
+Full pytest, candidate product src/tests identical to b267d04
+exit 1
+SKIPPED [1] tests\test_d6_cardgrid_browser.py:61: Playwright Chromium is unavailable
+SKIPPED [1] tests\test_d6_cardgrid_browser.py:74: Playwright Chromium is unavailable
+SKIPPED [1] tests\test_d6_cardgrid_browser.py:119: Playwright Chromium is unavailable
+SKIPPED [1] tests\test_d6_cardgrid_browser.py:143: Playwright Chromium is unavailable
+SKIPPED [1] tests\test_d6_cardgrid_browser.py:160: Playwright Chromium is unavailable
+SKIPPED [1] tests\test_d6_cardgrid_browser.py:175: Playwright Chromium is unavailable
+SKIPPED [1] tests\test_d6_cardgrid_browser.py:209: Playwright Chromium is unavailable
+SKIPPED [1] tests\test_d6_verified_image.py:15: Playwright Chromium is unavailable
+SKIPPED [1] tests\test_d6_verified_image.py:109: Playwright Chromium is unavailable
+SKIPPED [1] tests\test_legacy_managed_startup.py:306: symlink creation unavailable
+SKIPPED [1] tests\test_lrn_work_link_20261120.py:280: Playwright Chromium is unavailable
+SKIPPED [1] tests\test_managed_downloads.py:257: symlink requires privileges
+SKIPPED [1] tests\test_managed_network_stop_gate.py:263: symlink unavailable
+FAILED tests/test_fixloop2_queue_title_width.py::test_queue_author_is_not_squeezed_out_at_common_window_width
+FAILED tests/test_visual_preference_browser.py::test_visual_settings_dialog_keyboard_and_contrast
+2 failed, 4496 passed, 13 skipped, 3 deselected, 15 warnings in 1407.59s (0:23:27)
+
+Isolated settings browser recheck
+exit 0
+1 passed in 8.43s
+
+Chromium-dependent files, installed browser path specified
+exit 0
+35 passed in 23.07s

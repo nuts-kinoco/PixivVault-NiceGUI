@@ -1,0 +1,4775 @@
+{
+  "browser": "157.0.0.0",
+  "wireframe_sha256": "8066fa6d6af58feddf1b0833599238e9c096031a656d2b5869e4c09c99730fb4",
+  "external_requests": 0,
+  "page_errors": 0,
+  "profile_cleanup": {
+    "files": 176,
+    "bytes": 9390042
+  },
+  "baseline_copy_cleanup": {},
+  "runs": {
+    "dark": {
+      "fixed_640x400": {
+        "navigation": {
+          "normal": {
+            "tab-download": {
+              "expected": "[data-testid=\"tab-download\"]",
+              "active": "tab-download",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-queue": {
+              "expected": "[data-testid=\"tab-queue\"]",
+              "active": "tab-queue",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-failed": {
+              "expected": "[data-testid=\"tab-failed\"]",
+              "active": "tab-failed",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-dedup": {
+              "expected": "[data-testid=\"tab-dedup\"]",
+              "active": "tab-dedup",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-learning": {
+              "expected": "[data-testid=\"tab-learning\"]",
+              "active": "tab-learning",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-ranking": {
+              "expected": "[data-testid=\"tab-ranking\"]",
+              "active": "tab-ranking",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-personal": {
+              "expected": "[data-testid=\"tab-personal\"]",
+              "active": "tab-personal",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-library": {
+              "expected": "[data-testid=\"tab-library\"]",
+              "active": "tab-library",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-bookmarks": {
+              "expected": "[data-testid=\"tab-bookmarks\"]",
+              "active": "tab-bookmarks",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-recommend": {
+              "expected": "[data-testid=\"tab-recommend\"]",
+              "active": "tab-recommend",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab_out": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "refresh",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_after_tab": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "refresh",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "reverse_to_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-action",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "shift_tab_out": {
+              "expected": "#automation-open",
+              "active": "#automation-open",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_inside": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_at_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_header": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_body": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            }
+          },
+          "stress": {
+            "tab-download": {
+              "expected": "[data-testid=\"tab-download\"]",
+              "active": "tab-download",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-queue": {
+              "expected": "[data-testid=\"tab-queue\"]",
+              "active": "tab-queue",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-failed": {
+              "expected": "[data-testid=\"tab-failed\"]",
+              "active": "tab-failed",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-dedup": {
+              "expected": "[data-testid=\"tab-dedup\"]",
+              "active": "tab-dedup",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-learning": {
+              "expected": "[data-testid=\"tab-learning\"]",
+              "active": "tab-learning",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-ranking": {
+              "expected": "[data-testid=\"tab-ranking\"]",
+              "active": "tab-ranking",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-personal": {
+              "expected": "[data-testid=\"tab-personal\"]",
+              "active": "tab-personal",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-library": {
+              "expected": "[data-testid=\"tab-library\"]",
+              "active": "tab-library",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-bookmarks": {
+              "expected": "[data-testid=\"tab-bookmarks\"]",
+              "active": "tab-bookmarks",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-recommend": {
+              "expected": "[data-testid=\"tab-recommend\"]",
+              "active": "tab-recommend",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab_out": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "refresh",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_after_tab": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "refresh",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "reverse_to_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-action",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "shift_tab_out": {
+              "expected": "#needs-review",
+              "active": "#needs-review",
+              "top": "needs-review",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_inside": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_at_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_header": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_body": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            }
+          }
+        },
+        "measurements": [
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 1,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.75,
+                27.5
+              ],
+              ".safety-controls": [
+                277.125,
+                32,
+                350.875,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.25,
+                26.594
+              ],
+              "#refresh": [
+                186.25,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.75,
+                155,
+                75.594,
+                32.5
+              ],
+              "#candidate-entry": [
+                359.344,
+                155,
+                150.5,
+                32.5
+              ],
+              "#screen-count": [
+                513.844,
+                161.5,
+                100.938,
+                19.5
+              ],
+              "#filters": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#gallery": [
+                12,
+                192.5,
+                616,
+                199.5
+              ],
+              ".sample": [
+                17,
+                197.5,
+                192.656,
+                167.516
+              ]
+            },
+            "gallery_client": [
+              616,
+              200
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 3,
+            "full_cards": 0,
+            "first_image_full": true,
+            "variant": "details",
+            "stress": false,
+            "expanded": false,
+            "learning": [
+              225.203125,
+              168.890625
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 1,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.75,
+                27.5
+              ],
+              ".safety-controls": [
+                277.125,
+                32,
+                350.875,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.25,
+                26.594
+              ],
+              "#refresh": [
+                186.25,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.75,
+                155,
+                114.141,
+                32.5
+              ],
+              "#candidate-entry": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#screen-count": [
+                397.891,
+                161.5,
+                100.938,
+                19.5
+              ],
+              "#filters": [
+                0,
+                192.5,
+                640,
+                40
+              ],
+              "#gallery": [
+                12,
+                232.5,
+                616,
+                159.5
+              ],
+              ".sample": [
+                17,
+                237.5,
+                192.656,
+                167.516
+              ]
+            },
+            "gallery_client": [
+              616,
+              160
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 0,
+            "full_cards": 0,
+            "first_image_full": false,
+            "variant": "details",
+            "stress": false,
+            "expanded": true,
+            "collapse_reachable_after_scroll": true,
+            "learning": [
+              225.203125,
+              168.890625
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 1,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.75,
+                27.5
+              ],
+              ".safety-controls": [
+                264.125,
+                32,
+                363.875,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                344.125,
+                72.25,
+                283.875,
+                32.5
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.25,
+                26.594
+              ],
+              "#refresh": [
+                186.25,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.75,
+                155,
+                75.594,
+                32.5
+              ],
+              "#candidate-entry": [
+                359.344,
+                155,
+                150.5,
+                32.5
+              ],
+              "#screen-count": [
+                513.844,
+                161.5,
+                100.938,
+                19.5
+              ],
+              "#filters": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#gallery": [
+                12,
+                192.5,
+                616,
+                199.5
+              ],
+              ".sample": [
+                17,
+                197.5,
+                192.656,
+                167.516
+              ]
+            },
+            "gallery_client": [
+              616,
+              200
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 3,
+            "full_cards": 0,
+            "first_image_full": true,
+            "full_warning_reachable": true,
+            "variant": "details",
+            "stress": true,
+            "expanded": false,
+            "learning": [
+              225.203125,
+              168.890625
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 1,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.75,
+                27.5
+              ],
+              ".safety-controls": [
+                264.125,
+                32,
+                363.875,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                344.125,
+                72.25,
+                283.875,
+                32.5
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.25,
+                26.594
+              ],
+              "#refresh": [
+                186.25,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.75,
+                155,
+                114.141,
+                32.5
+              ],
+              "#candidate-entry": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#screen-count": [
+                397.891,
+                161.5,
+                100.938,
+                19.5
+              ],
+              "#filters": [
+                0,
+                192.5,
+                640,
+                40
+              ],
+              "#gallery": [
+                12,
+                232.5,
+                616,
+                159.5
+              ],
+              ".sample": [
+                17,
+                237.5,
+                192.656,
+                167.516
+              ]
+            },
+            "gallery_client": [
+              616,
+              160
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 0,
+            "full_cards": 0,
+            "first_image_full": false,
+            "full_warning_reachable": true,
+            "variant": "details",
+            "stress": true,
+            "expanded": true,
+            "collapse_reachable_after_scroll": true,
+            "learning": [
+              225.203125,
+              168.890625
+            ],
+            "ratings_reached": 4
+          }
+        ]
+      },
+      "page_zoom_200": {
+        "navigation": {
+          "normal": {
+            "tab-download": {
+              "expected": "[data-testid=\"tab-download\"]",
+              "active": "tab-download",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-queue": {
+              "expected": "[data-testid=\"tab-queue\"]",
+              "active": "tab-queue",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-failed": {
+              "expected": "[data-testid=\"tab-failed\"]",
+              "active": "tab-failed",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-dedup": {
+              "expected": "[data-testid=\"tab-dedup\"]",
+              "active": "tab-dedup",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-learning": {
+              "expected": "[data-testid=\"tab-learning\"]",
+              "active": "tab-learning",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-ranking": {
+              "expected": "[data-testid=\"tab-ranking\"]",
+              "active": "tab-ranking",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-personal": {
+              "expected": "[data-testid=\"tab-personal\"]",
+              "active": "tab-personal",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-library": {
+              "expected": "[data-testid=\"tab-library\"]",
+              "active": "tab-library",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-bookmarks": {
+              "expected": "[data-testid=\"tab-bookmarks\"]",
+              "active": "tab-bookmarks",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-recommend": {
+              "expected": "[data-testid=\"tab-recommend\"]",
+              "active": "tab-recommend",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab_out": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "refresh",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_after_tab": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "refresh",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "reverse_to_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-action",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "shift_tab_out": {
+              "expected": "#automation-open",
+              "active": "#automation-open",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_inside": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_at_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_header": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_body": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            }
+          },
+          "stress": {
+            "tab-download": {
+              "expected": "[data-testid=\"tab-download\"]",
+              "active": "tab-download",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-queue": {
+              "expected": "[data-testid=\"tab-queue\"]",
+              "active": "tab-queue",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-failed": {
+              "expected": "[data-testid=\"tab-failed\"]",
+              "active": "tab-failed",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-dedup": {
+              "expected": "[data-testid=\"tab-dedup\"]",
+              "active": "tab-dedup",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-learning": {
+              "expected": "[data-testid=\"tab-learning\"]",
+              "active": "tab-learning",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-ranking": {
+              "expected": "[data-testid=\"tab-ranking\"]",
+              "active": "tab-ranking",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-personal": {
+              "expected": "[data-testid=\"tab-personal\"]",
+              "active": "tab-personal",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-library": {
+              "expected": "[data-testid=\"tab-library\"]",
+              "active": "tab-library",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-bookmarks": {
+              "expected": "[data-testid=\"tab-bookmarks\"]",
+              "active": "tab-bookmarks",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-recommend": {
+              "expected": "[data-testid=\"tab-recommend\"]",
+              "active": "tab-recommend",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab_out": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "refresh",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_after_tab": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "refresh",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "reverse_to_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-action",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "shift_tab_out": {
+              "expected": "#needs-review",
+              "active": "#needs-review",
+              "top": "needs-review",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_inside": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_at_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_header": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_body": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            }
+          }
+        },
+        "measurements": [
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 2,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.742,
+                27.5
+              ],
+              ".safety-controls": [
+                277.133,
+                32,
+                350.867,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.242,
+                26.594
+              ],
+              "#refresh": [
+                186.242,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.742,
+                155,
+                75.586,
+                32.5
+              ],
+              "#candidate-entry": [
+                359.328,
+                155,
+                150.5,
+                32.5
+              ],
+              "#screen-count": [
+                513.828,
+                161.5,
+                100.93,
+                19.5
+              ],
+              "#filters": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#gallery": [
+                12,
+                192.5,
+                616,
+                199.5
+              ],
+              ".sample": [
+                17,
+                197.5,
+                192.664,
+                167.531
+              ]
+            },
+            "gallery_client": [
+              616,
+              200
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 3,
+            "full_cards": 0,
+            "first_image_full": true,
+            "variant": "details",
+            "stress": false,
+            "expanded": false,
+            "learning": [
+              225.203125,
+              168.8984375
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 2,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.742,
+                27.5
+              ],
+              ".safety-controls": [
+                277.133,
+                32,
+                350.867,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.242,
+                26.594
+              ],
+              "#refresh": [
+                186.242,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.742,
+                155,
+                114.133,
+                32.5
+              ],
+              "#candidate-entry": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#screen-count": [
+                397.875,
+                161.5,
+                100.93,
+                19.5
+              ],
+              "#filters": [
+                0,
+                192.5,
+                640,
+                40
+              ],
+              "#gallery": [
+                12,
+                232.5,
+                616,
+                159.5
+              ],
+              ".sample": [
+                17,
+                237.5,
+                192.664,
+                167.531
+              ]
+            },
+            "gallery_client": [
+              616,
+              160
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 0,
+            "full_cards": 0,
+            "first_image_full": false,
+            "variant": "details",
+            "stress": false,
+            "expanded": true,
+            "collapse_reachable_after_scroll": true,
+            "learning": [
+              225.203125,
+              168.8984375
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 2,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.742,
+                27.5
+              ],
+              ".safety-controls": [
+                264.133,
+                32,
+                363.867,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                344.133,
+                72.25,
+                283.867,
+                32.5
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.242,
+                26.594
+              ],
+              "#refresh": [
+                186.242,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.742,
+                155,
+                75.586,
+                32.5
+              ],
+              "#candidate-entry": [
+                359.328,
+                155,
+                150.5,
+                32.5
+              ],
+              "#screen-count": [
+                513.828,
+                161.5,
+                100.93,
+                19.5
+              ],
+              "#filters": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#gallery": [
+                12,
+                192.5,
+                616,
+                199.5
+              ],
+              ".sample": [
+                17,
+                197.5,
+                192.664,
+                167.531
+              ]
+            },
+            "gallery_client": [
+              616,
+              200
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 3,
+            "full_cards": 0,
+            "first_image_full": true,
+            "full_warning_reachable": true,
+            "variant": "details",
+            "stress": true,
+            "expanded": false,
+            "learning": [
+              225.203125,
+              168.8984375
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 2,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.742,
+                27.5
+              ],
+              ".safety-controls": [
+                264.133,
+                32,
+                363.867,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                344.133,
+                72.25,
+                283.867,
+                32.5
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.242,
+                26.594
+              ],
+              "#refresh": [
+                186.242,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.742,
+                155,
+                114.133,
+                32.5
+              ],
+              "#candidate-entry": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#screen-count": [
+                397.875,
+                161.5,
+                100.93,
+                19.5
+              ],
+              "#filters": [
+                0,
+                192.5,
+                640,
+                40
+              ],
+              "#gallery": [
+                12,
+                232.5,
+                616,
+                159.5
+              ],
+              ".sample": [
+                17,
+                237.5,
+                192.664,
+                167.531
+              ]
+            },
+            "gallery_client": [
+              616,
+              160
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 0,
+            "full_cards": 0,
+            "first_image_full": false,
+            "full_warning_reachable": true,
+            "variant": "details",
+            "stress": true,
+            "expanded": true,
+            "collapse_reachable_after_scroll": true,
+            "learning": [
+              225.203125,
+              168.8984375
+            ],
+            "ratings_reached": 4
+          }
+        ]
+      }
+    },
+    "light": {
+      "fixed_640x400": {
+        "navigation": {
+          "normal": {
+            "tab-download": {
+              "expected": "[data-testid=\"tab-download\"]",
+              "active": "tab-download",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-queue": {
+              "expected": "[data-testid=\"tab-queue\"]",
+              "active": "tab-queue",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-failed": {
+              "expected": "[data-testid=\"tab-failed\"]",
+              "active": "tab-failed",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-dedup": {
+              "expected": "[data-testid=\"tab-dedup\"]",
+              "active": "tab-dedup",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-learning": {
+              "expected": "[data-testid=\"tab-learning\"]",
+              "active": "tab-learning",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-ranking": {
+              "expected": "[data-testid=\"tab-ranking\"]",
+              "active": "tab-ranking",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-personal": {
+              "expected": "[data-testid=\"tab-personal\"]",
+              "active": "tab-personal",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-library": {
+              "expected": "[data-testid=\"tab-library\"]",
+              "active": "tab-library",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-bookmarks": {
+              "expected": "[data-testid=\"tab-bookmarks\"]",
+              "active": "tab-bookmarks",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-recommend": {
+              "expected": "[data-testid=\"tab-recommend\"]",
+              "active": "tab-recommend",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab_out": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "refresh",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_after_tab": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "refresh",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "reverse_to_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-action",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "shift_tab_out": {
+              "expected": "#automation-open",
+              "active": "#automation-open",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_inside": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_at_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_header": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_body": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            }
+          },
+          "stress": {
+            "tab-download": {
+              "expected": "[data-testid=\"tab-download\"]",
+              "active": "tab-download",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-queue": {
+              "expected": "[data-testid=\"tab-queue\"]",
+              "active": "tab-queue",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-failed": {
+              "expected": "[data-testid=\"tab-failed\"]",
+              "active": "tab-failed",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-dedup": {
+              "expected": "[data-testid=\"tab-dedup\"]",
+              "active": "tab-dedup",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-learning": {
+              "expected": "[data-testid=\"tab-learning\"]",
+              "active": "tab-learning",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-ranking": {
+              "expected": "[data-testid=\"tab-ranking\"]",
+              "active": "tab-ranking",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-personal": {
+              "expected": "[data-testid=\"tab-personal\"]",
+              "active": "tab-personal",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-library": {
+              "expected": "[data-testid=\"tab-library\"]",
+              "active": "tab-library",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-bookmarks": {
+              "expected": "[data-testid=\"tab-bookmarks\"]",
+              "active": "tab-bookmarks",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-recommend": {
+              "expected": "[data-testid=\"tab-recommend\"]",
+              "active": "tab-recommend",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab_out": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "refresh",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_after_tab": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "refresh",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "reverse_to_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-action",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "shift_tab_out": {
+              "expected": "#needs-review",
+              "active": "#needs-review",
+              "top": "needs-review",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_inside": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_at_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_header": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_body": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            }
+          }
+        },
+        "measurements": [
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 1,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.75,
+                27.5
+              ],
+              ".safety-controls": [
+                277.125,
+                32,
+                350.875,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.25,
+                26.594
+              ],
+              "#refresh": [
+                186.25,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.75,
+                155,
+                75.594,
+                32.5
+              ],
+              "#candidate-entry": [
+                359.344,
+                155,
+                150.5,
+                32.5
+              ],
+              "#screen-count": [
+                513.844,
+                161.5,
+                100.938,
+                19.5
+              ],
+              "#filters": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#gallery": [
+                12,
+                192.5,
+                616,
+                199.5
+              ],
+              ".sample": [
+                17,
+                197.5,
+                192.656,
+                167.516
+              ]
+            },
+            "gallery_client": [
+              616,
+              200
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 3,
+            "full_cards": 0,
+            "first_image_full": true,
+            "variant": "details",
+            "stress": false,
+            "expanded": false,
+            "learning": [
+              225.203125,
+              168.890625
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 1,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.75,
+                27.5
+              ],
+              ".safety-controls": [
+                277.125,
+                32,
+                350.875,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.25,
+                26.594
+              ],
+              "#refresh": [
+                186.25,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.75,
+                155,
+                114.141,
+                32.5
+              ],
+              "#candidate-entry": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#screen-count": [
+                397.891,
+                161.5,
+                100.938,
+                19.5
+              ],
+              "#filters": [
+                0,
+                192.5,
+                640,
+                40
+              ],
+              "#gallery": [
+                12,
+                232.5,
+                616,
+                159.5
+              ],
+              ".sample": [
+                17,
+                237.5,
+                192.656,
+                167.516
+              ]
+            },
+            "gallery_client": [
+              616,
+              160
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 0,
+            "full_cards": 0,
+            "first_image_full": false,
+            "variant": "details",
+            "stress": false,
+            "expanded": true,
+            "collapse_reachable_after_scroll": true,
+            "learning": [
+              225.203125,
+              168.890625
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 1,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.75,
+                27.5
+              ],
+              ".safety-controls": [
+                264.125,
+                32,
+                363.875,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                344.125,
+                72.25,
+                283.875,
+                32.5
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.25,
+                26.594
+              ],
+              "#refresh": [
+                186.25,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.75,
+                155,
+                75.594,
+                32.5
+              ],
+              "#candidate-entry": [
+                359.344,
+                155,
+                150.5,
+                32.5
+              ],
+              "#screen-count": [
+                513.844,
+                161.5,
+                100.938,
+                19.5
+              ],
+              "#filters": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#gallery": [
+                12,
+                192.5,
+                616,
+                199.5
+              ],
+              ".sample": [
+                17,
+                197.5,
+                192.656,
+                167.516
+              ]
+            },
+            "gallery_client": [
+              616,
+              200
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 3,
+            "full_cards": 0,
+            "first_image_full": true,
+            "full_warning_reachable": true,
+            "variant": "details",
+            "stress": true,
+            "expanded": false,
+            "learning": [
+              225.203125,
+              168.890625
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 1,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.75,
+                27.5
+              ],
+              ".safety-controls": [
+                264.125,
+                32,
+                363.875,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                344.125,
+                72.25,
+                283.875,
+                32.5
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.25,
+                26.594
+              ],
+              "#refresh": [
+                186.25,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.75,
+                155,
+                114.141,
+                32.5
+              ],
+              "#candidate-entry": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#screen-count": [
+                397.891,
+                161.5,
+                100.938,
+                19.5
+              ],
+              "#filters": [
+                0,
+                192.5,
+                640,
+                40
+              ],
+              "#gallery": [
+                12,
+                232.5,
+                616,
+                159.5
+              ],
+              ".sample": [
+                17,
+                237.5,
+                192.656,
+                167.516
+              ]
+            },
+            "gallery_client": [
+              616,
+              160
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 0,
+            "full_cards": 0,
+            "first_image_full": false,
+            "full_warning_reachable": true,
+            "variant": "details",
+            "stress": true,
+            "expanded": true,
+            "collapse_reachable_after_scroll": true,
+            "learning": [
+              225.203125,
+              168.890625
+            ],
+            "ratings_reached": 4
+          }
+        ]
+      },
+      "page_zoom_200": {
+        "navigation": {
+          "normal": {
+            "tab-download": {
+              "expected": "[data-testid=\"tab-download\"]",
+              "active": "tab-download",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-queue": {
+              "expected": "[data-testid=\"tab-queue\"]",
+              "active": "tab-queue",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-failed": {
+              "expected": "[data-testid=\"tab-failed\"]",
+              "active": "tab-failed",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-dedup": {
+              "expected": "[data-testid=\"tab-dedup\"]",
+              "active": "tab-dedup",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-learning": {
+              "expected": "[data-testid=\"tab-learning\"]",
+              "active": "tab-learning",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-ranking": {
+              "expected": "[data-testid=\"tab-ranking\"]",
+              "active": "tab-ranking",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-personal": {
+              "expected": "[data-testid=\"tab-personal\"]",
+              "active": "tab-personal",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-library": {
+              "expected": "[data-testid=\"tab-library\"]",
+              "active": "tab-library",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-bookmarks": {
+              "expected": "[data-testid=\"tab-bookmarks\"]",
+              "active": "tab-bookmarks",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-recommend": {
+              "expected": "[data-testid=\"tab-recommend\"]",
+              "active": "tab-recommend",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab_out": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "refresh",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_after_tab": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "refresh",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "reverse_to_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-action",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "shift_tab_out": {
+              "expected": "#automation-open",
+              "active": "#automation-open",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_inside": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_at_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_header": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_body": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            }
+          },
+          "stress": {
+            "tab-download": {
+              "expected": "[data-testid=\"tab-download\"]",
+              "active": "tab-download",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-queue": {
+              "expected": "[data-testid=\"tab-queue\"]",
+              "active": "tab-queue",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-failed": {
+              "expected": "[data-testid=\"tab-failed\"]",
+              "active": "tab-failed",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-dedup": {
+              "expected": "[data-testid=\"tab-dedup\"]",
+              "active": "tab-dedup",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-learning": {
+              "expected": "[data-testid=\"tab-learning\"]",
+              "active": "tab-learning",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-ranking": {
+              "expected": "[data-testid=\"tab-ranking\"]",
+              "active": "tab-ranking",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-personal": {
+              "expected": "[data-testid=\"tab-personal\"]",
+              "active": "tab-personal",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-library": {
+              "expected": "[data-testid=\"tab-library\"]",
+              "active": "tab-library",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-bookmarks": {
+              "expected": "[data-testid=\"tab-bookmarks\"]",
+              "active": "tab-bookmarks",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab-recommend": {
+              "expected": "[data-testid=\"tab-recommend\"]",
+              "active": "tab-recommend",
+              "top": "SPAN",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "tab_out": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "refresh",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_after_tab": {
+              "expected": "#refresh",
+              "active": "#refresh",
+              "top": "refresh",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "reverse_to_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-action",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": false,
+              "aria_expanded": "true",
+              "pass": true
+            },
+            "shift_tab_out": {
+              "expected": "#needs-review",
+              "active": "#needs-review",
+              "top": "needs-review",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_inside": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_at_opener": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_header": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            },
+            "escape_outside_body": {
+              "expected": "#nav-toggle",
+              "active": "#nav-toggle",
+              "top": "nav-toggle",
+              "focus_matches": true,
+              "center_uncovered": true,
+              "nav_closed": true,
+              "aria_expanded": "false",
+              "pass": true
+            }
+          }
+        },
+        "measurements": [
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 2,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.742,
+                27.5
+              ],
+              ".safety-controls": [
+                277.133,
+                32,
+                350.867,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.242,
+                26.594
+              ],
+              "#refresh": [
+                186.242,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.742,
+                155,
+                75.586,
+                32.5
+              ],
+              "#candidate-entry": [
+                359.328,
+                155,
+                150.5,
+                32.5
+              ],
+              "#screen-count": [
+                513.828,
+                161.5,
+                100.93,
+                19.5
+              ],
+              "#filters": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#gallery": [
+                12,
+                192.5,
+                616,
+                199.5
+              ],
+              ".sample": [
+                17,
+                197.5,
+                192.664,
+                167.531
+              ]
+            },
+            "gallery_client": [
+              616,
+              200
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 3,
+            "full_cards": 0,
+            "first_image_full": true,
+            "variant": "details",
+            "stress": false,
+            "expanded": false,
+            "learning": [
+              225.203125,
+              168.8984375
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 2,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.742,
+                27.5
+              ],
+              ".safety-controls": [
+                277.133,
+                32,
+                350.867,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.242,
+                26.594
+              ],
+              "#refresh": [
+                186.242,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.742,
+                155,
+                114.133,
+                32.5
+              ],
+              "#candidate-entry": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#screen-count": [
+                397.875,
+                161.5,
+                100.93,
+                19.5
+              ],
+              "#filters": [
+                0,
+                192.5,
+                640,
+                40
+              ],
+              "#gallery": [
+                12,
+                232.5,
+                616,
+                159.5
+              ],
+              ".sample": [
+                17,
+                237.5,
+                192.664,
+                167.531
+              ]
+            },
+            "gallery_client": [
+              616,
+              160
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 0,
+            "full_cards": 0,
+            "first_image_full": false,
+            "variant": "details",
+            "stress": false,
+            "expanded": true,
+            "collapse_reachable_after_scroll": true,
+            "learning": [
+              225.203125,
+              168.8984375
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 2,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.742,
+                27.5
+              ],
+              ".safety-controls": [
+                264.133,
+                32,
+                363.867,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                344.133,
+                72.25,
+                283.867,
+                32.5
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.242,
+                26.594
+              ],
+              "#refresh": [
+                186.242,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.742,
+                155,
+                75.586,
+                32.5
+              ],
+              "#candidate-entry": [
+                359.328,
+                155,
+                150.5,
+                32.5
+              ],
+              "#screen-count": [
+                513.828,
+                161.5,
+                100.93,
+                19.5
+              ],
+              "#filters": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#gallery": [
+                12,
+                192.5,
+                616,
+                199.5
+              ],
+              ".sample": [
+                17,
+                197.5,
+                192.664,
+                167.531
+              ]
+            },
+            "gallery_client": [
+              616,
+              200
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 3,
+            "full_cards": 0,
+            "first_image_full": true,
+            "full_warning_reachable": true,
+            "variant": "details",
+            "stress": true,
+            "expanded": false,
+            "learning": [
+              225.203125,
+              168.8984375
+            ],
+            "ratings_reached": 4
+          },
+          {
+            "css": [
+              640,
+              400
+            ],
+            "dpr": 2,
+            "layout": {
+              "#db-banner": [
+                0,
+                0,
+                640,
+                28
+              ],
+              ".masthead": [
+                0,
+                28,
+                640,
+                84.5
+              ],
+              ".identity": [
+                12,
+                34.5,
+                176.742,
+                27.5
+              ],
+              ".safety-controls": [
+                264.133,
+                32,
+                363.867,
+                32.5
+              ],
+              ".utilities": [
+                12,
+                68.5,
+                304,
+                40
+              ],
+              "#alert-controls": [
+                344.133,
+                72.25,
+                283.867,
+                32.5
+              ],
+              "#relocation-hint": [
+                0,
+                0,
+                0,
+                0
+              ],
+              ".navigation": [
+                0,
+                112.5,
+                640,
+                37.5
+              ],
+              ".toolbar-section": [
+                0,
+                150,
+                640,
+                42.5
+              ],
+              "#screen-title": [
+                12,
+                157.953,
+                170.242,
+                26.594
+              ],
+              "#refresh": [
+                186.242,
+                155,
+                89.5,
+                32.5
+              ],
+              "#toolbar-toggle": [
+                279.742,
+                155,
+                114.133,
+                32.5
+              ],
+              "#candidate-entry": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "#screen-count": [
+                397.875,
+                161.5,
+                100.93,
+                19.5
+              ],
+              "#filters": [
+                0,
+                192.5,
+                640,
+                40
+              ],
+              "#gallery": [
+                12,
+                232.5,
+                616,
+                159.5
+              ],
+              ".sample": [
+                17,
+                237.5,
+                192.664,
+                167.531
+              ]
+            },
+            "gallery_client": [
+              616,
+              160
+            ],
+            "gallery_scroll_top": 0,
+            "full_images": 0,
+            "full_cards": 0,
+            "first_image_full": false,
+            "full_warning_reachable": true,
+            "variant": "details",
+            "stress": true,
+            "expanded": true,
+            "collapse_reachable_after_scroll": true,
+            "learning": [
+              225.203125,
+              168.8984375
+            ],
+            "ratings_reached": 4
+          }
+        ]
+      }
+    }
+  },
+  "regression": {
+    "h1": {
+      "replacement_unselected_after_search": true,
+      "heading_focused_after_search": true,
+      "replacement_unselected_after_enter_return": true,
+      "heading_focused_after_enter_return": true
+    },
+    "selection_reordering_and_bookmarks": "PASS",
+    "automation_transitions": "PASS",
+    "dark": [
+      {
+        "size": "1280x800",
+        "css": [
+          1280,
+          800
+        ],
+        "stress": false,
+        "expanded": false,
+        "chrome": {
+          "rows": 1,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 173.75,
+          "pct": 75.8322265625,
+          "visible": 28,
+          "full_images": 21,
+          "image_y": 178.75,
+          "image": [
+            166,
+            144.34375
+          ]
+        },
+        "full_cards": 21,
+        "learning": {
+          "y": 167.84375,
+          "pct": 72.0797119140625,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 167.84375,
+          "image": [
+            783.53125,
+            587.640625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1280x800",
+        "css": [
+          1280,
+          800
+        ],
+        "stress": false,
+        "expanded": true,
+        "chrome": {
+          "rows": 1,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 256.25,
+          "pct": 65.7130859375,
+          "visible": 21,
+          "full_images": 21,
+          "image_y": 261.25,
+          "image": [
+            166,
+            144.34375
+          ]
+        },
+        "full_cards": 14,
+        "learning": {
+          "y": 167.84375,
+          "pct": 72.0797119140625,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 167.84375,
+          "image": [
+            783.53125,
+            587.640625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1280x800",
+        "css": [
+          1280,
+          800
+        ],
+        "stress": true,
+        "expanded": false,
+        "chrome": {
+          "rows": 1,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 197.25,
+          "pct": 72.9498046875,
+          "visible": 28,
+          "full_images": 21,
+          "image_y": 202.25,
+          "image": [
+            166,
+            144.34375
+          ]
+        },
+        "full_cards": 21,
+        "learning": {
+          "y": 191.34375,
+          "pct": 69.1972900390625,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 191.34375,
+          "image": [
+            752.203125,
+            564.140625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1280x800",
+        "css": [
+          1280,
+          800
+        ],
+        "stress": true,
+        "expanded": true,
+        "chrome": {
+          "rows": 1,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 279.75,
+          "pct": 62.8306640625,
+          "visible": 21,
+          "full_images": 14,
+          "image_y": 284.75,
+          "image": [
+            166,
+            144.34375
+          ]
+        },
+        "full_cards": 14,
+        "learning": {
+          "y": 191.34375,
+          "pct": 69.1972900390625,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 191.34375,
+          "image": [
+            752.203125,
+            564.140625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1920x1080",
+        "css": [
+          1920,
+          1080
+        ],
+        "stress": false,
+        "expanded": false,
+        "chrome": {
+          "rows": 1,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 167.25,
+          "pct": 82.72598379629629,
+          "visible": 32,
+          "full_images": 32,
+          "image_y": 172.25,
+          "image": [
+            176,
+            153.03125
+          ]
+        },
+        "full_cards": 32,
+        "learning": {
+          "y": 161.34375,
+          "pct": 79.92863859953704,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 161.34375,
+          "image": [
+            1165.53125,
+            874.140625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1920x1080",
+        "css": [
+          1920,
+          1080
+        ],
+        "stress": false,
+        "expanded": true,
+        "chrome": {
+          "rows": 1,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 249.75,
+          "pct": 75.18258101851852,
+          "visible": 32,
+          "full_images": 32,
+          "image_y": 254.75,
+          "image": [
+            176,
+            153.03125
+          ]
+        },
+        "full_cards": 32,
+        "learning": {
+          "y": 161.34375,
+          "pct": 79.92863859953704,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 161.34375,
+          "image": [
+            1165.53125,
+            874.140625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1920x1080",
+        "css": [
+          1920,
+          1080
+        ],
+        "stress": true,
+        "expanded": false,
+        "chrome": {
+          "rows": 1,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 190.75,
+          "pct": 80.57725694444444,
+          "visible": 32,
+          "full_images": 32,
+          "image_y": 195.75,
+          "image": [
+            176,
+            153.03125
+          ]
+        },
+        "full_cards": 32,
+        "learning": {
+          "y": 184.84375,
+          "pct": 77.77991174768519,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 184.84375,
+          "image": [
+            1134.203125,
+            850.640625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1920x1080",
+        "css": [
+          1920,
+          1080
+        ],
+        "stress": true,
+        "expanded": true,
+        "chrome": {
+          "rows": 1,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 273.25,
+          "pct": 73.03385416666667,
+          "visible": 32,
+          "full_images": 32,
+          "image_y": 278.25,
+          "image": [
+            176,
+            153.03125
+          ]
+        },
+        "full_cards": 32,
+        "learning": {
+          "y": 184.84375,
+          "pct": 77.77991174768519,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 184.84375,
+          "image": [
+            1134.203125,
+            850.640625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1024x768",
+        "css": [
+          1024,
+          768
+        ],
+        "stress": false,
+        "expanded": false,
+        "chrome": {
+          "rows": 2,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 203.25,
+          "pct": 70.79442342122395,
+          "visible": 15,
+          "full_images": 10,
+          "image_y": 208.25,
+          "image": [
+            186.796875,
+            162.421875
+          ]
+        },
+        "full_cards": 10,
+        "learning": {
+          "y": 197.34375,
+          "pct": 66.90422693888347,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 197.34375,
+          "image": [
+            701.53125,
+            526.140625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1024x768",
+        "css": [
+          1024,
+          768
+        ],
+        "stress": false,
+        "expanded": true,
+        "chrome": {
+          "rows": 2,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 285.75,
+          "pct": 60.30400594075521,
+          "visible": 15,
+          "full_images": 10,
+          "image_y": 290.75,
+          "image": [
+            186.796875,
+            162.421875
+          ]
+        },
+        "full_cards": 10,
+        "learning": {
+          "y": 197.34375,
+          "pct": 66.90422693888347,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 197.34375,
+          "image": [
+            701.53125,
+            526.140625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1024x768",
+        "css": [
+          1024,
+          768
+        ],
+        "stress": true,
+        "expanded": false,
+        "chrome": {
+          "rows": 2,
+          "banner_height": 48,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 255,
+          "pct": 64.21407063802083,
+          "visible": 15,
+          "full_images": 10,
+          "image_y": 260,
+          "image": [
+            186.796875,
+            162.421875
+          ]
+        },
+        "full_cards": 10,
+        "learning": {
+          "y": 249.09375,
+          "pct": 60.323874155680336,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 249.09375,
+          "image": [
+            632.53125,
+            474.390625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1024x768",
+        "css": [
+          1024,
+          768
+        ],
+        "stress": true,
+        "expanded": true,
+        "chrome": {
+          "rows": 2,
+          "banner_height": 48,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 337.5,
+          "pct": 53.723653157552086,
+          "visible": 15,
+          "full_images": 10,
+          "image_y": 342.5,
+          "image": [
+            186.796875,
+            162.421875
+          ]
+        },
+        "full_cards": 10,
+        "learning": {
+          "y": 249.09375,
+          "pct": 60.323874155680336,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 249.09375,
+          "image": [
+            632.53125,
+            474.390625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1280x800@125%",
+        "css": [
+          1024,
+          640
+        ],
+        "stress": false,
+        "expanded": false,
+        "chrome": {
+          "rows": 2,
+          "banner_height": 28,
+          "device_pixel_ratio": 1.25
+        },
+        "gallery": {
+          "y": 202.65000915527344,
+          "pct": 65.51361177116632,
+          "visible": 15,
+          "full_images": 10,
+          "image_y": 207.4499969482422,
+          "image": [
+            187.1999969482422,
+            162.77500915527344
+          ]
+        },
+        "full_cards": 10,
+        "learning": {
+          "y": 197.15000915527344,
+          "pct": 60.84442138671875,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 197.15000915527344,
+          "image": [
+            531.6625366210938,
+            398.7375183105469
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1280x800@125%",
+        "css": [
+          1024,
+          640
+        ],
+        "stress": false,
+        "expanded": true,
+        "chrome": {
+          "rows": 2,
+          "banner_height": 28,
+          "device_pixel_ratio": 1.25
+        },
+        "gallery": {
+          "y": 284.3500061035156,
+          "pct": 53.047179244458675,
+          "visible": 10,
+          "full_images": 5,
+          "image_y": 289.1499938964844,
+          "image": [
+            187.1999969482422,
+            162.77500915527344
+          ]
+        },
+        "full_cards": 5,
+        "learning": {
+          "y": 197.15000915527344,
+          "pct": 60.84442138671875,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 197.15000915527344,
+          "image": [
+            531.6625366210938,
+            398.7375183105469
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1280x800@125%",
+        "css": [
+          1024,
+          640
+        ],
+        "stress": true,
+        "expanded": false,
+        "chrome": {
+          "rows": 2,
+          "banner_height": 48,
+          "device_pixel_ratio": 1.25
+        },
+        "gallery": {
+          "y": 254,
+          "pct": 57.67822265625,
+          "visible": 10,
+          "full_images": 10,
+          "image_y": 258.8000183105469,
+          "image": [
+            187.1999969482422,
+            162.77500915527344
+          ]
+        },
+        "full_cards": 5,
+        "learning": {
+          "y": 248.5,
+          "pct": 53.009032271802425,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 248.5,
+          "image": [
+            463.1875,
+            347.38751220703125
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1280x800@125%",
+        "css": [
+          1024,
+          640
+        ],
+        "stress": true,
+        "expanded": true,
+        "chrome": {
+          "rows": 2,
+          "banner_height": 48,
+          "device_pixel_ratio": 1.25
+        },
+        "gallery": {
+          "y": 335.70001220703125,
+          "pct": 45.211794786155224,
+          "visible": 10,
+          "full_images": 5,
+          "image_y": 340.5,
+          "image": [
+            187.1999969482422,
+            162.77500915527344
+          ]
+        },
+        "full_cards": 5,
+        "learning": {
+          "y": 248.5,
+          "pct": 53.009032271802425,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 248.5,
+          "image": [
+            463.1875,
+            347.38751220703125
+          ]
+        },
+        "ratings_reached": 4
+      }
+    ],
+    "light": [
+      {
+        "size": "1280x800",
+        "css": [
+          1280,
+          800
+        ],
+        "stress": false,
+        "expanded": false,
+        "chrome": {
+          "rows": 1,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 173.75,
+          "pct": 75.8322265625,
+          "visible": 28,
+          "full_images": 21,
+          "image_y": 178.75,
+          "image": [
+            166,
+            144.34375
+          ]
+        },
+        "full_cards": 21,
+        "learning": {
+          "y": 167.84375,
+          "pct": 72.0797119140625,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 167.84375,
+          "image": [
+            783.53125,
+            587.640625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1280x800",
+        "css": [
+          1280,
+          800
+        ],
+        "stress": false,
+        "expanded": true,
+        "chrome": {
+          "rows": 1,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 256.25,
+          "pct": 65.7130859375,
+          "visible": 21,
+          "full_images": 21,
+          "image_y": 261.25,
+          "image": [
+            166,
+            144.34375
+          ]
+        },
+        "full_cards": 14,
+        "learning": {
+          "y": 167.84375,
+          "pct": 72.0797119140625,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 167.84375,
+          "image": [
+            783.53125,
+            587.640625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1280x800",
+        "css": [
+          1280,
+          800
+        ],
+        "stress": true,
+        "expanded": false,
+        "chrome": {
+          "rows": 1,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 197.25,
+          "pct": 72.9498046875,
+          "visible": 28,
+          "full_images": 21,
+          "image_y": 202.25,
+          "image": [
+            166,
+            144.34375
+          ]
+        },
+        "full_cards": 21,
+        "learning": {
+          "y": 191.34375,
+          "pct": 69.1972900390625,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 191.34375,
+          "image": [
+            752.203125,
+            564.140625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1280x800",
+        "css": [
+          1280,
+          800
+        ],
+        "stress": true,
+        "expanded": true,
+        "chrome": {
+          "rows": 1,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 279.75,
+          "pct": 62.8306640625,
+          "visible": 21,
+          "full_images": 14,
+          "image_y": 284.75,
+          "image": [
+            166,
+            144.34375
+          ]
+        },
+        "full_cards": 14,
+        "learning": {
+          "y": 191.34375,
+          "pct": 69.1972900390625,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 191.34375,
+          "image": [
+            752.203125,
+            564.140625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1920x1080",
+        "css": [
+          1920,
+          1080
+        ],
+        "stress": false,
+        "expanded": false,
+        "chrome": {
+          "rows": 1,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 167.25,
+          "pct": 82.72598379629629,
+          "visible": 32,
+          "full_images": 32,
+          "image_y": 172.25,
+          "image": [
+            176,
+            153.03125
+          ]
+        },
+        "full_cards": 32,
+        "learning": {
+          "y": 161.34375,
+          "pct": 79.92863859953704,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 161.34375,
+          "image": [
+            1165.53125,
+            874.140625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1920x1080",
+        "css": [
+          1920,
+          1080
+        ],
+        "stress": false,
+        "expanded": true,
+        "chrome": {
+          "rows": 1,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 249.75,
+          "pct": 75.18258101851852,
+          "visible": 32,
+          "full_images": 32,
+          "image_y": 254.75,
+          "image": [
+            176,
+            153.03125
+          ]
+        },
+        "full_cards": 32,
+        "learning": {
+          "y": 161.34375,
+          "pct": 79.92863859953704,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 161.34375,
+          "image": [
+            1165.53125,
+            874.140625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1920x1080",
+        "css": [
+          1920,
+          1080
+        ],
+        "stress": true,
+        "expanded": false,
+        "chrome": {
+          "rows": 1,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 190.75,
+          "pct": 80.57725694444444,
+          "visible": 32,
+          "full_images": 32,
+          "image_y": 195.75,
+          "image": [
+            176,
+            153.03125
+          ]
+        },
+        "full_cards": 32,
+        "learning": {
+          "y": 184.84375,
+          "pct": 77.77991174768519,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 184.84375,
+          "image": [
+            1134.203125,
+            850.640625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1920x1080",
+        "css": [
+          1920,
+          1080
+        ],
+        "stress": true,
+        "expanded": true,
+        "chrome": {
+          "rows": 1,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 273.25,
+          "pct": 73.03385416666667,
+          "visible": 32,
+          "full_images": 32,
+          "image_y": 278.25,
+          "image": [
+            176,
+            153.03125
+          ]
+        },
+        "full_cards": 32,
+        "learning": {
+          "y": 184.84375,
+          "pct": 77.77991174768519,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 184.84375,
+          "image": [
+            1134.203125,
+            850.640625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1024x768",
+        "css": [
+          1024,
+          768
+        ],
+        "stress": false,
+        "expanded": false,
+        "chrome": {
+          "rows": 2,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 203.25,
+          "pct": 70.79442342122395,
+          "visible": 15,
+          "full_images": 10,
+          "image_y": 208.25,
+          "image": [
+            186.796875,
+            162.421875
+          ]
+        },
+        "full_cards": 10,
+        "learning": {
+          "y": 197.34375,
+          "pct": 66.90422693888347,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 197.34375,
+          "image": [
+            701.53125,
+            526.140625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1024x768",
+        "css": [
+          1024,
+          768
+        ],
+        "stress": false,
+        "expanded": true,
+        "chrome": {
+          "rows": 2,
+          "banner_height": 28,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 285.75,
+          "pct": 60.30400594075521,
+          "visible": 15,
+          "full_images": 10,
+          "image_y": 290.75,
+          "image": [
+            186.796875,
+            162.421875
+          ]
+        },
+        "full_cards": 10,
+        "learning": {
+          "y": 197.34375,
+          "pct": 66.90422693888347,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 197.34375,
+          "image": [
+            701.53125,
+            526.140625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1024x768",
+        "css": [
+          1024,
+          768
+        ],
+        "stress": true,
+        "expanded": false,
+        "chrome": {
+          "rows": 2,
+          "banner_height": 48,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 255,
+          "pct": 64.21407063802083,
+          "visible": 15,
+          "full_images": 10,
+          "image_y": 260,
+          "image": [
+            186.796875,
+            162.421875
+          ]
+        },
+        "full_cards": 10,
+        "learning": {
+          "y": 249.09375,
+          "pct": 60.323874155680336,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 249.09375,
+          "image": [
+            632.53125,
+            474.390625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1024x768",
+        "css": [
+          1024,
+          768
+        ],
+        "stress": true,
+        "expanded": true,
+        "chrome": {
+          "rows": 2,
+          "banner_height": 48,
+          "device_pixel_ratio": 1
+        },
+        "gallery": {
+          "y": 337.5,
+          "pct": 53.723653157552086,
+          "visible": 15,
+          "full_images": 10,
+          "image_y": 342.5,
+          "image": [
+            186.796875,
+            162.421875
+          ]
+        },
+        "full_cards": 10,
+        "learning": {
+          "y": 249.09375,
+          "pct": 60.323874155680336,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 249.09375,
+          "image": [
+            632.53125,
+            474.390625
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1280x800@125%",
+        "css": [
+          1024,
+          640
+        ],
+        "stress": false,
+        "expanded": false,
+        "chrome": {
+          "rows": 2,
+          "banner_height": 28,
+          "device_pixel_ratio": 1.25
+        },
+        "gallery": {
+          "y": 202.65000915527344,
+          "pct": 65.51361177116632,
+          "visible": 15,
+          "full_images": 10,
+          "image_y": 207.4499969482422,
+          "image": [
+            187.1999969482422,
+            162.77500915527344
+          ]
+        },
+        "full_cards": 10,
+        "learning": {
+          "y": 197.15000915527344,
+          "pct": 60.84442138671875,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 197.15000915527344,
+          "image": [
+            531.6625366210938,
+            398.7375183105469
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1280x800@125%",
+        "css": [
+          1024,
+          640
+        ],
+        "stress": false,
+        "expanded": true,
+        "chrome": {
+          "rows": 2,
+          "banner_height": 28,
+          "device_pixel_ratio": 1.25
+        },
+        "gallery": {
+          "y": 284.3500061035156,
+          "pct": 53.047179244458675,
+          "visible": 10,
+          "full_images": 5,
+          "image_y": 289.1499938964844,
+          "image": [
+            187.1999969482422,
+            162.77500915527344
+          ]
+        },
+        "full_cards": 5,
+        "learning": {
+          "y": 197.15000915527344,
+          "pct": 60.84442138671875,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 197.15000915527344,
+          "image": [
+            531.6625366210938,
+            398.7375183105469
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1280x800@125%",
+        "css": [
+          1024,
+          640
+        ],
+        "stress": true,
+        "expanded": false,
+        "chrome": {
+          "rows": 2,
+          "banner_height": 48,
+          "device_pixel_ratio": 1.25
+        },
+        "gallery": {
+          "y": 254,
+          "pct": 57.67822265625,
+          "visible": 10,
+          "full_images": 10,
+          "image_y": 258.8000183105469,
+          "image": [
+            187.1999969482422,
+            162.77500915527344
+          ]
+        },
+        "full_cards": 5,
+        "learning": {
+          "y": 248.5,
+          "pct": 53.009032271802425,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 248.5,
+          "image": [
+            463.1875,
+            347.38751220703125
+          ]
+        },
+        "ratings_reached": 4
+      },
+      {
+        "size": "1280x800@125%",
+        "css": [
+          1024,
+          640
+        ],
+        "stress": true,
+        "expanded": true,
+        "chrome": {
+          "rows": 2,
+          "banner_height": 48,
+          "device_pixel_ratio": 1.25
+        },
+        "gallery": {
+          "y": 335.70001220703125,
+          "pct": 45.211794786155224,
+          "visible": 10,
+          "full_images": 5,
+          "image_y": 340.5,
+          "image": [
+            187.1999969482422,
+            162.77500915527344
+          ]
+        },
+        "full_cards": 5,
+        "learning": {
+          "y": 248.5,
+          "pct": 53.009032271802425,
+          "visible": 1,
+          "full_images": 1,
+          "image_y": 248.5,
+          "image": [
+            463.1875,
+            347.38751220703125
+          ]
+        },
+        "ratings_reached": 4
+      }
+    ]
+  }
+}
