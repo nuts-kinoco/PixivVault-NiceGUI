@@ -1,0 +1,4 @@
+Only the Windows home directory name was masked in retained stdout.
+focused-initial.txt: 2 replacements; original SHA-256 c8df2a8dd277b6e165868eae22a6e532b1ef80c6d92d65d8c8017be3d379b728
+full-final.txt: 1 replacements; original SHA-256 c00444deac8f9b4039669bf52acfabee40ee508f622b035d013d112fe7f5c847
+red.txt: 6 replacements; original SHA-256 87fb9e675ff581933a884817d67b53e09e2690bc1b6766293b6eeb75354e1a68

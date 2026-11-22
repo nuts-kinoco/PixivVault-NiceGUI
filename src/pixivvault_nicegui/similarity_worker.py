@@ -12,6 +12,7 @@ from typing import Callable
 
 from .egara_inference import EgaraInferenceError, EgaraInvalidImage
 from .gpu_arbiter import DEFAULT_GPU_ARBITER, GpuInferenceStopped
+from .local_tag_view import _gpu_stop_generation
 from .local_media_adapter import MediaAmbiguous, MediaMissing, MediaUnavailable
 
 
@@ -60,6 +61,8 @@ class SimilarityWorker:
         self._stop_requested = False
         self._phase = 'idle'
         self._generation = 0
+        self._resume_request = None
+        self._resume_scan_generation = None
         self._indexed = 0
         self._resumed = 0
         self._errors = 0
@@ -111,8 +114,18 @@ class SimilarityWorker:
 
     def resume(self) -> None:
         with self._lock:
-            if not self._stop_requested and self._phase in ('paused', 'failed'):
+            if self._stop_requested:
+                return
+            gpu_generation = _gpu_stop_generation(DEFAULT_GPU_ARBITER)
+            if self._phase == 'running':
+                # release_all() can finish before this scan handles cancellation.
+                self._resume_request = gpu_generation
+            elif self._phase == 'idle' and gpu_generation is not None:
+                self._resume_scan_generation = gpu_generation
+                self._signal.set()
+            elif self._phase in ('paused', 'failed') and gpu_generation is not None:
                 self._phase = 'idle'
+                self._resume_scan_generation = gpu_generation
                 self._generation += 1
                 self._consecutive_failures = 0
                 self._signal.set()
@@ -164,13 +177,25 @@ class SimilarityWorker:
                 self._signal.set()
 
     def _scan_once(self, generation: int) -> None:
+        with self._lock:
+            gpu_generation = self._resume_scan_generation
+            self._resume_scan_generation = None
+        if gpu_generation is None:
+            gpu_generation = _gpu_stop_generation(DEFAULT_GPU_ARBITER)
         try:
             with DEFAULT_GPU_ARBITER.stop_scope():
+                if gpu_generation is None or gpu_generation != _gpu_stop_generation(DEFAULT_GPU_ARBITER):
+                    raise GpuInferenceStopped()
                 self._scan_pages(generation)
         except GpuInferenceStopped:
             with self._lock:
                 if self._is_current(generation):
-                    self.pause()
+                    resume = self._resume_request
+                    if resume not in (None, gpu_generation) and resume == _gpu_stop_generation(DEFAULT_GPU_ARBITER):
+                        self._resume_scan_generation = resume
+                        self._signal.set()
+                    else:
+                        self.pause()
 
     def _scan_pages(self, generation: int) -> None:
         pages = None

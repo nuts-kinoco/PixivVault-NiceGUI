@@ -1,0 +1,47 @@
+﻿F                                                                        [100%]
+================================== FAILURES ===================================
+_________ test_undo_during_worker_fence_capture_only_skips_that_image _________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-capture-skip-red-20261122/test_undo_during_worker_fence_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000019145CC2D70>
+
+    def test_undo_during_worker_fence_capture_only_skips_that_image(tmp_path, monkeypatch):
+        fake_ort(monkeypatch)
+        store = store_at(tmp_path / 'shadow')
+        revoker = store_at(store.root)
+        path = tmp_path / 'model.onnx'
+        path.write_bytes(b'synthetic model')
+        worker = VisualPreferenceWorker(store, path, model_sha=sha256(path.read_bytes()).hexdigest(),
+                                        gpu_arbiter=GpuInferenceArbiter())
+        catalog = RemoteBookmarkImages(Client(), (record('first'), record('next')))
+        captured, resume = Event(), Event()
+        read_number = store._generation_number
+    
+        def pause_one_capture(db):
+            number = read_number(db)
+            if not captured.is_set():
+                captured.set()
+                assert resume.wait(10)
+            return number
+    
+        monkeypatch.setattr(store, '_generation_number', pause_one_capture)
+        try:
+            worker.start()
+            assert worker.submit_image('first', 0, catalog.get_with_variant('first'))
+            assert captured.wait(5)
+            assert worker.submit_image('next', 0, catalog.get_with_variant('next'))
+            revoker.invalidate('undo')
+            resume.set()
+            wait_for(lambda: worker.status()['indexed'] == 1 or worker.status()['phase'] == 'failed')
+>           assert worker.status()['phase'] == 'running'
+E           AssertionError: assert 'failed' == 'running'
+E             
+E             - running
+E             + failed
+
+tests\test_visual_preference_shadow_review.py:223: AssertionError
+------------------------------ Captured log call ------------------------------
+WARNING  pixivvault_nicegui.visual_preference_worker:visual_preference_worker.py:340 visual preference worker failed
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_shadow_review.py::test_undo_during_worker_fence_capture_only_skips_that_image
+1 failed, 18 deselected in 7.41s

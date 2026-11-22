@@ -11,6 +11,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 import hashlib
 import json
+import logging
 import os
 from pathlib import Path
 import sqlite3
@@ -25,6 +26,32 @@ from .models import Artwork
 
 DATABASE_NAME = "learning.sqlite3"
 MARKER_NAME = ".pixivvault-synthetic-learning.json"
+_LOG = logging.getLogger(__name__)
+
+
+def notify_shadow(callback, *args, route='observer'):
+    """Observers are optional and cannot change the outcome of a learning action."""
+    try:
+        return callback(*args)
+    except Exception as error:
+        # Exception text may come from storage, providers or URLs.
+        _LOG.warning('visual preference observer notification failed (%s, %s)', route, type(error).__name__)
+
+
+def shadow_judgments(db, work_ids):
+    """A read-only projection of committed labels, including Undo tombstones."""
+    with db.lock:
+        has_revisions = db.conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='learning_adapter_revision'"
+        ).fetchone()
+        query = 'SELECT w.value, h.verdict, h.reason, h.bookmarked, '
+        query += 'COALESCE(r.revision, 0)' if has_revisions else '0'
+        query += (' FROM json_each(?) w LEFT JOIN discovery_swipe_history h ON h.work_id=w.value')
+        if has_revisions:
+            query += ' LEFT JOIN learning_adapter_revision r ON r.work_id=w.value'
+        return {wid: {'judgment': 'superlike' if verdict == 'superLike' else verdict,
+                      'reason': reason, 'bookmarked': bool(bookmarked), 'revision': revision}
+                for wid, verdict, reason, bookmarked, revision in db.conn.execute(query, (json.dumps(work_ids),))}
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,11 +70,12 @@ class _Session:
 class LearningService:
     """Serialize accepted work; cancelling an await cannot cancel its DB write."""
 
-    def __init__(self, sandbox_root: Path, artworks: tuple[Artwork, ...]) -> None:
+    def __init__(self, sandbox_root: Path, artworks: tuple[Artwork, ...], *, shadow_observer=None) -> None:
         self.sandbox_root = Path(sandbox_root)
         if not self.sandbox_root.is_absolute():
             raise ValueError("absolute learning sandbox path required")
         self.artworks = tuple(artworks)
+        self.shadow_observer = shadow_observer
         if self.artworks != generate_demo_artworks(len(self.artworks)):
             raise ValueError("learning persistence accepts only the generated synthetic fixture")
         fingerprint = hashlib.sha256(json.dumps(
@@ -230,6 +258,7 @@ class LearningService:
             return
         session.repository.record(judgment)
         session.receipts[judgment.operation_id] = signature
+        self._shadow_judgment('judgment', judgment.work_id)
 
     def submit_hate_reason(self, session_id: str, judgment: Judgment, reason: str) -> Future:
         """「合わない」の理由の後追い。保存済みの同じ判定にだけ付き、Futureは付けたかどうかを返す。"""
@@ -239,7 +268,10 @@ class LearningService:
         session = self._session(session_id)
         if not isinstance(judgment, Judgment) or judgment.work_id not in self._metadata:
             raise ValueError("judgment must refer to a known work")
-        return session.repository.set_hate_reason(judgment, reason)
+        changed = session.repository.set_hate_reason(judgment, reason)
+        if changed:
+            self._shadow_judgment('reason_change', judgment.work_id)
+        return changed
 
     def submit_revert(self, session_id: str, judgment: Judgment, operation_id: str) -> Future:
         return self._submit(self._revert, session_id, judgment, operation_id)
@@ -256,6 +288,7 @@ class LearningService:
             return
         session.repository.revert(judgment, operation_id)
         session.receipts[operation_id] = signature
+        self._shadow_judgment('undo', judgment.work_id)
 
     async def review_snapshot(self, session_id: str):
         return await self._wait(self._submit(self._review_snapshot, session_id))
@@ -280,6 +313,7 @@ class LearningService:
         saved = session.repository.review_undo(work_id, expected_revision)
         session.review_undo[operation_id] = saved
         session.receipts[operation_id] = signature
+        self._shadow_judgment('undo', work_id)
 
     def submit_review_restore(self, session_id, undo_operation_id, operation_id):
         return self._submit(self._review_restore, session_id, undo_operation_id, operation_id)
@@ -292,6 +326,19 @@ class LearningService:
         session.repository.review_restore(saved, revision)
         session.review_undo.pop(undo_operation_id)
         session.receipts[operation_id] = signature
+        self._shadow_judgment('restore', saved['work_id'])
+
+    def _shadow_judgment(self, kind, work_id=None):
+        observer = self.shadow_observer
+        if observer is None:
+            return
+
+        def snapshot():
+            if work_id is None:
+                return {}
+            return {'work_id': work_id, **shadow_judgments(self._database(), (work_id,))[work_id]}
+
+        notify_shadow(lambda: observer.judgment_changed(kind, snapshot), route=kind)
 
     def release_session(self, session_id: str) -> None:
         """Queue cleanup after accepted commands, without blocking the UI."""
@@ -361,6 +408,7 @@ class LearningService:
 
     def _reset(self):
         result = self._database().reset_discovery_learning(keep_seed=True)
+        self._shadow_judgment('reset')
         # 判定行が消えたあとも残る取り消し状態（Undoスタック・振り返りの取消済み台帳）は
         # 消えた履歴を指すので、全セッション分を破棄する。
         for session in self._sessions.values():

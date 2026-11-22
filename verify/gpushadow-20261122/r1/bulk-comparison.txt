@@ -1,0 +1,4 @@
+﻿base-1 exit=0 .count=20000 select=0.719s chips=400 8 passed in 10.39s
+candidate-1 exit=0 .count=20000 select=0.780s chips=400 8 passed in 10.00s
+candidate-2 exit=0 .count=20000 select=0.699s chips=400 8 passed in 9.12s
+base-2 exit=0 .count=20000 select=0.744s chips=400 8 passed in 12.22s

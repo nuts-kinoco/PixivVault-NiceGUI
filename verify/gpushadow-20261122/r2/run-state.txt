@@ -1,0 +1,13 @@
+﻿candidate=7ad3e9261629d9af81f87faf0bbdac1e6a9a3e74
+tree=1f9e933aed463eb4974dc4c6ebdd6879829f8b4d
+baseline=7c57e1503a29ba544920f820768658e41d16d20b
+merge=d6a9f5e2f0216214dc5d5bca3831e615ee53e66e
+owner=parent Codex
+launcher_pid=40384
+start=2026-11-22T08:13:40.7669277+09:00
+basetemp=S:/Work/_tmp/PV/gpu-shadow-r2-20261122/pytest-shadow-r2-locked-candidate-full-20261122
+source=160 focused passed with guard; independent Sol read review of work4 and final corrections
+next=collect full pytest and rerun known 20000-item threshold individually if needed
+context=continue in this thread and preserve the running pytest process
+finished=2026-11-22T08:47:31.1868642+09:00
+exit_code=0

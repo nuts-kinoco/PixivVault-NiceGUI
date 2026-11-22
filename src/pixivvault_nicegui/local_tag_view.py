@@ -30,6 +30,13 @@ REFRESH_INTERVAL_SECONDS = 10
 _EMPTY = MappingProxyType({})
 
 
+def _gpu_stop_generation(arbiter):
+    # Read both fields under the arbiter's lock. A resume accepted during an
+    # unfinished release cannot authorize CUDA work after that release.
+    with arbiter._condition:
+        return None if arbiter._stopping else arbiter._generation
+
+
 class LocalTagView:
     def __init__(self, tagger, local_image, saved_works, saved_ids, *, image_token=None):
         self.tagger, self.local_image = tagger, local_image
@@ -49,6 +56,7 @@ class LocalTagView:
         self._unsubscribe = subscribe(self.invalidate) if subscribe is not None else None
         self._stop = Event()
         self._gpu_paused = False
+        self._resume_request = None
         self._timer = Thread(target=self._periodic, name='pv-local-tag-timer', daemon=True)
         self._timer.start()
 
@@ -125,27 +133,45 @@ class LocalTagView:
                 for a in (getattr(w, 'artwork', w),) if not a.tags and str(a.work_id) in saved}
 
     def refresh_async(self, *, resume=False):
+        """Resume cooperative stops and retry CUDA after memory pressure is released."""
         with self._lock:
             if self._closed:
                 raise RuntimeError('local seed unavailable')
             if self._gpu_paused and not resume:
                 return self._future
+            generation = _gpu_stop_generation(DEFAULT_GPU_ARBITER)
+            if resume:
+                self._resume_request = generation
             self._gpu_paused = False
             if self._running and not self._future.cancelled():
                 self._rescan = True
             else:
                 self._running = True
-                self._future = self._executor.submit(self._refresh_loop)
+                self._future = self._executor.submit(self._refresh_loop, generation)
             return self._future
 
-    def _refresh_loop(self):
+    def _refresh_loop(self, generation):
         try:
-            with DEFAULT_GPU_ARBITER.stop_scope():
-                self._refresh_batches()
-        except GpuInferenceStopped:
-            with self._lock:
-                self._rescan = self._running = False
-                self._gpu_paused = True
+            while True:
+                try:
+                    with DEFAULT_GPU_ARBITER.stop_scope():
+                        if generation is None or generation != _gpu_stop_generation(DEFAULT_GPU_ARBITER):
+                            raise GpuInferenceStopped()
+                        self._refresh_batches()
+                except GpuInferenceStopped:
+                    with self._lock:
+                        resume = self._resume_request
+                        if (not self._closed and resume not in (None, generation)
+                                and resume == _gpu_stop_generation(DEFAULT_GPU_ARBITER)):
+                            generation = resume
+                            continue
+                        self._rescan = self._running = False
+                        self._gpu_paused = True
+                        return
+                with self._lock:
+                    if not self._rescan or self._closed:
+                        self._running = False
+                        return
         except BaseException:
             with self._lock:
                 self._running = False
@@ -155,7 +181,6 @@ class LocalTagView:
         while True:
             with self._lock:
                 if self._closed:
-                    self._running = False
                     return
                 self._rescan = False
                 previous, old = self._snapshot, self._entries
@@ -172,7 +197,6 @@ class LocalTagView:
                 if changed and not self._closed and old is self._entries:
                     self._publish(updated, fingerprint, works, counts, visible_changed)
                 if not self._rescan or self._closed:
-                    self._running = False
                     return
 
     def _collect_entries(self, epoch, old):

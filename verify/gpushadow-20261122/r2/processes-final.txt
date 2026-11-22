@@ -1,0 +1,5 @@
+﻿checked=2026-11-22T08:49:33.7450785+09:00
+candidate=7ad3e9261629d9af81f87faf0bbdac1e6a9a3e74
+matching owned test processes=0
+recorded launcher and interpreter PIDs present=0
+final pytest stderr bytes=0

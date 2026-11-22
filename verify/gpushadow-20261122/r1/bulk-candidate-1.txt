@@ -1,0 +1,6 @@
+﻿count=5000 select=0.467s chips=400
+.count=20000 select=0.780s chips=400
+.....count=5000 run=0.109s tick=0.002s
+.count=20000 run=0.425s tick=0.019s
+.
+8 passed in 10.00s

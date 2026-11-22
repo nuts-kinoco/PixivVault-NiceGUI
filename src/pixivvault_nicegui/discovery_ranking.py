@@ -810,8 +810,23 @@ def rank_candidates(candidates, preferences, author_preferences,
     戻り値は (並べ替え済みの候補リスト, {work_id: 枠名}) のタプル。枠名は
     カード端の「これは冒険枠です」バッジ（合意書§11-2の条件1）に使う。
     """
+    ordered, frames, _ = _rank_candidates(candidates, preferences, author_preferences,
+        get_setting, normalize, limit, total_works, recent_author_ids, diagnostics=False)
+    return ordered, frames
+
+
+def rank_candidates_with_diagnostics(candidates, preferences, author_preferences,
+                                     get_setting=None, normalize=None, limit=None, total_works=None,
+                                     recent_author_ids=()):
+    """Return the same order and frames plus the base score breakdown by work."""
+    return _rank_candidates(candidates, preferences, author_preferences,
+        get_setting, normalize, limit, total_works, recent_author_ids, diagnostics=True)
+
+
+def _rank_candidates(candidates, preferences, author_preferences, get_setting, normalize,
+                     limit, total_works, recent_author_ids, *, diagnostics):
     if not candidates:
-        return [], {}
+        return [], {}, {}
     # ⚠️ 薄めるのはタグ側だけ（フェーズ3-3）。作者側は total_works を渡さない
     # ——「見送りが8個のタグへ分散する」という問題はタグ固有で、作者は1作品に1人しか
     # 付かないため同じ歪みが起きない。
@@ -822,9 +837,13 @@ def rank_candidates(candidates, preferences, author_preferences,
     ratios = resolve_ratios(get_setting)
 
     frame_of = {}
+    breakdown = {}
     for name, items in frames.items():
-        for c, _info in items:
-            frame_of[str(c.get("work_id") or "")] = name
+        for c, info in items:
+            work = str(c.get("work_id") or "")
+            frame_of[work] = name
+            if diagnostics:
+                breakdown[work] = info
 
     # 枠内の順位だけでは、確実枠の在庫が拒否済みだけのときに先頭へ出る
     # （`_interleave` は枠の割合で選ぶのでスコアを見ない）。最終整形へ渡して仕分ける。
@@ -836,4 +855,4 @@ def rank_candidates(candidates, preferences, author_preferences,
     # 上限は整形後に適用する。先に切ると繰り上げられる通常候補を失う。
     if limit is not None:
         ordered = ordered[:max(0, limit)]
-    return ordered, frame_of
+    return ordered, frame_of, breakdown

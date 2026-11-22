@@ -1,0 +1,4 @@
+﻿base=a466487ca7618797eff3147a0180f8619552baf9
+base_fixture_sha256=8C8E4D8440BF555DEA209572A825C3222B87F85B3CE0F1F38C7E26D68EDD773E
+candidate_fixture_sha256=8C8E4D8440BF555DEA209572A825C3222B87F85B3CE0F1F38C7E26D68EDD773E
+base to candidate diff for exact test, its fixture, unified download view and state, and services: empty
