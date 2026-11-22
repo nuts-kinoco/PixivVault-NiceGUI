@@ -70,6 +70,7 @@ class DemoShell:
         self._borrow_timer=None
         self.borrow_dialog=None
         self.borrow_recovery_button=None
+        self.borrow_setup_button=None
         self.buttons: dict[str, ui.button] = {}
         self.auth_label = None
         self.cookie_banner = None
@@ -119,6 +120,9 @@ class DemoShell:
                             self.borrow_switch.props['aria-label'] = '借用プレミアム（API切り替え）'
                             with self.borrow_switch:ui.tooltip('借用プレミアム')
                             if self.borrow_dialog is not None:
+                                self.borrow_setup_button=ui.button(
+                                    '初期設定を開く',on_click=self.borrow_dialog.request_enable).props(
+                                        'flat dense no-caps data-testid=premium-setup-shell')
                                 # Shown only while a Pixiv result is unconfirmed (the Shaft tab no longer exists).
                                 self.borrow_recovery_button=ui.button('通信結果を確認',on_click=self.borrow_dialog.open_recovery).props(
                                     'flat dense no-caps data-testid=premium-recovery-shell')
@@ -381,6 +385,8 @@ class DemoShell:
         self._syncing_borrow=True
         try:self.borrow_switch.set_value(bool(status.get('enabled') if gate is not None else status.get('open')))
         finally:self._syncing_borrow=False
+        if self.borrow_setup_button is not None:
+            self.borrow_setup_button.set_visibility(self.borrow_dialog.setup_required())
         if self.borrow_recovery_button is not None and self.borrow_dialog is not None:
             self.borrow_recovery_button.set_visibility(self.borrow_dialog.recovery_visible())
         library = self.library
@@ -399,8 +405,15 @@ class DemoShell:
                 await self.borrow_dialog.request_enable()
             else:
                 import asyncio
-                try:await asyncio.to_thread(gate.disable)
-                except Exception:ui.notify('OFFの保存を確認できません。設定の借用プレミアムの状態を確認してください。',type='warning')
+                try:
+                    await asyncio.to_thread(gate.disable, session_only=True)
+                except Exception:
+                    ui.notify('借用アカウントの停止を確認できません。設定の借用プレミアムの状態を確認してください。',type='warning')
+                else:
+                    message = '借用プレミアムをこの起動中は OFF にしました。'
+                    if gate.status()['remembered']:
+                        message += '次回起動時は ON に戻ります。'
+                    self.borrow_dialog.notice.set_text(message)
             self.sync_borrow();return
         if bool(event.value)==bool(vault.status().get('open')):return
         if event.value:

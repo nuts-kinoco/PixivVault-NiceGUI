@@ -26,7 +26,8 @@ class PremiumAuthorization:
         self._lock=threading.RLock();self._enabled=False;self._remembered=False
         self._pending=False;self._material=None;self._closed=False;self._error=None
         self._prompting=False;self._epoch=0
-        self._restore()
+        if os.environ.get('PIXIVVAULT_PREMIUM_STARTUP') != 'off':
+            self._restore()
     def _path(self,name):
         p=self.root/('premium-'+name);_safe_path(p,file=True);return p
     def _atomic(self,name,data):
@@ -67,7 +68,9 @@ class PremiumAuthorization:
             if proof!={'purpose':'pv-premium-permission-v1','verifier':self._verifier_id,'enabled':True}:return
             self._enabled=self._remembered=True
             self._load_material()
-            try:self.restore_vault()
+            try:
+                if not self.restore_vault():
+                    self._enabled=self._remembered=False
             except VaultError as error:
                 if error.code!='unlock-failed':raise
                 self._material=None
@@ -231,10 +234,17 @@ class PremiumAuthorization:
             self._error=None
     def cancel(self):
         with self._lock:self._pending=False
-    def disable(self):
+    def disable(self, *, session_only=False):
         with self._lock:
             self._epoch+=1
-            self._enabled=False;self._pending=False;self._remembered=False
+            self._enabled=False;self._pending=False
+            if session_only:
+                # The header pauses borrowing in this process. Durable revocation
+                # is still used by the recovery and failure paths.
+                self._material=None
+                self.vault.lock()
+                return
+            self._remembered=False
             try:
                 # OFF fence is authoritative even if DPAPI subsequently fails.
                 self._atomic('activation-state',b'off\n')

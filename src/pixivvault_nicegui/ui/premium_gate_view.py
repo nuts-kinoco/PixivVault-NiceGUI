@@ -6,6 +6,7 @@ from .action_controls import dialog_actions, dialog_card, outlined_input, primar
 from ..external_vault import VaultError, VAULT_INTEGRITY_ERRORS
 from .premium_recovery_view import PremiumRecoveryPanel
 from ..premium_uid_file import DEFAULT_UID_PATH, read_uid_file, uid_text_errors, apply_uid_file
+from ..premium_read import borrow_wait_message
 
 def vault_unlock_error_message(code):
     if code == 'pixiv-outcome-uncertain':
@@ -27,7 +28,7 @@ def vault_unlock_error_message(code):
         return '保管庫の読み取りでI/Oエラーが発生しました。ファイルを保持してください。'
     if code in ('unlock-failed','premium-password-rejected'):
         return 'パスワードが一致しません。入力を確認して、もう一度試してください。'
-    return None
+    return borrow_wait_message(code)
 
 def dialog_error_message(code):
     """In-dialog wording; the original says the password is wrong (gui.py:947)."""
@@ -72,8 +73,15 @@ class PremiumGateDialog:
                 with dialog_actions():
                     secondary_button('閉じる', self.recovery_dialog.close, testid='premium-recovery-close')
         self.recovery_open.set_visibility(self.recovery_visible())
-        self.notice=ui.label(vault_unlock_error_message(gate.status().get('error')) or '').props('role=status data-testid=premium-permission-status')
+        message = vault_unlock_error_message(gate.status().get('error'))
+        if self.setup_required() and not message:
+            message = '借用プレミアムを使うには初期設定が必要です。'
+        self.notice=ui.label(message or '').props('role=status data-testid=premium-permission-status')
         ui.context.client.on_delete(self.close)
+    def setup_required(self):
+        status = self.gate.vault.status()
+        return not status.get('initialized') and not status.get('inspection_error')
+
     def recovery_visible(self):
         return bool(self.recovery is not None and self.recovery.unconfirmed())
     def open_recovery(self):
