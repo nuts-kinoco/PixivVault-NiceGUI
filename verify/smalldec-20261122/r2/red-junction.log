@@ -1,0 +1,14 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_______________ test_crash_override_rejects_junction[argument] ________________
+tests\test_smalldec_crash_log_20261122.py:88: in test_crash_override_rejects_junction
+    assert capture is None
+E   assert <pixivvault_nicegui.crash_evidence._Capture object at 0x000001879B151160> is None
+______________ test_crash_override_rejects_junction[environment] ______________
+tests\test_smalldec_crash_log_20261122.py:88: in test_crash_override_rejects_junction
+    assert capture is None
+E   assert <pixivvault_nicegui.crash_evidence._Capture object at 0x000001879B0F9810> is None
+=========================== short test summary info ===========================
+FAILED tests/test_smalldec_crash_log_20261122.py::test_crash_override_rejects_junction[argument]
+FAILED tests/test_smalldec_crash_log_20261122.py::test_crash_override_rejects_junction[environment]
+2 failed, 4 deselected in 0.53s

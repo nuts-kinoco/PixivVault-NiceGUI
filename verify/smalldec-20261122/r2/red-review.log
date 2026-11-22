@@ -1,0 +1,107 @@
+FF.FFFF...FFF.FFFF...F                                                   [100%]
+================================== FAILURES ===================================
+_ test_shell_off_choice_stops_real_service_keeper_and_controls_restart[session] _
+tests\test_smalldec_borrow_review_20261122.py:75: in test_shell_off_choice_stops_real_service_keeper_and_controls_restart
+    assert shell.borrow_switch.value
+E   assert False
+E    +  where False = <nicegui.elements.switch.Switch object at 0x0000014FCD8D2120>.value
+E    +    where <nicegui.elements.switch.Switch object at 0x0000014FCD8D2120> = <pixivvault_nicegui.ui.shell.DemoShell object at 0x0000014FCD8D01A0>.borrow_switch
+_ test_shell_off_choice_stops_real_service_keeper_and_controls_restart[persistent] _
+tests\test_smalldec_borrow_review_20261122.py:75: in test_shell_off_choice_stops_real_service_keeper_and_controls_restart
+    assert shell.borrow_switch.value
+E   assert False
+E    +  where False = <nicegui.elements.switch.Switch object at 0x0000014FCD618910>.value
+E    +    where <nicegui.elements.switch.Switch object at 0x0000014FCD618910> = <pixivvault_nicegui.ui.shell.DemoShell object at 0x0000014FCD7E3D90>.borrow_switch
+_________ test_benchmark_override_never_starts_service_keeper[ OFF ] __________
+tests\test_smalldec_borrow_review_20261122.py:127: in test_benchmark_override_never_starts_service_keeper
+    assert not services.premium_authorization.status()['enabled']
+E   assert not True
+___________ test_benchmark_override_never_starts_service_keeper[0] ____________
+tests\test_smalldec_borrow_review_20261122.py:127: in test_benchmark_override_never_starts_service_keeper
+    assert not services.premium_authorization.status()['enabled']
+E   assert not True
+____ test_locked_initialized_vault_off_has_non_modal_setup[missing-proof] _____
+tests\test_smalldec_borrow_review_20261122.py:155: in test_locked_initialized_vault_off_has_non_modal_setup
+    assert shell.borrow_setup_button.visible
+E   assert False
+E    +  where False = <nicegui.elements.button.Button object at 0x0000014FCDA68FC0>.visible
+E    +    where <nicegui.elements.button.Button object at 0x0000014FCDA68FC0> = <pixivvault_nicegui.ui.shell.DemoShell object at 0x0000014FCD61B4D0>.borrow_setup_button
+_______ test_locked_initialized_vault_off_has_non_modal_setup[old-off] ________
+tests\test_smalldec_borrow_review_20261122.py:155: in test_locked_initialized_vault_off_has_non_modal_setup
+    assert shell.borrow_setup_button.visible
+E   assert False
+E    +  where False = <nicegui.elements.button.Button object at 0x0000014FCD707950>.visible
+E    +    where <nicegui.elements.button.Button object at 0x0000014FCD707950> = <pixivvault_nicegui.ui.shell.DemoShell object at 0x0000014FCD734050>.borrow_setup_button
+_______________ test_crash_override_rejects_junction[argument] ________________
+tests\test_smalldec_crash_log_20261122.py:80: in test_crash_override_rejects_junction
+    assert result.returncode == 0
+E   assert 1 == 0
+E    +  where 1 = CompletedProcess(args=['cmd.exe', '/d', '/c', 'mklink /J "S:\\Work\\_tmp\\PV\\small-dec\\red-review-smalldec-reviewed-...0\\real"'], returncode=1, stdout=b'', stderr=b'The filename, directory name, or volume label syntax is incorrect.\r\n').returncode
+______________ test_crash_override_rejects_junction[environment] ______________
+tests\test_smalldec_crash_log_20261122.py:80: in test_crash_override_rejects_junction
+    assert result.returncode == 0
+E   assert 1 == 0
+E    +  where 1 = CompletedProcess(args=['cmd.exe', '/d', '/c', 'mklink /J "S:\\Work\\_tmp\\PV\\small-dec\\red-review-smalldec-reviewed-...1\\real"'], returncode=1, stdout=b'', stderr=b'The filename, directory name, or volume label syntax is incorrect.\r\n').returncode
+_______________ test_first_profile_launch_creates_its_crash_log _______________
+tests\test_smalldec_crash_log_20261122.py:105: in test_first_profile_launch_creates_its_crash_log
+    assert (profile / 'logs' / 'crash_log.txt').is_file()
+E   AssertionError: assert False
+E    +  where False = is_file()
+E    +    where is_file = ((WindowsPath('S:/Work/_tmp/PV/small-dec/red-review-smalldec-reviewed-isolated/isolated-fixture-bases/test_first_profile_launch_crea0/new-profile') / 'logs') / 'crash_log.txt').is_file
+_ test_exclusion_explains_non_text_identity[None-7-\u4f5c\u54c1 ID \u304c\u6709\u52b9\u306a\u6570\u5b57\u3067\u306f\u3042\u308a\u307e\u305b\u3093] _
+tests\test_smalldec_failed_retry_20261122.py:87: in test_exclusion_explains_non_text_identity
+    assert view._retry_exclusion_reason(item) == reason
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\failed_records_view.py:376: in _retry_exclusion_reason
+    if re.fullmatch(r'[1-9][0-9]{0,19}', item.work_id) is None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\re\__init__.py:172: in fullmatch
+    return _compile(pattern, flags).fullmatch(string)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: expected string or bytes-like object, got 'NoneType'
+_ test_exclusion_explains_non_text_identity[2-0-\u30e6\u30fc\u30b6\u30fc ID \u304c\u6709\u52b9\u306a\u6570\u5b57\u3067\u306f\u3042\u308a\u307e\u305b\u3093] _
+tests\test_smalldec_failed_retry_20261122.py:87: in test_exclusion_explains_non_text_identity
+    assert view._retry_exclusion_reason(item) == reason
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\ui\failed_records_view.py:378: in _retry_exclusion_reason
+    if re.fullmatch(r'[1-9][0-9]{0,19}', item.user_id) is None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\re\__init__.py:172: in fullmatch
+    return _compile(pattern, flags).fullmatch(string)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: expected string or bytes-like object, got 'int'
+___________ test_other_exclusion_does_not_claim_novel_path_missing ____________
+tests\test_smalldec_failed_retry_20261122.py:93: in test_other_exclusion_does_not_claim_novel_path_missing
+    assert view._retry_exclusion_reason(record('2', kind='novel')) == 'この作品を安全に再試行できません'
+E   AssertionError: assert '小説の保存先が設定されていません' == 'この作品を安全に再試行できません'
+E
+E     - この作品を安全に再試行できません
+E     + 小説の保存先が設定されていません
+_______________ test_empty_filter_shows_disabled_retry_message ________________
+tests\test_smalldec_failed_retry_20261122.py:105: in test_empty_filter_shows_disabled_retry_message
+    assert view.retry_all.text == '再試行できる対応作品がありません'
+E   AssertionError: assert '全 0 件中 0 件を再試行（0 件は対象外）' == '再試行できる対応作品がありません'
+E
+E     - 再試行できる対応作品がありません
+E     + 全 0 件中 0 件を再試行（0 件は対象外）
+_ test_isolated_launcher_checks_preflight_and_preserves_spaced_arguments[first-default-logs] _
+tests\test_d10_launcher_preflight.py:63: in test_isolated_launcher_checks_preflight_and_preserves_spaced_arguments
+    assert 'fixture application start intercepted' in result.stdout
+E   assert 'fixture application start intercepted' in 'Isolated ProfileRoot, LogRoot and TempRoot must be inside IsolatedWorkspace.\n'
+E    +  where 'Isolated ProfileRoot, LogRoot and TempRoot must be inside IsolatedWorkspace.\n' = CompletedProcess(args=['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', "\nfunction Start-Process {\n   ...\n"], returncode=4, stdout='Isolated ProfileRoot, LogRoot and TempRoot must be inside IsolatedWorkspace.\n', stderr='').stdout
+=========================== short test summary info ===========================
+FAILED tests/test_smalldec_borrow_review_20261122.py::test_shell_off_choice_stops_real_service_keeper_and_controls_restart[session]
+FAILED tests/test_smalldec_borrow_review_20261122.py::test_shell_off_choice_stops_real_service_keeper_and_controls_restart[persistent]
+FAILED tests/test_smalldec_borrow_review_20261122.py::test_benchmark_override_never_starts_service_keeper[ OFF ]
+FAILED tests/test_smalldec_borrow_review_20261122.py::test_benchmark_override_never_starts_service_keeper[0]
+FAILED tests/test_smalldec_borrow_review_20261122.py::test_locked_initialized_vault_off_has_non_modal_setup[missing-proof]
+FAILED tests/test_smalldec_borrow_review_20261122.py::test_locked_initialized_vault_off_has_non_modal_setup[old-off]
+FAILED tests/test_smalldec_crash_log_20261122.py::test_crash_override_rejects_junction[argument]
+FAILED tests/test_smalldec_crash_log_20261122.py::test_crash_override_rejects_junction[environment]
+FAILED tests/test_smalldec_crash_log_20261122.py::test_first_profile_launch_creates_its_crash_log
+FAILED tests/test_smalldec_failed_retry_20261122.py::test_exclusion_explains_non_text_identity[None-7-\u4f5c\u54c1 ID \u304c\u6709\u52b9\u306a\u6570\u5b57\u3067\u306f\u3042\u308a\u307e\u305b\u3093]
+FAILED tests/test_smalldec_failed_retry_20261122.py::test_exclusion_explains_non_text_identity[2-0-\u30e6\u30fc\u30b6\u30fc ID \u304c\u6709\u52b9\u306a\u6570\u5b57\u3067\u306f\u3042\u308a\u307e\u305b\u3093]
+FAILED tests/test_smalldec_failed_retry_20261122.py::test_other_exclusion_does_not_claim_novel_path_missing
+FAILED tests/test_smalldec_failed_retry_20261122.py::test_empty_filter_shows_disabled_retry_message
+FAILED tests/test_d10_launcher_preflight.py::test_isolated_launcher_checks_preflight_and_preserves_spaced_arguments[first-default-logs]
+14 failed, 8 passed in 9.89s
