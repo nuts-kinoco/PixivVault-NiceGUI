@@ -1,0 +1,15 @@
+{
+  "original": {
+    "pid": 110940,
+    "port": 22830,
+    "exit": 1
+  },
+  "nice": {
+    "pid": 137380,
+    "port": 22840,
+    "exit": 1
+  },
+  "playwright": {
+    "pid": 137892
+  }
+}

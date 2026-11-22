@@ -1,0 +1,71 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\d6-final-20261122
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 8 items / 6 deselected / 2 selected
+
+verify\d6final-20261122\test_final_harness.py FF                         [100%]
+
+================================== FAILURES ===================================
+_____________________ test_round_three_cap_and_quiet_flag _____________________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/d6-final-20261122/pytest/paired-ranking-quiet-window-round-three-red/test_round_three_cap_and_quiet0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001EB8B46BCE0>
+
+    def test_round_three_cap_and_quiet_flag(tmp_path, monkeypatch):
+        now = 100.0
+
+        def advance(seconds):
+            nonlocal now
+            now += seconds
+
+        window = tmp_path / 'supervisor.flag'
+        window.touch()
+        monkeypatch.setattr(live_gate, 'QUIET_FLAG', window, raising=False)
+        monkeypatch.setattr(live_gate, 'perf_counter', lambda: now)
+        monkeypatch.setattr(live_gate, 'sleep', advance)
+        ledger = Ledger.create(tmp_path, prior_attempts=134)
+        for _ in range(40):
+            ledger.attempt('nice', 'ranking', lambda: (200, False, None))
+        with pytest.raises(StopRun, match='^budget$'):
+>           ledger.attempt('original', 'ranking', lambda: pytest.fail('sent past cap'))
+
+verify\d6final-20261122\test_final_harness.py:67:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+verify\d6final-20261122\live_gate.py:131: in attempt
+    status, challenge, auth = dispatch()
+                              ^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+>   ledger.attempt('original', 'ranking', lambda: pytest.fail('sent past cap'))
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: sent past cap
+
+verify\d6final-20261122\test_final_harness.py:67: Failed
+___________ test_both_clicks_wait_until_ledger_spacing_has_elapsed ____________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/d6-final-20261122/pytest/paired-ranking-quiet-window-round-three-red/test_both_clicks_wait_until_le0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001EB8B469CD0>
+
+    def test_both_clicks_wait_until_ledger_spacing_has_elapsed(tmp_path, monkeypatch):
+        now = 100.0
+
+        def advance(seconds):
+            nonlocal now
+            now += seconds
+
+        monkeypatch.setattr(live_gate, 'perf_counter', lambda: now)
+        monkeypatch.setattr(live_gate, 'sleep', advance)
+        ledger = Ledger.create(tmp_path)
+        for side in ('original', 'nice'):
+>           ledger.wait_before_click()
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'Ledger' object has no attribute 'wait_before_click'
+
+verify\d6final-20261122\test_final_harness.py:89: AttributeError
+=========================== short test summary info ===========================
+FAILED verify/d6final-20261122/test_final_harness.py::test_round_three_cap_and_quiet_flag
+FAILED verify/d6final-20261122/test_final_harness.py::test_both_clicks_wait_until_ledger_spacing_has_elapsed
+======================= 2 failed, 6 deselected in 1.05s =======================

@@ -99,6 +99,10 @@ foreach ($entry in $snapshot) {
 }
 $emaCpu = [Math]::Round((($ema | Measure-Object -Sum).Sum), 2)
 $browserCpu = [Math]::Round((($browsers | Measure-Object -Sum).Sum), 2)
+$gpuEngines = @(Get-CimInstance -ClassName Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine -OperationTimeoutSec 3 -ErrorAction SilentlyContinue)
+$emaGpu = @($gpuEngines | Where-Object {
+    $_.Name -match '^pid_(\d+)_' -and [int]$Matches[1] -in $emaPids
+})
 $runProcesses = @()
 if ($RunRoot) {
     $receipts = foreach ($fileName in 'owned-servers.json','probe-servers.json') {
@@ -138,6 +142,10 @@ $result = [ordered]@{
     cpu_method = 'summed_sampled_process_cpu'
     ema_cpu_pct = $emaCpu
     ema_core_equivalents = [Math]::Round($emaCores, 2)
+    ema_gpu_counters_seen = $emaGpu.Count
+    ema_gpu_max_engine_pct = if ($emaGpu.Count) {
+        ($emaGpu.UtilizationPercentage | Measure-Object -Maximum).Maximum
+    } else { $null }
     ordinary_browser_cpu_pct = $browserCpu
     other_heavy_processes = $other
     idle_agent_processes = $idleAgents

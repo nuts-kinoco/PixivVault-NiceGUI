@@ -7,6 +7,7 @@ from math import comb
 from pathlib import Path
 from statistics import median
 
+from live_gate import ROUND_THREE_PRIOR, RUN_CAPS
 from preflight import SCRATCH, WORKTREE, copied_path
 from timing import _stats, summarize_pairs, trial_metrics
 
@@ -58,6 +59,7 @@ def export(root, out):
             **metrics, "click_to_list": stage["metadata_ms"],
             "list_to_image": stage["metadata_to_image_ms"], "card": stage["card_call_ms"],
             "render": stage["render_ms"], "pace_adjusted": metrics["total"] - metrics["pace"],
+            "preclick_wait": stage.get("preclick_wait_ms"),
         })
     summary["apps"] = {
         side: {key: _stats(row[key] for row in data) for key in data[0]} if data else {}
@@ -97,13 +99,14 @@ def export(root, out):
     ledger = {"scope": "live", "status": outcome["status"], "stop": dispatch["stop"],
               "get_used": used, "get_remaining": 180 - dispatch["count"],
               "previous_gets": dispatch["prior_attempts"], "shared_cap": 180,
-              "planned_run_cap": 85, "shortest_end_to_start_ms": round(min(spacing), 3) if spacing else None,
+              "planned_run_cap": RUN_CAPS[dispatch["prior_attempts"]],
+              "shortest_end_to_start_ms": round(min(spacing), 3) if spacing else None,
               "destinations": [{"kind": kind, "count": size} for kind, size in sorted(counts.items())],
               "response_status_counts": dict(Counter(row["status"] for row in events))}
     artifacts = {"ranking-outcome.json": outcome, "ranking-samples.json": rows,
                  "ranking-metadata.json": metadata, "ranking-summary.json": summary,
                  "dispatch-summary.json": ledger}
-    for name in ("original-serve.json", "nice-serve.json", "runtime-profile-stop.json",
+    for name in ("original-serve.json", "nice-serve.json", "prepare-profile-stop.json", "runtime-profile-stop.json",
                  "owned-servers.json", "processes-running.json"):
         value = read(root, name)
         if value is not None:
@@ -118,4 +121,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("root", type=Path)
     args = parser.parse_args()
-    export(copied_path(SCRATCH, args.root), WORKTREE / "verify/d6final-20261122/r1")
+    root = copied_path(SCRATCH, args.root)
+    prior = read(root, "dispatch.json")["prior_attempts"]
+    evidence_dir = "r2" if prior == ROUND_THREE_PRIOR else "r1"
+    export(root, WORKTREE / "verify/d6final-20261122" / evidence_dir)
