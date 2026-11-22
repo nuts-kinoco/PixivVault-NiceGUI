@@ -74,7 +74,15 @@ class _Capture:
                 _active = None
 
 
-def install(path=None):
+def warn_unavailable():
+    try:
+        print('警告: クラッシュ記録を保存できません。このまま起動を続けます。', file=sys.stderr)
+    except (OSError, ValueError):
+        # A windowed launch may have no writable console.
+        pass
+
+
+def install(path=None, *, profile_root=None):
     """Install once under an owned profile or at an explicit S: destination."""
     global _active
     if _active is not None:
@@ -82,28 +90,30 @@ def install(path=None):
     stream = None
     try:
         requested = path or os.environ.get('PIXIVVAULT_CRASH_LOG_PATH')
+        from .native_profile import PROFILE_IDENTITY, PROFILE_MARKER, _assert_chain, _owned_marker
         if requested:
             target = Path(requested)
         else:
-            parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False, exit_on_error=False)
-            parser.add_argument('--profile-root')
-            args, _ = parser.parse_known_args()
-            if args.profile_root is None:
+            if profile_root is None:
+                parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False, exit_on_error=False)
+                parser.add_argument('--profile-root')
+                args, _ = parser.parse_known_args()
+                profile_root = args.profile_root
+            if profile_root is None:
                 return None
-            root = Path(args.profile_root)
+            root = Path(profile_root)
             if not root.is_absolute() or root.drive.lower() != 's:':
                 raise ValueError('invalid profile path')
             if not root.exists():
+                # Bootstrap installs the default after creating the owned profile.
                 return None
-            from .native_profile import PROFILE_IDENTITY, PROFILE_MARKER, _assert_chain, _owned_marker
             _owned_marker(root, PROFILE_MARKER, PROFILE_IDENTITY)
             target = root / 'logs' / 'crash_log.txt'
-            _assert_chain(target, kind='file')
-        if not target.is_absolute() or target.resolve(strict=False).drive.lower() != 's:':
+        if not target.is_absolute() or target.drive.lower() != 's:' or '..' in target.parts:
             raise ValueError('invalid crash log path')
         from .test_owner_runtime import require_inside
         require_inside(target)
-        target = target.resolve(strict=False)
+        _assert_chain(target, kind='file')
         target.parent.mkdir(parents=True, exist_ok=True)
         stream = target.open('a', encoding='utf-8', buffering=1)
         stream.write(f'===== 起動 {datetime.now().isoformat()} pid={os.getpid()} =====\n')
@@ -112,11 +122,7 @@ def install(path=None):
     except Exception:
         if stream is not None:
             stream.close()
-        try:
-            print('警告: クラッシュ記録を保存できません。このまま起動を続けます。', file=sys.stderr)
-        except (OSError, ValueError):
-            # A windowed launch may have no writable console.
-            pass
+        warn_unavailable()
         return None
     capture = _Capture(stream)
     sys.excepthook = capture.sys_hook

@@ -1,4 +1,7 @@
+import subprocess
 import sys
+
+import pytest
 
 from pixivvault_nicegui import bootstrap, crash_entry, crash_evidence
 from pixivvault_nicegui.native_profile import NativeProfileStore
@@ -62,6 +65,44 @@ def test_uncreatable_crash_log_warns_and_app_continues(tmp_path, monkeypatch, ca
         warning = capsys.readouterr().err
         assert 'クラッシュ記録を保存できません' in warning
         assert str(profile) not in warning
+    finally:
+        if crash_evidence._active is not None:
+            crash_evidence._active.close()
+
+
+@pytest.mark.parametrize('override', ['argument', 'environment'])
+def test_crash_override_rejects_junction(override, tmp_path, monkeypatch, capsys):
+    destination = tmp_path / 'real'
+    destination.mkdir()
+    link = tmp_path / 'junction'
+    result = subprocess.run(['cmd.exe', '/d', '/c', 'mklink', '/J', str(link), str(destination)],
+                            capture_output=True)
+    assert result.returncode == 0
+    requested = link / 'crash_log.txt'
+    path = requested if override == 'argument' else None
+    if path is None:
+        monkeypatch.setenv('PIXIVVAULT_CRASH_LOG_PATH', str(requested))
+    capture = crash_evidence.install(path)
+    if capture is not None:
+        capture.close()
+    assert capture is None
+    assert not (destination / 'crash_log.txt').exists()
+    assert 'クラッシュ記録を保存できません' in capsys.readouterr().err
+
+
+def test_first_profile_launch_creates_its_crash_log(tmp_path, monkeypatch):
+    from test_first_local_start_20261114 import workspace, _stub_native
+    from pixivvault_nicegui.test_owner_runtime import isolated_test_workspace
+
+    profile = tmp_path / 'new-profile'
+    _stub_native(monkeypatch)
+    monkeypatch.delenv('PIXIVVAULT_CRASH_LOG_PATH', raising=False)
+    monkeypatch.setattr(sys, 'argv', ['app', '--native', '--profile-root', str(profile)])
+    try:
+        with isolated_test_workspace(workspace(tmp_path)):
+            assert crash_entry.main() == 0
+            assert NativeProfileStore.peek(profile).revision == 0
+            assert (profile / 'logs' / 'crash_log.txt').is_file()
     finally:
         if crash_evidence._active is not None:
             crash_evidence._active.close()

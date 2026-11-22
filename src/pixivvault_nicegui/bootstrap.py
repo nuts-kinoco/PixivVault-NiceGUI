@@ -902,8 +902,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         from .native_profile import (NativeProfileStore, NativeProfileReferenceUnavailable,
                                      NativeProfileSourceUnavailable, native_kwargs, provision_storage)
         from .native_startup import NativeProfileBinding, validate_profile_boundaries
-        store = NativeProfileStore(config.profile_root)
+        new_profile = argv is None and not config.profile_root.exists()
         try:
+            store = NativeProfileStore(config.profile_root)
+        except Exception:
+            if new_profile:
+                from .crash_evidence import warn_unavailable
+                warn_unavailable()
+            raise
+        try:
+            if new_profile:
+                from .crash_evidence import install
+                install(profile_root=store.root)
             snapshot = store.snapshot()
             unavailable = False
             try:

@@ -10,7 +10,7 @@ from pixivvault_nicegui.native_profile import NativeProfileStore
 
 
 @pytest.mark.skipif(os.name != 'nt', reason='Windows PowerShell launcher')
-@pytest.mark.parametrize('location', ['outside', 'inside', 'drive-root'])
+@pytest.mark.parametrize('location', ['outside', 'inside', 'drive-root', 'first-default-logs'])
 def test_isolated_launcher_checks_preflight_and_preserves_spaced_arguments(tmp_path, location):
     repo = Path(__file__).resolve().parents[1]
     workspace = tmp_path / 'isolated workspace'
@@ -20,11 +20,12 @@ def test_isolated_launcher_checks_preflight_and_preserves_spaced_arguments(tmp_p
     storage = (tmp_path if location == 'outside' else workspace) / 'save parent'
     storage.mkdir()
     profile = workspace / 'private profile'
-    store = NativeProfileStore(profile)
-    try:
-        store.update(save_parent=storage, expected_revision=0)
-    finally:
-        store.close()
+    if location != 'first-default-logs':
+        store = NativeProfileStore(profile)
+        try:
+            store.update(save_parent=storage, expected_revision=0)
+        finally:
+            store.close()
 
     with socket.socket() as probe:
         probe.bind(('127.0.0.1', 0))
@@ -36,9 +37,12 @@ function Start-Process {
     throw 'fixture application start intercepted'
 }
 try {
-    & $env:PV_LAUNCH_TEST_SCRIPT -CodeRoot $env:PV_LAUNCH_TEST_REPO `
+    $options = @{}
+    if ($env:PV_LAUNCH_TEST_DEFAULT_LOGS -ne '1') {
+        $options.LogRoot = Join-Path $env:PV_LAUNCH_TEST_WORKSPACE 'logs'
+    }
+    & $env:PV_LAUNCH_TEST_SCRIPT @options -CodeRoot $env:PV_LAUNCH_TEST_REPO `
         -PythonRoot $env:PV_LAUNCH_TEST_PYTHON -ProfileRoot $env:PV_LAUNCH_TEST_PROFILE `
-        -LogRoot (Join-Path $env:PV_LAUNCH_TEST_WORKSPACE 'logs') `
         -TempRoot (Join-Path $env:PV_LAUNCH_TEST_WORKSPACE 'temp') `
         -IsolatedWorkspace $env:PV_LAUNCH_TEST_BOUNDARY -Port ([int]$env:PV_LAUNCH_TEST_PORT)
 } catch {
@@ -50,11 +54,16 @@ try {
                PV_LAUNCH_TEST_REPO=str(repo), PV_LAUNCH_TEST_PYTHON=str(Path(sys.executable).parents[1]),
                PV_LAUNCH_TEST_PROFILE=str(profile), PV_LAUNCH_TEST_WORKSPACE=str(workspace),
                PV_LAUNCH_TEST_BOUNDARY=str(workspace.anchor if location == 'drive-root' else workspace),
-               PV_LAUNCH_TEST_PORT=str(port))
+               PV_LAUNCH_TEST_PORT=str(port),
+               PV_LAUNCH_TEST_DEFAULT_LOGS='1' if location == 'first-default-logs' else '0')
     result = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script],
                             env=env, capture_output=True, text=True, timeout=30)
     assert result.returncode == 4
-    if location == 'inside':
+    if location == 'first-default-logs':
+        assert 'fixture application start intercepted' in result.stdout
+        assert NativeProfileStore.peek(profile).revision == 0
+        assert (profile / 'logs').is_dir()
+    elif location == 'inside':
         assert 'fixture application start intercepted' in result.stdout
         command_line, intercepted = result.stdout.splitlines()
         assert intercepted == 'fixture application start intercepted'
