@@ -433,6 +433,12 @@ class LibraryFilterPanel:
         self.root.set_visibility(self.opened)
         self.invalidate()
 
+    def close_from_toolbar(self, event) -> None:
+        if event.args is False and self.opened:
+            self.opened = False
+            self.root.set_visibility(False)
+            self.invalidate()
+
     def set_subview(self, subview: str) -> None:
         if subview == self.subview:
             return

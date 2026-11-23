@@ -15,7 +15,8 @@ from test_external_vault_ui import setup
 
 def state(view):
     return (view.candidates_label.visible, view.candidates_box.visible,
-            view.candidates_toggle.visible, view.candidates_toggle.text)
+            view.candidates_toggle.visible, (view.candidates_open_label if view._candidates_open
+                                              else view.candidates_closed_label).text)
 
 
 async def drain(view):
@@ -35,9 +36,12 @@ async def test_toggle_hides_only_label_and_chips_and_the_choice_survives_reopen_
     try:
         with client:
             first = PersonalRankingView(services)
-            assert state(first) == (True, True, True, 'よく効くタグを隠す')  # 既定は開き
+            assert state(first) == (True, True, True, '絞り込みを畳む')  # 既定は開き
+            first._render_candidate_tags({'trend_rows': [{'tag': 'first'}, {'tag': 'second'}, {}]})
+            assert len(first.trend_row.default_slot.children) == 2
+            assert first.candidates_more.props['aria-controls'] == first.candidates_menu.html_id
             first.toggle_candidates()
-            assert state(first) == (False, False, True, 'よく効くタグを表示')  # トグルは残る
+            assert state(first) == (False, False, True, 'よく効くタグ（2件）')  # トグルは残る
             assert vault.ranking_preferences()['ranking_personal_candidates_open'] is False
             # タグ編集（preferences の再保存）が開閉の保存を消さない
             first.add_tag('tag')
@@ -45,14 +49,14 @@ async def test_toggle_hides_only_label_and_chips_and_the_choice_survives_reopen_
             assert vault.ranking_preferences()['ranking_personal_candidates_open'] is False
             await drain(first)
             second = PersonalRankingView(services)
-            assert state(second) == (False, False, True, 'よく効くタグを表示')
+            assert state(second) == (False, False, True, '絞り込みを開く')
             assert second.selected_tags() == ('tag',)
             second.toggle_candidates()
-            assert state(second) == (True, True, True, 'よく効くタグを隠す')
+            assert state(second) == (True, True, True, '絞り込みを畳む')
             assert vault.ranking_preferences()['ranking_personal_candidates_open'] is True
             await drain(second)
             third = PersonalRankingView(services)
-            assert state(third) == (True, True, True, 'よく効くタグを隠す')
+            assert state(third) == (True, True, True, '絞り込みを畳む')
             await drain(third)
     finally:
         client.delete()
@@ -94,7 +98,7 @@ async def test_toggle_still_works_in_session_when_saving_fails(tmp_path, monkeyp
                 raise OSError('synthetic')
             vault.save_ranking_candidates_open = broken
             view.toggle_candidates()  # 元は保存を先に試すが、失敗しても画面は切り替える
-            assert state(view) == (False, False, True, 'よく効くタグを表示')
+            assert state(view) == (False, False, True, '絞り込みを開く')
             await drain(view)
     finally:
         client.delete()

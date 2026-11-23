@@ -489,17 +489,13 @@ def write_json(path, value):
     path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
 
 
-def navigate_port(page, key, specs, *, tone_mode=False):
+def navigate_port(page, key, specs, *, tone_mode=False, show_tools=True):
     if tone_mode and key == 'learning':
-        page.get_by_test_id('tab-learning').click(timeout=5000)
+        smoke.open_screen(page, 'learning', {'testids': []}, 0)
         page.locator('.pv-content .pv-learning').wait_for(state='visible', timeout=5000)
-    elif key == "bookmarks":
-        smoke.open_screen(page, "library", specs["library"], 0)
-        page.get_by_test_id("library-subview-bookmarks").click(timeout=5000)
-        page.get_by_test_id("bookmark-view").wait_for(state="visible", timeout=5000)
     else:
-        opener = specs[key].get("open", f"tab-{key}")
-        page.get_by_test_id(opener).click(timeout=5000)
+        spec = specs[key] if show_tools else dict(specs[key], steps=[])
+        smoke.open_screen(page, key, spec, 0)
         page.get_by_test_id(specs[key]["testids"][0]).first.wait_for(state="visible", timeout=5000)
 
 

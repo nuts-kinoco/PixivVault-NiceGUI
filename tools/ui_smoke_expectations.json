@@ -3,14 +3,14 @@
   "global": {
     "testids": [
       "db-status-banner", "auth-status", "cookie-banner", "premium-borrow-toggle",
-      "tab-history", "view-history-open", "saved-folder-open", "theme-toggle", "pixiv-home-link", "preferences-open",
+      "tab-history", "view-history-open", "saved-folder-open", "theme-toggle", "pixiv-home-link", "preferences-open", "automation-open",
       "tab-download", "tab-queue", "tab-failed", "tab-dedup", "tab-learning", "tab-ranking",
-      "tab-personal", "tab-library", "tab-recommend", "tab-scheduler", "tab-metadata"
+      "tab-personal", "tab-library", "tab-bookmarks", "tab-recommend"
     ],
     "texts": [
       "PixivVault", "API切り替え", "本番DBを使用中", "未認証/期限切れ", "【Cookie未連携】",
       "ダウンロード", "キュー", "失敗リスト", "重複整理", "学習", "ランキング",
-      "自分のランキング", "ライブラリ", "おすすめ", "定期チェック", "メタデータ補完"
+      "カスタムランキング", "ライブラリ", "マイブックマーク", "おすすめ"
     ],
     "startup_allowed_calls": [],
     "text_fonts": {
@@ -61,7 +61,7 @@
       "texts": ["直近のバックアップ", "作者フォルダ単位でサムネイルを並べています。クリックで保存先を開きます。", "synthetic author"]
     },
     "dedup": {
-      "label": "重複整理",
+      "label": "重複整理", "steps": ["toolbar-toggle-dedup"],
       "text_fonts": {"[data-testid=duplicate-view] .pv-library-heading": "Yu Mincho"},
       "testids": ["duplicate-view", "duplicate-scan", "duplicate-mode-near", "duplicate-mode-undecidable",
                   "duplicate-trash", "duplicate-search"],
@@ -76,7 +76,7 @@
       "texts": ["候補を取りにいけませんでした", "通信に失敗しました。30秒ごとにもう一度試しています。", "これまでの判定: 0枚", "もう一度探す"]
     },
     "ranking": {
-      "label": "ランキング",
+      "label": "ランキング", "steps": ["toolbar-toggle-ranking"],
       "note": "First open fetches the official ranking by design (元 on_tab_open).",
       "allowed_calls": ["require_identity", "get_ranking"],
       "testids": ["ranking-view", "ranking-fetch", "ranking-mode", "ranking-date", "ranking-tag", "ranking-sort",
@@ -84,19 +84,25 @@
       "texts": ["作品種別", "取得・更新", "タグ検索"]
     },
     "library": {
-      "label": "ライブラリ",
+      "label": "ライブラリ", "steps": ["toolbar-toggle-library"],
       "testids": ["library-view", "library-author-count", "library-search", "library-sort-last_backup",
-                  "library-subview-downloaded", "library-subview-bookmarks", "library-author-open"],
-      "texts": ["DL済み", "マイブックマーク", "synthetic author", "1 / 1 作者表示"]
+                  "library-author-open"],
+      "texts": ["このPCに保存した作品", "synthetic author", "1 / 1 作者表示"],
+      "absent_testids": ["library-subview-downloaded", "library-subview-bookmarks"]
+    },
+    "bookmarks": {
+      "label": "マイブックマーク", "steps": ["toolbar-toggle-bookmarks"],
+      "testids": ["bookmark-view", "bookmark-search", "bookmark-refresh", "bookmark-count", "bookmark-scroll"],
+      "texts": ["Pixivでブックマークした作品"]
     },
     "recommend": {
-      "label": "おすすめ",
+      "label": "おすすめ", "steps": ["toolbar-toggle-recommend"],
       "testids": ["recommend-view", "recommend-update", "recommend-refresh", "recommend-order-reset",
                   "recommend-size-large"],
       "texts": ["おすすめを更新", "順序を既定に戻す", "好みの傾向"]
     },
     "personal": {
-      "label": "自分のランキング",
+      "label": "カスタムランキング", "steps": ["personal-candidates-toggle", "personal-filter-toggle"],
       "testids": ["personal-ranking-view", "personal-fetch", "personal-tags", "personal-filter-toggle",
                   "personal-filter-panel", "personal-sort", "personal-bookmarks",
                   "personal-ai", "personal-r18", "personal-chips", "personal-candidates-toggle"],
@@ -104,13 +110,13 @@
       "absent_testids": ["shared-log-host"]
     },
     "scheduler": {
-      "label": "定期チェック",
+      "label": "定期チェック", "open": "automation-open", "steps": ["automation-scheduler"],
       "testids": ["scheduler-interval", "scheduler-save", "scheduler-run",
                   "scheduler-startup", "scheduler-status", "scheduler-account", "shared-log-host"],
       "texts": ["お気に入り作者の定期チェック", "今すぐチェック", "☆を付けた作者全員をチェックします"]
     },
     "metadata": {
-      "label": "メタデータ補完",
+      "label": "メタデータ補完", "open": "automation-open", "steps": ["automation-metadata"],
       "testids": ["metadata-view", "metadata-run-all", "metadata-stop", "metadata-status-line"],
       "texts": ["メタデータ後埋め", "いま埋める"]
     },

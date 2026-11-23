@@ -527,7 +527,7 @@ def register_pages(learning_sandbox: Path | None = None,
                    managed_network_stop_scope=None, shared_network_stop_scope=None,
                    similarity_index_root=None, similarity_model_file=None,
                    similarity_provider='auto', similarity_auto=False, extension_bridge_auto=False,
-                   startup_tab=None, legacy_copy_root=None, startup_stop_deadline=None) -> None:
+                   startup_tab=None, startup_automation=None, legacy_copy_root=None, startup_stop_deadline=None) -> None:
     """NiceGUIのHTTPルートを登録する。呼ぶだけではサーバーを起動しない。"""
     global _registered
     if _registered:
@@ -755,6 +755,7 @@ def register_pages(learning_sandbox: Path | None = None,
             app.on_startup(services.start_metadata_auto)
         if startup_tab is not None:
             services.startup_tab = startup_tab
+        services.startup_automation = startup_automation
         bridge_wanted = extension_bridge_wanted(extension_bridge, extension_bridge_auto, services.preferences)
         if extension_bridge_auto and not bridge_wanted:
             services.extension_bridge_status = 'setting_off'
@@ -1167,7 +1168,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         resolved_tab, tab_warning = resolve_startup_tab(config.startup_tab)
         if tab_warning:
             print(tab_warning)
-        registration['startup_tab'] = shell_tab_key(resolved_tab)
+        if config.startup_tab in {'scheduler', 'metadata'}:
+            registration['startup_automation'] = resolved_tab
+        else:
+            registration['startup_tab'] = shell_tab_key(resolved_tab)
         if config.native:
             registration["desktop_enabled"] = True
             if config.pixiv_download_root is not None:

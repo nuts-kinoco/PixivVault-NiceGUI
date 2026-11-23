@@ -1,5 +1,9 @@
 """Original personal ranking operations over the isolated vault search adapter."""
 import asyncio
+from pathlib import Path
+from .manual_toolbar import manual_toolbar
+from .navigation_labels import PERSONAL_RANKING_LABEL
+
 from nicegui import ui
 from ..personal_ranking import (PersonalRankingSource,normalize_personal_filters,apply_personal_filters,
     active_filter_descriptors,_DATE_PRESETS,_SORT_PRESETS,_BOOKMARK_PRESETS)
@@ -10,6 +14,7 @@ from .ranking_view import RankingView,_ViewServices,_RankingGallery
 
 # 除外条件のキーと、文脈（読み込んだ集合）のキー。集合が無い条件は適用できない（元 ranking_tab.py:1436-1456）。
 EXCLUSION_CONTEXT=(('exclude_hated','hated_ids'),('exclude_downloaded','downloaded_ids'),('exclude_hidden_authors','hidden_author_ids'),('exclude_hidden_works','hidden_work_ids'))
+_CANDIDATE_TAGS = Path(__file__).with_name('candidate_tags.js').read_text(encoding='utf-8')
 EXCLUSION_WARNING='　⚠️一部の除外条件を適用できませんでした'
 
 class PersonalRankingView(RankingView):
@@ -29,6 +34,13 @@ class PersonalRankingView(RankingView):
         self._condition_task=None;self._condition_pending=False
         self._calendar_token=None;self.calendar_dialog=None;self.calendar_picker=None
         self.client=ui.context.client
+        if not getattr(self.client, '_pv_candidate_tags', False):
+            self.client._pv_candidate_tags = True
+            if self.client.has_socket_connection:
+                self.client.run_javascript(_CANDIDATE_TAGS)
+            else:
+                ui.add_head_html(f'<script>{_CANDIDATE_TAGS}</script>')
+
         self._context_snapshot = {}
         self._context_base = {}
         self._context_revision = None
@@ -39,9 +51,10 @@ class PersonalRankingView(RankingView):
         self.saved_filters=normalize_personal_filters(saved.get('filters'));self.filters=dict(self.saved_filters)
         self._selected_tags = tuple(saved.get('tags', ()))
         with ui.column().classes('pv-gallery pv-ranking-view pv-personal-ranking w-full').props('data-testid=personal-ranking-view') as self.root:
-            ui.label('自分のランキング').classes('pv-library-heading pv-serif-heading')
-            with ui.row().classes('pv-toolbar pv-tone-toolbar'):
-                with ui.row().classes('pv-personal-tag-entry items-center no-wrap gap-1'):
+            with ui.row().classes('pv-nav-fixed-tools w-full') as fixed:
+                ui.label(PERSONAL_RANKING_LABEL).classes('pv-library-heading pv-serif-heading')
+            with ui.row().classes('pv-toolbar pv-tone-toolbar') as tools:
+                with ui.row().classes('pv-personal-tag-entry items-center no-wrap gap-1') as tag_entry:
                     self.tag_chips = ui.row().classes('items-center no-wrap gap-1')
                     self.tags = ui.input('選択タグ', placeholder='タグを追加してEnter（AND 検索）').classes('pv-personal-tag-input').props(
                         'outlined dense data-testid=personal-tags aria-label="追加するタグ"')
@@ -61,11 +74,27 @@ class PersonalRankingView(RankingView):
             # 副行（元 ranking_tab.py:2142-2166）。隠すのはラベルとチップだけで、トグルは常に出す（戻す導線を残す）。
             # 開閉は設定 ranking_personal_candidates_open へ保存する。既定は開き。
             self._candidates_open=saved.get(RANKING_CANDIDATES_OPEN_KEY,True) is not False
-            with ui.row().classes('items-center no-wrap w-full gap-2').props('data-testid=personal-candidates-row'):
+            self.fetch_button.move(fixed)
+            self.tag_chips.move(fixed)
+            self._candidate_count = 0
+            with ui.row().classes('pv-personal-candidates items-center no-wrap w-full gap-2').props('data-testid=personal-candidates-row') as candidates:
                 self.candidates_label=ui.label('よく効くタグ:').classes('pv-subtitle').props('data-testid=personal-candidates-label')
                 with ui.element('div').classes('pv-candidates-box').props('data-testid=personal-candidates-box') as self.candidates_box:
-                    self.trend_row=ui.row().classes('no-wrap items-center gap-1')
-                self.candidates_toggle=ui.button('',on_click=self.toggle_candidates).props('flat dense no-caps data-testid=personal-candidates-toggle')
+                    self.trend_row = ui.row().classes('pv-candidate-row no-wrap items-center gap-1')
+                    with ui.element('button').classes('pv-candidate-more pv-hit28 pv-focus-ring').props(
+                            'type=button hidden aria-expanded=false data-testid=personal-candidates-more') as self.candidates_more:
+                        ui.label('').classes('pv-candidate-count')
+                    self.candidates_menu = ui.column().classes('pv-candidate-menu').props(
+                        'hidden popover=manual role=group aria-label=ほかのよく効くタグ data-testid=personal-candidates-menu')
+                    self.candidates_more.props['aria-controls'] = self.candidates_menu.html_id
+            self.candidates_toolbar, self.candidates_toggle, panel = manual_toolbar(
+                self.root, 'personal', (*tools.default_slot.children, candidates), opened=self._candidates_open,
+                index=1, title='絞り込み')
+            tools.delete()
+            self.candidates_toggle.props['data-testid'] = 'personal-candidates-toggle'
+            self.candidates_closed_label, self.candidates_open_label = self.candidates_toggle.default_slot.children
+            self.candidates_toolbar.on('toggle', self._candidate_toolbar_changed,
+                                       js_handler='event => emit(event.target.open)')
             self._apply_candidates_open()
             # 有効条件(NOW)チップ行（元 ranking_tab.py:2315-2356・filter_panel.py:350-379）。
             self.chips_row=ui.row().classes('items-center gap-2 w-full').props('data-testid=personal-chips')
@@ -73,7 +102,7 @@ class PersonalRankingView(RankingView):
                 self.notice=ui.label('').classes('pv-subtitle').props('role=status data-testid=personal-notice')
                 self._build_hide_status()
             with ui.row().classes('pv-library-body pv-personal-body w-full no-wrap'):
-                with LibraryFilterPanel.container(testid='personal-filter-panel',label='自分のランキングの絞り込み') as self.filter_panel:
+                with LibraryFilterPanel.container(testid='personal-filter-panel',label=f'{PERSONAL_RANKING_LABEL}の絞り込み') as self.filter_panel:
                     ui.label('絞り込み').classes('pv-library-heading pv-serif-heading')
                     self.bookmarks=ui.select(dict(_BOOKMARK_PRESETS),value=self.filters['bookmark_min'],label='ブクマ数下限').props('outlined dense data-testid=personal-bookmarks')
                     self.sort=ui.select(dict(_SORT_PRESETS),value=self.filters['sort'],label='並び順').props('outlined dense data-testid=personal-sort')
@@ -94,6 +123,9 @@ class PersonalRankingView(RankingView):
                 self.filter_panel.set_visibility(False)
                 self.filter_toggle.props['aria-controls'] = self.filter_panel.html_id
                 self.gallery=_RankingGallery(self.proxy,card_size=card_size,on_size_change=on_size_change);self.gallery.owner=self
+                for control in tuple(self.gallery.toolbar.default_slot.children):
+                    control.move(panel)
+                self.gallery.toolbar.delete()
                 self.gallery.empty.set_text('検索結果はまだありません。')
                 self.gallery.empty.set_visibility(True)
                 self.gallery.counter.set_text('未取得')
@@ -125,9 +157,19 @@ class PersonalRankingView(RankingView):
     def _apply_candidates_open(self):
         opened=self._candidates_open
         self.candidates_label.set_visibility(opened);self.candidates_box.set_visibility(opened)
-        self.candidates_toggle.set_text('よく効くタグを隠す' if opened else 'よく効くタグを表示')
+        count = self._candidate_count
+        self.candidates_closed_label.set_text(f'よく効くタグ（{count}件）' if count else '絞り込みを開く')
+        self.candidates_toolbar.props['open'] = opened
+        self.candidates_toggle.props['aria-expanded'] = str(opened).lower()
+
+    def _candidate_toolbar_changed(self, event):
+        if isinstance(event.args, bool) and event.args != self._candidates_open:
+            self.toggle_candidates()
+
     def toggle_candidates(self):
         self._candidates_open=not self._candidates_open
+        if not self._candidates_open and self.filter_panel.visible:
+            self._toggle_filters()
         # 保存は画面反映の前（元 ranking_tab.py:1861-1863）。保存に失敗しても、いまの画面は切り替える。
         save=getattr(self.vault,'save_ranking_candidates_open',None)
         if save is not None:
@@ -136,6 +178,23 @@ class PersonalRankingView(RankingView):
                 import logging
                 logging.getLogger(__name__).warning('よく効くタグの開閉を保存できませんでした。',exc_info=True)
         self._apply_candidates_open()
+    def _render_candidate_tags(self, context):
+        self.trend_row.clear()
+        self.candidates_menu.clear()
+        tags = []
+        for candidate in context.get('trend_rows', ())[:24]:
+            if isinstance(candidate, dict):
+                tag = candidate.get('tag')
+                if isinstance(tag, str) and tag.strip():
+                    tags.append((tag, candidate.get('display') or candidate.get('name') or tag))
+        self._candidate_count = len(tags)
+        for host in (self.trend_row, self.candidates_menu):
+            with host:
+                for index, (tag, label) in enumerate(tags):
+                    ui.button(str(label), color=None, on_click=lambda _, tag=tag: self.add_tag(tag)).classes(
+                        'pv-hit28 pv-focus-ring').props(f'flat dense no-caps data-candidate-index={index}')
+        self._apply_candidates_open()
+
     def _submit_tag(self, event):
         if self.closed or not self.tags.enabled or not isinstance(event.args, str):
             return
@@ -263,12 +322,7 @@ class PersonalRankingView(RankingView):
         self._context_revision = revision
         self._context_snapshot=context
         context=self.context()
-        self.trend_row.clear()
-        with self.trend_row:
-            for candidate in context.get('trend_rows',())[:24]:
-                if not isinstance(candidate,dict):continue
-                tag=candidate.get('tag');label=candidate.get('display') or candidate.get('name') or tag
-                if isinstance(tag,str) and tag.strip():ui.button(str(label),on_click=lambda _=None,t=tag:self.add_tag(t)).props('flat dense')
+        self._render_candidate_tags(context)
         self.availability()
         if self.page is not None:self.render()
         return context

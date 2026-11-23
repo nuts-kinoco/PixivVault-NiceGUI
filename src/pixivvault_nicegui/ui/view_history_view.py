@@ -3,6 +3,8 @@ import asyncio
 import csv
 from io import StringIO
 from types import SimpleNamespace
+from .manual_toolbar import manual_toolbar
+
 from nicegui import ui
 
 from .management_dialog import managed_dialog
@@ -64,7 +66,7 @@ class ViewHistoryView:
             self.notice = ui.label().classes('pv-subtitle pv-tone-b-notice').props('role=status data-testid=view-history-status')
             self.body = ui.column().classes('pv-tone-b-history-list pv-tone-b-list w-full gap-2')
             self.more = secondary_button('もっと見る', self.load_more, testid='view-history-more')
-            with ui.expansion('閲覧履歴を全件削除').classes('w-full').props('dense data-testid=view-history-danger'):
+            with ui.column().classes('w-full').props('data-testid=view-history-danger') as danger:
                 self.delete_summary = ui.label().classes('pv-subtitle')
                 with ui.row().classes('w-full items-center gap-2'):
                     self.confirm = outlined_input('削除する履歴の件数を入力').props(
@@ -72,6 +74,7 @@ class ViewHistoryView:
                     self.clear_button = ui.button('全件削除', on_click=self.clear, color='amber').classes('pv-hit28').props(
                         'unelevated dense no-caps text-color=black data-testid=view-history-clear')
                     self.confirm.on_value_change(lambda _: self.sync())
+            manual_toolbar(card, 'view-history', (danger,), title='履歴の削除')
             with dialog_actions().classes('justify-end'):
                 secondary_button('CSV出力', self.export, icon='file_download', outline=True, testid='view-history-export')
                 secondary_button('閉じる', self.dialog.close, testid='view-history-close').props('autofocus')

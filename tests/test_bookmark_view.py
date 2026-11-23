@@ -56,12 +56,14 @@ async def test_refresh_updates_downloaded_badges_and_blocks_stale_sessions(bookm
     view, state, opened, _ = bookmark
     assert state.items[0].downloaded
     assert view.cards["synthetic-0"]["downloaded"]
+    assert view.cards["synthetic-0"]["storage_label"] == '保存済み'
     previous_session = view._session
     previous_epoch = view.grid.render_epoch
     state.replace_local(())
     view.refresh()
     assert not state.items[0].downloaded
     assert not view.cards["synthetic-0"]["downloaded"]
+    assert view.cards["synthetic-0"]["storage_label"] == '未保存'
     assert view.grid.render_epoch > previous_epoch
     before = state.shown_count
     view.more(previous_session)

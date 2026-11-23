@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from tools import ui_smoke_helpers as H  # noqa: E402
 
 NAV = ["download", "queue", "failed", "history", "dedup", "learning", "ranking", "library",
-       "recommend", "personal", "scheduler", "metadata"]
+       "recommend", "personal", "bookmarks"]
 
 
 def snap(**kw):
@@ -26,7 +26,7 @@ GLOBAL = {"testids": ["a"], "texts": ["見出し"]}
 def test_shipped_expectations_load_and_cover_every_nav_tab_and_settings():
     data = H.load_expectations()
     order = H.screen_order(data)
-    assert set(NAV) | {"startup", "settings"} == set(order)
+    assert set(NAV) | {"startup", "settings", "scheduler", "metadata"} == set(order)
     for tab in NAV:
         ids = data["screens"][tab]["testids"]
         assert ids, tab  # a screen with no expected element would never fail
@@ -42,6 +42,11 @@ def test_every_screen_has_a_label_and_the_nav_tabs_are_in_global():
         assert spec["label"]
     for tab in NAV:
         assert f"tab-{tab}" in data["global"]["testids"]
+    for key in ("scheduler", "metadata"):
+        assert f"tab-{key}" not in data["global"]["testids"]
+        assert data["screens"][key]["open"] == "automation-open"
+        assert data["screens"][key]["steps"] == [f"automation-{key}"]
+    assert "library-subview-bookmarks" in data["screens"]["library"]["absent_testids"]
 
 
 @pytest.mark.parametrize("mutate,message", [

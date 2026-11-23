@@ -324,7 +324,20 @@ def set_theme(page, theme):
 def open_screen(page, name, spec, wait_ms):
     """Open one screen; returns once its first expected element is attached."""
     opener = spec.get("open") or f"tab-{name}"
-    page.get_by_test_id(opener).click()
+    automation_close = page.get_by_test_id("automation-close").filter(visible=True)
+    if automation_close.count():
+        automation_close.click()
+        automation_close.wait_for(state="hidden")
+    button = page.get_by_test_id(opener)
+    nav_toggle = page.get_by_test_id('nav-toggle')
+    if opener.startswith('tab-') and nav_toggle.is_visible() and not button.is_visible():
+        nav_toggle.click()
+    button.click()
+    for testid in spec.get('steps', ()):
+        step = page.get_by_test_id(testid).filter(visible=True)
+        step.wait_for(state='visible')
+        if step.get_attribute('aria-expanded') != 'true' and step.get_attribute('aria-selected') != 'true':
+            step.click()
     ready = (spec.get("testids") or [None])[0]
     if ready and not ready.endswith("*"):
         page.get_by_test_id(ready).first.wait_for(state="attached", timeout=20000)

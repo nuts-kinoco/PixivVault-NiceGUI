@@ -37,7 +37,7 @@ def validate_expectations(data) -> dict:
     for name, spec in [("global", data["global"])] + list(data["screens"].items()):
         if not isinstance(spec, dict):
             raise ExpectationError(f"{name}: must be an object")
-        for field in ("testids", "texts", "absent_testids"):
+        for field in ("testids", "texts", "absent_testids", "steps"):
             values = spec.get(field, [])
             if not isinstance(values, list) or not all(isinstance(v, str) and v for v in values):
                 raise ExpectationError(f"{name}.{field}: must be a list of non-empty strings")

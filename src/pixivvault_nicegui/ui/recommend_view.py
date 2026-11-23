@@ -5,6 +5,8 @@ import logging
 from base64 import b64encode
 from dataclasses import replace
 from uuid import uuid4
+from .manual_toolbar import manual_toolbar
+
 from nicegui import background_tasks, core, ui
 
 from .management_dialog import managed_dialog
@@ -51,7 +53,7 @@ class RecommendView:
         self.client=ui.context.client
         self._card_actions=CardActions(services,lambda text:self.notice.set_text(text),lambda:self.active and not self.closed)
         with ui.column().classes('pv-metadata-view pv-tone-recommend w-full').props('data-testid=recommend-view data-busy=false') as self.root:
-            with ui.row().classes('pv-toolbar pv-tone-toolbar'):
+            with ui.row().classes('pv-nav-fixed-tools pv-tone-toolbar w-full'):
                 ui.label('おすすめ').classes('pv-library-heading pv-serif-heading')
                 ui.space()
                 self.size_buttons=size_buttons(self.change_card_size, prefix='recommend')
@@ -59,7 +61,7 @@ class RecommendView:
                 self.refresh_button=refresh_button(self.refresh,label='保存済み結果を再読込',testid='recommend-refresh')
                 self.update_button=primary_button('おすすめを更新',on_click=self.update,testid='recommend-update')
                 self.reset_button=ui.button('順序を既定に戻す',on_click=self.reset_order).props('flat dense no-caps data-testid=recommend-order-reset')
-            ui.label('保存済み結果を表示します。更新・追加取得はボタンで行います。').classes('pv-subtitle')
+            manual_toolbar(self.root, 'recommend', (*self.size_buttons.values(), self.reset_button), title='表示設定')
             self.notice=ui.label().classes('pv-subtitle').props('role=status data-testid=recommend-notice')
             self.busy_notice=ui.label('処理中…').classes('pv-subtitle').props('role=status data-testid=recommend-busy-status')
             self.busy_notice.set_visibility(False)

@@ -140,7 +140,7 @@ def _set_status_alert(label, active, *, normal_role=None):
 
 
 class PreferencesView:
-    def __init__(self, store, *, enabled_keys=(), unavailable_reasons=None, on_change=None, desktop=None, clear_cache=None, extension_status=None, export_legacy=None, export_metadata=None, native_profile=None, following_sync=None, pixiv_actions_mode='readonly', extension_counts=None, extension_reasons=None, extension_snapshot=None, vault=None, similarity_status=None, resume_similarity=None, tagger=None, on_tagger_change=None, visual_service=None):
+    def __init__(self, store, *, enabled_keys=(), unavailable_reasons=None, on_change=None, desktop=None, clear_cache=None, extension_status=None, export_legacy=None, export_metadata=None, native_profile=None, following_sync=None, pixiv_actions_mode='readonly', extension_counts=None, extension_reasons=None, extension_snapshot=None, vault=None, similarity_status=None, resume_similarity=None, tagger=None, on_tagger_change=None, visual_service=None, build_automation=None):
         if pixiv_actions_mode not in ('readonly', 'enabled', 'preferences'):
             raise ValueError('invalid Pixiv action policy')
         self.pixiv_actions_mode=pixiv_actions_mode
@@ -151,6 +151,7 @@ class PreferencesView:
         self.resume_similarity=resume_similarity
         self._similarity_timer=None
         self.visual_service = visual_service
+        self.build_automation = build_automation
         self._visual_timer = None
         self._visual_confirm = None
         self._visual_clear_target = None
@@ -282,7 +283,7 @@ class PreferencesView:
         ui.label(application_notice + '実行中のジョブは変更しません。').classes('pv-field-hint')
         groups = {}
         for spec in SPECS:
-            if spec.group == 'local_tagger_internal' or spec.key == 'grid_card_size_mode':
+            if spec.group in {'local_tagger_internal', 'ui_internal'} or spec.key == 'grid_card_size_mode':
                 continue
             title = PREFERENCE_GROUP_TITLES.get(spec.key, PREFERENCE_GROUP_TITLES.get(spec.group, spec.group))
             groups.setdefault(title, []).append(spec)
@@ -290,6 +291,9 @@ class PreferencesView:
                                      hint='静止画保存: 保存元の原画像を維持します。画質を変更する設定はありません。')
         for title in ('作品メタデータ', '絵柄・構図の推論'):
             self._build_preference_group(title, groups.pop(title, ()))
+        if self.build_automation is not None:
+            with settings_group('自動処理', heading_testid='preferences-automation-heading'):
+                self.build_automation()
         with settings_group('エクスポート', heading_testid='preferences-export-heading'):
             ui.label('データベースのエクスポート').classes('pv-field-hint')
             ui.label('データベースと作品メタデータをZIPに保存します（画像は含まれません）。').classes('pv-field-hint')

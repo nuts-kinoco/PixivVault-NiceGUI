@@ -15,14 +15,14 @@ from pixivvault_nicegui.ui.shell import DemoShell
 from pixivvault_nicegui.ui.theme import CSS
 
 TAB_ORDER = ('download', 'queue', 'failed', 'dedup', 'learning', 'ranking', 'personal', 'library',
-             'recommend', 'scheduler', 'metadata')
+             'bookmarks', 'recommend')
 TAB_ICONS = {'download': 'download', 'queue': 'queue', 'failed': 'report_problem', 'dedup': 'content_copy',
              'learning': 'explore', 'ranking': 'leaderboard', 'personal': 'military_tech',
-             'library': 'photo_library', 'recommend': 'recommend', 'scheduler': 'schedule',
-             'metadata': 'edit_note'}
+             'library': 'photo_library', 'bookmarks': 'bookmarks', 'recommend': 'recommend'}
 HEADER_BUTTONS = (('tab-history', 'history'), ('view-history-open', 'visibility'),
                   ('saved-folder-open', 'folder_open'), ('theme-toggle', 'light_mode'),
-                  ('pixiv-home-link', 'public'), ('preferences-open', 'settings'))
+                  ('pixiv-home-link', 'public'), ('preferences-open', 'settings'),
+                  ('automation-open', 'autorenew'))
 
 
 def walk(element):
@@ -81,7 +81,7 @@ def test_backup_is_a_header_icon_button_and_still_opens_the_backup_screen(shell_
     assert 'history' in shell_module.AVAILABLE_TABS
 
 
-def test_header_right_column_has_six_icon_buttons_in_order(shell_and_client):
+def test_header_right_column_has_seven_icon_buttons_in_order(shell_and_client):
     shell = shell_and_client
     right = next(e for e in walk(shell.root) if 'pv-header-actions' in e.classes)
     found = []
@@ -248,7 +248,7 @@ def test_all_tabs_have_the_same_width_and_keep_icon_and_label_visible():
             f'<span class="q-btn__content"><i class="q-icon material-icons">{TAB_ICONS[key]}</i>'
             f'<span>{label}</span></span></button>'
             for i, (key, label) in enumerate(shell_module.NAVIGATION))
-        page.set_content('<style>.q-btn{display:inline-flex;align-items:center;justify-content:center;border:0}'
+        page.set_content('<style>body{margin:0}.q-btn{display:inline-flex;align-items:center;justify-content:center;border:0}'
                          '.q-btn__content{display:flex;align-items:center;gap:8px;white-space:nowrap}'
                          '.q-icon{width:18px;height:18px;overflow:hidden;font-size:0}</style>'
                          '<style>' + CSS + f'</style><nav class="pv-nav">{buttons}</nav>')
@@ -259,12 +259,15 @@ def test_all_tabs_have_the_same_width_and_keep_icon_and_label_visible():
         assert len({b['w'] for b in boxes}) == 1, boxes
         assert all(b['fits'] for b in boxes)
         assert len({b['h'] for b in boxes}) == 1
-        # 1280px では 2 段に折り返し（本人の裁定 2026-11-18）、全タブが画面内に見える。バー内スクロールはしない。
+        # Standard scale fits all ten tabs in one row.
         rects = page.evaluate("[...document.querySelectorAll('.pv-tab')].map(e => { const r = e.getBoundingClientRect(); return {top: Math.round(r.top), right: r.right}; })")
-        assert len({r['top'] for r in rects}) == 2, rects
+        assert len({r['top'] for r in rects}) == 1, rects
         assert all(r['right'] <= 1280 for r in rects), rects
         assert page.evaluate("getComputedStyle(document.querySelector('.pv-nav')).flexWrap") == 'wrap'
         assert page.evaluate("getComputedStyle(document.querySelector('.pv-nav')).overflowX") != 'auto'
+        page.set_viewport_size({'width': 1024, 'height': 768})
+        tops = page.evaluate("[...document.querySelectorAll('.pv-tab')].map(e => Math.round(e.getBoundingClientRect().top))")
+        assert sorted(tops.count(top) for top in set(tops)) == [5, 5], tops
         # 1920px では 1 行に収まる
         page.set_viewport_size({'width': 1920, 'height': 1080})
         tops = page.evaluate("[...document.querySelectorAll('.pv-tab')].map(e => Math.round(e.getBoundingClientRect().top))")
@@ -272,3 +275,22 @@ def test_all_tabs_have_the_same_width_and_keep_icon_and_label_visible():
     finally:
         browser.close()
         pw.stop()
+def test_shell_mounts_bookmarks_once_as_an_independent_page(shell_and_client):
+    shell = shell_and_client
+    with shell.client:
+        shell.show('library')
+        assert any(getattr(node, 'text', '') == 'このPCに保存した作品' for node in walk(shell.library.root))
+        assert all(not (tid(node) or '').startswith('library-subview-') for node in walk(shell.library.root))
+        assert shell.library.bookmarks is None
+        assert shell.bookmarks_host is None
+        shell.show('bookmarks')
+        host = shell.bookmarks_host
+        assert host.root.props['data-testid'] == 'bookmark-host'
+        assert any(getattr(node, 'text', '') == 'Pixivでブックマークした作品' for node in walk(host.root))
+        assert host.bookmarks.state.active
+        assert not shell.library.active
+        shell.show('library')
+        assert not host.bookmarks.state.active
+        shell.show('bookmarks')
+        assert shell.bookmarks_host is host
+        assert host.bookmarks.state.active

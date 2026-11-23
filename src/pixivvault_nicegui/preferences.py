@@ -24,6 +24,7 @@ class PreferenceSpec:
 
 
 SPECS = (
+    PreferenceSpec('automation_nav_hint_seen', 'automation navigation hint', '0', ('0', '1'), 'ui_internal'),
     PreferenceSpec('local_tagger_path', 'model path', r'S:\EMAKINOCO-Models\tagger\wd-swinv2-tagger-v3', (), 'local_tagger_internal'),
     PreferenceSpec('local_tagger_enabled', 'enabled', '1', ('0','1'), 'local_tagger_internal'),
     PreferenceSpec('local_tagger_receipt', 'receipt', '', (), 'local_tagger_internal'),

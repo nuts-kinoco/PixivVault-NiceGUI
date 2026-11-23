@@ -254,7 +254,8 @@ def test_preferences_render_all_current_specs_and_a_new_group(client, tmp_path, 
     try:
         view.open()
         expected = {spec.key for spec in (*original, extra)
-                    if spec.group != 'local_tagger_internal' and spec.key != 'grid_card_size_mode'}
+                    if spec.group != 'local_tagger_internal'
+                    and spec.key not in {'grid_card_size_mode', 'automation_nav_hint_seen'}}
         assert set(view.controls) == expected
         assert extra.group in labels(view.dialog)
     finally:

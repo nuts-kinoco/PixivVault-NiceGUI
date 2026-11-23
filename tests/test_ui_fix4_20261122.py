@@ -72,12 +72,25 @@ def library_page(library_browser):
         page.close()
 
 
+
+def open_tab(page, key):
+    toggle = page.get_by_test_id('nav-toggle')
+    if toggle.is_visible():
+        toggle.click()
+    page.get_by_test_id(f'tab-{key}').click()
+
+
+def open_tools(page, key):
+    toggle = page.get_by_test_id(f'toolbar-toggle-{key}')
+    if toggle.get_attribute('aria-expanded') != 'true':
+        toggle.click()
+
+
 def test_bookmark_card_preserves_ellipsis_and_exposes_complete_title(library_page):
     from playwright.sync_api import expect
 
     page = library_page
-    page.get_by_test_id('tab-library').click()
-    page.get_by_test_id('library-subview-bookmarks').click()
+    open_tab(page, 'bookmarks')
     title = page.locator('[data-testid=bookmark-card] .pv-card-title').filter(has_text='長文の表示').first
     expect(title).to_be_visible()
     full = title.inner_text()
@@ -85,13 +98,20 @@ def test_bookmark_card_preserves_ellipsis_and_exposes_complete_title(library_pag
     expect(title).to_have_attribute('title', full)
     opener = title.locator('..').get_by_test_id('bookmark-open')
     expect(opener).to_have_attribute('aria-label', f'ブックマークを開く：{full}…')
-    assert page.get_by_test_id('bookmark-filter-toggle').evaluate('''el => {
+    open_tools(page, 'bookmarks')
+    hit_area = page.get_by_test_id('bookmark-filter-toggle').evaluate('''el => {
         const rect = el.getBoundingClientRect();
         const x = rect.left + rect.width / 2;
         const middle = rect.top + rect.height / 2;
-        return rect.height < 28 && [middle - 13.5, middle + 13.5].every(
-            y => el.contains(document.elementFromPoint(x, y)));
+        const hits = [middle - 13.5, middle + 13.5].map(y => document.elementFromPoint(x, y));
+        return {height: rect.height, top: rect.top, center: middle,
+                targets: hits.map(hit => hit?.dataset.testid || hit?.tagName),
+                parent: el.parentElement.className, rawStyle: el.getAttribute("style"),
+                matches: el.matches(".pv-manual-panel [data-testid=bookmark-filter-toggle].q-btn"),
+                minHeight: getComputedStyle(el).minHeight, fontSize: getComputedStyle(el).fontSize,
+                matched: hits.every(hit => el.contains(hit))};
     }''')
+    assert hit_area['height'] < 28 and hit_area['matched'], repr(hit_area)
     page.get_by_test_id('bookmark-search').press('Tab')
     opener.focus()
     preview = page.locator('.pv-bookmark-title-preview:popover-open')
@@ -117,8 +137,7 @@ def test_bookmark_scroll_keeps_usable_height_in_small_content_panel(library_page
         audit.set_browser_zoom(page.context, 200)
         page.reload(wait_until='domcontentloaded')
         assert page.evaluate('() => [innerWidth, innerHeight, devicePixelRatio]') == [640, 400, 2]
-        page.get_by_test_id('tab-library').click()
-        page.get_by_test_id('library-subview-bookmarks').click()
+        open_tab(page, 'bookmarks')
         scroll = page.get_by_test_id('bookmark-scroll')
         expect(scroll).to_be_visible()
         layout = scroll.evaluate('''el => {
@@ -165,6 +184,7 @@ def test_calendar_dialog_focus_and_close_return_to_the_calendar_button(library_p
 
     page = library_page
     page.get_by_test_id('tab-library').click()
+    open_tools(page, 'library')
     page.get_by_test_id('library-filter-toggle').click()
     opener = page.get_by_test_id('library-date-from-calendar')
     expect(opener).to_be_visible()
@@ -195,8 +215,7 @@ def test_bookmark_viewer_accepts_tab_and_restores_origin_on_escape(library_page,
     from playwright.sync_api import expect
 
     page = library_page
-    page.get_by_test_id('tab-library').click()
-    page.get_by_test_id('library-subview-bookmarks').click()
+    open_tab(page, 'bookmarks')
     opener = page.get_by_test_id('bookmark-card').filter(has_text='長文の表示').locator(
         '[data-testid=bookmark-open][tabindex="0"]').first
     opener.press('Enter')
@@ -298,8 +317,7 @@ def test_r5_viewer_recovery_after_projection(library_browser, order, recreated, 
     page = browser.new_page()
     try:
         page.goto(origin + '/?r5_projection=1', wait_until='domcontentloaded')
-        fixture.ready(page, 'tab-library').click()
-        page.get_by_test_id('library-subview-bookmarks').click()
+        open_tab(page, 'bookmarks')
         opener = page.get_by_test_id('bookmark-card').filter(has_text='長文の表示').get_by_test_id('bookmark-open').first
         expect(opener).to_be_visible()
         original = opener.element_handle()
@@ -382,12 +400,12 @@ def test_r6_recreated_card_is_visible_when_focus_returns(library_browser, tab, c
     page = browser.new_page()
     try:
         page.goto(origin + '/?r5_projection=1', wait_until='domcontentloaded')
-        fixture.ready(page, 'tab-library').click()
         if tab == 'bookmarks':
-            page.get_by_test_id('library-subview-bookmarks').click()
+            open_tab(page, 'bookmarks')
             opener = page.get_by_test_id('bookmark-card').filter(has_text='長文の表示').get_by_test_id('bookmark-open').first
             panel = page.get_by_test_id('bookmark-scroll')
         else:
+            open_tab(page, 'library')
             author = page.locator('.pv-library-author-card').filter(has_text='synthetic author')
             author.get_by_test_id('library-author-open').first.click()
             opener = page.locator('.pv-library-page-card').filter(has_text='short title')
@@ -499,6 +517,7 @@ def test_library_dark_selected_size_and_author_card_keep_original_style(library_
         page.get_by_test_id('theme-toggle').click()
     page.get_by_test_id('tab-library').click()
     if control == 'size':
+        open_tools(page, 'library')
         selected = page.locator('.pv-library .pv-size-selected')
         expect(selected).to_be_visible()
         assert selected.evaluate('el => getComputedStyle(el).backgroundColor') == 'rgba(33, 150, 243, 0.12)'
@@ -525,6 +544,7 @@ def test_library_author_action_name_survives_menu_and_grid_resize(library_page):
     page.keyboard.press('Escape')
     expect(page.get_by_role('menu').filter(visible=True)).to_have_count(0)
     page.set_viewport_size({'width': 1024, 'height': 768})
+    open_tools(page, 'library')
     page.get_by_test_id('library-size-small').click()
     expect(opener).to_have_accessible_name('作者を開く：synthetic author…')
     expect(author.locator('.pv-library-card-title').first).to_have_attribute('title', 'synthetic author')
@@ -534,8 +554,8 @@ def test_bookmark_button_hit_area_uses_common_center_and_omits_disabled_actions(
     from playwright.sync_api import expect
 
     page = library_page
-    page.get_by_test_id('tab-library').click()
-    page.get_by_test_id('library-subview-bookmarks').click()
+    open_tab(page, 'bookmarks')
+    open_tools(page, 'bookmarks')
     toggle = page.get_by_test_id('bookmark-filter-toggle')
     expect(toggle).to_be_visible()
     expect(toggle).to_be_enabled()

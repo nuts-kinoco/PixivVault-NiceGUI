@@ -3,6 +3,8 @@ import asyncio
 from datetime import date as calendar_date, datetime
 import json
 from uuid import uuid4
+from .manual_toolbar import manual_toolbar
+
 from nicegui import ui
 
 from .management_dialog import focus_after_dialog, managed_dialog
@@ -81,7 +83,9 @@ class RankingView(RankingCardMenus):
         self._image_reader = None
         self.client=ui.context.client
         with ui.column().classes('pv-gallery pv-ranking-view w-full').props('data-testid=ranking-view') as self.root:
-            with ui.row().classes('pv-toolbar'):
+            with ui.row().classes('pv-nav-fixed-tools w-full') as fixed:
+                ui.label('ランキング').classes('pv-library-heading pv-serif-heading')
+            with ui.row().classes('pv-toolbar') as conditions:
                 self.mode=ui.toggle(MODES,value='daily').props(
                     'unelevated no-caps rounded data-testid=ranking-mode').classes('pv-period-chips')
                 self.content=ui.select(CONTENTS,value='illust',label='作品種別').props(
@@ -96,10 +100,16 @@ class RankingView(RankingCardMenus):
                 self.fetch_button=refresh_button(self.refresh,label='取得・更新',testid='ranking-fetch')
                 self.sort=ui.select(SORTS,value='rank',label='並び順',on_change=lambda _:self.render()).props('outlined dense data-testid=ranking-sort')
                 self._build_hide_manager()
+            self.fetch_button.move(fixed)
+            _, _, filter_controls = manual_toolbar(self.root, 'ranking', tuple(conditions.default_slot.children), index=1)
+            conditions.delete()
             self.notice=ui.label('条件を選び、取得してください。').props('role=status data-testid=ranking-notice')
             self._build_hide_status()
             self.gallery=_RankingGallery(self.proxy,card_size=card_size,on_size_change=on_size_change)
             self.gallery.owner=self
+            for control in tuple(self.gallery.toolbar.default_slot.children):
+                control.move(filter_controls)
+            self.gallery.toolbar.delete()
             # Initial no-request state is not a successful empty response.
             self.gallery.empty.set_text('ランキングは未取得です。条件を選び「取得・更新」を押してください。')
         for control in (self.mode,self.content,self.date,self.r18,self.ai):

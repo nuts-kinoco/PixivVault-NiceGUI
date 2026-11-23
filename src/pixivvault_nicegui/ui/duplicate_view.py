@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import inspect
 from uuid import uuid4
+from .manual_toolbar import manual_toolbar
+
 from nicegui import ui
 from ..duplicate_inspection import (
     visible_groups, visible_undecidable_groups,
@@ -45,7 +47,7 @@ class DuplicateView:
         self.client=ui.context.client
         with ui.column().classes('pv-metadata-view pv-tone-dedup w-full').props('data-testid=duplicate-view') as self.root:
             ui.label('重複候補の確認').classes('pv-library-heading pv-serif-heading')
-            with ui.row().classes('pv-toolbar pv-tone-toolbar'):
+            with ui.row().classes('pv-nav-fixed-tools pv-tone-toolbar w-full'):
                 self.search=ui.input(placeholder='作者名・IDで絞り込む',on_change=lambda e:self.filter(e.value)).props('outlined dense clearable debounce=200 data-testid=duplicate-search')
                 self.mode_buttons={}
                 for label,key in (('決められないもの','undecidable'),('近似重複の候補','near')):
@@ -54,9 +56,9 @@ class DuplicateView:
                 self.scan_button=refresh_button(self.scan,label='スキャンして更新',testid='duplicate-scan')
                 self.scan_button.set_text('スキャンして更新').props('no-caps')
                 self.trash_button=ui.button('ごみ箱',on_click=self.open_trash).props('flat dense no-caps data-testid=duplicate-trash')
-                ui.space()
                 self.size_buttons=size_buttons(self.change_thumb_size, prefix='duplicate', small_first=True)
                 update_size_buttons(self.size_buttons,self.thumb_size)
+            manual_toolbar(self.root, 'dedup', (self.search, *self.size_buttons.values()))
             with ui.row().classes('w-full items-center gap-2'):
                 self.notice=ui.label('まだスキャンしていません。').classes('pv-subtitle').props('role=status data-testid=duplicate-status')
                 self.scan_progress=ui.label('').classes('pv-subtitle').props('role=status data-testid=duplicate-progress')

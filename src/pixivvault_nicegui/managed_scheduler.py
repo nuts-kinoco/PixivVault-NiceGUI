@@ -1318,6 +1318,11 @@ class ManagedScheduleRunner:
         self._running = False
         self._startup_requested = False
         self._claim_active = False
+        self.display_state = None
+        self.display_phase = 'waiting'
+        self.display_failure = None
+        self._display_outcome_slot = None
+        self._dispatch_cancel = None
 
     def is_dispatching(self) -> bool:
         """True while the owned runner is inside an author dispatch callback."""
@@ -1351,11 +1356,31 @@ class ManagedScheduleRunner:
                 self._claim_active = False
             return slot
 
+    def request_dispatch_stop(self) -> bool:
+        """Cancel only the accepted automatic dispatch, leaving its timer enabled."""
+        with self._state_lock:
+            cancellation = self._dispatch_cancel
+            if cancellation is None or cancellation.is_set():
+                return False
+            cancellation.set()
+            self.display_phase = 'stopping'
+            return True
+
     def _dispatch_slot(self, slot: str, *, claimed: bool = True) -> None:
+        from .managed_network_stop_gate import ManagedNetworkStopped
+
         succeeded = False
+        outcome = 'waiting'
+        with self._state_lock:
+            if self.stop_event.is_set():
+                self._claim_active = False
+                return False
+            cancellation = self._dispatch_cancel = Event()
+            self.display_phase = 'running'
         try:
-            self.dispatch(slot, self.stop_event)
-        except Exception:
+            self.dispatch(slot, cancellation)
+        except Exception as error:
+            outcome = 'blocked' if isinstance(error, ManagedNetworkStopped) else 'failed'
             if claimed:
                 try:
                     self.ledger._complete(slot, succeeded=False)
@@ -1370,6 +1395,16 @@ class ManagedScheduleRunner:
                     pass
         finally:
             with self._state_lock:
+                if cancellation.is_set() and not self.stop_event.is_set():
+                    outcome = 'stopped'
+                self.display_phase = outcome
+                if claimed:
+                    self._display_outcome_slot = slot
+                if outcome == 'failed':
+                    self.display_failure = (slot, 'failed')
+                elif outcome == 'waiting':
+                    self.display_failure = None
+                self._dispatch_cancel = None
                 self._claim_active = False
         return succeeded
 
@@ -1417,6 +1452,10 @@ class ManagedScheduleRunner:
                         # state; never turn an unavailable receipt into success.
                         capacity_available = False
                 state = self.ledger.snapshot()
+                self.display_state = (state, False)
+                if state.last_due_utc != self._display_outcome_slot:
+                    if state.last_status in {'error', 'interrupted', 'unknown'}:
+                        self.display_failure = (state.last_due_utc, state.last_status)
                 now = _utc(self.clock())
                 due = _parse(state.next_due_utc)
                 delay = max(0.0, (due - now).total_seconds()) if due is not None else 60.0
@@ -1466,6 +1505,8 @@ class ManagedScheduleRunner:
     def stop(self, *, timeout: float = 12.0) -> None:
         with self._state_lock:
             self.stop_event.set()
+            if self._dispatch_cancel is not None:
+                self._dispatch_cancel.set()
             self._wake_event.set()
             thread = self._thread
         if thread is not None and thread is not current_thread():

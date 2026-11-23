@@ -22,7 +22,7 @@ def test_resolve_matches_original_contract():
     key, warning = resolve_startup_tab('nope')
     assert key == 'unified'
     assert warning == ("不明なタブ 'nope'。有効: unified・queue・failed・history・discovery・"
-                       "dedup・ranking・library・recommend。既定で開きます")
+                       "dedup・ranking・library・recommend・bookmarks・personal・scheduler・metadata。既定で開きます")
 
 
 def test_original_key_names_map_to_shell_tabs():
@@ -89,3 +89,32 @@ def test_uid_file_is_reflected_once_per_process_not_per_shell():
     for _ in range(3):
         DemoShell._reflect_uid_once(SimpleNamespace(services=services), dialog)
     assert calls == [1]
+
+
+def test_new_startup_keys_are_accepted():
+    for key in ('bookmarks', 'personal', 'scheduler', 'metadata'):
+        assert resolve_startup_tab(key) == (key, None)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('explicit', (None, 'scheduler'))
+async def test_automation_startup_requires_explicit_cli_marker(explicit):
+    services = ApplicationServices(2)
+    services.startup_tab = 'scheduler'
+    services.startup_automation = explicit
+    client = Client(ui.page('/_h02_automation'))
+    try:
+        with client:
+            shell = DemoShell(services)
+            try:
+                assert shell.active_tab == 'download'
+                if explicit:
+                    assert shell.automation.dialog.value
+                    assert shell.automation.selected == explicit
+                else:
+                    assert shell.automation.dialog is None
+            finally:
+                shell.close()
+    finally:
+        client.delete()
+        services.close()

@@ -1,6 +1,7 @@
 """既存のナビゲーションを維持する、ページ単位のデモシェル。"""
 
 import asyncio
+from pathlib import Path, PureWindowsPath
 
 from nicegui import app, ui
 
@@ -16,11 +17,16 @@ from .theme import CSS, TOKENS
 from ..startup_tab import TAB_INITIAL, shell_tab_key
 from ..db_status import db_status
 
+from .automation_dialog import AutomationDialog, PROCESSES
+from .navigation_labels import PERSONAL_RANKING_LABEL
+
+_NAV_SCRIPT = Path(__file__).with_name('navigation.js').read_text(encoding='utf-8')
+
 NAVIGATION = (
     ("download", "ダウンロード"), ("queue", "キュー"), ("failed", "失敗リスト"),
     ("dedup", "重複整理"), ("learning", "学習"), ("ranking", "ランキング"),
-    ("personal", "自分のランキング"), ("library", "ライブラリ"), ("recommend", "おすすめ"),
-    ("scheduler", "定期チェック"), ("metadata", "メタデータ補完"),
+    ("personal", PERSONAL_RANKING_LABEL), ("library", "ライブラリ"),
+    ("bookmarks", "マイブックマーク"), ("recommend", "おすすめ"),
 )
 # 元 gui.py:87-118 のアイコン表（DOWNLOAD/QUEUE/REPORT_PROBLEM/CONTENT_COPY/EXPLORE/LEADERBOARD/
 # PHOTO_LIBRARY/RECOMMEND）。元に無い 3 タブは近い意味の Material アイコン。
@@ -28,9 +34,14 @@ NAVIGATION = (
 TAB_ICONS = {
     "download": "download", "queue": "queue", "failed": "report_problem", "dedup": "content_copy",
     "learning": "explore", "ranking": "leaderboard", "personal": "military_tech",
-    "library": "photo_library", "recommend": "recommend", "scheduler": "schedule", "metadata": "edit_note",
+    "library": "photo_library", "bookmarks": "bookmarks", "recommend": "recommend",
 }
-AVAILABLE_TABS = {"history", "ranking", "learning", "library", "failed", "download", "queue", "scheduler", "metadata", "dedup", "recommend", "personal"}
+NAVIGATION_DESCRIPTIONS = {
+    'queue': '受付済みの取得と進捗を確認',
+    'failed': '失敗した取得と再試行を確認',
+    'learning': '作品を判定して好みを学習',
+}
+AVAILABLE_TABS = {key for key, _ in NAVIGATION} | {"history", "scheduler", "metadata"}
 
 
 def cookie_banner_second_line(status):
@@ -52,9 +63,8 @@ class DemoShell:
         self.backup_view = None
         self.learning = None
         self.library = None
+        self.bookmarks_host = None
         self.failed_records = None
-        self.scheduler_view = None
-        self.metadata_view = None
         self.duplicate_view = None
         self.recommend_view = None
         self.personal_view = None
@@ -94,13 +104,10 @@ class DemoShell:
         ui.colors(primary=TOKENS["accent"])
         self.dark_mode = ui.dark_mode(True)
         install_focus_recovery(self.client)
+        ui.add_head_html(f"<script>{_NAV_SCRIPT}</script>")
         with ui.column().classes("pv-shell") as self.root:
             # 元 gui.py:6126 db_status_banner: ヘッダーより上、最上段に常時表示。
-            is_production, db_text = db_status(services)
-            self.db_banner = ui.label(db_text).props('role=status data-testid=db-status-banner')
-            self.db_banner.style(
-                'background-color:#d32f2f;color:#fff;font-weight:bold;padding:8px;width:100%' if is_production
-                else 'font-size:11px;color:#9e9e9e;padding:2px 0 0 8px')
+            self._build_db_banner()
             with ui.element("div").classes("pv-shell-chrome"):
                 with ui.element("div").classes("pv-header"):
                     with ui.column().classes("pv-header-main"):
@@ -146,7 +153,8 @@ class DemoShell:
                                 self.get_recovery_view = SharedGetRecoveryView(shared)
                         policy=getattr(self.services,'_request_retry',None)
                         if policy is not None:
-                            self.request_status_view=RequestStatusView(policy)
+                            self.request_status_view = RequestStatusView(policy)
+                            self.request_status_view.root.classes('pv-header-request-status')
                     # 元 gui.py:6125-6136 の右カラム: IconButton 6 個（バックアップ・閲覧履歴・保存フォルダー・テーマ・Pixiv・設定）。
                     with ui.element("div").classes("pv-header-actions"):
                         history = ui.button(icon='history', color=None, on_click=lambda _: self.show('history')).classes(
@@ -187,26 +195,41 @@ class DemoShell:
                             ui.tooltip('設定')
                         settings.set_enabled(getattr(services, 'preferences', None) is not None
                                              or getattr(services, 'native_profile', None) is not None)
+                        automation = ui.button(icon='autorenew', color=None,
+                                               on_click=lambda: self.automation.open()).classes(
+                            'pv-hbtn pv-hit28').props(
+                            'flat round data-testid=automation-open aria-haspopup=dialog aria-label=自動処理')
+                        self.automation = AutomationDialog(self, automation, settings)
+                self.automation.build_status()
                 if self.auth_label is not None:
                     self._build_cookie_banner()
-                with ui.element("nav").classes("pv-nav").props("aria-label=メインナビゲーション"):
-                    for key, label in NAVIGATION:
-                        if key=='personal' and getattr(services,'external_vault',None) is None and services.live_client is None:continue
-                        available = self._tab_available(key)
-                        button = ui.button(label, icon=TAB_ICONS[key], color=None, on_click=lambda _, tab=key: self.show(tab))
-                        button.classes("pv-tab").props(f"flat no-caps data-testid=tab-{key}")
-                        button.set_enabled(available)
-                        if not available:
-                            button.tooltip("この起動設定では利用できません")
-                        self.buttons[key] = button
+                with ui.element('div').classes('pv-nav-region').props('data-pv-navigation'):
+                    with ui.element('button').classes('pv-nav-toggle pv-hit28 pv-focus-ring').props(
+                            'type=button aria-expanded=false data-testid=nav-toggle') as self.nav_toggle:
+                        self.nav_current = ui.label('')
+                        ui.label('全画面の一覧を開く').props('data-nav-action')
+                        ui.icon('expand_more')
+                    with ui.element("nav").classes("pv-nav").props("aria-label=メインナビゲーション") as nav:
+                        self.nav_toggle.props['aria-controls'] = nav.html_id
+                        for key, label in NAVIGATION:
+                            available = self._tab_available(key)
+                            button = ui.button(label, icon=TAB_ICONS[key], color=None,
+                                               on_click=lambda _, tab=key: self._select_navigation(tab))
+                            button.classes("pv-tab pv-hit28").props(f"flat no-caps data-testid=tab-{key}")
+                            button.set_enabled(available)
+                            if not available:
+                                button.tooltip("この起動設定では利用できません")
+                            elif key in NAVIGATION_DESCRIPTIONS:
+                                description = NAVIGATION_DESCRIPTIONS[key]
+                                button.props['aria-description'] = description
+                                button.tooltip(description)
+                            self.buttons[key] = button
             with ui.column().classes("pv-content w-full") as self.content:
                 if services.ranking_source is not None:
                     from .ranking_view import RankingView
                     self.gallery = RankingView(services, card_size=self.card_size, on_size_change=self.change_card_size)
                 else:
                     self.gallery = GalleryView(services, card_size=self.card_size, on_size_change=self.change_card_size)
-            from .shared_log_view import SharedLogView
-            self.shared_log_view = SharedLogView(services.shared_log, following=getattr(services, 'following_sync', None))
             # 閲覧履歴（元 gui.py の閲覧履歴ボタン）は学習タブを開かずに、起動時から件数を出してダイアログを開く。
             self._build_view_history()
         self._attach_auth_status()
@@ -215,7 +238,7 @@ class DemoShell:
         # 起動直後のタブは元 TAB_INITIAL（ダウンロード）。--tab で変えられる。
         # ランキングは開いたときに初回取得する（元 on_tab_open）ので、先に有効化しない。
         initial = getattr(services, 'startup_tab', None) or shell_tab_key(TAB_INITIAL)
-        if not self._tab_available(initial):
+        if initial in PROCESSES or not self._tab_available(initial):
             initial = shell_tab_key(TAB_INITIAL)
         if initial != 'ranking':
             self._update_tabs()
@@ -223,6 +246,42 @@ class DemoShell:
         else:
             self.gallery.set_viewer_active(True)
             self._update_tabs()
+        explicit = getattr(services, 'startup_automation', None)
+        if explicit in PROCESSES:
+            self.automation.open(explicit)
+        if getattr(services, 'preferences', None) is not None:
+            ui.timer(0, self.automation.show_hint, once=True)
+
+    def _build_db_banner(self):
+        production, text = db_status(self.services)
+        if not production:
+            self.db_banner = ui.label(text).classes('pv-db-banner pv-db-passive').props(
+                'role=status data-testid=db-status-banner')
+            return
+        with ui.element('div').classes('pv-db-banner pv-db-production').props(
+                'data-testid=db-status-banner') as self.db_banner:
+            ui.label(text).classes('pv-db-full').props('role=status')
+            path = PureWindowsPath(text.split(': ', 1)[1])
+            compact = str(path) if len(str(path)) <= 48 else f'{path.anchor}…\\{path.name}'
+            with ui.element('div').classes('pv-db-compact'):
+                ui.label(f'本番DBを使用中：{compact}').props('role=status')
+                entry = ui.button('詳細', color=None).classes('pv-hit28 pv-focus-ring').props(
+                    'flat dense no-caps aria-haspopup=dialog data-testid=db-warning-details')
+                with managed_dialog(return_focus=entry).props('data-testid=db-warning-dialog') as dialog, ui.card():
+                    title = ui.label('本番DBの使用と保存先').classes('pv-dialog-title').props(
+                        'role=heading aria-level=2 data-autofocus tabindex=-1')
+                    dialog.props['aria-labelledby'] = title.html_id
+                    ui.label(text).classes('break-all')
+                    ui.button('閉じる', on_click=dialog.close).classes('pv-hit28').props(
+                        'flat data-testid=db-warning-close')
+                entry.on_click(dialog.open)
+
+    def _select_navigation(self, tab):
+        self.show(tab)
+        if self.client.has_socket_connection:
+            self.client.run_javascript(f"""requestAnimationFrame(() => requestAnimationFrame(() =>
+                window.pvNavigation?.focusPage(document.getElementById('{self.content.html_id}'),
+                    document.getElementById('{self.buttons[tab].html_id}'))))""")
 
     async def _sync_visual_preference(self):
         if not self.closed:
@@ -366,8 +425,31 @@ class DemoShell:
                 pixiv_actions_mode=getattr(self.services, 'pixiv_actions_mode', 'readonly'),
                 similarity_status=(self.services.similarity_analysis_status if self.services.similarity_analysis_enabled else None),
                 resume_similarity=(self.services.rescan_similarity_analysis if self.services.similarity_analysis_enabled else None),
-                visual_service=(self.services if getattr(self.services, 'visual_preference_available', False) else None))
+                visual_service=(self.services if getattr(self.services, 'visual_preference_available', False) else None),
+                build_automation=self._build_automation_settings)
         self.preferences_view.open()
+
+    def _build_automation_settings(self):
+        self.automation.refresh_summary()
+        for key, label in PROCESSES.items():
+            with ui.row().classes('w-full items-center gap-1'):
+                self.automation.preference_labels[key] = ui.label(self.automation.current[key].line(key))
+                button = ui.button(f'{label}の詳細を開く…', color=None,
+                                   on_click=lambda _, key=key: self._open_automation_from_settings(key))
+                button.classes('pv-hit28').props(f'flat no-caps data-testid=preferences-automation-{key}')
+                button.set_enabled(self._tab_available(key))
+
+    @property
+    def scheduler_view(self):
+        return self.automation.views.get('scheduler')
+
+    @property
+    def metadata_view(self):
+        return self.automation.views.get('metadata')
+
+    def _open_automation_from_settings(self, key):
+        self.preferences_view.close_dialog()
+        self.automation.open(key, from_settings=True)
 
     def _build_view_history(self):
         storage = getattr(self.services, 'discovery', None) or getattr(self.services, 'learning', None)
@@ -467,12 +549,15 @@ class DemoShell:
         return (tab in AVAILABLE_TABS and
                 (tab != 'history' or getattr(services, 'save_exports', None) is not None
                  or getattr(services, 'legacy_backup_history_available', False)) and
+                (tab != 'bookmarks' or services.managed_downloads is not None
+                 or (services.novel_jobs is None and services.ugoira is None)) and
                 (tab != 'metadata' or services.managed_downloads is not None) and
                 (tab != 'dedup' or services.duplicate_inspection is not None) and
                 (tab != 'recommend' or services.recommendations is not None) and
                 (tab != 'personal' or getattr(services, 'external_vault', None) is not None))
 
     def _update_tabs(self) -> None:
+        self.nav_current.set_text(dict(NAVIGATION).get(self.active_tab, "直近のバックアップ"))
         for key, button in self.buttons.items():
             if key == self.active_tab:
                 button.classes(add="pv-tab-active")
@@ -482,19 +567,18 @@ class DemoShell:
                 button.props.pop("aria-current", None)
 
     def show(self, tab: str) -> None:
-        if (self.closed or tab not in AVAILABLE_TABS or tab == self.active_tab
-                or (tab == 'history' and getattr(self.services,'save_exports',None) is None
-                    and not getattr(self.services,'legacy_backup_history_available',False))
-                or (tab == 'metadata' and self.services.managed_downloads is None)
-                or (tab == 'dedup' and self.services.duplicate_inspection is None)
-                or (tab == 'recommend' and self.services.recommendations is None)
-                or (tab in ('personal',) and getattr(self.services, 'external_vault', None) is None)):
+        if self.closed or tab == self.active_tab or not self._tab_available(tab):
+            return
+        if tab in PROCESSES:
+            self.automation.open(tab)
             return
         if self.view_history is not None:
             self.view_history.viewer.close_viewer(restore_focus=False)  # 履歴から開いた作品は別タブへ持ち越さない
         self.gallery.set_viewer_active(False)
         if self.library is not None:
             self.library.set_active(False)
+        if self.bookmarks_host is not None:
+            self.bookmarks_host.set_active(False)
         if self.failed_records is not None:
             self.failed_records.set_active(False)
         for view in self.job_views.values():
@@ -516,7 +600,7 @@ class DemoShell:
                 if self.multiple_media:
                     from .media_views import MediaLibraryView
                     self.library = MediaLibraryView(self.services, card_size=self.card_size,
-                                                   on_size_change=self.change_card_size,on_premium_search=self.open_premium_search)
+                                                   on_size_change=self.change_card_size,on_premium_search=self.open_premium_search, navigation_view="downloaded")
                 elif self.services.ugoira is not None:
                     from .ugoira_view import UgoiraLibraryView
                     self.library = UgoiraLibraryView(self.services)
@@ -525,7 +609,13 @@ class DemoShell:
                     self.library = NovelLibraryView(self.services)
                 else:
                     self.library = LibraryView(self.services, card_size=self.card_size,
-                                           on_size_change=self.change_card_size,on_premium_search=self.open_premium_search)
+                                           on_size_change=self.change_card_size,on_premium_search=self.open_premium_search, navigation_view="downloaded")
+        if tab == 'bookmarks' and self.bookmarks_host is None:
+            from .library_view import LibraryView
+            with self.content:
+                self.bookmarks_host = LibraryView(
+                    self.services, card_size=self.card_size, on_size_change=self.change_card_size,
+                    navigation_view='bookmarks')
         if tab == 'recommend' and self.recommend_view is None:
             from .recommend_view import RecommendView
             with self.content:
@@ -545,14 +635,6 @@ class DemoShell:
                     event_services=self.services,
                     open_trash=(getattr(self.services,'open_duplicate_quarantine',None)
                         if getattr(self.services,'desktop',None) is not None else None))
-        if tab == 'scheduler' and self.scheduler_view is None:
-            from .scheduler_view import SchedulerView
-            with self.content:
-                self.scheduler_view = SchedulerView(self.services)
-        if tab == 'metadata' and self.metadata_view is None:
-            from .metadata_view import MetadataView
-            with self.content:
-                self.metadata_view = MetadataView(self.services)
         use_legacy_failed = (self.services.jobs is None or
                              getattr(self.services, 'legacy_failed_retry_available', False))
         if tab == "failed" and use_legacy_failed and self.failed_records is None:
@@ -593,22 +675,20 @@ class DemoShell:
             self.backup_view.root.set_visibility(tab=='history')
             self.backup_view.set_active(tab=='history')
         self.active_tab = tab
-        self.shared_log_view.show_tab(tab)
         self.gallery.root.set_visibility(tab == "ranking")
         self.gallery.set_viewer_active(tab == "ranking")
         if self.library is not None:
             self.library.root.set_visibility(tab == "library")
             self.library.set_active(tab == "library")
+        if self.bookmarks_host is not None:
+            self.bookmarks_host.root.set_visibility(tab == "bookmarks")
+            self.bookmarks_host.set_active(tab == "bookmarks")
         if self.learning is not None:
             self.learning.root.set_visibility(tab == "learning")
             self.learning.set_active(tab == "learning")
         if self.failed_records is not None:
             self.failed_records.root.set_visibility(tab == "failed")
             self.failed_records.set_active(tab == "failed")
-        if self.scheduler_view is not None:
-            self.scheduler_view.root.set_visibility(tab == 'scheduler')
-        if self.metadata_view is not None:
-            self.metadata_view.root.set_visibility(tab == 'metadata')
         if self.duplicate_view is not None:
             self.duplicate_view.root.set_visibility(tab == 'dedup')
             self.duplicate_view.set_active(tab == 'dedup')
@@ -619,10 +699,10 @@ class DemoShell:
             view.root.set_visibility(tab == key)
             view.set_active(tab == key)
         self._update_tabs()
-        if tab in {"ranking", "library"} and self.client.has_socket_connection:
+        if tab == "ranking" and self.client.has_socket_connection:
             self.client.run_javascript(f"""requestAnimationFrame(() => {{
                 const node = document.getElementById('{self.buttons[tab].html_id}');
-                if (node?.isConnected && node.getAttribute('aria-current') === 'page' &&
+                if (!matchMedia('(max-width:640px)').matches && node?.isConnected && node.getAttribute('aria-current') === 'page' &&
                     node.getClientRects().length)
                     node.focus({{preventScroll:true}});
             }})""")
@@ -661,6 +741,8 @@ class DemoShell:
         self.gallery.apply_card_size(size)
         if self.library is not None:
             self.library.apply_card_size(size)
+        if self.bookmarks_host is not None:
+            self.bookmarks_host.apply_card_size(size)
         if self.recommend_view is not None:
             self.recommend_view.apply_card_size(size)
         if getattr(self, 'personal_view', None) is not None:
@@ -690,7 +772,6 @@ class DemoShell:
         if self.closed:
             return
         self.closed = True
-        self.shared_log_view.close()
         if self._visual_timer is not None:
             self._visual_timer.cancel()
         if self._borrow_timer is not None:self._borrow_timer.deactivate()
@@ -704,14 +785,13 @@ class DemoShell:
         if self.backup_view is not None:self.backup_view.close()
         if self.library is not None:
             self.library.close()
+        if self.bookmarks_host is not None:
+            self.bookmarks_host.close()
         if self.learning is not None:
             self.learning.close()
         if self.failed_records is not None:
             self.failed_records.close()
-        if self.scheduler_view is not None:
-            self.scheduler_view.close()
-        if self.metadata_view is not None:
-            self.metadata_view.close()
+        self.automation.close()
         if self.duplicate_view is not None:
             self.duplicate_view.close()
         if self.recommend_view is not None:

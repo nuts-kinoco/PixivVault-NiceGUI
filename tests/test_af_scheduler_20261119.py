@@ -153,3 +153,32 @@ async def test_unsynced_following_never_uses_another_accounts_scheduler_stars():
         _managed_target_lock=Lock(), _follow_account_by_owner={})
     authors = await ApplicationServices.followed_download_authors(service, owner='test')
     assert len(authors) == 1 and authors[0].is_favorite is None
+
+
+def test_requested_stop_targets_only_the_current_automatic_dispatch(tmp_path):
+    from threading import Event, Thread
+    from pixivvault_nicegui.managed_scheduler import ManagedScheduler, ManagedScheduleRunner
+
+    ledger = ManagedScheduler(tmp_path)
+    started = Event()
+    received = Event()
+
+    def dispatch(_slot, cancel):
+        started.set()
+        if cancel.wait(2):
+            received.set()
+
+    runner = ManagedScheduleRunner(ledger, dispatch)
+    worker = Thread(target=runner._dispatch_slot, args=('synthetic',), kwargs={'claimed': False})
+    worker.start()
+    try:
+        assert started.wait(2)
+        assert runner.request_dispatch_stop()
+        assert received.wait(2)
+        assert not runner.stop_event.is_set()
+    finally:
+        worker.join(3)
+        ledger.close()
+    assert not worker.is_alive()
+    assert runner.display_phase == 'stopped'
+    assert not runner.request_dispatch_stop()

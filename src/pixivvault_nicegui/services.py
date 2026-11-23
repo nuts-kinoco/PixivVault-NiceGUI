@@ -471,6 +471,10 @@ class ApplicationServices:
         self.legacy_author_bridge = None
         self.managed_scheduler = None
         self.managed_schedule_runner = None
+        self._automation_scheduler_completion = None
+        self._automation_scheduler_owner = None
+        self._automation_metadata_result = None
+        self._automation_serial = 0
         # The author batch run ("実行 1 回") engine and its ledger: provisioned by enable_batch_runs.
         self.batch_runs = None
         self.batch_run_ledger = None
@@ -4276,6 +4280,22 @@ class ApplicationServices:
             return self.managed_metadata.configure(
                 enabled=enabled, expected_revision=expected_revision)
 
+    def _record_metadata_automation(self, summary, owner):
+        from datetime import datetime
+        reader = self.live_client
+        if self.closing or owner != (reader, getattr(reader, '_verified_identity', None)):
+            return
+        reason = summary.stopped
+        current = self._automation_metadata_result
+        failure = current[2] if current and current[0] == owner else None
+        if summary.work_error or reason in {
+                'global_failure', 'authentication_unverified', 'authentication_or_state_unavailable',
+                'five_consecutive_unknown_failures', 'managed_state_changed'}:
+            failure = object()
+        elif reason is None and summary.target and not summary.work_error:
+            failure = None
+        self._automation_metadata_result = (owner, reason, failure, datetime.now().isoformat(timespec='minutes', sep=' '))
+
     def stop_managed_metadata(self) -> bool:
         """Cancel the currently requested run; a bounded in-flight GET drains."""
         if self.closing or not self._metadata_run_lock.locked():
@@ -4303,6 +4323,8 @@ class ApplicationServices:
             raise ValueError('invalid metadata settings revision')
         if not self._metadata_run_lock.acquire(blocking=False):
             return MetadataRunSummary(stopped='already_running')
+        reader = self.live_client
+        owner = (reader, getattr(reader, '_verified_identity', None))
         try:
             if self.closing or self.managed_metadata is None or self.managed_downloads is None:
                 raise RuntimeError('managed metadata mode is unavailable')
@@ -4343,9 +4365,11 @@ class ApplicationServices:
                 )
                 # Phase10 blocks on the first global failure, including identity GET.
                 with request_scope(allow_retry=False):
-                    return runner.run_once((candidate,),
-                                           stop_event=self._metadata_cancel_event,
-                                           wait_for_idle=False)
+                    summary = runner.run_once((candidate,),
+                                              stop_event=self._metadata_cancel_event,
+                                              wait_for_idle=False)
+                self._record_metadata_automation(summary, owner)
+                return summary
         finally:
             # Never erase a Stop received after run admission but before its
             # first auth GET. Reset only once this particular run has drained.
@@ -4415,6 +4439,8 @@ class ApplicationServices:
             raise ValueError('invalid metadata pass limit')
         if not self._metadata_run_lock.acquire(blocking=False):
             return MetadataRunSummary(stopped='already_running')
+        reader = self.live_client
+        owner = (reader, getattr(reader, '_verified_identity', None))
         try:
             if self.closing or self.managed_downloads is None or self.jobs is None:
                 return MetadataRunSummary(stopped='unavailable')
@@ -4435,7 +4461,9 @@ class ApplicationServices:
             ledger.resume_all_blocked()
             candidates = self._metadata_candidates(ledger, limit)
             if not candidates:
-                return MetadataRunSummary()  # 対象が無ければ認証確認も送らない
+                summary = MetadataRunSummary()  # 対象が無ければ認証確認も送らない
+                self._record_metadata_automation(summary, owner)
+                return summary
             inner = transport if transport is not None else LivePixivMetadataTransport(self.live_client)
 
             def active(work_id):
@@ -4452,7 +4480,11 @@ class ApplicationServices:
                                           wait_for_idle=False)
             if summary.stopped == 'download_busy' and self._metadata_network_blocked():
                 summary = replace(summary, stopped='network_stopped')
+            self._record_metadata_automation(summary, owner)
             return summary
+        except Exception:
+            self._record_metadata_automation(MetadataRunSummary(stopped="global_failure"), owner)
+            raise
         finally:
             self._metadata_total_cache = None
             if not self.closing:
@@ -4633,6 +4665,12 @@ class ApplicationServices:
             if pending:
                 delivery = {} if owner is None else {'authorize': owner.verify_current}
                 notifier.notify('PixivVault', f'作者更新チェック: {len(pending)}件の保存が完了しました。', **delivery)
+        if isinstance(self, ApplicationServices):
+            prior = self._automation_scheduler_completion
+            self._automation_scheduler_owner = owner
+            if confirmed_count or prior is None or prior[1] is not ledger or prior[2] != owner:
+                self._automation_serial += 1
+                self._automation_scheduler_completion = (self._automation_serial, ledger, owner)
         unfinished_count = sum(1 for job in jobs if job.state in UNFINISHED)
         previous_count = self._scheduler_unfinished_count
         self._scheduler_unfinished_count = unfinished_count

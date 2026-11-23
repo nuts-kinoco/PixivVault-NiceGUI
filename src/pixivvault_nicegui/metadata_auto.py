@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from threading import Event, Lock, Thread
 from typing import Callable
 
@@ -99,6 +100,7 @@ class MetadataAutoRunner:
         self._stop = Event()
         self._wake = Event()
         self._backoff = 0.0
+        self.next_run_display = None
 
     @property
     def running(self) -> bool:
@@ -128,8 +130,10 @@ class MetadataAutoRunner:
                 raise TimeoutError('metadata auto runner shutdown not confirmed')
 
     def _sleep(self, seconds: float) -> None:
+        self.next_run_display = (datetime.now() + timedelta(seconds=seconds)).isoformat(timespec="minutes", sep=" ")
         self._wake.wait(seconds)
         self._wake.clear()
+        self.next_run_display = None
 
     def _loop(self) -> None:
         self._sleep(self._initial)

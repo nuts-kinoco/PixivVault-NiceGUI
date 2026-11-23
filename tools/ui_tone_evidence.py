@@ -125,14 +125,17 @@ def navigate_extra(page, key, kind):
         return True
     actions = {
         'view-history': ('view-history-open', 'view-history-dialog'),
-        'shared-log': ('tab-scheduler', 'shared-log'),
-        'shared-log-collapsed': ('tab-scheduler', 'shared-log-toggle'),
-        'metadata-ledger': ('tab-metadata', 'metadata-view'),
+        'shared-log': ('automation-scheduler', 'shared-log'),
+        'shared-log-collapsed': ('automation-scheduler', 'shared-log-toggle'),
+        'metadata-ledger': ('automation-metadata', 'metadata-view'),
         'personal-results': ('tab-personal', 'personal-ranking-view'),
     }
     if key not in actions:
         return False
     opener, expected = actions[key]
+    if opener.startswith('automation-'):
+        if not page.get_by_test_id('automation-dialog').is_visible():
+            page.get_by_test_id('automation-open').click(timeout=5000)
     page.get_by_test_id(opener).click(timeout=5000)
     page.get_by_test_id(expected).wait_for(state='visible', timeout=5000)
     if key == 'metadata-ledger':
@@ -192,11 +195,11 @@ def close_extra(page, key, kind):
         if key == 'view-history':
             page.mouse.click(5, 5)
         return
-    close_ids = {'view-history': 'view-history-close', 'shared-log-collapsed': 'shared-log-toggle'}
+    close_ids = {'view-history': 'view-history-close', 'shared-log-collapsed': 'automation-close',
+                 'shared-log': 'automation-close', 'metadata-ledger': 'automation-close'}
     if key in close_ids:
         close = page.get_by_test_id(close_ids[key])
-        if close.is_visible() and (key != 'shared-log-collapsed' or
-                                   close.get_attribute('aria-expanded') == 'false'):
+        if close.is_visible():
             close.click(timeout=5000)
 
 

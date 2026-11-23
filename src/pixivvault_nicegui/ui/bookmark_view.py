@@ -8,6 +8,8 @@ import inspect
 import json
 from uuid import uuid4
 
+from .manual_toolbar import manual_toolbar
+
 from nicegui import ui
 
 from ..bookmark_state import BookmarkState, BookmarkCard
@@ -45,7 +47,7 @@ class BookmarkView:
                  image_url: Callable[[str], str] | None = None,
                  can_open: Callable[[str], bool] | None = None,
                  cache_persistence_unconfirmed: Callable[[], bool] | None = None,
-                 with_filter_toggle: bool = False) -> None:
+                 with_filter_toggle: bool = False, standalone: bool = False) -> None:
         self.state = state
         self.on_refresh = on_refresh
         self.on_open = on_open
@@ -56,6 +58,7 @@ class BookmarkView:
         self.can_open = can_open
         self.cache_persistence_unconfirmed = cache_persistence_unconfirmed
         self.with_filter_toggle = with_filter_toggle
+        self.standalone = standalone
         self.filter_toggle = None
         self.root = None
         self.grid = None
@@ -78,7 +81,10 @@ class BookmarkView:
                     if self.with_filter_toggle:
                         self.filter_toggle = ui.button("絞り込み ›").classes('pv-hit28').props(
                             "flat dense no-caps data-testid=bookmark-filter-toggle")
-                    ui.label("マイブックマーク").classes("pv-library-heading")
+                    self.heading = ui.label("マイブックマーク").classes("pv-library-heading").props(
+                        'role=heading aria-level=2 tabindex=-1 data-pv-focus-heading data-testid=bookmark-heading')
+                    if self.standalone:
+                        ui.label('Pixivでブックマークした作品').classes('pv-subtitle')
                     ui.space()
                     self.counter = ui.label().classes("pv-counter").props("data-testid=bookmark-count")
                     self.selected_count = ui.label().classes("pv-counter").props(
@@ -94,6 +100,8 @@ class BookmarkView:
                 self.search_input = ui.input("ブックマーク内を検索", value=self.state.query,
                     on_change=lambda event: self.search(event.value or "")).props(
                     "outlined dense clearable debounce=200 data-testid=bookmark-search")
+                if self.standalone:
+                    self.toolbar, _, _ = manual_toolbar(self.root, 'bookmarks', (self.search_input, self.filter_toggle))
                 self.message = ui.label().classes("pv-empty").props("data-testid=bookmark-status role=status")
                 self.download_status = ui.label("").classes("pv-subtitle").props(
                     "role=status data-testid=bookmark-download-status")
@@ -143,7 +151,8 @@ class BookmarkView:
         return dict(work_id=art.work_id, title=art.title, author=art.author, author_id=art.author_id,
                     src=self.image_url(art.work_id) if self.image_url is not None else None,
                     disabled=self.can_open is not None and not self.can_open(art.work_id),
-                    downloaded=item.downloaded, checked=art.work_id in self.state.selected_ids,
+                    downloaded=item.downloaded, storage_label='保存済み' if item.downloaded else '未保存',
+                    checked=art.work_id in self.state.selected_ids,
                     count=f'★ {art.bookmark_count:,}' if art.bookmark_count is not None else None,
                     menu_id='bookmark-similar-context', menu=menu)
 

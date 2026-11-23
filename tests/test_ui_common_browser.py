@@ -69,7 +69,7 @@ def calendar_order(screen, today):
 PRODUCT_TAB_ORDER = {
     'view-history': (control('view-history-close'), control('view-history-row') + ' .pv-tone-b-history-title',
                      control('view-history-row') + ' .pv-tone-b-history-external',
-                     control('view-history-danger') + ' [role=button]', control('view-history-export')),
+                     control('toolbar-toggle-view-history'), control('view-history-export')),
     'dedup-trash': (control('duplicate-trash-close'), control('duplicate-trash-details') + ' [role=button]'),
     'queue-delete-confirm': ('button:has-text("キャンセル")', control('queue-bulk-delete-confirm')),
     'failed-delete-confirm': (control('failed-remove-cancel'), control('failed-remove-confirm')),
@@ -984,7 +984,10 @@ def test_shell_zoom_matrix(zoom_page, tmp_path):
             navigate_extra(page, 'shared-log', 'port')
             shared = shell_layout(page)
             screenshot(page, tmp_path, 'shared-log-' + name)
-            p5.navigate_port(page, 'bookmarks', specs, tone_mode=True)
+            p5.navigate_port(page, 'bookmarks', specs, tone_mode=True, show_tools=False)
+            toggle = page.get_by_test_id('toolbar-toggle-bookmarks')
+            if toggle.get_attribute('aria-expanded') == 'true':
+                toggle.click()
             gallery = page.get_by_test_id('bookmark-scroll')
             gallery.wait_for(state='attached')
             bookmarks = shell_layout(page)
@@ -1011,7 +1014,7 @@ def shell_layout(page):
         const content = shell.querySelector('.pv-content');
         const chrome = shell.querySelector('.pv-shell-chrome');
         const banner = shell.querySelector('[data-testid=db-status-banner]');
-        const log = shell.querySelector('[data-testid=shared-log]');
+        const log = document.querySelector('[data-testid=shared-log]');
         const gallery = shell.querySelector('[data-testid=bookmark-scroll]');
         return {height:shell.clientHeight, scrollHeight:shell.scrollHeight,
                 width:shell.clientWidth, scrollWidth:shell.scrollWidth,

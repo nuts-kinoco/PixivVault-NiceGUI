@@ -128,6 +128,7 @@ class RequestStatusView:
             self.confirm_status.set_visibility(False)
             self.unrecheckable_status = status_label(testid=f'{gate_prefix}-confirm-unavailable')
             self.unrecheckable_status.set_text('停止は維持中です。確認に使える取得経路がないため、ここから再確認できません。')
+            self.unrecheckable_status.props['title'] = self.unrecheckable_status.text
             self.dismiss_button = secondary_button('閉じる', testid=f'{prefix}-dismiss')
             self.dismiss_button.props['aria-label'] = '取得の通知を閉じる'
             self.dismiss_button.on(
@@ -226,6 +227,7 @@ class RequestStatusView:
         for label, lines in ((main, alerts or routine), (progress, routine if alerts else [])):
             message = retry_status_text(lines, acknowledged=self._acknowledged, limit=None)
             label.set_text(message)
+            label.props['title'] = message
             label.set_visibility(bool(message))
         # A lane with a countdown is silent. Announce every routine state
         # in that lane from the separate status, without its ticking seconds.

@@ -6,7 +6,7 @@ from .ugoira_view import UgoiraDownloadView, UgoiraLibraryView
 
 class MediaView:
     def __init__(self, services, *, library=False, navigate=None,
-                 card_size='large', on_size_change=None,on_premium_search=None):
+                 card_size='large', on_size_change=None,on_premium_search=None,navigation_view=None):
         self.active = False
         self.closed = False
         self.views = {}
@@ -30,7 +30,7 @@ class MediaView:
                 if library:
                     from .library_view import LibraryView
                     self.views['illustration'] = LibraryView(
-                        services, card_size=card_size, on_size_change=on_size_change,on_premium_search=on_premium_search)
+                        services, card_size=card_size, on_size_change=on_size_change,on_premium_search=on_premium_search, navigation_view=navigation_view)
                 else:
                     from .managed_download_view import ManagedDownloadView
                     self.views['illustration'] = ManagedDownloadView(services)

@@ -45,9 +45,11 @@ class MetadataView:
         'unavailable': 'いまは開始できません。',
     }
 
-    def __init__(self, services):
+    def __init__(self, services, *, hosted=False):
         self.services = services
         self.closed = False
+        self._detail_active = not hosted
+        self._detail_epoch = 0
         self._busy = False
         self._status_busy = False
         self.revision = None
@@ -102,11 +104,27 @@ class MetadataView:
                                                                testid='metadata-run-one')
             self.stop_button.set_enabled(False)
         self._set_controls(False)
-        self._timer = ui.timer(5.0, self._tick)
+        self._timer = ui.timer(5.0, self._tick, active=not hosted, immediate=not hosted)
+
+    def set_detail_active(self, active):
+        if self.closed or active == self._detail_active:
+            return
+        self._detail_active = active
+        self._detail_epoch += 1
+        if active:
+            self._timer.activate()
+            if ui.context.client.has_socket_connection:
+                ui.timer(0, self._tick, once=True)
+        else:
+            self._timer.deactivate()
 
     async def _tick(self):
+        if not self._detail_active or self.closed:
+            return
+        epoch = self._detail_epoch
         await self.refresh_status()
-        await self.refresh()
+        if epoch == self._detail_epoch:
+            await self.refresh()
 
     def _set_controls(self, enabled: bool):
         for widget in (self.refresh_button, self.work_id, self.inspect_button,
@@ -116,17 +134,18 @@ class MetadataView:
 
     async def refresh_status(self, extra: str = ''):
         """「N / M 件（残り…）」。局所の台帳と保存済み一覧だけを読む（通信しない）。"""
-        if self.closed or self._status_busy:
+        if self.closed or not self._detail_active or self._status_busy:
             return
+        epoch = self._detail_epoch
         self._status_busy = True
         try:
             status = await asyncio.to_thread(self.services.managed_metadata_status)
-            if self.closed:
+            if self.closed or epoch != self._detail_epoch:
                 return
             _feedback(self.meta_status, status.text + (f'  {extra}' if extra else ''))
             self.retry_button.set_visibility(bool(status.gave_up) and not self._busy)
         except Exception:
-            if not self.closed:
+            if not self.closed and epoch == self._detail_epoch:
                 _feedback(self.meta_status, 'メタデータ: 状態を読めませんでした', error=True)
         finally:
             self._status_busy = False
@@ -240,18 +259,19 @@ class MetadataView:
             self._busy = False
 
     async def refresh(self):
-        if self.closed or self._busy or self.revision is None:
+        if self.closed or not self._detail_active or self._busy or self.revision is None:
             return
         self._busy = True
+        epoch = self._detail_epoch
         try:
             settings = await asyncio.to_thread(self.services.managed_metadata_settings)
             if not self.closed and settings is not None:
                 self._load(settings)
                 counts = await asyncio.to_thread(self.services.managed_metadata_progress)
-                if not self.closed:
+                if not self.closed and epoch == self._detail_epoch:
                     self._load_progress(counts)
         except Exception:
-            if not self.closed:
+            if not self.closed and epoch == self._detail_epoch:
                 _feedback(self.status, '後埋め設定の状態を取得できませんでした', error=True)
         finally:
             self._busy = False

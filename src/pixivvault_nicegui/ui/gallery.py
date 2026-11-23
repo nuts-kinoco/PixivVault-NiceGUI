@@ -42,7 +42,7 @@ class GalleryView(ViewerController):
         self.client.on_delete(self.close)
 
         with ui.column().classes("pv-gallery w-full gap-3") as self.root:
-            with ui.element("div").classes("pv-toolbar"):
+            with ui.element("div").classes("pv-toolbar") as self.toolbar:
                 self.search_input = ui.input(
                     placeholder="作品名・作者・タグで検索",
                     on_change=lambda event: self.search(event.value),

@@ -195,6 +195,7 @@ def test_long_author_keyboard_tooltip_is_painted_inside_viewport(browser_page, t
 def test_download_controls_fit_at_effective_200_percent_width(browser_page):
     page, expect, _ = browser_page
     page.set_viewport_size({'width': 640, 'height': 400})
+    page.get_by_test_id('nav-toggle').click()
     page.get_by_test_id('tab-download').click()
     author = page.locator('.pv-ud-c-name').filter(has_text=p5.LONG[:20]).first
     author.wait_for(state='visible')

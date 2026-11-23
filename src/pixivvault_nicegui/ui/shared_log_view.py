@@ -9,7 +9,7 @@ from ..following_sync import subscribe_owner_on_loop
 
 
 LOG_HIDDEN_TABS = frozenset({'download', 'queue', 'failed', 'history', 'learning',
-                             'ranking', 'personal', 'library', 'recommend', 'dedup'})
+                             'ranking', 'personal', 'library', 'bookmarks', 'recommend', 'dedup'})
 
 
 def _visible(entry):
@@ -51,7 +51,7 @@ class SharedLogView:
             self.panel.props['tabindex'] = 0
             self.button.props['aria-controls'] = self.panel.html_id
         self.root.set_visibility(False)
-        self.timer = ui.timer(2, self.refresh, immediate=False)
+        self.timer = ui.timer(2, self.refresh, active=False, immediate=False)
         self._unsubscribe = (subscribe_owner_on_loop(following, self._owner_changed)
                              if following is not None else None)
         self.client.on_delete(self.close)
@@ -75,8 +75,11 @@ class SharedLogView:
             return
         self.root.set_visibility(tab not in LOG_HIDDEN_TABS)
         if self.root.visible:
+            self.timer.activate()
             self.refresh()
             self._scroll()
+        else:
+            self.timer.deactivate()
 
     def toggle(self, *_):
         if self.closed:
@@ -106,7 +109,7 @@ class SharedLogView:
     def close(self):
         if not self.closed:
             self.closed = True
-            self.timer.deactivate()
+            self.timer.cancel()
             if self._unsubscribe is not None:
                 self._unsubscribe()
                 self._unsubscribe = None

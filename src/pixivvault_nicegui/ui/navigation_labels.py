@@ -1,0 +1,1 @@
+PERSONAL_RANKING_LABEL = "カスタムランキング"

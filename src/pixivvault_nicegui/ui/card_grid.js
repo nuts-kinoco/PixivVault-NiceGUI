@@ -72,7 +72,7 @@ export default {
           <pv-card-thumbnail :key="card.src" :src="imageSource(card.src)"
                              :eager="index < columns * 3" :placeholder="library_placeholder" :retry="retry_epoch" />
           <div class="pv-library-card-title">{{ card.title }}</div>
-          <div class="pv-library-card-info">{{ card.info }}</div>
+          <div class="pv-library-card-info">{{ card.info }} ／ {{ card.downloaded ? '保存済み' : '未保存' }}</div>
           <div v-if="card.count !== null" class="pv-library-card-info" data-testid="library-page-bookmark-count">
             {{ card.count }}
           </div>
@@ -98,7 +98,8 @@ export default {
               <q-icon v-else name="image" class="pv-thumb" />
               <q-tooltip v-if="card.disabled">表示未対応の形式、または利用できる画像接続がありません</q-tooltip>
             </div>
-            <div v-if="card.downloaded" class="pv-bookmark-badge" data-testid="bookmark-downloaded">DL済み</div>
+            <div class="pv-bookmark-badge" :class="{'pv-bookmark-unsaved': !card.downloaded}"
+                 :data-testid="card.downloaded ? 'bookmark-downloaded' : 'bookmark-unsaved'">{{ card.storage_label }}</div>
             <q-checkbox class="pv-bookmark-select" :model-value="card.checked"
                         aria-label="選択" data-testid="bookmark-select" :disable="!grid_active"
                         @update:model-value="value => send(card, 'select', render_epoch, value)" />

@@ -34,9 +34,12 @@ CONFIRMATION_STATUS = {
 
 class SchedulerView:
     _stars_unknown_in_form = False   # the form was filled while the ☆ list could not be read
-    def __init__(self, services):
+    def __init__(self, services, *, hosted=False):
         self.services = services
         self.closed = False
+        self.hosted = hosted
+        self._detail_active = not hosted
+        self._detail_epoch = 0
         self.revision = None
         self._settings_account = None
         self._settings_owner = None
@@ -61,6 +64,10 @@ class SchedulerView:
                 self.save_button = secondary_button('設定を保存', self.save, outline=True, testid='scheduler-save')
                 self.discard_button = secondary_button('編集を破棄して再読込', self.discard_changes, testid='scheduler-discard')
                 self.ack_button = secondary_button('中断状態を確認して解除', self.acknowledge, testid='scheduler-ack')
+                if hosted:
+                    self.stop_button = secondary_button('取得の停止を要求', self.request_dispatch_stop,
+                                                        testid='scheduler-stop')
+                    self.stop_button.disable()
                 self.refresh_button = refresh_button(lambda: self.refresh(ensure_after_current=True),
                                                      label='状態更新', testid='scheduler-refresh')
             with ui.row().classes('w-full items-center gap-3'):
@@ -83,6 +90,9 @@ class SchedulerView:
                     'data-testid=scheduler-history')
                 self.account_label = ui.label('紐づけアカウントを確認できません').classes('pv-subtitle').props(
                     'data-testid=scheduler-account')
+            if hosted:
+                self.automation_status = ui.label('').classes('pv-subtitle').props(
+                    'data-testid=scheduler-automation-status')
             self.star_notice = ui.label('').classes('pv-subtitle pv-tone-b-notice').props(
                 'data-testid=scheduler-star-import role=status')
             self.action_notice = ui.label('').classes('pv-subtitle pv-tone-b-notice').props(
@@ -91,10 +101,44 @@ class SchedulerView:
         self._show_open_button(getattr(services, 'managed_scheduler', None) is None)
         self._refreshing = False
         self._background_refresh_tasks: set[asyncio.Task] = set()
-        self._timer = ui.timer(5.0, self.refresh)
+        self._timer = ui.timer(5.0, self.refresh, active=not hosted, immediate=not hosted)
         self._unsubscribe_owner = None
         self._subscribe_to_owner()
         ui.context.client.on_delete(self.close)
+
+    def set_detail_active(self, active):
+        if self.closed or active == self._detail_active:
+            return
+        self._detail_active = active
+        self._detail_epoch += 1
+        if active:
+            self._timer.activate()
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                return
+            self._schedule_refresh()
+        else:
+            self._timer.deactivate()
+
+    def update_automation_controls(self, state, running):
+        self.automation_status.set_text(state)
+        runner = getattr(self.services, 'managed_schedule_runner', None)
+        self.stop_button.set_enabled(bool(running and state == '実行中' and runner is not None))
+
+    def request_dispatch_stop(self):
+        runner = getattr(self.services, 'managed_schedule_runner', None)
+        ledger = self.services.managed_scheduler
+        if self.closed or not self._detail_active or runner is None or ledger is None:
+            return
+        try:
+            if getattr(ledger, '_account_guard', False):
+                self._verify_result(self._settings_owner)
+            if runner.request_dispatch_stop():
+                self.update_automation_controls('停止要求中（通信完了待ち）', True)
+        except (AccountMismatch, OSError, sqlite3.Error):
+            self._hide_account_data()
+            self._show_notice(self.action_notice, '現在の定期チェックを確認できません', error=True)
 
     def _show_open_button(self, visible):
         self.open_button.set_enabled(visible)
@@ -434,7 +478,7 @@ class SchedulerView:
             self._finish_action()
 
     async def refresh(self, *, ensure_after_current: bool = False):
-        if self.closed or self.services.managed_scheduler is None:
+        if self.closed or not self._detail_active or self.services.managed_scheduler is None:
             return
         if self._refreshing:
             # Queue explicit user/manual-run refreshes, but do not let every
@@ -442,11 +486,13 @@ class SchedulerView:
             if ensure_after_current:
                 self._refresh_pending = True
             return
+        epoch = self._detail_epoch
         self._refreshing = True
         try:
             self._show_account(self.services.managed_scheduler)
-            await asyncio.to_thread(self.services.reconcile_managed_scheduler)
-            if self.closed:
+            if not self.hosted:
+                await asyncio.to_thread(self.services.reconcile_managed_scheduler)
+            if self.closed or epoch != self._detail_epoch:
                 return
             ledger = self.services.managed_scheduler
             if ledger is None:
@@ -460,14 +506,14 @@ class SchedulerView:
 
             def read_activity():
                 if not guarded:
-                    return None, ledger.history(), ledger.claim_pending_notifications(owner=None)
+                    return None, ledger.history(), (() if self.hosted else ledger.claim_pending_notifications(owner=None))
                 history = ledger.history_for(owner=owner)
-                pending = () if history.rows is None else ledger.claim_pending_notifications(owner=history.owner)
+                pending = () if self.hosted or history.rows is None else ledger.claim_pending_notifications(owner=history.owner)
                 return history.owner, history.rows, pending
 
             try:
                 result_owner, history, pending = await asyncio.to_thread(read_activity)
-                if self.closed:
+                if self.closed or epoch != self._detail_epoch:
                     return
                 if self.services.managed_scheduler is not ledger:
                     self._hide_account_data()
@@ -478,7 +524,7 @@ class SchedulerView:
                         self._hide_history()
                         return
             except (ScheduleAccountError, AccountMismatch):
-                if not self.closed:
+                if not self.closed and epoch == self._detail_epoch:
                     self._show_account(ledger)
                     self._hide_history()
                 return
@@ -519,7 +565,7 @@ class SchedulerView:
             if notification_error and not self.closed:
                 self._show_notice(self.action_notice, '保存完了の通知を表示できませんでした。実行履歴で確認してください', error=True)
         except Exception:
-            if not self.closed:
+            if not self.closed and epoch == self._detail_epoch:
                 self._hide_account_data()
                 self._show_status('状態を取得できませんでした', error=True)
         finally:

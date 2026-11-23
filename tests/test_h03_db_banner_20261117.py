@@ -51,8 +51,8 @@ async def test_shell_shows_banner_above_header_grey_for_demo_red_for_live(tmp_pa
         services.pixiv_download_root = tmp_path
         with client:
             shell = DemoShell(services)
-            assert shell.db_banner.text == f"⚠️⚠️ 本番DBを使用中: {os.path.abspath(tmp_path)}"
-            assert shell.db_banner._style.get('background-color') == '#d32f2f'
+            assert shell.db_banner.default_slot.children[0].text == f"⚠️⚠️ 本番DBを使用中: {os.path.abspath(tmp_path)}"
+            assert 'pv-db-production' in shell.db_banner.classes
             shell.close()
     finally:
         client.delete()

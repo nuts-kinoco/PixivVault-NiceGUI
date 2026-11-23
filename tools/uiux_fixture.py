@@ -305,7 +305,7 @@ def open_port(page, cell, specs):
     if key == 'view-history-delete':
         opener = page.get_by_test_id('view-history-open')
         tone.navigate_extra(page, 'view-history', 'port')
-        click(page, 'view-history-danger')
+        click(page, 'toolbar-toggle-view-history')
         ready(page, 'view-history-confirm')
         return True, opener
 
@@ -320,7 +320,7 @@ def open_port(page, cell, specs):
     # panel zero height. Keep the real viewport as A11 evidence.
     if cell.zoom == 200 and page.locator('.pv-content').evaluate(
             'e => e.getBoundingClientRect().height <= 1'):
-        opener = specs[screen].get('open', f'tab-{screen}') if screen != 'bookmarks' else 'tab-library'
+        opener = specs[screen].get('open', f'tab-{screen}') if screen != 'bookmarks' else 'tab-bookmarks'
         if ready(page, opener).is_enabled():
             click(page, opener)
         return False, None

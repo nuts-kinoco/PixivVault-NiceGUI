@@ -7,7 +7,7 @@ from nicegui import Client, ui
 def test_shared_log_hidden_original_tabs_and_keyboard_toggle():
     from pixivvault_nicegui.queue_log import QueueLog
     from pixivvault_nicegui.ui.shared_log_view import SharedLogView, LOG_HIDDEN_TABS
-    assert LOG_HIDDEN_TABS == {'download','queue','failed','history','learning','ranking','personal','library','recommend','dedup'}
+    assert LOG_HIDDEN_TABS == {'download','queue','failed','history','learning','ranking','personal','library','bookmarks','recommend','dedup'}
     log=QueueLog()
     for n in range(1002): log.append(str(n),level='success')
     client=Client(ui.page('/_ae_shared_log_isolated'))
@@ -55,15 +55,18 @@ def test_real_shell_navigation_drives_common_log_visibility():
         with client:
             shell=DemoShell(services)
             try:
-                assert not shell.shared_log_view.root.visible
+                assert shell.automation.log is None
                 shell.show('scheduler')
-                assert shell.shared_log_view.root.visible
-                shell.shared_log_view.toggle()
-                assert not shell.shared_log_view.panel.visible
-                shell.show('queue')
-                assert not shell.shared_log_view.root.visible
+                log = shell.automation.log
+                assert shell.active_tab == 'download' and log.root.visible
+                log.toggle()
+                assert not log.panel.visible
+                shell.automation.dialog.close()
+                shell.automation.hide()
+                assert not log.root.visible
                 shell.show('scheduler')
-                assert shell.shared_log_view.root.visible and not shell.shared_log_view.panel.visible
+                assert shell.automation.log is log
+                assert log.root.visible and not log.panel.visible
             finally: shell.close()
     finally:
         client.delete();services.close()
