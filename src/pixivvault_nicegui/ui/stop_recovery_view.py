@@ -3,6 +3,8 @@ import asyncio
 from threading import Event
 from nicegui import ui
 
+from .management_dialog import managed_dialog
+
 from .action_controls import dialog_actions, dialog_card, primary_button, secondary_button
 from ..native_auth_result import NativeAuthResult
 
@@ -81,7 +83,10 @@ class StopRecoveryPanel:
         self.help_text = '\n'.join((RATE_LIMIT_GUIDANCE, *STEPS))
         with ui.column().classes('w-full gap-2') as self.root:
             self.entry = secondary_button('停止履歴の確認と移行手順を開く', self.open, testid='stop-recovery-open')
-            with ui.dialog() as self.dialog, dialog_card('通信を再開する前の確認', size='lg'):
+            with managed_dialog().props('data-testid=stop-recovery-dialog') as self.dialog, dialog_card(size='lg', classes='pv-settings-modal'):
+                title = ui.label('通信を再開する前の確認').classes('pv-dialog-title').props(
+                    'role=heading aria-level=1 tabindex=-1 data-autofocus')
+                self.dialog.props['aria-labelledby'] = title.html_id
                 ui.label(RATE_LIMIT_GUIDANCE).classes('pv-warning-banner').props(
                     'data-testid=stop-recovery-rate-limit-guidance')
                 with ui.column().classes('w-full gap-1'):

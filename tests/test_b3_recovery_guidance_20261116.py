@@ -147,7 +147,7 @@ async def test_current_429_views_preserve_wait_and_launch_stop(tmp_path, count, 
                 assert f'残り約{record["remaining_seconds"]}秒' in status.label.text
                 assert 0 < record['remaining_seconds'] <= wait
                 assert '初回を含む' in status.label.text
-                assert '共有STOP履歴には記録しません' in status.label.text
+                assert '再起動後に残る停止として記録しません' in status.label.text
                 assert not scope.gate.snapshot().blocked
             clock.on_wait = observe_wait
             with pytest.raises(HTTPStatusRejected): reader.get_ranking()
@@ -167,9 +167,9 @@ async def test_current_429_views_preserve_wait_and_launch_stop(tmp_path, count, 
                 await recovery.recover()
             assert policy_state(policy) == saved
             assert status.label.visible and 'この起動中は停止' in status.label.text
-            assert 'このポリシーを共有する取得' in status.label.text
-            assert '明示的にやり直して' in status.label.text
-            assert '過去の永続STOP履歴は残ります' in status.label.text
+            assert '同じ通信の仕組みを使う取得' in status.label.text
+            assert '手動でやり直して' in status.label.text
+            assert '過去に記録した通信停止は残ります' in status.label.text
             assert '自動再送は行いません' in status.label.text
             assert not recovery.summary.visible and recovery.plan is None
             assert scope.gate.snapshot() == state and fingerprint(tmp_path) == before
@@ -253,5 +253,5 @@ def test_shared_policy_stop_does_not_claim_this_operation_exhausted_its_limit():
     saved = copy.deepcopy(records)
     text = retry_status_text(records)
     assert '試行 2/5で上限に達した' not in text
-    assert '同じ再試行ポリシーで429の試行上限' in text
+    assert '別の取得処理が429の試行上限に達した' in text
     assert records == saved

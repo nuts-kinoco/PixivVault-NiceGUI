@@ -266,9 +266,9 @@ export default {
     },
     onMenuHide(session) {
       if (session.sequence !== this.menuSession?.sequence) return;
-      if (this.grid_active && session.epoch === this.render_epoch && session.opener?.isConnected &&
-          !session.opener.closest('[inert], [aria-hidden="true"]')) {
-        session.opener.focus({preventScroll: true});
+      if (this.grid_active && session.epoch === this.render_epoch &&
+          (document.activeElement === document.body || document.activeElement === session.opener)) {
+        window.pvFocus.focusVisible(session.opener);
       }
       this.menuSession = null;
     },

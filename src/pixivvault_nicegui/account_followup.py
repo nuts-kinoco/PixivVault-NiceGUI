@@ -295,25 +295,24 @@ class AccountFollowup:
         scope = binding.managed_network_stop_scope
         if scope is None:
             return None
-        from .managed_network_stop_gate import _file_identity
-        from .managed_network_stop_profile_scope import _SCOPE_MARKER, _SCOPE_IDENTITY
-        from .native_profile import PROFILE_DB, PROFILE_MARKER, PROFILE_IDENTITY, _owned_marker
-        _owned_marker(scope.root, PROFILE_MARKER, PROFILE_IDENTITY)
-        _owned_marker(scope.root, _SCOPE_MARKER, _SCOPE_IDENTITY)
-        if _file_identity(scope.root / PROFILE_DB) != scope.profile_identity:
-            return None
-        scope.require_allowed()
+        from .managed_network_stop_profile_scope import _require_native_stop_owner
+        from .request_policy import request_gate_preflight
+
         shared = binding.shared_network_stop_scope
-        if binding.auth_shared_stop_required:
-            if shared is None:
-                return None
-            shared.require_allowed()
-            from .managed_network_stop_shared_transport import create_shared_profile_reader
-            reader = create_shared_profile_reader(
-                scope, cookie_file, shared.gate, shared_owner_check=shared._check_owner)
-        else:
-            from .managed_network_stop_reader import create_exact_managed_read_client
-            reader = create_exact_managed_read_client(cookie_file, scope.gate)
+        with request_gate_preflight(binding.auth_retry_policy, (scope.gate, shared.gate if shared else None),
+                                    checks_selection=binding.auth_shared_stop_required):
+            _require_native_stop_owner(scope.root, scope.profile_identity)
+            scope.require_allowed()
+            if binding.auth_shared_stop_required:
+                if shared is None:
+                    return None
+                shared.require_allowed()
+                from .managed_network_stop_shared_transport import create_shared_profile_reader
+                reader = create_shared_profile_reader(
+                    scope, cookie_file, shared.gate, shared_owner_check=shared._check_owner)
+            else:
+                from .managed_network_stop_reader import create_exact_managed_read_client
+                reader = create_exact_managed_read_client(cookie_file, scope.gate)
         reader.set_retry_policy(binding.auth_retry_policy)
         self._pace(reader)
         return reader

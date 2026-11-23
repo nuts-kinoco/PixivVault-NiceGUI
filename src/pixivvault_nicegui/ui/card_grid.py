@@ -1,10 +1,13 @@
 """One NiceGUI element for a keyed Vue card list and its shared menu."""
 from nicegui import ui
 
+from .management_dialog import install_focus_recovery
+
 
 class CardGrid(ui.element, component='card_grid.js'):
     def __init__(self, on_action):
         super().__init__()
+        install_focus_recovery(self.client)
         self.props['cards'] = []
         self.props['render_epoch'] = 0
         self.props['grid_active'] = True

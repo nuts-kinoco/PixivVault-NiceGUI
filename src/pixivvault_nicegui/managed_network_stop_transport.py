@@ -8,17 +8,41 @@ unchanged. No URL, Cookie, request body, or personal ID is persisted.
 
 from __future__ import annotations
 
+from contextlib import ExitStack, contextmanager
 from urllib.error import HTTPError
 
+from .gate_refusal_state import confirmation_io
 from .managed_network_stop_gate import (
     ManagedNetworkStopGate,
     ManagedNetworkStopped,
-    STOP_STATUSES,
+    _carry_gate_cleanup,
+    _http_gate_rejection,
+    _report_stop_authority,
 )
 from .pixiv_read_client import HTTPStatusRejected
 
 
-class ManagedNetworkStopTransport:
+class _GatedReadTransport:
+    __slots__ = ()
+    _checks_notice_selection = False
+
+    @contextmanager
+    def _admission_owner_checks(self, *, confirming=False):
+        yield
+
+    def _confirm_admission(self):
+        # Enter and unwind the actual GET admission, including the shared
+        # durable intent. No request body or network transport runs here.
+        gates = self._notice_gates
+        with confirmation_io(gates), self._admission_owner_checks(confirming=True), ExitStack() as locks:
+            for authority, gate in zip(('local', 'shared'), gates):
+                if gate is not None:
+                    locks.enter_context(_report_stop_authority(authority))
+                    locks.enter_context(gate.request())
+        return gates, self._checks_notice_selection
+
+
+class ManagedNetworkStopTransport(_GatedReadTransport):
     """Fence one synchronous GET and latch fatal HTTP statuses before return.
 
     `transport` must be the existing trusted read-only callable. The owner is
@@ -37,30 +61,35 @@ class ManagedNetworkStopTransport:
         self.gate = gate
         self.transport = transport
 
+    @property
+    def resource_authority(self):
+        return 'shared' if hasattr(self.gate, 'inflight_path') else 'local'
+
+    @property
+    def _notice_gates(self):
+        return (None, self.gate) if self.resource_authority == 'shared' else (self.gate, None)
+
     def __call__(self, request, timeout: float, limit: int, deadline: float) -> bytes:
         if (request.get_method() != "GET" or request.data is not None):
             raise ValueError("managed network transport accepts GET only")
+        from .request_policy import request_send_checkpoint
+        authority = self.resource_authority
         try:
-            with self.gate.request():
+            with self._admission_owner_checks(), _report_stop_authority(authority), self.gate.request():
                 try:
+                    request_send_checkpoint()
                     return self.transport(request, timeout, limit, deadline)
                 except HTTPError as error:
                     # Raw urllib transports may raise HTTPError before the
                     # caller can convert it. Persist fatal status inside the
                     # durable gate even when a higher layer handles errors.
-                    status = error.code
-                    if type(status) is int and status in STOP_STATUSES:
-                        try:
-                            error.close()
-                        except Exception:
-                            pass
-                        raise HTTPStatusRejected(status) from None
-                    raise
+                    raise _http_gate_rejection(error) from None
         except HTTPStatusRejected as error:
             from .request_policy import durable_stop_status
             if durable_stop_status(error.status_code):
                 # The gate has persisted this status before leaving request().
                 # A plain, exact-type LivePixivReadClient must not enter the
                 # legacy retry policy's 429 wait or issue a second GET.
-                raise ManagedNetworkStopped(error.status_code) from None
+                stopped = ManagedNetworkStopped(error.status_code, authority=authority)
+                raise _carry_gate_cleanup(error, stopped) from None
             raise
