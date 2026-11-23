@@ -166,8 +166,7 @@ def test_reconciler_transition_matrix(kind):
             if state.inflight:
                 assert any(item.get('gate_problem') == 'uncertain' for item in updated.values())
         if len(states) == 1 and states[0].state == 'changed':
-            assert any(row.get('stop_cause') == 'gate_busy' and row['gate_owners'] == (states[0].authority,)
-                       for row in updated.values())
+            assert updated == original
 
 
 @pytest.mark.parametrize('fault', ['clean', 'lock-denied', 'db-denied', 'lock-truncated',

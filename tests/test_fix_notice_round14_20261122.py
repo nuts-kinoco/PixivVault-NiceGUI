@@ -272,7 +272,7 @@ def test_later_confirmation_does_not_hide_an_earlier_ordinary_lock_sample(tmp_pa
         bind_public_cdn_shared_stop(public, shared)
         public.set_retry_policy(observer)
         observer.recheck_gate_notices()
-        assert any(row['stop_cause'] == 'gate_busy' for row in observer.progress_snapshot())
+        assert not observer.has_gate_notices()
 
 
 def test_transferred_stop_advances_the_destination_gate_before_stale_confirmation(tmp_path, monkeypatch):
@@ -334,7 +334,14 @@ def test_observer_does_not_attribute_another_holder_after_native_unlock(tmp_path
         policy = binding.auth_retry_policy
         reader.set_retry_policy(policy)
         pin_shared(reader, shared, monkeypatch)
-        observer = retry_policy([0.0], check_gate=lambda: check_request_notice_gates(shared))
+        samples = []
+
+        def sample():
+            snapshot = check_request_notice_gates(shared)
+            samples.append(snapshot)
+            return snapshot
+
+        observer = retry_policy([0.0], check_gate=sample)
         bind_public_cdn_shared_stop(public, shared)
         public.set_retry_policy(observer)
         request = shared.gate.request
@@ -364,8 +371,11 @@ def test_observer_does_not_attribute_another_holder_after_native_unlock(tmp_path
         monkeypatch.setattr(gates, '_set_stop_byte_lock', release)
         assert policy.confirm_gate_notices()
         assert fired and not observer.has_gate_notices()
+        during, = samples
+        assert not during.states
         observer.recheck_gate_notices()
-        assert observer.has_gate_notices()
+        assert [state.state for state in samples[-1].states] == ['busy']
+        assert not observer.has_gate_notices()
 
 
 @pytest.mark.parametrize('missing', ('local', 'shared'))

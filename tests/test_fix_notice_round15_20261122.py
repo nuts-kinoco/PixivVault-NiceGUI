@@ -220,7 +220,14 @@ def test_confirmation_activity_has_no_observation_notice_in_either_order(tmp_pat
 def test_confirmation_overlap_retains_other_targets_inconsistency(tmp_path, monkeypatch):
     local, shared, credential = linked_owners(tmp_path)
     policy = retry_policy([0.0])
-    observer = retry_policy([0.0], check_gate=lambda: observe.check_request_notice_gates(local))
+    samples = []
+
+    def sample():
+        snapshot = observe.check_request_notice_gates(local)
+        samples.append(snapshot)
+        return snapshot
+
+    observer = retry_policy([0.0], check_gate=sample)
     targets = observe._targets
     with shared.create_reader(credential, transport=unexpected) as reader, \
          closing(reads.PublicImageReadClient()) as public:
@@ -247,9 +254,10 @@ def test_confirmation_overlap_retains_other_targets_inconsistency(tmp_path, monk
         monkeypatch.setattr(observe, '_targets', changing_targets)
         monkeypatch.setattr(shared.gate, '_begin_inflight', begin_with_poll)
         assert policy.confirm_gate_notices()
-        assert any(row['stop_cause'] == 'gate_busy' and row['gate_owners'] == ('local',)
-                   for row in observer.progress_snapshot())
-        assert not any('shared' in row['gate_owners'] for row in observer.progress_snapshot())
+        snapshot, = samples
+        assert not snapshot.consistent
+        assert [(state.authority, state.inconsistent) for state in snapshot.states] == [('local', True)]
+        assert not observer.has_gate_notices()
 
 
 @pytest.mark.parametrize('failure', ('lock', 'close', 'remove'))

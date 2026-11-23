@@ -5,6 +5,7 @@ on_tab_open). No network: the reader is a fake and cookie files hold dummy data.
 """
 import asyncio
 import time
+from types import SimpleNamespace
 
 import pytest
 from nicegui import Client, ui
@@ -171,6 +172,34 @@ async def test_startup_check_runs_once_and_only_for_stop_gated_profiles(tmp_path
     assert len(calls) == 1 and binding.auth_status.status.level == 'stopped'
     assert binding.start_startup_auth_check() is task and len(calls) == 1
     binding.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('closing', (False, True))
+async def test_startup_auth_waits_for_discovery_warmup(tmp_path, monkeypatch, closing):
+    binding, _ = make_binding(tmp_path, monkeypatch)
+    binding.auth_stop_required = True
+    discovery = asyncio.get_running_loop().create_future()
+    services = SimpleNamespace(_startup_discovery_task=discovery, closing=False)
+    binding._shared_event_services = services
+    checks = []
+
+    async def refresh(*, startup=False):
+        checks.append((startup, discovery.done()))
+
+    monkeypatch.setattr(binding, 'refresh_auth_status', refresh)
+    try:
+        auth = binding.start_startup_auth_check()
+        await asyncio.sleep(0)
+        assert not checks
+        services.closing = closing
+        discovery.set_result(None)
+        await auth
+        assert checks == ([] if closing else [(True, True)])
+    finally:
+        if not discovery.done():
+            discovery.cancel()
+        binding.close()
 
 
 @pytest.mark.asyncio

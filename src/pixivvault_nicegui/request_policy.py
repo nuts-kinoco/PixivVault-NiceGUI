@@ -106,11 +106,10 @@ def reconcile_gate_notices(records, snapshot, now, serial, *, watched_request=No
         if state.authority in ('shared', 'both') and (
                 state.state == 'uncertain' or (state.state == 'stopped' and state.inflight)):
             observed(state, 'gate_unverified', problem='uncertain', owners=('shared',))
-        if state.state in ('busy', 'changed') or (state.inconsistent and state.state in ('open', 'unselected')):
-            observed(state, 'gate_busy')
-    if not snapshot.consistent and not observations:
-        for state in snapshot.states:
-            observed(state, 'gate_busy')
+    # Lock activity and inconsistent samples can invalidate an in-flight
+    # confirmation, but only a refused acquisition publishes a busy notice.
+    if not observations:
+        return records, serial
 
     result = records.copy()
     attempt, limit = (origin['attempt'], origin['limit']) if origin is not None else watched_request

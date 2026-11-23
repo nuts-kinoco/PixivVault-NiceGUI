@@ -164,24 +164,44 @@ def test_success_and_background_observation_keep_fixed_notice(tmp_path, monkeypa
         assert not policy.has_gate_notices()
 
 
-def test_observed_busy_is_fixed_until_explicit_confirmation(tmp_path, monkeypatch):
+def test_refused_get_stays_fixed_across_busy_and_open_polls(tmp_path, monkeypatch):
     local, shared, selected = linked_owners(tmp_path)
     clock = [0.0]
     snapshot = None
     policy = retry_policy(clock, check_gate=lambda: snapshot or check_request_notice_gates(local))
     with guarded_reader(local, shared, selected, unexpected) as reader:
         reader.set_retry_policy(policy)
-        pin_shared(reader, shared, monkeypatch)
-        assert policy.confirm_gate_notices()
+
+        def refuse():
+            raise gates.ManagedNetworkGateBusy(authority='shared')
+
+        with monkeypatch.context() as fault:
+            fault.setattr(shared.gate, 'request', refuse)
+            with pytest.raises(gates.ManagedNetworkGateBusy):
+                reader.get_image_bytes(IMAGE)
+        fixed = policy.progress_snapshot()
+        assert len(fixed) == 1 and fixed[0]['stop_cause'] == 'gate_busy'
         snapshot = GateObservationSnapshot((GateNoticeState('shared', 'busy'),))
         policy.recheck_gate_notices()
-        ids = {row['notice_id'] for row in policy.progress_snapshot() if row['stop_cause'] == 'gate_busy'}
-        assert ids
+        assert policy.progress_snapshot() == fixed
         snapshot = None
         clock[0] = 601.0
         policy.recheck_gate_notices()
-        assert ids <= {row['notice_id'] for row in policy.progress_snapshot()}
+        assert policy.progress_snapshot() == fixed
         assert policy.confirm_gate_notices()
+        assert not policy.has_gate_notices()
+
+
+@pytest.mark.parametrize('state,consistent', (('busy', True), ('changed', False), ('open', False)))
+def test_poll_without_an_admission_refusal_cannot_pin_an_unconfirmable_notice(
+        tmp_path, state, consistent):
+    _, shared, selected = linked_owners(tmp_path)
+    sample = GateObservationSnapshot((GateNoticeState('local', state),), consistent)
+    policy = retry_policy([0.0], check_gate=lambda: sample)
+    with shared.create_reader(selected, transport=unexpected) as reader:
+        reader.set_retry_policy(policy)
+        assert policy.should_watch_gate()
+        policy.recheck_gate_notices()
         assert not policy.has_gate_notices()
 
 
@@ -504,8 +524,9 @@ def test_reconfirmation_busy_filter_is_limited_to_the_gate_it_owns(tmp_path, mon
 
         monkeypatch.setattr(a, '_confirm_gate_admission', confirm_then_contend)
         monkeypatch.setattr(second.gate, 'request', check_during_second)
+        before = policy.progress_snapshot()
         assert not policy.confirm_gate_notices()
-        assert any(row['stop_cause'] == 'gate_busy' for row in policy.progress_snapshot())
+        assert policy.progress_snapshot() == before
 
 
 def test_later_manual_stop_invalidates_an_earlier_proof_of_its_shared_gate(tmp_path, monkeypatch):
@@ -569,6 +590,8 @@ def test_reconfirmation_defers_busy_until_after_its_scope_exits(tmp_path, monkey
         monkeypatch.setattr(cdn, '_confirm_gate_admission', after_shared_confirmation)
         monkeypatch.setattr(gates, '_open_existing_stop_lock', refuse_local)
         assert not policy.confirm_gate_notices()
+        snapshot = check_request_notice_gates(local)
+        assert any(state.authority == 'shared' and state.state == 'busy' for state in snapshot.states)
         policy.recheck_gate_notices()
-        assert any(row['stop_cause'] == 'gate_busy' and row['gate_owners'] == ('shared',)
-                   for row in policy.progress_snapshot())
+        assert policy.has_gate_notices()
+        assert all(row['gate_problem'] == 'storage' for row in policy.progress_snapshot())

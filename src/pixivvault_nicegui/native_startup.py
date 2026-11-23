@@ -581,7 +581,18 @@ class NativeProfileBinding:
             self._loop = asyncio.get_running_loop()
         except RuntimeError:
             return None  # no event loop yet (not a served page): retry at the next shell build
-        self.startup_auth_task = self._spawn(self.refresh_auth_status(startup=True))
+        async def check_after_discovery():
+            # ASGI starts discovery warmup before the first page. Let its
+            # gated reads complete before the header opens a second reader.
+            services = getattr(self, '_shared_event_services', None)
+            discovery = getattr(services, '_startup_discovery_task', None)
+            if discovery is not None:
+                await asyncio.shield(discovery)
+                if services.closing:
+                    return
+            await self.refresh_auth_status(startup=True)
+
+        self.startup_auth_task = self._spawn(check_after_discovery())
         return self.startup_auth_task
 
     def _verify_auth(self, cookie_file, stopped):
