@@ -81,19 +81,20 @@ class ManagedDownloadView:
             "data-testid=managed-download-view data-active=true data-epoch=0 data-selection-revision=0 data-author-revision=0 data-target-mode=author"
         ) as self.root:
             with ui.row().classes('w-full items-center'):
-                self.bookmark_mode_button = ui.button('マイブックマーク', color=None).props(
-                    'no-caps data-testid=managed-download-mode-bookmark')
+                self.bookmark_mode_button = ui.button('マイブックマーク', color=None).classes('pv-managed-mode').props(
+                    'flat no-caps data-testid=managed-download-mode-bookmark')
                 self.bookmark_mode_button.on('click', lambda event: self._mode_event(event, 'bookmark'),
                     js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
-                self.author_mode_button = ui.button('フォロー中の作者', color=None).props(
-                    'no-caps data-testid=managed-download-mode-author')
+                self.author_mode_button = ui.button('フォロー中の作者', color=None).classes('pv-managed-mode').props(
+                    'flat no-caps data-testid=managed-download-mode-author')
                 self.author_mode_button.on('click', lambda event: self._mode_event(event, 'author'),
                     js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
             with ui.row().classes("pv-toolbar"):
                 ui.label("Pixivブックマークからダウンロード").classes("pv-library-heading")
                 self.search_input = ui.input(placeholder="作品名・作者・IDで検索").props(
                     "outlined dense clearable debounce=200 data-testid=managed-download-search"
-                ).classes("pv-search")
+                ).classes("pv-search pv-management-input")
+                self.search_input.props['aria-label'] = '作品名・作者・IDで検索'
                 self.search_input.on("update:model-value", self._search_event,
                     js_handler=f"value => emit({{value,epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
                 self.counter = ui.label().classes("pv-counter").props("data-testid=managed-download-count")
@@ -105,7 +106,8 @@ class ManagedDownloadView:
                 'flat no-caps data-testid=managed-download-unfollowed')
             with ui.row().classes("w-full items-center"):
                 self.direct_input = ui.input(placeholder="単一作品ID（数字）").props(
-                    "outlined dense data-testid=managed-download-direct-id").classes("pv-search")
+                    "outlined dense data-testid=managed-download-direct-id").classes("pv-search pv-management-input")
+                self.direct_input.props['aria-label'] = '単一作品ID（数字）'
                 self.direct_button = ui.button("IDから作品を確認", color=None).props(
                     "flat no-caps data-testid=managed-download-direct-lookup")
                 self.direct_button.on("click", self._lookup_event,
@@ -114,7 +116,8 @@ class ManagedDownloadView:
             with ui.column().classes('w-full gap-1').props('data-testid=managed-download-author-panel') as self.author_panel:
                 with ui.row().classes("w-full items-center"):
                     self.author_input = ui.input(placeholder="作者ID（作品IDではありません）").props(
-                        "outlined dense data-testid=managed-download-author-id").classes("pv-search")
+                        "outlined dense data-testid=managed-download-author-id").classes("pv-search pv-management-input")
+                    self.author_input.props['aria-label'] = '作者ID（作品IDではありません）'
                     self.author_add_button = ui.button("作者を選択", color=None).props(
                         "flat no-caps data-testid=managed-download-author-add")
                     self.author_add_button.on("click", self._author_add_event,
@@ -143,7 +146,9 @@ class ManagedDownloadView:
                     self.follow_refresh_button.on('click', self._follow_refresh_event,
                         js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
                     self.follow_search_input = ui.input(placeholder='フォロー作者名・作者IDで絞り込み').props(
-                        'outlined dense clearable debounce=200 data-testid=managed-download-follow-search')
+                        'outlined dense clearable debounce=200 data-testid=managed-download-follow-search').classes(
+                            'pv-management-input pv-management-follow-search')
+                    self.follow_search_input.props['aria-label'] = 'フォロー作者名・作者IDで絞り込み'
                     self.follow_search_input.on('update:model-value', self._follow_search_event,
                         js_handler=f"value => emit({{value,epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
                 with ui.row().classes('w-full items-center'):
@@ -153,7 +158,7 @@ class ManagedDownloadView:
                     self.follow_direction = ui.button('昇順', color=None).props(
                         'flat no-caps data-testid=managed-download-follow-direction')
                     self.follow_direction.on_click(lambda: self._set_follow_direction(not self.follow_descending))
-                    self.follow_star_filter = ui.button('☆のみ', color=None).props(
+                    self.follow_star_filter = ui.button('☆のみ', color=None).classes('pv-managed-star-filter').props(
                         'flat no-caps data-testid=managed-download-follow-star-only')
                     self.follow_star_filter.on_click(self._toggle_follow_stars)
                 with ui.row().classes('w-full items-center'):
@@ -252,7 +257,7 @@ class ManagedDownloadView:
         for name, button in (('bookmark', self.bookmark_mode_button),
                              ('author', self.author_mode_button)):
             button.props['data-selected'] = str(name == self.target_mode).lower()
-            button.props['color'] = 'primary' if name == self.target_mode else 'grey-7'
+            button.props.pop('color', None)
             button.update()
         self.bookmark_panel.set_visibility(self.target_mode == 'bookmark')
         self.author_panel.set_visibility(self.target_mode == 'author')
@@ -760,7 +765,7 @@ class ManagedDownloadView:
         self.follow_star_filter.set_enabled(self.active and not self.author_loading and favorites_known)
         self.follow_star_add_button.set_enabled(self.active and not self.author_loading and favorites_known)
         self.follow_star_filter.props['data-selected'] = str(self.follow_favorites_only).lower()
-        self.follow_star_filter.props['color'] = 'primary' if self.follow_favorites_only else 'grey-7'
+        self.follow_star_filter.props.pop('color', None)
         self.follow_star_filter.update()
         self.follow_direction.set_enabled(self.active and not self.author_loading)
         self.follow_sort.set_enabled(self.active and not self.author_loading)
@@ -775,7 +780,7 @@ class ManagedDownloadView:
                 picked = author.user_id in selected_ids
                 with ui.row().classes('items-center no-wrap'):
                     if author.is_favorite is not None:
-                        star = ui.button('★' if author.is_favorite else '☆', color=None).props(
+                        star = ui.button('★' if author.is_favorite else '☆', color=None).classes('pv-managed-star-btn pv-hit28').props(
                             'flat dense data-testid=managed-download-follow-star')
                         star.on('click', lambda _e, uid=author.user_id, epoch=self.epoch,
                                 generation=self.follow_render_generation: self._toggle_author_favorite(uid, epoch, generation))

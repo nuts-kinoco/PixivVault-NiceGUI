@@ -13,7 +13,7 @@ from ..managed_scheduler import ScheduleAccountError, ScheduleConfirmationUnavai
 
 from nicegui import ui
 
-from .action_controls import outlined_input, outlined_select, primary_button, refresh_button, secondary_button
+from .action_controls import notify_action, outlined_input, outlined_select, primary_button, refresh_button, secondary_button
 
 STATUS_LABELS = {
     'never': '未実行', 'saved': '完了', 'queued': '受付済み', 'running': '実行中',
@@ -57,7 +57,7 @@ class SchedulerView:
                 self.confirm_account_button = secondary_button('定期チェックの認証を確認', self.confirm_account,
                                                                outline=True, testid='scheduler-confirm-account')
                 self.confirm_account_button.set_visibility(False)
-                self.run_button = primary_button('今すぐチェック', self.run_once, testid='scheduler-run')
+                self.run_button = primary_button('実行（今すぐチェック）', self.run_once, testid='scheduler-run')
                 self.save_button = secondary_button('設定を保存', self.save, outline=True, testid='scheduler-save')
                 self.discard_button = secondary_button('編集を破棄して再読込', self.discard_changes, testid='scheduler-discard')
                 self.ack_button = secondary_button('中断状態を確認して解除', self.acknowledge, testid='scheduler-ack')
@@ -70,8 +70,9 @@ class SchedulerView:
                                               'data-testid=scheduler-interval')
                 self.startup = ui.switch('起動時にもチェック').classes('pv-filter-switch').props(
                     'role=checkbox data-testid=scheduler-startup')
-                self.authors = outlined_input(label='お気に入り（☆）作者ID（カンマ区切り）').classes('pv-search').props(
+                self.authors = outlined_input(label='お気に入り（☆）作者ID（カンマ区切り）').classes('pv-search pv-scheduler-authors').props(
                     'data-testid=scheduler-authors')
+                self.authors.props['title'] = 'お気に入り（☆）作者ID（カンマ区切り）'
             self.interval.on_value_change(lambda _: self._mark_settings_dirty())
             self.startup.on_value_change(lambda _: self._mark_settings_dirty())
             self.authors.on_value_change(lambda _: self._mark_settings_dirty())
@@ -493,9 +494,9 @@ class SchedulerView:
                     with self.root:
                         if guarded:
                             self._dismiss_completion()
-                            self._completion_notification = ui.notification(f'保存完了: {len(pending)}件', type='positive')
+                            self._completion_notification = notify_action(f'保存完了: {len(pending)}件', type='positive', replaceable=True)
                         else:
-                            ui.notify(f'保存完了: {len(pending)}件', type='positive')
+                            notify_action(f'保存完了: {len(pending)}件', type='positive')
                 except Exception:
                     # Delivery is deliberately at-most-once; if this client is
                     # disappearing, keep durable history readable instead of

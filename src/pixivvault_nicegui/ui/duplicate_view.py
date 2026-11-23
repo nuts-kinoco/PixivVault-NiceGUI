@@ -8,8 +8,9 @@ from ..duplicate_inspection import (
     visible_groups, visible_undecidable_groups,
     low_quality_keys, validate_selection, best_item_index,
 )
-from .action_controls import primary_button, refresh_button
+from .action_controls import danger_button, notify_action, primary_button, refresh_button
 from .card_size_control import size_buttons, update_size_buttons
+from .management_dialog import focus_after_dialog, managed_dialog
 
 THUMB_SIZES = {'small':88, 'medium':144, 'large':200}
 
@@ -29,6 +30,7 @@ class DuplicateView:
         self.thumb_size='medium';self.thumbnails=[]
         self.group_move_buttons={};self._confirmation=None;self._last_result=None
         self.group_low_buttons={}
+        self._confirm_opener=None;self._restore_opener=None
         self._pending_quarantines=set()
         self._open_trash_callback=open_trash
         self._trash_epoch=0;self._trash_state='unloaded';self._trash_snapshot=None
@@ -84,12 +86,13 @@ class DuplicateView:
                     self.summary=ui.label('0枚選択中').classes('pv-subtitle').props('data-testid=duplicate-selection')
                     ui.space()
                     self.plan_button=ui.button('隔離計画を確認',on_click=self.plan).props('outline dense no-caps data-testid=duplicate-plan')
-                    self.move_button=primary_button('選んだものをごみ箱へ移す',on_click=lambda _:self.confirm(),testid='duplicate-move')
+                    self.move_button=primary_button('選んだものをごみ箱へ移す…',on_click=lambda _:self.confirm(),testid='duplicate-move')
                 self.legacy_recover_button=ui.button('未完了の退避操作を復旧・再確認',on_click=self.recover_legacy).props('flat dense no-caps data-testid=duplicate-legacy-recover')
                 self.legacy_recover_button.set_visibility(False)
-        with ui.dialog().props('persistent data-testid=duplicate-confirm-dialog') as self.confirm_dialog:
-            with ui.card().classes('w-full').style('max-width:640px'):
+        with managed_dialog(focus_after_update=True, cancel=self.cancel_confirmation).props('persistent transition-duration=150 data-testid=duplicate-confirm-dialog') as self.confirm_dialog:
+            with ui.card().classes('w-full').style('max-width:640px') as confirm_card:
                 self.confirm_title=ui.label().classes('text-lg').props('data-testid=duplicate-confirm-title')
+                self.confirm_dialog.props['aria-labelledby']=f'c{self.confirm_title.id}'
                 self.confirm_impact=ui.label().props('data-testid=duplicate-confirm-impact')
                 self.confirm_method=ui.label().classes('pv-subtitle')
                 self.relocation_choice=ui.checkbox(
@@ -98,15 +101,18 @@ class DuplicateView:
                 ui.label('物理移動後も隔離先と退避先にデータを保持します。ドライブ全体の空き容量が増えるとは限りません。').classes('pv-subtitle')
                 self.confirm_rows=ui.column().classes('w-full').style('max-height:320px;overflow:auto')
                 with ui.row().classes('w-full justify-end'):
-                    ui.button('キャンセル',on_click=self.cancel_confirmation).props('flat data-testid=duplicate-confirm-cancel')
-                    self.confirm_button=ui.button('ごみ箱へ隔離する',on_click=self.execute_confirmation).props('data-testid=duplicate-confirm-execute')
+                    ui.button('キャンセル',on_click=self.cancel_confirmation).classes('pv-focus-ring').props('flat autofocus data-testid=duplicate-confirm-cancel')
+                    self.confirm_button=danger_button('ごみ箱へ隔離する',self.execute_confirmation,testid='duplicate-confirm-execute')
                 self.relocation_choice.on_value_change(lambda _:self._sync_relocation_choice())
-        with ui.dialog().props('data-testid=duplicate-trash-dialog') as self.trash_dialog:
-            with ui.card().classes('w-full').style('max-width:640px'):
+
+        self.confirm_dialog.on('hide',self._focus_after_quarantine)
+        with managed_dialog(return_focus=self.trash_button).props('transition-duration=150 data-testid=duplicate-trash-dialog') as self.trash_dialog:
+            with ui.card().classes('w-full').style('max-width:640px') as trash_card:
                 self.trash_title=ui.label('ごみ箱').classes('text-lg').props('data-testid=duplicate-trash-title')
+                self.trash_dialog.props['aria-labelledby']=f'c{self.trash_title.id}'
                 # Original gui.py:5604-5702: title, one warning line, the typed count, 閉じる / 空にする.
                 ui.label('空にすると元に戻せません。件数を入力すると「空にする」が押せます。').classes('pv-subtitle')
-                self.trash_confirm_count=ui.input(label='件数を入力',on_change=lambda _:self.sync()).props(
+                self.trash_confirm_count=ui.input(label='件数を入力',on_change=lambda _:self.sync()).classes('pv-trash-count-input').props(
                     'outlined dense inputmode=numeric data-testid=duplicate-trash-confirm-count').style('width:140px')
                 # Only shown while loading, on errors or when something needs attention.
                 self.trash_status=ui.label('ごみ箱の内容は未確認です。').props(
@@ -136,20 +142,23 @@ class DuplicateView:
                             if self._open_trash_callback is not None else
                             'この起動ではOSで開く操作を利用できません。')
                 with ui.row().classes('w-full justify-end'):
-                    ui.button('閉じる',on_click=self.close_trash).props(
-                        'flat data-testid=duplicate-trash-close')
-                    self.trash_empty_button=ui.button('空にする',on_click=self.empty_trash,color='amber').props(
-                        'text-color=black data-testid=duplicate-trash-empty')
-        with ui.dialog().props('persistent data-testid=duplicate-restore-dialog') as self.restore_dialog:
-            with ui.card().classes('w-full').style('max-width:560px'):
+                    ui.button('閉じる',on_click=self.close_trash).classes('pv-focus-ring').props(
+                        'flat autofocus data-testid=duplicate-trash-close')
+                    self.trash_empty_button=danger_button('空にする',self.empty_trash,testid='duplicate-trash-empty')
+
+        with managed_dialog(focus_after_update=True, cancel=self.cancel_restore).props('persistent transition-duration=150 data-testid=duplicate-restore-dialog') as self.restore_dialog:
+            with ui.card().classes('w-full').style('max-width:560px') as restore_card:
                 self.restore_title=ui.label().props('data-testid=duplicate-restore-title')
+                self.restore_dialog.props['aria-labelledby']=f'c{self.restore_title.id}'
                 ui.label('管理領域の検証済み隔離データから元ページを復元し、通常一覧の除外を解除します。'
                          '復元先が変更されている場合は上書きせず停止します。').classes('pv-subtitle')
                 with ui.row().classes('w-full justify-end'):
-                    ui.button('キャンセル',on_click=self.cancel_restore).props(
-                        'flat data-testid=duplicate-restore-cancel')
-                    self.restore_button=ui.button('復元を確認して実行',on_click=self.execute_restore).props(
+                    ui.button('キャンセル',on_click=self.cancel_restore).classes('pv-focus-ring').props(
+                        'flat autofocus data-testid=duplicate-restore-cancel')
+                    self.restore_button=ui.button('復元を確認して実行',on_click=self.execute_restore).classes('pv-focus-ring').props(
                         'data-testid=duplicate-restore-execute')
+
+        self.restore_dialog.on('hide',self._focus_after_restore)
         self.client.on_delete(self.close)
         self._progress_timer=ui.timer(.2,self.refresh_scan_progress)
         self.render_undecidable()
@@ -304,7 +313,7 @@ class DuplicateView:
                     operation_id,state,count,revision=record
                     with ui.row():
                         ui.label(f'{count}ページ · {state} · 操作 {operation_id[:8]}')
-                        button=ui.button('復元を確認',on_click=lambda _,v=record:self.confirm_restore(v)).props(
+                        button=ui.button('復元を確認…',on_click=lambda e,v=record:self.confirm_restore(v,e.sender)).props(
                             'flat data-testid=duplicate-restore-choice')
                         self._trash_restore_buttons.append(button)
 
@@ -384,21 +393,22 @@ class DuplicateView:
         self.close_trash()
         if result is None:
             message='ごみ箱を空にできませんでした。内容が変わった可能性があります。ごみ箱を開き直して件数を確認してください。'
-            ui.notify(message,type='warning')
+            notify_action(message,type='warning',important=True)
         else:
             self.scan_result=getattr(self.source,'latest_scan',None);self.selections={};self.render()
             # Original gui.py:5683: the same sentence, with the failure count appended.
             message=f'ごみ箱: {result.removed}件を完全に削除しました（除外の記録は残ります）'
             if result.failed:message+=f'・失敗 {result.failed}件'
-            ui.notify(message,type='warning' if result.failed else 'positive')
+            notify_action(message,type='warning' if result.failed else 'positive',important=bool(result.failed))
         self._schedule_trash_summary()
         self.notice.set_text(message)
         self.sync()
 
-    def confirm_restore(self,record):
+    def confirm_restore(self,record,opener=None):
         if (self.closed or not self.active or self.busy or not self.trash_dialog.value
                 or self._trash_reading or record not in self._trash_moves):return
         self._restore_candidate=record
+        self._restore_opener=opener
         self.restore_title.set_text(f'{record[2]}ページを管理領域のごみ箱から復元しますか？')
         self.restore_dialog.open()
         self.sync()
@@ -407,6 +417,11 @@ class DuplicateView:
         self._restore_candidate=None
         self.restore_dialog.close()
         if not self.closed:self.sync()
+
+    def _focus_after_restore(self):
+        opener,self._restore_opener=self._restore_opener,None
+        if opener is not None and self.active and not self.closed and self.trash_dialog.value:
+            focus_after_dialog(self.client,f'#{opener.html_id}','[data-testid=duplicate-trash-close]')
 
     async def execute_restore(self):
         record=self._restore_candidate
@@ -629,7 +644,7 @@ class DuplicateView:
                                     self.thumbnails.append(thumb)
                                 filename = item.filename or f'作品 {item.work_id}・{item.page}ページ'
                                 with ui.row().classes('pv-dedup-caption w-full items-center no-wrap'):
-                                    cb=ui.checkbox(value=item.key in self.selections[group.group_id]).props(
+                                    cb=ui.checkbox(value=item.key in self.selections[group.group_id]).classes('pv-dedup-candidate pv-hit28').props(
                                         f'dense size=xs aria-label=隔離候補 data-testid=duplicate-select-{group.author_id}-{item.work_id}-{item.page}')
                                     cb.tooltip('隔離候補')
                                     cb.on_value_change(lambda e,gid=group.group_id,key=item.key,revision=revision:self.toggle(gid,key,e.value,revision))
@@ -640,7 +655,7 @@ class DuplicateView:
                         if len(group.items)>5:ui.label(f'+{len(group.items)-5}枚（非表示の画像は選択しません）')
                     with ui.column().classes('pv-dedup-card-actions gap-1'):
                         self.group_move_buttons[group.group_id]=ui.button(
-                            'この組の選択画像をごみ箱へ移す',
+                            'この組の選択画像をごみ箱へ移す…',
                             on_click=lambda _,gid=group.group_id,rev=revision:self.confirm(gid,rev),
                         ).props('outline dense no-caps data-testid=duplicate-group-move')
                         self.group_low_buttons[group.group_id]=ui.button('この組の画質の低い方を選ぶ',
@@ -709,6 +724,11 @@ class DuplicateView:
         self.confirm_dialog.close()
         self.relocation_choice.set_value(False)
         if not self.closed:self.sync()
+
+    def _focus_after_quarantine(self):
+        opener,self._confirm_opener=self._confirm_opener,None
+        if opener is not None and self.active and not self.closed:
+            focus_after_dialog(self.client,f'#{opener.html_id}',f'#{self.search.html_id} input')
     def _sync_relocation_choice(self):
         if self.relocation_choice.value is True:
             self.confirm_button.set_text('確認済みの元ページを物理移動する')
@@ -756,6 +776,7 @@ class DuplicateView:
                             if item.key in chosen:
                                 ui.label(f'{item.filename or item.work_id} · 元の{item.page}ページ · {item.file_size} bytes')
                                 if item.store_name:ui.label(f'対象の保存ファイル: {item.store_name}')
+            self._confirm_opener=self.move_button if group_id is None else self.group_move_buttons.get(group_id)
             self.confirm_dialog.open()
         except Exception:
             if not self.closed and self.active and generation==self.generation:
@@ -846,8 +867,9 @@ class DuplicateView:
                 if refresh_warning:message+=' ライブラリ表示を再読込してください。'
                 self.notice.set_text(message)
                 self._schedule_trash_summary()
-                ui.notify(message,type='warning' if result.failed or getattr(result,'unprocessed',())
-                          or result.cleanup_warning or refresh_warning else 'positive')
+                needs_attention=bool(result.failed or getattr(result,'unprocessed',())
+                                     or result.cleanup_warning or refresh_warning)
+                notify_action(message,type='warning' if needs_attention else 'positive',important=needs_attention)
             if cancelled:raise asyncio.CancelledError()
         except asyncio.CancelledError:
             raise

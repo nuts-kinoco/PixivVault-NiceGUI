@@ -6,6 +6,8 @@ import csv
 from io import StringIO
 from nicegui import ui
 
+from .management_dialog import managed_dialog
+
 DESCRIPTION_EMPTY = 'まだ判定がありません。'
 EXPORT_FIELDS = ('work_id', 'title', 'verdict', 'reason', 'tags', 'author_id', 'source',
                  'opened', 'bookmarked', 'judged_at')
@@ -33,12 +35,14 @@ class LearningResetView:
                 'flat no-caps data-testid=learning-reset-open')
             self.notice = ui.label().props('role=status data-testid=learning-reset-status')
         self.button.set_enabled(False)
-        with ui.dialog().props('persistent data-testid=learning-reset-dialog') as self.dialog, \
-                ui.card().classes('w-full').style('max-width:520px'):
+        with managed_dialog().props(
+            'no-backdrop-dismiss transition-duration=150 data-testid=learning-reset-dialog '
+            'aria-label=学習状況のリセット') as self.dialog, \
+                ui.card().classes('pv-dialog-card w-full').style('max-width:520px'):
             self.title = ui.label().classes('pv-view-title')
             self.warning = ui.label(
                 '削除すると元に戻せません。件数を入力すると「学習状況をリセット」が押せます。').classes('pv-subtitle')
-            self.confirm = ui.input(label='件数を入力').props('outlined dense inputmode=numeric data-testid=learning-reset-confirm')
+            self.confirm = ui.input(label='件数を入力').props('outlined dense autofocus inputmode=numeric data-testid=learning-reset-confirm')
             with ui.row().classes('w-full justify-end'):
                 self.export_button = ui.button('CSV出力', icon='file_download', on_click=self.export).props(
                     'flat no-caps data-testid=learning-reset-export')

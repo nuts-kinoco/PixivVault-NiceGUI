@@ -4,6 +4,8 @@ import asyncio
 import inspect
 import secrets
 from nicegui import Client, ui
+
+from .management_dialog import managed_dialog
 from .action_controls import retry_button
 
 class SimilarView:
@@ -46,7 +48,7 @@ class SimilarView:
         self._status_timer=None;self._status_phase='idle';self._status_errors=0
         self._bulk_started=False
         self.client=ui.context.client
-        with ui.dialog() as self.dialog,ui.card().classes('w-full').style('width:900px;max-width:95vw'):
+        with managed_dialog() as self.dialog,ui.card().classes('w-full').style('width:900px;max-width:95vw'):
             self.title=ui.label().classes('pv-library-heading')
             self.notice=ui.label().props('role=status data-testid=similar-status')
             self.results=ui.column().classes('w-full').props('data-testid=similar-results')

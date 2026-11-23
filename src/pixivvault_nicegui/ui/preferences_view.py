@@ -2,8 +2,9 @@
 import asyncio
 from contextlib import contextmanager
 from nicegui import ui
+from .management_dialog import managed_dialog
 from .action_controls import (
-    danger_button, dialog_actions, dialog_card, outlined_input, outlined_select, primary_button, secondary_button,
+    danger_button, dialog_actions, dialog_card, notify_action, outlined_input, outlined_select, primary_button, secondary_button,
 )
 from .premium_recovery_view import PremiumRecoveryPanel
 from .. import __version__
@@ -78,7 +79,7 @@ CACHE_LIMIT_FIELDS = {
 def settings_group(title, *, collapsible=False, default_open=True, heading_testid=None, classes=''):
     with ui.column().classes(f'pv-preferences-group {classes}'):
         if collapsible:
-            with ui.expansion(title, value=default_open).props('dense').classes('w-full pv-settings-expansion') as expansion:
+            with ui.expansion(title, value=default_open).props('dense header-class=pv-focus-ring').classes('w-full pv-settings-expansion') as expansion:
                 if heading_testid is not None:
                     with expansion.add_slot('header'), ui.item_section():
                         heading = ui.label(title).classes('q-item__label')
@@ -187,14 +188,15 @@ class PreferencesView:
         self.export_button=None
         self.export_metadata_button=None
         self.export_status=None
+        self.export_notices=None
         self.closed=False
         self._epoch=0
         self.opened=False
         self.snapshot=None
         self.controls={}
         self._cache_limit_notes={}
-        self.dialog=ui.dialog().props('persistent data-testid=preferences-dialog')
-        self.dialog.on('keydown', self._on_dialog_key, js_handler="(event) => { if (event.key === 'Escape') emit({key: event.key}); }")
+        self.dialog=managed_dialog().props('persistent no-shake data-testid=preferences-dialog')
+        self.dialog.on('keyup', self._on_dialog_key, js_handler="(event) => { if (event.key === 'Escape') emit({key: event.key}); }")
 
     def _vault_state_changed(self, label, group):
         if self.closed:
@@ -238,9 +240,11 @@ class PreferencesView:
         if self.following_sync is not None:
             self.following_sync.deactivate()
         self.dialog.clear()
-        with self.dialog, dialog_card(size='lg', classes='pv-preferences-card'):
+        with self.dialog, dialog_card(size='lg', classes='pv-preferences-card pv-settings-modal') as card:
+
             with ui.row().classes('w-full items-center pv-preferences-top'):
-                ui.label('設定').classes('pv-dialog-title')
+                title = ui.label('設定').classes('pv-dialog-title').props('role=heading aria-level=1 tabindex=-1 data-autofocus')
+                self.dialog.props['aria-labelledby'] = title.html_id
             message = ''
             with ui.column().classes('w-full pv-preferences-content'):
                 if self.native_profile is not None:
@@ -300,6 +304,7 @@ class PreferencesView:
             if self.export_legacy is None:
                 ui.label('この起動では読取専用の旧DBと専用設定保存先の両方が必要です。').classes('pv-field-hint')
             self.export_status=ui.label(self.export_message).classes('pv-compact-status').props('data-testid=preferences-export-status role=status')
+            self.export_notices=ui.column().classes('w-full gap-0 pv-hide-empty')
 
         self._build_preference_group('詳細設定', groups.pop('詳細設定', ()))
         with settings_group('ブラウザ拡張機能', collapsible=True, default_open=False):
@@ -325,8 +330,10 @@ class PreferencesView:
             ui.label('アプリ全体で表示した作品・作者のサムネイル画像キャッシュを削除します。保存した作品は削除しません。').classes('pv-field-hint')
         if self.tagger is not None:
             with settings_group('ローカルタグ補完モデル（任意）', collapsible=True, default_open=False) as self.tagger_group:
-                self.tagger_path=outlined_input('モデルフォルダ', value=self.snapshot.values['local_tagger_path']).classes('w-full').props('data-testid=tagger-path')
-                self.tagger_enabled=ui.switch('タグ補完を自動で使う', value=self.snapshot.values['local_tagger_enabled']=='1').classes('pv-filter-switch').props('data-testid=tagger-enabled')
+                self.tagger_path=outlined_input('モデルフォルダ', value=self.snapshot.values['local_tagger_path']).classes('w-full').props('data-testid=tagger-path input-class=pv-focus-ring')
+                self.tagger_path.props['title'] = self.tagger_path.value or ''
+                self.tagger_path.on_value_change(lambda event: event.sender.props.update(title=event.value or ''))
+                self.tagger_enabled=ui.switch('タグ補完を自動で使う', value=self.snapshot.values['local_tagger_enabled']=='1').classes('pv-filter-switch pv-hit28').props('data-testid=tagger-enabled')
                 self.tagger_effective=ui.label('状態 検証中').props('role=status data-testid=tagger-effective')
                 self.tagger_status=ui.label('検証中').props('data-testid=tagger-status')
                 self._tagger_pending=True
@@ -377,7 +384,7 @@ class PreferencesView:
                             value = '1' if self.pixiv_actions_mode == 'enabled' else '0'
                         if spec.choices == ('0', '1'):
                             # Keep the QToggle model identical to the stored/acknowledged values.
-                            control = ui.switch(spec.label, value=value).classes('pv-filter-switch').props(
+                            control = ui.switch(spec.label, value=value).classes('pv-filter-switch pv-hit28').props(
                                 'dense true-value=1 false-value=0')
                         else:
                             labels = KEY_CHOICE_LABELS.get(spec.key, {})
@@ -430,7 +437,7 @@ class PreferencesView:
                                                testid='preferences-visual-start')
             self.visual_pause = secondary_button('解析を停止', self._pause_visual,
                                                  testid='preferences-visual-pause')
-            self.visual_clear = secondary_button('視覚学習データを削除', self._confirm_visual_clear,
+            self.visual_clear = secondary_button('視覚学習データを削除…', self._confirm_visual_clear,
                                                  testid='preferences-visual-clear').props('aria-haspopup=dialog')
         for button in (self.visual_start, self.visual_pause, self.visual_clear):
             button.set_enabled(False)
@@ -493,7 +500,7 @@ class PreferencesView:
         if expected is None:
             return
         epoch = self._epoch
-        with ui.dialog() as dialog, dialog_card('視覚学習データを削除', size='sm'):
+        with managed_dialog() as dialog, dialog_card('視覚学習データを削除', size='sm'):
             dialog.props['data-testid'] = 'preferences-visual-clear-dialog'
             dialog.props['aria-label'] = '視覚学習データを削除'
             ui.label('保存した作品・判定履歴・「似た絵を探す」の解析台帳は削除しません。').classes('pv-subtitle')
@@ -592,6 +599,7 @@ class PreferencesView:
         if self.closed or not self.opened or self.export_busy or export is None:
             return
         self.export_busy=True
+        self.export_notices.clear()
         self.export_message='エクスポート中…'
         self.export_button.set_enabled(False)
         self.export_metadata_button.set_enabled(False)
@@ -614,17 +622,22 @@ class PreferencesView:
         finally:
             self.export_busy=False
             if not self.closed:
-                if self.opened and self.export_button is not None and self.export_status is not None:
+                notices = self.export_notices if self.opened and not self.export_notices.is_deleted else None
+                return_focus = None
+                if notices is not None:
                     self.export_button.set_enabled(self.export_legacy is not None)
                     self.export_metadata_button.set_enabled(self.export_metadata is not None)
                     self.export_status.set_text(self.export_message)
-                # The thread round-trip may resume without an implicit UI
-                # slot; notify explicitly in the original dialog's client.
+                    return_focus = self.export_button if include_images else self.export_metadata_button
                 with self.dialog:
-                    ui.notify(('エクスポートは完了しましたが、一時フォルダーを確認してください。'
-                               if cleanup_warning else 'エクスポートが完了しました。') if succeeded
-                              else 'エクスポートに失敗しました。',
-                              type='warning' if cleanup_warning else 'positive' if succeeded else 'negative')
+                    if cleanup_warning:
+                        notify_action('エクスポートは完了しましたが、一時フォルダーを確認してください。',
+                                      type='warning', important=True, within_dialog=notices, return_focus=return_focus)
+                    elif succeeded:
+                        notify_action('エクスポートが完了しました。', type='positive')
+                    else:
+                        notify_action('エクスポートに失敗しました。', type='negative',
+                                      within_dialog=notices, return_focus=return_focus)
 
     def save(self):
         if self.closed or not self.opened or self.snapshot is None: return False
@@ -670,9 +683,10 @@ class PreferencesView:
     def _uri_prompt(self):
         if self.closed or not self.opened or self.desktop is None: return
         epoch=self._epoch
-        with ui.dialog() as dialog, dialog_card(
-                'ブラウザ拡張機能の自動連携',
+        with managed_dialog().props('data-testid=preferences-uri-dialog aria-label=ブラウザ拡張機能の自動連携') as dialog, dialog_card(
+                'ブラウザ拡張機能の自動連携', classes='pv-settings-modal',
                 subtitle='Windowsのユーザー設定にpixivvault URLスキームを登録します。解除すると登録前の状態に戻ります。'):
+
             result=ui.label('').props('role=status')
             def apply(enabled):
                 if self.closed or not self.opened or epoch!=self._epoch:return
@@ -682,7 +696,7 @@ class PreferencesView:
                 except Exception:
                     result.set_text('登録状態を変更できません。')
             with dialog_actions():
-                secondary_button('キャンセル', dialog.close)
+                secondary_button('キャンセル', dialog.close).props('data-autofocus')
                 secondary_button('無効にする', lambda:apply(False))
                 primary_button('有効にする', lambda:apply(True))
         dialog.open()

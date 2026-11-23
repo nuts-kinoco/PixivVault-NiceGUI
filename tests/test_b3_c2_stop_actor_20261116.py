@@ -113,8 +113,8 @@ def test_other_operation_cause_is_explicit_even_at_last_attempt_slot(tmp_path, s
     assert records[0]['stop_cause'] == 'shared_limit'
     assert records[1]['stop_cause'] == 'own_limit'
     for line in (target, other):
-        assert 'この起動中は停止' in line and '明示的にやり直して' in line
-        assert '共有STOP履歴には記録しません' in line and '自動再送は行いません' in line
+        assert 'この起動中は停止' in line and '手動でやり直して' in line
+        assert '再起動後に残る停止として記録しません' in line and '自動再送は行いません' in line
 
 
 @pytest.mark.parametrize('limit', [1, 5])
