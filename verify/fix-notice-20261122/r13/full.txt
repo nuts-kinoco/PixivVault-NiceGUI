@@ -1,0 +1,154 @@
+head=1cdedbfe064f1f9ab470d0777a605d518f9fcee1
+launcher_pid=121688
+root=\\?\S:\Work\_tmp\PV\fix-notice-r13-20261122-x3n2zfz2
+started=2026-11-23T15:47:44.863299+09:00
+pytest_pid=135360
+........................................................................ [  1%]
+........................................................................ [  2%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  6%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 10%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 14%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 18%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 22%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 26%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 34%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+........................................................................ [ 38%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 42%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 46%]
+..........................................................s............. [ 47%]
+........................................................................ [ 49%]
+...................................................s.................... [ 50%]
+...............s........................................................ [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 54%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 58%]
+........................................................................ [ 59%]
+........................................................................ [ 61%]
+........................................................................ [ 62%]
+.......................................s................................ [ 63%]
+........................................................................ [ 65%]
+............................................F........................... [ 66%]
+........................................................................ [ 67%]
+........................................................................ [ 69%]
+........................................................................ [ 70%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 74%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 78%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 82%]
+........................................................................ [ 83%]
+.................................F...................................... [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 87%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 91%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 95%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+........................................................................ [ 99%]
+......................                                                   [100%]
+================================== FAILURES ===================================
+__ test_recommendation_lazy_media_and_dismissals_with_actual_work7_settings ___
+tests\test_recommendation_visual_browser.py:29: in test_recommendation_lazy_media_and_dismissals_with_actual_work7_settings
+    result = subprocess.run([sys.executable, '-B', __file__, str(tmp_path)],
+C:\Users\nat\miniconda3\envs\stenv\Lib\subprocess.py:556: in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\subprocess.py:1222: in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\subprocess.py:1665: in _communicate
+    raise TimeoutExpired(self.args, orig_timeout)
+E   subprocess.TimeoutExpired: Command '['S:\\Projects\\PixivVault-NiceGUI\\.venv\\Scripts\\python.exe', '-B', 'S:\\Work\\PV\\fix-notice-20261122\\tests\\test_recommendation_visual_browser.py', 'S:\\Work\\_tmp\\PV\\fix-notice-r13-20261122-x3n2zfz2\\pytest\\test_recommendation_lazy_media0']' timed out after 90 seconds
+______________ test_visual_settings_dialog_keyboard_and_contrast ______________
+tests\test_visual_preference_browser.py:59: in test_visual_settings_dialog_keyboard_and_contrast
+    assert server.is_alive()
+E   assert False
+E    +  where False = is_alive()
+E    +    where is_alive = <Thread(Thread-1423 (<lambda>), stopped 132856)>.is_alive
+============================== warnings summary ===============================
+..\..\..\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\fastapi\testclient.py:1
+  S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_l14_bookmark_count.py: 12 warnings
+  S:\Work\PV\fix-notice-20261122\src\pixivvault_nicegui\managed_viewer_page.py:51: DeprecationWarning: pathlib.PurePath.is_reserved() is deprecated and scheduled for removal in Python 3.15. Use os.path.isreserved() to detect reserved paths on Windows.
+    value.endswith((' ', '.')) or PureWindowsPath(value).is_reserved()):
+
+tests/test_required_legacy_duplicates.py::test_unsafe_or_duplicate_zip_members_do_not_publish[same.png]
+  C:\Users\nat\miniconda3\envs\stenv\Lib\zipfile\__init__.py:1655: UserWarning: Duplicate name: 'same.png'
+    return self._open_to_write(zinfo, force_zip64=force_zip64)
+
+tests/test_visual_preference_browser.py::test_visual_settings_dialog_keyboard_and_contrast
+  S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-1423 (<lambda>)
+
+  Traceback (most recent call last):
+    File "C:\Users\nat\miniconda3\envs\stenv\Lib\threading.py", line 1044, in _bootstrap_inner
+      self.run()
+      ~~~~~~~~^^
+    File "C:\Users\nat\miniconda3\envs\stenv\Lib\threading.py", line 995, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "S:\Work\PV\fix-notice-20261122\tests\test_visual_preference_browser.py", line 44, in <lambda>
+      server = Thread(target=lambda: ui.run(host='127.0.0.1', port=0, show=False, reload=False,
+                                     ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                            show_welcome_message=False))
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\nicegui\ui_run.py", line 138, in run
+      raise RuntimeError(
+      ...<2 lines>...
+      )
+  RuntimeError: ui.page cannot be used in NiceGUI scripts when UI is defined in the global scope.
+  To use multiple pages, either move all UI into page functions or use ui.sub_pages.
+
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+SKIPPED [1] tests\test_legacy_managed_startup.py:306: symlink creation unavailable
+SKIPPED [1] tests\test_managed_downloads.py:257: symlink requires privileges
+SKIPPED [1] tests\test_managed_network_stop_gate.py:263: symlink unavailable
+SKIPPED [1] tests\test_q_shell_20261117.py:239: Edge ‚ª‹N“®‚Å‚«‚È‚¢
+FAILED tests/test_recommendation_visual_browser.py::test_recommendation_lazy_media_and_dismissals_with_actual_work7_settings
+FAILED tests/test_visual_preference_browser.py::test_visual_settings_dialog_keyboard_and_contrast
+2 failed, 5416 passed, 4 skipped, 3 deselected, 15 warnings in 2112.70s (0:35:12)
+
+exit=1
+finished=2026-11-23T16:23:11.839090+09:00
+owned_files=61722
+owned_bytes=314306858
+temp_removed=True

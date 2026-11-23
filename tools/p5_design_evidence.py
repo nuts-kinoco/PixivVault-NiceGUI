@@ -424,7 +424,8 @@ def separate_environment(base):
 
 
 @contextmanager
-def running_app(kind, python, base, port, nonce=None, *, tone_mode=False, personal_fixture=False):
+def running_app(kind, python, base, port, nonce=None, *, tone_mode=False, personal_fixture=False,
+                server_script=None, extra_env=None, startup_timeout=60):
     if not smoke.port_free(port):
         raise RuntimeError(f"port in use: {port}")
     env = separate_environment(base)
@@ -433,6 +434,8 @@ def running_app(kind, python, base, port, nonce=None, *, tone_mode=False, person
         env['PV_UI_TONE_CAPTURE'] = '1'
     if personal_fixture:
         env['PV_UI_TONE_PERSONAL_FIXTURE'] = '1'
+    if extra_env:
+        env.update(extra_env)
     if kind == "original":
         # Do not inherit Flet's host/port or open the machine's default browser.
         env.update(PV_WEB_PORT=str(port), PV_LOCK_PORT=str(port + 1), PV_SERVER_PORT=str(port + 2),
@@ -442,7 +445,7 @@ def running_app(kind, python, base, port, nonce=None, *, tone_mode=False, person
                    FLET_WEB_NO_CDN="1")
         if not smoke.port_free(port + 1):
             raise RuntimeError(f"original lock port in use: {port + 1}")
-    args = [str(python), "-B", str(Path(__file__).resolve()), f"--serve-{kind}", str(port)]
+    args = [str(python), "-B", str(server_script or Path(__file__).resolve()), f"--serve-{kind}", str(port)]
     if nonce:
         args.append(f"--nonce={nonce}")
     url = f"http://127.0.0.1:{port}"
@@ -452,7 +455,7 @@ def running_app(kind, python, base, port, nonce=None, *, tone_mode=False, person
                                 stdout=log, stderr=subprocess.STDOUT)
         try:
             health = url + ("/healthz" if kind == "port" else "/")
-            deadline = time.monotonic() + 60
+            deadline = time.monotonic() + startup_timeout
             while True:
                 if proc.poll() is not None:
                     raise RuntimeError(f"{kind} exited {proc.returncode}. See {log_path}")
@@ -614,15 +617,13 @@ def audit_original(page):
                                   e["rect"][1]+e["rect"][3] > page.viewport_size["height"]+2)]}
 
 
-def new_page(browser, url, size, theme, foreign, japanese_font):
+def prepare_page(page, url, foreign, japanese_font, *, redact_destinations=False, context_routes=False):
     scope = urlsplit(url).netloc
-    context = browser.new_context(viewport={"width": size[0], "height": size[1]},
-                                  color_scheme=theme, device_scale_factor=1, service_workers="block")
 
     def route(request):
         target = urlsplit(request.request.url)
         if target.scheme in ("http", "https") and target.netloc != scope:
-            foreign.add(target.netloc + target.path)
+            foreign.add(target.hostname if redact_destinations else target.netloc + target.path)
             request.abort()
         elif japanese_font and target.path.startswith("/assets/fonts/notosansjp/"):
             request.fulfill(status=200, content_type="font/ttf", body=japanese_font)
@@ -636,11 +637,21 @@ def new_page(browser, url, size, theme, foreign, japanese_font):
             foreign.add(urlsplit(websocket.url).hostname)
             websocket.close()
 
-    context.route("**/*", route)
-    context.route_web_socket("**/*", route_ws)
-    page = context.new_page()
+    router = page.context if context_routes else page
+    router.route("**/*", route)
+    router.route_web_socket("**/*", route_ws)
     page.goto(url, wait_until="domcontentloaded", timeout=30000)
     return page
+
+
+def new_page(browser, url, size, theme, foreign, japanese_font):
+    context = browser.new_context(viewport={"width": size[0], "height": size[1]},
+                                  color_scheme=theme, device_scale_factor=1, service_workers="block")
+    try:
+        return prepare_page(context.new_page(), url, foreign, japanese_font, context_routes=True)
+    except BaseException:
+        context.close()
+        raise
 
 
 def capture_view(page, target, kind, path, specs, profile, tone_key=None, original_dir=None):

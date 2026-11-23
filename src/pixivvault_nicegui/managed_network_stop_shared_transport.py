@@ -7,6 +7,7 @@ No real profile, Cookie, or OS-user gate is discovered here.
 
 from __future__ import annotations
 
+from contextlib import contextmanager, nullcontext
 from urllib.error import HTTPError
 
 from .managed_network_stop_gate import (
@@ -14,14 +15,21 @@ from .managed_network_stop_gate import (
     ManagedNetworkStopGate,
     ManagedNetworkStopped,
     STOP_STATUSES,
+    _attach_gate_cleanup,
+    _carry_gate_cleanup,
+    _gate_storage_io,
+    _http_gate_rejection,
+    _run_gate_cleanup,
+    _report_stop_authority,
+    _trip_before_admission,
 )
 from .managed_network_stop_profile_scope import (
     _ProfileBoundTransport,
-    _require_selected_cookie,
+    _require_native_stop_owner,
 )
-from .managed_network_stop_transport import ManagedNetworkStopTransport
+from .managed_network_stop_transport import ManagedNetworkStopTransport, _GatedReadTransport
 from .pixiv_read_client import HTTPStatusRejected
-from .request_policy import durable_stop_status
+from .request_policy import durable_stop_status, request_send_checkpoint
 
 
 def _dispatch_dual_stop(local_gate, shared_gate, transport,
@@ -30,21 +38,17 @@ def _dispatch_dual_stop(local_gate, shared_gate, transport,
         raise ValueError("managed network transport accepts GET only")
     fatal_status = None
     try:
-        with local_gate.request():
+        with _report_stop_authority('local'), local_gate.request():
             try:
-                with shared_gate.request():
+                with _report_stop_authority('shared'), shared_gate.request():
                     try:
+                        request_send_checkpoint()
                         return transport(request, timeout, limit, deadline)
                     except HTTPError as error:
-                        status = error.code
-                        if type(status) is int and status in STOP_STATUSES:
-                            if durable_stop_status(status):fatal_status = status
-                            try:
-                                error.close()
-                            except Exception:
-                                pass
-                            raise HTTPStatusRejected(status) from None
-                        raise
+                        rejected = _http_gate_rejection(error)
+                        if isinstance(rejected, HTTPStatusRejected) and durable_stop_status(rejected.status_code):
+                            fatal_status = rejected.status_code
+                        raise rejected from None
                     except ManagedNetworkStopped as stopped:
                         # A raw injected transport can raise Stopped itself.
                         # Convert *inside* both request contexts so both
@@ -53,34 +57,67 @@ def _dispatch_dual_stop(local_gate, shared_gate, transport,
                             raise ManagedNetworkGateStorageError(
                                 "invalid raw managed stop status") from None
                         fatal_status = stopped.status_code
-                        raise HTTPStatusRejected(fatal_status) from None
+                        raise _carry_gate_cleanup(stopped, HTTPStatusRejected(fatal_status)) from None
                     except HTTPStatusRejected as error:
                         if durable_stop_status(error.status_code):
                             fatal_status = error.status_code
                         raise
-            except ManagedNetworkGateStorageError:
+            except ManagedNetworkGateStorageError as error:
                 if fatal_status is not None:
                     # Shared commit can fail *after* receiving 401/403/429.
                     # The outer local gate still owns its lock: persist the
                     # fatal status here before releasing it. Never turn this
                     # storage fault into a seemingly successful STOP.
-                    local_gate._trip_locked(fatal_status)
+                    _trip_local_after_shared_failure(local_gate, fatal_status, error)
                 raise
     except HTTPStatusRejected as error:
         if durable_stop_status(error.status_code):
-            stopped = ManagedNetworkStopped(error.status_code)
+            stopped = ManagedNetworkStopped(error.status_code, authority='both')
             stopped.observed_response = True
-            raise stopped from None
+            raise _carry_gate_cleanup(error, stopped) from None
         raise
     except ManagedNetworkStopped as stopped:
         # Already-stopped local/shared on entry, OR a raw transport raising
         # Stopped directly. request() only trips HTTPStatusRejected, so both
         # durable owners must explicitly receive this status before returning.
-        try:
-            shared_gate.trip(stopped.status_code)
-        finally:
-            local_gate.trip(stopped.status_code)
+        _transfer_known_stop(local_gate, shared_gate, stopped)
         raise
+
+
+def _trip_local_after_shared_failure(local_gate, status, error):
+    try:
+        with _report_stop_authority('local'):
+            local_gate._trip_locked(status)
+    except ManagedNetworkGateStorageError as local_error:
+        _attach_gate_cleanup(error, local_error)
+
+
+def _transfer_known_stop(local_gate, shared_gate, stopped):
+    transfer_failed = False
+    for authority, gate in (('shared', shared_gate), ('local', local_gate)):
+        try:
+            with _report_stop_authority(authority):
+                gate.trip(stopped.status_code)
+        except ManagedNetworkGateStorageError as error:
+            # If only close failed after readback the destination is known.
+            transfer_failed |= getattr(error, 'completed_stop', None) is None
+            _attach_gate_cleanup(stopped, error)
+    if not transfer_failed:
+        stopped.authority = 'both'
+
+
+@contextmanager
+def _shared_owner_admission(check, *, confirming):
+    from .managed_network_stop_startup import selected_history_guard
+    owner = getattr(check, '__self__', None)
+    with _report_stop_authority('shared'):
+        if check is not None:
+            with _gate_storage_io('shared STOP owner unavailable'):
+                check()
+        guard = (selected_history_guard(owner, transfer_stop=not confirming)
+                 if owner is not None else nullcontext())
+        with guard:
+            yield
 
 
 class SharedProfileStopTransport(_ProfileBoundTransport):
@@ -94,6 +131,7 @@ class SharedProfileStopTransport(_ProfileBoundTransport):
     """
 
     __slots__ = ("shared_gate", "shared_owner_check")
+    resource_authority = 'shared'
 
     def __init__(self, previous: _ProfileBoundTransport,
                  shared_gate: ManagedNetworkStopGate, *, shared_owner_check=None):
@@ -117,41 +155,46 @@ class SharedProfileStopTransport(_ProfileBoundTransport):
         self.shared_gate = shared_gate
         self.shared_owner_check = shared_owner_check
 
+    @property
+    def _notice_gates(self):
+        return self.gate, self.shared_gate
+
+    @contextmanager
+    def _admission_owner_checks(self, *, confirming=False):
+        with super()._admission_owner_checks(confirming=confirming), \
+                _shared_owner_admission(self.shared_owner_check, confirming=confirming):
+            yield
+
     def __call__(self, request, timeout: float, limit: int,
                  deadline: float) -> bytes:
-        _require_selected_cookie(self.profile_root, self.cookie_path,
-                                 self.profile_identity)
-        if self.shared_owner_check is not None:
-            self.shared_owner_check()
-        from contextlib import nullcontext
-        from .managed_network_stop_startup import selected_history_guard
-        owner = getattr(self.shared_owner_check, '__self__', None)
-        with selected_history_guard(owner) if owner is not None else nullcontext():
+        with self._admission_owner_checks():
             return _dispatch_dual_stop(self.gate, self.shared_gate, self.transport,
                                        request, timeout, limit, deadline)
 
 
-class _DraftAuthSharedTransport:
+class _DraftAuthSharedTransport(_GatedReadTransport):
     """The Native draft Cookie is not yet the saved credential selection."""
 
     __slots__ = ("scope", "shared_owner", "transport")
+    resource_authority = 'shared'
 
     def __init__(self, scope, shared_owner, transport):
         self.scope, self.shared_owner, self.transport = scope, shared_owner, transport
 
+    @property
+    def _notice_gates(self):
+        return self.scope.gate, self.shared_owner.gate
+
+    @contextmanager
+    def _admission_owner_checks(self, *, confirming=False):
+        _require_native_stop_owner(self.scope.root, self.scope.profile_identity)
+        with _shared_owner_admission(self.shared_owner._check_owner, confirming=confirming):
+            yield
+
     def __call__(self, request, timeout, limit, deadline):
-        from .managed_network_stop_profile_scope import _SCOPE_MARKER, _SCOPE_IDENTITY
-        from .native_profile import PROFILE_DB, PROFILE_MARKER, PROFILE_IDENTITY, _owned_marker
-        from .managed_network_stop_gate import _file_identity
-        _owned_marker(self.scope.root, PROFILE_MARKER, PROFILE_IDENTITY)
-        _owned_marker(self.scope.root, _SCOPE_MARKER, _SCOPE_IDENTITY)
-        if _file_identity(self.scope.root / PROFILE_DB) != self.scope.profile_identity:
-            raise ManagedNetworkGateStorageError("native draft auth owner changed")
-        self.shared_owner._check_owner()
-        from .managed_network_stop_startup import selected_history_guard
-        with selected_history_guard(self.shared_owner):
+        with self._admission_owner_checks():
             return _dispatch_dual_stop(self.scope.gate, self.shared_owner.gate,
-                                      self.transport, request, timeout, limit, deadline)
+                                       self.transport, request, timeout, limit, deadline)
 
 
 def create_shared_draft_auth_reader(scope, cookie_path, shared_owner):
@@ -171,8 +214,8 @@ def create_shared_draft_auth_reader(scope, cookie_path, shared_owner):
             raise ManagedNetworkGateStorageError("draft reader is not gated")
         reader._transport = _DraftAuthSharedTransport(scope, shared_owner, previous.transport)
         return reader
-    except BaseException:
-        reader.close()
+    except BaseException as error:
+        _run_gate_cleanup(reader.close, 'managed reader close failed', primary=error, authority='shared')
         raise
 
 
@@ -207,11 +250,14 @@ def create_shared_profile_reader(scope, cookie_path, shared_gate, *, transport=N
             raise TypeError("owned native profile transport required")
         shared_transport = SharedProfileStopTransport(
             previous, shared_gate, shared_owner_check=shared_owner_check)
-        native_state = previous.gate.snapshot()
-        if native_state.blocked:
-            shared_gate.trip(native_state.status_code)
+        try:
+            with _report_stop_authority('local'):
+                previous.gate.require_allowed()
+        except ManagedNetworkStopped as stopped:
+            with _report_stop_authority('shared'):
+                _trip_before_admission(shared_gate.trip, stopped)
         reader._transport = shared_transport
         return reader
-    except BaseException:
-        reader.close()
+    except BaseException as error:
+        _run_gate_cleanup(reader.close, 'managed reader close failed', primary=error, authority='shared')
         raise

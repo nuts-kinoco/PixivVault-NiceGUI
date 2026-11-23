@@ -1,0 +1,17 @@
+head=fe032f7477c4b36777dfe480ae7a199e7abd6dd3
+launcher_pid=142088
+root=\\?\S:\Work\_tmp\PV\fix-notice-r13-20261122-q_5fz82s
+pytest_pid=133628
+........................................................................ [ 56%]
+...........................................F............                 [100%]
+================================== FAILURES ===================================
+__ test_known_storage_fault_does_not_inherit_ack_from_a_different_authority ___
+tests\test_fix_notice_sweep_20261122.py:289: in test_known_storage_fault_does_not_inherit_ack_from_a_different_authority
+    new, = policy.progress_snapshot()
+    ^^^^
+E   ValueError: too many values to unpack (expected 1)
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_sweep_20261122.py::test_known_storage_fault_does_not_inherit_ack_from_a_different_authority
+1 failed, 127 passed in 28.17s
+
+exit=1

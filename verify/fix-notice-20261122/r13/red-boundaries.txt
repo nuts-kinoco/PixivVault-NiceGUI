@@ -1,0 +1,24 @@
+head=fe032f7477c4b36777dfe480ae7a199e7abd6dd3
+launcher_pid=127056
+root=\\?\S:\Work\_tmp\PV\fix-notice-r13-20261122-npobsnwa
+pytest_pid=132244
+FF                                                                       [100%]
+================================== FAILURES ===================================
+______ test_reconfirmation_cannot_clear_a_401_known_before_gate_unwinds _______
+tests\test_fix_notice_round13_20261122.py:324: in test_reconfirmation_cannot_clear_a_401_known_before_gate_unwinds
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000002C5A187F230>.confirm_gate_notices
+______ test_native_current_owner_vetoes_local_draft_reader_confirmation _______
+tests\test_fix_notice_round13_20261122.py:359: in test_native_current_owner_vetoes_local_draft_reader_confirmation
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000002C5A19074D0>.confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round13_20261122.py::test_reconfirmation_cannot_clear_a_401_known_before_gate_unwinds
+FAILED tests/test_fix_notice_round13_20261122.py::test_native_current_owner_vetoes_local_draft_reader_confirmation
+2 failed in 2.53s
+
+exit=1

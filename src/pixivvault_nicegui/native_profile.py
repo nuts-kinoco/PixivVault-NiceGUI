@@ -7,7 +7,7 @@ module unless their launcher explicitly opts in.
 """
 from __future__ import annotations
 
-from contextlib import closing, contextmanager
+from contextlib import contextmanager
 from dataclasses import dataclass
 import os
 import re
@@ -397,16 +397,26 @@ class NativeProfileStore:
             raise NativeProfileError('専用profileを読み込めませんでした。旧設定は変更していません。')
         # A copied/in-flight SQLite file with WAL/journal sidecars cannot be
         # treated as a complete immutable snapshot. --check never recovers it.
-        if any(Path(str(path) + suffix).exists() or
-               Path(str(path) + suffix).is_symlink()
-               for suffix in ('-wal', '-shm', '-journal')):
-            raise NativeProfileError('profileの読取専用状態を確認できませんでした。')
+        from .fs_paths import path_entry_exists
         try:
-            with closing(sqlite3.connect(sqlite_readonly_uri(path, immutable=True),
-                                         uri=True, timeout=4)) as connection:
+            pending = any(path_entry_exists(Path(str(path) + suffix))
+                          for suffix in ('-wal', '-shm', '-journal'))
+        except OSError:
+            pending = True
+        if pending:
+            raise NativeProfileError('profileの読取専用状態を確認できませんでした。')
+        from .managed_network_stop_gate import (
+            ManagedNetworkGateStorageError, _attach_gate_cleanup, _carry_gate_cleanup, _gate_cleanup,
+        )
+        try:
+            connection = sqlite3.connect(sqlite_readonly_uri(path, immutable=True), uri=True, timeout=4)
+            with _gate_cleanup(connection.close, 'native profile database close failed', authority='local'):
                 return cls._read_row(connection, folder)
-        except Exception:
-            raise NativeProfileError('専用profileを読み込めませんでした。旧設定は変更していません。') from None
+        except Exception as error:
+            failure = NativeProfileError('専用profileを読み込めませんでした。旧設定は変更していません。')
+            if isinstance(error, ManagedNetworkGateStorageError):
+                _attach_gate_cleanup(failure, error)
+            raise _carry_gate_cleanup(error, failure) from None
 
     def snapshot(self) -> NativeProfileSnapshot:
         with self._lock:

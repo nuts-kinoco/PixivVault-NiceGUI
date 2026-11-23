@@ -1,0 +1,8 @@
+head=fe032f7477c4b36777dfe480ae7a199e7abd6dd3
+launcher_pid=62840
+root=\\?\S:\Work\_tmp\PV\fix-notice-r13-20261122-yx0f4ox6
+pytest_pid=136964
+.                                                                        [100%]
+1 passed in 2.34s
+
+exit=0

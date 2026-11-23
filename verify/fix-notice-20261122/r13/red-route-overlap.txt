@@ -1,0 +1,24 @@
+head=877c45b0c851fb38f58c59bd9ac5b646c34c8e25
+launcher_pid=78328
+root=\\?\S:\Work\_tmp\PV\fix-notice-r13-20261122-44uv6od0
+pytest_pid=139284
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_______ test_reconfirmation_busy_filter_is_limited_to_the_gate_it_owns ________
+tests\test_fix_notice_round13_20261122.py:507: in test_reconfirmation_busy_filter_is_limited_to_the_gate_it_owns
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000028A57B56BA0>.confirm_gate_notices
+___ test_later_manual_stop_invalidates_an_earlier_proof_of_its_shared_gate ____
+tests\test_fix_notice_round13_20261122.py:529: in test_later_manual_stop_invalidates_an_earlier_proof_of_its_shared_gate
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000028A57F9CA50>.confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round13_20261122.py::test_reconfirmation_busy_filter_is_limited_to_the_gate_it_owns
+FAILED tests/test_fix_notice_round13_20261122.py::test_later_manual_stop_invalidates_an_earlier_proof_of_its_shared_gate
+2 failed in 4.34s
+
+exit=1

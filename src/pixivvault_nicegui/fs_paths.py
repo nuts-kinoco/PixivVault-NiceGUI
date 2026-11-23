@@ -18,6 +18,15 @@ def logical_path(path):
     return Path(value)
 
 
+def path_entry_exists(path: Path) -> bool:
+    """Treat only an actual missing directory entry as absence."""
+    try:
+        path.lstat()
+    except FileNotFoundError:
+        return False
+    return True
+
+
 def sqlite_readonly_uri(path, *, immutable=True):
     """Keep native Windows spelling as filename data, not URI authority/query.
 

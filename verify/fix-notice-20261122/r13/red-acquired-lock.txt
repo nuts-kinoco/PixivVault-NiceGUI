@@ -1,0 +1,17 @@
+head=b7f15c5859c207c13b5bdb4c82fffe5ce06eecca
+launcher_pid=14464
+root=\\?\S:\Work\_tmp\PV\fix-notice-r13-20261122-a9glrhs0
+pytest_pid=137444
+F                                                                        [100%]
+================================== FAILURES ===================================
+______ test_reconfirmation_does_not_hide_a_shared_lock_it_never_acquired ______
+tests\test_fix_notice_round13_20261122.py:571: in test_reconfirmation_does_not_hide_a_shared_lock_it_never_acquired
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001E510BA6F90>.confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round13_20261122.py::test_reconfirmation_does_not_hide_a_shared_lock_it_never_acquired
+1 failed in 2.62s
+
+exit=1

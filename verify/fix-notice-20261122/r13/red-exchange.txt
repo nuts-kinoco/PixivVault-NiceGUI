@@ -1,0 +1,17 @@
+head=fe032f7477c4b36777dfe480ae7a199e7abd6dd3
+launcher_pid=137724
+root=\\?\S:\Work\_tmp\PV\fix-notice-r13-20261122-gcz2y390
+pytest_pid=131824
+F                                                                        [100%]
+================================== FAILURES ===================================
+_________ test_official_gate_exchange_keeps_pin_until_reconfirmation __________
+tests\test_fix_notice_round13_20261122.py:215: in test_official_gate_exchange_keeps_pin_until_reconfirmation
+    assert policy.confirm_gate_notices()
+E   assert False
+E    +  where False = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001C8497630E0>.confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round13_20261122.py::test_official_gate_exchange_keeps_pin_until_reconfirmation
+1 failed in 2.19s
+
+exit=1

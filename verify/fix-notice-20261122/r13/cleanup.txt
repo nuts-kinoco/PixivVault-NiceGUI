@@ -1,0 +1,10 @@
+recorded_roots=20
+remaining_test_processes=0 (command line matches owned root, CIM)
+remaining_recorded_pids=0 (launchers and pytest processes)
+remaining_r13_temp_roots=0 (S:\Work\_tmp\PV, exact r13 prefix)
+owned_processes_stopped=3 (superseded candidate, verified original pytest subtree)
+measured_runs=6 (full, superseded, four browser solo runs)
+temporary_files_removed=63984
+temporary_bytes_removed=392812265
+evidence_retained=verify/fix-notice-20261122/r13
+preexisting=.workdir.json

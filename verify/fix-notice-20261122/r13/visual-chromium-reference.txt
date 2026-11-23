@@ -1,0 +1,13 @@
+head=1cdedbfe064f1f9ab470d0777a605d518f9fcee1
+launcher_pid=141276
+root=\\?\S:\Work\_tmp\PV\fix-notice-r13-20261122-j2zmm_qq
+started=2026-11-23T16:30:01.638778+09:00
+pytest_pid=144812
+.                                                                        [100%]
+1 passed in 8.27s
+
+exit=0
+finished=2026-11-23T16:30:11.408636+09:00
+owned_files=199
+owned_bytes=15740766
+temp_removed=True

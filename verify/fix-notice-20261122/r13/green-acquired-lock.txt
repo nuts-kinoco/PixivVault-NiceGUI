@@ -1,0 +1,11 @@
+head=b7f15c5859c207c13b5bdb4c82fffe5ce06eecca
+launcher_pid=132160
+root=\\?\S:\Work\_tmp\PV\fix-notice-r13-20261122-d7mo3qs8
+pytest_pid=133156
+........................................................................ [ 84%]
+...........s.                                                            [100%]
+=========================== short test summary info ===========================
+SKIPPED [1] tests\test_managed_network_stop_gate.py:263: symlink unavailable
+84 passed, 1 skipped in 30.82s
+
+exit=0

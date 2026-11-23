@@ -4,6 +4,8 @@ api_retry_count is the total number of HTTP tries (original range(count)), not
 additional JobService attempts. Phase10 can suppress retries in a local scope.
 No URL, response, Cookie, or exception text is persisted by this policy.
 """
+from __future__ import annotations
+
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -12,6 +14,9 @@ import math
 import random
 from threading import Lock, RLock
 import time
+from weakref import WeakKeyDictionary
+
+from .request_notice_gates import GateNoticeState, GateObservationSnapshot, check_request_notice_gates
 
 
 @dataclass(frozen=True)
@@ -22,10 +27,126 @@ class _Scope:
 _SCOPE=ContextVar('pixivvault_request_scope',default=_Scope())
 _BOUNDED_GET_RETRY=ContextVar('pixivvault_bounded_get_retry',default=False)
 _FRESH_GET=ContextVar('pixivvault_fresh_get',default=False)
+_SEND_ATTEMPT = ContextVar('pixivvault_send_attempt', default=None)
+_GATE_PREFLIGHT = ContextVar('pixivvault_gate_preflight', default=None)
+_GATE_CONFIRMATION = ContextVar('pixivvault_gate_confirmation', default=None)
 _LANE=ContextVar('pixivvault_request_lane',default='background')
 # Original rate_coordinator.py MAX_BACKGROUND_DEFER_SECONDS: background yields to a
 # waiting interactive request, but never starves for longer than this.
 MAX_BACKGROUND_DEFER_SECONDS=2.0
+NOTICE_LIFETIME_SECONDS = 10 * 60
+_GATE_NOTICE_CAUSES = {'gate_busy', 'gate_unverified', 'durable_gate'}
+_RATE_STOP_CAUSES = {'own_limit', 'shared_limit', 'cleanup_429', 'shared_cleanup_429'}
+
+
+def is_pinned_notice(record):
+    return record.get('stop_cause') in _GATE_NOTICE_CAUSES
+
+
+def is_rate_stop_notice(record):
+    return (record['phase'] == 'stopped' and record['status'] == 429
+            and (record.get('stop_cause') in _RATE_STOP_CAUSES or record.get('stop_cause') is None))
+
+
+def _gate_notice_key(record):
+    cause, problem = record.get('stop_cause'), record.get('gate_problem')
+    owners = record.get('gate_owners', ()) if problem == 'storage' or cause == 'gate_busy' else ()
+    return cause, record['status'], problem, owners
+
+
+def _reported_owners(error):
+    authority = getattr(error, 'authority', None)
+    if authority == 'both':
+        return ('local', 'shared')
+    return (authority,) if authority in ('local', 'shared') else ()
+
+
+def _gate_file(gate):
+    return (gate._database_identity, gate._lock_identity) if gate is not None else None
+
+
+def _gate_files(gates):
+    return tuple(map(_gate_file, gates))
+
+
+def _route_owners(route):
+    return {owner for owner, path in zip(('local', 'shared'), route[0]) if path is not None}
+
+
+def _confirmed_route(record, route):
+    origin = record.get('notice_route')
+    owners = _route_owners(route)
+    if origin is not None:
+        return origin == route and set(record.get('gate_owners', ())) <= owners
+    observed = record.get('observed_files', ())
+    return (bool(owners) and set(record.get('gate_owners', ()) or ('local', 'shared')) <= owners
+            and all(route[0][slot] == files for slot, files in observed))
+
+
+def reconcile_gate_notices(records, snapshot, now, serial, *, watched_request=None):
+    """Add newly observed stops without removing an existing notice."""
+    origin = next((record for record in records.values() if is_pinned_notice(record)), None)
+    if origin is None and watched_request is None:
+        return records, serial
+
+    observations = []
+
+    def observed(state, cause, status=None, problem=None, owners=None):
+        if owners is None:
+            owners = ('local', 'shared') if state.authority == 'both' else (state.authority,)
+        files = frozenset()
+        if state.owner_gate is not None:
+            slot = 0 if state.authority == 'local' else 1
+            files = frozenset(((slot, _gate_file(state.owner_gate)),))
+        observations.append((cause, status, problem, owners, files))
+
+    for state in snapshot.states:
+        if state.status is not None:
+            observed(state, 'durable_gate', state.status)
+        if state.state == 'unverified' or state.cleanup_unverified:
+            observed(state, 'gate_unverified', problem='storage', owners=() if state.authority == 'both' else None)
+        if state.authority in ('shared', 'both') and (
+                state.state == 'uncertain' or (state.state == 'stopped' and state.inflight)):
+            observed(state, 'gate_unverified', problem='uncertain', owners=('shared',))
+        if state.state in ('busy', 'changed'):
+            observed(state, 'gate_busy')
+    if not snapshot.consistent and not observations:
+        for state in snapshot.states:
+            observed(state, 'gate_busy')
+
+    result = records.copy()
+    attempt, limit = (origin['attempt'], origin['limit']) if origin is not None else watched_request
+    for cause, status, problem, owners, observed_files in observations:
+        record = dict(phase='stopped', attempt=attempt, limit=limit, status=status,
+                      wait_seconds=0, until=now, stop_cause=cause, gate_owners=owners)
+        if problem is not None:
+            record['gate_problem'] = problem
+        if observed_files:
+            record['observed_files'] = observed_files
+        matches = [(key, previous) for key, previous in result.items()
+                   if _gate_notice_key(previous) == _gate_notice_key(record)
+                   and (cause == 'durable_gate' or previous.get('gate_owners', ()) == owners)
+                   and (previous.get('notice_route') is None
+                        or set(owners) <= _route_owners(previous['notice_route'])
+                        and all(previous['notice_route'][0][slot] == files
+                                for slot, files in observed_files))
+                   and not any(slot == old_slot and files != old_files
+                               for slot, files in observed_files
+                               for old_slot, old_files in previous.get('observed_files', ()))]
+        if not matches:
+            serial += 1
+            result[serial] = record
+        else:
+            for key, previous in matches:
+                if cause == 'durable_gate':
+                    combined = tuple(sorted(set(previous.get('gate_owners', ())) | set(owners)))
+                    if combined != previous.get('gate_owners'):
+                        result[key] = {**previous, 'gate_owners': combined}
+                if previous.get('notice_route') is None and observed_files:
+                    files = previous.get('observed_files', frozenset()) | observed_files
+                    if files != previous.get('observed_files'):
+                        result[key] = {**result[key], 'observed_files': files}
+    return result, serial
 
 
 def interactive(function):
@@ -89,6 +210,70 @@ def job_request_runner(runner):
     return run
 
 
+@dataclass(frozen=True, slots=True)
+class _SendAttempt:
+    policy: RequestRetryPolicy
+    attempt: int
+    limit: int
+    generation: int
+
+
+@contextmanager
+def request_gate_preflight(policy):
+    token = _GATE_PREFLIGHT.set(policy)
+    try:
+        yield
+    finally:
+        _GATE_PREFLIGHT.reset(token)
+
+
+@contextmanager
+def gate_confirmation_io(gate):
+    policy = _GATE_CONFIRMATION.get()
+    if policy is None:
+        yield
+        return
+
+    files = _gate_file(gate)
+    with policy._status_lock:
+        policy._confirming_files[files] = policy._confirming_files.get(files, 0) + 1
+        if policy._recheck_running:
+            policy._sample_confirmation_files.add(files)
+    try:
+        yield
+    finally:
+        with policy._status_lock:
+            policy._confirming_files[files] -= 1
+            if not policy._confirming_files[files]:
+                del policy._confirming_files[files]
+
+
+def record_request_refusal():
+    attempt = _SEND_ATTEMPT.get()
+    policy = attempt.policy if attempt is not None else _GATE_PREFLIGHT.get()
+    if policy is not None:
+        policy.record_refusal()
+
+
+def request_send_checkpoint():
+    """Authorize this attempt against the current stop generation."""
+    active = _SEND_ATTEMPT.get()
+    if active is not None:
+        active.policy._require_rate_open(active.generation)
+
+
+def record_request_rate_stop(status, *, cleanup_failed=False):
+    """Record confirmed stops at the protected response or cleanup boundary."""
+    active = _SEND_ATTEMPT.get()
+    if active is not None and durable_stop_status(status):
+        active.policy.record_refusal()
+    # The single fresh recovery already commits a durable STOP. Keep that
+    # path owned by its gate so peers continue to see its durable authority.
+    if (status == 429 and active is not None and _BOUNDED_GET_RETRY.get()
+            and (active.attempt >= active.limit or cleanup_failed)):
+        active.policy._latch_rate_stop(by_cleanup=cleanup_failed and active.attempt < active.limit)
+
+
 def _check_deadline(deadline,clock):
     if type(deadline) not in (int,float) or not math.isfinite(deadline) or clock()>=deadline:
         from .pixiv_read_client import ReadDeadlineExceeded
@@ -134,11 +319,13 @@ class RequestAdmission:
                 if self._interactive_waiting==0:return
             if self.clock()-start>=MAX_BACKGROUND_DEFER_SECONDS:return
             request_checkpoint();_check_deadline(deadline,self.clock)
+            request_send_checkpoint()
             self.sleep(0.05)
     def _reserve(self,deadline,called=None,interactive=True):
         seconds=float(self.interval())
         if seconds not in (0.3,0.4,0.5,0.6,1.0,1.5):raise ValueError('invalid request interval')
         request_checkpoint();_check_deadline(deadline,self.clock)       # cancelled/expired during the settings read: reserve nothing
+        request_send_checkpoint()
         with self._lock:
             now=self.clock()
             if (not interactive and self._interactive_waiting and now-called<MAX_BACKGROUND_DEFER_SECONDS):
@@ -171,6 +358,7 @@ class RequestAdmission:
             try:
                 while True:
                     request_checkpoint();_check_deadline(deadline,self.clock)
+                    request_send_checkpoint()
                     with self._lock:
                         now=self.clock()
                         # the reserved slot AND the real spacing since the previous actual issue (e.g. after a long pause)
@@ -190,6 +378,7 @@ def _recover_on_fresh_connection(operation, deadline, *, clock=time.monotonic):
     """Re-enter the complete read once, with fresh admission and connection."""
     request_checkpoint()
     _check_deadline(deadline, clock)
+    request_send_checkpoint()
     fresh = _FRESH_GET.set(True)
     # The recovery is a single GET. A 429 now goes to the durable gate.
     bounded = _BOUNDED_GET_RETRY.set(False)
@@ -204,8 +393,8 @@ def execute_single_get(operation, *, deadline):
     from .pixiv_read_client import _PooledConnectionLost
     try:
         return operation()
-    except _PooledConnectionLost:
-        if not _SCOPE.get().allow_retry:
+    except _PooledConnectionLost as error:
+        if not _SCOPE.get().allow_retry or getattr(error, 'gate_cleanup_errors', ()):
             raise
         return _recover_on_fresh_connection(operation, deadline)
 
@@ -222,82 +411,423 @@ class RequestRetryPolicy:
     to the caller without a shared progress record. The last original
     typed failure escapes when the configured total HTTP tries are exhausted.
     """
-    def __init__(self,settings,*,clock=time.monotonic,sleep=time.sleep,jitter=random.uniform):
+    def __init__(self,settings,*,clock=time.monotonic,sleep=time.sleep,jitter=random.uniform,
+                 check_gate=None, confirm_routes=None):
         if not all(callable(x) for x in (settings,clock,sleep,jitter)):raise TypeError('retry inputs must be callable')
         self.settings=settings;self.clock=clock;self.sleep=sleep;self.jitter=jitter
         self._status_lock=RLock();self._serial=0;self._records={};self._rate_stopped=False
+        self._rate_stopped_by_cleanup = False
+        self._rate_stop_generation = 0
+        # Optional local observation of the existing owners. Never used to admit a GET.
+        self._check_gate = check_gate
+        self._gate_watch_context = None
+        self._refusal_generation = 0
+        self._route_revision = 0
+        self._observation_revision = 0
+        self._notice_readers = WeakKeyDictionary()
+        self._confirm_routes = confirm_routes
+        self._confirming_files = {}
+        self._sample_confirmation_files = set()
+        self._recheck_running = False
+        self._recheck_again = False
+
+    def record_refusal(self):
+        """Fence a concurrent confirmation as soon as acquisition refuses."""
+        with self._status_lock:
+            self._refusal_generation += 1
+
+    def _replace_notice_route(self, old, new):
+        if old != new and _route_owners(old) == _route_owners(new):
+            for key, record in self._records.items():
+                if record.get('notice_route') == old:
+                    self._records[key] = {**record, 'notice_route': new}
+                observed = record.get('observed_files')
+                if observed and all(old[0][slot] == files for slot, files in observed):
+                    files = frozenset((slot, new[0][slot]) for slot, _ in observed)
+                    self._records[key] = {**self._records[key], 'observed_files': files}
+
+    def replace_notice_gates(self, old_gates, new_gates):
+        """An owner explicitly installed a new gate for the same route."""
+        with self._status_lock:
+            for selected in (False, True):
+                self._replace_notice_route((_gate_files(old_gates), selected), (_gate_files(new_gates), selected))
+            self._route_revision += 1
+            self._observation_revision += 1
+
+    def register_notice_reader(self, reader, *, replaces=None):
+        gates = getattr(reader._transport, '_notice_gates', None)
+        with self._status_lock:
+            if replaces is not None and (replaces._retry_policy is not self or not replaces._closed):
+                raise ValueError('the replaced notice reader must belong to this policy and be closed')
+            old = (self._notice_readers.get(reader) if replaces is None else
+                   getattr(replaces, '_registered_notice_route', None))
+            if gates is None or not any(gates):
+                reader._registered_notice_route = None
+                self._notice_readers.pop(reader, None)
+            else:
+                route = _gate_files(gates), reader._transport._checks_notice_selection
+                if (old is not None and old[1] == route[1]
+                        and all(other is reader or other_route != old
+                                for other, other_route in tuple(self._notice_readers.items()))):
+                    self._replace_notice_route(old, route)
+                if replaces is not None:
+                    self._notice_readers.pop(replaces, None)
+                reader._registered_notice_route = route
+                self._notice_readers[reader] = route
+                if self._check_gate is not None and self._gate_watch_context is None:
+                    self._gate_watch_context = (1, 1)
+            self._route_revision += 1
+            self._observation_revision += 1
+
+    def unregister_notice_reader(self, reader):
+        with self._status_lock:
+            if self._notice_readers.pop(reader, None) is not None:
+                self._route_revision += 1
+
+    def _confirmation_plan(self):
+        if self._rate_stopped:
+            return {}
+        checks = {}
+        # The Native profile supplies current routes even for per-run readers
+        # already closed by the time the user opens the notice.
+        if self._confirm_routes is not None:
+            for gates, selected, check in self._confirm_routes():
+                checks.setdefault((_gate_files(gates), selected), []).append(check)
+        else:
+            for reader, route in tuple(self._notice_readers.items()):
+                if not reader._closed and reader._retry_policy is self:
+                    checks.setdefault(route, []).append(reader._confirm_gate_admission)
+        return {
+            key: tuple((route, check) for route, options in checks.items()
+                       if _confirmed_route(record, route)
+                       for check in options)
+            for key, record in self._records.items()
+            if is_pinned_notice(record) and not record.get('cleanup_unrecheckable')
+        }
+
+    def can_confirm_gate_notices(self):
+        with self._status_lock:
+            return any(self._confirmation_plan().values())
+
+    def confirm_gate_notices(self):
+        """Run the acquisition admission and commit against the refusal fence."""
+        from .managed_network_stop_gate import ManagedNetworkGateStorageError, ManagedNetworkStopped
+        from .pixiv_read_client import PixivReadError
+
+        with self._status_lock:
+            plan = self._confirmation_plan()
+            generation = self._refusal_generation
+            revision = self._route_revision
+        outcomes = {}
+        approved = {}
+        refused_at = {}
+        for key, checks in plan.items():
+            for route, check in checks:
+                evidence = route, check
+                if evidence not in outcomes:
+                    order = len(outcomes)
+                    context = _GATE_CONFIRMATION.set(self)
+                    try:
+                        result = check()
+                    except (PixivReadError, OSError) as error:
+                        result = None
+                        if isinstance(error, (ManagedNetworkGateStorageError, ManagedNetworkStopped, OSError)):
+                            owners = _reported_owners(error)
+                            for owner, files in zip(('local', 'shared'), route[0]):
+                                if files is not None and (not owners or owner in owners):
+                                    refused_at[files] = order
+                    finally:
+                        _GATE_CONFIRMATION.reset(context)
+                    agrees = result is not None and (_gate_files(result[0]), result[1]) == route
+                    outcomes[evidence] = agrees, order
+                agrees, order = outcomes[evidence]
+                if agrees:
+                    approved[key] = route, order
+                    break
+        with self._status_lock:
+            if (self._rate_stopped or generation != self._refusal_generation
+                    or revision != self._route_revision):
+                return False
+            current = self._confirmation_plan()
+            # Any later refusal on a shared physical owner supersedes the
+            # earlier successful check of that owner in this same action.
+            cleared = [key for key, (route, order) in approved.items()
+                       if all(refused_at.get(files, -1) <= order for files in route[0])
+                       and any(candidate == route for candidate, _ in current.get(key, ()))]
+            for key in cleared:
+                del self._records[key]
+            if cleared:
+                self._observation_revision += 1
+            return bool(cleared)
+
+    def _is_transient_notice(self, record):
+        return (record['phase'] in ('cancelled', 'stopped')
+                and not is_pinned_notice(record)
+                and not is_rate_stop_notice(record))
 
     def progress_snapshot(self):
         with self._status_lock:
-            return tuple({**value,'remaining_seconds':max(0,math.ceil(value.get('until',0)-self.clock()))}
-                         for value in self._records.values())
+            now = self.clock()
+            self._records = {
+                key: record for key, record in self._records.items()
+                if not self._is_transient_notice(record) or now < record['until'] + NOTICE_LIFETIME_SECONDS
+            }
+            return tuple({**{field: value for field, value in record.items()
+                             if field not in ('cleanup_unrecheckable', 'notice_route', 'observed_files')},
+                          'notice_id': key,
+                          'remaining_seconds': max(0, math.ceil(record['until'] - now))}
+                         for key, record in self._records.items())
 
-    def _publish(self,token,phase,attempt,limit,*,status=None,delay=0,stop_cause=None):
+    def has_gate_notices(self):
         with self._status_lock:
-            self._records[token]=dict(phase=phase,attempt=attempt,limit=limit,status=status,
-                                      wait_seconds=delay,until=self.clock()+delay)
+            return any(is_pinned_notice(record) for record in self._records.values())
+
+    def should_watch_gate(self):
+        """Keep an activated watch running through the lifetime of its view."""
+        with self._status_lock:
+            return self._gate_watch_context is not None
+
+    def recheck_gate_notices(self):
+        with self._status_lock:
+            if self._gate_watch_context is None:
+                return
+            if self._recheck_running:
+                self._recheck_again = True
+                return
+            self._recheck_running = True
+        try:
+            # One follow-up is enough to coalesce a parallel request or
+            # retry a fenced result. Further work can use the next UI poll.
+            for _ in range(2):
+                with self._status_lock:
+                    revision = self._observation_revision
+                    self._sample_confirmation_files = set(self._confirming_files)
+                    self._recheck_again = False
+                snapshot = self._observe_gate_notices()
+                with self._status_lock:
+                    current = revision == self._observation_revision
+                    if current:
+                        states = tuple(state for state in snapshot.states
+                                       if state.status is not None or state.state not in ('busy', 'changed')
+                                       or _gate_file(state.owner_gate) not in self._sample_confirmation_files)
+                        if len(states) != len(snapshot.states):
+                            # The confirmation's temporary locks are not a
+                            # rejection. Keep evidence from other owners.
+                            snapshot = GateObservationSnapshot(states)
+                        if not snapshot.consistent or any(state.status is not None or state.state in ('unverified', 'uncertain', 'busy', 'changed')
+                               or state.inflight or state.admission_refused for state in snapshot.states):
+                            self._refusal_generation += 1
+                        self._records, self._serial = reconcile_gate_notices(
+                            self._records, snapshot, self.clock(), self._serial,
+                            watched_request=self._gate_watch_context)
+                    if current and not self._recheck_again:
+                        return
+        finally:
+            with self._status_lock:
+                self._recheck_running = self._recheck_again = False
+                self._sample_confirmation_files.clear()
+
+    def _observe_gate_notices(self):
+        from .managed_network_stop_gate import (
+            ManagedNetworkGateBusy, ManagedNetworkGateStorageError, ManagedNetworkStopped,
+        )
+        from .managed_network_stop_shared_scope import SharedGetOutcomeUncertain
+
+        try:
+            observed = self._check_gate()
+            if isinstance(observed, GateObservationSnapshot):
+                return observed
+            states = ((GateNoticeState('both', 'open'),) if observed is None
+                      else tuple(observed))
+        except ManagedNetworkStopped as error:
+            states = (GateNoticeState(getattr(error, 'authority', None) or 'both',
+                                      'stopped', error.status_code, inflight=None),)
+        except ManagedNetworkGateBusy:
+            states = (GateNoticeState('both', 'busy'),)
+        except SharedGetOutcomeUncertain:
+            states = (GateNoticeState('shared', 'uncertain'),)
+        except (ManagedNetworkGateStorageError, OSError) as error:
+            states = (GateNoticeState(getattr(error, 'authority', None) or 'both',
+                                      'unverified', inflight=None),)
+        return GateObservationSnapshot(states or (GateNoticeState('both', 'unverified'),))
+
+
+    def _finish_success(self, token):
+        with self._status_lock:
+            self._records = {key: record for key, record in self._records.items()
+                             if key != token and not self._is_transient_notice(record)}
+
+    def _publish(self,token,phase,attempt,limit,*,status=None,delay=0,stop_cause=None,
+                 gate_problem=None,gate_owners=(),cleanup_unrecheckable=False,
+                 notice_gates=None,checks_selection=False):
+        with self._status_lock:
+            record = dict(phase=phase, attempt=attempt, limit=limit, status=status,
+                          wait_seconds=delay, until=self.clock()+delay)
             if stop_cause is not None:
-                self._records[token]['stop_cause']=stop_cause
-            while len(self._records)>32:self._records.pop(next(iter(self._records)))
+                record['stop_cause'] = stop_cause
+            if gate_problem is not None:
+                record['gate_problem'] = gate_problem
+            if gate_owners:
+                record['gate_owners'] = gate_owners
+            if cleanup_unrecheckable:
+                record['cleanup_unrecheckable'] = True
+            if is_pinned_notice(record):
+                if notice_gates is not None:
+                    record['notice_route'] = _gate_files(notice_gates), checks_selection
+                if self._check_gate is not None:
+                    self._gate_watch_context = (attempt, limit)
+                self._refusal_generation += 1
+                self._observation_revision += 1
+                for key, previous in tuple(self._records.items()):
+                    if (_gate_notice_key(previous) != _gate_notice_key(record)
+                            or previous.get('notice_route') != record.get('notice_route')):
+                        continue
+                    if previous.get('cleanup_unrecheckable') != record.get('cleanup_unrecheckable'):
+                        continue
+                    if stop_cause in ('durable_gate', 'gate_busy'):
+                        record['gate_owners'] = tuple(sorted(set(record.get('gate_owners', ()))
+                                                             | set(previous.get('gate_owners', ()))))
+                    if key != token:
+                        del self._records[key]
+                    break
+            self._records[token] = record
+            if phase == 'cancelled' and self._is_transient_notice(record):
+                cancelled = [key for key, record in self._records.items()
+                             if record['phase'] == 'cancelled' and self._is_transient_notice(record)]
+                if len(cancelled) > 32:
+                    del self._records[cancelled[0]]
+
+    def _publish_cleanup_notice(self, failure, attempt, limit, *, notice_gates=None, checks_selection=False):
+        self._serial += 1
+        self._publish(self._serial, 'stopped', attempt, limit, stop_cause='gate_unverified',
+                      gate_problem='storage', gate_owners=_reported_owners(failure),
+                      cleanup_unrecheckable=getattr(failure, 'cleanup_unrecheckable', False),
+                      notice_gates=notice_gates, checks_selection=checks_selection)
+
+    def report_preflight_cleanup(self, failure, *, notice_gates=None, checks_selection=False):
+        """A failed lifetime check can occur before a retry record exists."""
+        with self._status_lock:
+            self._publish_cleanup_notice(failure, 1, 1, notice_gates=notice_gates, checks_selection=checks_selection)
+
+    def _require_rate_open(self, generation):
+        from .pixiv_read_client import _PeerRateStopped
+        with self._status_lock:
+            if self._rate_stopped or generation != self._rate_stop_generation:
+                raise _PeerRateStopped()
+
+    def _latch_rate_stop(self, *, by_cleanup):
+        with self._status_lock:
+            if not self._rate_stopped:
+                self._rate_stopped_by_cleanup = by_cleanup
+                self._rate_stop_generation += 1
+                self._rate_stopped = True
+
+    def _call_attempt(self, operation, *, attempt, limit, generation):
+        token = _SEND_ATTEMPT.set(_SendAttempt(self, attempt, limit, generation))
+        try:
+            return operation()
+        finally:
+            _SEND_ATTEMPT.reset(token)
 
     def _settings(self):
         value=self.settings();count=value.retry_limit;wait=value.rate_limit_wait_seconds
         if type(count) is not int or count not in (1,3,5,10):raise ValueError('invalid retry count')
         if type(wait) not in (int,float) or wait not in (3.0,5.0,10.0,30.0):raise ValueError('invalid retry wait')
         return count,float(wait)
-    def execute(self,operation,*,deadline):
+    def execute(self,operation,*,deadline,notice_gates=None,checks_selection=False):
         token=_BOUNDED_GET_RETRY.set(True)
-        try:return self._execute(operation,deadline=deadline)
+        try:return self._execute(operation,deadline=deadline, notice_gates=notice_gates,checks_selection=checks_selection)
         finally:_BOUNDED_GET_RETRY.reset(token)
 
-    def _execute(self,operation,*,deadline):
-        from .pixiv_read_client import HTTPStatusRejected,TransportFailed
+    def _execute(self,operation,*,deadline,notice_gates,checks_selection):
+        from .managed_network_stop_gate import (
+            ManagedNetworkGateBusy, ManagedNetworkGateStorageError, ManagedNetworkStopped, _carry_gate_cleanup,
+        )
+        from .managed_network_stop_shared_scope import SharedGetOutcomeUncertain
+        from .pixiv_read_client import HTTPStatusRejected, _PeerRateStopped
         if not callable(operation):raise TypeError('operation must be callable')
         request_checkpoint();_check_deadline(deadline,self.clock)
         count,rate_wait=self._settings() if _SCOPE.get().allow_retry else (1,0)
         with self._status_lock:
             if self._rate_stopped:raise HTTPStatusRejected(429)
-            self._records={k:v for k,v in self._records.items() if v['phase'] in ('requesting','waiting')}
+            self._records={k:v for k,v in self._records.items() if v['phase'] != 'failed'}
             self._serial+=1;token=self._serial
-        try:return self._attempts(operation,deadline,token,count,rate_wait)
-        except BaseException:
+        try:
+            return self._attempts(operation, deadline, token, count, rate_wait)
+        except BaseException as error:
             with self._status_lock:
-                value=self._records.get(token)
-                if value and value['phase'] in ('requesting','waiting'):
-                    self._publish(token,'cancelled',value['attempt'],count,status=value['status'])
+                value = self._records.get(token)
+                attempt = value['attempt'] if value else 1
+                if isinstance(error, _PeerRateStopped):
+                    self._publish_peer_rate_stop(token, attempt, count)
+                elif value and value['phase'] in ('requesting','waiting'):
+                    phase, status, cause = 'cancelled', value['status'], None
+                    problem = None
+                    if isinstance(error, ManagedNetworkStopped):
+                        phase, status, cause = 'stopped', error.status_code, 'durable_gate'
+                    elif isinstance(error, ManagedNetworkGateBusy):
+                        cause = 'gate_busy'
+                    elif isinstance(error, ManagedNetworkGateStorageError):
+                        phase, status, cause = 'stopped', None, 'gate_unverified'
+                        problem = 'uncertain' if isinstance(error, SharedGetOutcomeUncertain) else 'storage'
+                    owners = ()
+                    if cause in _GATE_NOTICE_CAUSES:
+                        owners = ('shared',) if problem == 'uncertain' else _reported_owners(error)
+                    self._publish(token, phase, value['attempt'], count, status=status,
+                                  stop_cause=cause, gate_problem=problem, gate_owners=owners,
+                                  cleanup_unrecheckable=getattr(error, 'cleanup_unrecheckable', False),
+                                  notice_gates=notice_gates, checks_selection=checks_selection)
+                for failure in getattr(error, 'gate_cleanup_errors', ()):
+                    self._publish_cleanup_notice(failure, attempt, count,
+                                                 notice_gates=notice_gates, checks_selection=checks_selection)
+            if isinstance(error, _PeerRateStopped):
+                raise _carry_gate_cleanup(error, HTTPStatusRejected(429)) from None
             raise
 
-    def _attempts(self,operation,deadline,token,count,rate_wait):
-        from .managed_network_stop_gate import ManagedNetworkStopped
+    def _stop_on_rate_limit(self, token, attempt, count):
+        early = attempt < count
+        with self._status_lock:
+            self._latch_rate_stop(by_cleanup=early)
+            self._publish(token, 'stopped', attempt, count, status=429,
+                          stop_cause='cleanup_429' if early else 'own_limit')
+
+    def _publish_peer_rate_stop(self, token, attempt, count):
+        self._publish(token, 'stopped', attempt, count, status=429,
+                      stop_cause='shared_cleanup_429' if self._rate_stopped_by_cleanup else 'shared_limit')
+
+    def _attempts(self, operation, deadline, token, count, rate_wait):
         from .pixiv_read_client import HTTPStatusRejected,TransportFailed,_PooledConnectionLost
         for attempt in range(count):
             request_checkpoint();_check_deadline(deadline,self.clock)
             with self._status_lock:
                 if self._rate_stopped:
-                    self._publish(token,'stopped',attempt+1,count,status=429,stop_cause='shared_limit')
+                    self._publish_peer_rate_stop(token, attempt+1, count)
                     raise HTTPStatusRejected(429)
-            self._publish(token,'requesting',attempt+1,count)
+                generation = self._rate_stop_generation
+                self._publish(token,'requesting',attempt+1,count)
             try:
-                result=operation()
-                with self._status_lock:self._records.pop(token,None)
+                result = self._call_attempt(operation, attempt=attempt+1, limit=count, generation=generation)
+                self._finish_success(token)
                 return result
-            except _PooledConnectionLost:
-                if attempt+1>=count:
+            except _PooledConnectionLost as error:
+                if attempt+1>=count or getattr(error, 'gate_cleanup_errors', ()):
                     self._publish(token,'failed',attempt+1,count)
                     raise
                 with self._status_lock:
                     if self._rate_stopped:
-                        self._publish(token,'stopped',attempt+2,count,status=429,stop_cause='shared_limit')
+                        self._publish_peer_rate_stop(token, attempt+2, count)
                         raise HTTPStatusRejected(429)
+                    generation = self._rate_stop_generation
                     self._publish(token,'requesting',attempt+2,count)
                 try:
-                    result=_recover_on_fresh_connection(operation,deadline,clock=self.clock)
-                except ManagedNetworkStopped as error:
-                    self._publish(token,'stopped',attempt+2,count,status=error.status_code,
-                                  stop_cause='durable_gate')
-                    raise
+                    result = self._call_attempt(
+                        lambda: _recover_on_fresh_connection(operation, deadline, clock=self.clock),
+                        attempt=attempt+2, limit=count, generation=generation,
+                    )
                 except HTTPStatusRejected as error:
-                    if error.status_code==404:
+                    if error.status_code == 429 and getattr(error, 'gate_cleanup_errors', ()):
+                        self._stop_on_rate_limit(token, attempt+2, count)
+                    elif error.status_code == 404:
                         with self._status_lock:self._records.pop(token,None)
                     else:
                         self._publish(token,'failed',attempt+2,count,status=error.status_code)
@@ -305,7 +835,7 @@ class RequestRetryPolicy:
                 except TransportFailed:
                     self._publish(token,'failed',attempt+2,count)
                     raise
-                with self._status_lock:self._records.pop(token,None)
+                self._finish_success(token)
                 return result
             except (HTTPStatusRejected,TransportFailed) as error:
                 if isinstance(error,HTTPStatusRejected):
@@ -322,11 +852,12 @@ class RequestRetryPolicy:
                         self._publish(token,'failed',attempt+1,count)
                         raise
                     status=None
-                if attempt+1>=count:
-                    if status==429:
-                        with self._status_lock:self._rate_stopped=True
-                    self._publish(token,'stopped',attempt+1,count,status=status,
-                                  stop_cause='own_limit' if status==429 else None);raise
+                if attempt+1>=count or getattr(error, 'gate_cleanup_errors', ()):
+                    if status == 429:
+                        self._stop_on_rate_limit(token, attempt+1, count)
+                    else:
+                        self._publish(token, 'stopped', attempt+1, count, status=status)
+                    raise
                 request_checkpoint();_check_deadline(deadline,self.clock)
                 if status==429:delay=rate_wait
                 else:
@@ -334,8 +865,4 @@ class RequestRetryPolicy:
                     if type(noise) not in (int,float) or not math.isfinite(noise) or not 0<=noise<=1:raise ValueError('invalid retry jitter')
                     delay=2**attempt+noise
                 self._publish(token,'waiting',attempt+1,count,status=status,delay=delay)
-                try:_wait(delay,deadline,clock=self.clock,sleep=self.sleep)
-                except BaseException:
-                    self._publish(token,'cancelled',attempt+1,count,status=status);raise
-            except BaseException:
-                self._publish(token,'cancelled',attempt+1,count);raise
+                _wait(delay,deadline,clock=self.clock,sleep=self.sleep)

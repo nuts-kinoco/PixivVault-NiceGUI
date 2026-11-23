@@ -1,0 +1,8 @@
+head=fe032f7477c4b36777dfe480ae7a199e7abd6dd3
+launcher_pid=132412
+root=\\?\S:\Work\_tmp\PV\fix-notice-r13-20261122-bgqridtf
+pytest_pid=144124
+...............                                                          [100%]
+15 passed in 6.14s
+
+exit=0

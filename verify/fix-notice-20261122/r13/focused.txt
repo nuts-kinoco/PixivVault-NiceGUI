@@ -1,0 +1,113 @@
+head=fe032f7477c4b36777dfe480ae7a199e7abd6dd3
+launcher_pid=33276
+root=\\?\S:\Work\_tmp\PV\fix-notice-r13-20261122-ekdjdsku
+pytest_pid=35792
+.....F...............F............FFFF.....F............................ [  8%]
+....................................FFFFF............................... [ 16%]
+........................................................................ [ 24%]
+........................................................................ [ 32%]
+........................................................................ [ 40%]
+........................................................................ [ 48%]
+........................................................................ [ 56%]
+........................................................................ [ 64%]
+........................................................................ [ 72%]
+........................................................................ [ 80%]
+........................................................................ [ 88%]
+........................................................................ [ 97%]
+..................F.......                                               [100%]
+================================== FAILURES ===================================
+________ test_busy_notice_stays_when_shared_gate_reopens_and_can_recur ________
+tests\test_fix_notice_20261122.py:126: in test_busy_notice_stays_when_shared_gate_reopens_and_can_recur
+    assert view.label.visible and "�ʂ̒ʐM" in view.label.text
+E   AssertionError: assert (True and '�ʂ̒ʐM' in '???????????????????????????????')
+E    +  where True = <nicegui.elements.label.Label object at 0x0000024E81FC9160>.visible
+E    +    where <nicegui.elements.label.Label object at 0x0000024E81FC9160> = <pixivvault_nicegui.ui.request_status_view.RequestStatusView object at 0x0000024E81FC97F0>.label
+E    +  and   '???????????????????????????????' = <nicegui.elements.label.Label object at 0x0000024E81FC9160>.text
+E    +    where <nicegui.elements.label.Label object at 0x0000024E81FC9160> = <pixivvault_nicegui.ui.request_status_view.RequestStatusView object at 0x0000024E81FC97F0>.label
+_ test_storage_stop_remains_past_timeout_even_when_observation_opens[ManagedNetworkGateStorageError] _
+tests\test_fix_notice_review_20261122.py:138: in test_storage_stop_remains_past_timeout_even_when_observation_opens
+    record, = policy.progress_snapshot()
+    ^^^^^^^
+E   ValueError: too many values to unpack (expected 1)
+______ test_reader_replacement_retires_old_selection_proof[False-False] _______
+tests\test_fix_notice_round10_20261122.py:186: in test_reader_replacement_retires_old_selection_proof
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024EFEDC7020>.has_gate_notices
+_______ test_reader_replacement_retires_old_selection_proof[False-True] _______
+tests\test_fix_notice_round10_20261122.py:186: in test_reader_replacement_retires_old_selection_proof
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024EFEDC6C60>.has_gate_notices
+_______ test_reader_replacement_retires_old_selection_proof[True-False] _______
+tests\test_fix_notice_round10_20261122.py:186: in test_reader_replacement_retires_old_selection_proof
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024EFEDC74D0>.has_gate_notices
+_______ test_reader_replacement_retires_old_selection_proof[True-True] ________
+tests\test_fix_notice_round10_20261122.py:186: in test_reader_replacement_retires_old_selection_proof
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024EFEDC6300>.has_gate_notices
+___________ test_gate_replacement_observation_does_not_erase_a_pin ____________
+tests\test_fix_notice_round10_20261122.py:347: in test_gate_replacement_observation_does_not_erase_a_pin
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024E81F83020>.has_gate_notices
+_______________ test_reconciler_transition_matrix[durable_gate] _______________
+tests\test_fix_notice_round4_20261122.py:169: in test_reconciler_transition_matrix
+    assert updated.keys() == records.keys()
+E   assert dict_keys([1, 4, 5]) == dict_keys([1, 4])
+E
+E     Use -v to get more diff
+_________________ test_reconciler_transition_matrix[storage] __________________
+tests\test_fix_notice_round4_20261122.py:169: in test_reconciler_transition_matrix
+    assert updated.keys() == records.keys()
+E   assert dict_keys([1, 4, 5]) == dict_keys([1, 4])
+E
+E     Use -v to get more diff
+________________ test_reconciler_transition_matrix[uncertain] _________________
+tests\test_fix_notice_round4_20261122.py:169: in test_reconciler_transition_matrix
+    assert updated.keys() == records.keys()
+E   assert dict_keys([1, 4, 5]) == dict_keys([1, 4])
+E
+E     Use -v to get more diff
+________________ test_reconciler_transition_matrix[gate_busy] _________________
+tests\test_fix_notice_round4_20261122.py:169: in test_reconciler_transition_matrix
+    assert updated.keys() == records.keys()
+E   assert dict_keys([1, 4, 5]) == dict_keys([1, 4])
+E
+E     Use -v to get more diff
+__________________ test_reconciler_transition_matrix[mixed] ___________________
+tests\test_fix_notice_round4_20261122.py:169: in test_reconciler_transition_matrix
+    assert updated.keys() == records.keys()
+E   assert dict_keys([1, 2, 3, 4, 5]) == dict_keys([1, 2, 3, 4])
+E
+E     Use -v to get more diff
+__ test_known_storage_fault_does_not_inherit_ack_from_a_different_authority ___
+tests\test_fix_notice_sweep_20261122.py:287: in test_known_storage_fault_does_not_inherit_ack_from_a_different_authority
+    assert view.dismiss_button.visible
+    ^^^^
+E   ValueError: too many values to unpack (expected 1)
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_20261122.py::test_busy_notice_stays_when_shared_gate_reopens_and_can_recur
+FAILED tests/test_fix_notice_review_20261122.py::test_storage_stop_remains_past_timeout_even_when_observation_opens[ManagedNetworkGateStorageError]
+FAILED tests/test_fix_notice_round10_20261122.py::test_reader_replacement_retires_old_selection_proof[False-False]
+FAILED tests/test_fix_notice_round10_20261122.py::test_reader_replacement_retires_old_selection_proof[False-True]
+FAILED tests/test_fix_notice_round10_20261122.py::test_reader_replacement_retires_old_selection_proof[True-False]
+FAILED tests/test_fix_notice_round10_20261122.py::test_reader_replacement_retires_old_selection_proof[True-True]
+FAILED tests/test_fix_notice_round10_20261122.py::test_gate_replacement_observation_does_not_erase_a_pin
+FAILED tests/test_fix_notice_round4_20261122.py::test_reconciler_transition_matrix[durable_gate]
+FAILED tests/test_fix_notice_round4_20261122.py::test_reconciler_transition_matrix[storage]
+FAILED tests/test_fix_notice_round4_20261122.py::test_reconciler_transition_matrix[uncertain]
+FAILED tests/test_fix_notice_round4_20261122.py::test_reconciler_transition_matrix[gate_busy]
+FAILED tests/test_fix_notice_round4_20261122.py::test_reconciler_transition_matrix[mixed]
+FAILED tests/test_fix_notice_sweep_20261122.py::test_known_storage_fault_does_not_inherit_ack_from_a_different_authority
+13 failed, 877 passed in 183.46s (0:03:03)
+
+exit=1

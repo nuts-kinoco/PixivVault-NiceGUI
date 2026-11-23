@@ -1,0 +1,108 @@
+head=fe032f7477c4b36777dfe480ae7a199e7abd6dd3
+launcher_pid=35960
+root=\\?\S:\Work\_tmp\PV\fix-notice-r13-20261122-cd0w1487
+pytest_pid=129704
+FFFFFF.FFFFFFFF                                                          [100%]
+================================== FAILURES ===================================
+__________ test_reconfirm_uses_real_shared_intent_lifecycle[create] ___________
+tests\test_fix_notice_round13_20261122.py:70: in test_reconfirm_uses_real_shared_intent_lifecycle
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024D5B9AF0E0>.confirm_gate_notices
+___________ test_reconfirm_uses_real_shared_intent_lifecycle[fsync] ___________
+tests\test_fix_notice_round13_20261122.py:70: in test_reconfirm_uses_real_shared_intent_lifecycle
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024D5BDEEE90>.confirm_gate_notices
+__________ test_reconfirm_uses_real_shared_intent_lifecycle[remove] ___________
+tests\test_fix_notice_round13_20261122.py:70: in test_reconfirm_uses_real_shared_intent_lifecycle
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024D58FACA50>.confirm_gate_notices
+_____ test_reconfirmation_fences_a_real_refusal_before_publication[lock] ______
+tests\test_fix_notice_round13_20261122.py:135: in test_reconfirmation_fences_a_real_refusal_before_publication
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024D5BDFA060>.confirm_gate_notices
+_ test_reconfirmation_fences_a_real_refusal_before_publication[saved-reference] _
+tests\test_fix_notice_round13_20261122.py:135: in test_reconfirmation_fences_a_real_refusal_before_publication
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024D5BDFBCE0>.confirm_gate_notices
+______ test_success_and_background_observation_keep_fixed_notice[False] _______
+tests\test_fix_notice_round13_20261122.py:162: in test_success_and_background_observation_keep_fixed_notice
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024D58F46F90>.has_gate_notices
+___________ test_observed_busy_is_fixed_until_explicit_confirmation ___________
+tests\test_fix_notice_round13_20261122.py:179: in test_observed_busy_is_fixed_until_explicit_confirmation
+    assert ids
+E   assert set()
+____________ test_closed_sibling_does_not_hide_live_reconfirmation ____________
+tests\test_fix_notice_round13_20261122.py:197: in test_closed_sibling_does_not_hide_live_reconfirmation
+    assert policy.confirm_gate_notices()
+E   assert False
+E    +  where False = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024D58FBDD50>.confirm_gate_notices
+_________ test_official_gate_exchange_keeps_pin_until_reconfirmation __________
+tests\test_fix_notice_round13_20261122.py:214: in test_official_gate_exchange_keeps_pin_until_reconfirmation
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024D58FBE250>.has_gate_notices
+______________ test_local_cannot_confirm_unconfigured_public_cdn ______________
+tests\test_fix_notice_round13_20261122.py:229: in test_local_cannot_confirm_unconfigured_public_cdn
+    assert not policy.can_confirm_gate_notices()
+E   assert not True
+E    +  where True = can_confirm_gate_notices()
+E    +    where can_confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024D58FDB980>.can_confirm_gate_notices
+________ test_native_draft_reconfirmation_uses_the_draft_route[False] _________
+tests\test_fix_notice_round13_20261122.py:261: in test_native_draft_reconfirmation_uses_the_draft_route
+    assert binding.auth_retry_policy.confirm_gate_notices()
+E   assert False
+E    +  where False = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024D59024C80>.confirm_gate_notices
+E    +      where <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024D59024C80> = <pixivvault_nicegui.native_startup.NativeProfileBinding object at 0x0000024D5BD98D70>.auth_retry_policy
+_________ test_native_draft_reconfirmation_uses_the_draft_route[True] _________
+tests\test_fix_notice_round13_20261122.py:261: in test_native_draft_reconfirmation_uses_the_draft_route
+    assert binding.auth_retry_policy.confirm_gate_notices()
+E   assert False
+E    +  where False = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024D59026030>.confirm_gate_notices
+E    +      where <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024D59026030> = <pixivvault_nicegui.native_startup.NativeProfileBinding object at 0x0000024D5BDF74D0>.auth_retry_policy
+_________ test_unrecheckable_notices_do_not_offer_confirmation[rate] __________
+tests\test_fix_notice_round13_20261122.py:281: in test_unrecheckable_notices_do_not_offer_confirmation
+    assert not policy.can_confirm_gate_notices()
+E   assert not True
+E    +  where True = can_confirm_gate_notices()
+E    +    where can_confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024D58FDB200>.can_confirm_gate_notices
+______ test_unrecheckable_notices_do_not_offer_confirmation[closed-pool] ______
+tests\test_fix_notice_round13_20261122.py:281: in test_unrecheckable_notices_do_not_offer_confirmation
+    assert not policy.can_confirm_gate_notices()
+E   assert not True
+E    +  where True = can_confirm_gate_notices()
+E    +    where can_confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024D58FDB020>.can_confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round13_20261122.py::test_reconfirm_uses_real_shared_intent_lifecycle[create]
+FAILED tests/test_fix_notice_round13_20261122.py::test_reconfirm_uses_real_shared_intent_lifecycle[fsync]
+FAILED tests/test_fix_notice_round13_20261122.py::test_reconfirm_uses_real_shared_intent_lifecycle[remove]
+FAILED tests/test_fix_notice_round13_20261122.py::test_reconfirmation_fences_a_real_refusal_before_publication[lock]
+FAILED tests/test_fix_notice_round13_20261122.py::test_reconfirmation_fences_a_real_refusal_before_publication[saved-reference]
+FAILED tests/test_fix_notice_round13_20261122.py::test_success_and_background_observation_keep_fixed_notice[False]
+FAILED tests/test_fix_notice_round13_20261122.py::test_observed_busy_is_fixed_until_explicit_confirmation
+FAILED tests/test_fix_notice_round13_20261122.py::test_closed_sibling_does_not_hide_live_reconfirmation
+FAILED tests/test_fix_notice_round13_20261122.py::test_official_gate_exchange_keeps_pin_until_reconfirmation
+FAILED tests/test_fix_notice_round13_20261122.py::test_local_cannot_confirm_unconfigured_public_cdn
+FAILED tests/test_fix_notice_round13_20261122.py::test_native_draft_reconfirmation_uses_the_draft_route[False]
+FAILED tests/test_fix_notice_round13_20261122.py::test_native_draft_reconfirmation_uses_the_draft_route[True]
+FAILED tests/test_fix_notice_round13_20261122.py::test_unrecheckable_notices_do_not_offer_confirmation[rate]
+FAILED tests/test_fix_notice_round13_20261122.py::test_unrecheckable_notices_do_not_offer_confirmation[closed-pool]
+14 failed, 1 passed in 5.90s
+
+exit=1

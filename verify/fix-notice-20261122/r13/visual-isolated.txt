@@ -1,0 +1,38 @@
+head=1cdedbfe064f1f9ab470d0777a605d518f9fcee1
+launcher_pid=123132
+root=\\?\S:\Work\_tmp\PV\fix-notice-r13-20261122-yv9xz_rm
+started=2026-11-23T16:23:42.996001+09:00
+pytest_pid=122440
+F                                                                        [100%]
+================================== FAILURES ===================================
+______________ test_visual_settings_dialog_keyboard_and_contrast ______________
+tests\test_visual_preference_browser.py:65: in test_visual_settings_dialog_keyboard_and_contrast
+    context = runtime.chromium.launch_persistent_context(
+S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\playwright\sync_api\_generated.py:4412: in launch_persistent_context
+    self._sync(
+S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\playwright\_impl\_browser_type.py:170: in launch_persistent_context
+    result = await self._channel.send_return_as_dict(
+S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\playwright\_impl\_connection.py:105: in send_return_as_dict
+    return await self._connection.wrap_api_call(
+S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\playwright\_impl\_connection.py:636: in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E   playwright._impl._errors.TimeoutError: BrowserType.launch_persistent_context: Timeout 180000ms exceeded.
+E   Call log:
+E     - <launching> C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --disable-background-networking --user-data-dir=S:\Work\_tmp\PV\fix-notice-r13-20261122-yv9xz_rm\pytest\test_visual_settings_dialog_ke0\browser --remote-debugging-pipe about:blank
+E     - <launched> pid=135648
+E     - [pid=135648][err] [135648:137568:1123/162347.331:ERROR:chrome\installer\util\helper.cc:44] Failed to get path from PathService for key: 112: 存在しないトークンを参照しようとしました。 (0x3F0)
+E     - [pid=135648][err]
+E     - [pid=135648][err] DevTools remote debugging requires a non-default data directory. Specify this using --user-data-dir.
+E     - [pid=135648][err] [135648:140944:1123/162347.609:ERROR:chrome\common\importer\edge_chrome_importer_utils_win.cc:36] Unable to get local app data path.
+E     - [pid=135648][err] [135648:4060:1123/162447.341:ERROR:components\microsoft\hijacking_prevention\edge_hijacking_prevention_utils_win.cc:277] Failed to get user path: 8
+E     - [pid=135648][err] [135648:4060:1123/162447.362:ERROR:components\microsoft\hijacking_prevention\edge_hijacking_prevention_utils_win.cc:277] Failed to get user path: 117
+E     - [pid=135648][err] [135648:4060:1123/162447.363:ERROR:components\microsoft\hijacking_prevention\edge_hijacking_prevention_utils_win.cc:277] Failed to get user path: 108
+=========================== short test summary info ===========================
+FAILED tests/test_visual_preference_browser.py::test_visual_settings_dialog_keyboard_and_contrast
+1 failed in 184.89s (0:03:04)
+
+exit=1
+finished=2026-11-23T16:26:49.581604+09:00
+owned_files=229
+owned_bytes=14543238
+temp_removed=True

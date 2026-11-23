@@ -1,0 +1,8 @@
+head=877c45b0c851fb38f58c59bd9ac5b646c34c8e25
+launcher_pid=136516
+root=\\?\S:\Work\_tmp\PV\fix-notice-r13-20261122-nq8lwmsf
+pytest_pid=114352
+...................................................................      [100%]
+67 passed in 31.80s
+
+exit=0

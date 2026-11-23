@@ -1,0 +1,71 @@
+head=fe032f7477c4b36777dfe480ae7a199e7abd6dd3
+launcher_pid=110328
+root=\\?\S:\Work\_tmp\PV\fix-notice-r13-20261122-h98gpc23
+pytest_pid=126900
+Early exploratory suite on mixed implementation expectations.
+The extended Windows basetemp prefix altered the SQLite immutable URI.
+______ test_selected_history_close_keeps_a_peer_out_until_429_is_latched ______
+tests\test_fix_notice_round11_20261122.py:147: in test_selected_history_close_keeps_a_peer_out_until_429_is_latched
+    old = attach_history(tmp_path, shared)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_fix_notice_round7_20261122.py:148: in attach_history
+    startup.attach_selected_histories(shared, (('native', historical.root),))
+src\pixivvault_nicegui\managed_network_stop_startup.py:301: in attach_selected_histories
+    with selected_history_guard(scope):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:349: in selected_history_guard
+    raise _carry_gate_cleanup(error, ManagedNetworkGateStorageError(
+E   pixivvault_nicegui.managed_network_stop_gate.ManagedNetworkGateStorageError: selected STOP state unavailable
+_ test_physical_rw_sql_failure_needs_acquisition_success_to_clear[PRAGMA synchronous=FULL-local] _
+tests\test_fix_notice_round11_20261122.py:272: in test_physical_rw_sql_failure_needs_acquisition_success_to_clear
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000225BAAADF40>.has_gate_notices
+_ test_physical_rw_sql_failure_needs_acquisition_success_to_clear[PRAGMA synchronous=FULL-shared] _
+tests\test_fix_notice_round11_20261122.py:272: in test_physical_rw_sql_failure_needs_acquisition_success_to_clear
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000225BAAAE5D0>.has_gate_notices
+_ test_physical_rw_sql_failure_needs_acquisition_success_to_clear[FROM sqlite_master-local] _
+tests\test_fix_notice_round11_20261122.py:272: in test_physical_rw_sql_failure_needs_acquisition_success_to_clear
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000225BAAAE120>.has_gate_notices
+_ test_physical_rw_sql_failure_needs_acquisition_success_to_clear[FROM sqlite_master-shared] _
+tests\test_fix_notice_round11_20261122.py:272: in test_physical_rw_sql_failure_needs_acquisition_success_to_clear
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000225BDC226C0>.has_gate_notices
+_ test_physical_rw_sql_failure_needs_acquisition_success_to_clear[FROM gate LIMIT-local] _
+tests\test_fix_notice_round11_20261122.py:272: in test_physical_rw_sql_failure_needs_acquisition_success_to_clear
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000225BDC21B80>.has_gate_notices
+_ test_physical_rw_sql_failure_needs_acquisition_success_to_clear[FROM gate LIMIT-shared] _
+tests\test_fix_notice_round11_20261122.py:272: in test_physical_rw_sql_failure_needs_acquisition_success_to_clear
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000225BAAADD60>.has_gate_notices
+_ test_physical_rw_sql_failure_needs_acquisition_success_to_clear[physical-semantic-local] _
+tests\test_fix_notice_round11_20261122.py:272: in test_physical_rw_sql_failure_needs_acquisition_success_to_clear
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000225BAAAE030>.has_gate_notices
+_ test_physical_rw_sql_failure_needs_acquisition_success_to_clear[physical-semantic-shared] _
+tests\test_fix_notice_round11_20261122.py:272: in test_physical_rw_sql_failure_needs_acquisition_success_to_clear
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000225BAAAFA70>.has_gate_notices
+433 failed, 460 passed in 217.18s (0:03:37)
+Corrected plain S: absolute path: environment.txt, final-focused.txt.
