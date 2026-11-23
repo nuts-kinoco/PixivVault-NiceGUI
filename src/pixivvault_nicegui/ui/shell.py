@@ -200,7 +200,7 @@ class DemoShell:
                             'pv-hbtn pv-hit28').props(
                             'flat round data-testid=automation-open aria-haspopup=dialog aria-label=自動処理')
                         self.automation = AutomationDialog(self, automation, settings)
-                self.automation.build_status()
+                        self.automation.build_status()
                 if self.auth_label is not None:
                     self._build_cookie_banner()
                 with ui.element('div').classes('pv-nav-region').props('data-pv-navigation'):
@@ -260,7 +260,6 @@ class DemoShell:
             return
         with ui.element('div').classes('pv-db-banner pv-db-production').props(
                 'data-testid=db-status-banner') as self.db_banner:
-            ui.label(text).classes('pv-db-full').props('role=status')
             path = PureWindowsPath(text.split(': ', 1)[1])
             compact = str(path) if len(str(path)) <= 48 else f'{path.anchor}…\\{path.name}'
             with ui.element('div').classes('pv-db-compact'):

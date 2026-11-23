@@ -14,7 +14,9 @@
   const clip = (element, rect) => {
     const r = [...rect];
     for (let e = element.parentElement; e; e = e.parentElement) {
-      const css = getComputedStyle(e), bounds = client(e);
+      const css = getComputedStyle(e);
+      if (css.display === 'contents') continue;
+      const bounds = client(e);
       if (clips(css.overflowX)) {
         r[0] = Math.max(r[0], bounds[0]); r[2] = Math.min(r[2], bounds[2]);
       }
@@ -51,6 +53,12 @@
   const imageY = images.length ? Math.min(...images.map(e => imageBox(e)[1])) : null;
   const firstImage = images.find(e => imageBox(e)[1] === imageY);
   const imageRect = firstImage ? clip(firstImage, imageBox(firstImage)) : null;
+  const fullyVisible = e => {
+    const bounds = imageBox(e);
+    const [,, width, height] = size(bounds);
+    const [,, visibleWidth, visibleHeight] = clip(e, bounds);
+    return width > 0 && height > 0 && visibleWidth >= width - .5 && visibleHeight >= height - .5;
+  };
   const start = target.start && items[0];
   const regionBox = region && client(region);
   if (regionBox && start) regionBox[1] = Math.max(regionBox[1], box(start)[1]);
@@ -88,6 +96,8 @@
     viewport: viewport.slice(2),
     visible_rect:visible, area_ratio:ratio(target.single ? imageRect : visible),
     first_image_y:imageY, image_rect:imageRect, image_ratio:ratio(imageRect),
+    first_image_complete:!!firstImage && fullyVisible(firstImage),
+    complete_images:images.filter(fullyVisible).length,
     rendered_images:images.length, visible_images:images.filter(e => {
       const r = clip(e, imageBox(e)); return r[2] > 0 && r[3] > 0;
     }).length,

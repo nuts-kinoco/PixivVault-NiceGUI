@@ -46,26 +46,29 @@ class DuplicateView:
         self._undecidable_task=None
         self.client=ui.context.client
         with ui.column().classes('pv-metadata-view pv-tone-dedup w-full').props('data-testid=duplicate-view') as self.root:
-            ui.label('重複候補の確認').classes('pv-library-heading pv-serif-heading')
-            with ui.row().classes('pv-nav-fixed-tools pv-tone-toolbar w-full'):
+            with ui.row().classes('pv-nav-fixed-tools pv-tone-toolbar w-full') as tools:
+                ui.label('重複候補の確認').classes('pv-library-heading pv-serif-heading')
                 self.search=ui.input(placeholder='作者名・IDで絞り込む',on_change=lambda e:self.filter(e.value)).props('outlined dense clearable debounce=200 data-testid=duplicate-search')
                 self.mode_buttons={}
                 for label,key in (('決められないもの','undecidable'),('近似重複の候補','near')):
                     self.mode_buttons[key]=ui.button(label,color=None,on_click=lambda _,value=key:self.set_mode(value)).props(
-                        f'flat dense no-caps aria-pressed=false data-testid=duplicate-mode-{key}').style('width:190px')  # 元: 等幅2択
+                        f'flat dense no-caps aria-pressed=false data-testid=duplicate-mode-{key}').style('width:min(190px, 24vw)')  # 元: 等幅2択
                 self.scan_button=refresh_button(self.scan,label='スキャンして更新',testid='duplicate-scan')
                 self.scan_button.set_text('スキャンして更新').props('no-caps')
                 self.trash_button=ui.button('ごみ箱',on_click=self.open_trash).props('flat dense no-caps data-testid=duplicate-trash')
                 self.size_buttons=size_buttons(self.change_thumb_size, prefix='duplicate', small_first=True)
                 update_size_buttons(self.size_buttons,self.thumb_size)
-            manual_toolbar(self.root, 'dedup', (self.search, *self.size_buttons.values()))
-            with ui.row().classes('w-full items-center gap-2'):
+            _, _, dedup_options = manual_toolbar(tools, 'dedup', (self.search, *self.size_buttons.values()),
+                                                 title='絞り込み・注意事項')
+            with ui.row().classes('pv-dedup-status w-full items-center gap-2'):
                 self.notice=ui.label('まだスキャンしていません。').classes('pv-subtitle').props('role=status data-testid=duplicate-status')
                 self.scan_progress=ui.label('').classes('pv-subtitle').props('role=status data-testid=duplicate-progress')
-                self.legacy_notice=ui.label(
-                    '旧フォルダ・ZIPも走査し、確認後に画像を実移動して元ZIPを更新します。'
-                    '事前にImagesの兄弟quarantineへ退避するため空き容量が必要です。'
-                    if getattr(source,'legacy',None) is not None else '').classes('pv-subtitle pv-dedup-legacy-hint')
+                if getattr(source, 'legacy', None) is not None:
+                    self.legacy_notice = ui.label('旧フォルダ・ZIPも走査します。').classes('pv-subtitle')
+                    with dedup_options:
+                        ui.label('旧フォルダ・ZIPでは、確認後に画像を実移動して元ZIPを更新します。'
+                                 '事前にImagesの兄弟quarantineへ退避するため空き容量が必要です。').classes('pv-subtitle w-full')
+            with dedup_options:
                 self.low_button=ui.button('画質の低い方を一括で選ぶ',on_click=self.select_low).props('flat dense no-caps data-testid=duplicate-bulk-low')
             self.scan_bar=ui.linear_progress(value=0).props('data-testid=duplicate-progress-bar')
             self.skipped_notice=ui.label('').classes('whitespace-pre-line').props('role=alert data-testid=duplicate-skipped-authors')
@@ -79,8 +82,10 @@ class DuplicateView:
                             'role=status data-testid=duplicate-undecidable-status')
                     self.undecidable_refresh=refresh_button(self.refresh_undecidable,label='未判定の台帳を再読込',testid='duplicate-undecidable-refresh')
                 self.undecidable_rows=ui.column().classes('w-full').props('data-testid=duplicate-undecidable-rows')
+            with dedup_options:
+                ui.label('近似重複は作者ごとに比較し、各組に1枚以上残します。移動前に退避対象を確認でき、'
+                         '退避と保存証拠を保持するため空き容量は増えません。').classes('pv-subtitle w-full')
             with ui.column().classes('pv-dedup-near w-full gap-1').props('data-testid=duplicate-near-panel') as self.near_panel:
-                ui.label('作者ごとに比較し、各組に1枚以上残します。移動前に退避対象を確認でき、退避と保存証拠を保持するため空き容量は増えません。').classes('pv-subtitle')
                 with ui.column().classes('pv-dedup-list w-full gap-1'):
                     self.rows=ui.column().classes('w-full gap-2')
                     self.result_rows=ui.column().classes('w-full gap-1').props('data-testid=duplicate-item-results')

@@ -13,14 +13,15 @@ async def test_section_descriptions_and_certain_subtitle(tmp_path, monkeypatch):
     try:
         with client:
             view = await open_view(services)
-            texts = {getattr(n, 'text', None) for n in view.body.descendants()}
-            assert '傾向ピルをクリックして追加したタグの候補' in texts
-            assert '好みの学習結果に基づく候補' in texts
-            assert 'あなたが好んで見ているタグの作品' in texts
-            assert '個別に登録した作者の新着' in texts
-            assert '自分が強く反応した作品' in texts
-            assert 'あなたが好んで見ている『確実』の作品' in texts
-            assert '確実' in texts
+            cards = {getattr(n, 'text', None) for n in view.body.descendants()}
+            empty = {getattr(n, 'text', None) for n in view.empty_shelves.descendants()}
+            assert '傾向ピルをクリックして追加したタグの候補' in empty
+            assert '好みの学習結果に基づく候補' in empty
+            assert 'あなたが好んで見ているタグの作品' in cards
+            assert '個別に登録した作者の新着' in empty
+            assert '自分が強く反応した作品' in cards
+            assert 'あなたが好んで見ている『確実』の作品' in cards
+            assert '確実' in cards
             view.close()
     finally:
         client.delete(); services.close()

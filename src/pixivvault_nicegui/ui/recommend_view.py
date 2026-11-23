@@ -53,7 +53,7 @@ class RecommendView:
         self.client=ui.context.client
         self._card_actions=CardActions(services,lambda text:self.notice.set_text(text),lambda:self.active and not self.closed)
         with ui.column().classes('pv-metadata-view pv-tone-recommend w-full').props('data-testid=recommend-view data-busy=false') as self.root:
-            with ui.row().classes('pv-nav-fixed-tools pv-tone-toolbar w-full'):
+            with ui.row().classes('pv-nav-fixed-tools pv-tone-toolbar w-full') as tools:
                 ui.label('おすすめ').classes('pv-library-heading pv-serif-heading')
                 ui.space()
                 self.size_buttons=size_buttons(self.change_card_size, prefix='recommend')
@@ -61,12 +61,19 @@ class RecommendView:
                 self.refresh_button=refresh_button(self.refresh,label='保存済み結果を再読込',testid='recommend-refresh')
                 self.update_button=primary_button('おすすめを更新',on_click=self.update,testid='recommend-update')
                 self.reset_button=ui.button('順序を既定に戻す',on_click=self.reset_order).props('flat dense no-caps data-testid=recommend-order-reset')
-            manual_toolbar(self.root, 'recommend', (*self.size_buttons.values(), self.reset_button), title='表示設定')
-            self.notice=ui.label().classes('pv-subtitle').props('role=status data-testid=recommend-notice')
+            _, _, display_settings = manual_toolbar(
+                tools, 'recommend', (*self.size_buttons.values(), self.reset_button),
+                title='表示・棚の設定')
+            with display_settings:
+                self.empty_shelves = ui.column().classes('w-full gap-1')
+            self.notice=ui.label().classes('pv-subtitle').props('role=status tabindex=0 data-testid=recommend-notice')
             self.busy_notice=ui.label('処理中…').classes('pv-subtitle').props('role=status data-testid=recommend-busy-status')
             self.busy_notice.set_visibility(False)
             self.undo_button=ui.button('出さないを取り消す',on_click=self.undo_hide).props('flat dense no-caps data-testid=recommend-undo')
             self.undo_button.set_visibility(False)
+            self.notice.move(tools, target_index=1)
+            self.busy_notice.move(tools, target_index=2)
+            self.undo_button.move(tools, target_index=3)
             self.body=ui.column().classes('pv-recommend-shelves w-full')
             with managed_dialog().props('data-testid=recommend-hide-reason-dialog') as self.hide_dialog:
                 self.hide_dialog.on_value_change(self._hide_reason_visibility_changed)
@@ -585,7 +592,7 @@ class RecommendView:
         self._render_generation+=1
         generation=self._render_generation
         slots,slate=self._visual_slots(visual,groups,old_media,protected,visual_preparation,stamp)
-        data=self.data;self.body.clear();self._certain_buttons={}
+        data=self.data;self.body.clear();self.empty_shelves.clear();self._certain_buttons={}
         self.update_button.set_enabled(data.get('can_acquire',False))
         self.reset_button.set_enabled(bool(data.get('writable') and tuple(data['order'])!=ORDER and not self.busy))
         with self.body:
@@ -604,11 +611,17 @@ class RecommendView:
             for kind in data['order']:
                 groups=data['sections'].get(kind,())
                 trends=data.get('trends',()) if kind=='trend' else ()
-                with ui.column().classes('pv-recommend-shelf w-full').props(f'data-testid=recommend-section-{kind}'):
+                # Keep empty shelf controls available without placing them before the first card.
+                populated = (trends or any(group.works for group in groups)
+                             or kind == 'trend_added' and data.get('added_tags')
+                             or kind == 'boosted' and data.get('boosted'))
+                shelf_host = self.body if populated or kind in data['collapsed'] else self.empty_shelves
+                with shelf_host, ui.column().classes('pv-recommend-shelf w-full').props(f'data-testid=recommend-section-{kind}'):
                     with ui.row().classes('pv-recommend-shelf-header items-center w-full gap-1'):
                         ui.label(LABELS[kind]).classes('pv-library-heading pv-serif-heading')
                         if kind not in data['collapsed']:
-                            ui.label(_SECTION_DESCRIPTIONS[kind]).classes('pv-subtitle')
+                            description = _SECTION_DESCRIPTIONS[kind]
+                            ui.label(description).classes('pv-subtitle pv-recommend-description').props['title'] = description
                             if kind=='trend' and not trends:
                                 ui.label('まだ傾向がありません。').classes('pv-subtitle')
                             elif kind in data['unavailable']:
@@ -666,7 +679,7 @@ class RecommendView:
                                 subtitle=(f'あなたが好んで見ている『{group.title}』の作品' if kind=='certain'
                                           else f'『{group.title}』の作品' if kind=='trend_added'
                                           else f'「{group.title}」の新着')
-                                ui.label(subtitle).classes('pv-subtitle')
+                                ui.label(subtitle).classes('pv-subtitle pv-recommend-description').props['title'] = subtitle
                             if kind=='certain':
                                 b=ui.button('このタグを開く' if closed else 'このタグを閉じる',on_click=lambda e,t=group.key:self.collapse_certain_group(t)).props('flat dense no-caps').classes('pv-hit28')
                                 self._certain_buttons[group.key]=b

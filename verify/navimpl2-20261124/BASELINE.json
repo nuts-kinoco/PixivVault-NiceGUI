@@ -1,0 +1,4573 @@
+{
+  "cells": [
+    {
+      "device": [
+        1280,
+        800
+      ],
+      "zoom": 100,
+      "browser_zoom": 1,
+      "theme": "dark",
+      "variant": "normal",
+      "header": {
+        "viewport": [
+          1280,
+          800
+        ],
+        "dpr": 1,
+        "tabs": [
+          {
+            "name": "tab-download",
+            "rect": [
+              8,
+              84,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-queue",
+            "rect": [
+              135.19,
+              84,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-failed",
+            "rect": [
+              262.38,
+              84,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-dedup",
+            "rect": [
+              389.56,
+              84,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-learning",
+            "rect": [
+              516.75,
+              84,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-ranking",
+            "rect": [
+              643.94,
+              84,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-personal",
+            "rect": [
+              771.13,
+              84,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-library",
+            "rect": [
+              898.31,
+              84,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-bookmarks",
+            "rect": [
+              1025.5,
+              84,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-recommend",
+            "rect": [
+              1152.69,
+              84,
+              119.19,
+              32
+            ],
+            "fits": true
+          }
+        ],
+        "icons": [
+          {
+            "name": "tab-history",
+            "rect": [
+              968,
+              40,
+              40,
+              40
+            ],
+            "in_view": true
+          },
+          {
+            "name": "view-history-open",
+            "rect": [
+              1012,
+              40,
+              40,
+              40
+            ],
+            "in_view": true
+          },
+          {
+            "name": "saved-folder-open",
+            "rect": [
+              1056,
+              40,
+              40,
+              40
+            ],
+            "in_view": true
+          },
+          {
+            "name": "theme-toggle",
+            "rect": [
+              1100,
+              40,
+              40,
+              40
+            ],
+            "in_view": true
+          },
+          {
+            "name": "pixiv-home-link",
+            "rect": [
+              1144,
+              40,
+              40,
+              40
+            ],
+            "in_view": true
+          },
+          {
+            "name": "preferences-open",
+            "rect": [
+              1188,
+              40,
+              40,
+              40
+            ],
+            "in_view": true
+          },
+          {
+            "name": "automation-open",
+            "rect": [
+              1232,
+              40,
+              40,
+              40
+            ],
+            "in_view": true
+          }
+        ],
+        "nav_visible": true,
+        "horizontal_overflow": false,
+        "warning": [
+          8,
+          8,
+          1264,
+          28
+        ],
+        "recovery": [
+          566.5,
+          44,
+          160,
+          31.98
+        ],
+        "unresolved": null,
+        "breakdown": null,
+        "chrome": [
+          8,
+          84,
+          1264,
+          32
+        ],
+        "shell_scroll": 0
+      },
+      "screens": {
+        "ranking": {
+          "viewport": [
+            1280,
+            800
+          ],
+          "visible_rect": [
+            8,
+            250.46875,
+            1264,
+            541.5
+          ],
+          "area_ratio": 0.6684140625,
+          "first_image_y": 273.65625,
+          "image_rect": [
+            15.473958333333329,
+            273.65625,
+            185.70833333333337,
+            139
+          ],
+          "image_ratio": 0.02520845540364584,
+          "first_image_complete": true,
+          "complete_images": 4,
+          "rendered_images": 4,
+          "visible_images": 4,
+          "first_item_y": 250.46875,
+          "items": 30,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 40,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 42,
+                  "height": 36
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 52.203125,
+                  "height": 15.59375
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 40,
+                  "height": 40
+                }
+              ]
+            },
+            "api": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 44,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "tabs": {
+              "height": 32,
+              "elements": [
+                {
+                  "selector": ".pv-nav",
+                  "y": 84,
+                  "height": 32
+                }
+              ]
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 124.734375,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 30,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 155.96875,
+                  "height": 30
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 40.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 189.96875,
+                  "height": 21
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 218.96875,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 250.46875,
+          "chrome_union_height": 193,
+          "chrome_unassigned_height": 57.46875
+        },
+        "personal": {
+          "viewport": [
+            1280,
+            800
+          ],
+          "visible_rect": [
+            8,
+            280.96875,
+            1264,
+            511
+          ],
+          "area_ratio": 0.630765625,
+          "first_image_y": 304.15625,
+          "image_rect": [
+            15.473958333333329,
+            304.15625,
+            185.70833333333337,
+            139
+          ],
+          "image_ratio": 0.02520845540364584,
+          "first_image_complete": true,
+          "complete_images": 6,
+          "rendered_images": 6,
+          "visible_images": 6,
+          "first_item_y": 280.96875,
+          "items": 30,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 40,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 42,
+                  "height": 36
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 52.203125,
+                  "height": 15.59375
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 40,
+                  "height": 40
+                }
+              ]
+            },
+            "api": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 44,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "tabs": {
+              "height": 32,
+              "elements": [
+                {
+                  "selector": ".pv-nav",
+                  "y": 84,
+                  "height": 32
+                }
+              ]
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 124.734375,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 30,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 155.984375,
+                  "height": 30
+                }
+              ]
+            },
+            "candidates": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=personal-chips]",
+                  "y": 189.984375,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "status": {
+              "height": 39,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 225.96875,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 249.46875,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-personal-status",
+                  "y": 225.96875,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 280.96875,
+          "chrome_union_height": 223.484375,
+          "chrome_unassigned_height": 57.484375
+        },
+        "library": {
+          "viewport": [
+            1280,
+            800
+          ],
+          "visible_rect": [
+            8,
+            218.21875,
+            1264,
+            573.78125
+          ],
+          "area_ratio": 0.70826123046875,
+          "first_image_y": 225.21875,
+          "image_rect": [
+            15,
+            225.21875,
+            186.65625,
+            156
+          ],
+          "image_ratio": 0.0284359130859375,
+          "first_image_complete": true,
+          "complete_images": 2,
+          "rendered_images": 2,
+          "visible_images": 2,
+          "first_item_y": 218.21875,
+          "items": 2,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 40,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 42,
+                  "height": 36
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 52.203125,
+                  "height": 15.59375
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 40,
+                  "height": 40
+                }
+              ]
+            },
+            "api": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 44,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "tabs": {
+              "height": 32,
+              "elements": [
+                {
+                  "selector": ".pv-nav",
+                  "y": 84,
+                  "height": 32
+                }
+              ]
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 121.296875,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 55.109375,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 149.109375,
+                  "height": 30
+                },
+                {
+                  "selector": ".pv-library-summary",
+                  "y": 187.109375,
+                  "height": 25.109375
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 189.90625,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 218.21875,
+          "chrome_union_height": 177.609375,
+          "chrome_unassigned_height": 40.609375
+        },
+        "library-works": {
+          "viewport": [
+            1280,
+            800
+          ],
+          "visible_rect": [
+            8,
+            245,
+            1264,
+            547
+          ],
+          "area_ratio": 0.675203125,
+          "first_image_y": 252,
+          "image_rect": [
+            15,
+            252,
+            186.65625,
+            99.859375
+          ],
+          "image_ratio": 0.018202516078948974,
+          "first_image_complete": true,
+          "complete_images": 1,
+          "rendered_images": 1,
+          "visible_images": 1,
+          "first_item_y": 245,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 40,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 42,
+                  "height": 36
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 52.203125,
+                  "height": 15.59375
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 40,
+                  "height": 40
+                }
+              ]
+            },
+            "api": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 44,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "tabs": {
+              "height": 32,
+              "elements": [
+                {
+                  "selector": ".pv-nav",
+                  "y": 84,
+                  "height": 32
+                }
+              ]
+            },
+            "heading": {
+              "height": 48.890625,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 121.296875,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-library-detail-header",
+                  "y": 187.109375,
+                  "height": 26.390625
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 30,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 149.109375,
+                  "height": 30
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 219.5,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 245,
+          "chrome_union_height": 198.390625,
+          "chrome_unassigned_height": 46.609375
+        },
+        "bookmarks": {
+          "viewport": [
+            1280,
+            800
+          ],
+          "visible_rect": [
+            8,
+            191.109375,
+            1264,
+            600.890625
+          ],
+          "area_ratio": 0.741724365234375,
+          "first_image_y": 198.109375,
+          "image_rect": [
+            15,
+            198.109375,
+            186.65625,
+            155
+          ],
+          "image_ratio": 0.028253631591796877,
+          "first_image_complete": true,
+          "complete_images": 1,
+          "rendered_images": 1,
+          "visible_images": 1,
+          "first_item_y": 191.109375,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 40,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 42,
+                  "height": 36
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 52.203125,
+                  "height": 15.59375
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 40,
+                  "height": 40
+                }
+              ]
+            },
+            "api": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 44,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "tabs": {
+              "height": 32,
+              "elements": [
+                {
+                  "selector": ".pv-nav",
+                  "y": 84,
+                  "height": 32
+                }
+              ]
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 125.296875,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 55.109375,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 155.109375,
+                  "height": 30
+                },
+                {
+                  "selector": ".pv-library-summary",
+                  "y": 124,
+                  "height": 25.109375
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 126.796875,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 126.796875,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 126.796875,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 191.109375,
+          "chrome_union_height": 155.109375,
+          "chrome_unassigned_height": 36
+        },
+        "recommend": {
+          "viewport": [
+            1280,
+            800
+          ],
+          "visible_rect": [
+            8,
+            406.421875,
+            1256,
+            385.578125
+          ],
+          "area_ratio": 0.4729356689453125,
+          "first_image_y": 421.298828125,
+          "image_rect": [
+            15,
+            421.298828125,
+            185,
+            138.99609375
+          ],
+          "image_ratio": 0.025111598968505858,
+          "first_image_complete": true,
+          "complete_images": 2,
+          "rendered_images": 2,
+          "visible_images": 2,
+          "first_item_y": 406.421875,
+          "items": 2,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 40,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 42,
+                  "height": 36
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 52.203125,
+                  "height": 15.59375
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 40,
+                  "height": 40
+                }
+              ]
+            },
+            "api": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 44,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "tabs": {
+              "height": 32,
+              "elements": [
+                {
+                  "selector": ".pv-nav",
+                  "y": 84,
+                  "height": 32
+                }
+              ]
+            },
+            "heading": {
+              "height": 90,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 132.734375,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 245.21875,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 292.203125,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 339.1875,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 125.953125,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 173.984375,
+                  "height": 30
+                },
+                {
+                  "selector": ".pv-recommend-shelf-header",
+                  "y": 240.484375,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-recommend-shelf-header",
+                  "y": 287.46875,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-recommend-shelf-header",
+                  "y": 334.453125,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 209.984375,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 406.421875,
+          "chrome_union_height": 267.953125,
+          "chrome_unassigned_height": 138.46875,
+          "layout": [
+            [
+              "nicegui-row row pv-nav-fixed-tools pv-tone-toolbar w-full",
+              120,
+              47.984375
+            ],
+            [
+              "toolbar-recommend",
+              173.984375,
+              30
+            ],
+            [
+              "recommend-notice",
+              209.984375,
+              19.5
+            ],
+            [
+              "nicegui-column pv-recommend-shelves w-full",
+              235.484375,
+              556.515625
+            ],
+            [
+              "recommend-section-trend_added",
+              235.484375,
+              40.984375
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              240.484375,
+              31.984375
+            ],
+            [
+              "recommend-section-trend",
+              282.46875,
+              40.984375
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              287.46875,
+              31.984375
+            ],
+            [
+              "recommend-section-certain",
+              329.453125,
+              367.625
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              334.453125,
+              31.984375
+            ],
+            [
+              "recommend-section-boosted",
+              703.078125,
+              40.984375
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              708.078125,
+              31.984375
+            ],
+            [
+              "recommend-section-superlike",
+              750.0625,
+              40.984375
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              755.0625,
+              31.984375
+            ],
+            [
+              "q-expansion-item q-item-type q-expansion-item--collapsed q-expansion-item--standard nicegui-expansion w-full",
+              797.046875,
+              48
+            ]
+          ]
+        },
+        "dedup": {
+          "viewport": [
+            1280,
+            800
+          ],
+          "visible_rect": [
+            8,
+            306.984375,
+            1256,
+            439
+          ],
+          "area_ratio": 0.5384609375,
+          "first_image_y": null,
+          "image_rect": null,
+          "image_ratio": null,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 0,
+          "visible_images": 0,
+          "first_item_y": 306.984375,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 40,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 42,
+                  "height": 36
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 52.203125,
+                  "height": 15.59375
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 40,
+                  "height": 40
+                }
+              ]
+            },
+            "api": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 44,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "tabs": {
+              "height": 32,
+              "elements": [
+                {
+                  "selector": ".pv-nav",
+                  "y": 84,
+                  "height": 32
+                }
+              ]
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 120,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 30,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 202.484375,
+                  "height": 30
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 248.234375,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 306.984375,
+          "chrome_union_height": 172,
+          "chrome_unassigned_height": 134.984375
+        }
+      }
+    },
+    {
+      "device": [
+        1280,
+        800
+      ],
+      "zoom": 100,
+      "browser_zoom": 1,
+      "theme": "dark",
+      "variant": "stress",
+      "header": {
+        "viewport": [
+          1280,
+          800
+        ],
+        "dpr": 1,
+        "tabs": [
+          {
+            "name": "tab-download",
+            "rect": [
+              8,
+              196.98,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-queue",
+            "rect": [
+              135.19,
+              196.98,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-failed",
+            "rect": [
+              262.38,
+              196.98,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-dedup",
+            "rect": [
+              389.56,
+              196.98,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-learning",
+            "rect": [
+              516.75,
+              196.98,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-ranking",
+            "rect": [
+              643.94,
+              196.98,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-personal",
+            "rect": [
+              771.13,
+              196.98,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-library",
+            "rect": [
+              898.31,
+              196.98,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-bookmarks",
+            "rect": [
+              1025.5,
+              196.98,
+              119.19,
+              32
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-recommend",
+            "rect": [
+              1152.69,
+              196.98,
+              119.19,
+              32
+            ],
+            "fits": true
+          }
+        ],
+        "icons": [
+          {
+            "name": "tab-history",
+            "rect": [
+              968,
+              105.48,
+              40,
+              40
+            ],
+            "in_view": true
+          },
+          {
+            "name": "view-history-open",
+            "rect": [
+              1012,
+              105.48,
+              40,
+              40
+            ],
+            "in_view": true
+          },
+          {
+            "name": "saved-folder-open",
+            "rect": [
+              1056,
+              105.48,
+              40,
+              40
+            ],
+            "in_view": true
+          },
+          {
+            "name": "theme-toggle",
+            "rect": [
+              1100,
+              105.48,
+              40,
+              40
+            ],
+            "in_view": true
+          },
+          {
+            "name": "pixiv-home-link",
+            "rect": [
+              1144,
+              105.48,
+              40,
+              40
+            ],
+            "in_view": true
+          },
+          {
+            "name": "preferences-open",
+            "rect": [
+              1188,
+              105.48,
+              40,
+              40
+            ],
+            "in_view": true
+          },
+          {
+            "name": "automation-open",
+            "rect": [
+              1232,
+              105.48,
+              40,
+              40
+            ],
+            "in_view": true
+          }
+        ],
+        "nav_visible": true,
+        "horizontal_overflow": false,
+        "warning": [
+          8,
+          8,
+          1264,
+          66.5
+        ],
+        "recovery": [
+          566.5,
+          80.5,
+          160,
+          31.98
+        ],
+        "unresolved": [
+          8,
+          176.48,
+          97,
+          16.5
+        ],
+        "breakdown": [
+          113,
+          176.48,
+          105.14,
+          16.5
+        ],
+        "chrome": [
+          8,
+          196.98,
+          1264,
+          32
+        ],
+        "shell_scroll": 0
+      },
+      "screens": {
+        "ranking": {
+          "viewport": [
+            1280,
+            800
+          ],
+          "visible_rect": [
+            8,
+            363.453125,
+            1264,
+            428.5
+          ],
+          "area_ratio": 0.5289296875,
+          "first_image_y": 386.640625,
+          "image_rect": [
+            15.473958333333329,
+            386.640625,
+            185.70833333333337,
+            139
+          ],
+          "image_ratio": 0.02520845540364584,
+          "first_image_complete": true,
+          "complete_images": 12,
+          "rendered_images": 12,
+          "visible_images": 12,
+          "first_item_y": 363.453125,
+          "items": 30,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 66.5,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 66.5
+                }
+              ]
+            },
+            "header": {
+              "height": 66.984375,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 78.5,
+                  "height": 36
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 88.703125,
+                  "height": 15.59375
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 105.484375,
+                  "height": 40
+                }
+              ]
+            },
+            "api": {
+              "height": 51.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 80.5,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 118.5,
+                  "height": 20
+                }
+              ]
+            },
+            "tabs": {
+              "height": 32,
+              "elements": [
+                {
+                  "selector": ".pv-nav",
+                  "y": 196.984375,
+                  "height": 32
+                }
+              ]
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 237.71875,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 30,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 268.953125,
+                  "height": 30
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 40.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 302.953125,
+                  "height": 21
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 331.953125,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 363.453125,
+          "chrome_union_height": 258.484375,
+          "chrome_unassigned_height": 104.96875
+        },
+        "personal": {
+          "viewport": [
+            1280,
+            800
+          ],
+          "visible_rect": [
+            8,
+            393.953125,
+            1264,
+            398
+          ],
+          "area_ratio": 0.49128125,
+          "first_image_y": 417.140625,
+          "image_rect": [
+            228.12760416666669,
+            417.140625,
+            185.72916666666663,
+            139
+          ],
+          "image_ratio": 0.02521128336588541,
+          "first_image_complete": true,
+          "complete_images": 7,
+          "rendered_images": 7,
+          "visible_images": 7,
+          "first_item_y": 393.953125,
+          "items": 30,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 66.5,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 66.5
+                }
+              ]
+            },
+            "header": {
+              "height": 66.984375,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 78.5,
+                  "height": 36
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 88.703125,
+                  "height": 15.59375
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 105.484375,
+                  "height": 40
+                }
+              ]
+            },
+            "api": {
+              "height": 51.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 80.5,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 118.5,
+                  "height": 20
+                }
+              ]
+            },
+            "tabs": {
+              "height": 32,
+              "elements": [
+                {
+                  "selector": ".pv-nav",
+                  "y": 196.984375,
+                  "height": 32
+                }
+              ]
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 237.71875,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 30,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 268.96875,
+                  "height": 30
+                }
+              ]
+            },
+            "candidates": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=personal-chips]",
+                  "y": 302.96875,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "status": {
+              "height": 39,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 338.953125,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 362.453125,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-personal-status",
+                  "y": 338.953125,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 393.953125,
+          "chrome_union_height": 288.96875,
+          "chrome_unassigned_height": 104.984375
+        },
+        "library": {
+          "viewport": [
+            1280,
+            800
+          ],
+          "visible_rect": [
+            8,
+            331.203125,
+            1264,
+            460.78125
+          ],
+          "area_ratio": 0.56877685546875,
+          "first_image_y": 338.203125,
+          "image_rect": [
+            15,
+            338.203125,
+            186.65625,
+            156
+          ],
+          "image_ratio": 0.0284359130859375,
+          "first_image_complete": true,
+          "complete_images": 2,
+          "rendered_images": 2,
+          "visible_images": 2,
+          "first_item_y": 331.203125,
+          "items": 2,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 66.5,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 66.5
+                }
+              ]
+            },
+            "header": {
+              "height": 66.984375,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 78.5,
+                  "height": 36
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 88.703125,
+                  "height": 15.59375
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 105.484375,
+                  "height": 40
+                }
+              ]
+            },
+            "api": {
+              "height": 51.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 80.5,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 118.5,
+                  "height": 20
+                }
+              ]
+            },
+            "tabs": {
+              "height": 32,
+              "elements": [
+                {
+                  "selector": ".pv-nav",
+                  "y": 196.984375,
+                  "height": 32
+                }
+              ]
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 234.28125,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 55.109375,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 262.09375,
+                  "height": 30
+                },
+                {
+                  "selector": ".pv-library-summary",
+                  "y": 300.09375,
+                  "height": 25.109375
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 302.890625,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 331.203125,
+          "chrome_union_height": 243.09375,
+          "chrome_unassigned_height": 88.109375
+        },
+        "library-works": {
+          "viewport": [
+            1280,
+            800
+          ],
+          "visible_rect": [
+            8,
+            357.984375,
+            1264,
+            434
+          ],
+          "area_ratio": 0.53571875,
+          "first_image_y": 364.984375,
+          "image_rect": [
+            15,
+            364.984375,
+            186.65625,
+            99.859375
+          ],
+          "image_ratio": 0.018202516078948974,
+          "first_image_complete": true,
+          "complete_images": 1,
+          "rendered_images": 1,
+          "visible_images": 1,
+          "first_item_y": 357.984375,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 66.5,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 66.5
+                }
+              ]
+            },
+            "header": {
+              "height": 66.984375,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 78.5,
+                  "height": 36
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 88.703125,
+                  "height": 15.59375
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 105.484375,
+                  "height": 40
+                }
+              ]
+            },
+            "api": {
+              "height": 51.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 80.5,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 118.5,
+                  "height": 20
+                }
+              ]
+            },
+            "tabs": {
+              "height": 32,
+              "elements": [
+                {
+                  "selector": ".pv-nav",
+                  "y": 196.984375,
+                  "height": 32
+                }
+              ]
+            },
+            "heading": {
+              "height": 48.890625,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 234.28125,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-library-detail-header",
+                  "y": 300.09375,
+                  "height": 26.390625
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 30,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 262.09375,
+                  "height": 30
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 332.484375,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 357.984375,
+          "chrome_union_height": 263.875,
+          "chrome_unassigned_height": 94.109375
+        },
+        "bookmarks": {
+          "viewport": [
+            1280,
+            800
+          ],
+          "visible_rect": [
+            8,
+            304.09375,
+            1264,
+            487.890625
+          ],
+          "area_ratio": 0.602239990234375,
+          "first_image_y": 311.09375,
+          "image_rect": [
+            15,
+            311.09375,
+            186.65625,
+            155
+          ],
+          "image_ratio": 0.028253631591796877,
+          "first_image_complete": true,
+          "complete_images": 1,
+          "rendered_images": 1,
+          "visible_images": 1,
+          "first_item_y": 304.09375,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 66.5,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 66.5
+                }
+              ]
+            },
+            "header": {
+              "height": 66.984375,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 78.5,
+                  "height": 36
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 88.703125,
+                  "height": 15.59375
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 105.484375,
+                  "height": 40
+                }
+              ]
+            },
+            "api": {
+              "height": 51.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 80.5,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 118.5,
+                  "height": 20
+                }
+              ]
+            },
+            "tabs": {
+              "height": 32,
+              "elements": [
+                {
+                  "selector": ".pv-nav",
+                  "y": 196.984375,
+                  "height": 32
+                }
+              ]
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 238.28125,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 55.109375,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 268.09375,
+                  "height": 30
+                },
+                {
+                  "selector": ".pv-library-summary",
+                  "y": 236.984375,
+                  "height": 25.109375
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 239.78125,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 239.78125,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 239.78125,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 304.09375,
+          "chrome_union_height": 220.59375,
+          "chrome_unassigned_height": 83.5
+        },
+        "recommend": {
+          "viewport": [
+            1280,
+            800
+          ],
+          "visible_rect": [
+            8,
+            519.40625,
+            1256,
+            272.578125
+          ],
+          "area_ratio": 0.3343341064453125,
+          "first_image_y": 534.283203125,
+          "image_rect": [
+            15,
+            534.283203125,
+            185,
+            138.99609375
+          ],
+          "image_ratio": 0.025111598968505858,
+          "first_image_complete": true,
+          "complete_images": 2,
+          "rendered_images": 2,
+          "visible_images": 2,
+          "first_item_y": 519.40625,
+          "items": 2,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 66.5,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 66.5
+                }
+              ]
+            },
+            "header": {
+              "height": 66.984375,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 78.5,
+                  "height": 36
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 88.703125,
+                  "height": 15.59375
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 105.484375,
+                  "height": 40
+                }
+              ]
+            },
+            "api": {
+              "height": 51.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 80.5,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 118.5,
+                  "height": 20
+                }
+              ]
+            },
+            "tabs": {
+              "height": 32,
+              "elements": [
+                {
+                  "selector": ".pv-nav",
+                  "y": 196.984375,
+                  "height": 32
+                }
+              ]
+            },
+            "heading": {
+              "height": 90,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 245.71875,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 358.203125,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 405.1875,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 452.171875,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 125.953125,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 286.96875,
+                  "height": 30
+                },
+                {
+                  "selector": ".pv-recommend-shelf-header",
+                  "y": 353.46875,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-recommend-shelf-header",
+                  "y": 400.453125,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-recommend-shelf-header",
+                  "y": 447.4375,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 322.96875,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 519.40625,
+          "chrome_union_height": 333.4375,
+          "chrome_unassigned_height": 185.96875,
+          "layout": [
+            [
+              "nicegui-row row pv-nav-fixed-tools pv-tone-toolbar w-full",
+              232.984375,
+              47.984375
+            ],
+            [
+              "toolbar-recommend",
+              286.96875,
+              30
+            ],
+            [
+              "recommend-notice",
+              322.96875,
+              19.5
+            ],
+            [
+              "nicegui-column pv-recommend-shelves w-full",
+              348.46875,
+              443.53125
+            ],
+            [
+              "recommend-section-trend_added",
+              348.46875,
+              40.984375
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              353.46875,
+              31.984375
+            ],
+            [
+              "recommend-section-trend",
+              395.453125,
+              40.984375
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              400.453125,
+              31.984375
+            ],
+            [
+              "recommend-section-certain",
+              442.4375,
+              367.625
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              447.4375,
+              31.984375
+            ],
+            [
+              "recommend-section-boosted",
+              816.0625,
+              40.984375
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              821.0625,
+              31.984375
+            ],
+            [
+              "recommend-section-superlike",
+              863.046875,
+              40.984375
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              868.046875,
+              31.984375
+            ],
+            [
+              "q-expansion-item q-item-type q-expansion-item--collapsed q-expansion-item--standard nicegui-expansion w-full",
+              910.03125,
+              48
+            ]
+          ]
+        },
+        "dedup": {
+          "viewport": [
+            1280,
+            800
+          ],
+          "visible_rect": [
+            8,
+            419.96875,
+            1256,
+            326
+          ],
+          "area_ratio": 0.399859375,
+          "first_image_y": null,
+          "image_rect": null,
+          "image_ratio": null,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 0,
+          "visible_images": 0,
+          "first_item_y": 419.96875,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 66.5,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 66.5
+                }
+              ]
+            },
+            "header": {
+              "height": 66.984375,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 78.5,
+                  "height": 36
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 88.703125,
+                  "height": 15.59375
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 105.484375,
+                  "height": 40
+                }
+              ]
+            },
+            "api": {
+              "height": 51.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 80.5,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 118.5,
+                  "height": 20
+                }
+              ]
+            },
+            "tabs": {
+              "height": 32,
+              "elements": [
+                {
+                  "selector": ".pv-nav",
+                  "y": 196.984375,
+                  "height": 32
+                }
+              ]
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 232.984375,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 30,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 315.46875,
+                  "height": 30
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 361.21875,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 419.96875,
+          "chrome_union_height": 237.484375,
+          "chrome_unassigned_height": 182.484375
+        }
+      }
+    },
+    {
+      "device": [
+        640,
+        400
+      ],
+      "zoom": 100,
+      "browser_zoom": 1,
+      "theme": "dark",
+      "variant": "normal",
+      "header": {
+        "viewport": [
+          640,
+          400
+        ],
+        "dpr": 1,
+        "tabs": [
+          {
+            "name": "tab-download",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-queue",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-failed",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-dedup",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-learning",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-ranking",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-personal",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-library",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-bookmarks",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-recommend",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          }
+        ],
+        "icons": [
+          {
+            "name": "tab-history",
+            "rect": [
+              8,
+              76.97,
+              32,
+              28
+            ],
+            "in_view": true
+          },
+          {
+            "name": "view-history-open",
+            "rect": [
+              42,
+              76.97,
+              32,
+              28
+            ],
+            "in_view": true
+          },
+          {
+            "name": "saved-folder-open",
+            "rect": [
+              76,
+              76.97,
+              32,
+              28
+            ],
+            "in_view": true
+          },
+          {
+            "name": "theme-toggle",
+            "rect": [
+              110,
+              76.97,
+              32,
+              28
+            ],
+            "in_view": true
+          },
+          {
+            "name": "pixiv-home-link",
+            "rect": [
+              144,
+              76.97,
+              32,
+              28
+            ],
+            "in_view": true
+          },
+          {
+            "name": "preferences-open",
+            "rect": [
+              178,
+              76.97,
+              32,
+              28
+            ],
+            "in_view": true
+          },
+          {
+            "name": "automation-open",
+            "rect": [
+              212,
+              76.97,
+              32,
+              28
+            ],
+            "in_view": true
+          }
+        ],
+        "nav_visible": false,
+        "horizontal_overflow": false,
+        "warning": [
+          8,
+          8,
+          624,
+          31.98
+        ],
+        "recovery": [
+          460.3,
+          42.98,
+          160,
+          31.98
+        ],
+        "unresolved": null,
+        "breakdown": null,
+        "chrome": [
+          8,
+          107.97,
+          624,
+          28
+        ],
+        "shell_scroll": 0
+      },
+      "screens": {
+        "ranking": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            197.9375,
+            624,
+            194
+          ],
+          "area_ratio": 0.472875,
+          "first_image_y": 221.125,
+          "image_rect": [
+            15.583333333333329,
+            221.125,
+            184.83333333333337,
+            138.625
+          ],
+          "image_ratio": 0.10008797200520836,
+          "first_image_complete": true,
+          "complete_images": 3,
+          "rendered_images": 7,
+          "visible_images": 3,
+          "first_item_y": 197.9375,
+          "items": 30,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "header": {
+              "height": 0,
+              "elements": []
+            },
+            "api": {
+              "height": 0,
+              "elements": []
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 143.703125,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 0,
+              "elements": []
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 15,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 176.9375,
+                  "height": 15
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 197.9375,
+          "chrome_union_height": 69.484375,
+          "chrome_unassigned_height": 128.453125
+        },
+        "personal": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            229.9375,
+            624,
+            162
+          ],
+          "area_ratio": 0.394875,
+          "first_image_y": 253.125,
+          "image_rect": [
+            227.58333333333331,
+            253.125,
+            184.83333333333337,
+            138.625
+          ],
+          "image_ratio": 0.10008797200520836,
+          "first_image_complete": true,
+          "complete_images": 2,
+          "rendered_images": 9,
+          "visible_images": 2,
+          "first_item_y": 229.9375,
+          "items": 30,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "header": {
+              "height": 0,
+              "elements": []
+            },
+            "api": {
+              "height": 0,
+              "elements": []
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 143.703125,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 0,
+              "elements": []
+            },
+            "candidates": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=personal-chips]",
+                  "y": 176.953125,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "status": {
+              "height": 15,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 211.9375,
+                  "height": 15
+                },
+                {
+                  "selector": ".pv-personal-status",
+                  "y": 211.9375,
+                  "height": 15
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 229.9375,
+          "chrome_union_height": 101.46875,
+          "chrome_unassigned_height": 128.46875
+        },
+        "library": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            237.1875,
+            624,
+            154.78125
+          ],
+          "area_ratio": 0.377279296875,
+          "first_image_y": 244.1875,
+          "image_rect": [
+            15,
+            244.1875,
+            186,
+            147.78125
+          ],
+          "image_ratio": 0.107372314453125,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 2,
+          "visible_images": 2,
+          "first_item_y": 237.1875,
+          "items": 2,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "header": {
+              "height": 0,
+              "elements": []
+            },
+            "api": {
+              "height": 0,
+              "elements": []
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 140.265625,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 55.109375,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 168.078125,
+                  "height": 30
+                },
+                {
+                  "selector": ".pv-library-summary",
+                  "y": 206.078125,
+                  "height": 25.109375
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 208.875,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 237.1875,
+          "chrome_union_height": 109.59375,
+          "chrome_unassigned_height": 127.59375
+        },
+        "library-works": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            263.96875,
+            624,
+            128
+          ],
+          "area_ratio": 0.312,
+          "first_image_y": 270.96875,
+          "image_rect": [
+            15,
+            270.96875,
+            186,
+            99
+          ],
+          "image_ratio": 0.0719296875,
+          "first_image_complete": true,
+          "complete_images": 1,
+          "rendered_images": 1,
+          "visible_images": 1,
+          "first_item_y": 263.96875,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "header": {
+              "height": 0,
+              "elements": []
+            },
+            "api": {
+              "height": 0,
+              "elements": []
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 48.890625,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 140.265625,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-library-detail-header",
+                  "y": 206.078125,
+                  "height": 26.390625
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 30,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 168.078125,
+                  "height": 30
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 238.46875,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 263.96875,
+          "chrome_union_height": 130.375,
+          "chrome_unassigned_height": 133.59375
+        },
+        "bookmarks": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            200.578125,
+            624,
+            191
+          ],
+          "area_ratio": 0.4655625,
+          "first_image_y": 207.578125,
+          "image_rect": [
+            15,
+            207.578125,
+            186,
+            154.8125
+          ],
+          "image_ratio": 0.11248095703125,
+          "first_image_complete": true,
+          "complete_images": 1,
+          "rendered_images": 1,
+          "visible_images": 1,
+          "first_item_y": 200.578125,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "header": {
+              "height": 0,
+              "elements": []
+            },
+            "api": {
+              "height": 0,
+              "elements": []
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 142.96875,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 49.609375,
+              "elements": [
+                {
+                  "selector": ".pv-library-summary",
+                  "y": 142.96875,
+                  "height": 49.609375
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 39,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 144.46875,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 144.46875,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 170.265625,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 200.578125,
+          "chrome_union_height": 81.59375,
+          "chrome_unassigned_height": 118.984375
+        },
+        "recommend": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            400,
+            616,
+            0
+          ],
+          "area_ratio": 0,
+          "first_image_y": 476.001953125,
+          "image_rect": [
+            15,
+            400,
+            183,
+            0
+          ],
+          "image_ratio": 0,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 2,
+          "visible_images": 0,
+          "first_item_y": 461.375,
+          "items": 2,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "header": {
+              "height": 0,
+              "elements": []
+            },
+            "api": {
+              "height": 0,
+              "elements": []
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 67.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 151.703125,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 264.1875,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 347.15625,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 132.515625,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 192.953125,
+                  "height": 30
+                },
+                {
+                  "selector": ".pv-recommend-shelf-header",
+                  "y": 259.453125,
+                  "height": 67.96875
+                },
+                {
+                  "selector": ".pv-recommend-shelf-header",
+                  "y": 342.421875,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-recommend-shelf-header",
+                  "y": 389.40625,
+                  "height": 2.5625
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 228.953125,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 400,
+          "chrome_union_height": 206.5,
+          "chrome_unassigned_height": 193.5,
+          "layout": [
+            [
+              "nicegui-row row pv-nav-fixed-tools pv-tone-toolbar w-full",
+              138.96875,
+              47.984375
+            ],
+            [
+              "toolbar-recommend",
+              192.953125,
+              30
+            ],
+            [
+              "recommend-notice",
+              228.953125,
+              19.5
+            ],
+            [
+              "nicegui-column pv-recommend-shelves w-full",
+              254.453125,
+              137.546875
+            ],
+            [
+              "recommend-section-trend_added",
+              254.453125,
+              76.96875
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              259.453125,
+              67.96875
+            ],
+            [
+              "recommend-section-trend",
+              337.421875,
+              40.984375
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              342.421875,
+              31.984375
+            ],
+            [
+              "recommend-section-certain",
+              384.40625,
+              394.734375
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              389.40625,
+              31.984375
+            ],
+            [
+              "recommend-section-boosted",
+              785.140625,
+              67.484375
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              790.140625,
+              58.484375
+            ],
+            [
+              "recommend-section-superlike",
+              858.625,
+              76.96875
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              863.625,
+              67.96875
+            ],
+            [
+              "q-expansion-item q-item-type q-expansion-item--collapsed q-expansion-item--standard nicegui-expansion w-full",
+              941.59375,
+              48
+            ]
+          ]
+        },
+        "dedup": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            400,
+            616,
+            0
+          ],
+          "area_ratio": 0,
+          "first_image_y": null,
+          "image_rect": null,
+          "image_ratio": null,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 0,
+          "visible_images": 0,
+          "first_item_y": 440.921875,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "header": {
+              "height": 0,
+              "elements": []
+            },
+            "api": {
+              "height": 0,
+              "elements": []
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 138.96875,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 30,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 257.4375,
+                  "height": 30
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 312.9375,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 400,
+          "chrome_union_height": 103.984375,
+          "chrome_unassigned_height": 296.015625
+        }
+      }
+    },
+    {
+      "device": [
+        640,
+        400
+      ],
+      "zoom": 100,
+      "browser_zoom": 1,
+      "theme": "dark",
+      "variant": "stress",
+      "header": {
+        "viewport": [
+          640,
+          400
+        ],
+        "dpr": 1,
+        "tabs": [
+          {
+            "name": "tab-download",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-queue",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-failed",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-dedup",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-learning",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-ranking",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-personal",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-library",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-bookmarks",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          },
+          {
+            "name": "tab-recommend",
+            "rect": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "fits": true
+          }
+        ],
+        "icons": [
+          {
+            "name": "tab-history",
+            "rect": [
+              8,
+              109.95,
+              32,
+              28
+            ],
+            "in_view": true
+          },
+          {
+            "name": "view-history-open",
+            "rect": [
+              42,
+              109.95,
+              32,
+              28
+            ],
+            "in_view": true
+          },
+          {
+            "name": "saved-folder-open",
+            "rect": [
+              76,
+              109.95,
+              32,
+              28
+            ],
+            "in_view": true
+          },
+          {
+            "name": "theme-toggle",
+            "rect": [
+              110,
+              109.95,
+              32,
+              28
+            ],
+            "in_view": true
+          },
+          {
+            "name": "pixiv-home-link",
+            "rect": [
+              144,
+              109.95,
+              32,
+              28
+            ],
+            "in_view": true
+          },
+          {
+            "name": "preferences-open",
+            "rect": [
+              178,
+              109.95,
+              32,
+              28
+            ],
+            "in_view": true
+          },
+          {
+            "name": "automation-open",
+            "rect": [
+              212,
+              109.95,
+              32,
+              28
+            ],
+            "in_view": true
+          }
+        ],
+        "nav_visible": false,
+        "horizontal_overflow": false,
+        "warning": [
+          8,
+          8,
+          624,
+          31.98
+        ],
+        "recovery": [
+          460.3,
+          42.98,
+          160,
+          31.98
+        ],
+        "unresolved": [
+          8,
+          140.95,
+          97,
+          16.5
+        ],
+        "breakdown": [
+          113,
+          140.95,
+          105.14,
+          16.5
+        ],
+        "chrome": [
+          8,
+          160.45,
+          624,
+          28
+        ],
+        "shell_scroll": 0
+      },
+      "screens": {
+        "ranking": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            250.421875,
+            624,
+            142
+          ],
+          "area_ratio": 0.346125,
+          "first_image_y": 273.609375,
+          "image_rect": [
+            15.583333333333329,
+            273.609375,
+            184.83333333333337,
+            118.8125
+          ],
+          "image_ratio": 0.08578324381510419,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 9,
+          "visible_images": 3,
+          "first_item_y": 250.421875,
+          "items": 30,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "header": {
+              "height": 0,
+              "elements": []
+            },
+            "api": {
+              "height": 0,
+              "elements": []
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 196.1875,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 0,
+              "elements": []
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 15,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 229.421875,
+                  "height": 15
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 250.421875,
+          "chrome_union_height": 69.484375,
+          "chrome_unassigned_height": 180.9375
+        },
+        "personal": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            282.421875,
+            624,
+            110
+          ],
+          "area_ratio": 0.268125,
+          "first_image_y": 305.609375,
+          "image_rect": [
+            15.583333333333329,
+            305.609375,
+            184.83333333333337,
+            86.8125
+          ],
+          "image_ratio": 0.06267907714843751,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 2,
+          "visible_images": 2,
+          "first_item_y": 282.421875,
+          "items": 30,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "header": {
+              "height": 0,
+              "elements": []
+            },
+            "api": {
+              "height": 0,
+              "elements": []
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 196.1875,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 0,
+              "elements": []
+            },
+            "candidates": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=personal-chips]",
+                  "y": 229.4375,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "status": {
+              "height": 15,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 264.421875,
+                  "height": 15
+                },
+                {
+                  "selector": ".pv-personal-status",
+                  "y": 264.421875,
+                  "height": 15
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 282.421875,
+          "chrome_union_height": 101.46875,
+          "chrome_unassigned_height": 180.953125
+        },
+        "library": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            289.671875,
+            624,
+            101.890625
+          ],
+          "area_ratio": 0.2483583984375,
+          "first_image_y": 296.671875,
+          "image_rect": [
+            15,
+            296.671875,
+            186,
+            94.890625
+          ],
+          "image_ratio": 0.0689439697265625,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 2,
+          "visible_images": 2,
+          "first_item_y": 289.671875,
+          "items": 2,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "header": {
+              "height": 0,
+              "elements": []
+            },
+            "api": {
+              "height": 0,
+              "elements": []
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 192.75,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 55.109375,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 220.5625,
+                  "height": 30
+                },
+                {
+                  "selector": ".pv-library-summary",
+                  "y": 258.5625,
+                  "height": 25.109375
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 261.359375,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 289.671875,
+          "chrome_union_height": 109.59375,
+          "chrome_unassigned_height": 180.078125
+        },
+        "library-works": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            316.453125,
+            624,
+            75.109375
+          ],
+          "area_ratio": 0.1830791015625,
+          "first_image_y": 323.453125,
+          "image_rect": [
+            15,
+            323.453125,
+            186,
+            68.109375
+          ],
+          "image_ratio": 0.0494857177734375,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 1,
+          "visible_images": 1,
+          "first_item_y": 316.453125,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "header": {
+              "height": 0,
+              "elements": []
+            },
+            "api": {
+              "height": 0,
+              "elements": []
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 48.890625,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 192.75,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-library-detail-header",
+                  "y": 258.5625,
+                  "height": 26.390625
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 30,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 220.5625,
+                  "height": 30
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 290.953125,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 316.453125,
+          "chrome_union_height": 130.375,
+          "chrome_unassigned_height": 186.078125
+        },
+        "bookmarks": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            253.0625,
+            624,
+            139.390625
+          ],
+          "area_ratio": 0.3397646484375,
+          "first_image_y": 260.0625,
+          "image_rect": [
+            15,
+            260.0625,
+            186,
+            132.390625
+          ],
+          "image_ratio": 0.0961900634765625,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 1,
+          "visible_images": 1,
+          "first_item_y": 253.0625,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "header": {
+              "height": 0,
+              "elements": []
+            },
+            "api": {
+              "height": 0,
+              "elements": []
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 195.453125,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 49.609375,
+              "elements": [
+                {
+                  "selector": ".pv-library-summary",
+                  "y": 195.453125,
+                  "height": 49.609375
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 39,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 196.953125,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 196.953125,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 222.75,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 253.0625,
+          "chrome_union_height": 81.59375,
+          "chrome_unassigned_height": 171.46875
+        },
+        "recommend": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            400,
+            616,
+            0
+          ],
+          "area_ratio": 0,
+          "first_image_y": 528.486328125,
+          "image_rect": [
+            15,
+            400,
+            183,
+            0
+          ],
+          "image_ratio": 0,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 2,
+          "visible_images": 0,
+          "first_item_y": 513.859375,
+          "items": 2,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "header": {
+              "height": 0,
+              "elements": []
+            },
+            "api": {
+              "height": 0,
+              "elements": []
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 45,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 204.1875,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 316.671875,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 97.96875,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 245.4375,
+                  "height": 30
+                },
+                {
+                  "selector": ".pv-recommend-shelf-header",
+                  "y": 311.9375,
+                  "height": 67.96875
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 281.4375,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 400,
+          "chrome_union_height": 171.953125,
+          "chrome_unassigned_height": 228.046875,
+          "layout": [
+            [
+              "nicegui-row row pv-nav-fixed-tools pv-tone-toolbar w-full",
+              191.453125,
+              47.984375
+            ],
+            [
+              "toolbar-recommend",
+              245.4375,
+              30
+            ],
+            [
+              "recommend-notice",
+              281.4375,
+              19.5
+            ],
+            [
+              "nicegui-column pv-recommend-shelves w-full",
+              306.9375,
+              85.0625
+            ],
+            [
+              "recommend-section-trend_added",
+              306.9375,
+              76.96875
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              311.9375,
+              67.96875
+            ],
+            [
+              "recommend-section-trend",
+              389.90625,
+              40.984375
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              394.90625,
+              31.984375
+            ],
+            [
+              "recommend-section-certain",
+              436.890625,
+              394.734375
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              441.890625,
+              31.984375
+            ],
+            [
+              "recommend-section-boosted",
+              837.625,
+              67.484375
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              842.625,
+              58.484375
+            ],
+            [
+              "recommend-section-superlike",
+              911.109375,
+              76.96875
+            ],
+            [
+              "nicegui-row row pv-recommend-shelf-header items-center w-full gap-1",
+              916.109375,
+              67.96875
+            ],
+            [
+              "q-expansion-item q-item-type q-expansion-item--collapsed q-expansion-item--standard nicegui-expansion w-full",
+              994.078125,
+              48
+            ]
+          ]
+        },
+        "dedup": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            400,
+            616,
+            0
+          ],
+          "area_ratio": 0,
+          "first_image_y": null,
+          "image_rect": null,
+          "image_ratio": null,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 0,
+          "visible_images": 0,
+          "first_item_y": 493.40625,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 31.984375,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "header": {
+              "height": 0,
+              "elements": []
+            },
+            "api": {
+              "height": 0,
+              "elements": []
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 191.453125,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 30,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 309.921875,
+                  "height": 30
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 365.421875,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 400,
+          "chrome_union_height": 103.984375,
+          "chrome_unassigned_height": 296.015625
+        }
+      }
+    }
+  ],
+  "failures": [
+    [
+      1280,
+      800,
+      100,
+      "dark",
+      "normal",
+      "recommend",
+      "area",
+      0.4729
+    ],
+    [
+      1280,
+      800,
+      100,
+      "dark",
+      "normal",
+      "dedup",
+      "area",
+      0.5385
+    ],
+    [
+      1280,
+      800,
+      100,
+      "dark",
+      "stress",
+      "ranking",
+      "area",
+      0.5289
+    ],
+    [
+      1280,
+      800,
+      100,
+      "dark",
+      "stress",
+      "personal",
+      "area",
+      0.4913
+    ],
+    [
+      1280,
+      800,
+      100,
+      "dark",
+      "stress",
+      "library-works",
+      "area",
+      0.5357
+    ],
+    [
+      1280,
+      800,
+      100,
+      "dark",
+      "stress",
+      "recommend",
+      "area",
+      0.3343
+    ],
+    [
+      1280,
+      800,
+      100,
+      "dark",
+      "stress",
+      "dedup",
+      "area",
+      0.3999
+    ],
+    [
+      640,
+      400,
+      100,
+      "dark",
+      "stress",
+      "ranking",
+      "first image clipped"
+    ],
+    [
+      640,
+      400,
+      100,
+      "dark",
+      "stress",
+      "personal",
+      "first image clipped"
+    ],
+    [
+      640,
+      400,
+      100,
+      "dark",
+      "stress",
+      "library",
+      "first image clipped"
+    ],
+    [
+      640,
+      400,
+      100,
+      "dark",
+      "stress",
+      "library-works",
+      "first image clipped"
+    ],
+    [
+      640,
+      400,
+      100,
+      "dark",
+      "stress",
+      "bookmarks",
+      "first image clipped"
+    ],
+    [
+      640,
+      400,
+      100,
+      "dark",
+      "stress",
+      "recommend",
+      "first image clipped"
+    ],
+    [
+      640,
+      400,
+      100,
+      "dark",
+      "stress",
+      "dedup",
+      "first image clipped"
+    ]
+  ],
+  "browser_errors": 0,
+  "foreign_requests": 0,
+  "server_network_denied": 0,
+  "owned_remaining_count": 0,
+  "owned_ports_closed": true,
+  "seconds": 25.66
+}

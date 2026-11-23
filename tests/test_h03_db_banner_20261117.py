@@ -1,5 +1,5 @@
 """FL-B11: DB状態バナー（元 gui.py:470-483 / main.py:357-364）。"""
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from types import SimpleNamespace
 import os
 
@@ -48,11 +48,22 @@ async def test_shell_shows_banner_above_header_grey_for_demo_red_for_live(tmp_pa
             # 位置: 最上段（ヘッダーより前）
             assert shell.root.default_slot.children[0] is banner
             shell.close()
-        services.pixiv_download_root = tmp_path
+        services.pixiv_download_root = tmp_path / ('long-folder-' * 5) / 'downloads'
         with client:
             shell = DemoShell(services)
-            assert shell.db_banner.default_slot.children[0].text == f"⚠️⚠️ 本番DBを使用中: {os.path.abspath(tmp_path)}"
-            assert 'pv-db-production' in shell.db_banner.classes
+            banner = shell.db_banner
+            path = os.path.abspath(services.pixiv_download_root)
+            compact = banner.default_slot.children[0]
+            summary = compact.default_slot.children[0]
+            assert summary.text == f"本番DBを使用中：{PureWindowsPath(path).anchor}…\\downloads"
+            assert summary.props['role'] == 'status'
+            entry = next(n for n in banner.descendants() if n.props.get('data-testid') == 'db-warning-details')
+            dialog = next(n for n in client.layout.descendants()
+                          if n.props.get('data-testid') == 'db-warning-dialog'
+                          and n.props.get('data-pv-focus-origin') == entry.html_id)
+            assert any(getattr(n, 'text', None) == f"⚠️⚠️ 本番DBを使用中: {path}" for n in dialog.descendants())
+            assert 'pv-db-production' in banner.classes
+            assert shell.root.default_slot.children[0] is banner
             shell.close()
     finally:
         client.delete()
