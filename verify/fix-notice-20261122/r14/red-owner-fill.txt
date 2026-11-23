@@ -1,0 +1,27 @@
+head=28a971d002e48bfa473b5358ec311a1067d14a90
+launcher_pid=127720
+root=\\?\S:\Work\_tmp\PV\fix-notice-r14-20261122-xcu5gsjj
+started=2026-11-23T17:33:56.476942+09:00
+pytest_pid=130600
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_ test_official_native_registration_recovers_an_initial_missing_owner[local] __
+tests\test_fix_notice_round14_20261122.py:382: in test_official_native_registration_recovers_an_initial_missing_owner
+    assert policy.confirm_gate_notices()
+E   assert False
+E    +  where False = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000023AA9DA0050>.confirm_gate_notices
+_ test_official_native_registration_recovers_an_initial_missing_owner[shared] _
+tests\test_fix_notice_round14_20261122.py:382: in test_official_native_registration_recovers_an_initial_missing_owner
+    assert policy.confirm_gate_notices()
+E   assert False
+E    +  where False = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000023AA9CC4A50>.confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round14_20261122.py::test_official_native_registration_recovers_an_initial_missing_owner[local]
+FAILED tests/test_fix_notice_round14_20261122.py::test_official_native_registration_recovers_an_initial_missing_owner[shared]
+2 failed in 2.08s
+
+exit=1
+finished=2026-11-23T17:33:59.711239+09:00
+temp_removed=True

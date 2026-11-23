@@ -263,6 +263,8 @@ def test_cleanup_failure_never_masks_fatal_stop_status(tmp_path, monkeypatch, cl
         monkeypatch.setattr(os, 'close', close)
     else:
         import pixivvault_nicegui.native_profile as profile_module
+        from pixivvault_nicegui.fs_paths import sqlite_readonly_uri
+        profile_rw_uri = sqlite_readonly_uri(profile.path, immutable=False).replace('?mode=ro', '?mode=rw')
         original_connect = profile_module.sqlite3.connect
         class ConnectionProxy:
             def __init__(self, connection): self.connection = connection
@@ -273,7 +275,7 @@ def test_cleanup_failure_never_masks_fatal_stop_status(tmp_path, monkeypatch, cl
             def close(self): return self.connection.close()
         def connect(path, *args, **kwargs):
             connection = original_connect(path, *args, **kwargs)
-            return ConnectionProxy(connection) if str(path).endswith('?mode=rw') else connection
+            return ConnectionProxy(connection) if path == profile_rw_uri else connection
         monkeypatch.setattr(profile_module.sqlite3, 'connect', connect)
     try:
         result = writer.execute(WriteIntent('synthetic-cleanup', '777', '91', 'follow'))

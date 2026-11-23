@@ -1,0 +1,28 @@
+head=40c626edc12ccd26b0506708956c269fa0aa6d72
+launcher_pid=33372
+root=\\?\S:\Work\_tmp\PV\fix-notice-r14-20261122-bmwxvkg1
+started=2026-11-23T18:12:51.180047+09:00
+pytest_pid=6896
+F                                                                        [100%]
+================================== FAILURES ===================================
+__ test_recommendation_lazy_media_and_dismissals_with_actual_work7_settings ___
+tests\test_recommendation_visual_browser.py:29: in test_recommendation_lazy_media_and_dismissals_with_actual_work7_settings
+    result = subprocess.run([sys.executable, '-B', __file__, str(tmp_path)],
+C:\Users\nat\miniconda3\envs\stenv\Lib\subprocess.py:556: in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\subprocess.py:1222: in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\subprocess.py:1665: in _communicate
+    raise TimeoutExpired(self.args, orig_timeout)
+E   subprocess.TimeoutExpired: Command '['S:\\Projects\\PixivVault-NiceGUI\\.venv\\Scripts\\python.exe', '-B', 'S:\\Work\\PV\\fix-notice-20261122\\tests\\test_recommendation_visual_browser.py', 'S:\\Work\\_tmp\\PV\\fix-notice-r14-20261122-bmwxvkg1\\pytest\\test_recommendation_lazy_media0']' timed out after 90 seconds
+=========================== short test summary info ===========================
+FAILED tests/test_recommendation_visual_browser.py::test_recommendation_lazy_media_and_dismissals_with_actual_work7_settings
+1 failed in 92.28s (0:01:32)
+
+exit=1
+finished=2026-11-23T18:14:24.908572+09:00
+owned_files=204
+owned_bytes=15784914
+temp_removed=True

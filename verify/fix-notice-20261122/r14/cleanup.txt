@@ -1,0 +1,9 @@
+recorded_roots=13
+remaining_test_processes=0 (command lines referencing recorded roots, CIM)
+remaining_recorded_pids=0 (launchers and pytest)
+remaining_r14_temp_roots=0 (isolated S: prefix)
+measured_runs=4 (full and three Chromium runs)
+measured_files_removed=62495
+measured_bytes_removed=362177125
+evidence_retained=verify/fix-notice-20261122/r14
+preexisting=.workdir.json

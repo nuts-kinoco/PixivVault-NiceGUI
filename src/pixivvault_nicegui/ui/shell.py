@@ -5,6 +5,7 @@ import asyncio
 from nicegui import app, ui
 
 from ..services import ApplicationServices, get_services
+from .action_controls import notify_action
 from .gallery import GalleryView
 from .grid_layout import MAX_COLUMNS
 from ..auth_status import (BLUE as AUTH_BLUE, CHECKING_TEXT as AUTH_CHECKING_TEXT, GREEN as AUTH_GREEN,
@@ -266,7 +267,7 @@ class DemoShell:
         self.cookie_banner.set_visibility(status.banner and not self._banner_dismissed)
         if notice:
             with self.client:
-                ui.notify(notice, type='positive')
+                notify_action(notice, type='positive')
 
     def _attach_auth_status(self):
         profile = getattr(self.services, 'native_profile', None)
@@ -293,7 +294,7 @@ class DemoShell:
             return
         with self.client:
             if kind == 'notice':
-                ui.notify(payload['text'], type=payload.get('type', 'info'))
+                notify_action(payload['text'], type=payload.get('type', 'info'))
             elif kind == 'account_switch':
                 self._show_account_switch(self._followup.pending)
             elif kind == 'account_switch_closed':
@@ -374,7 +375,7 @@ class DemoShell:
             return
         view = self.view_history
         if view is None or view.storage is None:
-            ui.notify('閲覧履歴を利用できません。', type='warning')
+            notify_action('閲覧履歴を利用できません。', type='warning')
             return
         await view.open()
 
@@ -621,7 +622,7 @@ class DemoShell:
     def open_recommended(self, work_id):
         self.show('library')
         if self.library is None or not self.library.open_saved_work(work_id):
-            ui.notify('この作品の保存画像はありません。元のおすすめを再取得したとは扱いません。', type='warning')
+            notify_action('この作品の保存画像はありません。元のおすすめを再取得したとは扱いません。', type='warning')
 
     def toggle_theme(self) -> None:
         if self.closed:
@@ -645,7 +646,7 @@ class DemoShell:
                 if current.values["grid_card_size_mode"] != size:
                     store.update({"grid_card_size_mode": size}, expected_revision=current.revision)
             except Exception:
-                ui.notify("カードサイズを保存できません。再度お試しください。", type="warning")
+                notify_action("カードサイズを保存できません。再度お試しください。", type="warning", important=True)
                 return
         self.card_size = size
         if self.backup_view is not None:self.backup_view.apply_card_size(size)
@@ -669,7 +670,7 @@ class DemoShell:
             message = owner.fallback_message(job)
             if message:
                 with self.client:
-                    ui.notify(message, type='warning')
+                    notify_action(message, type='warning')
 
     def close(self) -> None:
         if self._auth_unsubscribe is not None:

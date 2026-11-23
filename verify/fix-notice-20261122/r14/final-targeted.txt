@@ -1,0 +1,11 @@
+head=40c626edc12ccd26b0506708956c269fa0aa6d72
+launcher_pid=31952
+root=\\?\S:\Work\_tmp\PV\fix-notice-r14-20261122-pwgrlrf3
+started=2026-11-23T17:38:01.653352+09:00
+pytest_pid=138200
+.............................................                            [100%]
+45 passed in 16.47s
+
+exit=0
+finished=2026-11-23T17:38:19.256483+09:00
+temp_removed=True

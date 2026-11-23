@@ -1,0 +1,62 @@
+head=28a971d002e48bfa473b5358ec311a1067d14a90
+launcher_pid=142116
+root=\\?\S:\Work\_tmp\PV\fix-notice-r14-20261122-buuut_un
+started=2026-11-23T17:22:42.075957+09:00
+pytest_pid=115340
+FFFFFFF                                                                  [100%]
+================================== FAILURES ===================================
+____ test_native_confirmation_fences_peer_refusal_across_entry_points[cdn] ____
+tests\test_fix_notice_round14_20261122.py:59: in test_native_confirmation_fences_peer_refusal_across_entry_points
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000020651E27CB0>.confirm_gate_notices
+_ test_native_confirmation_fences_peer_refusal_across_entry_points[followup] __
+tests\test_fix_notice_round14_20261122.py:59: in test_native_confirmation_fences_peer_refusal_across_entry_points
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000020652191E50>.confirm_gate_notices
+___ test_other_policy_observes_native_confirmation_without_pinning_its_lock ___
+tests\test_fix_notice_round14_20261122.py:85: in test_other_policy_observes_native_confirmation_without_pinning_its_lock
+    assert not observer.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000206521CFBF0>.has_gate_notices
+_________ test_lock_refusal_fences_deletion_while_status_lock_is_held _________
+tests\test_fix_notice_round14_20261122.py:169: in test_lock_refusal_fences_deletion_while_status_lock_is_held
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000002065222F570>.confirm_gate_notices
+_________ test_first_native_lock_failure_pins_and_starts_observation __________
+tests\test_fix_notice_round14_20261122.py:201: in test_first_native_lock_failure_pins_and_starts_observation
+    assert policy.has_gate_notices() and policy.should_watch_gate()
+E   assert (False)
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000020651F1C9E0>.has_gate_notices
+_ test_any_confirmation_unlock_failure_is_pinned_even_with_a_healthy_sibling[1] _
+tests\test_fix_notice_round14_20261122.py:243: in test_any_confirmation_unlock_failure_is_pinned_even_with_a_healthy_sibling
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000020651F1CF30>.confirm_gate_notices
+_ test_any_confirmation_unlock_failure_is_pinned_even_with_a_healthy_sibling[2] _
+tests\test_fix_notice_round14_20261122.py:243: in test_any_confirmation_unlock_failure_is_pinned_even_with_a_healthy_sibling
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000020651F1D6A0>.confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round14_20261122.py::test_native_confirmation_fences_peer_refusal_across_entry_points[cdn]
+FAILED tests/test_fix_notice_round14_20261122.py::test_native_confirmation_fences_peer_refusal_across_entry_points[followup]
+FAILED tests/test_fix_notice_round14_20261122.py::test_other_policy_observes_native_confirmation_without_pinning_its_lock
+FAILED tests/test_fix_notice_round14_20261122.py::test_lock_refusal_fences_deletion_while_status_lock_is_held
+FAILED tests/test_fix_notice_round14_20261122.py::test_first_native_lock_failure_pins_and_starts_observation
+FAILED tests/test_fix_notice_round14_20261122.py::test_any_confirmation_unlock_failure_is_pinned_even_with_a_healthy_sibling[1]
+FAILED tests/test_fix_notice_round14_20261122.py::test_any_confirmation_unlock_failure_is_pinned_even_with_a_healthy_sibling[2]
+7 failed in 4.10s
+
+exit=1
+finished=2026-11-23T17:22:47.409349+09:00
+temp_removed=True

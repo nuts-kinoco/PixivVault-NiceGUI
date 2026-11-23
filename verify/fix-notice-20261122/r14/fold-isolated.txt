@@ -1,0 +1,11 @@
+head=40c626edc12ccd26b0506708956c269fa0aa6d72
+launcher_pid=131192
+root=\\?\S:\Work\_tmp\PV\fix-notice-r14-20261122-ig948p4y
+started=2026-11-23T18:12:15.970797+09:00
+pytest_pid=125776
+.                                                                        [100%]
+1 passed in 3.96s
+
+exit=0
+finished=2026-11-23T18:12:21.035709+09:00
+temp_removed=True

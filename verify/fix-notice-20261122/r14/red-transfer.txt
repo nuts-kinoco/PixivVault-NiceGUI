@@ -1,0 +1,20 @@
+head=28a971d002e48bfa473b5358ec311a1067d14a90
+launcher_pid=72040
+root=\\?\S:\Work\_tmp\PV\fix-notice-r14-20261122-jvr4ftt1
+started=2026-11-23T17:31:58.886557+09:00
+pytest_pid=132836
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ test_transferred_stop_advances_the_destination_gate_before_stale_confirmation _
+tests\test_fix_notice_round14_20261122.py:295: in test_transferred_stop_advances_the_destination_gate_before_stale_confirmation
+    assert not cdn_policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001A4B703B770>.confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round14_20261122.py::test_transferred_stop_advances_the_destination_gate_before_stale_confirmation
+1 failed in 1.91s
+
+exit=1
+finished=2026-11-23T17:32:01.799427+09:00
+temp_removed=True

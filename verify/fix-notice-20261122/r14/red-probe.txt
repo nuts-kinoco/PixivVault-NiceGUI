@@ -1,0 +1,19 @@
+head=28a971d002e48bfa473b5358ec311a1067d14a90
+launcher_pid=75800
+root=\\?\S:\Work\_tmp\PV\fix-notice-r14-20261122-pz5ukad1
+started=2026-11-23T17:30:36.397502+09:00
+pytest_pid=142192
+F                                                                        [100%]
+================================== FAILURES ===================================
+____ test_later_confirmation_does_not_hide_an_earlier_ordinary_lock_sample ____
+tests\test_fix_notice_round14_20261122.py:270: in test_later_confirmation_does_not_hide_an_earlier_ordinary_lock_sample
+    assert any(row['stop_cause'] == 'gate_busy' for row in observer.progress_snapshot())
+E   assert False
+E    +  where False = any(<generator object test_later_confirmation_does_not_hide_an_earlier_ordinary_lock_sample.<locals>.<genexpr> at 0x000002B499BC8BA0>)
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round14_20261122.py::test_later_confirmation_does_not_hide_an_earlier_ordinary_lock_sample
+1 failed in 2.03s
+
+exit=1
+finished=2026-11-23T17:30:39.534173+09:00
+temp_removed=True

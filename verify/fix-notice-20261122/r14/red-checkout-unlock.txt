@@ -1,0 +1,27 @@
+head=28a971d002e48bfa473b5358ec311a1067d14a90
+launcher_pid=140524
+root=\\?\S:\Work\_tmp\PV\fix-notice-r14-20261122-5k_wagmy
+started=2026-11-23T17:33:26.527665+09:00
+pytest_pid=144432
+FF                                                                       [100%]
+================================== FAILURES ===================================
+______ test_checkout_failure_before_policy_entry_advances_shared_refusal ______
+tests\test_fix_notice_round14_20261122.py:318: in test_checkout_failure_before_policy_entry_advances_shared_refusal
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001364360F770>.confirm_gate_notices
+_____ test_observer_does_not_attribute_another_holder_after_native_unlock _____
+tests\test_fix_notice_round14_20261122.py:361: in test_observer_does_not_attribute_another_holder_after_native_unlock
+    assert fired and observer.has_gate_notices()
+E   assert (True and False)
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000136438D1350>.has_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round14_20261122.py::test_checkout_failure_before_policy_entry_advances_shared_refusal
+FAILED tests/test_fix_notice_round14_20261122.py::test_observer_does_not_attribute_another_holder_after_native_unlock
+2 failed in 2.23s
+
+exit=1
+finished=2026-11-23T17:33:29.804562+09:00
+temp_removed=True

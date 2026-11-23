@@ -1,0 +1,13 @@
+head=40c626edc12ccd26b0506708956c269fa0aa6d72
+launcher_pid=26936
+root=\\?\S:\Work\_tmp\PV\fix-notice-r14-20261122-5_sosydz
+started=2026-11-23T18:15:06.383865+09:00
+pytest_pid=133872
+.                                                                        [100%]
+1 passed in 13.14s
+
+exit=0
+finished=2026-11-23T18:15:20.973362+09:00
+owned_files=205
+owned_bytes=15783280
+temp_removed=True

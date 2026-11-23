@@ -1,0 +1,28 @@
+head=28a971d002e48bfa473b5358ec311a1067d14a90
+launcher_pid=22480
+root=\\?\S:\Work\_tmp\PV\fix-notice-r14-20261122-_jy5t12m
+started=2026-11-23T17:27:33.522152+09:00
+pytest_pid=23980
+.F............................                                           [100%]
+================================== FAILURES ===================================
+_ test_native_confirmation_fences_peer_refusal_across_entry_points[followup] __
+tests\test_fix_notice_round14_20261122.py:60: in test_native_confirmation_fences_peer_refusal_across_entry_points
+    assert notice_ids <= {row['notice_id'] for row in policy.progress_snapshot()}
+E   assert {1} <= {2}
+E
+E     Extra items in the left set:
+E     1
+============================== warnings summary ===============================
+tests/test_fix_notice_round14_20261122.py: 13 warnings
+tests/test_fix_notice_round13_20261122.py: 65 warnings
+  S:\Work\PV\fix-notice-20261122\src\pixivvault_nicegui\gate_refusal_state.py:37: DeprecationWarning: Pickle, copy, and deepcopy support will be removed from itertools in Python 3.14.
+    return state.refusals.__reduce__()[1][0] if state is not None else 0
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round14_20261122.py::test_native_confirmation_fences_peer_refusal_across_entry_points[followup]
+1 failed, 29 passed, 78 warnings in 11.58s
+
+exit=1
+finished=2026-11-23T17:27:46.573918+09:00
+temp_removed=True

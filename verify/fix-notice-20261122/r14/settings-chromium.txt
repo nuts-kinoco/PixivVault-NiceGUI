@@ -1,0 +1,13 @@
+head=40c626edc12ccd26b0506708956c269fa0aa6d72
+launcher_pid=131620
+root=\\?\S:\Work\_tmp\PV\fix-notice-r14-20261122-m1m4y1y1
+started=2026-11-23T18:12:28.917320+09:00
+pytest_pid=14884
+.                                                                        [100%]
+1 passed in 8.40s
+
+exit=0
+finished=2026-11-23T18:12:38.515519+09:00
+owned_files=199
+owned_bytes=15742602
+temp_removed=True

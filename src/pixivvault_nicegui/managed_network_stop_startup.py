@@ -15,9 +15,11 @@ from uuid import uuid4
 
 from .managed_network_stop_gate import (
     ManagedNetworkGateBusy, ManagedNetworkGateStorageError,
-    ManagedNetworkStopGate, _file_identity, _reject_links,
+    ManagedNetworkStopGate, ManagedNetworkStopped, _bounded_thread_lock, _carry_gate_cleanup, _file_identity,
+    _gate_cleanup, _gate_storage_io, _reject_links, _report_stop_authority, _trip_before_admission,
 )
 from . import managed_network_stop_shared_scope as shared
+from .fs_paths import path_entry_exists
 
 _ANCHOR = '.pixivvault-user-stop-startup.v1.json'
 _PROVENANCE = 'startup-record.json'
@@ -41,10 +43,10 @@ def check_startup_provenance(scope):
     """A missing/replaced normal-start owner must never become a fresh gate."""
     anchor = scope.root.parent / _ANCHOR
     record = scope.root / _PROVENANCE
-    if (scope._owner_schema != shared._STARTUP_OWNER_SCHEMA
-            and not anchor.exists() and not record.exists()):
-        return  # Existing migration-format owners keep their original contract.
     try:
+        if (scope._owner_schema != shared._STARTUP_OWNER_SCHEMA
+                and not path_entry_exists(anchor) and not path_entry_exists(record)):
+            return  # Existing migration-format owners keep their original contract.
         _reject_links(anchor)
         _reject_links(record)
         if anchor.stat().st_size > 4096 or record.stat().st_size > 4096:
@@ -66,10 +68,10 @@ def _acquire_file_lock(path):
     from .managed_stop_migration import _FileLock, _FileLockBusy, MigrationRejected
     try:
         return _FileLock(path)
-    except _FileLockBusy:
-        raise ManagedNetworkGateBusy('startup STOP lock is busy') from None
-    except (OSError, MigrationRejected):
-        raise ManagedNetworkGateStorageError('startup STOP lock unavailable') from None
+    except _FileLockBusy as error:
+        raise _carry_gate_cleanup(error, ManagedNetworkGateBusy('startup STOP lock is busy')) from None
+    except (OSError, MigrationRejected) as error:
+        raise _carry_gate_cleanup(error, ManagedNetworkGateStorageError('startup STOP lock unavailable')) from None
 
 
 def _seed_startup_lock(path):
@@ -119,7 +121,9 @@ def retry_startup_lock(operation, *, deadline, cancel=None):
     while True:
         try:
             return operation()
-        except ManagedNetworkGateBusy:
+        except ManagedNetworkGateBusy as error:
+            if getattr(error, 'gate_cleanup_errors', ()):
+                raise
             check_startup_cancel(cancel)
             remaining = 0 if deadline is None else deadline - monotonic()
             if remaining <= 0:
@@ -190,7 +194,8 @@ def open_or_initialize_windows_user_stop(*, selected_roots=(), profile_scope=Non
     except OSError:
         raise ManagedNetworkGateStorageError('shared STOP setup directory unavailable') from None
     ticket = retry_lock(lambda: shared_startup_ticket(parent))
-    try:
+    with (_gate_storage_io('shared STOP setup incomplete; preserve setup records'),
+          _gate_cleanup(ticket.close, 'shared STOP startup ticket close failed', authority='shared')):
         # A competing launcher may have published while we were waiting.
         try:
             return prepare(retry_lock(shared.open_existing_windows_user_stop))
@@ -252,12 +257,12 @@ def open_or_initialize_windows_user_stop(*, selected_roots=(), profile_scope=Non
                 'lock_identity': list(_file_identity(gate.lock_path)),
                 'history_proof': proof,
             }))
-            _rename_new(stage, root, directory=True)
+            try:
+                _rename_new(stage, root, directory=True)
+            except MigrationRejected:
+                raise ManagedNetworkGateStorageError(
+                    'shared STOP setup incomplete; preserve setup records') from None
         return prepare(retry_lock(shared.open_existing_windows_user_stop))
-    except (OSError, MigrationRejected):
-        raise ManagedNetworkGateStorageError('shared STOP setup incomplete; preserve setup records') from None
-    finally:
-        ticket.close()
 
 
 def attach_selected_histories(scope, roots):
@@ -290,43 +295,67 @@ def attach_selected_histories(scope, roots):
             if key in selected and selected[key] != value:
                 raise ValueError()
             selected[key] = value
-        except Exception:
-            raise ManagedNetworkGateStorageError('selected STOP ownership unavailable') from None
+        except Exception as error:
+            raise _carry_gate_cleanup(error, ManagedNetworkGateStorageError('selected STOP ownership unavailable')) from None
     scope._startup_histories = tuple(sorted(selected.items()))
     with selected_history_guard(scope):
         pass
 
 
+@_gate_storage_io('selected STOP history unavailable')
 def _reject_pending_history(root):
     for suffix in ('-journal', '-wal', '-shm'):
         sidecar = root / (_LOCAL_GATE + suffix)
         _reject_links(sidecar)
-        if sidecar.exists():
+        if path_entry_exists(sidecar):
             raise ManagedNetworkGateStorageError('selected STOP history is pending')
 
 
+def _verify_selected_history(root, kind, root_id, database, database_id, lock, lock_id):
+    from .managed_network_stop_history_readonly import _check_marker
+    try:
+        _check_marker(root, kind)
+    except Exception as error:
+        raise _carry_gate_cleanup(error, ManagedNetworkGateStorageError('selected STOP owner changed')) from None
+    if (shared._file_identity_directory(root) != root_id
+            or _file_identity(database) != database_id or _file_identity(lock) != lock_id):
+        raise ManagedNetworkGateStorageError('selected STOP identity changed')
+
+
 @contextmanager
-def selected_history_guard(scope):
+def selected_history_guard(scope, *, transfer_stop=True):
     """Lock selected old writers until this GET completes; never write to them."""
-    from .managed_network_stop_history_readonly import _check_marker, _read_gate_immutable
+    from .managed_network_stop_history_readonly import _read_gate_immutable
+    from .request_policy import durable_stop_status
+    from .gate_refusal_state import confirmation_lock
+
+    histories = getattr(scope, '_startup_histories', ())
     with ExitStack() as locks:
-        for name, (kind, root_id, database_id, lock_id) in getattr(scope, '_startup_histories', ()):
+        for name, (kind, root_id, database_id, lock_id) in histories:
             root = Path(name)
             database, lock = root / _LOCAL_GATE, root / (_LOCAL_GATE + '.lock')
             ticket = _acquire_file_lock(lock)
-            locks.callback(ticket.close)
-            try:
-                _check_marker(root, kind)
-            except Exception:
-                raise ManagedNetworkGateStorageError('selected STOP owner changed') from None
-            if (shared._file_identity_directory(root) != root_id
-                    or _file_identity(database) != database_id or _file_identity(lock) != lock_id):
-                raise ManagedNetworkGateStorageError('selected STOP identity changed')
+            locks.enter_context(_gate_cleanup(ticket.close, 'selected STOP lock close failed', authority='shared'))
+            locks.enter_context(confirmation_lock((database_id, lock_id)))
+            _verify_selected_history(root, kind, root_id, database, database_id, lock, lock_id)
             _reject_pending_history(root)
             try:
-                blocked, status, _ = _read_gate_immutable(database)
-            except Exception:
-                raise ManagedNetworkGateStorageError('selected STOP state unavailable') from None
-            if blocked:
-                scope.gate.trip(status)
-        yield
+                _read_gate_immutable(database, deny_stopped=True)
+            except ManagedNetworkStopped as stopped:
+                stopped.authority = 'shared'
+                if not transfer_stop:
+                    raise
+                with _report_stop_authority('shared'):
+                    _trip_before_admission(scope.gate.trip, stopped)
+            except Exception as error:
+                raise _carry_gate_cleanup(error, ManagedNetworkGateStorageError(
+                    'selected STOP state unavailable')) from None
+        if histories and not durable_stop_status(429):
+            # Use the live gates' existing process exclusion through the old
+            # history cleanup. The order remains history before live gates.
+            # Even if the old byte unlocks before its close fails, a peer
+            # cannot send until the terminal 429 is latched.
+            with _bounded_thread_lock(), locks.pop_all():
+                yield
+        else:
+            yield

@@ -20,7 +20,8 @@ import uuid
 from .managed_network_stop_gate import (
     ManagedNetworkGateStorageError, ManagedNetworkStopGate,
     _byte_lock_contended, _file_identity, _lock_open_contended,
-    _open_existing_stop_lock, _reject_links, _set_stop_byte_lock,
+    _gate_cleanup, _open_existing_stop_lock, _reject_links, _run_gate_cleanup,
+    _set_stop_byte_lock, _verify_open_stop_lock,
 )
 from .managed_network_stop_history_readonly import _check_marker, _read_gate_immutable
 from .managed_network_stop_shared_scope import (
@@ -115,31 +116,24 @@ class _FileLock:
                 if _byte_lock_contended(error):
                     raise _FileLockBusy('STOP file lock is busy') from None
                 raise
-            # Windows denies reads of a locked byte. Validate content while
-            # holding the lock so such a read failure cannot look like damage.
-            self.stream.seek(0)
-            if self.stream.read(2) != b'0':
-                raise MigrationRejected('source_unverified')
-            opened = os.fstat(self.stream.fileno())
-            if (opened.st_dev, opened.st_ino) != _file_identity(self.path):
-                raise MigrationRejected('source_changed')
-        except BaseException:
-            if self.stream is not None: self.stream.close(); self.stream = None
+            # Windows denies reads of the sentinel to a different handle.
+            _verify_open_stop_lock(self.path, self.stream, None)
+        except BaseException as error:
+            if self.stream is not None:
+                stream, self.stream = self.stream, None
+                _run_gate_cleanup(stream.close, 'STOP lock close failed', primary=error)
             raise
+
     def close(self):
         if self.stream is not None:
             stream, self.stream = self.stream, None
-            try:
-                _set_stop_byte_lock(stream, lock=False)
-            except (OSError, ValueError):
-                # Closing the handle releases its locks even if explicit
-                # unlock failed. Never turn a completed GET into a retry.
-                pass
-            finally:
+            with _gate_cleanup(stream.close, 'STOP lock close failed'):
                 try:
-                    stream.close()
+                    _set_stop_byte_lock(stream, lock=False)
                 except (OSError, ValueError):
-                    raise ManagedNetworkGateStorageError('STOP lock close failed') from None
+                    # The handle close releases the byte even if the explicit
+                    # unlock failed. A failed close is still a storage error.
+                    pass
 
 
 def _write_new(path, data):
