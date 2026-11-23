@@ -1,0 +1,13 @@
+head=cbbb2acbbdca5405a1387cf3a258b5a5e876180f
+launcher_pid=122632
+root=\\?\S:\Work\_tmp\PV\fix-notice-r16-20261122-ulgyill0
+started=2026-11-23T21:23:22.696053+09:00
+pytest_pid=130768
+.                                                                        [100%]
+1 passed in 8.13s
+
+exit=0
+finished=2026-11-23T21:23:32.675149+09:00
+owned_files=183
+owned_bytes=15613239
+temp_removed=True

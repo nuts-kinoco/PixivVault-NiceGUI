@@ -1,0 +1,69 @@
+head=47ad1592c808fbb1db3d6e9af64b2a7bbfdbfd0f
+launcher_pid=129832
+root=\\?\S:\Work\_tmp\PV\fix-notice-r16-20261122-x0is7e5x
+started=2026-11-23T20:26:16.410170+09:00
+pytest_pid=144120
+..FFFFF                                                                  [100%]
+================================== FAILURES ===================================
+____ test_same_policy_keeps_the_other_gate_result_from_this_poll[storage] _____
+tests\test_fix_notice_round16_20261122.py:69: in test_same_policy_keeps_the_other_gate_result_from_this_poll
+    policy.recheck_gate_notices()
+src\pixivvault_nicegui\request_policy.py:593: in recheck_gate_notices
+    snapshot = self._observe_gate_notices()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\request_policy.py:617: in _observe_gate_notices
+    observed = self._check_gate()
+               ^^^^^^^^^^^^^^^^^^
+tests\test_fix_notice_round16_20261122.py:46: in <lambda>
+    policy = retry_policy([0.0], check_gate=lambda: poll())
+                                                    ^^^^^^
+tests\test_fix_notice_round16_20261122.py:49: in poll
+    assert not sample, 'a second poll has no evidence of the injected transient fault'
+E   AssertionError: a second poll has no evidence of the injected transient fault
+E   assert not [GateObservationSnapshot(states=(GateNoticeState(authority='local', state='unverified', status=None, inflight=None, cl...red', state='open', status=None, inflight=False, cleanup_unverified=False, admission_refused=False)), consistent=True)]
+__ test_same_policy_keeps_the_other_gate_result_from_this_poll[durable-stop] __
+tests\test_fix_notice_round16_20261122.py:69: in test_same_policy_keeps_the_other_gate_result_from_this_poll
+    policy.recheck_gate_notices()
+src\pixivvault_nicegui\request_policy.py:593: in recheck_gate_notices
+    snapshot = self._observe_gate_notices()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\request_policy.py:617: in _observe_gate_notices
+    observed = self._check_gate()
+               ^^^^^^^^^^^^^^^^^^
+tests\test_fix_notice_round16_20261122.py:46: in <lambda>
+    policy = retry_policy([0.0], check_gate=lambda: poll())
+                                                    ^^^^^^
+tests\test_fix_notice_round16_20261122.py:49: in poll
+    assert not sample, 'a second poll has no evidence of the injected transient fault'
+E   AssertionError: a second poll has no evidence of the injected transient fault
+E   assert not [GateObservationSnapshot(states=(GateNoticeState(authority='local', state='stopped', status=401, inflight=False, clean...red', state='open', status=None, inflight=False, cleanup_unverified=False, admission_refused=False)), consistent=True)]
+___________ test_shared_stop_survives_its_own_confirmation_overlap ____________
+tests\test_fix_notice_round16_20261122.py:95: in test_shared_stop_survives_its_own_confirmation_overlap
+    assert [(row['stop_cause'], row['status'], row['gate_owners']) for row in rows] == [
+E   AssertionError: assert [] == [('durable_ga... ('shared',))]
+E
+E     Right contains one more item: ('durable_gate', 403, ('shared',))
+E     Use -v to get more diff
+_ test_cdn_refusal_fences_confirmation_before_exception_publication[pool-result] _
+tests\test_fix_notice_round16_20261122.py:152: in test_cdn_refusal_fences_confirmation_before_exception_publication
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024B5198A0F0>.confirm_gate_notices
+_ test_cdn_refusal_fences_confirmation_before_exception_publication[convert] __
+tests\test_fix_notice_round16_20261122.py:152: in test_cdn_refusal_fences_confirmation_before_exception_publication
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024B518FF790>.confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round16_20261122.py::test_same_policy_keeps_the_other_gate_result_from_this_poll[storage]
+FAILED tests/test_fix_notice_round16_20261122.py::test_same_policy_keeps_the_other_gate_result_from_this_poll[durable-stop]
+FAILED tests/test_fix_notice_round16_20261122.py::test_shared_stop_survives_its_own_confirmation_overlap
+FAILED tests/test_fix_notice_round16_20261122.py::test_cdn_refusal_fences_confirmation_before_exception_publication[pool-result]
+FAILED tests/test_fix_notice_round16_20261122.py::test_cdn_refusal_fences_confirmation_before_exception_publication[convert]
+5 failed, 2 passed in 4.61s
+
+exit=1
+finished=2026-11-23T20:26:22.975174+09:00
+temp_removed=True

@@ -1,0 +1,11 @@
+head=d4cda073e6fd287a3da23c3e0ba10855f95abe10
+launcher_pid=131508
+root=\\?\S:\Work\_tmp\PV\fix-notice-r16-20261122-fbj2zbgr
+started=2026-11-23T20:50:30.226760+09:00
+pytest_pid=124572
+.............................                                            [100%]
+29 passed in 8.79s
+
+exit=0
+finished=2026-11-23T20:50:40.197476+09:00
+temp_removed=True

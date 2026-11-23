@@ -1,0 +1,27 @@
+head=47ad1592c808fbb1db3d6e9af64b2a7bbfdbfd0f
+launcher_pid=145704
+root=\\?\S:\Work\_tmp\PV\fix-notice-r16-20261122-1xb5v6j8
+started=2026-11-23T20:27:21.427027+09:00
+pytest_pid=16100
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_ test_native_can_clear_an_observed_gate_fault_without_a_saved_reader[not-configured] _
+tests\test_fix_notice_round16_20261122.py:50: in test_native_can_clear_an_observed_gate_fault_without_a_saved_reader
+    assert policy.confirm_gate_notices()
+E   assert False
+E    +  where False = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001E5208D06E0>.confirm_gate_notices
+_ test_native_can_clear_an_observed_gate_fault_without_a_saved_reader[missing-file] _
+tests\test_fix_notice_round16_20261122.py:50: in test_native_can_clear_an_observed_gate_fault_without_a_saved_reader
+    assert policy.confirm_gate_notices()
+E   assert False
+E    +  where False = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001E5208D8A50>.confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round16_20261122.py::test_native_can_clear_an_observed_gate_fault_without_a_saved_reader[not-configured]
+FAILED tests/test_fix_notice_round16_20261122.py::test_native_can_clear_an_observed_gate_fault_without_a_saved_reader[missing-file]
+2 failed in 3.38s
+
+exit=1
+finished=2026-11-23T20:27:26.414012+09:00
+temp_removed=True

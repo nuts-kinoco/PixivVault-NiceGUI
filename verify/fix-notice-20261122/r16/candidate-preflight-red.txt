@@ -1,0 +1,140 @@
+head=d4cda073e6fd287a3da23c3e0ba10855f95abe10
+launcher_pid=141280
+root=\\?\S:\Work\_tmp\PV\fix-notice-r16-20261122-i2sq_2q3
+started=2026-11-23T20:44:36.670209+09:00
+pytest_pid=145652
+FFFFFFFFFFFFF                                                            [100%]
+================================== FAILURES ===================================
+__________________ test_author_revision_validated_and_fixed ___________________
+tests\test_author_update_revision.py:25: in test_author_revision_validated_and_fixed
+    assert client(fixture()).get_artwork_update_revision('321', '24') == {
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\pixiv_read_client.py:1800: in get_artwork_update_revision
+    self._ensure_open()
+src\pixivvault_nicegui\pixiv_read_client.py:858: in _ensure_open
+    gates = getattr(self._transport, '_notice_gates', None)
+                    ^^^^^^^^^^^^^^^
+E   AttributeError: 'LivePixivReadClient' object has no attribute '_transport'
+_________ test_revision_rejects_missing_wrong_or_unavailable[id-redacted] __________
+tests\test_author_update_revision.py:39: in test_revision_rejects_missing_wrong_or_unavailable
+    client(raw).get_artwork_update_revision('321', '24')
+src\pixivvault_nicegui\pixiv_read_client.py:1800: in get_artwork_update_revision
+    self._ensure_open()
+src\pixivvault_nicegui\pixiv_read_client.py:858: in _ensure_open
+    gates = getattr(self._transport, '_notice_gates', None)
+                    ^^^^^^^^^^^^^^^
+E   AttributeError: 'LivePixivReadClient' object has no attribute '_transport'
+________ test_revision_rejects_missing_wrong_or_unavailable[userId-redacted] _________
+tests\test_author_update_revision.py:39: in test_revision_rejects_missing_wrong_or_unavailable
+    client(raw).get_artwork_update_revision('321', '24')
+src\pixivvault_nicegui\pixiv_read_client.py:1800: in get_artwork_update_revision
+    self._ensure_open()
+src\pixivvault_nicegui\pixiv_read_client.py:858: in _ensure_open
+    gates = getattr(self._transport, '_notice_gates', None)
+                    ^^^^^^^^^^^^^^^
+E   AttributeError: 'LivePixivReadClient' object has no attribute '_transport'
+______ test_revision_rejects_missing_wrong_or_unavailable[illustType-2] _______
+tests\test_author_update_revision.py:39: in test_revision_rejects_missing_wrong_or_unavailable
+    client(raw).get_artwork_update_revision('321', '24')
+src\pixivvault_nicegui\pixiv_read_client.py:1800: in get_artwork_update_revision
+    self._ensure_open()
+src\pixivvault_nicegui\pixiv_read_client.py:858: in _ensure_open
+    gates = getattr(self._transport, '_notice_gates', None)
+                    ^^^^^^^^^^^^^^^
+E   AttributeError: 'LivePixivReadClient' object has no attribute '_transport'
+_____ test_revision_rejects_missing_wrong_or_unavailable[illustType-True] _____
+tests\test_author_update_revision.py:39: in test_revision_rejects_missing_wrong_or_unavailable
+    client(raw).get_artwork_update_revision('321', '24')
+src\pixivvault_nicegui\pixiv_read_client.py:1800: in get_artwork_update_revision
+    self._ensure_open()
+src\pixivvault_nicegui\pixiv_read_client.py:858: in _ensure_open
+    gates = getattr(self._transport, '_notice_gates', None)
+                    ^^^^^^^^^^^^^^^
+E   AttributeError: 'LivePixivReadClient' object has no attribute '_transport'
+_______ test_revision_rejects_missing_wrong_or_unavailable[pageCount-0] _______
+tests\test_author_update_revision.py:39: in test_revision_rejects_missing_wrong_or_unavailable
+    client(raw).get_artwork_update_revision('321', '24')
+src\pixivvault_nicegui\pixiv_read_client.py:1800: in get_artwork_update_revision
+    self._ensure_open()
+src\pixivvault_nicegui\pixiv_read_client.py:858: in _ensure_open
+    gates = getattr(self._transport, '_notice_gates', None)
+                    ^^^^^^^^^^^^^^^
+E   AttributeError: 'LivePixivReadClient' object has no attribute '_transport'
+_____ test_revision_rejects_missing_wrong_or_unavailable[pageCount-True] ______
+tests\test_author_update_revision.py:39: in test_revision_rejects_missing_wrong_or_unavailable
+    client(raw).get_artwork_update_revision('321', '24')
+src\pixivvault_nicegui\pixiv_read_client.py:1800: in get_artwork_update_revision
+    self._ensure_open()
+src\pixivvault_nicegui\pixiv_read_client.py:858: in _ensure_open
+    gates = getattr(self._transport, '_notice_gates', None)
+                    ^^^^^^^^^^^^^^^
+E   AttributeError: 'LivePixivReadClient' object has no attribute '_transport'
+_____ test_revision_rejects_missing_wrong_or_unavailable[updateDate-None] _____
+tests\test_author_update_revision.py:39: in test_revision_rejects_missing_wrong_or_unavailable
+    client(raw).get_artwork_update_revision('321', '24')
+src\pixivvault_nicegui\pixiv_read_client.py:1800: in get_artwork_update_revision
+    self._ensure_open()
+src\pixivvault_nicegui\pixiv_read_client.py:858: in _ensure_open
+    gates = getattr(self._transport, '_notice_gates', None)
+                    ^^^^^^^^^^^^^^^
+E   AttributeError: 'LivePixivReadClient' object has no attribute '_transport'
+______ test_revision_rejects_missing_wrong_or_unavailable[updateDate-0] _______
+tests\test_author_update_revision.py:39: in test_revision_rejects_missing_wrong_or_unavailable
+    client(raw).get_artwork_update_revision('321', '24')
+src\pixivvault_nicegui\pixiv_read_client.py:1800: in get_artwork_update_revision
+    self._ensure_open()
+src\pixivvault_nicegui\pixiv_read_client.py:858: in _ensure_open
+    gates = getattr(self._transport, '_notice_gates', None)
+                    ^^^^^^^^^^^^^^^
+E   AttributeError: 'LivePixivReadClient' object has no attribute '_transport'
+_____ test_revision_rejects_missing_wrong_or_unavailable[updateDate-A\nB] _____
+tests\test_author_update_revision.py:39: in test_revision_rejects_missing_wrong_or_unavailable
+    client(raw).get_artwork_update_revision('321', '24')
+src\pixivvault_nicegui\pixiv_read_client.py:1800: in get_artwork_update_revision
+    self._ensure_open()
+src\pixivvault_nicegui\pixiv_read_client.py:858: in _ensure_open
+    gates = getattr(self._transport, '_notice_gates', None)
+                    ^^^^^^^^^^^^^^^
+E   AttributeError: 'LivePixivReadClient' object has no attribute '_transport'
+_________________ test_revision_requires_prior_authentication _________________
+tests\test_author_update_revision.py:46: in test_revision_requires_prior_authentication
+    reader.get_artwork_update_revision('321', '24')
+src\pixivvault_nicegui\pixiv_read_client.py:1800: in get_artwork_update_revision
+    self._ensure_open()
+src\pixivvault_nicegui\pixiv_read_client.py:858: in _ensure_open
+    gates = getattr(self._transport, '_notice_gates', None)
+                    ^^^^^^^^^^^^^^^
+E   AttributeError: 'LivePixivReadClient' object has no attribute '_transport'
+______ test_missing_update_date_is_explicit_unknown_marker_for_new_work _______
+tests\test_author_update_revision.py:52: in test_missing_update_date_is_explicit_unknown_marker_for_new_work
+    assert client(raw).get_artwork_update_revision('321', '24')['update_date'] == ''
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\pixiv_read_client.py:1800: in get_artwork_update_revision
+    self._ensure_open()
+src\pixivvault_nicegui\pixiv_read_client.py:858: in _ensure_open
+    gates = getattr(self._transport, '_notice_gates', None)
+                    ^^^^^^^^^^^^^^^
+E   AttributeError: 'LivePixivReadClient' object has no attribute '_transport'
+_______ test_publish_fences_an_old_observation_and_keeps_existing_stop ________
+tests\test_fix_notice_round4_20261122.py:509: in test_publish_fences_an_old_observation_and_keeps_existing_stop
+    assert calls == 3
+E   assert 2 == 3
+=========================== short test summary info ===========================
+FAILED tests/test_author_update_revision.py::test_author_revision_validated_and_fixed
+FAILED tests/test_author_update_revision.py::test_revision_rejects_missing_wrong_or_unavailable[id-redacted]
+FAILED tests/test_author_update_revision.py::test_revision_rejects_missing_wrong_or_unavailable[userId-redacted]
+FAILED tests/test_author_update_revision.py::test_revision_rejects_missing_wrong_or_unavailable[illustType-2]
+FAILED tests/test_author_update_revision.py::test_revision_rejects_missing_wrong_or_unavailable[illustType-True]
+FAILED tests/test_author_update_revision.py::test_revision_rejects_missing_wrong_or_unavailable[pageCount-0]
+FAILED tests/test_author_update_revision.py::test_revision_rejects_missing_wrong_or_unavailable[pageCount-True]
+FAILED tests/test_author_update_revision.py::test_revision_rejects_missing_wrong_or_unavailable[updateDate-None]
+FAILED tests/test_author_update_revision.py::test_revision_rejects_missing_wrong_or_unavailable[updateDate-0]
+FAILED tests/test_author_update_revision.py::test_revision_rejects_missing_wrong_or_unavailable[updateDate-A\nB]
+FAILED tests/test_author_update_revision.py::test_revision_requires_prior_authentication
+FAILED tests/test_author_update_revision.py::test_missing_update_date_is_explicit_unknown_marker_for_new_work
+FAILED tests/test_fix_notice_round4_20261122.py::test_publish_fences_an_old_observation_and_keeps_existing_stop
+13 failed in 3.54s
+
+exit=1
+finished=2026-11-23T20:44:41.764302+09:00
+temp_removed=True

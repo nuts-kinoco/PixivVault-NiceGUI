@@ -67,7 +67,7 @@ def test_missing_item_remains_local_to_the_caller(tmp_path, method, args, path):
 @pytest.mark.parametrize(('status', 'attempts', 'expected'), [
     (401, 1, 'HTTP 401'),
     (403, 1, 'HTTP 403'),
-    (429, 3, '共有停止しました'),
+    (429, 3, '通信を止めています'),
     (None, 3, '通信エラー'),
 ])
 def test_shared_header_keeps_actionable_failures(status, attempts, expected):

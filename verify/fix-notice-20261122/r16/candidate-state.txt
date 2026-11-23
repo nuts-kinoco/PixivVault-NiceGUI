@@ -1,0 +1,19 @@
+owner=/root (sole writer and owner of the pytest processes)
+branch=fix-notice
+base=47ad1592
+candidate=cbbb2acbbdca5405a1387cf3a258b5a5e876180f
+acceptance=R16 findings, explicit-only notices; independent two-track Medium 0 and Native R8 pending
+red=red.txt (5 failures), red-native.txt (2 failures), red-extra.txt (2 failures)
+green=focused-final.txt (120 passes); P6 from-stages no finding
+interrupted_job=full-interrupted.txt, session 59223, pytest worker PID 27468, stopped at 26%; root removed
+interrupted_diagnosis=candidate-preflight-red.txt (13 failures); candidate-preflight.txt (1000 passes, P6 flagged a dynamic lookup); corrected-boundaries.txt (29 passes)
+final_full=full.txt, session 50819, completed on cbbb2acb; exit 1, 5460 passed, two browser failures
+D6_QUIET at launch=False
+chromium=settings-chromium.txt (76273), recommendation-chromium.txt (89417), both completed on cbbb2acb
+current_jobs=none; owned temporary paths and processes=0
+pending=supervisor independent reviews and Native R8
+head=cbbb2acbbdca5405a1387cf3a258b5a5e876180f
+launcher_pid=124768
+root=\\?\S:\Work\_tmp\PV\fix-notice-r16-20261122-j0up6558
+started=2026-11-23T20:51:07.418671+09:00
+pytest_pid=44560

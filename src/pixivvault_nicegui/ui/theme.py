@@ -38,8 +38,8 @@ body.body--light { --pv-page:#f8f9ff; --pv-bg-vault:#f3f5fb; --pv-bg-surface:#ff
 html, body { width:100%; height:100%; overflow:hidden; }
 body { background: var(--pv-page); color: var(--pv-on-surface); font-family:var(--pv-ui-font); }
 .nicegui-content { height:100dvh; min-height:0; padding:0 !important; overflow:hidden; }
-.pv-shell { height:100dvh; min-height:0; width:100%; max-width:100%; padding:10px; gap:10px; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
-.pv-content { position:relative; width:100%; min-width:0; min-height:0; flex:1 1 0; display:flex; flex-direction:column; overflow:hidden; }
+.pv-shell { height:100dvh; min-height:0; width:100%; max-width:100%; padding:10px; gap:10px; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden auto; scroll-padding-block:4px; }
+.pv-content { position:relative; width:100%; min-width:0; min-height:min(300px, 75dvh); flex:1 1 0; display:flex; flex-direction:column; overflow:hidden; }
 .pv-metadata-view, .pv-scheduler-view { flex:1 1 0; min-height:0; min-width:0; max-width:100%; overflow-y:auto; overflow-x:hidden; padding-right:8px; box-sizing:border-box; }
 .pv-gallery { flex:1 1 0; min-height:0; min-width:0; overflow:hidden; display:flex; flex-direction:column; }
 .q-btn { text-transform:none; }
@@ -57,6 +57,7 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family:var(
 .pv-auth[data-tone=primary] { color:var(--pv-auth-primary); }
 .pv-conn-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px; min-height:32px; margin-top:9.4px; font-size:12px; color:var(--pv-on-surface-variant); }
 .pv-conn-row .q-toggle__label, .pv-conn-row .q-toggle { font-size:12px; color:var(--pv-on-surface-variant); }
+.pv-conn-row .q-toggle { min-height:28px; }
 /* 元の Flet Switch の実測 43x26（トラック）。 */
 .pv-conn-row .q-toggle__inner { width:43px; min-width:43px; height:26px; padding:0; font-size:26px; }
 .pv-conn-row .q-toggle__track { height:26px; border-radius:13px; }
@@ -79,6 +80,22 @@ body { background: var(--pv-page); color: var(--pv-on-surface); font-family:var(
 /* キーボードフォーカスは主色の 2px 枠。Quasar の .no-outline（レイヤ内の outline:0 !important）は outline では上書きできないので、
    同じ見た目の box-shadow 輪も重ねる（<a> は outline が効く）。 */
 .pv-tab:focus-visible, .pv-hbtn:focus-visible { outline:2px solid var(--pv-primary); outline-offset:2px; box-shadow:0 0 0 2px var(--pv-page), 0 0 0 4px var(--pv-primary); }
+/* Use the same ring on opt-in controls and the shell's link and switch. */
+:is(.pv-pill, .pv-hit28, .pv-focus-ring, .pv-conn-row .q-toggle):focus-visible {
+  outline:2px solid var(--pv-primary);
+  outline-offset:2px;
+  box-shadow:0 0 0 2px var(--pv-page), 0 0 0 4px var(--pv-primary);
+}
+/* Quasar's button ::before draws the base style. Keep the invisible hit area on ::after. */
+:where(.pv-hit28) { position:relative; }
+:where(.pv-hit28):not(:disabled, .disabled, [aria-disabled=true])::after {
+  content:"";
+  position:absolute;
+  inset:50% auto auto 50%;
+  width:max(100%, 28px);
+  height:max(100%, 28px);
+  transform:translate(-50%, -50%);
+}
 .pv-nav .q-btn.pv-tab { background:transparent !important; border:0 !important; color:var(--pv-on-surface) !important; }
 .pv-nav .q-btn.pv-tab.pv-tab-active { background:var(--pv-tab-selected) !important; color:var(--pv-primary) !important; }
 .pv-tab-disabled { opacity:.48; cursor:not-allowed; }
@@ -540,8 +557,17 @@ CSS += """
 .pv-native-profile > *, .pv-native-profile .pv-settings-field > * { max-width:100%; overflow-wrap:anywhere; }
 .pv-settings-follow [data-testid=following-sync-view] { gap:var(--pv-gap-compact); }
 [data-testid=native-profile-recovery] { color:var(--pv-error-text); background:var(--pv-error-bg); padding:6px 10px; border-radius:var(--pv-radius-control); }
-.pv-request-status { width:100%; white-space:pre-line; padding:4px 8px; }
-.pv-shared-log-host .pv-queue-log { flex-basis:124px; height:124px; border-radius:var(--pv-radius-control); }
+.pv-request-status { width:100%; white-space:pre-line; overflow-wrap:anywhere; line-height:1.5; padding:4px 8px; }
+.pv-shared-log-host { flex-shrink:0; }
+.pv-shared-log-host .pv-queue-log {
+  flex-basis:124px; height:124px; border-radius:var(--pv-radius-control);
+  flex-wrap:nowrap; overflow-x:hidden;
+}
+.pv-shared-log-host .pv-queue-log:focus-visible {
+  outline-offset:-2px; box-shadow:none;
+}
+.pv-shared-log-host .pv-queue-log-line { line-height:1.5; overflow-wrap:anywhere; }
+.pv-log-empty { color:var(--pv-muted); font-size:13px; line-height:1.5; }
 .pv-migration-section { width:100%; gap:var(--pv-gap-compact); border-top:1px solid var(--pv-border); padding-top:var(--pv-gap-compact); }
 .pv-migration-scroll { max-height:170px; overflow:auto; flex-wrap:nowrap; }
 .pv-backup-status.pv-empty { padding:0; text-align:left; }
@@ -630,4 +656,33 @@ CSS += """
   .pv-learning.pv-tone-learning .pv-trend-layout[data-mode=rail]:is([data-stage=empty],[data-stage=status]) > .pv-trend-side { grid-column:3; }
 }
 /* /tone-c-r3 */
+"""
+
+CSS += """
+/* ux-1 */
+[data-testid=db-status-banner] { flex-shrink:0; max-width:100%; overflow-wrap:anywhere; }
+.pv-cookie-banner .pv-pill:is(:hover, :active) { opacity:.9; }
+.q-tooltip { background:#666; font-size:11px; }
+.pv-cookie-banner .pv-banner-body { overflow-wrap:anywhere; }
+.pv-hbtn .q-badge { color:var(--pv-action-text) !important; }
+.pv-hidden, .pv-hide-empty:empty { display:none !important; }
+
+.q-notification.pv-toast { overflow-wrap:anywhere; }
+.q-notification.pv-toast-positive { background:#176d36 !important; color:white !important; }
+.q-notification.pv-toast-negative { background:#a52132 !important; color:white !important; }
+.q-notification.pv-toast-info { background:#135b88 !important; color:white !important; }
+.q-notification.pv-toast-warning { color:var(--pv-on-caution) !important; }
+.pv-toast .q-btn { color:inherit !important; min-height:28px; }
+.pv-toast .q-btn:focus-visible { outline:2px solid currentColor; outline-offset:1px; }
+
+@media (max-width:540px) {
+  .pv-header { flex-wrap:wrap; }
+  .pv-header-main { flex-basis:100%; }
+  .pv-header-actions { flex-wrap:wrap; }
+  .pv-cookie-banner { flex-wrap:wrap !important; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .q-notification.pv-toast { animation:none !important; transition-duration:0s !important; }
+}
+/* /ux-1 */
 """

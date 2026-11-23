@@ -11,7 +11,8 @@ from __future__ import annotations
 from .managed_network_stop_gate import (
     ManagedNetworkStopped,
     ManagedNetworkStopGate,
-    STOP_STATUSES,
+    _carry_gate_cleanup,
+    _run_gate_cleanup,
 )
 from .managed_network_stop_transport import ManagedNetworkStopTransport
 from .pixiv_read_client import HTTPStatusRejected, LivePixivReadClient, _OwnedReadTransport
@@ -31,12 +32,11 @@ def create_exact_managed_read_client(cookie_path, gate: ManagedNetworkStopGate, 
     try:
         wrapper = ManagedNetworkStopTransport(gate, owner if owner is not None else transport)
         client = LivePixivReadClient(cookie_path, transport=wrapper)
-    except BaseException:
+    except BaseException as error:
         if owner is not None:
-            try:
-                owner.close()
-            except Exception:
-                pass
+            authority = 'shared' if hasattr(gate, 'inflight_path') else 'local'
+            _run_gate_cleanup(owner.close, 'managed reader owner close failed',
+                              primary=error, authority=authority, recheckable=False)
         raise
     # The base reader treats injected transports as borrowed. Rebind only
     # its own default pool so close() and shutdown_unverified remain truthful.
@@ -61,12 +61,11 @@ class ManagedLivePixivReadClient(LivePixivReadClient):
         try:
             wrapper = ManagedNetworkStopTransport(gate, owner if owner is not None else transport)
             super().__init__(cookie_path, transport=wrapper)
-        except BaseException:
+        except BaseException as error:
             if owner is not None:
-                try:
-                    owner.close()
-                except Exception:
-                    pass
+                authority = 'shared' if hasattr(gate, 'inflight_path') else 'local'
+                _run_gate_cleanup(owner.close, 'managed reader owner close failed',
+                                  primary=error, authority=authority, recheckable=False)
             raise
         self._owned_transport = owner
 
@@ -83,6 +82,6 @@ class ManagedLivePixivReadClient(LivePixivReadClient):
         except HTTPStatusRejected as error:
             from .request_policy import durable_stop_status
             if durable_stop_status(error.status_code):
-                raise ManagedNetworkStopped(error.status_code) from None
+                raise _carry_gate_cleanup(error, ManagedNetworkStopped(error.status_code)) from None
             raise
 

@@ -31,12 +31,16 @@ def bind_public_cdn_shared_stop(client: PublicImageReadClient,
         # test transports must be handled before creating the app service.
         raise ManagedNetworkGateStorageError("public CDN owner transport unavailable")
     if scope is None:
+        transport._idle_notice_gate = None
+
         def deny(*_args):
-            raise ManagedNetworkGateStorageError("shared Pixiv CDN STOP owner required")
+            raise ManagedNetworkGateStorageError("shared Pixiv CDN STOP owner required", authority="shared")
+        deny._notice_gates = (None, None)
         client._transport = deny
         return
     if type(scope) is not ManagedUserNetworkStopScope:
         raise ManagedNetworkGateStorageError("sealed public CDN STOP owner required")
     scope._check_owner()
+    transport._idle_notice_gate = scope.gate
     client._transport = _SealedOwnerTransport(
         scope, ManagedNetworkStopTransport(scope.gate, transport))

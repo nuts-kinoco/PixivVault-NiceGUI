@@ -74,7 +74,7 @@ def register_recovery_pages(base):
                 @page_decorator(f'/_tone/{key}{path.rstrip("/")}')
                 def themed():
                     render()
-                    ui.dark_mode(True)
+                    ui.dark_mode(ui.context.client.request.query_params.get('_audit_theme') != 'light')
                 return themed
             return decorate
 
@@ -108,7 +108,10 @@ def navigate_extra(page, key, kind):
     route = ('startup-stop-migration' if key in {'stop-history-guide', 'stop-migration-dialog'}
              else key if key in STARTUP_CASES else None)
     if route:
-        page.goto(urljoin(page.url, f'/_tone/{route}'), wait_until='domcontentloaded')
+        from urllib.parse import urlsplit
+
+        page.goto(urljoin(page.url, f'/_tone/{route}?' + urlsplit(page.url).query),
+                  wait_until='domcontentloaded')
         page.get_by_test_id('native-profile-recovery').wait_for(timeout=5000)
         if key in {'stop-recovery', 'stop-uncertain'}:
             page.get_by_test_id('shared-get-recovery-open').click(timeout=5000)
@@ -499,12 +502,13 @@ def expand_settings(page):
     card.evaluate('e => e.scrollTop = 0')
 
 
-def capture_settings(page, folder):
+def capture_settings(page, folder, *, write_metrics=True):
     """Stitch actual scrolled dialog pixels, then crop each rendered group."""
     card = page.locator('.pv-preferences-card')
     card.evaluate('e => e.scrollTop = 0')
     box = card.bounding_box()
     geometry = card.evaluate('''e => ({height:e.scrollHeight, viewport:e.clientHeight,
+       footer: Math.ceil(e.querySelector('.pv-preferences-footer')?.getBoundingClientRect().height || 0),
        innerTop:e.clientTop, innerLeft:e.clientLeft, width:e.clientWidth,
        groups:[...e.querySelectorAll('.pv-preferences-group')].map(group => {
          const r=group.getBoundingClientRect(), box=e.getBoundingClientRect();
@@ -515,13 +519,15 @@ def capture_settings(page, folder):
     left = round(box['x']) + geometry['innerLeft']
     top = round(box['y']) + geometry['innerTop']
     width, height, visible = (geometry[k] for k in ('width','height','viewport'))
+    usable = max(1, visible - geometry['footer'])
+    last_scroll = max(0, height - visible)
     stitch = Image.new('RGB',(width,height))
     try:
-        for offset in range(0, height, visible):
+        for offset in range(0, last_scroll + usable, usable):
             actual = card.evaluate('(e,y) => {e.scrollTop=y;return e.scrollTop}',offset)
-            page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
-            clip = dict(x=left,y=top,width=width,height=visible)
-            with Image.open(BytesIO(page.screenshot(clip=clip, timeout=10000))) as shot:
+            page.wait_for_timeout(110)
+            clip = dict(x=left,y=top,width=width,height=visible if actual >= last_scroll else usable)
+            with Image.open(BytesIO(page.screenshot(clip=clip, timeout=10000, scale='css'))) as shot:
                 stitch.paste(shot, (0,int(actual)))
     finally:
         card.evaluate('e => e.scrollTop = 0')
@@ -531,10 +537,13 @@ def capture_settings(page, folder):
         stem = f'group-{index+1:02}'
         x,y,w,h = (group[k] for k in ('x','y','w','h'))
         stitch.crop((x,y,x+w,y+h)).save(folder / f'{stem}.png')
-        measurements = measure_port(card.locator('.pv-preferences-group').nth(index))
-        (folder / f'{stem}.json').write_text(json.dumps(measurements,indent=2,ensure_ascii=False)+'\n',
-                                             encoding='utf-8',newline='\n')
-        groups.append(dict(**group,image=f'{stem}.png',metrics=f'{stem}.json'))
+        record = dict(**group,image=f'{stem}.png')
+        if write_metrics:
+            measurements = measure_port(card.locator('.pv-preferences-group').nth(index))
+            (folder / f'{stem}.json').write_text(json.dumps(measurements,indent=2,ensure_ascii=False)+'\n',
+                                                 encoding='utf-8',newline='\n')
+            record['metrics'] = f'{stem}.json'
+        groups.append(record)
     return groups
 
 

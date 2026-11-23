@@ -1,0 +1,27 @@
+head=47ad1592c808fbb1db3d6e9af64b2a7bbfdbfd0f
+launcher_pid=133272
+root=\\?\S:\Work\_tmp\PV\fix-notice-r16-20261122-c81hwy8t
+started=2026-11-23T20:29:24.242162+09:00
+pytest_pid=127928
+FF                                                                       [100%]
+================================== FAILURES ===================================
+________ test_removed_native_selection_is_not_a_confirmation_candidate ________
+tests\test_fix_notice_round16_20261122.py:187: in test_removed_native_selection_is_not_a_confirmation_candidate
+    assert not policy.can_confirm_gate_notices()
+E   assert not True
+E    +  where True = can_confirm_gate_notices()
+E    +    where can_confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000207A02586E0>.can_confirm_gate_notices
+__________ test_cdn_idle_cleanup_refusal_fences_before_the_next_get ___________
+tests\test_fix_notice_round16_20261122.py:227: in test_cdn_idle_cleanup_refusal_fences_before_the_next_get
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000207A020FED0>.confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round16_20261122.py::test_removed_native_selection_is_not_a_confirmation_candidate
+FAILED tests/test_fix_notice_round16_20261122.py::test_cdn_idle_cleanup_refusal_fences_before_the_next_get
+2 failed in 2.46s
+
+exit=1
+finished=2026-11-23T20:29:28.157253+09:00
+temp_removed=True

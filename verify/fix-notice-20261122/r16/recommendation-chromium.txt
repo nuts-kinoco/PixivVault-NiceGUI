@@ -1,0 +1,13 @@
+head=cbbb2acbbdca5405a1387cf3a258b5a5e876180f
+launcher_pid=134368
+root=\\?\S:\Work\_tmp\PV\fix-notice-r16-20261122-e_llwm6p
+started=2026-11-23T21:23:47.233444+09:00
+pytest_pid=3584
+.                                                                        [100%]
+1 passed in 13.58s
+
+exit=0
+finished=2026-11-23T21:24:02.140517+09:00
+owned_files=204
+owned_bytes=15785133
+temp_removed=True

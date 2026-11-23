@@ -134,16 +134,19 @@ class CookieExpiryCoordinator:
 
     @contextmanager
     def _commit_admission(self, reader):
+        from .gate_refusal_state import gate_refusal_scope
         from .managed_network_stop_profile_scope import _ProfileBoundTransport, _require_selected_cookie
         from .managed_network_stop_shared_transport import SharedProfileStopTransport
         from .managed_network_stop_transport import ManagedNetworkStopTransport
         transport = reader._transport
         with ExitStack() as stack:
             if isinstance(transport, _ProfileBoundTransport):
-                _require_selected_cookie(transport.profile_root, transport.cookie_path, transport.profile_identity)
+                _require_selected_cookie(transport.profile_root, transport.cookie_path,
+                                         transport.profile_identity, gate=transport.gate)
             if isinstance(transport, SharedProfileStopTransport):
                 if transport.shared_owner_check is not None:
-                    transport.shared_owner_check()
+                    with gate_refusal_scope(transport.shared_gate):
+                        transport.shared_owner_check()
                     owner = getattr(transport.shared_owner_check, '__self__', None)
                     if owner is not None:
                         from .managed_network_stop_startup import selected_history_guard

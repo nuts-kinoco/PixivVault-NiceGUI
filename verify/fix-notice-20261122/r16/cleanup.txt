@@ -1,0 +1,10 @@
+checked=2026-11-23T21:24:33.6075457+09:00
+owned_roots_recorded=13
+owned_temp_removal_confirmations=13
+owned_launch_pids_checked=27
+owned_launch_pids_remaining=0
+owned_descendant_processes_remaining=0
+owned_temp_paths_remaining=0
+measured_runs=full-interrupted, full, settings-chromium, recommendation-chromium
+measured_files_removed=73540
+measured_bytes_removed=457755352

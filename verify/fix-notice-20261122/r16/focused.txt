@@ -1,0 +1,33 @@
+head=47ad1592c808fbb1db3d6e9af64b2a7bbfdbfd0f
+launcher_pid=15336
+root=\\?\S:\Work\_tmp\PV\fix-notice-r16-20261122-6d8654qg
+started=2026-11-23T20:30:29.536743+09:00
+pytest_pid=27060
+.....................................F...................FF........      [100%]
+================================== FAILURES ===================================
+____ test_later_confirmation_does_not_hide_an_earlier_ordinary_lock_sample ____
+tests\test_fix_notice_round14_20261122.py:275: in test_later_confirmation_does_not_hide_an_earlier_ordinary_lock_sample
+    assert any(row['stop_cause'] == 'gate_busy' for row in observer.progress_snapshot())
+E   assert False
+E    +  where False = any(<generator object test_later_confirmation_does_not_hide_an_earlier_ordinary_lock_sample.<locals>.<genexpr> at 0x0000026F9F7475E0>)
+_________ test_unrecheckable_notices_do_not_offer_confirmation[rate] __________
+tests\test_fix_notice_round13_20261122.py:291: in test_unrecheckable_notices_do_not_offer_confirmation
+    assert '再確認できません' in view.unrecheckable_status.text
+E   AssertionError: assert '再確認できません' in '停止は維持中です。ここから再確認できる取得経路がありません。'
+E    +  where '停止は維持中です。ここから再確認できる取得経路がありません。' = <nicegui.elements.label.Label object at 0x0000026F9CCF1CD0>.text
+E    +    where <nicegui.elements.label.Label object at 0x0000026F9CCF1CD0> = <pixivvault_nicegui.ui.request_status_view.RequestStatusView object at 0x0000026F9F67D010>.unrecheckable_status
+______ test_unrecheckable_notices_do_not_offer_confirmation[closed-pool] ______
+tests\test_fix_notice_round13_20261122.py:291: in test_unrecheckable_notices_do_not_offer_confirmation
+    assert '再確認できません' in view.unrecheckable_status.text
+E   AssertionError: assert '再確認できません' in '停止は維持中です。ここから再確認できる取得経路がありません。'
+E    +  where '停止は維持中です。ここから再確認できる取得経路がありません。' = <nicegui.elements.label.Label object at 0x0000026F9F7DC050>.text
+E    +    where <nicegui.elements.label.Label object at 0x0000026F9F7DC050> = <pixivvault_nicegui.ui.request_status_view.RequestStatusView object at 0x0000026F9CCD9310>.unrecheckable_status
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round14_20261122.py::test_later_confirmation_does_not_hide_an_earlier_ordinary_lock_sample
+FAILED tests/test_fix_notice_round13_20261122.py::test_unrecheckable_notices_do_not_offer_confirmation[rate]
+FAILED tests/test_fix_notice_round13_20261122.py::test_unrecheckable_notices_do_not_offer_confirmation[closed-pool]
+3 failed, 64 passed in 23.02s
+
+exit=1
+finished=2026-11-23T20:30:54.117710+09:00
+temp_removed=True

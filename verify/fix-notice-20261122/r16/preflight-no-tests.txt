@@ -1,0 +1,13 @@
+head=d4cda073e6fd287a3da23c3e0ba10855f95abe10
+launcher_pid=133444
+root=\\?\S:\Work\_tmp\PV\fix-notice-r16-20261122-8eqij_on
+started=2026-11-23T20:45:38.021375+09:00
+pytest_pid=61716
+ERROR: file or directory not found: tests/test_owned_https.py
+
+
+no tests ran in 0.00s
+
+exit=4
+finished=2026-11-23T20:45:38.836504+09:00
+temp_removed=True
