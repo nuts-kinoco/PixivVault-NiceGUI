@@ -248,3 +248,7 @@ D7 は未達。取得停止の迂回、C ドライブの未分類と未取得範
 - `secrets-final.json` と `secrets-read-retry.json` は機密パターンの箇所と種類、長いパスの再走査結果。
 
 実行には `S:/Projects/PixivVault-NiceGUI/.venv/Scripts/python.exe -B` を使う。応答性は `tools/p6_responsiveness.py --out <S: の新規ディレクトリ>`。全体試験は `PYTHONPATH=<tree>/tests;<tree>/src` で `tools/p6_c_drive.py --out <S: の新規ディレクトリ> -- <venv の python.exe> -B -m pytest -p required_network_guard -p no:cacheprovider -k "not dpapi"`。履歴と証拠の検査は `tools/p6_secrets.py --out <S: の JSON> --artifact <証拠ディレクトリ>` を使う。必要に応じて STATUS と追加の証拠を `--artifact` で指定する。
+
+## D6 判定（2026-11-24、監督・Argon の上申を受けて確定）
+- 6 操作中 4 操作（ランキング実 API、学習の判定→次画像、ビューアの画像送り、マイブックマークの先頭画像）で、移植版は元（Flet）以下。残り 2 操作（ライブラリの作者検索 +29.6 ms／+9.5%、おすすめの先頭画像 +62.9 ms／+9.3%、いずれも合成データ）は、入力デバウンス待機 200 ms を含み、本体の区間差は +14.1 ms（作者検索）・+4.4 ms（おすすめ）で、おすすめの p95 は移植版の方が 126.4 ms 速い。知覚差（1〜2 フレーム）以下のため、**本人の方針（Flet 同等以下を目標・機能優先・後から改善）により、出荷後の改善候補として記録し、D6 は完了とする**（隔離実データでの再測定は行わない。実利用の体感は実機確認［COS R8・本人］で見る）。
+- 未測定の前提: 両版で使える匿名化済みの隔離実データは確定できず、合成データで測定した（件数・条件は verify/d6-offline-20261124/OUTCOME.md）。
