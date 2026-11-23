@@ -1,0 +1,106 @@
+{
+  "recommend": [
+    {
+      "action_ms": 105.4226,
+      "ready_ms": 590.9897,
+      "paint_ms": 35.2406
+    },
+    {
+      "action_ms": 223.7926,
+      "ready_ms": 715.5056,
+      "paint_ms": 20.5925
+    },
+    {
+      "action_ms": 159.4905,
+      "ready_ms": 582.1039,
+      "paint_ms": 69.155
+    },
+    {
+      "action_ms": 114.4303,
+      "ready_ms": 416.3452,
+      "paint_ms": 34.0297
+    },
+    {
+      "action_ms": 127.8182,
+      "ready_ms": 567.2001,
+      "paint_ms": 24.3035
+    },
+    {
+      "action_ms": 152.2273,
+      "ready_ms": 581.9994,
+      "paint_ms": 66.0678
+    },
+    {
+      "action_ms": 90.7578,
+      "ready_ms": 434.0767,
+      "paint_ms": 34.7771
+    },
+    {
+      "action_ms": 110.1162,
+      "ready_ms": 608.114,
+      "paint_ms": 31.1549
+    },
+    {
+      "action_ms": 127.8356,
+      "ready_ms": 599.3499,
+      "paint_ms": 20.2875
+    },
+    {
+      "action_ms": 117.6638,
+      "ready_ms": 538.5053,
+      "paint_ms": 4.3892
+    }
+  ],
+  "bookmarks": [
+    {
+      "action_ms": 2067.6629,
+      "ready_ms": 1561.4083,
+      "paint_ms": 24.6553
+    },
+    {
+      "action_ms": 61.5204,
+      "ready_ms": 416.9181,
+      "paint_ms": 71.4294
+    },
+    {
+      "action_ms": 169.0805,
+      "ready_ms": 167.6452,
+      "paint_ms": 51.12
+    },
+    {
+      "action_ms": 65.5441,
+      "ready_ms": 345.3874,
+      "paint_ms": 25.3033
+    },
+    {
+      "action_ms": 48.9228,
+      "ready_ms": 279.1761,
+      "paint_ms": 28.2632
+    },
+    {
+      "action_ms": 54.2388,
+      "ready_ms": 197.588,
+      "paint_ms": 30.182
+    },
+    {
+      "action_ms": 43.785,
+      "ready_ms": 225.2169,
+      "paint_ms": 26.1369
+    },
+    {
+      "action_ms": 257.3343,
+      "ready_ms": 174.2022,
+      "paint_ms": 78.5188
+    },
+    {
+      "action_ms": 63.8431,
+      "ready_ms": 396.012,
+      "paint_ms": 84.4011
+    },
+    {
+      "action_ms": 55.3007,
+      "ready_ms": 198.4169,
+      "paint_ms": 28.4542
+    }
+  ]
+}

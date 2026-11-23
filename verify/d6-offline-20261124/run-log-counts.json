@@ -1,0 +1,16 @@
+{
+  "comparison": {
+    "server_loopback_started": true,
+    "asset_http_404_log_lines": 1007,
+    "websocket_disconnect_log_lines": 10,
+    "startup_thumbnail_cache_dir_missing": true,
+    "remaining_owned_processes": 0
+  },
+  "cache-first": {
+    "server_loopback_started": true,
+    "asset_http_404_log_lines": 2981,
+    "websocket_disconnect_log_lines": 9,
+    "startup_thumbnail_cache_dir_missing": false,
+    "remaining_owned_processes": 0
+  }
+}

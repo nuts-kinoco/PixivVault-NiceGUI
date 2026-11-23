@@ -19,6 +19,7 @@ def main():
         raise RuntimeError('isolated S: working directory and disabled browser Cookie extraction required')
     if (base / 'cookies.txt').exists():
         raise RuntimeError('Cookie file in Flet fixture')
+    (base / 'cache' / 'thumbnails').mkdir(parents=True, exist_ok=True)
     sys.path.insert(0, str(base))
     import flet
     import webbrowser
@@ -65,8 +66,6 @@ def main():
     PixivClient.download_thumbnail_to_memory = image_bytes
     PixivClient.download_thumbnail_as_data_uri = image_uri
     PixivClient.get_image_urls = lambda _self, wid, **_kwargs: pages.get(str(wid), [])
-    (base / 'cache' / 'thumbnails').mkdir(parents=True, exist_ok=True)
-
     def report_denials():
         (base / 'network-count.json').write_text(json.dumps(network), encoding='utf-8')
 
