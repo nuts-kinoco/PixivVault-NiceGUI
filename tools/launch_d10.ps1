@@ -82,11 +82,20 @@ if ($IsolatedWorkspace) {
     }
     $launchArgs = @('-B', '-u', $testEntry, '--test-workspace', $IsolatedWorkspace, '--')
 } else {
+    # 共有取得停止状態は Windows ユーザー単位の封印済みオーナー（LocalAppData 配下。製品が Known Folder から開く。
+    # 環境変数や引数では差し替えられない安全境界）。S: 上なら従来どおり承認済み配置、S: 外（通常は C:）なら、
+    # **既存の封印済みオーナーが実在する場合に限り**起動してよい（新規作成はしない）。プロファイル・ログ・TEMP などの
+    # 全書き込み先は引き続き S: に強制する（Get-SPath）。
     $local = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
-    if ($local -notmatch '^[sS]:[\\/]') {
-        throw 'Windows LocalAppData is outside S:. The shared acquisition stop state requires an approved S: deployment before normal launch.'
+    $stopRoot = Join-Path $local 'PixivVault-NiceGUI\managed-pixiv-get-stop-v1'
+    if ($local -match '^[sS]:[\/]') {
+        $null = Get-SPath $stopRoot
+    } else {
+        $ownerMarker = Join-Path $stopRoot '.pixivvault-user-stop-owner.v1.json'
+        if (-not (Test-Path -LiteralPath $ownerMarker -PathType Leaf)) {
+            throw 'Windows LocalAppData is outside S: and no existing sealed shared acquisition stop owner was found. Normal launch would have to create new state outside S:.'
+        }
     }
-    $null = Get-SPath (Join-Path $local 'PixivVault-NiceGUI\managed-pixiv-get-stop-v1')
 }
 $launchArgs += @('--native', '--host', '127.0.0.1', '--port', [string]$Port, '--profile-root', $ProfileRoot)
 $commandLine = Join-ProcessArguments $launchArgs
