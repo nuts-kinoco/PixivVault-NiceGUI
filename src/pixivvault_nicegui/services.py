@@ -1469,9 +1469,15 @@ class ApplicationServices:
                     worker.store.invalidate('off')
                 if previous is None and user_paused:
                     worker.request_pause()
-                elif previous is not None and (
-                        (previous[0] == '1' and selected[0] == '0') or (previous[1] == 'idle' and selected[1] == 'manual')):
-                    worker.request_pause(reason='disabled' if previous[0] != selected[0] else 'manual')
+                elif previous is not None and previous[0] == '1' and selected[0] == '0':
+                    worker.close_exposures()
+                    try:
+                        worker.stop(pause=True, pause_reason='disabled')
+                    finally:
+                        worker.flush_events(require_complete=False)
+                    worker.open_exposures()
+                elif previous is not None and previous[1] == 'idle' and selected[1] == 'manual':
+                    worker.request_pause(reason='manual')
                 elif (not user_paused and selected[1] == 'idle' and previous != selected
                       and self._egara_model_path is not None):
                     worker.start(idle_seconds=5)

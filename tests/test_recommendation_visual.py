@@ -269,8 +269,7 @@ async def test_view_projected_order_keeps_normal_thumbnail_urls_and_protected_po
             assert all('background-image' not in node.style for node in _rendered(view))
             assert len(sent) == 6
             assert model_check_threads and get_ident() not in model_check_threads
-            if view._visual_event_task is not None:
-                await view._visual_event_task
+            await asyncio.to_thread(worker.flush_events)
             events = worker.store.events()
             assert len(events) == 6
             assert [row['base_rank'] for row in events[2].payload['candidates'] if row['section'] == 'certain'] == [2, 3, 4, 5, 6, 1]
@@ -367,8 +366,7 @@ async def test_on_miss_keeps_only_the_active_operation_in_position(tmp_path, mon
             worker.store.invalidate('undo')
             await view.refresh(preserve_viewer=protected == 'viewer')
             assert [_suffix(node) for node in _rendered(view)] == list('123456')
-            if view._visual_event_task is not None:
-                await view._visual_event_task
+            await asyncio.to_thread(worker.flush_events)
     finally:
         client.delete()
         services.close()
@@ -385,7 +383,7 @@ def _suffix(node):
 async def test_closed_hide_reason_restores_exact_off_order(tmp_path, monkeypatch, dismiss):
     monkeypatch.setattr(core, 'loop', asyncio.get_running_loop())
     enabled = True
-    visual, _, _ = _visual(tmp_path / 'visual', lambda: enabled)
+    visual, worker, _ = _visual(tmp_path / 'visual', lambda: enabled)
     services = make(tmp_path)
     services.live_client = PublicImageReadClient(transport=lambda *_: png())
     services.recommendation_visual = visual
@@ -416,8 +414,7 @@ async def test_closed_hide_reason_restores_exact_off_order(tmp_path, monkeypatch
             expected = '13456' if dismiss == 'confirm' else '123456'
             assert [_suffix(node) for node in _rendered(view)] == list(expected)
             assert view._pending_hide is None
-            if view._visual_event_task is not None:
-                await view._visual_event_task
+            await asyncio.to_thread(worker.flush_events)
     finally:
         client.delete()
         services.close()
@@ -467,8 +464,7 @@ async def test_work7_settings_reach_recommendation_on_then_exact_off_with_no_ext
             assert [_suffix(node) for node in _rendered(view)] == baseline
             _load_rendered(services.images, _rendered(view))
             assert tuple(sent) == original_requests
-            if view._visual_event_task is not None:
-                await view._visual_event_task
+            await asyncio.to_thread(worker.flush_events)
     finally:
         client.delete()
         services.close()
@@ -529,8 +525,7 @@ async def test_real_view_urls_drive_identical_transport_across_modes(tmp_path, m
                             _load_rendered(services.images, (node,))
                     else:
                         _load_rendered(services.images, (node,))
-                if getattr(view, '_visual_event_task', None) is not None:
-                    await view._visual_event_task
+                await asyncio.to_thread(worker.flush_events)
                 assert not any(url.endswith('/13.png') for _, url in sent)
                 return [_suffix(node) for node in actual], sent
         finally:
@@ -730,6 +725,7 @@ def test_purge_clears_observed_view_lineage_before_new_exposure(tmp_path, renew_
             media = RecommendationMediaSnapshot(services, (work,))
         before_read = list(reader.calls)
         visual.record(capture())
+        worker.flush_events()
         event, = worker.store.events()
         row, = event.payload['candidates']
         assert row['view_available'] is False and row['analysis_variant'] is None
@@ -767,8 +763,7 @@ async def test_view_exposure_record_failure_stays_off_ui_thread(tmp_path, monkey
                        for node in view.body.descendants())
             assert await asyncio.to_thread(started.wait, 5)
             assert all(tid != get_ident() for tid in threads)
-            if view._visual_event_task is not None:
-                await view._visual_event_task
+            await asyncio.to_thread(worker.flush_events, require_complete=False)
     finally:
         client.delete()
         services.close()
@@ -796,14 +791,12 @@ async def test_queued_exposure_cannot_be_appended_after_purge(tmp_path, monkeypa
         with client:
             view = await open_view(services)
             assert await asyncio.to_thread(started.wait, 6)
-            pending = view._visual_event_task
-            assert not pending.done()
             await asyncio.to_thread(store.purge)
             resume.set()
-            await pending
+            await asyncio.to_thread(worker.flush_events)
             assert store.events() == ()
             await view.refresh()
-            await view._visual_event_task
+            await asyncio.to_thread(worker.flush_events)
             assert [event.kind for event in store.events()] == ['recommendation_exposure']
     finally:
         resume.set()
@@ -892,8 +885,7 @@ async def test_view_rechecks_at_publication_of_a_prepared_snapshot(tmp_path, mon
             view = await open_view(services)
             original = [node.props['data-testid'] for node in _rendered(view)]
             _load_rendered(services.images, _rendered(view))
-            if view._visual_event_task is not None:
-                await view._visual_event_task
+            await asyncio.to_thread(worker.flush_events)
             if boundary in {'delayed_account_binding', 'purge_after_prepare'}:
                 if boundary == 'purge_after_prepare':
                     from pixivvault_nicegui.media import ImageBlob
@@ -922,8 +914,7 @@ async def test_view_rechecks_at_publication_of_a_prepared_snapshot(tmp_path, mon
                     await asyncio.to_thread(worker.store.purge)
                 release.set()
                 await refresh
-                if view._visual_event_task is not None:
-                    await view._visual_event_task
+                await asyncio.to_thread(worker.flush_events)
                 if boundary == 'delayed_account_binding':
                     other_worker.flush_events()
                 else:
@@ -956,8 +947,7 @@ async def test_view_rechecks_at_publication_of_a_prepared_snapshot(tmp_path, mon
                     original.remove('recommend-thumb-certain-2')
             assert [node.props['data-testid'] for node in _rendered(view)] == original
             assert all('background-image' not in node.style for node in _rendered(view))
-            if view._visual_event_task is not None:
-                await view._visual_event_task
+            await asyncio.to_thread(worker.flush_events)
             worker.flush_events()
             if boundary == 'purge_during_projection':
                 assert worker.store.events() == ()
@@ -1019,8 +1009,7 @@ async def test_saved_overlay_revoked_after_model_projection_does_not_publish(tmp
             await view.refresh()
             assert [_suffix(node) for node in _rendered(view)] == ['1']
             assert all('background-image' not in node.style for node in _rendered(view))
-            if view._visual_event_task is not None:
-                await view._visual_event_task
+            await asyncio.to_thread(worker.flush_events)
             saved = worker.store.events()[-1].payload['candidates'][1]
             assert saved['work_id'] == '2' and saved['image_available'] is False
             assert saved['analysis_variant'] is None

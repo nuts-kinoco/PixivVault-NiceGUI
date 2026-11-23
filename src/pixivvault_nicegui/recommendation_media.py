@@ -745,10 +745,14 @@ class RecommendationVisual:
         store._check_paths()
         return store._read_epoch(store._event_purge, deadline=monotonic())
 
-    def write_exposure(self, payload, epoch):
-        store = self.observer.store
-        if store.capture_event_epoch() == epoch:
-            store.append_event('recommendation_exposure', payload, epoch)
+    def exposure_stamp(self):
+        token = self.observer.exposure_token()
+        return (self.exposure_epoch(), token) if token is not None else None
+
+    def queue_exposure(self, payload, stamp):
+        self.observer.enqueue_exposure(payload, *stamp)
 
     def record(self, slate):
-        self.write_exposure(self.exposure(slate), self.exposure_epoch())
+        stamp = self.exposure_stamp()
+        if stamp is not None:
+            self.queue_exposure(self.exposure(slate), stamp)

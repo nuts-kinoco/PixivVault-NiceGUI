@@ -68,6 +68,7 @@ class VisualPreferenceWorker:
         self._events = deque()
         self._event_thread = None
         self._events_epoch = None
+        self._exposure_token = object()
         self._thread = None
         self._cancel = None
         self._queue = deque()
@@ -97,6 +98,7 @@ class VisualPreferenceWorker:
 
     def retire(self):
         self._retired.set()
+        self.close_exposures()
         with self._condition:
             if self._cancel is not None:
                 self._arbiter.cancel(self._cancel)
@@ -161,13 +163,13 @@ class VisualPreferenceWorker:
         with self._lifecycle:
             self._request_stop(True, reason)
 
-    def stop(self, timeout=30, *, pause=False, invalidate_reason='off'):
+    def stop(self, timeout=30, *, pause=False, invalidate_reason='off', pause_reason='shutdown'):
         with self._lifecycle:
             thread = self._thread
             if thread is None and not pause:
                 return
             try:
-                self._request_stop(pause, 'shutdown', invalidate_reason)
+                self._request_stop(pause, pause_reason, invalidate_reason)
             finally:
                 if thread is not None:
                     self._join(thread, timeout)
@@ -210,12 +212,12 @@ class VisualPreferenceWorker:
         # separate bounded queue and never holds the learning executor.
         if not self.scope_is_current():
             return
-        epoch = self._events_epoch
+        previous_epoch = epoch = self._events_epoch
         try:
             try:
+                epoch = self.store.capture_event_epoch()
                 with self._events_ready:
-                    epoch = self.store.capture_event_epoch()
-                    if epoch != self._events_epoch:
+                    if epoch != previous_epoch and self._events_epoch == previous_epoch:
                         self._events_epoch = epoch
                         self._pending_gaps = 0
             finally:
@@ -229,29 +231,51 @@ class VisualPreferenceWorker:
         with self._events_ready:
             if epoch != self._events_epoch or not self.scope_is_current():
                 return
-            if len(self._events) >= _MAX_EVENTS:
-                # Keep a single coalesced gap at the dropped events' FIFO position.
-                last_kind, last_payload, last_epoch = self._events[-1]
-                if last_kind == 'capture_gap' and last_epoch == epoch:
-                    last_payload['count'] += 1
-                elif len(self._events) == _MAX_EVENTS:
-                    self._events.append(('capture_gap', {'count': 1}, epoch))
-                elif last_kind == 'capture_gap':
-                    self._events[-1] = ('capture_gap', {'count': 1}, epoch)
-                with self._condition:
-                    self._capture_gaps += 1
-                _LOG.warning('visual preference event queue full')
+            self._enqueue_event(kind, payload, epoch)
+
+    def exposure_token(self):
+        with self._events_ready:
+            return self._exposure_token if self.scope_is_current() else None
+
+    def close_exposures(self):
+        with self._events_ready:
+            self._exposure_token = None
+
+    def open_exposures(self):
+        """Start a fresh admission window for passive recording after OFF."""
+        with self._events_ready:
+            self._exposure_token = object()
+
+    def enqueue_exposure(self, payload, epoch, token):
+        with self._events_ready:
+            if token is None or token is not self._exposure_token or not self.scope_is_current():
                 return
-            self._events.append((kind, payload, epoch))
-            if self._event_thread is None:
-                thread = Thread(target=self._append_events, name='pv-visual-events', daemon=True)
-                try:
-                    thread.start()
-                except RuntimeError:
-                    self._events.pop()
-                    self._mark_gap(epoch)
-                    raise
-                self._event_thread = thread
+            self._enqueue_event('recommendation_exposure', payload, epoch)
+
+    def _enqueue_event(self, kind, payload, epoch):
+        if len(self._events) >= _MAX_EVENTS:
+            # Keep a single coalesced gap at the dropped events' FIFO position.
+            last_kind, last_payload, last_epoch = self._events[-1]
+            if last_kind == 'capture_gap' and last_epoch == epoch:
+                last_payload['count'] += 1
+            elif len(self._events) == _MAX_EVENTS:
+                self._events.append(('capture_gap', {'count': 1}, epoch))
+            elif last_kind == 'capture_gap':
+                self._events[-1] = ('capture_gap', {'count': 1}, epoch)
+            with self._condition:
+                self._capture_gaps += 1
+            _LOG.warning('visual preference event queue full')
+            return
+        self._events.append((kind, payload, epoch))
+        if self._event_thread is None:
+            thread = Thread(target=self._append_events, name='pv-visual-events', daemon=True)
+            try:
+                thread.start()
+            except RuntimeError:
+                self._events.pop()
+                self._mark_gap(epoch)
+                raise
+            self._event_thread = thread
 
     def _mark_gap(self, epoch, count=1):
         if epoch == self._events_epoch:
@@ -267,8 +291,16 @@ class VisualPreferenceWorker:
                     self._events_ready.notify_all()
                     return
                 kind, payload, epoch = self._events.popleft()
-                gaps = self._pending_gaps if epoch == self._events_epoch else 0
+                previous_epoch = self._events_epoch
             try:
+                if kind == 'recommendation_exposure' and self.store.capture_event_epoch() != epoch:
+                    continue
+                with self._events_ready:
+                    if (kind == 'recommendation_exposure' and epoch != previous_epoch
+                            and self._events_epoch == previous_epoch):
+                        self._events_epoch = epoch
+                        self._pending_gaps = 0
+                    gaps = self._pending_gaps if epoch == self._events_epoch else 0
                 if gaps:
                     self.store.append_event('capture_gap', {'count': gaps}, epoch)
                     with self._events_ready:

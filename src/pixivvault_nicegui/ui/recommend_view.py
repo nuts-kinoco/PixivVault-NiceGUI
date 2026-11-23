@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from base64 import b64encode
-from collections import deque
 from dataclasses import replace
 from uuid import uuid4
 from nicegui import background_tasks, core, ui
@@ -48,7 +47,6 @@ class RecommendView:
         self._action_bindings=[];self._render_generation=0
         self._media=None;self._selection_media=None;self._open_generation=0;self._opening=None
         self._visual_display=None;self._visual_shadow=None
-        self._visual_events=deque();self._visual_event_task=None
         self._author_browser=None
         self.client=ui.context.client
         self._card_actions=CardActions(services,lambda text:self.notice.set_text(text),lambda:self.active and not self.closed)
@@ -438,26 +436,11 @@ class RecommendView:
         if stamp is None or not self.active or self._visual_binding() is not visual:
             return
         try:
-            loop=asyncio.get_running_loop()
             if self._media is not None:
                 slate=self._media.check_saved_display_access(slate,slate)
-            payload=visual.exposure(slate)
-            if len(self._visual_events)>=128:
-                raise RuntimeError('recommendation exposure queue full')
-            self._visual_events.append((visual,payload,stamp[0]))
-            if self._visual_event_task is None:
-                self._visual_event_task=loop.create_task(self._write_visual_events())
+            visual.queue_exposure(visual.exposure(slate),stamp)
         except Exception as error:
             _LOG.warning('recommendation exposure could not be queued (%s)',type(error).__name__)
-
-    async def _write_visual_events(self):
-        try:
-            while self._visual_events:
-                visual,payload,epoch=self._visual_events.popleft()
-                await asyncio.to_thread(notify_shadow,visual.write_exposure,payload,epoch,
-                                        route='recommendation_exposure')
-        finally:
-            self._visual_event_task=None
 
     def _visual_unit_current(self, unit, registered):
         moved=tuple(slot for slot in unit.slots if slot.base!=slot.work)
@@ -578,7 +561,7 @@ class RecommendView:
         visual=self._visual_binding()
         # Bind the exposure before any projection, so a purge during this
         # draw cannot reclassify it as a post-purge event.
-        stamp=(notify_shadow(lambda:(visual.exposure_epoch(),),route='recommendation_exposure_epoch')
+        stamp=(notify_shadow(visual.exposure_stamp,route='recommendation_exposure_epoch')
                if visual is not None and self.active else None)
         try:
             visible=tuple(work for group in groups for work in group.works)
