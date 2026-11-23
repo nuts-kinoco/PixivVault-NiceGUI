@@ -67,10 +67,11 @@ def notify_action(message, *, type='info', important=False, within_dialog=None,
         install_focus_recovery(ui.context.client)
         return ui.notification(options={
             **options, 'message': str(message), 'type': type, 'position': 'bottom', 'timeout': 0,
+            'group': False,  # Quasar forbids updating a grouped notification (duplicate messages)
             'actions': [{'label': '閉じる', 'class': 'pv-hit28', ':handler': toast_dismiss_action(return_focus)}],
         }, on_dismiss=on_dismiss)
     if replaceable:
-        return ui.notification(message, type=type, **options)
+        return ui.notification(message, type=type, group=False, **options)
     ui.notify(message, type=type, **options)
 
 
