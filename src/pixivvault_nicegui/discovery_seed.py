@@ -17,13 +17,17 @@ TABLES = ('discovery_preference','discovery_author_preference','discovery_swipe_
 def _digest(path):
     with path.open('rb') as handle:return hashlib.file_digest(handle,'sha256').hexdigest()
 
-def read_seed(path, target):
+def _frozen_source(path):
     path=Path(path)
     if (not path.is_absolute() or path.resolve(strict=True)!=path or not path.is_file()
             or path.is_symlink() or path.is_junction() or path.stat().st_nlink!=1):
         raise ValueError('standalone regular legacy snapshot required')
     if any(Path(str(path)+suffix).exists() for suffix in ('-wal','-shm','-journal')):
         raise ValueError('legacy snapshot must be closed and standalone')
+    return path
+
+def read_seed(path, target):
+    path=_frozen_source(path)
     before=_digest(path)
     conn=sqlite3.connect(path.as_uri()+'?mode=ro&immutable=1',uri=True)
     conn.row_factory=sqlite3.Row
@@ -82,7 +86,8 @@ def seed_once(db, source):
     existing=db.conn.execute('SELECT payload FROM managed_discovery_seed WHERE id=1').fetchone()
     if existing:
         marker=json.loads(existing[0])
-        if source is not None and str(Path(source)).casefold()!=marker['source_path'].casefold():
+        # Each launch can publish the same source under a new owned filename.
+        if source is not None and _digest(_frozen_source(source))!=marker['source_sha256']:
             raise ValueError('managed discovery was already seeded from another source')
         return marker
     if source is None:return None
