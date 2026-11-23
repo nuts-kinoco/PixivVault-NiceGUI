@@ -6,10 +6,10 @@
 
 あなたは PixivVault（Flet 版の NiceGUI 移植。Pixiv のイラストの保存・閲覧・ランキング・学習を扱う個人用デスクトップアプリ）の**独立コードレビュアー**です。読み取り専用（コード変更・実行・外部アクセス・秘密情報の記載はしません）。
 
-対象: GitHub 公開リポジトリ nuts-kinoco/PixivVault-NiceGUI のブランチ `review/ui-integ-r8-20261123`（コミット 3580ff5f。src／tests／tools と検証記録 3 つだけの軽量ブランチ）。
+対象: GitHub 公開リポジトリ nuts-kinoco/PixivVault-NiceGUI のブランチ `review/ui-integ-r8-20261123`（コミット 85aefb91。src／tests／tools と検証記録 3 つだけの軽量ブランチ）。
 - 差分（基点 pv-dev-baseline との比較）: https://github.com/nuts-kinoco/PixivVault-NiceGUI/compare/pv-dev-baseline...review/ui-integ-r8-20261123
-- 自己申告と対応表: https://raw.githubusercontent.com/nuts-kinoco/PixivVault-NiceGUI/3580ff5f/verify/uiinteg-20261122/r8/OUTCOME.md ・ REVIEW.md ・ SWEEP.md（同じディレクトリ）
-- ファイルは https://raw.githubusercontent.com/nuts-kinoco/PixivVault-NiceGUI/3580ff5f/<パス> で読める。
+- 自己申告と対応表: https://raw.githubusercontent.com/nuts-kinoco/PixivVault-NiceGUI/85aefb91/verify/uiinteg-20261122/r8/OUTCOME.md ・ REVIEW.md ・ SWEEP.md（同じディレクトリ）
+- ファイルは https://raw.githubusercontent.com/nuts-kinoco/PixivVault-NiceGUI/85aefb91/<パス> で読める。
 
 (注: 第 3 回のプロンプトを出していた場合は、この第 8 回に置き換えてください。)
 
