@@ -608,14 +608,20 @@ class RecommendView:
                             'outline data-testid=recommend-go-learning')
                 self._record_visual(visual,slate,stamp)
                 return
+            def _shelf_populated(shelf_kind):
+                shelf_groups=data['sections'].get(shelf_kind,())
+                return bool((data.get('trends',()) if shelf_kind=='trend' else ())
+                            or any(group.works for group in shelf_groups)
+                            or shelf_kind == 'trend_added' and data.get('added_tags')
+                            or shelf_kind == 'boosted' and data.get('boosted'))
+            # When nothing is populated the empty-state messages must stay in the page, not only in settings.
+            any_populated = any(_shelf_populated(shelf_kind) for shelf_kind in data['order'])
             for kind in data['order']:
                 groups=data['sections'].get(kind,())
                 trends=data.get('trends',()) if kind=='trend' else ()
                 # Keep empty shelf controls available without placing them before the first card.
-                populated = (trends or any(group.works for group in groups)
-                             or kind == 'trend_added' and data.get('added_tags')
-                             or kind == 'boosted' and data.get('boosted'))
-                shelf_host = self.body if populated or kind in data['collapsed'] else self.empty_shelves
+                populated = _shelf_populated(kind)
+                shelf_host = self.body if populated or kind in data['collapsed'] or not any_populated else self.empty_shelves
                 with shelf_host, ui.column().classes('pv-recommend-shelf w-full').props(f'data-testid=recommend-section-{kind}'):
                     with ui.row().classes('pv-recommend-shelf-header items-center w-full gap-1'):
                         ui.label(LABELS[kind]).classes('pv-library-heading pv-serif-heading')

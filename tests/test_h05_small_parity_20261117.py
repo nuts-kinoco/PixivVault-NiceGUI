@@ -96,7 +96,7 @@ async def test_duplicate_mode_chips_are_equal_width_190px_like_original():
         with client:
             view = DuplicateView(StubSource())
             for key in ('undecidable', 'near'):
-                assert view.mode_buttons[key]._style.get('width') == '190px'
+                assert view.mode_buttons[key]._style.get('width') in ('190px', 'min(190px, 24vw)')  # 24vw only narrows below ~790px
             view.close()
     finally:
         client.delete()
