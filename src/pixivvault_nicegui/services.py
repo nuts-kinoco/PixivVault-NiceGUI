@@ -1257,13 +1257,17 @@ class ApplicationServices:
             self.extension_bridge_status = 'in_use' if isinstance(error, PortInUse) else 'unavailable'
 
     def _configure_request_preferences(self):
-        from .request_policy import RequestAdmission, RequestRetryPolicy
+        from .request_policy import RequestAdmission, RequestRetryPolicy, check_request_notice_gates
         from .preferences import RequestPreferences
         admission = RequestAdmission(lambda: float(self.preferences.get_setting('download_interval', '0.6'))
                                      if self.preferences is not None else 0.6)
         self._request_admission = admission
-        self._request_retry = RequestRetryPolicy(lambda: RequestPreferences.from_store(self.preferences)
-                                                if self.preferences is not None else RequestPreferences(0.6,3,5.0))
+        scope = self.managed_network_stop
+        self._request_retry = RequestRetryPolicy(
+            lambda: RequestPreferences.from_store(self.preferences)
+            if self.preferences is not None else RequestPreferences(0.6, 3, 5.0),
+            check_gate=(lambda: check_request_notice_gates(scope)) if scope is not None else None,
+        )
         readers = (self.live_client, getattr(self.novel_fixture_source, '_reader', None),
                    getattr(self.ugoira_source, 'reader', None))
         for reader in readers:

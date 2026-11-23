@@ -1,6 +1,8 @@
 """Read-only author overlay using the existing gallery and image pin owner."""
 import asyncio
 from nicegui import ui
+
+from .management_dialog import dismiss_focus_js, remember_focus
 from ..viewer_metadata import read_author
 from ..state import GalleryState
 from .gallery import GalleryView
@@ -84,7 +86,8 @@ class AuthorBrowseView:
                 ui.space()
                 self.follow_actions = PixivActionButtons(services, prefix='author-browse')
                 self.follow_actions.bookmark.set_visibility(False)
-                ui.button('閉じる', on_click=self.hide).props('flat data-testid=author-browse-close')
+                close = ui.button('閉じる').props('flat data-testid=author-browse-close')
+                close.on('click', self.hide, js_handler=dismiss_focus_js(self.root))
             self.status = ui.label().props('role=status data-testid=author-browse-status')
             self.retry = ui.button('再取得').props('flat data-testid=author-browse-retry')
             self.retry.on('click', self._retry_clicked, js_handler=f"""() => {{
@@ -141,6 +144,7 @@ class AuthorBrowseView:
             self.author_download.set_active(True)
         self.root.props['data-author-id'] = author_id
         self.root.props['data-author-epoch'] = str(epoch)
+        remember_focus(self.root)
         self.root.classes(remove='hidden')
         self.title.set_text(f'{name} ({author_id})')
         self.retry.set_visibility(False)

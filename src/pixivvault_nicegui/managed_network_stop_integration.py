@@ -18,7 +18,7 @@ from .managed_downloads import (
 )
 from .managed_network_stop_gate import (
     ManagedNetworkGateBusy, ManagedNetworkGateStorageError, ManagedNetworkStopped,
-    ManagedNetworkStopGate,
+    ManagedNetworkStopGate, _report_stop_authority,
 )
 from .managed_network_stop_reader import create_exact_managed_read_client
 from .job_service import JobAdmissionDeferred
@@ -80,7 +80,10 @@ class ManagedNetworkStopIntegration:
         and ugoira can issue remote reads under other kind names.
         """
         try:
-            return not self.gate.snapshot().blocked
+            self.gate.require_allowed()
+            return True
+        except ManagedNetworkStopped:
+            return False
         except ManagedNetworkGateBusy:
             # A concurrent GET has not completed, and may still latch a fatal
             # response. A queued job stays queued until admission can observe
@@ -89,6 +92,5 @@ class ManagedNetworkStopIntegration:
 
     def require_allowed(self) -> None:
         """Scheduler admission checkpoint before any author's remote preview."""
-        state = self.gate.snapshot()
-        if state.blocked:
-            raise ManagedNetworkStopped(state.status_code)
+        with _report_stop_authority('local'):
+            self.gate.require_allowed()

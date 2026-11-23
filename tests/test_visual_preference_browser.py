@@ -1,5 +1,8 @@
 """Keyboard, focus and contrast checks on the real settings panel."""
+import os
 from pathlib import Path
+import subprocess
+import sys
 from threading import Thread
 from time import monotonic, sleep
 from types import SimpleNamespace
@@ -7,13 +10,32 @@ from types import SimpleNamespace
 import pytest
 
 
-def test_visual_settings_dialog_keyboard_and_contrast(tmp_path, monkeypatch):
-    # NiceGUI 3.x reads this port under pytest; port 0 lets the OS pick a free one.
-    monkeypatch.setenv('NICEGUI_SCREEN_TEST_PORT', '0')
-    quiet = Path(r'S:\Work\_tmp\PV\sup\D6_QUIET.flag')
-    if quiet.is_file():
+QUIET = Path(r'S:\Work\_tmp\PV\sup\D6_QUIET.flag')
+
+
+class QuietWindow(Exception):
+    pass
+
+
+def test_visual_settings_dialog_keyboard_and_contrast(tmp_path):
+    if QUIET.is_file():
         pytest.skip('D6 quiet window')
-    playwright = pytest.importorskip('playwright.sync_api')
+    pytest.importorskip('playwright.sync_api')
+    # The assembled UI test owns a NiceGUI app, event loop and routing table.
+    result = subprocess.run(
+        [sys.executable, '-B', str(Path(__file__).resolve()), str(tmp_path)],
+        cwd=tmp_path, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=120,
+        env=os.environ | {'NICEGUI_SCREEN_TEST_PORT': '0', 'PYTHONUTF8': '1',
+                          'NICEGUI_STORAGE_PATH': str(tmp_path / 'nicegui'),
+                          'TEMP': str(tmp_path), 'TMP': str(tmp_path)},
+    )
+    if result.returncode == 75:
+        pytest.skip('D6 quiet window')
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def _exercise_visual_settings(tmp_path):
+    from playwright import sync_api as playwright
     from nicegui import app, ui
     from nicegui.server import Server
     from pixivvault_nicegui.services import ApplicationServices
@@ -45,8 +67,8 @@ def test_visual_settings_dialog_keyboard_and_contrast(tmp_path, monkeypatch):
                                           show_welcome_message=False))
     started = False
     try:
-        if quiet.is_file():
-            pytest.skip('D6 quiet window')
+        if QUIET.is_file():
+            raise QuietWindow
         server.start()
         started = True
         deadline = monotonic() + 10
@@ -60,13 +82,17 @@ def test_visual_settings_dialog_keyboard_and_contrast(tmp_path, monkeypatch):
         port = Server.instance.servers[0].sockets[0].getsockname()[1]
         origin = f'http://127.0.0.1:{port}'
         with playwright.sync_playwright() as runtime:
-            if quiet.is_file():
-                pytest.skip('D6 quiet window')
+            if QUIET.is_file():
+                raise QuietWindow
             context = runtime.chromium.launch_persistent_context(
                 str(tmp_path / 'browser'), channel='msedge', headless=True,
-                args=['--disable-background-networking'], viewport={'width': 1280, 'height': 800})
+                args=['--disable-background-networking', '--no-proxy-server',
+                      '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1'],
+                viewport={'width': 1280, 'height': 800})
             try:
                 context.route('**/*', lambda req: req.continue_() if req.request.url.startswith(origin + '/') else req.abort())
+                context.route_web_socket('**/*', lambda route: route.connect_to_server()
+                                         if route.url.startswith('ws' + origin[4:] + '/') else route.close())
                 page = context.pages[0]
                 page.goto(origin + route)
                 for mode in ('dark', 'light'):
@@ -85,7 +111,12 @@ def test_visual_settings_dialog_keyboard_and_contrast(tmp_path, monkeypatch):
                     page.keyboard.press('Enter')
                     modal = page.get_by_test_id('preferences-visual-clear-dialog')
                     playwright.expect(modal).to_be_visible()
-                    playwright.expect(page.get_by_test_id('preferences-visual-clear-cancel')).to_be_focused()
+                    cancel = page.get_by_test_id('preferences-visual-clear-cancel')
+                    playwright.expect(cancel).to_be_focused()
+                    page.keyboard.press('Shift+Tab')
+                    playwright.expect(page.get_by_test_id('preferences-visual-clear-confirm')).to_be_focused()
+                    page.keyboard.press('Tab')
+                    playwright.expect(cancel).to_be_focused()
                     page.keyboard.press('Escape')
                     playwright.expect(modal).to_be_hidden()
                     playwright.expect(clear).to_be_focused()
@@ -127,3 +158,14 @@ _CONTRAST = r"""element => {
     const values = [luminance(foreground), luminance(background)];
     return (Math.max(...values) + .05) / (Math.min(...values) + .05);
 }"""
+
+
+if __name__ == '__main__':
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from tools.check_library_calendar_slider_owned import deny_external_connections
+
+    deny_external_connections()
+    try:
+        _exercise_visual_settings(Path(sys.argv[1]))
+    except QuietWindow:
+        sys.exit(75)

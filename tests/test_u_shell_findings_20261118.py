@@ -171,7 +171,7 @@ def test_failed_list_colors_come_from_theme_tokens():
     css = re.search(r'\.pv-failure-chips.*?"""', source, re.S).group(0)
     assert re.search(r'\.pv-failure-reason\s*\{[^}]*color:var\(--pv-muted\)', css)
     assert re.search(r'\.pv-failure-meta\s*\{[^}]*color:var\(--pv-text\)', css)
-    assert re.search(r'aria-pressed=true\]\s*\{[^}]*background:var\(--pv-fill\)[^}]*color:var\(--pv-on-fill\)', css)
+    assert re.search(r'aria-pressed=true\]\s*\{[^}]*background:var\(--pv-fill\)[^}]*color:var\(--pv-action-text\)', css)
 
 
 def test_duplicate_selected_buttons_do_not_carry_the_primary_text_class():

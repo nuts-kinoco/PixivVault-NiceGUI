@@ -1,0 +1,6 @@
+frozen_non_ui_source_diff=0
+source_ui_changed=src/pixivvault_nicegui/ui/native_profile_view.py,src/pixivvault_nicegui/ui/request_status_view.py
+inventory=309 issues=0
+classes={"gated":214,"non-network":54,"local":25,"manual":16}
+second_parent=35857c068d6deb7aad772159b014da8d4027e22f
+p6_eol=i/lf    w/lf    attr/                 	tools/p6_network_review.json

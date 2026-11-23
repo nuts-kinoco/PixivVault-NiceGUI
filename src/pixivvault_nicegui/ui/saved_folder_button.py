@@ -5,6 +5,8 @@ from uuid import uuid4
 
 from nicegui import ui
 
+from .action_controls import notify_action
+
 from ..desktop_integration import DesktopActionRejected, DesktopUnavailable
 
 
@@ -99,11 +101,11 @@ class SavedFolderButton:
         except (DesktopActionRejected, DesktopUnavailable) as error:
             if current():
                 with self.client:
-                    ui.notify(str(error), type='warning')
+                    notify_action(str(error), type='warning', important=True)
         except Exception:
             if current():
                 with self.client:
-                    ui.notify('保存先を開けませんでした。もう一度明示的に選択してください。', type='warning')
+                    notify_action('保存先を開けませんでした。もう一度明示的に選択してください。', type='warning', important=True)
         finally:
             if current():
                 self.busy = False

@@ -6,6 +6,8 @@ from collections import deque
 from pathlib import Path
 from threading import Event
 from nicegui import ui
+
+from .management_dialog import managed_dialog
 from .action_controls import danger_button, dialog_actions, dialog_card, outlined_input, outlined_select, primary_button, secondary_button
 from ..managed_stop_migration import MigrationRejected, MigrationResult
 
@@ -38,9 +40,14 @@ class StopMigrationView:
         self.cancel_event = Event()
         self.events = deque()
         self.epoch = 0
-        with ui.dialog().props('persistent data-testid=stop-migration-dialog') as self.dialog:
-            with dialog_card('停止履歴を引き継ぐ', size='lg',
-                             subtitle='以前の保存元を確認し、停止履歴を共通の所有情報へ引き継ぎます。通信や認証は行いません。'):
+        with managed_dialog().props('persistent no-shake data-testid=stop-migration-dialog') as self.dialog:
+            # QSelect handles Escape on keyup before the enclosing dialog.
+            self.dialog.on('keyup.esc.stop', self.dismiss)
+            with dialog_card(size='lg', classes='pv-settings-modal'):
+                title = ui.label('停止履歴を引き継ぐ').classes('pv-dialog-title').props(
+                    'role=heading aria-level=1 tabindex=-1 data-autofocus')
+                self.dialog.props['aria-labelledby'] = title.html_id
+                ui.label('以前の保存元を確認し、停止履歴を共通の所有情報へ引き継ぎます。通信や認証は行いません。').classes('pv-subtitle')
                 self.step = ui.label('1 保存元 / 2 内容を確認 / 3 移行結果').classes('pv-field-hint')
                 with ui.column().classes('pv-migration-section'):
                     ui.label('1. 以前使った保存元をすべて追加').classes('pv-section-heading pv-serif-heading')
@@ -48,7 +55,7 @@ class StopMigrationView:
                              '旧ライブラリの画像そのものやCookieを指定する必要はありません。').classes('pv-subtitle')
                     with ui.element('div').classes('pv-settings-fields'):
                         self.kind = outlined_select(KINDS, value='images', label='保存元の種類').props('data-testid=migration-kind')
-                        self.path = outlined_input('保存元フォルダの絶対パス').props('data-testid=migration-path')
+                        self.path = outlined_input('保存元フォルダの絶対パス').props('data-testid=migration-path input-class=pv-focus-ring')
                     with ui.row().classes('pv-toolbar pv-compact-toolbar'):
                         self.pick_button = secondary_button('フォルダを選ぶ', self.choose, testid='migration-pick')
                         self.pick_button.set_enabled(pick_folder is not None)
@@ -63,18 +70,20 @@ class StopMigrationView:
                              '停止履歴があれば、移行後も停止を維持します。').classes('pv-subtitle')
                     self.confirm = ui.checkbox(
                         '以前使ったすべての保存元を上の一覧に含め、対象と内容を確認しました。',
-                        value=False, on_change=self.sync).props('dense data-testid=migration-confirm')
+                        value=False, on_change=self.sync).props('dense data-testid=migration-confirm').classes('pv-hit28')
                     with dialog_actions():
                         self.run_button = danger_button('確認した内容で正式移行を実行', self.execute, testid='migration-execute')
                 with ui.column().classes('pv-migration-section'):
                     ui.label('3. 移行結果').classes('pv-section-heading pv-serif-heading')
                     self.status = ui.label('移行はまだ始まっていません。').props('role=status aria-live=polite data-testid=migration-status')
-                    self.bar = ui.linear_progress(value=0).classes('w-full')
+                    self.bar = ui.linear_progress(value=0, size='20px', show_value=False).classes('w-full').props('aria-label=移行の進捗')
+                    with self.bar:
+                        ui.label().classes('absolute-center pv-migration-progress-value').bind_text_from(self.bar, 'value')
                     self.results = ui.column().classes('w-full gap-1 pv-migration-scroll pv-compact-status')
                 with dialog_actions():
                     self.recover_button = secondary_button('中断した移行を確認', self.recover, testid='migration-recover')
                     self.cancel_button = secondary_button('中止する', self.cancel, testid='migration-cancel', outline=True)
-                    self.close_button = secondary_button('閉じる', self.dialog.close, testid='migration-close')
+                    self.close_button = secondary_button('閉じる', self.dismiss, testid='migration-close')
                 self.timer = ui.timer(0.15, self.drain)
         ui.context.client.on_delete(self.close)
         self.sync()
@@ -82,6 +91,10 @@ class StopMigrationView:
     def open(self):
         if not self.closed:
             self.dialog.open()
+
+    def dismiss(self):
+        if not self.closed and not self.busy:
+            self.dialog.close()
 
     def sync(self, *_):
         if self.closed: return

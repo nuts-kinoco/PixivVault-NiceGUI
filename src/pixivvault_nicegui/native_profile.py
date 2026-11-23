@@ -7,11 +7,13 @@ module unless their launcher explicitly opts in.
 """
 from __future__ import annotations
 
-from contextlib import closing, contextmanager
+from contextlib import contextmanager
 from dataclasses import dataclass
 import os
 import re
 from pathlib import Path
+
+from .gate_refusal_state import record_gate_refusal
 import sqlite3
 import stat
 from threading import RLock
@@ -103,6 +105,7 @@ def _assert_chain(path: Path, *, kind: str = 'directory') -> None:
         except FileNotFoundError:
             continue
         except OSError:
+            record_gate_refusal("local")
             raise NativeProfileError('選択先を確認できません。') from None
         if (stat.S_ISLNK(info.st_mode) or
                 getattr(info, 'st_file_attributes', 0) & 0x400):
@@ -137,6 +140,7 @@ def _owned_marker(root: Path, marker: str, identity: bytes) -> None:
                 path.read_bytes() != identity):
             raise NativeProfileError('このフォルダは新アプリ専用領域ではありません。')
     except OSError:
+        record_gate_refusal("local")
         raise NativeProfileError('専用領域の所有情報を確認できません。') from None
 
 
@@ -397,16 +401,33 @@ class NativeProfileStore:
             raise NativeProfileError('専用profileを読み込めませんでした。旧設定は変更していません。')
         # A copied/in-flight SQLite file with WAL/journal sidecars cannot be
         # treated as a complete immutable snapshot. --check never recovers it.
-        if any(Path(str(path) + suffix).exists() or
-               Path(str(path) + suffix).is_symlink()
-               for suffix in ('-wal', '-shm', '-journal')):
-            raise NativeProfileError('profileの読取専用状態を確認できませんでした。')
+        from .fs_paths import path_entry_exists
         try:
-            with closing(sqlite3.connect(sqlite_readonly_uri(path, immutable=True),
-                                         uri=True, timeout=4)) as connection:
+            pending = any(path_entry_exists(Path(str(path) + suffix))
+                          for suffix in ('-wal', '-shm', '-journal'))
+        except OSError:
+            record_gate_refusal("local")
+            pending = True
+        if pending:
+            raise NativeProfileError('profileの読取専用状態を確認できませんでした。')
+        from .managed_network_stop_gate import (
+            ManagedNetworkGateStorageError, _attach_gate_cleanup, _carry_gate_cleanup, _gate_cleanup,
+        )
+        try:
+            connection = sqlite3.connect(sqlite_readonly_uri(path, immutable=True), uri=True, timeout=4)
+            with _gate_cleanup(connection.close, 'native profile database close failed', authority='local'):
                 return cls._read_row(connection, folder)
-        except Exception:
-            raise NativeProfileError('専用profileを読み込めませんでした。旧設定は変更していません。') from None
+        except Exception as error:
+            record_gate_refusal("local")
+            failure = NativeProfileError('専用profileを読み込めませんでした。旧設定は変更していません。')
+            if isinstance(error, ManagedNetworkGateStorageError):
+                _attach_gate_cleanup(failure, error)
+            raise _carry_gate_cleanup(error, failure) from None
+
+    @property
+    def cookie_selection_configured(self) -> bool:
+        # UI route eligibility only. Admission re-reads the owned profile.
+        return self._cookie_selection_configured
 
     def snapshot(self) -> NativeProfileSnapshot:
         with self._lock:
@@ -416,8 +437,10 @@ class NativeProfileStore:
                 self._connection.execute('BEGIN')
                 result = self._row()
                 self._connection.execute('COMMIT')
+                self._cookie_selection_configured = result.cookie_file is not None
                 return result
             except Exception:
+                record_gate_refusal('local')
                 self._connection.execute('ROLLBACK')
                 raise NativeProfileError('profileを読み込めませんでした。旧設定は保持しています。') from None
 
@@ -450,6 +473,7 @@ class NativeProfileStore:
                 _check_config(candidate, self.root, live_paths=True, legacy_live_paths=not cookie_only)
                 if candidate == previous:
                     self._connection.execute('COMMIT')
+                    self._cookie_selection_configured = previous.cookie_file is not None
                     return previous
                 self._connection.execute('''UPDATE native_profile_state SET revision=?,
                     cookie_file=?,save_parent=?,library_readonly_db=?,library_image_root=? WHERE id=1''',
@@ -496,6 +520,7 @@ class NativeProfileStore:
                     if self._connection.execute('SELECT COUNT(*) FROM native_cookie_adoptions').fetchone()[0] > 64:
                         raise NativeProfileError('Cookie adoption rejected')
                 self._connection.execute('COMMIT')
+                self._cookie_selection_configured = candidate.cookie_file is not None
                 return NativeProfileSnapshot(expected_revision+1, candidate.cookie_file,
                     candidate.save_parent, candidate.library_readonly_db,candidate.library_image_root,
                     candidate.similarity_model_file,candidate.similarity_provider,candidate.similarity_auto)

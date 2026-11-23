@@ -1,0 +1,21 @@
+S:/Projects/PixivVault-NiceGUI/.venv/Scripts/python.exe -B -m pytest -p no:cacheprovider -p required_network_guard -k "not dpapi" --basetemp "S:/Work/_tmp/PV/ui-integ/r8/pytest-full-isolated-windows-r8" --tb=short -ra
+
+PYTHONPATH=sitecustomize isolation + candidate src + candidate tests. TEMP, TMP, APPDATA,
+LOCALAPPDATA and NiceGUI storage are under S:/Work/_tmp/PV/ui-integ/r8.
+PYTHONIOENCODING is unset. PYTHONUTF8=1 is used for log readability.
+Playwright uses isolated Chromium-family headless contexts and offline fixtures.
+The invocation runs directly under the PowerShell PID and birth timestamp in STATE_*.txt.
+
+Targets: test_ui_common_browser.py::test_request_wait_announces_other_state_changes_r8
+and test_ui_fix2_dialogs_browser.py::test_closed_settings_stop_own_request_watch_r8.
+Related: tests/test_fix_notice*.py, test_ui_common_browser.py,
+test_ui_fix2_dialogs_browser.py, test_ui_fix3_browser.py, test_ui_fix4_20261122.py,
+and test_p6_network.py. Targets and related use the same guard and a separate basetemp.
+
+
+Focused rechecks: test_ui_fix4_20261122.py, same guard and basetemp policy.
+An isolated test-only sitecustomize override for focus-chromium[-final] replaced
+channel='msedge' with Playwright BrowserType.executable_path and kept launch
+options, isolated profiles and network routing.
+The focus-geometry[-green] probe used an external pytest plugin to read viewport
+and DOM rectangles at assertion points in the normal test module.

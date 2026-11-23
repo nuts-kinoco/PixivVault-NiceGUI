@@ -13,7 +13,9 @@ from nicegui import ui
 
 from ..job_service import UNFINISHED
 from ..job_failure import job_failure_text
+from .action_controls import danger_button
 from .download_status_details import DownloadStatusDetails
+from .management_dialog import focus_after_dialog, managed_dialog
 
 
 LABELS = {"queued": "待機中", "running": "実行中", "paused": "一時停止",
@@ -313,7 +315,7 @@ class QueueView:
                     self.refresh_button.tooltip("リスト更新")
                     self.refresh_button.on_click(lambda: self.refresh())
                 else:
-                    with ui.column().classes("gap-0").props(
+                    with ui.column().classes("gap-0 pv-focus-ring").props(
                             'tabindex=0 role=button aria-label=ログ表示切替 data-testid=queue-heading') as self.queue_heading:
                         ui.label("現在のジョブ（アプリ連携）").classes("pv-library-heading pv-serif-heading")
                         ui.label(f"{int(self.REFRESH_INTERVAL_SECONDS)}秒毎に自動更新").classes("pv-subtitle").style(
@@ -336,7 +338,7 @@ class QueueView:
                             js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
                         self.chips[state] = button
                 with ui.row().classes("w-full items-center gap-2") as self.selection_toolbar:
-                    self.select_mode_button = ui.button("選択", color=None).props("flat data-testid=queue-select-mode")
+                    self.select_mode_button = ui.button("選択", color=None).classes('pv-focus-ring').props("flat data-testid=queue-select-mode")
                     self.select_all_button = ui.button("この絞り込みの全件を選ぶ", color=None).props("flat data-testid=queue-select-all")
                     self.select_clear_button = ui.button("選択を終了", color=None).props("flat data-testid=queue-select-clear")
                     self.bulk_delete_button = ui.button("まとめて削除", color=None).props("flat data-testid=queue-bulk-delete")
@@ -562,14 +564,15 @@ class QueueView:
         with self.root:
             host = ui.element("div").classes("pv-job-dialog-anchor").style("display:none")
         with host:
-            with ui.dialog() as dialog, ui.card():
-                ui.label(f"選択した {len(frozen)} 件のジョブ履歴を削除しますか？")
+            with managed_dialog(focus_after_update=True).props("transition-duration=150") as dialog, ui.card() as card:
+                heading = ui.label(f"選択した {len(frozen)} 件のジョブ履歴を削除しますか？")
+                dialog.props["aria-labelledby"] = heading.html_id
                 ui.label("この履歴削除は取り消せません。実行中のジョブは停止します。")
                 ui.label("保存済みファイルは削除しません")
                 with ui.row():
-                    ui.button("キャンセル", on_click=lambda: dialog.submit(False)).props("flat")
-                    ui.button("削除する", on_click=lambda: dialog.submit(True)).props(
-                        "flat data-testid=queue-bulk-delete-confirm")
+                    ui.button("キャンセル", on_click=lambda: dialog.submit(False)).classes('pv-focus-ring').props("flat autofocus")
+                    danger_button("削除する", lambda: dialog.submit(True), testid='queue-bulk-delete-confirm')
+
         try:
             confirmed = await dialog
         finally:
@@ -579,6 +582,9 @@ class QueueView:
                 host.delete()
         if confirmed and self._selection_valid(event.args.get("epoch"), selection_revision):
             await self.bulk("delete", event.args.get("epoch"), selection_revision, frozen)
+        if not self.closed and self.active:
+            focus_after_dialog(self.client, f'#{self.bulk_delete_button.html_id}',
+                               f'#{self.select_mode_button.html_id}')
 
     async def bulk(self, action, epoch=None, selection_revision=None, frozen=None):
         service = self.services.jobs
@@ -654,20 +660,22 @@ class QueueView:
                     display_title = self._managed_job_author_names.get(job.job_id) or display_title
                     with ui.row().classes("pv-job-head w-full items-center"):
                         title = ui.label(display_title).classes("pv-job-title")
+                        title.props["title"] = display_title
                         state = ui.label().classes("pv-job-state").props("data-testid=job-state")
                         with state:
                             tooltip = ui.tooltip().props("data-testid=job-error-tooltip")
                         count = ui.label().classes("pv-counter pv-job-progress-count").props(
                             "data-testid=job-progress")
-                        target = ui.label(
-                            "うごイラ保存ジョブ" if job.kind.startswith("ugoira-") else display_target
-                        ).classes("pv-subtitle pv-job-id-seat")
+                        target_text = "うごイラ保存ジョブ" if job.kind.startswith("ugoira-") else display_target
+                        target = ui.label(target_text).classes("pv-subtitle pv-job-id-seat")
+                        target.props["title"] = target_text
                         buttons = {}
                         with ui.row().classes("pv-job-actions"):
                             for action in (("retry", "delete") if self.failed_only else
                                            ("pause", "resume", "stop", "delete")):
-                                button = ui.button(ACTION_LABELS[action], color=None).props(
+                                button = ui.button(ACTION_LABELS[action], color=None).classes('pv-hit28').props(
                                     f"flat dense no-caps data-testid=job-{action} data-action={action} data-job-id={job.job_id}")
+                                button.style("font-size:11px")
                                 button.on("click", self._action_event, js_handler=f"""event => {{
                                     const button = event.currentTarget;
                                     emit({{id:button.dataset.jobId, action:button.dataset.action,
@@ -677,7 +685,7 @@ class QueueView:
                                            viewGeneration:'{self.view_generation}'}});
                                 }}""")
                                 buttons[action] = button
-                    result = ui.label().classes("pv-subtitle pv-job-result").props(
+                    result = ui.label().classes("pv-subtitle pv-job-result").style("font-size:11px").props(
                         "data-testid=job-save-result")
                     result.set_visibility(False)
                     progress = ui.linear_progress(value=0, show_value=False).classes(
@@ -771,7 +779,11 @@ class QueueView:
             # Accepted author metadata can arrive after the job snapshot. Keep
             # the row DOM/scroll stable, but refresh its visible name and ID.
             row["title"].set_text(display_title)
+            row["title"].props["title"] = display_title
+            row["title"].update()
             row["target"].set_text(display_target)
+            row["target"].props["title"] = display_target
+            row["target"].update()
             row["root"].props["data-state"] = job.state
             row["root"].update()
             row["status_icon"].props["name"] = JOB_ICONS.get(job.state, "help_outline")
@@ -870,13 +882,14 @@ class QueueView:
             with self.root:
                 host = ui.element("div").classes("pv-job-dialog-anchor").style("display:none")
             with host:
-                with ui.dialog() as dialog, ui.card():
-                    ui.label("ジョブを削除して未完了の処理を停止しますか？")
+                with managed_dialog(focus_after_update=True).props("transition-duration=150") as dialog, ui.card() as card:
+                    heading = ui.label("ジョブを削除して未完了の処理を停止しますか？")
+                    dialog.props["aria-labelledby"] = heading.html_id
                     ui.label("保存済みファイルは削除しません").classes("pv-subtitle")
                     with ui.row():
-                        ui.button("キャンセル", color=None, on_click=lambda: dialog.submit(False)).props("flat")
-                        ui.button("削除する", color=None, on_click=lambda: dialog.submit(True)).props(
-                            "flat data-testid=job-delete-confirm")
+                        ui.button("キャンセル", color=None, on_click=lambda: dialog.submit(False)).classes('pv-focus-ring').props("flat autofocus")
+                        danger_button("削除する", lambda: dialog.submit(True), testid='job-delete-confirm')
+
             try:
                 confirmed = await dialog
             finally:
@@ -884,8 +897,14 @@ class QueueView:
                     dialog.delete()
                 if not host.is_deleted:
                     host.delete()
-            if not confirmed or not self._valid(data.get("epoch")):
-                return
+            if confirmed and self._valid(data.get("epoch")):
+                await self.command(job_id, action, revision, data.get("epoch"), control_revision)
+            if not self.closed and self.active:
+                row = self.rows.get(job_id)
+                opener = (f'#{row["buttons"]["delete"].html_id}',) if row is not None else ()
+                fallback = f'#{self.search_input.html_id} input' if self.failed_only else f'#{self.select_mode_button.html_id}'
+                focus_after_dialog(self.client, *opener, fallback, f'#{self.search_input.html_id} input')
+            return
         await self.command(job_id, action, revision, data.get("epoch"), control_revision)
 
     async def command(self, job_id, action, revision=None, epoch=None, control_revision=None):

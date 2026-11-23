@@ -1,0 +1,293 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\ui-integ-20261122
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 1132 items
+
+tests\test_fix_notice_20261122.py .................                      [  1%]
+tests\test_fix_notice_review_20261122.py ..........                      [  2%]
+tests\test_fix_notice_round10_20261122.py ..................             [  3%]
+tests\test_fix_notice_round11_20261122.py ...................            [  5%]
+tests\test_fix_notice_round12_20261122.py ...........................    [  8%]
+tests\test_fix_notice_round13_20261122.py .......................        [ 10%]
+tests\test_fix_notice_round14_20261122.py ...............                [ 11%]
+tests\test_fix_notice_round15_20261122.py ....................           [ 13%]
+tests\test_fix_notice_round16_20261122.py .........                      [ 13%]
+tests\test_fix_notice_round4_20261122.py ............................... [ 16%]
+........................................................................ [ 23%]
+........................................................................ [ 29%]
+........................................................................ [ 35%]
+........................................................................ [ 42%]
+..........................................................               [ 47%]
+tests\test_fix_notice_round5_20261122.py ........................        [ 49%]
+tests\test_fix_notice_round6_20261122.py ............................... [ 52%]
+..............................................                           [ 56%]
+tests\test_fix_notice_round7_20261122.py ............................... [ 58%]
+........................................................................ [ 65%]
+........................................................................ [ 71%]
+..                                                                       [ 71%]
+tests\test_fix_notice_round8_20261122.py ..............................  [ 74%]
+tests\test_fix_notice_round8_known_outcomes_20261122.py ......           [ 75%]
+tests\test_fix_notice_round9_20261122.py ............................... [ 77%]
+......................                                                   [ 79%]
+tests\test_fix_notice_sweep_20261122.py ................................ [ 82%]
+.................                                                        [ 84%]
+tests\test_ui_common_browser.py ........................................ [ 87%]
+...............................                                          [ 90%]
+tests\test_ui_fix2_dialogs_browser.py .................................. [ 93%]
+.............                                                            [ 94%]
+tests\test_ui_fix3_browser.py ........................                   [ 96%]
+tests\test_ui_fix4_20261122.py .....................FFF........          [ 99%]
+tests\test_p6_network.py .......                                         [100%]
+
+================================== FAILURES ===================================
+___ test_r6_recreated_card_is_visible_when_focus_returns[covered-bookmarks] ___
+
+library_browser = (<BrowserContext browser=<Browser type=<BrowserType name=chromium executable_path=C:\Users\nat\AppData\Local\ms-playwr...'http://127.0.0.1:65180', <module 'tools.uiux_fixture' from 'S:\\Work\\PV\\ui-integ-20261122\\tools\\uiux_fixture.py'>)
+tab = 'bookmarks', case = 'covered'
+
+    @pytest.mark.parametrize('tab', ('downloaded', 'bookmarks'))
+    @pytest.mark.parametrize('case', ('offscreen', 'covered', 'visible', 'wheel'))
+    def test_r6_recreated_card_is_visible_when_focus_returns(library_browser, tab, case):
+        from playwright.sync_api import expect
+
+        browser, origin, fixture = library_browser
+        page = browser.new_page()
+        try:
+            page.goto(origin + '/?r5_projection=1', wait_until='domcontentloaded')
+            fixture.ready(page, 'tab-library').click()
+            if tab == 'bookmarks':
+                page.get_by_test_id('library-subview-bookmarks').click()
+                opener = page.get_by_test_id('bookmark-card').filter(has_text='長文の表示').get_by_test_id('bookmark-open').first
+                panel = page.get_by_test_id('bookmark-scroll')
+            else:
+                author = page.locator('.pv-library-author-card').filter(has_text='synthetic author')
+                author.get_by_test_id('library-author-open').first.click()
+                opener = page.locator('.pv-library-page-card').filter(has_text='short title')
+                panel = page.get_by_test_id('library-pages-scroll')
+
+            expect(opener).to_be_visible()
+            original = opener.element_handle()
+            opener.press('Enter')
+            viewer = page.get_by_role('dialog', name='画集ビューア').filter(visible=True)
+            expect(viewer.get_by_test_id('viewer-close')).to_be_focused()
+
+            def update(action):
+                page.get_by_test_id(f'r5-projection-{action}').evaluate('node => node.click()')
+
+            update('arm')
+            expect(page.get_by_test_id('r5-projection-status')).to_have_text('pending')
+            hold_viewer_restore_frame(page)
+            page.keyboard.press('Escape')
+            expect(viewer).to_be_hidden()
+            page.wait_for_function('window.r5ProjectionFrames.length === 1', timeout=5000)
+            update('drop')
+            expect(opener).to_have_count(0)
+            update('return')
+            expect(opener).to_have_count(1)
+            assert original.evaluate('node => !node.isConnected')
+
+            if case != 'visible':
+                # Reorder this real regenerated card far below the scrollport,
+                # with enough grid space below it to permit centering.
+                opener.evaluate("""(node, mode) => {
+                    const card = node.closest('[data-testid=bookmark-card], .pv-library-page-card');
+                    const grid = card.parentElement;
+                    grid.style.gridAutoRows = '140px';
+                    card.style.gridRow = '16';
+                    grid.appendChild(Object.assign(document.createElement('div'), {style: 'grid-row: 28'}));
+                    const panel = node.closest('[data-testid=bookmark-scroll], [data-testid=library-pages-scroll]');
+                    panel.scrollTop = 0;
+                    if (mode !== 'covered') return;
+                    const panelBox = panel.getBoundingClientRect();
+                    const cardBox = node.getBoundingClientRect();
+                    panel.scrollTop = cardBox.top + cardBox.height / 2 - panelBox.top - 32;
+                    const veil = document.createElement('div');
+                    Object.assign(veil.style, {position: 'fixed', top: panelBox.top + 'px',
+                        left: panelBox.left + 'px', width: panelBox.width + 'px', height: '72px',
+                        zIndex: '900', background: 'var(--pv-surface)'});
+                    document.body.appendChild(veil);
+                }""", case)
+            before = opener.evaluate(CENTER_AND_SCROLL)
+            assert before['center'] is (case == 'visible'), (case, before)
+            if case == 'covered':
+                assert 0 <= before['y'] < page.evaluate('innerHeight'), before
+
+            fallback = page.evaluate_handle('document.activeElement')
+            if case == 'wheel':
+                box = panel.bounding_box()
+                page.mouse.move(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
+                page.mouse.wheel(0, 180)
+                page.wait_for_function("panel => panel.scrollTop > 0", arg=panel.element_handle())
+                before = opener.evaluate(CENTER_AND_SCROLL)
+
+            page.evaluate('window.r5ReleaseProjection()')
+            after = opener.evaluate(CENTER_AND_SCROLL)
+            if case == 'wheel':
+                assert fallback.evaluate('node => node === document.activeElement')
+                assert after['scroll'] == before['scroll'], (before, after)
+            else:
+>               assert opener.evaluate('node => node === document.activeElement'), (case, before, after)
+E               AssertionError: ('covered', {'center': False, 'hit': 'DIV', 'pane': [572.875, 625.875], 'scroll': 2332, ...}, {'center': False, 'hit': 'DIV', 'pane': [572.875, 625.875], 'scroll': 2338, ...})
+E               assert False
+E                +  where False = evaluate('node => node === document.activeElement')
+E                +    where evaluate = <Locator frame=<Frame name= url='http://127.0.0.1:65180/?r5_projection=1'> selector='internal:testid=[data-testid="boo...> internal:has-text="\\u9577\\u6587\\u306e\\u8868\\u793a"i >> internal:testid=[data-testid="bookmark-open"s] >> nth=0'>.evaluate
+
+tests\test_ui_fix4_20261122.py:457: AssertionError
+__ test_r6_recreated_card_is_visible_when_focus_returns[visible-downloaded] ___
+
+library_browser = (<BrowserContext browser=<Browser type=<BrowserType name=chromium executable_path=C:\Users\nat\AppData\Local\ms-playwr...'http://127.0.0.1:65180', <module 'tools.uiux_fixture' from 'S:\\Work\\PV\\ui-integ-20261122\\tools\\uiux_fixture.py'>)
+tab = 'downloaded', case = 'visible'
+
+    @pytest.mark.parametrize('tab', ('downloaded', 'bookmarks'))
+    @pytest.mark.parametrize('case', ('offscreen', 'covered', 'visible', 'wheel'))
+    def test_r6_recreated_card_is_visible_when_focus_returns(library_browser, tab, case):
+        from playwright.sync_api import expect
+
+        browser, origin, fixture = library_browser
+        page = browser.new_page()
+        try:
+            page.goto(origin + '/?r5_projection=1', wait_until='domcontentloaded')
+            fixture.ready(page, 'tab-library').click()
+            if tab == 'bookmarks':
+                page.get_by_test_id('library-subview-bookmarks').click()
+                opener = page.get_by_test_id('bookmark-card').filter(has_text='長文の表示').get_by_test_id('bookmark-open').first
+                panel = page.get_by_test_id('bookmark-scroll')
+            else:
+                author = page.locator('.pv-library-author-card').filter(has_text='synthetic author')
+                author.get_by_test_id('library-author-open').first.click()
+                opener = page.locator('.pv-library-page-card').filter(has_text='short title')
+                panel = page.get_by_test_id('library-pages-scroll')
+
+            expect(opener).to_be_visible()
+            original = opener.element_handle()
+            opener.press('Enter')
+            viewer = page.get_by_role('dialog', name='画集ビューア').filter(visible=True)
+            expect(viewer.get_by_test_id('viewer-close')).to_be_focused()
+
+            def update(action):
+                page.get_by_test_id(f'r5-projection-{action}').evaluate('node => node.click()')
+
+            update('arm')
+            expect(page.get_by_test_id('r5-projection-status')).to_have_text('pending')
+            hold_viewer_restore_frame(page)
+            page.keyboard.press('Escape')
+            expect(viewer).to_be_hidden()
+            page.wait_for_function('window.r5ProjectionFrames.length === 1', timeout=5000)
+            update('drop')
+            expect(opener).to_have_count(0)
+            update('return')
+            expect(opener).to_have_count(1)
+            assert original.evaluate('node => !node.isConnected')
+
+            if case != 'visible':
+                # Reorder this real regenerated card far below the scrollport,
+                # with enough grid space below it to permit centering.
+                opener.evaluate("""(node, mode) => {
+                    const card = node.closest('[data-testid=bookmark-card], .pv-library-page-card');
+                    const grid = card.parentElement;
+                    grid.style.gridAutoRows = '140px';
+                    card.style.gridRow = '16';
+                    grid.appendChild(Object.assign(document.createElement('div'), {style: 'grid-row: 28'}));
+                    const panel = node.closest('[data-testid=bookmark-scroll], [data-testid=library-pages-scroll]');
+                    panel.scrollTop = 0;
+                    if (mode !== 'covered') return;
+                    const panelBox = panel.getBoundingClientRect();
+                    const cardBox = node.getBoundingClientRect();
+                    panel.scrollTop = cardBox.top + cardBox.height / 2 - panelBox.top - 32;
+                    const veil = document.createElement('div');
+                    Object.assign(veil.style, {position: 'fixed', top: panelBox.top + 'px',
+                        left: panelBox.left + 'px', width: panelBox.width + 'px', height: '72px',
+                        zIndex: '900', background: 'var(--pv-surface)'});
+                    document.body.appendChild(veil);
+                }""", case)
+            before = opener.evaluate(CENTER_AND_SCROLL)
+>           assert before['center'] is (case == 'visible'), (case, before)
+E           AssertionError: ('visible', {'center': False, 'hit': 'library-view', 'pane': [542.859375, 625.875], 'scroll': 0, ...})
+E           assert False is ('visible' == 'visible'
+E
+E               visible)
+
+tests\test_ui_fix4_20261122.py:439: AssertionError
+___ test_r6_recreated_card_is_visible_when_focus_returns[visible-bookmarks] ___
+
+library_browser = (<BrowserContext browser=<Browser type=<BrowserType name=chromium executable_path=C:\Users\nat\AppData\Local\ms-playwr...'http://127.0.0.1:65180', <module 'tools.uiux_fixture' from 'S:\\Work\\PV\\ui-integ-20261122\\tools\\uiux_fixture.py'>)
+tab = 'bookmarks', case = 'visible'
+
+    @pytest.mark.parametrize('tab', ('downloaded', 'bookmarks'))
+    @pytest.mark.parametrize('case', ('offscreen', 'covered', 'visible', 'wheel'))
+    def test_r6_recreated_card_is_visible_when_focus_returns(library_browser, tab, case):
+        from playwright.sync_api import expect
+
+        browser, origin, fixture = library_browser
+        page = browser.new_page()
+        try:
+            page.goto(origin + '/?r5_projection=1', wait_until='domcontentloaded')
+            fixture.ready(page, 'tab-library').click()
+            if tab == 'bookmarks':
+                page.get_by_test_id('library-subview-bookmarks').click()
+                opener = page.get_by_test_id('bookmark-card').filter(has_text='長文の表示').get_by_test_id('bookmark-open').first
+                panel = page.get_by_test_id('bookmark-scroll')
+            else:
+                author = page.locator('.pv-library-author-card').filter(has_text='synthetic author')
+                author.get_by_test_id('library-author-open').first.click()
+                opener = page.locator('.pv-library-page-card').filter(has_text='short title')
+                panel = page.get_by_test_id('library-pages-scroll')
+
+            expect(opener).to_be_visible()
+            original = opener.element_handle()
+            opener.press('Enter')
+            viewer = page.get_by_role('dialog', name='画集ビューア').filter(visible=True)
+            expect(viewer.get_by_test_id('viewer-close')).to_be_focused()
+
+            def update(action):
+                page.get_by_test_id(f'r5-projection-{action}').evaluate('node => node.click()')
+
+            update('arm')
+            expect(page.get_by_test_id('r5-projection-status')).to_have_text('pending')
+            hold_viewer_restore_frame(page)
+            page.keyboard.press('Escape')
+            expect(viewer).to_be_hidden()
+            page.wait_for_function('window.r5ProjectionFrames.length === 1', timeout=5000)
+            update('drop')
+            expect(opener).to_have_count(0)
+            update('return')
+            expect(opener).to_have_count(1)
+            assert original.evaluate('node => !node.isConnected')
+
+            if case != 'visible':
+                # Reorder this real regenerated card far below the scrollport,
+                # with enough grid space below it to permit centering.
+                opener.evaluate("""(node, mode) => {
+                    const card = node.closest('[data-testid=bookmark-card], .pv-library-page-card');
+                    const grid = card.parentElement;
+                    grid.style.gridAutoRows = '140px';
+                    card.style.gridRow = '16';
+                    grid.appendChild(Object.assign(document.createElement('div'), {style: 'grid-row: 28'}));
+                    const panel = node.closest('[data-testid=bookmark-scroll], [data-testid=library-pages-scroll]');
+                    panel.scrollTop = 0;
+                    if (mode !== 'covered') return;
+                    const panelBox = panel.getBoundingClientRect();
+                    const cardBox = node.getBoundingClientRect();
+                    panel.scrollTop = cardBox.top + cardBox.height / 2 - panelBox.top - 32;
+                    const veil = document.createElement('div');
+                    Object.assign(veil.style, {position: 'fixed', top: panelBox.top + 'px',
+                        left: panelBox.left + 'px', width: panelBox.width + 'px', height: '72px',
+                        zIndex: '900', background: 'var(--pv-surface)'});
+                    document.body.appendChild(veil);
+                }""", case)
+            before = opener.evaluate(CENTER_AND_SCROLL)
+>           assert before['center'] is (case == 'visible'), (case, before)
+E           AssertionError: ('visible', {'center': False, 'hit': 'library-view', 'pane': [572.875, 625.875], 'scroll': 0, ...})
+E           assert False is ('visible' == 'visible'
+E
+E               visible)
+
+tests\test_ui_fix4_20261122.py:439: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_ui_fix4_20261122.py::test_r6_recreated_card_is_visible_when_focus_returns[covered-bookmarks]
+FAILED tests/test_ui_fix4_20261122.py::test_r6_recreated_card_is_visible_when_focus_returns[visible-downloaded]
+FAILED tests/test_ui_fix4_20261122.py::test_r6_recreated_card_is_visible_when_focus_returns[visible-bookmarks]
+================= 3 failed, 1129 passed in 483.32s (0:08:03) ==================

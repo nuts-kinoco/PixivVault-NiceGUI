@@ -1,0 +1,21 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\ui-integ-20261122
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 8 items
+
+tests\test_ui_fix4_20261122.py .....F..                                  [100%]
+
+================================== FAILURES ===================================
+___ test_r6_recreated_card_is_visible_when_focus_returns[visible-bookmarks] ___
+tests\test_ui_fix4_20261122.py:439: in test_r6_recreated_card_is_visible_when_focus_returns
+    assert before['center'] is (case == 'visible'), (case, before)
+E   AssertionError: ('visible', {'center': False, 'hit': 'library-view', 'pane': [572.875, 625.875], 'scroll': 0, ...})
+E   assert False is ('visible' == 'visible'
+E
+E       visible)
+=========================== short test summary info ===========================
+FAILED tests/test_ui_fix4_20261122.py::test_r6_recreated_card_is_visible_when_focus_returns[visible-bookmarks]
+======================== 1 failed, 7 passed in 18.18s =========================

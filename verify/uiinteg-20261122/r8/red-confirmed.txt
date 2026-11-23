@@ -1,0 +1,139 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\ui-integ-20261122
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 3 items
+
+tests\test_ui_common_browser.py F                                        [ 33%]
+tests\test_ui_fix2_dialogs_browser.py FF                                 [100%]
+
+================================== FAILURES ===================================
+_____________ test_request_wait_announces_other_state_changes_r8 ______________
+
+zoom_page = (<Page url='http://127.0.0.1:64520/_request-recovery/transition'>, 'http://127.0.0.1:64520', 100)
+
+    def test_request_wait_announces_other_state_changes_r8(zoom_page):
+        from playwright.sync_api import expect
+
+        page, origin, _ = zoom_page
+        load(page, origin, '/_request-recovery/transition')
+        page.get_by_test_id('fixture-main-action').press('Enter')
+        banner = page.locator('.pv-header')
+        stop = banner.get_by_role('alert').filter(has_text='通信を止めています')
+        announce = banner.get_by_test_id('request-retry-progress-announcement')
+        expect(stop).to_be_visible()
+        expect(announce).to_have_attribute('role', 'status')
+        expect(announce).to_contain_text('再試行待機中')
+        expect(announce).not_to_contain_text('残り約')
+
+        page.get_by_test_id('fixture-update').click()
+>       expect(announce).to_contain_text('取得を再試行中: 試行 2/3')
+E       AssertionError: Locator expected to contain text '取得を再試行中: 試行 2/3'
+E       Actual value: HTTP 500のため再試行待機中: 試行 1/3（待機設定 10秒）
+E       Call log:
+E         - Expect "to_contain_text" locator(".pv-header").get_by_test_id("request-retry-progress-announcement") with timeout 5000ms
+E         - waiting for locator(".pv-header").get_by_test_id("request-retry-progress-announcement")
+E           14 × locator resolved to <div id="c21" role="status" aria-atomic="true" class="pv-retry-announcement" data-testid="request-retry-progress-announcement">HTTP 500のため再試行待機中: 試行 1/3（待機設定 10秒）</div>
+E              - unexpected value "HTTP 500のため再試行待機中: 試行 1/3（待機設定 10秒）"
+E
+E       Aria snapshot:
+E       - status: "HTTP 500のため再試行待機中: 試行 1/3（待機設定 10秒）"
+
+tests\test_ui_common_browser.py:622: AssertionError
+_ test_closed_settings_stop_own_request_watch_r8[preferences-preferences-dialog] _
+
+dialog_browser = (<playwright.sync_api.Expect object at 0x0000017AF6C727B0>, <BrowserContext browser=<Browser type=<BrowserType name=ch...\ms-playwright\chromium-1248\chrome-win64\chrome.exe> version=156.0.8078.4>>, 'http://127.0.0.1:62365/ui-fix2-browser')
+target = 'preferences', dialog_id = 'preferences-dialog'
+
+    @pytest.mark.parametrize(('target', 'dialog_id'), (
+        ('preferences', 'preferences-dialog'), ('profile', 'native-profile-dialog'),
+    ))
+    def test_closed_settings_stop_own_request_watch_r8(dialog_browser, target, dialog_id):
+        expect, context, url = dialog_browser
+        page = context.new_page()
+        try:
+            page.goto(url + '?stops=watch')
+            page.wait_for_function('window.did_handshake === true')
+            opener = page.get_by_test_id(f'ui-fix2-open-{target}')
+            dialog = page.get_by_test_id(dialog_id)
+            observed = page.get_by_test_id('fixture-watch-counts')
+
+            def counts():
+                return tuple(map(int, observed.inner_text().split()))
+
+            opener.press('Enter')
+            expect(dialog).to_be_visible()
+            expect(dialog.get_by_test_id('native-request-retry-status')).to_be_visible()
+            page.wait_for_function(
+                "() => Number(document.querySelector('[data-testid=fixture-watch-counts]').textContent.split(' ')[1]) > 0"
+            )
+            close_id = 'preferences-close-top' if target == 'preferences' else 'native-profile-cancel'
+            dialog.get_by_test_id(close_id).press('Enter')
+            expect(dialog).to_be_hidden()
+            expect(opener).to_be_focused()
+            reads, watches, header = counts()
+            # At least three seconds of header polling elapse while the modal is closed.
+            page.wait_for_function(
+                """header => Number(document.querySelector('[data-testid=fixture-watch-counts]')
+                    .textContent.split(' ')[2]) >= header + 15""", arg=header,
+            )
+>           assert counts()[:2] == (reads, watches), 'closed dialog still polls request status'
+E           AssertionError: closed dialog still polls request status
+E           assert (21, 2) == (5, 1)
+E
+E             At index 0 diff: 21 != 5
+E             Use -v to get more diff
+
+tests\test_ui_fix2_dialogs_browser.py:594: AssertionError
+_ test_closed_settings_stop_own_request_watch_r8[profile-native-profile-dialog] _
+
+dialog_browser = (<playwright.sync_api.Expect object at 0x0000017AF6C727B0>, <BrowserContext browser=<Browser type=<BrowserType name=ch...\ms-playwright\chromium-1248\chrome-win64\chrome.exe> version=156.0.8078.4>>, 'http://127.0.0.1:62365/ui-fix2-browser')
+target = 'profile', dialog_id = 'native-profile-dialog'
+
+    @pytest.mark.parametrize(('target', 'dialog_id'), (
+        ('preferences', 'preferences-dialog'), ('profile', 'native-profile-dialog'),
+    ))
+    def test_closed_settings_stop_own_request_watch_r8(dialog_browser, target, dialog_id):
+        expect, context, url = dialog_browser
+        page = context.new_page()
+        try:
+            page.goto(url + '?stops=watch')
+            page.wait_for_function('window.did_handshake === true')
+            opener = page.get_by_test_id(f'ui-fix2-open-{target}')
+            dialog = page.get_by_test_id(dialog_id)
+            observed = page.get_by_test_id('fixture-watch-counts')
+
+            def counts():
+                return tuple(map(int, observed.inner_text().split()))
+
+            opener.press('Enter')
+            expect(dialog).to_be_visible()
+            expect(dialog.get_by_test_id('native-request-retry-status')).to_be_visible()
+            page.wait_for_function(
+                "() => Number(document.querySelector('[data-testid=fixture-watch-counts]').textContent.split(' ')[1]) > 0"
+            )
+            close_id = 'preferences-close-top' if target == 'preferences' else 'native-profile-cancel'
+            dialog.get_by_test_id(close_id).press('Enter')
+            expect(dialog).to_be_hidden()
+            expect(opener).to_be_focused()
+            reads, watches, header = counts()
+            # At least three seconds of header polling elapse while the modal is closed.
+            page.wait_for_function(
+                """header => Number(document.querySelector('[data-testid=fixture-watch-counts]')
+                    .textContent.split(' ')[2]) >= header + 15""", arg=header,
+            )
+>           assert counts()[:2] == (reads, watches), 'closed dialog still polls request status'
+E           AssertionError: closed dialog still polls request status
+E           assert (20, 2) == (4, 1)
+E
+E             At index 0 diff: 20 != 4
+E             Use -v to get more diff
+
+tests\test_ui_fix2_dialogs_browser.py:594: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_ui_common_browser.py::test_request_wait_announces_other_state_changes_r8
+FAILED tests/test_ui_fix2_dialogs_browser.py::test_closed_settings_stop_own_request_watch_r8[preferences-preferences-dialog]
+FAILED tests/test_ui_fix2_dialogs_browser.py::test_closed_settings_stop_own_request_watch_r8[profile-native-profile-dialog]
+============================= 3 failed in 22.09s ==============================

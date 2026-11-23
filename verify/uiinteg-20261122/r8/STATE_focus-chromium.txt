@@ -1,0 +1,6 @@
+pid=131556 birth=134399162088841050
+head=4b2cae71bd4de91a6929d2a5bdcacb4602f0b165
+source=64bba110f1df5b5275713c518b1562be5c4e7183
+start=2026-11-23T23:03:29.3570307+09:00
+tests=tests/test_ui_fix4_20261122.py::test_r6_recreated_card_is_visible_when_focus_returns
+exit=1 finish=2026-11-23T23:03:48.4983612+09:00
