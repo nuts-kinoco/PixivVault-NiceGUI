@@ -454,3 +454,14 @@ wt-j（A08〜A10）・wt-h（A02・A03・B11・C24・N01〜N03・F05・E07・H02
 | grid_card_size_mode | FL-C25 | |
 
 P3-4a 候補（2026-11-18、wt-z）: FL-I05・FL-I06・FL-I12 の実装と隔離検証の根拠、残る受入は [検証記録](evidence/p3-4a-20261118/README.md) を参照。上の再ステータスは work dbece97 時点の履歴であり、この候補の実装状態ではない。実機受入前のため正式状態は変更しない。
+
+## U. D9 旧データ互換（2026-11-24 の隔離実証）
+
+| ID | 旧データ | 移植版の読取経路 | 実測・残件 |
+|---|---|---|---|
+| D9-DB | `pixiv_vault.db` | `LegacyLibraryCopies` → `ReadonlyLibraryRepository`、発掘の初回シード | 作品 105 件、作者 23 件をライブラリ表示モデルに展開。判定履歴 296 件を引き継ぎ、同じ旧 DB からサービスを再生成して再開を確認。旧 DB の整合性・SHA-256 不変。 |
+| D9-SETTINGS | 旧 DB の `settings`、`save_path` | `discovery_seed.py`、`FrozenRecommendationSource`、明示指定の旧保存先、E01 | 発掘設定 8 キーを読込み、推奨設定リーダーも動作。旧設定 36 行を E01 で照合。一般設定全件のアプリ内反映と保存先の自動採用は確認範囲外。 |
+| D9-COOKIES | `cookies.txt` | `LivePixivReadClient`（拒否用 transport で生成） | 11 件を読込み、セッション項目を認識。実 Pixiv 認証は未実施。 |
+| D9-SAVED | 旧保存フォルダー | `ReadonlyLocalMediaCatalog` → ライブラリ画像登録 | 複製 220 ファイル。旧 DB 105 作品のうち先頭ページを 61 作品で表示用に読込（修正前 56）。残りは静止画の候補無し 38 件、うごイラ 6 件。 |
+
+候補・測定条件・原証拠は [D5・D9 実証記録](../verify/d5-proof-20261124/OUTCOME.md) を参照。

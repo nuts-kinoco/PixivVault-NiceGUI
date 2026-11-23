@@ -72,6 +72,30 @@ def test_duplicate_stores_do_not_silently_select_one(tmp_path):
     catalog.close()
 
 
+@pytest.mark.parametrize('identical', [True, False])
+def test_copied_legacy_page_requires_identical_bytes_for_display(tmp_path, identical):
+    first = tmp_path / 'Author(12)'
+    second = tmp_path / 'Alias(12)'
+    first.mkdir()
+    second.mkdir()
+    for folder, data in ((first, png('red')), (second, png('red' if identical else 'blue'))):
+        (folder / 'Art(101)_1.png').write_bytes(data)
+    catalog = ReadonlyLocalMediaCatalog(tmp_path, snapshot())
+    try:
+        if identical:
+            assert catalog.get_fresh('101', 0, 'view').media_type == 'image/png'
+            assert catalog.get_fresh('101', 0, 'thumb').media_type == 'image/png'
+        else:
+            with pytest.raises(MediaAmbiguous):
+                catalog.get_fresh('101', 0, 'view')
+        with pytest.raises(MediaAmbiguous):
+            catalog.external_target('101', 0)
+        with pytest.raises(MediaAmbiguous):
+            catalog.get_fresh('101', 0, 'original')
+    finally:
+        catalog.close()
+
+
 def test_missing_page_does_not_fall_back_to_second_page(tmp_path):
     (tmp_path / "作家(12)").mkdir()
     (tmp_path / "作家(12)" / "絵(101)_2.png").write_bytes(png("blue"))

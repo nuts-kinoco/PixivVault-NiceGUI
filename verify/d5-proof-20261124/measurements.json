@@ -1,0 +1,1072 @@
+{
+  "base": "164745bc256c2ee90558178151bc5b438f490f62",
+  "compatibility_findings": {
+    "after_fix_still_without_still_image_candidate": 38,
+    "before_fix_independent_files_with_same_bytes_and_attribution": 5,
+    "first_page_display_before_media_fix": 56,
+    "internal_hardlink_aliases_in_original_image_root": 0,
+    "settings_total_in_legacy_db": 36,
+    "ugoira_rows_outside_still_image_catalog": 6
+  },
+  "final_product": "00671c18636a9c6c53a289d3003a0fa5e961346a",
+  "focused_tests": [
+    {
+      "candidate": "164745bc",
+      "pass": 87,
+      "suite": "trash, E01, X09, cookie migration, legacy thumbnails, visual clear"
+    },
+    {
+      "candidate": "4544f921",
+      "pass": 12,
+      "suite": "discovery reopen and discovery settings"
+    },
+    {
+      "candidate": "00671c18",
+      "pass": 38,
+      "suite": "local media adapter and legacy thumbnails"
+    },
+    {
+      "candidate": "00671c18",
+      "pass": 5,
+      "suite": "discovery reopen, E01, X09, trash and visual clear"
+    }
+  ],
+  "operation_candidates": {
+    "D9": "00671c18",
+    "E01": "00671c18",
+    "X09": "164745bc",
+    "visual": "4544f921",
+    "wt-f": "164745bc"
+  },
+  "operations": {
+    "D9": {
+      "after": {
+        "counts": {
+          "bookmark_remote_cache": 1977,
+          "discovery_swipe_history": 296,
+          "failed_queue": 1,
+          "file_ledger": 0,
+          "quarantine_exclusions": 0,
+          "settings": 36,
+          "work_embeddings": 812,
+          "works": 105
+        },
+        "integrity": "ok",
+        "sha256": "cd4b6ded43cf0258c892ce351cc69e38ccda254e4b73be1ec2403196e0d41469"
+      },
+      "before": {
+        "counts": {
+          "bookmark_remote_cache": 1977,
+          "discovery_swipe_history": 296,
+          "failed_queue": 1,
+          "file_ledger": 0,
+          "quarantine_exclusions": 0,
+          "settings": 36,
+          "work_embeddings": 812,
+          "works": 105
+        },
+        "integrity": "ok",
+        "sha256": "cd4b6ded43cf0258c892ce351cc69e38ccda254e4b73be1ec2403196e0d41469"
+      },
+      "cookie_count": 11,
+      "discovery_settings_copied": 8,
+      "library_authors": 23,
+      "library_works": 105,
+      "reopen_confirmed": true,
+      "seed": {
+        "counts": {
+          "bookmark_remote_cache": 1977,
+          "discovery_swipe_history": 296,
+          "failed_queue": 0,
+          "file_ledger": 0,
+          "quarantine_exclusions": 0,
+          "settings": 8,
+          "work_embeddings": 0,
+          "works": 0
+        },
+        "integrity": "ok",
+        "sha256": "aaa0455ec27434cb0856d1bce23034ff09417c3f282f447a4c98894e2b15afea"
+      },
+      "session_recognized": true,
+      "works_with_readable_first_page": 61
+    },
+    "E01": {
+      "after": {
+        "learning": {
+          "counts": {
+            "bookmark_remote_cache": 0,
+            "discovery_swipe_history": 27,
+            "failed_queue": 0,
+            "file_ledger": 0,
+            "quarantine_exclusions": 0,
+            "settings": 5,
+            "work_embeddings": 0,
+            "works": 0
+          },
+          "integrity": "ok",
+          "sha256": "5f075571441f41fc9bef99bd565c9b2ba35ad6e4ee4d9f3d4ea725edd193fe16"
+        },
+        "managed_dbs": {
+          "0": {
+            "counts": {
+              "metadata": 1,
+              "settings": 1,
+              "superseded": 0
+            },
+            "integrity": "ok",
+            "sha256": "2c1678d5371e1098b2c91240a538387a83fbe5335d0f28cc723288ea138ca3e8"
+          },
+          "1": {
+            "counts": {
+              "deferred_work": 0,
+              "dispatch_history": 1,
+              "dispatch_items": 0,
+              "favourite_authors": 0,
+              "schedule": 1,
+              "scheduler_account": 1
+            },
+            "integrity": "ok",
+            "sha256": "fbc8e71c7baa3550caa17bcea2d09c9b9cf6832d30f40463c59dfdac940ba2ea"
+          },
+          "2": {
+            "counts": {
+              "admissions": 0,
+              "author_targets": 0
+            },
+            "integrity": "ok",
+            "sha256": "4035a45869d5d38a333f29015d6a84a6efdb47d20848e29cea1e60b4103d67d6"
+          },
+          "3": {
+            "counts": {
+              "children": 0,
+              "work_media_routes": 0
+            },
+            "integrity": "ok",
+            "sha256": "989160a3f7133577c1138a45544acc8d475d3606d32d17f91b100bfdc7d5d65c"
+          },
+          "4": {
+            "counts": {
+              "job_history": 0,
+              "jobs": 0,
+              "operations": 0
+            },
+            "integrity": "ok",
+            "sha256": "b026a86a56182968d046e698662868d21725a571e827c125c7d67268daf368d8"
+          },
+          "5": {
+            "counts": {
+              "job_history": 1,
+              "jobs": 1,
+              "operations": 1
+            },
+            "integrity": "ok",
+            "sha256": "84e5aea034e098fde371ad9f70b5f0f12db6fb31f4725b206370016737885640"
+          }
+        },
+        "old": {
+          "counts": {
+            "bookmark_remote_cache": 1977,
+            "discovery_swipe_history": 296,
+            "failed_queue": 1,
+            "file_ledger": 0,
+            "quarantine_exclusions": 0,
+            "settings": 36,
+            "work_embeddings": 812,
+            "works": 105
+          },
+          "integrity": "ok",
+          "sha256": "cd4b6ded43cf0258c892ce351cc69e38ccda254e4b73be1ec2403196e0d41469"
+        },
+        "old_quarantine": {
+          "count": 0,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "preferences": {
+          "counts": {
+            "local_tagger_verification": 1,
+            "preferences_identity": 1,
+            "preferences_revision": 1,
+            "preferences_values": 2
+          },
+          "integrity": "ok",
+          "sha256": "5db44d939764c0a2583c5e46dc4b1aadc301104608fdc7ac3fa6ebafda8e410c"
+        },
+        "saved_images": {
+          "count": 220,
+          "sha256": "9e04560bf185b79f5cd524ca0202347fb4c19258d39710b4b1d6e24acb7fbc85"
+        }
+      },
+      "before": {
+        "learning": {
+          "counts": {
+            "bookmark_remote_cache": 0,
+            "discovery_swipe_history": 27,
+            "failed_queue": 0,
+            "file_ledger": 0,
+            "quarantine_exclusions": 0,
+            "settings": 5,
+            "work_embeddings": 0,
+            "works": 0
+          },
+          "integrity": "ok",
+          "sha256": "5f075571441f41fc9bef99bd565c9b2ba35ad6e4ee4d9f3d4ea725edd193fe16"
+        },
+        "managed_dbs": {
+          "0": {
+            "counts": {
+              "metadata": 1,
+              "settings": 1,
+              "superseded": 0
+            },
+            "integrity": "ok",
+            "sha256": "2c1678d5371e1098b2c91240a538387a83fbe5335d0f28cc723288ea138ca3e8"
+          },
+          "1": {
+            "counts": {
+              "deferred_work": 0,
+              "dispatch_history": 1,
+              "dispatch_items": 0,
+              "favourite_authors": 0,
+              "schedule": 1,
+              "scheduler_account": 1
+            },
+            "integrity": "ok",
+            "sha256": "fbc8e71c7baa3550caa17bcea2d09c9b9cf6832d30f40463c59dfdac940ba2ea"
+          },
+          "2": {
+            "counts": {
+              "admissions": 0,
+              "author_targets": 0
+            },
+            "integrity": "ok",
+            "sha256": "4035a45869d5d38a333f29015d6a84a6efdb47d20848e29cea1e60b4103d67d6"
+          },
+          "3": {
+            "counts": {
+              "children": 0,
+              "work_media_routes": 0
+            },
+            "integrity": "ok",
+            "sha256": "989160a3f7133577c1138a45544acc8d475d3606d32d17f91b100bfdc7d5d65c"
+          },
+          "4": {
+            "counts": {
+              "job_history": 0,
+              "jobs": 0,
+              "operations": 0
+            },
+            "integrity": "ok",
+            "sha256": "b026a86a56182968d046e698662868d21725a571e827c125c7d67268daf368d8"
+          },
+          "5": {
+            "counts": {
+              "job_history": 1,
+              "jobs": 1,
+              "operations": 1
+            },
+            "integrity": "ok",
+            "sha256": "84e5aea034e098fde371ad9f70b5f0f12db6fb31f4725b206370016737885640"
+          }
+        },
+        "old": {
+          "counts": {
+            "bookmark_remote_cache": 1977,
+            "discovery_swipe_history": 296,
+            "failed_queue": 1,
+            "file_ledger": 0,
+            "quarantine_exclusions": 0,
+            "settings": 36,
+            "work_embeddings": 812,
+            "works": 105
+          },
+          "integrity": "ok",
+          "sha256": "cd4b6ded43cf0258c892ce351cc69e38ccda254e4b73be1ec2403196e0d41469"
+        },
+        "old_quarantine": {
+          "count": 0,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "preferences": {
+          "counts": {
+            "local_tagger_verification": 1,
+            "preferences_identity": 1,
+            "preferences_revision": 1,
+            "preferences_values": 2
+          },
+          "integrity": "ok",
+          "sha256": "5db44d939764c0a2583c5e46dc4b1aadc301104608fdc7ac3fa6ebafda8e410c"
+        },
+        "saved_images": {
+          "count": 220,
+          "sha256": "9e04560bf185b79f5cd524ca0202347fb4c19258d39710b4b1d6e24acb7fbc85"
+        }
+      },
+      "crc": true,
+      "export_input": {
+        "counts": {
+          "bookmark_remote_cache": 1977,
+          "discovery_swipe_history": 296,
+          "failed_queue": 1,
+          "file_ledger": 0,
+          "quarantine_exclusions": 0,
+          "settings": 36,
+          "work_embeddings": 812,
+          "works": 105
+        },
+        "integrity": "ok",
+        "sha256": "28cf10f22f6d4b756a52d656a8b30d0f862952bd97012b5c7bab07b7233821f7"
+      },
+      "readback_bytes_match": true,
+      "readback_db": {
+        "counts": {
+          "bookmark_remote_cache": 1977,
+          "discovery_swipe_history": 296,
+          "failed_queue": 1,
+          "file_ledger": 0,
+          "quarantine_exclusions": 0,
+          "settings": 36,
+          "work_embeddings": 812,
+          "works": 105
+        },
+        "integrity": "ok",
+        "sha256": "222f3814fd7a322521e91850ced939a44299344249f6d72b3163da8b8cfd786d"
+      },
+      "readback_metadata_sha256": "cfcd4f6229231780a2751382c605b6fe1102d4953089f2343b25f188e7c56cf6",
+      "zip_sha256": "5a8cbfe6c6eb1b7d1fe8044d2cae6c60db18944eac31e16d2315173766216858"
+    },
+    "X09": {
+      "after": {
+        "learning": {
+          "counts": {
+            "bookmark_remote_cache": 0,
+            "discovery_swipe_history": 27,
+            "failed_queue": 0,
+            "file_ledger": 0,
+            "quarantine_exclusions": 0,
+            "settings": 5,
+            "work_embeddings": 0,
+            "works": 0
+          },
+          "integrity": "ok",
+          "sha256": "ee920097fd2827b29f7b796582c8f9036a98adc997e0d1109b54868bef6849d3"
+        },
+        "managed_dbs": {
+          "0": {
+            "counts": {
+              "metadata": 1,
+              "settings": 1,
+              "superseded": 0
+            },
+            "integrity": "ok",
+            "sha256": "2c1678d5371e1098b2c91240a538387a83fbe5335d0f28cc723288ea138ca3e8"
+          },
+          "1": {
+            "counts": {
+              "deferred_work": 0,
+              "dispatch_history": 1,
+              "dispatch_items": 0,
+              "favourite_authors": 0,
+              "schedule": 1,
+              "scheduler_account": 1
+            },
+            "integrity": "ok",
+            "sha256": "fbc8e71c7baa3550caa17bcea2d09c9b9cf6832d30f40463c59dfdac940ba2ea"
+          },
+          "2": {
+            "counts": {
+              "admissions": 0,
+              "author_targets": 0
+            },
+            "integrity": "ok",
+            "sha256": "4035a45869d5d38a333f29015d6a84a6efdb47d20848e29cea1e60b4103d67d6"
+          },
+          "3": {
+            "counts": {
+              "children": 0,
+              "work_media_routes": 0
+            },
+            "integrity": "ok",
+            "sha256": "989160a3f7133577c1138a45544acc8d475d3606d32d17f91b100bfdc7d5d65c"
+          },
+          "4": {
+            "counts": {
+              "job_history": 0,
+              "jobs": 0,
+              "operations": 0
+            },
+            "integrity": "ok",
+            "sha256": "b026a86a56182968d046e698662868d21725a571e827c125c7d67268daf368d8"
+          },
+          "5": {
+            "counts": {
+              "job_history": 1,
+              "jobs": 1,
+              "operations": 1
+            },
+            "integrity": "ok",
+            "sha256": "84e5aea034e098fde371ad9f70b5f0f12db6fb31f4725b206370016737885640"
+          }
+        },
+        "old": {
+          "counts": {
+            "bookmark_remote_cache": 1977,
+            "discovery_swipe_history": 296,
+            "failed_queue": 1,
+            "file_ledger": 0,
+            "quarantine_exclusions": 0,
+            "settings": 36,
+            "work_embeddings": 812,
+            "works": 105
+          },
+          "integrity": "ok",
+          "sha256": "cd4b6ded43cf0258c892ce351cc69e38ccda254e4b73be1ec2403196e0d41469"
+        },
+        "old_quarantine": {
+          "count": 0,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "preferences": {
+          "counts": {
+            "local_tagger_verification": 1,
+            "preferences_identity": 1,
+            "preferences_revision": 1,
+            "preferences_values": 2
+          },
+          "integrity": "ok",
+          "sha256": "5db44d939764c0a2583c5e46dc4b1aadc301104608fdc7ac3fa6ebafda8e410c"
+        },
+        "saved_images": {
+          "count": 220,
+          "sha256": "9e04560bf185b79f5cd524ca0202347fb4c19258d39710b4b1d6e24acb7fbc85"
+        }
+      },
+      "before": {
+        "learning": {
+          "counts": {
+            "bookmark_remote_cache": 0,
+            "discovery_swipe_history": 27,
+            "failed_queue": 0,
+            "file_ledger": 0,
+            "quarantine_exclusions": 0,
+            "settings": 5,
+            "work_embeddings": 0,
+            "works": 0
+          },
+          "integrity": "ok",
+          "sha256": "ee920097fd2827b29f7b796582c8f9036a98adc997e0d1109b54868bef6849d3"
+        },
+        "managed_dbs": {
+          "0": {
+            "counts": {
+              "metadata": 1,
+              "settings": 1,
+              "superseded": 0
+            },
+            "integrity": "ok",
+            "sha256": "2c1678d5371e1098b2c91240a538387a83fbe5335d0f28cc723288ea138ca3e8"
+          },
+          "1": {
+            "counts": {
+              "deferred_work": 0,
+              "dispatch_history": 1,
+              "dispatch_items": 0,
+              "favourite_authors": 0,
+              "schedule": 1,
+              "scheduler_account": 1
+            },
+            "integrity": "ok",
+            "sha256": "fbc8e71c7baa3550caa17bcea2d09c9b9cf6832d30f40463c59dfdac940ba2ea"
+          },
+          "2": {
+            "counts": {
+              "admissions": 0,
+              "author_targets": 0
+            },
+            "integrity": "ok",
+            "sha256": "4035a45869d5d38a333f29015d6a84a6efdb47d20848e29cea1e60b4103d67d6"
+          },
+          "3": {
+            "counts": {
+              "children": 0,
+              "work_media_routes": 0
+            },
+            "integrity": "ok",
+            "sha256": "989160a3f7133577c1138a45544acc8d475d3606d32d17f91b100bfdc7d5d65c"
+          },
+          "4": {
+            "counts": {
+              "job_history": 0,
+              "jobs": 0,
+              "operations": 0
+            },
+            "integrity": "ok",
+            "sha256": "b026a86a56182968d046e698662868d21725a571e827c125c7d67268daf368d8"
+          },
+          "5": {
+            "counts": {
+              "job_history": 1,
+              "jobs": 1,
+              "operations": 1
+            },
+            "integrity": "ok",
+            "sha256": "84e5aea034e098fde371ad9f70b5f0f12db6fb31f4725b206370016737885640"
+          }
+        },
+        "old": {
+          "counts": {
+            "bookmark_remote_cache": 1977,
+            "discovery_swipe_history": 296,
+            "failed_queue": 1,
+            "file_ledger": 0,
+            "quarantine_exclusions": 0,
+            "settings": 36,
+            "work_embeddings": 812,
+            "works": 105
+          },
+          "integrity": "ok",
+          "sha256": "cd4b6ded43cf0258c892ce351cc69e38ccda254e4b73be1ec2403196e0d41469"
+        },
+        "old_quarantine": {
+          "count": 0,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "preferences": {
+          "counts": {
+            "local_tagger_verification": 1,
+            "preferences_identity": 1,
+            "preferences_revision": 1,
+            "preferences_values": 2
+          },
+          "integrity": "ok",
+          "sha256": "5db44d939764c0a2583c5e46dc4b1aadc301104608fdc7ac3fa6ebafda8e410c"
+        },
+        "saved_images": {
+          "count": 220,
+          "sha256": "9e04560bf185b79f5cd524ca0202347fb4c19258d39710b4b1d6e24acb7fbc85"
+        }
+      },
+      "managed_location_opened": true,
+      "managed_tree_after": {
+        "count": 46,
+        "sha256": "21f8467602f96c4c306d52f2957b041502fd55f251c720ede3ffb4ebf3187c7c"
+      },
+      "managed_tree_before": {
+        "count": 41,
+        "sha256": "ec2ce6fbb971c0b201f8a5d1b6f73a38961424f4b646c2a23b2185439f76c133"
+      },
+      "old_location_opened": true,
+      "original_after_sha256": "e7d4b8092b0dfa596985e55f34ed1827b25ac1563810e01fbf446c06960beb8e",
+      "original_before": "missing",
+      "quarantine_copy_sha256": "e7d4b8092b0dfa596985e55f34ed1827b25ac1563810e01fbf446c06960beb8e",
+      "real_receipts_preserved": 1
+    },
+    "visual": {
+      "after": {
+        "copied_native_visual": {
+          "counts": {
+            "candidate_embeddings": 0,
+            "generation_state": 1,
+            "owner": 1,
+            "preference_models": 0,
+            "ranking_events": 60,
+            "sqlite_sequence": 1
+          },
+          "integrity": "ok",
+          "sha256": "4b44dff434e0cabc6e5a289d33df112c5034c7df86cc10ca526189e2c581cb7f"
+        },
+        "learning": {
+          "counts": {
+            "bookmark_remote_cache": 0,
+            "discovery_swipe_history": 27,
+            "failed_queue": 0,
+            "file_ledger": 0,
+            "quarantine_exclusions": 0,
+            "settings": 5,
+            "work_embeddings": 0,
+            "works": 0
+          },
+          "integrity": "ok",
+          "sha256": "5f075571441f41fc9bef99bd565c9b2ba35ad6e4ee4d9f3d4ea725edd193fe16"
+        },
+        "managed_dbs": {
+          "0": {
+            "counts": {
+              "metadata": 1,
+              "settings": 1,
+              "superseded": 0
+            },
+            "integrity": "ok",
+            "sha256": "2c1678d5371e1098b2c91240a538387a83fbe5335d0f28cc723288ea138ca3e8"
+          },
+          "1": {
+            "counts": {
+              "deferred_work": 0,
+              "dispatch_history": 1,
+              "dispatch_items": 0,
+              "favourite_authors": 0,
+              "schedule": 1,
+              "scheduler_account": 1
+            },
+            "integrity": "ok",
+            "sha256": "fbc8e71c7baa3550caa17bcea2d09c9b9cf6832d30f40463c59dfdac940ba2ea"
+          },
+          "2": {
+            "counts": {
+              "admissions": 0,
+              "author_targets": 0
+            },
+            "integrity": "ok",
+            "sha256": "4035a45869d5d38a333f29015d6a84a6efdb47d20848e29cea1e60b4103d67d6"
+          },
+          "3": {
+            "counts": {
+              "children": 0,
+              "work_media_routes": 0
+            },
+            "integrity": "ok",
+            "sha256": "989160a3f7133577c1138a45544acc8d475d3606d32d17f91b100bfdc7d5d65c"
+          },
+          "4": {
+            "counts": {
+              "job_history": 0,
+              "jobs": 0,
+              "operations": 0
+            },
+            "integrity": "ok",
+            "sha256": "b026a86a56182968d046e698662868d21725a571e827c125c7d67268daf368d8"
+          },
+          "5": {
+            "counts": {
+              "job_history": 1,
+              "jobs": 1,
+              "operations": 1
+            },
+            "integrity": "ok",
+            "sha256": "84e5aea034e098fde371ad9f70b5f0f12db6fb31f4725b206370016737885640"
+          }
+        },
+        "managed_similarity": {
+          "counts": {
+            "legacy_cpu_adoption": 0,
+            "legacy_provenance": 0,
+            "pages": 0,
+            "work_embeddings": 0
+          },
+          "integrity": "ok",
+          "sha256": "1f6b49a76fc277cd523a380675ac92f8d0d52b65c6e540e3eac82b16203fceb2"
+        },
+        "old": {
+          "counts": {
+            "bookmark_remote_cache": 1977,
+            "discovery_swipe_history": 296,
+            "failed_queue": 1,
+            "file_ledger": 0,
+            "quarantine_exclusions": 0,
+            "settings": 36,
+            "work_embeddings": 812,
+            "works": 105
+          },
+          "integrity": "ok",
+          "sha256": "cd4b6ded43cf0258c892ce351cc69e38ccda254e4b73be1ec2403196e0d41469"
+        },
+        "old_quarantine": {
+          "count": 0,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "preferences": {
+          "counts": {
+            "local_tagger_verification": 1,
+            "preferences_identity": 1,
+            "preferences_revision": 1,
+            "preferences_values": 2
+          },
+          "integrity": "ok",
+          "sha256": "5db44d939764c0a2583c5e46dc4b1aadc301104608fdc7ac3fa6ebafda8e410c"
+        },
+        "saved_images": {
+          "count": 220,
+          "sha256": "9e04560bf185b79f5cd524ca0202347fb4c19258d39710b4b1d6e24acb7fbc85"
+        }
+      },
+      "before": {
+        "copied_native_visual": {
+          "counts": {
+            "candidate_embeddings": 0,
+            "generation_state": 1,
+            "owner": 1,
+            "preference_models": 0,
+            "ranking_events": 60,
+            "sqlite_sequence": 1
+          },
+          "integrity": "ok",
+          "sha256": "4b44dff434e0cabc6e5a289d33df112c5034c7df86cc10ca526189e2c581cb7f"
+        },
+        "learning": {
+          "counts": {
+            "bookmark_remote_cache": 0,
+            "discovery_swipe_history": 27,
+            "failed_queue": 0,
+            "file_ledger": 0,
+            "quarantine_exclusions": 0,
+            "settings": 5,
+            "work_embeddings": 0,
+            "works": 0
+          },
+          "integrity": "ok",
+          "sha256": "5f075571441f41fc9bef99bd565c9b2ba35ad6e4ee4d9f3d4ea725edd193fe16"
+        },
+        "managed_dbs": {
+          "0": {
+            "counts": {
+              "metadata": 1,
+              "settings": 1,
+              "superseded": 0
+            },
+            "integrity": "ok",
+            "sha256": "2c1678d5371e1098b2c91240a538387a83fbe5335d0f28cc723288ea138ca3e8"
+          },
+          "1": {
+            "counts": {
+              "deferred_work": 0,
+              "dispatch_history": 1,
+              "dispatch_items": 0,
+              "favourite_authors": 0,
+              "schedule": 1,
+              "scheduler_account": 1
+            },
+            "integrity": "ok",
+            "sha256": "fbc8e71c7baa3550caa17bcea2d09c9b9cf6832d30f40463c59dfdac940ba2ea"
+          },
+          "2": {
+            "counts": {
+              "admissions": 0,
+              "author_targets": 0
+            },
+            "integrity": "ok",
+            "sha256": "4035a45869d5d38a333f29015d6a84a6efdb47d20848e29cea1e60b4103d67d6"
+          },
+          "3": {
+            "counts": {
+              "children": 0,
+              "work_media_routes": 0
+            },
+            "integrity": "ok",
+            "sha256": "989160a3f7133577c1138a45544acc8d475d3606d32d17f91b100bfdc7d5d65c"
+          },
+          "4": {
+            "counts": {
+              "job_history": 0,
+              "jobs": 0,
+              "operations": 0
+            },
+            "integrity": "ok",
+            "sha256": "b026a86a56182968d046e698662868d21725a571e827c125c7d67268daf368d8"
+          },
+          "5": {
+            "counts": {
+              "job_history": 1,
+              "jobs": 1,
+              "operations": 1
+            },
+            "integrity": "ok",
+            "sha256": "84e5aea034e098fde371ad9f70b5f0f12db6fb31f4725b206370016737885640"
+          }
+        },
+        "managed_similarity": {
+          "counts": {
+            "legacy_cpu_adoption": 0,
+            "legacy_provenance": 0,
+            "pages": 0,
+            "work_embeddings": 0
+          },
+          "integrity": "ok",
+          "sha256": "1f6b49a76fc277cd523a380675ac92f8d0d52b65c6e540e3eac82b16203fceb2"
+        },
+        "old": {
+          "counts": {
+            "bookmark_remote_cache": 1977,
+            "discovery_swipe_history": 296,
+            "failed_queue": 1,
+            "file_ledger": 0,
+            "quarantine_exclusions": 0,
+            "settings": 36,
+            "work_embeddings": 812,
+            "works": 105
+          },
+          "integrity": "ok",
+          "sha256": "cd4b6ded43cf0258c892ce351cc69e38ccda254e4b73be1ec2403196e0d41469"
+        },
+        "old_quarantine": {
+          "count": 0,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "preferences": {
+          "counts": {
+            "local_tagger_verification": 1,
+            "preferences_identity": 1,
+            "preferences_revision": 1,
+            "preferences_values": 2
+          },
+          "integrity": "ok",
+          "sha256": "5db44d939764c0a2583c5e46dc4b1aadc301104608fdc7ac3fa6ebafda8e410c"
+        },
+        "saved_images": {
+          "count": 220,
+          "sha256": "9e04560bf185b79f5cd524ca0202347fb4c19258d39710b4b1d6e24acb7fbc85"
+        }
+      },
+      "state": "paused",
+      "visual_after": {
+        "counts": {
+          "candidate_embeddings": 0,
+          "generation_state": 1,
+          "owner": 1,
+          "preference_models": 0,
+          "ranking_events": 0,
+          "sqlite_sequence": 0
+        },
+        "integrity": "ok",
+        "sha256": "d55e9f5ebf66ab78d71ddeb4840c87df07bc61810b7928c0cd69274dd950b3e6"
+      },
+      "visual_before": {
+        "counts": {
+          "candidate_embeddings": 0,
+          "generation_state": 1,
+          "owner": 1,
+          "preference_models": 0,
+          "ranking_events": 60,
+          "sqlite_sequence": 1
+        },
+        "integrity": "ok",
+        "sha256": "0887ed146fefeee0feb2c60a67dc4ba982d3fa1817ca5451a4ea4087a7bd4504"
+      }
+    },
+    "wt-f": {
+      "after": {
+        "learning": {
+          "counts": {
+            "bookmark_remote_cache": 0,
+            "discovery_swipe_history": 27,
+            "failed_queue": 0,
+            "file_ledger": 0,
+            "quarantine_exclusions": 0,
+            "settings": 5,
+            "work_embeddings": 0,
+            "works": 0
+          },
+          "integrity": "ok",
+          "sha256": "ee920097fd2827b29f7b796582c8f9036a98adc997e0d1109b54868bef6849d3"
+        },
+        "managed_dbs": {
+          "0": {
+            "counts": {
+              "metadata": 1,
+              "settings": 1,
+              "superseded": 0
+            },
+            "integrity": "ok",
+            "sha256": "2c1678d5371e1098b2c91240a538387a83fbe5335d0f28cc723288ea138ca3e8"
+          },
+          "1": {
+            "counts": {
+              "deferred_work": 0,
+              "dispatch_history": 1,
+              "dispatch_items": 0,
+              "favourite_authors": 0,
+              "schedule": 1,
+              "scheduler_account": 1
+            },
+            "integrity": "ok",
+            "sha256": "fbc8e71c7baa3550caa17bcea2d09c9b9cf6832d30f40463c59dfdac940ba2ea"
+          },
+          "2": {
+            "counts": {
+              "admissions": 0,
+              "author_targets": 0
+            },
+            "integrity": "ok",
+            "sha256": "4035a45869d5d38a333f29015d6a84a6efdb47d20848e29cea1e60b4103d67d6"
+          },
+          "3": {
+            "counts": {
+              "children": 0,
+              "work_media_routes": 0
+            },
+            "integrity": "ok",
+            "sha256": "989160a3f7133577c1138a45544acc8d475d3606d32d17f91b100bfdc7d5d65c"
+          },
+          "4": {
+            "counts": {
+              "job_history": 0,
+              "jobs": 0,
+              "operations": 0
+            },
+            "integrity": "ok",
+            "sha256": "b026a86a56182968d046e698662868d21725a571e827c125c7d67268daf368d8"
+          },
+          "5": {
+            "counts": {
+              "job_history": 1,
+              "jobs": 1,
+              "operations": 1
+            },
+            "integrity": "ok",
+            "sha256": "84e5aea034e098fde371ad9f70b5f0f12db6fb31f4725b206370016737885640"
+          }
+        },
+        "old": {
+          "counts": {
+            "bookmark_remote_cache": 1977,
+            "discovery_swipe_history": 296,
+            "failed_queue": 1,
+            "file_ledger": 0,
+            "quarantine_exclusions": 0,
+            "settings": 36,
+            "work_embeddings": 812,
+            "works": 105
+          },
+          "integrity": "ok",
+          "sha256": "cd4b6ded43cf0258c892ce351cc69e38ccda254e4b73be1ec2403196e0d41469"
+        },
+        "old_quarantine": {
+          "count": 0,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "preferences": {
+          "counts": {
+            "local_tagger_verification": 1,
+            "preferences_identity": 1,
+            "preferences_revision": 1,
+            "preferences_values": 2
+          },
+          "integrity": "ok",
+          "sha256": "5db44d939764c0a2583c5e46dc4b1aadc301104608fdc7ac3fa6ebafda8e410c"
+        },
+        "saved_images": {
+          "count": 220,
+          "sha256": "9e04560bf185b79f5cd524ca0202347fb4c19258d39710b4b1d6e24acb7fbc85"
+        }
+      },
+      "before": {
+        "learning": {
+          "counts": {
+            "bookmark_remote_cache": 0,
+            "discovery_swipe_history": 27,
+            "failed_queue": 0,
+            "file_ledger": 0,
+            "quarantine_exclusions": 0,
+            "settings": 5,
+            "work_embeddings": 0,
+            "works": 0
+          },
+          "integrity": "ok",
+          "sha256": "ee920097fd2827b29f7b796582c8f9036a98adc997e0d1109b54868bef6849d3"
+        },
+        "managed_dbs": {
+          "0": {
+            "counts": {
+              "metadata": 1,
+              "settings": 1,
+              "superseded": 0
+            },
+            "integrity": "ok",
+            "sha256": "2c1678d5371e1098b2c91240a538387a83fbe5335d0f28cc723288ea138ca3e8"
+          },
+          "1": {
+            "counts": {
+              "deferred_work": 0,
+              "dispatch_history": 1,
+              "dispatch_items": 0,
+              "favourite_authors": 0,
+              "schedule": 1,
+              "scheduler_account": 1
+            },
+            "integrity": "ok",
+            "sha256": "fbc8e71c7baa3550caa17bcea2d09c9b9cf6832d30f40463c59dfdac940ba2ea"
+          },
+          "2": {
+            "counts": {
+              "admissions": 0,
+              "author_targets": 0
+            },
+            "integrity": "ok",
+            "sha256": "4035a45869d5d38a333f29015d6a84a6efdb47d20848e29cea1e60b4103d67d6"
+          },
+          "3": {
+            "counts": {
+              "children": 0,
+              "work_media_routes": 0
+            },
+            "integrity": "ok",
+            "sha256": "989160a3f7133577c1138a45544acc8d475d3606d32d17f91b100bfdc7d5d65c"
+          },
+          "4": {
+            "counts": {
+              "job_history": 0,
+              "jobs": 0,
+              "operations": 0
+            },
+            "integrity": "ok",
+            "sha256": "b026a86a56182968d046e698662868d21725a571e827c125c7d67268daf368d8"
+          },
+          "5": {
+            "counts": {
+              "job_history": 1,
+              "jobs": 1,
+              "operations": 1
+            },
+            "integrity": "ok",
+            "sha256": "84e5aea034e098fde371ad9f70b5f0f12db6fb31f4725b206370016737885640"
+          }
+        },
+        "old": {
+          "counts": {
+            "bookmark_remote_cache": 1977,
+            "discovery_swipe_history": 296,
+            "failed_queue": 1,
+            "file_ledger": 0,
+            "quarantine_exclusions": 0,
+            "settings": 36,
+            "work_embeddings": 812,
+            "works": 105
+          },
+          "integrity": "ok",
+          "sha256": "cd4b6ded43cf0258c892ce351cc69e38ccda254e4b73be1ec2403196e0d41469"
+        },
+        "old_quarantine": {
+          "count": 0,
+          "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "preferences": {
+          "counts": {
+            "local_tagger_verification": 1,
+            "preferences_identity": 1,
+            "preferences_revision": 1,
+            "preferences_values": 2
+          },
+          "integrity": "ok",
+          "sha256": "5db44d939764c0a2583c5e46dc4b1aadc301104608fdc7ac3fa6ebafda8e410c"
+        },
+        "saved_images": {
+          "count": 220,
+          "sha256": "9e04560bf185b79f5cd524ca0202347fb4c19258d39710b4b1d6e24acb7fbc85"
+        }
+      },
+      "exclusions": 1,
+      "managed_tree_after": {
+        "count": 50,
+        "sha256": "b19e2dc6c2f2b7c31eed970132cb29cf7743b1377f3cb16b0dafed540619813e"
+      },
+      "managed_tree_before": {
+        "count": 50,
+        "sha256": "7f970383eb1dfbb9993342c70cefe393347646c0bea6dbfc147d40b609ec88dc"
+      },
+      "removed_copies": 2,
+      "removed_sha256": [
+        "cea61e7765a71169b5183100ebe477662810481d1bc2a664d090b4fd9f58e80f",
+        "e7d4b8092b0dfa596985e55f34ed1827b25ac1563810e01fbf446c06960beb8e"
+      ],
+      "strict_receipts": 5
+    }
+  }
+}
