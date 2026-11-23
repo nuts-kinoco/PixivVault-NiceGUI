@@ -293,9 +293,15 @@ class _OwnedWriteTransport(OwnedHTTPSPool):
                 body = _write_response_body(response, owner, limit)
                 owner.check()
                 return WriteHTTPResponse(observed_status, body)
-        except Exception:
+        except Exception as error:
+            from .managed_network_stop_gate import (
+                ManagedNetworkGateStorageError, _attach_gate_cleanup, _carry_gate_cleanup,
+            )
             if observed_status in (401, 403, 429):
-                raise HTTPStatusRejected(observed_status) from None
+                rejected = _carry_gate_cleanup(error, HTTPStatusRejected(observed_status))
+                if isinstance(error, ManagedNetworkGateStorageError):
+                    _attach_gate_cleanup(rejected, error)
+                raise rejected from None
             raise TimeoutError('write outcome unknown') from None
 
 
@@ -690,7 +696,7 @@ class PixivWriteClient:
                                         or type(response.status) is not int):
                                     raise TimeoutError()
             except HTTPStatusRejected as error:
-                if getattr(error, 'cleanup_failed', False):
+                if getattr(error, 'cleanup_failed', False) or getattr(error, 'gate_cleanup_errors', ()):
                     return self._finish(intent,target_key,'indeterminate','transport_unknown',None,epoch)
                 if response is None or response.status != error.status_code:
                     return self._finish(intent,target_key,'indeterminate','transport_unknown',None,epoch)

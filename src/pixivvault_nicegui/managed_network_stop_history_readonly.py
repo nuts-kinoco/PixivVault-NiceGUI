@@ -11,6 +11,7 @@ constructor can create missing database and lock files.
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import dataclass
 import hashlib
 import json
@@ -20,7 +21,7 @@ import stat
 
 from .managed_network_stop_gate import (
     STOP_STATUSES, ManagedNetworkGateStorageError, _APP_ID, _VERSION,
-    _file_identity, _reject_links,
+    ManagedNetworkStopped, _carry_gate_cleanup, _file_identity, _gate_cleanup, _reject_links,
 )
 
 _DB_NAME = ".pixivvault-network-stop.sqlite3"
@@ -134,58 +135,59 @@ def _fingerprint(path: Path) -> tuple[tuple[int, int], int, int, str]:
         raise _Unverified("unreadable_file") from None
 
 
-def _read_gate_immutable(path: Path) -> tuple[bool, int | None, int]:
+def _read_gate_immutable(path: Path, *, deny_stopped=False) -> tuple[bool, int | None, int]:
     # SQLite immutable is safe here ONLY after ruling out sidecars/WAL; it is
     # not a substitute for separately proving legacy process quiescence.
-    conn = None
     try:
-        with path.open("rb") as stream:
-            header = stream.read(100)
-        if (len(header) != 100 or header[:16] != b"SQLite format 3\x00"
-                or header[18:20] != b"\x01\x01"):
-            raise _Unverified("unknown_or_wal_sqlite_header")
-        conn = sqlite3.connect(path.as_uri() + "?mode=ro&immutable=1", uri=True)
-        if (conn.execute("PRAGMA application_id").fetchone()[0] != _APP_ID
-                or conn.execute("PRAGMA user_version").fetchone()[0] != _VERSION):
-            raise _Unverified("unrecognized_gate_schema")
-        tables = {row[0] for row in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )}
-        if tables != {"gate"}:
-            raise _Unverified("unrecognized_gate_schema")
-        columns = [(row[1], row[2], row[3], row[5]) for row in
-                   conn.execute("PRAGMA table_info(gate)")]
-        if columns != [
-            ("id", "INTEGER", 0, 1),
-            ("blocked", "INTEGER", 1, 0),
-            ("status", "INTEGER", 0, 0),
-            ("revision", "INTEGER", 1, 0),
-        ]:
-            raise _Unverified("unrecognized_gate_schema")
-        rows = conn.execute("SELECT id,blocked,status,revision FROM gate").fetchall()
-        if len(rows) != 1:
-            raise _Unverified("invalid_stop_state")
-        item_id, blocked, status, revision = rows[0]
-        if (type(item_id) is not int or item_id != 1
-                or type(blocked) is not int or blocked not in (0, 1)
-                or type(revision) is not int or revision < 0
-                or (blocked == 0 and status is not None)
-                or (blocked == 1 and (type(status) is not int
-                                      or status not in STOP_STATUSES))):
-            raise _Unverified("invalid_stop_state")
-        # The only states this gate can write are its initial clean row
-        # (0, NULL, 0) and its first irreversible fatal latch (1, status, 1).
-        # Any later revision, including a cleared row or a repeated latch,
-        # implies an out-of-band edit/reset or unknown history. Never describe
-        # such a row as unblocked/stopped: that would launder a past 401/403/429.
-        if (blocked == 0 and revision != 0) or (blocked == 1 and revision != 1):
-            raise _Unverified("ambiguous_stop_revision")
-        return bool(blocked), status, revision
-    except sqlite3.Error:
-        raise _Unverified("unreadable_gate_schema") from None
-    finally:
-        if conn is not None:
-            conn.close()
+        with ExitStack() as cleanup:
+            stream = path.open("rb")
+            with _gate_cleanup(stream.close, 'historical STOP header close failed'):
+                header = stream.read(100)
+            if (len(header) != 100 or header[:16] != b"SQLite format 3\x00"
+                    or header[18:20] != b"\x01\x01"):
+                raise _Unverified("unknown_or_wal_sqlite_header")
+            conn = sqlite3.connect(path.as_uri() + "?mode=ro&immutable=1", uri=True)
+            cleanup.enter_context(_gate_cleanup(conn.close, 'historical STOP database close failed'))
+            if (conn.execute("PRAGMA application_id").fetchone()[0] != _APP_ID
+                    or conn.execute("PRAGMA user_version").fetchone()[0] != _VERSION):
+                raise _Unverified("unrecognized_gate_schema")
+            tables = {row[0] for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )}
+            if tables != {"gate"}:
+                raise _Unverified("unrecognized_gate_schema")
+            columns = [(row[1], row[2], row[3], row[5]) for row in
+                       conn.execute("PRAGMA table_info(gate)")]
+            if columns != [
+                ("id", "INTEGER", 0, 1),
+                ("blocked", "INTEGER", 1, 0),
+                ("status", "INTEGER", 0, 0),
+                ("revision", "INTEGER", 1, 0),
+            ]:
+                raise _Unverified("unrecognized_gate_schema")
+            rows = conn.execute("SELECT id,blocked,status,revision FROM gate").fetchall()
+            if len(rows) != 1:
+                raise _Unverified("invalid_stop_state")
+            item_id, blocked, status, revision = rows[0]
+            if (type(item_id) is not int or item_id != 1
+                    or type(blocked) is not int or blocked not in (0, 1)
+                    or type(revision) is not int or revision < 0
+                    or (blocked == 0 and status is not None)
+                    or (blocked == 1 and (type(status) is not int
+                                          or status not in STOP_STATUSES))):
+                raise _Unverified("invalid_stop_state")
+            # The only states this gate can write are its initial clean row
+            # (0, NULL, 0) and its first irreversible fatal latch (1, status, 1).
+            # Any later revision, including a cleared row or a repeated latch,
+            # implies an out-of-band edit/reset or unknown history. Never describe
+            # such a row as unblocked/stopped: that would launder a past 401/403/429.
+            if (blocked == 0 and revision != 0) or (blocked == 1 and revision != 1):
+                raise _Unverified("ambiguous_stop_revision")
+            if blocked and deny_stopped:
+                raise ManagedNetworkStopped(status)
+            return bool(blocked), status, revision
+    except sqlite3.Error as error:
+        raise _carry_gate_cleanup(error, _Unverified("unreadable_gate_schema")) from None
 
 
 def read_existing_stop_history_readonly(
