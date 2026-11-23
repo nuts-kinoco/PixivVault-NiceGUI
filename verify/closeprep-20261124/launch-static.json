@@ -1,0 +1,17 @@
+﻿{
+    "script":  "tools/launch_d10.ps1",
+    "powershell_parse_errors":  0,
+    "example_arguments":  [
+                              "CodeRoot",
+                              "PythonRoot",
+                              "ProfileRoot",
+                              "Port",
+                              "LogRoot",
+                              "TempRoot"
+                          ],
+    "baseline_files_present":  true,
+    "python_present":  true,
+    "local_app_data_drive":  "C:\\",
+    "source_uri_launcher_present":  false,
+    "native_started":  false
+}

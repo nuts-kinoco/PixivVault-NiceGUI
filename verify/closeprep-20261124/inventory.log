@@ -1,0 +1,16 @@
+﻿inventory 件数: 4052
+対応づけの出所: {"auto-name": 46, "auto-nearest": 28, "auto-qualname": 5, "auto-range": 1347, "auto-range-wide": 691, "auto-section-T": 44, "auto-text": 96, "manual": 24, "rule": 809, "rule-file": 40, "rule-function": 12, "rule-wide": 844, "table-rule": 52, "unused": 14}
+  うち n/a: 71  / 台帳 FL へ: 3981
+  tier A 狭い根拠: 2432  / tier B 単位での対応(同じ関数内の近い項目・関数全体・ファイル全体): 57  / tier C 弱い(広い範囲・近傍・広い手規則): 1563
+  規則の幅の上限: tier A は 150 行以内 / tier B(scope=function・file)は 400 行以内 / それより広い規則は tier C
+厳格な未対応: 未対応+C = 1563  / 未対応+B+C = 1620
+対応先に使われた FL の数: 196
+弱い対応の多い FL(上位 10): FL-I16=205, FL-I02=181, FL-I14=174, FL-I01=172, FL-K04=171, FL-I11=162, FL-L01=159, FL-L03=119, FL-J11=112, FL-E01=109
+未対応: 0
+未解決の差: 875 件(= 対応先が無・弱の項目 0 件 + 対応先は有でも元の UI 文言が移植版に無い項目 875 件)
+  無・弱の台帳行: 0 行(無 0 行・弱 0 行)
+  port_text_missing: 882 件(うち n/a 7 件・無/弱の行 0 件・有の行 875 件)
+  有の行で文言が無い項目の多い FL(上位 10): FL-I14=32, FL-C21=25, FL-I16=24, FL-K04=24, FL-D10=23, FL-X01=23, FL-B10=22, FL-J12=21, FL-L05=20, FL-L01=18
+参考: 台帳の設定キー索引(T)にあるが inventory に無いキー: なし
+警告: 引用範囲に inventory 項目が 0 件の台帳行(行番号のずれ・引用形式の不備の疑い): 0 []
+参考: 逆方向の検査から理由つきで除外した台帳行: 4 ['FL-J14', 'FL-Y16', 'FL-Z04', 'FL-Z14']
