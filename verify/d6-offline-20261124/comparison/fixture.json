@@ -1,0 +1,12 @@
+{
+  "original_revision": "3ac3aa0d47a64785251593bcb09bb2d5f6df374b",
+  "nice_revision": "fedf4ad5cf6d1701d8064e12e9e5e5d6e5541634",
+  "db_rows_initial": {
+    "works": 2000,
+    "following_users": 200,
+    "discovery_swipe_history": 12
+  },
+  "library_images": 2024,
+  "learning_candidates": 60,
+  "learning_images": 60
+}

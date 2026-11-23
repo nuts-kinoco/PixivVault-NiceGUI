@@ -1,0 +1,19 @@
+{
+  "data": "synthetic offline control",
+  "db_sha256": "c8c23a657d26ceafb34a590c8bfcae252cf88673588360f41086f288a97f734a",
+  "db_rows": {
+    "works": 2000,
+    "following_users": 200,
+    "discovery_swipe_history": 12,
+    "superlike_info_cache": 12,
+    "bookmark_remote_cache": 20
+  },
+  "library_images": {
+    "files": 2024,
+    "sha256": "f226073e17aa88b0bfad996ed183d4c37f44ea1dae565dea42972298503638d7"
+  },
+  "candidate_images": {
+    "files": 60,
+    "sha256": "0f9e8fd15bf3f246e7e354bfb60f4f63dceb437629b9fc11c8f04ab5cff31c56"
+  }
+}

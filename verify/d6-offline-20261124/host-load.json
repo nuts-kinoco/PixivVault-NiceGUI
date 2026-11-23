@@ -1,0 +1,34 @@
+[
+  {
+    "observed_at": "2026-11-24T00:58:38.5118816+09:00",
+    "sample_seconds": 4.32,
+    "cpu_pct": 27,
+    "ema_cpu_pct": 1.45,
+    "ema_gpu_counters_seen": 0,
+    "ema_gpu_max_engine_pct": null
+  },
+  {
+    "observed_at": "2026-11-24T00:59:43.2990790+09:00",
+    "sample_seconds": 4.5,
+    "cpu_pct": 31,
+    "ema_cpu_pct": 1.39,
+    "ema_gpu_counters_seen": 0,
+    "ema_gpu_max_engine_pct": null
+  },
+  {
+    "observed_at": "2026-11-24T01:00:54.9699911+09:00",
+    "sample_seconds": 5.54,
+    "cpu_pct": 48,
+    "ema_cpu_pct": 1.13,
+    "ema_gpu_counters_seen": 0,
+    "ema_gpu_max_engine_pct": null
+  },
+  {
+    "observed_at": "2026-11-24T01:01:48.8867127+09:00",
+    "sample_seconds": 4.1,
+    "cpu_pct": 26,
+    "ema_cpu_pct": 1.52,
+    "ema_gpu_counters_seen": 0,
+    "ema_gpu_max_engine_pct": null
+  }
+]

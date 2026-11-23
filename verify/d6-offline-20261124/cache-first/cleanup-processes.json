@@ -1,0 +1,16 @@
+{
+  "run_temp": "S:\\Work\\_tmp\\PV\\d6-offline-20261124\\cache-first",
+  "observed_by_image": {
+    "python.exe": 3,
+    "node.exe": 2,
+    "conhost.exe": 2,
+    "chrome-headless-shell.exe": 8
+  },
+  "remaining": [],
+  "owned_ports_closed": {
+    "22630": true,
+    "22631": true,
+    "22632": true,
+    "22640": true
+  }
+}

@@ -5,6 +5,7 @@ import io
 import json
 import math
 import os
+import re
 import shutil
 import socket
 import sqlite3
@@ -25,6 +26,7 @@ ORIGINAL_PYTHON = Path('C:/Users/nat/miniconda3/envs/stenv/python.exe')
 ORIGINAL_PORT, NICE_PORT = 22630, 22640
 WORKS, AUTHORS, LEARNING, EXTRA_PAGES = 2000, 200, 60, 24
 CASES = ('learning', 'library_display', 'library_scroll', 'library_search', 'viewer_next')
+OFFLINE_CASES = ('learning', 'library_search', 'viewer_next', 'recommend', 'bookmarks')
 
 
 def color(number, page=0):
@@ -70,7 +72,7 @@ def isolated_environment(base):
     return env
 
 
-def seed(base):
+def seed(base, offline=False):
     from PIL import Image, ImageDraw
     from pixivvault_nicegui.legacy.database import Database
 
@@ -107,9 +109,6 @@ def seed(base):
         db.executemany('INSERT INTO works(work_id,title,page_count,tags,user_id,content_type,'
                        'create_date,last_backup,work_meta) VALUES (?,?,?,?,?,?,?,?,?)', rows)
     database.set_setting('save_path', str(library / 'Images'))
-    database.conn.execute('PRAGMA wal_checkpoint(TRUNCATE)')
-    database.conn.execute('PRAGMA journal_mode=DELETE')
-    database.conn.close()
     learning_root = base / 'learning'
     learning_root.mkdir()
     for number in range(800000, 800000 + LEARNING):
@@ -118,10 +117,16 @@ def seed(base):
                              thumbnail_url=f'https://synthetic.invalid/{number}.png', x_restrict=0))
         image(learning_root / f'{number}.png', number)
     (base / 'learning.json').write_text(json.dumps(learning), encoding='utf-8')
+    if offline:
+        from tools.d6_offline import seed_caches
+        seed_caches(database, rows, authors, learning)
+    database.conn.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+    database.conn.execute('PRAGMA journal_mode=DELETE')
+    database.conn.close()
     return db_path
 
 
-def serve_nice(base):
+def serve_nice(base, offline=False):
     from tools.check_library_calendar_slider_owned import deny_external_connections
     network = deny_external_connections()
     from nicegui import app, ui
@@ -129,6 +134,10 @@ def serve_nice(base):
     from pixivvault_nicegui.bootstrap import register_pages
     from pixivvault_nicegui.models import Artwork
     from pixivvault_nicegui.preferences import PreferencesStore
+    reader = None
+    if offline:
+        from tools.d6_offline import install_recommendation_reader
+        reader = install_recommendation_reader(base)
 
     segments = {}
     if os.environ.get('PV_P6_SEGMENTS') == '1':
@@ -190,7 +199,8 @@ def serve_nice(base):
 
     @app.get('/__p6_network')
     def network_counts():
-        return network
+        return (dict(network, fixture_reads=reader.reads, fixture_denials=reader.denials)
+                if reader is not None else network)
 
     @app.get('/__p6_segments')
     def segment_counts():
@@ -228,16 +238,21 @@ def server(base, name, command, cwd, env, port):
                 process.wait(timeout=10)
 
 
-def browser_run(base, url, name, env, probe_only, repetitions, cases):
+def browser_run(base, url, name, env, probe_only, repetitions, cases, offline=False, owned=None):
     from playwright.sync_api import sync_playwright
     # The bundled Chromium avoids machine Edge profile/import policies.
     os.environ.setdefault('PLAYWRIGHT_BROWSERS_PATH', str(Path(os.environ['LOCALAPPDATA']) / 'ms-playwright'))
     os.environ.update({name: env[name] for name in ('TEMP', 'TMP', 'TMPDIR')})
     with sync_playwright() as playwright:
+        args = ['--proxy-server=http://127.0.0.1:1', '--disable-background-networking',
+                '--disable-component-update', '--no-first-run']
+        if offline:
+            args += ['--disable-gpu', '--disable-gpu-compositing', '--use-angle=swiftshader']
+        if owned is not None:
+            owned.observe()
         context = playwright.chromium.launch_persistent_context(
             str(base / f'{name}-browser'), headless=True, env=env, timeout=25000,
-            args=['--proxy-server=http://127.0.0.1:1', '--disable-background-networking',
-                  '--disable-component-update', '--no-first-run'],
+            args=args,
             service_workers='block', viewport={'width': 1280, 'height': 800})
         out_of_origin = []
         def route(request):
@@ -263,10 +278,16 @@ def browser_run(base, url, name, env, probe_only, repetitions, cases):
             page.goto(url, timeout=25000)
             if name == 'original':
                 page.locator('flt-semantics-placeholder').evaluate('(e) => e.click()', timeout=30000)
+            elif offline:
+                page.wait_for_function('window.did_handshake === true', timeout=15000)
+            if owned is not None:
+                owned.observe()
             if probe_only:
                 return probe(page, base, name)
-            return measure(page, base, name, repetitions, cases)
+            return measure(page, base, name, repetitions, cases, offline=offline)
         finally:
+            if owned is not None:
+                owned.observe()
             context.close()
             (base / f'{name}-browser-network.json').write_text(
                 json.dumps({'nonlocal_requests_blocked': len(out_of_origin)}), encoding='utf-8')
@@ -291,7 +312,7 @@ def probe(page, base, name):
             if name == 'original' else page.locator('body').inner_text(), encoding='utf-8')
 
 
-def measure(page, base, name, repetitions, cases):
+def measure(page, base, name, repetitions, cases, offline=False):
     from PIL import Image
 
     original = name == 'original'
@@ -314,21 +335,21 @@ def measure(page, base, name, repetitions, cases):
             return page.get_by_role('button', name=label, exact=True).first
         return page.get_by_test_id(f'tab-{section}')
 
-    def paint():
-        page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
+    def paint(active_page=page):
+        active_page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
 
-    def elapsed(operation, action, ready):
+    def elapsed(operation, action, ready, *, active_page=page):
         tracing = not original and os.environ.get('PV_P6_SEGMENTS') == '1' and operation in (
             'learning', 'library_search', 'viewer_next')
         if tracing:
             page.evaluate('''op => {
               const select = () => {
-                if (op === 'learning') return [...document.querySelectorAll('.pv-learning .pv-view-title')]
+                if (op === 'learning') return [...document.querySelectorAll('.pv-learning-work-title')]
                   .map(e => e.textContent.trim()).find(t => /^Bench Learn [0-9]{6}$/.test(t)) || '';
                 if (op === 'viewer_next') return document.querySelector('[data-testid=library-viewer] .pv-counter')?.textContent || '';
                 const input = document.querySelector('input[placeholder="タイトル・作者・タグを検索"]');
-                const card = [...document.querySelectorAll('[data-testid=library-author-open]')]
-                  .find(e => e.getAttribute('aria-label') === input?.value);
+                const card = [...document.querySelectorAll('.pv-library-author-card .pv-library-card-title')]
+                  .find(e => e.textContent.trim() === input?.value);
                 return card ? input.value : '';
               };
               const before = select();
@@ -337,7 +358,7 @@ def measure(page, base, name, repetitions, cases):
                 if ((op === 'learning' && e.type === 'keydown' && e.key === '3') ||
                     (op === 'viewer_next' && e.type === 'keydown' && e.key === 'ArrowRight') ||
                     (op === 'library_search' && e.type === 'input' &&
-                     e.target.getAttribute('placeholder') === 'タイトル・作者・タグを検索')) state.start = performance.now();
+                     e.target.matches('input[data-testid=library-search], [data-testid=library-search] input'))) state.start = performance.now();
               };
               document.addEventListener('keydown', onEvent, true);
               document.addEventListener('input', onEvent, true);
@@ -357,7 +378,7 @@ def measure(page, base, name, repetitions, cases):
         action_done = time.perf_counter_ns()
         ready()
         ready_done = time.perf_counter_ns()
-        paint()
+        paint(active_page)
         finished = time.perf_counter_ns()
         records.setdefault(operation, []).append((finished - started) / 1_000_000)
         segments.setdefault(operation, []).append({'action_ms': (action_done-started)/1_000_000,
@@ -384,7 +405,9 @@ def measure(page, base, name, repetitions, cases):
         label = f'Bench Author {number:03d}'
         if original:
             return page.locator(f'flt-semantics[aria-label^="{label}"]')
-        return page.get_by_test_id('library-authors-scroll').get_by_role('button', name=label, exact=True)
+        title = page.locator('.pv-library-card-title').filter(has_text=re.compile(f'^{label}$'))
+        return page.get_by_test_id('library-authors-scroll').locator('.pv-library-author-card').filter(
+            has=title).get_by_test_id('library-author-open')
 
     def ready_library():
         author(0).first.wait_for(state='visible', timeout=30000)
@@ -416,7 +439,7 @@ def measure(page, base, name, repetitions, cases):
         picture = stage.get_by_text('Bench Learn 800000', exact=True).first
         picture.wait_for()
         image_ready(800000)
-        title_selector = ('flt-semantics' if original else '.pv-learning .pv-view-title')
+        title_selector = ('flt-semantics' if original else '.pv-learning-work-title')
         seen = {'Bench Learn 800000'}
         for _ in range(repetitions):
             def next_card():
@@ -460,7 +483,7 @@ def measure(page, base, name, repetitions, cases):
             # CanvasKit creates a native edit field only after focusing the Flutter field.
             page.mouse.click(330, 332)
             return page.locator('flt-semantics input:visible, flt-text-editing-host input:visible').first
-        return page.get_by_placeholder('タイトル・作者・タグを検索', exact=True)
+        return page.locator('input[data-testid=library-search]:visible, [data-testid=library-search] input:visible').first
 
     def library_search():
         tab('library').click()
@@ -477,7 +500,11 @@ def measure(page, base, name, repetitions, cases):
         page.reload(wait_until='load')
         if original:
             page.locator('flt-semantics-placeholder').evaluate('(e) => e.click()', timeout=30000)
+        elif offline:
+            page.wait_for_function('window.did_handshake === true', timeout=15000)
         tab('library').click()
+        if original and 'library_search' in cases:
+            field().fill('')
         ready_library()
         wanted = author(0).first
         wanted.wait_for()
@@ -486,7 +513,7 @@ def measure(page, base, name, repetitions, cases):
             card = page.locator('flt-semantics[role=button]').filter(
                 has_text='クリックで p.1 から画集ビューアを開きます').first
         else:
-            page.get_by_role('button', name='Bench Author 000', exact=True).click()
+            wanted.click()
             card = page.locator('[data-work-id="100000"][data-page-no="0"]').first
         card.click()
         image_ready(100000)
@@ -509,6 +536,9 @@ def measure(page, base, name, repetitions, cases):
             elapsed('viewer_next', lambda: page.keyboard.press('ArrowRight'), next_page)
 
     failures = {}
+    if offline:
+        from tools.d6_offline import measure_first_open
+        failures.update(measure_first_open(page, base, original, repetitions, cases, elapsed, color) or {})
     for case, run in zip(CASES, (learning, library_display, library_scroll, library_search, viewer_next)):
         if case in cases:
             try:
@@ -548,20 +578,31 @@ def main():
     parser.add_argument('--probe', action='store_true')
     parser.add_argument('--only', choices=('original', 'nice'))
     parser.add_argument('--repetitions', type=int, default=20)
-    parser.add_argument('--case', choices=CASES, action='append')
+    parser.add_argument('--offline-cache', action='store_true')
+    parser.add_argument('--case', choices=tuple(dict.fromkeys(CASES + OFFLINE_CASES)), action='append')
     args = parser.parse_args()
     base = args.out.resolve()
     if base.drive.upper() != 'S:':
         parser.error('output must stay on S:')
-    if not 20 <= args.repetitions <= EXTRA_PAGES:
-        parser.error(f'repetitions must be 20–{EXTRA_PAGES}')
+    minimum = 1 if args.offline_cache else 20
+    if not minimum <= args.repetitions <= EXTRA_PAGES:
+        parser.error(f'repetitions must be {minimum}–{EXTRA_PAGES}')
     if args.serve_nice:
-        serve_nice(base)
+        serve_nice(base, args.offline_cache)
         return
+    if args.offline_cache and Path('S:/Work/_tmp/PV/sup/D6_QUIET.flag').exists():
+        parser.error('shared quiet flag is active')
+    if not args.offline_cache and set(args.case or ()).difference(CASES):
+        parser.error('recommend and bookmarks require --offline-cache')
     base.mkdir(parents=True)
-    cases, failures = args.case or CASES, {}
+    cases, failures = args.case or (OFFLINE_CASES if args.offline_cache else CASES), {}
     env = isolated_environment(base)
-    db_path = seed(base)
+    owned = None
+    if args.offline_cache:
+        from tools.d6_offline import verify_copies
+        from tools.ui_tone_evidence import OwnedProcesses
+        owned = OwnedProcesses()
+    db_path = seed(base, args.offline_cache)
     original = base / 'original'
     original.mkdir()
     revision = original_copy(original) if args.only != 'nice' else None
@@ -576,16 +617,29 @@ def main():
         shutil.copyfile(db_path, original / 'fixture.sqlite')
         shutil.copyfile(base / 'learning.json', original / 'learning.json')
         shutil.copytree(base / 'learning', original / 'learning')
+    if args.offline_cache:
+        copies = [db_path] if args.only == 'nice' else [db_path, original / 'fixture.sqlite']
+        fixture = verify_copies(base, copies, [base / 'library' / 'Images'])
+        (base / 'offline-fixture.json').write_text(json.dumps(fixture, indent=2), encoding='utf-8')
+    if args.only != 'nice':
         flet_env = dict(env, PIXIVVAULT_DB_PATH=str(original / 'fixture.sqlite'), PV_WEB_PORT=str(ORIGINAL_PORT),
                         PV_LOCK_PORT=str(ORIGINAL_PORT + 1), PV_SERVER_PORT=str(ORIGINAL_PORT + 2),
                         PV_NO_BROWSER_COOKIES='1', PV_NO_TRAY='1', FLET_SERVER_IP='127.0.0.1')
         with server(base, 'original', [str(ORIGINAL_PYTHON), '-B', str(ROOT / 'tools/original_run/p6_original.py')],
                     original, flet_env, ORIGINAL_PORT) as url:
-            failures['original'] = browser_run(base, url, 'original', env, args.probe, args.repetitions, cases)
+            failures['original'] = browser_run(base, url, 'original', env, args.probe, args.repetitions, cases,
+                                               args.offline_cache, owned)
     if args.only != 'original':
-        with server(base, 'nice', [sys.executable, '-B', __file__, '--out', str(base), '--serve-nice'],
+        command = [sys.executable, '-B', __file__, '--out', str(base), '--serve-nice']
+        if args.offline_cache:
+            command.append('--offline-cache')
+        with server(base, 'nice', command,
                     ROOT, env, NICE_PORT) as url:
-            failures['nice'] = browser_run(base, url, 'nice', env, args.probe, args.repetitions, cases)
+            failures['nice'] = browser_run(base, url, 'nice', env, args.probe, args.repetitions, cases,
+                                           args.offline_cache, owned)
+    if owned is not None:
+        result = owned.result(base, [ORIGINAL_PORT, ORIGINAL_PORT + 1, ORIGINAL_PORT + 2, NICE_PORT])
+        (base / 'cleanup-processes.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
     (base / 'browser-result.json').write_text(json.dumps(failures, indent=2), encoding='utf-8')
     return any(failures.values())
 

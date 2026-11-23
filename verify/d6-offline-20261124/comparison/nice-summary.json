@@ -1,0 +1,27 @@
+{
+  "learning": {
+    "n": 10,
+    "median_ms": 114.05605,
+    "p95_ms": 140.3891
+  },
+  "library_search": {
+    "n": 10,
+    "median_ms": 340.89459999999997,
+    "p95_ms": 1646.979
+  },
+  "viewer_next": {
+    "n": 10,
+    "median_ms": 140.727,
+    "p95_ms": 165.01
+  },
+  "recommend": {
+    "n": 10,
+    "median_ms": 626.26395,
+    "p95_ms": 939.0072
+  },
+  "bookmarks": {
+    "n": 10,
+    "median_ms": 331.6898,
+    "p95_ms": 542.1814
+  }
+}
